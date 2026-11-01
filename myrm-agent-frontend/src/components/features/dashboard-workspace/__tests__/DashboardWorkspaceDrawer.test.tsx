@@ -1,8 +1,10 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DashboardWorkspaceDrawer } from '../DashboardWorkspaceDrawer';
 import { useDashboardWorkspaceStore } from '../useDashboardWorkspaceStore';
+
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
 
 describe('DashboardWorkspaceDrawer', () => {
   beforeEach(() => {

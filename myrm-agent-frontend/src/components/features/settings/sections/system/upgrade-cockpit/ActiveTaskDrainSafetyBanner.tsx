@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
   Clock,
@@ -31,6 +32,7 @@ export const ActiveTaskDrainSafetyBanner: React.FC<ActiveTaskDrainSafetyBannerPr
   safetyCheck,
   onSelectStrategy,
 }) => {
+  const t = useTranslations('settings.system.upgradeCockpit');
   const isSafe = safetyCheck.recommendation === 'safe_to_reload';
 
   if (isSafe) {
@@ -41,7 +43,7 @@ export const ActiveTaskDrainSafetyBanner: React.FC<ActiveTaskDrainSafetyBannerPr
       >
         <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div className="flex-1">
-          <span className="font-semibold">运行态健康安全：</span>
+          <span className="font-semibold">{t('safeLabel')}</span>
           <span>{safetyCheck.recommendationRationale}</span>
         </div>
       </div>
@@ -58,10 +60,10 @@ export const ActiveTaskDrainSafetyBanner: React.FC<ActiveTaskDrainSafetyBannerPr
         <div className="flex-1 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-amber-800 dark:text-amber-300">
-              活动长任务防误杀保护（已拦截暴力重启）
+              {t('activeTitle')}
             </span>
             <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono font-medium">
-              {safetyCheck.activeTaskCount} 个任务执行中
+              {t('tasksRunning', { count: safetyCheck.activeTaskCount })}
             </span>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -96,7 +98,7 @@ export const ActiveTaskDrainSafetyBanner: React.FC<ActiveTaskDrainSafetyBannerPr
               className="flex items-center gap-1 rounded bg-amber-600 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm transition-colors hover:bg-amber-700"
             >
               <Clock className="h-3 w-3" />
-              <span>等待当前任务完成自动重载</span>
+              <span>{t('drainFirst')}</span>
             </button>
             <button
               type="button"
@@ -109,7 +111,7 @@ export const ActiveTaskDrainSafetyBanner: React.FC<ActiveTaskDrainSafetyBannerPr
               className="flex items-center gap-1 rounded border border-amber-600/50 bg-background/80 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent/40"
             >
               <Save className="h-3 w-3 text-muted-foreground" />
-              <span>保存 Checkpoint 即刻升级</span>
+              <span>{t('checkpointUpgrade')}</span>
             </button>
           </div>
         </div>

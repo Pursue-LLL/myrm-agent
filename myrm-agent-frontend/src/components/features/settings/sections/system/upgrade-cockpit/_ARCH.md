@@ -21,6 +21,7 @@
 
 - `lucide-react` (Globe, Zap, RotateCw, AlertTriangle, ShieldCheck, RefreshCw, Undo2 等统一轻量矢量图标)
 - `@/lib/utils/classnameUtils` (Tailwind 类名合并)
+- `next-intl` (`useTranslations('settings.system.upgradeCockpit')`，三个组件的全部界面文案)
 
 ## 生产集成点
 

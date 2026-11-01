@@ -113,7 +113,7 @@ export const EmbeddableWidgetContainer: React.FC<EmbeddableWidgetContainerProps>
 
         {isWidgetOpen && (
           <aside
-            aria-label="Agent Slideout Drawer"
+            aria-label={t("drawerAria")}
             className="fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-2xl transition-transform dark:border-slate-800 dark:bg-slate-950"
           >
             <header className="flex h-12 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
@@ -161,7 +161,7 @@ export const EmbeddableWidgetContainer: React.FC<EmbeddableWidgetContainerProps>
 
       {isWidgetOpen && (
         <section
-          aria-label="Agent Floating Widget"
+          aria-label={t("floatingAria")}
           className={`fixed bottom-5 right-5 z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all duration-200 dark:border-slate-800 dark:bg-slate-950 ${
             isExpanded ? "h-[750px] w-[800px]" : "h-[620px] w-[400px]"
           }`}

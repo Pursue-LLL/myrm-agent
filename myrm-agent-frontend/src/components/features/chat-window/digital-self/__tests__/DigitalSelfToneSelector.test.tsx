@@ -8,7 +8,7 @@ describe('DigitalSelfToneSelector', () => {
     const onSelectTone = vi.fn();
     render(<DigitalSelfToneSelector currentTone="formal" onSelectTone={onSelectTone} />);
 
-    expect(screen.getByText('语气风格')).toBeDefined();
+    expect(screen.getByText('toneSelectorLabel')).toBeDefined();
     expect(screen.getByTestId('tone-btn-formal')).toBeDefined();
     expect(screen.getByTestId('tone-btn-semi-formal')).toBeDefined();
     expect(screen.getByTestId('tone-btn-friendly')).toBeDefined();

@@ -181,7 +181,7 @@ export const ReconnectStatusPill: React.FC<ReconnectStatusPillProps> = ({
           {reconnectCount > 0 && (
             <div className="flex items-center gap-1 text-[11px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md">
               <AlertCircle className="w-3 h-3 flex-shrink-0" />
-              <span>重连计数: {reconnectCount}</span>
+              <span>{t('reconnectCount', { count: reconnectCount })}</span>
             </div>
           )}
 

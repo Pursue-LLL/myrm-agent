@@ -1473,7 +1473,9 @@
         "currentTime": "当前时间",
         "osInfo": "操作系统信息",
         "userName": "用户名"
-      }
+      },
+      "modelOverride": "模型覆盖",
+      "subagentCostSaving": "子智能体降本"
     },
     "preview": "预览",
     "avatarColor": "头像颜色",
@@ -2628,7 +2630,8 @@
       "noSessionStats": "暂无性能数据",
       "modelBreakdown": "模型分解",
       "performance": "性能",
-      "toolBreakdown": "工具分解"
+      "toolBreakdown": "工具分解",
+      "costUnknown": "费用未知"
     },
     "liveness": {
       "idle": "就绪",
@@ -2797,7 +2800,10 @@
       "editHint": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
       "reorder": "拖动调整顺序",
       "listLabel": "排队消息",
-      "moveToTop": "移到队首"
+      "moveToTop": "移到队首",
+      "expandDock": "展开排队消息",
+      "collapseDock": "收起排队消息",
+      "clearAll": "清空整个队列"
     },
     "fileMention": {
       "title": "工作区引用",
@@ -6385,7 +6391,8 @@
     "code": "代码",
     "copy": "复制代码",
     "copied": "已复制",
-    "preview": "预览"
+    "preview": "预览",
+    "prototypeBoardTitle": "{language} 原型看板"
   },
   "imageEditor": {
     "cancel": "取消",
@@ -6878,7 +6885,8 @@
       "loadFailed": "文件加载失败",
       "unavailable": "无法加载该文件",
       "downloadFull": "下载完整文件"
-    }
+    },
+    "resizePanel": "调整面板大小"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -10947,7 +10955,12 @@
     "workspacePath": "工作区目录",
     "workspacePathEmpty": "工作区路径不能为空",
     "workspacePathInvalidChars": "工作区路径包含无效控制字符",
-    "workspacePathMustBeAbsolute": "工作区路径必须为绝对路径或以 ~ 开头"
+    "workspacePathMustBeAbsolute": "工作区路径必须为绝对路径或以 ~ 开头",
+    "openScratchpadAria": "打开快捷草稿本",
+    "openReviewPanelAria": "打开审查面板",
+    "reviewChanges": "审查变更",
+    "closeReviewOverlayAria": "关闭审查",
+    "closeReviewPanelAria": "关闭审查面板"
   },
   "growthDashboard": {
     "title": "成长仪表盘",
@@ -14337,7 +14350,8 @@
     "outlineDrawerSubtitle": "共 {count} 轮用户发问",
     "closeDrawer": "关闭抽屉",
     "noQuestionsYet": "暂无用户提问记录",
-    "roundLabel": "第 {num} 轮问答"
+    "roundLabel": "第 {num} 轮问答",
+    "hudAria": "用户提问导航"
   },
   "canvasSecurity": {
     "pendingEgressBadge": "待审核出网请求 ({count})",
@@ -14346,7 +14360,8 @@
     "egressPromptTitle": "画布正在尝试发起外部网络连接",
     "blockEgress": "拒绝并阻断",
     "allowOnce": "允许本次",
-    "alwaysAllowDomain": "总是信任此域名"
+    "alwaysAllowDomain": "总是信任此域名",
+    "egressAlertAria": "网络外发授权提醒"
   },
   "wechatPreview": {
     "badgeLabel": "微信排版",
@@ -14381,7 +14396,9 @@
     "noAnnotationsYet": "暂无微调批注，点击任意元素即可添加",
     "markResolved": "标记为已解决",
     "markUnresolved": "重新打开批注",
-    "delete": "删除"
+    "delete": "删除",
+    "sandboxIframeTitle": "交互式原型画布",
+    "submitShortcutHint": "⌘+Enter 提交"
   },
   "structuredAsking": {
     "skippedBadge": "已跳过",
@@ -14428,7 +14445,9 @@
     "noChartData": "暂无可绘制的图表数据",
     "detailTableTitle": "数据透视明细表",
     "rowsCount": "行数据",
-    "searchPlaceholder": "按关键词过滤明细..."
+    "searchPlaceholder": "按关键词过滤明细...",
+    "chartTypeBar": "柱状图",
+    "chartTypeLine": "折线图"
   },
   "mobile": {
     "quickCapture": {
@@ -14510,7 +14529,8 @@
     "security_credential": "安全与凭据",
     "shortcutHint": "按 / 打开指令矩阵",
     "subtitle": "按分类浏览并插入斜杠指令",
-    "title": "指令矩阵"
+    "title": "指令矩阵",
+    "suggestionLabel": "建议："
   },
   "embedWidget": {
     "allowedOriginLabel": "允许的来源",
@@ -14542,7 +14562,10 @@
     "themeDark": "深色",
     "themeLabel": "主题",
     "themeLight": "浅色",
-    "widgetTitle": "智能助手"
+    "widgetTitle": "智能助手",
+    "drawerAria": "智能体侧边抽屉",
+    "floatingAria": "智能体悬浮窗",
+    "allowedOriginPlaceholder": "https://example.com 或 *"
   },
   "reconnectProtocol": {
     "close": "关闭",
@@ -14560,7 +14583,8 @@
     "epochBadge": "纪元：{epoch}",
     "messagesCount": "消息数：{count}",
     "activeTools": "活跃工具：{count} 个",
-    "latestTurn": "最新轮次：{summary}"
+    "latestTurn": "最新轮次：{summary}",
+    "reconnectCount": "重连计数: {count}"
   },
   "scratchpad": {
     "cancel": "取消",
@@ -14615,7 +14639,9 @@
     "inputChars": "输入字符：{count}",
     "outputChars": "输出字符：{count}",
     "tokensCount": "Tokens：Prompt {prompt} · Completion {completion}",
-    "emptyPayload": "未附带数据"
+    "emptyPayload": "未附带数据",
+    "collapseStep": "收起步骤",
+    "expandStep": "展开步骤"
   },
   "quadGraph": {
     "closeDrawer": "关闭节点详情",
@@ -17409,6 +17435,16 @@
         "failRate": "失败率",
         "avgMs": "平均 (ms)",
         "p90Ms": "P90 (ms)"
+      },
+      "composition": {
+        "title": "周期工具构成分析",
+        "totalCalls": "(共 {count} 次调用)",
+        "daysOption": "{days} 天",
+        "boundaryNote": "调用占比与累计耗时占比分别统计。并行调用的执行耗时可能重叠，累计耗时占比不代表实际墙钟时间占比；本视图仅展示调用与耗时结构，不设成本占比。",
+        "callsWithPercent": "{calls} 次 ({percent}%)",
+        "otherTools": "其他 {count} 项工具 ({calls} 次 · {percent}%)",
+        "durationShare": "耗时: {percent}%",
+        "durationShareRow": "{percent}% 耗时"
       }
     },
     "skillOptimization": {
@@ -20817,7 +20853,8 @@
         "snapshotEmpty": "暂无快照。",
         "snapshotRestore": "恢复",
         "snapshotDelete": "删除",
-        "backupManualGuide": "快照在数据目录的 snapshots 文件夹（默认 ~/.myrm）。重装后可手动拷回 data.db 与 checkpoints.db 恢复——详见文档。"
+        "backupManualGuide": "快照在数据目录的 snapshots 文件夹（默认 ~/.myrm）。重装后可手动拷回 data.db 与 checkpoints.db 恢复——详见文档。",
+        "openUpgradeCockpit": "无感升级控制台"
       },
       "unattendedDesktop": {
         "guideIntro": "锁屏离开后仍要让 Agent 操作本机时，请使用桌面客户端。纯浏览器模式仅支持聊天内审批，不含下列保护。",
@@ -20834,6 +20871,36 @@
         "guideTitle": "离席用电脑 · 快速设置",
         "statusOn": "已开启",
         "statusOptional": "可选"
+      },
+      "upgradeCockpit": {
+        "safeLabel": "运行态健康安全：",
+        "activeTitle": "活动长任务防误杀保护（已拦截暴力重启）",
+        "tasksRunning": "{count} 个任务执行中",
+        "drainFirst": "等待当前任务完成自动重载",
+        "checkpointUpgrade": "保存 Checkpoint 即刻升级",
+        "healthOptimal": "极速稳定",
+        "healthHealthy": "连通正常",
+        "healthDegraded": "延迟较高",
+        "healthBlocked": "端口超时",
+        "probeTitle": "前置网络诊断探针",
+        "probeSubtitle": "多源跨境通道实时体检与一键切换，杜绝下载中断",
+        "probing": "正在体检...",
+        "retest": "重新测速",
+        "recommended": "推荐",
+        "roundTripLatency": "往返延迟:",
+        "modalTitle": "双实例无感升级流水线",
+        "modalSubtitle": "蓝绿原子接力与一键秒级快照回滚",
+        "oldInstance": "旧实例 {version} (活动兜底)",
+        "newInstance": "新实例 {version} (准备接力)",
+        "losslessSwitch": "无损切换",
+        "stepRunning": "执行中...",
+        "stepReady": "已就绪",
+        "completeTitle": "升级完成！新实例已原子接替服务",
+        "completeBody": "已自动完成沙箱健康度自检与数据库迁移，全量会话与记忆无损保留。",
+        "rolledBack": "已原子回滚至上一稳定版本快照",
+        "rollbackAction": "一键秒级原子回滚",
+        "tryNewVersion": "体验新版本",
+        "closeWindow": "关闭窗口"
       }
     },
     "push": {
@@ -21241,7 +21308,15 @@
       "wikiNegativeOutcomeRate": "负向结果率",
       "wikiVerificationDwell": "平均核验停留",
       "wikiTelemetryDrops": "遥测丢样",
-      "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天"
+      "wikiEvidenceWindow": "统计窗口：{days} 天；保留期：{retentionDays} 天",
+      "exportCsvTitle": "导出用量数据为 CSV 报表",
+      "exportCsv": "导出 CSV",
+      "cacheRadarTitle": "全局 Prompt Cache 效能雷达",
+      "cacheRadarWindow": "{days}天内 {sessions}个会话",
+      "cacheRadarSavings": "累计节约美金:",
+      "cacheRadarCachedTokens": "缓存复用 Tokens",
+      "cacheRadarFreshInput": "冷启动 Tokens",
+      "cacheRadarTotalPrompt": "总 Prompt Tokens"
     },
     "workingState": {
       "title": "工作状态",
@@ -22619,5 +22694,130 @@
         "default": "设定默认与降级模型、路由策略及第三方模型设置"
       }
     }
+  },
+  "digitalSelf": {
+    "satelliteTitle": "数字分身待审草稿",
+    "pendingCount": "（{count} 封待确认）",
+    "gateReady": "门禁就绪",
+    "toneSelectorLabel": "语气风格",
+    "toneFormal": "严谨正式",
+    "toneFormalDesc": "措辞严谨礼貌，适合上级汇报、公文或正式商务往来",
+    "toneSemiFormal": "职场得体",
+    "toneSemiFormalDesc": "务实高效且不失礼貌，适合日常跨部门协同与业务对齐",
+    "toneFriendly": "友好活泼",
+    "toneFriendlyDesc": "亲和自然，带有适当语气助词，适合组内伙伴与熟悉协作者",
+    "toneConcise": "简明干练",
+    "toneConciseDesc": "开门见山，突出关键结论与行动项，拒绝冗长客套",
+    "relationLeader": "直属领导",
+    "relationColleague": "协作同事",
+    "relationPartner": "外部客户/伙伴",
+    "relationTeammate": "组内伙伴",
+    "channelFeishu": "飞书",
+    "channelDingtalk": "钉钉",
+    "channelWechat": "企业微信",
+    "channelEmail": "工作邮件",
+    "channelSlack": "Slack",
+    "safetyBanner": "出站发送物理安全门禁：未经人工显式确认，绝对禁止直接发送",
+    "originalSummary": "原消息摘要：",
+    "sourcesToggle": "事实参考依据（{count} 条）",
+    "draftHeading": "数字分身拟答草案：",
+    "statusConfirmed": "已确认出站",
+    "statusDiscarded": "已放弃",
+    "editHint": "可直接点击修改文字",
+    "draftPlaceholder": "草拟回复内容...",
+    "sentAt": "已于 {time} 显式授权发送",
+    "discardedNote": "该草稿已作废",
+    "editedByHuman": "已做人工修改",
+    "awaitingConfirmation": "等待人工确认",
+    "discard": "放弃",
+    "sending": "正在出站发送...",
+    "confirmSend": "确认出站发送"
+  },
+  "inFlightSteer": {
+    "swimlanesTitle": "活跃专家泳道 ({count})",
+    "tokensUsed": "消耗 Tokens",
+    "elapsed": "运行耗时",
+    "steerHint": "动态追加纠偏指令",
+    "steerAction": "纠偏",
+    "expandTaskAria": "展开任务详情: {title}",
+    "collapseTaskAria": "折叠任务详情: {title}",
+    "stepProgress": "{completed}/{total} 步骤 ({percent}%)",
+    "currentOwner": "当前负责: {name}",
+    "showDetails": "展开详情",
+    "collapseSummary": "折叠摘要",
+    "findingsTitle": "阶段性产物与关键发现 ({count})",
+    "findingsEmpty": "暂无阶段性总结产物...",
+    "workflowFooter": "多智能体协作工作流 · 实时脉冲归约",
+    "updatedAt": "更新于 {time}",
+    "steerSubagentAria": "纠偏子智能体: {name}",
+    "close": "关闭",
+    "quickPresets": "快速注入纠偏方向",
+    "inputPlaceholder": "输入动态微调指令...",
+    "sendInstructionAria": "下发纠偏指令",
+    "stopEarly": "提前叫停（保留已有半成品草稿）",
+    "presetConciseLabel": "简明扼要",
+    "presetConciseInstruction": "请聚焦核心结论，精简中间思考推导，直接输出关键代码与方案。",
+    "presetDefensiveLabel": "边界防御",
+    "presetDefensiveInstruction": "请重点注意处理空值边界、异常捕获与安全性检查。",
+    "presetLightweightLabel": "轻量解法",
+    "presetLightweightInstruction": "当前方案可能偏重，请换一种更轻量、无需重型依赖的思路。",
+    "presetDraftNowLabel": "输出草案",
+    "presetDraftNowInstruction": "暂停深入细化，先将当前已完成的局部结论沉淀并输出。"
+  },
+  "streamingMarkdown": {
+    "closedCodeBlock": "已闭合代码块",
+    "streamingCode": "{language} (流式传输中...)",
+    "fastLayoutMode": "极速排版模式",
+    "degradedProtection": "负载降级保护中"
+  },
+  "thinkingPermission": {
+    "thinkingDepth": "思考深度",
+    "thinkingUnsupported": "不支持",
+    "thinkingUnsupportedHint": "当前模型不支持思考预算调节",
+    "thinkingSliderLabel": "思考深度滑块（0k 到 32k）",
+    "thinkingSliderAria": "调节思考推理预算",
+    "thinkingTierOffLatency": "直出作答，无思维开销",
+    "thinkingTierLowLatency": "轻量思考，适合简单润色与解释",
+    "thinkingTierMediumLatency": "平衡思考，适合常规多步逻辑推理",
+    "thinkingTierHighLatency": "深度思考，适合复杂算法与系统设计",
+    "thinkingTierMaxLatency": "极限推理，适合深层严密数理与全景架构",
+    "permissionCurrent": "当前权限：{label} · {description}",
+    "permissionMenuTitle": "智能体权限控制模式",
+    "permissionTierStrict": "安全守护",
+    "permissionTierStrictDesc": "所有文件修改与 Shell 执行均需人工显式审批",
+    "permissionTierSemiAuto": "半自动敏捷",
+    "permissionTierSemiAutoDesc": "自动放行常规代码编辑与安全命令，高危命令强制拦截审批",
+    "permissionTierFullAuto": "全自动无人值守",
+    "permissionTierFullAutoDesc": "受控在沙箱边界内全速自主执行，零弹窗秒级流转"
+  },
+  "dashboardWorkspace": {
+    "renameHint": "点击重命名",
+    "editTitle": "编辑标题",
+    "cycleColSpan": "切换布局宽档 (当前 {cols} 列)",
+    "refreshIntervalAria": "自动刷新频率",
+    "refreshManual": "手动",
+    "refreshNow": "立即刷新",
+    "unpin": "取消固定",
+    "pinnedAt": "固定于 {time}",
+    "refreshedAt": "已刷新 {time}",
+    "drawerAria": "数字员工监控工作台",
+    "drawerTitle": "项目工作台与监控大盘",
+    "widgetCount": "{count} 个组件",
+    "drawerSubtitle": "常驻持久化富交互原型、动态数据报表与数字员工监控卡片",
+    "refreshAllHint": "刷新所有组件",
+    "refreshAll": "全部刷新",
+    "clearAllHint": "清空所有组件",
+    "clearAll": "清空",
+    "restoreViewport": "还原视口",
+    "fullscreen": "全屏展示",
+    "closeDrawer": "关闭工作台",
+    "searchPlaceholder": "搜索组件标题或内容...",
+    "filterAll": "全部",
+    "emptyTitle": "工作台尚无固定组件",
+    "emptyHint": "在对话消息中 Agent 生成的任意 HTML / SVG / 数据看板卡片右上角，点击固定图标，即可将其钉入此专属工作台，告别单次问答刷屏遗忘。",
+    "pinnedTooltip": "已固定至工作台 (点击取消)",
+    "pinTooltip": "固定到工作台 Dashboard",
+    "pinned": "已固定",
+    "pin": "固定"
   }
 }

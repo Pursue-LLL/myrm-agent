@@ -29,8 +29,10 @@ export interface ActiveSubagentSwimlane {
 
 export interface SteerPresetOption {
   id: string;
-  label: string;
-  instruction: string;
+  /** `inFlightSteer` message key of the preset's button label. */
+  labelKey: string;
+  /** `inFlightSteer` message key of the instruction text sent to the subagent. */
+  instructionKey: string;
 }
 
 export interface CollapsibleLongTaskSummary {

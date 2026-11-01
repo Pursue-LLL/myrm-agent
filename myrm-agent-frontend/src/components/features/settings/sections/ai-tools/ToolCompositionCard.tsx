@@ -14,6 +14,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { PieChart, ChevronDown, ChevronRight, Clock, Hash, Info } from 'lucide-react';
 import type { ToolStabilityDaily } from '@/services/statistics';
 
@@ -142,6 +143,7 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
   onDaysChange,
   className = '',
 }) => {
+  const t = useTranslations('settings.toolStabilitySection.composition');
   const [expanded, setExpanded] = useState<boolean>(false);
   const summary = useMemo(() => computeToolComposition(dailyRecords), [dailyRecords]);
 
@@ -158,10 +160,10 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
         <div className="flex items-center gap-2">
           <PieChart className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">
-            周期工具构成分析 (Tool Composition)
+            {t('title')}
           </h3>
           <span className="text-xs text-muted-foreground font-mono">
-            (共 {summary.totalCalls.toLocaleString()} 次调用)
+            {t('totalCalls', { count: summary.totalCalls })}
           </span>
         </div>
 
@@ -175,7 +177,7 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
                 days === 7 ? 'bg-background shadow-xs font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              7 天
+              {t('daysOption', { days: 7 })}
             </button>
             <button
               type="button"
@@ -184,7 +186,7 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
                 days === 30 ? 'bg-background shadow-xs font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              30 天
+              {t('daysOption', { days: 30 })}
             </button>
           </div>
         )}
@@ -194,7 +196,7 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
       <div className="flex items-start gap-1.5 p-2 rounded-lg bg-muted/20 border border-border/30 text-[11px] text-muted-foreground">
         <Info className="w-3.5 h-3.5 mt-0.5 text-primary/70 shrink-0" />
         <span>
-          调用占比与累计耗时占比分别统计。并行调用的执行耗时可能重叠，累计耗时占比不代表实际墙钟时间占比；本视图仅展示调用与耗时结构，不设成本占比。
+          {t('boundaryNote')}
         </span>
       </div>
 
@@ -215,9 +217,7 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
             <div className="flex items-center gap-4 text-muted-foreground shrink-0 text-[11px]">
               <div className="flex items-center gap-1">
                 <Hash className="w-3 h-3 text-primary/60" />
-                <span>
-                  {tool.calls.toLocaleString()} 次 ({tool.calls_percent}%)
-                </span>
+                <span>{t('callsWithPercent', { calls: tool.calls, percent: tool.calls_percent })}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-500/60" />
@@ -242,11 +242,15 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
             <div className="flex items-center gap-1.5">
               {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               <span>
-                其他 {summary.otherTools.length} 项工具 ({summary.otherCallsTotal.toLocaleString()} 次 · {summary.otherCallsPercent}%)
+                {t('otherTools', {
+                  count: summary.otherTools.length,
+                  calls: summary.otherCallsTotal,
+                  percent: summary.otherCallsPercent,
+                })}
               </span>
             </div>
             <span className="text-[11px] font-mono">
-              耗时: {summary.otherDurationPercent}%
+              {t('durationShare', { percent: summary.otherDurationPercent })}
             </span>
           </button>
 
@@ -259,8 +263,8 @@ export const ToolCompositionCard: React.FC<ToolCompositionCardProps> = ({
                 >
                   <span className="font-mono truncate">{tool.tool_name}</span>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span>{tool.calls} 次 ({tool.calls_percent}%)</span>
-                    <span>{tool.duration_percent}% 耗时</span>
+                    <span>{t('callsWithPercent', { calls: tool.calls, percent: tool.calls_percent })}</span>
+                    <span>{t('durationShareRow', { percent: tool.duration_percent })}</span>
                   </div>
                 </div>
               ))}

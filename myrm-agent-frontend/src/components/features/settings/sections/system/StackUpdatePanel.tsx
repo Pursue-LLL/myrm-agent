@@ -493,7 +493,7 @@ export default function StackUpdatePanel() {
             }}
             className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm hover:bg-primary/90 transition-colors"
           >
-            无感升级控制台
+            {t('openUpgradeCockpit')}
           </button>
           {doctorResult === 'pass' && <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>}
           {doctorResult === 'fail' && <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>}

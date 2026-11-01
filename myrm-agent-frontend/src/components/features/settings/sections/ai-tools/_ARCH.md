@@ -16,6 +16,7 @@ Settings「AI Tools」分组：MCP、技能库与工具稳定性 Section。
 | `WorkflowTemplateArgsDialog.tsx`     | Run 前 `{placeholder}` 参数表单（Library Run + Cron 创建复用）                              |
 | `WorkflowTemplateLibrarySection.tsx` | DW 命名模板库列表、Run、Export/Import（`lib/workflow/useWorkflowTemplateTransfer`）、Delete |
 | `ToolStabilitySection.tsx`           | 工具稳定性统计                                                                              |
+| `ToolCompositionCard.tsx`            | 周期内工具调用量与累计耗时构成卡（文案 `settings.toolStabilitySection.composition.*`）      |
 
 ## 依赖
 

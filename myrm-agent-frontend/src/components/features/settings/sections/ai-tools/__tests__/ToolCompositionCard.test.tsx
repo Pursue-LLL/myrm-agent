@@ -7,6 +7,8 @@ import {
 } from '../ToolCompositionCard';
 import type { ToolStabilityDaily } from '@/services/statistics';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 describe('ToolCompositionCard & computeToolComposition', () => {
   const mockDailyRecords: ToolStabilityDaily[] = [
     {

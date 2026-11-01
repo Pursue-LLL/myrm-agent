@@ -7,32 +7,17 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Compass, StopCircle, Send, X, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { ActiveSubagentSwimlane, SteerPresetOption } from './inFlightSteerTypes';
 import { useInFlightSteerStore } from './useInFlightSteerStore';
 
 export const STEER_PRESETS: SteerPresetOption[] = [
-  {
-    id: 'concise',
-    label: '简明扼要',
-    instruction: '请聚焦核心结论，精简中间思考推导，直接输出关键代码与方案。',
-  },
-  {
-    id: 'defensive',
-    label: '边界防御',
-    instruction: '请重点注意处理空值边界、异常捕获与安全性检查。',
-  },
-  {
-    id: 'lightweight',
-    label: '轻量解法',
-    instruction: '当前方案可能偏重，请换一种更轻量、无需重型依赖的思路。',
-  },
-  {
-    id: 'draft_now',
-    label: '输出草案',
-    instruction: '暂停深入细化，先将当前已完成的局部结论沉淀并输出。',
-  },
+  { id: 'concise', labelKey: 'presetConciseLabel', instructionKey: 'presetConciseInstruction' },
+  { id: 'defensive', labelKey: 'presetDefensiveLabel', instructionKey: 'presetDefensiveInstruction' },
+  { id: 'lightweight', labelKey: 'presetLightweightLabel', instructionKey: 'presetLightweightInstruction' },
+  { id: 'draft_now', labelKey: 'presetDraftNowLabel', instructionKey: 'presetDraftNowInstruction' },
 ];
 
 export interface InFlightSteerPopoverProps {
@@ -46,6 +31,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
   onClose,
   className,
 }) => {
+  const t = useTranslations('inFlightSteer');
   const { sendSteerInstruction, stopAndKeepArtifacts, isSteering } = useInFlightSteerStore();
   const [customInstruction, setCustomInstruction] = useState('');
 
@@ -87,7 +73,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
     <dialog
       open
       aria-modal="true"
-      aria-label={`纠偏子代理: ${subagent.name}`}
+      aria-label={t('steerSubagentAria', { name: subagent.name })}
       className={cn(
         'w-80 p-4 m-0 rounded-xl shadow-xl border bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-neutral-100 z-50 animate-in fade-in zoom-in-95 duration-150',
         className,
@@ -110,7 +96,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
           type="button"
           onClick={onClose}
           className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-          aria-label="关闭"
+          aria-label={t('close')}
         >
           <X size={14} />
         </button>
@@ -120,7 +106,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
       <div className="mt-3">
         <div className="flex items-center gap-1 text-[11px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5">
           <Sparkles size={12} className="text-amber-500" />
-          <span>快速注入纠偏方向</span>
+          <span>{t('quickPresets')}</span>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           {STEER_PRESETS.map((preset) => (
@@ -128,11 +114,11 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
               key={preset.id}
               type="button"
               disabled={isSteering}
-              onClick={() => handleSelectPreset(preset.instruction)}
+              onClick={() => handleSelectPreset(t(preset.instructionKey))}
               className="text-left px-2.5 py-1.5 rounded-lg text-xs border border-neutral-200 dark:border-neutral-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 transition-colors disabled:opacity-50"
-              title={preset.instruction}
+              title={t(preset.instructionKey)}
             >
-              <span className="font-medium">{preset.label}</span>
+              <span className="font-medium">{t(preset.labelKey)}</span>
             </button>
           ))}
         </div>
@@ -150,7 +136,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
                 handleSendCustom();
               }
             }}
-            placeholder="输入动态微调指令..."
+            placeholder={t('inputPlaceholder')}
             disabled={isSteering}
             className="flex-1 px-2.5 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
@@ -159,7 +145,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
             disabled={!customInstruction.trim() || isSteering}
             onClick={handleSendCustom}
             className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium inline-flex items-center gap-1 transition-colors disabled:opacity-40"
-            aria-label="下发纠偏指令"
+            aria-label={t('sendInstructionAria')}
           >
             {isSteering ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
@@ -175,7 +161,7 @@ export const InFlightSteerPopover: React.FC<InFlightSteerPopoverProps> = ({
           className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-900/40 transition-colors disabled:opacity-50"
         >
           <StopCircle size={13} />
-          <span>提前叫停（保留已有半成品草稿）</span>
+          <span>{t('stopEarly')}</span>
         </button>
       </div>
     </dialog>

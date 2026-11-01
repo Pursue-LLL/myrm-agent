@@ -5,6 +5,8 @@ import { InFlightSteerPopover } from '../InFlightSteerPopover';
 import { useInFlightSteerStore } from '../useInFlightSteerStore';
 import type { ActiveSubagentSwimlane } from '../inFlightSteerTypes';
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
+
 vi.mock('@/services/background-tasks', () => ({
   steerBackgroundTask: vi.fn().mockResolvedValue({ message: 'ok', task_id: 't-1' }),
   cancelBackgroundTask: vi.fn().mockResolvedValue({ message: 'ok', task_id: 't-1' }),

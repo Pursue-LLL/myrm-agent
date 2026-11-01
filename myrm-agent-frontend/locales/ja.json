@@ -1473,7 +1473,9 @@
         "currentTime": "現在の時刻",
         "osInfo": "OS 情報",
         "userName": "ユーザー名"
-      }
+      },
+      "modelOverride": "モデルの上書き",
+      "subagentCostSaving": "サブエージェントのコスト削減"
     },
     "preview": "プレビュー",
     "avatarColor": "アバターの色",
@@ -2619,7 +2621,8 @@
       "noSessionStats": "パフォーマンスデータがありません",
       "modelBreakdown": "モデル別内訳",
       "performance": "パフォーマンス",
-      "toolBreakdown": "ツール別内訳"
+      "toolBreakdown": "ツール別内訳",
+      "costUnknown": "費用は不明"
     },
     "liveness": {
       "idle": "待機中",
@@ -2788,7 +2791,10 @@
       "editHint": "Enter で保存 · Shift+Enter で改行 · Esc でキャンセル",
       "reorder": "ドラッグして並べ替え",
       "listLabel": "キュー中のメッセージ",
-      "moveToTop": "先頭に移動"
+      "moveToTop": "先頭に移動",
+      "expandDock": "待機中のメッセージを展開",
+      "collapseDock": "待機中のメッセージを折りたたむ",
+      "clearAll": "キュー全体をクリア"
     },
     "fileMention": {
       "title": "ワークスペースファイル",
@@ -6385,7 +6391,8 @@
     "code": "コード",
     "copy": "コードをコピー",
     "copied": "コピーしました",
-    "preview": "プレビュー"
+    "preview": "プレビュー",
+    "prototypeBoardTitle": "{language} プロトタイプボード"
   },
   "imageEditor": {
     "cancel": "キャンセル",
@@ -6878,7 +6885,8 @@
       "loadFailed": "ファイルを読み込めませんでした",
       "unavailable": "このファイルを読み込めません",
       "downloadFull": "完全なファイルをダウンロード"
-    }
+    },
+    "resizePanel": "パネルサイズを変更"
   },
   "MessageSources": {
     "untitled": "無題",
@@ -10947,7 +10955,12 @@
     "workspacePath": "ワークスペースパス",
     "workspacePathEmpty": "ワークスペースパスを空にすることはできません",
     "workspacePathInvalidChars": "ワークスペースパスに無効な制御文字が含まれています",
-    "workspacePathMustBeAbsolute": "ワークスペースパスは絶対パスまたは ~ で始まる必要があります"
+    "workspacePathMustBeAbsolute": "ワークスペースパスは絶対パスまたは ~ で始まる必要があります",
+    "openScratchpadAria": "クイックスクラッチパッドを開く",
+    "openReviewPanelAria": "審査パネルを開く",
+    "reviewChanges": "変更を審査",
+    "closeReviewOverlayAria": "審査を閉じる",
+    "closeReviewPanelAria": "審査パネルを閉じる"
   },
   "growthDashboard": {
     "title": "成長ダッシュボード",
@@ -14337,7 +14350,8 @@
     "outlineDrawerSubtitle": "ユーザーの質問は合計 {count} 件",
     "closeDrawer": "ドロワーを閉じる",
     "noQuestionsYet": "ユーザーの質問はまだありません",
-    "roundLabel": "第 {num} ラウンド"
+    "roundLabel": "第 {num} ラウンド",
+    "hudAria": "ユーザー質問のナビゲーション"
   },
   "canvasSecurity": {
     "pendingEgressBadge": "外部通信の保留 ({count})",
@@ -14346,7 +14360,8 @@
     "egressPromptTitle": "キャンバスが外部ネットワークへの接続を要求しています",
     "blockEgress": "ブロック",
     "allowOnce": "今回のみ許可",
-    "alwaysAllowDomain": "このドメインを常に許可"
+    "alwaysAllowDomain": "このドメインを常に許可",
+    "egressAlertAria": "ネットワーク外部送信の許可に関する通知"
   },
   "wechatPreview": {
     "badgeLabel": "WeChat 組版",
@@ -14381,7 +14396,9 @@
     "noAnnotationsYet": "注釈はまだありません。要素をクリックして追加してください。",
     "markResolved": "解決済みにする",
     "markUnresolved": "未解決に戻す",
-    "delete": "削除"
+    "delete": "削除",
+    "sandboxIframeTitle": "インタラクティブなプロトタイプキャンバス",
+    "submitShortcutHint": "⌘+Enter で送信"
   },
   "structuredAsking": {
     "skippedBadge": "スキップ済み",
@@ -14428,7 +14445,9 @@
     "noChartData": "表示できるグラフデータがありません",
     "detailTableTitle": "パースペクティブデータテーブル",
     "rowsCount": "行",
-    "searchPlaceholder": "キーワードでレコードを絞り込み…"
+    "searchPlaceholder": "キーワードでレコードを絞り込み…",
+    "chartTypeBar": "棒グラフ",
+    "chartTypeLine": "折れ線グラフ"
   },
   "mobile": {
     "quickCapture": {
@@ -14510,7 +14529,8 @@
     "security_credential": "セキュリティと認証情報",
     "shortcutHint": "/ キーでコマンドマトリクスを開く",
     "subtitle": "カテゴリ別にスラッシュコマンドを閲覧して挿入",
-    "title": "コマンドマトリクス"
+    "title": "コマンドマトリクス",
+    "suggestionLabel": "おすすめ："
   },
   "embedWidget": {
     "allowedOriginLabel": "許可するオリジン",
@@ -14542,7 +14562,10 @@
     "themeDark": "ダーク",
     "themeLabel": "テーマ",
     "themeLight": "ライト",
-    "widgetTitle": "アシスタント"
+    "widgetTitle": "アシスタント",
+    "drawerAria": "エージェントのスライドアウトドロワー",
+    "floatingAria": "エージェントのフローティングウィジェット",
+    "allowedOriginPlaceholder": "https://example.com または *"
   },
   "reconnectProtocol": {
     "close": "閉じる",
@@ -14560,7 +14583,8 @@
     "epochBadge": "エポック: {epoch}",
     "messagesCount": "メッセージ: {count}",
     "activeTools": "アクティブなツール: {count}",
-    "latestTurn": "最新のターン: {summary}"
+    "latestTurn": "最新のターン: {summary}",
+    "reconnectCount": "再接続回数: {count}"
   },
   "scratchpad": {
     "cancel": "キャンセル",
@@ -14615,7 +14639,9 @@
     "inputChars": "入力文字数: {count}",
     "outputChars": "出力文字数: {count}",
     "tokensCount": "トークン: プロンプト {prompt} · 生成 {completion}",
-    "emptyPayload": "添付データはありません"
+    "emptyPayload": "添付データはありません",
+    "collapseStep": "ステップを折りたたむ",
+    "expandStep": "ステップを展開"
   },
   "quadGraph": {
     "closeDrawer": "ノード詳細を閉じる",
@@ -17409,6 +17435,16 @@
         "failRate": "失敗率",
         "avgMs": "平均 (ms)",
         "p90Ms": "p90（ms）"
+      },
+      "composition": {
+        "title": "期間内のツール構成分析",
+        "totalCalls": "(合計 {count} 回の呼び出し)",
+        "daysOption": "{days} 日",
+        "boundaryNote": "呼び出し比率と累積所要時間の比率は別々に集計されます。並列呼び出しの実行時間は重なる可能性があるため、累積所要時間の比率は実際の経過時間の比率を表しません。このビューは呼び出しと所要時間の構成のみを示し、コスト比率は含みません。",
+        "callsWithPercent": "{calls} 回 ({percent}%)",
+        "otherTools": "その他 {count} 件のツール ({calls} 回 · {percent}%)",
+        "durationShare": "所要時間: {percent}%",
+        "durationShareRow": "所要時間の {percent}%"
       }
     },
     "skillOptimization": {
@@ -20817,7 +20853,8 @@
         "snapshotEmpty": "スナップショットなし。",
         "snapshotRestore": "復元",
         "snapshotDelete": "削除",
-        "backupManualGuide": "スナップショットはデータディレクトリの snapshots フォルダ（既定 ~/.myrm）にあります。再インストール後に data.db と checkpoints.db を戻せば手動復旧可——詳細はドキュメントへ。"
+        "backupManualGuide": "スナップショットはデータディレクトリの snapshots フォルダ（既定 ~/.myrm）にあります。再インストール後に data.db と checkpoints.db を戻せば手動復旧可——詳細はドキュメントへ。",
+        "openUpgradeCockpit": "シームレスアップグレードコンソール"
       },
       "unattendedDesktop": {
         "guideIntro": "画面をロックして席を離れた後も Agent にこのパソコンを操作させたい場合は、デスクトップアプリをご利用ください。ブラウザのみのモードではチャット内承認のみとなり、以下の保護は含まれません。",
@@ -20834,6 +20871,36 @@
         "guideTitle": "離席中のパソコン操作・クイック設定",
         "statusOn": "オン",
         "statusOptional": "任意"
+      },
+      "upgradeCockpit": {
+        "safeLabel": "実行状態は健全で安全です：",
+        "activeTitle": "実行中の長時間タスク保護（強制再起動をブロック済み）",
+        "tasksRunning": "{count} 件のタスクを実行中",
+        "drainFirst": "現在のタスクの完了を待って自動で再読み込み",
+        "checkpointUpgrade": "チェックポイントを保存してすぐにアップグレード",
+        "healthOptimal": "高速で安定",
+        "healthHealthy": "接続は正常",
+        "healthDegraded": "遅延が大きい",
+        "healthBlocked": "ポートがタイムアウト",
+        "probeTitle": "事前ネットワーク診断プローブ",
+        "probeSubtitle": "複数の国際回線をリアルタイムで診断し、ワンクリックで切り替えてダウンロードの中断を防ぎます",
+        "probing": "診断中...",
+        "retest": "再測定",
+        "recommended": "おすすめ",
+        "roundTripLatency": "往復遅延:",
+        "modalTitle": "デュアルインスタンス無停止アップグレードパイプライン",
+        "modalSubtitle": "ブルーグリーンのアトミックな引き継ぎと、ワンクリックの秒単位スナップショットロールバック",
+        "oldInstance": "旧インスタンス {version} (稼働中のフォールバック)",
+        "newInstance": "新インスタンス {version} (引き継ぎ準備完了)",
+        "losslessSwitch": "無損失の切り替え",
+        "stepRunning": "実行中...",
+        "stepReady": "準備完了",
+        "completeTitle": "アップグレード完了！新インスタンスがアトミックにサービスを引き継ぎました",
+        "completeBody": "サンドボックスのヘルスチェックとデータベース移行は自動で完了し、すべてのセッションとメモリは損失なく保持されています。",
+        "rolledBack": "直前の安定版スナップショットにアトミックにロールバックしました",
+        "rollbackAction": "ワンクリックで秒単位のアトミックロールバック",
+        "tryNewVersion": "新バージョンを試す",
+        "closeWindow": "ウィンドウを閉じる"
       }
     },
     "push": {
@@ -21241,7 +21308,15 @@
       "wikiNegativeOutcomeRate": "負の結果率",
       "wikiVerificationDwell": "平均検証滞在時間",
       "wikiTelemetryDrops": "テレメトリ欠損",
-      "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日"
+      "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日",
+      "exportCsvTitle": "使用量データを CSV レポートとしてエクスポート",
+      "exportCsv": "CSV をエクスポート",
+      "cacheRadarTitle": "グローバル プロンプトキャッシュ レーダー",
+      "cacheRadarWindow": "{days}日間で {sessions} セッション",
+      "cacheRadarSavings": "累計節約額の推定:",
+      "cacheRadarCachedTokens": "再利用されたキャッシュ Tokens",
+      "cacheRadarFreshInput": "新規入力 Tokens",
+      "cacheRadarTotalPrompt": "プロンプト Tokens 合計"
     },
     "workingState": {
       "title": "作業状態",
@@ -22619,5 +22694,130 @@
         "default": "既定モデルとフォールバックモデル、ルーティング方針、サードパーティモデルの設定"
       }
     }
+  },
+  "digitalSelf": {
+    "satelliteTitle": "確認待ちのデジタルツイン下書き",
+    "pendingCount": "（{count} 件が確認待ち）",
+    "gateReady": "ゲート準備完了",
+    "toneSelectorLabel": "トーンスタイル",
+    "toneFormal": "フォーマル",
+    "toneFormalDesc": "丁寧で正確な表現。上司への報告、公文書、正式なビジネスのやり取り向け",
+    "toneSemiFormal": "ビジネス向け",
+    "toneSemiFormalDesc": "実務的で効率的、かつ礼儀正しい表現。日常の部門間連携や業務のすり合わせ向け",
+    "toneFriendly": "フレンドリー",
+    "toneFriendlyDesc": "親しみやすく自然な表現。適度に口語的な言い回しを交え、チームメンバーや親しい協力者向け",
+    "toneConcise": "簡潔",
+    "toneConciseDesc": "要点を先に述べ、結論とアクション項目を際立たせる。冗長な挨拶は省く",
+    "relationLeader": "直属の上司",
+    "relationColleague": "協働する同僚",
+    "relationPartner": "社外の顧客・パートナー",
+    "relationTeammate": "チームメンバー",
+    "channelFeishu": "Lark",
+    "channelDingtalk": "DingTalk",
+    "channelWechat": "WeCom",
+    "channelEmail": "業務メール",
+    "channelSlack": "Slack",
+    "safetyBanner": "送信前の安全ゲート：人による明示的な確認なしには絶対に送信されません",
+    "originalSummary": "元のメッセージの要約：",
+    "sourcesToggle": "事実の参照元（{count} 件）",
+    "draftHeading": "デジタルツインの返信下書き：",
+    "statusConfirmed": "送信を確認済み",
+    "statusDiscarded": "破棄済み",
+    "editHint": "クリックして直接編集できます",
+    "draftPlaceholder": "返信内容を下書きしてください...",
+    "sentAt": "{time} に送信を明示的に承認しました",
+    "discardedNote": "この下書きは無効になりました",
+    "editedByHuman": "手動で編集済み",
+    "awaitingConfirmation": "人の確認待ち",
+    "discard": "破棄",
+    "sending": "送信中...",
+    "confirmSend": "確認して送信"
+  },
+  "inFlightSteer": {
+    "swimlanesTitle": "稼働中のエキスパートレーン ({count})",
+    "tokensUsed": "消費 Tokens",
+    "elapsed": "経過時間",
+    "steerHint": "実行中に軌道修正の指示を追加",
+    "steerAction": "軌道修正",
+    "expandTaskAria": "タスクの詳細を展開: {title}",
+    "collapseTaskAria": "タスクの詳細を折りたたむ: {title}",
+    "stepProgress": "{completed}/{total} ステップ ({percent}%)",
+    "currentOwner": "現在の担当: {name}",
+    "showDetails": "詳細を表示",
+    "collapseSummary": "概要を折りたたむ",
+    "findingsTitle": "中間成果と主な発見 ({count})",
+    "findingsEmpty": "中間成果はまだありません...",
+    "workflowFooter": "マルチエージェント協調ワークフロー · リアルタイム集約",
+    "updatedAt": "{time} に更新",
+    "steerSubagentAria": "サブエージェントを軌道修正: {name}",
+    "close": "閉じる",
+    "quickPresets": "軌道修正の方向をすばやく指定",
+    "inputPlaceholder": "リアルタイム調整の指示を入力...",
+    "sendInstructionAria": "軌道修正の指示を送信",
+    "stopEarly": "途中で停止（作成済みの下書きは保持）",
+    "presetConciseLabel": "簡潔に",
+    "presetConciseInstruction": "核心となる結論に集中し、途中の思考過程を省いて、重要なコードと方針を直接出力してください。",
+    "presetDefensiveLabel": "境界の防御",
+    "presetDefensiveInstruction": "null の境界、例外処理、セキュリティチェックに特に注意してください。",
+    "presetLightweightLabel": "軽量な解法",
+    "presetLightweightInstruction": "現在の方式は重すぎる可能性があります。重い依存関係を必要としない、より軽量な方法に切り替えてください。",
+    "presetDraftNowLabel": "下書きを出力",
+    "presetDraftNowInstruction": "詳細な作り込みを一旦止め、これまでに得られた部分的な結論をまとめて出力してください。"
+  },
+  "streamingMarkdown": {
+    "closedCodeBlock": "閉じたコードブロック",
+    "streamingCode": "{language} (ストリーミング中...)",
+    "fastLayoutMode": "高速レイアウトモード",
+    "degradedProtection": "負荷低減保護中"
+  },
+  "thinkingPermission": {
+    "thinkingDepth": "思考の深さ",
+    "thinkingUnsupported": "非対応",
+    "thinkingUnsupportedHint": "現在のモデルは思考予算の調整に対応していません",
+    "thinkingSliderLabel": "思考の深さスライダー（0k〜32k）",
+    "thinkingSliderAria": "推論予算を調整",
+    "thinkingTierOffLatency": "思考せずに直接回答します",
+    "thinkingTierLowLatency": "軽い思考。簡単な推敲や説明に向いています",
+    "thinkingTierMediumLatency": "バランス型の思考。通常の多段階の論理推論に向いています",
+    "thinkingTierHighLatency": "深い思考。複雑なアルゴリズムやシステム設計に向いています",
+    "thinkingTierMaxLatency": "最大限の推論。厳密な数理や全体アーキテクチャに向いています",
+    "permissionCurrent": "現在の権限：{label} · {description}",
+    "permissionMenuTitle": "エージェントの権限モード",
+    "permissionTierStrict": "セーフガード",
+    "permissionTierStrictDesc": "すべてのファイル変更とシェル実行に、人による明示的な承認が必要です",
+    "permissionTierSemiAuto": "半自動・アジャイル",
+    "permissionTierSemiAutoDesc": "通常のコード編集と安全なコマンドは自動で許可し、高リスクのコマンドは必ず承認で止めます",
+    "permissionTierFullAuto": "完全自動・無人運転",
+    "permissionTierFullAutoDesc": "サンドボックスの境界内で全速で自律実行し、ポップアップなしで瞬時に進みます"
+  },
+  "dashboardWorkspace": {
+    "renameHint": "クリックして名前を変更",
+    "editTitle": "タイトルを編集",
+    "cycleColSpan": "レイアウト幅を切り替え (現在 {cols} 列)",
+    "refreshIntervalAria": "自動更新の間隔",
+    "refreshManual": "手動",
+    "refreshNow": "今すぐ更新",
+    "unpin": "固定を解除",
+    "pinnedAt": "{time} に固定",
+    "refreshedAt": "{time} に更新済み",
+    "drawerAria": "デジタル従業員モニタリングワークスペース",
+    "drawerTitle": "プロジェクトワークスペースとモニタリングボード",
+    "widgetCount": "{count} 個のウィジェット",
+    "drawerSubtitle": "常駐する高機能インタラクティブプロトタイプ、動的データレポート、デジタル従業員のモニタリングカード",
+    "refreshAllHint": "すべてのウィジェットを更新",
+    "refreshAll": "すべて更新",
+    "clearAllHint": "すべてのウィジェットを削除",
+    "clearAll": "クリア",
+    "restoreViewport": "表示を元に戻す",
+    "fullscreen": "全画面表示",
+    "closeDrawer": "ワークスペースを閉じる",
+    "searchPlaceholder": "ウィジェットのタイトルまたは内容を検索...",
+    "filterAll": "すべて",
+    "emptyTitle": "固定されたウィジェットはまだありません",
+    "emptyHint": "会話内でエージェントが生成した HTML / SVG / データダッシュボードのカード右上にあるピンアイコンをクリックすると、この専用ワークスペースに固定でき、一度きりのやり取りに埋もれずに済みます。",
+    "pinnedTooltip": "ワークスペースに固定済み (クリックで解除)",
+    "pinTooltip": "ワークスペースのダッシュボードに固定",
+    "pinned": "固定済み",
+    "pin": "固定"
   }
 }

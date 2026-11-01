@@ -62,9 +62,9 @@ describe('WorkspaceLayout mobile review drawer', () => {
     render(<WorkspaceLayout />);
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Open review panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'openReviewPanelAria' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close review panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'closeReviewPanelAria' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

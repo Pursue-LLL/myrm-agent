@@ -39,10 +39,10 @@ describe('ToneDraftApprovalCard', () => {
     );
 
     expect(screen.getByTestId('outbound-hard-gate-banner')).toBeDefined();
-    expect(screen.getByText(/出站发送物理安全门禁/)).toBeDefined();
-    expect(screen.getByText('飞书')).toBeDefined();
+    expect(screen.getByText('safetyBanner')).toBeDefined();
+    expect(screen.getByText('channelFeishu')).toBeDefined();
     expect(screen.getByText('王总 (产品总监)')).toBeDefined();
-    expect(screen.getByText('直属领导')).toBeDefined();
+    expect(screen.getByText('relationLeader')).toBeDefined();
     expect(screen.getByText(/明天的技术选型会准备好了吗/)).toBeDefined();
   });
 

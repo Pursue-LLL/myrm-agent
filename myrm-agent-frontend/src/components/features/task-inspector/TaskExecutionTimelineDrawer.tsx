@@ -99,7 +99,7 @@ export const TaskExecutionTimelineDrawer: React.FC = () => {
             {hasChildren ? (
               <button
                 type="button"
-                aria-label={isExpanded ? 'Collapse step' : 'Expand step'}
+                aria-label={isExpanded ? t('collapseStep') : t('expandStep')}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleExpand(node.node_id);

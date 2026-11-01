@@ -208,7 +208,7 @@ export const InteractiveDashboardArtifact: React.FC<InteractiveDashboardArtifact
                   setActiveChartMode('bar');
                 }}
                 className={`p-1 rounded ${activeChartMode === 'bar' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                title="柱状图"
+                title={t('chartTypeBar')}
               >
                 <BarChart2 className="w-3.5 h-3.5" />
               </button>
@@ -219,7 +219,7 @@ export const InteractiveDashboardArtifact: React.FC<InteractiveDashboardArtifact
                   setActiveChartMode('line');
                 }}
                 className={`p-1 rounded ${activeChartMode === 'line' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                title="折线图"
+                title={t('chartTypeLine')}
               >
                 <LineChart className="w-3.5 h-3.5" />
               </button>

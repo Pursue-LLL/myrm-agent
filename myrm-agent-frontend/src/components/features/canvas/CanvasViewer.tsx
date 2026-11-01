@@ -152,7 +152,7 @@ export const CanvasViewer: React.FC<CanvasViewerProps> = memo(({
       {currentPending && (
         <aside
           role="alert"
-          aria-label="Network egress authorization alert"
+          aria-label={t('egressAlertAria')}
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 border-b border-amber-200 bg-amber-50/95 p-3 text-xs text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/60 dark:text-amber-100 animate-in fade-in slide-in-from-top-1"
         >
           <div className="flex items-center gap-2 min-w-0">

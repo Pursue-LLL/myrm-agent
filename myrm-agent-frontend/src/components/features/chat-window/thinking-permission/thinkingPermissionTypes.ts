@@ -19,7 +19,8 @@ export interface ThinkingBudgetTierConfig {
   labelKey: string;
   tokenBudget: number;
   tokenLabel: string;
-  latencyDescription: string;
+  /** `thinkingPermission` message key of the one-line latency/use-case hint. */
+  latencyDescriptionKey: string;
   reasoningEffort?: 'low' | 'medium' | 'high';
   colorClass: string;
   activeColorClass: string;
@@ -31,7 +32,7 @@ export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
     labelKey: 'thinkingTierOff',
     tokenBudget: 0,
     tokenLabel: '0k',
-    latencyDescription: '直出作答，无思维开销',
+    latencyDescriptionKey: 'thinkingTierOffLatency',
     reasoningEffort: undefined,
     colorClass: 'bg-slate-400',
     activeColorClass: 'text-slate-500 dark:text-slate-400',
@@ -41,7 +42,7 @@ export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
     labelKey: 'thinkingTierLow',
     tokenBudget: 2048,
     tokenLabel: '2k',
-    latencyDescription: '轻量思考，适合简单润色与解释',
+    latencyDescriptionKey: 'thinkingTierLowLatency',
     reasoningEffort: 'low',
     colorClass: 'bg-sky-400',
     activeColorClass: 'text-sky-500 dark:text-sky-400',
@@ -51,7 +52,7 @@ export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
     labelKey: 'thinkingTierMedium',
     tokenBudget: 8192,
     tokenLabel: '8k',
-    latencyDescription: '平衡思考，适合常规多步逻辑推理',
+    latencyDescriptionKey: 'thinkingTierMediumLatency',
     reasoningEffort: 'medium',
     colorClass: 'bg-amber-400',
     activeColorClass: 'text-amber-500 dark:text-amber-400',
@@ -61,7 +62,7 @@ export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
     labelKey: 'thinkingTierHigh',
     tokenBudget: 16384,
     tokenLabel: '16k',
-    latencyDescription: '深度思考，适合复杂算法与系统设计',
+    latencyDescriptionKey: 'thinkingTierHighLatency',
     reasoningEffort: 'high',
     colorClass: 'bg-orange-500',
     activeColorClass: 'text-orange-500 dark:text-orange-400',
@@ -71,7 +72,7 @@ export const THINKING_BUDGET_TIERS: readonly ThinkingBudgetTierConfig[] = [
     labelKey: 'thinkingTierMax',
     tokenBudget: 32768,
     tokenLabel: '32k',
-    latencyDescription: '极限推理，适合深层严密数理与全景架构',
+    latencyDescriptionKey: 'thinkingTierMaxLatency',
     reasoningEffort: 'high',
     colorClass: 'bg-rose-500',
     activeColorClass: 'text-rose-500 dark:text-rose-400',
@@ -82,9 +83,10 @@ export type PermissionTier = 'strict' | 'semi-auto' | 'full-auto';
 
 export interface PermissionTierConfig {
   tier: PermissionTier;
+  /** `thinkingPermission` message key of the tier's short name. */
   labelKey: string;
-  shortLabel: string;
-  description: string;
+  /** `thinkingPermission` message key of the tier's one-line description. */
+  descriptionKey: string;
   allowsAutoFileEdit: boolean;
   allowsAutoSafeShell: boolean;
   colorClass: string;
@@ -96,8 +98,7 @@ export const PERMISSION_TIER_CONFIGS: Record<PermissionTier, PermissionTierConfi
   strict: {
     tier: 'strict',
     labelKey: 'permissionTierStrict',
-    shortLabel: '安全守护',
-    description: '所有文件修改与 Shell 执行均需人工显式审批',
+    descriptionKey: 'permissionTierStrictDesc',
     allowsAutoFileEdit: false,
     allowsAutoSafeShell: false,
     colorClass: 'text-sky-600 dark:text-sky-400',
@@ -107,8 +108,7 @@ export const PERMISSION_TIER_CONFIGS: Record<PermissionTier, PermissionTierConfi
   'semi-auto': {
     tier: 'semi-auto',
     labelKey: 'permissionTierSemiAuto',
-    shortLabel: '半自动敏捷',
-    description: '自动放行常规代码编辑与安全命令，高危命令强制拦截审批',
+    descriptionKey: 'permissionTierSemiAutoDesc',
     allowsAutoFileEdit: true,
     allowsAutoSafeShell: true,
     colorClass: 'text-amber-600 dark:text-amber-400',
@@ -118,8 +118,7 @@ export const PERMISSION_TIER_CONFIGS: Record<PermissionTier, PermissionTierConfi
   'full-auto': {
     tier: 'full-auto',
     labelKey: 'permissionTierFullAuto',
-    shortLabel: '全自动无人值守',
-    description: '受控在沙箱边界内全速自主执行，零弹窗秒级流转',
+    descriptionKey: 'permissionTierFullAutoDesc',
     allowsAutoFileEdit: true,
     allowsAutoSafeShell: true,
     colorClass: 'text-emerald-600 dark:text-emerald-400',

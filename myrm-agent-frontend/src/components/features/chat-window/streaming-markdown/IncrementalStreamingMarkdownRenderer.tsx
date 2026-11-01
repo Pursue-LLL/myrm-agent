@@ -17,6 +17,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Activity, Gauge, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { parseIncrementalStream } from './incrementalStreamParser';
@@ -39,6 +40,7 @@ export interface IncrementalStreamingMarkdownRendererProps {
  */
 const FrozenMarkdownBlockItem = React.memo(
   ({ block }: { block: MarkdownBlock }) => {
+    const t = useTranslations('streamingMarkdown');
     switch (block.type) {
       case 'code':
         return (
@@ -49,7 +51,7 @@ const FrozenMarkdownBlockItem = React.memo(
             {block.language && (
               <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/80 px-3 py-1.5 text-[11px] text-neutral-400">
                 <span>{block.language}</span>
-                <span className="text-[10px] uppercase text-neutral-500">已闭合代码块</span>
+                <span className="text-[10px] uppercase text-neutral-500">{t('closedCodeBlock')}</span>
               </div>
             )}
             <pre className="overflow-x-auto p-3 leading-relaxed">
@@ -124,6 +126,7 @@ const ActiveTailBlockItem: React.FC<{
   block: MarkdownBlock;
   isDegradedMode: boolean;
 }> = ({ block, isDegradedMode }) => {
+  const t = useTranslations('streamingMarkdown');
   if (block.type === 'code') {
     return (
       <div
@@ -133,11 +136,11 @@ const ActiveTailBlockItem: React.FC<{
         <div className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900/90 px-3 py-1.5 text-[11px] text-primary">
           <div className="flex items-center gap-1.5">
             <Sparkles className="h-3 w-3 animate-pulse" />
-            <span>{block.language || 'code'} (流式传输中...)</span>
+            <span>{t('streamingCode', { language: block.language || 'code' })}</span>
           </div>
           {isDegradedMode && (
             <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] text-amber-300 font-sans">
-              极速排版模式
+              {t('fastLayoutMode')}
             </span>
           )}
         </div>
@@ -167,6 +170,7 @@ export const IncrementalStreamingMarkdownRenderer: React.FC<
   className,
   showFpsHud = false,
 }) => {
+  const t = useTranslations('streamingMarkdown');
   // 1. RAF 帧聚合与吞吐节流
   const { displayedContent, metrics } = useRafStreamThrottler(
     content,
@@ -200,7 +204,7 @@ export const IncrementalStreamingMarkdownRenderer: React.FC<
           </div>
           {metrics.isDegradedMode && (
             <span className="rounded bg-amber-500/10 px-1 text-[10px] text-amber-600 dark:text-amber-400">
-              负载降级保护中
+              {t('degradedProtection')}
             </span>
           )}
         </div>

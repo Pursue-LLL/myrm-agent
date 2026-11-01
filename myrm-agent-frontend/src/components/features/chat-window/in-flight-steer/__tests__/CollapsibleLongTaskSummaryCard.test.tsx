@@ -1,9 +1,11 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CollapsibleLongTaskSummaryCard } from '../CollapsibleLongTaskSummaryCard';
 import { useInFlightSteerStore } from '../useInFlightSteerStore';
 import type { CollapsibleLongTaskSummary } from '../inFlightSteerTypes';
+
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
 
 describe('CollapsibleLongTaskSummaryCard', () => {
   const mockSummary: CollapsibleLongTaskSummary = {

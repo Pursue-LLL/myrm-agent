@@ -162,10 +162,10 @@ function UsageStatisticsSection() {
               data-testid="export-usage-csv-btn"
               onClick={() => downloadUsageCsv(stats, daily)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-border/60 hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-              title="导出用量数据为 CSV 报表"
+              title={t('exportCsvTitle')}
             >
               <Download className="w-3.5 h-3.5" />
-              <span>导出 CSV</span>
+              <span>{t('exportCsv')}</span>
             </button>
             <button
               onClick={fetchData}
@@ -216,7 +216,7 @@ function UsageStatisticsSection() {
           />
           <StatCard
             icon={IconDatabase}
-            label={t('cacheSavings') || 'Cache Savings'}
+            label={t('cacheSavings')}
             value={formatCost(stats.cacheSavingsUsd || 0)}
             colorClass="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
           />
@@ -241,16 +241,17 @@ function UsageStatisticsSection() {
               <div className="flex items-center gap-2">
                 <IconDatabase className="w-4 h-4 text-emerald-500" />
                 <span className="font-semibold text-sm text-foreground">
-                  {locale === 'zh' ? '全局 Prompt Cache 效能雷达' : 'Global Prompt Cache Radar'}
+                  {t('cacheRadarTitle')}
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
-                  {locale === 'zh'
-                    ? `${promptCacheRadar.days}天内 ${promptCacheRadar.sessions_tracked}个会话`
-                    : `${promptCacheRadar.sessions_tracked} sessions (${promptCacheRadar.days}d)`}
+                  {t('cacheRadarWindow', {
+                    days: promptCacheRadar.days,
+                    sessions: promptCacheRadar.sessions_tracked,
+                  })}
                 </span>
               </div>
               <div className="text-xs text-muted-foreground">
-                {locale === 'zh' ? '累计节约美金: ' : 'Est. Total Savings: '}
+                {t('cacheRadarSavings')}{' '}
                 <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
                   ${promptCacheRadar.estimated_savings_usd.toFixed(4)}
                 </span>
@@ -259,7 +260,7 @@ function UsageStatisticsSection() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
                 <div className="text-muted-foreground text-[11px]">
-                  {locale === 'zh' ? '缓存命中率' : 'Cache Hit Ratio'}
+                  {t('cacheHitRate')}
                 </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {(promptCacheRadar.prompt_cache_hit_ratio * 100).toFixed(1)}%
@@ -267,7 +268,7 @@ function UsageStatisticsSection() {
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
                 <div className="text-muted-foreground text-[11px]">
-                  {locale === 'zh' ? '缓存复用 Tokens' : 'Cached Tokens'}
+                  {t('cacheRadarCachedTokens')}
                 </div>
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_cache_read_tokens)}
@@ -275,7 +276,7 @@ function UsageStatisticsSection() {
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
                 <div className="text-muted-foreground text-[11px]">
-                  {locale === 'zh' ? '冷启动 Tokens' : 'Fresh Input'}
+                  {t('cacheRadarFreshInput')}
                 </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.fresh_input_tokens)}
@@ -283,7 +284,7 @@ function UsageStatisticsSection() {
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
                 <div className="text-muted-foreground text-[11px]">
-                  {locale === 'zh' ? '总 Prompt Tokens' : 'Total Prompt'}
+                  {t('cacheRadarTotalPrompt')}
                 </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_prompt_tokens)}

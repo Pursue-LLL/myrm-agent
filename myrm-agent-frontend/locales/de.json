@@ -1473,7 +1473,9 @@
         "currentTime": "Aktuelle Uhrzeit",
         "osInfo": "Betriebssysteminformationen",
         "userName": "Benutzername"
-      }
+      },
+      "modelOverride": "Modellüberschreibung",
+      "subagentCostSaving": "Kostensenkung für Subagenten"
     },
     "preview": "Vorschau",
     "avatarColor": "Avatar-Farbe",
@@ -2619,7 +2621,8 @@
       "noSessionStats": "Keine Leistungsdaten",
       "modelBreakdown": "Modellaufschlüsselung",
       "performance": "Leistung",
-      "toolBreakdown": "Tool-Aufschlüsselung"
+      "toolBreakdown": "Tool-Aufschlüsselung",
+      "costUnknown": "Kosten unbekannt"
     },
     "liveness": {
       "idle": "Bereit",
@@ -2788,7 +2791,10 @@
       "editHint": "Enter zum Speichern · Umschalt+Enter für neue Zeile · Esc zum Abbrechen",
       "reorder": "Zum Umsortieren ziehen",
       "listLabel": "Eingereihte Nachrichten",
-      "moveToTop": "An den Anfang verschieben"
+      "moveToTop": "An den Anfang verschieben",
+      "expandDock": "Wartende Nachrichten einblenden",
+      "collapseDock": "Wartende Nachrichten ausblenden",
+      "clearAll": "Gesamte Warteschlange leeren"
     },
     "fileMention": {
       "title": "Arbeitsbereich-Dateien",
@@ -6385,7 +6391,8 @@
     "code": "Quellcode",
     "copy": "Code kopieren",
     "copied": "Kopiert",
-    "preview": "Vorschau"
+    "preview": "Vorschau",
+    "prototypeBoardTitle": "{language}-Prototyp-Board"
   },
   "imageEditor": {
     "cancel": "Abbrechen",
@@ -6878,7 +6885,8 @@
       "loadFailed": "Die Datei konnte nicht geladen werden",
       "unavailable": "Diese Datei kann nicht geladen werden",
       "downloadFull": "Vollständige Datei herunterladen"
-    }
+    },
+    "resizePanel": "Panelgröße ändern"
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -10947,7 +10955,12 @@
     "workspacePath": "Arbeitsbereichspfad",
     "workspacePathEmpty": "Arbeitsbereichspfad darf nicht leer sein",
     "workspacePathInvalidChars": "Arbeitsbereichspfad enthält ungültige Steuerzeichen",
-    "workspacePathMustBeAbsolute": "Arbeitsbereichspfad muss ein absoluter Pfad sein oder mit ~ beginnen"
+    "workspacePathMustBeAbsolute": "Arbeitsbereichspfad muss ein absoluter Pfad sein oder mit ~ beginnen",
+    "openScratchpadAria": "Schnellen Notizblock öffnen",
+    "openReviewPanelAria": "Überprüfungsbereich öffnen",
+    "reviewChanges": "Änderungen überprüfen",
+    "closeReviewOverlayAria": "Überprüfung schließen",
+    "closeReviewPanelAria": "Überprüfungsbereich schließen"
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
@@ -14337,7 +14350,8 @@
     "outlineDrawerSubtitle": "Insgesamt {count} Nutzerfragen",
     "closeDrawer": "Schublade schließen",
     "noQuestionsYet": "Noch keine Nutzerfragen",
-    "roundLabel": "Runde {num}"
+    "roundLabel": "Runde {num}",
+    "hudAria": "Navigation durch Nutzerfragen"
   },
   "canvasSecurity": {
     "pendingEgressBadge": "Ausstehender Ausgang ({count})",
@@ -14346,7 +14360,8 @@
     "egressPromptTitle": "Canvas fordert eine externe Netzwerkverbindung an",
     "blockEgress": "Blockieren",
     "allowOnce": "Einmal erlauben",
-    "alwaysAllowDomain": "Domain immer erlauben"
+    "alwaysAllowDomain": "Domain immer erlauben",
+    "egressAlertAria": "Hinweis zur Freigabe ausgehender Netzwerkverbindungen"
   },
   "wechatPreview": {
     "badgeLabel": "WeChat-Formatierung",
@@ -14381,7 +14396,9 @@
     "noAnnotationsYet": "Noch keine Anmerkungen. Klicken Sie auf ein Element, um eine hinzuzufügen.",
     "markResolved": "Als erledigt markieren",
     "markUnresolved": "Als offen markieren",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "sandboxIframeTitle": "Interaktive Prototyp-Zeichenfläche",
+    "submitShortcutHint": "⌘+Enter zum Absenden"
   },
   "structuredAsking": {
     "skippedBadge": "Übersprungen",
@@ -14428,7 +14445,9 @@
     "noChartData": "Keine Diagrammdaten verfügbar",
     "detailTableTitle": "Perspektiv-Datentabelle",
     "rowsCount": "Zeilen",
-    "searchPlaceholder": "Datensätze nach Stichwort filtern …"
+    "searchPlaceholder": "Datensätze nach Stichwort filtern …",
+    "chartTypeBar": "Balkendiagramm",
+    "chartTypeLine": "Liniendiagramm"
   },
   "mobile": {
     "quickCapture": {
@@ -14510,7 +14529,8 @@
     "security_credential": "Sicherheit und Zugangsdaten",
     "shortcutHint": "Mit / die Befehlsmatrix öffnen",
     "subtitle": "Slash-Befehle nach Kategorie durchsuchen und einfügen",
-    "title": "Befehlsmatrix"
+    "title": "Befehlsmatrix",
+    "suggestionLabel": "Vorschlag:"
   },
   "embedWidget": {
     "allowedOriginLabel": "Erlaubter Ursprung",
@@ -14542,7 +14562,10 @@
     "themeDark": "Dunkel",
     "themeLabel": "Design",
     "themeLight": "Hell",
-    "widgetTitle": "Assistent"
+    "widgetTitle": "Assistent",
+    "drawerAria": "Seitenleiste des Agenten",
+    "floatingAria": "Schwebendes Agenten-Widget",
+    "allowedOriginPlaceholder": "https://example.com oder *"
   },
   "reconnectProtocol": {
     "close": "Schließen",
@@ -14560,7 +14583,8 @@
     "epochBadge": "Epoche: {epoch}",
     "messagesCount": "Nachrichten: {count}",
     "activeTools": "Aktive Werkzeuge: {count}",
-    "latestTurn": "Letzte Runde: {summary}"
+    "latestTurn": "Letzte Runde: {summary}",
+    "reconnectCount": "Wiederverbindungen: {count}"
   },
   "scratchpad": {
     "cancel": "Abbrechen",
@@ -14615,7 +14639,9 @@
     "inputChars": "Eingabezeichen: {count}",
     "outputChars": "Ausgabezeichen: {count}",
     "tokensCount": "Tokens: Prompt {prompt} · Antwort {completion}",
-    "emptyPayload": "Keine Daten angehängt"
+    "emptyPayload": "Keine Daten angehängt",
+    "collapseStep": "Schritt einklappen",
+    "expandStep": "Schritt ausklappen"
   },
   "quadGraph": {
     "closeDrawer": "Knotendetails schließen",
@@ -17409,6 +17435,16 @@
         "failRate": "Fehlerrate",
         "avgMs": "Durchschn. (ms)",
         "p90Ms": "p90 (ms)"
+      },
+      "composition": {
+        "title": "Werkzeugzusammensetzung im Zeitraum",
+        "totalCalls": "({count} Aufrufe insgesamt)",
+        "daysOption": "{days} Tage",
+        "boundaryNote": "Aufrufanteil und Anteil der kumulierten Dauer werden getrennt berechnet. Parallele Aufrufe können sich zeitlich überschneiden, daher entspricht der Dauer-Anteil nicht dem Anteil an der tatsächlichen Laufzeit; diese Ansicht zeigt nur die Struktur von Aufrufen und Dauer, keinen Kostenanteil.",
+        "callsWithPercent": "{calls} Aufrufe ({percent} %)",
+        "otherTools": "{count, plural, one {# weiteres Werkzeug} other {# weitere Werkzeuge}} ({calls} Aufrufe · {percent} %)",
+        "durationShare": "Dauer: {percent} %",
+        "durationShareRow": "{percent} % der Dauer"
       }
     },
     "skillOptimization": {
@@ -20817,7 +20853,8 @@
         "snapshotEmpty": "Noch keine Snapshots.",
         "snapshotRestore": "Wiederherstellen",
         "snapshotDelete": "Löschen",
-        "backupManualGuide": "Snapshots liegen im snapshots-Ordner des Datenverzeichnisses (Standard ~/.myrm). Nach Neuinstallation data.db und checkpoints.db manuell zurückkopieren — siehe Docs."
+        "backupManualGuide": "Snapshots liegen im snapshots-Ordner des Datenverzeichnisses (Standard ~/.myrm). Nach Neuinstallation data.db und checkpoints.db manuell zurückkopieren — siehe Docs.",
+        "openUpgradeCockpit": "Konsole für unterbrechungsfreie Updates"
       },
       "unattendedDesktop": {
         "guideIntro": "Nutzen Sie die Desktop-App, wenn Sie den Bildschirm sperren und weggehen, der Agent aber weiterarbeiten soll. Der reine Browser-Modus bietet nur Freigaben im Chat, aber nicht die folgenden Schutzfunktionen.",
@@ -20834,6 +20871,36 @@
         "guideTitle": "Computer-Nutzung bei Abwesenheit · Schnelleinrichtung",
         "statusOn": "An",
         "statusOptional": "Wahlweise"
+      },
+      "upgradeCockpit": {
+        "safeLabel": "Laufzeitzustand gesund und sicher:",
+        "activeTitle": "Schutz für laufende Langzeitaufgaben (erzwungener Neustart blockiert)",
+        "tasksRunning": "{count, plural, one {# Aufgabe läuft} other {# Aufgaben laufen}}",
+        "drainFirst": "Auf Abschluss der aktuellen Aufgaben warten und automatisch neu laden",
+        "checkpointUpgrade": "Checkpoint speichern und sofort upgraden",
+        "healthOptimal": "Schnell und stabil",
+        "healthHealthy": "Verbindung normal",
+        "healthDegraded": "Hohe Latenz",
+        "healthBlocked": "Port-Timeout",
+        "probeTitle": "Netzwerkdiagnose vor dem Upgrade",
+        "probeSubtitle": "Echtzeit-Prüfung mehrerer grenzüberschreitender Kanäle mit Ein-Klick-Wechsel, damit Downloads nicht abbrechen",
+        "probing": "Prüfung läuft...",
+        "retest": "Erneut messen",
+        "recommended": "Empfohlen",
+        "roundTripLatency": "Roundtrip-Latenz:",
+        "modalTitle": "Upgrade-Pipeline mit zwei Instanzen ohne Unterbrechung",
+        "modalSubtitle": "Atomare Blue-Green-Übergabe mit Ein-Klick-Snapshot-Rollback in Sekunden",
+        "oldInstance": "Alte Instanz {version} (aktiver Fallback)",
+        "newInstance": "Neue Instanz {version} (bereit zur Übernahme)",
+        "losslessSwitch": "Verlustfreier Wechsel",
+        "stepRunning": "Läuft...",
+        "stepReady": "Bereit",
+        "completeTitle": "Upgrade abgeschlossen! Die neue Instanz hat den Dienst atomar übernommen",
+        "completeBody": "Die Sandbox-Integritätsprüfung und die Datenbankmigration wurden automatisch abgeschlossen; alle Sitzungen und Erinnerungen bleiben verlustfrei erhalten.",
+        "rolledBack": "Atomar auf den vorherigen stabilen Snapshot zurückgesetzt",
+        "rollbackAction": "Atomarer Rollback in Sekunden per Klick",
+        "tryNewVersion": "Neue Version ausprobieren",
+        "closeWindow": "Fenster schließen"
       }
     },
     "push": {
@@ -21241,7 +21308,15 @@
       "wikiNegativeOutcomeRate": "Negative Ergebnisrate",
       "wikiVerificationDwell": "Ø Verifikationsdauer",
       "wikiTelemetryDrops": "Verlorene Telemetrie",
-      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"
+      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage",
+      "exportCsvTitle": "Nutzungsdaten als CSV-Bericht exportieren",
+      "exportCsv": "CSV exportieren",
+      "cacheRadarTitle": "Globaler Prompt-Cache-Radar",
+      "cacheRadarWindow": "{sessions, plural, one {# Sitzung} other {# Sitzungen}} ({days} T.)",
+      "cacheRadarSavings": "Geschätzte Gesamteinsparung:",
+      "cacheRadarCachedTokens": "Wiederverwendete Cache-Tokens",
+      "cacheRadarFreshInput": "Neue Eingabe-Tokens",
+      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt"
     },
     "workingState": {
       "title": "Arbeitsstatus",
@@ -22619,5 +22694,130 @@
         "default": "Standard-, Routing- und Fallback-Modelle festlegen"
       }
     }
+  },
+  "digitalSelf": {
+    "satelliteTitle": "Entwürfe des digitalen Zwillings zur Prüfung",
+    "pendingCount": "({count} warten auf Bestätigung)",
+    "gateReady": "Sicherheitsschranke bereit",
+    "toneSelectorLabel": "Tonfall",
+    "toneFormal": "Förmlich",
+    "toneFormalDesc": "Präzise und höfliche Formulierungen für Berichte an Vorgesetzte, offizielle Schreiben und formelle Geschäftskorrespondenz",
+    "toneSemiFormal": "Professionell",
+    "toneSemiFormalDesc": "Sachlich, effizient und dennoch höflich, für die tägliche Abstimmung zwischen Abteilungen und Geschäftsabläufe",
+    "toneFriendly": "Freundlich",
+    "toneFriendlyDesc": "Herzlich und natürlich, mit passenden Füllwörtern, für Teammitglieder und vertraute Kollegen",
+    "toneConcise": "Knapp",
+    "toneConciseDesc": "Direkt zur Sache, mit Fokus auf Kernergebnisse und Aufgaben, ohne lange Floskeln",
+    "relationLeader": "Direkter Vorgesetzter",
+    "relationColleague": "Kollegin bzw. Kollege",
+    "relationPartner": "Externe Kunden bzw. Partner",
+    "relationTeammate": "Teammitglied",
+    "channelFeishu": "Feishu",
+    "channelDingtalk": "DingTalk",
+    "channelWechat": "WeCom",
+    "channelEmail": "Geschäftliche E-Mail",
+    "channelSlack": "Slack",
+    "safetyBanner": "Sicherheitsschranke für ausgehende Nachrichten: Ohne ausdrückliche Bestätigung durch einen Menschen wird nichts gesendet",
+    "originalSummary": "Zusammenfassung der Originalnachricht:",
+    "sourcesToggle": "Faktenquellen ({count})",
+    "draftHeading": "Antwortentwurf des digitalen Zwillings:",
+    "statusConfirmed": "Zum Senden bestätigt",
+    "statusDiscarded": "Verworfen",
+    "editHint": "Text direkt per Klick bearbeiten",
+    "draftPlaceholder": "Antwort entwerfen...",
+    "sentAt": "Versand um {time} ausdrücklich freigegeben",
+    "discardedNote": "Dieser Entwurf wurde für ungültig erklärt",
+    "editedByHuman": "Manuell bearbeitet",
+    "awaitingConfirmation": "Wartet auf menschliche Bestätigung",
+    "discard": "Verwerfen",
+    "sending": "Wird gesendet...",
+    "confirmSend": "Bestätigen und senden"
+  },
+  "inFlightSteer": {
+    "swimlanesTitle": "Aktive Expertenspuren ({count})",
+    "tokensUsed": "Verbrauchte Tokens",
+    "elapsed": "Laufzeit",
+    "steerHint": "Während der Ausführung eine Korrekturanweisung hinzufügen",
+    "steerAction": "Korrigieren",
+    "expandTaskAria": "Aufgabendetails einblenden: {title}",
+    "collapseTaskAria": "Aufgabendetails ausblenden: {title}",
+    "stepProgress": "{completed}/{total} Schritte ({percent} %)",
+    "currentOwner": "Zuständig: {name}",
+    "showDetails": "Details anzeigen",
+    "collapseSummary": "Zusammenfassung ausblenden",
+    "findingsTitle": "Zwischenergebnisse und wichtige Erkenntnisse ({count})",
+    "findingsEmpty": "Noch keine Zwischenergebnisse...",
+    "workflowFooter": "Multi-Agenten-Workflow · Echtzeit-Pulsreduktion",
+    "updatedAt": "Aktualisiert um {time}",
+    "steerSubagentAria": "Subagent korrigieren: {name}",
+    "close": "Schließen",
+    "quickPresets": "Schnelle Korrekturrichtungen",
+    "inputPlaceholder": "Anweisung zur Feinabstimmung eingeben...",
+    "sendInstructionAria": "Korrekturanweisung senden",
+    "stopEarly": "Vorzeitig stoppen (bisherigen Entwurf behalten)",
+    "presetConciseLabel": "Knapp",
+    "presetConciseInstruction": "Auf die zentrale Schlussfolgerung konzentrieren, Zwischenüberlegungen kürzen und den wesentlichen Code samt Lösung direkt ausgeben.",
+    "presetDefensiveLabel": "Randfälle absichern",
+    "presetDefensiveInstruction": "Besonders auf Null-Grenzfälle, Ausnahmebehandlung und Sicherheitsprüfungen achten.",
+    "presetLightweightLabel": "Schlanke Lösung",
+    "presetLightweightInstruction": "Der aktuelle Ansatz ist möglicherweise zu schwergewichtig; stattdessen einen schlankeren Weg ohne schwere Abhängigkeiten wählen.",
+    "presetDraftNowLabel": "Entwurf ausgeben",
+    "presetDraftNowInstruction": "Die vertiefte Ausarbeitung unterbrechen und zunächst die bereits erreichten Teilergebnisse ausgeben."
+  },
+  "streamingMarkdown": {
+    "closedCodeBlock": "Geschlossener Codeblock",
+    "streamingCode": "{language} (wird gestreamt...)",
+    "fastLayoutMode": "Schneller Layoutmodus",
+    "degradedProtection": "Lastschutz aktiv"
+  },
+  "thinkingPermission": {
+    "thinkingDepth": "Denktiefe",
+    "thinkingUnsupported": "Nicht unterstützt",
+    "thinkingUnsupportedHint": "Das aktuelle Modell unterstützt keine Steuerung des Denkbudgets",
+    "thinkingSliderLabel": "Schieberegler für die Denktiefe (0k bis 32k)",
+    "thinkingSliderAria": "Denkbudget anpassen",
+    "thinkingTierOffLatency": "Antwortet direkt ohne Denkaufwand",
+    "thinkingTierLowLatency": "Leichtes Nachdenken, geeignet für einfaches Glätten und Erklären",
+    "thinkingTierMediumLatency": "Ausgewogenes Denken, geeignet für übliche mehrstufige Schlussfolgerungen",
+    "thinkingTierHighLatency": "Tiefes Nachdenken, geeignet für komplexe Algorithmen und Systementwurf",
+    "thinkingTierMaxLatency": "Maximales Schlussfolgern, geeignet für strenge Mathematik und Gesamtarchitektur",
+    "permissionCurrent": "Aktuelle Berechtigung: {label} · {description}",
+    "permissionMenuTitle": "Berechtigungsmodus des Agenten",
+    "permissionTierStrict": "Sicherheitsschutz",
+    "permissionTierStrictDesc": "Jede Dateiänderung und jeder Shell-Befehl erfordert eine ausdrückliche menschliche Freigabe",
+    "permissionTierSemiAuto": "Halbautomatisch agil",
+    "permissionTierSemiAutoDesc": "Übliche Code-Änderungen und sichere Befehle werden automatisch freigegeben; riskante Befehle werden zur Freigabe abgefangen",
+    "permissionTierFullAuto": "Vollautomatisch unbeaufsichtigt",
+    "permissionTierFullAutoDesc": "Läuft innerhalb der Sandbox-Grenzen mit voller Geschwindigkeit, ohne Pop-ups und nahezu ohne Verzögerung"
+  },
+  "dashboardWorkspace": {
+    "renameHint": "Zum Umbenennen klicken",
+    "editTitle": "Titel bearbeiten",
+    "cycleColSpan": "Layoutbreite wechseln (aktuell {cols} Spalten)",
+    "refreshIntervalAria": "Intervall der automatischen Aktualisierung",
+    "refreshManual": "Manuell",
+    "refreshNow": "Jetzt aktualisieren",
+    "unpin": "Lösen",
+    "pinnedAt": "Angeheftet um {time}",
+    "refreshedAt": "Aktualisiert um {time}",
+    "drawerAria": "Überwachungs-Arbeitsbereich für digitale Mitarbeiter",
+    "drawerTitle": "Projekt-Arbeitsbereich und Überwachungsboard",
+    "widgetCount": "{count, plural, one {# Widget} other {# Widgets}}",
+    "drawerSubtitle": "Dauerhafte interaktive Prototypen, dynamische Datenberichte und Überwachungskarten für digitale Mitarbeiter",
+    "refreshAllHint": "Alle Widgets aktualisieren",
+    "refreshAll": "Alle aktualisieren",
+    "clearAllHint": "Alle Widgets entfernen",
+    "clearAll": "Leeren",
+    "restoreViewport": "Ansicht wiederherstellen",
+    "fullscreen": "Vollbild",
+    "closeDrawer": "Arbeitsbereich schließen",
+    "searchPlaceholder": "Widget-Titel oder -Inhalt suchen...",
+    "filterAll": "Alle",
+    "emptyTitle": "Noch keine Widgets angeheftet",
+    "emptyHint": "Klicke bei einer vom Agenten im Chat erzeugten HTML-/SVG-/Dashboard-Karte oben rechts auf das Pin-Symbol, um sie hier anzuheften, damit sie nicht im Verlauf einer einzelnen Frage-Antwort-Runde untergeht.",
+    "pinnedTooltip": "An Arbeitsbereich angeheftet (zum Lösen klicken)",
+    "pinTooltip": "An das Dashboard des Arbeitsbereichs anheften",
+    "pinned": "Angeheftet",
+    "pin": "Anheften"
   }
 }

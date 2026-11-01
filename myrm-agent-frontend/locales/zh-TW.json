@@ -1473,7 +1473,9 @@
         "currentTime": "目前時間",
         "osInfo": "作業系統資訊",
         "userName": "使用者名稱"
-      }
+      },
+      "modelOverride": "模型覆寫",
+      "subagentCostSaving": "子智慧體降本"
     },
     "preview": "預覽",
     "avatarColor": "頭像顏色",
@@ -2619,7 +2621,8 @@
       "noSessionStats": "暫無效能資料",
       "modelBreakdown": "模型分解",
       "performance": "效能",
-      "toolBreakdown": "工具分解"
+      "toolBreakdown": "工具分解",
+      "costUnknown": "費用未知"
     },
     "liveness": {
       "idle": "就緒",
@@ -2788,7 +2791,10 @@
       "editHint": "Enter 儲存 · Shift+Enter 換行 · Esc 取消",
       "reorder": "拖曳調整順序",
       "listLabel": "排隊訊息",
-      "moveToTop": "移至隊首"
+      "moveToTop": "移至隊首",
+      "expandDock": "展開排隊訊息",
+      "collapseDock": "收合排隊訊息",
+      "clearAll": "清空整個佇列"
     },
     "fileMention": {
       "title": "工作區引用",
@@ -6385,7 +6391,8 @@
     "code": "程式碼",
     "copy": "複製程式碼",
     "copied": "已複製",
-    "preview": "預覽"
+    "preview": "預覽",
+    "prototypeBoardTitle": "{language} 原型看板"
   },
   "imageEditor": {
     "cancel": "取消",
@@ -6878,7 +6885,8 @@
       "loadFailed": "檔案載入失敗",
       "unavailable": "無法載入該檔案",
       "downloadFull": "下載完整檔案"
-    }
+    },
+    "resizePanel": "調整面板大小"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -10947,7 +10955,12 @@
     "workspacePath": "工作區目錄",
     "workspacePathEmpty": "工作區路徑不能為空",
     "workspacePathInvalidChars": "工作區路徑包含無效控制字元",
-    "workspacePathMustBeAbsolute": "工作區路徑必須為絕對路徑或以 ~ 開頭"
+    "workspacePathMustBeAbsolute": "工作區路徑必須為絕對路徑或以 ~ 開頭",
+    "openScratchpadAria": "開啟快速草稿本",
+    "openReviewPanelAria": "開啟審查面板",
+    "reviewChanges": "審查變更",
+    "closeReviewOverlayAria": "關閉審查",
+    "closeReviewPanelAria": "關閉審查面板"
   },
   "growthDashboard": {
     "title": "成長儀表盤",
@@ -14337,7 +14350,8 @@
     "outlineDrawerSubtitle": "共 {count} 輪使用者發問",
     "closeDrawer": "關閉抽屜",
     "noQuestionsYet": "暫無使用者提問記錄",
-    "roundLabel": "第 {num} 輪問答"
+    "roundLabel": "第 {num} 輪問答",
+    "hudAria": "使用者提問導覽"
   },
   "canvasSecurity": {
     "pendingEgressBadge": "待稽核出網請求 ({count})",
@@ -14346,7 +14360,8 @@
     "egressPromptTitle": "畫布正在嘗試發起外部網路連線",
     "blockEgress": "拒絕並阻斷",
     "allowOnce": "允許本次",
-    "alwaysAllowDomain": "總是信任此域名"
+    "alwaysAllowDomain": "總是信任此域名",
+    "egressAlertAria": "網路外送授權提醒"
   },
   "wechatPreview": {
     "badgeLabel": "微信排版",
@@ -14381,7 +14396,9 @@
     "noAnnotationsYet": "暫無微調批註，點選任意元素即可新增",
     "markResolved": "標記為已解決",
     "markUnresolved": "重新開啟批註",
-    "delete": "刪除"
+    "delete": "刪除",
+    "sandboxIframeTitle": "互動式原型畫布",
+    "submitShortcutHint": "⌘+Enter 提交"
   },
   "structuredAsking": {
     "skippedBadge": "已跳過",
@@ -14428,7 +14445,9 @@
     "noChartData": "暫無可繪製的圖表資料",
     "detailTableTitle": "資料透視明細表",
     "rowsCount": "行資料",
-    "searchPlaceholder": "按關鍵詞過濾明細..."
+    "searchPlaceholder": "按關鍵詞過濾明細...",
+    "chartTypeBar": "柱狀圖",
+    "chartTypeLine": "折線圖"
   },
   "mobile": {
     "quickCapture": {
@@ -14510,7 +14529,8 @@
     "security_credential": "安全與憑據",
     "shortcutHint": "按 / 開啟指令矩陣",
     "subtitle": "按分類瀏覽並插入斜槓指令",
-    "title": "指令矩陣"
+    "title": "指令矩陣",
+    "suggestionLabel": "建議："
   },
   "embedWidget": {
     "allowedOriginLabel": "允許的來源",
@@ -14542,7 +14562,10 @@
     "themeDark": "深色",
     "themeLabel": "主題",
     "themeLight": "淺色",
-    "widgetTitle": "智慧助手"
+    "widgetTitle": "智慧助手",
+    "drawerAria": "智慧代理側邊抽屜",
+    "floatingAria": "智慧代理懸浮視窗",
+    "allowedOriginPlaceholder": "https://example.com 或 *"
   },
   "reconnectProtocol": {
     "close": "關閉",
@@ -14560,7 +14583,8 @@
     "epochBadge": "紀元：{epoch}",
     "messagesCount": "訊息數：{count}",
     "activeTools": "活躍工具：{count} 個",
-    "latestTurn": "最新輪次：{summary}"
+    "latestTurn": "最新輪次：{summary}",
+    "reconnectCount": "重連計數: {count}"
   },
   "scratchpad": {
     "cancel": "取消",
@@ -14615,7 +14639,9 @@
     "inputChars": "輸入字元：{count}",
     "outputChars": "輸出字元：{count}",
     "tokensCount": "Tokens：Prompt {prompt} · Completion {completion}",
-    "emptyPayload": "未附帶資料"
+    "emptyPayload": "未附帶資料",
+    "collapseStep": "收合步驟",
+    "expandStep": "展開步驟"
   },
   "quadGraph": {
     "closeDrawer": "關閉節點詳情",
@@ -17409,6 +17435,16 @@
         "failRate": "失敗率",
         "avgMs": "平均 (ms)",
         "p90Ms": "P90 (ms)"
+      },
+      "composition": {
+        "title": "週期工具構成分析",
+        "totalCalls": "(共 {count} 次呼叫)",
+        "daysOption": "{days} 天",
+        "boundaryNote": "呼叫佔比與累計耗時佔比分別統計。並行呼叫的執行耗時可能重疊，累計耗時佔比不代表實際牆鐘時間佔比；本檢視僅展示呼叫與耗時結構，不設成本佔比。",
+        "callsWithPercent": "{calls} 次 ({percent}%)",
+        "otherTools": "其他 {count} 項工具 ({calls} 次 · {percent}%)",
+        "durationShare": "耗時: {percent}%",
+        "durationShareRow": "{percent}% 耗時"
       }
     },
     "skillOptimization": {
@@ -20817,7 +20853,8 @@
         "snapshotEmpty": "暫無快照。",
         "snapshotRestore": "恢復",
         "snapshotDelete": "刪除",
-        "backupManualGuide": "快照在數據目錄的 snapshots 資料夾（默認 ~/.myrm）。重裝後可手動拷回 data.db 與 checkpoints.db 恢復——詳見文檔。"
+        "backupManualGuide": "快照在數據目錄的 snapshots 資料夾（默認 ~/.myrm）。重裝後可手動拷回 data.db 與 checkpoints.db 恢復——詳見文檔。",
+        "openUpgradeCockpit": "無感升級控制台"
       },
       "unattendedDesktop": {
         "guideIntro": "鎖定螢幕離開後仍要讓 Agent 操作本機時，請使用桌面用戶端。純瀏覽器模式僅支援聊天內審批，不含下列保護。",
@@ -20834,6 +20871,36 @@
         "guideTitle": "離席使用電腦・快速設定",
         "statusOn": "已開啟",
         "statusOptional": "可選"
+      },
+      "upgradeCockpit": {
+        "safeLabel": "運行態健康安全：",
+        "activeTitle": "活動長任務防誤殺保護（已攔截強制重啟）",
+        "tasksRunning": "{count} 個任務執行中",
+        "drainFirst": "等待目前任務完成後自動重新載入",
+        "checkpointUpgrade": "儲存 Checkpoint 後立即升級",
+        "healthOptimal": "極速穩定",
+        "healthHealthy": "連線正常",
+        "healthDegraded": "延遲較高",
+        "healthBlocked": "連接埠逾時",
+        "probeTitle": "前置網路診斷探針",
+        "probeSubtitle": "多來源跨境通道即時檢測與一鍵切換，杜絕下載中斷",
+        "probing": "檢測中...",
+        "retest": "重新測速",
+        "recommended": "推薦",
+        "roundTripLatency": "往返延遲:",
+        "modalTitle": "雙實例無感升級流水線",
+        "modalSubtitle": "藍綠原子接力與一鍵秒級快照回滾",
+        "oldInstance": "舊實例 {version} (活動備援)",
+        "newInstance": "新實例 {version} (準備接手)",
+        "losslessSwitch": "無損切換",
+        "stepRunning": "執行中...",
+        "stepReady": "已就緒",
+        "completeTitle": "升級完成！新實例已原子接替服務",
+        "completeBody": "已自動完成沙盒健康度自檢與資料庫遷移，全部會話與記憶無損保留。",
+        "rolledBack": "已原子回滾至上一個穩定版本快照",
+        "rollbackAction": "一鍵秒級原子回滾",
+        "tryNewVersion": "體驗新版本",
+        "closeWindow": "關閉視窗"
       }
     },
     "push": {
@@ -21241,7 +21308,15 @@
       "wikiNegativeOutcomeRate": "負向結果率",
       "wikiVerificationDwell": "平均驗證停留",
       "wikiTelemetryDrops": "遙測遺失事件",
-      "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天"
+      "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天",
+      "exportCsvTitle": "將用量資料匯出為 CSV 報表",
+      "exportCsv": "匯出 CSV",
+      "cacheRadarTitle": "全域 Prompt Cache 效能雷達",
+      "cacheRadarWindow": "{days}天內 {sessions}個會話",
+      "cacheRadarSavings": "累計節省美金:",
+      "cacheRadarCachedTokens": "快取重用 Tokens",
+      "cacheRadarFreshInput": "冷啟動 Tokens",
+      "cacheRadarTotalPrompt": "總 Prompt Tokens"
     },
     "workingState": {
       "title": "工作狀態",
@@ -22619,5 +22694,130 @@
         "default": "設定預設與降級模型、路由策略及第三方模型設定"
       }
     }
+  },
+  "digitalSelf": {
+    "satelliteTitle": "數位分身待審草稿",
+    "pendingCount": "（{count} 封待確認）",
+    "gateReady": "門禁就緒",
+    "toneSelectorLabel": "語氣風格",
+    "toneFormal": "嚴謹正式",
+    "toneFormalDesc": "措辭嚴謹禮貌，適合向上級報告、公文或正式商務往來",
+    "toneSemiFormal": "職場得體",
+    "toneSemiFormalDesc": "務實高效且不失禮貌，適合日常跨部門協作與業務對齊",
+    "toneFriendly": "友善活潑",
+    "toneFriendlyDesc": "親和自然，帶有適當語氣助詞，適合組內夥伴與熟悉的協作者",
+    "toneConcise": "簡明幹練",
+    "toneConciseDesc": "開門見山，突出關鍵結論與行動項，拒絕冗長客套",
+    "relationLeader": "直屬主管",
+    "relationColleague": "協作同事",
+    "relationPartner": "外部客戶/夥伴",
+    "relationTeammate": "組內夥伴",
+    "channelFeishu": "飛書",
+    "channelDingtalk": "釘釘",
+    "channelWechat": "企業微信",
+    "channelEmail": "工作郵件",
+    "channelSlack": "Slack",
+    "safetyBanner": "出站發送實體安全門禁：未經人工明確確認，絕對禁止直接發送",
+    "originalSummary": "原訊息摘要：",
+    "sourcesToggle": "事實參考依據（{count} 條）",
+    "draftHeading": "數位分身擬答草稿：",
+    "statusConfirmed": "已確認發出",
+    "statusDiscarded": "已放棄",
+    "editHint": "可直接點擊修改文字",
+    "draftPlaceholder": "草擬回覆內容...",
+    "sentAt": "已於 {time} 明確授權發送",
+    "discardedNote": "該草稿已作廢",
+    "editedByHuman": "已做人工修改",
+    "awaitingConfirmation": "等待人工確認",
+    "discard": "放棄",
+    "sending": "正在發送...",
+    "confirmSend": "確認發送"
+  },
+  "inFlightSteer": {
+    "swimlanesTitle": "活躍專家泳道 ({count})",
+    "tokensUsed": "消耗 Tokens",
+    "elapsed": "執行耗時",
+    "steerHint": "動態追加糾偏指令",
+    "steerAction": "糾偏",
+    "expandTaskAria": "展開任務詳情: {title}",
+    "collapseTaskAria": "收合任務詳情: {title}",
+    "stepProgress": "{completed}/{total} 步驟 ({percent}%)",
+    "currentOwner": "目前負責: {name}",
+    "showDetails": "展開詳情",
+    "collapseSummary": "收合摘要",
+    "findingsTitle": "階段性產物與關鍵發現 ({count})",
+    "findingsEmpty": "暫無階段性總結產物...",
+    "workflowFooter": "多智慧體協作工作流 · 即時脈衝歸約",
+    "updatedAt": "更新於 {time}",
+    "steerSubagentAria": "糾偏子智慧體: {name}",
+    "close": "關閉",
+    "quickPresets": "快速注入糾偏方向",
+    "inputPlaceholder": "輸入動態微調指令...",
+    "sendInstructionAria": "下發糾偏指令",
+    "stopEarly": "提前叫停（保留已有半成品草稿）",
+    "presetConciseLabel": "簡明扼要",
+    "presetConciseInstruction": "請聚焦核心結論，精簡中間思考推導，直接輸出關鍵程式碼與方案。",
+    "presetDefensiveLabel": "邊界防禦",
+    "presetDefensiveInstruction": "請重點注意處理空值邊界、例外捕捉與安全性檢查。",
+    "presetLightweightLabel": "輕量解法",
+    "presetLightweightInstruction": "目前方案可能偏重，請換一種更輕量、無需重型相依套件的思路。",
+    "presetDraftNowLabel": "輸出草稿",
+    "presetDraftNowInstruction": "暫停深入細化，先將目前已完成的局部結論沉澱並輸出。"
+  },
+  "streamingMarkdown": {
+    "closedCodeBlock": "已閉合程式碼區塊",
+    "streamingCode": "{language} (串流傳輸中...)",
+    "fastLayoutMode": "極速排版模式",
+    "degradedProtection": "負載降級保護中"
+  },
+  "thinkingPermission": {
+    "thinkingDepth": "思考深度",
+    "thinkingUnsupported": "不支援",
+    "thinkingUnsupportedHint": "目前模型不支援思考預算調節",
+    "thinkingSliderLabel": "思考深度滑桿（0k 到 32k）",
+    "thinkingSliderAria": "調節思考推理預算",
+    "thinkingTierOffLatency": "直接作答，無思考開銷",
+    "thinkingTierLowLatency": "輕量思考，適合簡單潤飾與解釋",
+    "thinkingTierMediumLatency": "平衡思考，適合一般多步邏輯推理",
+    "thinkingTierHighLatency": "深度思考，適合複雜演算法與系統設計",
+    "thinkingTierMaxLatency": "極限推理，適合深層嚴密數理與全景架構",
+    "permissionCurrent": "目前權限：{label} · {description}",
+    "permissionMenuTitle": "智慧體權限控制模式",
+    "permissionTierStrict": "安全守護",
+    "permissionTierStrictDesc": "所有檔案修改與 Shell 執行均需人工明確核准",
+    "permissionTierSemiAuto": "半自動敏捷",
+    "permissionTierSemiAutoDesc": "自動放行一般程式碼編輯與安全指令，高風險指令強制攔截審批",
+    "permissionTierFullAuto": "全自動無人值守",
+    "permissionTierFullAutoDesc": "在沙盒邊界內受控全速自主執行，零彈窗秒級流轉"
+  },
+  "dashboardWorkspace": {
+    "renameHint": "點擊重新命名",
+    "editTitle": "編輯標題",
+    "cycleColSpan": "切換版面寬度 (目前 {cols} 欄)",
+    "refreshIntervalAria": "自動重新整理頻率",
+    "refreshManual": "手動",
+    "refreshNow": "立即重新整理",
+    "unpin": "取消固定",
+    "pinnedAt": "固定於 {time}",
+    "refreshedAt": "已重新整理 {time}",
+    "drawerAria": "數位員工監控工作台",
+    "drawerTitle": "專案工作台與監控大盤",
+    "widgetCount": "{count} 個元件",
+    "drawerSubtitle": "常駐持久化富互動原型、動態資料報表與數位員工監控卡片",
+    "refreshAllHint": "重新整理所有元件",
+    "refreshAll": "全部重新整理",
+    "clearAllHint": "清空所有元件",
+    "clearAll": "清空",
+    "restoreViewport": "還原視窗",
+    "fullscreen": "全螢幕顯示",
+    "closeDrawer": "關閉工作台",
+    "searchPlaceholder": "搜尋元件標題或內容...",
+    "filterAll": "全部",
+    "emptyTitle": "工作台尚無固定元件",
+    "emptyHint": "在對話訊息中 Agent 產生的任意 HTML / SVG / 資料看板卡片右上角，點擊固定圖示，即可將其釘入此專屬工作台，告別單次問答刷屏遺忘。",
+    "pinnedTooltip": "已固定至工作台 (點擊取消)",
+    "pinTooltip": "固定到工作台 Dashboard",
+    "pinned": "已固定",
+    "pin": "固定"
   }
 }

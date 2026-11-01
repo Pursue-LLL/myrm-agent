@@ -83,7 +83,7 @@ const InlineHtmlWidget: React.FC<{
         <div className="flex items-center space-x-1">
           <PinToDashboardButton
             widgetId={widgetId}
-            title={`${language.toUpperCase()} 原型看板`}
+            title={t('prototypeBoardTitle', { language: language.toUpperCase() })}
             language={language}
             content={value}
           />

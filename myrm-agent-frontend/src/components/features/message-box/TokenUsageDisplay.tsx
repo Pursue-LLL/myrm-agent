@@ -609,7 +609,7 @@ export default function TokenUsageDisplay({
                   <span className="text-xs text-muted-foreground">{t('cost')}</span>
                   <div className="flex items-center gap-1.5">
                     <span data-testid="cost-status-unknown" className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                      费用未知
+                      {t('costUnknown')}
                     </span>
                   </div>
                 </div>
@@ -810,7 +810,7 @@ export default function TokenUsageDisplay({
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-1">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground">TTFT Avg</span>
+                      <span className="text-muted-foreground">{t('avgTtft')}</span>
                       <span className="font-mono text-foreground">
                         {tokenEconomics.latency.avg_ttft_ms > 0
                           ? `${Math.round(tokenEconomics.latency.avg_ttft_ms)}ms`

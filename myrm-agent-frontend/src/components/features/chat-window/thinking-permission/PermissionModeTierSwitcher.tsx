@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { ShieldCheck, Zap, Rocket, ChevronDown, Check } from 'lucide-react';
 import {
   type PermissionTier,
@@ -31,6 +32,7 @@ export default function PermissionModeTierSwitcher({
   className = '',
   disabled = false,
 }: PermissionModeTierSwitcherProps) {
+  const t = useTranslations('thinkingPermission');
   const currentTier = usePermissionTierStore((state) => state.tier);
   const setTier = usePermissionTierStore((state) => state.setTier);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -91,10 +93,13 @@ export default function PermissionModeTierSwitcher({
         className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border transition-all ${
           currentConfig.borderColorClass
         } ${currentConfig.badgeBgClass} ${currentConfig.colorClass} hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
-        title={`当前权限：${currentConfig.shortLabel} · ${currentConfig.description}`}
+        title={t('permissionCurrent', {
+          label: t(currentConfig.labelKey),
+          description: t(currentConfig.descriptionKey),
+        })}
       >
         {renderTierIcon(currentTier)}
-        <span>{currentConfig.shortLabel}</span>
+        <span>{t(currentConfig.labelKey)}</span>
         <ChevronDown
           className={`w-3 h-3 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
           aria-hidden="true"
@@ -108,7 +113,7 @@ export default function PermissionModeTierSwitcher({
           className="absolute bottom-full mb-1.5 left-0 z-50 w-64 rounded-lg border border-border/80 bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-md animate-in fade-in-0 zoom-in-95"
         >
           <div className="px-2 py-1 border-b border-border/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            智能体权限控制模式
+            {t('permissionMenuTitle')}
           </div>
 
           <div className="flex flex-col gap-1 mt-1">
@@ -136,11 +141,11 @@ export default function PermissionModeTierSwitcher({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-foreground">{config.shortLabel}</span>
+                      <span className="text-xs font-medium text-foreground">{t(config.labelKey)}</span>
                       {isSelected && <Check className="w-3.5 h-3.5 text-primary" aria-hidden="true" />}
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
-                      {config.description}
+                      {t(config.descriptionKey)}
                     </p>
                   </div>
                 </button>
