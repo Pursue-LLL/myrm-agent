@@ -3,6 +3,7 @@ import ipaddress
 import json
 import logging
 import time
+from collections.abc import Mapping
 from typing import Literal
 from urllib.parse import urlparse, urlunparse
 
@@ -12,6 +13,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import secure_request
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
+from myrm_agent_harness.toolkits.llms.catalog import known_models, model_info
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
@@ -445,18 +447,10 @@ def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
     Returns:
         模型信息字典，如果找不到则返回 None
     """
-    import litellm
-
     model_clean = model.lower()
 
-    try:
-        if model_clean in getattr(litellm, "model_cost", {}):
-            return dict(litellm.model_cost[model_clean])
-        info = litellm.get_model_info(model_clean)
-        if info:
-            return dict(info)
-    except Exception:
-        pass
+    if (info := model_info(model_clean)) is not None:
+        return dict(info)
 
     if "/" in model_clean:
         candidates: list[str] = []
@@ -466,14 +460,8 @@ def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
         candidates.append(parts[-1])
 
         for cand in candidates:
-            try:
-                if cand in getattr(litellm, "model_cost", {}):
-                    return dict(litellm.model_cost[cand])
-                info = litellm.get_model_info(cand)
-                if info:
-                    return dict(info)
-            except Exception:
-                continue
+            if (info := model_info(cand)) is not None:
+                return dict(info)
 
     return None
 
@@ -512,7 +500,7 @@ class ModelInfoResponse(BaseModel):
 class ModelInfoRequest(BaseModel):
     """模型信息请求"""
 
-    model: str = Field(..., description="模型名称（LiteLLM 格式）")
+    model: str = Field(..., description="模型名称（provider/model 格式）")
 
 
 class ModelInfoBatchRequest(BaseModel):
@@ -524,7 +512,7 @@ class ModelInfoBatchRequest(BaseModel):
 class ModelSwitchPreflightItem(BaseModel):
     """模型切换压缩预检输入项"""
 
-    model: str = Field(..., description="目标模型名（LiteLLM 格式）")
+    model: str = Field(..., description="目标模型名（provider/model 格式）")
     max_input_tokens: int | None = Field(
         default=None,
         description="目标模型上下文窗口（前端能力探测结果）；缺省时后端尝试解析",
@@ -570,8 +558,8 @@ class ModelSwitchPreflightResult(BaseModel):
     will_compress: bool = Field(default=False, description="切换后下一条消息将触发压缩")
 
 
-def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
-    """从 LiteLLM 模型信息构建能力对象"""
+def _build_capabilities(info: Mapping[str, object]) -> ModelCapabilities:
+    """从模型目录条目构建能力对象"""
     return ModelCapabilities(
         supports_vision=bool(info.get("supports_vision")),
         supports_function_calling=bool(info.get("supports_function_calling")),
@@ -587,7 +575,7 @@ def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
 
 
 def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
-    """在 litellm.model_cost 中搜索包含该模型名的所有条目
+    """在模型目录中搜索包含该模型名的所有条目
 
     Args:
         model_name: 要搜索的模型名称
@@ -595,27 +583,20 @@ def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
     Returns:
         匹配的候选模型列表
     """
-    import litellm
-
     model_name_lower = model_name.lower()
     candidates: list[ModelCandidate] = []
 
-    model_cost = litellm.model_cost
-
-    for model_key, model_info in model_cost.items():
+    for model_key, entry in known_models().items():
         # 检查模型键是否包含搜索的模型名
         if model_name_lower in model_key.lower():
             # 提取提供商名称（键的第一部分）
             provider = model_key.split("/")[0] if "/" in model_key else "unknown"
 
-            # 构建能力信息
-            capabilities = _build_capabilities(model_info)
-
             candidates.append(
                 ModelCandidate(
                     provider=provider,
                     model_key=model_key,
-                    capabilities=capabilities,
+                    capabilities=_build_capabilities(entry),
                 )
             )
 
@@ -625,7 +606,7 @@ def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
 class SpeedTestItemResult(BaseModel):
     """Single model speed test result."""
 
-    model: str = Field(..., description="Model name (LiteLLM format)")
+    model: str = Field(..., description="Model name (provider/model form)")
     ttft_ms: int | None = Field(default=None, description="Time to first token in ms")
     throughput_tps: float | None = Field(default=None, description="Tokens per second")
     total_ms: int | None = Field(default=None, description="Total generation time in ms")
@@ -781,7 +762,7 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
             capabilities = _build_capabilities(info)
             result[model] = capabilities.model_dump()
         else:
-            # 模型不在 LiteLLM 数据库中，返回空能力
+            # 模型不在模型目录中，返回空能力
             result[model] = ModelCapabilities().model_dump()
 
     return success_response(data=result)
@@ -793,7 +774,7 @@ def _resolve_target_max_input_tokens(
 ) -> int | None:
     """Resolve the target model context window for preflight checks.
 
-    Priority: explicit frontend capability value > LiteLLM model info.
+    Priority: explicit frontend capability value > model catalog.
     Returns None when the window is unknown (caller skips the warning).
     """
     if isinstance(fallback, int) and fallback > 0:

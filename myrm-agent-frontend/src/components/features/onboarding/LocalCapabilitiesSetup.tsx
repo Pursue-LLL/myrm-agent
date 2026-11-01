@@ -19,7 +19,7 @@ import CloudQuickStartCard from './CloudQuickStartCard';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
 import {
-  getLiteLLMModelName,
+  getRoutedModelName,
   hasUsableProviderAuth,
   isLoopbackApiUrl,
   isLocalOrTrustedSplitStackApiUrl,
@@ -230,10 +230,10 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
       const current = useProviderStore.getState().providers.find((p) => p.id === providerId);
       const mergedModels = Array.from(new Set([...(current?.availableModels ?? []), ...customDetectedModels]));
       const key = customApiKey.trim();
-      const litellmModel = getLiteLLMModelName(providerId, customSelectedModel, 'openai-like');
+      const routedModel = getRoutedModelName(providerId, customSelectedModel, 'openai-like');
       const reachabilityKey = key || (customNoAuthLocal ? LOCAL_NO_AUTH_API_KEY_MARKER : '');
       const reachability = await checkModelReachability({
-        model: litellmModel,
+        model: routedModel,
         api_key: reachabilityKey,
         base_url: customNormalizedApiUrl,
         model_kwargs: {},

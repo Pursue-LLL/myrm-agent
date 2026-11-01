@@ -317,9 +317,8 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     # Seed prebuilt trunk workflow templates (idempotent, never fails boot)
     asyncio.create_task(_seed_trunk_templates())
 
-    # Registering server-layer tools imports the full agent tool chain (including
-    # litellm, ~3.7 s). Do it after the HTTP server is ready so the UI can load;
-    # the first agent turn awaits the same idempotent bootstrap.
+    # Registering server-layer tools imports the full agent tool chain. Do it after the HTTP server is ready so
+    # the UI can load; the first agent turn awaits the same idempotent bootstrap.
     asyncio.create_task(_preload_agent_tool_layers())
 
     yield

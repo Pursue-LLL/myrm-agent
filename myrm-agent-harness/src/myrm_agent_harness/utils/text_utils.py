@@ -4,6 +4,7 @@
 
 [INPUT]
 - re::re (POS: Python 正则表达式库)
+- utils.tiktoken_tables::get_encoding (POS: 随包分发的 tiktoken 词表，计数无需联网下载)
 
 [OUTPUT]
 - detect_language(): 检测文本的主要语言类型（chinese/english/mixed）
@@ -30,6 +31,8 @@ from __future__ import annotations
 import logging
 import re
 import time
+
+from myrm_agent_harness.utils.tiktoken_tables import get_encoding
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +92,7 @@ def preheat_tiktoken(encoding_name: str = PLANNING_ENCODING) -> bool:
     Returns True if preheat succeeded, False if tiktoken is unavailable.
     """
     try:
-        import tiktoken
-
-        tiktoken.get_encoding(encoding_name)
+        get_encoding(encoding_name)
         logger.info("tiktoken preheat OK (encoding=%s)", encoding_name)
         return True
     except Exception:
@@ -117,9 +118,7 @@ def get_token_count(text: str, encoding_name: str = PLANNING_ENCODING) -> int:
         return 0
 
     try:
-        import tiktoken
-
-        encoding = tiktoken.get_encoding(encoding_name)
+        encoding = get_encoding(encoding_name)
         return len(encoding.encode(text, disallowed_special=()))
     except Exception as e:
         logger.warning("tiktoken failed, using fast estimation (error: %s)", e)
@@ -192,9 +191,7 @@ def truncate_text_to_tokens(text: str, max_tokens: int, encoding_name: str = PLA
     if not text or max_tokens <= 0:
         return ""
     try:
-        import tiktoken
-
-        encoding = tiktoken.get_encoding(encoding_name)
+        encoding = get_encoding(encoding_name)
         tokens = encoding.encode(text, disallowed_special=())
         if len(tokens) <= max_tokens:
             return text
@@ -220,9 +217,7 @@ def truncate_by_tokens_with_boundary(text: str, max_tokens: int, encoding_name: 
     if not text or max_tokens <= 0:
         return ""
     try:
-        import tiktoken
-
-        encoding = tiktoken.get_encoding(encoding_name)
+        encoding = get_encoding(encoding_name)
         tokens = encoding.encode(text, disallowed_special=())
         if len(tokens) <= max_tokens:
             return text

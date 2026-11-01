@@ -211,7 +211,6 @@ export const isSoftSearchServiceValidationFailure = (
 
 export interface SearchProviderManifestEntry {
   slug: string;
-  connector: string;
   name: string;
   nameZh: string;
   deploymentScope: string;

@@ -1,0 +1,245 @@
+"""One request/stream round trip: SSE and NDJSON framing, status mapping, the single connect retry, header rules."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable, Iterator
+
+import httpx
+import pytest
+
+from myrm_agent_harness.toolkits.llms.transport import http
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError
+from myrm_agent_harness.toolkits.llms.transport.http import (
+    Chunk,
+    PreparedRequest,
+    aopen_stream,
+    asend_json,
+    open_stream,
+    send_json,
+)
+
+Handler = Callable[[httpx.Request], httpx.Response]
+
+
+class _JsonLineDecoder:
+    """Decodes every framed event as one JSON object, the way the OpenAI wire does."""
+
+    def __init__(self) -> None:
+        self.done = False
+
+    def feed(self, event: str | None, data: str) -> list[Chunk]:
+        if data == "[DONE]":
+            self.done = True
+            return []
+        return [json.loads(data)]
+
+    def finish(self) -> list[Chunk]:
+        return []
+
+
+@pytest.fixture
+def network(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Handler], list[httpx.Request]]]:
+    """Route every request through a handler; ``arm(handler)`` returns the list the requests land in."""
+    seen: list[httpx.Request] = []
+    handlers: list[Handler] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return handlers[0](request)
+
+    monkeypatch.setattr(http, "_sync_client", lambda proxy: httpx.Client(transport=httpx.MockTransport(respond)))
+    monkeypatch.setattr(
+        http, "_async_client", lambda proxy: httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    )
+
+    def arm(handler: Handler) -> list[httpx.Request]:
+        handlers[:] = [handler]
+        return seen
+
+    yield arm
+
+
+def _request(**overrides: object) -> PreparedRequest:
+    fields: dict[str, object] = {
+        "provider": "openai",
+        "url": "https://api.example.test/v1/chat/completions",
+        "headers": {"Authorization": "Bearer k"},
+        "body": {"model": "m", "messages": []},
+        "timeout": 30.0,
+    }
+    fields.update(overrides)
+    return PreparedRequest(**fields)  # type: ignore[arg-type]
+
+
+_SSE = (
+    'data: {"n": 1}\n\n'
+    ": comment line\n\n"
+    "event: custom\n"
+    'data: {"n": 2}\n\n'
+    "data: [DONE]\n\n"
+    'data: {"after_done": true}\n\n'
+)
+
+
+class TestSendJson:
+    def test_posts_json_with_the_content_type_added_and_returns_the_object(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        seen = network(lambda request: httpx.Response(200, json={"ok": True}))
+        assert send_json(_request(query={"api-version": "1"})) == {"ok": True}
+        (request,) = seen
+        assert request.headers["content-type"] == "application/json"
+        assert request.headers["authorization"] == "Bearer k"
+        assert request.url.params["api-version"] == "1"
+        assert json.loads(request.content) == {"model": "m", "messages": []}
+
+    def test_non_ascii_text_goes_out_as_utf8_not_escapes(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        seen = network(lambda request: httpx.Response(200, json={}))
+        send_json(_request(body={"text": "你好"}))
+        assert "你好".encode() in seen[0].content
+
+    def test_a_caller_content_type_is_kept(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        seen = network(lambda request: httpx.Response(200, json={}))
+        send_json(_request(headers={"content-type": "application/vnd.x+json"}))
+        assert seen[0].headers["content-type"] == "application/vnd.x+json"
+
+    def test_a_failed_status_raises_with_the_provider_body(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        network(lambda request: httpx.Response(429, json={"error": {"message": "slow"}}))
+        with pytest.raises(LLMHTTPError) as caught:
+            send_json(_request())
+        assert (caught.value.status_code, caught.value.body) == (429, {"error": {"message": "slow"}})
+
+    @pytest.mark.parametrize("content", [b"<html>", b"[1, 2]"])
+    def test_a_2xx_answer_that_is_not_a_json_object_is_rejected(
+        self, network: Callable[[Handler], list[httpx.Request]], content: bytes
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=content))
+        with pytest.raises(ValueError, match="openai answered"):
+            send_json(_request())
+
+    def test_a_multipart_request_carries_its_own_boundary_content_type(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        seen = network(lambda request: httpx.Response(200, json={}))
+        send_json(_request(body=None, form={"prompt": "p"}, files={"image": ("a.png", b"\x89PNG", "image/png")}))
+        assert seen[0].headers["content-type"].startswith("multipart/form-data; boundary=")
+
+    async def test_async_twin(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        network(lambda request: httpx.Response(200, json={"ok": 1}))
+        assert await asend_json(_request()) == {"ok": 1}
+
+
+class TestConnectRetry:
+    def test_a_refused_connection_is_retried_exactly_once(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        attempts: list[int] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise httpx.ConnectError("refused")
+            return httpx.Response(200, json={"ok": True})
+
+        network(handler)
+        assert send_json(_request()) == {"ok": True}
+        assert len(attempts) == 2
+
+    def test_a_second_refusal_propagates(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("refused")
+
+        seen = network(handler)
+        with pytest.raises(httpx.ConnectError):
+            send_json(_request())
+        assert len(seen) == 2
+
+    def test_a_read_timeout_is_never_retried_here(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("slow")
+
+        seen = network(handler)
+        with pytest.raises(httpx.ReadTimeout):
+            send_json(_request())
+        assert len(seen) == 1
+
+    def test_a_server_error_is_never_retried_here(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        seen = network(lambda request: httpx.Response(503, text="down"))
+        with pytest.raises(LLMHTTPError):
+            send_json(_request())
+        assert len(seen) == 1
+
+
+class TestStreaming:
+    def test_sse_events_are_framed_comments_dropped_and_the_stream_stops_at_done(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=_SSE.encode()))
+        assert list(open_stream(_request(stream=True), _JsonLineDecoder())) == [{"n": 1}, {"n": 2}]
+
+    def test_comment_lines_are_dropped_and_data_lines_of_one_event_are_joined(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        body = 'data: {"a":\ndata: 1}\n\n: ping\n\ndata: [DONE]\n\n'
+        network(lambda request: httpx.Response(200, content=body.encode()))
+        assert list(open_stream(_request(stream=True), _JsonLineDecoder())) == [{"a": 1}]
+
+    def test_a_final_event_without_a_trailing_blank_line_is_still_delivered(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=b'data: {"n": 1}'))
+        assert list(open_stream(_request(stream=True), _JsonLineDecoder())) == [{"n": 1}]
+
+    def test_ndjson_framing_decodes_one_object_per_line_and_skips_blank_lines(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=b'{"n": 1}\n\n{"n": 2}\n'))
+        stream = open_stream(_request(stream=True, framing="ndjson"), _JsonLineDecoder())
+        assert list(stream) == [{"n": 1}, {"n": 2}]
+
+    def test_the_finish_reason_is_remembered_only_when_the_provider_sent_one(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        body = (
+            'data: {"choices": [{"delta": {"content": "a"}, "finish_reason": null}]}\n\n'
+            'data: {"choices": [{"delta": {}, "finish_reason": "length"}]}\n\n'
+            'data: {"choices": [], "usage": {}}\n\n'
+        )
+        network(lambda request: httpx.Response(200, content=body.encode()))
+        stream = open_stream(_request(stream=True), _JsonLineDecoder())
+        assert stream.received_finish_reason is None
+        list(stream)
+        assert stream.received_finish_reason == "length"
+
+    def test_a_cut_stream_reports_no_finish_reason(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        body = 'data: {"choices": [{"delta": {"content": "a"}, "finish_reason": null}]}\n\n'
+        network(lambda request: httpx.Response(200, content=body.encode()))
+        stream = open_stream(_request(stream=True), _JsonLineDecoder())
+        list(stream)
+        assert stream.received_finish_reason is None
+
+    def test_a_refused_stream_raises_before_any_chunk(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        network(lambda request: httpx.Response(400, json={"error": {"message": "bad request"}}))
+        with pytest.raises(LLMHTTPError) as caught:
+            open_stream(_request(stream=True), _JsonLineDecoder())
+        assert caught.value.status_code == 400
+
+    async def test_async_stream_matches_the_sync_one(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        body = 'data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}\n\ndata: [DONE]\n\n'
+        network(lambda request: httpx.Response(200, content=body.encode()))
+        stream = await aopen_stream(_request(stream=True), _JsonLineDecoder())
+        chunks = [chunk async for chunk in stream]
+        assert chunks == [{"choices": [{"delta": {}, "finish_reason": "stop"}]}]
+        assert stream.received_finish_reason == "stop"
+
+    async def test_async_refusal_raises_before_any_chunk(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        network(lambda request: httpx.Response(401, json={"error": {"message": "no key"}}))
+        with pytest.raises(LLMHTTPError):
+            await aopen_stream(_request(stream=True), _JsonLineDecoder())
+
+    def test_closing_a_stream_early_releases_the_connection(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
+        network(lambda request: httpx.Response(200, content=b'data: {"n": 1}\n\ndata: {"n": 2}\n\n'))
+        stream = open_stream(_request(stream=True), _JsonLineDecoder())
+        assert next(stream) == {"n": 1}
+        stream.close()
+        with pytest.raises(StopIteration):
+            next(stream)

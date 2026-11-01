@@ -8,7 +8,7 @@ import {
   ProviderConfig as ProviderConfigType,
   ApiKeyConfig,
   CredentialPoolStrategy,
-  getLiteLLMModelName,
+  getRoutedModelName,
   BUILT_IN_PROVIDER_INFO,
   hasActiveApiKey,
   hasUsableProviderAuth,
@@ -74,7 +74,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
         return { reachable: false, error: 'No model available for probe', latency_ms: null };
       }
 
-      const modelFullName = getLiteLLMModelName(provider.id, probeModel, provider.providerType);
+      const modelFullName = getRoutedModelName(provider.id, probeModel, provider.providerType);
       return checkModelReachability({
         model: modelFullName,
         api_key: apiKey,
@@ -114,7 +114,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     }
 
     setReachabilityState('checking');
-    const modelFullName = getLiteLLMModelName(provider.id, probeModel, provider.providerType);
+    const modelFullName = getRoutedModelName(provider.id, probeModel, provider.providerType);
     const result = await checkModelReachability({
       model: modelFullName,
       api_key: requestApiKey,

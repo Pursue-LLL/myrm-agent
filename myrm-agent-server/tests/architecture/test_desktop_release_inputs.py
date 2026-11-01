@@ -167,38 +167,29 @@ def test_pyinstaller_collects_the_tokenizer_tables_the_sidecar_relies_on() -> No
     cmd = sidecar_build_module().pyinstaller_command(Path("python"), Path("work"))
     options = set(zip(cmd, cmd[1:], strict=False))
 
-    assert ("--collect-data", "litellm") in options
+    # The vocabularies are harness package data, collected with the rest of the package.
+    assert ("--collect-data", "myrm_agent_harness") in options
     assert ("--collect-submodules", "tiktoken_ext") in options
     assert ("--hidden-import", "tiktoken_ext.openai_public") in options
 
 
 _OFFLINE_TOKENIZER_PROBE = """
-import litellm
-import tiktoken
 from myrm_agent_harness.utils.text_utils import PLANNING_ENCODING
+from myrm_agent_harness.utils.tiktoken_tables import get_encoding
 
 for name in ("cl100k_base", PLANNING_ENCODING):
-    tiktoken.get_encoding(name)
+    get_encoding(name)
 """
 
 
-def test_token_counting_works_offline_from_the_tables_litellm_bundles(tmp_path: Path) -> None:
-    # litellm repoints TIKTOKEN_CACHE_DIR at its own tables on import. The empty cache, the empty temp
-    # dir (tiktoken's fallback cache) and a dead proxy make any attempt to download a table fail
-    # loudly, so a litellm release that stops bundling one fails here instead of in a packaged app.
+def test_token_counting_works_offline_from_the_bundled_tables(tmp_path: Path) -> None:
+    # No host cache variable, an empty temp dir (tiktoken's fallback cache) and a dead proxy make any attempt to
+    # download a vocabulary fail loudly, so a damaged or missing bundled table fails here instead of in a packaged app.
     temp_dir = tmp_path / "tmp"
     temp_dir.mkdir()
     dead_proxy = "http://127.0.0.1:9"
-    env = {key: value for key, value in os.environ.items() if key not in {"DATA_GYM_CACHE_DIR", "CUSTOM_TIKTOKEN_CACHE_DIR"}}
-    env.update(
-        TIKTOKEN_CACHE_DIR=str(tmp_path / "cache"),
-        TMPDIR=str(temp_dir),
-        TEMP=str(temp_dir),
-        TMP=str(temp_dir),
-        LITELLM_LOCAL_MODEL_COST_MAP="True",
-        NO_PROXY="",
-        no_proxy="",
-    )
+    env = {key: value for key, value in os.environ.items() if key not in {"TIKTOKEN_CACHE_DIR", "DATA_GYM_CACHE_DIR"}}
+    env.update(TMPDIR=str(temp_dir), TEMP=str(temp_dir), TMP=str(temp_dir), NO_PROXY="", no_proxy="")
     for proxy_var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
         env[proxy_var] = dead_proxy
 

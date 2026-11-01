@@ -1,11 +1,11 @@
 // 提供商类型定义
 
 import {
-  KNOWN_LITELLM_ROUTE_PREFIXES as _GENERATED_LITELLM_ROUTE_PREFIXES,
-  PROVIDER_TO_LITELLM_PREFIX,
-} from './litellmRouting.generated';
+  KNOWN_ROUTE_PREFIXES as _GENERATED_ROUTE_PREFIXES,
+  PROVIDER_TO_ROUTE_PREFIX,
+} from './providerRouting.generated';
 
-export { PROVIDER_TO_LITELLM_PREFIX };
+export { PROVIDER_TO_ROUTE_PREFIX };
 
 // ==================== Provider 分类 ====================
 
@@ -38,7 +38,7 @@ export interface CustomProviderTypeInfo {
   id: CustomProviderType;
   name: string;
   defaultApiUrl: string;
-  litellmPrefix: string;
+  routePrefix: string;
 }
 
 // 自定义提供商类型配置
@@ -47,19 +47,19 @@ export const CUSTOM_PROVIDER_TYPE_INFO: Record<CustomProviderType, CustomProvide
     id: 'openai-like',
     name: 'OpenAI-Like',
     defaultApiUrl: 'https://api.openai.com/v1',
-    litellmPrefix: 'openai',
+    routePrefix: 'openai',
   },
   'gemini-like': {
     id: 'gemini-like',
     name: 'Gemini-Like',
     defaultApiUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    litellmPrefix: 'gemini',
+    routePrefix: 'gemini',
   },
   'anthropic-like': {
     id: 'anthropic-like',
     name: 'Anthropic-Like',
     defaultApiUrl: 'https://api.anthropic.com',
-    litellmPrefix: 'anthropic',
+    routePrefix: 'anthropic',
   },
 };
 
@@ -71,10 +71,10 @@ export function resolveCustomProviderTypeInfo(providerType?: string): CustomProv
   return CUSTOM_PROVIDER_TYPE_INFO[providerType as CustomProviderType];
 }
 
-/** Known LiteLLM route segments (longest first; generated list plus custom compat prefixes). */
-const KNOWN_LITELLM_ROUTE_PREFIXES: readonly string[] = (() => {
-  const litellmPrefixesFromCustom = Object.values(CUSTOM_PROVIDER_TYPE_INFO).map((t) => t.litellmPrefix);
-  return [...new Set([..._GENERATED_LITELLM_ROUTE_PREFIXES, ...litellmPrefixesFromCustom, 'vercel_ai_gateway'])].sort(
+/** Known provider route segments (longest first; generated list plus custom compat prefixes). */
+const KNOWN_ROUTE_PREFIXES: readonly string[] = (() => {
+  const routePrefixesFromCustom = Object.values(CUSTOM_PROVIDER_TYPE_INFO).map((t) => t.routePrefix);
+  return [...new Set([..._GENERATED_ROUTE_PREFIXES, ...routePrefixesFromCustom, 'vercel_ai_gateway'])].sort(
     (a, b) => b.length - a.length,
   );
 })();
@@ -335,27 +335,27 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
   },
 };
 
-// 获取 LiteLLM 模型全名
+// 获取带路由段的模型全名
 /**
- * Resolve the LiteLLM route segment for a provider row.
+ * Resolve the route segment for a provider row.
  *
  * Built-in ids carry an explicit generated mapping. A custom provider id has no mapping, so the row's
  * providerType decides the route: legacy rows store a bare provider id there (e.g. `openai` for an
- * OpenAI-compatible gateway). Without this the caller would build `custom-id/model`, a route LiteLLM does
- * not know, and every request would fail with "LLM Provider NOT provided".
+ * OpenAI-compatible gateway). Without this the caller would build `custom-id/model`, a route the backend does
+ * not know, and every request would fail to resolve a provider.
  */
-function resolveLiteLLMRoutePrefix(providerId: string, providerType?: string): string {
-  const mapped = PROVIDER_TO_LITELLM_PREFIX[providerId];
+function resolveRoutePrefix(providerId: string, providerType?: string): string {
+  const mapped = PROVIDER_TO_ROUTE_PREFIX[providerId];
   if (mapped) {
     return mapped;
   }
-  if (providerType && KNOWN_LITELLM_ROUTE_PREFIXES.includes(providerType)) {
+  if (providerType && KNOWN_ROUTE_PREFIXES.includes(providerType)) {
     return providerType;
   }
   return providerId;
 }
 
-export const getLiteLLMModelName = (
+export const getRoutedModelName = (
   providerId: string,
   modelName: string,
   // Legacy rows store a bare provider id here (e.g. "openai"), so the value is wider than the custom
@@ -370,14 +370,14 @@ export const getLiteLLMModelName = (
     return `vercel_ai_gateway/${modelName}`;
   }
 
-  for (const routePrefix of KNOWN_LITELLM_ROUTE_PREFIXES) {
+  for (const routePrefix of KNOWN_ROUTE_PREFIXES) {
     if (normalizedModelName.startsWith(`${routePrefix}/`)) {
       return modelName;
     }
   }
 
   // Keep the raw value: a legacy row stores a bare provider id here (e.g. "openai"), which is exactly the
-  // LiteLLM route segment the row needs.
+  // route segment the row needs.
   const rawProviderType = providerType;
   if (providerType && !CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
     // 如果 providerType 不是自定义类型，则忽略它，使用 providerId
@@ -385,12 +385,12 @@ export const getLiteLLMModelName = (
   }
   if (providerType && CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
     const typeInfo = CUSTOM_PROVIDER_TYPE_INFO[providerType as CustomProviderType];
-    if (normalizedModelName.startsWith(`${typeInfo.litellmPrefix}/`)) {
+    if (normalizedModelName.startsWith(`${typeInfo.routePrefix}/`)) {
       return modelName;
     }
-    return `${typeInfo.litellmPrefix}/${modelName}`;
+    return `${typeInfo.routePrefix}/${modelName}`;
   }
-  const prefix = resolveLiteLLMRoutePrefix(providerId, rawProviderType);
+  const prefix = resolveRoutePrefix(providerId, rawProviderType);
   if (normalizedModelName.startsWith(`${prefix}/`)) {
     return modelName;
   }
@@ -410,7 +410,7 @@ export type CredentialPoolStrategy = 'round_robin' | 'fill_first' | 'least_used'
 // 提供商配置
 export interface ProviderConfig {
   id: string;
-  /** LiteLLM routing segment (may differ from id for multi-gateway OpenAI-compat vendors). */
+  /** Routing segment (may differ from id for multi-gateway OpenAI-compat vendors). */
   routingProfile: string;
   name: string;
   isBuiltIn: boolean;
@@ -641,7 +641,7 @@ export const getInitialProviders = (): ProviderConfig[] => {
       apiUrl: info.defaultApiUrl || '',
       enabledModels: [],
       availableModels: [],
-      routingProfile: PROVIDER_TO_LITELLM_PREFIX[id] ?? id,
+      routingProfile: PROVIDER_TO_ROUTE_PREFIX[id] ?? id,
     };
   });
 };

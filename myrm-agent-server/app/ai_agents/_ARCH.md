@@ -15,7 +15,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 ## 模块加载策略
 
-**两层延迟加载**防止启动时导入 litellm/langchain 等重型依赖：
+**两层延迟加载**防止启动时导入 langchain 等重型依赖：
 1. `__init__.py` 使用 PEP 562（`__getattr__`），避免 `from app.ai_agents import X` 触发模块级加载
 2. `agents.py` 中 `GeneralAgent` 在 `AgentFactory.create_*()` 工厂方法内延迟导入，避免 `__getattr__` 解析 `GeneralAgentParams` 时连带加载 Agent 类
 

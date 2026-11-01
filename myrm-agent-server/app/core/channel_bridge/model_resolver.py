@@ -1,23 +1,23 @@
 """Model resolution and custom pricing registration.
 
 Resolves model configs from providers and registers custom model pricing
-into litellm.model_cost for completion cost calculation.
+into the model catalog for completion cost calculation.
 
 All resolved models are explicitly configured and visible to the user via the
 frontend GUI. No implicit/hidden fallback to arbitrary providers.
 
 [INPUT]
 - providers_dict: dict from frontend providers config (may contain _oauthToken/_oauthBaseUrl injected by config_loader)
-- model_override: optional LiteLLM model name
+- model_override: optional model name in ``provider/model`` form
 
 [OUTPUT]
 - resolve_model_config: build ModelConfig for specific model or user default
-- register_custom_model_pricing: register user-defined costs into litellm
+- register_custom_model_pricing: register user-defined costs into the model catalog
 - _fallback_model_from_providers: resolve user's default model (no hidden fallback)
 
 [POS]
 Business-layer model resolution. Uses framework-level parsers (to_litellm_model, parse_litellm_model)
-for LiteLLM format conversion, combined with business-specific provider config parsing.
+for ``provider/model`` conversion, combined with business-specific provider config parsing.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from myrm_agent_harness.agent.config.parsers import (
     to_litellm_model,
 )
 from myrm_agent_harness.api import ConfigIncompleteError
+from myrm_agent_harness.toolkits.llms.catalog import model_info, register_model
 
 from app.core.wire.enrich import enrich_model_config
 
@@ -97,7 +98,7 @@ def resolve_model_config(
 ) -> "ModelConfig":
     """Build ModelConfig for a specific model or the user's default.
 
-    If ``model_override`` is given (LiteLLM format like "openai/gpt-4o-mini"),
+    If ``model_override`` is given (routed form like "openai/gpt-4o-mini"),
     looks up the corresponding provider's API key and base URL.
     Falls back to the user's default model if the override is invalid.
     """
@@ -136,15 +137,15 @@ def validate_model_override(
 
 
 def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> int:
-    """Register user-defined model pricing into litellm.model_cost.
+    """Register user-defined model pricing into the model catalog.
 
     Reads customModelInfo from providers config and registers input/output
-    cost for models that have user-defined pricing. This enables
-    litellm.completion_cost() to return meaningful costs for self-hosted
-    models (Ollama, vLLM, LM Studio) that have no built-in price table.
+    cost for models that have user-defined pricing. This lets the cost engine
+    return meaningful costs for self-hosted models (Ollama, vLLM, LM Studio)
+    that have no built-in price table.
 
     Note: Frontend stores costs as $/million-tokens (matching models.dev),
-    while litellm expects $/token. This function performs the conversion.
+    while the catalog holds $/token. This function performs the conversion.
 
     Returns the number of models registered.
     """
@@ -153,11 +154,6 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
 
     custom_info = providers_dict.get("customModelInfo")
     if not isinstance(custom_info, dict) or not custom_info:
-        return 0
-
-    try:
-        import litellm
-    except ImportError:
         return 0
 
     provider_type_map = _build_provider_type_map(providers_dict)
@@ -181,12 +177,12 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
         provider_id, raw_model = parts[0], parts[1]
 
         ptype = provider_type_map.get(provider_id)
-        litellm_model = _to_litellm_model(provider_id, raw_model, ptype)
+        routed_model = _to_litellm_model(provider_id, raw_model, ptype)
 
-        # 确定合法 litellm_provider 前缀，避免被判定为未知提供商
+        # 确定合法 provider 前缀，避免被判定为未知提供商
         inferred_provider = "custom_openai"
-        if "/" in litellm_model:
-            model_prefix = litellm_model.split("/", 1)[0]
+        if "/" in routed_model:
+            model_prefix = routed_model.split("/", 1)[0]
             if model_prefix in ("openai", "anthropic", "deepseek", "gemini", "groq", "mistral", "openrouter"):
                 inferred_provider = model_prefix
 
@@ -194,22 +190,18 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
             "input_cost_per_token": float(input_cost_per_m) / 1_000_000,
             "output_cost_per_token": float(output_cost_per_m) / 1_000_000,
             "max_tokens": info.get("max_input_tokens") or 128_000,
-            "litellm_provider": inferred_provider,
+            "provider": inferred_provider,
         }
 
-        # 可选缓存读单价（litellm 官方规范字段为 cache_read_input_token_cost）
+        # 可选缓存读单价
         cache_read_m = info.get("cache_read_cost_per_million") or info.get("cache_cost_per_million")
         if isinstance(cache_read_m, (int, float)) and cache_read_m > 0:
-            rate = float(cache_read_m) / 1_000_000
-            cost_entry["cache_read_input_token_cost"] = rate
-            cost_entry["cache_read_input_token_cost_per_token"] = rate
+            cost_entry["cache_read_input_token_cost"] = float(cache_read_m) / 1_000_000
 
         # 双向注册：限定名与裸模型名均可命中价表
-        litellm.model_cost[litellm_model] = cost_entry
-        if raw_model != litellm_model:
-            raw_entry = dict(cost_entry)
-            raw_entry["litellm_provider"] = "openai"
-            litellm.model_cost[raw_model] = raw_entry
+        register_model(routed_model, cost_entry)
+        if raw_model != routed_model:
+            register_model(raw_model, {**cost_entry, "provider": "openai"})
 
         registered += 1
 
@@ -316,7 +308,7 @@ def _fallback_model_from_providers(
 
 
 def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "ModelConfig | None":
-    """Try to build a ModelConfig from providers for the given LiteLLM model name."""
+    """Try to build a ModelConfig from providers for the given routed model name."""
     from app.core.types import ModelConfig
 
     provider_id, raw_model = _parse_litellm_model(model_name)
@@ -382,7 +374,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
 
 
 def _parse_litellm_model(model_name: str) -> tuple[str, str]:
-    """Parse a LiteLLM model name (wrapper for framework-level parser)."""
+    """Parse a routed model name (wrapper for framework-level parser)."""
     return cast(tuple[str, str], parse_litellm_model(model_name))
 
 
@@ -459,7 +451,7 @@ def _is_loopback_api_url(api_url: str) -> bool:
 
 
 def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:
-    """Convert provider + model to LiteLLM format (wrapper for framework-level converter)."""
+    """Convert provider + model to the routed form (wrapper for framework-level converter)."""
     if provider == "vercel_ai_gateway":
         clean_model = model.removeprefix("vercel_ai_gateway/")
         if clean_model.startswith("openai/"):
@@ -504,9 +496,9 @@ def _collapse_repeated_prefixes(model: str) -> str:
 
 
 def _normalize_model_name(model: str) -> str:
-    """Normalize model name to LiteLLM-compatible format and collapse repeated prefixes.
+    """Normalize model name to the routed format and collapse repeated prefixes.
 
-    Converts legacy/alternative provider prefixes to standard LiteLLM format:
+    Converts legacy/alternative provider prefixes to the standard routed format:
     - openai-compatible/ -> openai/
     - openai_compatible/ -> openai/
     - gemini-compatible/ -> gemini/
@@ -580,7 +572,7 @@ def _resolve_model_max_input_tokens(
 ) -> int | None:
     """Query the true max_input_tokens for a model.
 
-    Priority: user customModelInfo > litellm built-in data.
+    Priority: user customModelInfo > the model catalog.
     Returns None if the model is unknown (caller falls back to 128K).
     """
     if providers_dict and isinstance(providers_dict, dict):
@@ -599,19 +591,14 @@ def _resolve_model_max_input_tokens(
                     if isinstance(val, (int, float)) and val > 0:
                         return int(val)
 
-    try:
-        import litellm
-
-        info = litellm.get_model_info(model.lower())
-        if info:
-            max_input = info.get("max_input_tokens")
-            if isinstance(max_input, int) and max_input > 0:
-                return max_input
-            max_tokens = info.get("max_tokens")
-            if isinstance(max_tokens, int) and max_tokens > 0:
-                return max_tokens
-    except Exception:
-        pass
+    info = model_info(model.lower())
+    if info:
+        max_input = info.get("max_input_tokens")
+        if isinstance(max_input, int) and max_input > 0:
+            return max_input
+        max_tokens = info.get("max_tokens")
+        if isinstance(max_tokens, int) and max_tokens > 0:
+            return max_tokens
 
     return None
 
@@ -639,21 +626,12 @@ def _lookup_custom_model_info(
     return None
 
 
-def _resolve_supports_vision_from_litellm(model: str) -> bool | None:
-    bare = model.split("/", 1)[-1].lower()
-    try:
-        import litellm
-
-        info = litellm.get_model_info(bare)
-        if not info:
-            return None
-        if info.get("supports_vision") or info.get("supports_image_input"):
-            return True
-        if info.get("supports_vision") is False:
-            return False
-    except Exception:
+def _resolve_supports_vision_from_catalog(model: str) -> bool | None:
+    info = model_info(model.split("/", 1)[-1].lower())
+    if not info:
         return None
-    return None
+    vision = info.get("supports_vision")
+    return vision if isinstance(vision, bool) else None
 
 
 def enrich_model_capabilities(
@@ -662,7 +640,7 @@ def enrich_model_capabilities(
     *,
     selection_supports_vision: bool | None = None,
 ) -> "ModelConfig":
-    """Enrich supports_vision from frontend selection, customModelInfo, or litellm."""
+    """Enrich supports_vision from frontend selection, customModelInfo, or the model catalog."""
     if selection_supports_vision is not None:
         return cfg.model_copy(update={"supports_vision": selection_supports_vision})
 
@@ -670,9 +648,9 @@ def enrich_model_capabilities(
     if custom is not None and "supports_vision" in custom:
         return cfg.model_copy(update={"supports_vision": bool(custom["supports_vision"])})
 
-    litellm_vision = _resolve_supports_vision_from_litellm(cfg.model)
-    if litellm_vision is not None:
-        return cfg.model_copy(update={"supports_vision": litellm_vision})
+    catalog_vision = _resolve_supports_vision_from_catalog(cfg.model)
+    if catalog_vision is not None:
+        return cfg.model_copy(update={"supports_vision": catalog_vision})
 
     return cfg
 
@@ -684,7 +662,7 @@ def enrich_model_context_window(
     """Enrich a ModelConfig with the model's true max_context_tokens.
 
     If max_context_tokens is already set, returns the config unchanged.
-    Otherwise queries customModelInfo / litellm for the model's real
+    Otherwise queries customModelInfo / the model catalog for the model's real
     max_input_tokens and returns a new ModelConfig with it set.
     """
     if cfg.max_context_tokens is not None:

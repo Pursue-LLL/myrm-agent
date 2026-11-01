@@ -9,7 +9,8 @@
 
 [POS]
 Maintainer tool: new models and price changes reach the product by re-running this script and committing the diff.
-Only the modes and fields the product reads are kept, which keeps the snapshot a fraction of the upstream size.
+Only the modes and fields the product reads are kept, which keeps the snapshot a fraction of the upstream size; the
+upstream ``litellm_provider`` field is stored as ``provider``.
 
 Usage:
     uv run python scripts/sync_model_catalog.py [--source URL_OR_PATH]
@@ -52,7 +53,10 @@ def trim(table: dict[str, object]) -> dict[str, dict[str, object]]:
     for key, entry in table.items():
         if key == "sample_spec" or not isinstance(entry, dict) or entry.get("mode") not in MODES:
             continue
-        trimmed[key] = {field: value for field, value in entry.items() if FIELDS.match(field)}
+        kept = {field: value for field, value in entry.items() if FIELDS.match(field)}
+        if "litellm_provider" in kept:
+            kept["provider"] = kept.pop("litellm_provider")
+        trimmed[key] = kept
     return trimmed
 
 

@@ -54,7 +54,7 @@ import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
-import { getLiteLLMModelName } from '@/store/config/providerTypes';
+import { getRoutedModelName } from '@/store/config/providerTypes';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
 import { useDeployMode } from '@/hooks/shared/useDeployMode';
@@ -65,7 +65,7 @@ interface CronJobCardProps {
   onRequestDelete: (job: CronJob) => void;
 }
 
-function parseLiteLLM(model: string): { providerId: string; model: string } {
+function parseRoutedModel(model: string): { providerId: string; model: string } {
   const idx = model.indexOf('/');
   if (idx > 0) {
     return { providerId: model.slice(0, idx), model: model.slice(idx + 1) };
@@ -144,7 +144,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
 
   const { displayModelName, currentSelection } = useMemo(() => {
     if (job.model) {
-      const parsed = parseLiteLLM(job.model);
+      const parsed = parseRoutedModel(job.model);
       return { displayModelName: parsed.model, currentSelection: parsed };
     }
     const sel = defaultModelConfig.baseModel.primary;
@@ -163,7 +163,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         suppressNavRef.current = false;
       }, 300);
       const prov = providers.find((p) => p.id === providerId);
-      const liteName = getLiteLLMModelName(providerId, model, prov?.providerType);
+      const liteName = getRoutedModelName(providerId, model, prov?.providerType);
       try {
         await updateCronJob(job.id, { model: liteName });
         fetchJobs(true);

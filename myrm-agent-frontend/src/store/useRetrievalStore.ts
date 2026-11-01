@@ -14,7 +14,7 @@
 
 import { create } from 'zustand';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
-import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
+import { toRoutedModelId, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 import {
   getMemoryOrphanEstimate,
   getMemoryReindexStatus,
@@ -222,7 +222,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         throw new Error('Missing required fields');
       }
 
-      const litellmModel = toLiteLLMFormat(config.provider, config.model);
+      const routedModel = toRoutedModelId(config.provider, config.model);
       const providerConfig = EMBEDDING_PROVIDERS.find((p) => p.id === config.provider);
       const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
 
@@ -230,7 +230,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: litellmModel,
+          model: routedModel,
           api_key: config.apiKey,
           api_base: apiBase,
           provider: config.provider,
@@ -298,7 +298,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         throw new Error('Missing required fields');
       }
 
-      const litellmModel = toLiteLLMFormat(config.provider, config.model);
+      const routedModel = toRoutedModelId(config.provider, config.model);
       const providerConfig = RERANKER_PROVIDERS.find((p) => p.id === config.provider);
       const apiBase = config.apiBase || providerConfig?.defaultApiBase || null;
 
@@ -306,7 +306,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: litellmModel,
+          model: routedModel,
           api_key: config.apiKey,
           api_base: apiBase,
           provider: config.provider,

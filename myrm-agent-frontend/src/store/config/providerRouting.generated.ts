@@ -1,6 +1,6 @@
 /** Generated file — do not edit by hand. */
 
-export const KNOWN_LITELLM_ROUTE_PREFIXES: readonly string[] = [
+export const KNOWN_ROUTE_PREFIXES: readonly string[] = [
   'fireworks_ai',
   'cohere_chat',
   'together_ai',
@@ -27,7 +27,7 @@ export const KNOWN_LITELLM_ROUTE_PREFIXES: readonly string[] = [
   'zai',
 ] as const;
 
-export const PROVIDER_TO_LITELLM_PREFIX: Record<string, string> = {
+export const PROVIDER_TO_ROUTE_PREFIX: Record<string, string> = {
   ai302: 'openai',
   anthropic: 'anthropic',
   azure: 'azure',

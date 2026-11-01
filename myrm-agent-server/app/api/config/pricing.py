@@ -1,6 +1,5 @@
 """[INPUT]
-- litellm.model_cost (POS: LiteLLM 内置权威模型单价字典)
-- litellm.get_model_info (POS: 模型信息与别名解析器)
+- myrm_agent_harness.toolkits.llms.catalog::known_models, model_info (POS: 模型目录——价格、窗口与能力的单一事实源)
 
 [OUTPUT]
 - pricing_router: FastAPI APIRouter 实例，挂载 GET /model-pricing 端点
@@ -13,9 +12,11 @@ app/api/config/pricing.py — 提供四维单价矩阵与 Prompt Cache 经济学
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from myrm_agent_harness.toolkits.llms.catalog import known_models, model_info
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -70,19 +71,10 @@ DEFAULT_REPRESENTATIVE_MODELS: tuple[str, ...] = (
 
 
 def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
-    """从 LiteLLM 权威字典中安全提取四维单价并换算为 USD / 1M tokens。"""
+    """从模型目录中安全提取四维单价并换算为 USD / 1M tokens。"""
     try:
-        import litellm
-        from litellm import model_cost
-
-        cost_dict: dict[str, object] | None = model_cost.get(model_name)
-        if not cost_dict:
-            try:
-                info = litellm.get_model_info(model_name)
-                if isinstance(info, dict):
-                    cost_dict = info
-            except Exception:
-                pass
+        catalog = known_models()
+        cost_dict: Mapping[str, object] | None = catalog.get(model_name) or model_info(model_name)
 
         if not cost_dict:
             # 常见 Provider 别名候选
@@ -92,15 +84,15 @@ def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
                 f"google/{model_name}",
             ]
             for cand in candidates:
-                if cand in model_cost:
-                    cost_dict = model_cost[cand]
+                if cand in catalog:
+                    cost_dict = catalog[cand]
                     break
 
         if not cost_dict:
             # 模糊前缀/子串匹配（例如匹配到 anthropic.claude-3-5-sonnet-20241022-v2:0）
             normalized = model_name.strip().lower()
-            for key, val in model_cost.items():
-                if normalized in key.lower() and isinstance(val, dict):
+            for key, val in catalog.items():
+                if normalized in key.lower():
                     cost_dict = val
                     break
 
@@ -184,20 +176,15 @@ async def get_model_pricing(
         if item:
             result[item.model] = item
         else:
-            # 尝试根据前缀或别名在 model_cost 中匹配
-            try:
-                from litellm import model_cost
-
-                normalized = model.strip().lower()
-                for key in model_cost:
-                    if normalized in key.lower():
-                        match_item = extract_model_pricing_item(key)
-                        if match_item:
-                            result[key] = match_item
-                            if len(result) >= 5:
-                                break
-            except Exception:
-                pass
+            # 尝试根据前缀或别名在模型目录中匹配
+            normalized = model.strip().lower()
+            for key in known_models():
+                if normalized in key.lower():
+                    match_item = extract_model_pricing_item(key)
+                    if match_item:
+                        result[key] = match_item
+                        if len(result) >= 5:
+                            break
     else:
         # 默认返回代表性主流模型
         for rep_model in DEFAULT_REPRESENTATIVE_MODELS:

@@ -96,7 +96,7 @@ def extract_hermes_auxiliary_config(hermes_config: dict[str, Any]) -> dict[str, 
 
 
 def _resolve_litellm_model(provider: str, model: str) -> str:
-    """Convert Hermes provider/model pair to a LiteLLM-compatible model string."""
+    """Convert Hermes provider/model pair to a routed model string."""
     clean_provider = provider.strip().lower()
     if clean_provider in ("ai-gateway", "vercel_ai_gateway", "aigateway", "vercel"):
         raw_model = model.removeprefix("vercel_ai_gateway/")
@@ -171,7 +171,7 @@ async def migrate_hermes_auxiliary_models(
 
 
 def _litellm_to_primary_selection(litellm_model: str) -> dict[str, str]:
-    """Convert a LiteLLM model string to defaultModelConfig primary selection."""
+    """Convert a routed model string to defaultModelConfig primary selection."""
     if "/" not in litellm_model:
         return {"providerId": "openrouter", "model": litellm_model}
     provider_id, model_id = litellm_model.split("/", 1)

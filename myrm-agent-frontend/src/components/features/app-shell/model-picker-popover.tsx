@@ -32,7 +32,7 @@ import {
   type ModelCapabilities,
   type ModelSwitchPreflightResult,
 } from '@/services/llm-config';
-import { getLiteLLMModelName, isLocalOrTrustedSplitStackApiUrl } from '@/store/config/providerTypes';
+import { getRoutedModelName, isLocalOrTrustedSplitStackApiUrl } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useOrgModelPolicyStore } from '@/store/useOrgModelPolicyStore';
@@ -203,7 +203,7 @@ export default function ModelPickerPopover({
         }
       } else {
         const prov = providers.find((p) => p.id === em.providerId);
-        const liteName = getLiteLLMModelName(em.providerId, em.model, prov?.providerType);
+        const liteName = getRoutedModelName(em.providerId, em.model, prov?.providerType);
         toFetch.push(liteName);
         nameMap[liteName] = em.model;
       }
@@ -271,7 +271,7 @@ export default function ModelPickerPopover({
       pairs.push({
         providerId: em.providerId,
         model: em.model,
-        liteName: getLiteLLMModelName(em.providerId, em.model, prov.providerType),
+        liteName: getRoutedModelName(em.providerId, em.model, prov.providerType),
         maxInput: caps.max_input_tokens ?? null,
       });
     }
@@ -584,8 +584,8 @@ export default function ModelPickerPopover({
                     const acknowledged = acknowledgedCountRef.current[preflightKey] ?? 0;
                     const showCompressWarning = !!preflight?.will_compress && acknowledged < 2;
                     const policyBlocked =
-                      restricted && !isModelAllowed(getLiteLLMModelName(provider.id, model, provider.providerType));
-                    const liteModelName = getLiteLLMModelName(provider.id, model, provider.providerType);
+                      restricted && !isModelAllowed(getRoutedModelName(provider.id, model, provider.providerType));
+                    const liteModelName = getRoutedModelName(provider.id, model, provider.providerType);
                     const highlightColor =
                       activeSlot === 'primary'
                         ? 'bg-primary/10 text-primary font-medium'

@@ -31,7 +31,6 @@ class SearchVerifyData(BaseModel):
 
 class SearchProviderResponse(BaseModel):
     slug: str
-    connector: str
     name: str
     name_zh: str
     deployment_scope: str
@@ -50,7 +49,6 @@ async def list_search_providers(
     payload = [
         SearchProviderResponse(
             slug=entry.slug,
-            connector=entry.connector.value,
             name=entry.name,
             name_zh=entry.name_zh,
             deployment_scope=entry.deployment_scope.value,

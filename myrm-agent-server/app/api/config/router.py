@@ -389,10 +389,10 @@ class VisionHealthResult(BaseModel):
     healthy: bool = Field(..., description="Whether the vision model successfully analyzed a test image")
     latency_ms: int | None = Field(default=None, description="Vision probe latency in milliseconds")
     error: str | None = Field(default=None, description="Error message when unhealthy")
-    model: str | None = Field(default=None, description="Configured primary LiteLLM model id")
+    model: str | None = Field(default=None, description="Configured primary model id")
     resolved_model: str | None = Field(
         default=None,
-        description="LiteLLM model id that actually succeeded during the probe",
+        description="Model id that actually succeeded during the probe",
     )
     base_url: str | None = Field(default=None, description="Resolved API base URL when unhealthy")
 

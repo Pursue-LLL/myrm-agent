@@ -157,7 +157,6 @@ def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
         "--hidden-import", "qdrant_client",
         "--hidden-import", "myrm_agent_harness",
         "--hidden-import", "myrm_agent_harness.api",
-        "--collect-data", "litellm",
         "--collect-data", "tiktoken",
         "--collect-submodules", "tiktoken",
         "--collect-submodules", "tiktoken_ext",

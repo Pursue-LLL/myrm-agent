@@ -11,9 +11,10 @@
 
 [POS]
 Single source of model facts (context window, output ceiling, prices, capability flags) for cost accounting,
-budget clamps, native-search detection and the model listings. The snapshot is loaded once, on first use. Lookup is
-provider-strict: ``provider/model`` resolves to the provider's own entry or to a bare entry owned by that same
-provider, never to another provider's price for a similarly named model.
+budget clamps, native-search detection and the model listings. The snapshot is loaded once, on first use. An exact
+key always wins. Otherwise lookup is provider-strict: ``provider/model`` resolves to the provider's own entry or to a
+bare entry owned by that same provider, never to another provider's price for a similarly named model; a bare id with
+a ``provider`` hint is resolved the same way when the id is not itself a key.
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ def _entry(key: str) -> ModelInfo | None:
 
 
 def model_info(model: str, provider: str | None = None) -> ModelInfo | None:
-    """The catalog entry for ``model`` (``provider/id`` or a bare id); ``provider`` names the owner of a bare id."""
+    """The catalog entry for ``model`` (``provider/id`` or a bare id); ``provider`` is the owner hint for a bare id."""
     if not model:
         return None
     segment, sep, bare = model.partition("/")
@@ -71,6 +72,6 @@ def model_info(model: str, provider: str | None = None) -> ModelInfo | None:
     if (qualified := _entry(f"{owner}/{bare}")) is not None:
         return qualified
     unqualified = _entry(bare)
-    if unqualified is not None and str(unqualified.get("litellm_provider", "")).lower() == owner:
+    if unqualified is not None and str(unqualified.get("provider", "")).lower() == owner:
         return unqualified
     return None

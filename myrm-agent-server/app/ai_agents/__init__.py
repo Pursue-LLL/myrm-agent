@@ -1,4 +1,4 @@
-"""AI Agent 模块 — 延迟加载避免启动时导入重型依赖（litellm/langchain）"""
+"""AI Agent 模块 — 延迟加载避免启动时导入重型依赖（langchain 等）"""
 
 from __future__ import annotations
 

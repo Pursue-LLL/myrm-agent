@@ -56,4 +56,9 @@ def _inline(node: object, root: Mapping[str, object], active: frozenset[str], de
 def inline_refs(schema: Mapping[str, object]) -> Schema:
     """``schema`` with local references resolved and the root-level definition tables removed."""
     resolved = _inline(schema, schema, frozenset(), 0)
-    return resolved if isinstance(resolved, dict) else {}
+    if not isinstance(resolved, dict):
+        return {}
+    # A root that is itself a reference (the shape recursive models serialize to) carries the tables as siblings.
+    for key in _DEFINITION_KEYS:
+        resolved.pop(key, None)
+    return resolved

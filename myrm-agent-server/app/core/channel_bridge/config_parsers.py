@@ -77,7 +77,7 @@ def extract_retrieval_models(
     """Extract EmbeddingConfig and RerankerConfig from the frontend's retrieval config.
 
     Only returns configs where applied=True and apiKey is present.
-    Converts provider+model to LiteLLM format and fills in default API bases.
+    Converts provider+model to the routed ``provider/model`` form and fills in default API bases.
     """
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig

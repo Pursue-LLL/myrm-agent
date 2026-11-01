@@ -62,7 +62,7 @@ def _is_opencode_endpoint(base_url: str | None) -> bool:
 
 
 def normalize_model_name_for_wire(model: str) -> str:
-    """Strip LiteLLM provider prefix and muse-spark -free suffix."""
+    """Strip the provider route prefix and muse-spark -free suffix."""
     name = model.strip()
     if "/" in name:
         name = name.rsplit("/", 1)[-1]

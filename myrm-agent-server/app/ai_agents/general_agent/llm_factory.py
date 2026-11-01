@@ -1,6 +1,6 @@
 """[INPUT]
 - app.core.types::ModelConfig (POS: 业务层模型配置对象)
-- myrm_agent_harness.toolkits.llms::{llm_manager, ManagedLLM, ScenarioType} (POS: LiteLLM/LangChain 实例创建与托管)
+- myrm_agent_harness.toolkits.llms::{llm_manager, ManagedLLM, ScenarioType} (POS: LangChain 实例创建与托管)
 
 [OUTPUT]
 - create_agent_llms(): 创建 main / lite / fallback / safety_fallback LLM 实例（lite LLM 自动注入 reasoning_effort='low'）
@@ -9,7 +9,7 @@
 - _inject_low_reasoning_effort(): 为 ModelConfig 注入低推理力度参数，供 Dynamic Ratio Shield 降级复用
 
 [POS]
-LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LiteLLM/LangChain 实例。
+LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LangChain 实例。
 主模型 failover 由 harness `stream_recovery` 在 API 报错时触发，不在启动阶段静默替换用户选择。
 有 fallback 时 main 仍返回 raw_fallback_llm 供 StreamExecutor graph rebuild（ManagedLLM._astream 只调 main）。
 """
@@ -31,7 +31,9 @@ _LOW_REASONING_EFFORT = "low"
 def _inject_low_reasoning_effort(cfg: ModelConfig) -> ModelConfig:
     """Return a ModelConfig copy with reasoning_effort='low' merged into model_kwargs.
 
-    Unsupported models silently ignore the parameter via litellm.drop_params=True.
+    OpenAI-family models without reasoning support have it stripped by
+    ``apply_openai_reasoning_effort``; a gateway that rejects it is retried without it by
+    the gateway normalizer.
     """
     existing = cfg.model_kwargs or {}
     if existing.get("reasoning_effort") == _LOW_REASONING_EFFORT:

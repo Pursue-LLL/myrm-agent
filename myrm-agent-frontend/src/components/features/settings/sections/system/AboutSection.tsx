@@ -309,10 +309,6 @@ const AboutSection = memo(() => {
                 color="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
               />
               <TechBadge
-                name="LiteLLM"
-                color="bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700"
-              />
-              <TechBadge
                 name="Qdrant"
                 color="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700"
               />

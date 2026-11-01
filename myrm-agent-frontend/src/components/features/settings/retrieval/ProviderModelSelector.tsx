@@ -14,7 +14,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Button } from '@/components/primitives/button';
 import OptionSelect from '../OptionSelect';
-import { ProviderConfig, toLiteLLMFormat } from '@/lib/search/retrievalProviders';
+import { ProviderConfig, toRoutedModelId } from '@/lib/search/retrievalProviders';
 import { localizeReactNode } from '@/lib/utils/locale';
 
 export interface ProviderModelConfig {
@@ -231,8 +231,8 @@ const ProviderModelSelector = memo<ProviderModelSelectorProps>(
       setValidation({ state: 'loading' });
 
       try {
-        // 转换为 LiteLLM 格式
-        const litellmModel = toLiteLLMFormat(value.provider, value.model);
+        // 转换为 provider/model 路由格式
+        const routedModel = toRoutedModelId(value.provider, value.model);
 
         // 调用验证 API
         const endpoint =
@@ -244,7 +244,7 @@ const ProviderModelSelector = memo<ProviderModelSelectorProps>(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: litellmModel,
+            model: routedModel,
             api_key: value.apiKey,
             api_base: value.apiBase || null,
           }),

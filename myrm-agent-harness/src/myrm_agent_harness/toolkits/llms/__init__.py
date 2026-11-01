@@ -127,11 +127,6 @@ def __getattr__(name: str):
         module_path, attr_name = _LAZY_IMPORTS[name]
         module = import_module(module_path)
 
-        if attr_name == "llm_manager":
-            from myrm_agent_harness.toolkits.llms import (
-                config as _config,  # noqa: F401  # side-effect: ensure config loaded
-            )
-
         value = getattr(module, attr_name)
         globals()[name] = value
         return value

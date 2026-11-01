@@ -27,7 +27,7 @@ async def get_llm_for_user() -> tuple[BaseChatModel, int]:
     raw_cfg = configs.model_cfg
 
     # ``default_model`` configs may carry legacy provider prefixes (e.g.
-    # ``openai-like/xxx``) that LiteLLM cannot resolve; converge them to the
+    # ``openai-like/xxx``) that the transport cannot route; converge them to the
     # standard prefix (``openai/xxx``) before handing the config to the factory.
     normalized_model = _normalize_model_name(raw_cfg.model)
     model_cfg = raw_cfg if normalized_model == raw_cfg.model else raw_cfg.model_copy(update={"model": normalized_model})

@@ -149,7 +149,7 @@ class Doctor:
         )
 
     async def _check_core_deps(self) -> DoctorCheckResult:
-        deps = ["langchain_core", "langgraph", "litellm", "pydantic"]
+        deps = ["langchain_core", "langgraph", "httpx", "pydantic"]
         missing = [d for d in deps if _cached_find_spec(d) is None]
         if missing:
             return DoctorCheckResult("core_deps", CheckStatus.ERROR, f"Missing: {', '.join(missing)}", fix="uv sync")
