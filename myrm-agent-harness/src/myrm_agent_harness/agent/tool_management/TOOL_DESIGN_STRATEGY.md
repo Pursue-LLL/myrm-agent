@@ -515,7 +515,7 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 
 ### 11.2 自适应工具加载 ✅ 已实现
 
-**实现**: `skill_search_tool` (BM25+Embedding) — indexes agent-bound searchable skills for unified search
+**实现**: `skill_search_tool` (BM25 词法搜索) — indexes agent-bound searchable skills for unified search
 
 **效果**:
 - `hidden_skill_count == 0`（全部 bound skills 在 L1 token 预算内）→ `sync_discover_capability_tool` 不挂载 discover 网关（按需节省 schema token；tiktoken measured）
@@ -527,8 +527,8 @@ SSOT：`FRAMEWORK_DESIGN_PRINCIPLES.md` §7 · `TOOL_DESIGN_STRATEGY.md` §2.5 �
 **实现**: `skill_search_tool` 统一搜索已绑定 Agent 的可搜索技能（命中结果以 `<BoundSkills>` XML 包裹）
 
 **效果**:
-- BM25 + Embedding 混合语义搜索
-- 跨语言查询支持 ("火车票/railway ticket/train booking")
+- BM25 词法搜索：技能名与描述按词匹配，提示词引导模型用英文关键词与同义词查询
+- 跨语言写法 "概念/翻译/同义词"（如 "火车票/railway ticket/train booking"）；只写其他语言的词经常搜不到
 - 搜索命中后必须用 `skill_select_tool` 加载 SOP
 
 ### 11.4 动态 Schema 修正 (Dynamic Schema Modification) ✅ 已实现

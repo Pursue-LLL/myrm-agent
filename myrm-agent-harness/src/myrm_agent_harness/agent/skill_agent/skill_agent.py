@@ -76,7 +76,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillInstance
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.storage.base import StorageProvider
     from myrm_agent_harness.toolkits.wiki import (
         SemanticSearchFn,
@@ -134,7 +133,6 @@ class SkillAgent(
         fallback_llms: list[BaseChatModel] | None = None,
         safety_fallback_llm: BaseChatModel | None = None,
         escalation_target_llm: BaseChatModel | None = None,
-        embedding_config: "EmbeddingConfig | None" = None,
         checkpointer: "BaseCheckpointSaver[str] | None" = None,
         event_log_backend: EventLogBackend | None = None,
         trusted_skill_ids: list[str] | None = None,
@@ -193,7 +191,6 @@ class SkillAgent(
         self._active_skill: SkillMetadata | None = None
         self._user_id = user_id
         self._on_skill_review_ready = on_skill_review_ready
-        self._embedding_config: EmbeddingConfig | None = embedding_config
         self._default_skill_instances = default_skill_instances or {}
         self._trusted_skill_ids: frozenset[str] = frozenset(trusted_skill_ids) if trusted_skill_ids else frozenset()
         self._skill_env_map = skill_env_map

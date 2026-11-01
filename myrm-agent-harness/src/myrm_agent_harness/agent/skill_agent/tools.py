@@ -46,7 +46,7 @@ class SkillAgentToolsMixin:
 
     Requires the following attributes from SkillAgent:
     - skill_backend, market_backend, write_backend
-    - _embedding_config, skill_configs
+    - skill_configs
     - _file_access_mode, _enable_shell_tools
     - _skill_env_map, _default_skill_instances, state_manager
     - llm, config
@@ -140,7 +140,6 @@ class SkillAgentToolsMixin:
         meta_tools = get_meta_tools(
             skills,
             self.skill_backend,  # type: ignore[attr-defined]
-            embedding_config=self._embedding_config,  # type: ignore[attr-defined]
             skill_env_map=skill_env_map,
             skill_configs=self.skill_configs,  # type: ignore[attr-defined]
             registry=registry,
@@ -208,8 +207,6 @@ class SkillAgentToolsMixin:
             skill_configs=self.skill_configs,  # type: ignore[attr-defined]
             available_tool_names=self._available_tool_names,  # type: ignore[attr-defined]
             available_tool_groups=self._available_tool_groups,  # type: ignore[attr-defined]
-            embedding_config=self._embedding_config,  # type: ignore[attr-defined]
-            embedding_cache=getattr(self, "_embedding_cache", None),
             locale=prompt_locale,
         )
 

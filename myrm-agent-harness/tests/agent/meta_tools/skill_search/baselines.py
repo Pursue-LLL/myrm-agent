@@ -4,7 +4,7 @@ Provides baseline search implementations:
 - Random: Random ranking (lower bound)
 - TF-IDF: Classic information retrieval baseline
 
-These baselines help quantify the effectiveness of BM25 and Hybrid modes.
+These baselines help quantify the effectiveness of BM25 search.
 """
 
 from __future__ import annotations

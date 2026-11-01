@@ -802,7 +802,6 @@ async def build_general_agent(
         fallback_llms=stream_fallback_llms,
         safety_fallback_llm=safety_fallback_llm,
         escalation_target_llm=escalation_target_llm,
-        embedding_config=agent_wrapper.embedding_config,
         checkpointer=checkpointer,
         privacy_routing_config=privacy_routing_cfg,
         event_log_backend=agent_wrapper.event_log_backend,

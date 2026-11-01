@@ -49,7 +49,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.state_manager import SkillStateManager
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.storage.base import StorageProvider
     from myrm_agent_harness.toolkits.wiki import SemanticSearchFn
 
@@ -80,7 +79,6 @@ async def create_skill_agent(
     fallback_llms: list[BaseChatModel] | None = None,
     safety_fallback_llm: BaseChatModel | None = None,
     escalation_target_llm: BaseChatModel | None = None,
-    embedding_config: EmbeddingConfig | None = None,
     checkpointer: BaseCheckpointSaver[str] | bool | None = True,
     privacy_routing_config: PrivacyRoutingConfig | None = None,
     event_log_backend: EventLogBackend | None = None,
@@ -412,7 +410,6 @@ async def create_skill_agent(
         fallback_llms=fallback_llms,
         safety_fallback_llm=safety_fallback_llm,
         escalation_target_llm=escalation_target_llm,
-        embedding_config=embedding_config,
         checkpointer=final_checkpointer,
         event_log_backend=event_log_backend,
         trusted_skill_ids=trusted_skill_ids,
