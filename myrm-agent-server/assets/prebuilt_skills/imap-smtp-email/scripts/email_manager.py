@@ -7,11 +7,14 @@
 - Process env EMAIL_IMAP_PORT (default 993), EMAIL_SMTP_PORT (default 587)
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, and the JSON error exit
-- mail_client.message: MIME header, date, summary, attachment name and body decoding
+- mail_client.message: MIME header, date, summary, attachment, reply address and body decoding
 - mail_client.attachments: saving a download under a safe name as a new file, never over one that exists
 
 [OUTPUT]
 - JSON on stdout for all subcommands; failures are {"error": ...} with exit code 1, except a non-numeric port and unencodable output
+- read lists the parts the sender attached, however the disposition is written, a message that is one attachment included;
+  download saves those that carry bytes (an attached message/rfc822 is listed, not saved); reply goes to Reply-To, else
+  From, and is refused when neither holds an address
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
   a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists
   the files saved before it
@@ -39,7 +42,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from mail_client.attachments import save_new
-from mail_client.message import ascii_msg_ids, attachment_filename, decode_header, extract_body, message_summary
+from mail_client.message import (
+    ascii_msg_ids,
+    attachment_filename,
+    attachment_parts,
+    decode_header,
+    extract_body,
+    message_summary,
+    reply_address,
+)
 from mail_client.transport import (
     connect_imap,
     deliver,
@@ -167,18 +178,9 @@ def cmd_read(args: argparse.Namespace) -> None:
         summary = message_summary(msg, args.uid)
         summary["body"] = extract_body(msg)
 
-        attachments: list[dict[str, str]] = []
-        if msg.is_multipart():
-            for part in msg.walk():
-                disp = str(part.get("Content-Disposition", ""))
-                if "attachment" in disp:
-                    attachments.append(
-                        {
-                            "filename": attachment_filename(part),
-                            "content_type": part.get_content_type(),
-                        }
-                    )
-        summary["attachments"] = attachments
+        summary["attachments"] = [
+            {"filename": attachment_filename(part), "content_type": part.get_content_type()} for part in attachment_parts(msg)
+        ]
 
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     finally:
@@ -192,10 +194,7 @@ def _save_attachments(msg: email.message.Message, output_dir: Path, name_filter:
     """
     saved: list[dict[str, object]] = []
     try:
-        for part in msg.walk():
-            disp = str(part.get("Content-Disposition", ""))
-            if "attachment" not in disp:
-                continue
+        for part in attachment_parts(msg):
             filename = attachment_filename(part)
             if name_filter and name_filter.lower() not in filename.lower():
                 continue
@@ -256,9 +255,9 @@ def cmd_reply(args: argparse.Namespace) -> None:
     finally:
         conn.logout()
 
-    from_header = original.get("From", "")
-    reply_to = original.get("Reply-To", from_header)
-    _, reply_addr = email.utils.parseaddr(str(reply_to))  # raw 8-bit bytes make a header a Header object, not a str
+    reply_addr = reply_address(original)
+    if not reply_addr:
+        fail("The message has no Reply-To or From address to reply to")
     subject = decode_header(original.get("Subject", ""))
     if not subject.startswith("Re:"):
         subject = f"Re: {subject}"

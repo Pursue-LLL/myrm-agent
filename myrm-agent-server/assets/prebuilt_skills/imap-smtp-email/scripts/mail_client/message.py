@@ -11,7 +11,11 @@
 - ascii_msg_ids: the ids of a Message-ID or References value that a header can carry; one with raw 8-bit bytes is left out
 - attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not;
   ``attachment`` when it names none, an encoded word that decodes to nothing included
-- extract_body: plain-text body, falling back to HTML; a charset Python does not know is read as UTF-8
+- attachment_parts: the parts the sender attached, in order: a disposition of ``attachment`` in any case, or a file that is
+  not text and names itself, as a file attached ``inline`` or named only in Content-Type does; a text part that names
+  itself stays the body, and a message that is one attachment is its own part
+- reply_address: where a reply goes, the Reply-To address or, when Reply-To holds none, the From address; empty when neither does
+- extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
 
 [POS]
 Pure message-parsing half of the email_manager.py facade; no network or process I/O. A message from the mailbox is
@@ -25,6 +29,7 @@ import email.errors
 import email.header
 import email.message
 import email.utils
+from collections.abc import Iterator
 
 
 def _to_text(raw: bytes, charset: str | None) -> str:
@@ -63,18 +68,50 @@ def ascii_msg_ids(raw: str | email.header.Header | None) -> str:
     return text if text.isascii() else " ".join(token for token in text.split() if token.isascii())
 
 
-def attachment_filename(part: email.message.Message) -> str:
-    """Decoded file name of an attachment part, ``attachment`` when it names none or its name decodes to nothing.
+def _name_headers(part: email.message.Message) -> email.message.Message:
+    """A fresh message holding the two headers that can name a file or call a part an attachment.
 
-    The standard library reads a ``Header`` (raw 8-bit bytes) as replacement characters, so the two headers that can name
-    a file are decoded into a fresh message first.
+    The standard library reads a ``Header`` (raw 8-bit bytes) as replacement characters, so such a value is decoded first.
     """
-    names = email.message.Message()
+    headers = email.message.Message()
     for header in ("Content-Disposition", "Content-Type"):
         value = part.get(header)
         if value is not None:
-            names[header] = decode_header(value) if isinstance(value, email.header.Header) else value
-    return decode_header(names.get_filename() or "") or "attachment"
+            headers[header] = decode_header(value) if isinstance(value, email.header.Header) else value
+    return headers
+
+
+def attachment_filename(part: email.message.Message) -> str:
+    """Decoded file name of an attachment part, ``attachment`` when it names none or its name decodes to nothing."""
+    return decode_header(_name_headers(part).get_filename() or "") or "attachment"
+
+
+def _is_attachment(part: email.message.Message) -> bool:
+    """Whether the sender attached *part*, however it is written.
+
+    The disposition type is case-insensitive (RFC 2183 §2). Some mail clients attach a file as ``inline`` and older mailers
+    name it only in Content-Type, so a file that is not text and names itself counts too; a text part that names itself is
+    the body.
+    """
+    headers = _name_headers(part)
+    if headers.get_content_disposition() == "attachment":
+        return True
+    return headers.get_content_maintype() not in ("text", "multipart") and bool(headers.get_filename())
+
+
+def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Message]:
+    """The parts of *msg* that the sender attached, in order; a message that is one attachment is its own part."""
+    return (part for part in msg.walk() if _is_attachment(part))
+
+
+def reply_address(original: email.message.Message) -> str:
+    """The address a reply to *original* goes to: its Reply-To, or its From when Reply-To holds none; empty if neither does."""
+    for header in ("Reply-To", "From"):
+        # str() because raw 8-bit bytes make a header a Header object, which parseaddr cannot read.
+        _, address = email.utils.parseaddr(str(original.get(header, "")))
+        if address:
+            return address
+    return ""
 
 
 def _parse_date(raw: str | None) -> str:
@@ -102,7 +139,7 @@ def message_summary(msg: email.message.Message, uid: int) -> dict[str, object]:
 def extract_body(msg: email.message.Message) -> str:
     if not msg.is_multipart():
         payload = msg.get_payload(decode=True)
-        if isinstance(payload, bytes):
+        if isinstance(payload, bytes) and not _is_attachment(msg):
             return _to_text(payload, msg.get_content_charset())
         return ""
 
@@ -110,8 +147,7 @@ def extract_body(msg: email.message.Message) -> str:
     html_body = ""
     for part in msg.walk():
         ct = part.get_content_type()
-        disp = str(part.get("Content-Disposition", ""))
-        if "attachment" in disp:
+        if _is_attachment(part):
             continue
         payload = part.get_payload(decode=True)
         if not isinstance(payload, bytes):

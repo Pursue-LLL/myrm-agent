@@ -10,9 +10,10 @@ it carries has to be a valid header either way.
 - tests/support/email_skill_inprocess.py: the IMAP double and the in-process ``main``
 
 [OUTPUT]
-- Fails when a reply to a sender whose name is raw UTF-8 does not go to that sender's address, when an id with raw 8-bit
-  bytes is written into ``In-Reply-To`` or ``References`` or takes the ASCII ids with it, when the ids of a clean message
-  change, or when the subject of a reply changes its spacing
+- Fails when a reply to a sender whose name is raw UTF-8 does not go to that sender's address, when an empty ``Reply-To``
+  does not leave the reply to ``From`` or a message that holds no address in either is not refused before anything is
+  sent, when an id with raw 8-bit bytes is written into ``In-Reply-To`` or ``References`` or takes the ASCII ids with it,
+  when the ids of a clean message change, or when the subject of a reply changes its spacing
 
 [POS]
 In-process test of what ``reply`` sends, next to ``test_imap_smtp_email_failures.py``, which covers how it fails.
@@ -67,6 +68,41 @@ def test_a_reply_goes_to_the_address_of_a_sender_whose_name_is_raw_utf_8(
     answer, _sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, sender)
 
     assert answer["to"] == "a@b.test"
+
+
+@pytest.mark.parametrize("reply_to", ["", "   ", "<>"], ids=["empty", "spaces", "no-address"])
+def test_a_reply_goes_to_the_sender_when_reply_to_holds_no_address(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    reply_to: str,
+) -> None:
+    """Automated mail often carries an empty ``Reply-To``; a mail client answers the ``From`` then, and so must the script."""
+    answer, sent = _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, {"Reply-To": reply_to})
+
+    assert answer["to"] == "eve@example.test"
+    assert sent["To"] == "eve@example.test"
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [{"From": ""}, {"From": "", "Reply-To": " "}, {"From": "<>", "Reply-To": "<>"}],
+    ids=["no-sender", "neither-header-holds-an-address", "no-address-in-either"],
+)
+def test_a_message_that_names_no_address_is_refused_and_nothing_is_sent(
+    email_manager: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outgoing_mail: list[bytes],
+    stored: dict[str, str],
+) -> None:
+    """A recipient list holding an empty address would send ``RCPT TO:<>`` to the server."""
+    with pytest.raises(SystemExit):
+        _reply_to(email_manager, monkeypatch, capsys, outgoing_mail, stored)
+
+    assert json.loads(capsys.readouterr().out) == {"error": "The message has no Reply-To or From address to reply to"}
+    assert outgoing_mail == []
 
 
 @pytest.mark.parametrize(
