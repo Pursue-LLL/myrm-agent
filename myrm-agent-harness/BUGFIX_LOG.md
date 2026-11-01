@@ -2,6 +2,42 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-01-163 · 启用技能的安全闸门沿用持久化扫描缓存里的「干净」结论：缓存键只有内容哈希、不含扫描器版本，扫描器升级后旧结论最长沿用 60 天，序列化还丢 AST 发现、`is_clean` 会翻成 True；缓存退役，闸门改走进程内按内容缓存的扫描
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness：`backends/skills/scanning/cache.py` 与其测试删除，`scanning/__init__.py` 不再导出 `ScanResultCache` / `get_scan_cache` / `CacheStats`；新增 `backends/skills/_content_memo.py`（`ContentMemo`），`scan_skill_content`、`parse_skill_frontmatter`、token 计数按内容缓存；server：`app/api/skills/config.py` 的启用闸门直接调用 `scan_skill_content`；`instance_archive/policy.py` 保留 `skill_scans` 为 DERIVED，给升级机器上遗留的旧缓存目录）。 |
+| **发现时间** | 2026-11-01（评估重复列出技能的 CPU 成本时，读到启用闸门单独维护一份持久化扫描缓存）。 |
+| **修复时间** | 2026-11-01 |
+| **严重程度** | P2：安全闸门可能沿用旧扫描器的「干净」结论放行内容；没有用户报告，是读源码与本机脚本得出的。 |
+| **关联产品** | 启用技能（`enable_skill`）的安全闸门；技能目录扫描与列表共用同一个扫描函数。 |
+| **症状** | ① [先前会话本机脚本，不入库] 缓存键只有 `sha256(content)`，不含扫描器版本也不含技能名：同一份内容在扫描规则升级后仍取到旧结论，过期时间 60 天；`clear_expired` 全仓没有调用点。② [同上] 序列化只存 `findings`，不存 `ast_findings`：写入再读回的结果 `is_clean` 由 False 翻成 True。③ [实测，本机] 对 512 KB 零宽字符的文件做扫描，产出 524,288 条发现，约 91.7 MB；这是缓存 / 记忆化必须设上限的原因。 |
+| **根因** | 闸门自己维护了一份落盘缓存，却没有任何失效信号（扫描器版本、规则集）进键；序列化是手写的字段子集，漏掉 `ast_findings`。 |
+| **修复** | ① 删除落盘缓存；闸门每次调用 `scan_skill_content`。② `ContentMemo`：键 = 作用域 + 文本 SHA-256，只存结果、不存文本；进程内、线程安全、最多 512 条 LRU，重启即空，所以扫描器升级后重启进程就是新结论；超过 64 KB 的文本、发现超过 128 条的扫描结果、抛异常的计算都不存；返回独立副本。③ 依赖环境的结果（`check_requirements`、凭据校验）不缓存。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① `compute_content_hash` 会把 CRLF 归一成 LF，不能当缓存键（两份换行不同的文本会撞键）。② `LRUCache` 不是线程安全的，`ContentMemo` 自带锁。③ 命中时返回同一个对象，调用方改列表就会污染缓存：扫描结果返回带新列表的副本、frontmatter 返回深拷贝（测试里曾因共享列表失败）。④ 记忆化让测试互相污染（5 例失败），`tests/conftest.py` 在每个测试前清空。⑤ 用 PyYAML 的 C 加载器提速，在嵌套深度 100000 的输入上会段错误，没有采用。 |
+| **回归** | [1] 新增测试：`test_content_memo.py`、`test_scan_memo.py`、`test_frontmatter_memo.py`、`test_listing_memo.py`（命中、键敏感、异常不存、边界、并发、返回副本互不影响、环境相关结果每次现算）。[2] 对安全护栏做了 6 种变异，都被测试抓住。[3] 实测（进程 CPU，同一批技能重复列表）：5 个技能 49.0ms → 1.0ms；20 个 210.2ms → 3.9ms；50 个 563.8ms → 7.3ms；134 个 1636.9ms → 20.5ms；首次列表不比之前慢。[4] harness 改动相关测试 13672 通过，server 相关 3471 通过。 |
+| **仍然存在** | ① 同一内容的解析告警与 `Security scan:` 日志每个进程只出现一次。② 命中时 `scan_duration_ms` 是产生这份结果的那次扫描的耗时。③ 无效技能每次列表都重新解析并报错（失败不缓存）。 |
+| **代码位置** | `src/myrm_agent_harness/backends/skills/_content_memo.py` · `backends/skills/scanning/scanner.py` · `backends/skills/_utils.py` · `backends/skills/_runtime.py` · server `app/api/skills/config.py` |
+
+### BUG-HARNESS-2026-11-01-162 · 技能写入后，`LocalSkillBackend` 默认只返回被写入的那一个技能：快照文件非空就被当成整份列表，其余技能从列表里消失；SQLite 快照与目录监听器整体退役，列表始终读目录
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（harness：删除 `backends/skills/snapshot.py`、`backends/skills/watcher.py`，`local.py` 去掉 `use_snapshot` 参数与两处快照快路径，`agent/security/workspace_trust/manifest.py` 与 `skill_agent.py` 同步，`pyproject.toml` 去掉只有 `watcher.py` 在用的 `watchdog`；server：`app/server/lifespan.py` 不再启停 `SkillWatcher`，`core/skills/creation/service.py` 与 `store/reader.py` 不再写快照；`instance_archive/policy.py` 按文件名排除遗留的 `.skills_snapshot.sqlite`；`SKILL_SYSTEM.md` 10.3 / 10.4、预置技能 `conversational-skill-evolution`、各 `_ARCH.md` 同步）。 |
+| **发现时间** | 2026-11-01（评估技能列表成本时逐个读快照的写入点）。 |
+| **修复时间** | 2026-11-01 |
+| **严重程度** | P2：只在 harness 层复现，没有在真实实例上复现（见「仍然存在」①）；触发后果是技能清单少技能。 |
+| **关联产品** | 本地技能目录的列表（`LocalSkillBackend`）、工作区技能扫描（`scan_workspace_skills`），server 的技能创建与技能下载。 |
+| **症状** | ① [实测，harness 层脚本，不入库] 磁盘上有 alpha、beta、gamma，再新增 delta 并对它做一次 `upsert_from_path`（创建服务保存技能后做的就是这一步）：默认的 `LocalSkillBackend(root).list_skills()` 返回 `['delta']`，读盘返回 4 个。② [实测] 快照没有收益：20 个技能，有快照文件时每次列表 114 ms CPU，读盘 108 ms；134 个技能 758 ms 对 739 ms。快照省掉的只是读取 `SKILL.md`。③ 同一个技能走快照路径得到 `INSTALLED`，走读盘路径得到 `TRUSTED`。 |
+| **根因** | 读取侧「快照文件存在且非空就整份采用、不核对磁盘」；写入侧每次保存只 upsert 一条；对账靠监听器（`sync_all` 与文件事件处理），沙箱实例不启动监听器，也就没有人修复一个只含一条的快照。 |
+| **修复** | ① 删除快照、监听器与所有写入点；`list_skills` 与 `scan_workspace_skills` 每次读目录，编辑、新增、删除在下一次列表可见。② 读盘成本由 `ContentMemo` 压下来（见 163）：134 个技能重复列表 739 ms → 11 ms CPU，20 个 108 ms → 1.7 ms，冷启动的首次列表在噪声内持平。③ `uv.lock`：本机 uv 0.13 会把整份锁重排成 revision 5（约 980 行噪声），已回退；只删 harness 的 watchdog 依赖边（两份锁各 23 行、2 行），`uv lock --check` 对两份都通过；核心依赖数门禁 25 → 24。④ 热更新 e2e 测试改成无监听器的版本（下一次列表可见，不再 `sleep`）；工作区信任闸门的测试从 `test_snapshot.py` 迁到本地后端测试。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 我先前只量了「读路径耗时」，没发现单条 upsert 会让列表只剩一条；是逐个读完 4 处写入点后才看出来的。② 工作区扫描原来在存在快照文件时才读 `.stats.json` 并隐藏已归档技能，读盘路径本来就不读；退役后统一为不读，写进了文档。③ 退役后 `<状态根>/skills` 不再被启动时顺手创建；逐个核对了读取方（provider 与 curator 先判断目录是否存在，沙箱实例本来就没有这一步）。 |
+| **回归** | [1] 新增：旧版本留下的快照文件既不隐藏也不替换技能（本地后端与工作区扫描各一例）；编辑、新增、删除在下一次列表可见；信任闸门三态。[2] harness 改动相关 13672 通过，server 相关 3471 通过（`tests/architecture` 含 import 基线与依赖数门禁，两处随删除模块更新）。[3] ruff、格式、行数门禁、fractal 文档门禁通过；两份 `uv.lock` 经 `uv lock --check` 通过。[4] server 剩余 3 个失败与本条无关：事件总线向新订阅者重放历史事件使 `test_the_failure_alert_is_a_health_alert_the_ui_can_recognise` 依赖执行顺序（纯 HEAD 导出里同样复现，单跑通过）；`test_api_route_consumers` 两个涉及与技能无关的路由（pairing、embed、approvals 凭据、heartbeat）和一条指向 `competitor-comparison.mdx:1979` 的证据（该文件只有约 100 行），不碰本条改动的文件。 |
+| **仍然存在** | ① 没有在真实 server 实例上复现「列表只剩一条」：触发取决于快照先被一次单技能写入创建，这一步只在 harness 层演示。② 老机器上遗留的 `.skills_snapshot.sqlite`（技能目录与项目目录里）不会被主动删除；读取方忽略它，实例归档按文件名排除它。③ 事件总线重放导致的测试顺序依赖是已有问题，没有处理。 |
+| **代码位置** | `src/myrm_agent_harness/backends/skills/local.py` · server `app/server/lifespan.py` · `app/core/skills/creation/service.py` · `app/core/skills/store/reader.py` · `app/services/instance_archive/policy.py` · 测试 `tests/backends/skills/test_local_backend_edge_cases.py`、`tests/agent/test_skill_hot_reload_e2e.py` |
+
 ### BUG-HARNESS-2026-10-31-161 · 完成验证门读 bash 退出码时取输出里最后一个 `[exit_code: N]` 字样：被验证的程序在输出里引用该字样、自己以 0 退出时，通过的验证被判为失败；读取收成 `read_exit_code`，只认工具自己追加的那一行
 
 | 字段 | 内容 |
