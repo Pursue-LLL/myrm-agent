@@ -176,7 +176,7 @@ def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequen
     """Tier 1: the best paragraph of each of the first published pages the vault's FTS index ranks for the question.
 
     A row whose page cannot be read is skipped, so it never takes the place of a page ranked behind it; the rows that
-    have no page file are logged together, once, as the provider's cue to rebuild the index.
+    have no page file are logged together, once, so an index holding rows its vault cannot back shows up in the log.
     """
     fts_query = " OR ".join(f'"{t}"' for t in terms)
     found: list[RelevantSnippet] = []
@@ -196,7 +196,7 @@ def _indexed_snippets(db_path: Path, vault_path: Path, label: str, terms: Sequen
             break
     if fileless:
         logger.warning(
-            "Shared vault %s: %d index row(s) have no page file, e.g. %s; the vault's index needs a rebuild",
+            "Shared vault %s: %d index row(s) have no page file and are skipped, e.g. %s",
             vault_path,
             len(fileless),
             ", ".join(repr(name) for name in fileless[:_MAX_LOGGED_NAMES]),
