@@ -89,6 +89,8 @@ python3 .claude/skills/imap-smtp-email/scripts/email_manager.py folders
 
 Run via `bash_code_execute_tool`. Credentials are injected as environment variables at runtime — **never** ask the user to paste credentials into chat.
 
+`email_manager.py` is the only entry point. The connection, message and attachment logic it imports lives in `.claude/skills/imap-smtp-email/scripts/mail_client/` (`transport.py`, `message.py`, `attachments.py`); do not run those modules directly.
+
 ## Secret Safety (MANDATORY)
 
 - **Never** print, log, or echo `$EMAIL_IMAP_PASSWORD` or `$EMAIL_SMTP_PASSWORD`
