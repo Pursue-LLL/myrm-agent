@@ -13,10 +13,10 @@
   ``attachment`` when it names none, an encoded word that decodes to nothing included
 - attachment_parts: the parts the sender attached, in order: a disposition of ``attachment`` in any case, or a file that is
   not text and names itself, whether its disposition is ``inline`` or the name is only in Content-Type; a text part that
-  names itself stays the body, so does an image the HTML points at with a ``cid:`` URL unless it is attached by its
+  names itself stays the body, so does a part the HTML points at with a ``cid:`` URL unless it is attached by its
   disposition, and a message that is one attachment is its own part
 - attachment_bytes: what to save of an attachment part: its decoded content, an attached message/rfc822 as the message that
-  was sent, or none for a part that holds no file
+  was sent, or none for a part that holds no file or an attached message the generator cannot write
 - reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
   separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
@@ -138,17 +138,23 @@ def attachment_parts(msg: email.message.Message) -> Iterator[email.message.Messa
 def attachment_bytes(part: email.message.Message) -> bytes | None:
     """What to save of an attachment part: its decoded content, or an attached message written out as it was sent.
 
-    A part that holds no file, such as a container, has none. The attached message is written with CRLF line breaks and
-    without wrapping its header lines again, so that what the parser read comes back unchanged.
+    A part that holds no file, such as a container, has none. So has an attached message that the generator refuses to
+    write, as it does for a header with a vertical tab, a form feed or a file, group or record separator: it folds the
+    header there and rejects the result. Such a message is left out rather than saved in another form. The attached
+    message is written with CRLF line breaks and without wrapping its header lines again, so that what the parser read
+    comes back unchanged.
     """
     content = part.get_payload(decode=True)
     if isinstance(content, bytes):
         return content
     payload = part.get_payload()
     attached = payload[0] if part.get_content_type() == "message/rfc822" and isinstance(payload, list) else None
-    if isinstance(attached, email.message.Message):
+    if not isinstance(attached, email.message.Message):
+        return None
+    try:
         return attached.as_bytes(policy=attached.policy.clone(linesep="\r\n", max_line_length=0))
-    return None
+    except email.errors.MessageError:
+        return None
 
 
 def reply_recipients(original: email.message.Message) -> str:

@@ -78,6 +78,7 @@ def test_a_reply_goes_to_the_address_of_a_sender_whose_name_is_raw_utf_8(
         pytest.param({"Reply-To": "a@x.test, b@y.test"}, "a@x.test, b@y.test", id="two-reply-to-addresses"),
         pytest.param({"Reply-To": "Ann <a@x.test>, 发票 <b@y.test>"}, "a@x.test, b@y.test", id="names-and-raw-utf-8"),
         pytest.param({"Reply-To": "Team: a@x.test, b@y.test;"}, "a@x.test, b@y.test", id="a-group"),
+        pytest.param({"Reply-To": "<>, b@y.test"}, "b@y.test", id="address-in-the-second-entry"),
         pytest.param({"From": "a@x.test, b@y.test"}, "a@x.test, b@y.test", id="two-senders"),
         pytest.param({"From": "a@x.test, b@y.test", "Reply-To": "c@z.test"}, "c@z.test", id="reply-to-wins"),
     ],
