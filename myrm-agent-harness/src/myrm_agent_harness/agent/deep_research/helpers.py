@@ -4,6 +4,7 @@
 - config::DeepResearchConfig (POS: configuration)
 - agent.types::SubagentConfig (POS: subagent config type)
 - langchain_core (POS: BaseChatModel, messages)
+- toolkits.llms.catalog::cost_per_token (POS: model pricing)
 
 [OUTPUT]
 - DeepResearchResult: result container dataclass
@@ -28,6 +29,7 @@ from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from myrm_agent_harness.agent.streaming.citation_audit import CitationAuditResult, audit_citation_markers
 from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+from myrm_agent_harness.toolkits.llms.catalog import cost_per_token
 from myrm_agent_harness.toolkits.llms.utils.model_utils import get_model_context_limit as get_model_context_limit
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -71,18 +73,12 @@ def accumulate_usage(result: DeepResearchResult, response: BaseMessage) -> None:
 
 
 def estimate_cost(result: DeepResearchResult, model_name: str) -> None:
-    """Best-effort cost estimation using litellm."""
+    """Estimate the run's cost from the model catalog; an unpriced model leaves the estimate unset."""
     if not model_name or (result.total_input_tokens == 0 and result.total_output_tokens == 0):
         return
-    try:
-        import litellm
-
-        input_cost, output_cost = litellm.cost_per_token(
-            model=model_name, prompt_tokens=result.total_input_tokens, completion_tokens=result.total_output_tokens
-        )
-        result.estimated_cost_usd = input_cost + output_cost
-    except Exception:
-        pass
+    costs = cost_per_token(model_name, result.total_input_tokens, result.total_output_tokens)
+    if costs is not None:
+        result.estimated_cost_usd = costs[0] + costs[1]
 
 
 def detect_reasoning_model(llm: BaseChatModel) -> bool:

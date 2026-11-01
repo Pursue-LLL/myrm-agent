@@ -1,7 +1,7 @@
 """Cloud Embedding Implementation.
 
-Cloud API embedding backend supporting multiple providers via LiteLLM
-(OpenAI, Voyage AI, Jina AI, SiliconFlow, etc.).
+Cloud API embedding backend for OpenAI, Azure OpenAI, Cohere, Voyage AI, Jina AI, SiliconFlow and any
+OpenAI-compatible endpoint (Ollama included).
 
 Features:
 - Dimension management: uses preset dimensions for known models; auto-detects on first call for unknown models
@@ -11,28 +11,33 @@ Features:
 [INPUT]
 - .base::EmbeddingService (POS: Embedding contract layer)
 - toolkits.memory.protocols.cache::EmbeddingCacheProtocol (POS: Cache protocol for embeddings)
+- toolkits.llms.transport::aembed (POS: provider request and response handling)
 
 [OUTPUT]
-- CloudEmbeddingService: Concrete EmbeddingService backed by cloud APIs via LiteLLM
+- CloudEmbedding: Concrete EmbeddingService backed by cloud APIs
 
 [POS]
-Cloud embedding backend. Translates the abstract EmbeddingService interface into real
-LiteLLM API calls with retry, dimension detection, and optional caching.
+Cloud embedding backend. Translates the abstract EmbeddingService interface into embedding API calls with
+retry, dimension detection, and optional caching.
 
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 
+import httpx
 from tenacity import (
     AsyncRetrying,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
 
+from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
+from myrm_agent_harness.toolkits.llms.transport.embeddings import aembed
 from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.embedding.window_policy import (
     EmbedInputTooLargeError,
@@ -46,6 +51,16 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+_TRANSIENT_STATUSES = frozenset({408, 502, 503, 504})
+
+
+def _is_transient(exc: BaseException) -> bool:
+    """A failure that may succeed on retry: a dropped or timed-out connection, or a gateway-side 408/5xx."""
+    if isinstance(exc, LLMHTTPError):
+        return exc.status_code in _TRANSIENT_STATUSES
+    return isinstance(exc, (httpx.TransportError, TimeoutError, ConnectionError, OSError))
 
 
 DEFAULT_MAX_RETRIES = 2
@@ -78,13 +93,14 @@ KNOWN_MODEL_DIMENSIONS: dict[str, int] = {
 
 
 class CloudEmbedding(EmbeddingService):
-    """Cloud embedding service via LiteLLM unified API.
+    """Cloud embedding service.
 
-    Supports multiple providers (OpenAI, Voyage AI, Jina AI, SiliconFlow, etc.)
+    Supports OpenAI, Azure OpenAI, Cohere, Voyage AI, Jina AI, SiliconFlow and OpenAI-compatible endpoints
     with automatic batch splitting, retry on transient errors, and optional caching.
 
     Args:
-        model: Model name in LiteLLM format (e.g. "text-embedding-3-small", "BAAI/bge-m3").
+        model: ``provider/model`` (e.g. "jina_ai/jina-embeddings-v3"), a bare OpenAI id ("text-embedding-3-small"),
+            or any model id together with ``api_base`` (e.g. "BAAI/bge-m3").
         api_key: Provider API key (optional if set via env).
         api_base: Custom API base URL (optional).
         cache: Embedding cache instance for hit-rate optimization (optional).
@@ -183,7 +199,7 @@ class CloudEmbedding(EmbeddingService):
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self._max_retries + 1),
             wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-            retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
+            retry=retry_if_exception(_is_transient),
             reraise=True,
         ):
             with attempt:
@@ -207,7 +223,7 @@ class CloudEmbedding(EmbeddingService):
             async for attempt in AsyncRetrying(
                 stop=stop_after_attempt(self._max_retries + 1),
                 wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-                retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
+                retry=retry_if_exception(_is_transient),
                 reraise=True,
             ):
                 with attempt:
@@ -223,7 +239,7 @@ class CloudEmbedding(EmbeddingService):
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self._max_retries + 1),
             wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-            retry=retry_if_exception_type((TimeoutError, ConnectionError, OSError)),
+            retry=retry_if_exception(_is_transient),
             reraise=True,
         ):
             with attempt:
@@ -296,33 +312,17 @@ class CloudEmbedding(EmbeddingService):
 
     async def _call_embedding_api(self, texts: list[str]) -> list[list[float]]:
         """Single API call to the embedding provider."""
-        import time
-
-        try:
-            import litellm
-        except ImportError as e:
-            raise ImportError("litellm is required for CloudEmbedding. Install with: uv add litellm") from e
-
-        model_name = self._model
-        if self._api_base and "/" in model_name and not model_name.startswith(("openai/", "azure/", "anthropic/")):
-            model_name = f"openai/{model_name}"
-
-        kwargs: dict[str, str | list[str] | None] = {
-            "model": model_name,
-            "input": [t if t.strip() else " " for t in texts],
-            "encoding_format": "float",
-        }
-        if self._api_key:
-            kwargs["api_key"] = self._api_key
-        if self._api_base:
-            kwargs["api_base"] = self._api_base
-
         api_start = time.perf_counter()
-        response = await litellm.aembedding(**kwargs)
+        vectors = await aembed(
+            self._model,
+            [t if t.strip() else " " for t in texts],
+            api_key=self._api_key,
+            api_base=self._api_base,
+        )
         api_time = (time.perf_counter() - api_start) * 1000
 
-        if self._dimension is None and response.data:
-            detected_dim = len(response.data[0]["embedding"])
+        if self._dimension is None and vectors:
+            detected_dim = len(vectors[0])
             self._dimension = detected_dim
             logger.warning(
                 f" Auto-detected embedding dimension: {detected_dim} for model '{self._model}'. "
@@ -336,4 +336,4 @@ class CloudEmbedding(EmbeddingService):
             self._model,
         )
 
-        return [item["embedding"] for item in response.data]
+        return vectors

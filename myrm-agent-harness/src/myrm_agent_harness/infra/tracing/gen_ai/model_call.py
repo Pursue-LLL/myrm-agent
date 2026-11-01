@@ -64,7 +64,7 @@ from myrm_agent_harness.utils.token_economics.usage_fields import (
 
 CANCELLED = "cancelled"
 
-# LiteLLM provider ids that the GenAI conventions name differently.
+# Provider ids that the GenAI conventions name differently.
 _PROVIDER_NAMES: dict[str, str] = {
     "bedrock": "aws.bedrock",
     "azure": "azure.ai.openai",
@@ -76,7 +76,7 @@ _PROVIDER_NAMES: dict[str, str] = {
 
 
 def provider_name(custom_llm_provider: str | None, model: str) -> str:
-    """GenAI provider name from the LiteLLM provider id, or the ``provider/model`` prefix."""
+    """GenAI provider name from the provider id, or the ``provider/model`` prefix."""
     raw = custom_llm_provider or (model.partition("/")[0] if "/" in model else "")
     return _PROVIDER_NAMES.get(raw, raw) or "unknown"
 
