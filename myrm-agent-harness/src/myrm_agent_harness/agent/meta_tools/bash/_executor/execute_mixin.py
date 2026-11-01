@@ -160,9 +160,15 @@ class BashExecutorExecuteMixin:
         if not result.success and result.error:
             exit_code_val = result.result if isinstance(result.result, int) else 1
 
-            stdout_eviction = await maybe_evict_large_output(result.stdout or "", self._executor)
+            # MCP call markers are bookkeeping for the host: the model must not read them
+            # (or the nonce that authenticates them) in an error, but it does need to know
+            # which calls already ran before the script failed.
+            failed_stdout, completed_calls = self._metadata_extractor.extract_completed_calls(result.stdout or "")
+            stdout_eviction = await maybe_evict_large_output(failed_stdout, self._executor)
             stderr_eviction = await maybe_evict_large_output(result.stderr or "", self._executor)
             message = self._build_error_details(result)
+            if completed_calls:
+                message = f"{message}\n\n{completed_calls}"
             # stdout is symmetric with stderr: small output goes verbatim so the
             # LLM sees partial progress context; large output is evicted and the
             # banner + file_read_tool footer guides read-back instead of noise.

@@ -155,7 +155,8 @@ class ExecutionResult:
     """Execution result.
 
     Output safety: stdout/stderr are auto-truncated and scrubbed across all
-    execution backends.
+    execution backends. MCP call markers in stdout are the one exemption
+    (``common.mcp_markers``): scrubbing would destroy them; the host scrubs what it decodes.
     """
 
     success: bool | None = None
@@ -176,8 +177,11 @@ class ExecutionResult:
         from myrm_agent_harness.toolkits.code_execution.executors.common.executor_utils import (
             truncate_output,
         )
+        from myrm_agent_harness.toolkits.code_execution.executors.common.mcp_markers import (
+            scrub_outside_markers,
+        )
 
-        self.stdout = scrub_sensitive_info(truncate_output(self.stdout))
+        self.stdout = scrub_outside_markers(truncate_output(self.stdout), scrub_sensitive_info)
         self.stderr = scrub_sensitive_info(truncate_output(self.stderr))
 
         if self.success is None:

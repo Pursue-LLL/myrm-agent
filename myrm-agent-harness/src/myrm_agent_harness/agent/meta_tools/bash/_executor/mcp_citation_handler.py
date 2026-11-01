@@ -5,6 +5,8 @@
 
 [INPUT]
 - agent.skills.mcp.ipc_proxy::get_mcp_trace_nonce (POS: 标记 nonce 来源)
+- toolkits.code_execution.executors.common.mcp_markers (POS: 标记的形状，与输出脱敏器共用)
+- toolkits.code_execution.executors.models::scrub_sensitive_info (POS: 对解码出的内容脱敏)
 
 [OUTPUT]
 - MCPMetadataExtractor: class — M C P Metadata Extractor
@@ -20,8 +22,12 @@ generated client code. Two properties follow, and both matter:
 - A tool result cannot truncate or swallow a genuine marker by containing ``__END__``,
   because the payload is base64 and the delimiter is nonce-bound.
 
-Without a live nonce the extractor trusts nothing: it returns the raw stdout and no
+Without a live nonce the extractor trusts nothing: it returns the stdout and no
 metadata. Emitting unauthenticated metadata is the failure this guards against.
+
+The output scrubber lets marker-shaped spans through verbatim (it would otherwise
+destroy them), so this module scrubs what it takes out of a marker and any marker-shaped
+span it does not authenticate. Nothing marker-shaped leaves here unscrubbed.
 """
 
 from __future__ import annotations
@@ -33,6 +39,13 @@ import logging
 import re
 from collections.abc import Callable
 
+from myrm_agent_harness.toolkits.code_execution.executors.common.mcp_markers import (
+    MARKER_PREFIX,
+    MARKER_SUFFIX,
+    scrub_marker_spans,
+)
+from myrm_agent_harness.toolkits.code_execution.executors.models import scrub_sensitive_info
+
 logger = logging.getLogger(__name__)
 
 # 类型别名：按技能分组的 MCP 调用数据
@@ -41,6 +54,9 @@ type SkillCallsDict = dict[str, list[dict[str, str]]]
 
 # 返回当前有效标记 nonce 的回调；无可用 nonce 时返回 None。
 type NonceProvider = Callable[[], str | None]
+
+_NOTE_MAX_ENTRIES = 10
+_NOTE_NAME_CHARS = 80
 
 
 class MCPMetadataExtractor:
@@ -52,10 +68,6 @@ class MCPMetadataExtractor:
     - 返回结构化元数据（供业务层使用）
     - 清理和格式化输出内容
     """
-
-    # MCP 数据标记：__MCP_DATA__{nonce}{base64(json)}__END__{nonce}
-    _MARKER_PREFIX = "__MCP_DATA__"
-    _MARKER_SUFFIX = "__END__"
 
     def __init__(self, nonce_provider: NonceProvider | None = None) -> None:
         """初始化提取器。
@@ -81,41 +93,50 @@ class MCPMetadataExtractor:
         Returns:
             元组：(清洁的输出, MCP 元数据字典)
         """
-        if not stdout:
-            return stdout, {}
+        remaining, skill_calls = self._split_markers(stdout)
+        if not skill_calls:
+            return remaining, {}
 
-        if self._MARKER_PREFIX not in stdout:
+        # 如果用户没有显式 print 输出，使用 MCP result 数据
+        clean_stdout = remaining.strip() or self._extract_mcp_results(skill_calls)
+        return clean_stdout, self._build_metadata(skill_calls)
+
+    def extract_completed_calls(self, stdout: str) -> tuple[str, str]:
+        """Failure-path counterpart of :meth:`extract_metadata`.
+
+        Returns the stdout without authenticated markers and one line naming the tool
+        calls the script completed before it failed ("" when there were none). A failing
+        script's output is the model's only record of what already ran; hiding the
+        completed calls invites a retry that repeats their effects.
+        """
+        remaining, skill_calls = self._split_markers(stdout)
+        return remaining, self._completed_calls_note(skill_calls)
+
+    def _split_markers(self, stdout: str) -> tuple[str, SkillCallsDict]:
+        """Take the authenticated markers out of ``stdout``.
+
+        Returns the remaining text and the calls the markers carried. Marker-shaped
+        spans that cannot be authenticated stay visible (so a forged one is seen, not
+        promoted to metadata) but are scrubbed, because the output scrubber skipped them.
+        """
+        if not stdout or MARKER_PREFIX not in stdout:
             return stdout, {}
 
         nonce = self._nonce_provider()
         if not nonce:
-            # No live nonce: nothing in this output can be authenticated. Leaving the
-            # text untouched keeps any forged marker visible to the user rather than
-            # promoting it into structured metadata.
+            # No live nonce: nothing in this output can be authenticated.
             logger.warning(" MCP 标记存在但无可用 nonce，跳过提取（不产出不可信元数据）")
-            return stdout, {}
+            return scrub_marker_spans(stdout, scrub_sensitive_info), {}
 
         pattern = self._compile_pattern(nonce)
         matches = pattern.findall(stdout)
         if not matches:
             logger.info(" 未找到带合法 nonce 的 MCP 标记，返回原始输出")
-            return stdout, {}
+            return scrub_marker_spans(stdout, scrub_sensitive_info), {}
 
-        skill_calls = self._group_calls_by_skill(matches)
-        if not skill_calls:
-            # 全部解析失败：只移除已认证的标记，避免污染用户可见输出。
-            return pattern.sub("", stdout), {}
-
-        mcp_metadata = self._build_metadata(skill_calls)
-
-        # 移除已认证的原始标记，得到纯净的用户 print 输出
-        clean_stdout = pattern.sub("", stdout).strip()
-
-        # 如果用户没有显式 print 输出，使用 MCP result 数据
-        if not clean_stdout:
-            clean_stdout = self._extract_mcp_results(skill_calls)
-
-        return clean_stdout, mcp_metadata
+        # 全部解析失败时同样只移除已认证的标记，避免污染用户可见输出。
+        remaining = scrub_marker_spans(pattern.sub("", stdout), scrub_sensitive_info)
+        return remaining, self._group_calls_by_skill(matches)
 
     @classmethod
     def _compile_pattern(cls, nonce: str) -> re.Pattern[str]:
@@ -125,7 +146,7 @@ class MCPMetadataExtractor:
         也不存在定界符冲突的可能。
         """
         escaped = re.escape(nonce)
-        return re.compile(rf"__MCP_DATA__{escaped}([A-Za-z0-9+/=]*)__END__{escaped}\n?")
+        return re.compile(rf"{MARKER_PREFIX}{escaped}([A-Za-z0-9+/=]*){MARKER_SUFFIX}{escaped}\n?")
 
     def _group_calls_by_skill(self, matches: list[str]) -> SkillCallsDict:
         """按技能分组 MCP 调用
@@ -152,7 +173,7 @@ class MCPMetadataExtractor:
             skill_calls.setdefault(skill, []).append(
                 {
                     "tool": tool if isinstance(tool, str) else "",
-                    "result": result if isinstance(result, str) else "",
+                    "result": scrub_sensitive_info(result) if isinstance(result, str) else "",
                 }
             )
 
@@ -173,6 +194,25 @@ class MCPMetadataExtractor:
             logger.warning(" 解析 MCP 数据标记失败: payload 不是对象")
             return None
         return decoded
+
+    @staticmethod
+    def _completed_calls_note(skill_calls: SkillCallsDict) -> str:
+        """Name the calls in ``skill_calls`` once each with a count ("" when empty)."""
+        counts: dict[str, int] = {}
+        for skill_name, calls in skill_calls.items():
+            for call in calls:
+                # Names come from the MCP server; keep each one a short single token run.
+                label = " ".join(f"{skill_name}.{call.get('tool', '')}".split())[:_NOTE_NAME_CHARS]
+                counts[label] = counts.get(label, 0) + 1
+        if not counts:
+            return ""
+        shown = [f"{label} x{count}" for label, count in list(counts.items())[:_NOTE_MAX_ENTRIES]]
+        hidden = len(counts) - len(shown)
+        suffix = f", +{hidden} more" if hidden > 0 else ""
+        return (
+            "MCP tool calls this script completed before it failed "
+            f"(re-running them repeats their effects): {', '.join(shown)}{suffix}"
+        )
 
     def _build_metadata(self, skill_calls: SkillCallsDict) -> dict[str, object]:
         """构建 MCP 元数据（遵循 metadata.sources 标准约定）
