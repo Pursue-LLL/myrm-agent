@@ -498,23 +498,6 @@ export function isTrustedSplitStackHostname(hostname: string): boolean {
   return false;
 }
 
-export const isLoopbackApiUrl = (apiUrl?: string | null): boolean => {
-  if (!apiUrl) {
-    return false;
-  }
-  const trimmed = apiUrl.trim();
-  if (!trimmed) {
-    return false;
-  }
-  const candidate = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
-  try {
-    const parsed = new URL(candidate);
-    return isLoopbackHostname(parsed.hostname);
-  } catch {
-    return false;
-  }
-};
-
 export const isLocalOrTrustedSplitStackApiUrl = (apiUrl?: string | null): boolean => {
   if (!apiUrl) {
     return false;

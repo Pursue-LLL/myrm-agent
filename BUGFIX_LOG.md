@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 精简首次引导后留下的尾巴：本地模型探测没人读却每次照跑、一个死函数、一条过期基线，用户文档还在讲已经不存在的向导
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（代码已推到 `origin/main`，未发版；用户文档在 `myrm-agent-brand` 仓库另行推送）。 |
+| **症状** | [代码] 删掉向导里的 `LocalCapabilitiesSetup` 之后：① `GET /config/onboarding/probe-local` 仍然每次先并发探测 Ollama（`:11434`）和 LM Studio（`:1234`）（各 3 秒超时）才去探测 SearXNG，而前端唯一的调用方（设置页「一键启用搜索」）只读 `search` 与 `recommended_searxng_url`，返回里的 `results`、`has_available`、`recommended_model` 无人读取；② `providerTypes.ts` 的 `isLoopbackApiUrl` 只剩测试在引用；③ `scripts/ci/file_line_budget_baseline.txt` 还留着已删除组件的路径；④ 用户文档（数据迁移、多渠道、模型配置、为什么选 Myrm、桌面端，中英日）仍写「首次启动向导自动检查数据」「向导里一步配置 Telegram」「向导自动探测 Ollama / LM Studio」「云端快速开始」。 |
+| **根因** | 上一轮删向导时只删了组件和它的文案，没有顺着调用链查下游：后端探测、类型、工具函数、基线、文档各自引用的是这个组件的能力，组件没了它们就成了悬空代码。 |
+| **修复** | 后端删除 `probe_local_models`、`_probe_ollama`、`_probe_lm_studio`、`DetectedModel`、`LocalProbeResult` 及相关常量和依赖；`get_ollama_base_url` 仍被硬件管家与诊断使用，保留并补进 `__all__`。接口只返回 `search` 与 `recommended_searxng_url`（同样无人读的 `search_has_available` 一并删除）。前端 `ProbeLocalResponse` 同步收窄；删除 `isLoopbackApiUrl` 及其两条断言和基线里的过期一行；`_ARCH.md`、`ARCHITECTURE.md` 的描述改成现状。用户文档改成：本机版和桌面版直接进首页，没配模型时首页提示条指向「设置 > 模型」；发现横幅在「提醒」按钮里，入口是「设置 > 记忆中心 > 迁移」；Telegram 只走「设置 > 渠道」；向导只属于云托管工作区；桌面端「首次启动询问助手在哪里运行」改成首次打开「设置 > 系统 > 服务器连接」时询问（这一条与删向导无关，是文档原本就写错了位置）。 |
+| **行为变化** | 「一键启用搜索」不再顺带探测 Ollama / LM Studio；接口响应少了 4 个没人用的字段。**能力缺口（已确认，未补）**：本机已装 Ollama 或 LM Studio 的用户，首页不再有「检测到本机模型，一键启用」；现在只能在「设置 > 模型」手动添加，或在硬件管家里下载模型（首次下载会自动添加内置 Ollama 提供商并启用该模型）。 |
+| **回归证据** | [实测，origin 树加本次改动] 后端 `test_probe_local.py` 6 例通过；引用 `config.onboarding`、硬件管家的 8 个测试文件共 65 例通过；变异检查：往接口响应里临时加回 `has_available`，响应形状测试失败，还原后通过；`ruff format/check` 通过；前端 `tsc --noEmit` 无错误，相关 12 个 vitest 文件 169 例通过，`verify:i18n` 通过，孤儿门禁相对 `origin/main` 无新增；文档仓库 `check-fractal-docs`、`check-private-references` 13 例通过。 |
+| **仍然存在** | ① 上面的能力缺口是否补回是产品决定（建议：首页提示条在检测到本机 Ollama 时多一个「使用本机 Ollama」按钮，探测按需重写）；② 接口路径仍叫 `/config/onboarding/probe-local`，现在只服务搜索，改名会连带前端与文档，没有顺手动；③ 没有对真实运行的 Ollama / LM Studio 做过检测，这一轮只删探测；④ `ActiveWorkingMemoryPanel.tsx`、`chatExportHtml.ts` 在行数基线里的条目也已过期，不属于这次改动，没有动。 |
+| **代码位置** | `myrm-agent-server/app/{api/config/router.py,services/config/onboarding.py,services/config/_ARCH.md}` · `myrm-agent-server/{ARCHITECTURE.md,tests/api/config/test_probe_local.py}` · `myrm-agent-frontend/src/{services/localCapabilitiesProbe.ts,services/_ARCH.md,store/config/providerTypes.ts,store/config/__tests__/providerTypes.test.ts}` · `myrm-agent-frontend/scripts/ci/file_line_budget_baseline.txt` · 文档仓库 `myrm-docs/docs/{guides/{data-migration,multi-channel,model-configuration},getting-started/{why-myrm-agent,desktop-app}}.mdx` 及 `zh/`、`ja/` 对应页 |
+
 ## 2026-11-01 · 硬编码文案门禁把从产品入口够不到的孤儿模块也算进去：`bun run lint` 因为没有页面渲染的 168 个文件而一直红，真正的新增违规被淹没
 
 | 字段 | 内容 |
