@@ -24,7 +24,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness：`backends/skills/scanning/cache.py` 与其测试删除，`scanning/__init__.py` 不再导出 `ScanResultCache` / `get_scan_cache` / `CacheStats`；新增 `backends/skills/_content_memo.py`（`ContentMemo`），`scan_skill_content`、`parse_skill_frontmatter`、token 计数按内容缓存；server：`app/api/skills/config.py` 的启用闸门直接调用 `scan_skill_content`；`instance_archive/policy.py` 保留 `skill_scans` 为 DERIVED，给升级机器上遗留的旧缓存目录）。 |
+| **状态** | **FIXED**（harness：`backends/skills/scanning` 下的 cache 模块与其测试删除，`scanning/__init__.py` 不再导出 `ScanResultCache` / `get_scan_cache` / `CacheStats`；新增 `backends/skills/_content_memo.py`（`ContentMemo`），`scan_skill_content`、`parse_skill_frontmatter`、token 计数按内容缓存；server：`app/api/skills/config.py` 的启用闸门直接调用 `scan_skill_content`；`instance_archive/policy.py` 保留 `skill_scans` 为 DERIVED，给升级机器上遗留的旧缓存目录）。 |
 | **发现时间** | 2026-11-01（评估重复列出技能的 CPU 成本时，读到启用闸门单独维护一份持久化扫描缓存）。 |
 | **修复时间** | 2026-11-01 |
 | **严重程度** | P2：安全闸门可能沿用旧扫描器的「干净」结论放行内容；没有用户报告，是读源码与本机脚本得出的。 |
@@ -42,7 +42,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（harness：删除 `backends/skills/snapshot.py`、`backends/skills/watcher.py`，`local.py` 去掉 `use_snapshot` 参数与两处快照快路径，`agent/security/workspace_trust/manifest.py` 与 `skill_agent.py` 同步，`pyproject.toml` 去掉只有 `watcher.py` 在用的 `watchdog`；server：`app/server/lifespan.py` 不再启停 `SkillWatcher`，`core/skills/creation/service.py` 与 `store/reader.py` 不再写快照；`instance_archive/policy.py` 按文件名排除遗留的 `.skills_snapshot.sqlite`；`SKILL_SYSTEM.md` 10.3 / 10.4、预置技能 `conversational-skill-evolution`、各 `_ARCH.md` 同步）。 |
+| **状态** | **FIXED**（harness：删除 `backends/skills` 下的 snapshot 与 watcher 两个模块，`local.py` 去掉 `use_snapshot` 参数与两处快照快路径，`agent/security/workspace_trust/manifest.py` 与 `skill_agent.py` 同步，`pyproject.toml` 去掉只有 `watcher.py` 在用的 `watchdog`；server：`app/server/lifespan.py` 不再启停 `SkillWatcher`，`app/core/skills/creation/service.py` 与 `store/reader.py` 不再写快照；`instance_archive/policy.py` 按文件名排除遗留的 `.skills_snapshot.sqlite`；`SKILL_SYSTEM.md` 10.3 / 10.4、预置技能 `conversational-skill-evolution`、各 `_ARCH.md` 同步）。 |
 | **发现时间** | 2026-11-01（评估技能列表成本时逐个读快照的写入点）。 |
 | **修复时间** | 2026-11-01 |
 | **严重程度** | P2：只在 harness 层复现，没有在真实实例上复现（见「仍然存在」①）；触发后果是技能清单少技能。 |
