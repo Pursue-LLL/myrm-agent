@@ -91,6 +91,9 @@ async def hide_sse_heartbeats_async(response: httpx.Response) -> None:
         response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())  # type: ignore[method-assign]
 
 
+# 模型传输层把供应商拒绝写成 "<provider> API error <status>: ..."；这些状态码属于账号、额度或服务端环境问题。
+_TRANSPORT_ENV_SIGNALS = tuple(f"API error {status}" for status in (401, 403, 429, 500, 502, 503, 529))
+
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
 _ENV_SKIP_KEYWORDS = (
     "Authentication",
@@ -101,7 +104,6 @@ _ENV_SKIP_KEYWORDS = (
     "InternalServerError",
     "timeout",
     "Timeout",
-    "LLM Provider NOT provided",
     "ServiceUnavailableError",
     "quota exceeded",
     "free_request_quota",
@@ -117,7 +119,7 @@ _ENV_SKIP_KEYWORDS = (
     "Invalid API Key",
     "APIConnectionError",
     "msgpack serializable",
-    "MinimaxException",
+    *_TRANSPORT_ENV_SIGNALS,
 )
 
 # 强环境失败信号：内嵌在工具失败 / 流恢复消息中（非顶层 error 事件），
@@ -138,6 +140,7 @@ _ENV_SKIP_BLOB_KEYWORDS = (
     "ratelimiterror",
     "serviceunavailableerror",
     "no active tab",
+    *(signal.lower() for signal in _TRANSPORT_ENV_SIGNALS),
 )
 
 
