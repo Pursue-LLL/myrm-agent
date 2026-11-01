@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 桌面发版的 Linux 更新清单：tag 流水线的 refinalize 失败，因为 bundler 现在只产出带签名的裸 `.AppImage`，`latest.json` 缺 `linux-x86_64`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（修复已推到 `origin/main` 的 `9b99c4ae81`）。已发布的 v0.1.40 的 `latest.json` 还没补上 Linux，要手动运行一次 `Repair Desktop Release Manifest`（见「仍然存在」）。 |
+| **症状** | [实测，公开 Actions 页面与 Release 资产] v0.1.40 的 tag 运行：三平台构建与整壳烟测、`publish-release`、`finalize-release` 都成功，`refinalize-after-linux` 的 `Regenerate latest.json + checksums (include Linux)` 失败。发布的 `latest.json` 只有 `darwin-aarch64`、`windows-x86_64`。Release 上的 Linux 资产是 `MyrmAgent_0.1.40_amd64.AppImage` 加它的 `.sig`、`.sha256`，没有 `.AppImage.tar.gz`（v0.1.39 两种都有）。 |
+| **根因** | `pick_platform_asset linux-x86_64` 只认 `*.AppImage.tar.gz`；`finalize-release.sh` 把 `linux-x86_64` 列为必需项，选不到就 `exit 1`；`verify-release.sh` 的 OTA 地址白名单也只收 `.AppImage.tar.gz`。这几步只在 tag 运行里执行，分支验证运行不会走到，所以此前的验证全绿。失败步骤的日志要登录才能读，没有看到日志原文，原因由脚本和资产名对出来。客户端 `tauri-plugin-updater 2.10.1`（`Cargo.lock`）对 gz 压缩包和裸 AppImage 都会安装（`updater.rs` 的 `install_appimage`）。 |
+| **修复** | `pick-platform-asset.sh`：先找压缩包，再找 `*x86_64*.AppImage`、`*amd64*.AppImage`（以 `.AppImage` 结尾，不会匹配同名的 `.sig`、`.sha256`）；`verify-release.sh` 的地址白名单收裸 `.AppImage`；`finalize-fixture-test.sh` 加「压缩包与裸 AppImage 并存取压缩包」和「只有带签名的裸 AppImage」两种布局；`scripts/ci/desktop-release/_ARCH.md` 同步。 |
+| **回归证据** | 新 fixture 在改前的挑选脚本上失败（退出码 1），改后通过；用 v0.1.40 Release 上的 15 个真实资产名跑改后的挑选脚本，三个平台都选中且各有 `.sig`，`darwin-x86_64` 仍然没有候选；`tests/architecture` 里发版相关的 5 个文件 44 例通过。 |
+| **仍然存在** | ① v0.1.40 的 `latest.json` 缺 `linux-x86_64`，Linux 用户收不到自动更新；要在 GitHub Actions 里手动运行 `Repair Desktop Release Manifest`，`tag` 填 `v0.1.40`（它用 `main` 上的脚本；本机没有登录 `gh`，未能代为触发）。② [实测] 打包版 sidecar 启动时有一个类的 `__init__` 同步读钥匙串（`SecretBackend`、`VaultCredentialService` 的构造函数都调 `MasterKeyProvider.get_master_key()`）。登录钥匙串里已有 `myrm-agent-vault/master-key` 而读取方是新的二进制时，进程卡在 `SecItemCopyMatching` 下的 `securityd` 消息等待，采样 4 分钟 CPU 不增长；设 `MYRM_MASTER_KEY` 后 7.7 s 就绪。是否是系统授权弹窗在等、有多少用户会遇到，都没有验证；未修改。 |
+| **代码位置** | `scripts/ci/desktop-release/pick-platform-asset.sh`、`verify-release.sh`、`finalize-fixture-test.sh`；`myrm-agent-server/app/core/security/master_key.py`（②） |
+
 ## 2026-11-01 · wiki 索引的页面名与磁盘文件对不上：名字以 `.md` 结尾或带 `wiki/concepts/` 前缀的页面（如 `AGENTS.md`、`SKILL.md`）索引行用原名，维护流程再按磁盘名发布又多一行；`Notes` 与 `Notes.md` 共用一行，一页的索引内容是另一页的；知识片段把这类页面当作陈旧行扣下，陈旧行占满名额时整个话题注入 0 段
 
 | 字段 | 内容 |
