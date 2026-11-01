@@ -9,8 +9,9 @@
 - Tests that drafts and blocked pages in the index never crowd published pages out of the pack, that sidecar index rows
   never reach it, that a page whose file cannot be read is held back whole, that so is a page whose file was removed
   after it was indexed (logged once per scan), that rows the pack holds back give way to the published pages behind them
-  up to the row window, that an interim raw entry, which has no page file, still stands on its index row, and that
-  pages published under names with ``.md`` or a vault prefix reach the pack from the rows the pipeline wrote.
+  up to the row window, that no more published pages are read than the page window holds, that an interim raw entry,
+  which has no page file, still stands on its index row, and that pages published under names with ``.md`` or a vault
+  prefix reach the pack from the rows the pipeline wrote.
 
 [POS]
 Real-index counterpart of the hand-built vaults in ``test_knowledge_pack.py``.
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.publication import ArticlePublish
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 
 from app.services.wiki.knowledge_pack import selector
+from app.services.wiki.knowledge_pack.query_terms import search_terms
 from app.services.wiki.knowledge_pack.schemas import ProactiveKnowledgeResult
 from app.services.wiki.knowledge_pack.selector import resolve_proactive_snippets_from_vaults
 
@@ -218,6 +220,25 @@ async def test_stale_rows_give_way_to_the_published_pages_behind_them(
     (warning,) = _warnings(caplog)
     assert str(len(stale)) in warning
     assert sum(name.lower().replace(" ", "-") in warning for name in stale) <= 3
+
+
+async def test_no_more_published_pages_are_read_than_the_page_window_holds(
+    vault: _Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for i in range(selector._MAX_INDEXED_PAGES + 3):
+        await vault.publish(f"Window {i}", f"Zephyr budget limit for crew {i}: rental cars are capped at {40 + i} per day.")
+    reads: list[Path] = []
+    read_page = selector._published_page_body
+
+    def counting_read(page_file: Path) -> str:
+        reads.append(page_file)
+        return read_page(page_file)
+
+    monkeypatch.setattr(selector, "_published_page_body", counting_read)
+
+    found = selector._indexed_snippets(vault.indexer.db_path, vault.path, "kb", search_terms(_QUERY))
+
+    assert len(found) == len(reads) == selector._MAX_INDEXED_PAGES
 
 
 async def test_a_draft_the_index_still_lists_as_published_gives_way_to_the_published_pages_behind_it(

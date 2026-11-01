@@ -1,22 +1,26 @@
+import logging
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.retriever.embedding.window_policy import EmbedInputTooLargeError
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.retrieval import fts_write
 from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
 from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import tokenize_for_fts
 
 
 @pytest.fixture
-def wiki_structure(tmp_path):
+def wiki_structure(tmp_path: Path) -> WikiStructure:
     structure = WikiStructure(tmp_path)
     structure.ensure_structure()
     return structure
 
 
 @pytest.fixture
-def mock_vector_store():
+def mock_vector_store() -> AsyncMock:
     store = AsyncMock()
     store.collection_exists.return_value = False
     store.create_collection = AsyncMock()
@@ -27,7 +31,7 @@ def mock_vector_store():
 
 
 @pytest.fixture
-def mock_embedding():
+def mock_embedding() -> AsyncMock:
     embedding = AsyncMock()
     embedding.embed.return_value = [0.1, 0.2, 0.3]
     embedding.embed_batch.side_effect = lambda chunks: [[0.1, 0.2, 0.3] for _ in chunks]
@@ -35,7 +39,9 @@ def mock_embedding():
 
 
 @pytest.mark.asyncio
-async def test_indexer_graceful_degradation_on_vector_search_failure(wiki_structure, mock_vector_store, mock_embedding):
+async def test_indexer_graceful_degradation_on_vector_search_failure(
+    wiki_structure: WikiStructure, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
     config = WikiConfig(enable_hybrid_search=True)
     mock_vector_store.search.side_effect = Exception("Simulated Vector DB Failure")
 
@@ -51,7 +57,9 @@ async def test_indexer_graceful_degradation_on_vector_search_failure(wiki_struct
 
 
 @pytest.mark.asyncio
-async def test_indexer_graceful_degradation_on_vector_upsert_failure(wiki_structure, mock_vector_store, mock_embedding):
+async def test_indexer_graceful_degradation_on_vector_upsert_failure(
+    wiki_structure: WikiStructure, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
     config = WikiConfig(enable_hybrid_search=True)
     mock_vector_store.upsert.side_effect = Exception("Simulated Vector DB Failure")
 
@@ -67,7 +75,9 @@ async def test_indexer_graceful_degradation_on_vector_upsert_failure(wiki_struct
 
 
 @pytest.mark.asyncio
-async def test_indexer_empty_query(wiki_structure, mock_vector_store, mock_embedding):
+async def test_indexer_empty_query(
+    wiki_structure: WikiStructure, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
     config = WikiConfig(enable_hybrid_search=True)
     indexer = WikiIndexer(wiki_structure, config, vector_store=mock_vector_store, embedding=mock_embedding)
 
@@ -79,14 +89,14 @@ async def test_indexer_empty_query(wiki_structure, mock_vector_store, mock_embed
     mock_vector_store.search.assert_not_called()
 
 
-def test_indexer_extract_truth_fallback():
+def test_indexer_extract_truth_fallback() -> None:
     # Test extract_truth when there's no Compiled Truth section
     content = "# Title\n\nJust some random content without sections."
     truth = WikiIndexer._extract_truth(content)
     assert truth == content
 
 
-def test_indexer_extract_truth_with_yaml():
+def test_indexer_extract_truth_with_yaml() -> None:
     content = "---\ntags: [a]\n---\n# Title\n\n## Compiled Truth\nReal truth here.\n## Timeline\nIgnored."
     truth = WikiIndexer._extract_truth(content)
     assert "---\ntags: [a]\n---\n" in truth
@@ -94,7 +104,7 @@ def test_indexer_extract_truth_with_yaml():
     assert "Ignored." not in truth
 
 
-def test_extract_and_upsert_edges_markdown_links(wiki_structure):
+def test_extract_and_upsert_edges_markdown_links(wiki_structure: WikiStructure) -> None:
     """extract_and_upsert_edges parses standard [text](link.md) and [[Wikilinks]]."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -113,7 +123,7 @@ def test_extract_and_upsert_edges_markdown_links(wiki_structure):
 
 
 @pytest.mark.asyncio
-async def test_delete_removes_fts_and_edges(wiki_structure):
+async def test_delete_removes_fts_and_edges(wiki_structure: WikiStructure) -> None:
     """delete() removes concept from FTS5 and edges."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -135,7 +145,7 @@ async def test_delete_removes_fts_and_edges(wiki_structure):
 
 
 @pytest.mark.asyncio
-async def test_get_knowledge_graph(wiki_structure):
+async def test_get_knowledge_graph(wiki_structure: WikiStructure) -> None:
     """get_knowledge_graph returns nodes and edges with val and weight."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -159,11 +169,12 @@ async def test_get_knowledge_graph(wiki_structure):
 
     node_a = next(n for n in graph["nodes"] if n["id"] == "NodeA")
     assert "val" in node_a
-    assert node_a["val"] >= 1
+    val = node_a["val"]
+    assert isinstance(val, int | float) and val >= 1
 
 
 @pytest.mark.asyncio
-async def test_graph_insights_with_data(wiki_structure):
+async def test_graph_insights_with_data(wiki_structure: WikiStructure) -> None:
     """graph_insights returns communities, gaps, and unexpected connections."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -184,7 +195,7 @@ async def test_graph_insights_with_data(wiki_structure):
     assert "D" in gap_names
 
 
-def test_edge_weight_adds_a_bonus_for_each_link_both_ends_share(wiki_structure):
+def test_edge_weight_adds_a_bonus_for_each_link_both_ends_share(wiki_structure: WikiStructure) -> None:
     """A direct link weighs 3.0; each page both ends link to adds 0.5, up to 1.5."""
     indexer = WikiIndexer(wiki_structure, WikiConfig(enable_hybrid_search=False))
 
@@ -202,7 +213,7 @@ def test_edge_weight_adds_a_bonus_for_each_link_both_ends_share(wiki_structure):
 # --- CJK Tokenizer Tests ---
 
 
-def testtokenize_for_fts_pure_english():
+def testtokenize_for_fts_pure_english() -> None:
     """Pure English query produces quoted tokens."""
     result = tokenize_for_fts("machine learning algorithm")
     assert '"machine"' in result
@@ -210,7 +221,7 @@ def testtokenize_for_fts_pure_english():
     assert '"algorithm"' in result
 
 
-def testtokenize_for_fts_pure_cjk():
+def testtokenize_for_fts_pure_cjk() -> None:
     """CJK text is split into bigrams."""
     result = tokenize_for_fts("深度学习")
     assert '"深度"' in result
@@ -218,7 +229,7 @@ def testtokenize_for_fts_pure_cjk():
     assert '"学习"' in result
 
 
-def testtokenize_for_fts_mixed():
+def testtokenize_for_fts_mixed() -> None:
     """Mixed CJK and English produces both types of tokens."""
     result = tokenize_for_fts("LLM架构设计")
     assert '"llm"' in result
@@ -227,19 +238,19 @@ def testtokenize_for_fts_mixed():
     assert '"设计"' in result
 
 
-def testtokenize_for_fts_single_cjk_char():
+def testtokenize_for_fts_single_cjk_char() -> None:
     """Single CJK character is quoted directly (no bigram possible)."""
     result = tokenize_for_fts("AI是")
     assert '"ai"' in result
 
 
-def testtokenize_for_fts_empty():
+def testtokenize_for_fts_empty() -> None:
     """Empty input returns empty string."""
     assert tokenize_for_fts("") == ""
     assert tokenize_for_fts("   ") == ""
 
 
-def testtokenize_for_fts_stop_words_removed():
+def testtokenize_for_fts_stop_words_removed() -> None:
     """Common English stop words are excluded."""
     result = tokenize_for_fts("the is a an of")
     assert result.strip() == ""
@@ -249,7 +260,7 @@ def testtokenize_for_fts_stop_words_removed():
 
 
 @pytest.mark.asyncio
-async def test_get_knowledge_graph_bfs(wiki_structure):
+async def test_get_knowledge_graph_bfs(wiki_structure: WikiStructure) -> None:
     """get_knowledge_graph with center_node uses BFS traversal."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -275,7 +286,7 @@ async def test_get_knowledge_graph_bfs(wiki_structure):
 
 
 @pytest.mark.asyncio
-async def test_get_knowledge_graph_bfs_nonexistent_center(wiki_structure):
+async def test_get_knowledge_graph_bfs_nonexistent_center(wiki_structure: WikiStructure) -> None:
     """BFS with a nonexistent center_node returns empty graph."""
     config = WikiConfig(enable_hybrid_search=False)
     indexer = WikiIndexer(wiki_structure, config)
@@ -283,3 +294,101 @@ async def test_get_knowledge_graph_bfs_nonexistent_center(wiki_structure):
     graph = indexer.get_knowledge_graph(center_node="DoesNotExist", depth=1)
     assert len(graph["nodes"]) == 0
     assert len(graph["edges"]) == 0
+
+
+# --- Vector, interim raw entry and link-extraction write paths ---
+
+
+@pytest.mark.asyncio
+async def test_delete_removes_vector_points_under_every_spelling(
+    wiki_structure: WikiStructure, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
+    """A page indexed under its compile name or under its file path loses its vector points under both."""
+    indexer = WikiIndexer(
+        wiki_structure, WikiConfig(enable_hybrid_search=True), vector_store=mock_vector_store, embedding=mock_embedding
+    )
+
+    await indexer.delete("SKILL.md")
+
+    filters = [call.args for call in mock_vector_store.delete_by_filter.await_args_list]
+    assert filters == [
+        (indexer._collection_name, {"concept_name": "SKILL.md"}),
+        (indexer._collection_name, {"concept_name": "skillmd"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_vector_delete_does_not_stop_the_other_spelling(
+    wiki_structure: WikiStructure,
+    mock_vector_store: AsyncMock,
+    mock_embedding: AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    indexer = WikiIndexer(
+        wiki_structure, WikiConfig(enable_hybrid_search=True), vector_store=mock_vector_store, embedding=mock_embedding
+    )
+    await indexer.upsert("Gone.md", "## Compiled Truth\nKnowledge about quokkas.")
+    mock_vector_store.delete_by_filter.reset_mock()
+    mock_vector_store.delete_by_filter.side_effect = Exception("Simulated Vector DB Failure")
+
+    with caplog.at_level(logging.ERROR):
+        await indexer.delete("Gone.md")
+
+    assert mock_vector_store.delete_by_filter.await_count == 2
+    assert "Failed to delete vector for wiki concept 'Gone.md'" in caplog.text
+    assert "Failed to delete vector for wiki concept 'gonemd'" in caplog.text
+    assert indexer.get_truth("Gone.md") is None
+
+
+@pytest.mark.asyncio
+async def test_remove_raw_text_index_drops_only_the_interim_entry(wiki_structure: WikiStructure) -> None:
+    indexer = WikiIndexer(wiki_structure, WikiConfig(enable_hybrid_search=False))
+    await indexer.upsert("Compiled", "## Compiled Truth\nCompiled knowledge.")
+    indexer.index_raw_text("upload.pdf", "interim text about quokkas")
+
+    def indexed_names() -> set[str]:
+        with indexer._get_conn() as conn:
+            return {row["concept_name"] for row in conn.execute("SELECT concept_name FROM wiki_fts")}
+
+    assert indexed_names() == {"Compiled", "raw:upload.pdf"}
+
+    indexer.remove_raw_text_index("upload.pdf")
+
+    assert indexed_names() == {"Compiled"}
+
+
+@pytest.mark.asyncio
+async def test_upsert_keeps_the_page_when_its_links_cannot_be_extracted(
+    wiki_structure: WikiStructure, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    indexer = WikiIndexer(wiki_structure, WikiConfig(enable_hybrid_search=False))
+
+    def fail(concept_name: str, markdown: str) -> None:
+        raise RuntimeError("Simulated link extraction failure")
+
+    monkeypatch.setattr(indexer, "extract_and_upsert_edges", fail)
+
+    with caplog.at_level(logging.WARNING):
+        await indexer.upsert("Linked", "## Compiled Truth\nSee [[Other]].")
+
+    assert indexer.get_truth("Linked") is not None
+    assert "Failed to extract edges for Linked" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_upsert_surfaces_an_oversized_embedding_input_once_the_page_is_indexed(
+    wiki_structure: WikiStructure,
+    mock_vector_store: AsyncMock,
+    mock_embedding: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    oversized = EmbedInputTooLargeError(token_count=900, limit=512, model="test-embed", parent_key="Huge")
+    monkeypatch.setattr(fts_write, "upsert_text_vectors", AsyncMock(side_effect=oversized))
+    indexer = WikiIndexer(
+        wiki_structure, WikiConfig(enable_hybrid_search=True), vector_store=mock_vector_store, embedding=mock_embedding
+    )
+
+    with pytest.raises(EmbedInputTooLargeError):
+        await indexer.upsert("Huge", "## Compiled Truth\nA very long text.")
+
+    assert indexer.get_truth("Huge") is not None

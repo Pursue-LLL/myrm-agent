@@ -18,6 +18,7 @@ Shared fixtures of the knowledge-pack test files, so the index schema is spelled
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
@@ -31,7 +32,8 @@ _CREATE_FTS = 'CREATE VIRTUAL TABLE wiki_fts USING fts5(concept_name, truth_cont
 
 def write_index(vault: Path, rows: dict[str, str]) -> None:
     """Create the vault's FTS index with exactly these (concept name, indexed text) rows."""
-    with sqlite3.connect(vault / ".wiki_index.db") as conn:
+    # ``with conn`` commits but never closes; ``closing`` releases the file.
+    with closing(sqlite3.connect(vault / ".wiki_index.db")) as conn, conn:
         conn.execute(_CREATE_FTS)
         conn.executemany("INSERT INTO wiki_fts(concept_name, truth_content) VALUES (?, ?)", list(rows.items()))
 
