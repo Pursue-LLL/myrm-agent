@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,18 +16,7 @@ from myrm_agent_harness.toolkits.llms.image.models import (
     ImageGenerationConfig,
     ImageResult,
 )
-
-
-@dataclass
-class _FakeImageData:
-    url: str | None = "https://example.com/img.png"
-    b64_json: str | None = None
-    revised_prompt: str | None = "revised"
-
-
-@dataclass
-class _FakeResponse:
-    data: list[_FakeImageData]
+from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage
 
 
 class TestGenerateImage:
@@ -37,8 +25,8 @@ class TestGenerateImage:
         config = ImageGenerationConfig(model="dall-e-3")
         tools = ImageGenerationTools(config)
 
-        with patch("litellm.aimage_generation", new_callable=AsyncMock) as mock:
-            mock.return_value = _FakeResponse(data=[_FakeImageData()])
+        with patch("myrm_agent_harness.toolkits.llms.image.generator.agenerate_images", new_callable=AsyncMock) as mock:
+            mock.return_value = [GeneratedImage(url="https://example.com/img.png", revised_prompt="revised")]
             result_str = await tools.generate_image("a cat")
 
         result = json.loads(result_str)
@@ -85,7 +73,7 @@ class TestGenerateImage:
         config = ImageGenerationConfig(model="dall-e-3", max_retries=0)
         tools = ImageGenerationTools(config)
 
-        with patch("litellm.aimage_generation", new_callable=AsyncMock) as mock:
+        with patch("myrm_agent_harness.toolkits.llms.image.generator.agenerate_images", new_callable=AsyncMock) as mock:
             mock.side_effect = RuntimeError("API error")
             result_str = await tools.generate_image("test")
 
@@ -109,8 +97,8 @@ class TestEditImage:
         config = ImageGenerationConfig(model="gpt-image-1")
         tools = ImageGenerationTools(config)
 
-        with patch("litellm.aimage_edit", new_callable=AsyncMock) as mock:
-            mock.return_value = _FakeResponse(data=[_FakeImageData()])
+        with patch("myrm_agent_harness.toolkits.llms.image.generator.aedit_images", new_callable=AsyncMock) as mock:
+            mock.return_value = [GeneratedImage(url="https://example.com/img.png", revised_prompt="revised")]
             result_str = await tools.edit_image(b"png-bytes", "edit it")
 
         result = json.loads(result_str)

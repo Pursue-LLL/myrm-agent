@@ -12,6 +12,8 @@ from myrm_agent_harness.eval.assertions import (
 )
 from myrm_agent_harness.eval.protocols import SemanticAssertion
 
+_JUDGE = "myrm_agent_harness.eval.assertions.judge_completion"
+
 
 class TestExactMatchPrepass:
     def test_identical_answers_match(self) -> None:
@@ -38,21 +40,11 @@ class TestExactMatchPrepass:
 class TestSemanticAssertionShortCircuit:
     async def _run(self, expected: str, actual: str) -> tuple[bool | None, str | None]:
         assertion = SemanticAssertion(type="llm_judge", expected=expected, threshold=1.0)
-        # acompletion is never reached on an exact match; if the code calls it,
-        # the AsyncMock raises and the test fails loudly.
-        with patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-        ) as mock_completion:
+        # The judge is never reached on an exact match; the assertions below fail loudly if it is.
+        with patch(_JUDGE, new_callable=AsyncMock) as mock_completion:
             result = await evaluate_semantic_assertions([assertion], actual)
             assert mock_completion.await_count == 0
         return result
-
-    def _judge_response(self, content: str) -> object:
-        """Build a litellm-compatible completion object whose text is ``content``."""
-        message = type("M", (), {"content": content})()
-        choice = type("C", (), {"message": message})()
-        return type("R", (), {"choices": [choice]})()
 
     @pytest.mark.asyncio
     async def test_exact_match_passes_without_llm(self) -> None:
@@ -68,11 +60,7 @@ class TestSemanticAssertionShortCircuit:
     async def test_scoring_threshold_bypasses_shortcut(self) -> None:
         """Soft-scoring (threshold < 1.0) must not short-circuit on exact match."""
         assertion = SemanticAssertion(type="llm_judge", expected="0.75", threshold=0.7)
-        with patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            return_value=self._judge_response("0.9"),
-        ) as mock_completion:
+        with patch(_JUDGE, new_callable=AsyncMock, return_value="0.9") as mock_completion:
             passed, _ = await evaluate_semantic_assertions([assertion], "0.75")
             assert passed is True
             assert mock_completion.await_count == 1
@@ -80,11 +68,7 @@ class TestSemanticAssertionShortCircuit:
     @pytest.mark.asyncio
     async def test_non_match_still_calls_llm(self) -> None:
         assertion = SemanticAssertion(type="llm_judge", expected="Paris", threshold=1.0)
-        with patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            return_value=self._judge_response("FAIL: wrong city"),
-        ) as mock_completion:
+        with patch(_JUDGE, new_callable=AsyncMock, return_value="FAIL: wrong city") as mock_completion:
             passed, details = await evaluate_semantic_assertions([assertion], "Berlin")
             assert passed is False
             assert "FAIL" in details

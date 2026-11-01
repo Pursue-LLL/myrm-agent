@@ -93,8 +93,8 @@ class SemanticAssertion:
     threshold: float = 1.0  # Optional threshold for soft scoring (e.g. 0-1)
     judge_prompt: str | None = None  # Custom system prompt for the judge LLM
     judge_model: str | None = None  # Override judge model (e.g., "gpt-3.5-turbo")
-    judge_api_key: str | None = None  # Override judge API key (litellm-compatible)
-    judge_api_base: str | None = None  # Override judge base URL (litellm-compatible)
+    judge_api_key: str | None = None  # Override judge API key
+    judge_api_base: str | None = None  # Override judge base URL
 
 
 @dataclass(frozen=True, slots=True)

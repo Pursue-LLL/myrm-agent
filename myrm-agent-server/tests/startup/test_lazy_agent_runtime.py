@@ -5,13 +5,13 @@
 - app.ai_agents.general_agent.tools::ensure_tool_layer_bootstrap (POS: lazy tool registration)
 
 [OUTPUT]
-- Regression coverage for keeping the custom-provider modules and the server tool
-  bootstrap out of the HTTP-server import path.
+- Regression coverage for keeping the LLM transport and the server tool bootstrap
+  out of the HTTP-server import path.
 
 [POS]
-Startup tests. The server must become healthy without importing the custom provider
-modules (the heaviest startup dependency) or registering tool layers eagerly; a future
-eager import would silently add seconds to every launch.
+Startup tests. The server must become healthy without building an LLM client or
+registering tool layers eagerly; a future eager import would silently add seconds
+to every launch.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def test_importing_app_main_keeps_heavy_agent_runtime_lazy() -> None:
             sys.executable,
             "-c",
             "import sys; import app.main; "
-            "print('myrm_agent_harness.toolkits.llms.providers.minimax_image' in sys.modules); "
+            "print('myrm_agent_harness.toolkits.llms.transport.client' in sys.modules); "
             "print('app.ai_agents.general_agent.tools._tool_layer_bootstrap' in sys.modules)",
         ],
         cwd=_SERVER_ROOT,
@@ -41,8 +41,8 @@ def test_importing_app_main_keeps_heavy_agent_runtime_lazy() -> None:
         text=True,
         check=True,
     )
-    provider_loaded, bootstrap_loaded = result.stdout.split()
-    assert provider_loaded == "False", result.stderr
+    transport_loaded, bootstrap_loaded = result.stdout.split()
+    assert transport_loaded == "False", result.stderr
     assert bootstrap_loaded == "False", result.stderr
 
 

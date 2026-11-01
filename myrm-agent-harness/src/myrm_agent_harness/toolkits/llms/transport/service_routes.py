@@ -1,17 +1,18 @@
-"""Endpoint resolution for the non-chat model services (embeddings, reranking).
+"""Endpoint resolution for the non-chat model services (embeddings, reranking, image generation).
 
 [INPUT]
 - transport.profile (POS: PROFILES, ProviderProfile, Route, UnsupportedProviderError)
 
 [OUTPUT]
-- service_route: the provider, bare model id, endpoint root and credential of an embedding or rerank call
+- service_route: the provider, bare model id, endpoint root and credential of an embedding, rerank or image call
 
 [POS]
-Embedding and rerank providers are a different set from the chat providers (Jina, Voyage and Cohere serve no
-chat), so they get their own small table next to the chat profiles instead of widening ``PROFILES``. A provider
-with a default endpoint resolves from the ``provider/model`` id; any other id is an OpenAI-compatible endpoint
-and needs an ``api_base``, keeping the whole id as the model name (``BAAI/bge-m3`` is a model, not a provider).
-Only an explicitly passed credential is used: these calls never read provider keys from the environment.
+Embedding, rerank and image providers are a different set from the chat providers (Jina, Voyage, Cohere,
+Stability and MiniMax image serve no chat), so they get their own small table next to the chat profiles instead
+of widening ``PROFILES``. A provider with a default endpoint resolves from the ``provider/model`` id; any other
+id is an OpenAI-compatible endpoint and needs an ``api_base``, keeping the whole id as the model name
+(``BAAI/bge-m3`` is a model, not a provider). Only an explicitly passed credential is used: these calls never
+read provider keys from the environment.
 """
 
 from __future__ import annotations
@@ -29,9 +30,11 @@ _SERVICE_PROFILES: Final[dict[str, ProviderProfile]] = {
     "jina_ai": ProviderProfile(id="jina_ai", base_url="https://api.jina.ai/v1"),
     "voyage": ProviderProfile(id="voyage", base_url="https://api.voyageai.com/v1"),
     "cohere": ProviderProfile(id="cohere", base_url="https://api.cohere.com/v2"),
+    "stability": ProviderProfile(id="stability", base_url="https://api.stability.ai"),
+    "minimax_image": ProviderProfile(id="minimax_image", base_url="https://api.minimax.io"),
 }
-_OPENAI_FAMILY_BARE: Final = ("text-embedding-",)
-_ENDPOINT_SUFFIXES: Final = ("/embeddings", "/embed", "/rerank")
+_OPENAI_FAMILY_BARE: Final = ("text-embedding-", "dall-e", "gpt-image")
+_ENDPOINT_SUFFIXES: Final = ("/embeddings", "/embed", "/rerank", "/images/generations", "/images/edits")
 
 
 def _root(url: str | None) -> str | None:

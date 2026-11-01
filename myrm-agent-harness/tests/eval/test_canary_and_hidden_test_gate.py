@@ -44,9 +44,7 @@ class MockAgentExecutor:
     async def create_session(self) -> str:
         return "sess-test-canary-01"
 
-    async def execute(
-        self, message: str, session_id: str | None = None
-    ) -> AgentResponse:
+    async def execute(self, message: str, session_id: str | None = None) -> AgentResponse:
         return AgentResponse(answer=self.answer, tools_called=["shell_execute"])
 
     def get_sandbox_executor(self, session_id: str):
@@ -85,17 +83,12 @@ def test_scan_dataset_canary_integrity():
     res_unprotected = scan_dataset_canary_integrity(unprotected_dataset)
     assert not res_unprotected.is_protected
     assert not res_unprotected.canary_found
-    assert any(
-        "lacks benchmark anti-contamination canary" in v
-        for v in res_unprotected.violations
-    )
+    assert any("lacks benchmark anti-contamination canary" in v for v in res_unprotected.violations)
 
 
 @pytest.mark.asyncio
 async def test_evaluate_post_episode_assertions_success():
-    sandbox = MockSandboxExecutor(
-        exit_code=0, output="PASS: 12 hidden test cases verified."
-    )
+    sandbox = MockSandboxExecutor(exit_code=0, output="PASS: 12 hidden test cases verified.")
     assertions = [
         PostEpisodeAssertion(
             assertion_id="post_test_01",
@@ -104,9 +97,7 @@ async def test_evaluate_post_episode_assertions_success():
             expected_output="PASS",
         )
     ]
-    passed, logs = await evaluate_post_episode_assertions(
-        assertions, sandbox_executor=sandbox
-    )
+    passed, logs = await evaluate_post_episode_assertions(assertions, sandbox_executor=sandbox)
     assert passed
     assert len(logs) == 1
     assert logs[0]["passed"]
@@ -115,9 +106,7 @@ async def test_evaluate_post_episode_assertions_success():
 
 @pytest.mark.asyncio
 async def test_evaluate_post_episode_assertions_failure():
-    sandbox = MockSandboxExecutor(
-        exit_code=1, output="FAIL: Assertion difference in calculated checksum."
-    )
+    sandbox = MockSandboxExecutor(exit_code=1, output="FAIL: Assertion difference in calculated checksum.")
     assertions = [
         PostEpisodeAssertion(
             assertion_id="post_test_01",
@@ -126,9 +115,7 @@ async def test_evaluate_post_episode_assertions_failure():
             expected_output="PASS",
         )
     ]
-    passed, logs = await evaluate_post_episode_assertions(
-        assertions, sandbox_executor=sandbox
-    )
+    passed, logs = await evaluate_post_episode_assertions(assertions, sandbox_executor=sandbox)
     assert not passed
     assert len(logs) == 1
     assert not logs[0]["passed"]
@@ -205,9 +192,7 @@ async def test_eval_runner_anti_contamination_trajectory_violation():
         async def create_session(self) -> str:
             return "sess-cheat-01"
 
-        async def execute(
-            self, message: str, session_id: str | None = None
-        ) -> AgentResponse:
+        async def execute(self, message: str, session_id: str | None = None) -> AgentResponse:
             return AgentResponse(
                 answer="I solved it",
                 tools_called=["file_reader"],
@@ -246,9 +231,7 @@ def test_audit_episode_trajectory_for_env_secret_probing():
     res_env_probe = audit_episode_trajectory_for_contamination(env_probe_trajectory)
     assert res_env_probe.cheat_detected
     assert len(res_env_probe.violations) == 3
-    assert all(
-        v.violation_type == "env_secret_probed" for v in res_env_probe.violations
-    )
+    assert all(v.violation_type == "env_secret_probed" for v in res_env_probe.violations)
 
     # 2. Innocent shell commands should not trigger violation
     innocent_trajectory = [
@@ -277,9 +260,7 @@ def test_benchmark_spec_dynamic_canary_token():
 
     # Verify trajectory audit with custom canary
     leak_traj = [{"tool_name": "web_search", "query": f"search query {custom_token}"}]
-    res = audit_episode_trajectory_for_contamination(
-        leak_traj, canary_tokens=[custom_token]
-    )
+    res = audit_episode_trajectory_for_contamination(leak_traj, canary_tokens=[custom_token])
     assert len(res.violations) == 1
     assert res.violations[0].violation_type == "canary_search_leak"
 
@@ -290,9 +271,7 @@ async def test_runner_integrates_case_level_dynamic_canary():
         async def create_session(self) -> str:
             return "sess-leak-dyn-01"
 
-        async def execute(
-            self, message: str, session_id: str | None = None
-        ) -> AgentResponse:
+        async def execute(self, message: str, session_id: str | None = None) -> AgentResponse:
             return AgentResponse(
                 answer="done",
                 tool_call_details=[
@@ -314,7 +293,4 @@ async def test_runner_integrates_case_level_dynamic_canary():
     assert res.pass_count == 0
     assert res.turn_results[0].contamination_audit is not None
     assert len(res.turn_results[0].contamination_audit["violations"]) == 1
-    assert (
-        res.turn_results[0].contamination_audit["violations"][0]["violation_type"]
-        == "canary_search_leak"
-    )
+    assert res.turn_results[0].contamination_audit["violations"][0]["violation_type"] == "canary_search_leak"

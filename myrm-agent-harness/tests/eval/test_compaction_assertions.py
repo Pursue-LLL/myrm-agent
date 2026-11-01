@@ -74,6 +74,7 @@ async def test_evaluate_compaction_assertions_forbidden_claim_failure() -> None:
 @pytest.mark.asyncio
 async def test_eval_runner_integration_with_compaction_assertion() -> None:
     """Verify EvalRunner automatically evaluates CompactionAssertion when present on EvalCase."""
+
     class DummyExecutor:
         async def create_session(self) -> str:
             return "dummy_session_id"

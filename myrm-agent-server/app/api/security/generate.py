@@ -6,9 +6,8 @@ and human-readable explanations.
 
 [INPUT]
 - myrm_agent_harness.agent.security.policy_generator (build_messages, parse, validate, explain)
-- litellm for LLM calls
 - User's configured model via config loader
-- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- myrm_agent_harness.toolkits.llms.text_completion::acomplete_text (POS: one-shot chat completion as text)
 
 [OUTPUT]
 - router: FastAPI APIRouter for POST /security/generate-policy
@@ -30,9 +29,8 @@ from myrm_agent_harness.agent.security.policy_generator import (
     parse_policy_response,
     validate_generated_policy,
 )
+from myrm_agent_harness.toolkits.llms.text_completion import acomplete_text
 from pydantic import BaseModel, Field
-
-from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -75,27 +73,20 @@ async def generate_policy(req: GeneratePolicyRequest) -> GeneratePolicyResponse:
     Calls LLM to convert NL input into structured SecurityConfig,
     then validates and explains the result.
     """
-    from litellm import acompletion
-
     model_cfg = await _resolve_model(req.model_selection)
 
     messages = build_messages(req.text, req.current_config)
 
     try:
-        llm_kwargs: dict[str, object] = {
-            "model": model_cfg.model,
-            "messages": messages,
-            "temperature": 0.1,
-            "max_tokens": 1500,
-            "timeout": 30,
-            "api_key": model_cfg.api_key,
-        }
-        if model_cfg.base_url:
-            llm_kwargs["api_base"] = model_cfg.base_url
-
-        response = await acompletion(**llm_kwargs)  # type: ignore[arg-type]
-        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-        raw_output = extract_litellm_answer_text(response).strip()
+        raw_output = await acomplete_text(
+            model_cfg.model,
+            messages,
+            api_key=model_cfg.api_key,
+            api_base=model_cfg.base_url or None,
+            temperature=0.1,
+            max_tokens=1500,
+            timeout=30,
+        )
     except Exception as exc:
         logger.error("Policy generation LLM call failed: %s", exc)
         raise HTTPException(
@@ -129,7 +120,7 @@ async def _resolve_model(selection: dict[str, str] | None) -> "ModelConfig":
     """Resolve LLM model config for policy generation.
 
     Uses user-provided selection, or falls back to the user's default model.
-    Returns full ModelConfig with api_key for litellm auth.
+    Returns the full ModelConfig, including the api_key.
     """
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.channel_bridge.model_resolver import _fallback_model_from_providers, _to_litellm_model

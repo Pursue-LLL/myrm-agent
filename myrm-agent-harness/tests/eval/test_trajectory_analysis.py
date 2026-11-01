@@ -122,8 +122,6 @@ def test_aggregate_failure_modes_and_pareto() -> None:
     assert fa["total_failures"] == 2
     assert fa["failure_distribution"][FailureMode.CONTEXT_OVERFLOW_OR_BUDGET.value] == 1
     assert fa["failure_distribution"][FailureMode.EXECUTION_TIMEOUT.value] == 1
-    assert (
-        fa["pareto_percentages"][FailureMode.CONTEXT_OVERFLOW_OR_BUDGET.value] == 50.0
-    )
+    assert fa["pareto_percentages"][FailureMode.CONTEXT_OVERFLOW_OR_BUDGET.value] == 50.0
     assert fa["pareto_percentages"][FailureMode.EXECUTION_TIMEOUT.value] == 50.0
     assert len(fa["details"]) == 2

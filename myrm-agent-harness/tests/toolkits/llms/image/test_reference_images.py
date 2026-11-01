@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,18 +13,7 @@ from myrm_agent_harness.toolkits.llms.image.generator import (
     _download_reference_images,
 )
 from myrm_agent_harness.toolkits.llms.image.models import ImageResult
-
-
-@dataclass
-class _FakeImageData:
-    url: str | None = "https://example.com/result.png"
-    b64_json: str | None = None
-    revised_prompt: str | None = None
-
-
-@dataclass
-class _FakeResponse:
-    data: list[_FakeImageData]
+from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage
 
 
 class TestDownloadReferenceImages:
@@ -165,9 +153,11 @@ class TestGenerateWithReferences:
                 new_callable=AsyncMock,
                 return_value=[],
             ),
-            patch("litellm.aimage_generation", new_callable=AsyncMock) as mock_gen,
+            patch(
+                "myrm_agent_harness.toolkits.llms.image.generator.agenerate_images", new_callable=AsyncMock
+            ) as mock_gen,
         ):
-            mock_gen.return_value = _FakeResponse(data=[_FakeImageData()])
+            mock_gen.return_value = [GeneratedImage(url="https://example.com/result.png")]
             result = await gen.generate(
                 "test",
                 reference_image_urls=["https://example.com/bad.png"],

@@ -7,7 +7,7 @@
 [OUTPUT]
 - PreparedRequest: one fully built provider request (what a wire module produces)
 - StreamDecoder: the contract a wire module implements to turn SSE events / NDJSON lines into chat chunks
-- send_json / asend_json: one non-streaming round trip, parsed
+- send_json / asend_json: one non-streaming round trip (JSON or multipart form body), parsed
 - open_stream / aopen_stream: one streaming round trip, as a chunk iterator
 - ProviderStream / AsyncProviderStream: chunk iterators that remember the finish reason the provider reported
 
@@ -24,7 +24,7 @@ import asyncio
 import json
 import threading
 from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Final, Protocol
 
 import httpx
@@ -37,6 +37,9 @@ _SYNC_CLIENTS: dict[str | None, httpx.Client] = {}
 _SYNC_LOCK: Final = threading.Lock()
 
 Chunk = dict[str, object]
+# One multipart file field: ``(filename, content, mime)``, or a bare string for a field that only forces the
+# multipart encoding.
+FilePart = tuple[str, bytes, str] | str
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +55,9 @@ class PreparedRequest:
     stream: bool = False
     query: Mapping[str, str] = field(default_factory=dict)
     framing: str = "sse"  # "sse" or "ndjson"
+    # A multipart request carries text fields in ``form`` and uploads in ``files`` instead of a JSON ``body``.
+    form: Mapping[str, str] | None = None
+    files: Mapping[str, FilePart] | None = None
 
 
 class StreamDecoder(Protocol):
@@ -93,6 +99,16 @@ def _sync_client(proxy: str | None) -> httpx.Client:
 
 
 def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> httpx.Request:
+    if req.files is not None:
+        return client.build_request(
+            "POST",
+            req.url,
+            params=dict(req.query) or None,
+            headers=dict(req.headers),
+            data=dict(req.form or {}),
+            files=dict(req.files),
+            timeout=_timeout(req.timeout),
+        )
     return client.build_request(
         "POST",
         req.url,
@@ -104,19 +120,10 @@ def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> ht
 
 
 def _with_json_headers(req: PreparedRequest) -> PreparedRequest:
-    if any(k.lower() == "content-type" for k in req.headers):
+    """A multipart request keeps no Content-Type here: the client adds it with the boundary."""
+    if req.files is not None or any(k.lower() == "content-type" for k in req.headers):
         return req
-    return PreparedRequest(
-        provider=req.provider,
-        url=req.url,
-        headers={**req.headers, "Content-Type": "application/json"},
-        body=req.body,
-        timeout=req.timeout,
-        proxy=req.proxy,
-        stream=req.stream,
-        query=req.query,
-        framing=req.framing,
-    )
+    return replace(req, headers={**req.headers, "Content-Type": "application/json"})
 
 
 def _send(req: PreparedRequest) -> httpx.Response:

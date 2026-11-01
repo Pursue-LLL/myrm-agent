@@ -11,7 +11,7 @@ Supports multiple providers with automatic fallback to Edge TTS or Piper when av
 
 [INPUT]
 - channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- core.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- myrm_agent_harness.toolkits.llms.text_completion::acomplete_text (POS: one-shot chat completion as text)
 
 [OUTPUT]
 - synthesize(): Text -> audio file path (Path)
@@ -37,9 +37,9 @@ from pathlib import Path
 from types import ModuleType
 
 import httpx
+from myrm_agent_harness.toolkits.llms.text_completion import acomplete_text
 
 from app.channels.types import VoiceConfig
-from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -502,17 +502,14 @@ _SUMMARY_TIMEOUT = 15.0
 async def _summarize_for_tts(text: str, config: VoiceConfig) -> str | None:
     """Summarize long text using LLM before TTS synthesis."""
     try:
-        from litellm import acompletion
-
         model = config.tts_summary_model or "gpt-4o-mini"
-        resp = await acompletion(
-            model=model,
-            messages=[{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
+        summary = await acomplete_text(
+            model,
+            [{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
             max_tokens=500,
             temperature=0.3,
             timeout=_SUMMARY_TIMEOUT,
         )
-        summary = extract_litellm_answer_text(resp).strip()
         if not summary:
             return None
 

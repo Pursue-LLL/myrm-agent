@@ -1,11 +1,10 @@
-"""Image generation and editing via LiteLLM unified API.
+"""Image generation and editing with failover, retry and cancellation.
 
 [INPUT]
-- litellm::aimage_generation (POS: LiteLLM unified async image generation function)
-- litellm::aimage_edit (POS: LiteLLM unified async image editing function)
-- litellm::{AuthenticationError, BadRequestError, NotFoundError} (POS: Non-retryable exceptions)
+- transport.images::{agenerate_images, aedit_images, GeneratedImage} (POS: provider image requests)
+- transport.errors::LLMHTTPError (POS: failed provider status)
 - core.security.http.secure_fetch::secure_get (POS: SSRF-protected outbound HTTP for URL-based image downloads)
-- models::{ImageGenerationConfig, (POS: Pydantic models for DingTalk robot callback payloads.)
+- models::{ImageGenerationConfig, ImageResult, ...} (POS: configuration and result types)
 
 [OUTPUT]
 - ImageGenerator: Core image generation and editing with failover, smart retry,
@@ -14,9 +13,9 @@
   (both b64 and URL download paths)
 
 [POS]
-Core image generation and editing engine. Wraps LiteLLM's aimage_generation()
-and aimage_edit() to provide a unified interface across 20+ providers
-(DALL-E, Gemini, Stability AI, Flux, etc.).
+Core image generation and editing engine. Calls the transport's image endpoints
+(DALL-E / GPT Image, Gemini Imagen, Stability AI, Together Flux, xAI, MiniMax,
+any OpenAI-compatible gateway) through one interface.
 Supports multi-model failover, reference image input (for style transfer and
 continuous editing), media storage decoupling via callback, SecretStr API key
 protection, error message truncation, instance-level call metrics, cancellation
@@ -27,11 +26,15 @@ b64_json and URL results.
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import time
 from collections.abc import Awaitable, Callable
 from typing import BinaryIO
+
+import httpx
+
+from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage, aedit_images, agenerate_images
+from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 
 from .models import (
     FailoverAttempt,
@@ -54,17 +57,25 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-_NON_RETRYABLE_TYPES = ("AuthenticationError", "BadRequestError", "NotFoundError")
+# Bad credentials, a rejected request and an unknown model fail the same way on every attempt.
+_NON_RETRYABLE_STATUS = frozenset({400, 401, 404})
+# A gateway that is down, out of balance or too slow is worth bypassing for the user's own provider key.
+_GATEWAY_FAILURE_STATUS = frozenset({402, 502, 503, 504})
 _ERROR_MSG_MAX_LEN = 500
 
 
 def _is_retryable(exc: Exception) -> bool:
-    """Check if an exception is worth retrying.
+    """Whether another attempt can succeed: not for a refused request or an unreachable provider table entry."""
+    if isinstance(exc, UnsupportedProviderError):
+        return False
+    return getattr(exc, "status_code", None) not in _NON_RETRYABLE_STATUS
 
-    Uses type name matching to avoid importing litellm at module level.
-    Non-retryable: AuthenticationError, BadRequestError, NotFoundError.
-    """
-    return type(exc).__name__ not in _NON_RETRYABLE_TYPES
+
+def _is_gateway_failure(exc: Exception) -> bool:
+    if isinstance(exc, httpx.TimeoutException) or getattr(exc, "status_code", None) in _GATEWAY_FAILURE_STATUS:
+        return True
+    message = str(exc).lower()
+    return "insufficient" in message or "timeout" in message
 
 
 def _safe_truncate(msg: str, max_len: int = _ERROR_MSG_MAX_LEN) -> str:
@@ -80,11 +91,10 @@ def _safe_truncate(msg: str, max_len: int = _ERROR_MSG_MAX_LEN) -> str:
 
 
 class ImageGenerator:
-    """Image generation and editing via LiteLLM unified API.
+    """Image generation and editing across providers.
 
-    Supports 20+ providers through LiteLLM's aimage_generation() and
-    aimage_edit().  Features multi-model failover, smart retry,
-    instance-level metrics, and cancellation support.
+    Features multi-model failover, smart retry, instance-level metrics,
+    and cancellation support.
     """
 
     def __init__(self, config: ImageGenerationConfig) -> None:
@@ -145,7 +155,7 @@ class ImageGenerator:
         if reference_image_urls:
             profile = get_profile(self._config.model)
             # When active model is pure text-to-image (does not support edit/image input, e.g. DALL-E 3),
-            # avoid sending invalid aimage_edit requests or wasting bandwidth on binary downloads.
+            # avoid sending invalid edit requests or wasting bandwidth on binary downloads.
             if profile and not profile.supports_edit and profile.max_input_images == 0:
                 logger.info(
                     "Model %s does not support native edit/image inputs; appending reference URLs as prompt context",
@@ -179,37 +189,37 @@ class ImageGenerator:
                         if len(prompt) + len(ref_context) <= max_len:
                             prompt = f"{prompt}{ref_context}"
 
-        from litellm import aimage_generation
-
         effective_size = size or self._config.default_size
+        effective_quality = quality or self._config.default_quality
 
-        def build_kwargs(model: str, bypass_gateway: bool = False) -> dict[str, object]:
-            kw: dict[str, object] = {
-                "model": model,
-                "prompt": prompt,
-                "size": effective_size,
-                "quality": quality or self._config.default_quality,
-                "n": n,
-                "timeout": self._config.timeout_seconds,
-            }
-            if not bypass_gateway and self._config.gateway_config and self._config.gateway_config.use_gateway:
-                kw["api_base"] = f"{self._config.gateway_config.gateway_url.rstrip('/')}/image_gen"
-                kw["api_key"] = self._config.gateway_config.auth_token
-            else:
-                if self._config.api_key:
-                    kw["api_key"] = self._config.api_key.get_secret_value()
-                if self._config.base_url:
-                    kw["api_base"] = self._config.base_url
-            if style:
-                kw["style"] = style
-            return kw
+        async def call(model: str, bypass_gateway: bool) -> list[GeneratedImage]:
+            api_key, api_base = self._credentials(bypass_gateway)
+            return await agenerate_images(
+                model,
+                prompt,
+                size=effective_size,
+                quality=effective_quality,
+                style=style,
+                n=n,
+                api_key=api_key,
+                api_base=api_base,
+                timeout=self._config.timeout_seconds,
+            )
 
         return await self._failover(
-            call_factory=lambda model, bypass_gateway=False: aimage_generation(**build_kwargs(model, bypass_gateway)),
+            call_factory=call,
             operation="generate",
             size_label=effective_size,
             cancellation_event=cancellation_event,
         )
+
+    def _credentials(self, bypass_gateway: bool) -> tuple[str | None, str | None]:
+        """``(api_key, api_base)`` of the next call: the tool gateway, or the user's own provider endpoint."""
+        gateway = self._config.gateway_config
+        if not bypass_gateway and gateway and gateway.use_gateway:
+            return gateway.auth_token, f"{gateway.gateway_url.rstrip('/')}/image_gen"
+        api_key = self._config.api_key.get_secret_value() if self._config.api_key else None
+        return api_key, self._config.base_url or None
 
     async def _generate_with_references(
         self,
@@ -266,35 +276,26 @@ class ImageGenerator:
         Raises:
             ImageGenerationError: If editing fails across all models.
         """
-        from litellm import aimage_edit
-
         effective_size = size or self._config.default_size
         image_bytes = _to_bytes(image)
         mask_bytes = _to_bytes(mask) if mask is not None else None
 
-        def build_kwargs(model: str, bypass_gateway: bool = False) -> dict[str, object]:
-            kw: dict[str, object] = {
-                "model": model,
-                "image": io.BytesIO(image_bytes),
-                "prompt": prompt,
-                "size": effective_size,
-                "n": n,
-                "timeout": self._config.timeout_seconds,
-            }
-            if not bypass_gateway and self._config.gateway_config and self._config.gateway_config.use_gateway:
-                kw["api_base"] = f"{self._config.gateway_config.gateway_url.rstrip('/')}/image_gen"
-                kw["api_key"] = self._config.gateway_config.auth_token
-            else:
-                if self._config.api_key:
-                    kw["api_key"] = self._config.api_key.get_secret_value()
-                if self._config.base_url:
-                    kw["api_base"] = self._config.base_url
-            if mask_bytes is not None:
-                kw["mask"] = io.BytesIO(mask_bytes)
-            return kw
+        async def call(model: str, bypass_gateway: bool) -> list[GeneratedImage]:
+            api_key, api_base = self._credentials(bypass_gateway)
+            return await aedit_images(
+                model,
+                image_bytes,
+                prompt,
+                mask=mask_bytes,
+                size=effective_size,
+                n=n,
+                api_key=api_key,
+                api_base=api_base,
+                timeout=self._config.timeout_seconds,
+            )
 
         return await self._failover(
-            call_factory=lambda model, bypass_gateway=False: aimage_edit(**build_kwargs(model, bypass_gateway)),
+            call_factory=call,
             operation="edit",
             size_label=effective_size,
             cancellation_event=cancellation_event,
@@ -305,7 +306,7 @@ class ImageGenerator:
     async def _failover(
         self,
         *,
-        call_factory: Callable[[str, bool], Awaitable[object]],
+        call_factory: Callable[[str, bool], Awaitable[list[GeneratedImage]]],
         operation: str,
         size_label: str,
         cancellation_event: asyncio.Event | None,
@@ -366,20 +367,21 @@ class ImageGenerator:
 
     async def _call_with_retry(
         self,
-        call_factory: Callable[[str, bool], Awaitable[object]],
+        call_factory: Callable[[str, bool], Awaitable[list[GeneratedImage]]],
         *,
         model: str,
         operation: str,
         size_label: str,
         cancellation_event: asyncio.Event | None,
     ) -> ImageResult:
-        """Execute a LiteLLM image API call with smart retry and gateway fallback."""
+        """Execute one image request with smart retry and gateway fallback."""
         last_error: Exception | None = None
         t0 = time.monotonic()
 
         bypass_gateway = False
+        attempt = 0
 
-        for attempt in range(self._config.max_retries + 1):
+        while attempt <= self._config.max_retries:
             if cancellation_event and cancellation_event.is_set():
                 raise ImageGenerationError(
                     f"Image {operation} cancelled by user",
@@ -387,14 +389,14 @@ class ImageGenerator:
                 )
 
             try:
-                response = await call_factory(model, bypass_gateway)
+                images = await call_factory(model, bypass_gateway)
                 elapsed_ms = (time.monotonic() - t0) * 1000
-                data = response.data[0]  # type: ignore[union-attr]
+                data = images[0]
 
                 result = ImageResult(
-                    url=getattr(data, "url", None),
-                    b64_json=getattr(data, "b64_json", None),
-                    revised_prompt=getattr(data, "revised_prompt", None),
+                    url=data.url,
+                    b64_json=data.b64_json,
+                    revised_prompt=data.revised_prompt,
                     model=model,
                     latency_ms=elapsed_ms,
                 )
@@ -430,22 +432,15 @@ class ImageGenerator:
                     and self._config.gateway_config
                     and self._config.gateway_config.use_gateway
                     and self._config.api_key  # Must have a local API key to fallback to
+                    and _is_gateway_failure(exc)
                 ):
-                    error_msg = str(exc).lower()
-                    if (
-                        "502" in error_msg
-                        or "503" in error_msg
-                        or "504" in error_msg
-                        or "402" in error_msg
-                        or "insufficient" in error_msg
-                        or "timeout" in error_msg
-                    ):
-                        logger.warning(
-                            f"Gateway image {operation} failed ({_safe_truncate(str(exc))}), falling back to direct provider API (BYOK)"
-                        )
-                        bypass_gateway = True
-                        # Immediately retry this attempt with direct connection
-                        continue
+                    logger.warning(
+                        "Gateway image %s failed (%s), falling back to direct provider API (BYOK)",
+                        operation,
+                        _safe_truncate(str(exc)),
+                    )
+                    bypass_gateway = True
+                    continue  # the same attempt again over the direct connection: bypassing costs no retry
 
                 if not _is_retryable(exc) or attempt >= self._config.max_retries:
                     break
@@ -460,6 +455,7 @@ class ImageGenerator:
                     delay,
                 )
                 await asyncio.sleep(delay)
+                attempt += 1
 
         elapsed_ms = (time.monotonic() - t0) * 1000
         raise ImageGenerationError(

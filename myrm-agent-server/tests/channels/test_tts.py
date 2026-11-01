@@ -284,18 +284,17 @@ class TestSummarizeForTTS:
         mock_communicate.save = fake_save
         mock_edge.Communicate.return_value = mock_communicate
 
-        mock_resp = MagicMock()
-        mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = "Short summary."
+        mock_summarize = AsyncMock(return_value="Short summary.")
 
-        mock_litellm = MagicMock()
-        mock_litellm.acompletion = AsyncMock(return_value=mock_resp)
-
-        with patch.dict("sys.modules", {"edge_tts": mock_edge, "litellm": mock_litellm}):
+        with (
+            patch.dict("sys.modules", {"edge_tts": mock_edge}),
+            patch("app.channels.voice.tts.acomplete_text", mock_summarize),
+        ):
             result = await synthesize(long_text, config)
 
         assert result is not None
-        mock_litellm.acompletion.assert_called_once()
+        mock_summarize.assert_called_once()
+        assert "Short summary." in str(mock_edge.Communicate.call_args)
         result.unlink(missing_ok=True)
 
     @pytest.mark.asyncio
@@ -376,10 +375,7 @@ class TestSummarizeForTTS:
             tts_summary_threshold=100,
         )
 
-        mock_litellm = MagicMock()
-        mock_litellm.acompletion = AsyncMock(side_effect=RuntimeError("API error"))
-
-        with patch.dict("sys.modules", {"litellm": mock_litellm}):
+        with patch("app.channels.voice.tts.acomplete_text", AsyncMock(side_effect=RuntimeError("API error"))):
             result = await _summarize_for_tts("A" * 200, config)
 
         assert result is None
