@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import atexit
+import faulthandler
 import inspect
 import logging
 import os
 import shutil
+import signal
 import sys
 import tempfile
 from collections.abc import AsyncIterator, Iterator
@@ -62,6 +64,19 @@ def _cleanup_browser_child_processes() -> None:
 
 
 atexit.register(_cleanup_browser_child_processes)
+
+
+def pytest_configure() -> None:
+    """Let ``scripts/ci_stall_guard.py`` read every thread's stack from a silent pytest process.
+
+    Runs in the pytest master and in every xdist worker. The dump goes to a duplicate of the real stderr
+    taken here, while capture is suspended: fd capture points fd 2 at a temporary file for the length of
+    each test, and a dump written there would be discarded with the test's output.
+    """
+    # A closed stderr only costs the dump; it must not fail the run.
+    with suppress(OSError):
+        if hasattr(signal, "SIGUSR1"):
+            faulthandler.register(signal.SIGUSR1, file=os.dup(2), all_threads=True)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
