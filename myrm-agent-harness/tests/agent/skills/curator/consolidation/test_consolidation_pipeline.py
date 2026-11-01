@@ -196,6 +196,56 @@ class TestSkillConsolidatorFullPipeline:
         assert result.is_empty
 
 
+class TestPreviewMatchesExecution:
+    """The reduction the preview promises is the reduction the execution delivers."""
+
+    @staticmethod
+    def _consolidator(action: str, target: str) -> SkillConsolidator:
+        from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
+
+        judgment = _ClusterJudgment(
+            action=action,
+            target_skill_name=target,
+            reasoning="The members implement the same workflow",
+            umbrella_description="Git operations umbrella",
+            umbrella_content_outline="Covers all git operations.",
+        )
+        llm = MagicMock()
+        llm.with_structured_output = MagicMock(return_value=MagicMock(ainvoke=AsyncMock(return_value=judgment)))
+        write = MagicMock()
+        write.write_resource = AsyncMock(return_value=MagicMock(success=True))
+        write.save_skill = AsyncMock(return_value=MagicMock(success=True, saved_path="/tmp/skills/umbrella", error=""))
+        return SkillConsolidator(llm, write, MagicMock(), min_skills_for_consolidation=3, min_cluster_size=3)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("action", "target", "expected_reduction"),
+        [
+            pytest.param("merge", "git_commit_skill", 2, id="merge-archives-every-source"),
+            pytest.param("demote", "git_commit_skill", 2, id="demote-archives-every-source"),
+            pytest.param("create_umbrella", "git_operations_skill", 2, id="umbrella-adds-one-skill"),
+        ],
+    )
+    async def test_estimated_reduction_equals_executed_net_reduction(
+        self, action: str, target: str, expected_reduction: int
+    ) -> None:
+        skills = [
+            make_skill("git_commit_skill", "Commit changes"),
+            make_skill("git_push_skill", "Push to remote"),
+            make_skill("git_merge_skill", "Merge branches"),
+            make_skill("deploy_skill", "Deploy app"),
+        ]
+
+        plan = await self._consolidator(action, target).run(skills, dry_run=True)
+        report = await self._consolidator(action, target).run(skills, dry_run=False)
+
+        assert isinstance(plan, ConsolidationPlan)
+        assert isinstance(report, ConsolidationReport)
+        assert report.failure_count == 0
+        assert report.net_reduction == expected_reduction
+        assert plan.estimated_reduction == report.net_reduction
+
+
 class TestCuratorEngineConsolidationIntegration:
     """Tests for SkillCurator async consolidation integration."""
 

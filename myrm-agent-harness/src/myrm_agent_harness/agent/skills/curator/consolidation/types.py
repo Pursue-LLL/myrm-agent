@@ -92,6 +92,14 @@ class ConsolidationAction:
     demote_target_dir: str = "references"
     """Subdirectory for DEMOTE action (references/templates/scripts)."""
 
+    @property
+    def net_reduction(self) -> int:
+        """Active skills this action removes: every source is archived and an umbrella adds one new skill."""
+        if self.action_type is ConsolidationActionType.KEEP:
+            return 0
+        created = 1 if self.action_type is ConsolidationActionType.CREATE_UMBRELLA else 0
+        return len(self.source_skills) - created
+
 
 @dataclass(slots=True)
 class ConsolidationPlan:
