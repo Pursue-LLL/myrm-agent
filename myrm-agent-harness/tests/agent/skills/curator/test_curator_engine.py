@@ -168,7 +168,6 @@ async def test_curator_consolidation_excludes_protected_skills(stats_collector: 
     curator = SkillCurator(
         stats_collector,
         config,
-        embedding_service=MagicMock(),
         llm=MagicMock(),
         write_backend=MagicMock(),
     )
@@ -222,7 +221,6 @@ async def test_curator_consolidation_follows_installed_protection(
     curator = SkillCurator(
         stats_collector,
         config,
-        embedding_service=MagicMock(),
         llm=MagicMock(),
         write_backend=MagicMock(),
     )

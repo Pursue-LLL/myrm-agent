@@ -31,33 +31,18 @@ if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
     from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
-    from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 
 
-async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, SkillWriteBackend]:
-    """Resolve embedding_service, llm, and write_backend for consolidation.
+async def _get_consolidation_deps() -> tuple[BaseChatModel, SkillWriteBackend]:
+    """Resolve the llm and write_backend for consolidation.
 
-    Raises HTTPException 503 if dependencies are not configured.
+    Raises HTTPException 503 if the LLM is not configured.
     """
     from fastapi import HTTPException
     from myrm_agent_harness.toolkits.llms import llm_manager
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import (
-        get_embedding_service,
-    )
 
     from app.core.skills.creation.service import skill_creation_service
-    from app.services.agent.platform_config import (
-        load_platform_model_config,
-        require_platform_embedding_config,
-    )
-
-    try:
-        embedding_cfg = await require_platform_embedding_config()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail="Embedding not configured",
-        ) from exc
+    from app.services.agent.platform_config import load_platform_model_config
 
     try:
         platform_model = await load_platform_model_config()
@@ -68,8 +53,7 @@ async def _get_consolidation_deps() -> tuple[EmbeddingService, BaseChatModel, Sk
             detail="LLM not configured",
         ) from exc
 
-    embedding_service = get_embedding_service(embedding_cfg)
-    return embedding_service, llm, skill_creation_service
+    return llm, skill_creation_service
 
 
 async def run_consolidation_preview() -> ConsolidationPlan:
@@ -78,17 +62,11 @@ async def run_consolidation_preview() -> ConsolidationPlan:
     from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
 
     async with _get_sweep_lock():
-        embedding_service, llm, write_backend = await _get_consolidation_deps()
+        llm, write_backend = await _get_consolidation_deps()
         config = get_curator_config()
         collector = get_stats_collector()
 
-        curator = SkillCurator(
-            collector,
-            config,
-            embedding_service=embedding_service,
-            llm=llm,
-            write_backend=write_backend,
-        )
+        curator = SkillCurator(collector, config, llm=llm, write_backend=write_backend)
 
         scan = await scan_local_skills()
         if not scan.skills:
@@ -116,17 +94,11 @@ async def run_consolidation_execute() -> dict[str, int | str]:
     )
 
     async with _get_sweep_lock():
-        embedding_service, llm, write_backend = await _get_consolidation_deps()
+        llm, write_backend = await _get_consolidation_deps()
         config = get_curator_config()
         collector = get_stats_collector()
 
-        curator = SkillCurator(
-            collector,
-            config,
-            embedding_service=embedding_service,
-            llm=llm,
-            write_backend=write_backend,
-        )
+        curator = SkillCurator(collector, config, llm=llm, write_backend=write_backend)
 
         scan = await scan_local_skills()
         if not scan.skills:

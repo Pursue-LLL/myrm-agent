@@ -18833,8 +18833,6 @@
           "enabled": "啟用技能合併",
           "minClusterSize": "最小聚類大小",
           "minClusterSizeDesc": "觸發合併分析所需的最小聚類內技能數",
-          "similarityThreshold": "相似度閾值",
-          "similarityThresholdDesc": "將技能歸入同一聚類的最低語義相似度（0-1）",
           "preview": "預覽合併計劃",
           "execute": "執行合併",
           "previewing": "分析中...",

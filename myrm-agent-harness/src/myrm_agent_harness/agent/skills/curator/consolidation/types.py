@@ -8,7 +8,7 @@ and execution phases of skill consolidation.
 
 [OUTPUT]
 - ConsolidationActionType: Enum for consolidation actions (MERGE/CREATE_UMBRELLA/DEMOTE/KEEP).
-- SkillCluster: A group of semantically similar skills identified as merge candidates.
+- SkillCluster: A group of skills sharing a name prefix, identified as merge candidates.
 - ConsolidationAction: A single consolidation action within a plan.
 - ConsolidationPlan: Complete plan output from the ConsolidationJudge.
 - ConsolidationReport: Post-execution report of what was actually done.
@@ -48,26 +48,20 @@ class ConsolidationActionType(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SkillCluster:
-    """A group of semantically similar skills identified as merge candidates.
+    """A group of skills sharing a name prefix, identified as merge candidates.
 
     Produced by ClusterDetector. Each cluster is evaluated independently
     by the ConsolidationJudge.
     """
 
     cluster_id: str
-    """Unique identifier for this cluster (e.g. 'cluster-deploy')."""
+    """Unique identifier for this cluster (e.g. 'prefix-deploy')."""
 
     skill_names: tuple[str, ...]
     """Names of skills in this cluster."""
 
     shared_domain: str
-    """The shared domain/topic keyword (e.g. 'deployment', 'git-operations')."""
-
-    avg_similarity: float
-    """Average pairwise embedding similarity within the cluster."""
-
-    representative_keywords: tuple[str, ...] = ()
-    """Top keywords shared across cluster members."""
+    """The name prefix the members share (e.g. 'deploy', 'git')."""
 
 
 @dataclass(frozen=True, slots=True)

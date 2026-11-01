@@ -61,7 +61,6 @@ class CuratorConfigResponse(BaseModel):
     protect_installed_skills: bool
     consolidation_enabled: bool
     consolidation_min_cluster_size: int
-    consolidation_similarity_threshold: float
 
 
 class CuratorConfigUpdateRequest(BaseModel):
@@ -76,7 +75,6 @@ class CuratorConfigUpdateRequest(BaseModel):
     protect_installed_skills: bool | None = None
     consolidation_enabled: bool | None = None
     consolidation_min_cluster_size: int | None = None
-    consolidation_similarity_threshold: float | None = None
 
 
 class CuratorRunResponse(BaseModel):
@@ -186,7 +184,6 @@ async def get_curator_config() -> CuratorConfigResponse:
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,
-        consolidation_similarity_threshold=config.consolidation_similarity_threshold,
     )
 
 
@@ -211,7 +208,6 @@ async def update_curator_config(
         protect_installed_skills=config.protect_installed_skills,
         consolidation_enabled=config.consolidation_enabled,
         consolidation_min_cluster_size=config.consolidation_min_cluster_size,
-        consolidation_similarity_threshold=config.consolidation_similarity_threshold,
     )
 
 

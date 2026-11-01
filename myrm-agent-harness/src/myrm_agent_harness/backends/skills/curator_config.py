@@ -28,7 +28,6 @@ _DEFAULT_GRACE_PERIOD_DAYS = 7
 _DEFAULT_INTERVAL_HOURS = 168  # 7 days
 _DEFAULT_CONSOLIDATION_MIN_SKILLS = 10
 _DEFAULT_CONSOLIDATION_MIN_CLUSTER_SIZE = 3
-_DEFAULT_CONSOLIDATION_SIMILARITY_THRESHOLD = 0.75
 
 # Inclusive lower bounds. Below them a threshold collapses onto "now" and every skill is due.
 _MINIMUMS: dict[str, int] = {
@@ -41,8 +40,8 @@ _MINIMUMS: dict[str, int] = {
     "consolidation_min_cluster_size": 2,
 }
 
-# Fields that are probabilities / similarities and must stay within [0, 1].
-_RATIOS: tuple[str, ...] = ("min_success_rate", "consolidation_similarity_threshold")
+# Fields that are probabilities and must stay within [0, 1].
+_RATIOS: tuple[str, ...] = ("min_success_rate",)
 
 
 def _config_int(data: dict[str, object], key: str, default: int) -> int:
@@ -107,9 +106,6 @@ class CuratorConfig:
     consolidation_min_cluster_size: int = _DEFAULT_CONSOLIDATION_MIN_CLUSTER_SIZE
     """Minimum skills in a cluster to be considered for consolidation."""
 
-    consolidation_similarity_threshold: float = _DEFAULT_CONSOLIDATION_SIMILARITY_THRESHOLD
-    """Minimum embedding cosine similarity to group skills into a cluster."""
-
     def __post_init__(self) -> None:
         for name, minimum in _MINIMUMS.items():
             value = getattr(self, name)
@@ -142,8 +138,5 @@ class CuratorConfig:
             consolidation_min_skills=_config_int(data, "consolidation_min_skills", _DEFAULT_CONSOLIDATION_MIN_SKILLS),
             consolidation_min_cluster_size=_config_int(
                 data, "consolidation_min_cluster_size", _DEFAULT_CONSOLIDATION_MIN_CLUSTER_SIZE
-            ),
-            consolidation_similarity_threshold=_config_float(
-                data, "consolidation_similarity_threshold", _DEFAULT_CONSOLIDATION_SIMILARITY_THRESHOLD
             ),
         )

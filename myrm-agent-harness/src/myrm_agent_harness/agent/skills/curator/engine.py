@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
-    from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 
     from .consolidation import ConsolidationPlan, ConsolidationReport
 
@@ -57,15 +56,14 @@ class SkillCurator:
     applies transitions. Each call to run() is a complete, independent sweep.
 
     Optionally runs a consolidation pass to merge fragmented skills into
-    class-level umbrella skills (requires embedding_service and llm).
+    class-level umbrella skills (requires llm and write_backend).
 
     Usage:
-        curator = SkillCurator(config, stats_collector)
+        curator = SkillCurator(stats_collector, config)
         result = curator.run(skills)
 
         # With consolidation:
-        curator = SkillCurator(config, stats_collector,
-            embedding_service=embed, llm=cheap_llm, write_backend=backend)
+        curator = SkillCurator(stats_collector, config, llm=cheap_llm, write_backend=backend)
         result = await curator.run_async(skills)
     """
 
@@ -74,14 +72,12 @@ class SkillCurator:
         stats_collector: SkillStatsCollector,
         config: CuratorConfig | None = None,
         *,
-        embedding_service: EmbeddingService | None = None,
         llm: BaseChatModel | None = None,
         write_backend: SkillWriteBackend | None = None,
     ) -> None:
         self._config = config or CuratorConfig()
         self._strategy = DefaultForgettingStrategy(self._config)
         self._stats = stats_collector
-        self._embedding_service = embedding_service
         self._llm = llm
         self._write_backend = write_backend
 
@@ -96,12 +92,7 @@ class SkillCurator:
     @property
     def consolidation_available(self) -> bool:
         """Whether consolidation can run (all dependencies present)."""
-        return (
-            self._config.consolidation_enabled
-            and self._embedding_service is not None
-            and self._llm is not None
-            and self._write_backend is not None
-        )
+        return self._config.consolidation_enabled and self._llm is not None and self._write_backend is not None
 
     def run(
         self,
@@ -220,20 +211,17 @@ class SkillCurator:
         if not self.consolidation_available:
             return None
 
-        assert self._embedding_service is not None
         assert self._llm is not None
         assert self._write_backend is not None
 
         from .consolidation.orchestrator import SkillConsolidator
 
         consolidator = SkillConsolidator(
-            embedding_service=self._embedding_service,
             llm=self._llm,
             write_backend=self._write_backend,
             stats_collector=self._stats,
             min_skills_for_consolidation=self._config.consolidation_min_skills,
             min_cluster_size=self._config.consolidation_min_cluster_size,
-            similarity_threshold=self._config.consolidation_similarity_threshold,
         )
 
         try:

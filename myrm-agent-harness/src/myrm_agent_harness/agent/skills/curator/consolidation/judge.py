@@ -5,6 +5,7 @@ consolidation actions (MERGE / CREATE_UMBRELLA / DEMOTE / KEEP).
 
 [INPUT]
 - langchain_core.language_models::BaseChatModel (POS: LangChain LLM base class)
+- langchain_core.output_parsers::PydanticOutputParser (POS: Renders the judgment schema as prompt instructions)
 - .types::SkillCluster, ConsolidationAction, ConsolidationPlan, occupied_names (POS: consolidation types)
 - backends.skills.types::SkillMetadata (POS: Skill system core data types.)
 
@@ -12,7 +13,8 @@ consolidation actions (MERGE / CREATE_UMBRELLA / DEMOTE / KEEP).
 - ConsolidationJudge: LLM-driven judge that produces a ConsolidationPlan.
 
 [POS]
-LLM judge layer for skill consolidation. Determines merge strategy per cluster. The target name is the
+LLM judge layer for skill consolidation. Determines merge strategy per cluster. The prompt spells out the
+judgment schema because JSON mode only guarantees valid JSON, not the fields. The target name is the
 LLM's to propose and never trusted: an action aimed at a taken umbrella name or an unknown skill is dropped,
 so the preview never promises what the executor would refuse.
 """
@@ -22,6 +24,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal
 
+from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 from .types import (
@@ -62,6 +65,13 @@ class _ClusterJudgment(BaseModel):
             "For 'keep': any member name."
         ),
     )
+    keep_standalone: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Cluster members that do not belong with the rest and must stay untouched. "
+            "Every other member, except the target, is absorbed by the action."
+        ),
+    )
     reasoning: str = Field(
         ...,
         description="Concise explanation of why this action is appropriate.",
@@ -80,15 +90,15 @@ class _ClusterJudgment(BaseModel):
     )
 
 
+_FORMAT_INSTRUCTIONS = PydanticOutputParser(pydantic_object=_ClusterJudgment).get_format_instructions()
+
 _JUDGE_PROMPT_TEMPLATE = """You are an expert skill architect evaluating a cluster of similar agent skills.
 
-**Context**: The system has detected a cluster of {cluster_size} skills that appear related.
+**Context**: The system has detected a cluster of {cluster_size} skills whose names share a prefix.
 Your task is to determine the optimal consolidation strategy.
 
 **Cluster Information**:
-- Domain: {shared_domain}
-- Average similarity: {avg_similarity:.2f}
-- Representative keywords: {keywords}
+- Shared name prefix: {shared_domain}
 
 **Skills in this cluster**:
 {skills_detail}
@@ -110,8 +120,11 @@ Your task is to determine the optimal consolidation strategy.
 3. For 'merge' or 'create_umbrella', the consolidated skill MUST use a class-level name.
 4. Prefer 'merge' over 'create_umbrella' when a suitable target exists.
 5. Choose 'keep' if consolidation would lose important distinctions.
+6. Every cluster member except the target is absorbed. List the members that must stay standalone in
+   keep_standalone instead of describing them as exceptions in the reasoning.
 
-**Output**: Respond with the structured JSON schema.
+**Output**:
+{format_instructions}
 """
 
 
@@ -179,10 +192,9 @@ class ConsolidationJudge:
         prompt = _JUDGE_PROMPT_TEMPLATE.format(
             cluster_size=len(cluster.skill_names),
             shared_domain=cluster.shared_domain,
-            avg_similarity=cluster.avg_similarity,
-            keywords=", ".join(cluster.representative_keywords) or "N/A",
             skills_detail=skills_detail,
             broader_skills=broader_detail,
+            format_instructions=_FORMAT_INSTRUCTIONS,
         )
 
         try:
@@ -216,7 +228,11 @@ class ConsolidationJudge:
                 )
                 return None
 
-            source_skills = tuple(name for name in cluster.skill_names if name != judgment.target_skill_name)
+            left_alone = {judgment.target_skill_name, *judgment.keep_standalone}
+            source_skills = tuple(name for name in cluster.skill_names if name not in left_alone)
+            if not source_skills:
+                logger.info("ConsolidationJudge: nothing left to consolidate in cluster '%s'", cluster.cluster_id)
+                return None
 
             return ConsolidationAction(
                 action_type=action_type,

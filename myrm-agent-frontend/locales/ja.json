@@ -18833,8 +18833,6 @@
           "enabled": "スキルマージを有効化",
           "minClusterSize": "最小クラスタサイズ",
           "minClusterSizeDesc": "統合をトリガーするクラスター内の最小スキル数",
-          "similarityThreshold": "類似度しきい値",
-          "similarityThresholdDesc": "スキルを同じクラスタにまとめるための最低セマンティック類似度（0-1）",
           "preview": "プレビューマージプラン",
           "execute": "マージを実行",
           "previewing": "解析中...",

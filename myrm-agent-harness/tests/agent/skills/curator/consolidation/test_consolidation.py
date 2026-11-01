@@ -60,19 +60,16 @@ class TestSkillCluster:
             cluster_id="test-1",
             skill_names=("git_commit_skill", "git_push_skill", "git_merge_skill"),
             shared_domain="git",
-            avg_similarity=0.85,
-            representative_keywords=("git", "commit", "push"),
         )
         assert cluster.cluster_id == "test-1"
         assert len(cluster.skill_names) == 3
-        assert cluster.avg_similarity == 0.85
+        assert cluster.shared_domain == "git"
 
     def test_cluster_immutable(self) -> None:
         cluster = SkillCluster(
             cluster_id="test-1",
             skill_names=("a", "b", "c"),
             shared_domain="test",
-            avg_similarity=0.8,
         )
         with pytest.raises(AttributeError):
             cluster.cluster_id = "changed"  # type: ignore[misc]
@@ -149,15 +146,7 @@ class TestConsolidationReport:
 class TestClusterDetector:
     """Tests for ClusterDetector prefix-based detection."""
 
-    @pytest.fixture
-    def mock_embedding_service(self) -> MagicMock:
-        service = MagicMock()
-        service.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 5)
-        service.embed = AsyncMock(return_value=[0.1] * 128)
-        return service
-
-    def test_prefix_clustering(self, mock_embedding_service: MagicMock) -> None:
-        detector = ClusterDetector(mock_embedding_service, min_cluster_size=3)
+    def test_detect_groups_skills_by_shared_prefix(self) -> None:
         skills = [
             _make_skill("git_commit_skill", "Commit changes to git"),
             _make_skill("git_push_skill", "Push changes to remote"),
@@ -166,36 +155,43 @@ class TestClusterDetector:
             _make_skill("deploy_k8s_skill", "Deploy to Kubernetes"),
         ]
 
-        clusters = detector._detect_prefix_clusters(skills)
-        git_clusters = [c for c in clusters if "git" in c.shared_domain]
-        assert len(git_clusters) == 1
-        assert len(git_clusters[0].skill_names) == 3
+        clusters = ClusterDetector(min_cluster_size=3).detect(skills)
 
-    @pytest.mark.asyncio
-    async def test_detect_returns_clusters(self, mock_embedding_service: MagicMock) -> None:
-        import numpy as np
+        assert [c.cluster_id for c in clusters] == ["prefix-git"]
+        assert clusters[0].shared_domain == "git"
+        assert clusters[0].skill_names == ("git_commit_skill", "git_push_skill", "git_merge_skill")
 
-        high_sim_vectors = np.random.default_rng(42).random((5, 128))
-        high_sim_vectors[:3] = high_sim_vectors[0] + np.random.default_rng(42).random((3, 128)) * 0.05
+    def test_detect_ignores_descriptions(self) -> None:
+        """Skills with near-identical descriptions but unrelated names are not a family."""
+        skills = [_make_skill(f"{prefix}_helper", "Format a date for display") for prefix in ("alpha", "beta", "gamma")]
 
-        mock_embedding_service.embed_batch = AsyncMock(return_value=high_sim_vectors.tolist())
+        assert ClusterDetector(min_cluster_size=3).detect(skills) == []
 
-        detector = ClusterDetector(
-            mock_embedding_service,
-            min_cluster_size=3,
-            similarity_threshold=0.95,
-        )
-        skills = [_make_skill(f"skill_{i}", f"Description {i}") for i in range(5)]
+    def test_detect_one_cluster_per_prefix(self) -> None:
+        skills = [_make_skill(f"{prefix}_{i}") for prefix in ("git", "deploy") for i in range(3)]
 
-        clusters = await detector.detect(skills)
-        assert isinstance(clusters, list)
+        clusters = ClusterDetector(min_cluster_size=3).detect(skills)
 
-    @pytest.mark.asyncio
-    async def test_detect_too_few_skills(self, mock_embedding_service: MagicMock) -> None:
-        detector = ClusterDetector(mock_embedding_service, min_cluster_size=3)
-        skills = [_make_skill("only_one_skill")]
-        clusters = await detector.detect(skills)
-        assert clusters == []
+        assert sorted(c.cluster_id for c in clusters) == ["prefix-deploy", "prefix-git"]
+        assert all(len(c.skill_names) == 3 for c in clusters)
+
+    def test_detect_skips_families_below_minimum_size(self) -> None:
+        skills = [_make_skill("git_commit"), _make_skill("git_push"), _make_skill("deploy_docker")]
+
+        assert ClusterDetector(min_cluster_size=3).detect(skills) == []
+
+    def test_detect_skips_prefixes_that_are_too_short(self) -> None:
+        skills = [_make_skill(f"ai_{suffix}") for suffix in ("chat", "draw", "music")]
+
+        assert ClusterDetector(min_cluster_size=3).detect(skills) == []
+
+    def test_detect_skips_single_word_names(self) -> None:
+        skills = [_make_skill(name) for name in ("deploy_skill", "build_skill", "release_skill")]
+
+        assert ClusterDetector(min_cluster_size=3).detect(skills) == []
+
+    def test_detect_too_few_skills(self) -> None:
+        assert ClusterDetector(min_cluster_size=3).detect([_make_skill("only_one_skill")]) == []
 
 
 class TestConsolidationJudge:
@@ -224,7 +220,6 @@ class TestConsolidationJudge:
             cluster_id="test-cluster",
             skill_names=("a_skill", "b_skill", "c_skill"),
             shared_domain="testing",
-            avg_similarity=0.76,
         )
 
         plan = await judge.judge_clusters([cluster], [])
@@ -253,7 +248,6 @@ class TestConsolidationJudge:
             cluster_id="prefix-git",
             skill_names=("git_operations_skill", "git_commit_skill", "git_push_skill"),
             shared_domain="git",
-            avg_similarity=0.85,
         )
 
         plan = await judge.judge_clusters([cluster], skills)
@@ -261,6 +255,68 @@ class TestConsolidationJudge:
         assert plan.actions[0].action_type == ConsolidationActionType.MERGE
         assert plan.actions[0].target_skill == "git_operations_skill"
         assert "git_commit_skill" in plan.actions[0].source_skills
+
+    @pytest.mark.asyncio
+    async def test_judge_leaves_standalone_members_out_of_the_action(self, mock_llm: MagicMock) -> None:
+        from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
+
+        mock_structured = AsyncMock(
+            return_value=_ClusterJudgment(
+                action="merge",
+                target_skill_name="task_flywheel_skill",
+                keep_standalone=["task_planning_skill"],
+                reasoning="task_planning_skill plans work; the other two distil transcripts",
+            )
+        )
+        mock_llm.with_structured_output = MagicMock(return_value=MagicMock(ainvoke=mock_structured))
+        names = ("task_planning_skill", "task_flywheel_skill", "task_transcript_skill")
+        skills = [_make_skill(name) for name in names]
+        cluster = SkillCluster(cluster_id="prefix-task", skill_names=names, shared_domain="task")
+
+        plan = await ConsolidationJudge(mock_llm).judge_clusters([cluster], skills)
+
+        assert [action.source_skills for action in plan.actions] == [("task_transcript_skill",)]
+
+    @pytest.mark.asyncio
+    async def test_judge_drops_an_action_that_leaves_nothing_to_consolidate(self, mock_llm: MagicMock) -> None:
+        from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
+
+        mock_structured = AsyncMock(
+            return_value=_ClusterJudgment(
+                action="merge",
+                target_skill_name="task_flywheel_skill",
+                keep_standalone=["task_planning_skill", "task_transcript_skill"],
+                reasoning="only the target belongs to this family",
+            )
+        )
+        mock_llm.with_structured_output = MagicMock(return_value=MagicMock(ainvoke=mock_structured))
+        names = ("task_planning_skill", "task_flywheel_skill", "task_transcript_skill")
+        skills = [_make_skill(name) for name in names]
+        cluster = SkillCluster(cluster_id="prefix-task", skill_names=names, shared_domain="task")
+
+        plan = await ConsolidationJudge(mock_llm).judge_clusters([cluster], skills)
+
+        assert plan.is_empty
+
+    @pytest.mark.asyncio
+    async def test_judge_prompt_spells_out_the_judgment_shape(self, mock_llm: MagicMock) -> None:
+        """JSON mode only guarantees valid JSON; the model fills the shape the prompt describes."""
+        from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
+
+        mock_structured = AsyncMock(
+            return_value=_ClusterJudgment(action="keep", target_skill_name="any", reasoning="distinct purposes")
+        )
+        mock_llm.with_structured_output = MagicMock(return_value=MagicMock(ainvoke=mock_structured))
+        cluster = SkillCluster(
+            cluster_id="prefix-git",
+            skill_names=("git_commit_skill", "git_push_skill", "git_pull_skill"),
+            shared_domain="git",
+        )
+
+        await ConsolidationJudge(mock_llm).judge_clusters([cluster], [])
+
+        prompt = mock_structured.await_args.args[0]
+        assert [field for field in _ClusterJudgment.model_fields if field not in prompt] == []
 
 
 class TestConsolidationExecutor:
@@ -347,18 +403,13 @@ class TestSkillConsolidatorOrchestrator:
     """Tests for the top-level SkillConsolidator."""
 
     @pytest.fixture
-    def mock_deps(self) -> tuple[MagicMock, MagicMock, MagicMock, MagicMock]:
-        embedding_service = MagicMock()
-        embedding_service.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 3)
-        llm = MagicMock()
-        write_backend = MagicMock()
-        stats_collector = MagicMock()
-        return embedding_service, llm, write_backend, stats_collector
+    def mock_deps(self) -> tuple[MagicMock, MagicMock, MagicMock]:
+        return MagicMock(), MagicMock(), MagicMock()
 
     @pytest.mark.asyncio
-    async def test_run_too_few_skills(self, mock_deps: tuple[MagicMock, MagicMock, MagicMock, MagicMock]) -> None:
-        embed, llm, write, stats = mock_deps
-        consolidator = SkillConsolidator(embed, llm, write, stats, min_skills_for_consolidation=10)
+    async def test_run_too_few_skills(self, mock_deps: tuple[MagicMock, MagicMock, MagicMock]) -> None:
+        llm, write, stats = mock_deps
+        consolidator = SkillConsolidator(llm, write, stats, min_skills_for_consolidation=10)
         skills = [_make_skill(f"skill_{i}") for i in range(5)]
         result = await consolidator.run(skills, dry_run=True)
         assert isinstance(result, ConsolidationPlan)
@@ -488,9 +539,6 @@ class TestSkillConsolidatorFullPipeline:
         """Full pipeline: enough skills, clusters detected, plan returned."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
 
-        mock_embed = MagicMock()
-        mock_embed.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 12)
-
         mock_structured = AsyncMock(
             return_value=_ClusterJudgment(
                 action="create_umbrella",
@@ -507,13 +555,11 @@ class TestSkillConsolidatorFullPipeline:
         mock_stats = MagicMock()
 
         consolidator = SkillConsolidator(
-            mock_embed,
             mock_llm,
             mock_write,
             mock_stats,
             min_skills_for_consolidation=3,
             min_cluster_size=3,
-            similarity_threshold=0.95,
         )
 
         skills = [
@@ -533,9 +579,6 @@ class TestSkillConsolidatorFullPipeline:
         """Full pipeline execute mode: creates umbrella, archives sources."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
 
-        mock_embed = MagicMock()
-        mock_embed.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 12)
-
         mock_structured = AsyncMock(
             return_value=_ClusterJudgment(
                 action="merge",
@@ -551,13 +594,11 @@ class TestSkillConsolidatorFullPipeline:
         mock_stats = MagicMock()
 
         consolidator = SkillConsolidator(
-            mock_embed,
             mock_llm,
             mock_write,
             mock_stats,
             min_skills_for_consolidation=3,
             min_cluster_size=3,
-            similarity_threshold=0.95,
         )
 
         skills = [
@@ -573,37 +614,33 @@ class TestSkillConsolidatorFullPipeline:
 
     @pytest.mark.asyncio
     async def test_run_no_clusters_detected(self) -> None:
-        """Pipeline with enough skills but no clusters found."""
-        mock_embed = MagicMock()
-        mock_embed.embed_batch = AsyncMock(return_value=[[0.0] * 128] * 5)
-
+        """Pipeline with enough skills but no shared name prefix: the judge is never asked."""
         mock_llm = MagicMock()
         mock_write = MagicMock()
         mock_stats = MagicMock()
 
         consolidator = SkillConsolidator(
-            mock_embed,
             mock_llm,
             mock_write,
             mock_stats,
             min_skills_for_consolidation=3,
             min_cluster_size=3,
-            similarity_threshold=0.99,
         )
 
-        skills = [_make_skill(f"unique_{i}", f"Completely unique description {i}") for i in range(5)]
+        skills = [
+            _make_skill(f"{prefix}_helper", "Format a date for display")
+            for prefix in ("alpha", "beta", "gamma", "delta")
+        ]
 
         result = await consolidator.run(skills, dry_run=True)
         assert isinstance(result, ConsolidationPlan)
         assert result.is_empty
+        mock_llm.with_structured_output.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_run_judge_returns_keep_for_all(self) -> None:
         """Pipeline where judge decides KEEP for all clusters."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
-
-        mock_embed = MagicMock()
-        mock_embed.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 12)
 
         mock_structured = AsyncMock(
             return_value=_ClusterJudgment(
@@ -619,13 +656,11 @@ class TestSkillConsolidatorFullPipeline:
         mock_stats = MagicMock()
 
         consolidator = SkillConsolidator(
-            mock_embed,
             mock_llm,
             mock_write,
             mock_stats,
             min_skills_for_consolidation=3,
             min_cluster_size=3,
-            similarity_threshold=0.95,
         )
 
         skills = [
@@ -655,7 +690,6 @@ class TestConsolidationJudgeEdgeCases:
             cluster_id="test",
             skill_names=("a", "b", "c"),
             shared_domain="test",
-            avg_similarity=0.8,
         )
 
         plan = await judge.judge_clusters([cluster], [])
@@ -673,7 +707,6 @@ class TestConsolidationJudgeEdgeCases:
             cluster_id="test",
             skill_names=("x", "y", "z"),
             shared_domain="test",
-            avg_similarity=0.9,
         )
 
         plan = await judge.judge_clusters([cluster], [])
@@ -706,7 +739,6 @@ class TestConsolidationJudgeEdgeCases:
             cluster_id="prefix-deploy",
             skill_names=("deploy_docker_skill", "deploy_k8s_skill", "deploy_ec2_skill"),
             shared_domain="deploy",
-            avg_similarity=0.88,
         )
 
         plan = await judge.judge_clusters([cluster], skills)
@@ -740,7 +772,6 @@ class TestConsolidationJudgeEdgeCases:
             cluster_id="test-demote",
             skill_names=("main_skill", "helper_a", "helper_b"),
             shared_domain="helpers",
-            avg_similarity=0.75,
         )
 
         plan = await judge.judge_clusters([cluster], skills)
@@ -759,54 +790,6 @@ class TestClusterDetectorEdgeCases:
     def test_extract_prefix_multi_word(self) -> None:
         prefix = ClusterDetector._extract_prefix("git-commit-fast")
         assert prefix == "git"
-
-    def test_deduplicate_clusters_overlap(self) -> None:
-        mock_embed = MagicMock()
-        detector = ClusterDetector(mock_embed, min_cluster_size=3)
-
-        prefix_clusters = [
-            SkillCluster(
-                cluster_id="prefix-git",
-                skill_names=("git_a", "git_b", "git_c"),
-                shared_domain="git",
-                avg_similarity=1.0,
-            )
-        ]
-        embedding_clusters = [
-            SkillCluster(
-                cluster_id="semantic-git",
-                skill_names=("git_a", "git_b", "git_c"),
-                shared_domain="git",
-                avg_similarity=0.9,
-            )
-        ]
-
-        merged = detector._deduplicate_clusters(prefix_clusters, embedding_clusters)
-        assert len(merged) == 1
-
-    def test_deduplicate_clusters_no_overlap(self) -> None:
-        mock_embed = MagicMock()
-        detector = ClusterDetector(mock_embed, min_cluster_size=3)
-
-        prefix_clusters = [
-            SkillCluster(
-                cluster_id="prefix-git",
-                skill_names=("git_a", "git_b", "git_c"),
-                shared_domain="git",
-                avg_similarity=1.0,
-            )
-        ]
-        embedding_clusters = [
-            SkillCluster(
-                cluster_id="semantic-deploy",
-                skill_names=("deploy_a", "deploy_b", "deploy_c"),
-                shared_domain="deploy",
-                avg_similarity=0.85,
-            )
-        ]
-
-        merged = detector._deduplicate_clusters(prefix_clusters, embedding_clusters)
-        assert len(merged) == 2
 
 
 class TestConsolidationReportSummary:
@@ -870,18 +853,10 @@ class TestCuratorEngineConsolidationIntegration:
         config = CuratorConfig(enabled=True, consolidation_enabled=True)
         collector = SkillStatsCollector()
 
-        mock_embed = MagicMock()
-        mock_embed.embed_batch = AsyncMock(return_value=[])
         mock_llm = MagicMock()
         mock_write = MagicMock()
 
-        curator = SkillCurator(
-            collector,
-            config,
-            embedding_service=mock_embed,
-            llm=mock_llm,
-            write_backend=mock_write,
-        )
+        curator = SkillCurator(collector, config, llm=mock_llm, write_backend=mock_write)
         assert curator.consolidation_available
 
         skills = [_make_skill(f"skill_{i}") for i in range(3)]

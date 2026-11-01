@@ -781,7 +781,6 @@ export interface CuratorConfigResponse {
   protect_installed_skills: boolean;
   consolidation_enabled: boolean;
   consolidation_min_cluster_size: number;
-  consolidation_similarity_threshold: number;
 }
 
 /** Why the sweep moved a skill; `stale`, `archive` and `inactive` all mean it went unused past a threshold. */

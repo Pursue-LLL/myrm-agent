@@ -21,7 +21,7 @@ _MINIMUMS = [
     ("consolidation_min_skills", 1),
     ("consolidation_min_cluster_size", 2),
 ]
-_RATIOS = ["min_success_rate", "consolidation_similarity_threshold"]
+_RATIOS = ["min_success_rate"]
 
 
 def test_defaults_are_valid_and_survive_a_dict_round_trip() -> None:
@@ -58,7 +58,7 @@ def test_ratio_outside_unit_interval_is_rejected(field_name: str, value: float) 
         {"stale_after_days": 0},
         {"archive_after_days": 0},
         {"interval_hours": 0},
-        {"consolidation_similarity_threshold": 1.5},
+        {"min_success_rate": 1.5},
     ],
 )
 def test_from_dict_refuses_degenerate_values(data: dict[str, object]) -> None:
@@ -71,6 +71,14 @@ def test_from_dict_keeps_valid_overrides() -> None:
 
     assert config.stale_after_days == 45
     assert config.grace_period_days == 0
+
+
+def test_from_dict_loads_a_stored_config_that_still_holds_a_retired_key() -> None:
+    """A stored ``consolidation_similarity_threshold`` is read past, and never written back."""
+    config = CuratorConfig.from_dict({"consolidation_similarity_threshold": 0.9, "stale_after_days": 45})
+
+    assert config == CuratorConfig(stale_after_days=45)
+    assert "consolidation_similarity_threshold" not in config.to_dict()
 
 
 def test_from_dict_ignores_unknown_keys() -> None:

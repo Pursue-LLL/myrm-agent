@@ -31,7 +31,6 @@ describe('CuratorSettingsPanel Component', () => {
       protect_installed_skills: true,
       consolidation_enabled: false,
       consolidation_min_cluster_size: 3,
-      consolidation_similarity_threshold: 0.75,
     });
 
     vi.spyOn(skillService, 'getSkillDiagnostics').mockResolvedValue({
@@ -73,7 +72,6 @@ describe('CuratorSettingsPanel settings form', () => {
     protect_installed_skills: true,
     consolidation_enabled: false,
     consolidation_min_cluster_size: 3,
-    consolidation_similarity_threshold: 0.75,
   };
 
   function mockPanelServices(config: skillService.CuratorConfigResponse = baseConfig) {
@@ -160,11 +158,11 @@ describe('CuratorSettingsPanel settings form', () => {
       'gracePeriodDays',
       'intervalHours',
       'consolidation.minClusterSize',
-      'consolidation.similarityThreshold',
     ];
     for (const name of numberFields) {
       expect(screen.getByRole('spinbutton', { name })).toBeInTheDocument();
     }
+    expect(screen.getAllByRole('spinbutton')).toHaveLength(numberFields.length);
     for (const name of ['title', 'protectInstalled', 'consolidation.title']) {
       expect(screen.getByRole('switch', { name })).toBeInTheDocument();
     }

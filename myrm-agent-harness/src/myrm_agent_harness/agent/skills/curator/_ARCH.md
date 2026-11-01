@@ -26,13 +26,12 @@ Performs stateless sweeps: evaluates skills against CuratorConfig thresholds, ap
 - `backends.skills.stats_collector` (SkillStatsCollector)
 - `backends.skills.types` (SkillMetadata, SkillLifecycleStatus)
 - `backends.skills.creation_protocols` (SkillWriteBackend — for consolidation execution)
-- `toolkits.retriever.embedding.base` (EmbeddingService — for cluster detection)
 - `langchain_core.language_models` (BaseChatModel — for LLM judge)
 
 ## Pipeline Flow
 
 ```
-Skills → Filter (eligible) → ClusterDetector (prefix + embedding)
+Skills → Filter (eligible) → ClusterDetector (shared name prefix)
        → ConsolidationJudge (LLM) → ConsolidationPlan
        → [dry_run?] → ConsolidationExecutor → ConsolidationReport
 ```
@@ -52,4 +51,3 @@ All consolidation parameters are in `CuratorConfig`:
 - `protect_installed_skills`: Exempt the skills the host passes as `installed_names` from auto transitions (default: True)
 - `consolidation_min_skills`: Minimum active skills to trigger (default: 10)
 - `consolidation_min_cluster_size`: Minimum cluster members (default: 3)
-- `consolidation_similarity_threshold`: Embedding cosine threshold (default: 0.75)

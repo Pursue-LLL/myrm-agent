@@ -11,7 +11,6 @@ into a single cohesive consolidation run, with dry-run support.
 - backends.skills.types::SkillMetadata, SkillLifecycleStatus (POS: Skill types.)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Stats collector.)
 - backends.skills.creation_protocols::SkillWriteBackend (POS: Write backend.)
-- toolkits.retriever.embedding.base::EmbeddingService (POS: Embedding service.)
 - langchain_core.language_models::BaseChatModel (POS: LLM base class.)
 
 [OUTPUT]
@@ -39,13 +38,11 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
     from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
     from myrm_agent_harness.backends.skills.types import SkillMetadata
-    from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MIN_SKILLS_FOR_CONSOLIDATION = 10
 _DEFAULT_MIN_CLUSTER_SIZE = 3
-_DEFAULT_SIMILARITY_THRESHOLD = 0.75
 
 
 class SkillConsolidator:
@@ -53,7 +50,7 @@ class SkillConsolidator:
 
     Pipeline stages:
     1. Filter: Select eligible skills (active, non-pinned, non-protected).
-    2. Detect: Identify clusters via prefix + embedding similarity.
+    2. Detect: Group skills that share a name prefix into candidate clusters.
     3. Judge: LLM evaluates each cluster and produces a ConsolidationPlan.
     4. Execute: Apply approved actions (or return plan for dry-run preview).
 
@@ -64,20 +61,14 @@ class SkillConsolidator:
 
     def __init__(
         self,
-        embedding_service: EmbeddingService,
         llm: BaseChatModel,
         write_backend: SkillWriteBackend,
         stats_collector: SkillStatsCollector,
         *,
         min_skills_for_consolidation: int = _DEFAULT_MIN_SKILLS_FOR_CONSOLIDATION,
         min_cluster_size: int = _DEFAULT_MIN_CLUSTER_SIZE,
-        similarity_threshold: float = _DEFAULT_SIMILARITY_THRESHOLD,
     ) -> None:
-        self._detector = ClusterDetector(
-            embedding_service,
-            min_cluster_size=min_cluster_size,
-            similarity_threshold=similarity_threshold,
-        )
+        self._detector = ClusterDetector(min_cluster_size=min_cluster_size)
         self._judge = ConsolidationJudge(llm)
         self._write_backend = write_backend
         self._stats_collector = stats_collector
@@ -111,7 +102,7 @@ class SkillConsolidator:
             )
             return ConsolidationPlan() if dry_run else ConsolidationReport()
 
-        clusters = await self._detector.detect(eligible)
+        clusters = self._detector.detect(eligible)
         if not clusters:
             logger.info("Consolidation: no clusters detected")
             return ConsolidationPlan() if dry_run else ConsolidationReport()

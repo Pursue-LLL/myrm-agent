@@ -18833,8 +18833,6 @@
           "enabled": "통합 활성화",
           "minClusterSize": "최소 클러스터 크기",
           "minClusterSizeDesc": "통합을 실행하기 위해 클러스터에 필요한 최소 스킬 수",
-          "similarityThreshold": "유사도 임계값",
-          "similarityThresholdDesc": "스킬을 그룹화할 최소 의미 유사도 (0-1)",
           "preview": "병합 계획 미리보기",
           "execute": "병합 실행",
           "previewing": "분석 중...",

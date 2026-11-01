@@ -260,7 +260,6 @@ class TestProperties:
         curator = SkillCurator(
             collector,
             config,
-            embedding_service=MagicMock(),
             llm=MagicMock(),
             write_backend=MagicMock(),
         )
@@ -283,13 +282,11 @@ class TestAsyncSweep:
 
         config = CuratorConfig(consolidation_enabled=True, stale_after_days=365)
         skills = [_make_skill(f"skill_{i}") for i in range(5)]
-        mock_embed = MagicMock()
         mock_llm = MagicMock()
         mock_backend = MagicMock()
         curator = SkillCurator(
             collector,
             config,
-            embedding_service=mock_embed,
             llm=mock_llm,
             write_backend=mock_backend,
         )

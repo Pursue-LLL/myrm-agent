@@ -18833,8 +18833,6 @@
           "enabled": "Konsolidierung aktivieren",
           "minClusterSize": "Min. Cluster-Größe",
           "minClusterSizeDesc": "Mindestanzahl von Fähigkeiten in einem Cluster, um Konsolidierung auszulösen",
-          "similarityThreshold": "Ähnlichkeitsschwelle",
-          "similarityThresholdDesc": "Mindest-semantische Ähnlichkeit (0-1) zum Gruppieren von Fähigkeiten",
           "preview": "Merge-Plan anzeigen",
           "execute": "Merge ausführen",
           "previewing": "Analysieren...",

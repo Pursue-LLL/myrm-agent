@@ -31,7 +31,6 @@ def isolated_config(tmp_path: Path) -> Iterator[Path]:
         {"stale_after_days": 0},
         {"archive_after_days": 0},
         {"interval_hours": 0},
-        {"consolidation_similarity_threshold": 1.5},
         {"min_success_rate": -0.1},
     ],
 )

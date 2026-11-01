@@ -57,7 +57,7 @@ def test_curator_config_includes_consolidation_fields(client: TestClient) -> Non
     data = response.json()
     assert "consolidation_enabled" in data
     assert "consolidation_min_cluster_size" in data
-    assert "consolidation_similarity_threshold" in data
+    assert "consolidation_similarity_threshold" not in data
 
 
 def test_curator_config_update_consolidation(client: TestClient) -> None:
@@ -67,14 +67,12 @@ def test_curator_config_update_consolidation(client: TestClient) -> None:
         json={
             "consolidation_enabled": True,
             "consolidation_min_cluster_size": 4,
-            "consolidation_similarity_threshold": 0.8,
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["consolidation_enabled"] is True
     assert data["consolidation_min_cluster_size"] == 4
-    assert data["consolidation_similarity_threshold"] == 0.8
 
 
 def test_curator_run(client: TestClient) -> None:

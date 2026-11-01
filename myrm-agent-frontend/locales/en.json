@@ -18833,8 +18833,6 @@
           "enabled": "Enable Consolidation",
           "minClusterSize": "Min Cluster Size",
           "minClusterSizeDesc": "Minimum skills required in a cluster to trigger consolidation",
-          "similarityThreshold": "Similarity Threshold",
-          "similarityThresholdDesc": "Minimum semantic similarity (0-1) to group skills",
           "preview": "Preview Merge Plan",
           "execute": "Execute Merge",
           "previewing": "Analyzing...",

@@ -18833,8 +18833,6 @@
           "enabled": "启用技能合并",
           "minClusterSize": "最小聚类大小",
           "minClusterSizeDesc": "触发合并分析所需的最小聚类内技能数",
-          "similarityThreshold": "相似度阈值",
-          "similarityThresholdDesc": "将技能归入同一聚类的最低语义相似度（0-1）",
           "preview": "预览合并计划",
           "execute": "执行合并",
           "previewing": "分析中...",

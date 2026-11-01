@@ -212,9 +212,7 @@ class TestExecutorArchivesOnlyWhatLanded:
 class TestJudgeDropsActionsWithUntrustedTargets:
     @staticmethod
     def _cluster() -> SkillCluster:
-        return SkillCluster(
-            cluster_id="prefix-deploy", skill_names=_CLUSTER_NAMES, shared_domain="deploy", avg_similarity=0.9
-        )
+        return SkillCluster(cluster_id="prefix-deploy", skill_names=_CLUSTER_NAMES, shared_domain="deploy")
 
     @staticmethod
     def _skills(root: Path) -> list[SkillMetadata]:
@@ -267,24 +265,16 @@ def _git_skills(root: Path) -> list[SkillMetadata]:
     return [_seed(root, name) for name in ("git_commit_skill", "git_push_skill", "git_merge_skill", "deploy_skill")]
 
 
-def _embeddings() -> MagicMock:
-    embed = MagicMock()
-    embed.embed_batch = AsyncMock(return_value=[[0.1] * 128] * 12)
-    return embed
-
-
 class TestReservedNamesReachTheJudgeThroughTheWholePipeline:
     async def test_consolidator_drops_an_umbrella_named_after_a_reserved_skill(
         self, root: Path, collector: SkillStatsCollector
     ) -> None:
         consolidator = SkillConsolidator(
-            _embeddings(),
             _llm_judging("create_umbrella", "git_operations"),
             _DiskWriteBackend(root),
             collector,
             min_skills_for_consolidation=3,
             min_cluster_size=3,
-            similarity_threshold=0.95,
         )
 
         plan = await consolidator.run(_git_skills(root), dry_run=True, reserved_names=frozenset({"git_operations"}))
@@ -303,9 +293,7 @@ class TestReservedNamesReachTheJudgeThroughTheWholePipeline:
                 consolidation_enabled=True,
                 consolidation_min_skills=3,
                 consolidation_min_cluster_size=3,
-                consolidation_similarity_threshold=0.95,
             ),
-            embedding_service=_embeddings(),
             llm=_llm_judging("create_umbrella", "git_operations"),
             write_backend=_DiskWriteBackend(root),
         )

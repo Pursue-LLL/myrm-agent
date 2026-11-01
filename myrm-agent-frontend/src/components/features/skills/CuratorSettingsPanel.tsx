@@ -292,15 +292,6 @@ const CuratorSettingsPanel = memo(
                     value={config.consolidation_min_cluster_size}
                     onCommit={(v) => updateField('consolidation_min_cluster_size', v)}
                   />
-                  <CuratorNumberField
-                    label={t('consolidation.similarityThreshold')}
-                    description={t('consolidation.similarityThresholdDesc')}
-                    min={0.5}
-                    max={0.95}
-                    step={0.05}
-                    value={config.consolidation_similarity_threshold}
-                    onCommit={(v) => updateField('consolidation_similarity_threshold', v)}
-                  />
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">

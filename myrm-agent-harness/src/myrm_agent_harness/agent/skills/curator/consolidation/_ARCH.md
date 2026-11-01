@@ -1,7 +1,7 @@
 # consolidation/
 
 ## Overview
-Skill consolidation (umbrella merge). Detects fragmented skill clusters and merges them into class-level umbrella skills.
+Skill consolidation (umbrella merge). Groups skills that share a name prefix, lets an LLM judge each group, and merges the groups it approves into class-level umbrella skills.
 
 ## File & Submodule Index
 
@@ -9,10 +9,14 @@ Skill consolidation (umbrella merge). Detects fragmented skill clusters and merg
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports orchestrator and consolidation types | — |
 | types.py | Core | SkillCluster, ConsolidationAction, ConsolidationPlan, ConsolidationReport, `occupied_names` | ✅ |
-| cluster_detector.py | Core | Hybrid prefix + embedding-based cluster detection | ✅ |
-| judge.py | Core | LLM structured-output judge for merge strategy; drops actions aimed at a taken umbrella name or an unknown target | ✅ |
+| cluster_detector.py | Core | Groups skills sharing a name prefix into candidate clusters (the judge decides whether a family belongs together) | ✅ |
+| judge.py | Core | LLM judge for merge strategy: the prompt spells out the judgment schema, the judge names the members that stay standalone, and drops actions aimed at a taken umbrella name or an unknown target | ✅ |
 | executor.py | Core | Applies MERGE/CREATE_UMBRELLA/DEMOTE actions; archives sources only after their content landed | ✅ |
 | orchestrator.py | Core | SkillConsolidator pipeline: detect → judge → execute (dry-run support) | ✅ |
+
+## Judgment shape
+
+The model client runs structured output in JSON mode, which guarantees valid JSON but not the fields, so the judge prompt carries the judgment schema (`PydanticOutputParser` format instructions). An action covers every cluster member except its target and the members the judge lists in `keep_standalone`; an action left with no member is dropped like KEEP.
 
 ## Untrusted targets
 
@@ -25,5 +29,5 @@ The LLM proposes every target name, so no name in a plan is trusted.
 ## Module Dependencies
 
 - `backends.skills.creation_protocols` (SkillWriteBackend)
-- `toolkits.retriever.embedding.base` (EmbeddingService)
 - `langchain_core.language_models` (BaseChatModel)
+- `langchain_core.output_parsers` (PydanticOutputParser)

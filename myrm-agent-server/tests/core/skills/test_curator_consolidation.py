@@ -37,14 +37,13 @@ class TestConsolidationPreview:
     @pytest.mark.asyncio
     async def test_preview_returns_empty_plan_when_no_skills(self) -> None:
         """Empty skill list should return empty plan."""
-        mock_embed = MagicMock()
         mock_llm = MagicMock()
         mock_write = MagicMock()
 
         with (
             patch(
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
-                AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
+                AsyncMock(return_value=(mock_llm, mock_write)),
             ),
             patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([])),
         ):
@@ -57,7 +56,6 @@ class TestConsolidationPreview:
     @pytest.mark.asyncio
     async def test_preview_returns_plan_from_curator(self) -> None:
         """Should return the plan from curator's run_async."""
-        mock_embed = MagicMock()
         mock_llm = MagicMock()
         mock_write = MagicMock()
 
@@ -81,7 +79,7 @@ class TestConsolidationPreview:
         with (
             patch(
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
-                AsyncMock(return_value=(mock_embed, mock_llm, mock_write)),
+                AsyncMock(return_value=(mock_llm, mock_write)),
             ),
             patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock() for _ in range(5)])),
             patch(
@@ -97,6 +95,46 @@ class TestConsolidationPreview:
         assert plan.actions[0].target_skill == "target"
 
 
+class TestConsolidationDependencies:
+    """Consolidation needs the LLM and the skill write backend; it asks for no embedding configuration."""
+
+    @pytest.mark.asyncio
+    async def test_resolves_without_an_embedding_configuration(self) -> None:
+        from myrm_agent_harness.toolkits.llms import llm_manager
+
+        from app.core.skills.creation.service import skill_creation_service
+        from app.core.skills.curator.consolidation import _get_consolidation_deps
+
+        llm = MagicMock()
+        no_embedding = AsyncMock(side_effect=RuntimeError("embedding not configured"))
+        with (
+            patch("app.services.agent.platform_config.load_platform_model_config", AsyncMock(return_value=MagicMock())),
+            patch("app.services.agent.platform_config.require_platform_embedding_config", no_embedding),
+            patch.object(llm_manager, "get_llm_from_config", AsyncMock(return_value=llm)),
+        ):
+            resolved = await _get_consolidation_deps()
+
+        assert resolved == (llm, skill_creation_service)
+        no_embedding.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_llm_is_service_unavailable(self) -> None:
+        from fastapi import HTTPException
+
+        from app.core.skills.curator.consolidation import _get_consolidation_deps
+
+        with (
+            patch(
+                "app.services.agent.platform_config.load_platform_model_config",
+                AsyncMock(side_effect=RuntimeError("no model")),
+            ),
+            pytest.raises(HTTPException) as caught,
+        ):
+            await _get_consolidation_deps()
+
+        assert (caught.value.status_code, caught.value.detail) == (503, "LLM not configured")
+
+
 class TestConsolidationSparesBoundAndInstalledSkills:
     """Preview and execute hand the bound skills (agents / cron jobs) and the installed ones to the curator."""
 
@@ -109,7 +147,7 @@ class TestConsolidationSparesBoundAndInstalledSkills:
         with (
             patch(
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
-                AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
+                AsyncMock(return_value=(MagicMock(), MagicMock())),
             ),
             patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock()], frozenset({"from-store"}))),
             patch(
@@ -150,7 +188,7 @@ class TestConsolidationExecute:
         with (
             patch(
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
-                AsyncMock(return_value=(MagicMock(), MagicMock(), MagicMock())),
+                AsyncMock(return_value=(MagicMock(), MagicMock())),
             ),
             patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock()])),
             patch("app.core.skills.curator.consolidation.bound_skill_names", AsyncMock(return_value=frozenset())),
