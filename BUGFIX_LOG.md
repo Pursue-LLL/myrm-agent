@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-01 · 25 个没有任何入口的前端目录（253 个文件、151 个模块、759 处硬编码中文）从产品入口不可达，没有规划条目点名，已逐个目录删除
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（已推到 `origin/main`，未发版）。其余 68 个目录仍然存在，见「仍然存在」。 |
+| **症状** | [实测，`bun scripts/check-orphan-modules.mjs` 与 `bun run lint`，删除前后同一棵树] 前端有 605 个模块从产品入口不可达；`verify:hardcoded-copy` 报 231 个文件、2596 处硬编码文案高于基线，这些文件全部是孤儿模块里的组件。删除 25 个目录后：孤儿模块 605 → 454，文案超基线的文件 231 → 172、2596 → 1837（减少 759，正好是这 25 个目录各自被报的数量之和）。 |
+| **根因** | [代码] 这 25 个目录各只有 1 到 2 次提交：17 个来自在制品快照 `36edf65e55`，其余 8 个来自 2026-10-15 的 `97413138e5`、`629678c190`、`a1c77e5971`、`a650da7701`、`a727d24c52`、`b5381e453f`、`6441e3be7a`、`e92132f4fe`（各自的提交说明是「implement Item NNN」）。每个目录都是一套成体系的组件、状态仓库、类型和测试，但没有任何产品文件引入它；组件里的文案是写死的中文，没有走多语言。有两个目录（`command-hub`、`weekly-digest/context-fabric`）第二次提交只是改架构文档的措辞（`1ae2256e2c`）。 |
+| **修复** | 逐个目录一次提交，共 25 次。删除一个目录的条件（每一条都要成立）：① 孤儿门禁把它的每个模块都列为孤儿；② 在整个 OSS 仓库里按整词检索它的每个组件、状态仓库、类型文件名（8 个字符以上），目录外没有任何引用（只有 `BUGFIX_LOG.md` 里有两个组件名的历史记述）；③ 它不调用任何后端接口（目录内没有 `/api/v1/…` 路径）；④ 规划文档里没有它的目录路径、组件名、套件标题，也没有指向同一设计的条目。同一批 52 个目录里其余 27 个没有删：规划点名了路径、套件或概念，或者目录里只有 1 个孤儿文件、没有被报的文案。每个目录的删除包括它的测试和 `_ARCH.md`；`features/_ARCH.md` 里只有 `task-action-preview/` 与 `specialty-suites-gateway/` 两行指向它们，随目录删除。目录：`app-shell/multi-pane-cockpit`、`approvals/genui-reconciliation`、`audio-digest/podcast-capsule`、`canvas/callout-anchor`、`chat-window/{handoff-brief,mcp-ingress,stream-protocol}`、`command-hub`、`cross-device/hot-drop`、`devices/fingerprint-studio`、`dispatch/long-task-notify`、`entities/embedded-agent-dock`、`fleet/observer-cockpit`、`gateway/node-switcher`、`i18n/bidi-shield`、`playbook-inspector`、`progressive-boot`、`sandbox/dual-viewport-engine`、`specialty-suites-gateway`、`task-action-preview`、`templates/template-bot`、`theme/curated-developer-themes`、`weekly-digest/context-fabric`、`workflow/comm-graph`、`workspace/scope-switcher`（都在 `src/components/features/` 下）。每个提交说明里写了它的首次提交，`git show <首次提交>:myrm-agent-frontend/<目录>` 可以原样取回。 |
+| **行为变化** | 产品里没有变化：这些目录从未被任何入口引入，删除前后的页面与路由相同。 |
+| **回归证据** | [实测，origin 树加 25 个提交] `tsc --noEmit` 无错误，`check_typescript_strict.py` 通过；vitest 全量 13426 例中 13425 通过，失败的 1 例是 `next-supervisor.test.ts` 的进程内存探针（沙箱读不到进程占用），另有 1 个既有的未捕获错误（`KanbanSection` 删除看板确认）；删除的 253 个文件里有 77 个测试文件，随目录一起少了；`bun run lint` 失败的门禁与删除前一致（`verify:a11y` 豁免 97 对额度 82、`verify:hardcoded-copy`，其余 5 个通过）；`check_fractal_docs.py`、`check_barrel_exports.py`、`check_module_resolution.py` 通过；孤儿门禁对 `origin/main` 没有新增孤儿（存量 454）；`verify:i18n` 与简体字形集检查通过；`next build` 通过。 |
+| **仍然存在** | ① 其余 68 个目录、172 个文件仍有 1837 处硬编码文案，`bun run lint` 因此仍然红。其中规划文档点名要「挂载」而不是删除的有设计画布（`design-canvas/*`）、`element-editor`、`three-mode-switcher`、`artifacts/{deliverable-inspector,factcheck,real-links,wysiwyg-editor,design-system}`、`onboarding/conversational-studio` 等；它们要先有产品入口，再逐个翻译。② 豁免注释 97 条、额度 82（12 个文件的整文件 `prefer-tag-over-role` 豁免，其中 9 个文件是孤儿，无法在浏览器里看到）。③ 判断「规划里是否点名」靠的是目录路径、组件名、套件标题的文本检索，概念相同但名字不同的条目可能漏掉；删除的目录都可以从首次提交取回。④ 被删目录里的功能设想（例如跨设备热投送、播客胶囊、多节点网关切换）在产品里没有对应实现，也没有后端；如果以后要做，是重新设计，不是把这些界面加回来。 |
+| **代码位置** | `myrm-agent-frontend/src/components/features/` 下的 25 个目录（见「修复」）、`features/_ARCH.md` |
+
 ## 2026-11-01 · 设置里的「无感升级控制台」是计时器伪造的：镜像延迟是写死的数字，活动任务横幅恒为「可立即升级」，点按钮后五阶段流水线在约 0.3 秒内逐个「完成」，实际什么都没升级
 
 | 字段 | 内容 |
