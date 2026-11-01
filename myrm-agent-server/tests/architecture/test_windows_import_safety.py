@@ -2,11 +2,12 @@
 
 The frozen backend runs on Windows, whose stdlib has no `fcntl` / `resource` / `pty` / ..., no `signal.SIGKILL`
 and no `os.killpg`. A module that touches one of them as it loads kills the whole backend before it serves
-a request: `signal.SIGKILL` as a default argument did exactly that. Three rules, over the harness and the server:
+a request: `signal.SIGKILL` as a default argument did exactly that. Two rules, over the harness and the server:
 
-1. Loading a module must not import a POSIX-only module, nor evaluate a POSIX-only `signal` / `os` name
-   (module body, class bodies, decorators, default arguments), unless a platform check or a handler for the
-   failure guards it.
+1. Loading a module must not import a POSIX-only module, evaluate a POSIX-only `signal` / `os` name, or read an
+   attribute of a POSIX-only module it imported (module body, class bodies, decorators, default arguments), unless
+   a platform check or a handler for the failure guards it. A guarded import does not make the read safe: on
+   Windows the name is then `None`, so `resource.RLIMIT_NOFILE` raises while the module loads.
 2. A POSIX-only signal name is referenced nowhere unguarded, call time included. The one POSIX-only call
    that takes such a name, `os.killpg`, is exempt; everything cross-platform names the force-kill signal
    through `os_compat.SIGKILL`.
@@ -108,6 +109,7 @@ class _Scan(ast.NodeVisitor):
         self._guards: list[frozenset[str]] = []
         self._signal_aliases = {"signal"}
         self._os_aliases = {"os"}
+        self._posix_module_aliases: set[str] = set()
 
     def _report(self, node: ast.AST, kind: str, message: str) -> None:
         if not any(kind in guard for guard in self._guards):
@@ -174,8 +176,10 @@ class _Scan(ast.NodeVisitor):
                 self._signal_aliases.add(alias.asname)
             if top == "os" and alias.asname:
                 self._os_aliases.add(alias.asname)
-            if self._load_time_only and top in _POSIX_ONLY_MODULES:
-                self._report(node, "import", f"import {alias.name}: no such module on Windows")
+            if top in _POSIX_ONLY_MODULES:
+                self._posix_module_aliases.add(alias.asname or top)
+                if self._load_time_only:
+                    self._report(node, "import", f"import {alias.name}: no such module on Windows")
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         top = (node.module or "").split(".")[0]
@@ -193,6 +197,9 @@ class _Scan(ast.NodeVisitor):
             self._report(node, "attr", f"signal.{node.attr}: missing on Windows (use os_compat.SIGKILL to kill)")
         elif self._load_time_only and owner in self._os_aliases and node.attr in _POSIX_ONLY_OS_NAMES:
             self._report(node, "attr", f"os.{node.attr}: missing on Windows")
+        elif self._load_time_only and owner in self._posix_module_aliases:
+            # Under `try/except ImportError` the name is `None` on Windows, so reading it while loading raises.
+            self._report(node, "attr", f"{owner}.{node.attr}: `{owner}` is missing on Windows")
         self.generic_visit(node)
 
 
@@ -227,8 +234,8 @@ def test_loading_a_module_needs_nothing_posix_only() -> None:
     violations, _ = _scan_tree()
     assert not violations, (
         "Importing these modules fails on Windows, which kills the desktop backend at startup. Import the "
-        "module inside the function that needs it, wrap it in try/except ImportError, or branch on the "
-        "platform:\n" + "\n".join(violations)
+        "module (or read its attributes) inside the function that needs it, wrap the import or the read in "
+        "try/except, or branch on the platform:\n" + "\n".join(violations)
     )
 
 
@@ -256,6 +263,9 @@ def test_no_posix_only_signal_is_named_outside_a_guard() -> None:
         "if True:\n    import pty",
         "try:\n    import resource\nexcept OSError:\n    pass",
         "import signal\nsignal.alarm(3)",
+        "try:\n    import resource\nexcept ImportError:\n    resource = None\nLIMIT = resource.RLIMIT_NOFILE",
+        "try:\n    import fcntl as _fcntl\nexcept ImportError:\n    _fcntl = None\nclass Lock:\n    mode = _fcntl.LOCK_EX",
+        "try:\n    import resource\nexcept ImportError:\n    resource = None\ndef cap(limit=resource.RLIM_INFINITY): ...",
     ],
 )
 def test_the_scanner_flags_what_breaks_on_windows(source: str) -> None:
@@ -276,6 +286,10 @@ def test_the_scanner_flags_what_breaks_on_windows(source: str) -> None:
         "import signal\nIS_WIN = False\nif not IS_WIN:\n    signal.signal(signal.SIGALRM, None)",
         "from signal import SIGINT",
         "import os\nPATH = os.getcwd()",
+        "try:\n    import resource\nexcept ImportError:\n    resource = None\ndef limit():\n    return resource.getrlimit(resource.RLIMIT_NOFILE)",
+        "import sys\ntry:\n    import resource\nexcept ImportError:\n    resource = None\nif sys.platform != 'win32':\n    LIMIT = resource.RLIMIT_NOFILE",
+        "try:\n    import resource\nexcept ImportError:\n    resource = None\ntry:\n    LIMIT = resource.RLIMIT_NOFILE\nexcept AttributeError:\n    LIMIT = None",
+        "resource = object()\nLIMIT = resource.RLIMIT_NOFILE",
     ],
 )
 def test_the_scanner_passes_what_windows_can_load(source: str) -> None:
@@ -290,6 +304,7 @@ def test_the_scanner_passes_what_windows_can_load(source: str) -> None:
         ("import os, signal\ndef kill(pgid):\n    os.killpg(pgid, signal.SIGKILL)", False),
         ("import signal, sys\ndef kill(proc):\n    if sys.platform != 'win32':\n        proc.send_signal(signal.SIGHUP)", False),
         ("import signal\ndef kill(proc):\n    proc.send_signal(signal.SIGTERM)", False),
+        ("try:\n    import resource\nexcept ImportError:\n    resource = None\ndef limit():\n    return resource.getrlimit(resource.RLIMIT_NOFILE)", False),
     ],
 )  # fmt: skip
 def test_the_scanner_follows_signal_names_into_function_bodies(source: str, flagged: bool) -> None:
