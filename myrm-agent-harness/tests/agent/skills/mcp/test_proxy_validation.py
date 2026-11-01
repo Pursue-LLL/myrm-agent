@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from myrm_agent_harness.agent.skills.mcp.proxy_service import (
-    _validate_required_mcp_params,
+    _missing_required_params_error,
 )
 
 
-class TestValidateRequiredMcpParams:
-    def test_missing_required_returns_error_payload(self) -> None:
+class TestMissingRequiredParamsError:
+    def test_missing_required_describes_the_call_with_a_pasteable_signature(self) -> None:
         schema_entry = {
             "description": "Create issue",
             "inputSchema": {
@@ -17,10 +17,18 @@ class TestValidateRequiredMcpParams:
                 "required": ["title"],
             },
         }
-        result = _validate_required_mcp_params("create_issue", {}, schema_entry)
-        assert result is not None
-        assert "missing required argument" in str(result.get("error"))
-        assert result.get("parameters") is not None
+        message = _missing_required_params_error("create_issue", {}, schema_entry)
+        assert message is not None
+        assert "Missing required argument(s): title" in message
+        assert "The tool was NOT invoked" in message
+        assert "create_issue(*, title:string, body?:string)" in message
+
+    def test_message_speaks_ptc_not_function_calling(self) -> None:
+        schema_entry = {"inputSchema": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}}
+        message = _missing_required_params_error("search", {}, schema_entry)
+        assert message is not None
+        assert "tool_call" not in message
+        assert "'arguments'" not in message
 
     def test_all_required_present_returns_none(self) -> None:
         schema_entry = {
@@ -30,8 +38,8 @@ class TestValidateRequiredMcpParams:
                 "required": ["title"],
             },
         }
-        assert _validate_required_mcp_params("create_issue", {"title": "bug"}, schema_entry) is None
+        assert _missing_required_params_error("create_issue", {"title": "bug"}, schema_entry) is None
 
     def test_no_required_field_returns_none(self) -> None:
         schema_entry = {"inputSchema": {"type": "object", "properties": {}}}
-        assert _validate_required_mcp_params("ping", {}, schema_entry) is None
+        assert _missing_required_params_error("ping", {}, schema_entry) is None

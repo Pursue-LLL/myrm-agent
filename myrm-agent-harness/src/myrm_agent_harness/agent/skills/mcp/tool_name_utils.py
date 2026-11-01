@@ -6,6 +6,7 @@
 [OUTPUT]
 - mcp_tool_short_name: strip ``mcp__{server}__`` prefix for LLM-facing names
 - resolve_mcp_tool_name: map caller tool name to canonical MCP tool name
+- suggest_mcp_tool_names: nearest callable names for an unresolved tool name
 
 [POS]
 Single source of truth for MCP tool name matching (server prefix strip, _/- aliases,
@@ -15,7 +16,11 @@ lookup, MCPFileSystemStrategy, and proxy_service invoke validation.
 
 from __future__ import annotations
 
+import difflib
 import keyword
+import re
+
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
 def to_python_identifier(name: str) -> str:
@@ -116,3 +121,20 @@ def resolve_mcp_tool_name(tool_name: str, available_tools: list[str]) -> str | N
         return suffix_matches[0]
 
     return None
+
+
+def suggest_mcp_tool_names(tool_name: str, available_tools: list[str], limit: int = 3) -> list[str]:
+    """Return the ``limit`` callable names closest to an unresolved ``tool_name``.
+
+    Suggestions are the Python identifiers the model imports (``build_tool_name_map``
+    values), never the raw MCP names, so the model can paste one straight back into its
+    script. Matching is lexical (case-insensitive, camelCase folded to snake_case); it
+    recovers typos, plural/singular and camelCase slips, not unrelated synonyms.
+    """
+    callable_names = build_tool_name_map(available_tools).values()
+    by_folded = {name.lower(): name for name in callable_names}
+    folded_query = _CAMEL_BOUNDARY.sub("_", mcp_tool_short_name(tool_name)).lower()
+    # cutoff=0.0 always yields ``limit`` names: the server has already decided the name
+    # is wrong, so some orientation beats an empty "did you mean".
+    closest = difflib.get_close_matches(folded_query, by_folded, n=limit, cutoff=0.0)
+    return [by_folded[name] for name in closest]

@@ -7,7 +7,7 @@ properties that make that impossible:
 
 1. the socket is owner-only (0600) inside a 0700 directory;
 2. a request must carry the per-process bearer token;
-3. a session cannot exceed its tool-call budget.
+3. a script execution cannot exceed its tool-call budget.
 """
 
 from __future__ import annotations
@@ -107,21 +107,24 @@ def test_request_with_wrong_token_is_rejected() -> None:
     assert "unauthorized" in str(body["error"]).lower()
 
 
-def test_call_budget_is_enforced_per_session() -> None:
+def test_call_budget_is_enforced_per_execution_not_per_chat() -> None:
+    """An execution that spends its budget must not lock the chat's later scripts out."""
+
     async def _run() -> list[dict[str, object]]:
-        server = MCPIPCServer(default_ipc_socket_path(), max_calls_per_session=2)
+        server = MCPIPCServer(default_ipc_socket_path(), max_calls_per_execution=2)
         await server.start()
         try:
             token = server.auth_token
             reader, writer = await asyncio.open_unix_connection(server.socket_path)
             responses: list[dict[str, object]] = []
-            for index in range(3):
+            for index, trace_id in enumerate(("t1", "t1", "t1", "t2")):
                 payload = json.dumps(
                     {
                         "skill_name": "__builtin__",
                         "tool_name": "notify",
                         "params": {"message": f"m{index}"},
                         "session_id": "s1",
+                        "trace_id": trace_id,
                         "auth_token": token,
                     }
                 ).encode()
@@ -140,6 +143,7 @@ def test_call_budget_is_enforced_per_session() -> None:
     assert responses[1]["success"] is True
     assert responses[2]["success"] is False
     assert "budget" in str(responses[2]["error"]).lower()
+    assert responses[3]["success"] is True, "a new execution in the same chat gets a fresh budget"
 
 
 def _request_once(server: MCPIPCServer, body: dict[str, object]) -> dict[str, object]:
@@ -217,17 +221,15 @@ def test_read_only_scope_allows_read_only_mcp_tool() -> None:
 
 
 def test_call_budget_matches_track_two() -> None:
-    """Both PTC tracks must expose one number, not two independent guesses.
+    """Both PTC tracks must expose one number with one meaning (calls per execution).
 
     A second, arbitrary ceiling makes the next reader ask why they differ and gives
     one track a looser bound than the other for no stated reason.
     """
-    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import (
-        DEFAULT_MAX_CALLS_PER_SESSION,
-    )
+    from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import DEFAULT_MAX_CALLS_PER_EXECUTION
     from myrm_agent_harness.toolkits.code_execution.ptc.models import PtcConfig
 
-    assert PtcConfig.model_fields["max_tool_calls"].default == DEFAULT_MAX_CALLS_PER_SESSION
+    assert PtcConfig.model_fields["max_tool_calls"].default == DEFAULT_MAX_CALLS_PER_EXECUTION
 
 
 def test_ipc_path_policy_blocks_path_outside_workspace() -> None:

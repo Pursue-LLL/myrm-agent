@@ -41,6 +41,11 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import (
+    DEFAULT_MAX_CALLS_PER_EXECUTION,
+    DEFAULT_SESSION_CALL_CEILING,
+    CallBudget,
+)
 from myrm_agent_harness.core.network.ipc_socket import (
     SOCKET_DIR_MODE,
     SOCKET_FILE_MODE,
@@ -48,15 +53,6 @@ from myrm_agent_harness.core.network.ipc_socket import (
 from myrm_agent_harness.utils import os_compat
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_MAX_CALLS_PER_SESSION = 50
-"""Per-session IPC tool-call budget.
-
-MCP PTC scripts loop over tools; without a ceiling a runaway script becomes an
-unbounded external-API amplifier. 50 matches ``PtcConfig.max_tool_calls`` so both
-PTC tracks share one number: measured orchestration scripts on this machine issue
-0-3 callsites, so the ceiling only ever catches a runaway loop.
-"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,18 +115,23 @@ class MCPIPCServer:
     _REQUEST_TIMEOUT = 120.0
     _SHUTDOWN_TIMEOUT = 5.0
 
-    def __init__(self, socket_path: str, max_calls_per_session: int = DEFAULT_MAX_CALLS_PER_SESSION):
+    def __init__(
+        self,
+        socket_path: str,
+        max_calls_per_execution: int = DEFAULT_MAX_CALLS_PER_EXECUTION,
+        session_call_ceiling: int = DEFAULT_SESSION_CALL_CEILING,
+    ):
         """初始化 IPC 服务端
 
         Args:
             socket_path: Unix Socket 文件路径
-            max_calls_per_session: 单会话工具调用预算上限
+            max_calls_per_execution: 单次脚本执行（按 trace id）的工具调用预算上限
+            session_call_ceiling: 单会话在一个时间窗口内跨脚本的调用兜底上限
         """
         self.socket_path = socket_path
         self._server: asyncio.Server | None = None
         self._running = False
-        self._max_calls_per_session = max_calls_per_session
-        self._session_calls: dict[str, int] = {}
+        self._budget = CallBudget(max_calls_per_execution, session_call_ceiling)
         self._tcp_port: int = 0
         self.auth_token: str = secrets.token_urlsafe(32)
         self.trace_nonce: str = secrets.token_hex(16)
@@ -275,9 +276,9 @@ class MCPIPCServer:
                     success=False, error="Unauthorized: invalid or missing auth token"
                 ).model_dump_json()
 
-            budget_error = self._consume_call_budget(request.session_id)
+            budget_error = self._budget.consume(request.session_id, request.trace_id)
             if budget_error is not None:
-                logger.warning(f"{log_prefix} Session budget exhausted: {request.session_id}")
+                logger.warning(f"{log_prefix} Call budget exhausted (session={request.session_id})")
                 return MCPIPCResponse(success=False, error=budget_error).model_dump_json()
 
             policy_error = self._check_read_only_policy(request)
@@ -352,26 +353,6 @@ class MCPIPCServer:
         if not token:
             return False
         return hmac.compare_digest(token, self.auth_token)
-
-    def _consume_call_budget(self, session_id: str | None) -> str | None:
-        """Account one tool call against the session budget.
-
-        Budgets are per session. A request without ``session_id`` has no bucket to
-        account against, so it is not charged (the caller is already constrained by
-        the authenticated socket and the read-only policy).
-
-        Returns an error message when the budget is exhausted, else ``None``.
-        """
-        if not session_id:
-            return None
-        used = self._session_calls.get(session_id, 0)
-        if used >= self._max_calls_per_session:
-            return (
-                f"Session tool-call budget exhausted: {used}/{self._max_calls_per_session} "
-                "calls used. Summarise results and finish the script."
-            )
-        self._session_calls[session_id] = used + 1
-        return None
 
     def _check_read_only_policy(self, request: MCPIPCRequest) -> str | None:
         """Enforce the caller's read-only scope on MCP calls made from scripts.

@@ -8,6 +8,7 @@ from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
     build_tool_name_map,
     mcp_tool_short_name,
     resolve_mcp_tool_name,
+    suggest_mcp_tool_names,
     to_python_identifier,
 )
 
@@ -206,3 +207,36 @@ class TestRenderedL2Names:
         for func_name in rendered:
             compile(f"from skills.x import {func_name}", "<t>", "exec")
             assert resolve_mcp_tool_name(func_name, tools) is not None, func_name
+
+
+class TestSuggestMcpToolNames:
+    """The nearest-name hint must surface a tool the old "first five" listing would bury."""
+
+    TOOLS = [f"decoy_tool_{i:02d}" for i in range(30)] + ["get_pod_logs", "list_pods", "restart_pod"]
+
+    @pytest.mark.parametrize(
+        ("wrong", "expected"),
+        [
+            ("get_pod_log", "get_pod_logs"),  # dropped a letter
+            ("list_pod", "list_pods"),  # singular for plural
+            ("getPodLogs", "get_pod_logs"),  # camelCase
+            ("restart-pod", "restart_pod"),  # kebab separator
+            ("mcp__k8s__list_podz", "list_pods"),  # server prefix + typo
+        ],
+    )
+    def test_closest_name_is_first(self, wrong: str, expected: str) -> None:
+        assert suggest_mcp_tool_names(wrong, self.TOOLS)[0] == expected
+
+    def test_returns_callable_names_not_raw_mcp_names(self) -> None:
+        tools = ["mcp__k8s__get-pod-logs", "mcp__k8s__list-pods"]
+
+        assert suggest_mcp_tool_names("get_pod_log", tools, limit=1) == ["get_pod_logs"]
+
+    def test_limit_and_small_catalog(self) -> None:
+        assert len(suggest_mcp_tool_names("anything", self.TOOLS)) == 3
+        assert len(suggest_mcp_tool_names("anything", self.TOOLS, limit=5)) == 5
+        assert suggest_mcp_tool_names("anything", ["only_tool"]) == ["only_tool"]
+        assert suggest_mcp_tool_names("anything", []) == []
+
+    def test_case_is_ignored_but_original_spelling_is_returned(self) -> None:
+        assert suggest_mcp_tool_names("GET_POD_LOGS_X", ["Get_Pod_Logs", "other"], limit=1) == ["Get_Pod_Logs"]

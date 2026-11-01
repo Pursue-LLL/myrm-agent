@@ -9,8 +9,8 @@ import pytest
 from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets, make_cache_key
 from myrm_agent_harness.agent.skills.mcp.proxy_service import (
     MCPSkillProxyService,
+    _missing_required_params_error,
     _resolve_mcp_input_schema,
-    _validate_required_mcp_params,
     get_mcp_skill_proxy_service,
     handle_mcp_invoke,
 )
@@ -69,12 +69,12 @@ class TestResolveMcpInputSchema:
         assert _resolve_mcp_input_schema({"inputSchema": model}) == {"type": "object"}
 
 
-class TestValidateRequiredMcpParamsExtended:
+class TestMissingRequiredParamsErrorExtended:
     def test_no_schema_entry_returns_none(self) -> None:
-        assert _validate_required_mcp_params("ping", {}, None) is None
+        assert _missing_required_params_error("ping", {}, None) is None
 
     def test_malformed_schema_returns_none(self) -> None:
-        assert _validate_required_mcp_params("ping", {}, {"inputSchema": object()}) is None
+        assert _missing_required_params_error("ping", {}, {"inputSchema": object()}) is None
 
 
 class TestMCPSkillProxyServiceParse:
@@ -306,13 +306,30 @@ class TestMCPSkillProxyServiceInvoke:
         assert mock_conn.call.await_count == 2, "same-session hit should reuse; another session must re-call"
 
     @pytest.mark.asyncio
-    async def test_invoke_tool_validation_short_circuit(self, mcp_skill_meta: SkillMetadata) -> None:
+    async def test_missing_required_argument_raises_without_calling_the_server(
+        self, mcp_skill_meta: SkillMetadata
+    ) -> None:
+        """A script must get an exception, not an error-shaped dict it would treat as the result."""
         service = MCPSkillProxyService()
         skill_registry.register(mcp_skill_meta)
 
-        result = await service.invoke_tool("mcp_test_skill", "create_issue", {})
-        assert isinstance(result, dict)
-        assert "missing required argument" in str(result.get("error"))
+        mock_conn = MagicMock()
+        mock_conn.call = AsyncMock()
+        mock_manager = MagicMock()
+        mock_manager.get_connection = AsyncMock(return_value=mock_conn)
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
+                AsyncMock(return_value=mock_manager),
+            ),
+            pytest.raises(ValueError, match=r"Missing required argument\(s\): title") as excinfo,
+        ):
+            await service.invoke_tool("mcp_test_skill", "create_issue", {})
+
+        assert "create_issue(*, title:string" in str(excinfo.value), "signature must be copy-pasteable into the script"
+        assert "tool_call" not in str(excinfo.value), "PTC scripts have no tool_call/arguments"
+        mock_conn.call.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_invoke_tool_success_path(self, mcp_skill_meta: SkillMetadata) -> None:
@@ -351,6 +368,19 @@ class TestMCPSkillProxyServiceInvoke:
         skill_registry.register(mcp_skill_meta)
         with pytest.raises(RuntimeError, match="Tool 'missing' not found"):
             await service.invoke_tool("mcp_test_skill", "missing", {})
+
+    @pytest.mark.asyncio
+    async def test_unknown_tool_error_names_the_closest_callable_not_the_first_five(
+        self, mcp_skill_meta: SkillMetadata
+    ) -> None:
+        """The target tool sits behind several others; listing the catalog head would hide it."""
+        assert mcp_skill_meta.mcp is not None
+        decoys = [f"decoy_tool_{i}" for i in range(8)]
+        mcp_skill_meta.mcp.tools = [*decoys, "get_pod_logs"]
+        skill_registry.register(mcp_skill_meta)
+
+        with pytest.raises(RuntimeError, match=r"Closest names: get_pod_logs"):
+            await MCPSkillProxyService().invoke_tool("mcp_test_skill", "getPodLog", {})
 
     def test_convert_skill_meta_config_dict_and_model(self, mcp_skill_meta: SkillMetadata) -> None:
         service = MCPSkillProxyService()

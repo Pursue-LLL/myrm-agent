@@ -71,9 +71,7 @@ class TestRequestEnvelopeParity:
             ("Track 2", PTC_DIR / "rpc_server.py"),
         ):
             source = _read(path)
-            assert "to_bytes(4," in source or 'struct.pack("!I"' in source, (
-                f"{name} must use a 4-byte length prefix"
-            )
+            assert "to_bytes(4," in source or 'struct.pack("!I"' in source, f"{name} must use a 4-byte length prefix"
 
     def test_same_payload_size_cap(self) -> None:
         """A tighter cap on one track is a silent behaviour difference."""
@@ -83,8 +81,7 @@ class TestRequestEnvelopeParity:
         rpc_cap = re.search(r">\s*(\d+)\s*\*\s*1024\s*\*\s*1024", rpc)
         assert ipc_cap and rpc_cap, "both tracks must declare a payload cap"
         assert ipc_cap.group(1) == rpc_cap.group(1), (
-            "payload caps diverged: Track 1 "
-            f"{ipc_cap.group(1)}MB vs Track 2 {rpc_cap.group(1)}MB"
+            f"payload caps diverged: Track 1 {ipc_cap.group(1)}MB vs Track 2 {rpc_cap.group(1)}MB"
         )
 
 
@@ -111,9 +108,7 @@ class TestPlatformFallbackParity:
         has_client_fallback = "AF_INET" in client or "TCP_PORT" in client
         # The server path uses asyncio.start_server on loopback and exposes the bound port.
         has_server_fallback = (
-            ("start_server(" in server or "AF_INET" in server)
-            and "127.0.0.1" in server
-            and "_tcp_port" in server
+            ("start_server(" in server or "AF_INET" in server) and "127.0.0.1" in server and "_tcp_port" in server
         )
 
         assert has_client_fallback, "Track 1 client opens AF_UNIX only; add a loopback TCP branch"
@@ -155,8 +150,8 @@ class TestBothTracksShareOneCallBudget:
     def test_budget_is_defined_once_per_layer(self) -> None:
         ipc = _read(MCP_DIR / "ipc_proxy.py")
         rpc = _read(PTC_DIR / "rpc_server.py")
-        assert "max_calls_per_session" in ipc or "max_tool_calls" in ipc
-        assert "max_tool_calls" in rpc or "max_calls_per_session" in rpc
+        assert "max_calls_per_execution" in ipc or "max_tool_calls" in ipc
+        assert "max_tool_calls" in rpc or "max_calls_per_execution" in rpc
 
 
 @pytest.mark.parametrize("filename", ["ipc_proxy.py", "client_templates.py", "rpc_server.py", "stub_generator.py"])

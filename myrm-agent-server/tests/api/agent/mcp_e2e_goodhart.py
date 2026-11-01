@@ -155,8 +155,6 @@ def mcp_get_tickets_delivered(collected_data: list[dict[str, object]], marker: s
                     continue
                 preview = str(call.get("result_preview", ""))
                 preview_lower = preview.lower()
-                if "missing required argument" in preview_lower:
-                    continue
                 if preview_lower.startswith("{'error'") or '"error":' in preview_lower[:120]:
                     continue
                 if re.search(r"[GDC]\d{1,4}", preview) or "车次" in preview:

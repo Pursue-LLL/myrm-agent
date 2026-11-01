@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.skills.mcp.ipc_proxy (POS: IPC server, guards, globals)
 
 [OUTPUT]
-- Coverage for already-running/stopped lifecycle, budget/path/scope guard early returns,
+- Coverage for already-running/stopped lifecycle, path/scope guard early returns,
   and global server start/stop accessors.
 
 [POS]
@@ -44,13 +44,6 @@ def test_stop_is_noop_when_not_running(tmp_path: Path) -> None:
     asyncio.run(server.stop())
 
     assert server._running is False
-
-
-def test_consume_call_budget_without_session_does_not_charge() -> None:
-    server = MCPIPCServer("/tmp/budget.sock")
-
-    assert server._consume_call_budget(None) is None
-    assert server._session_calls == {}
 
 
 def test_path_policy_skips_request_without_path(tmp_path: Path) -> None:

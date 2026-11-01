@@ -52,24 +52,24 @@ def _resolve_mcp_input_schema(
     tool_schema_entry: dict[str, object],
 ) -> dict[str, object]:
     """Normalize MCP tool schema entry to JSON Schema dict."""
-    from typing import cast
-
     from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
         normalize_input_schema,
     )
 
-    return cast(
-        "dict[str, object]",
-        normalize_input_schema(tool_schema_entry.get("inputSchema")),
-    )
+    return normalize_input_schema(tool_schema_entry.get("inputSchema"))
 
 
-def _validate_required_mcp_params(
-    tool_name: str,
+def _missing_required_params_error(
+    callable_name: str,
     params: dict[str, object],
     tool_schema_entry: dict[str, object] | None,
-) -> dict[str, object] | None:
-    """Check required arguments before dispatch; return error payload if missing."""
+) -> str | None:
+    """Describe a call that omits required arguments; ``None`` when it is complete.
+
+    ``callable_name`` is the identifier the script imports, so the rendered signature
+    can be copied back into the script as written. An unreadable schema yields ``None``
+    so the MCP server stays the final judge of what it accepts.
+    """
     if not tool_schema_entry:
         return None
     try:
@@ -78,18 +78,17 @@ def _validate_required_mcp_params(
         if not isinstance(required, list) or not required:
             return None
         missing = [name for name in required if isinstance(name, str) and name not in params]
-        if not missing:
-            return None
-        return {
-            "error": (
-                f"tool_call to '{tool_name}' is missing required argument(s): "
-                f"{', '.join(missing)}. The tool was NOT invoked."
-            ),
-            "parameters": schema,
-            "hint": "Retry tool_call with 'arguments' matching the parameters schema above.",
-        }
     except Exception:
         return None
+    if not missing:
+        return None
+
+    from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import render_signature
+
+    return (
+        f"Missing required argument(s): {', '.join(missing)}. The tool was NOT invoked. "
+        f"Signature: {render_signature(callable_name, schema)}"
+    )
 
 
 class MCPSkillProxyService:
@@ -160,6 +159,7 @@ class MCPSkillProxyService:
 
         Raises:
             RuntimeError: 如果找不到技能或工具
+            ValueError: 如果调用缺少必填参数
         """
         log_prefix = f"[PTC:{trace_id}]"
         matched_for_schema = self._canonical_cache_tool_name(skill_name, tool_name)
@@ -176,7 +176,9 @@ class MCPSkillProxyService:
         is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
         cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema)
         if cache_ttl is not None:
-            server_name = skill_meta_for_schema.mcp.server if skill_meta_for_schema and skill_meta_for_schema.mcp else skill_name
+            server_name = (
+                skill_meta_for_schema.mcp.server if skill_meta_for_schema and skill_meta_for_schema.mcp else skill_name
+            )
             cache_key = make_cache_key(session_id, server_name, matched_for_schema, cleaned_params)
             cached_result = get_cache_buckets().get(cache_ttl).get(cache_key)
             if cached_result is not None:
@@ -217,10 +219,13 @@ class MCPSkillProxyService:
             工具返回结果
 
         Raises:
-            RuntimeError: 如果找不到技能或技能不是 MCP 技能
+            RuntimeError: 如果找不到技能、技能不是 MCP 技能或工具名无法解析
+            ValueError: 如果调用缺少必填参数（此时工具未被调用）
         """
         from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
+            build_tool_name_map,
             resolve_mcp_tool_name,
+            suggest_mcp_tool_names,
         )
         from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
 
@@ -238,18 +243,20 @@ class MCPSkillProxyService:
 
         matched_tool_name = resolve_mcp_tool_name(tool_name, skill_meta.mcp.tools)
         if not matched_tool_name:
+            closest = suggest_mcp_tool_names(tool_name, skill_meta.mcp.tools)
             raise RuntimeError(
-                f"Tool '{tool_name}' not found in MCP skill '{skill_name}'. "
-                f"Available: {', '.join(skill_meta.mcp.tools[:5])}"
+                f"Tool '{tool_name}' not found in MCP skill '{skill_name}'. Closest names: {', '.join(closest)}"
             )
 
-        validation_error = _validate_required_mcp_params(
-            matched_tool_name,
+        # Raised, not returned: a script that gets a dict back treats it as the tool's
+        # result and fails later, far from the cause, after charging the call budget.
+        missing_error = _missing_required_params_error(
+            build_tool_name_map(skill_meta.mcp.tools)[matched_tool_name],
             params,
             skill_meta.mcp.tool_schemas.get(matched_tool_name),
         )
-        if validation_error is not None:
-            return validation_error
+        if missing_error is not None:
+            raise ValueError(missing_error)
 
         return await self._find_and_invoke(mcp_config, mcp_server, matched_tool_name, params)
 
