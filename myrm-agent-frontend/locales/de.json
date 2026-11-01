@@ -16564,7 +16564,7 @@
         "networkError": "Netzwerkverbindung fehlgeschlagen"
       },
       "hint": {
-        "title": "Embedding- und Reranking-Modelle können die Suchqualität erheblich verbessern und den Token-Verbrauch bei Websuche und Seitenlesen reduzieren – bei weit geringeren Kosten als LLMs.",
+        "title": "Embedding- und Reranking-Modelle kommen beim Lesen von Webseiten und beim Abruf von Erinnerungen zum Einsatz und geben der LLM zuerst die Inhalte, die zur Frage am besten passen – bei weit geringeren Kosten als LLMs.",
         "options": "Sie können kostenlose oder kostenpflichtige Anbietermodelle verwenden. Für maximale Privatsphäre können Sie Open-Source-Modelle lokal im OpenAI-kompatiblen Format bereitstellen.",
         "recommendation": "Mehrsprachige Modelle werden empfohlen und können je nach tatsächlicher Nutzung ausgewählt werden.",
         "deployTip": "KI nach Bereitstellungsmethoden fragen",

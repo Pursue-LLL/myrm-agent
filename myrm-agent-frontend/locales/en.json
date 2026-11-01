@@ -16564,7 +16564,7 @@
         "networkError": "Network connection failed"
       },
       "hint": {
-        "title": "Embedding and reranking models can significantly improve search quality and reduce token consumption during web search and page reading, and their cost is far lower than LLMs.",
+        "title": "Embedding and reranking models are used when reading web pages and recalling memories, so the content most relevant to the question reaches the LLM first, and they cost far less than LLMs.",
         "options": "You can use free or paid service provider models. For ultimate privacy, you can deploy open-source models locally in OpenAI-compatible format.",
         "recommendation": "Multilingual models are recommended and can be selected based on actual usage.",
         "deployTip": "Ask AI for deployment methods",
