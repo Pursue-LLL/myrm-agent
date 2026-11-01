@@ -6,7 +6,7 @@ Validates:
 3. Effort mapping: low/high/max passthrough, medium -> high, xhigh -> max for V4-pro/flash.
 4. Disabled/off mode: extra_body.thinking={'type': 'disabled'} and parameter stripping.
 5. Auto-enabling thinking mode for DeepSeek configurable reasoning models when effort is unspecified.
-6. End-to-end integration via create_litellm_model and LLMManager.
+6. End-to-end integration via create_chat_model and LLMManager.
 """
 
 from unittest.mock import MagicMock, patch
@@ -18,7 +18,7 @@ from myrm_agent_harness.toolkits.llms.core.deepseek_reasoning import (
     is_deepseek_model,
     is_deepseek_reasoning_model,
 )
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.core.manager import LLMManager
 
 
@@ -122,42 +122,42 @@ class TestApplyDeepSeekReasoningEffort:
 
 
 class TestCreateLitellmModelIntegration:
-    """Tests for end-to-end integration via create_litellm_model."""
+    """Tests for end-to-end integration via create_chat_model."""
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_deepseek_v4_pro_max_effort(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("deepseek/deepseek-v4-pro", reasoning_effort="max")
+        create_chat_model("deepseek/deepseek-v4-pro", reasoning_effort="max")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"]["thinking"] == {"type": "enabled"}
         assert call_kwargs["extra_body"]["reasoning_effort"] == "max"
         assert call_kwargs["reasoning_effort"] == "max"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_deepseek_v4_flash_off_effort(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("deepseek/deepseek-v4-flash", reasoning_effort="off")
+        create_chat_model("deepseek/deepseek-v4-flash", reasoning_effort="off")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"]["thinking"] == {"type": "disabled"}
         assert "reasoning_effort" not in call_kwargs.get("extra_body", {})
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_deepseek_v4_medium_promoted_to_high(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("deepseek/deepseek-v4-pro", reasoning_effort="medium")
+        create_chat_model("deepseek/deepseek-v4-pro", reasoning_effort="medium")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"]["thinking"] == {"type": "enabled"}
         assert call_kwargs["extra_body"]["reasoning_effort"] == "high"
         assert call_kwargs["reasoning_effort"] == "high"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_deepseek_r1_always_on_guard_strips_effort(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("deepseek/deepseek-r1", reasoning_effort="medium")
+        create_chat_model("deepseek/deepseek-r1", reasoning_effort="medium")
         call_kwargs = mock_cls.call_args[1]
         assert "reasoning_effort" not in call_kwargs.get("extra_body", {})
         assert "reasoning_effort" not in call_kwargs
         assert "thinking" not in call_kwargs.get("extra_body", {})
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_deepseek_reasoner_always_on_guard_strips_off(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("deepseek-reasoner", reasoning_effort="off")
+        create_chat_model("deepseek-reasoner", reasoning_effort="off")
         call_kwargs = mock_cls.call_args[1]
         assert "reasoning_effort" not in call_kwargs.get("extra_body", {})
         assert "thinking" not in call_kwargs.get("extra_body", {})
@@ -166,7 +166,7 @@ class TestCreateLitellmModelIntegration:
 class TestLLMManagerConfigIntegration:
     """Tests for LLMManager.get_llm_from_config reasoning_effort handling."""
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     async def test_top_level_reasoning_effort_precedence(self, mock_cls: MagicMock) -> None:
         LLMManager.clear_cache()
         config = LLMConfig(

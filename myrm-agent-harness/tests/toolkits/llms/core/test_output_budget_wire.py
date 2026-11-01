@@ -12,7 +12,7 @@ import litellm
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
     reset_ephemeral_max_output_tokens,
     set_ephemeral_max_output_tokens,
@@ -35,7 +35,7 @@ def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 async def _request_body(model: str, **kwargs: object) -> JsonBody:
     """Make one call through the production factory and return the body the provider received."""
     with FakeProviderServer(lambda _body: FakeReply(openai_text_stream())) as server:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model,
             base_url=f"{server.base_url}/v1",
             api_key="sk-offline",

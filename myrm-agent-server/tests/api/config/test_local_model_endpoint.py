@@ -14,7 +14,7 @@ client = TestClient(app)
 
 _URL = "/api/v1/config/test-local-model"
 _PAYLOAD = {"model": "ollama/llama3", "base_url": "http://127.0.0.1:11434"}
-_FACTORY = "myrm_agent_harness.toolkits.llms.create_litellm_model"
+_FACTORY = "myrm_agent_harness.toolkits.llms.create_chat_model"
 # Far above the patched deadline, yet bounded so a missing deadline fails fast instead of hanging.
 _STALL_S = 5.0
 

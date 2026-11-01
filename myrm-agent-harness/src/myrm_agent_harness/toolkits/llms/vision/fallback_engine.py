@@ -2,7 +2,7 @@
 
 [INPUT]
 myrm_agent_harness.core.config.llm::LLMConfig (POS: 框架层大模型配置定义)
-myrm_agent_harness.toolkits.llms.core.llm::create_litellm_model (POS: 框架层大模型创建器)
+myrm_agent_harness.toolkits.llms.core.llm::create_chat_model (POS: 框架层大模型创建器)
 myrm_agent_harness.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 myrm_agent_harness.utils.media.image_compressor::image_compressor (POS: 图像压缩工具)
 
@@ -29,7 +29,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.core.config.llm import LLMConfig
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.errors import (
     FailoverReason,
     classify_failover_reason,
@@ -229,7 +229,7 @@ class VisionFallbackEngine:
             if cfg.temperature is not None:
                 merged_kwargs["temperature"] = cfg.temperature
             self._models.append(
-                create_litellm_model(
+                create_chat_model(
                     model=cfg.model,
                     api_key=cfg.api_key,
                     base_url=cfg.base_url,

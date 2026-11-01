@@ -1,6 +1,6 @@
 """KeyPoolLLM.bind_tools contract: bound tools reach the provider and key rotation survives binding.
 
-The real ChatLiteLLM stack runs against a network-free transport double. A mocked
+The real TransportChatModel stack runs against a network-free transport double. A mocked
 ``bind_tools`` cannot tell whether the bound tools actually travel with the request, which is the
 only thing an agent loop relies on.
 """
@@ -16,7 +16,7 @@ from langchain_core.tools import tool
 
 from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool, CredentialPoolStrategy
 from myrm_agent_harness.toolkits.llms.core.key_pool_llm import KeyPoolLLM
-from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 from myrm_agent_harness.toolkits.llms.transport import LLMTransport
 
 _MODEL = "gpt-4o"
@@ -69,7 +69,7 @@ class _ProviderDouble(LLMTransport):
 
 
 def _pooled_llm(provider: _ProviderDouble) -> KeyPoolLLM:
-    instances = {key: ChatLiteLLM(model=_MODEL, api_key=key, client=provider) for key in _KEYS}
+    instances = {key: TransportChatModel(model=_MODEL, api_key=key, client=provider) for key in _KEYS}
     pool = CredentialPool(list(_KEYS), strategy=CredentialPoolStrategy.ROUND_ROBIN)
     return KeyPoolLLM(instances=instances, pool=pool)
 
@@ -97,7 +97,7 @@ class TestKeyPoolLLMBindTools:
     @pytest.mark.parametrize("streaming", [False, True], ids=["invoke", "stream"])
     async def test_bound_pool_sends_the_same_request_as_a_single_key(self, streaming: bool) -> None:
         provider = _ProviderDouble()
-        single = ChatLiteLLM(model=_MODEL, api_key="solo", client=provider).bind_tools(
+        single = TransportChatModel(model=_MODEL, api_key="solo", client=provider).bind_tools(
             [probe], tool_choice="required", parallel_tool_calls=False
         )
         pooled = _pooled_llm(provider).bind_tools([probe], tool_choice="required", parallel_tool_calls=False)

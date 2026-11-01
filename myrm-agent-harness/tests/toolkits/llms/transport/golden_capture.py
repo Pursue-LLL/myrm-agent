@@ -1,14 +1,14 @@
 """Records the outbound HTTP requests of the real model factory and adapter for a fixed scenario matrix.
 
 [INPUT]
-- core.llm::create_litellm_model (POS: the production model factory)
+- core.llm::create_chat_model (POS: the production model factory)
 - httpx (POS: patched ``send`` that records the request and answers with a canned, valid provider response)
 
 [OUTPUT]
 - capture_all: {"provider|base|scenario": {"requests": [...], "error": str}} for every provider x scenario
 
 [POS]
-Library-agnostic request capture. The committed baseline ``litellm_baseline.json`` was recorded the same way at
+Library-agnostic request capture. The committed baseline ``golden_baseline.json`` was recorded the same way at
 commit b6959e7d7e, when the factory still called the previous multi-provider client library (litellm 1.97.0) with
 the production configuration applied; the golden test replays the matrix on the current transport and diffs the
 two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
@@ -25,7 +25,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 Record = dict[str, object]
 Case = dict[str, object]
@@ -279,7 +279,7 @@ async def _run_case(
     sink.clear()
     error = ""
     try:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model, streaming=scenario.endswith("stream"), **_factory_kwargs(extra, with_base, scenario)
         )
         runnable = llm

@@ -1,4 +1,4 @@
-"""LiteLLM API request/response logging utility
+"""LLM API request/response logging utility
 
 agent/context_management/PROMPT_CACHE_PRACTICE.md §6.3 whenever this file changes.
 
@@ -14,9 +14,9 @@ agent/context_management/PROMPT_CACHE_PRACTICE.md §6.3 whenever this file chang
 - log_llm_response(): log response and invoke registered response hooks (e.g. cache metrics persistence)
 
 [POS]
-LiteLLM API request/response logging utility. Provides detailed LLM API call logging with toggle support.
+LLM API request/response logging utility. Provides detailed LLM API call logging with toggle support.
 Auto-truncates long text, redacts sensitive information (API keys), and formats output.
-As the logging layer, used by ChatLiteLLM for debugging and monitoring LLM calls.
+As the logging layer, used by TransportChatModel for debugging and monitoring LLM calls.
 """
 
 import contextlib
@@ -95,7 +95,7 @@ def _safe_get_finish_reason(response: Mapping[str, Any]) -> str:
     """Safely get finish_reason, handling empty choices list.
 
     Args:
-        response: LiteLLM response dict
+        response: chat.completion response dict
 
     Returns:
         finish_reason string, or 'N/A' if retrieval fails
@@ -312,7 +312,7 @@ def log_llm_response(
     total_tokens = coerce_usage_non_negative_int(token_usage.get("total_tokens", 0))
 
     # Extract cached_tokens from prompt_tokens_details
-    # LiteLLM standardizes: OpenAI/Anthropic/Gemini all map to prompt_tokens_details.cached_tokens
+    # Every wire reports cache reads as prompt_tokens_details.cached_tokens
     prompt_details = token_usage.get("prompt_tokens_details", {}) or {}
     cached_tokens = (
         coerce_usage_non_negative_int(prompt_details.get("cached_tokens")) if isinstance(prompt_details, dict) else 0

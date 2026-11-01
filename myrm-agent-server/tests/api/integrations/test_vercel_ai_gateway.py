@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import httpx
 import pytest
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from starlette.testclient import TestClient
 
 from app.services.migration.source.source_model_migrator import (
-    _PROVIDER_LITELLM_PREFIX,
-    _resolve_litellm_model,
+    _PROVIDER_ROUTE_PREFIX,
+    _resolve_route_model_id,
 )
 from tests.support.minimal_app import build_minimal_app
 
@@ -107,8 +107,8 @@ def test_discover_models_does_not_inject_attribution_headers_for_other_endpoints
         assert "X-Title" not in captured_headers
 
 
-def test_create_litellm_model_auto_injects_attribution_headers() -> None:
-    llm = create_litellm_model(
+def test_create_chat_model_auto_injects_attribution_headers() -> None:
+    llm = create_chat_model(
         model="openai/anthropic/claude-3-5-sonnet",
         base_url="https://ai-gateway.vercel.sh/v1",
         api_key="vca_test_key",
@@ -119,14 +119,14 @@ def test_create_litellm_model_auto_injects_attribution_headers() -> None:
 
 
 def test_hermes_auxiliary_migration_maps_ai_gateway_aliases() -> None:
-    assert _PROVIDER_LITELLM_PREFIX["ai-gateway"] == "openai"
-    assert _PROVIDER_LITELLM_PREFIX["aigateway"] == "openai"
-    assert _PROVIDER_LITELLM_PREFIX["vercel"] == "openai"
-    assert _PROVIDER_LITELLM_PREFIX["vercel_ai_gateway"] == "openai"
+    assert _PROVIDER_ROUTE_PREFIX["ai-gateway"] == "openai"
+    assert _PROVIDER_ROUTE_PREFIX["aigateway"] == "openai"
+    assert _PROVIDER_ROUTE_PREFIX["vercel"] == "openai"
+    assert _PROVIDER_ROUTE_PREFIX["vercel_ai_gateway"] == "openai"
 
     assert (
-        _resolve_litellm_model("ai-gateway", "meta-llama/llama-3.3-70b-instruct")
+        _resolve_route_model_id("ai-gateway", "meta-llama/llama-3.3-70b-instruct")
         == "vercel_ai_gateway/meta-llama/llama-3.3-70b-instruct"
     )
-    assert _resolve_litellm_model("vercel", "google/gemini-2.0-flash") == "vercel_ai_gateway/google/gemini-2.0-flash"
-    assert _resolve_litellm_model("aigateway", "anthropic/claude-3-5-sonnet") == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"
+    assert _resolve_route_model_id("vercel", "google/gemini-2.0-flash") == "vercel_ai_gateway/google/gemini-2.0-flash"
+    assert _resolve_route_model_id("aigateway", "anthropic/claude-3-5-sonnet") == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"

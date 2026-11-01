@@ -1,4 +1,4 @@
-"""LangChain LiteLLM Adapter
+"""LangChain chat model over the model transport
 
 [INPUT]
 - langchain_core (POS: BaseChatModel base class, message, runnable, tool and env-lookup helpers)
@@ -14,14 +14,14 @@
 - toolkits.llms.utils.json_document::is_json_document (POS: whether reasoning text is a JSON document the output parser accepts)
 
 [OUTPUT]
-- ChatLiteLLM: LangChain-compatible LiteLLM chat model aggregate root (config, bind_tools, structured_output)
+- TransportChatModel: LangChain-compatible chat model aggregate root (config, bind_tools, structured_output)
 - chat_model.message_mixin / chat_model.session_affinity / chat_model.sync_mixin / chat_model.async_mixin / chat_model.async_stream_mixin : message assembly, session-affinity and generation mixins
 - chat_model.binding: tool_bind_kwargs / structured_output_bind_kwargs / structured_output_chain (bind_tools and with_structured_output assembly)
 - chat_model.exceptions: EmptyChoicesError, EmptyStreamError, adapter constants
 - clean_model_kwargs(): utility function to clean model parameters
 
 [POS]
-LangChain LiteLLM adapter. Provides a LangChain-compatible LiteLLM interface for unified multi-model
+LangChain chat-model adapter. Provides a LangChain-compatible chat model for unified multi-model
 invocation. Supports sync/async calls, streaming responses (with TTFT and duration latency tracking),
 tool calling, structured output, and model native search (web_search_options).
 Records token usage + cost calculation + audit log appending for every call (streaming and non-streaming),
@@ -63,8 +63,8 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import ChatLiteLLMAsyncMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import ChatLiteLLMAsyncStreamMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import TransportChatModelAsyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import TransportChatModelAsyncStreamMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.binding import (
     structured_output_bind_kwargs,
     structured_output_chain,
@@ -76,10 +76,10 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyStreamError,
     StreamStallTimeoutError,
 )
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import ChatLiteLLMMessageMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import ChatLiteLLMOutputCapMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import ChatLiteLLMSessionAffinityMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import ChatLiteLLMSyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import TransportChatModelMessageMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import TransportChatModelOutputCapMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import TransportChatModelSessionAffinityMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import TransportChatModelSyncMixin
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
 from myrm_agent_harness.toolkits.llms.transport import LLMTransport, get_transport
 from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
@@ -97,7 +97,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEVELOPER_ROLE_PATTERN",
-    "ChatLiteLLM",
+    "TransportChatModel",
     "EmptyChoicesError",
     "EmptyStreamError",
     "StreamStallTimeoutError",
@@ -105,13 +105,13 @@ __all__ = [
 ]
 
 
-class ChatLiteLLM(
-    ChatLiteLLMMessageMixin,
-    ChatLiteLLMOutputCapMixin,
-    ChatLiteLLMSessionAffinityMixin,
-    ChatLiteLLMSyncMixin,
-    ChatLiteLLMAsyncMixin,
-    ChatLiteLLMAsyncStreamMixin,
+class TransportChatModel(
+    TransportChatModelMessageMixin,
+    TransportChatModelOutputCapMixin,
+    TransportChatModelSessionAffinityMixin,
+    TransportChatModelSyncMixin,
+    TransportChatModelAsyncMixin,
+    TransportChatModelAsyncStreamMixin,
     BaseChatModel,
 ):
     """Minimal LangChain ChatModel adapter over the model transport.
@@ -277,7 +277,7 @@ class ChatLiteLLM(
 
     @property
     def _llm_type(self) -> str:
-        return "litellm-chat"
+        return "transport-chat"
 
     @staticmethod
     def should_skip_response_format(model: str) -> bool:
@@ -363,4 +363,4 @@ def clean_model_kwargs(
     model: str,
     additional_remove_keys: list[str] | None = None,
 ) -> dict[str, Any]:
-    return ChatLiteLLM.clean_model_kwargs(kwargs, model, additional_remove_keys)
+    return TransportChatModel.clean_model_kwargs(kwargs, model, additional_remove_keys)

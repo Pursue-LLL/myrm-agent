@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
 
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import has_withheld_tool_calls
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from tests.mocks.llm_wire_server import (
     FakeProviderServer,
     FakeReply,
@@ -50,7 +50,7 @@ def write_file(path: str, content: str, overwrite: bool = False) -> str:
 async def _answer(model: str, stream: bytes) -> AIMessage:
     base_path = "/v1" if model == OPENAI_MODEL else ""
     with FakeProviderServer(lambda _body: FakeReply(stream)) as server:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model, base_url=server.base_url + base_path, api_key="sk-offline", streaming=True, max_tokens=1024
         )
         return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])  # type: ignore[return-value]

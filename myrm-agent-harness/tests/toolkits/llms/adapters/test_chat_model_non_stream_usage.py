@@ -1,4 +1,4 @@
-"""Unit tests for non-streaming LLM token usage recording in ChatLiteLLM.
+"""Unit tests for non-streaming LLM token usage recording in TransportChatModel.
 
 Verifies that sync ``_generate`` and async ``_agenerate`` non-streaming paths
 record token usage + finish reason into the request-scoped TokenTracker,
@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyChoicesError,
 )
@@ -56,7 +56,7 @@ def _reset_tracker() -> Iterator[None]:
 
 class TestSyncNonStreamUsage:
     def test_generate_records_token_usage(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion.return_value = _make_response()
 
@@ -71,7 +71,7 @@ class TestSyncNonStreamUsage:
         assert usage["total_tokens"] == 15
 
     def test_generate_records_finish_reason(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion.return_value = _make_response()
 
@@ -82,7 +82,7 @@ class TestSyncNonStreamUsage:
         assert tracker.last_finish_reason == "stop"
 
     def test_generate_skips_record_when_usage_missing(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion.return_value = _make_response(include_usage=False)
 
@@ -92,7 +92,7 @@ class TestSyncNonStreamUsage:
         assert get_pending_token_events() == []
 
     def test_generate_skips_record_on_empty_choices(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion.return_value = _make_response()
         model.empty_retry_max_attempts = 1
@@ -107,7 +107,7 @@ class TestSyncNonStreamUsage:
 class TestAsyncNonStreamUsage:
     @pytest.mark.asyncio
     async def test_agenerate_records_token_usage_and_finish_reason(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(return_value=_make_response())
 
@@ -125,7 +125,7 @@ class TestAsyncNonStreamUsage:
 
     @pytest.mark.asyncio
     async def test_agenerate_skips_record_when_usage_missing(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(return_value=_make_response(include_usage=False))
 
@@ -136,7 +136,7 @@ class TestAsyncNonStreamUsage:
 
     @pytest.mark.asyncio
     async def test_agenerate_skips_record_on_empty_choices(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(return_value=_make_response())
         model.empty_retry_max_attempts = 1

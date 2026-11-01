@@ -3,7 +3,7 @@
 Adds provider cache-control markers for Anthropic and Qwen-compatible models.
 The processor runs after context reduction so breakpoints match the final
 message list. It uses endpoint-aware TTL selection: direct Anthropic, Vertex,
-and LiteLLM anthropic routing use 1h; proxy or unknown endpoints use the
+and the ``anthropic/`` route use 1h; proxy or unknown endpoints use the
 default ephemeral cache policy.
 
 [INPUT]
@@ -369,7 +369,7 @@ class ExplicitCacheProcessor(BaseProcessor):
         1. metadata["cache_retention"] = "long" → force 1h
         2. metadata["cache_retention"] = "none" → default 5min
         3. base_url contains api.anthropic.com or aiplatform.googleapis.com → 1h
-        4. base_url empty + model_name starts with "anthropic/" → 1h (LiteLLM direct routing)
+        4. base_url empty + model_name starts with "anthropic/" → 1h (direct Anthropic route)
         5. Otherwise → default 5min (conservative)
 
         Reference: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
@@ -386,7 +386,7 @@ class ExplicitCacheProcessor(BaseProcessor):
         if self._is_long_ttl_eligible_endpoint(base_url):
             return {"type": "ephemeral", "ttl": "1h"}
 
-        # LiteLLM routing: "anthropic/" prefix always routes to Anthropic direct API
+        # The "anthropic/" prefix always routes to the Anthropic API directly
         if not base_url:
             model_name = str(context.metadata.get("model_name", "")).lower()
             if model_name.startswith("anthropic/"):

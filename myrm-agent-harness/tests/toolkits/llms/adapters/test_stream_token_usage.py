@@ -14,7 +14,7 @@ import pytest
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.outputs import ChatGenerationChunk
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.utils.token_economics.tracker import (
     get_pending_token_events,
     init_token_tracker,
@@ -178,7 +178,7 @@ class TestSyncStreamSentinel:
 
     def test_yields_sentinel_when_no_tool_call(self):
         """Sentinel chunk is yielded after finalize_stream when no tool call."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -193,7 +193,7 @@ class TestSyncStreamSentinel:
 
     def test_token_usage_recorded_after_stream(self):
         """Token usage is correctly recorded and available via get_pending_token_events."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -209,7 +209,7 @@ class TestSyncStreamSentinel:
 
     def test_tool_call_stream_still_records_usage(self):
         """Token usage is recorded even in tool call streams."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_tool_call_stream_chunks()
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -225,7 +225,7 @@ class TestSyncStreamSentinel:
 
     def test_no_usage_when_provider_omits_usage(self):
         """Gracefully handles providers that don't return usage data."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -249,7 +249,7 @@ class TestAsyncStreamSentinel:
         """Sentinel chunk is yielded after finalize_stream when no tool call."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
@@ -268,7 +268,7 @@ class TestAsyncStreamSentinel:
         """Token usage is correctly recorded via async path."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
@@ -289,7 +289,7 @@ class TestAsyncStreamSentinel:
         """Gracefully handles providers that don't return usage data (async)."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
         model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))

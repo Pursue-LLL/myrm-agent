@@ -3,13 +3,13 @@
 Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this file changes.
 
 [INPUT]
-- adapters.chat_model::ChatLiteLLM, clean_model_kwargs (POS: LangChain adapter)
+- adapters.chat_model::TransportChatModel, clean_model_kwargs (POS: LangChain adapter)
 - catalog::supports_web_search (POS: model native search capability detection)
 - transport::speaks_openai_body (POS: whether the provider takes an OpenAI-shaped request body)
 
 [OUTPUT]
-- create_litellm_model(): factory function to create chat model instances
-- ChatLiteLLM: LangChain-compatible chat model (re-exported from adapter)
+- create_chat_model(): factory function to create chat model instances
+- TransportChatModel: LangChain-compatible chat model (re-exported from adapter)
 
 [POS]
 LLM core. Unified multi-model invocation interface (OpenAI, Anthropic, Gemini, etc.).
@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
-    ChatLiteLLM as ChatLiteLLM,
+    TransportChatModel as TransportChatModel,
 )
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     clean_model_kwargs as clean_model_kwargs,
@@ -102,7 +102,7 @@ def _is_ollama_endpoint(url: str | None, model: str | None) -> bool:
 #   headroom-adjusted (and truncation-boosted) value.
 # - extra_body: copying a dict into itself makes a self-reference that cannot be serialized.
 # - supports_reasoning: factory-only switch that no provider understands.
-# - the rest are ChatLiteLLM's own configuration (timeouts, retry policy, routing); they configure the call and
+# - the rest are TransportChatModel's own configuration (timeouts, retry policy, routing); they configure the call and
 #   are never request-body fields.
 _NEVER_MIRRORED = frozenset(
     {
@@ -180,7 +180,7 @@ def _resolve_web_search_options(
     return None
 
 
-def create_litellm_model(
+def create_chat_model(
     model: str,
     base_url: str | None = None,
     api_key: str | None = None,
@@ -192,8 +192,8 @@ def create_litellm_model(
     reasoning_effort: str | None = None,
     egress_proxy: str | None = None,
     **kwargs: Any,
-) -> "ChatLiteLLM":
-    """Unified factory for creating ChatLiteLLM instances across all providers.
+) -> "TransportChatModel":
+    """Unified factory for creating TransportChatModel instances across all providers.
 
     Explicit cache (Claude/Qwen) is controlled by ExplicitCacheProcessor.
     Implicit cache (OpenAI/DeepSeek/Gemini) relies on API auto-prefix cache.
@@ -205,12 +205,12 @@ def create_litellm_model(
         temperature: Sampling temperature.
         streaming: Enable streaming output.
         native_tools: Model native tools config (None=auto-detect, set=explicit, empty set=disable).
-        web_search_options: Explicit LiteLLM web_search_options override.
+        web_search_options: Explicit web_search_options override.
         egress_proxy: Optional outbound proxy URL for LLM API calls.
         **kwargs: Additional model-specific parameters (e.g. model_kwargs, max_tokens).
 
     Returns:
-        Configured ChatLiteLLM instance.
+        Configured TransportChatModel instance.
     """
     llm_kwargs: dict[str, Any] = {"model": model, "wire_protocol": wire_protocol, **kwargs}
     custom_provider = llm_kwargs.get("custom_llm_provider")
@@ -328,4 +328,4 @@ def create_litellm_model(
 
     llm_kwargs = clean_model_kwargs(llm_kwargs, model)
 
-    return ChatLiteLLM(**llm_kwargs)
+    return TransportChatModel(**llm_kwargs)

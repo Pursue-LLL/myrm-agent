@@ -1,7 +1,7 @@
 """Tests for llm.py core functions.
 
 Covers _merge_model_kwargs_to_extra_body, _resolve_web_search_options, and
-create_litellm_model factory — the key parameter pipeline for reasoning_effort
+create_chat_model factory — the key parameter pipeline for reasoning_effort
 and other model_kwargs passthrough.
 """
 
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 from myrm_agent_harness.toolkits.llms.core.llm import (
     _merge_model_kwargs_to_extra_body,
     _resolve_web_search_options,
-    create_litellm_model,
+    create_chat_model,
 )
 
 
@@ -171,110 +171,110 @@ class TestResolveWebSearchOptions:
 
 
 class TestCreateLitellmModel:
-    """Tests for create_litellm_model factory — verifies kwargs assembly."""
+    """Tests for create_chat_model factory — verifies kwargs assembly."""
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_basic_creation(self, mock_cls: MagicMock) -> None:
         """Basic model creation with minimal args."""
-        create_litellm_model("openai/gpt-4o")
+        create_chat_model("openai/gpt-4o")
         mock_cls.assert_called_once()
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["model"] == "openai/gpt-4o"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_temperature_passed(self, mock_cls: MagicMock) -> None:
         """Temperature should be included in kwargs."""
-        create_litellm_model("openai/gpt-4o", temperature=0.5)
+        create_chat_model("openai/gpt-4o", temperature=0.5)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["temperature"] == 0.5
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_base_url_mapped_to_api_base(self, mock_cls: MagicMock) -> None:
         """base_url should be mapped to api_base for LiteLLM."""
-        create_litellm_model("openai/gpt-4o", base_url="https://custom.api.com")
+        create_chat_model("openai/gpt-4o", base_url="https://custom.api.com")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["api_base"] == "https://custom.api.com"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_reasoning_effort_in_extra_body(self, mock_cls: MagicMock) -> None:
         """reasoning_effort kwarg should end up in extra_body."""
-        create_litellm_model("mistral/mistral-large-latest", reasoning_effort="high")
+        create_chat_model("mistral/mistral-large-latest", reasoning_effort="high")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"]["reasoning_effort"] == "high"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_native_anthropic_gets_no_extra_body(self, mock_cls: MagicMock) -> None:
         """The Messages API rejects an extra_body field; LiteLLM maps reasoning_effort to thinking itself."""
-        create_litellm_model("anthropic/claude-4-sonnet", reasoning_effort="high", top_p=0.5)
+        create_chat_model("anthropic/claude-4-sonnet", reasoning_effort="high", top_p=0.5)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["reasoning_effort"] == "high"
         assert "extra_body" not in call_kwargs
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_claude_on_another_provider_keeps_the_extra_body(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("bedrock/anthropic.claude-sonnet-4-20250514-v1:0", reasoning_effort="high", top_p=0.5)
+        create_chat_model("bedrock/anthropic.claude-sonnet-4-20250514-v1:0", reasoning_effort="high", top_p=0.5)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"] == {"reasoning_effort": "high", "top_p": 0.5}
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_caller_extra_body_is_never_mutated(self, mock_cls: MagicMock) -> None:
         """A dict the caller passes in (and may reuse for the next model) stays exactly as it was."""
         caller_body = {"custom_flag": "on"}
-        create_litellm_model("mistral/mistral-large-latest", reasoning_effort="high", extra_body=caller_body, top_p=0.5)
+        create_chat_model("mistral/mistral-large-latest", reasoning_effort="high", extra_body=caller_body, top_p=0.5)
         call_kwargs = mock_cls.call_args[1]
 
         assert caller_body == {"custom_flag": "on"}
         assert call_kwargs["extra_body"] == {"reasoning_effort": "high", "custom_flag": "on", "top_p": 0.5}
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_caller_extra_body_wins_over_reasoning_effort(self, mock_cls: MagicMock) -> None:
-        create_litellm_model(
+        create_chat_model(
             "mistral/mistral-large-latest", reasoning_effort="high", extra_body={"reasoning_effort": "low"}
         )
 
         assert mock_cls.call_args[1]["extra_body"]["reasoning_effort"] == "low"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_streaming_flag(self, mock_cls: MagicMock) -> None:
         """streaming=True should be passed through."""
-        create_litellm_model("openai/gpt-4o", streaming=True)
+        create_chat_model("openai/gpt-4o", streaming=True)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["streaming"] is True
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_api_key_passed(self, mock_cls: MagicMock) -> None:
-        """api_key should be passed to ChatLiteLLM."""
-        create_litellm_model("openai/gpt-4o", api_key="sk-test-key")
+        """api_key should be passed to TransportChatModel."""
+        create_chat_model("openai/gpt-4o", api_key="sk-test-key")
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["api_key"] == "sk-test-key"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_none_temperature_excluded(self, mock_cls: MagicMock) -> None:
         """None temperature should not appear in kwargs."""
-        create_litellm_model("openai/gpt-4o", temperature=None)
+        create_chat_model("openai/gpt-4o", temperature=None)
         call_kwargs = mock_cls.call_args[1]
         assert "temperature" not in call_kwargs
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_native_tools_web_search_creates_wso(self, mock_cls: MagicMock) -> None:
         """native_tools={'web_search'} should add web_search_options."""
-        create_litellm_model("openai/gpt-4o", native_tools={"web_search"})
+        create_chat_model("openai/gpt-4o", native_tools={"web_search"})
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["web_search_options"] == {}
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_local_endpoint_injects_num_ctx_64000(self, mock_cls: MagicMock) -> None:
         """Local endpoint (e.g. localhost:11434) should inject num_ctx=64000 into extra_body.options."""
-        create_litellm_model("ollama/qwen2.5:14b", base_url="http://localhost:11434/v1")
+        create_chat_model("ollama/qwen2.5:14b", base_url="http://localhost:11434/v1")
         call_kwargs = mock_cls.call_args[1]
         assert "extra_body" in call_kwargs
         assert "options" in call_kwargs["extra_body"]
         assert call_kwargs["extra_body"]["options"]["num_ctx"] == 64000
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_local_endpoint_preserves_custom_num_ctx(self, mock_cls: MagicMock) -> None:
         """If caller explicitly provides num_ctx in extra_body.options, do not overwrite it."""
-        create_litellm_model(
+        create_chat_model(
             "ollama/qwen2.5:14b",
             base_url="http://127.0.0.1:11434/v1",
             extra_body={"options": {"num_ctx": 32768}},
@@ -282,10 +282,10 @@ class TestCreateLitellmModel:
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"]["options"]["num_ctx"] == 32768
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_vercel_ai_gateway_endpoint_injects_attribution_headers(self, mock_cls: MagicMock) -> None:
         """Vercel AI Gateway endpoint should automatically inject Attribution Headers."""
-        create_litellm_model("openai/gpt-4o", base_url="https://ai-gateway.vercel.sh/v1")
+        create_chat_model("openai/gpt-4o", base_url="https://ai-gateway.vercel.sh/v1")
         call_kwargs = mock_cls.call_args[1]
         model_kwargs = call_kwargs.get("model_kwargs", {})
         assert model_kwargs["extra_headers"]["HTTP-Referer"] == "https://myrm.ai"

@@ -507,7 +507,7 @@ class TestRunAgentLoopModelSlugSource:
         tree = ast.parse(source)
         calls = {ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Call)}
         attributes = {ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
-        assert "parse_litellm_model(llm_model or '')" in calls
+        assert "parse_route_model_id(llm_model or '')" in calls
         assert "getattr(agent_state.llm, 'model_name', None)" in calls
         assert "agent_state.config.llm" not in attributes
 

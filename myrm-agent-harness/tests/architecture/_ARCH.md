@@ -31,7 +31,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_distribution_module.py` | Gate | install_guard probe/platform/verify 单元覆盖（≥90%） | — |
 | `test_no_legacy_distribution_imports.py` | Gate | 禁止 Python 源码 reintroduce `myrm_agent_harness.distribution` import | — |
 | `test_unbounded_communicate_sites.py` | Gate | AST：`src/` 内每个 `.communicate(` 调用必须登记（文件 → 调用数 + 理由）：要么写明输出与时长已由命令本身限定，要么列入「待决」一栏（已知缺口，等待改用 `communicate_bounded` 或证明其边界）；未登记、调用数对不上（含文件已不再调用）都失败；只数 `.communicate(` 这一种写法；自带检测器正反例 | — |
-| `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 ChatLiteLLM）除外；自带检测器正反例与过期登记检查 | — |
+| `test_outbound_model_calls.py` | Gate | AST：`src/` 内直接调用 litellm 对话接口（`litellm.acompletion` 等）的文件必须登记并写明其文本不含用户对话的理由；`toolkits/llms/`（出站隐私闸所在的 TransportChatModel）除外；自带检测器正反例与过期登记检查 | — |
 | `test_event_queries_name_written_types.py` | Gate | AST：`src/` 内 `event_types=` 的每个字符串必须是 `EventLogger` 实际写入的事件类型（持久化类型 + `session_start`/`session_end`/`security_audit`）；查询一个无人写入的类型只会得到空列表，其后的代码永不执行；自带检测器正反例 | — |
 | `test_public_api.py` | Gate | 公开 API 边界 smoke | — |
 | `test_arch_no_placeholder.py` | Gate | `_ARCH.md` 禁止「见源码」等占位语 | — |
@@ -53,7 +53,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_check_fractal_docs.py` | Gate | 分形 `_ARCH.md` + strict IOP 头（`fractal_header_baseline.txt`）+ api/ 无 stub | — |
 | `test_coverage_config.py` | Gate | `pyproject.toml` 的覆盖率 `exclude_lines` 只排除整行是 `...` 的桩体，不排除签名里带 `tuple[str, ...]` 的函数（匹配到 `def` 头会让整个函数退出统计） | — |
 | `test_file_line_limit.py` | Gate | 单文件行数 baseline grandfather（新文件≤500；legacy 登记只许瘦） | — |
-| `test_mixin_mro.py` | Gate | BrowserSession / ChatLiteLLM / SubagentExecutor / BashExecutor mixin MRO 顺序锁 | — |
+| `test_mixin_mro.py` | Gate | BrowserSession / TransportChatModel / SubagentExecutor / BashExecutor mixin MRO 顺序锁 | — |
 | `test_executor_reexport.py` | Gate | `sub_agents/executor.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_executor_reexport.py` | Gate | `meta_tools/bash/bash_executor.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_code_execute_tool_reexport.py` | Gate | `meta_tools/bash/bash_code_execute_tool.py` `__all__` 聚合 re-export 完整性 | — |

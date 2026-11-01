@@ -5,9 +5,8 @@
 - langchain_core.outputs::ChatGenerationChunk (POS: LangChain generation chunk type)
 
 [OUTPUT]
-- LiteLLMStreamMixin: streaming response processing mixin class
 - safe_get(), extract_chunk_metadata(), build_tool_call_chunks(), and other stream processing utilities
-- provider_reported_finish(): whether the provider (not LiteLLM's stream wrapper) reported how a stream ended
+- provider_reported_finish(): whether the provider itself reported how a stream ended
 
 [POS]
 Streaming response processing module. Provides stream response parsing, incremental tool call merging,

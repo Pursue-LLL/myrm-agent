@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.utils.runtime.cancellation import (
     CancellationToken,
     CancelReason,
@@ -79,7 +79,7 @@ def _clean_run_state() -> Iterator[None]:
 async def test_a_stopped_model_request_closes_the_provider_connection(
     streaming: bool, silent_server: _SilentServer
 ) -> None:
-    model = create_litellm_model(
+    model = create_chat_model(
         "openai/test-model",
         base_url=f"http://127.0.0.1:{silent_server.port}/v1",
         api_key="test-key",

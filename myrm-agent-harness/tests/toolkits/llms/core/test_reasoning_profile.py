@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.core.reasoning_profile import (
     apply_thinking_headroom,
     extract_reasoning_effort,
@@ -134,7 +134,7 @@ class TestLocalEndpointConvergence:
     """Test convergence of local endpoint stall relaxation and reasoning timeout."""
 
     def test_local_reasoning_model_behavior(self) -> None:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             "qwq-32b",
             api_key="sk-test",
             base_url="http://127.0.0.1:11434",
@@ -144,7 +144,7 @@ class TestLocalEndpointConvergence:
         assert llm.inter_chunk_timeout == 600.0  # local inter_chunk relaxation
 
     def test_user_explicit_override_takes_precedence(self) -> None:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             "minimax/MiniMax-M3.1-Flash-Preview",
             api_key="sk-test",
             request_timeout=90.0,

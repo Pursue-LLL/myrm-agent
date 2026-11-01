@@ -35,7 +35,7 @@ class TestFrustrationSkillReviewIntegration:
     def lite_llm_func(self):
         """Create a real LLM call function using LITE_MODEL."""
         from litellm import acompletion
-        from myrm_agent_harness.agent.config.litellm_routing import (
+        from myrm_agent_harness.agent.config.provider_routing import (
             normalize_env_model_selection_string,
         )
 

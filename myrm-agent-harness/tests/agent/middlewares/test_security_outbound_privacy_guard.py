@@ -28,7 +28,7 @@ from myrm_agent_harness.agent.middlewares.security.security_guardrail_middleware
 from myrm_agent_harness.agent.middlewares.security.user_input_guard import screen_user_input
 from myrm_agent_harness.agent.security.types import PIIAction, PrivacyPolicy, SecurityConfig
 from myrm_agent_harness.core.security.detection.pseudonym_store import PseudonymStore
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import set_outbound_message_guard
 
 WITH_S3 = "我叫张三，手机13812345678，身份证11010519491231002X，邮箱zhang@example.com，帮我写请假邮件"
@@ -236,7 +236,7 @@ class TestLoopFlag:
 class TestInstallation:
     @staticmethod
     def _wire(content: str) -> str:
-        model = ChatLiteLLM.model_construct(client=MagicMock(), model="gpt-5-chat")
+        model = TransportChatModel.model_construct(client=MagicMock(), model="gpt-5-chat")
         message_dicts, _ = model._create_message_dicts([HumanMessage(content=content)], stop=None)
         return str(message_dicts[0]["content"])
 
@@ -273,7 +273,7 @@ class TestInstallation:
 
     def test_a_model_message_in_the_conversation_is_masked_too(self) -> None:
         set_process_privacy_policy(_policy())
-        model = ChatLiteLLM.model_construct(client=MagicMock(), model="gpt-5-chat")
+        model = TransportChatModel.model_construct(client=MagicMock(), model="gpt-5-chat")
         message_dicts, _ = model._create_message_dicts(
             [HumanMessage(content="hi"), AIMessage(content=f"已记录 {ONLY_S2}")], stop=None
         )

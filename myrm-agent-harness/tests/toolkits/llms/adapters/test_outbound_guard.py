@@ -1,4 +1,4 @@
-"""Outbound message guard: the single hook every ChatLiteLLM call passes before it leaves the process."""
+"""Outbound message guard: the single hook every TransportChatModel call passes before it leaves the process."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import (
     apply_outbound_message_guard,
     set_outbound_message_guard,
 )
 
 
-def _model() -> ChatLiteLLM:
-    return ChatLiteLLM.model_construct(client=MagicMock(), model="gpt-5-chat")
+def _model() -> TransportChatModel:
+    return TransportChatModel.model_construct(client=MagicMock(), model="gpt-5-chat")
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +87,7 @@ def _mask_user_messages(message_dicts: list[dict[str, object]]) -> None:
 
 def test_a_sync_request_reaches_the_provider_only_through_the_guard() -> None:
     set_outbound_message_guard(_mask_user_messages)
-    model = ChatLiteLLM(model="openai/test-model")
+    model = TransportChatModel(model="openai/test-model")
     model.client = MagicMock()
     model.client.completion.return_value = _response()
 
@@ -100,7 +100,7 @@ def test_a_sync_request_reaches_the_provider_only_through_the_guard() -> None:
 @pytest.mark.asyncio
 async def test_an_async_request_reaches_the_provider_only_through_the_guard() -> None:
     set_outbound_message_guard(_mask_user_messages)
-    model = ChatLiteLLM(model="openai/test-model")
+    model = TransportChatModel(model="openai/test-model")
     model.client = MagicMock()
     model.client.acompletion = AsyncMock(return_value=_response())
 

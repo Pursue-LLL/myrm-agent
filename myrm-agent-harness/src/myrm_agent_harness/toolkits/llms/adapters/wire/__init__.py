@@ -1,4 +1,4 @@
-"""Wire transport utilities for ChatLiteLLM.
+"""Wire transport utilities for TransportChatModel.
 
 [INPUT]
 - toolkits.llms.adapters.wire.normalizer::responses_dict_to_chat_completion,

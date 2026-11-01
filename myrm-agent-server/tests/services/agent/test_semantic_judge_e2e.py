@@ -19,7 +19,7 @@ load_dotenv(override=False)
 
 
 def _platform_model_from_env() -> ModelConfig:
-    from myrm_agent_harness.agent.config.litellm_routing import (
+    from myrm_agent_harness.agent.config.provider_routing import (
         normalize_env_model_selection_string,
     )
 

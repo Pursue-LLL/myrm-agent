@@ -2,7 +2,7 @@
 
 
 [INPUT]
-- core.llm::ChatLiteLLM, create_litellm_model (POS: LiteLLM wrapper and factory function)
+- core.llm::TransportChatModel, create_chat_model (POS: chat model class and factory function)
 - core.credential_pool::CredentialPool (POS: framework-level credential scheduling and rotation)
 - core.credential_pool::CredentialPoolStrategy (POS: strategy enum for key dispatch)
 - core.credential_pool::normalize_api_keys (POS: order-preserving API key normalization utility)
@@ -37,7 +37,7 @@ from myrm_agent_harness.toolkits.llms.core.credential_pool import (
     normalize_api_keys,
 )
 from myrm_agent_harness.toolkits.llms.core.key_pool_llm import KeyPoolLLM
-from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM, create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel, create_chat_model
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
 if TYPE_CHECKING:
@@ -91,10 +91,10 @@ class LLMManager:
                       When provided with >1 key, creates a KeyPoolLLM.
             credential_pool_strategy: Optional dispatch strategy for pooled
                 credentials. Uses the environment default when omitted.
-            **kwargs: Additional parameters passed to create_litellm_model
+            **kwargs: Additional parameters passed to create_chat_model
 
         Returns:
-            BaseChatModel: LLM instance (ChatLiteLLM or KeyPoolLLM)
+            BaseChatModel: LLM instance (TransportChatModel or KeyPoolLLM)
         """
         from myrm_agent_harness.toolkits.llms.secrets import is_external_secret_reference, resolve_external_secret
 
@@ -139,7 +139,7 @@ class LLMManager:
         temperature: float | None,
         streaming: bool,
         **kwargs: Any,
-    ) -> ChatLiteLLM:
+    ) -> TransportChatModel:
         """Create or retrieve a single-key LLM instance."""
         api_key_hash = hashlib.blake2b(api_key.encode(), digest_size=8).hexdigest()
         cache_data = f"{model}_{temperature}_{base_url or ''}_{api_key_hash}_{streaming}_{kwargs.get('wire_protocol', DEFAULT_WIRE_PROTOCOL)}"
@@ -150,10 +150,10 @@ class LLMManager:
         cache_key = hashlib.blake2b(cache_data.encode(), digest_size=16).hexdigest()
 
         cached_llm = cls._llm_cache.get(cache_key)
-        if isinstance(cached_llm, ChatLiteLLM):
+        if isinstance(cached_llm, TransportChatModel):
             return cached_llm
 
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model=model,
             base_url=base_url,
             api_key=api_key,
@@ -192,7 +192,7 @@ class LLMManager:
 
         instances: dict[str, BaseChatModel] = {}
         for key in normalized_keys:
-            instances[key] = create_litellm_model(
+            instances[key] = create_chat_model(
                 model=model,
                 base_url=base_url,
                 api_key=key,
@@ -230,7 +230,7 @@ class LLMManager:
             credential_pool_strategy: Optional dispatch strategy for pooled keys
 
         Returns:
-            BaseChatModel: LLM instance (ChatLiteLLM or KeyPoolLLM)
+            BaseChatModel: LLM instance (TransportChatModel or KeyPoolLLM)
         """
         model_kwargs = dict(getattr(config, "model_kwargs", None) or {})
         top_level_temperature = getattr(config, "temperature", None)

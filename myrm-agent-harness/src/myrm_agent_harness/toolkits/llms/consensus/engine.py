@@ -2,7 +2,7 @@
 
 Parallel-queries multiple reference LLMs, then synthesises via an
 aggregator LLM.  Designed around ``BaseChatModel`` so that any
-LangChain-compatible model (ChatLiteLLM, KeyPoolLLM, ManagedLLM …)
+LangChain-compatible model (TransportChatModel, KeyPoolLLM, ManagedLLM …)
 works out of the box.
 
 [INPUT]

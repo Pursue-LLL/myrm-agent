@@ -1,4 +1,4 @@
-"""ChatLiteLLM streaming mixin: one stream call with retry, stall detection and usage recording.
+"""TransportChatModel streaming mixin: one stream call with retry, stall detection and usage recording.
 
 [INPUT]
 - adapters.chat_model.exceptions (POS: EmptyStreamError / StreamStallTimeoutError)
@@ -10,10 +10,10 @@
 - infra.tracing.gen_ai::ModelCall (POS: one `chat` span and its metrics per logical model call)
 
 [OUTPUT]
-- ChatLiteLLMAsyncStreamMixin: _astream, _astream_inner (empty-stream retry, stall detection, api key renewal)
+- TransportChatModelAsyncStreamMixin: _astream, _astream_inner (empty-stream retry, stall detection, api key renewal)
 
 [POS]
-Streaming half of the asynchronous LiteLLM adapter. One stream call is one `chat` span however many
+Streaming half of the asynchronous chat-model adapter. One stream call is one `chat` span however many
 attempts it takes; the span closes the moment the response is complete (not when the consumer has
 drained the last chunk) and also when the consumer abandons the stream.
 """
@@ -66,9 +66,9 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
 logger = logging.getLogger(__name__)
 
 
-class ChatLiteLLMAsyncStreamMixin:
+class TransportChatModelAsyncStreamMixin:
     if TYPE_CHECKING:
-        # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
+        # Attributes and sibling-mixin methods defined on the TransportChatModel aggregate
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         api_key: str | None
@@ -120,7 +120,7 @@ class ChatLiteLLMAsyncStreamMixin:
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
 
-        # Filter out internal LangChain parameters that shouldn't be passed to LiteLLM
+        # Filter out internal LangChain parameters that shouldn't be passed to the transport
         filtered_kwargs = {
             k: v
             for k, v in kwargs.items()
@@ -367,7 +367,7 @@ class ChatLiteLLMAsyncStreamMixin:
                         logger.warning(" Context overflow, fast-failing to trigger compression.")
                         raise e
 
-                    logger.error(f" LiteLLM streaming failed (Model: {model_name}): {e!s}")
+                    logger.error(f" Model streaming failed (Model: {model_name}): {e!s}")
                     if os.environ.get("MYRM_DEBUG_DUMP_LLM_PAYLOAD", "") == "1":
                         dump_payload_pairing(message_dicts)
                     raise

@@ -1,4 +1,4 @@
-"""ChatLiteLLM synchronous generation and streaming mixin.
+"""TransportChatModel synchronous generation and streaming mixin.
 
 [INPUT]
 - adapters.chat_model.exceptions (POS: EmptyChoicesError / EmptyStreamError)
@@ -6,10 +6,10 @@
 - adapters.chat_model.usage_recording (POS: usage/cost/ledger recording shared with the async path)
 
 [OUTPUT]
-- ChatLiteLLMSyncMixin: _generate, _stream, empty-response retry, usage recording
+- TransportChatModelSyncMixin: _generate, _stream, empty-response retry, usage recording
 
 [POS]
-Synchronous LLM generation and streaming path for ChatLiteLLM, including empty-response retry
+Synchronous LLM generation and streaming path for TransportChatModel, including empty-response retry
 and unified token-usage recording for both streaming and non-streaming calls.
 """
 
@@ -60,9 +60,9 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
 logger = logging.getLogger(__name__)
 
 
-class ChatLiteLLMSyncMixin:
+class TransportChatModelSyncMixin:
     if TYPE_CHECKING:
-        # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
+        # Attributes and sibling-mixin methods defined on the TransportChatModel aggregate
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         client: Any
@@ -95,7 +95,7 @@ class ChatLiteLLMSyncMixin:
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
 
-        # Filter out internal LangChain parameters that shouldn't be passed to LiteLLM
+        # Filter out internal LangChain parameters that shouldn't be passed to the transport
         filtered_kwargs = {
             k: v
             for k, v in kwargs.items()
@@ -194,7 +194,7 @@ class ChatLiteLLMSyncMixin:
                     raise e
 
                 model_name = self.model_name or self.model
-                logger.error(f" LiteLLM call failed: {type(e).__name__} - {e!s} (Model: {model_name})")
+                logger.error(f" Model call failed: {type(e).__name__} - {e!s} (Model: {model_name})")
                 raise
 
         if last_error:
@@ -470,7 +470,7 @@ class ChatLiteLLMSyncMixin:
                     raise e
 
                 logger.error(
-                    f" LiteLLM sync streaming failed: {type(e).__name__} - {e!s} (Model: {self.model_name or self.model})"
+                    f" Model sync streaming failed: {type(e).__name__} - {e!s} (Model: {self.model_name or self.model})"
                 )
                 raise
 

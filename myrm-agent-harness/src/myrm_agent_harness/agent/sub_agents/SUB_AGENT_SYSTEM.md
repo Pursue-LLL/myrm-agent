@@ -519,7 +519,7 @@ config = SubagentConfig(
 **设计目标**：降低多 Agent 并发派发子任务时触发大模型厂商 API 速率限制（HTTP 429）或本地显存耗尽（OOM）的风险。
 
 **核心机制**：
-- 在 `ChatLiteLLM` 的网络请求网关处，引入 `_GLOBAL_SEMAPHORE` (基于 `LLM_GLOBAL_MAX_CONCURRENCY` 环境变量)。
+- 在 `TransportChatModel` 的网络请求网关处，引入 `_GLOBAL_SEMAPHORE` (基于 `LLM_GLOBAL_MAX_CONCURRENCY` 环境变量)。
 - 主 Agent 和并发子 Agent 在发起实际的 LLM 推理请求时，都必须获取双重锁（全局漏桶锁 + 模型特定锁）。
 
 **优势**：

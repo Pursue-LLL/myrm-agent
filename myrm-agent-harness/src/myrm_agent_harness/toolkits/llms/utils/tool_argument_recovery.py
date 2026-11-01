@@ -1,4 +1,4 @@
-"""LiteLLM utility functions
+"""Tool-argument JSON recovery utilities
 
 
 [INPUT]
@@ -14,7 +14,7 @@
 - parse_tool_call_arguments_with_recovery(): unified schema-aware tool argument fault-tolerant recovery
 
 [POS]
-LiteLLM utility functions. Provides JSON processing tools for handling LLM-generated malformed JSON.
+Tool-argument recovery utilities. Provides JSON processing tools for handling LLM-generated malformed JSON.
 Fixes invalid escapes, extracts pure JSON content, and performs schema-aware fault-tolerant parsing.
 Model-parameter sanitization (`clean_model_kwargs`) lives in ``model_kwargs.py``.
 As the utility layer, depended on by adapters.converters and adapters.tool_recovery.

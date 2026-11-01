@@ -6,7 +6,7 @@ Momentum: prevents short follow-up messages from being downgraded to SIMPLE
 when the conversation is operating at a higher tier.
 
 [INPUT]
-- agent.config.llm::LLMConfig (POS: LLM core. LiteLLM wrapper providing a unified multi-model invocation interface.)
+- agent.config.llm::LLMConfig (POS: LLM core. Chat model factory providing a unified multi-model invocation interface.)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
 [OUTPUT]

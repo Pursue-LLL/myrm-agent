@@ -9,7 +9,7 @@ Tests verify:
 import os
 
 import pytest
-from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms import TransportChatModel
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("BASIC_API_KEY")
 _TEST_MODEL = os.environ.get("BASIC_MODEL", "gpt-4o-mini")
@@ -17,7 +17,7 @@ _TEST_API_BASE = os.environ.get("BASIC_BASE_URL")
 
 
 def _normalized_model() -> str:
-    from myrm_agent_harness.agent.config.litellm_routing import (
+    from myrm_agent_harness.agent.config.provider_routing import (
         normalize_env_model_selection_string,
     )
 
@@ -29,7 +29,7 @@ def _normalized_model() -> str:
 async def test_normal_request_with_retry_enabled():
     """Test normal LLM request with retry enabled (doesn't trigger retry)."""
     # Create LLM with retry enabled
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=_normalized_model(),
         api_key=OPENAI_API_KEY,
         api_base=_TEST_API_BASE,
@@ -61,7 +61,7 @@ async def test_normal_request_with_retry_enabled():
 
 def test_retry_metrics_api():
     """Test retry metrics API and export."""
-    llm = ChatLiteLLM(model=_TEST_MODEL)
+    llm = TransportChatModel(model=_TEST_MODEL)
 
     # Verify retry_metrics property exists
     metrics = llm.retry_metrics
@@ -85,7 +85,7 @@ def test_retry_metrics_api():
 def test_retry_config_validation():
     """Test retry configuration validation."""
     # Valid config
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=_TEST_MODEL,
         empty_retry_enabled=True,
         empty_retry_max_attempts=5,
@@ -97,14 +97,14 @@ def test_retry_config_validation():
 
     # Invalid max_attempts (too high)
     with pytest.raises(ValueError):
-        ChatLiteLLM(
+        TransportChatModel(
             model=_TEST_MODEL,
             empty_retry_max_attempts=11,  # Max is 10
         )
 
     # Invalid delay (too low)
     with pytest.raises(ValueError):
-        ChatLiteLLM(
+        TransportChatModel(
             model=_TEST_MODEL,
             empty_retry_delay=0.05,  # Min is 0.1
         )

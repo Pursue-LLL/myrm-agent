@@ -2,7 +2,7 @@
 
 [INPUT]
 - golden_capture (POS: scenario matrix recorder)
-- litellm_baseline.json (POS: requests recorded from the previous client library)
+- golden_baseline.json (POS: requests recorded from the previous client library)
 - golden_allowed (POS: registry of intentional differences)
 
 [OUTPUT]
@@ -25,7 +25,7 @@ from .golden_allowed import RULES
 from .golden_capture import capture_all, install_recorder
 from .golden_diff import diff_case, explain
 
-_BASELINE = Path(__file__).parent / "litellm_baseline.json"
+_BASELINE = Path(__file__).parent / "golden_baseline.json"
 
 
 @pytest.fixture(scope="module")

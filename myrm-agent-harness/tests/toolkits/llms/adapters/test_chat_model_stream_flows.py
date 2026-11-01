@@ -1,4 +1,4 @@
-"""Unit tests for full-stream integration paths of ChatLiteLLM mixins.
+"""Unit tests for full-stream integration paths of TransportChatModel mixins.
 
 Covers end-to-end streaming flows that unit-level chunk tests cannot reach:
 - sync ``_stream`` with reasoning content, tool calls and a run_manager
@@ -18,7 +18,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.outputs import ChatGenerationChunk
 from langchain_core.outputs.chat_result import ChatResult
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.errors.classifier import (
     is_context_overflow,
 )
@@ -129,7 +129,7 @@ class _AsyncRunManager:
 class TestAsyncStreamRetryAndFlush:
     @pytest.mark.asyncio
     async def test_async_empty_stream_retry_succeeds(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -152,7 +152,7 @@ class TestAsyncStreamRetryAndFlush:
     @pytest.mark.asyncio
     async def test_async_stream_flush_reasoning_buffer(self) -> None:
         """DSML reasoning flushed after stream end is yielded as a final chunk."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         # content is empty on every delta; only reasoning accumulates in the buffer
         chunks: list[dict[str, Any]] = [
@@ -179,7 +179,7 @@ class TestAsyncStreamRetryAndFlush:
 
 class TestSyncFullStream:
     def test_stream_with_reasoning_tool_call_and_manager(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion = MagicMock(return_value=_sync_iter(_stream_chunks()))
         manager = _SyncRunManager()
@@ -191,7 +191,7 @@ class TestSyncFullStream:
         assert len(results) >= 2
 
     def test_empty_stream_retry_succeeds(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {
             "count": 0,
@@ -213,7 +213,7 @@ class TestSyncFullStream:
 
     def test_stream_flush_reasoning_only_at_end(self) -> None:
         """DSML reasoning buffered to stream end is flushed as a final chunk."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         # content stays empty; reasoning accumulates until flush
         chunks: list[dict[str, Any]] = [
@@ -244,7 +244,7 @@ class TestSyncFullStream:
 class TestAsyncAgenerateStreaming:
     @pytest.mark.asyncio
     async def test_agenerate_streaming_aggregates(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.streaming = True
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(return_value=_async_iter(_stream_chunks()))
@@ -257,7 +257,7 @@ class TestAsyncAgenerateStreaming:
 
     @pytest.mark.asyncio
     async def test_agenerate_provider_failure_raises(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.streaming = False
         model.client = MagicMock()
 
@@ -274,7 +274,7 @@ class TestAsyncAgenerateStreaming:
         """agenerate_from_stream NoneType bug falls back to non-streaming."""
         import myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin as mod
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
 
         async def _boom_agenerate(
@@ -297,7 +297,7 @@ class TestAsyncAgenerateStreaming:
         """Non-TypeError streaming failures propagate unchanged."""
         import myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin as mod
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
 
         async def _stream_bug(messages: Any, **kwargs: Any) -> Any:
@@ -315,7 +315,7 @@ class TestAsyncAgenerateStreaming:
 
     @pytest.mark.asyncio
     async def test_async_stream_context_overflow_fast_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
 
         async def _boom(messages: Any, **kwargs: Any) -> Any:
@@ -335,7 +335,7 @@ class TestAsyncAgenerateStreaming:
     @pytest.mark.asyncio
     async def test_async_stream_tool_call_yields_final_chunk(self) -> None:
         """Streamed tool calls are recovered and yielded as the final chunk."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks: list[dict[str, Any]] = [
             {
@@ -369,7 +369,7 @@ class TestAsyncAgenerateStreaming:
 
     @pytest.mark.asyncio
     async def test_async_stream_with_run_manager(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks: list[dict[str, Any]] = [
             {"choices": [{"delta": {"role": "assistant", "content": "hi"}}]},
@@ -387,7 +387,7 @@ class TestAsyncAgenerateStreaming:
         """TypeError without the NoneType marker is not treated as fallback."""
         import myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin as mod
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         monkeypatch.setattr(
             mod,
@@ -441,7 +441,7 @@ class TestResponsesWireAgenerateStreaming:
 
         monkeypatch.setattr(async_mod, "stream_responses_async", _mock_stream_responses_async)
 
-        model = ChatLiteLLM(
+        model = TransportChatModel(
             model="openai/muse-spark-1.2-contributor",
             wire_protocol="responses",
         )
@@ -457,7 +457,7 @@ class TestResponsesWireAgenerateStreaming:
 
 class TestContextOverflowFastFail:
     def test_sync_context_overflow_fast_fails(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
 
         def _boom(messages: Any, **kwargs: Any) -> Any:

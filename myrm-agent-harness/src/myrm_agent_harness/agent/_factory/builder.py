@@ -120,7 +120,7 @@ async def create_skill_agent(
                 "For quick start, use: llm_config=LLMConfig(model='gpt-4', api_key='sk-...')"
             )
 
-        from myrm_agent_harness.toolkits.llms import create_litellm_model
+        from myrm_agent_harness.toolkits.llms import create_chat_model
 
         kwargs: dict[str, Any] = {
             "model": llm_config.model,
@@ -134,12 +134,12 @@ async def create_skill_agent(
         if llm_config.egress_proxy is not None:
             kwargs["egress_proxy"] = llm_config.egress_proxy
 
-        llm = create_litellm_model(**kwargs)
+        llm = create_chat_model(**kwargs)
         logger.info(f" 创建 LLM 实例: {llm_config.model}")
 
     if privacy_routing_config is not None and privacy_routing_config.local_model is not None:
         from myrm_agent_harness.toolkits.llms import (
-            create_litellm_model as _create_model,
+            create_chat_model as _create_model,
         )
         from myrm_agent_harness.toolkits.llms.routing import PrivacyRoutingModel
 

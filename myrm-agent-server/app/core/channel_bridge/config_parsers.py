@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from app.channels.types import SessionPolicy, SessionResetMode, TTSMode
-from app.core.channel_bridge.model_resolver import _to_litellm_model
+from app.core.channel_bridge.model_resolver import _to_route_model_id
 
 """Configuration parsers for various config types.
 
@@ -332,7 +332,7 @@ def _build_enriched_model_config(
         return None
 
     ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
+    full_model = _to_route_model_id(provider_id, model, ptype)
     oauth_base = provider.get("_oauthBaseUrl")
     api_url_raw = oauth_base if oauth_base else provider.get("apiUrl") or provider.get("baseURL") or ""
     api_url = str(api_url_raw).strip() or None
@@ -1165,9 +1165,9 @@ def _parse_retrieval_params(
     if not model:
         return None
 
-    litellm_model = _to_litellm_model(provider, model)
+    route_model_id = _to_route_model_id(provider, model)
     api_base = str(raw.get("apiBase") or _PROVIDER_API_BASES.get(provider, "")) or None
-    return litellm_model, api_key, api_base
+    return route_model_id, api_key, api_base
 
 
 def _extract_active_key(provider: dict[str, object]) -> str | None:

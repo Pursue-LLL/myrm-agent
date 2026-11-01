@@ -1,4 +1,4 @@
-"""ChatLiteLLM shared exceptions and adapter constants.
+"""TransportChatModel shared exceptions and adapter constants.
 
 [INPUT]
 - (none — constants and exception types only)
@@ -9,7 +9,7 @@
 - DEVELOPER_ROLE_PATTERN, _SYSTEM_MESSAGE_DENYLIST_HINTS
 
 [POS]
-Shared adapter constants and exception types used by ChatLiteLLM mixins.
+Shared adapter constants and exception types used by TransportChatModel mixins.
 """
 
 from __future__ import annotations

@@ -31,7 +31,7 @@ from myrm_agent_harness.agent.context_management.tracking.task_metrics import (
     clear_task_metrics,
     create_task_metrics,
 )
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.memory import create_local_memory_manager
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
@@ -63,16 +63,16 @@ def _build_embedding_config() -> EmbeddingConfig | None:
         return None
     provider = str(embedding_cfg.get("provider", "openai"))
     model = str(embedding_cfg.get("model", "text-embedding-3-small"))
-    litellm_model = f"{provider}/{model}" if "/" not in model else model
+    chat_model = f"{provider}/{model}" if "/" not in model else model
     return EmbeddingConfig(
-        model=litellm_model,
+        model=chat_model,
         api_key=str(embedding_cfg.get("apiKey", "")) or None,
         api_base=str(embedding_cfg.get("apiBase", "")) or None,
     )
 
 
 def _build_lite_llm():
-    from myrm_agent_harness.agent.config.litellm_routing import (
+    from myrm_agent_harness.agent.config.provider_routing import (
         normalize_env_model_selection_string,
     )
 
@@ -81,7 +81,7 @@ def _build_lite_llm():
         pytest.skip("LITE_MODEL or BASIC_MODEL must be set")
     api_key = os.getenv("LITE_API_KEY") or os.getenv("BASIC_API_KEY")
     base_url = os.getenv("LITE_BASE_URL") or os.getenv("BASIC_BASE_URL")
-    return create_litellm_model(
+    return create_chat_model(
         model=normalize_env_model_selection_string(raw_model),
         api_key=api_key or "",
         base_url=base_url,

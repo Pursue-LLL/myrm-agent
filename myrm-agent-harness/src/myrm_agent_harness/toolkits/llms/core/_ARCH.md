@@ -19,7 +19,7 @@ LLM core: LLM classes, manager, and credential pool.
 | reasoning_timeout.py | Core | Reasoning model timeout floor detection facade. Delegates to reasoning_profile SSOT for unified timeout floors. | ✅ |
 | thinking_headroom.py | Core | Thinking model max_tokens headroom adjustment facade. Delegates to reasoning_profile SSOT for token budget floors. | ✅ |
 
-Wire protocol selection is configured via `LLMConfig.wire_protocol` / `ChatLiteLLM.wire_protocol` and implemented in `adapters/wire/` (see [adapters/wire/_ARCH.md](../adapters/wire/_ARCH.md)).
+Wire protocol selection is configured via `LLMConfig.wire_protocol` / `TransportChatModel.wire_protocol` and implemented in `adapters/wire/` (see [adapters/wire/_ARCH.md](../adapters/wire/_ARCH.md)).
 
 ## Key Dependencies
 

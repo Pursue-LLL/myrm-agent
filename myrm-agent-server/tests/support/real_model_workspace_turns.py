@@ -3,7 +3,7 @@
 [INPUT]
 - POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, SSE back)
 - The project and folder-trust API (POS: what a user does before asking: link a folder, preview it, trust it)
-- ChatLiteLLM message building and the run's trust binding (POS: recorded where the request is built and the trust is decided)
+- TransportChatModel message building and the run's trust binding (POS: recorded where the request is built and the trust is decided)
 
 [OUTPUT]
 - stuck_turn_report, routes_and_trust, sent, applied: fixtures (registered for ``tests/api/agent`` by its conftest)
@@ -37,7 +37,7 @@ from myrm_agent_harness.agent.security.workspace_trust.provider import (
 from myrm_agent_harness.agent.security.workspace_trust.runtime import clear_workspace_trust_runtime
 from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustLevel
 from myrm_agent_harness.toolkits.code_execution import create_workspace_service
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 
 from app.api.projects import router as project_router
 from app.api.security import workspace_trust as workspace_trust_module
@@ -80,18 +80,18 @@ def routes_and_trust(app: FastAPI) -> Iterator[None]:
 
 @pytest.fixture
 def sent(monkeypatch: pytest.MonkeyPatch) -> list[list[dict[str, object]]]:
-    """Every message list ChatLiteLLM sends to a provider, copied where the request is built."""
+    """Every message list TransportChatModel sends to a provider, copied where the request is built."""
     requests: list[list[dict[str, object]]] = []
-    build = ChatLiteLLM._create_message_dicts
+    build = TransportChatModel._create_message_dicts
 
     def record(
-        self: ChatLiteLLM, messages: list[BaseMessage], stop: list[str] | None
+        self: TransportChatModel, messages: list[BaseMessage], stop: list[str] | None
     ) -> tuple[list[dict[str, object]], dict[str, object]]:
         message_dicts, params = build(self, messages, stop)
         requests.append(copy.deepcopy(message_dicts))
         return message_dicts, params
 
-    monkeypatch.setattr(ChatLiteLLM, "_create_message_dicts", record)
+    monkeypatch.setattr(TransportChatModel, "_create_message_dicts", record)
     return requests
 
 

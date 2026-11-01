@@ -1,8 +1,8 @@
 """What the provider itself answered, read from an LLM exception.
 
 [INPUT]
-- An LLM exception and its ``__cause__``/``__context__`` chain as raised by the OpenAI and Anthropic SDKs and
-  litellm: a parsed JSON ``body`` and/or an HTTP ``response``
+- An LLM exception and its ``__cause__``/``__context__`` chain as raised by the transport and the OpenAI and Anthropic SDKs:
+  a parsed JSON ``body`` and/or an HTTP ``response``
 
 [OUTPUT]
 - MAX_CHAIN_DEPTH: how many links of an exception chain are ever read
@@ -27,7 +27,7 @@ import json
 import re
 from collections.abc import Mapping
 
-# Twice the deepest chain a real client produces today (the OpenAI SDK behind litellm: 6 links), so one more
+# Twice the deepest chain a real client produces today (an SDK behind a wrapper client: 6 links), so one more
 # wrapping layer in a client upgrade does not push the root cause out of reach.
 MAX_CHAIN_DEPTH = 12
 

@@ -1,4 +1,4 @@
-"""Responses wire invocation helpers for ChatLiteLLM mixins.
+"""Responses wire invocation helpers for TransportChatModel mixins.
 
 [INPUT]
 - logging::logging (POS: Python 标准日志库)
@@ -18,7 +18,7 @@
   finish_reason; failed streams raise ResponsesStreamError
 
 [POS]
-Transport adapter between ChatLiteLLM mixins and the Responses wire. Owns call assembly
+Transport adapter between TransportChatModel mixins and the Responses wire. Owns call assembly
 and stream plumbing, delegating payload shaping to translator/params/normalizer. Retries
 once without reasoning replay when the server rejects `invalid_encrypted_content`.
 """

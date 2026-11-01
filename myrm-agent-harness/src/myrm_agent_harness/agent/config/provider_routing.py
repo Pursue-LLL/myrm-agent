@@ -1,14 +1,14 @@
-"""LiteLLM routing table and HTTP selection normalization (single source of truth).
+"""Provider routing table and HTTP selection normalization (single source of truth).
 
 [INPUT]
 - (none) Pure data + string transforms.
 
 [OUTPUT]
-- BUILTIN_PROVIDER_LITELLM_SEGMENT: settings UI provider id -> LiteLLM first path segment
-- CUSTOM_COMPAT_TYPE_LITELLM_SEGMENT: custom compat type id -> LiteLLM first path segment
-- litellm_route_prefix_for_effective: provider or provider_type -> prefix ending with ``/``
-- normalize_env_model_selection_string: env/model-picker style string -> LiteLLM model id
-- known_litellm_route_segments_ordered: unique segments, longest first (UI + codegen)
+- BUILTIN_PROVIDER_ROUTE_SEGMENT: settings UI provider id -> route first path segment
+- CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT: custom compat type id -> route first path segment
+- route_prefix_for_effective: provider or provider_type -> prefix ending with ``/``
+- normalize_env_model_selection_string: env/model-picker style string -> route model id
+- known_route_segments_ordered: unique segments, longest first (UI + codegen)
 
 [POS]
 Framework routing authority shared with server tests and generated frontend constants.
@@ -16,7 +16,7 @@ Framework routing authority shared with server tests and generated frontend cons
 
 from __future__ import annotations
 
-BUILTIN_PROVIDER_LITELLM_SEGMENT: dict[str, str] = {
+BUILTIN_PROVIDER_ROUTE_SEGMENT: dict[str, str] = {
     "openai": "openai",
     "anthropic": "anthropic",
     "gemini": "gemini",
@@ -49,7 +49,7 @@ BUILTIN_PROVIDER_LITELLM_SEGMENT: dict[str, str] = {
     "vercel_ai_gateway": "openai",
 }
 
-CUSTOM_COMPAT_TYPE_LITELLM_SEGMENT: dict[str, str] = {
+CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT: dict[str, str] = {
     "openai-like": "openai",
     "gemini-like": "gemini",
     "anthropic-like": "anthropic",
@@ -82,7 +82,7 @@ _ANTHROPIC_ROUTE_FAMILY: frozenset[str] = frozenset(
     }
 )
 
-# First path segment in BASIC_MODEL / modelSelection (hyphen-normalized) -> LiteLLM route segment
+# First path segment in BASIC_MODEL / modelSelection (hyphen-normalized) -> route segment
 _HTTP_SELECTION_FIRST_SEGMENT: dict[str, str] = {
     "openai-like": "openai",
     "openai-compatible": "openai",
@@ -94,8 +94,8 @@ _HTTP_SELECTION_FIRST_SEGMENT: dict[str, str] = {
 }
 
 
-def litellm_route_prefix_for_effective(effective: str) -> str:
-    """Return LiteLLM prefix (always ends with ``/``) for a provider or provider_type string."""
+def route_prefix_for_effective(effective: str) -> str:
+    """Return the route prefix (always ends with ``/``) for a provider or provider_type string."""
     key = effective.replace("-", "_").lower()
     if key == "openai":
         return "openai/"
@@ -113,7 +113,7 @@ def litellm_route_prefix_for_effective(effective: str) -> str:
 
 
 def normalize_env_model_selection_string(model: str) -> str:
-    """Rewrite the first path segment to a LiteLLM route segment when it is a known alias.
+    """Rewrite the first path segment to a route segment when it is a known alias.
 
     Used for HTTP ``modelSelection.model`` strings and test env ``BASIC_MODEL`` / ``LITE_MODEL``.
     """
@@ -128,17 +128,17 @@ def normalize_env_model_selection_string(model: str) -> str:
     return s
 
 
-def known_litellm_route_segments_ordered() -> tuple[str, ...]:
+def known_route_segments_ordered() -> tuple[str, ...]:
     """Distinct route segments, longest-first then lexicographic (stable tie-break)."""
-    segments: set[str] = set(BUILTIN_PROVIDER_LITELLM_SEGMENT.values())
-    segments.update(CUSTOM_COMPAT_TYPE_LITELLM_SEGMENT.values())
+    segments: set[str] = set(BUILTIN_PROVIDER_ROUTE_SEGMENT.values())
+    segments.update(CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT.values())
     return tuple(sorted(segments, key=lambda x: (-len(x), x)))
 
 
 __all__ = [
-    "BUILTIN_PROVIDER_LITELLM_SEGMENT",
-    "CUSTOM_COMPAT_TYPE_LITELLM_SEGMENT",
-    "known_litellm_route_segments_ordered",
-    "litellm_route_prefix_for_effective",
+    "BUILTIN_PROVIDER_ROUTE_SEGMENT",
+    "CUSTOM_COMPAT_TYPE_ROUTE_SEGMENT",
+    "known_route_segments_ordered",
+    "route_prefix_for_effective",
     "normalize_env_model_selection_string",
 ]

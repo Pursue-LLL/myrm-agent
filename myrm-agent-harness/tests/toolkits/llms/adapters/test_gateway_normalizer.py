@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.gateway_normalizer import (
     is_gateway_param_rejection,
     is_transport_stripped,
@@ -346,7 +346,7 @@ class TestAsyncAgenerateSchemaDowngrade:
 
     @pytest.mark.asyncio
     async def test_async_agenerate_retries_without_internal_transport(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-schema-downgrade-async")
+        model = TransportChatModel(model="openai/test-schema-downgrade-async")
         model.client = MagicMock()
         params = {
             "model": "openai/test-schema-downgrade-async",
@@ -369,7 +369,7 @@ class TestAsyncAgenerateSchemaDowngrade:
 
     @pytest.mark.asyncio
     async def test_async_agenerate_preserves_user_response_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-schema-downgrade-user")
+        model = TransportChatModel(model="openai/test-schema-downgrade-user")
         model.client = MagicMock()
         params = {
             "model": "openai/test-schema-downgrade-user",
@@ -393,7 +393,7 @@ class TestSyncGenerateSchemaDowngrade:
     """Sync generate path strips the internal transport on schema-shape 400s."""
 
     def test_sync_generate_retries_without_internal_transport(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-schema-downgrade-sync")
+        model = TransportChatModel(model="openai/test-schema-downgrade-sync")
         model.client = MagicMock()
         params = {
             "model": "openai/test-schema-downgrade-sync",
@@ -414,7 +414,7 @@ class TestSyncGenerateSchemaDowngrade:
         assert "response_format" not in retry_kwargs
 
     def test_sync_generate_preserves_user_response_format(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-schema-downgrade-sync-user")
+        model = TransportChatModel(model="openai/test-schema-downgrade-sync-user")
         model.client = MagicMock()
         params = {
             "model": "openai/test-schema-downgrade-sync-user",
@@ -438,7 +438,7 @@ class TestSyncStreamSchemaDowngrade:
     """Sync streaming path strips the internal transport on schema-shape 400s."""
 
     def test_sync_stream_retries_without_internal_transport(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-schema-downgrade-stream")
+        model = TransportChatModel(model="openai/test-schema-downgrade-stream")
         model.client = MagicMock()
         params = {
             "model": "openai/test-schema-downgrade-stream",

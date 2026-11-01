@@ -161,8 +161,8 @@ async def _async_iter(items: list[object]) -> object:
         yield item
 
 
-class TestChatLiteLLMPayloadRecovery:
-    """Test ChatLiteLLM in-place retry recovery when payload overflow occurs."""
+class TestTransportChatModelPayloadRecovery:
+    """Test TransportChatModel in-place retry recovery when payload overflow occurs."""
 
     @pytest.mark.asyncio
     async def test_async_stream_payload_overflow_recovers(self) -> None:
@@ -170,9 +170,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -214,9 +214,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -252,9 +252,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -294,9 +294,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 

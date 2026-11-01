@@ -1,4 +1,4 @@
-"""Build litellm.responses() kwargs from ChatLiteLLM call params.
+"""Build Responses-wire request kwargs from TransportChatModel call params.
 
 [INPUT]
 - typing::Any (POS: Python 类型标注标准库)
@@ -7,7 +7,7 @@
   (POS: Responses wire 出站请求翻译层)
 
 [OUTPUT]
-- build_responses_kwargs: dict[str, Any] ready for `litellm.responses(**kwargs)`,
+- build_responses_kwargs: dict[str, Any] ready for the transport's Responses call,
   with system messages lifted into `instructions` and reasoning config normalized
 
 [POS]

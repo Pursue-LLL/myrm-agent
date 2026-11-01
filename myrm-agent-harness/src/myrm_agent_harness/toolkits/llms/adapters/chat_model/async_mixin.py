@@ -1,4 +1,4 @@
-"""ChatLiteLLM asynchronous non-streaming generation mixin.
+"""TransportChatModel asynchronous non-streaming generation mixin.
 
 [INPUT]
 - adapters.chat_model.exceptions (POS: EmptyChoicesError)
@@ -9,10 +9,10 @@
 - adapters.chat_model.sync_mixin::_record_non_stream_usage (POS: usage, cost and ledger recording shared with the sync path, composed on the aggregate root)
 
 [OUTPUT]
-- ChatLiteLLMAsyncMixin: _agenerate (empty-response retry, api key renewal before each request; delegates streaming to the stream mixin)
+- TransportChatModelAsyncMixin: _agenerate (empty-response retry, api key renewal before each request; delegates streaming to the stream mixin)
 
 [POS]
-Asynchronous non-streaming LLM generation path for ChatLiteLLM with concurrency gate and unified
+Asynchronous non-streaming LLM generation path for TransportChatModel with concurrency gate and unified
 token-usage recording. One call is one `chat` span however many attempts it takes; retries appear
 as events on that span.
 """
@@ -60,9 +60,9 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
 logger = logging.getLogger(__name__)
 
 
-class ChatLiteLLMAsyncMixin:
+class TransportChatModelAsyncMixin:
     if TYPE_CHECKING:
-        # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
+        # Attributes and sibling-mixin methods defined on the TransportChatModel aggregate
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         api_key: str | None
@@ -117,7 +117,7 @@ class ChatLiteLLMAsyncMixin:
                     return await self._agenerate(messages, stop, run_manager, stream=False, **kwargs)
                 raise
             except Exception:
-                logger.error(f" LiteLLM streaming failed (Model: {self.model_name or self.model})")
+                logger.error(f" Model streaming failed (Model: {self.model_name or self.model})")
                 raise
 
         if (renewed := await renew_api_key(self.api_key)) is not None:
@@ -125,7 +125,7 @@ class ChatLiteLLMAsyncMixin:
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
 
-        # Filter out internal LangChain parameters that shouldn't be passed to LiteLLM
+        # Filter out internal LangChain parameters that shouldn't be passed to the transport
         filtered_kwargs = {
             k: v
             for k, v in kwargs.items()

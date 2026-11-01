@@ -1,7 +1,7 @@
 """Integration tests for reasoning_timeout — no mocks on core path.
 
-Validates that create_litellm_model correctly propagates timeout floors
-to the ChatLiteLLM instance, and that the timeout parameter reaches
+Validates that create_chat_model correctly propagates timeout floors
+to the TransportChatModel instance, and that the timeout parameter reaches
 the LiteLLM completion layer during a real API call.
 """
 
@@ -13,34 +13,34 @@ from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.agent.config.provider_routing import normalize_env_model_selection_string
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 _ENV_TEST = Path(__file__).resolve().parents[5] / "myrm-agent-server" / ".env.test"
 
 
 class TestReasoningTimeoutIntegration:
-    """Full-path integration: create_litellm_model → ChatLiteLLM → timeout."""
+    """Full-path integration: create_chat_model → TransportChatModel → timeout."""
 
     def test_reasoning_model_gets_elevated_timeout(self) -> None:
-        """create_litellm_model('openai/o3') should create instance with 600s timeout."""
-        llm = create_litellm_model("openai/o3", api_key="sk-test")
+        """create_chat_model('openai/o3') should create instance with 600s timeout."""
+        llm = create_chat_model("openai/o3", api_key="sk-test")
         assert llm.request_timeout == 600.0
 
     def test_reasoning_model_timeout_in_params(self) -> None:
         """timeout in litellm params must equal the reasoning floor."""
-        llm = create_litellm_model("deepseek/deepseek-r1", api_key="sk-test")
+        llm = create_chat_model("deepseek/deepseek-r1", api_key="sk-test")
         params = llm._default_params
         assert params["timeout"] == 600.0
 
     def test_non_reasoning_model_keeps_default_timeout(self) -> None:
         """Non-reasoning models should retain the default 300s timeout."""
-        llm = create_litellm_model("openai/gpt-4o", api_key="sk-test")
+        llm = create_chat_model("openai/gpt-4o", api_key="sk-test")
         assert llm.request_timeout == 300.0
 
     def test_explicit_timeout_not_overridden(self) -> None:
         """User-specified request_timeout takes precedence over floor."""
-        llm = create_litellm_model("openai/o3", api_key="sk-test", request_timeout=120.0)
+        llm = create_chat_model("openai/o3", api_key="sk-test", request_timeout=120.0)
         assert llm.request_timeout == 120.0
 
     @pytest.mark.parametrize(
@@ -57,13 +57,13 @@ class TestReasoningTimeoutIntegration:
     )
     def test_timeout_matrix(self, model: str, expected_timeout: float) -> None:
         """Cross-model timeout assignment matrix."""
-        llm = create_litellm_model(model, api_key="sk-test")
+        llm = create_chat_model(model, api_key="sk-test")
         assert llm.request_timeout == expected_timeout
 
     def test_timeout_consistency(self) -> None:
         """timeout from _default_params must match request_timeout."""
         for model, expected in [("openai/o3", 600.0), ("gemini-2.5-pro", 450.0)]:
-            llm = create_litellm_model(model, api_key="sk-test")
+            llm = create_chat_model(model, api_key="sk-test")
             params = llm._default_params
             assert params["timeout"] == expected
             assert llm.request_timeout == expected
@@ -73,26 +73,26 @@ class TestReasoningTimeoutStreamingPath:
     """Validates timeout floor in streaming mode (production primary path)."""
 
     def test_streaming_model_inherits_timeout_floor(self) -> None:
-        """Streaming ChatLiteLLM for reasoning model should have elevated timeout."""
-        llm = create_litellm_model("openai/o3", api_key="sk-test", streaming=True)
+        """Streaming TransportChatModel for reasoning model should have elevated timeout."""
+        llm = create_chat_model("openai/o3", api_key="sk-test", streaming=True)
         assert llm.streaming is True
         assert llm.request_timeout == 600.0
 
     def test_streaming_timeout_in_default_params(self) -> None:
         """timeout in _default_params should be correct in streaming mode."""
-        llm = create_litellm_model("deepseek/deepseek-r1", api_key="sk-test", streaming=True)
+        llm = create_chat_model("deepseek/deepseek-r1", api_key="sk-test", streaming=True)
         params = llm._default_params
         assert params["stream"] is True
         assert params["timeout"] == 600.0
 
     def test_non_reasoning_streaming_uses_default(self) -> None:
         """Non-reasoning streaming model keeps default 300s."""
-        llm = create_litellm_model("openai/gpt-4o", api_key="sk-test", streaming=True)
+        llm = create_chat_model("openai/gpt-4o", api_key="sk-test", streaming=True)
         assert llm.request_timeout == 300.0
 
 
 class TestReasoningTimeoutLLMManagerPath:
-    """Validates timeout propagation through LLMManager → create_litellm_model."""
+    """Validates timeout propagation through LLMManager → create_chat_model."""
 
     @pytest.mark.asyncio
     async def test_manager_single_llm_reasoning_timeout(self) -> None:
@@ -154,7 +154,7 @@ class TestReasoningTimeoutRealAPI:
 
         Uses LITE_MODEL from .env.test (may be reasoning or non-reasoning).
         """
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model=env_config["model"],
             api_key=env_config["api_key"],
             base_url=env_config["base_url"],
@@ -199,7 +199,7 @@ class TestReasoningTimeoutRealAPI:
                 ],
             }
 
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model=env_config["model"],
             api_key=env_config["api_key"],
             base_url=env_config["base_url"],

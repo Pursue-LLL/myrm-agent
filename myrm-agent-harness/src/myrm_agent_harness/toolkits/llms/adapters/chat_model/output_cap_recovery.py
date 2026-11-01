@@ -8,10 +8,10 @@
 [OUTPUT]
 - recover_output_cap(): lower a rejected request's ``max_tokens`` to what the provider says it accepts
 - apply_learned_output_cap(): clamp a request to a model ceiling this endpoint already rejected once
-- ChatLiteLLMOutputCapMixin: resolves a request's ``max_tokens`` and recovers from a rejected one
+- TransportChatModelOutputCapMixin: resolves a request's ``max_tokens`` and recovers from a rejected one
 
 [POS]
-Shared by the sync/async generation and streaming loops of ChatLiteLLM. Only ``max_tokens`` ever
+Shared by the sync/async generation and streaming loops of TransportChatModel. Only ``max_tokens`` ever
 changes between attempts: messages, tools and thinking/reasoning parameters stay byte-identical, so
 the provider's prompt-prefix cache still hits on the retry. Anything the provider did not state
 leaves the request untouched and the original error propagates.
@@ -121,7 +121,7 @@ def recover_output_cap(exc: Exception, params: dict[str, object], *, model: str,
     return True
 
 
-class ChatLiteLLMOutputCapMixin:
+class TransportChatModelOutputCapMixin:
     """Resolves a request's ``max_tokens`` and recovers from a provider rejection of it."""
 
     if TYPE_CHECKING:

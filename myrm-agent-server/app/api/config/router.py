@@ -904,11 +904,11 @@ async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResp
     abandoned after ``_LOCAL_MODEL_TEST_TIMEOUT_S`` seconds.
     """
     from langchain_core.messages import HumanMessage
-    from myrm_agent_harness.toolkits.llms import create_litellm_model
+    from myrm_agent_harness.toolkits.llms import create_chat_model
 
     start = time.monotonic()
     try:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model=request.model,
             base_url=request.base_url,
             api_key=request.api_key or "",

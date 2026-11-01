@@ -1,12 +1,12 @@
-"""Token-usage recording shared by the sync and async ChatLiteLLM paths.
+"""Token-usage recording shared by the sync and async TransportChatModel paths.
 
-In streaming mode LiteLLM's own callbacks are skipped, so the adapter records usage,
-cost and latency itself; non-streaming calls go through the same code so both paths
+The adapter records usage, cost and latency itself (the transport has no callbacks);
+streaming and non-streaming calls go through the same code so both paths
 converge on the request-scoped ``TokenTracker`` and the audit ledger. Keeping it out
 of the generation mixins leaves those files purely about the provider call.
 
 [INPUT]
-- adapters.streaming::normalize_usage (POS: LiteLLM usage 对象归一化)
+- adapters.streaming::normalize_usage (POS: usage object normalization)
 - utils.token_economics.cost_engine::compute_cost_by_tokens (POS: 按 token 计价)
 - utils.token_economics.usage_fields::extract_cost_tokens (POS: prompt/completion/cache 字段唯一读取入口)
 - utils.token_economics.tracker::record_token_usage, append_to_ledger, record_finish_reason (POS: 请求级追踪与审计账本)
@@ -16,7 +16,7 @@ of the generation mixins leaves those files purely about the provider call.
 - record_non_stream_usage(): 非流式响应的 finish_reason + usage 记录
 
 [POS]
-Usage accounting for the ChatLiteLLM adapter. Dependency-injected like the generation
+Usage accounting for the TransportChatModel adapter. Dependency-injected like the generation
 helpers: callers pass the owner (``self``) so the model identity used for pricing comes
 from the same instance that made the request.
 """
@@ -28,7 +28,7 @@ from typing import Any, Protocol
 
 
 class _ModelIdentity(Protocol):
-    """The aggregate ``ChatLiteLLM`` attributes this module reads for pricing."""
+    """The aggregate ``TransportChatModel`` attributes this module reads for pricing."""
 
     @property
     def model(self) -> str: ...
@@ -47,7 +47,7 @@ def record_usage(
 
     Args:
         owner: the model instance the request ran on (pricing falls back to it).
-        usage: LiteLLM usage object from the response / final stream chunk.
+        usage: usage object from the response / final stream chunk.
         model_name: Model identifier for per-model attribution.
         duration_ms: Total call duration (request start to completion).
         ttft_ms: Time to first token (streaming only).

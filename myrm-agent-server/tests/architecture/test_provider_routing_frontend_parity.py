@@ -1,11 +1,11 @@
 """LiteLLM routing: the generated frontend prefixes must equal the harness routing table.
 
 [POS]
-tests/architecture/test_litellm_routing_frontend_parity.py
+tests/architecture/test_provider_routing_frontend_parity.py
 
 [INPUT]
-- myrm_agent_harness agent.config.litellm_routing: `BUILTIN_PROVIDER_LITELLM_SEGMENT`, `known_litellm_route_segments_ordered`
-- myrm-agent-frontend litellmRouting.generated.ts: `KNOWN_LITELLM_ROUTE_PREFIXES`, `PROVIDER_TO_LITELLM_PREFIX`
+- myrm_agent_harness agent.config.provider_routing: `BUILTIN_PROVIDER_ROUTE_SEGMENT`, `known_route_segments_ordered`
+- myrm-agent-frontend providerRouting.generated.ts: `KNOWN_LITELLM_ROUTE_PREFIXES`, `PROVIDER_TO_LITELLM_PREFIX`
 
 [OUTPUT]
 - Fails when the generated file lists other prefixes (or the same ones in another order) or maps a provider to a
@@ -17,16 +17,16 @@ from __future__ import annotations
 import re
 
 import pytest
-from myrm_agent_harness.agent.config.litellm_routing import (
-    BUILTIN_PROVIDER_LITELLM_SEGMENT,
-    known_litellm_route_segments_ordered,
+from myrm_agent_harness.agent.config.provider_routing import (
+    BUILTIN_PROVIDER_ROUTE_SEGMENT,
+    known_route_segments_ordered,
 )
 
 from tests.support.frontend_api_paths import FRONTEND_SRC
 
 pytestmark = pytest.mark.architecture
 
-_GENERATED = FRONTEND_SRC / "store" / "config" / "litellmRouting.generated.ts"
+_GENERATED = FRONTEND_SRC / "store" / "config" / "providerRouting.generated.ts"
 
 # Values only: the generator's quoting and key quoting are not part of the contract.
 _PREFIXES_RE = re.compile(r"KNOWN_LITELLM_ROUTE_PREFIXES\b[^=]*=\s*\[(?P<body>.*?)\]", re.DOTALL)
@@ -55,17 +55,17 @@ def _drift(source: str) -> list[str]:
     """Differences between the generated file's text and the harness routing table."""
     problems: list[str] = []
 
-    expected_prefixes = list(known_litellm_route_segments_ordered())
+    expected_prefixes = list(known_route_segments_ordered())
     prefixes = _parse_prefixes(source)
     if prefixes != expected_prefixes:
         problems.append(f"KNOWN_LITELLM_ROUTE_PREFIXES is {prefixes}, the harness table gives {expected_prefixes}")
 
     mapping = _parse_provider_map(source)
-    missing = sorted(BUILTIN_PROVIDER_LITELLM_SEGMENT.keys() - mapping.keys())
-    extra = sorted(mapping.keys() - BUILTIN_PROVIDER_LITELLM_SEGMENT.keys())
+    missing = sorted(BUILTIN_PROVIDER_ROUTE_SEGMENT.keys() - mapping.keys())
+    extra = sorted(mapping.keys() - BUILTIN_PROVIDER_ROUTE_SEGMENT.keys())
     changed = {
         provider: (mapping[provider], segment)
-        for provider, segment in BUILTIN_PROVIDER_LITELLM_SEGMENT.items()
+        for provider, segment in BUILTIN_PROVIDER_ROUTE_SEGMENT.items()
         if provider in mapping and mapping[provider] != segment
     }
     if missing:
@@ -92,22 +92,22 @@ def test_generated_frontend_routing_matches_the_harness_table() -> None:
     problems = _drift(_GENERATED.read_text(encoding="utf-8"))
 
     assert not problems, (
-        "litellmRouting.generated.ts has drifted from the harness routing table (regenerate it from "
-        "myrm_agent_harness.agent.config.litellm_routing; resolveLiteLLMRoutePrefix falls back to the provider id "
+        "providerRouting.generated.ts has drifted from the harness routing table (regenerate it from "
+        "myrm_agent_harness.agent.config.provider_routing; resolveLiteLLMRoutePrefix falls back to the provider id "
         "for a provider the map lacks, and requests then fail):\n" + "\n".join(problems)
     )
 
 
 def test_drift_check_reads_both_generator_and_hand_written_quoting() -> None:
-    prefixes = list(known_litellm_route_segments_ordered())
-    mapping = dict(BUILTIN_PROVIDER_LITELLM_SEGMENT)
+    prefixes = list(known_route_segments_ordered())
+    mapping = dict(BUILTIN_PROVIDER_ROUTE_SEGMENT)
 
     assert _drift(_render(prefixes, mapping)) == []
     assert _drift(_render(prefixes, mapping).replace('"', "'")) == []
 
 
-_SEGMENTS = list(known_litellm_route_segments_ordered())
-_TABLE = dict(BUILTIN_PROVIDER_LITELLM_SEGMENT)
+_SEGMENTS = list(known_route_segments_ordered())
+_TABLE = dict(BUILTIN_PROVIDER_ROUTE_SEGMENT)
 
 
 @pytest.mark.parametrize(

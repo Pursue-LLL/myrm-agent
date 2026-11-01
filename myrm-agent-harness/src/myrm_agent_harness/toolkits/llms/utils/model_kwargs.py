@@ -9,7 +9,7 @@
 - clean_model_kwargs(): strip internal keys and apply per-model parameter fixes
 
 [POS]
-Model-parameter compatibility layer. Distinct from litellm_utils.py (which owns
+Model-parameter compatibility layer. Distinct from tool_argument_recovery.py (which owns
 tool-argument JSON recovery): this module keeps provider quirks — internal marker
 keys, qwen response_format, Kimi temperature floor — out of the JSON recovery path.
 """

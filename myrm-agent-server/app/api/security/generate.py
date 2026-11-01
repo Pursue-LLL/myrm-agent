@@ -123,7 +123,7 @@ async def _resolve_model(selection: dict[str, str] | None) -> "ModelConfig":
     Returns the full ModelConfig, including the api_key.
     """
     from app.core.channel_bridge.config_loader import load_user_configs
-    from app.core.channel_bridge.model_resolver import _fallback_model_from_providers, _to_litellm_model
+    from app.core.channel_bridge.model_resolver import _fallback_model_from_providers, _to_route_model_id
     from app.core.types import ModelConfig
 
     configs = await load_user_configs()
@@ -132,9 +132,9 @@ async def _resolve_model(selection: dict[str, str] | None) -> "ModelConfig":
         provider_id = selection.get("providerId", "")
         model_name = selection.get("model", "")
         if provider_id and model_name:
-            litellm_model = _to_litellm_model(provider_id, model_name, None)
+            route_model_id = _to_route_model_id(provider_id, model_name, None)
             fallback = _fallback_model_from_providers(configs.providers_dict)
-            return ModelConfig(model=litellm_model, api_key=fallback.api_key, base_url=fallback.base_url)
+            return ModelConfig(model=route_model_id, api_key=fallback.api_key, base_url=fallback.base_url)
 
     try:
         return _fallback_model_from_providers(configs.providers_dict)

@@ -223,11 +223,11 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
             if api_key and raw_model:
                 from langchain_core.messages import HumanMessage
                 from langchain_core.tools import StructuredTool
-                from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+                from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
                 from tests.api.agent.utils import _convert_litellm_model
 
-                llm = create_litellm_model(
+                llm = create_chat_model(
                     model=_convert_litellm_model(raw_model),
                     api_key=api_key,
                     base_url=base_url,

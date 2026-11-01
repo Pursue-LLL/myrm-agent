@@ -86,7 +86,7 @@ CronJob { prompt, model?, schedule.stagger_ms? }
 config_loader.load_user_configs()  ← 实时读取（30s TTL 缓存）
     ↓
 resolve_model_config(providers, model_override=agent.model or job.model)
-    ↓ _resolve_override: enabledModels 校验 + providerType 兼容匹配 + _to_litellm_model 重新生成模型名
+    ↓ _resolve_override: enabledModels 校验 + providerType 兼容匹配 + _to_route_model_id 重新生成模型名
     ↓ 如果 override 无效则 fallback 到用户 defaultModelConfig（前端可见）
 ModelConfig + SearchServiceConfig
     ↓ AgentFactory.create_general_agent()

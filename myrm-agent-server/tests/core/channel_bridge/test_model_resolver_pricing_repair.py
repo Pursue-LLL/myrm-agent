@@ -53,7 +53,7 @@ def test_register_custom_model_pricing_with_provider_inference_and_cache() -> No
     assert registered_count == 2
 
     # 1. 验证 mimo-v2.5-pro 的限定名与裸名注册
-    # _to_litellm_model 会将 custom_openai_service + mimo-v2.5-pro 转换为 openai/mimo-v2.5-pro
+    # _to_route_model_id 会将 custom_openai_service + mimo-v2.5-pro 转换为 openai/mimo-v2.5-pro
     qualified_key = "openai/mimo-v2.5-pro"
     bare_key = "mimo-v2.5-pro"
 

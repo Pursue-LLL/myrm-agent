@@ -23,7 +23,7 @@ an aggregator LLM. Based on arXiv:2406.04692.
 
 ## Key Design Decisions
 
-- **Accepts BaseChatModel**: any LangChain-compatible LLM works (ChatLiteLLM, KeyPoolLLM, ManagedLLM).
+- **Accepts BaseChatModel**: any LangChain-compatible LLM works (TransportChatModel, KeyPoolLLM, ManagedLLM).
 - **Stateless**: no shared state between runs; create one engine per consensus request or reuse across calls.
 - **Graceful degradation**: when the aggregator fails before emitting anything, falls back to the longest reference response. On a *mid-stream* failure (some synthesis already streamed), the partial output is kept as-is — splicing a full raw reference onto half-written synthesis would corrupt the answer.
 - **Single-reference skip**: when exactly one reference succeeds (e.g. `min_successful=1` with the rest failing), `run()`/`run_stream()` return that answer verbatim and skip the aggregator entirely — saving one model call and preventing the aggregator's "do not simply repeat" instruction from rewording an already-correct lone answer.

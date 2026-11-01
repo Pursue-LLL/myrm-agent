@@ -3,7 +3,7 @@
 Validates the complete production flow:
 1. Real multi-turn developer chat containing code paths, commit SHAs, fatal tracebacks,
    code symbols, and dependency noise.
-2. Real LLM invocation via ChatLiteLLM (.env.test credentials).
+2. Real LLM invocation via TransportChatModel (.env.test credentials).
 3. Deterministic ExactAnchorTable injection into preserved context with Recency-First ordering
    and build/dependency path blacklisting.
 4. Lossless conversion between StructuredSummary and 4-pillar LeanStructuredSummary.
@@ -58,10 +58,10 @@ def _require_api_key() -> None:
 
 
 def _make_llm():
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
     model, provider = _normalize_model(_RAW_MODEL)
-    return ChatLiteLLM(
+    return TransportChatModel(
         model=model,
         api_key=_TEST_API_KEY,
         api_base=_TEST_BASE_URL,

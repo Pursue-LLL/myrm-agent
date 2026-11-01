@@ -3,7 +3,7 @@
 子模块：
 - llm: LLM 与 Agent 配置（LLMConfig, AgentConfig）
 - llm_safety: 出站消息的工具调用/结果配对规范化，与中间件链同源（normalize_messages）
-- parsers: LiteLLM模型名解析和转换（to_litellm_model, parse_litellm_model）
+- parsers: 路由模型名解析和转换（to_route_model_id, parse_route_model_id）
 - file_io: 文件 I/O 资源限制与正则安全配置（FileIOConfig）
 - validator: 配置健康检查（ConfigIssue, check_config_health）
 - presets: 配置预设（ConfigPreset, BUILTIN_PRESETS）
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.config.file_io import DEFAULT_FILE_IO_CONFIG, FileIOConfig
     from myrm_agent_harness.agent.config.llm import AgentConfig, LLMConfig
     from myrm_agent_harness.agent.config.llm_safety import normalize_messages
-    from myrm_agent_harness.agent.config.parsers import parse_litellm_model, to_litellm_model
+    from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
     from myrm_agent_harness.agent.config.presets import BUILTIN_PRESETS, ConfigPreset
     from myrm_agent_harness.agent.config.readiness import ConfigReadinessChecker, ConfigReadinessResult
     from myrm_agent_harness.agent.config.validator import ConfigIssue, check_config_health
@@ -42,8 +42,8 @@ __all__ = [
     "LLMConfig",
     "check_config_health",
     "normalize_messages",
-    "parse_litellm_model",
-    "to_litellm_model",
+    "parse_route_model_id",
+    "to_route_model_id",
 ]
 
 _LAZY_IMPORTS = {
@@ -55,8 +55,8 @@ _LAZY_IMPORTS = {
     "AgentConfig": ("myrm_agent_harness.agent.config.llm", "AgentConfig"),
     "LLMConfig": ("myrm_agent_harness.agent.config.llm", "LLMConfig"),
     "normalize_messages": ("myrm_agent_harness.agent.config.llm_safety", "normalize_messages"),
-    "parse_litellm_model": ("myrm_agent_harness.agent.config.parsers", "parse_litellm_model"),
-    "to_litellm_model": ("myrm_agent_harness.agent.config.parsers", "to_litellm_model"),
+    "parse_route_model_id": ("myrm_agent_harness.agent.config.parsers", "parse_route_model_id"),
+    "to_route_model_id": ("myrm_agent_harness.agent.config.parsers", "to_route_model_id"),
     "BUILTIN_PRESETS": ("myrm_agent_harness.agent.config.presets", "BUILTIN_PRESETS"),
     "ConfigPreset": ("myrm_agent_harness.agent.config.presets", "ConfigPreset"),
     "ConfigReadinessChecker": ("myrm_agent_harness.agent.config.readiness", "ConfigReadinessChecker"),

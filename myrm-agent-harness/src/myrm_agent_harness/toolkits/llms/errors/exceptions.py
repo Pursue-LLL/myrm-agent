@@ -26,7 +26,7 @@ from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 class MyrmLLMError(Exception):
     """Standardized LLM Error thrown by the Harness framework.
 
-    This exception wraps underlying provider errors (e.g., from litellm or httpx)
+    This exception wraps underlying provider errors (e.g., from the transport or httpx)
     into a structured format. It is designed to be caught by the Server layer
     for localization and user-friendly presentation.
 

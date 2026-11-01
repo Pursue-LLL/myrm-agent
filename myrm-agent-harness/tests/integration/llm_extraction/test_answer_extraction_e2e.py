@@ -60,7 +60,7 @@ async def test_extract_answer_text_strips_think_blocks(basic_llm) -> None:
 async def test_extract_completion_text_real_llm() -> None:
     """extract_completion_text works on a raw transport completion."""
     from myrm_agent_harness.toolkits.llms.transport import get_transport
-    from tests.integration.llm_extraction.litellm_creds import litellm_config_for
+    from tests.integration.llm_extraction.llm_creds import litellm_config_for
 
     api_key, base_url, model, _provider = litellm_config_for("LITE")
     response = await get_transport().acompletion(

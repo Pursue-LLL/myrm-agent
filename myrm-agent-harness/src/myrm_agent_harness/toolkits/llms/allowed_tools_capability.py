@@ -51,7 +51,7 @@ def model_supports_allowed_tools_tool_choice(
     """Return True when the provider likely accepts ``tool_choice.type=allowed_tools``."""
     # Fail-closed by default: ``allowed_tools`` is a non-standard OpenAI extension
     # that only native OpenAI endpoints accept. Unknown/local/self-hosted proxies
-    # reject it (LiteLLM → APIConnectionError "Invalid tool choice"), so we opt-in
+    # reject it (the request fails with "Invalid tool choice"), so we opt-in
     # for api.openai.com and let the learner cache mark any gateway that rejects it
     # (one retry) for the rest of the process. Execution-layer
     # check_trust_attenuation remains authoritative when the hint is skipped.

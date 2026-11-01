@@ -62,7 +62,7 @@ def _patch_llm_success(summary: str = "Good day", keywords: list[str] | None = N
     return (
         patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
         patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
-        patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
+        patch("myrm_agent_harness.toolkits.llms.create_chat_model", return_value=mock_llm),
     )
 
 
@@ -257,7 +257,7 @@ class TestDailyWrapEdgeCases:
             fetchers[3],
             patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
             patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
-            patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
+            patch("myrm_agent_harness.toolkits.llms.create_chat_model", return_value=mock_llm),
         ):
             resp = await client.get("/api/v1/statistics/daily-wrap", params={"date": "2026-06-12"})
 
@@ -291,7 +291,7 @@ class TestDailyWrapEdgeCases:
             fetchers[3],
             patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
             patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
-            patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
+            patch("myrm_agent_harness.toolkits.llms.create_chat_model", return_value=mock_llm),
             patch("app.api.statistics.daily_wrap._WRAP_LLM_TIMEOUT_S", 0.05),
         ):
             resp = await client.get("/api/v1/statistics/daily-wrap", params={"date": "2026-06-08"})
@@ -324,7 +324,7 @@ class TestDailyWrapEdgeCases:
             fetchers[3],
             patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock, return_value=mock_configs),
             patch("app.core.channel_bridge.config_parsers.extract_lite_model_config", return_value=mock_lite_cfg),
-            patch("myrm_agent_harness.toolkits.llms.create_litellm_model", return_value=mock_llm),
+            patch("myrm_agent_harness.toolkits.llms.create_chat_model", return_value=mock_llm),
         ):
             resp = await client.get("/api/v1/statistics/daily-wrap", params={"date": "2026-06-11"})
 

@@ -10,7 +10,7 @@ from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRuntimeConfig, EngineParams
 from myrm_agent_harness.backends.skills.types import SkillMetadata
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 from tests.api.agent.utils import _convert_litellm_model
 
@@ -84,7 +84,7 @@ async def test_discover_capability_e2e_real_model() -> None:
     base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
     raw_model = (os.environ.get("DISCOVER_CAPABILITY_E2E_MODEL") or os.environ.get("BASIC_MODEL") or "gpt-4o-mini").strip()
 
-    llm = create_litellm_model(
+    llm = create_chat_model(
         model=_convert_litellm_model(raw_model),
         api_key=api_key,
         base_url=base_url,

@@ -1,4 +1,4 @@
-"""Apply anthropic messages wire overrides for LiteLLM calls.
+"""Apply anthropic messages wire overrides for model calls.
 
 [INPUT]
 - typing::Any (POS: Python 类型标注标准库)
@@ -19,7 +19,7 @@ from typing import Any
 
 
 def apply_anthropic_messages_params(params: dict[str, Any]) -> dict[str, Any]:
-    """Rewrite OpenCode Go chat model ids to Anthropic Messages API via LiteLLM."""
+    """Rewrite OpenCode Go chat model ids to Anthropic Messages API."""
     merged = dict(params)
     model = str(merged.get("model") or "")
     bare = model.rsplit("/", 1)[-1] if "/" in model else model

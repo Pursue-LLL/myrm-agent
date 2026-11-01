@@ -27,6 +27,7 @@ from enum import Enum
 
 import httpx
 
+from ..transport.profile import UnsupportedProviderError
 from .classifier_patterns import (
     _AUTH_RE,
     _BILLING_RE,
@@ -182,6 +183,11 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if not msg.strip() and not normalized.body:
         return FailoverReason.UNKNOWN
 
+    # -1. A model id the transport cannot route is refused before any request is made: another key, a retry or a
+    # later turn cannot change that, so it is the request that is wrong, like a rejected parameter.
+    if any(isinstance(cause, UnsupportedProviderError) for cause in walk_exception_chain(exc)):
+        return FailoverReason.FORMAT_ERROR
+
     # 0a. Anthropic thinking block signature invalid (400) — must precede generic 400
     if normalized.status_code == 400 and _THINKING_SIGNATURE_RE.search(msg):
         return FailoverReason.THINKING_SIGNATURE
@@ -244,8 +250,8 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if _SAFETY_BLOCK_RE.search(msg):
         return FailoverReason.SAFETY_BLOCK
 
-    # Model-not-found before overloaded: ServiceUnavailableError wrappers often match
-    # service.?unavailable while the inner message is a missing-model distributor error.
+    # Model-not-found before overloaded: a 503 wrapper often matches service.?unavailable
+    # while the inner message is a missing-model distributor error.
     if _MODEL_NOT_FOUND_RE.search(msg):
         return FailoverReason.MODEL_NOT_FOUND
 

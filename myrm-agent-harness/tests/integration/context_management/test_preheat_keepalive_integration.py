@@ -5,7 +5,7 @@ Validates:
 2. CacheKeepAliveManager correctly activates/deactivates based on provider type.
 3. End-to-end idle keepalive loop sends real probes when idle.
 
-Uses BASIC_MODEL from .env.test via ChatLiteLLM — auto-cache provider (OpenAI-like),
+Uses BASIC_MODEL from .env.test via TransportChatModel — auto-cache provider (OpenAI-like),
 so keepalive is expected NOT to activate (validates the negative path).
 """
 
@@ -48,10 +48,10 @@ def _require_api_key() -> None:
 
 
 def _make_llm():
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
     model, provider = _normalize_model(_RAW_MODEL)
-    return ChatLiteLLM(
+    return TransportChatModel(
         model=model,
         api_key=_TEST_API_KEY,
         api_base=_TEST_BASE_URL,

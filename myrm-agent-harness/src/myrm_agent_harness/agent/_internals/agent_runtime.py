@@ -217,7 +217,7 @@ async def run_agent_loop(
             )
             runtime_security = build_channel_security_config(channel, None, local_mode=True)
         bind_run_security(runtime_security)
-        from myrm_agent_harness.agent.config.parsers import parse_litellm_model
+        from myrm_agent_harness.agent.config.parsers import parse_route_model_id
         from myrm_agent_harness.agent.middlewares._session_context import (
             set_active_message_id,
             set_agent_primary_model_slug,
@@ -228,7 +228,7 @@ async def run_agent_loop(
         )
 
         llm_model = getattr(agent_state.llm, "model_name", None) or getattr(agent_state.llm, "model", None)
-        _, primary_model_slug = parse_litellm_model(llm_model or "")
+        _, primary_model_slug = parse_route_model_id(llm_model or "")
         set_agent_primary_model_slug(primary_model_slug)
         set_managed_approval_policy(get_process_managed_approval_policy())
         set_active_message_id(message_id)
@@ -545,7 +545,7 @@ async def run_agent_loop(
         # Extract LLM metadata for precise error diagnostics
         llm_info: dict[str, str | None] | None = None
         if agent_state.llm:
-            # `model_name` on LangChain/LiteLLM may exist but be None; still prefer `model` when so.
+            # `model_name` on a LangChain chat model may exist but be None; still prefer `model` when so.
             model_name = getattr(agent_state.llm, "model_name", None) or getattr(agent_state.llm, "model", None)
             # `base_url` is a compatibility alias; the canonical field is `api_base`.
             api_base = getattr(agent_state.llm, "api_base", None) or getattr(agent_state.llm, "base_url", None)

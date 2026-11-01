@@ -1,7 +1,7 @@
 """Tests for LLM identity metadata passthrough and capability-learning roundtrip.
 
 ``ManagedLLM`` / ``KeyPoolLLM`` wrappers expose ``model`` / ``model_name`` /
-``api_base`` / ``base_url`` via passthrough properties, and ``ChatLiteLLM``
+``api_base`` / ``base_url`` via passthrough properties, and ``TransportChatModel``
 aliases ``base_url`` to ``api_base``.  This keeps the capability learner key
 (model@api_base) stable across the middleware gate and the oneshot-recovery
 learn path, so an unsupported ``allowed_tools`` tool_choice is remembered after
@@ -15,7 +15,7 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.language_models import BaseChatModel
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.allowed_tools_capability import (
     CAPABILITY_REJECTS_ALLOWED_TOOLS,
     model_supports_allowed_tools_tool_choice,
@@ -38,15 +38,15 @@ def _reset_learner() -> None:
     ModelCapabilityLearner._instance = None
 
 
-def _chat_llm(**kwargs: object) -> ChatLiteLLM:
-    return ChatLiteLLM(
+def _chat_llm(**kwargs: object) -> TransportChatModel:
+    return TransportChatModel(
         model=str(kwargs.get("model", "gpt-4o")),
         api_base=(kwargs.get("api_base") or None),  # type: ignore[arg-type]
         model_name=(kwargs.get("model_name") or None),  # type: ignore[arg-type]
     )
 
 
-class TestChatLiteLLMBaseUrlAlias:
+class TestTransportChatModelBaseUrlAlias:
     def test_base_url_aliases_api_base(self) -> None:
         llm = _chat_llm(model="gpt-4o", api_base="https://api-a.example.com/v1")
         assert llm.base_url == "https://api-a.example.com/v1"

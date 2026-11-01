@@ -1,4 +1,4 @@
-"""Output-cap recovery of ChatLiteLLM: provider-stated ``max_tokens`` limits.
+"""Output-cap recovery of TransportChatModel: provider-stated ``max_tokens`` limits.
 
 Real provider wordings go through the real error classifier and the real retry loops of all four
 entry points (sync/async x non-stream/stream). Only the provider client is faked, with genuine
@@ -21,7 +21,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 from litellm.types.utils import Choices, Delta, Message, ModelResponse, ModelResponseStream, StreamingChoices
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM, output_cap_recovery
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel, output_cap_recovery
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import (
     apply_learned_output_cap,
     recover_output_cap,
@@ -71,8 +71,8 @@ def _rate_limited(message: str) -> Exception:
     return litellm.exceptions.RateLimitError(message=message, model=MODEL, llm_provider="openai")
 
 
-def _model(**kwargs: object) -> ChatLiteLLM:
-    model = ChatLiteLLM(model=MODEL, max_tokens=REQUESTED, **kwargs)
+def _model(**kwargs: object) -> TransportChatModel:
+    model = TransportChatModel(model=MODEL, max_tokens=REQUESTED, **kwargs)
     model.client = MagicMock()
     return model
 
@@ -106,7 +106,7 @@ def _success(path: str) -> object:
     return _sync_stream() if path == "stream" else _async_stream()
 
 
-def _script(model: ChatLiteLLM, path: str, *outcomes: object) -> MagicMock:
+def _script(model: TransportChatModel, path: str, *outcomes: object) -> MagicMock:
     """Install the provider fake for ``path``: exceptions are raised, the string 'ok' becomes a normal response."""
     resolved = [_success(path) if outcome == "ok" else outcome for outcome in outcomes]
     if path in ASYNC_PATHS:
@@ -116,13 +116,13 @@ def _script(model: ChatLiteLLM, path: str, *outcomes: object) -> MagicMock:
     return model.client.completion
 
 
-def _run_sync(model: ChatLiteLLM, path: str) -> str:
+def _run_sync(model: TransportChatModel, path: str) -> str:
     if path == "generate":
         return str(model._generate(MESSAGES).generations[0].message.content)
     return "".join(str(chunk.message.content) for chunk in model._stream(MESSAGES))
 
 
-async def _run_async(model: ChatLiteLLM, path: str) -> str:
+async def _run_async(model: TransportChatModel, path: str) -> str:
     if path == "agenerate":
         return str((await model._agenerate(MESSAGES)).generations[0].message.content)
     return "".join([str(chunk.message.content) async for chunk in model._astream(MESSAGES)])

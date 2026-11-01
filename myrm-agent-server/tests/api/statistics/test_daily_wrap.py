@@ -111,7 +111,7 @@ class TestGenerateWrapViaLlm:
                 return_value=mock_lite_cfg,
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.create_litellm_model",
+                "myrm_agent_harness.toolkits.llms.create_chat_model",
                 return_value=mock_llm,
             ),
         ):
@@ -150,7 +150,7 @@ class TestGenerateWrapViaLlm:
                 return_value=mock_lite_cfg,
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.create_litellm_model",
+                "myrm_agent_harness.toolkits.llms.create_chat_model",
                 return_value=mock_llm,
             ),
         ):
@@ -188,7 +188,7 @@ class TestGenerateWrapViaLlm:
                 return_value=mock_lite_cfg,
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.create_litellm_model",
+                "myrm_agent_harness.toolkits.llms.create_chat_model",
                 return_value=mock_llm,
             ),
         ):
@@ -231,7 +231,7 @@ class TestGenerateWrapViaLlm:
                 return_value=mock_lite_cfg,
             ),
             patch(
-                "myrm_agent_harness.toolkits.llms.create_litellm_model",
+                "myrm_agent_harness.toolkits.llms.create_chat_model",
                 return_value=mock_llm,
             ),
             patch("app.api.statistics.daily_wrap._WRAP_LLM_TIMEOUT_S", 0.05),

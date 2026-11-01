@@ -1,8 +1,8 @@
 """Every chat-model call in the server is either behind the outbound privacy guard or accounted for here.
 
-The guard sits inside the harness's ChatLiteLLM, so a server module that reaches the LLM transport directly
+The guard sits inside the harness's TransportChatModel, so a server module that reaches the LLM transport directly
 (``get_transport()``, ``LLMTransport`` or the ``acomplete_text`` helper) sends the provider whatever text it was
-given, privacy policy or not. A new direct call must be a conscious decision: route it through ChatLiteLLM, mask its
+given, privacy policy or not. A new direct call must be a conscious decision: route it through TransportChatModel, mask its
 text with ``sanitize_outbound_text``, or be listed below with the reason it carries no conversation text.
 """
 
@@ -92,7 +92,7 @@ def test_every_direct_chat_call_is_accounted_for() -> None:
     unaccounted = {rel: lines for rel, lines in _files_with_direct_chat_calls().items() if rel not in accounted}
 
     assert not unaccounted, (
-        f"Direct model calls bypass the outbound privacy guard: {unaccounted}. Use ChatLiteLLM, mask the text "
+        f"Direct model calls bypass the outbound privacy guard: {unaccounted}. Use TransportChatModel, mask the text "
         "with sanitize_outbound_text, or list the file in _OUT_OF_SCOPE with the reason it carries no conversation text."
     )
 

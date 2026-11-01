@@ -227,7 +227,7 @@ class TestLlmQueryTool:
 
         assert result["success"] is True
         assert result["result"] == "answer"
-        # Token accounting moved to the ChatLiteLLM adapter (non-streaming path);
+        # Token accounting moved to the TransportChatModel adapter (non-streaming path);
         # the tool must not double-record via its own usage extraction.
         assert not hasattr(tool, "_record_usage")
 

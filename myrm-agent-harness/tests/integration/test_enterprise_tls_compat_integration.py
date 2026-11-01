@@ -2,7 +2,7 @@
 
 [INPUT]
 - infra.tls_compat::apply_global_tls_relaxation, create_httpx_client (POS: Enterprise TLS compatibility)
-- toolkits.llms.core.llm::create_litellm_model (POS: The product's chat model factory)
+- toolkits.llms.core.llm::create_chat_model (POS: The product's chat model factory)
 - toolkits.llms.errors::classify_error, ErrorKind (POS: LLM error classification)
 - tests.support.mcp_testkit.tls_pki::generate_inspection_chain (POS: Server chain shaped like a TLS-inspection proxy's)
 
@@ -35,7 +35,7 @@ from litellm.llms.custom_httpx import http_handler as litellm_http_handler
 from litellm.llms.custom_httpx.async_client_cleanup import close_litellm_async_clients
 
 from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation, create_httpx_client
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from tests.support.mcp_testkit.tls_pki import InspectionChain, generate_inspection_chain
 from tests.support.tls_loopback import (
@@ -97,7 +97,7 @@ async def _call(stack: str, base_url: str) -> None:
         async with httpx2.AsyncClient(timeout=10) as client:
             (await client.get(base_url)).raise_for_status()
         return
-    model = create_litellm_model("openai/test-model", base_url=f"{base_url}/v1", api_key="test-key")
+    model = create_chat_model("openai/test-model", base_url=f"{base_url}/v1", api_key="test-key")
     reply = await model.ainvoke([HumanMessage(content="hi")])
     assert reply.content == "ok"
 

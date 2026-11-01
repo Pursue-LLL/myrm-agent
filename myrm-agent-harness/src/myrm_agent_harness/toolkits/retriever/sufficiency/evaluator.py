@@ -2,7 +2,7 @@
 
 [INPUT]
 - core.config.llm::LLMConfig (POS: LLM configuration for the evaluation model)
-- toolkits.llms.core.llm::create_litellm_model (POS: LiteLLM model factory)
+- toolkits.llms.core.llm::create_chat_model (POS: chat model factory)
 - .types::SufficiencyVerdict, SufficiencyConfig (POS: result and config types)
 - .prompts::SUFFICIENCY_EVAL_SYSTEM, SUFFICIENCY_EVAL_USER_TEMPLATE, SUFFICIENCY_JSON_SCHEMA (POS: prompt templates)
 - utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
@@ -44,7 +44,7 @@ _FALLBACK_SUFFICIENT = SufficiencyVerdict(is_sufficient=True, confidence=0.0)
 
 def _build_eval_model(llm_config: LLMConfig) -> BaseChatModel:
     """Create a lightweight LLM instance for sufficiency evaluation."""
-    from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+    from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
     merged_kwargs = dict(llm_config.model_kwargs or {})
     # 与 fallback/video engine 一致的 temperature 装配语义：顶层显式配置优先，
@@ -54,7 +54,7 @@ def _build_eval_model(llm_config: LLMConfig) -> BaseChatModel:
     if llm_config.temperature is not None:
         merged_kwargs["temperature"] = llm_config.temperature
 
-    return create_litellm_model(
+    return create_chat_model(
         model=llm_config.model,
         api_key=llm_config.api_key,
         base_url=llm_config.base_url,

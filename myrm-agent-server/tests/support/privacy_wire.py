@@ -1,4 +1,4 @@
-"""A real ChatLiteLLM whose provider client records the text that would leave the process.
+"""A real TransportChatModel whose provider client records the text that would leave the process.
 
 Privacy tests assert on the wire, not on a call site: whatever the code under test does, the messages handed to the
 provider client are what a model provider would see.
@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
 
-def wire_llm(reply: str = "ok", *, reasoning: str | None = None) -> tuple[ChatLiteLLM, list[str]]:
+def wire_llm(reply: str = "ok", *, reasoning: str | None = None) -> tuple[TransportChatModel, list[str]]:
     """A model and the list its provider client appends every outgoing message text to.
 
     ``reasoning`` is the reasoning trace a thinking model sends next to its answer.
@@ -30,7 +30,7 @@ def wire_llm(reply: str = "ok", *, reasoning: str | None = None) -> tuple[ChatLi
             "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
         }
 
-    model = ChatLiteLLM(model="openai/test-model")
+    model = TransportChatModel(model="openai/test-model")
     model.client = MagicMock()
     model.client.acompletion = acompletion
     return model, sent

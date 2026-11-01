@@ -1,4 +1,4 @@
-"""Tests for developer role promotion in ChatLiteLLM.
+"""Tests for developer role promotion in TransportChatModel.
 
 Verifies that system messages are promoted to developer role for OpenAI GPT-5+,
 Codex, and o-series models, while remaining unchanged for other models.
@@ -11,12 +11,12 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     DEVELOPER_ROLE_PATTERN,
-    ChatLiteLLM,
+    TransportChatModel,
 )
 
 
-def _make_model(model: str, **kwargs) -> ChatLiteLLM:
-    return ChatLiteLLM.model_construct(client=MagicMock(), model=model, **kwargs)
+def _make_model(model: str, **kwargs) -> TransportChatModel:
+    return TransportChatModel.model_construct(client=MagicMock(), model=model, **kwargs)
 
 
 class TestDeveloperRolePattern:
@@ -77,7 +77,7 @@ class TestDeveloperRolePattern:
 
 
 class TestShouldPromoteSystemToDeveloper:
-    """Verify the promotion decision logic on ChatLiteLLM instances."""
+    """Verify the promotion decision logic on TransportChatModel instances."""
 
     def test_promotes_for_gpt5(self) -> None:
         model = _make_model("gpt-5-chat")

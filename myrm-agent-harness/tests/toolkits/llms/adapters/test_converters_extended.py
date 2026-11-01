@@ -1,4 +1,4 @@
-"""Extended coverage for adapters.converters without ChatLiteLLM."""
+"""Extended coverage for adapters.converters without TransportChatModel."""
 
 from __future__ import annotations
 

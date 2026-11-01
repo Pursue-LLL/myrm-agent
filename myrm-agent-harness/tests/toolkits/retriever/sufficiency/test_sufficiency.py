@@ -241,7 +241,7 @@ class TestBuildEvalModel:
 
     def _capture_kwargs(self, config):
         with patch(
-            "myrm_agent_harness.toolkits.llms.core.llm.create_litellm_model",
+            "myrm_agent_harness.toolkits.llms.core.llm.create_chat_model",
         ) as mock_create:
             _build_eval_model(config)
         return mock_create.call_args.kwargs

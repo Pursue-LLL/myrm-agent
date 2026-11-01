@@ -28,11 +28,11 @@ def normalize_model(raw: str) -> tuple[str, str | None]:
 
 
 def litellm_config_for(key_prefix: str) -> tuple[str, str, str, str | None]:
-    """Return ``(api_key, base_url, litellm_model, provider)`` for raw litellm calls."""
+    """Return ``(api_key, base_url, route_model_id, provider)`` for raw litellm calls."""
     api_key = os.environ.get(f"{key_prefix}_API_KEY", "")
     base_url = os.environ.get(f"{key_prefix}_BASE_URL", "")
     model = os.environ.get(f"{key_prefix}_MODEL", "")
     if not all([api_key, base_url, model]):
         pytest.skip(f"{key_prefix}_API_KEY/BASE_URL/MODEL not configured")
-    litellm_model, provider = normalize_model(model)
-    return api_key, base_url, litellm_model, provider
+    route_model_id, provider = normalize_model(model)
+    return api_key, base_url, route_model_id, provider

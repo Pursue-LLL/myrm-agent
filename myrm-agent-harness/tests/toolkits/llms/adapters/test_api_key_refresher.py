@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import (
     renew_api_key,
     set_api_key_refresher,
@@ -72,8 +72,8 @@ async def _stream() -> AsyncIterator[_Chunk]:
         yield _Chunk(data)
 
 
-def _model(**fields: Any) -> ChatLiteLLM:
-    model = ChatLiteLLM(model="xai/grok-4", api_base="https://api.x.ai/v1", **fields)
+def _model(**fields: Any) -> TransportChatModel:
+    model = TransportChatModel(model="xai/grok-4", api_base="https://api.x.ai/v1", **fields)
     model.client = MagicMock()
     model.client.acompletion = AsyncMock(return_value=_response())
     return model

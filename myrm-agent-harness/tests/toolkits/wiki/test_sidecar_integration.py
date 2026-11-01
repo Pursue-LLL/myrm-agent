@@ -29,14 +29,14 @@ load_dotenv(_ENV_TEST, override=False)
 
 def _get_test_llm():
     """Create a real LLM instance from .env.test credentials."""
-    from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+    from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
     model = os.getenv("BASIC_MODEL") or os.getenv("LITE_MODEL")
     api_key = os.getenv("BASIC_API_KEY") or os.getenv("LITE_API_KEY")
     base_url = os.getenv("BASIC_BASE_URL") or os.getenv("LITE_BASE_URL")
     if not model or not api_key:
         pytest.skip("No LLM credentials in .env.test")
-    return create_litellm_model(
+    return create_chat_model(
         model=model,
         api_key=api_key,
         api_base=base_url,

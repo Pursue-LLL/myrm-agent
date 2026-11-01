@@ -1,8 +1,8 @@
 """Every chat-model call is either behind the outbound privacy guard or accounted for here.
 
-The guard sits inside ChatLiteLLM (``toolkits/llms``), so any module that talks to litellm's chat API directly reaches
+The guard sits inside TransportChatModel (``toolkits/llms``), so any module that talks to litellm's chat API directly reaches
 the provider with whatever text it was given, privacy policy or not. A new direct call must be a conscious decision:
-route it through ChatLiteLLM, mask its text with ``sanitize_outbound_text``, or be listed below with the reason it
+route it through TransportChatModel, mask its text with ``sanitize_outbound_text``, or be listed below with the reason it
 carries no user text.
 """
 
@@ -79,7 +79,7 @@ def test_every_direct_chat_call_is_accounted_for() -> None:
 
     assert not unaccounted, (
         f"Direct litellm chat calls bypass the outbound privacy guard: {unaccounted}. "
-        "Use ChatLiteLLM, mask the text with sanitize_outbound_text, or list the file in _NO_USER_TEXT with the reason it carries no user text."
+        "Use TransportChatModel, mask the text with sanitize_outbound_text, or list the file in _NO_USER_TEXT with the reason it carries no user text."
     )
 
 

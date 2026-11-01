@@ -1,4 +1,4 @@
-"""Unit tests for empty response retry mechanism in ChatLiteLLM.
+"""Unit tests for empty response retry mechanism in TransportChatModel.
 
 Tests cover:
 - Sync retry (success and exhausted)
@@ -16,7 +16,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
-    ChatLiteLLM,
+    TransportChatModel,
     EmptyChoicesError,
     EmptyStreamError,
 )
@@ -24,8 +24,8 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
 
 @pytest.fixture
 def chat_model():
-    """Create ChatLiteLLM instance with mock client."""
-    model = ChatLiteLLM(model="gpt-3.5-turbo")
+    """Create TransportChatModel instance with mock client."""
+    model = TransportChatModel(model="gpt-3.5-turbo")
     model.client = MagicMock()
     return model
 
@@ -289,28 +289,28 @@ def test_stream_end_to_end_tool_call_recovery(chat_model, messages, model_id, ex
 def test_config_max_attempts_validation():
     """Test max_attempts validation (1-10)."""
     # Valid range
-    model = ChatLiteLLM(model="test", empty_retry_max_attempts=5)
+    model = TransportChatModel(model="test", empty_retry_max_attempts=5)
     assert model.empty_retry_max_attempts == 5
 
     # Below minimum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_max_attempts=0)
+        TransportChatModel(model="test", empty_retry_max_attempts=0)
 
     # Above maximum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_max_attempts=11)
+        TransportChatModel(model="test", empty_retry_max_attempts=11)
 
 
 def test_config_delay_validation():
     """Test delay validation (0.1-10.0)."""
     # Valid range
-    model = ChatLiteLLM(model="test", empty_retry_delay=1.5)
+    model = TransportChatModel(model="test", empty_retry_delay=1.5)
     assert model.empty_retry_delay == 1.5
 
     # Below minimum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_delay=0.05)
+        TransportChatModel(model="test", empty_retry_delay=0.05)
 
     # Above maximum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_delay=15.0)
+        TransportChatModel(model="test", empty_retry_delay=15.0)

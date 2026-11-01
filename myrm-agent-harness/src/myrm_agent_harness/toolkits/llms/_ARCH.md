@@ -12,7 +12,7 @@ Toolkits Llms module.
 | capability_learner.py | Core | In-process model capability cache — records runtime-discovered capabilities (e.g. rejects_media, rejects_allowed_tools_tool_choice) with TTL. | ✅ |
 | allowed_tools_capability.py | Core | Provider gate for OpenAI ``tool_choice.type=allowed_tools``; execution-layer policy remains authoritative when skipped. | ✅ |
 | text_completion.py | Core | `acomplete_text`: one-shot plain chat request through the transport, outside the chat adapter (eval judge, spoken-summary rewrite, policy draft) | ✅ |
-| ephemeral_output_tokens.py | Core | ContextVar override for truncation-recovery output budget; read by `ChatLiteLLM`. | ✅ |
+| ephemeral_output_tokens.py | Core | ContextVar override for truncation-recovery output budget; read by `TransportChatModel`. | ✅ |
 | secrets.py | Core | Framework-neutral external secret reference resolution (`op://` 1Password / `bw://` Bitwarden) with Zero-Disk plaintext; stdlib-only, re-exported by `backends/secrets`. | ✅ |
 
 | Submodule | Description |

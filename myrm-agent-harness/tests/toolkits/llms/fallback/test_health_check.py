@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 from langchain_core.messages import AIMessage, HumanMessage
 from litellm.types.utils import Choices, Message, ModelResponse
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.fallback.health_check import (
     lightweight_health_check,
     probe_llm_health,
@@ -72,7 +72,7 @@ async def test_hung_model_is_cancelled_at_the_deadline() -> None:
 
 
 async def test_deadline_applies_to_a_real_model_whose_provider_never_answers() -> None:
-    model = ChatLiteLLM(model="openai/probe-model", max_tokens=4096)
+    model = TransportChatModel(model="openai/probe-model", max_tokens=4096)
     model.client = MagicMock()
 
     async def never_answers(**_: object) -> None:
@@ -86,7 +86,7 @@ async def test_deadline_applies_to_a_real_model_whose_provider_never_answers() -
 
 
 async def test_probe_leaves_the_models_token_budget_alone() -> None:
-    model = ChatLiteLLM(model="openai/probe-model", max_tokens=4096)
+    model = TransportChatModel(model="openai/probe-model", max_tokens=4096)
     model.client = MagicMock()
     model.client.acompletion = AsyncMock(
         return_value=ModelResponse(

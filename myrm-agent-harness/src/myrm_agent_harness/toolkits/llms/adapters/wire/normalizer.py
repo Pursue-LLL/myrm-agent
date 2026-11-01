@@ -11,7 +11,7 @@
 
 [POS]
 Inbound leg of the LLM adapter wire layer. Converts vendor Responses shapes into the
-chat-completions contract ChatLiteLLM already consumes, so upstream code stays vendor
+chat-completions contract TransportChatModel already consumes, so upstream code stays vendor
 agnostic. Streaming tool-call arguments are emitted as deltas; assembled by the caller.
 """
 
@@ -169,7 +169,7 @@ def _map_usage(usage: dict[str, Any] | None) -> dict[str, int] | None:
 
 
 def responses_dict_to_chat_completion(response: dict[str, Any]) -> dict[str, Any]:
-    """Convert a completed Responses API payload to chat-completions shape for ChatLiteLLM."""
+    """Convert a completed Responses API payload to chat-completions shape for TransportChatModel."""
     text = _extract_output_text(response)
     tool_calls = _extract_tool_calls(response)
     message: dict[str, Any] = {"role": "assistant", "content": text or None}

@@ -8,7 +8,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.core.context_vars import chat_id_var, prompt_routing_key_var
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
 # ---------------------------------------------------------------------------
 # _is_openai_native_endpoint detection
@@ -18,31 +18,31 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
 class TestOpenAINativeEndpointDetection:
     def test_default_api_base_is_openai(self):
         """No api_base set → defaults to OpenAI."""
-        model = ChatLiteLLM(model="gpt-4o")
+        model = TransportChatModel(model="gpt-4o")
         assert model._is_openai_native_endpoint() is True
 
     def test_explicit_openai_base(self):
-        model = ChatLiteLLM(model="gpt-4o", api_base="https://api.openai.com/v1")
+        model = TransportChatModel(model="gpt-4o", api_base="https://api.openai.com/v1")
         assert model._is_openai_native_endpoint() is True
 
     def test_deepseek_base_rejected(self):
-        model = ChatLiteLLM(model="deepseek-chat", api_base="https://api.deepseek.com/v1")
+        model = TransportChatModel(model="deepseek-chat", api_base="https://api.deepseek.com/v1")
         assert model._is_openai_native_endpoint() is False
 
     def test_azure_provider_rejected(self):
-        model = ChatLiteLLM(model="gpt-4o", custom_llm_provider="azure")
+        model = TransportChatModel(model="gpt-4o", custom_llm_provider="azure")
         assert model._is_openai_native_endpoint() is False
 
     def test_ollama_provider_rejected(self):
-        model = ChatLiteLLM(model="llama3", custom_llm_provider="ollama")
+        model = TransportChatModel(model="llama3", custom_llm_provider="ollama")
         assert model._is_openai_native_endpoint() is False
 
     def test_openai_provider_explicit(self):
-        model = ChatLiteLLM(model="gpt-4o", custom_llm_provider="openai")
+        model = TransportChatModel(model="gpt-4o", custom_llm_provider="openai")
         assert model._is_openai_native_endpoint() is True
 
     def test_custom_proxy_rejected(self):
-        model = ChatLiteLLM(model="gpt-4o", api_base="https://my-proxy.example.com/v1")
+        model = TransportChatModel(model="gpt-4o", api_base="https://my-proxy.example.com/v1")
         assert model._is_openai_native_endpoint() is False
 
 
@@ -56,7 +56,7 @@ class TestInjectPromptRoutingKey:
         """Should inject prompt_cache_key for OpenAI endpoint with active routing key."""
         token = prompt_routing_key_var.set("session-abc-123")
         try:
-            model = ChatLiteLLM(model="gpt-4o")
+            model = TransportChatModel(model="gpt-4o")
             params: dict[str, object] = {"model": "gpt-4o"}
             model._inject_prompt_routing_key(params)
             assert params["prompt_cache_key"] == "session-abc-123"
@@ -67,7 +67,7 @@ class TestInjectPromptRoutingKey:
         """Should not inject when ContextVar is unset."""
         token = prompt_routing_key_var.set(None)
         try:
-            model = ChatLiteLLM(model="gpt-4o")
+            model = TransportChatModel(model="gpt-4o")
             params: dict[str, object] = {"model": "gpt-4o"}
             model._inject_prompt_routing_key(params)
             assert "prompt_cache_key" not in params
@@ -78,7 +78,7 @@ class TestInjectPromptRoutingKey:
         """Should not inject for non-OpenAI endpoints even with routing key set."""
         token = prompt_routing_key_var.set("session-xyz")
         try:
-            model = ChatLiteLLM(model="deepseek-chat", api_base="https://api.deepseek.com/v1")
+            model = TransportChatModel(model="deepseek-chat", api_base="https://api.deepseek.com/v1")
             params: dict[str, object] = {"model": "deepseek-chat"}
             model._inject_prompt_routing_key(params)
             assert "prompt_cache_key" not in params
@@ -89,7 +89,7 @@ class TestInjectPromptRoutingKey:
         """Empty string routing key should not inject."""
         token = prompt_routing_key_var.set("")
         try:
-            model = ChatLiteLLM(model="gpt-4o")
+            model = TransportChatModel(model="gpt-4o")
             params: dict[str, object] = {"model": "gpt-4o"}
             model._inject_prompt_routing_key(params)
             assert "prompt_cache_key" not in params
@@ -114,7 +114,7 @@ class TestXaiNativeEndpointDetection:
         ],
     )
     def test_first_party_hosts_are_native(self, api_base: str):
-        assert ChatLiteLLM(model="grok-4", api_base=api_base)._is_xai_native_endpoint() is True
+        assert TransportChatModel(model="grok-4", api_base=api_base)._is_xai_native_endpoint() is True
 
     @pytest.mark.parametrize(
         "api_base",
@@ -127,24 +127,24 @@ class TestXaiNativeEndpointDetection:
         ],
     )
     def test_other_hosts_are_not_native(self, api_base: str):
-        assert ChatLiteLLM(model="grok-4", api_base=api_base)._is_xai_native_endpoint() is False
+        assert TransportChatModel(model="grok-4", api_base=api_base)._is_xai_native_endpoint() is False
 
     def test_provider_hint_without_a_base_url_is_native(self):
-        assert ChatLiteLLM(model="grok-4", custom_llm_provider="xai")._is_xai_native_endpoint() is True
-        assert ChatLiteLLM(model="xai/grok-4")._is_xai_native_endpoint() is True
+        assert TransportChatModel(model="grok-4", custom_llm_provider="xai")._is_xai_native_endpoint() is True
+        assert TransportChatModel(model="xai/grok-4")._is_xai_native_endpoint() is True
 
     def test_a_custom_base_url_wins_over_the_xai_model_name(self):
-        model = ChatLiteLLM(model="xai/grok-4", api_base="https://proxy.example.com/v1")
+        model = TransportChatModel(model="xai/grok-4", api_base="https://proxy.example.com/v1")
         assert model._is_xai_native_endpoint() is False
 
     def test_a_plain_model_without_hints_is_not_native(self):
-        assert ChatLiteLLM(model="gpt-4o")._is_xai_native_endpoint() is False
+        assert TransportChatModel(model="gpt-4o")._is_xai_native_endpoint() is False
 
 
 class TestInjectXaiConversationId:
     @staticmethod
-    def _xai_model() -> ChatLiteLLM:
-        return ChatLiteLLM(model="grok-4", api_base="https://api.x.ai/v1")
+    def _xai_model() -> TransportChatModel:
+        return TransportChatModel(model="grok-4", api_base="https://api.x.ai/v1")
 
     def test_injects_the_routing_key_as_conversation_id(self):
         token = prompt_routing_key_var.set("session-abc-123")
@@ -200,8 +200,8 @@ class TestInjectXaiConversationId:
         token = prompt_routing_key_var.set("session-abc-123")
         try:
             for model in (
-                ChatLiteLLM(model="gpt-4o"),
-                ChatLiteLLM(model="deepseek-chat", api_base="https://api.deepseek.com/v1"),
+                TransportChatModel(model="gpt-4o"),
+                TransportChatModel(model="deepseek-chat", api_base="https://api.deepseek.com/v1"),
             ):
                 params: dict[str, object] = {}
                 model._inject_prompt_routing_key(params)
@@ -220,7 +220,7 @@ class TestInjectXaiConversationId:
 
     @pytest.mark.asyncio
     async def test_header_reaches_the_transport_call_and_the_key_stays_a_credential(self):
-        model = ChatLiteLLM(model="xai/grok-4", api_base="https://api.x.ai/v1", api_key="xai-token")
+        model = TransportChatModel(model="xai/grok-4", api_base="https://api.x.ai/v1", api_key="xai-token")
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(
             return_value={

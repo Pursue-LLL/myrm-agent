@@ -72,9 +72,10 @@ _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
 }
 
-# Client-library framing in front of the provider's words: litellm's exception class, then the provider's own
-# framing, the tag litellm adds ("OpenAIException - ", "AzureException BadRequestError - ") or the OpenAI SDK's
-# status line ("Error code: 400 - "). The `provider` group is non-empty only when the provider's framing is present.
+# Framing a gateway or client SDK puts in front of the provider's words: a LiteLLM proxy relays its exception class
+# ("litellm.BadRequestError: ") and a provider tag ("OpenAIException - ", "AzureException BadRequestError - "), the
+# OpenAI SDK adds its status line ("Error code: 400 - "). The `provider` group is non-empty only when the provider's
+# framing is present.
 _LLM_LIBRARY_PREFIX = re.compile(
     r"^(?:litellm\.[A-Za-z]+Error:\s*)*"
     r"(?P<provider>(?:[A-Za-z]+Exception(?:\s+[A-Za-z]+Error)?\s+-\s+)?(?:Error code:\s*\d{3}\s+-\s+)?)"

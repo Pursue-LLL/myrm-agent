@@ -193,7 +193,7 @@ async def test_skips_allowed_tools_for_local_proxy_via_managed_llm(
     With passthrough, the local marker check fires and the hint is skipped on
     the first turn.
     """
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
     from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM
 
     monkeypatch.setattr(
@@ -205,7 +205,7 @@ async def test_skips_allowed_tools_for_local_proxy_via_managed_llm(
         lambda *_args, **_kwargs: frozenset({"web_search_tool"}),
     )
 
-    inner = ChatLiteLLM(
+    inner = TransportChatModel(
         model="openai-like/OpenCode Go Pool",
         api_base="http://localhost:20128/v1",
     )

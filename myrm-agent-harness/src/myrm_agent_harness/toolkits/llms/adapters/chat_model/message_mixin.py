@@ -1,4 +1,4 @@
-"""ChatLiteLLM message conversion and response assembly mixin.
+"""TransportChatModel message conversion and response assembly mixin.
 
 [INPUT]
 - adapters.converters (POS: message and tool call converters)
@@ -10,10 +10,10 @@
 - adapters.chat_model.wire_encoding (POS: makes every string of a request encodable as UTF-8 before it leaves the process)
 
 [OUTPUT]
-- ChatLiteLLMMessageMixin: _create_message_dicts, normalize, stamp, ChatResult assembly
+- TransportChatModelMessageMixin: _create_message_dicts, normalize, stamp, ChatResult assembly
 
 [POS]
-Message normalization and response assembly for ChatLiteLLM. Provider-aware system
+Message normalization and response assembly for TransportChatModel. Provider-aware system
 demotion/promotion and reasoning_content stamping live here to keep the hot path in one module.
 """
 
@@ -58,10 +58,10 @@ logger = logging.getLogger(__name__)
 _capability_detector = ModelCapabilityDetector()
 
 
-class ChatLiteLLMMessageMixin:
+class TransportChatModelMessageMixin:
     """Message conversion and response assembly mixin.
 
-    Hosted by :class:`ChatLiteLLM`, which supplies the field values for the
+    Hosted by :class:`TransportChatModel`, which supplies the field values for the
     attributes declared below. Declarations exist so static type checkers see
     the host-provided state; Pydantic merges the concrete fields from the host
     class (with their defaults).
@@ -86,7 +86,7 @@ class ChatLiteLLMMessageMixin:
             return dict(response.model_dump())
         if hasattr(response, "dict"):
             return dict(response.dict())
-        raise ValueError(f"Unable to convert LiteLLM response to dict. Type: {type(response)}")
+        raise ValueError(f"Unable to convert provider response to dict. Type: {type(response)}")
 
     def _build_empty_choices_error(self, response: Mapping[str, Any]) -> str:
         error_msg = response.get("error", {})
@@ -95,7 +95,7 @@ class ChatLiteLLMMessageMixin:
         original_error = response.get("original_exception", "")
 
         parts = [
-            f"LiteLLM returned empty choices. Model: {self.model_name or self.model}",
+            f"The provider returned empty choices. Model: {self.model_name or self.model}",
             f"Response keys: {list(response.keys())}",
         ]
 

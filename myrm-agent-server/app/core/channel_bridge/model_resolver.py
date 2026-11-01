@@ -16,7 +16,7 @@ frontend GUI. No implicit/hidden fallback to arbitrary providers.
 - _fallback_model_from_providers: resolve user's default model (no hidden fallback)
 
 [POS]
-Business-layer model resolution. Uses framework-level parsers (to_litellm_model, parse_litellm_model)
+Business-layer model resolution. Uses framework-level parsers (to_route_model_id, parse_route_model_id)
 for ``provider/model`` conversion, combined with business-specific provider config parsing.
 """
 
@@ -28,8 +28,8 @@ from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.config.parsers import (
-    parse_litellm_model,
-    to_litellm_model,
+    parse_route_model_id,
+    to_route_model_id,
 )
 from myrm_agent_harness.api import ConfigIncompleteError
 from myrm_agent_harness.toolkits.llms.catalog import model_info, register_model
@@ -177,7 +177,7 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
         provider_id, raw_model = parts[0], parts[1]
 
         ptype = provider_type_map.get(provider_id)
-        routed_model = _to_litellm_model(provider_id, raw_model, ptype)
+        routed_model = _to_route_model_id(provider_id, raw_model, ptype)
 
         # 确定合法 provider 前缀，避免被判定为未知提供商
         inferred_provider = "custom_openai"
@@ -262,7 +262,7 @@ def _fallback_model_from_providers(
                 all_keys = _extract_all_active_keys(provider)
                 if all_keys:
                     ptype = str(provider.get("providerType", "")) or None
-                    full_model = _to_litellm_model(pid, model, ptype)
+                    full_model = _to_route_model_id(pid, model, ptype)
                     oauth_base = provider.get("_oauthBaseUrl")
                     api_url = str(oauth_base) if oauth_base else str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
@@ -311,7 +311,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
     """Try to build a ModelConfig from providers for the given routed model name."""
     from app.core.types import ModelConfig
 
-    provider_id, raw_model = _parse_litellm_model(model_name)
+    provider_id, raw_model = _parse_route_model_id(model_name)
 
     providers: list[dict[str, object]] = providers_dict.get("providers", [])  # type: ignore[assignment]
 
@@ -355,7 +355,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         egress_proxy_raw = p.get("egressProxy") or p.get("egress_proxy")
         egress_proxy = str(egress_proxy_raw).strip() or None if egress_proxy_raw else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
-        resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
+        resolved_model = _to_route_model_id(pid, raw_model, ptype or None)
         model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
         return enrich_model_config(
             ModelConfig(
@@ -373,9 +373,9 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
     return None
 
 
-def _parse_litellm_model(model_name: str) -> tuple[str, str]:
+def _parse_route_model_id(model_name: str) -> tuple[str, str]:
     """Parse a routed model name (wrapper for framework-level parser)."""
-    return cast(tuple[str, str], parse_litellm_model(model_name))
+    return cast(tuple[str, str], parse_route_model_id(model_name))
 
 
 def _extract_active_key(provider: dict[str, object]) -> str | None:
@@ -450,14 +450,14 @@ def _is_loopback_api_url(api_url: str) -> bool:
     return ip_obj.is_loopback or ip_obj.is_unspecified
 
 
-def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:
+def _to_route_model_id(provider: str, model: str, provider_type: str | None = None) -> str:
     """Convert provider + model to the routed form (wrapper for framework-level converter)."""
     if provider == "vercel_ai_gateway":
         clean_model = model.removeprefix("vercel_ai_gateway/")
         if clean_model.startswith("openai/"):
             return clean_model
         return f"openai/{clean_model}"
-    return str(to_litellm_model(provider, model, provider_type))
+    return str(to_route_model_id(provider, model, provider_type))
 
 
 def _collapse_repeated_prefixes(model: str) -> str:
@@ -683,5 +683,5 @@ __all__ = [
     "_fallback_model_from_providers",
     "_extract_active_key",
     "_extract_all_active_keys",
-    "_to_litellm_model",
+    "_to_route_model_id",
 ]

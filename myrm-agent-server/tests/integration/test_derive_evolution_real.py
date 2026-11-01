@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.agent.config.parsers import to_litellm_model
+from myrm_agent_harness.agent.config.parsers import to_route_model_id
 from myrm_agent_harness.agent.skills.evolution import (
     EvolutionIntegration,
     EvolutionType,
@@ -37,9 +37,9 @@ def _env_model_to_litellm(env_model: str) -> str:
     if not raw:
         return raw
     if "/" not in raw:
-        return to_litellm_model("openai", raw)
+        return to_route_model_id("openai", raw)
     prefix, name = raw.split("/", 1)
-    return to_litellm_model(prefix.replace("-", "_"), name)
+    return to_route_model_id(prefix.replace("-", "_"), name)
 
 
 def _has_real_api_key() -> bool:
@@ -56,7 +56,7 @@ def temp_workspace():
 @pytest.fixture
 def real_llm():
     """Create real LLM client using configured API key."""
-    from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+    from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
     if not BASIC_MODEL:
         pytest.skip("BASIC_MODEL must be set for real LLM integration tests")
@@ -67,7 +67,7 @@ def real_llm():
         provider_name = "openai"
         basic_model = basic_model.replace("openai-compatible/", "openai/", 1)
 
-    return create_litellm_model(
+    return create_chat_model(
         model=basic_model,
         api_key=BASIC_API_KEY,
         base_url=BASIC_BASE_URL or None,
