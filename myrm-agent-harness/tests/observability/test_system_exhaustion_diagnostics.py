@@ -251,6 +251,7 @@ class TestSystemExhaustionProbe:
 
         windows_process = type("WindowsProcess", (), {"num_handles": staticmethod(lambda: 321)})()
         with (
+            patch("sys.platform", "win32"),
             patch.object(system_exhaustion, "resource", None),
             patch.object(system_exhaustion, "psutil") as mock_psutil,
         ):
