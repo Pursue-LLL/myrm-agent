@@ -171,3 +171,32 @@ class TestClassifyWrappedCommands:
     )
     def test_non_verification_stays_unclassified(self, command: str) -> None:
         assert classify_verification({"command": command}) is None
+
+
+class TestSkillScriptsAreToolCalls:
+    """A script that calls an MCP skill is not a check on the code the run wrote."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "python3 - <<'PY'\nimport asyncio\nfrom skills.mcp_k8s_ops_skill import list_pods\nPY",
+            "cd /workspace && python3 - <<'EOF'\nfrom mcp_k8s_ops_skill import list_pods\nEOF",
+            'python3 -c "import skills.mcp_k8s_ops_skill as k; print(k)"',
+            'python3 -c "import skills; print(skills.__file__)"',
+            "python - <<'PY'\nimport importlib\nimport mcp_12306_skill\nPY",
+        ],
+    )
+    def test_skill_import_scripts_do_not_count(self, command: str) -> None:
+        assert classify_verification({"command": command}) is None
+
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            ("python3 probe.py", VerificationCategory.TEST),
+            ('python3 -c "import mymodule; assert mymodule.f(1) == 2"', VerificationCategory.TEST),
+            ("python3 - <<'PY'\nimport mymodule\nassert mymodule.f(1) == 2\nPY", VerificationCategory.TEST),
+            ("python3 -m pytest tests/skills", VerificationCategory.TEST),
+        ],
+    )
+    def test_smoke_runs_of_the_runs_own_code_still_count(self, command: str, expected: VerificationCategory) -> None:
+        assert classify_verification({"command": command}) == expected

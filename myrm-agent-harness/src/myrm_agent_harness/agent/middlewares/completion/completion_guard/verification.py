@@ -110,6 +110,9 @@ _MAKE_TARGETS: dict[str, VerificationCategory] = {**_SCRIPT_CATEGORIES, "tests":
 
 _PROGRAM_ALIASES = {"gradlew": "gradle", "mvnw": "mvn"}
 _PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*)?")
+# A script that imports an MCP skill makes a tool call. It checks nothing about the code the run wrote: a pass would
+# stand in for a test run that never happened, and a failure would be held against the run as a failed check.
+_SKILL_SCRIPT = re.compile(r"\b(?:from|import)\s+(?:skills\b|\w+_skill\b)")
 _NON_VERIFYING_PYTHON_MODULES = frozenset({"pip", "venv", "ensurepip"})
 
 _PLAIN_WRAPPERS = frozenset({"env", "time", "nohup", "npx", "bunx", "uvx"})
@@ -224,11 +227,12 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
 
     The first shell segment that runs a known verification program decides. Matching is on whole tokens, so
     ``pip install pytest`` does not match ``pytest`` and ``npm test-helper`` does not match ``npm test``.
+    A command that carries a script importing an MCP skill is a tool call, not a verification.
     """
-    command = _command(tool_args)
-    if not command:
+    command = _command(tool_args).lower()
+    if not command or _SKILL_SCRIPT.search(command):
         return None
-    for segment in _segments(command.lower()):
+    for segment in _segments(command):
         category = _classify_segment(segment)
         if category is not None:
             return category
