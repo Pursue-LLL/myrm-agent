@@ -9,7 +9,7 @@
  * - next-intl::useTranslations
  *
  * [OUTPUT]
- * - NewTaskWorkContextCard (UnifiedWorkContextCard): Unified onboarding card in EmptyChat
+ * - NewTaskWorkContextCard: Unified onboarding card in EmptyChat
  *   for mode selection (Local Workspace / Cloud Sandbox / Quick Chat) and office directory scaffolding.
  *
  * [POS]
@@ -474,7 +474,5 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
 });
 
 NewTaskWorkContextCard.displayName = 'NewTaskWorkContextCard';
-
-export const UnifiedWorkContextCard = NewTaskWorkContextCard;
 
 export default NewTaskWorkContextCard;
