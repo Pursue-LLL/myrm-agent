@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-170 · 全局 PTC IPC 服务端留在已关闭的事件循环上时被继续复用：监听 socket 仍接收连接、没有任何人应答，脚本里的 MCP 调用一直等到 120 s 脚本截止，Unit 作业里 `test_mcp_marker_full_stack` 的第一个用例偶发红
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`c21222a692`：`MCPIPCServer` 记录自己所在的事件循环，`is_orphaned` 判定「标记运行中但循环已关闭」，`abandon()` 同步释放残留监听 socket；`start_mcp_ipc_server` 遇到残留实例就释放并重建，`get_mcp_ipc_server()` 与 `get_mcp_trace_nonce()` 把它当作不存在；新测试 `tests/agent/skills/mcp/test_ipc_orphaned_server.py`）。 |
+| **发现时间** | 2026-11-01（Actions 运行 41318129384 第一次尝试的 Unit 作业红，作业 124882430808，重跑转绿）；2026-11-02 按「为什么会红」反查根因。 |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P3：只在同一进程里先有一个 IPC 服务端留在已关闭的循环上、之后又有脚本调 MCP 时发生（目前只在测试里观察到）；后果是脚本卡到 120 s 脚本截止才报「Execution timed out after 120s」。 |
+| **关联产品** | PTC 的 MCP IPC 通道（`agent/skills/mcp/ipc_proxy.py`）；bash / python 代码执行里的 MCP 调用；harness 测试。 |
+| **症状** | ① [CI 日志] `tests/agent/meta_tools/bash/test_mcp_marker_full_stack.py::test_a_printing_script_returns_its_output_and_its_calls_become_sources` 失败，`ToolError: Execution timed out after 120s`（该用例 122 s），同模块其余用例通过；同一用例在重跑和上一提交的 Unit 里通过。② [实测] 仓库自己的两个测试按这个顺序跑：`pytest tests/agent/streaming/test_stop_during_bash_tool_e2e.py tests/agent/meta_tools/bash/test_mcp_marker_full_stack.py` → `1 failed, 5 passed in 127.26s`，失败的正是 marker 模块第一个用例，报错与 CI 一致；marker 模块单独在全新进程里连跑 75 次全过。 |
+| **根因** | 进程级单例 `_ipc_server` 绑定在创建它的事件循环上。循环关闭后实例仍是 `_running=True`，监听的 unix socket 还开着（内核照常接受连接），但没有任何人处理 accept，脚本里生成的 IPC 客户端 `readexactly(4)` 永远等不到回包，一直等到脚本的 120 s 截止。`BashExecutor.execute` 每次都经 `_ensure_mcp_proxy_started` 起服务端（`execute_mixin.py:74`），而 `prepare_mixin._start_ipc_server` 只判 `get_mcp_ipc_server() is None`、`start_mcp_ipc_server` 只判 `_running`，都不看循环是否还在，残留实例因此一直被复用。`pyproject.toml:321-322` 的 `asyncio_default_test_loop_scope = "module"` 让每个测试模块一个循环、模块结束即关闭，上一个模块遗留的服务端到下一个模块就成了残留实例。marker 夹具只在用例结束时 `stop_mcp_ipc_server()`，所以只有模块第一个用例卡住。已知会遗留服务端的测试：`test_stop_during_bash_tool_e2e.py::test_stop_ends_the_command_and_the_run_and_the_model_is_not_asked_again`。 |
+| **修复** | 见状态栏。残留判定用 `loop.is_closed()` 而不是 `is_running()`：pytest-asyncio 的模块循环在两个用例之间会暂停，用 `is_running()` 会把健康的服务端误判为残留。`abandon()` 只做同步的 `Server.close()`，因为已关闭的循环没法再等待干净停止。`prepare_mixin` 不需要改：残留实例经 `get_mcp_ipc_server()` 读到的是 `None`，会走重建。 |
+| **反复次数** | 第 1 次。server 的测试夹具 `reset_mcp_ipc_server`（`myrm-agent-server/tests/api/agent/conftest.py:406-413`，注释「防止测试间 stale socket 导致连接失败」）早就在测试侧绕过过同类症状，harness 侧一直没修；两者是否同因没有验证，这条修复也不声称它可以删。 |
+| **踩坑** | ① 第一轮压力测试用 3 个共享默认 basetemp 的 pytest 进程并行，pytest 自己的目录清理竞争让返回码为 1，不是用例失败；改成每次独立 `--basetemp` 后 75/75 通过。② 按最自然的写法 `ipc_proxy.py` 变成 501 行，被 `check_file_line_limit.py` 拒绝；去掉 `abandon()` 里多余的 `self._server = None`（`stop()` 有 `if not self._running` 保护，不会再碰它）后恰好 500 行，没有放宽基线。③ mypy 在新测试里抓到一处 `no-any-return`，已修。 |
+| **回归** | [1] 新测试 2 个：残留服务端既不被提供也不被信任（`get_mcp_ipc_server()` 与 `get_mcp_trace_nonce()` 均为 `None`）；残留之后起的服务端能真实应答一次 IPC 请求（回复等待上限 5 s，旧行为快速失败而不是挂 120 s）。[2] 变异：`start_mcp_ipc_server` 不再替换残留 → 该文件 6.97 s 内以 `TimeoutError` 失败；getter 返回残留、nonce 信任残留 → 各自被抓住。[3] 同一条真实污染链改前 `1 failed, 5 passed in 127.26s`，改后 `6 passed in 8.57s`；用 `asyncio.run` 遗留服务端的复现改前 123.88 s 失败，改后 5 passed in 4.95 s。[4] 提交树导出后跑 `tests/agent/skills`、`tests/agent/meta_tools`、`tests/agent/streaming`、`tests/toolkits/code_execution` 与 PTC 集成测试：8636 passed、1 failed（`test_seatbelt_read_only_subpaths.py` 的 `test_workspace_path_with_a_quote_neither_breaks_nor_widens_the_profile`，macOS 沙箱用例；改前未改动的树上同样失败，没有调查原因）。[5] ruff、ruff format、mypy（两个文件）、行数闸门通过。 |
+| **仍然存在** | ① CI 那一次具体是哪个测试污染了 gw0，没有查出来：日志里 stop e2e 模块在 gw1 的 15:04:49 才跑，晚于 gw0 上失败的 15:02:01；全仓库 macOS 单进程扫描（`tests/agent` 17464 个、其余单元目录 29256 个、integration + architecture 1316 个）只发现这一个会遗留服务端的测试；xdist 的模块调度顺序也不固定（gw0 日志里有 50 处非字母序），没有在本机复现 CI 的具体调度。修复针对的是「任何残留在已关闭循环上的服务端」这一类，如果修复后 CI 仍偶现同样的 120 s 超时，说明还有别的成因。② 生产里是否会出现「循环已关闭但服务端还在」没有证明（生产通常是一个长寿命循环）。③ `BashExecutor._ensure_mcp_proxy_started` 把 `_mcp_proxy_started=True` 缓存在实例上（`prepare_mixin.py`），同一个执行器实例跨不同循环复用时不会重新启动服务端，本条没有覆盖，也没有找到仓库里这样用的证据。④ 只识别「循环已 closed」，循环仅停止、未关闭的情形不在范围内。⑤ `ipc_proxy.py` 现在正好 500 行、零余量，以后再往里加代码必须先拆分。 |
+| **代码位置** | `src/myrm_agent_harness/agent/skills/mcp/ipc_proxy.py`、`agent/skills/mcp/_ARCH.md` · 测试 `tests/agent/skills/mcp/test_ipc_orphaned_server.py` |
+
 ### BUG-HARNESS-2026-11-01-166 · 页面在就绪探针期间自己跳转时，`navigate` 抛出驱动原始错误「Execution context was destroyed」并遗留探针任务；同一 host:port 第二次访问起被误判成「networkidle 不可靠」而放弃快速路径（每次多等 0.5～1.7 s），Browser integration 因此偶发红
 
 | 字段 | 内容 |
