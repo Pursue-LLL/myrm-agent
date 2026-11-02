@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - pytest suite covering re-indexing an unchanged directory, deleted and changed files, same-named files in different
-  directories, git-ignore aware file listing, symlink and size limits, a listing cut at its cap, and call-site match labels.
+  directories, definitions counted by kind, git-ignore aware file listing, symlink and size limits, a listing cut at
+  its cap, and call-site match labels.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_index_lifecycle.py
@@ -27,6 +28,7 @@ from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 from app.services.code_graph import service as service_module
 from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
+from app.services.code_graph.models import SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
 
@@ -125,6 +127,17 @@ def test_same_named_typescript_files_in_different_directories_keep_their_symbols
 
     assert {r["qualified_name"] for r in graph.resolve("render")} == {"web.index.render", "admin.index.render"}
     assert graph.definition_count("render") == 2
+
+
+def test_definitions_are_counted_by_kind(root: Path, graph: CodeGraphService) -> None:
+    _write(root, "m.py", "def run():\n    return 1\n\nclass Job:\n    def run(self):\n        return 2\n")
+
+    graph.index_directory(root)
+
+    assert graph.definition_count("run") == 2
+    assert graph.definition_count("m.Job.run", (SymbolKind.METHOD,)) == 1
+    assert graph.definition_count("run", (SymbolKind.FUNCTION, SymbolKind.CLASS)) == 1
+    assert graph.definition_count("Job", (SymbolKind.FUNCTION,)) == 0
 
 
 def test_the_file_list_follows_gitignore_and_includes_untracked_files(root: Path, graph: CodeGraphService) -> None:

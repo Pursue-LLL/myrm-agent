@@ -8,7 +8,7 @@
  * - extractSummonErrorMessage: 提取召唤专家过程中的用户友好错误信息。
  *
  * [POS]
- * 收敛 TemplateMarket 与 FlowPad 的模板实例化逻辑，确保召唤尝试/成功/失败口径一致，透传真实错误。
+ * 收敛 ExpertSummonPopover、FeaturedExpertChips 与 FlowPad 的模板实例化逻辑，确保召唤尝试/成功/失败口径一致，透传真实错误。
  */
 import { instantiateTemplate, type Agent } from '@/services/agent';
 import {

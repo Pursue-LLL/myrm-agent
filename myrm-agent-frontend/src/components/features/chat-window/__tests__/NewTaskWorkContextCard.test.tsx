@@ -102,6 +102,20 @@ describe('NewTaskWorkContextCard', () => {
     expect(mockState.setActionMode).toHaveBeenCalledWith('agent');
   });
 
+  it.each([
+    { name: 'local', state: { sandboxMode: false, actionMode: 'agent' } },
+    { name: 'cloud', state: { sandboxMode: true, actionMode: 'agent' } },
+    { name: 'chat', state: { sandboxMode: false, actionMode: 'fast' } },
+  ])('exposes only the $name tab as pressed for the matching store state', ({ name, state }) => {
+    Object.assign(mockState, state);
+    render(<NewTaskWorkContextCard />);
+
+    const modes = ['local', 'cloud', 'chat'];
+    const pressed = modes.map((mode) => screen.getByTestId(`context-mode-${mode}`).getAttribute('aria-pressed'));
+
+    expect(pressed).toEqual(modes.map((mode) => String(mode === name)));
+  });
+
   it('switches to quick chat mode', () => {
     render(<NewTaskWorkContextCard />);
     const chatBtn = screen.getByText('Quick Chat').closest('button');

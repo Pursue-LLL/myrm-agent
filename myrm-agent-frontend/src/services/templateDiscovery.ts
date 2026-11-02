@@ -8,8 +8,8 @@
  * - resolveTemplateKind: 模板类别归一化（team/individual）。
  *
  * [POS]
- * 专家模板发现层共享纯函数。收敛 TemplateMarket 与 FlowPad 的检索口径，
- * 避免双端逻辑漂移导致召唤体验不一致。
+ * 专家模板发现层共享纯函数。收敛 ExpertSummonPopover、FeaturedExpertChips 与 FlowPad 的检索口径，
+ * 避免多端逻辑漂移导致召唤体验不一致。
  */
 import type { TemplateListItem } from '@/services/agent';
 import { WB_TOP20_SKILL_MIGRATION_MAP } from '@/services/skillMigrationMap';
@@ -65,14 +65,4 @@ export function templateMatchesSearchQuery(template: TemplateListItem, query: st
   }
 
   return false;
-}
-
-export function templateMatchesCategory(template: TemplateListItem, category: string): boolean {
-  if (!category || category === 'all') {
-    return true;
-  }
-  if (category === 'team') {
-    return template.agent_type === 'team' || template.category === 'team';
-  }
-  return template.category === category;
 }

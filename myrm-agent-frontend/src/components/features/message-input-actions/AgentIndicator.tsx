@@ -99,7 +99,7 @@ const AgentIndicator = () => {
 
   // 快速切换预设智能体
   const handleSelectPreset = useCallback(
-    async (preset: PresetAgent, workingDirectory?: string) => {
+    async (preset: PresetAgent) => {
       let config: AgentConfig = {
         agentId: preset.id,
         selectedSkillIds: preset.skillIds || [],
@@ -125,10 +125,6 @@ const AgentIndicator = () => {
         }
       } catch (e) {
         console.error('Failed to fetch full agent details for preset', e);
-      }
-
-      if (workingDirectory) {
-        config.agentDescription = `workingDirectory:${workingDirectory}`;
       }
 
       setAgentConfig(config);
@@ -236,6 +232,7 @@ const AgentIndicator = () => {
       }
       if (parsed?.type === 'image') {
         return (
+          // oxlint-disable-next-line next/no-img-element -- the avatar is a user-supplied arbitrary address (remote or data URL), which next/image cannot optimize
           <img src={parsed.src} alt={agentConfig.agentName || 'Agent'} className="w-full h-full rounded object-cover" />
         );
       }

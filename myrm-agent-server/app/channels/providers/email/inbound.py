@@ -17,7 +17,8 @@ RFC 822 message into an InboundMessage. Headers, bodies and attachments are read
 headers (RFC 6532), a charset name Python has no codec for and a cut-off encoded word are decoded instead of failing the
 message; a part is an attachment however its disposition is spelled or when only its Content-Type names it, and a message
 that is one attachment is attached rather than read as text. The sender chooses the file name, so only a plain extension
-of it reaches the path an attachment is saved under.
+of it reaches the path an attachment is saved under. The files of a message are written once the rest of it has been
+read, all of them or none, because a message that fails is read again.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ import logging
 import re
 import tempfile
 import urllib.parse
+from collections.abc import Sequence
 from email.message import Message
 from pathlib import Path
 
@@ -206,15 +208,34 @@ def _media_type(content_type: str) -> MediaType:
 
 
 def _save_attachment(part: Message, content_type: str) -> MediaAttachment:
-    """Describe an attachment *part* and save its payload to a temporary file."""
+    """Describe an attachment *part* and save its payload to a temporary file; a file that could not be written is removed."""
     filename = _attachment_filename(part)
     file_data = part.get_payload(decode=True)
     saved_path: str | None = None
     if isinstance(file_data, bytes) and file_data:
-        with tempfile.NamedTemporaryFile(delete=False, prefix="email_att_", suffix=_safe_suffix(filename)) as tmp:
-            tmp.write(file_data)
+        tmp = tempfile.NamedTemporaryFile(delete=False, prefix="email_att_", suffix=_safe_suffix(filename))
+        try:
+            with tmp:
+                tmp.write(file_data)
+        except OSError:
+            Path(tmp.name).unlink(missing_ok=True)
+            raise
         saved_path = tmp.name
     return MediaAttachment(media_type=_media_type(content_type), filename=filename, mime_type=content_type, path=saved_path)
+
+
+def _save_attachments(parts: Sequence[tuple[Message, str]]) -> tuple[MediaAttachment, ...]:
+    """Save every attachment of a message, or none: when one fails the message is read again and would write the rest twice."""
+    saved: list[MediaAttachment] = []
+    try:
+        for part, content_type in parts:
+            saved.append(_save_attachment(part, content_type))
+    except Exception:
+        for attachment in saved:
+            if attachment.path:
+                Path(attachment.path).unlink(missing_ok=True)
+        raise
+    return tuple(saved)
 
 
 class EmailInboundMixin(BaseChannel):
@@ -242,7 +263,7 @@ class EmailInboundMixin(BaseChannel):
 
         text_body = ""
         html_body = ""
-        media_list: list[MediaAttachment] = []
+        attachments: list[tuple[Message, str]] = []
         forwarded_rfc822: Message | None = None
 
         if msg.is_multipart():
@@ -257,7 +278,7 @@ class EmailInboundMixin(BaseChannel):
                     continue
 
                 if _is_attachment(part, embedded):
-                    media_list.append(_save_attachment(part, ct))
+                    attachments.append((part, ct))
                 elif ct == "text/html":
                     payload = part.get_payload(decode=True)
                     if isinstance(payload, bytes):
@@ -268,7 +289,7 @@ class EmailInboundMixin(BaseChannel):
                         text_body = _to_text(payload, part.get_content_charset())
         elif msg.get_content_maintype() != "text" and _is_attachment(msg):
             # The message is itself the attachment; a single text part stays the body whatever its disposition says.
-            media_list.append(_save_attachment(msg, msg.get_content_type()))
+            attachments.append((msg, msg.get_content_type()))
         else:
             payload = msg.get_payload(decode=True)
             if isinstance(payload, bytes):
@@ -280,7 +301,7 @@ class EmailInboundMixin(BaseChannel):
 
         body = text_body or _html_to_markdown(html_body)
 
-        if not body.strip() and not media_list:
+        if not body.strip() and not attachments:
             return None
 
         thread_id = in_reply_to or (references.split()[-1] if references else None)
@@ -352,13 +373,16 @@ class EmailInboundMixin(BaseChannel):
             else:
                 metadata["is_forwarded"] = True
 
+        # Written last: a message that fails is read again, so no file may exist before the rest of it has been read.
+        media = _save_attachments(attachments)
+
         return self._build_inbound(
             sender_id=sender_email,
             content=content,
             chat_id=sender_email,
             is_group=False,
             mentioned=True,
-            media=tuple(media_list),
+            media=media,
             reply_to_id=in_reply_to or None,
             thread_id=thread_id,
             metadata=metadata,

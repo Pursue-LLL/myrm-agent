@@ -11,6 +11,7 @@
  * Per-chat MoA preset persistence in localStorage (survives full page refresh; skipped in incognito).
  */
 
+import { ApiError } from '@/lib/api';
 import { MOA_PRESET_IDS, type MoaPresetId } from '@/lib/moaPresetUtils';
 import { updateChatActiveMoaPreset } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -69,7 +70,13 @@ export function resolveHydratedMoaPresetId(
   return readStoredMoaPresetId(chatId);
 }
 
-/** Persist session MoA preset to server; optional rollback when PATCH fails. */
+/**
+ * Persist session MoA preset to server; optional rollback when PATCH fails.
+ *
+ * A chat only exists server-side after its first send, which creates it with the preset
+ * carried in the stream request. A 404 therefore means "nothing to update yet", not a failed
+ * save: it must neither roll the selection back nor raise an error toast.
+ */
 export async function persistMoaPresetToServer(
   chatId: string,
   presetId: string | null,
@@ -77,7 +84,10 @@ export async function persistMoaPresetToServer(
 ): Promise<void> {
   try {
     await updateChatActiveMoaPreset(chatId, presetId);
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 404) {
+      return;
+    }
     onFailure?.();
     showI18nToast('settings.defaultModel.moaPreset.persistFailed', undefined, { type: 'error' });
   }

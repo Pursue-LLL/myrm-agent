@@ -4,7 +4,7 @@
 - None (stdlib only)
 
 [OUTPUT]
-- BackgroundJobRecord: Durable job snapshot for REST / finish dedupe
+- BackgroundJobRecord: Durable job snapshot for REST / finish dedupe, with the server that registered the job
 - reconcile_orphaned_job_ids: Mark running jobs absent from live registry as orphaned
 - map_store_status_to_shell_task_status: API status mapping
 
@@ -36,6 +36,9 @@ class BackgroundJobRecord:
     error_category: str | None
     finish_processed: bool
     vault_log_ref: str | None
+    # The server that registered the job (pid and start stamp); ``None`` for a row written without one.
+    owner_pid: int | None = None
+    owner_start_stamp: float | None = None
 
 
 def reconcile_orphaned_job_ids(

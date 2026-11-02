@@ -339,7 +339,6 @@ def test_consolidation_preview_with_actions(client: TestClient) -> None:
         ],
         total_skills_affected=2,
         estimated_reduction=1,
-        preview_summary="• Merge 2 skills into 'git_operations_skill'",
     )
 
     async def mock_preview() -> ConsolidationPlan:
@@ -357,6 +356,7 @@ def test_consolidation_preview_with_actions(client: TestClient) -> None:
     assert data["actions"][0]["target_skill"] == "git_operations_skill"
     assert data["total_skills_affected"] == 2
     assert data["estimated_reduction"] == 1
+    assert set(data) == {"actions", "total_skills_affected", "estimated_reduction", "plan_token"}
 
 
 def test_consolidation_execute_empty(client: TestClient) -> None:

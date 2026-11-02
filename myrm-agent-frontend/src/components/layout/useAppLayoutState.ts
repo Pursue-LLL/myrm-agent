@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { checkIsMobile } from '@/lib/utils/device';
 import { requestManager } from '@/lib/utils/requestManager';
 import { consumeMigrationChatAgent } from '@/lib/migrationChatHandoff';
+import { isMobileRemotePath } from '@/lib/mobileRemote';
 import { useResizableSidebar } from '@/hooks/ui/useResizableSidebar';
 import type { NavTab } from './NavBar';
 
@@ -201,6 +202,7 @@ export function useAppLayoutState() {
   }, []);
 
   const isSettingsPage = pathname.startsWith('/settings');
+  const isRemoteSurface = isMobileRemotePath(pathname);
   const shouldShowContentSidebar = !isSettingsPage && activeTab === 'chat';
   const showMobileLayout = isMobile;
   const paddingLeft = showMobileLayout
@@ -230,6 +232,7 @@ export function useAppLayoutState() {
     handleToggleSidebar,
     handleTabChange,
     isSettingsPage,
+    isRemoteSurface,
     shouldShowContentSidebar,
     showMobileLayout,
     paddingLeft,

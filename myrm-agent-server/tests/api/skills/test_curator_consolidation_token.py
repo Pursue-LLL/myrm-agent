@@ -5,7 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.skills.curator.consolidation.types import ConsolidationPlan
+from myrm_agent_harness.agent.skills.curator.consolidation.types import (
+    ConsolidationAction,
+    ConsolidationActionType,
+    ConsolidationPlan,
+)
 
 _PREVIEW_URL = "/api/v1/skills/curator/consolidation/preview"
 _EXECUTE_URL = "/api/v1/skills/curator/consolidation/execute"
@@ -17,6 +21,16 @@ _EXECUTION_RESULT = {
     "net_reduction": 1,
     "summary": "Consolidated 2 skills into 1 umbrella.",
 }
+
+
+def _merge_plan(target: str = "report_skill", *, failed_clusters: int = 0) -> ConsolidationPlan:
+    merge = ConsolidationAction(
+        action_type=ConsolidationActionType.MERGE,
+        target_skill=target,
+        source_skills=("report_a", "report_b"),
+        reasoning="same job",
+    )
+    return ConsolidationPlan(actions=[merge], total_skills_affected=2, estimated_reduction=1, failed_clusters=failed_clusters)
 
 
 def _issue_token(client: TestClient, previewed_plan: ConsolidationPlan) -> str:
@@ -72,9 +86,19 @@ def test_a_token_executes_only_once(client: TestClient) -> None:
 
 
 def test_execute_rejects_a_token_when_the_plan_changed_after_the_preview(client: TestClient) -> None:
-    token = _issue_token(client, ConsolidationPlan(preview_summary="the plan the user saw"))
+    token = _issue_token(client, _merge_plan("report_skill"))
 
-    status, execution = _execute(client, token, current_plan=ConsolidationPlan(preview_summary="a different plan"))
+    status, execution = _execute(client, token, current_plan=_merge_plan("invoice_skill"))
 
     assert status == 409
     execution.assert_not_awaited()
+
+
+def test_execute_accepts_a_plan_that_differs_only_in_how_many_groups_could_not_be_evaluated(client: TestClient) -> None:
+    """The token binds the plan the user saw; a transient judge failure is not part of that plan."""
+    token = _issue_token(client, _merge_plan(failed_clusters=1))
+
+    status, execution = _execute(client, token, current_plan=_merge_plan(failed_clusters=0))
+
+    assert status == 200
+    execution.assert_awaited_once()

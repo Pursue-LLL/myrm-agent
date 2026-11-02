@@ -20,8 +20,13 @@ type PairingTokenResponse = {
   mobileUrl?: string;
 };
 
+/** `/mobile` and everything below it: the paired-phone remote control surface. */
+export function isMobileRemotePath(pathname: string): boolean {
+  return pathname === '/mobile' || pathname.startsWith('/mobile/');
+}
+
 export function isMobileRemoteSurface(): boolean {
-  return typeof window !== 'undefined' && window.location.pathname.startsWith('/mobile');
+  return typeof window !== 'undefined' && isMobileRemotePath(window.location.pathname);
 }
 
 function stripPairTokenFromUrl(): void {

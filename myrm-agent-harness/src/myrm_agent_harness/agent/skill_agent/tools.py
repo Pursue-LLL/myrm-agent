@@ -62,6 +62,10 @@ class SkillAgentToolsMixin:
     _wiki_compiler: WikiCompiler | None
     _wiki_structure: WikiStructure | None
 
+    def _prompt_locale(self) -> str:
+        """Language of the model-facing tool and prompt text: the prompt locale, else the UI locale, else English."""
+        return getattr(self.config, "prompt_locale", None) or getattr(self.config, "locale", None) or "en"  # type: ignore[attr-defined]
+
     async def _build_tools(self) -> list[BaseTool]:
         """Build tool list via ToolRegistry."""
         from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
@@ -98,7 +102,7 @@ class SkillAgentToolsMixin:
                 for tool in self.user_tools  # type: ignore[attr-defined]
             )
 
-        prompt_locale = getattr(self.config, "prompt_locale", None) or getattr(self.config, "locale", None) or "en"  # type: ignore[attr-defined]
+        prompt_locale = self._prompt_locale()
 
         supplemental_user_tools: list[BaseTool] = []
         if self.market_backend is not None and not _user_has_tool("skill_market_tool"):  # type: ignore[attr-defined]

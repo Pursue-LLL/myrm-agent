@@ -19,9 +19,12 @@ from myrm_agent_harness.agent.skills.mcp.core_generator import (
 from myrm_agent_harness.agent.skills.mcp.description import resolve_description
 from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
     INDEX_NOTE_TOKENS,
-    L2_MAX_TOKENS,
+    L2_NAMES_MAX_TOKENS,
+    L2_SIGNATURE_MAX_TOKENS,
+    ToolSectionBudget,
     build_tool_section,
     clean_markdown,
+    l2_ceiling,
     tool_section_budget,
     truncate_to_sentence,
 )
@@ -114,7 +117,11 @@ def large_skill_meta() -> SkillMetadata:
     """SkillMetadata whose tool section exceeds the budget ladder's signature rungs."""
     tools = [f"tool-{i}" for i in range(400)]
     schemas: dict[str, dict[str, object]] = {
-        name: {"description": f"Tool {i} description", "inputSchema": {}} for i, name in enumerate(tools)
+        name: {
+            "description": f"Tool {i} description",
+            "inputSchema": {"properties": {f"p{j}": {"type": "string"} for j in range(6)}, "required": ["p0", "p1"]},
+        }
+        for i, name in enumerate(tools)
     }
     mcp = MCPSkillData(server="large", tools=tools, config=[], tool_schemas=schemas)
     return SkillMetadata(name="mcp_large_skill", description="Large server", mcp=mcp)
@@ -396,9 +403,7 @@ class TestToolDocImportExample:
         assert "Do NOT call" in doc
         assert "json.loads()" in doc
 
-    def test_no_fake_call_example(
-        self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata
-    ) -> None:
+    def test_no_fake_call_example(self, generator: MCPSkillGenerator, sample_skill_meta: SkillMetadata) -> None:
         doc = generator.generate_tool_doc(sample_skill_meta, "get-tickets")
         assert "result = await get_tickets(" not in doc
 
@@ -728,18 +733,30 @@ class TestToolSectionLadder:
             for i in range(count)
         }
 
+    @staticmethod
+    def _meta(server: str, schemas: dict[str, dict[str, object]]) -> SkillMetadata:
+        mcp = MCPSkillData(server=server, tools=list(schemas), config=[], tool_schemas=schemas)
+        return SkillMetadata(name=f"mcp_{server}_skill", description="d", mcp=mcp)
+
     def test_twenty_one_tools_keep_full_signatures(self) -> None:
         # The old count threshold dropped every parameter at 21 tools.
         schemas = self._schemas(21)
-        tool_list = build_tool_section(list(schemas), schemas, "x", 1_600)[0]
+        tool_list = build_tool_section(list(schemas), schemas, "x", ToolSectionBudget(1_600, 1_600))[0]
         assert "p5?:string" in tool_list
         assert "…" not in tool_list
         assert get_token_count(tool_list) <= 1_600
 
     def test_budget_reserves_the_tier_note(self) -> None:
         # The tier note is appended after the tool section; the budget must leave room for it.
-        assert tool_section_budget("") == L2_MAX_TOKENS - INDEX_NOTE_TOKENS
-        assert tool_section_budget("token " * 3_000) == 0
+        assert tool_section_budget("") == ToolSectionBudget(
+            signatures=L2_SIGNATURE_MAX_TOKENS - INDEX_NOTE_TOKENS, names=L2_NAMES_MAX_TOKENS - INDEX_NOTE_TOKENS
+        )
+        # Instructions that fill the name-only ceiling leave the signature tiers their larger remainder.
+        instructions = "token " * L2_NAMES_MAX_TOKENS
+        crowded = tool_section_budget(instructions)
+        assert crowded.names == 0
+        assert crowded.signatures == L2_SIGNATURE_MAX_TOKENS - INDEX_NOTE_TOKENS - get_token_count(instructions)
+        assert tool_section_budget("token " * (L2_SIGNATURE_MAX_TOKENS + 1)) == ToolSectionBudget(0, 0)
 
         long_skill = "mcp_" + "x" * 200 + "_skill"
         note = (
@@ -753,20 +770,42 @@ class TestToolSectionLadder:
         # A verbose server with hundreds of tools cannot fit every name inside the ceiling.
         schemas = self._schemas(300)
         budget = 300
-        tool_list = build_tool_section(list(schemas), schemas, "x", budget)[0]
+        tool_list = build_tool_section(list(schemas), schemas, "x", ToolSectionBudget(budget, budget))[0]
         assert get_token_count(tool_list) <= budget
         assert "more tools not shown" in tool_list
 
     def test_fifty_tools_drop_optionals_but_keep_required(self) -> None:
         schemas = self._schemas(50)
-        tool_list = build_tool_section(list(schemas), schemas, "x", 1_200)[0]
+        tool_list = build_tool_section(list(schemas), schemas, "x", ToolSectionBudget(1_200, 1_200))[0]
         assert "p0:string" in tool_list
         assert "p5?:string" not in tool_list
         assert "…" in tool_list
         assert get_token_count(tool_list) <= 1_200
 
-    def test_two_hundred_tools_fall_back_to_names(self) -> None:
-        schemas = self._schemas(200)
+    def test_four_hundred_tools_fall_back_to_names(self) -> None:
+        schemas = self._schemas(400)
         tool_list = _tool_section(mcp_skill_generator, list(schemas), schemas)
         assert "(" not in tool_list
-        assert tool_list.count("- tool_") == 200
+        assert tool_list.count("- tool_") == 400
+
+    @pytest.mark.parametrize(("count", "optionals_listed"), [(100, True), (200, False)])
+    def test_signatures_outgrow_the_name_only_ceiling(self, count: int, optionals_listed: bool) -> None:
+        # Signatures cost more than the name-only ceiling, but they spare the model a doc read per tool.
+        schemas = self._schemas(count)
+        out = mcp_skill_generator.generate_skill_content(self._meta("big", schemas))
+        assert "p0:string" in out
+        assert ("p5?:string" in out) is optionals_listed
+        assert "only names are listed" not in out
+        assert L2_NAMES_MAX_TOKENS < get_token_count(out) <= L2_SIGNATURE_MAX_TOKENS
+
+    def test_names_tier_keeps_the_name_only_ceiling(self) -> None:
+        # Past the signature ceiling a bigger server only loses its name tail; the prompt does not grow with it.
+        schemas = self._schemas(1_500)
+        out = mcp_skill_generator.generate_skill_content(self._meta("huge", schemas))
+        assert "only names are listed" in out
+        assert "more tools not shown" in out
+        assert get_token_count(out) <= L2_NAMES_MAX_TOKENS
+
+    def test_ceiling_follows_the_chosen_tier(self) -> None:
+        assert l2_ceiling("names") == L2_NAMES_MAX_TOKENS
+        assert l2_ceiling("full") == l2_ceiling("required") == L2_SIGNATURE_MAX_TOKENS

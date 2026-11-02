@@ -5,6 +5,7 @@
  * - @/store/useChatStore (POS: Global chat store for workspaceDir, sandboxMode, actionMode)
  * - @/services/chat::mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir
  * - @/lib/tauri::isTauriEnvironment
+ * - ./WorkModeTabs::WorkModeTabs, NewTaskMode (POS: Presentational three-mode segmented control)
  * - next-intl::useTranslations
  *
  * [OUTPUT]
@@ -22,15 +23,12 @@ import { useTranslations } from 'next-intl';
 import {
   FolderOpen,
   FolderClosed,
-  Boxes,
-  MessageSquare,
   FolderPlus,
   Check,
   X,
   Sparkles,
   Layers,
   ChevronRight,
-  HardDrive,
   Clock,
   ArrowLeft,
 } from 'lucide-react';
@@ -43,8 +41,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
-
-export type NewTaskMode = 'local' | 'cloud' | 'chat';
+import { WorkModeTabs, type NewTaskMode } from './WorkModeTabs';
 
 const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
@@ -274,52 +271,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     >
       {/* Mode Switcher Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border/40">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/50 text-xs font-medium">
-          <button
-            type="button"
-            data-testid="context-mode-local"
-            onClick={() => handleModeChange('local')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all',
-              currentMode === 'local'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <HardDrive className="h-3.5 w-3.5 text-primary" />
-            <span>{t('modeLocal')}</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="context-mode-cloud"
-            onClick={() => handleModeChange('cloud')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all',
-              currentMode === 'cloud'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Boxes className="h-3.5 w-3.5 text-blue-500" />
-            <span>{t('modeCloud')}</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="context-mode-chat"
-            onClick={() => handleModeChange('chat')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all',
-              currentMode === 'chat'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
-            <span>{t('modeChat')}</span>
-          </button>
-        </div>
+        <WorkModeTabs value={currentMode} onChange={handleModeChange} />
 
         {/* Mode description hint */}
         <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">

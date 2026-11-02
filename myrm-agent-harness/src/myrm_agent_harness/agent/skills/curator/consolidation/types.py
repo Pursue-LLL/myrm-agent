@@ -117,8 +117,9 @@ class ConsolidationPlan:
     estimated_reduction: int = 0
     """Net reduction in active skill count after execution."""
 
-    preview_summary: str = ""
-    """Human-readable summary for GUI display."""
+    failed_clusters: int = 0
+    """Clusters the judge could not judge: the model call failed, its answer was unusable or it named a target
+    nothing can act on. A plan with no actions only means 'nothing to consolidate' when this is 0."""
 
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     """When this plan was generated."""

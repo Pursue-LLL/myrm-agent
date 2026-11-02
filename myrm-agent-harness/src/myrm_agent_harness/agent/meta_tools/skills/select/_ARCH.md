@@ -22,7 +22,7 @@ Bound skills → resolve_catalog_display_skills() → get_metadata_summary()
                     │
                     └── implicit (LLM auto-select) → skill_select_tool(skill_names)
                                          ↓
-                         ┌── first load → full SOP ToolMessage (普通 skill 作者文档；MCP L2 单 server ≤3000 tokens)
+                         ┌── first load → full SOP ToolMessage (普通 skill 作者文档；MCP L2 单 server ≤8000 tokens（仅名称索引时 ≤3000）)
                          └── already loaded → concise summary (~200 tokens)
 ```
 

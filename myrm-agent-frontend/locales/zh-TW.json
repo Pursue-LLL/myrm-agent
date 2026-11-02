@@ -67,6 +67,7 @@
     "summonSuccess": "已切換至專家 {name}",
     "summonFailed": "召喚專家範本失敗",
     "featuredTitle": "精選專家與團隊",
+    "featuredDismiss": "關閉精選專家推薦",
     "teamBadge": "團隊",
     "expertBadge": "專家",
     "searchPlaceholder": "搜尋專家或團隊...",
@@ -1099,18 +1100,14 @@
       "instruction": "指令",
       "instructionDesc": "點選配置自定義指令",
       "more": "更多",
-      "savedAgents": "已儲存智慧體",
       "viewAll": "檢視全部",
-      "manage": "管理",
       "noSavedAgents": "暫無儲存的智慧體",
       "noSavedAgentsDesc": "編輯配置後可儲存為智慧體",
       "useAgent": "使用",
-      "teamBadge": "團隊",
       "noSelected": "未選擇",
       "noInstruction": "未設定指令",
       "useGlobalInstructionDefault": "預設使用全域性指令",
       "ready": "就緒",
-      "noDescription": "暫無描述",
       "saveAsNewAgent": "儲存為新智慧體",
       "savingAgent": "儲存中...",
       "save": "儲存",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "單 Agent (無下屬團隊)",
       "jitTeamPlaceholder": "不使用虛擬團隊",
       "jitInheritMemory": "繼承父級對話記憶",
-      "templateMarket": "模板市場",
-      "categoryFilter": "分類篩選",
       "categoryAll": "全部",
       "categoryOffice": "職場辦公",
       "categoryCommerce": "電商零售",
       "categoryEngineering": "技術研發",
       "categoryTeam": "協作團隊",
-      "orgMarketplace": "組織集市",
-      "searchMarketplace": "搜尋智慧體...",
-      "installs": "次安裝",
-      "installed": "已安裝",
-      "installSuccess": "已從集市安裝智慧體！",
-      "installError": "安裝智慧體失敗",
-      "noResults": "未找到智慧體",
-      "publishToOrg": "釋出到組織",
-      "publishedToOrg": "已釋出到組織",
-      "publishSuccess": "已釋出到組織集市！",
-      "publishError": "釋出到組織集市失敗",
-      "forcePush": "推送",
-      "forcePushConfirm": "確定將「{name}」v{version} 強制推送給所有已安裝使用者？這將覆蓋他們當前的配置（已自動儲存快照可回滾）。",
-      "forcePushSuccess": "強制推送完成",
-      "forcePushError": "推送失敗",
-      "forcePushTooltip": "將最新版本強制推送給所有已安裝使用者",
       "forcePushReceived": "智慧體配置已被組織更新",
       "forcePushRollbackHint": "快照已儲存，可在智慧體設定中回滾。",
       "viewAgent": "檢視",
-      "instantiateSuccess": "已從模板建立智慧體！",
-      "instantiateError": "從模板建立智慧體失敗",
       "blueprints": {
         "research_squad": "深度調研小隊 (多智慧體)",
         "code_audit_squad": "程式碼紅隊審查 (多智慧體)"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "已裝配",
         "pureInstructionNotice": "未裝配技能 · 純指令模式",
         "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
-      },
-      "forcePushSummary": "v{version} → 已同步 {synced}，已略過 {skipped}，失敗 {failed}（共 {total}）"
+      }
     },
     "validation": {
       "dependencyInvalid": "智慧體配置存在問題",
@@ -3234,7 +3210,6 @@
       "unverifiedWarningDescription": "該模型尚未經官方工具調用相容性驗證，執行複雜技能時可能出現格式異常。建議優先選用推薦標竿模型。"
     },
     "migrationDiscovery": {
-      "detecting": "正在掃描本地 AI 助手資料...",
       "title": "檢測到 {competitor} 資料",
       "description": "發現 {memoryCount} 條記憶和 {skillCount} 個技能，可預覽後匯入",
       "descriptionMemoryOnly": "發現 {memoryCount} 條記憶，可預覽後匯入",
@@ -3556,12 +3531,7 @@
     "collapseReasoning": "收合思考過程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 個推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 個推理 Token",
-    "systemNotices": {
-      "title": "提醒與發現",
-      "open": "提醒",
-      "playbook": "模型編排手冊"
-    }
+    "reasoningTokensEstimated": "≈ {count} 個推理 Token"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -7074,93 +7044,7 @@
     }
   },
   "presetAgent": {
-    "title": "智慧體",
-    "description": "選擇一個智慧體開始對話",
-    "selectPreset": "選擇預置智慧體",
-    "workingDirectory": "工作目錄",
-    "selectWorkingDirectory": "選擇工作目錄",
-    "configureWorkingDirectory": "請配置此智慧體的工作目錄，智慧體將在該目錄下執行操作。",
-    "notConfigured": "未接入，請先配置",
-    "requiresConfig": "需要配置",
-    "cancel": "取消",
-    "confirm": "確認",
-    "pathHint": "輸入專案的完整路徑，例如：",
-    "enterDirectoryPath": "請輸入專案目錄路徑",
-    "manualInputPath": "輸入您要操作的專案目錄絕對路徑。",
-    "clickToConfigureDirectory": "點選配置工作路徑",
-    "pleaseEnterWorkingDirectory": "請先填寫工作路徑",
-    "workingDirectoryPlaceholder": "輸入工作路徑...",
-    "workingPathLabel": "工作路徑",
-    "invalidAbsolutePath": "請輸入絕對路徑",
-    "edit": "編輯",
-    "pathNotExist": "路徑不存在",
-    "pathNotDirectory": "路徑不是目錄",
-    "errors": {
-      "workingDirectoryRequired": "工作路徑不能為空",
-      "absolutePathRequired": "請輸入絕對路徑"
-    },
-    "collapse": "收起",
-    "showMore": "更多 ({count})",
-    "enableInSettings": "請在設定中啟用 {name} 後使用",
-    "selectACPProvider": "選擇程式設計助手",
-    "noACPProviderEnabled": "暫無可用的程式設計助手，請在設定中配置",
-    "goToSettings": "前往配置",
-    "quickTaskHint": "快捷任務示例",
-    "useThisAgent": "使用此智慧體",
-    "selectACPModelHint": "選中後在模型選擇器中選擇 ACP 模型",
-    "category": {
-      "acp": "CLI 視覺化",
-      "general": "通用助手"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "通用助手",
-      "description": "通用對話助手，可以回答各種問題"
-    },
-    "cliVisual": {
-      "name": "CLI 視覺化",
-      "description": "支援多種 CLI 程式設計助手，實時展示執行計劃和檔案變更"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "撰寫文件",
-        "guide": "幫我為智慧家居行業起草一個外部助手對比框架"
-      },
-      "chatWithWebpage": {
-        "name": "與網頁連結聊天",
-        "guide": "直接貼上網頁連結，然後詢問你的問題"
-      },
-      "summarizeWebpage": {
-        "name": "總結網頁內容",
-        "guide": "直接貼上網頁連結，告訴AI總結該網頁"
-      },
-      "createProject": {
-        "name": "建立新專案",
-        "guide": "描述你想要建立的專案，AI 將幫你初始化專案結構"
-      },
-      "codeReview": {
-        "name": "程式碼審查",
-        "guide": "讓 AI 審查當前專案的程式碼質量和潛在問題"
-      },
-      "fixBug": {
-        "name": "修復 Bug",
-        "guide": "描述遇到的問題，AI 將幫你定位並修復"
-      },
-      "addFeature": {
-        "name": "新增功能",
-        "guide": "描述你想新增的功能，AI 將幫你實現"
-      }
-    },
-    "available": "可用",
-    "exampleCases": "示例案例",
-    "goToSettingsHint": "請先在模型服務中配置並啟用 ACP Provider",
-    "browse": "瀏覽",
     "notAvailable": "此模式下不可用",
-    "recentProjects": "最近專案",
     "tauriModeRequired": "此預設需要桌面應用程式（Tauri）"
   },
   "pricing": {
@@ -12199,6 +12083,10 @@
     },
     "viewFullLog": "檢視完整日誌",
     "orphanedHint": "該任務在服務重啟時被中斷。如需繼續，請重新執行命令。",
+    "leftoverHint": "任務已結束，但它啟動的程式仍在背景執行。",
+    "leftoverStop": "停止",
+    "leftoverStopSuccess": "已停止背景執行的程式",
+    "leftoverStopFailed": "停止失敗",
     "trayTooltipIdle": "Myrm Agent - 空閒",
     "trayTooltipBusy": "Myrm Agent - 任務執行中…",
     "trayTooltipDraining": "Myrm Agent - 正在關閉…",

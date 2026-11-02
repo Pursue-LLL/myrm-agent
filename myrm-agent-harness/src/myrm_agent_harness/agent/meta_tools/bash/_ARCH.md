@@ -20,9 +20,9 @@ bash/
   __init__.py                    # 包门面（对外公共符号聚合出口）
   _ARCH.md                       # 本文件：域级入口文档
   bash_code_execute_tool.py      # 门面：bash 工具 LangChain 工厂
-  bash_process_tools.py          # 门面：bash 后台进程管理工具工厂
+  bash_process_tools.py          # 门面：bash 后台进程管理工具工厂（schema/能力校验/分发）
   _executor/                     # 执行器域（聚合根 + mixins + 会话管理）
-  _tool/                         # bash 工具能力域（描述/格式化/语义/多模态/监听）
+  _tool/                         # bash 工具能力域（描述/格式化/语义/多模态/监听/进程工具处理器）
   _compression/                  # 输出压缩域（语义压缩/eviction/声明式过滤）
   _security/                     # 安全域（执行前预检）
   _background/                   # 后台任务域（registry/ledger/spill/progress）
@@ -38,7 +38,7 @@ bash/
 | `__init__.py` | Package | 包门面：聚合导出 5 个公共符号（`BashExecutor`、两个 tool 工厂、工具名常量、`BashExecutionError`）。 | — |
 | `_tool/tool_description.py` | Internal | 静态缓存稳定 `TOOL_DESCRIPTION`（合并/OBSERVATION 规则）。 | ✅ |
 | `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态 TOOL_DESCRIPTION + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；``BashExecutionError`` 包装保留 stderr evicted ref。 | ✅ |
-| `bash_process_tools.py` | Core | 统一 ``bash_process_tool``（actions list/output/kill/wait/write_stdin/submit_stdin/close_stdin）。后台任务按会话归属，委派的子 Agent 与父共用会话，所以 kill / write_stdin / submit_stdin / close_stdin 在工具内部检查能力句柄的 EXECUTE（与启动任务的 `bash_code_execute_tool` 同一权限）：只读子 Agent 能 list / output / wait 父的任务，不能对其发信号或写 stdin。 | ✅ |
+| `bash_process_tools.py` | Core | 统一 ``bash_process_tool``（actions list/output/kill/wait/write_stdin/submit_stdin/close_stdin）。后台任务按会话归属，委派的子 Agent 与父共用会话，所以 kill / write_stdin / submit_stdin / close_stdin 在工具内部检查能力句柄的 EXECUTE（与启动任务的 `bash_code_execute_tool` 同一权限）：只读子 Agent 能 list / output / wait 父的任务，不能对其发信号或写 stdin。`kill` 的结果如实说明停止的效果：任务进程组内是否发现还有进程仍在运行（metadata 的 `leftover_processes`；Windows 无法列出进程组，只说发出了什么信号）；对已结束但留有后台进程的任务，`kill` 停的是它留下的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）。 | ✅ |
 
 ### `_executor/` 执行器域
 
@@ -72,6 +72,7 @@ bash/
 | `_tool/multimodal.py` | Core | Vision ContentBlock 内联返回。 |
 | `_tool/background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 |
 | `_tool/output_filter_core.py` | Core | 增量输出轮询纯正则行过滤器。 |
+| `_tool/process_handlers.py` | Core | `bash_process_tool` 各 action 的处理器；`kill_report` 如实说明停止效果。 |
 
 ### `_compression/` 输出压缩域
 

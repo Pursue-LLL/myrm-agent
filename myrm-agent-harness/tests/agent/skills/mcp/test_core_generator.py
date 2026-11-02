@@ -23,6 +23,8 @@ from myrm_agent_harness.agent.skills.mcp.core_generator import (
 )
 from myrm_agent_harness.agent.skills.mcp.description import build_description_from_tools, resolve_description
 from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
+    L2_NAMES_MAX_TOKENS,
+    L2_SIGNATURE_MAX_TOKENS,
     build_tool_section,
     clean_markdown,
     tool_section_budget,
@@ -113,8 +115,9 @@ class TestGenerateSkillContent:
         ):
             assert fragment in out, fragment
 
-    def test_l2_hard_ceiling_with_300_tools_and_verbose_instructions(self) -> None:
-        tools = [f"tool_{i}" for i in range(300)]
+    @pytest.mark.parametrize(("count", "ceiling"), [(300, L2_SIGNATURE_MAX_TOKENS), (1_500, L2_NAMES_MAX_TOKENS)])
+    def test_l2_hard_ceiling_with_many_tools_and_verbose_instructions(self, count: int, ceiling: int) -> None:
+        tools = [f"tool_{i}" for i in range(count)]
         schemas = {
             t: {
                 "description": f"Tool {t} description text.",
@@ -124,8 +127,8 @@ class TestGenerateSkillContent:
         }
         schemas["__instructions__"] = {"content": "x " * 2000}
         out = mcp_skill_generator.generate_skill_content(_skill_meta("big", tools, schemas=schemas))
-        assert get_token_count(out) <= 3000
-        assert "instructions truncated" in out or "more tools not shown" in out
+        assert get_token_count(out) <= ceiling
+        assert "instructions truncated" in out
 
     def test_skill_content_cached_after_generation(self) -> None:
         tools = [f"func_{i}" for i in range(5)]
@@ -584,8 +587,6 @@ class TestL2Bounded:
     """Every cap is enforced, so the assembled L2 can never exceed their sum."""
 
     def test_verbose_instructions_and_twenty_tools_stay_bounded(self) -> None:
-        from myrm_agent_harness.agent.skills.mcp.core_generator import L2_MAX_TOKENS
-
         tools = [f"tool_{i}" for i in range(20)]
         schemas: dict[str, dict[str, object]] = {
             name: {
@@ -600,4 +601,4 @@ class TestL2Bounded:
         schemas["__instructions__"] = {"content": "规则。" * 2_000}
         meta = _skill_meta("verbose", tools, schemas=schemas)
         content = mcp_skill_generator.generate_skill_content(meta)
-        assert get_token_count(content) <= L2_MAX_TOKENS
+        assert get_token_count(content) <= L2_SIGNATURE_MAX_TOKENS

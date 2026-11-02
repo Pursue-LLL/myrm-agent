@@ -67,6 +67,7 @@
     "summonSuccess": "Zu Experte {name} gewechselt",
     "summonFailed": "Experten-Vorlage konnte nicht aufgerufen werden",
     "featuredTitle": "Empfohlene Experten & Teams",
+    "featuredDismiss": "Empfohlene Experten ausblenden",
     "teamBadge": "Gruppe",
     "expertBadge": "Experte",
     "searchPlaceholder": "Experten oder Teams suchen...",
@@ -1099,18 +1100,14 @@
       "instruction": "Anweisung",
       "instructionDesc": "Benutzerdefinierte Anweisungen konfigurieren",
       "more": "mehr",
-      "savedAgents": "Gespeicherte Agenten",
       "viewAll": "Alle anzeigen",
-      "manage": "Verwalten",
       "noSavedAgents": "Keine gespeicherten Agenten",
       "noSavedAgentsDesc": "Speichern Sie Ihre Konfiguration als Agenten",
       "useAgent": "Verwenden",
-      "teamBadge": "Team-Modus",
       "noSelected": "Nicht ausgewählt",
       "noInstruction": "Keine Anweisung festgelegt",
       "useGlobalInstructionDefault": "Globale Anweisungen werden verwendet",
       "ready": "Bereit",
-      "noDescription": "Keine Beschreibung",
       "saveAsNewAgent": "Als neuen Agenten speichern",
       "savingAgent": "Sparen...",
       "save": "Speichern",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "Einzelner Agent (kein Team)",
       "jitTeamPlaceholder": "Kein virtuelles Team",
       "jitInheritMemory": "Übergeordneten Konversationsspeicher erben",
-      "templateMarket": "Vorlagenmarkt",
-      "categoryFilter": "Kategoriefilter",
       "categoryAll": "Alle",
       "categoryOffice": "Büro & Business",
       "categoryCommerce": "E-Commerce & Handel",
       "categoryEngineering": "Entwicklung",
       "categoryTeam": "Team-Agenten",
-      "orgMarketplace": "Org-Marktplatz",
-      "searchMarketplace": "Agenten suchen...",
-      "installs": "Installationen",
-      "installed": "Installiert",
-      "installSuccess": "Agent vom Marktplatz installiert!",
-      "installError": "Agent-Installation fehlgeschlagen",
-      "noResults": "Keine Agenten gefunden",
-      "publishToOrg": "In Organisation veröffentlichen",
-      "publishedToOrg": "In Organisation veröffentlicht",
-      "publishSuccess": "Im Org-Marktplatz veröffentlicht!",
-      "publishError": "Veröffentlichung im Org-Marktplatz fehlgeschlagen",
-      "forcePush": "Senden",
-      "forcePushConfirm": "„{name}“ v{version} an alle installierten Benutzer erzwingen? Ihre aktuelle Konfiguration wird überschrieben (ein Snapshot wird zur Wiederherstellung gespeichert).",
-      "forcePushSuccess": "Force-Push abgeschlossen",
-      "forcePushError": "Push fehlgeschlagen",
-      "forcePushTooltip": "Neueste Version an alle installierten Benutzer erzwingen",
       "forcePushReceived": "Agenten-Konfiguration wurde von der Organisation aktualisiert",
       "forcePushRollbackHint": "Ein Snapshot wurde gespeichert. Sie können in den Agenten-Einstellungen zurücksetzen.",
       "viewAgent": "Anzeigen",
-      "instantiateSuccess": "Agent aus Vorlage erstellt!",
-      "instantiateError": "Fehler beim Erstellen des Agenten aus Vorlage",
       "blueprints": {
         "research_squad": "Tiefenrecherche-Team (Multi-Agent)",
         "code_audit_squad": "Code-Red-Team-Audit (Multi-Agent)"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      },
-      "forcePushSummary": "v{version} → {synced} synchronisiert, {skipped} übersprungen, {failed} fehlgeschlagen ({total} gesamt)"
+      }
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",
@@ -3234,7 +3210,6 @@
       "unverifiedWarningDescription": "Dieses Modell ist nicht offiziell für Tool-Calling verifiziert. Bei der Ausführung komplexer Werkzeuge können Formatierungsfehler auftreten."
     },
     "migrationDiscovery": {
-      "detecting": "Suche nach KI-Assistentendaten...",
       "title": "{competitor}-Daten erkannt",
       "description": "{memoryCount} Erinnerungen und {skillCount} Fähigkeiten gefunden – vor dem Import ansehen",
       "descriptionMemoryOnly": "{memoryCount} Erinnerungen gefunden – vor dem Import ansehen",
@@ -3556,12 +3531,7 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens",
-    "systemNotices": {
-      "title": "Hinweise & Entdecken",
-      "open": "Hinweise",
-      "playbook": "Modell-Orchestrierungs-Playbook"
-    }
+    "reasoningTokensEstimated": "≈ {count} Tokens"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -7074,93 +7044,7 @@
     }
   },
   "presetAgent": {
-    "title": "Agenten",
-    "description": "Wählen Sie einen Agenten aus, um ein Gespräch zu beginnen",
-    "selectPreset": "Wählen Sie „Voreingestellter Agent“ aus",
-    "workingDirectory": "Arbeitsverzeichnis",
-    "selectWorkingDirectory": "Wählen Sie Arbeitsverzeichnis aus",
-    "configureWorkingDirectory": "Bitte konfigurieren Sie das Arbeitsverzeichnis für diesen Agenten. Der Agent wird in diesem Verzeichnis arbeiten.",
-    "notConfigured": "Nicht verbunden, bitte zuerst konfigurieren",
-    "requiresConfig": "Erfordert Konfiguration",
-    "cancel": "Stornieren",
-    "confirm": "Bestätigen",
-    "pathHint": "Geben Sie den vollständigen Pfad Ihres Projekts ein, z. B.:",
-    "enterDirectoryPath": "Geben Sie den Pfad zum Projektverzeichnis ein",
-    "manualInputPath": "Geben Sie den absoluten Pfad des Projektverzeichnisses ein, an dem gearbeitet werden soll.",
-    "clickToConfigureDirectory": "Klicken Sie hier, um den Arbeitspfad zu konfigurieren",
-    "pleaseEnterWorkingDirectory": "Bitte geben Sie zuerst den Arbeitspfad ein",
-    "workingDirectoryPlaceholder": "Arbeitspfad eingeben...",
-    "workingPathLabel": "Arbeitspfad",
-    "invalidAbsolutePath": "Bitte geben Sie einen absoluten Pfad ein",
-    "edit": "Bearbeiten",
-    "pathNotExist": "Pfad existiert nicht",
-    "pathNotDirectory": "Pfad ist kein Verzeichnis",
-    "errors": {
-      "workingDirectoryRequired": "Arbeitspfad ist erforderlich",
-      "absolutePathRequired": "Bitte geben Sie einen absoluten Pfad ein"
-    },
-    "collapse": "Zusammenbruch",
-    "showMore": "Mehr ({count})",
-    "enableInSettings": "Bitte aktivieren Sie zuerst {name} in den Einstellungen",
-    "selectACPProvider": "Codierungsassistent auswählen",
-    "noACPProviderEnabled": "Kein Codierassistent verfügbar, bitte in den Einstellungen konfigurieren",
-    "goToSettings": "Gehen Sie zu Konfigurieren",
-    "quickTaskHint": "Schnelle Aufgabenbeispiele",
-    "useThisAgent": "Verwenden Sie diesen Agenten",
-    "selectACPModelHint": "Wählen Sie nach der Auswahl das ACP-Modell in der Modellauswahl aus",
-    "category": {
-      "acp": "CLI-Visualisierung",
-      "general": "Allgemeine Assistenten"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "Generalassistent",
-      "description": "Allgemeiner Gesprächsassistent, der verschiedene Fragen beantworten kann"
-    },
-    "cliVisual": {
-      "name": "CLI-Visualisierung",
-      "description": "Unterstützt mehrere CLI-Codierungsassistenten mit Echtzeit-Ausführungsplan und Visualisierung von Dateiänderungen"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "Dokument schreiben",
-        "guide": "Helfen Sie mir, ein Wettbewerbsanalyse-Framework für die Smart-Home-Branche zu entwerfen"
-      },
-      "chatWithWebpage": {
-        "name": "Chatten Sie mit der Webseite",
-        "guide": "Fügen Sie direkt einen Webseitenlink ein und stellen Sie dann Ihre Fragen"
-      },
-      "summarizeWebpage": {
-        "name": "Webseite zusammenfassen",
-        "guide": "Fügen Sie einen Webseitenlink ein und bitten Sie AI, ihn zusammenzufassen"
-      },
-      "createProject": {
-        "name": "Neues Projekt erstellen",
-        "guide": "Beschreiben Sie das Projekt, das Sie erstellen möchten. KI hilft Ihnen bei der Initialisierung der Projektstruktur"
-      },
-      "codeReview": {
-        "name": "Codeüberprüfung",
-        "guide": "Lassen Sie AI die Codequalität und potenzielle Probleme in Ihrem Projekt überprüfen"
-      },
-      "fixBug": {
-        "name": "Fehler beheben",
-        "guide": "Beschreiben Sie das Problem, auf das Sie gestoßen sind. KI hilft Ihnen, es zu lokalisieren und zu beheben"
-      },
-      "addFeature": {
-        "name": "Funktion hinzufügen",
-        "guide": "Beschreiben Sie die Funktion, die Sie hinzufügen möchten. KI hilft Ihnen bei der Implementierung"
-      }
-    },
-    "available": "Verfügbar",
-    "exampleCases": "Beispiele",
-    "goToSettingsHint": "Bitte konfigurieren und aktivieren Sie zunächst den ACP-Anbieter in Model Services",
-    "browse": "Durchsuchen",
     "notAvailable": "In diesem Modus nicht verfügbar",
-    "recentProjects": "Zuletzt verwendete Projekte",
     "tauriModeRequired": "Für diese Vorlage ist die Desktop-App (Tauri) erforderlich"
   },
   "pricing": {
@@ -12174,7 +12058,7 @@
     "shellSection": "Aufgaben mit langer Laufzeit",
     "agentSection": "Agentenaufgaben",
     "shellPid": "PID {pid}",
-    "exitCode": "Beenden Sie {code}",
+    "exitCode": "Exit-Code {code}",
     "searchPlaceholder": "Aufgaben oder Ziele filtern...",
     "clearSearch": "Suche löschen",
     "noSearchResults": "Keine passenden Aufgaben oder Ziele gefunden",
@@ -12199,6 +12083,10 @@
     },
     "viewFullLog": "Vollständiges Protokoll anzeigen",
     "orphanedHint": "Dieser Job wurde beim Neustart des Dienstes unterbrochen. Führen Sie den Befehl bei Bedarf erneut aus.",
+    "leftoverHint": "Die Aufgabe ist beendet, aber etwas, das sie gestartet hat, läuft im Hintergrund weiter.",
+    "leftoverStop": "Beenden",
+    "leftoverStopSuccess": "Das Programm im Hintergrund wurde beendet",
+    "leftoverStopFailed": "Programm konnte nicht beendet werden",
     "trayTooltipIdle": "Myrm Agent – ​​Inaktiv",
     "trayTooltipBusy": "Myrm Agent - Wird ausgeführt…",
     "trayTooltipDraining": "Myrm Agent - Wird beendet…",

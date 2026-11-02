@@ -41,7 +41,9 @@ describe('KanbanSection board row', () => {
     vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(listBoards).mockResolvedValue({ items: [board], total: 1 } as Awaited<ReturnType<typeof listBoards>>);
-    vi.mocked(getBoardSummary).mockResolvedValue({} as Awaited<ReturnType<typeof getBoardSummary>>);
+    vi.mocked(getBoardSummary).mockResolvedValue({ total_tasks: 0, task_counts: {} } as Awaited<
+      ReturnType<typeof getBoardSummary>
+    >);
   });
 
   it('opens the board when its name is chosen', async () => {

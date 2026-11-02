@@ -2,10 +2,11 @@
 
 [INPUT]
 - _background.job_store_core::BackgroundJobRecord (POS: record model)
+- _background.termination::GroupMember, LedgerLeader, reap_orphaned_groups (POS: the server identity a job records, and the stop of job leaders whose recorded server is gone)
 - utils.db.sqlite::CACHE, harden_connection_sync (POS: SQLite hardening)
 
 [OUTPUT]
-- BackgroundJobStore: CRUD + finish dedupe + reconcile
+- BackgroundJobStore: CRUD + finish dedupe + the server that registered each job + restart reconcile (stops the groups of orphaned jobs whose server is gone, then marks them orphaned); a ledger opened without the server columns gets them added
 - configure_background_job_store / get_background_job_store: Singleton lifecycle
 
 [POS]
@@ -27,12 +28,44 @@ from myrm_agent_harness.agent.meta_tools.bash._background.job_store_core import 
     BackgroundJobStoreStatus,
     reconcile_orphaned_job_ids,
 )
+from myrm_agent_harness.agent.meta_tools.bash._background.termination import (
+    GroupMember,
+    LedgerLeader,
+    reap_orphaned_groups,
+)
 from myrm_agent_harness.utils.db.sqlite import CACHE, harden_connection_sync
 
 logger = logging.getLogger(__name__)
 
 _STORE: BackgroundJobStore | None = None
 _CONFIGURED_PATH: Path | None = None
+
+# Columns the table gained after its first definition, as (name, ALTER statement); a ledger opened without them gets
+# them added, so a new and an existing ledger end up with the same table.
+_ADDED_COLUMNS = (
+    ("owner_pid", "ALTER TABLE background_jobs ADD COLUMN owner_pid INTEGER"),
+    ("owner_start_stamp", "ALTER TABLE background_jobs ADD COLUMN owner_start_stamp REAL"),
+)
+
+
+def _add_missing_columns(conn: sqlite3.Connection) -> None:
+    present = {row["name"] for row in conn.execute("PRAGMA table_info(background_jobs)")}
+    for name, statement in _ADDED_COLUMNS:
+        if name in present:
+            continue
+        try:
+            conn.execute(statement)
+        except sqlite3.OperationalError as exc:
+            # A second server opening the same ledger added the column between the check and the statement.
+            if "duplicate column name" not in str(exc):
+                raise
+
+
+def _recorded_owner(record: BackgroundJobRecord) -> GroupMember | None:
+    """The server a job was registered by, or ``None`` when the row carries no complete record of it."""
+    if record.owner_pid is None or record.owner_start_stamp is None:
+        return None
+    return GroupMember(pid=record.owner_pid, start_stamp=record.owner_start_stamp)
 
 
 class BackgroundJobStore:
@@ -77,6 +110,7 @@ class BackgroundJobStore:
                 )
                 """
             )
+            _add_missing_columns(conn)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_background_jobs_session ON background_jobs(session_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_background_jobs_status ON background_jobs(status)")
 
@@ -92,17 +126,28 @@ class BackgroundJobStore:
         session_id: str,
         command: str,
         started_at: float,
+        owner: GroupMember | None = None,
     ) -> None:
+        """Record a started job; ``owner`` is the server registering it, which a later start checks before reclaiming."""
         now = time.time()
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO background_jobs (
                     job_id, pid, session_id, command, status, started_at,
-                    finish_processed, updated_at
-                ) VALUES (?, ?, ?, ?, 'running', ?, 0, ?)
+                    finish_processed, updated_at, owner_pid, owner_start_stamp
+                ) VALUES (?, ?, ?, ?, 'running', ?, 0, ?, ?, ?)
                 """,
-                (job_id, pid, session_id, command, started_at, now),
+                (
+                    job_id,
+                    pid,
+                    session_id,
+                    command,
+                    started_at,
+                    now,
+                    owner.pid if owner else None,
+                    owner.start_stamp if owner else None,
+                ),
             )
 
     def update_terminal(
@@ -191,10 +236,22 @@ class BackgroundJobStore:
         running_ids = frozenset(r.job_id for r in records if r.status == "running")
         by_id = {r.job_id: r for r in records}
         to_orphan = reconcile_orphaned_job_ids(running_ids, live_pids, records_by_job_id=by_id)
+        # A job the ledger still shows as running was started by a server that may be gone; its process may have
+        # outlived that server, and once the row says orphaned nothing would ever look for it again.
+        leaders = [
+            LedgerLeader(record.pid, record.started_at, _recorded_owner(record))
+            for record in (by_id[job_id] for job_id in to_orphan)
+            if record.pid is not None
+        ]
+        stopped = reap_orphaned_groups(leaders)
         for job_id in to_orphan:
             self.mark_orphaned(job_id)
         if to_orphan:
-            logger.info("Background job store reconciled %d orphaned job(s)", len(to_orphan))
+            logger.info(
+                "Background job store reconciled %d orphaned job(s), stopped %d surviving job group(s)",
+                len(to_orphan),
+                stopped,
+            )
         return len(to_orphan)
 
     def get_by_job_id(self, job_id: str) -> BackgroundJobRecord | None:
@@ -256,6 +313,8 @@ class BackgroundJobStore:
             error_category=str(row["error_category"]) if row["error_category"] is not None else None,
             finish_processed=bool(row["finish_processed"]),
             vault_log_ref=str(row["vault_log_ref"]) if row["vault_log_ref"] is not None else None,
+            owner_pid=int(row["owner_pid"]) if row["owner_pid"] is not None else None,
+            owner_start_stamp=float(row["owner_start_stamp"]) if row["owner_start_stamp"] is not None else None,
         )
 
 

@@ -67,6 +67,7 @@
     "summonSuccess": "Switched to expert {name}",
     "summonFailed": "Failed to summon expert template",
     "featuredTitle": "Featured Experts & Squads",
+    "featuredDismiss": "Dismiss featured experts",
     "teamBadge": "Team",
     "expertBadge": "Expert",
     "searchPlaceholder": "Search experts or squads...",
@@ -1099,18 +1100,14 @@
       "instruction": "Instruction",
       "instructionDesc": "Configure custom instructions",
       "more": "more",
-      "savedAgents": "Saved Agents",
       "viewAll": "View All",
-      "manage": "Manage",
       "noSavedAgents": "No saved agents",
       "noSavedAgentsDesc": "Save your configuration as an agent",
       "useAgent": "Use",
-      "teamBadge": "Team",
       "noSelected": "Not selected",
       "noInstruction": "No instruction set",
       "useGlobalInstructionDefault": "Using global instructions",
       "ready": "Ready",
-      "noDescription": "No description",
       "saveAsNewAgent": "Save as New Agent",
       "savingAgent": "Saving...",
       "save": "Save",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "Single Agent (no team)",
       "jitTeamPlaceholder": "No virtual team",
       "jitInheritMemory": "Inherit parent conversation memory",
-      "templateMarket": "Template Market",
-      "categoryFilter": "Category Filter",
       "categoryAll": "All",
       "categoryOffice": "Office & Business",
       "categoryCommerce": "E-Commerce",
       "categoryEngineering": "Engineering",
       "categoryTeam": "Teams",
-      "orgMarketplace": "Org Marketplace",
-      "searchMarketplace": "Search agents...",
-      "installs": "installs",
-      "installed": "Installed",
-      "installSuccess": "Agent installed from marketplace!",
-      "installError": "Failed to install agent",
-      "noResults": "No agents found",
-      "publishToOrg": "Publish to Org",
-      "publishedToOrg": "Published to Org",
-      "publishSuccess": "Published to org marketplace!",
-      "publishError": "Failed to publish to org marketplace",
-      "forcePush": "Push",
-      "forcePushConfirm": "Force-push \"{name}\" v{version} to all installed users? This will overwrite their current configuration (a snapshot will be saved for rollback).",
-      "forcePushSuccess": "Force push completed",
-      "forcePushError": "Force push failed",
-      "forcePushTooltip": "Force-push latest version to all installed users",
       "forcePushReceived": "Agent profile updated by organization",
       "forcePushRollbackHint": "A snapshot was saved. You can rollback from agent settings.",
       "viewAgent": "View",
-      "instantiateSuccess": "Agent created from template!",
-      "instantiateError": "Failed to create agent from template",
       "blueprints": {
         "research_squad": "Deep Research Squad (Multi-Agent)",
         "code_audit_squad": "Code Red Team Audit (Multi-Agent)"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "Equipped",
         "pureInstructionNotice": "No skills equipped · Pure instruction mode",
         "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
-      },
-      "forcePushSummary": "v{version} → {synced} synced, {skipped} skipped, {failed} failed ({total} total)"
+      }
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",
@@ -3243,7 +3219,6 @@
       "unverifiedWarningDescription": "This model is not officially verified for tool-calling compatibility. Executing complex tools may produce parsing issues."
     },
     "migrationDiscovery": {
-      "detecting": "Scanning for AI assistant data...",
       "title": "Detected {competitor} data",
       "description": "Found {memoryCount} memories and {skillCount} skills — preview before import",
       "descriptionMemoryOnly": "Found {memoryCount} memories — preview before import",
@@ -3556,12 +3531,7 @@
     "collapseReasoning": "Collapse reasoning",
     "reasoningLoading": "Thinking",
     "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens",
-    "systemNotices": {
-      "title": "Notices & discover",
-      "open": "Notices",
-      "playbook": "Model orchestration playbook"
-    }
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "Fast Search",
@@ -7074,93 +7044,7 @@
     }
   },
   "presetAgent": {
-    "title": "Agents",
-    "description": "Select an agent to start conversation",
-    "selectPreset": "Select Preset Agent",
-    "workingDirectory": "Working Directory",
-    "selectWorkingDirectory": "Select Working Directory",
-    "configureWorkingDirectory": "Please configure the working directory for this agent. The agent will operate within this directory.",
-    "notConfigured": "Not connected, please configure first",
-    "requiresConfig": "Requires Configuration",
-    "cancel": "Cancel",
-    "confirm": "Confirm",
-    "pathHint": "Enter the full path of your project, e.g.:",
-    "enterDirectoryPath": "Enter project directory path",
-    "manualInputPath": "Enter the absolute path of the project directory to operate on.",
-    "clickToConfigureDirectory": "Click to configure working path",
-    "pleaseEnterWorkingDirectory": "Please enter working path first",
-    "workingDirectoryPlaceholder": "Enter working path...",
-    "workingPathLabel": "Working Path",
-    "invalidAbsolutePath": "Please enter an absolute path",
-    "edit": "Edit",
-    "pathNotExist": "Path does not exist",
-    "pathNotDirectory": "Path is not a directory",
-    "errors": {
-      "workingDirectoryRequired": "Working path is required",
-      "absolutePathRequired": "Please enter an absolute path"
-    },
-    "collapse": "Collapse",
-    "showMore": "More ({count})",
-    "enableInSettings": "Please enable {name} in settings first",
-    "selectACPProvider": "Select coding assistant",
-    "noACPProviderEnabled": "No coding assistant available, please configure in settings",
-    "goToSettings": "Go to Configure",
-    "quickTaskHint": "Quick task examples",
-    "useThisAgent": "Use this agent",
-    "selectACPModelHint": "Select ACP model in model selector after selection",
-    "category": {
-      "acp": "CLI Visualization",
-      "general": "General Assistants"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "General Assistant",
-      "description": "General conversation assistant that can answer various questions"
-    },
-    "cliVisual": {
-      "name": "CLI Visualization",
-      "description": "Supports multiple CLI coding assistants with real-time execution plan and file changes visualization"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "Write Document",
-        "guide": "Help me draft a competitive analysis framework for the smart home industry"
-      },
-      "chatWithWebpage": {
-        "name": "Chat with Webpage",
-        "guide": "Paste a webpage link directly, then ask your questions"
-      },
-      "summarizeWebpage": {
-        "name": "Summarize Webpage",
-        "guide": "Paste a webpage link and ask AI to summarize it"
-      },
-      "createProject": {
-        "name": "Create New Project",
-        "guide": "Describe the project you want to create, AI will help initialize the project structure"
-      },
-      "codeReview": {
-        "name": "Code Review",
-        "guide": "Let AI review the code quality and potential issues in your project"
-      },
-      "fixBug": {
-        "name": "Fix Bug",
-        "guide": "Describe the problem you encountered, AI will help locate and fix it"
-      },
-      "addFeature": {
-        "name": "Add Feature",
-        "guide": "Describe the feature you want to add, AI will help implement it"
-      }
-    },
-    "available": "Available",
-    "exampleCases": "Examples",
-    "goToSettingsHint": "Please configure and enable ACP Provider in Model Services first",
-    "browse": "Browse",
     "notAvailable": "Not available in this mode",
-    "recentProjects": "Recent Projects",
     "tauriModeRequired": "This preset requires the desktop app (Tauri)"
   },
   "pricing": {
@@ -12199,6 +12083,10 @@
     },
     "viewFullLog": "View full log",
     "orphanedHint": "This job was interrupted when the service restarted. Run the command again if needed.",
+    "leftoverHint": "This task has finished, but something it started is still running in the background.",
+    "leftoverStop": "Stop it",
+    "leftoverStopSuccess": "Stopped what the task left running",
+    "leftoverStopFailed": "Failed to stop it",
     "trayTooltipIdle": "Myrm Agent - Idle",
     "trayTooltipBusy": "Myrm Agent - Running…",
     "trayTooltipDraining": "Myrm Agent - Shutting Down…",

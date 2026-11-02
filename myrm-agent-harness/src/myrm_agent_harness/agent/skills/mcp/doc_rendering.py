@@ -5,8 +5,9 @@
 - agent.skills.mcp.tool_name_utils (POS: canonical to Python tool names)
 
 [OUTPUT]
-- cap_instructions(): bound server instructions inside the L2 ceiling
-- tool_section_budget(): tokens the tool section may use after instructions
+- cap_instructions() / instructions_token_cap(): bound server instructions inside the L2 ceiling
+- tool_section_budget(): tokens the tool section may use per tier family (signatures / names) after instructions
+- l2_ceiling(): the SKILL.md ceiling of a chosen tier
 - build_tool_section(): render the L2 tool section once and report its tier
 - render_tool_tier() / build_tool_index(): the individual ladder rungs
 - truncate_to_sentence() / clean_markdown() / text_field(): shared text helpers
@@ -21,7 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     normalize_input_schema,
@@ -38,10 +39,20 @@ type JsonDict = dict[str, object]
 INSTRUCTIONS_TOKEN_LIMIT = 2_000
 """Server instructions are capped here so one verbose server cannot blow up L2."""
 
-L2_MAX_TOKENS = 3_000
-"""Hard ceiling for one generated SKILL.md body (1.5x the 2,000-token authored band).
+L2_SIGNATURE_MAX_TOKENS = 8_000
+"""Ceiling for a SKILL.md body that lists signatures (the ``full`` and ``required`` tiers).
 
-Every part is bounded below, so the assembled body can never exceed this.
+A signature in L2 saves the per-tool doc read before the first call, so it earns its tokens
+until the list outgrows what the model can scan; a 150-tool server then costs 7 rounds on a
+debugging task instead of 10 (ptc benchmark, equal correctness). Every part is bounded, so
+the assembled body can never exceed this.
+"""
+
+L2_NAMES_MAX_TOKENS = 3_000
+"""Ceiling for a name-only SKILL.md body (the ``names`` tier), and the space instructions are measured against.
+
+Names are an index, not documentation: past this size the tail is dropped and the model lists
+`/mcp/<skill>/` for the rest, so a larger server does not buy a larger prompt.
 """
 
 INDEX_NOTE_TOKENS = 96
@@ -49,7 +60,7 @@ INDEX_NOTE_TOKENS = 96
 
 Covers a long server/skill name in the `/mcp/<skill>/<func>.md` pointer; the note is
 only appended for the `required`/`names` tiers, so reserving the maximum keeps the
-whole L2 body inside `L2_MAX_TOKENS` for every tier.
+whole L2 body inside its tier ceiling for every tier.
 """
 
 MIN_TOOL_SECTION_TOKENS = 680
@@ -134,25 +145,46 @@ def clean_markdown(text: str) -> str:
     return re.sub(r"\n+", " ", text).strip()
 
 
-def tool_section_budget(instructions: str, fixed_tokens: int = 0) -> int:
-    """Tools get whatever the fixed L2 prefix and instructions leave."""
-    used = get_token_count(instructions) if instructions else 0
-    return max(0, L2_MAX_TOKENS - fixed_tokens - INDEX_NOTE_TOKENS - used)
+class ToolSectionBudget(NamedTuple):
+    """Tokens the tool section may use: a signature tier gets ``signatures``, the name-only index ``names``."""
+
+    signatures: int
+    names: int
+
+
+def instructions_token_cap(fixed_tokens: int) -> int:
+    """Instructions are sized against the name-only ceiling, so the tool section keeps its floor in every tier."""
+    room = L2_NAMES_MAX_TOKENS - fixed_tokens - INDEX_NOTE_TOKENS - MIN_TOOL_SECTION_TOKENS
+    return max(0, min(INSTRUCTIONS_TOKEN_LIMIT, room))
+
+
+def l2_ceiling(tier: str) -> int:
+    """Ceiling of the SKILL.md body for a tier returned by ``build_tool_section``."""
+    return L2_NAMES_MAX_TOKENS if tier == "names" else L2_SIGNATURE_MAX_TOKENS
+
+
+def tool_section_budget(instructions: str, fixed_tokens: int = 0) -> ToolSectionBudget:
+    """Tools get whatever the fixed L2 prefix and instructions leave under each tier's ceiling."""
+    used = fixed_tokens + INDEX_NOTE_TOKENS + (get_token_count(instructions) if instructions else 0)
+    return ToolSectionBudget(
+        signatures=max(0, L2_SIGNATURE_MAX_TOKENS - used),
+        names=max(0, L2_NAMES_MAX_TOKENS - used),
+    )
 
 
 def build_tool_section(
     tools: list[str],
     tool_schemas: dict[str, JsonDict],
     skill_name: str,
-    budget: int,
+    budget: ToolSectionBudget,
 ) -> tuple[str, str]:
     """Render the L2 tool section once and return it with the tier that was chosen."""
     name_map = build_tool_name_map(tools)
     for tier in ("full", "required"):
         text = render_tool_tier(tools, tool_schemas, name_map, skill_name, tier)
-        if get_token_count(text) <= budget:
+        if get_token_count(text) <= budget.signatures:
             return text, tier
-    return build_tool_index(tools, name_map, budget), "names"
+    return build_tool_index(tools, name_map, budget.names), "names"
 
 
 def render_tool_tier(

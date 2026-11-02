@@ -277,7 +277,6 @@ class ConsolidationPreviewResponse(BaseModel):
     actions: list[ConsolidationActionResponse]
     total_skills_affected: int
     estimated_reduction: int
-    preview_summary: str
     plan_token: str
 
 
@@ -309,7 +308,6 @@ def _consolidation_plan_fingerprint_payload(plan: object) -> dict[str, object]:
         ],
         "total_skills_affected": plan.total_skills_affected,
         "estimated_reduction": plan.estimated_reduction,
-        "preview_summary": plan.preview_summary,
     }
 
 
@@ -331,7 +329,6 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
         ],
         total_skills_affected=plan.total_skills_affected,
         estimated_reduction=plan.estimated_reduction,
-        preview_summary=plan.preview_summary,
         plan_token="",
     )
     from app.core.skills.curator.consolidation_plan_token import issue_plan_token

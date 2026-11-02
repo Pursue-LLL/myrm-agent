@@ -5,8 +5,9 @@
 
 [OUTPUT]
 - pytest suite: a qualified name returns the same rows as the bare name for the actions that match on the last
-  name part, a longer name really narrows resolve and importers, ``total`` counts every match of every action,
-  and the row-cap note of every action carries the hint that is true for that action.
+  name part, a longer name really narrows resolve and importers, a cut answer of every action counts all its matches
+  and says how many of them each file holds, callers and tests_calling list match=exact rows first except for a name
+  that only methods carry, and the row-cap note of every action carries the hint that is true for that action.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_row_cap_notes.py
@@ -21,7 +22,7 @@ from typing import cast
 import pytest
 from myrm_agent_harness.runtime.paths.execution_paths import PERSISTENT_ROOT_ENV
 
-from app.services.code_graph.agent_tool import MAX_ROWS, create_code_graph_tool
+from app.services.code_graph.agent_tool import MAX_DISTRIBUTION_FILES, MAX_ROWS, create_code_graph_tool
 
 _OVER_CAP = MAX_ROWS + 5
 _CUT_NOTE = f"More rows exist than the {MAX_ROWS} shown"
@@ -69,6 +70,10 @@ def _sites(answer: dict[str, object]) -> list[str]:
     return [row["at"] for row in cast(list[dict[str, str]], answer["rows"])]
 
 
+def _by_file(answer: dict[str, object]) -> dict[str, int]:
+    return cast(dict[str, int], answer["by_file"])
+
+
 @pytest.mark.parametrize(
     ("action", "qualified", "bare"),
     [("callers", "m.target", "target"), ("tests_calling", "m.target", "target"), ("implementors", "shapes.Base", "Base")],
@@ -101,19 +106,20 @@ async def test_a_longer_name_brings_resolve_and_importers_under_the_cap(
     assert _total(narrowed) <= MAX_ROWS < _total(broad)
 
 
-@pytest.mark.parametrize(
-    ("action", "query", "matches"),
-    [
-        ("callers", "target", 2 * _OVER_CAP),
-        ("tests_calling", "target", _OVER_CAP),
-        ("implementors", "Base", _OVER_CAP),
-        ("callees", "m.big", _OVER_CAP),
-        ("resolve", "run", _OVER_CAP),
-        ("importers", "pkg", _OVER_CAP + 1),
-    ],
-)
-async def test_total_counts_every_match_and_not_only_the_rows_shown(
-    workspace: Path, action: str, query: str, matches: int
+# Every action that can be cut: its query, how many rows match, and how many files hold those rows.
+_CUT_ANSWERS = [
+    ("callers", "target", 2 * _OVER_CAP, 2),
+    ("tests_calling", "target", _OVER_CAP, 1),
+    ("implementors", "Base", _OVER_CAP, 1),
+    ("callees", "m.big", _OVER_CAP, 1),
+    ("resolve", "run", _OVER_CAP, 1),
+    ("importers", "pkg", _OVER_CAP + 1, _OVER_CAP + 1),
+]
+
+
+@pytest.mark.parametrize(("action", "query", "matches", "files"), _CUT_ANSWERS)
+async def test_a_cut_answer_counts_every_match_and_says_how_many_each_file_holds(
+    workspace: Path, action: str, query: str, matches: int, files: int
 ) -> None:
     _populate(workspace)
 
@@ -121,6 +127,10 @@ async def test_total_counts_every_match_and_not_only_the_rows_shown(
 
     assert _total(answer) == matches
     assert len(cast(list[object], answer["rows"])) == MAX_ROWS
+    assert len(_by_file(answer)) == min(files, MAX_DISTRIBUTION_FILES)
+    assert answer.get("more_files", 0) == max(0, files - MAX_DISTRIBUTION_FILES)
+    if files <= MAX_DISTRIBUTION_FILES:
+        assert sum(_by_file(answer).values()) == matches
 
 
 @pytest.mark.parametrize(
@@ -146,3 +156,72 @@ async def test_the_row_cap_note_carries_the_hint_that_is_true_for_that_action(
     assert len(cut_notes) == 1
     assert hint in cut_notes[0]
     assert (_QUALIFIED_NAME_HINT in cut_notes[0]) == (hint == _QUALIFIED_NAME_HINT)
+
+
+async def test_a_cut_answer_counts_every_match_per_file_and_names_the_files_it_leaves_out(workspace: Path) -> None:
+    _populate(workspace)
+    for i in range(12):
+        _write(workspace, f"extra/user{i:02d}.py", "from m import target\n\ndef use():\n    target(0)\n")
+
+    answer = await _ask(workspace, "callers", "target")
+
+    assert _total(answer) == 2 * _OVER_CAP + 12
+    assert list(_by_file(answer).items()) == [("m.py", _OVER_CAP), ("tests/test_m.py", _OVER_CAP)] + [
+        (f"extra/user{i:02d}.py", 1) for i in range(8)
+    ]
+    assert answer["more_files"] == 4
+    assert f"by_file counts all {_total(answer)}" in cast(list[str], answer["notes"])[0]
+
+
+async def test_a_cut_answer_with_few_files_lists_them_all_without_a_remainder(workspace: Path) -> None:
+    _populate(workspace)
+
+    answer = await _ask(workspace, "callers", "target")
+
+    assert _by_file(answer) == {"m.py": _OVER_CAP, "tests/test_m.py": _OVER_CAP}
+    assert "more_files" not in answer
+
+
+async def test_an_answer_within_the_cap_carries_no_distribution(workspace: Path) -> None:
+    _write(workspace, "m.py", "def target():\n    return 1\n\ndef go():\n    target()\n")
+
+    answer = await _ask(workspace, "callers", "target")
+
+    assert "by_file" not in answer
+    assert "more_files" not in answer
+
+
+_FUNCTION = "def target(n):\n    return n\n"
+_METHOD = "class Holder:\n    def target(self):\n        return 1\n"
+
+
+@pytest.mark.parametrize("action", ["callers", "tests_calling"])
+@pytest.mark.parametrize(
+    ("definitions", "count", "exact_first"),
+    [
+        pytest.param(_FUNCTION, 1, True, id="function"),
+        pytest.param("class target:\n    pass\n", 1, True, id="class"),
+        pytest.param("", 0, True, id="no definition"),
+        pytest.param(f"{_FUNCTION}\n{_METHOD}", 2, True, id="function and method"),
+        pytest.param(_METHOD, 1, False, id="methods only"),
+    ],
+)
+async def test_exact_rows_are_listed_first_unless_only_methods_carry_the_name(
+    workspace: Path, action: str, definitions: str, count: int, exact_first: bool
+) -> None:
+    same_name = "\n".join(f"    other.target({i})" for i in range(_OVER_CAP))
+    _write(workspace, "tests/test_a_other.py", f"def test_other(other):\n{same_name}\n")
+    if definitions:
+        _write(workspace, "z_lib.py", definitions)
+    _write(workspace, "tests/test_z_main.py", "from z_lib import target\n\ndef test_main():\n    target(1)\n    target(2)\n")
+
+    answer = await _ask(workspace, action, "target")
+
+    matches = [row["match"] for row in cast(list[dict[str, str]], answer["rows"])]
+    assert _total(answer) == _OVER_CAP + 2
+    assert answer["definitions"] == count
+    if exact_first:
+        assert matches[:2] == ["exact", "exact"]
+        assert set(matches[2:]) == {"name"}
+    else:
+        assert set(matches) == {"name"}
