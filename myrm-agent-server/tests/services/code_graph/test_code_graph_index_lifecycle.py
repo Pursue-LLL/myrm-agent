@@ -6,7 +6,7 @@
 [OUTPUT]
 - pytest suite covering re-indexing an unchanged directory, deleted and changed files, same-named files in different
   directories, definitions counted by kind, git-ignore aware file listing, symlink and size limits, a listing cut at
-  its cap, and call-site match labels.
+  its cap, call-site match labels, and names matched literally with their letter case.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_index_lifecycle.py
@@ -313,3 +313,32 @@ def test_names_match_literally_so_underscores_and_percent_signs_are_not_wildcard
     assert [r["callee"] for r in graph.callers("get_user")] == ["o.get_user"]
     assert graph.callers("%") == []
     assert graph.resolve("get%") == []
+
+
+def test_call_sites_are_matched_with_the_letter_case_that_was_asked_for(root: Path, graph: CodeGraphService) -> None:
+    _write(root, "use.py", "def run(c):\n    c.select()\n    c.Select()\n    Select()\n    select()\n")
+    _write(root, "tests/test_use.py", "def test_it(c):\n    c.select()\n    c.Select()\n")
+    graph.index_directory(root)
+
+    assert [(r["callee"], r["match"]) for r in graph.callers("select")] == [
+        ("c.select", "name"),
+        ("c.select", "name"),
+        ("select", "exact"),
+    ]
+    assert [(r["callee"], r["match"]) for r in graph.callers("Select")] == [
+        ("c.Select", "name"),
+        ("c.Select", "name"),
+        ("Select", "exact"),
+    ]
+    assert [(r["file_path"], r["line"]) for r in graph.tests_calling("select")] == [("tests/test_use.py", 2)]
+    assert graph.callers("SELECT") == []
+
+
+def test_resolve_lists_names_spelt_as_asked_before_the_same_name_in_another_letter_case(
+    root: Path, graph: CodeGraphService
+) -> None:
+    _write(root, "m.py", "class Event:\n    pass\n\ndef event():\n    return 1\n")
+    graph.index_directory(root)
+
+    assert [r["qualified_name"] for r in graph.resolve("event")] == ["m.event", "m.Event"]
+    assert [r["qualified_name"] for r in graph.resolve("Event")] == ["m.Event", "m.event"]

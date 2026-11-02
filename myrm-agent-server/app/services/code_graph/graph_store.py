@@ -269,7 +269,7 @@ class CodeGraphStore:
                 except ValueError:
                     pass
 
-            # 2. 精确匹配 -> 后缀匹配 -> 纯名称匹配
+            # 2. 精确匹配 -> 后缀匹配 -> 纯名称匹配；同一优先级里大小写与查询词完全相同的排前面
             cursor.execute(
                 """
                 SELECT qualified_name, name, kind, file_path, line_start, line_end,
@@ -281,14 +281,14 @@ class CodeGraphStore:
                 END as priority
                 FROM symbols
                 WHERE qualified_name = ? OR qualified_name LIKE ? ESCAPE '\\' OR name = ?
-                ORDER BY priority ASC, qualified_name ASC
+                ORDER BY priority ASC, (substr(qualified_name, -length(?)) = ?) DESC, qualified_name ASC
                 """,
-                (target, suffix, target, target, suffix, target),
+                (target, suffix, target, target, suffix, target, target, target),
             )
             return [dict(r) for r in cursor.fetchall()]
 
     def get_callers(self, callee_name: str) -> list[dict[str, object]]:
-        """Call sites whose callee text is ``callee_name`` or ends with its last component.
+        """Call sites whose callee text is ``callee_name`` or ends with its last component, letter case included.
 
         The callee is recorded as written at the call site and is never resolved to a definition, so
         ``match`` is ``exact`` only when that text equals ``callee_name``; a ``name`` row shares just the
@@ -300,10 +300,10 @@ class CodeGraphStore:
                 f"""
                 SELECT {_CALL_COLUMNS}
                 FROM calls
-                WHERE callee = ? OR callee = ? OR callee LIKE ? ESCAPE '\\'
+                WHERE callee = ? OR callee = ? OR substr(callee, -length(?)) = ?
                 ORDER BY file_path ASC, line ASC
                 """,
-                (callee_name, bare_name, f"%.{_escape_like(bare_name)}"),
+                (callee_name, bare_name, f".{bare_name}", f".{bare_name}"),
             ).fetchall()
         return [{**_call_dict(row), "match": "exact" if row["callee"] == callee_name else "name"} for row in rows]
 
