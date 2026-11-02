@@ -28,3 +28,5 @@ budget_packing_router
 mem_cube_router
 markdown_chunker_router
 score_honesty_router
+memory_graph.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/insights/MemoryKnowledgeGraph.tsx:142
+evidence_playback.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/drawers/EvidenceDrawer.tsx:149

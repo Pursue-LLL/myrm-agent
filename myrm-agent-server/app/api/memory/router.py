@@ -34,9 +34,11 @@ from app.api.memory.operations import (
     conflicts,
     crud,
     domain_mesh,
+    evidence_playback,
     external_transcripts,
     guardian,
     head_probe,
+    memory_graph,
     pending,
     radar,
     reindex,
@@ -75,6 +77,10 @@ if settings.memory_labs_enabled:
     router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
     router.include_router(recall_simulator_router, tags=["memory-simulate-recall"])
 
+# The Journey graph tab and the memory card evidence drawer call these two under the command-center prefix,
+# so they are not Labs-only.
+router.include_router(memory_graph.router, tags=["memory-graph"])
+router.include_router(evidence_playback.router, tags=["memory-evidence"])
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(conflicts.router, tags=["memory-conflicts"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])

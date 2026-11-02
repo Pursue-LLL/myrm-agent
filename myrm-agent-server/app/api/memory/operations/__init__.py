@@ -7,8 +7,8 @@ Organized memory operation endpoints by functionality.
 
 [OUTPUT]
 - Aggregate facade re-exporting every memory operation subpackage:
-  archive_restore, backup, backup_remote, command_center, crud, guardian,
-  pending, reindex, working_state, shared_context.
+  archive_restore, backup, backup_remote, command_center, crud, evidence_playback,
+  guardian, memory_graph, pending, reindex, working_state, shared_context.
 
 [POS]
 Server business layer (Memory API). Single import facade for memory operation
@@ -26,9 +26,11 @@ from app.api.memory.operations import (
     conflicts,
     crud,
     domain_mesh,
+    evidence_playback,
     external_transcripts,
     guardian,
     head_probe,
+    memory_graph,
     pending,
     radar,
     reindex,
@@ -50,9 +52,11 @@ __all__ = [
     "conflicts",
     "crud",
     "domain_mesh",
+    "evidence_playback",
     "external_transcripts",
     "guardian",
     "head_probe",
+    "memory_graph",
     "pending",
     "radar",
     "reindex",
