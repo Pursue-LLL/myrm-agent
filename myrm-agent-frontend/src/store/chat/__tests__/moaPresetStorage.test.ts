@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '@/lib/api';
 import {
   clearStoredMoaPresetId,
   persistMoaPresetToServer,
@@ -77,5 +78,27 @@ describe('moaPresetStorage', () => {
     expect(showI18nToast).toHaveBeenCalledWith('settings.defaultModel.moaPreset.persistFailed', undefined, {
       type: 'error',
     });
+  });
+
+  it('persistMoaPresetToServer stays silent for a chat that is not created server-side yet', async () => {
+    const { updateChatActiveMoaPreset } = await import('@/services/chat');
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    vi.mocked(showI18nToast).mockClear();
+    vi.mocked(updateChatActiveMoaPreset).mockRejectedValueOnce(new ApiError('Chat session not found', 404));
+    const rollback = vi.fn();
+    await persistMoaPresetToServer(CHAT_ID, 'default', rollback);
+    expect(rollback).not.toHaveBeenCalled();
+    expect(showI18nToast).not.toHaveBeenCalled();
+  });
+
+  it('persistMoaPresetToServer still reports server errors other than 404', async () => {
+    const { updateChatActiveMoaPreset } = await import('@/services/chat');
+    const { showI18nToast } = await import('@/services/i18nToastService');
+    vi.mocked(showI18nToast).mockClear();
+    vi.mocked(updateChatActiveMoaPreset).mockRejectedValueOnce(new ApiError('boom', 500));
+    const rollback = vi.fn();
+    await persistMoaPresetToServer(CHAT_ID, 'default', rollback);
+    expect(rollback).toHaveBeenCalledOnce();
+    expect(showI18nToast).toHaveBeenCalledOnce();
   });
 });
