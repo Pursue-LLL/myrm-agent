@@ -35,8 +35,8 @@ const MODE_TABS: readonly ModeTab[] = [
 ];
 
 // Below sm each mode is a narrow cell: the label wraps on word boundaries and, when one word is still wider than the
-// cell, hyphenates by the document language (`DocumentLang` keeps `<html lang>` on the active locale) and, where the
-// browser has no hyphenation rules for it, wraps inside the word (`break-words`) instead of being clipped.
+// cell, hyphenates by the document language (`DocumentLang` syncs `<html lang>` to the active locale after hydration);
+// where the browser has no hyphenation rules for it, the word wraps inside (`break-words`) instead of being clipped.
 const MODE_LABEL_CLASS = 'max-w-full text-balance hyphens-auto break-words text-center leading-tight sm:text-left';
 
 interface WorkModeTabsProps {
@@ -46,8 +46,8 @@ interface WorkModeTabsProps {
 
 // Below sm the cells stack the icon above the label and top-align it (`justify-start`), so all three icons sit on one
 // line however many lines each label wraps to; the single-row layout from sm up centers its content. Below 375px the
-// side padding halves (`max-[375px]:px-1`), giving every label 8px more width, which keeps words like "Workspace" and
-// "Schnellchat" whole on 360px phones.
+// side padding halves (`max-[375px]:px-1`), giving every label 8px more width so words such as "Lokaler" and "작업"
+// stay whole on 360px phones.
 export const WorkModeTabs = memo(function WorkModeTabs({ value, onChange }: WorkModeTabsProps) {
   const t = useTranslations('chat.newTaskCard');
   // String-literal keys keep the labels visible to the i18n key gate, which only resolves literal `t()` arguments.

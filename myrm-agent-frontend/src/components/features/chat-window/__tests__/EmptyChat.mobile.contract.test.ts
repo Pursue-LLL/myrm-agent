@@ -42,7 +42,7 @@ describe('empty chat phone first-screen contract', () => {
     expect(source.match(/<span className=\{MODE_LABEL_CLASS\}>/g)).toHaveLength(1);
   });
 
-  it('halves the workspace mode tab side padding below 375px so 360px phones keep label words whole', () => {
+  it('halves the workspace mode tab side padding below 375px so each label gets 8px more width', () => {
     expect(read('../WorkModeTabs.tsx').match(/'flex min-w-0 flex-col [^']*max-\[375px\]:px-1[^']*'/g)).toHaveLength(1);
   });
 
