@@ -6,7 +6,8 @@ Tests the consolidation preview and execute services and which skills they hand 
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,6 +20,7 @@ from myrm_agent_harness.agent.skills.curator.consolidation.types import (
     ConsolidationReport,
     ConsolidationResult,
 )
+from myrm_agent_harness.backends.skills.curator_config import CuratorConfig
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
@@ -93,6 +95,98 @@ class TestConsolidationPreview:
 
         assert not plan.is_empty
         assert plan.actions[0].target_skill == "target"
+
+
+@contextmanager
+def _curator_returning(plan: ConsolidationPlan) -> Iterator[None]:
+    """``run_consolidation_preview`` over five skills, with a curator that answers every run with ``plan``."""
+    curator = MagicMock()
+    curator.run_async = AsyncMock(return_value=(MagicMock(skills_scanned=5), plan))
+    with (
+        patch(
+            "app.core.skills.curator.consolidation._get_consolidation_deps",
+            AsyncMock(return_value=(MagicMock(), MagicMock())),
+        ),
+        patch("app.core.skills.curator.consolidation.scan_local_skills", _scan([MagicMock() for _ in range(5)])),
+        patch("app.core.skills.curator.consolidation.bound_skill_names", AsyncMock(return_value=frozenset())),
+        patch("myrm_agent_harness.agent.skills.curator.SkillCurator", return_value=curator),
+    ):
+        yield
+
+
+class TestConsolidationPreviewNeverHidesUnjudgedClusters:
+    """An empty plan reads as 'well-organized', so a plan that is empty because the judge failed is an error."""
+
+    @pytest.mark.asyncio
+    async def test_an_empty_plan_with_unjudged_clusters_is_a_bad_gateway(self) -> None:
+        from fastapi import HTTPException
+
+        from app.core.skills.curator.consolidation import run_consolidation_preview
+
+        with _curator_returning(ConsolidationPlan(failed_clusters=2)), pytest.raises(HTTPException) as caught:
+            await run_consolidation_preview()
+
+        assert caught.value.status_code == 502
+        assert "2 skill group" in caught.value.detail
+
+    @pytest.mark.asyncio
+    async def test_an_empty_plan_without_failures_is_still_returned(self) -> None:
+        from app.core.skills.curator.consolidation import run_consolidation_preview
+
+        with _curator_returning(ConsolidationPlan()):
+            plan = await run_consolidation_preview()
+
+        assert plan.is_empty
+
+    @pytest.mark.asyncio
+    async def test_judged_actions_are_returned_beside_a_cluster_that_failed(self) -> None:
+        from app.core.skills.curator.consolidation import run_consolidation_preview
+
+        merge = ConsolidationAction(
+            action_type=ConsolidationActionType.MERGE, target_skill="target", source_skills=("a", "b"), reasoning="test"
+        )
+        partial = ConsolidationPlan(actions=[merge], total_skills_affected=2, estimated_reduction=1, failed_clusters=1)
+
+        with _curator_returning(partial):
+            plan = await run_consolidation_preview()
+
+        assert plan is partial
+
+    @pytest.mark.asyncio
+    async def test_a_model_outage_in_the_real_curator_is_a_bad_gateway_not_an_empty_plan(self) -> None:
+        """The curator swallows a failed consolidation pass, so only the plan it returns can carry the failure."""
+        from fastapi import HTTPException
+
+        from app.core.skills.curator.consolidation import run_consolidation_preview
+
+        outage = MagicMock()
+        outage.with_structured_output = MagicMock(
+            return_value=MagicMock(ainvoke=AsyncMock(side_effect=RuntimeError("429 rate limited")))
+        )
+        skills = [
+            SkillMetadata(name=f"{family}-{i}", description=f"{family} {i}", storage_path=f"/tmp/skills/{family}-{i}")
+            for family in ("report", "invoice", "meeting")
+            for i in range(4)
+        ]
+
+        with (
+            patch(
+                "app.core.skills.curator.consolidation._get_consolidation_deps",
+                AsyncMock(return_value=(outage, MagicMock())),
+            ),
+            patch("app.core.skills.curator.consolidation.scan_local_skills", _scan(skills)),
+            patch("app.core.skills.curator.consolidation.bound_skill_names", AsyncMock(return_value=frozenset())),
+            patch(
+                "app.core.skills.curator.consolidation.get_curator_config",
+                return_value=CuratorConfig(enabled=True, consolidation_enabled=True),
+            ),
+            patch("app.core.skills.curator.consolidation.get_stats_collector", return_value=SkillStatsCollector()),
+            pytest.raises(HTTPException) as caught,
+        ):
+            await run_consolidation_preview()
+
+        assert caught.value.status_code == 502
+        assert "3 skill group" in caught.value.detail
 
 
 class TestConsolidationDependencies:

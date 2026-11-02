@@ -790,6 +790,7 @@ Scanner（编排器）
 **设计决策**：
 - 不阻断创建，最终决定权在 Agent 与人工审核
 - 整并默认关闭，且一定先预览再确认
+- 评审没成功的分组计入 `failed_clusters`；预览计划为空且有失败时报错（HTTP 502），不把失败说成「组织良好」，有动作时照常给出计划
 
 ### 14.5 多智能体技能池与按需加载 (Multi-Agent Skill Pool & On-Demand Loading)
 

@@ -9,7 +9,7 @@
 - app.core.skills.creation.service::skill_creation_service (POS: SkillWriteBackend)
 
 [OUTPUT]
-- run_consolidation_preview: Dry-run consolidation plan
+- run_consolidation_preview: Dry-run consolidation plan; an error when the judge could not evaluate groups and nothing else is proposed
 - run_consolidation_execute: Apply consolidation
 
 [POS]
@@ -57,7 +57,12 @@ async def _get_consolidation_deps() -> tuple[BaseChatModel, SkillWriteBackend]:
 
 
 async def run_consolidation_preview() -> ConsolidationPlan:
-    """Run consolidation in dry-run mode and return a ConsolidationPlan."""
+    """Run consolidation in dry-run mode and return a ConsolidationPlan.
+
+    Raises HTTPException 502 when the plan is empty only because the judge could not evaluate some skill
+    groups: an empty plan reads as "well-organized", which would not be true.
+    """
+    from fastapi import HTTPException
     from myrm_agent_harness.agent.skills.curator import SkillCurator
     from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
 
@@ -82,6 +87,12 @@ async def run_consolidation_preview() -> ConsolidationPlan:
         )
         if not isinstance(plan, ConsolidationPlan):
             return ConsolidationPlan()
+
+        if plan.is_empty and plan.failed_clusters:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Consolidation judge could not evaluate {plan.failed_clusters} skill group(s)",
+            )
 
         return plan
 

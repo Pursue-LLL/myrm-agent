@@ -16,7 +16,9 @@ consolidation actions (MERGE / CREATE_UMBRELLA / DEMOTE / KEEP).
 LLM judge layer for skill consolidation. Determines merge strategy per cluster. The prompt spells out the
 judgment schema because JSON mode only guarantees valid JSON, not the fields. The target name is the
 LLM's to propose and never trusted: an action aimed at a taken umbrella name or an unknown skill is dropped,
-so the preview never promises what the executor would refuse.
+so the preview never promises what the executor would refuse. A cluster with no usable verdict (the call failed,
+the answer was unusable or the action was dropped) is counted in ``ConsolidationPlan.failed_clusters`` and
+never passes for a cluster that needs nothing, so an empty plan stays an honest statement.
 """
 
 from __future__ import annotations
@@ -90,6 +92,10 @@ class _ClusterJudgment(BaseModel):
     )
 
 
+class _ClusterNotJudgedError(Exception):
+    """The judge has no usable verdict for a cluster, which is not the same as a verdict that it needs nothing."""
+
+
 _FORMAT_INSTRUCTIONS = PydanticOutputParser(pydantic_object=_ClusterJudgment).get_format_instructions()
 
 _JUDGE_PROMPT_TEMPLATE = """You are an expert skill architect evaluating a cluster of similar agent skills.
@@ -160,12 +166,22 @@ class ConsolidationJudge:
         occupied = occupied_names(all_skills, reserved_names)
 
         for cluster in clusters:
-            action = await self._judge_single_cluster(cluster, all_skills, occupied)
+            try:
+                action = await self._judge_single_cluster(cluster, all_skills, occupied)
+            except _ClusterNotJudgedError:
+                plan.failed_clusters += 1
+                continue
             if action is not None:
                 plan.actions.append(action)
                 plan.total_skills_affected += len(action.source_skills)
                 plan.estimated_reduction += action.net_reduction
 
+        if plan.failed_clusters:
+            logger.warning(
+                "ConsolidationJudge: %d of %d clusters could not be judged",
+                plan.failed_clusters,
+                len(clusters),
+            )
         plan.preview_summary = self._build_preview_summary(plan)
         return plan
 
@@ -175,7 +191,14 @@ class ConsolidationJudge:
         all_skills: list[SkillMetadata],
         occupied: frozenset[str],
     ) -> ConsolidationAction | None:
-        """Judge a single cluster using LLM structured output."""
+        """Judge a single cluster using LLM structured output.
+
+        Returns the action, or None when the cluster was judged and needs none.
+
+        Raises:
+            _ClusterNotJudgedError: The model call failed, its answer was unusable or its target cannot be acted on.
+                Each case is logged where it happens.
+        """
         cluster_skill_set = set(cluster.skill_names)
         cluster_skills = [s for s in all_skills if s.name in cluster_skill_set]
         broader_skills = [s for s in all_skills if s.name not in cluster_skill_set]
@@ -205,7 +228,7 @@ class ConsolidationJudge:
                     "ConsolidationJudge: LLM returned no usable judgment for cluster '%s'",
                     cluster.cluster_id,
                 )
-                return None
+                raise _ClusterNotJudgedError
 
             action_type = ConsolidationActionType(judgment.action)
 
@@ -225,7 +248,7 @@ class ConsolidationJudge:
                     cluster.cluster_id,
                     problem,
                 )
-                return None
+                raise _ClusterNotJudgedError
 
             left_alone = {judgment.target_skill_name, *judgment.keep_standalone}
             source_skills = tuple(name for name in cluster.skill_names if name not in left_alone)
@@ -243,13 +266,15 @@ class ConsolidationJudge:
                 demote_target_dir=judgment.demote_target_dir,
             )
 
+        except _ClusterNotJudgedError:
+            raise
         except Exception as e:
             logger.error(
                 "ConsolidationJudge: Failed to judge cluster '%s': %s",
                 cluster.cluster_id,
                 e,
             )
-            return None
+            raise _ClusterNotJudgedError from e
 
     @staticmethod
     def _target_problem(
@@ -270,7 +295,10 @@ class ConsolidationJudge:
     @staticmethod
     def _build_preview_summary(plan: ConsolidationPlan) -> str:
         """Build a human-readable preview summary for GUI display."""
+        unevaluated = f"Skill groups that could not be evaluated: {plan.failed_clusters}"
         if plan.is_empty:
+            if plan.failed_clusters:
+                return f"No consolidation proposed. {unevaluated}."
             return "No consolidation needed — all skills are well-organized."
 
         lines: list[str] = []
@@ -291,4 +319,6 @@ class ConsolidationJudge:
                     pass
 
         lines.append(f"\nEstimated net reduction: {plan.estimated_reduction} active skills")
+        if plan.failed_clusters:
+            lines.append(unevaluated)
         return "\n".join(lines)
