@@ -5,6 +5,7 @@
  * - @/store/useChatStore (POS: Global chat store for workspaceDir, sandboxMode, actionMode)
  * - @/services/chat::mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir
  * - @/lib/tauri::isTauriEnvironment
+ * - ./WorkModeTabs::WorkModeTabs, NewTaskMode (POS: Presentational three-mode segmented control)
  * - next-intl::useTranslations
  *
  * [OUTPUT]
@@ -22,15 +23,12 @@ import { useTranslations } from 'next-intl';
 import {
   FolderOpen,
   FolderClosed,
-  Boxes,
-  MessageSquare,
   FolderPlus,
   Check,
   X,
   Sparkles,
   Layers,
   ChevronRight,
-  HardDrive,
   Clock,
   ArrowLeft,
 } from 'lucide-react';
@@ -43,11 +41,7 @@ import { isTauriEnvironment } from '@/lib/tauri';
 import { mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
-
-export type NewTaskMode = 'local' | 'cloud' | 'chat';
-
-// Below sm each mode is a narrow cell: the label wraps on word boundaries instead of being cut off or breaking mid-word.
-const MODE_LABEL_CLASS = 'max-w-full text-balance break-words text-center leading-tight sm:text-left';
+import { WorkModeTabs, type NewTaskMode } from './WorkModeTabs';
 
 const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
@@ -277,53 +271,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     >
       {/* Mode Switcher Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border/40">
-        {/* Phones: three equal cells with the icon above the label, so every mode stays visible in any locale. */}
-        <div className="grid w-full grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/50 text-xs font-medium sm:flex sm:w-auto sm:items-center">
-          <button
-            type="button"
-            data-testid="context-mode-local"
-            onClick={() => handleModeChange('local')}
-            className={cn(
-              'flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
-              currentMode === 'local'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <HardDrive className="h-3.5 w-3.5 text-primary" />
-            <span className={MODE_LABEL_CLASS}>{t('modeLocal')}</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="context-mode-cloud"
-            onClick={() => handleModeChange('cloud')}
-            className={cn(
-              'flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
-              currentMode === 'cloud'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Boxes className="h-3.5 w-3.5 text-blue-500" />
-            <span className={MODE_LABEL_CLASS}>{t('modeCloud')}</span>
-          </button>
-
-          <button
-            type="button"
-            data-testid="context-mode-chat"
-            onClick={() => handleModeChange('chat')}
-            className={cn(
-              'flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
-              currentMode === 'chat'
-                ? 'bg-background text-foreground shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
-            <span className={MODE_LABEL_CLASS}>{t('modeChat')}</span>
-          </button>
-        </div>
+        <WorkModeTabs value={currentMode} onChange={handleModeChange} />
 
         {/* Mode description hint */}
         <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">

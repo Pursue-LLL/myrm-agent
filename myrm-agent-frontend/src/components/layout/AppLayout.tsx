@@ -96,10 +96,11 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
 
   // The paired-phone surface fills the viewport itself (own status bar, safe-area handling and full-height
   // boards), so the page frame must not add padding on top of that or the screen gains a phantom scroll.
+  // On a wide desktop browser it is still capped to the page width instead of stretching across the monitor.
   const contentFrameClass = layout.isSettingsPage
     ? 'h-full overflow-y-auto'
     : layout.isRemoteSurface
-      ? undefined
+      ? 'lg:max-w-screen-lg lg:mx-auto'
       : 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible';
 
   return (
