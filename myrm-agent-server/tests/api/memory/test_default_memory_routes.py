@@ -4,7 +4,7 @@
 - app.api.memory.router (POS: 按 `MYRM_MEMORY_LABS` 开关决定挂载哪些路由，导入时求值)
 
 [OUTPUT]
-- Labs 关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的两个接口仍可用；指挥中心的 Labs 专属接口与 6 组引擎控制台接口不挂载
+- Labs 关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的两个接口仍可用；指挥中心的 Labs 专属接口、归档恢复、工具指引、画像笔记、首次见面、临时增量与 6 组引擎控制台接口不挂载
 
 [POS]
 后端测试默认把 `MYRM_MEMORY_LABS` 设为 1（tests/conftest.py），挂在开关后面的接口因此永远测得到，
@@ -32,6 +32,11 @@ _ROUTER_MODULE = "app.api.memory.router"
 _LAB_ONLY_PREFIXES = (
     "/api/memory/command-center/economics",
     "/api/memory/command-center/actions",
+    "/api/memory/archive/restore",
+    "/api/memory/tool-guidance",
+    "/api/memory/profile-notes",
+    "/api/memory/onboarding",
+    "/api/memory/ephemeral-delta",
     "/api/memory/budget-packing",
     "/api/memory/cubes",
     "/api/memory/score-honesty",

@@ -3,7 +3,7 @@
 [INPUT]
 - app.api.router.api_router (POS: 全部 REST 路由聚合)
 - app.api.webui.router (POS: /webui 路由)
-- app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、各引擎控制台）(POS: 条件挂载的路由)
+- app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、归档恢复、工具指引、画像笔记、首次见面、临时增量、各引擎控制台）(POS: 条件挂载的路由)
 
 [OUTPUT]
 - public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
@@ -48,11 +48,20 @@ def build_public_api_app() -> FastAPI:
     `public_api_openapi()` and `public_api_handlers()` read one cached instance of it, which must stay untouched.
     """
     from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
+    from app.api.memory import onboarding
     from app.api.memory.budget_packing_router import router as budget_packing_router
+    from app.api.memory.ephemeral_delta_router import router as ephemeral_delta_router
     from app.api.memory.markdown_chunker import router as markdown_chunker_router
     from app.api.memory.mem_cube_router import router as mem_cube_router
-    from app.api.memory.operations import command_center, command_center_consolidation, command_center_diagnostics
+    from app.api.memory.operations import (
+        archive_restore,
+        command_center,
+        command_center_consolidation,
+        command_center_diagnostics,
+        tool_guidance,
+    )
     from app.api.memory.private_notebook_router import router as private_notebook_router
+    from app.api.memory.profile_notes_router import router as profile_notes_router
     from app.api.memory.score_honesty_router import router as score_honesty_router
     from app.api.memory.two_layer_dialectic_router import router as two_layer_dialectic_router
     from app.api.router import api_router
@@ -69,6 +78,11 @@ def build_public_api_app() -> FastAPI:
             command_center.router,
             command_center_consolidation.router,
             command_center_diagnostics.router,
+            archive_restore.router,
+            tool_guidance.router,
+            profile_notes_router,
+            onboarding.router,
+            ephemeral_delta_router,
             private_notebook_router,
             two_layer_dialectic_router,
             budget_packing_router,

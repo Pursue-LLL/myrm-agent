@@ -89,21 +89,21 @@ router.include_router(head_probe.router, tags=["memory-head"])
 router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
-router.include_router(archive_restore.router, tags=["memory-archive-restore"])
-router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
-router.include_router(profile_notes_router, tags=["memory-profile-notes"])
-
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
-router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
-router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
-# Standalone engine consoles: only the Labs panels call them, nothing in the default UI does.
+# Only the Labs panels call these (engine consoles, archive restore, tool guidance, profile notes, first-encounter
+# onboarding, ephemeral delta); nothing in the default UI does.
 if settings.memory_labs_enabled:
+    router.include_router(archive_restore.router, tags=["memory-archive-restore"])
+    router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
+    router.include_router(profile_notes_router, tags=["memory-profile-notes"])
+    router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
+    router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
     router.include_router(private_notebook_router, tags=["memory-private-notebook"])
     router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
     router.include_router(budget_packing_router, tags=["memory-budget-packing"])
