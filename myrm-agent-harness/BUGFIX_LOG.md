@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-170 · 技能整并预览把「评审没成功」说成「技能组织良好」：评审的异常、不可用结果和被丢弃的无效目标都与「判保留」返回同一个 None，引擎又吞掉整个流程的异常，server 把 None 变成空计划，面板对空计划弹「未发现合并机会，技能组织良好」
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`9d3f608f30`：`ConsolidationPlan.failed_clusters`；评审用私有异常 `_ClusterNotJudgedError` 把「没有可用结论」和「评审后不需要整并」分开计数并记一条汇总警告；预览摘要有失败时不再写「组织良好」；server `run_consolidation_preview` 在计划为空且 `failed_clusters` 不为 0 时返回 502；测试 harness `tests/agent/skills/curator/consolidation/test_consolidation_judge_failures.py` 8 例，server `tests/core/skills/test_curator_consolidation.py` 新增 4 例）。 |
+| **发现时间** | 2026-11-02（复核上一份报告时沿调用链读到：评审失败只记日志，用户在面板里看到的却是「组织良好」；此前只知道评审失败被吞，没有追到面板文案）。 |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P2：模型额度用尽、凭据被拒或网络超时时，用户在整并预览里看到「技能组织良好」，会误以为技能库已经整齐而不再处理。预览不写任何东西，没有数据损坏；整并默认关闭，打开后才会碰到。没有用户报告。 |
+| **关联产品** | 技能整并（Curator 面板的「预览 / 执行」）；`SkillConsolidator`、`ConsolidationJudge`；server `run_consolidation_preview` 与整并预览接口。 |
+| **症状** | [实测] 走真实引擎路径（`SkillCurator.run_async`，`SkillConsolidator`、`ClusterDetector`、`ConsolidationJudge` 都是真的，模型换成替身，12 个技能、3 个家族各 4 个）：评审把每组都判保留、每次调用抛 `RuntimeError("429 rate limited")`、每次返回 `None`、第一组抛异常其余保留，改前四种都得到同一个空计划，摘要 `No consolidation needed — all skills are well-organized.`，面板弹「未发现合并机会，技能组织良好。」。改后：判保留仍是「组织良好」；其余三种计划带 `failed_clusters`（3、3、1），摘要 `No consolidation proposed. Skill groups that could not be evaluated: N.`，server 返回 502。[实测] 真实提供商：用被拒绝的凭据，引擎计划 `failed_clusters=3`，server 预览返回 502 `Consolidation judge could not evaluate 3 skill group(s)`；换成真实密钥对照，3 个动作、`failed_clusters=0`、预计减少 8，server 照常返回计划。 |
+| **根因** | 三层都把失败当成「没事」，且都来自首次导入（`746c24e5c1`，2026-06-02），不是后来引入的：① `judge.py::_judge_single_cluster` 对异常、不可用的结果、被丢弃的无效目标都只记日志后返回 `None`，与「评审后判保留」是同一个返回值；② `engine.py:229-231` 把整个整并流程的异常 `logger.error` 后返回 `None`；③ server `run_consolidation_preview` 把非计划变成空计划，面板对 `actions.length === 0` 弹 `consolidation.emptyPlan`（`CuratorSettingsPanel.tsx:124`）。 |
+| **修复** | 见状态栏。信号必须随计划对象往上带：只在评审里抛异常没有用，`engine.py:229-231` 会吞掉，server 再变成空计划。所以评审用私有异常区分两类结果，`judge_clusters` 计数，不让异常出评审；server 只在「计划为空且有失败」时报错，有动作但部分分组失败时照常返回计划，只记警告。面板的 `handlePreview` 本来就会在预览请求失败时弹「合并失败」，所以前端与 6 个语言包不动。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 先想「只在评审里抛异常」，读 `engine.py:229-231` 才发现会被吞，改成把计数放进计划；② 先想加字段、改界面、加 6 个语言包，读面板后发现失败提示已经存在，范围缩成后端；③ 私有异常第一版叫 `_ClusterNotJudged`，被 ruff N818（异常名要以 Error 结尾）拦下，改名；④ 我在临时文档里把失败探针的技能数写成 15，实际是 12（`failure_probe.py` 的 `NAMES`），已更正。 |
+| **回归** | [1] harness 新测试 8 例（保留、没有剩余成员、4 种不可用回答、部分失败、经 `SkillCurator` 的整体失败）：改前 8 例全部失败（`failed_clusters` 不存在），改后通过；consolidation 包 78 通过，curator 目录 93 通过。[2] server 新测试 4 例（空计划加失败返回 502、空计划无失败照常返回、部分失败照常返回计划、真实 `SkillCurator` 加限流模型返回 502）：改前 2 例失败（没抛异常），改后与路由测试合计 32 通过。[3] 更宽的回归：harness `tests/agent/skills`、`tests/backends/skills` 加 6 个架构检查 3353 通过 1 跳过；server `tests/core/skills`、`tests/api/skills`、预置技能搜索契约、守卫测试 716 通过 1 跳过；server 架构检查 3 通过；`validate_arch_inventory.py` 与分形文档检查通过。[4] 真实提供商：被拒绝的凭据与真实密钥对照（见症状）。[5] `ruff check`、`ruff format --check` 在改动文件上通过；harness mypy 对 consolidation 包无问题；server mypy 报 544 个错误，都在改动之外的 156 个文件里，改动的模块与测试里没有（改动前的基线数没测）。 |
+| **仍然存在** | ① 部分分组失败、其余有动作时，面板只看到那些动作，没有「有几个分组没评审」的提示（摘要里有，面板不显示摘要）。② 引擎把整个整并流程的异常变成 `None`、server 再变成空计划的路径没改（dry-run 里只有纯函数代码，走不到；将来在这里加会抛异常的代码时需要再看）。③ 执行阶段 `run_consolidation_execute` 的同类失败得到的是空报告，不是错误；同一请求里刚通过预览守卫，概率低，没改。④ 预览到执行的令牌握手靠 LiteLLM 的进程内缓存成立（缓存冷、被挤掉或提示词变化时执行返回 409，重新预览即可），没改。⑤ 面板的失败提示是通用的「合并失败」，具体原因只在全局错误提示里以英文出现，与其他接口失败一致。 |
+| **代码位置** | harness `agent/skills/curator/consolidation/judge.py`、`types.py`、`orchestrator.py`；server `app/core/skills/curator/consolidation.py` · 测试 `tests/agent/skills/curator/consolidation/test_consolidation_judge_failures.py`、server `tests/core/skills/test_curator_consolidation.py`。 |
+
 ### BUG-HARNESS-2026-11-02-169 · 技能搜索工具在每个 agent 的第一轮就被重建成英文版：构建时挂的是配置语言的描述，每轮技能目录重同步却没传 locale，而重同步在第一轮必然触发（指纹初始为空）
 
 | 字段 | 内容 |
