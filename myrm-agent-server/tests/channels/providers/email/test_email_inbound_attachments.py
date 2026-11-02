@@ -1,4 +1,5 @@
-"""Attachments of an incoming mail: which parts count as attached, what each is called and where it is saved.
+"""Attachments of an incoming mail: which parts count as attached, what each is called, where it is saved and that a message
+that fails leaves no file behind.
 
 Each case hands the raw bytes of a message to the real parser. The disposition, the file name and the saved path all depend
 on what the standard library returns for those bytes (an encoded word comes back undecoded, raw UTF-8 comes back as a
@@ -8,16 +9,24 @@ on what the standard library returns for those bytes (an encoded word comes back
 from __future__ import annotations
 
 import base64
+import errno
 import re
 import tempfile
 import urllib.parse
 from email.header import Header
 from pathlib import Path
+from typing import IO, Self
 
 import pytest
 
+from app.channels.providers.email import inbound
 from app.channels.types import InboundMessage
-from tests.channels.providers.email.email_channel_factory import parse_inbound, raw_message
+from tests.channels.providers.email.email_channel_factory import (
+    make_channel,
+    parse_inbound,
+    raw_mail_with_attachments,
+    raw_message,
+)
 
 _PDF = b"%PDF-1.4 stand-in"
 _NAME = "发票.docx"
@@ -168,3 +177,75 @@ class TestSavedPath:
         [attachment] = _mixed(_attached(_quoted("Q3 report.PDF"), b"application/pdf")).media
 
         assert Path(attachment.path or "").suffix == ".PDF"
+
+
+class _FailingFile:
+    """A temporary file that is out of room: writing to it raises ``ENOSPC``."""
+
+    def __init__(self, file: IO[bytes]) -> None:
+        self._file = file
+        self.name = file.name
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self._file.close()
+
+    def write(self, data: bytes) -> int:
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+
+class _FullDisk:
+    """Stands in for ``tempfile.NamedTemporaryFile``: the *nth* file it hands out cannot be written to, the others are real."""
+
+    def __init__(self, nth: int) -> None:
+        self._nth = nth
+        self._handed_out = 0
+        self._real = tempfile.NamedTemporaryFile
+
+    def __call__(self, *, delete: bool, prefix: str, suffix: str) -> IO[bytes] | _FailingFile:
+        self._handed_out += 1
+        file = self._real(delete=delete, prefix=prefix, suffix=suffix)
+        return _FailingFile(file) if self._handed_out == self._nth else file
+
+
+class TestAFailedMessageLeavesNoFiles:
+    """A message that fails is read again, so a file it wrote the first time would be written a second time."""
+
+    @pytest.mark.parametrize("nth", [1, 3], ids=["the-first-file", "the-third-file"])
+    def test_a_write_that_fails_removes_the_failed_file_and_the_ones_written_before_it(
+        self, nth: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(tempfile, "NamedTemporaryFile", _FullDisk(nth))
+
+        with pytest.raises(OSError, match="No space left"):
+            make_channel()._parse_email(raw_mail_with_attachments(1, "a.pdf", "b.pdf", "c.pdf"), uid=1)
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_the_retry_leaves_the_files_of_the_message_alone(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        raw = raw_mail_with_attachments(1, "a.pdf", "b.pdf", "c.pdf")
+        channel = make_channel()
+        monkeypatch.setattr(tempfile, "NamedTemporaryFile", _FullDisk(3))
+        with pytest.raises(OSError, match="No space left"):
+            channel._parse_email(raw, uid=1)
+
+        retried = channel._parse_email(raw, uid=1)
+
+        assert retried is not None
+        assert len(retried.media) == 3
+        assert {Path(str(attachment.path)) for attachment in retried.media} == set(tmp_path.iterdir())
+
+    def test_a_failure_after_the_attachments_were_found_writes_none_of_them(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def refuse(html: str) -> str:
+            raise RuntimeError("converter failed")
+
+        monkeypatch.setattr(inbound, "_html_to_markdown", refuse)
+
+        with pytest.raises(RuntimeError, match="converter failed"):
+            make_channel()._parse_email(raw_mail_with_attachments(1, "a.pdf", "b.pdf", body_subtype="html"), uid=1)
+
+        assert list(tmp_path.iterdir()) == []

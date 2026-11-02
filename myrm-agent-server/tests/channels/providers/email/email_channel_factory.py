@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import email.mime.text
 import email.utils
+from email.message import EmailMessage, Message
 
 from app.channels.providers.email import EmailChannel
 from app.channels.types import InboundMessage
 
 _PLAIN = b"text/plain; charset=utf-8"
 _BODY = "正文 Body".encode()
+_PDF_STAND_IN = b"%PDF-1.4 " + b"x" * 5000
 
 
 def make_channel() -> EmailChannel:
@@ -23,13 +25,28 @@ def make_channel() -> EmailChannel:
     )
 
 
-def raw_mail(uid: int) -> bytes:
-    """A plain-text message from ``sender@example.com`` whose body (``Body <uid>``) and subject name *uid*."""
-    msg = email.mime.text.MIMEText(f"Body {uid}", "plain")
+def _addressed(msg: Message, uid: int) -> None:
+    """Set the headers that make *msg* a message from ``sender@example.com`` whose subject names *uid*."""
     msg["From"] = "sender@example.com"
     msg["To"] = "bot@example.com"
     msg["Subject"] = f"Subject {uid}"
     msg["Message-ID"] = email.utils.make_msgid()
+
+
+def raw_mail(uid: int) -> bytes:
+    """A plain-text message from ``sender@example.com`` whose body (``Body <uid>``) and subject name *uid*."""
+    msg = email.mime.text.MIMEText(f"Body {uid}", "plain")
+    _addressed(msg, uid)
+    return msg.as_bytes()
+
+
+def raw_mail_with_attachments(uid: int, *file_names: str, body_subtype: str = "plain") -> bytes:
+    """Like ``raw_mail``, with a 5 KB PDF stand-in attached under each of *file_names*; *body_subtype* is ``plain`` or ``html``."""
+    msg = EmailMessage()
+    _addressed(msg, uid)
+    msg.set_content(f"Body {uid}", subtype=body_subtype)
+    for file_name in file_names:
+        msg.add_attachment(_PDF_STAND_IN, maintype="application", subtype="pdf", filename=file_name)
     return msg.as_bytes()
 
 
