@@ -527,8 +527,8 @@ async def video_health_check() -> VideoHealthResult:
         )
 
 
-@router.get("/onboarding/probe-local")
-async def probe_local_search_endpoint() -> dict[str, object]:
+@router.get("/onboarding/searxng/probe")
+async def probe_searxng_endpoint() -> dict[str, object]:
     """Probe local search backends for zero-config setup.
 
     Returns:

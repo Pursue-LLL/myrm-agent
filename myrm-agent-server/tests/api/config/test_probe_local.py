@@ -2,7 +2,7 @@
 
 Covers:
 - probe_local_search() service function
-- /config/onboarding/probe-local API endpoint
+- /config/onboarding/searxng/probe API endpoint
 - get_ollama_base_url() environment resolution
 """
 
@@ -61,12 +61,12 @@ def probe_client():
     app.router.lifespan_context = original_lifespan
 
 
-class TestProbeLocalEndpoint:
-    """Integration tests for /config/onboarding/probe-local endpoint."""
+class TestSearxngProbeEndpoint:
+    """Integration tests for /config/onboarding/searxng/probe endpoint."""
 
-    def test_probe_local_endpoint_reports_search_backends_only(self, probe_client: TestClient) -> None:
+    def test_searxng_probe_endpoint_reports_search_backends_only(self, probe_client: TestClient) -> None:
         """The payload carries the SearXNG probe and nothing about local model services."""
-        response = probe_client.get("/api/v1/config/onboarding/probe-local")
+        response = probe_client.get("/api/v1/config/onboarding/searxng/probe")
         assert response.status_code == 200
         data = response.json()
 

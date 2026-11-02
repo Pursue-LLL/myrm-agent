@@ -1,8 +1,8 @@
 /**
- * Local capabilities probe client.
+ * Local SearXNG probe client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
- * [OUTPUT] probeLocalCapabilities, invalidateLocalCapabilitiesProbeCache, PROBE_CACHE_TTL_MS
+ * [OUTPUT] probeSearxng, invalidateSearxngProbeCache, PROBE_CACHE_TTL_MS
  * [POS] Frontend probe cache for one-click search setup (local SearXNG).
  */
 
@@ -16,7 +16,7 @@ export interface SearchProbeResult {
   error?: string | null;
 }
 
-export interface ProbeLocalResponse {
+export interface SearxngProbeResponse {
   search?: SearchProbeResult[];
   recommended_searxng_url?: string;
 }
@@ -25,17 +25,17 @@ const PROBE_CACHE_TTL_MS = 30_000;
 
 export { PROBE_CACHE_TTL_MS };
 
-let probeCache: ProbeLocalResponse | null = null;
+let probeCache: SearxngProbeResponse | null = null;
 let probeCachedAt = 0;
 
-export async function probeLocalCapabilities(force = false): Promise<ProbeLocalResponse> {
+export async function probeSearxng(force = false): Promise<SearxngProbeResponse> {
   const now = Date.now();
   if (probeCache && !force && now - probeCachedAt < PROBE_CACHE_TTL_MS) {
     return probeCache;
   }
 
   try {
-    const data = await apiRequest<ProbeLocalResponse>('/config/onboarding/probe-local', { method: 'GET' });
+    const data = await apiRequest<SearxngProbeResponse>('/config/onboarding/searxng/probe', { method: 'GET' });
     probeCache = data;
     probeCachedAt = now;
     return data;
@@ -44,7 +44,7 @@ export async function probeLocalCapabilities(force = false): Promise<ProbeLocalR
   }
 }
 
-export function invalidateLocalCapabilitiesProbeCache(): void {
+export function invalidateSearxngProbeCache(): void {
   probeCache = null;
   probeCachedAt = 0;
 }

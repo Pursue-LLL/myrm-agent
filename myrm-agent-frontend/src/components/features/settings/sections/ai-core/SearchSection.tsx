@@ -12,7 +12,7 @@ import { SearchServiceConfigItem } from '@/store/config/types';
 import { generateSearchServiceConfigId } from '@/store/config/searchService';
 import { probeAndBuildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { startLocalSearxngAndRefreshProbe } from '@/services/searxngSetup';
-import { probeLocalCapabilities } from '@/services/localCapabilitiesProbe';
+import { probeSearxng } from '@/services/searxngProbe';
 import SearchServiceCard from '../../SearchServiceCard';
 import SearchServiceEditDialog from '../../SearchServiceEditDialog';
 import SearxngInstallConsentDialog from '../../SearxngInstallConsentDialog';
@@ -101,7 +101,7 @@ const SearchSection = memo(() => {
     try {
       let config = await probeAndBuildQuickSearchConfig();
       if (!config && isLocal) {
-        const probe = await probeLocalCapabilities(true);
+        const probe = await probeSearxng(true);
         const searxngUp = probe.search?.some((s) => s.provider === 'searxng' && s.available);
         if (!searxngUp) {
           setPendingQuickEnable(true);

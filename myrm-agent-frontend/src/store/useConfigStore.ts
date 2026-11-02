@@ -18,7 +18,7 @@ import {
   DEFAULT_SEARCH_SERVICES,
 } from '@/services/config';
 import { dropNullFields, normalizePersonalSettings } from '@/services/config/configNormalizer';
-import { invalidateLocalCapabilitiesProbeCache } from '@/services/localCapabilitiesProbe';
+import { invalidateSearxngProbeCache } from '@/services/searxngProbe';
 import * as mcpManager from './config/mcp';
 import * as searchServiceManager from './config/searchService';
 import * as importExportManager from './config/importExport';
@@ -369,7 +369,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
     const newConfigs = searchServiceManager.setSearchServiceConfigs(configs);
     set({ searchServiceConfigs: newConfigs });
     syncSearchServices(newConfigs);
-    invalidateLocalCapabilitiesProbeCache();
+    invalidateSearxngProbeCache();
   },
 
   addSearchServiceConfig: (config) => {
@@ -377,7 +377,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
     const newConfigs = searchServiceManager.addSearchServiceConfig(state.searchServiceConfigs, config);
     set({ searchServiceConfigs: newConfigs });
     syncSearchServices(newConfigs);
-    invalidateLocalCapabilitiesProbeCache();
+    invalidateSearxngProbeCache();
   },
 
   updateSearchServiceConfig: (id, updates) => {
@@ -385,7 +385,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
     const newConfigs = searchServiceManager.updateSearchServiceConfig(state.searchServiceConfigs, id, updates);
     set({ searchServiceConfigs: newConfigs });
     syncSearchServices(newConfigs);
-    invalidateLocalCapabilitiesProbeCache();
+    invalidateSearxngProbeCache();
   },
 
   removeSearchServiceConfig: (id) => {
@@ -393,7 +393,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
     const newConfigs = searchServiceManager.removeSearchServiceConfig(state.searchServiceConfigs, id);
     set({ searchServiceConfigs: newConfigs });
     syncSearchServices(newConfigs);
-    invalidateLocalCapabilitiesProbeCache();
+    invalidateSearxngProbeCache();
   },
 
   enableSearchServiceConfig: (id) => {
@@ -401,7 +401,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
     const newConfigs = searchServiceManager.enableSearchServiceConfig(state.searchServiceConfigs, id);
     set({ searchServiceConfigs: newConfigs });
     syncSearchServices(newConfigs);
-    invalidateLocalCapabilitiesProbeCache();
+    invalidateSearxngProbeCache();
   },
 
   getActiveSearchServiceConfig: () => {
