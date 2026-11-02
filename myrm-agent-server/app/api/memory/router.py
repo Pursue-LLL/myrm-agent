@@ -101,31 +101,12 @@ if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
-router.include_router(
-    private_notebook_router,
-    tags=["memory-private-notebook"],
-)
-router.include_router(
-    ephemeral_delta_router,
-    tags=["memory-ephemeral-delta"],
-)
-router.include_router(
-    two_layer_dialectic_router,
-    tags=["memory-two-layer-dialectic"],
-)
-router.include_router(
-    budget_packing_router,
-    tags=["memory-budget-packing"],
-)
-router.include_router(
-    mem_cube_router,
-    tags=["memory-cubes"],
-)
-router.include_router(
-    markdown_chunker_router,
-    tags=["memory-chunker"],
-)
-router.include_router(
-    score_honesty_router,
-    tags=["memory-score-honesty"],
-)
+router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
+# Standalone engine consoles: only the Labs panels call them, nothing in the default UI does.
+if settings.memory_labs_enabled:
+    router.include_router(private_notebook_router, tags=["memory-private-notebook"])
+    router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
+    router.include_router(budget_packing_router, tags=["memory-budget-packing"])
+    router.include_router(mem_cube_router, tags=["memory-cubes"])
+    router.include_router(markdown_chunker_router, tags=["memory-chunker"])
+    router.include_router(score_honesty_router, tags=["memory-score-honesty"])

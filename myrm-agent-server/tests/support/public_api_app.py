@@ -3,7 +3,7 @@
 [INPUT]
 - app.api.router.api_router (POS: 全部 REST 路由聚合)
 - app.api.webui.router (POS: /webui 路由)
-- app.api.internal.org_policy_sync / app.api.memory.operations.command_center* (POS: 条件挂载的路由)
+- app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、各引擎控制台）(POS: 条件挂载的路由)
 
 [OUTPUT]
 - public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
@@ -48,7 +48,13 @@ def build_public_api_app() -> FastAPI:
     `public_api_openapi()` and `public_api_handlers()` read one cached instance of it, which must stay untouched.
     """
     from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
+    from app.api.memory.budget_packing_router import router as budget_packing_router
+    from app.api.memory.markdown_chunker import router as markdown_chunker_router
+    from app.api.memory.mem_cube_router import router as mem_cube_router
     from app.api.memory.operations import command_center, command_center_consolidation, command_center_diagnostics
+    from app.api.memory.private_notebook_router import router as private_notebook_router
+    from app.api.memory.score_honesty_router import router as score_honesty_router
+    from app.api.memory.two_layer_dialectic_router import router as two_layer_dialectic_router
     from app.api.router import api_router
     from app.api.webui.router import router as webui_router
     from app.config.settings import settings
@@ -59,7 +65,17 @@ def build_public_api_app() -> FastAPI:
     # The memory router mounts the lab routers only when MYRM_MEMORY_LABS is on; the client targets them either way,
     # so mount them here when they are not already part of api_router (mounting twice would duplicate operation ids).
     if not settings.memory_labs_enabled:
-        for lab_router in (command_center.router, command_center_consolidation.router, command_center_diagnostics.router):
+        for lab_router in (
+            command_center.router,
+            command_center_consolidation.router,
+            command_center_diagnostics.router,
+            private_notebook_router,
+            two_layer_dialectic_router,
+            budget_packing_router,
+            mem_cube_router,
+            markdown_chunker_router,
+            score_honesty_router,
+        ):
             app.include_router(lab_router, prefix=f"{API_PREFIX}/memory")
     app.include_router(webui_router)
     return app

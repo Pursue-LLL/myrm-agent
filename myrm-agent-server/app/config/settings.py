@@ -563,7 +563,10 @@ class AppSettings(BaseSettings):
     memory_labs_enabled: bool = Field(
         default=False,
         validation_alias="MYRM_MEMORY_LABS",
-        description="[O] Mount the /memory/command-center* routes (except graph and evidence/playback, which are always mounted)",
+        description=(
+            "[O] Mount the /memory/command-center* routes (except graph and evidence/playback, which are always mounted) "
+            "and the engine console routes (budget-packing, cubes, score-honesty, notebook, chunker, two-layer-dialectic)"
+        ),
     )
 
     # --- [O] Browser extension bridge ---
