@@ -14706,33 +14706,6 @@
     "close": "완료",
     "emptyCluster": "연결된 셀프 호스팅 머신이 아직 없습니다. 위 버튼을 클릭하여 첫 번째 머신을 등록하세요"
   },
-  "memoryRecall": {
-    "drawerTitle": "메모리 및 경험 리콜 시뮬레이터",
-    "drawerSubtitle": "EvoX 리콜 테스트 및 거버넌스 센터 벤치마킹: 다중 채널 후보 적중과 즉석 2차 거버넌스를 검증합니다",
-    "queryInputPlaceholder": "테스트 프롬프트나 작업 명령을 입력하세요(예: Linux 커널 데드락 디버깅, React 리렌더링 최적화)...",
-    "simulateBtn": "리콜 시뮬레이션",
-    "simulatingBtn": "검색 중...",
-    "totalMatched": "일치한 항목",
-    "latency": "지연 시간",
-    "rrfScore": "RRF 점수",
-    "bm25Score": "BM25 어휘",
-    "vectorSim": "벡터 의미",
-    "causalAffinity": "인과 유전자",
-    "confidenceWeight": "신뢰도 가중치",
-    "mustAvoidTrap": "반드시 피해야 할 함정",
-    "normalGene": "긍정적 경험",
-    "statusActive": "활성",
-    "statusDisabled": "사용 안 함",
-    "statusLocked": "잠김",
-    "lockBtn": "잠금",
-    "unlockBtn": "잠금 해제",
-    "disableBtn": "사용 안 함",
-    "enableBtn": "사용",
-    "mergeDuplicateBtn": "중복 병합",
-    "mergePrompt": "병합할 대상 메모리 ID를 입력하세요",
-    "emptyResults": "일치하는 메모리 항목이나 경험 유전자를 찾을 수 없습니다. 다른 쿼리를 시도해 보세요.",
-    "close": "닫기"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "음성 입력 검토",

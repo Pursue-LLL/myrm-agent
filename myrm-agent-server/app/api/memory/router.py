@@ -54,9 +54,6 @@ from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
-from app.api.memory.recall_simulator_router import (
-    router as recall_simulator_router,
-)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -75,7 +72,6 @@ if settings.memory_labs_enabled:
     router.include_router(command_center.router, tags=["memory-command-center"])
     router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
     router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
-    router.include_router(recall_simulator_router, tags=["memory-simulate-recall"])
 
 # The Journey graph tab and the memory card evidence drawer call these two under the command-center prefix,
 # so they are not Labs-only.

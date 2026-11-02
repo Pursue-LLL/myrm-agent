@@ -14706,33 +14706,6 @@
     "close": "完成",
     "emptyCluster": "暂未接入任何自托管节点，点击右上角按钮快速接入您的第一台机器"
   },
-  "memoryRecall": {
-    "drawerTitle": "记忆与经验召回模拟沙盒",
-    "drawerSubtitle": "对标 EvoX 召回测试与治理中心，透明化验证任意 Prompt 的多路命中与现场二次治理",
-    "queryInputPlaceholder": "输入测试提示词或任务指令 (例如: 排查 Linux 内核死锁、React 频繁重绘)...",
-    "simulateBtn": "模拟召回",
-    "simulatingBtn": "检索中...",
-    "totalMatched": "命中记忆数",
-    "latency": "检索延迟",
-    "rrfScore": "RRF 融合分",
-    "bm25Score": "BM25 词法",
-    "vectorSim": "向量语义",
-    "causalAffinity": "因果基因",
-    "confidenceWeight": "置信度权重",
-    "mustAvoidTrap": "强负向避坑基因",
-    "normalGene": "普通正向经验",
-    "statusActive": "已激活",
-    "statusDisabled": "已禁用",
-    "statusLocked": "已锁定",
-    "lockBtn": "锁定",
-    "unlockBtn": "解锁",
-    "disableBtn": "禁用",
-    "enableBtn": "启用",
-    "mergeDuplicateBtn": "合并相似项",
-    "mergePrompt": "请输入要合并的目标记忆 ID",
-    "emptyResults": "未检索到匹配的记忆或经验基因，请尝试其他查询",
-    "close": "关闭"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "语音暂存审查",

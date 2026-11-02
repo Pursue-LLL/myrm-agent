@@ -14706,33 +14706,6 @@
     "close": "Fertig",
     "emptyCluster": "Noch keine selbst gehosteten Maschinen verbunden. Klicken Sie oben auf die Schaltfläche, um Ihre erste Maschine einzubinden"
   },
-  "memoryRecall": {
-    "drawerTitle": "Simulator für Speicher- & Erfahrungsabruf",
-    "drawerSubtitle": "Benchmarking des EvoX-Abruftests und Governance-Centers: prüft Mehrkanal-Kandidatentreffer und direkte Zweitgovernance",
-    "queryInputPlaceholder": "Test-Prompt oder Aufgabenbefehl eingeben (z. B. Linux-Kernel-Deadlock debuggen, React-Rerenders optimieren)...",
-    "simulateBtn": "Abruf simulieren",
-    "simulatingBtn": "Suche läuft...",
-    "totalMatched": "Treffer",
-    "latency": "Latenz",
-    "rrfScore": "RRF-Wert",
-    "bm25Score": "BM25 lexikalisch",
-    "vectorSim": "Vektor-Semantik",
-    "causalAffinity": "Kausal-Gen",
-    "confidenceWeight": "Konfidenzgewicht",
-    "mustAvoidTrap": "Unbedingt zu vermeidende Falle",
-    "normalGene": "Positive Erfahrung",
-    "statusActive": "Aktiv",
-    "statusDisabled": "Deaktiviert",
-    "statusLocked": "Gesperrt",
-    "lockBtn": "Sperren",
-    "unlockBtn": "Entsperren",
-    "disableBtn": "Deaktivieren",
-    "enableBtn": "Aktivieren",
-    "mergeDuplicateBtn": "Duplikat zusammenführen",
-    "mergePrompt": "Ziel-Speicher-ID zum Zusammenführen eingeben",
-    "emptyResults": "Keine passenden Speichereinträge oder Erfahrungs-Gene gefunden. Bitte versuchen Sie eine andere Abfrage.",
-    "close": "Schließen"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Sprachaufnahme prüfen",

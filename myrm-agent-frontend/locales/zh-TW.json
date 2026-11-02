@@ -14706,33 +14706,6 @@
     "close": "完成",
     "emptyCluster": "暫未接入任何自託管節點，點選右上角按鈕快速接入您的第一臺機器"
   },
-  "memoryRecall": {
-    "drawerTitle": "記憶與經驗召回模擬沙盒",
-    "drawerSubtitle": "對標 EvoX 召回測試與治理中心，透明化驗證任意 Prompt 的多路命中與現場二次治理",
-    "queryInputPlaceholder": "輸入測試提示詞或任務指令 (例如: 排查 Linux 核心死鎖、React 頻繁重繪)...",
-    "simulateBtn": "模擬召回",
-    "simulatingBtn": "檢索中...",
-    "totalMatched": "命中記憶數",
-    "latency": "檢索延遲",
-    "rrfScore": "RRF 融合分",
-    "bm25Score": "BM25 詞法",
-    "vectorSim": "向量語義",
-    "causalAffinity": "因果基因",
-    "confidenceWeight": "置信度權重",
-    "mustAvoidTrap": "強負向避坑基因",
-    "normalGene": "普通正向經驗",
-    "statusActive": "已啟用",
-    "statusDisabled": "已停用",
-    "statusLocked": "已鎖定",
-    "lockBtn": "鎖定",
-    "unlockBtn": "解鎖",
-    "disableBtn": "停用",
-    "enableBtn": "啟用",
-    "mergeDuplicateBtn": "合併相似項",
-    "mergePrompt": "請輸入要合併的目標記憶 ID",
-    "emptyResults": "未檢索到匹配的記憶或經驗基因，請嘗試其他查詢",
-    "close": "關閉"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "語音暫存審查",

@@ -14706,33 +14706,6 @@
     "close": "Done",
     "emptyCluster": "No self-hosted machines connected yet. Click the button above to onboard your first machine"
   },
-  "memoryRecall": {
-    "drawerTitle": "Memory & Experience Recall Simulator",
-    "drawerSubtitle": "Benchmarking EvoX recall testing and governance center, verifying multi-channel candidate hits and in-place secondary governance",
-    "queryInputPlaceholder": "Enter test prompt or task command (e.g. debug Linux kernel deadlock, optimize React rerenders)...",
-    "simulateBtn": "Simulate Recall",
-    "simulatingBtn": "Searching...",
-    "totalMatched": "Matched Items",
-    "latency": "Latency",
-    "rrfScore": "RRF Score",
-    "bm25Score": "BM25 Lexical",
-    "vectorSim": "Vector Semantic",
-    "causalAffinity": "Causal Gene",
-    "confidenceWeight": "Confidence Weight",
-    "mustAvoidTrap": "Must-Avoid Trap",
-    "normalGene": "Positive Experience",
-    "statusActive": "Active",
-    "statusDisabled": "Disabled",
-    "statusLocked": "Locked",
-    "lockBtn": "Lock",
-    "unlockBtn": "Unlock",
-    "disableBtn": "Disable",
-    "enableBtn": "Enable",
-    "mergeDuplicateBtn": "Merge Duplicate",
-    "mergePrompt": "Enter target memory ID to merge into",
-    "emptyResults": "No matching memory items or experience genes found. Please try a different query.",
-    "close": "Close"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Voice Staged Review",

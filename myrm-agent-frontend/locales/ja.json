@@ -14706,33 +14706,6 @@
     "close": "完了",
     "emptyCluster": "セルフホストのマシンはまだ接続されていません。上のボタンをクリックして最初のマシンを追加しましょう"
   },
-  "memoryRecall": {
-    "drawerTitle": "メモリ＆経験リコールシミュレーター",
-    "drawerSubtitle": "EvoX リコールテストとガバナンスセンターのベンチマーク。複数チャネルの候補ヒットとその場での二次ガバナンスを検証します",
-    "queryInputPlaceholder": "テスト用のプロンプトまたはタスクコマンドを入力（例: Linux カーネルのデッドロックをデバッグ、React の再レンダリングを最適化）...",
-    "simulateBtn": "リコールをシミュレート",
-    "simulatingBtn": "検索中...",
-    "totalMatched": "一致した項目",
-    "latency": "レイテンシ",
-    "rrfScore": "RRF スコア",
-    "bm25Score": "BM25 字句",
-    "vectorSim": "ベクトル意味",
-    "causalAffinity": "因果ジーン",
-    "confidenceWeight": "信頼度の重み",
-    "mustAvoidTrap": "必ず避けるべき落とし穴",
-    "normalGene": "良い経験",
-    "statusActive": "アクティブ",
-    "statusDisabled": "無効",
-    "statusLocked": "ロック中",
-    "lockBtn": "ロック",
-    "unlockBtn": "ロック解除",
-    "disableBtn": "無効にする",
-    "enableBtn": "有効にする",
-    "mergeDuplicateBtn": "重複を統合",
-    "mergePrompt": "統合先のメモリ ID を入力",
-    "emptyResults": "一致するメモリ項目や経験ジーンが見つかりません。別のクエリをお試しください。",
-    "close": "閉じる"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "音声入力の確認",
