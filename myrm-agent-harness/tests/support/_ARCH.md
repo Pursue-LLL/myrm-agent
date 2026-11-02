@@ -2,13 +2,14 @@
 
 ## Overview
 
-Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, loopback HTTPS and `CONNECT`-proxy peers with a clean TLS slate and probes of what a context trusts, damaged, old-tokenizer and out-of-space FTS5 indexes, completion-guard drivers with call-record and run-context builders, skill-metadata builders, and store doubles. The `test_*.py` files here test those helpers.
+Pytest-only helpers, not shipped in the harness wheel: process teardown and marked-process control, a memory- and time-guarded child process and read observation, real-git and live-MCP-server fixtures, loopback HTTPS and `CONNECT`-proxy peers with a clean TLS slate and probes of what a context trusts, damaged, old-tokenizer and out-of-space FTS5 indexes, completion-guard drivers with call-record and run-context builders, skill-metadata builders, store doubles, and the autouse plugin that empties the per-run guard registries around every test. The `test_*.py` files here test those helpers.
 
 ## File Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `browser_process_cleanup.py` | Core | Terminate automation child processes in a pytest process tree | ✅ |
+| `run_guard_isolation.py` | Core | Pytest plugin registered from `tests/conftest.py`: the autouse `_isolate_run_guard_registries` gives every test an empty terminal-error registry and empty completion-guard turn-state and disclosure registries, and puts them back afterwards, so what one test leaves in them (a `network_blocked`, a disclosure published with no message bound) is never read by the test the worker runs next | ✅ |
 | `sse_shutdown_flag.py` | Core | Reset sse-starlette's process-global shutdown flag between test uvicorn servers | ✅ |
 | `tls_loopback.py` | Core | Enterprise network compatibility test kit on real sockets: `restore_standard_tls` puts every TLS builder the policy rebinds (`ssl` default and https default, urllib3's builder and context class, aiohttp's default context, urllib's cached opener) back to the library's own and clears the toggle and CA variables; `https_server` is a loopback HTTPS listener presenting a given chain; `connect_proxy` is a plain-HTTP proxy that tunnels `CONNECT` and records its targets; `stand_in_system_trust` makes the operating system's store hold exactly the given roots (a plain context stands in for `truststore`'s, whose contents a test can neither choose nor list), so a test can tell the system's trust from a bundle the environment names; `isolate_from_system_proxy` keeps loopback traffic off whatever proxy the machine is behind | ✅ |
 | `tls_context_probe.py` | Core | Look inside a TLS context in the enterprise network compatibility unit tests: `is_truststore_context` (verifies against the operating system's store), `loaded_cas` (the CA certificates loaded into the context itself), `der_of` (a PEM file as DER), `STRICT_FLAG` (the `VERIFY_X509_STRICT` bit) | ✅ |
@@ -31,6 +32,7 @@ Pytest-only helpers, not shipped in the harness wheel: process teardown and mark
 | `test_dense_vector_store.py` | Unit | Unit tests for `dense_vector_store` (write refusal, read copies, cursor paging, filter shapes) | — |
 | `test_browser_process_cleanup.py` | Unit | Unit tests for `browser_process_cleanup` (100% line coverage) | — |
 | `test_conftest_browser_cleanup_wiring.py` | Integration | conftest hook smoke + harness/server marker parity | — |
+| `test_run_guard_isolation.py` | Unit | One chain of three tests: the first leaves a disclosure and a rejection count on the unbound slot and on a bound turn, the two after it (one async) must start empty | — |
 | `test_sse_shutdown_flag.py` | Unit | Unit tests for `sse_shutdown_flag` (flag clearing + missing-flag no-op) | — |
 
 ## Key Dependencies

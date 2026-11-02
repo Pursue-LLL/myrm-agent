@@ -27,6 +27,8 @@ from blockbuster import BlockBuster
 
 logger = logging.getLogger(__name__)
 
+pytest_plugins = ["tests.support.run_guard_isolation"]
+
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")
 os.environ["MYRM_DATA_DIR"] = _temp_workspace
@@ -277,16 +279,6 @@ def _reset_session_loop_guards() -> Iterator[None]:
         )
 
         clear_all_session_loop_guards_for_tests()
-
-
-@pytest.fixture(autouse=True)
-def _isolate_terminal_errors() -> Iterator[None]:
-    """Isolate the terminal-error registry between all tests: a direct executor run never calls ``reset_all_guards``,
-    so a stale ``network_blocked`` left by one test makes the circuit breaker refuse the next test's MCP tool."""
-    from myrm_agent_harness.agent.middlewares._session_context import isolated_terminal_errors
-
-    with isolated_terminal_errors():
-        yield
 
 
 @pytest.fixture(autouse=True)
