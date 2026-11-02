@@ -3,6 +3,7 @@
 [INPUT]
 - golden_capture (POS: scenario matrix recorder)
 - golden_baseline.json (POS: requests recorded from the previous client library)
+- golden_catalog.json (POS: the model facts the baseline was recorded with, pinned so a catalog refresh cannot move them)
 - golden_allowed (POS: registry of intentional differences)
 
 [OUTPUT]
@@ -21,17 +22,22 @@ from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.toolkits.llms.catalog import store
+
 from .golden_allowed import RULES
 from .golden_capture import capture_all, install_recorder
 from .golden_diff import diff_case, explain
 
 _BASELINE = Path(__file__).parent / "golden_baseline.json"
+_CATALOG = Path(__file__).parent / "golden_catalog.json"
 
 
 @pytest.fixture(scope="module")
 def comparison(monkeypatch_module: pytest.MonkeyPatch) -> tuple[dict[str, list[str]], Counter[str]]:
     baseline = json.loads(_BASELINE.read_text(encoding="utf-8"))
     baseline.pop("_meta")
+    pinned = json.loads(_CATALOG.read_text(encoding="utf-8"))
+    monkeypatch_module.setattr(store, "_snapshot", lambda: pinned)
     current = capture_all(install_recorder(monkeypatch_module))
     assert set(current) == set(baseline), "the scenario matrix changed: re-record the baseline"
     unexplained: dict[str, list[str]] = {}
