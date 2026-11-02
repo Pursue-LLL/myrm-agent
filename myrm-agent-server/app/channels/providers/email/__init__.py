@@ -8,7 +8,8 @@
 
 [POS]
 Package facade; the implementation lives in ``channel.py`` (lifecycle, SMTP/IMAP), ``poll.py`` (the batch one poll takes),
-``inbound.py`` (RFC 822 parsing) and ``forward.py`` (forwarded-email detection).
+``imap.py`` (IMAP client ID, reply reading, UIDVALIDITY), ``inbound.py`` (RFC 822 parsing), ``outbound.py`` (attachment
+loading, MIME assembly) and ``forward.py`` (forwarded-email detection).
 """
 
 from .channel import EmailChannel
