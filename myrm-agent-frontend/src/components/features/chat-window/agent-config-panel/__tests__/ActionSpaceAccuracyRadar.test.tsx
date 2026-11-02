@@ -2,15 +2,16 @@
  * @vitest-environment jsdom
  */
 
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ActionSpaceAccuracyRadar, type Turn1CatalogPreview } from '../ActionSpaceAccuracyRadar';
-import en from '../../../../../../locales/en.json';
-import zh from '../../../../../../locales/zh.json';
-import zhTW from '../../../../../../locales/zh-TW.json';
-import ja from '../../../../../../locales/ja.json';
-import de from '../../../../../../locales/de.json';
+
+interface RadarMessages {
+  agent: { configEditor: { actionSpaceRadar: { turn1CatalogSummary: string; turn1CatalogOverCapHint: string } } };
+}
 
 let currentLocale: 'en' | 'zh' = 'en';
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => currentLocale));
@@ -75,9 +76,13 @@ describe('ActionSpaceAccuracyRadar turn-1 catalog preview', () => {
 });
 
 describe('turn-1 catalog preview copy in every locale', () => {
-  const packs = { en, zh, 'zh-TW': zhTW, ja, de };
+  // Every shipped locale file is checked, so a newly added language cannot keep stale copy unnoticed.
+  const localesDir = path.resolve(__dirname, '../../../../../../locales');
+  const packs = readdirSync(localesDir)
+    .filter((file) => file.endsWith('.json'))
+    .map((file): [string, RadarMessages] => [file, JSON.parse(readFileSync(path.join(localesDir, file), 'utf-8'))]);
 
-  it.each(Object.entries(packs))('%s keeps every placeholder the component passes', (_locale, messages) => {
+  it.each(packs)('%s keeps every placeholder the component passes', (_path, messages) => {
     const radar = messages.agent.configEditor.actionSpaceRadar;
 
     for (const placeholder of ['{inline}', '{hidden}', '{tokens, number}', '{searchState}']) {

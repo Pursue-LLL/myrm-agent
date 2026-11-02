@@ -1347,10 +1347,10 @@
         "smartPrune": "휴면 스킬 정리로 액션 공간 확보",
         "smartPruneRunning": "액션 공간을 정리하는 중…",
         "turn1CatalogTitle": "1턴 스킬 카탈로그",
-        "turn1CatalogSummary": "인라인 {inline} · 숨김 {hidden} · 검색 {searchState}",
+        "turn1CatalogSummary": "인라인 {inline} · 온디맨드 {hidden} · 검색 {searchState} · 약 {tokens, number} 토큰",
         "turn1CatalogSearchOn": "켬",
         "turn1CatalogSearchOff": "끔",
-        "turn1CatalogOverCapHint": "대화 시작 시 처음 {cap}개의 Core 스킬(알파벳순)만 인라인으로 표시됩니다. 자주 사용하지 않는 스킬을 Peripheral로 이동하면 검색이 꺼지고 턴당 약 203 토큰을 절약할 수 있습니다."
+        "turn1CatalogOverCapHint": "Core 스킬이 인라인 한도를 넘었습니다. 처음 {inline}개(알파벳순)는 전체 내용이 인라인으로 표시되고, 나머지 {overflow}개는 이름만 목록에 표시되어 필요할 때 이름으로 불러옵니다. 자주 쓰지 않는 Core 스킬을 Peripheral로 옮기면 나머지 스킬이 들어갈 자리가 생깁니다."
       },
       "skillsZone": {
         "coreTitle": "핵심 스킬",
