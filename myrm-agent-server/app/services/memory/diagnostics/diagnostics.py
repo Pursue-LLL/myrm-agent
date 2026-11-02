@@ -30,6 +30,9 @@ from app.schemas.memory.command_center import (
     MemoryCommandRuntimeStatus,
 )
 from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import (
+    KEYWORD_MODE_EVIDENCE,
+    KEYWORD_MODE_IMPACT,
+    KEYWORD_MODE_NEXT_ACTION,
     DiagnosticStatus,
     critical_probe,
     doctor_check_to_probe,
@@ -55,7 +58,10 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import 
     probe_vector_index,
 )
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
-from app.services.memory.shared_context.shared_context_health import check_shared_context_memory_health
+from app.services.memory.shared_context.shared_context_health import (
+    EMBEDDING_NOT_CONFIGURED_REASON,
+    check_shared_context_memory_health,
+)
 
 
 class MemoryDiagnosticsService:
@@ -274,10 +280,19 @@ class MemoryDiagnosticsService:
     async def _run_embedding_live_probe(self) -> MemoryCommandDiagnosticProbeResult:
         started = perf_counter()
         result = await check_shared_context_memory_health(probe=True)
+        impact = "Semantic and episodic memories cannot be reliably indexed or recalled if live embeddings fail."
+        next_action = "Configure a working embedding provider and rerun diagnostics."
         if result.ready:
             status: DiagnosticStatus = "ready"
             evidence = f"Embedding live probe succeeded for model {result.model}; dimension={result.vector_dimension}."
+            next_action = "No action required."
             repair_actions: list[str] = []
+        elif result.reason == EMBEDDING_NOT_CONFIGURED_REASON:
+            status = "missing"
+            evidence = KEYWORD_MODE_EVIDENCE
+            impact = KEYWORD_MODE_IMPACT
+            next_action = KEYWORD_MODE_NEXT_ACTION
+            repair_actions = ["configure_embedding"]
         elif result.status == "not_configured":
             status = "critical"
             evidence = f"Embedding live probe was not configured: {result.reason}."
@@ -292,10 +307,8 @@ class MemoryDiagnosticsService:
             label="Embedding live probe",
             status=status,
             evidence=evidence,
-            impact="Semantic and episodic memories cannot be reliably indexed or recalled if live embeddings fail.",
-            next_action="Configure a working embedding provider and rerun diagnostics."
-            if status != "ready"
-            else "No action required.",
+            impact=impact,
+            next_action=next_action,
             safe_to_retry=result.retryable,
             duration_ms=round((perf_counter() - started) * 1000, 2),
             repair_actions=repair_actions,

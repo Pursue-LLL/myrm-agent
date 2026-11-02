@@ -18,7 +18,12 @@ from pathlib import Path
 
 from app.schemas.memory.command_center import MemoryCommandDoctorCheck, MemoryCommandRuntimeStatus
 
-from .diagnostic_probe_results import DiagnosticStatus
+from .diagnostic_probe_results import (
+    KEYWORD_MODE_EVIDENCE,
+    KEYWORD_MODE_IMPACT,
+    KEYWORD_MODE_NEXT_ACTION,
+    DiagnosticStatus,
+)
 
 
 def probe_relational_store(
@@ -136,16 +141,26 @@ def probe_knowledge_graph(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandD
 
 
 def probe_embedding_provider(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
-    embedding_ready = runtime.embedding_status != "unavailable"
+    if runtime.retrieval_mode == "keyword":
+        return MemoryCommandDoctorCheck(
+            id="embedding_provider",
+            category="embedding",
+            label="Embedding provider",
+            status="missing",
+            evidence=KEYWORD_MODE_EVIDENCE,
+            impact=KEYWORD_MODE_IMPACT,
+            next_action=KEYWORD_MODE_NEXT_ACTION,
+            repair_actions=["configure_embedding"],
+        )
     return MemoryCommandDoctorCheck(
         id="embedding_provider",
         category="embedding",
         label="Embedding provider",
-        status="ready" if embedding_ready else "critical",
+        status="ready",
         evidence=f"Embedding mode is {runtime.embedding_status}.",
         impact="Embeddings are required for vector indexing, hybrid recall, and semantic memory continuity.",
-        next_action="No action required." if embedding_ready else "Configure a valid embedding provider.",
-        repair_actions=[] if embedding_ready else ["configure_embedding"],
+        next_action="No action required.",
+        repair_actions=[],
     )
 
 
