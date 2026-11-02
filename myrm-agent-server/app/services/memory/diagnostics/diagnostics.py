@@ -2,8 +2,8 @@
 
 [INPUT]
 app.schemas.memory.command_center::MemoryCommandRuntimeStatus (POS: Deployment and storage status visible to the local memory UI)
-app.services.memory.diagnostics.diagnostic.diagnostic_live_probes (POS: 运行期探针：embedding live、retrieval pipeline、sparse CJK recall)
-app.services.memory.diagnostics.diagnostic.diagnostic_migration_integrity (POS: 迁移完整性检查)
+app.services.memory.diagnostics.diagnostic.diagnostic_live_probes (POS: 单用户记忆诊断的运行期探针)
+app.services.memory.diagnostics.diagnostic.diagnostic_migration_integrity (POS: 单用户记忆迁移完整性检查)
 app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]

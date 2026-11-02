@@ -8,8 +8,9 @@ run_golden_recall_benchmark: content-safe probe result with structured MemoryCom
 
 [POS]
 单用户记忆召回基准探针。临时写入合成记忆、检索、再清理，只输出计数/排名证据，不暴露用户业务记忆内容。
-Covers 8 categories: architecture_decision, workflow_event, user_preference, temporal_reasoning,
-cjk_retrieval, multi_session, knowledge_update, procedural_skill.
+Covers 10 categories with two cases each (20 cases): architecture_decision, workflow_event, user_preference,
+temporal_reasoning, cjk_retrieval, multi_session, knowledge_update, procedural_skill, longdoc_penetration,
+adversarial_conflict. Needs a dense vector backend; without one the probe reports `missing`.
 """
 
 from __future__ import annotations
@@ -209,7 +210,7 @@ _BENCHMARK_PAIRS: list[_BenchmarkPair] = [
 
 
 async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: str) -> MemoryCommandDiagnosticProbeResult:
-    """Run a synthetic top-k recall benchmark across 8 categories and remove probe memories."""
+    """Run a synthetic top-k recall benchmark across 10 categories and remove probe memories."""
 
     started = perf_counter()
     if manager is None or not manager.has_vector:
@@ -301,7 +302,7 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
                 label="Golden recall benchmark",
                 status=summary.status,
                 evidence=evidence,
-                impact="Synthetic recall checks verify memory write-then-retrieve across 9 categories and 2 languages.",
+                impact="Synthetic recall checks verify memory write-then-retrieve across 10 categories and 2 languages.",
                 next_action=("No action required." if summary.status == "ready" else "Review retrieval trace."),
                 safe_to_retry=True,
                 duration_ms=round((perf_counter() - started) * 1000, 2),

@@ -7,7 +7,7 @@ myrm_agent_harness.toolkits.memory::MemoryManager (POS: 记忆管理器)
 [OUTPUT]
 run_embedding_live_probe: real embedding request, graded ready/missing/critical.
 run_retrieval_pipeline_probe: content-safe search that proves fusion and trace capture.
-run_sparse_cjk_recall_probe: CJK keyword query that proves the BM25/RRF sparse path.
+run_sparse_cjk_recall_probe: one CJK keyword query with RRF fusion; ready when the search completes without error (it writes no memory and does not check which memories come back), missing when no dense vector backend is configured.
 
 [POS]
 单用户记忆诊断的运行期探针。每个探针对真实依赖发起一次不暴露业务内容的请求，检索类探针以 `track_access=False` 发起，探针命中的记忆不会被记为「最近使用」。
