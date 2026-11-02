@@ -615,6 +615,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <LoopStatusBar chatId={id} />
             <MemoryRecallDegradedBanner
               compact
+              hideWhenNotConfigured
               dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}
               className="mx-1 mb-1"
             />
@@ -703,7 +704,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <EStopBanner />
       <ExtensionDisconnectedBanner />
       <ExtensionTakeoverBanner />
-      <MemoryRecallDegradedBanner compact className="mx-2 mt-2" />
+      <MemoryRecallDegradedBanner compact hideWhenNotConfigured className="mx-2 mt-2" />
       <div className="flex h-full w-full">
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />

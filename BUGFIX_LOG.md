@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-02 · 首页和对话顶部的琥珀色「语义召回不可用」横幅在全新安装上就出现，首页那一处还关不掉：它报的是「没配过 embedding」这个默认模式，不是故障
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（只改前端；已推到 `origin/main`，未发版）。记忆中心页的那一处按约定保留，见「仍然存在」。 |
+| **症状** | [实测，全新数据目录 + 真实后端 + 真实浏览器] 本机/桌面版没配任何模型时，首页顶部是琥珀色「语义召回不可用」，叠在「尚未配置 AI 模型」提示条上方；用「使用 Ollama」一键连上模型后它还在。首页挂载没有关闭按钮（`ChatWindow.tsx` 的首页分支不带 `dismissStorageKey`），对话里的挂载按对话 id 记忆，每开新对话又出现一次。文案写「向量检索已降级…直到 embedding 恢复」，对从没配过 embedding 的人是不准确的。 |
+| **根因** | [代码] 横幅只调 `getSharedContextMemoryHealth(false)`，即不探活（`MemoryRecallDegradedBanner.tsx`）。后端不探活时只有两种「未就绪」：没有 embedding 配置（`reason=embedding_not_configured`），或配置里的 key 是占位符（`shared_context_health.py` 的 `placeholder_embedding_api_key`）；真正的宕机、超时探不到。「没配 embedding」是受支持的默认模式（`platform_config.py` 头部：embedding 缺省即关键词模式；`shared_context_health.py` 注释：embedding 是可选依赖），不是降级。 |
+| **修复** | 横幅新增布尔参数 `hideWhenNotConfigured`：为真且 `health.reason === 'embedding_not_configured'` 时不渲染；`ChatWindow` 的首页与对话两处挂载都传它，记忆中心那一处不传。`reason` 常量 `EMBEDDING_NOT_CONFIGURED_REASON` 放在 `services/memory/health.ts`，与后端字符串对应。没有改后端、没有新增文案键。 |
+| **行为变化** | 从没配过 embedding 的用户在首页和对话里不再看到这条横幅；其余提示（占位符 key、健康接口自己报错时的红色「无法检查记忆召回健康状态」）照旧。 |
+| **回归证据** | [实测] 横幅测试 6 例通过（新增 3 例：默认仍显示、`hideWhenNotConfigured` 隐藏、占位符 key 仍显示）；变异检查：去掉新增判断后「隐藏」那一例失败，还原后通过。`message-box`、`chat-window`、`memory`、`settings`、`services/memory` 共 491 个 vitest 文件 3563 例通过；`tsc --noEmit`、`bun run lint` 7 个门禁、`verify:i18n` 等 5 个 verify 脚本、孤儿门禁相对 `origin/main` 无新增均通过。**端到端**（全新数据目录、真实后端、真实浏览器、假的 Ollama 守护进程）：① 没配模型、没配 embedding：首页只有「尚未配置 AI 模型」，没有琥珀色横幅；② 用「使用 Ollama」连上模型、没配 embedding：首页没有琥珀色横幅（修复前同样的场景截图里有）；③ 连上模型后配一个 embedding、key 填 `changeme`：健康接口返回 `placeholder_embedding_api_key`，首页显示琥珀色横幅（保留的那条路径）；④ 记忆中心页：横幅仍在。 |
+| **踩坑** | 没有任何 LLM 提供商时，健康接口对任何 embedding 配置都返回 `embedding_not_configured`：实测先 `PUT /config/retrieval` 写入 embedding，健康接口仍返回未配置；连上模型后才变成 `placeholder_embedding_api_key`。原因是 `load_user_configs` 在没有提供商时抛 `ConfigIncompleteError`（`model_resolver.py:235`），健康服务把它当作「embedding 没配」（`shared_context_health.py:103-117`）。 |
+| **仍然存在** | ① 记忆中心页同时显示这条琥珀色横幅（「向量检索已降级，请检查 embedding 配置」）和页面自己的「当前为关键词记忆模式…配置嵌入模型后可启用语义检索」，两句对从没配过的用户互相矛盾；建议后续去掉 `hideWhenNotConfigured` 参数、对 `embedding_not_configured` 一律不显示。② 这次改完，首页/对话里的横幅实际只会在占位符 key 或健康接口报错时出现：在 WebUI 写入路径上没有 key 的 embedding 配置会被解析为 `None`（`config_parsers.py:1159-1161`），同样落到 `embedding_not_configured`，所以「配了模型但缺 key 仍会提醒」并不成立，只有占位符 key 成立；这两处挂载剩下的价值很低，是否整个删掉是产品决定。③ 没有 LLM 提供商时健康接口的判断不准（见「踩坑」），没有改。④ 没配任何模型时打开记忆页会看到「Memory system unavailable」（后端日志 `MemoryManager creation failed: Please configure at least one LLM provider`），连上模型后消失，不属于这次改动。 |
+| **代码位置** | `myrm-agent-frontend/src/{components/features/message-box/{MemoryRecallDegradedBanner.tsx,_ARCH.md,__tests__/MemoryRecallDegradedBanner.test.tsx},components/features/chat-window/ChatWindow.tsx,services/memory/{health.ts,_ARCH.md}}` |
+
 ## 2026-11-02 · 运行时才拼出来的翻译 key 在 6 个语言文件里没有文案：权限下拉、产物类型、上下文用量徽标、桌面 Locked Use 诊断徽标露出原始 key 路径，静态门禁全绿
 
 | 字段 | 内容 |

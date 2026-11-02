@@ -8,7 +8,8 @@
  * MemoryRecallDegradedBanner: Chat/Memory top-bar banner when semantic recall is degraded.
  *
  * [POS]
- * Vector recall degraded mode UX (#3). Reuses health probe — shows only when not ready.
+ * Vector recall degraded mode UX (#3). Reuses health probe — shows only when not ready; chat mounts pass
+ * hideWhenNotConfigured so the never-configured keyword default does not read as a fault.
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -17,17 +18,24 @@ import { useTranslations } from 'next-intl';
 import { Loader2, RefreshCw, ShieldAlert, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import { getSharedContextMemoryHealth, type SharedContextMemoryHealthResponse } from '@/services/memory/health';
+import {
+  EMBEDDING_NOT_CONFIGURED_REASON,
+  getSharedContextMemoryHealth,
+  type SharedContextMemoryHealthResponse,
+} from '@/services/memory/health';
 
 interface MemoryRecallDegradedBannerProps {
   compact?: boolean;
   dismissStorageKey?: string;
+  /** Skip the banner when no embedding model was ever configured: keyword recall is the default mode, not a fault. */
+  hideWhenNotConfigured?: boolean;
   className?: string;
 }
 
 export const MemoryRecallDegradedBanner = memo(function MemoryRecallDegradedBanner({
   compact = false,
   dismissStorageKey,
+  hideWhenNotConfigured = false,
   className,
 }: MemoryRecallDegradedBannerProps) {
   const t = useTranslations('memoryRecallDegraded');
@@ -106,6 +114,10 @@ export const MemoryRecallDegradedBanner = memo(function MemoryRecallDegradedBann
   }
 
   if (health === null || health.ready) {
+    return null;
+  }
+
+  if (hideWhenNotConfigured && health.reason === EMBEDDING_NOT_CONFIGURED_REASON) {
     return null;
   }
 
