@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-02 · 精简首次引导后本机已装 Ollama 的用户在首页没有一键入口：提示条补上「使用 Ollama：模型名」，只在确认有既能对话又支持工具调用的模型时出现
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（代码已推到 `origin/main`，未发版；用户文档在 `myrm-agent-brand` 仓库另行推送）。 |
+| **症状** | [代码] 上一条（2026-11-01 精简首次引导）记录的能力缺口：删向导后，本机装了 Ollama 的用户进首页只看到「尚未配置 AI 模型」，只能去「设置 > 模型」手动添加；硬件管家下载模型才会自动添加内置 Ollama 提供商。 |
+| **根因** | 向导里的探测只回答「端口通不通」，选中的模型也不看能力：首个模型可能是向量模型或不支持工具调用的模型，一键启用后首次对话就会失败。补回入口时不能照搬这一点。 |
+| **修复** | 后端新增 `GET /integrations/hardware/ollama/chat-model`：按 `/api/tags` 顺序对本地模型各问一次 `/api/show`（最多 5 个），取第一个 `capabilities` 同时含 `completion` 与 `tools` 的；云端转发的模型（带 `remote_host` / `remote_model`）跳过；没有 `capabilities` 字段（旧版 Ollama）按「未知」处理，不挑；沙箱模式 403。`/api/tags` 的读取与硬件管家的 Ollama 状态共用同一个函数（`hardware/ollama_probe.py`）。前端首页提示条在本机/桌面版静默探测一次，只有拿到模型才显示按钮；点击后启用 Ollama 提供商并把提供商地址设为探测到的那一个（`OLLAMA_HOST` / docker 场景），默认模型仅在尚未设置时填入。「启用提供商 + 追加模型 + 默认模型只填空」抽成 `enableProviderWithModel`，订阅一键接入走同一份逻辑。同一批提交之外另有一次改名：`/config/onboarding/probe-local` 现在只探测 SearXNG，改为 `/config/onboarding/searxng/probe`（与同级的 `searxng/start` 对齐），前端 `localCapabilitiesProbe.ts` 改为 `searxngProbe.ts`，导出名同步。 |
+| **行为变化** | 本机/桌面版没配模型、且本机 Ollama 里有合格模型时，提示条多一个按钮；其余情况（沙箱、Ollama 没开、只有向量模型或云端模型、已配模型）没有变化，也不会弹错误提示。改名不改响应形状；新旧前后端混用时 SearXNG 探测会得到空结果（前端已吞掉错误），同一版本内不会出现。 |
+| **回归证据** | [实测] 后端 `tests/api/integrations/hardware` 55 例通过（新增 25 例，覆盖：无合格模型、云端模型跳过、缺 `capabilities`、探测上限 5 个、`/api/show` 失败、`/api/tags` 没有模型列表、沙箱 403、Ollama 未启动）；`tests/architecture` 除既有的 `test_routes_have_callers` 外全部通过，新路由有前端调用方；`ruff`、`mypy` 对改动文件无问题。前端 `tsc --noEmit`、`bun run lint` 7 个门禁、`verify:i18n` 等 7 个 verify 脚本、孤儿门禁相对 `origin/main` 无新增均通过；`src/services`、`src/store`、`ai-core` 设置页共 280 个 vitest 文件 2172 例通过。**端到端**：用假的 Ollama 守护进程（含一个向量模型、一个云端模型、一个 `qwen3:8b`）加真实后端和真实浏览器：首页显示「使用 Ollama：qwen3:8b」，点击后提示条消失、模型选择器显示 `qwen3:8b`，`/config/providers` 里 Ollama 已启用且地址、模型、默认模型都写入；随后发「say hi」，守护进程收到 `POST /api/generate {"model": "qwen3:8b", …}`，侧栏出现回复「Hello from fake Ollama」；探测只发出一次请求，没有错误提示。 |
+| **踩坑** | ① 端到端第一次发消息失败，`create_skill_agent() got an unexpected keyword argument 'embedding_config'`：共用 `.venv` 里的 harness 是指向主工作区的可编辑安装，主工作区带着别的任务未提交的 harness 改动，和 `origin/main` 的服务端对不上；`PYTHONPATH` 压不过 `.pth` 里的 `sys.path.insert(0, …)`，要在启动脚本里再把本树的 harness 插到最前面。② 假守护进程一开始没有 `/api/generate`，运行时走的是 `ollama/` 前缀的补全接口而不是 `/api/chat`，对话重试了 5 次才在补上接口后成功。③ 后台进程用 `nohup … &` 启动会随这次命令结束被杀，要用后台任务加 `exec`。 |
+| **仍然存在** | ① 没有对真实运行的 Ollama 验证过：上面的端到端用的是假守护进程，`capabilities` 的返回形状依据的是 Ollama `/api/show` 的文档与 OpenCode 的同类实现；旧版 Ollama（没有 `capabilities`）的行为只有单元测试。② 没做 LM Studio：它的模型接口不报告能力，按同样规则没法判断，不是遗漏。③ `Settings` 里对「不支持工具调用的模型」仍没有负向提示，只有正向的函数调用徽章。④ `tests/architecture/test_api_route_consumers.py::test_routes_have_callers` 在干净的 `origin/main` 上就是红的（12 个无关路由），不属于这次改动。 |
+| **代码位置** | `myrm-agent-server/app/api/integrations/hardware/{ollama_probe.py,cookbook.py,_ARCH.md}` · `myrm-agent-server/{app/api/integrations/_ARCH.md,app/api/config/router.py,ARCHITECTURE.md,tests/api/integrations/hardware/test_ollama_chat_model.py,tests/api/config/test_probe_local.py}` · `myrm-agent-frontend/src/{services/{ollamaChatModel.ts,searxngProbe.ts},hooks/shared/useOllamaQuickConnect.ts,store/config/{enableProviderWithModel.ts,providerSubscription.ts},components/features/chat-window/NoProviderBanner.tsx}` · `myrm-agent-frontend/locales/*.json`（`chat.ollamaQuickConnect`） |
+
 ## 2026-11-02 · `KanbanSection.boardRow` 测试全部通过却带着一个未捕获错误：删除确认的测试把 `getBoardSummary` 的返回写成 `{}` 并强转类型
 
 | 字段 | 内容 |
