@@ -2,11 +2,65 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-176 · 记忆对话集成测试的假嵌入器用带进程盐的 `hash()`：有的进程里查询文本的哈希恰好是 1000 的倍数，得到零向量；`Unit` 作业里 `test_adaptive_quoted_phrase_forces_dual` 偶发红
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`8ef54bd42d`） |
+| **发现时间** | 2026-11-02（Actions 运行 41409833407，头 `08e3f33b2d`，Unit 作业 125160113815 `2 failed, 55009 passed`，其中一个是这个用例） |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P3：只影响这个测试文件；生产用真实嵌入模型，不受影响。 |
+| **关联产品** | harness 测试（`tests/toolkits/memory/test_conversation_integration.py`）。 |
+| **症状** | 同一份代码，这个用例在一次运行里红、下一次运行里绿。 |
+| **根因** | `MockEmbedding.embed` 返回 `[float(hash(text) % 1000) / 1000.0] * 768`。`str` 的哈希每个进程不同（`PYTHONHASHSEED`），每个文本的哈希有千分之一的概率是 1000 的倍数，向量就全零，这个用例要的命中随之消失（`PYTHONHASHSEED=1585` 下复现）。 |
+| **修复** | 换成 `zlib.crc32`，并把标度放进 1..999，同一文本在所有进程里得到同一个非零向量。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 先用种子扫描找到会让三个文本之一得零向量的种子（`PYTHONHASHSEED=1585` 使查询向量为零），再用它在未改动的文件上复现；没有这一步，「改了以后绿」证明不了什么。 |
+| **回归** | [1] 未改动的文件在 `PYTHONHASHSEED=1585` 下 `1 failed, 5 passed`，失败正是 `test_adaptive_quoted_phrase_forces_dual`；改后同一种子 `6 passed`；种子 0、1、2、7、42 也都 `6 passed`。[2] `ruff check`、`ruff format --check` 通过。 |
+| **仍然存在** | 这个文件里 `mypy` 的既有报错没有处理。 |
+| **代码位置** | `tests/toolkits/memory/test_conversation_integration.py` |
+
+### BUG-HARNESS-2026-11-02-175 · 一个测试往 completion guard 的披露登记表留下载荷，同一 xdist worker 上后面的 `post_run_events` 用例第二次调用带出 `deliverable_tier`；`Unit` 作业里 `test_attaches_disclosure_payload_once` 偶发红
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`ed3a7400ea`；夹具与终止性错误登记表的隔离合并，见 173） |
+| **发现时间** | 2026-11-02（Actions 运行 41409833407，Unit 作业 125160113815，`tests/agent/test_run_lifecycle.py::TestPostRunEventsDisclosure::test_attaches_disclosure_payload_once` 在 gw1 上失败：第二次 `message_end` 带有 `deliverable_tier`） |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P3：只在测试进程里发生；生产里每轮开始都会复位未绑定槽位。 |
+| **关联产品** | harness 测试；completion guard（`agent/middlewares/completion/completion_guard/state.py`）。 |
+| **症状** | 同一份代码，这个用例在一次运行里红、下一次绿，取决于 xdist 的 `loadscope` 把哪些类分到哪个 worker、顺序怎样。 |
+| **根因** | ① `_run_states` 与 `_run_disclosures` 是进程级字典，没有绑定消息 id 的回合共用一个「未绑定」槽位（`state.py:84-85`、`run_key()`）。② `attach_disclosure_to_event` 是 `pop(message_id) or pop(未绑定)`（`state.py:199`）：这个用例先绑定自己的 id、发布载荷，第一次调用弹出自己的载荷，短路，未绑定槽位原样留着；第二次调用没有载荷，退到未绑定槽位，把别的测试留下的载荷带出来。③ 直接调用 executor 的测试绕过生产里每轮开始的 `reset_all_guards`，所以没有任何东西清掉它。④ 对 `tests/agent` 全部 18328 个用例逐个检查登记表：15 个用例结束时留下载荷（12 个在未绑定槽位，3 个在测试自己的回合 id 下），分布在 `test_guard_trigger.py`、`test_guard_rerun.py`、`test_guard_todo_and_deliverables.py`、`test_mixed_message.py`、`test_hold_back.py`、`test_guard_evidence_capability.py`、`test_guard_claims.py`、`test_guard_write_capability.py`、`approval/test_approval_evaluated_once.py`、`test_workspace_context_contract.py`。 |
+| **修复** | `tests/support/run_guard_isolation.py` 的 autouse 夹具 `_isolate_run_guard_registries`：每个测试用空的终止性错误登记表、空的回合状态与披露登记表，结束后放回。它由 `tests/conftest.py` 的 `pytest_plugins` 注册；终止性错误登记表的夹具原来在 `tests/conftest.py`（正好 500 行），搬过来后该文件 492 行。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 先怀疑失败用例紧邻的前 10 个用例，它们都不碰披露登记表；载荷可以在未绑定槽位上留很久，直到下一个读它的用例。② 两两组合「泄漏模块 → 受害用例」都通过，因为同模块里后面的用例会复位槽位；只有按失败那次运行里 gw1 的实际顺序回放才复现。③ 普查探针要先在已知会泄漏的树上验证自己抓得到（对照：刻意留一个载荷的插件）。 |
+| **回归** | [1] 三个测试一条链（第一个同时在未绑定槽位和一个回合 id 下留下载荷与拒绝计数，后两个必须看到空登记表）：去掉披露隔离、去掉回合状态隔离、或不注册插件，三种变异各 `2 failed, 1 passed`；恢复后 `3 passed`。[2] 回放：从失败运行 gw1 上、受害用例之前最近的一个已知未绑定槽位泄漏用例 `test_guard_evidence_capability.py::TestGuardDecision::test_the_evidence_demand_is_dropped_but_another_critical` 起到受害用例止，共 1637 个用例，按那次运行的顺序单进程执行。没有插件：`6 failed, 1605 passed`，受害用例失败（另外 4 个是 `TestTerminalErrorsBetweenTests` 的 2 个与 `test_stop_during_silent_tool_e2e` 的 2 个，没有插件时 173 的终止性错误登记表隔离也被一并去掉，没有逐个看失败原因）；有插件：`1 failed, 1610 passed`，受害用例通过。剩下的 1 个是 `test_sandbox_snapshot_runtimes.py` 里的用例，有没有插件都红，单独跑那个文件时红的是另一个用例（本机负载 30 至 60；该文件的用例安装假的可执行文件再执行），在 41409833407 的 Unit 作业里通过，没有深查。[3] 修复后的导出树：`tests/agent`、`tests/support`、`tests/toolkits/memory` 一起跑 `21852 passed, 22 skipped, 9 xfailed`。[4] `ruff check`、`ruff format --check`、文件行数、分形文档、导入可解析、`ARCH` 清单门禁通过。 |
+| **仍然存在** | ① 没有证明失败那次运行里的泄漏者就是上面这个用例：证据是「按那次运行 gw1 的实际顺序回放能复现同一个断言失败」，不是日志里直接看到它写了载荷；它之后到受害用例之间的 1636 个用例里是否还有别的写入者没有逐个确认。② 普查只覆盖 `tests/agent`；别的目录没扫。③ 普查在测试结束时看登记表，抓不到测试结束后才发布的迟到写入。④ 夹具不隔离其它进程级状态（173 里的 `test_venv_manager.py::test_uses_default_path_when_no_config` 仍未查）。⑤ 一次 CI 绿是一个样本。 |
+| **代码位置** | `tests/support/run_guard_isolation.py`、`tests/conftest.py`、`tests/_ARCH.md`、`tests/support/_ARCH.md` · 测试 `tests/support/test_run_guard_isolation.py` · 受害用例 `tests/agent/test_run_lifecycle.py:772-806` · 被保护的登记表 `agent/middlewares/completion/completion_guard/state.py` |
+
+### BUG-HARNESS-2026-11-02-174 · 被丢弃的后台输出读取协程被垃圾回收时，在已持有注册表锁的线程上再取一次锁，永久死锁；`Unit` 作业静默 600 s 被 `ci_stall_guard` 终止
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`0905e4834c`） |
+| **发现时间** | 2026-11-02（Actions 运行 41401780761，头 `d170982da2`，第一次尝试的 Unit 作业静默 600 s，退出码 124；重跑转绿） |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P2：测试里已经让整个 Unit 作业白等 600 s 并红一次；生产里要有一个未结束的读取协程在持锁线程上被回收才会触发，没有观察到。 |
+| **关联产品** | 后台 bash 任务注册表（`agent/meta_tools/bash/_background/registry.py`、`consume.py`）。 |
+| **症状** | CI 栈（行号指 `d170982da2`）：`test_background_shell_v2.py:310` 的 `registry.register(...)` → `registry.py:111` 遍历 `_entries` 的生成器（此时持有 `_lock`）→ 垃圾回收在这一刻终结一个被丢弃的消费者协程，它的 `finally` 调 `consume.py:200` 的 `clear_session_if_idle` → `registry.py:419` `_maybe_clear_session_spawn_tools` 的 `with self._lock`。 |
+| **根因** | `_lock` 是不可重入的 `threading.Lock`（`registry.py:93`）。`consume_background_entry` 的 `finally` 不区分「正常结束或被取消」与「协程被 `close()` 在未完成时关掉」：后者没有事件循环可等，同步部分（`clear_session_if_idle`）却照样执行，同一线程第二次取锁。被丢弃的消费者在测试里来自 `test_background_shell_v2.py` 的 autouse 夹具 `_clear_registry`：用例前后直接 `registry._entries.clear()`，丢掉仍在等待的消费者任务的唯一强引用（共 5 个测试文件这样做）。 |
+| **修复** | `finally` 的第一件事：`if isinstance(sys.exc_info()[1], GeneratorExit): raise`，被 GC 关掉的读取协程什么都不做；被取消的读取协程仍然完成收尾（取消在 `except asyncio.CancelledError` 里已被消化，`finally` 看不到在途异常）。`ruff` 的 B012 不允许在 `finally` 里 `return`，所以用重新抛出。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 自然复现失败：该模块在 GC 阈值 1 至 13 下跑 18 次，全部通过。确定性复现要「持锁线程里调 `gc.collect()`」，栈与 CI 一致。② `Lock` 换 `RLock` 不是合适的修法（按读代码推断，未实测）：`_schedule_reap` 在 `reap_delay<=0` 或没有运行中的循环时内联调用 `_drop_entry`（`registry.py:440-451`），后者会 `pop` 掉 `_entries` 里的项（`registry.py:466`），可重入之后就会在 `register()` 遍历期间改动 `_entries`。 |
+| **回归** | [1] `tests/agent/meta_tools/bash/test_background_consumer_abandoned.py` 两个用例：持锁线程里回收被丢弃的读取协程必须在 10 s 内结束；被取消的读取协程仍然调用完成监听器。去掉守卫：被丢弃读取协程的用例 `1 failed`（挂满 10 s 才失败），取消用例仍通过；有守卫 `2 passed`。把守卫改成「任何在途异常都跳过收尾」也 `2 passed`：`finally` 里能看到的在途异常只有 `GeneratorExit` 与未被 `except Exception` 接住的 `BaseException`（如 `KeyboardInterrupt`、`SystemExit`），两种写法只在后者上不同，没有为后者写用例。[2] 后台 bash 邻近的 `test_background_consume.py`、`test_background_registry.py`、`test_background_shell_v2.py` 加上新文件 `56 passed`。[3] 修复后的导出树：`tests/agent`、`tests/support`、`tests/toolkits/memory` 一起跑 `21852 passed, 22 skipped, 9 xfailed`。 |
+| **仍然存在** | ① 自然发生的频率没有测到；是否与 `064b93d93f` 的夹具改变了 GC 命中时机有关，不能排除。② 生产里事件循环关闭时是否会留下未结束的消费者协程，没有验证；守卫之后这样的读取协程不再调用完成监听器、不再清会话标记、不再安排回收，条目随后由什么回收没有验证。③ IPC 客户端没有读取超时（`client_templates.py:341`，170 里已记），那里卡住同样会静默。 |
+| **代码位置** | `agent/meta_tools/bash/_background/consume.py`、`agent/meta_tools/bash/_background/_ARCH.md` · 测试 `tests/agent/meta_tools/bash/test_background_consumer_abandoned.py` |
+
 ### BUG-HARNESS-2026-11-02-173 · 测试套件不隔离终止性错误登记表：`parent_run_in_progress` 一类辅助把 `network_blocked` 留在进程里时，后面直接跑 `StreamExecutor` 的用例（工具名含 mcp）被断路器挡住，等不到工具启动而超时；`Unit` 作业里 `test_stop_during_silent_tool_e2e` 的两个用例偶发红
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（两次提交。`738fd32ac0`：`parent_run_in_progress()` 用 `isolated_terminal_errors()` 把登记表收进自己的作用域，退出后调用方的登记表原样回来。`064b93d93f`：`tests/conftest.py` 加 autouse 夹具 `_isolate_terminal_errors`，每个测试用自己的空登记表，把「进来时登记表为空」从隐含约定变成框架保证；新增 3 个回归用例锁住「上一个同步测试留下的 `network_blocked`，后面的异步与同步测试都看不到」。） |
+| **状态** | **FIXED**（两次提交。`738fd32ac0`：`parent_run_in_progress()` 用 `isolated_terminal_errors()` 把登记表收进自己的作用域，退出后调用方的登记表原样回来。`064b93d93f`：`tests/conftest.py` 加 autouse 夹具 `_isolate_terminal_errors`，每个测试用自己的空登记表，把「进来时登记表为空」从隐含约定变成框架保证；新增 3 个回归用例锁住「上一个同步测试留下的 `network_blocked`，后面的异步与同步测试都看不到」。夹具之后与回合状态/披露登记表的隔离合并，移入 `tests/support/run_guard_isolation.py`（`pytest_plugins` 注册，名为 `_isolate_run_guard_registries`），见 175。） |
 | **发现时间** | 2026-10-30（Actions 运行 41289080085，头 `df58e69104`，Unit 作业 `2 failed, 54912 passed`；两个失败都是 `TimeoutError`，日志有 `Circuit breaker: blocked mcp_silent_probe due to terminal network_blocked`）；污染源修复 `738fd32ac0`（2026-11-01）；本提交是把「只修一个污染者」补成「这一类都挡」。 |
 | **修复时间** | 2026-11-01（污染源）；2026-11-02（框架保证） |
 | **严重程度** | P3：只在同一 pytest 进程里先有测试往登记表写入 `network_blocked`、之后又有直接调用 `StreamExecutor` 且工具名含 mcp/web/search/fetch/browser 的用例时发生；后果是等不到工具启动、超时 30 s。生产路径每轮开始会 `reset_all_guards`，不受影响。 |
@@ -17,8 +71,8 @@
 | **反复次数** | 第 2 次触及这一类：第 1 次修污染源（`738fd32ac0`）；`064b93d93f` 修「谁都可能污染」这一类。 |
 | **踩坑** | ① 先怀疑 God-Mode 状态文件跨 worker 共享：测试里写它的地方都在临时路径下，不是它。② 只修污染源不够：同类「绕过 `reset_all_guards` 的直接 executor 用例」仍要求进来时登记表为空，没有任何东西保证。③ 普查探针要先在修复前的树上验证自己能抓到泄漏，否则「扫了没发现」不可信（对照：修复前树抓到 `test_research_agents_leave_the_dispatching_runs_guard_state_as_it_found_it` 与受害 e2e）。 |
 | **回归** | [1] 变异：同一份新用例在没有该夹具的树上 `2 failed, 18 passed`（异步与同步后续用例看到 `network_blocked`）；有夹具时 `20 passed`。[2] 修复前的树上，夹具原型 + 4 个污染模块 + e2e → `30 passed`（原来 failed）。[3] 带真实夹具在导出树上跑：登记表相关目录 12562 个用例，12561 passed、1 failed（macOS seatbelt 引号用例，未改动的树上同样失败）；其余 agent 相邻目录 7179 passed；`tests/architecture` 7108 passed、2 failed（都需要 `uv`，本机的 `uv` 是 0 字节占位文件）；新增用例所在文件 20 passed；`ruff check`、`ruff format --check` 与文件行数门禁（`tests/conftest.py` 正好 500 行）通过。[4] 该 e2e 文件单独连跑 20 次 20/20 通过；夹具每个测试多 75.9 µs（20000 次平均）。 |
-| **仍然存在** | ① 夹具只隔离登记表，不管别的进程级状态（例如本轮普查里 `test_venv_manager.py::test_uses_default_path_when_no_config` 在约 1.2 万个用例的单进程里失败过一次、单独跑通过；带夹具重跑同一批时它通过了，原因没查，不能算已修）。② 夹具会让泄漏者自己看不见自己留下的东西；直接看守污染源的用例 `test_a_parent_run_in_progress_leaves_no_terminal_error_behind` 仍然在。③ 一次 CI 绿是一个样本；`d170982da2` 的 Harness 运行 41401780761 第一次尝试里 Unit 作业静默 600 s 被 `ci_stall_guard` 终止（退出码 124），重跑转绿，其余作业两次都绿。`064b93d93f` 的那次运行被紧随其后的文档提交取消，所以这是含夹具的第一次完整 Unit 运行，样本只有两个。④ 那次卡死不在终止性错误登记表，尚未修复。CI 栈（行号指 `d170982da2`）：`test_background_shell_v2.py:310` 的 `registry.register(...)` → `registry.py:111` 遍历 `_entries` 的生成器（此时持有 `_lock`） → 垃圾回收在这一刻终结了一个被丢弃的消费者协程，它的 `finally` 调 `consume.py:200` 的 `clear_session_if_idle` → `registry.py:419` `_maybe_clear_session_spawn_tools` 的 `with self._lock`。`_lock` 是不可重入的 `threading.Lock`（`registry.py:93`），同一线程第二次取锁，永久死锁。用「持锁期间触发 GC」的脚本可以确定性复现（栈与 CI 一致；不持锁时正常完成）。被丢弃的消费者在测试里来自 `test_background_shell_v2.py` 的 autouse 夹具 `_clear_registry`：用例前后直接 `registry._entries.clear()`，丢掉仍在等待的消费者任务的唯一强引用。没有证明的：a. 自然发生的频率（该模块在 GC 阈值 1 至 13 下跑 18 次，全部通过，没有复现）；b. 与 `064b93d93f` 的夹具无关（上一次全绿 `78215aa04c` 与 `d170982da2` 之间 `src` 零差异，只多了夹具与 3 个用例，GC 命中时机取决于内存分配，不能排除夹具改变了命中时机）；c. 生产里事件循环关闭时是否会留下未结束的消费者协程。`Lock` 换 `RLock` 不是合适的修法（按读代码推断，未实测）：`_schedule_reap` 在 `reap_delay<=0` 或没有运行中的循环时内联调用 `_drop_entry`（`registry.py:444-451`），后者会 `pop` 掉 `_entries` 里的项（`registry.py:466`），可重入之后就会在 `register()` 遍历期间改动 `_entries`。 |
-| **代码位置** | `tests/conftest.py`、`tests/_ARCH.md`（`064b93d93f`） · 测试 `tests/agent/middlewares/test_session_context.py` · 相关生产辅助 `agent/middlewares/_session_context.py:284`、断路器 `agent/middlewares/tooling/_circuit_breaker.py:37,43` · 污染源修复 `738fd32ac0` |
+| **仍然存在** | ① 夹具只隔离登记表，不管别的进程级状态（例如本轮普查里 `test_venv_manager.py::test_uses_default_path_when_no_config` 在约 1.2 万个用例的单进程里失败过一次、单独跑通过；带夹具重跑同一批时它通过了，原因没查，不能算已修）。② 夹具会让泄漏者自己看不见自己留下的东西；直接看守污染源的用例 `test_a_parent_run_in_progress_leaves_no_terminal_error_behind` 仍然在。③ 含夹具的完整 Unit 运行：`d170982da2` 第一次尝试静默 600 s 被 `ci_stall_guard` 终止（退出码 124，原因见 174），重跑转绿；`08e3f33b2d`（相对 `d170982da2` 只改了文档）`2 failed, 55009 passed`，两个失败（见 175、176）都不在终止性错误登记表。这两个 e2e 用例在有结果的那两次里都通过；没有夹具的 `78215aa04c` 也全绿（55008 passed）。样本仍然很少。 |
+| **代码位置** | `tests/support/run_guard_isolation.py`、`tests/conftest.py`、`tests/_ARCH.md`（夹具在 `064b93d93f` 加入 `tests/conftest.py`，之后移到 `tests/support/run_guard_isolation.py`） · 测试 `tests/agent/middlewares/test_session_context.py` · 相关生产辅助 `agent/middlewares/_session_context.py:284`、断路器 `agent/middlewares/tooling/_circuit_breaker.py:37,43` · 污染源修复 `738fd32ac0` |
 
 ### BUG-HARNESS-2026-11-02-170 · 全局 PTC IPC 服务端留在已关闭的事件循环上时被继续复用：监听 socket 仍接收连接、没有任何人应答，脚本里的 MCP 调用一直等到 120 s 脚本截止，Unit 作业里 `test_mcp_marker_full_stack` 的第一个用例偶发红
 
