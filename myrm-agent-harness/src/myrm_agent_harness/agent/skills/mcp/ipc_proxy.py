@@ -200,25 +200,24 @@ class MCPIPCServer:
         """Marked running, but its event loop is closed: the socket still accepts and nothing answers."""
         return self._running and self._loop is not None and self._loop.is_closed()
 
-    def abandon(self) -> None:
-        """Free the listening sockets of an orphaned server; its closed loop cannot await a clean stop."""
-        self._running = False
-        if self._server is not None:
-            self._server.close()
-
     async def stop(self) -> None:
         """停止 IPC 服务端"""
         if not self._running:
             return
 
+        orphaned = self.is_orphaned
         self._running = False
 
         if self._server:
             self._server.close()
-            try:
-                await asyncio.wait_for(self._server.wait_closed(), timeout=self._SHUTDOWN_TIMEOUT)
-            except TimeoutError:
-                logger.warning(f"IPC Server wait_closed timed out after {self._SHUTDOWN_TIMEOUT}s, forcing shutdown")
+            # A closed loop cannot drain connections: awaiting its futures from another loop raises.
+            if not orphaned:
+                try:
+                    await asyncio.wait_for(self._server.wait_closed(), timeout=self._SHUTDOWN_TIMEOUT)
+                except TimeoutError:
+                    logger.warning(
+                        f"IPC Server wait_closed timed out after {self._SHUTDOWN_TIMEOUT}s, forcing shutdown"
+                    )
             self._server = None
 
         if os.path.exists(self.socket_path):
@@ -464,7 +463,7 @@ async def start_mcp_ipc_server(socket_path: str) -> MCPIPCServer:
     if _ipc_server is not None and _ipc_server._running:
         if not _ipc_server.is_orphaned:
             return _ipc_server
-        _ipc_server.abandon()
+        await _ipc_server.stop()
 
     _ipc_server = MCPIPCServer(socket_path)
     await _ipc_server.start()
