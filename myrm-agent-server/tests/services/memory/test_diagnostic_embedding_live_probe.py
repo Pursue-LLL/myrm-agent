@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
-from unittest.mock import MagicMock
 
 import pytest
 from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.memory.diagnostics.diagnostic.diagnostic_live_probes import run_embedding_live_probe
 from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import KEYWORD_MODE_EVIDENCE
-from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
 from app.services.memory.shared_context import shared_context_health as health_module
 
 
@@ -30,10 +27,6 @@ class _FakeEmbeddingService:
 
 class AuthenticationError(Exception):
     """LiteLLM-compatible authentication failure name."""
-
-
-def _service() -> MemoryDiagnosticsService:
-    return MemoryDiagnosticsService(cast(AsyncSession, MagicMock()), None, ledger=MagicMock())
 
 
 def _configure(monkeypatch: pytest.MonkeyPatch, config: EmbeddingConfig) -> None:
@@ -57,7 +50,7 @@ async def test_embedding_live_probe_is_missing_when_embedding_was_never_configur
 
     monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
 
-    probe = await _service()._run_embedding_live_probe()
+    probe = await run_embedding_live_probe()
 
     assert probe.status == "missing"
     assert probe.evidence == KEYWORD_MODE_EVIDENCE
@@ -68,7 +61,7 @@ async def test_embedding_live_probe_is_missing_when_embedding_was_never_configur
 async def test_embedding_live_probe_stays_critical_for_a_placeholder_key(monkeypatch: pytest.MonkeyPatch) -> None:
     _configure(monkeypatch, EmbeddingConfig(model="text-embedding-3-small", api_key="changeme", api_base=None))
 
-    probe = await _service()._run_embedding_live_probe()
+    probe = await run_embedding_live_probe()
 
     assert probe.status == "critical"
     assert "placeholder_embedding_api_key" in probe.evidence
@@ -86,7 +79,7 @@ async def test_embedding_live_probe_stays_critical_when_the_provider_rejects_the
         lambda config: _FakeEmbeddingService(exc=AuthenticationError("Incorrect API key provided: sk-invalid")),
     )
 
-    probe = await _service()._run_embedding_live_probe()
+    probe = await run_embedding_live_probe()
 
     assert probe.status == "critical"
     assert "invalid_api_key" in probe.evidence
@@ -104,7 +97,7 @@ async def test_embedding_live_probe_stays_critical_when_the_provider_is_unreacha
         lambda config: _FakeEmbeddingService(exc=ConnectionError("connection refused")),
     )
 
-    probe = await _service()._run_embedding_live_probe()
+    probe = await run_embedding_live_probe()
 
     assert probe.status == "critical"
     assert "network_error" in probe.evidence
@@ -116,7 +109,7 @@ async def test_embedding_live_probe_is_ready_when_the_provider_answers(monkeypat
     _configure(monkeypatch, EmbeddingConfig(model="text-embedding-3-small", api_key="sk-valid", api_base=None))
     monkeypatch.setattr(health_module, "get_embedding_service", lambda config: _FakeEmbeddingService([0.1, 0.2]))
 
-    probe = await _service()._run_embedding_live_probe()
+    probe = await run_embedding_live_probe()
 
     assert probe.status == "ready"
     assert probe.repair_actions == []

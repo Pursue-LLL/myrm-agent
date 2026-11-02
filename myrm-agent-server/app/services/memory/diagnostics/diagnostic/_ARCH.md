@@ -9,6 +9,8 @@
 | 文件 | 类型 | 职责 | 状态 |
 | --- | --- | --- | --- |
 | `__init__.py` | 门面 | `diagnostic/` 子包入口，re-export 对外模块 | ✅ |
+| `diagnostic_live_probes.py` | 辅助 | 运行期探针：`run_embedding_live_probe` 发起真实 embedding 请求，把「从未配置 embedding」（`EMBEDDING_NOT_CONFIGURED_REASON`）判为 `missing`（关键词召回为默认模式，语义召回是可选能力），把「已配置但不可用」（占位/缺失密钥、探测失败）保持为 `critical`；`run_retrieval_pipeline_probe` 消费 `last_retrieval_trace.degraded`，降级时置 warning 并注明原因；`run_sparse_cjk_recall_probe` 验证 BM25/RRF 稀疏召回。检索类探针都以 `track_access=False` 发起，探针命中的记忆不会被记为「最近使用」 | ✅ |
+| `diagnostic_migration_integrity.py` | 辅助 | 迁移完整性检查：对比已应用迁移校验和与当前迁移清单，识别 drifted / pending / unknown，既供静态快照（`inspect_migration_integrity`）也供可执行探针（`run_migration_integrity_probe`）使用 | ✅ |
 | `diagnostic_probe_results.py` | 辅助 | probe 结果归一化：探针状态类型 `DiagnosticStatus`（各诊断模块共用）、两个 embedding 探针共用的关键词模式文案、rollup、action 状态映射、impact/next action/auto-fix/retry 字段、repair plan 传递、静态检查到可执行探针转换 | ✅ |
 | `diagnostic_quality_governance.py` | 辅助 | 质量治理探针：读取框架层 health score，返回新鲜度/覆盖率/保留健康/一致性证据（不含内容） | ✅ |
 | `diagnostic_recall_benchmark.py` | 辅助 | 黄金召回基准：20 个合成 case（10 类别，中英双语，含长文档 Head/Tail 深层穿透与分块折叠去重验证；每条检索 `track_access=False`，命中的记忆不计入「最近使用」），返回 recall@5/ndcg@5/mrr/precision@5/duplicate_rate/distinct_sources 与 latency | ✅ |
