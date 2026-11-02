@@ -224,6 +224,11 @@ class TransportChatModel(
             "custom_llm_provider": self.custom_llm_provider,
             **self.model_kwargs,
         }
+        # Sampling options a user sets in the model configuration: OpenAI-shaped bodies also get them through the
+        # factory's extra_body mirror, the wires with their own protocol (Gemini, Ollama, Responses, Anthropic) only here.
+        for name, value in (("top_p", self.top_p), ("top_k", self.top_k)):
+            if value is not None:
+                params[name] = value
         if self.extra_body:
             params["extra_body"] = self.extra_body
         if self.reasoning_effort is not None:

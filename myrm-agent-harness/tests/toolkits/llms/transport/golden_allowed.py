@@ -162,7 +162,7 @@ RULES: tuple[AllowedDiff, ...] = (
         "gemini-json-names-old",
         "Gemini fields were written in snake_case; the transport writes the canonical camelCase (both are accepted).",
         "-",
-        r"/body/(generationConfig/(max_output_tokens|response_json_schema|response_mime_type)"
+        r"/body/(generationConfig/(max_output_tokens|response_json_schema|response_mime_type|frequency_penalty|stop_sequences)"
         r"|tools\[\d+\]/function_declarations|contents\[\d+\]/parts\[\d+\]/inline_data)",
         providers=_GEMINI,
     ),
@@ -170,7 +170,7 @@ RULES: tuple[AllowedDiff, ...] = (
         "gemini-json-names-new",
         "The camelCase counterpart of `gemini-json-names-old`.",
         "+",
-        r"/body/(generationConfig/(maxOutputTokens|responseJsonSchema|responseMimeType)"
+        r"/body/(generationConfig/(maxOutputTokens|responseJsonSchema|responseMimeType|frequencyPenalty|stopSequences)"
         r"|tools\[\d+\]/functionDeclarations|contents\[\d+\]/parts\[\d+\]/inlineData)",
         providers=_GEMINI,
     ),
@@ -181,6 +181,43 @@ RULES: tuple[AllowedDiff, ...] = (
         "-",
         r"/body/(reasoning_effort|generationConfig/response_format)",
         providers=_GEMINI,
+    ),
+    AllowedDiff(
+        "sampling-options-misplaced",
+        "`top_p` and `top_k` from the model configuration were written at the top level of the Gemini and Ollama "
+        "bodies, where neither API reads them (Gemini rejects unknown fields); they now sit in `generationConfig` "
+        "and `options`.",
+        "-",
+        r"/body/top_(p|k)",
+        providers=(*_GEMINI, "ollama"),
+        scenarios=("sampling",),
+    ),
+    AllowedDiff(
+        "gemini-sampling-native-fields",
+        "The counterpart of `sampling-options-misplaced`: `topP` and `topK` in `generationConfig`.",
+        "+",
+        r"/body/generationConfig/top[PK]",
+        providers=_GEMINI,
+        scenarios=("sampling",),
+    ),
+    AllowedDiff(
+        "anthropic-sampling-sent",
+        "`top_p` and `top_k` from the model configuration are sent to the Messages API, which reads both; the "
+        "previous library dropped them without saying so. A model that refuses `top_p` next to `temperature` is "
+        "answered by the adapter's strip-and-retry. Not exercised against a real Anthropic server.",
+        "+",
+        r"/body/top_(p|k)",
+        providers=_ANTHROPIC,
+        scenarios=("sampling",),
+    ),
+    AllowedDiff(
+        "cohere-stop-sequences-duplicate",
+        "The native `stop_sequences` next to the OpenAI-style `stop` it duplicated; the compatibility endpoint takes "
+        "`stop`.",
+        "-",
+        r"/body/stop_sequences",
+        providers=("cohere_chat",),
+        scenarios=("sampling",),
     ),
     AllowedDiff(
         "gemini-empty-text-part",

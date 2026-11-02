@@ -10,8 +10,8 @@
 [POS]
 Library-agnostic request capture. The committed baseline ``golden_baseline.json`` was recorded the same way at
 commit b6959e7d7e, when the factory still called the previous multi-provider client library (litellm 1.97.0) with
-the production configuration applied (the Yunshu cases and the ``defaults`` scenario were added later on that same
-commit); the golden test replays the matrix on the current transport and diffs the two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
+the production configuration applied (the Yunshu cases and the ``defaults`` and ``sampling`` scenarios were added later on
+that same commit); the golden test replays the matrix on the current transport and diffs the two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
 """
 
 from __future__ import annotations
@@ -151,6 +151,7 @@ PROVIDERS: dict[str, tuple[str, dict[str, object]]] = {
 BASE_SCENARIOS = (
     "basic",
     "defaults",
+    "sampling",
     "tools",
     "reasoning_high",
     "json_schema",
@@ -234,6 +235,9 @@ def _model_kwargs(extra: Mapping[str, object]) -> dict[str, object]:
 
 def _factory_kwargs(extra: Mapping[str, object], with_base: bool, scenario: str) -> dict[str, object]:
     kwargs: dict[str, object] = {"api_key": "sk-golden-test-key", "temperature": 0.2, "max_tokens": 128, **extra}
+    if scenario == "sampling":  # the sampling options a user can put in a model configuration
+        kwargs.update(top_p=0.9, top_k=40)
+        kwargs["model_kwargs"] = {**_model_kwargs(extra), "seed": 7, "frequency_penalty": 0.1, "stop": ["END"]}
     if scenario == "defaults":  # what each provider adds when the caller sets no sampling parameter at all
         del kwargs["temperature"], kwargs["max_tokens"]
     if with_base:
