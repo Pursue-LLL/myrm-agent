@@ -52,8 +52,9 @@ _DOC_CHARS = 300
 # so a qualified name returns the same rows and only a text search inside a directory narrows them.
 _HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
 _HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
-_HINT_EXACT_FIRST_THEN_SEARCH = (
-    f"match=exact rows are listed first unless this name is defined only as methods, and {_HINT_SEARCH}"
+_HINT_CALL_SITES = (
+    "match=exact rows are listed first; for an unqualified name that only methods define, match=name rows are listed "
+    f"first, and {_HINT_SEARCH}"
 )
 _HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
@@ -138,21 +139,13 @@ class _Action:
     # What the action cannot see although the index holds it; stated in every answer, empty when it sees all of it.
     gap: str = ""
     # Call sites matched on the last name part: the answer states how many definitions share the name and lists the
-    # match=exact rows first, except for a name that only methods define (see ``_order_call_sites``).
-    exact_first: bool = False
+    # rows that can reach the definition first (see ``_order_call_sites``).
+    call_sites: bool = False
 
 
 def _definition_lookup(service: CodeGraphService, query: str) -> list[Row]:
     found = service.definition(query)
     return [found] if found else []
-
-
-def _exact_first(rows: list[Row]) -> list[Row]:
-    """Put the call sites whose text equals the query ahead of those that only share its last name part.
-
-    The answer is cut at MAX_ROWS, and the same-name rows of a common name would otherwise push the exact ones out;
-    the sort is stable, so each group keeps its path and line order."""
-    return sorted(rows, key=lambda row: row["match"] != "exact")
 
 
 # A call written as a bare name reaches a function or a class; reaching a method takes a receiver.
@@ -162,12 +155,15 @@ _BARE_CALL_KINDS = (SymbolKind.FUNCTION, SymbolKind.CLASS)
 def _order_call_sites(service: CodeGraphService, query: str, found: list[Row]) -> tuple[list[Row], int]:
     """The call sites in the order they are listed, and how many definitions share the name.
 
-    The exact rows go first unless the index holds the name only as methods: a bare call cannot reach those, so the
-    exact rows would fill the window with calls to something else and leave the method calls beyond the cut."""
+    The answer is cut at MAX_ROWS and the rows of a common name would push the ones that matter out of it, so the rows
+    that can reach the definition go first: the exact rows, whose call text equals the query. The exception is an
+    unqualified name that the index holds only as methods. A bare call cannot reach a method, so there the name rows,
+    the calls with a receiver, go first. The sort is stable, so each group keeps its path and line order."""
     definitions = service.definition_count(query)
-    if definitions == 0 or service.definition_count(query, _BARE_CALL_KINDS):
-        found = _exact_first(found)
-    return found, definitions
+    leading = "exact"
+    if "." not in query and definitions > 0 and not service.definition_count(query, _BARE_CALL_KINDS):
+        leading = "name"
+    return sorted(found, key=lambda row: row["match"] != leading), definitions
 
 
 def _file_distribution(found: list[Row]) -> dict[str, object]:
@@ -191,8 +187,8 @@ _ACTIONS: dict[str, _Action] = {
     "callers": _Action(
         lambda s, t: s.callers(t),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
-        cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
-        exact_first=True,
+        cut_hint=_HINT_CALL_SITES,
+        call_sites=True,
     ),
     "callees": _Action(
         lambda s, t: s.callees(t),
@@ -208,8 +204,8 @@ _ACTIONS: dict[str, _Action] = {
     "tests_calling": _Action(
         lambda s, t: s.tests_calling(t),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
-        cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
-        exact_first=True,
+        cut_hint=_HINT_CALL_SITES,
+        call_sites=True,
     ),
 }
 
@@ -290,14 +286,14 @@ class _Navigator:
         spec = _ACTIONS[action]
         found = spec.lookup(self._service, query)
         definitions = 0
-        if spec.exact_first:
+        if spec.call_sites:
             found, definitions = _order_call_sites(self._service, query, found)
         rows = [spec.row(r) for r in found[:MAX_ROWS]]
 
         payload: dict[str, object] = {"action": action, "query": query, "total": len(found), "rows": rows}
         if len(found) > MAX_ROWS:
             payload.update(_file_distribution(found))
-        if spec.exact_first:
+        if spec.call_sites:
             payload["definitions"] = definitions
         shared_modules = self._service.importer_scope(query).modules if action == "importers" else ()
         notes = _notes(len(found), definitions, shared_modules, stats, spec)

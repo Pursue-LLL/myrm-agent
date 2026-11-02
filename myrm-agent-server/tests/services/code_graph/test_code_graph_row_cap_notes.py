@@ -6,8 +6,9 @@
 [OUTPUT]
 - pytest suite: a qualified name returns the same rows as the bare name for the actions that match on the last
   name part, a longer name really narrows resolve and importers, a cut answer of every action counts all its matches
-  and says how many of them each file holds, callers and tests_calling list match=exact rows first except for a name
-  that only methods carry, and the row-cap note of every action carries the hint that is true for that action.
+  and says how many of them each file holds, callers and tests_calling list match=exact rows first except for an
+  unqualified name that only methods define (match=name rows first), and the row-cap note of every action carries the
+  hint that is true for that action.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_row_cap_notes.py
@@ -195,33 +196,45 @@ _FUNCTION = "def target(n):\n    return n\n"
 _METHOD = "class Holder:\n    def target(self):\n        return 1\n"
 
 
+def _write_call_sites(root: Path, exact_call: str) -> None:
+    """The calls of ``target`` in path order: 10 with a receiver, 2 written ``exact_call``, then the other 45.
+
+    The exact rows sit between the name rows, so path order, exact-first and name-first each give a different window."""
+    for rel, call, count in (
+        ("tests/test_a_receiver.py", "other.target(1)", 10),
+        ("tests/test_m_exact.py", exact_call, 2),
+        ("tests/test_z_receiver.py", "other.target(1)", _OVER_CAP - 10),
+    ):
+        body = "\n".join(f"    {call}" for _ in range(count))
+        _write(root, rel, f"def test_calls(other):\n{body}\n")
+
+
 @pytest.mark.parametrize("action", ["callers", "tests_calling"])
 @pytest.mark.parametrize(
-    ("definitions", "count", "exact_first"),
+    ("definitions", "query", "count", "name_first"),
     [
-        pytest.param(_FUNCTION, 1, True, id="function"),
-        pytest.param("class target:\n    pass\n", 1, True, id="class"),
-        pytest.param("", 0, True, id="no definition"),
-        pytest.param(f"{_FUNCTION}\n{_METHOD}", 2, True, id="function and method"),
-        pytest.param(_METHOD, 1, False, id="methods only"),
+        pytest.param(_FUNCTION, "target", 1, False, id="function"),
+        pytest.param("class target:\n    pass\n", "target", 1, False, id="class"),
+        pytest.param("", "target", 0, False, id="no definition"),
+        pytest.param(f"{_FUNCTION}\n{_METHOD}", "target", 2, False, id="function and method"),
+        pytest.param(_METHOD, "target", 1, True, id="methods only"),
+        pytest.param(_METHOD, "Holder.target", 1, False, id="methods only, qualified name"),
     ],
 )
-async def test_exact_rows_are_listed_first_unless_only_methods_carry_the_name(
-    workspace: Path, action: str, definitions: str, count: int, exact_first: bool
+async def test_exact_rows_are_listed_first_except_for_an_unqualified_name_only_methods_define(
+    workspace: Path, action: str, definitions: str, query: str, count: int, name_first: bool
 ) -> None:
-    same_name = "\n".join(f"    other.target({i})" for i in range(_OVER_CAP))
-    _write(workspace, "tests/test_a_other.py", f"def test_other(other):\n{same_name}\n")
+    _write_call_sites(workspace, f"{query}(1)")
     if definitions:
         _write(workspace, "z_lib.py", definitions)
-    _write(workspace, "tests/test_z_main.py", "from z_lib import target\n\ndef test_main():\n    target(1)\n    target(2)\n")
 
-    answer = await _ask(workspace, action, "target")
+    answer = await _ask(workspace, action, query)
 
     matches = [row["match"] for row in cast(list[dict[str, str]], answer["rows"])]
     assert _total(answer) == _OVER_CAP + 2
     assert answer["definitions"] == count
-    if exact_first:
+    if name_first:
+        assert set(matches) == {"name"}
+    else:
         assert matches[:2] == ["exact", "exact"]
         assert set(matches[2:]) == {"name"}
-    else:
-        assert set(matches) == {"name"}
