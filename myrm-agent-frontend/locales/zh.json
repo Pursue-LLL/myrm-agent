@@ -2707,7 +2707,11 @@
       "copiedReasoning": "已复制思考过程",
       "deltaNegative": "较上轮 {tokens} tokens (已压缩)",
       "deltaZero": "与上轮持平",
-      "growthTrend": "近12轮增长轨迹"
+      "growthTrend": "近12轮增长轨迹",
+      "weatherClear": "清朗 (<25%)",
+      "weatherCloudy": "多云 (25–75%)",
+      "weatherWarning": "预警 (75–90%)",
+      "weatherCritical": "即将压缩 (≥90%)"
     },
     "compactedSummary": {
       "foldLabel": "上下文已压缩 — 查看归档",
@@ -6450,7 +6454,14 @@
       "binary": "文件",
       "spreadsheet": "电子表格",
       "presentation": "演示文稿",
-      "word_document": "Word 文档"
+      "word_document": "Word 文档",
+      "video": "视频",
+      "audio": "音频",
+      "architecture": "架构图",
+      "canvas": "画布",
+      "wechat_article": "公众号文章",
+      "prototype": "原型",
+      "dashboard": "仪表盘"
     },
     "spreadsheet": {
       "search": "搜索...",
@@ -14955,7 +14966,19 @@
       "setupGuideTitle": "快速上手（桌面客户端）",
       "setupGuideStep1": "在上方授予「输入控制」与「屏幕捕获」，并点击「含屏幕捕获的重新检测」。",
       "screenLockGuardLocked": "已锁定",
-      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。"
+      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。",
+      "lockedUseDoctorBadgeLoading": "检测中…",
+      "lockedUseDoctorUnavailable": "未检测",
+      "lockedUseDoctorWarn": "需注意",
+      "lockedUseDoctorFail": "不可用",
+      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面应用",
+      "lockedUseDoctorBadgeAwayOn": "离席模式已开启",
+      "lockedUseDoctorBadgeBridgeReady": "壳已连接",
+      "lockedUseDoctorDetailNotMac": "离席模式与防窥帷幕需在 macOS 上使用 Myrm 桌面应用。",
+      "lockedUseDoctorDetailAwayOff": "桌面壳已就绪。需要无人值守时在上方开启 Locked Use，Agent 会在帷幕下代解锁。",
+      "lockedUseDoctorDetailBridgeMissing": "请在本机启动 Myrm 桌面应用，以便离席模式与桌面壳协同。",
+      "lockedUseDoctorDetailShellUnavailable": "请重启 Myrm 桌面应用，并在设置中检查离席模式与防窥帷幕。",
+      "lockedUseDoctorDetailGeneric": "离席模式或防窥帷幕尚未就绪，请打开系统设置或重启桌面应用。"
     },
     "rate_limits": {
       "title": "速率限制监控",
@@ -16294,7 +16317,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "内部子智能体",
-        "invoke_external_agent": "外部 CLI 智能体"
+        "invoke_external_agent": "外部 CLI 智能体",
+        "web_search_tool": "搜索引擎",
+        "net_fetch": "读取网页",
+        "shell_exec": "运行中的进程",
+        "file_read": "读取文件",
+        "file_write": "写入文件",
+        "mcp_invoke": "外部工具",
+        "code_interpreter": "命令与代码",
+        "browser_navigate": "浏览器导航",
+        "browser_fill": "浏览器填写表单",
+        "browser_upload": "浏览器上传",
+        "browser_download": "浏览器下载",
+        "browser_session": "浏览器会话",
+        "knowledge_read": "读取知识库",
+        "knowledge_write": "写入知识库"
       },
       "leastPrivilege": {
         "antiPatternTitle": "为何拒绝「完全访问」",

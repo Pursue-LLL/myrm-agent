@@ -2707,7 +2707,11 @@
       "copiedReasoning": "Thinking copied",
       "deltaNegative": "{tokens} tokens vs last turn (compacted)",
       "deltaZero": "Same as last turn",
-      "growthTrend": "Growth trend (last 12 turns)"
+      "growthTrend": "Growth trend (last 12 turns)",
+      "weatherClear": "Clear (<25%)",
+      "weatherCloudy": "Cloudy (25–75%)",
+      "weatherWarning": "Warning (75–90%)",
+      "weatherCritical": "Compact Soon (≥90%)"
     },
     "compactedSummary": {
       "foldLabel": "Context compressed — view archive",
@@ -6450,7 +6454,14 @@
       "binary": "File",
       "spreadsheet": "Spreadsheet",
       "presentation": "Presentation",
-      "word_document": "Word Document"
+      "word_document": "Word Document",
+      "video": "Video",
+      "audio": "Audio",
+      "architecture": "Architecture Diagram",
+      "canvas": "Canvas",
+      "wechat_article": "WeChat Article",
+      "prototype": "Prototype",
+      "dashboard": "Dashboard"
     },
     "spreadsheet": {
       "search": "Search...",
@@ -14955,7 +14966,19 @@
       "setupGuideTitle": "Quick setup (desktop app)",
       "setupGuideStep1": "Grant Input Control and Screen Capture above, then tap Recheck including screen capture.",
       "screenLockGuardLocked": "Locked",
-      "setupGuideStep3": "In your agent config, turn on Desktop Control and complete the first app approval in chat."
+      "setupGuideStep3": "In your agent config, turn on Desktop Control and complete the first app approval in chat.",
+      "lockedUseDoctorBadgeLoading": "Checking…",
+      "lockedUseDoctorUnavailable": "Unknown",
+      "lockedUseDoctorWarn": "Attention",
+      "lockedUseDoctorFail": "Blocked",
+      "lockedUseDoctorBadgeNotMac": "Desktop app (macOS)",
+      "lockedUseDoctorBadgeAwayOn": "Away mode on",
+      "lockedUseDoctorBadgeBridgeReady": "Shell connected",
+      "lockedUseDoctorDetailNotMac": "Use the Myrm desktop app on macOS for away mode and privacy curtain.",
+      "lockedUseDoctorDetailAwayOff": "Desktop shell is ready. Turn on Locked Use above when you want unattended unlock behind the curtain.",
+      "lockedUseDoctorDetailBridgeMissing": "Start the Myrm desktop app on this Mac so away mode can coordinate with the shell.",
+      "lockedUseDoctorDetailShellUnavailable": "Restart the Myrm desktop app, then check away mode and privacy curtain in Settings.",
+      "lockedUseDoctorDetailGeneric": "Away mode or privacy curtain is not ready. Open System settings or restart the desktop app."
     },
     "rate_limits": {
       "title": "Rate Limit Monitor",
@@ -16294,7 +16317,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "Internal sub-agent",
-        "invoke_external_agent": "External CLI agent"
+        "invoke_external_agent": "External CLI agent",
+        "web_search_tool": "Search Engine",
+        "net_fetch": "Read Webpage",
+        "shell_exec": "Running Processes",
+        "file_read": "Read Files",
+        "file_write": "Write Files",
+        "mcp_invoke": "External Tools",
+        "code_interpreter": "Commands & Code",
+        "browser_navigate": "Browser Navigate",
+        "browser_fill": "Browser Fill Form",
+        "browser_upload": "Browser Upload",
+        "browser_download": "Browser Download",
+        "browser_session": "Browser Session",
+        "knowledge_read": "Read Knowledge Base",
+        "knowledge_write": "Write Knowledge Base"
       },
       "leastPrivilege": {
         "antiPatternTitle": "Why \"full access\" is rejected",

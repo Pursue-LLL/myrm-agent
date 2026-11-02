@@ -75,7 +75,7 @@
 | `__tests__/userMessageResend.edit.test.ts` | 测试 | 编辑重发先截断历史再按普通发送并保留技能激活；截断失败（断网 / 服务端错误）时转录不变、文本还原到输入框，服务端不存在的聊天或消息无可截断则继续发送；截断期间按 id 重新定位气泡、新一轮已开始或气泡已消失则放弃、同一聊天的第二次编辑被拒绝且守卫在发送与放弃后释放、其他聊天的编辑在截断或轮次进行中照常发送、运行中拒绝编辑、离开聊天不发送且文本记入输入历史 | ✅ |
 | `__tests__/userMessageResend.goalReview.test.ts` | 测试 | 目标复核反馈作为下一条消息发出且转录不变、不带也不消耗输入框暂存文件、未送达时还原到空输入框或记入输入历史、busy 与意外失败提示、驳回期间切换聊天则不发送并按原聊天的 Agent 与隐身状态处理 | ✅ |
 | `__tests__/userMessageResendTestKit.ts` | 测试 | 重发测试共享夹具：含一轮已答复对话与失败气泡 `r-2` 的聊天、桩 `sendMessage`、转录与输入框读取器、`resetResendWorld` | ✅ |
-| `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩） | ✅ |
+| `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩）；导出 `WEATHER_LABEL_KEYS`（各档位对应的 `chat.contextUsage` 文案键） | ✅ |
 | `TurnGrowthSparkline.tsx` | 组件 | 对话框轮级增长迷你 SVG Sparkline 折线图微组件：动态折线与渐变面积填充、较上轮 Delta 徽章（`+N tokens` / `已压缩`）、双主题语义色阶胶囊、悬停节点数值提示 | ✅ |
 | `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸态动画、秒级耗时、token 数（优先 `message.usage.reasoning_tokens`，缺失回落估算并标 `≈`）、一键复制、停止思考（请求 10s 上限，超时 abort 后按钮自动恢复）、`inline/collapsed/off` 三档；文案与 aria 全量 i18n；图标按钮 40px 触控区 | ✅ |
 | `__tests__/useContextWatermarkMetrics.test.ts` | 测试 | 水位推导、4 档色阶边界与逐轮 delta 正负增量单测 | ✅ |

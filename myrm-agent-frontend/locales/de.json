@@ -2698,7 +2698,11 @@
       "copiedReasoning": "Denkprozess kopiert",
       "deltaNegative": "{tokens} Tokens gegenüber der letzten Runde (komprimiert)",
       "deltaZero": "Wie in der letzten Runde",
-      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)"
+      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)",
+      "weatherClear": "Klar (<25 %)",
+      "weatherCloudy": "Wolkig (25–75 %)",
+      "weatherWarning": "Warnung (75–90 %)",
+      "weatherCritical": "Bald komprimiert (≥90 %)"
     },
     "compactedSummary": {
       "foldLabel": "Kontext komprimiert – Archiv ansehen",
@@ -6450,7 +6454,14 @@
       "binary": "Datei",
       "spreadsheet": "Kalkulationstabelle",
       "presentation": "Präsentation",
-      "word_document": "Word-Dokument"
+      "word_document": "Word-Dokument",
+      "video": "Video",
+      "audio": "Audio",
+      "architecture": "Architekturdiagramm",
+      "canvas": "Leinwand",
+      "wechat_article": "WeChat-Artikel",
+      "prototype": "Prototyp",
+      "dashboard": "Dashboard"
     },
     "spreadsheet": {
       "search": "Suchen...",
@@ -14955,7 +14966,19 @@
       "setupGuideTitle": "Schnellstart (Desktop-App)",
       "setupGuideStep1": "Oben Eingabesteuerung und Bildschirmaufnahme erlauben, dann „Mit Bildschirmaufnahme prüfen“.",
       "screenLockGuardLocked": "Gesperrt",
-      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen."
+      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen.",
+      "lockedUseDoctorBadgeLoading": "Prüfe…",
+      "lockedUseDoctorUnavailable": "Unbekannt",
+      "lockedUseDoctorWarn": "Achtung",
+      "lockedUseDoctorFail": "Blockiert",
+      "lockedUseDoctorBadgeNotMac": "macOS-Desktop-App",
+      "lockedUseDoctorBadgeAwayOn": "Abwesenheitsmodus an",
+      "lockedUseDoctorBadgeBridgeReady": "Shell verbunden",
+      "lockedUseDoctorDetailNotMac": "Abwesenheitsmodus und Privatsphäre-Vorhang erfordern die Myrm-Desktop-App unter macOS.",
+      "lockedUseDoctorDetailAwayOff": "Desktop-Shell ist bereit. Aktivieren Sie oben Locked Use für unbeaufsichtigte Läufe — der Agent entsperrt hinter dem Vorhang.",
+      "lockedUseDoctorDetailBridgeMissing": "Starten Sie die Myrm-Desktop-App auf diesem Mac, damit der Abwesenheitsmodus mit der Shell koordinieren kann.",
+      "lockedUseDoctorDetailShellUnavailable": "Starten Sie die Myrm-Desktop-App neu und prüfen Sie Abwesenheitsmodus und Vorhang in den Einstellungen.",
+      "lockedUseDoctorDetailGeneric": "Abwesenheitsmodus oder Vorhang ist nicht bereit. Öffnen Sie die Systemeinstellungen oder starten Sie die Desktop-App neu."
     },
     "rate_limits": {
       "title": "Rate-Limit-Überwachung",
@@ -16294,7 +16317,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "Interner Sub-Agent",
-        "invoke_external_agent": "Externer CLI-Agent"
+        "invoke_external_agent": "Externer CLI-Agent",
+        "web_search_tool": "Suchmaschine",
+        "net_fetch": "Webseite lesen",
+        "shell_exec": "Laufende Prozesse",
+        "file_read": "Dateien lesen",
+        "file_write": "Dateien schreiben",
+        "mcp_invoke": "Externe Tools",
+        "code_interpreter": "Befehle & Code",
+        "browser_navigate": "Browser-Navigation",
+        "browser_fill": "Browser-Ausfüllformular",
+        "browser_upload": "Browser-Upload",
+        "browser_download": "Browser-Download",
+        "browser_session": "Browsersitzung",
+        "knowledge_read": "Wissensbasis lesen",
+        "knowledge_write": "Wissensbasis schreiben"
       },
       "leastPrivilege": {
         "antiPatternTitle": "Warum „Vollzugriff“ abgelehnt wird",

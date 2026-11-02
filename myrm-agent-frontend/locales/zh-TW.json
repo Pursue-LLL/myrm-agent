@@ -2698,7 +2698,11 @@
       "copiedReasoning": "已複製思考過程",
       "deltaNegative": "較上輪 {tokens} tokens (已壓縮)",
       "deltaZero": "與上輪持平",
-      "growthTrend": "近12輪增長軌跡"
+      "growthTrend": "近12輪增長軌跡",
+      "weatherClear": "清朗 (<25%)",
+      "weatherCloudy": "多雲 (25–75%)",
+      "weatherWarning": "預警 (75–90%)",
+      "weatherCritical": "即將壓縮 (≥90%)"
     },
     "compactedSummary": {
       "foldLabel": "上下文已壓縮 — 檢視歸檔",
@@ -6450,7 +6454,14 @@
       "binary": "檔案",
       "spreadsheet": "電子表格",
       "presentation": "簡報",
-      "word_document": "Word 文件"
+      "word_document": "Word 文件",
+      "video": "視頻",
+      "audio": "音訊",
+      "architecture": "架構圖",
+      "canvas": "畫布",
+      "wechat_article": "公眾號文章",
+      "prototype": "原型",
+      "dashboard": "儀表盤"
     },
     "spreadsheet": {
       "search": "搜尋...",
@@ -14955,7 +14966,19 @@
       "setupGuideTitle": "快速上手（桌面用戶端）",
       "setupGuideStep1": "在上方授予「輸入控制」與「螢幕擷取」，並點擊「含螢幕擷取的重新檢測」。",
       "screenLockGuardLocked": "已鎖定",
-      "setupGuideStep3": "在智能體設定中啟用「桌面控制」，並在對話中完成首次應用審批。"
+      "setupGuideStep3": "在智能體設定中啟用「桌面控制」，並在對話中完成首次應用審批。",
+      "lockedUseDoctorBadgeLoading": "檢測中…",
+      "lockedUseDoctorUnavailable": "未檢測",
+      "lockedUseDoctorWarn": "需注意",
+      "lockedUseDoctorFail": "不可用",
+      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面用戶端",
+      "lockedUseDoctorBadgeAwayOn": "離席模式已開啟",
+      "lockedUseDoctorBadgeBridgeReady": "殼已連線",
+      "lockedUseDoctorDetailNotMac": "離席模式與防窺帷幕需在 macOS 上使用 Myrm 桌面用戶端。",
+      "lockedUseDoctorDetailAwayOff": "桌面殼已就緒。需要無人值守時在上方開啟 Locked Use，Agent 會在帷幕下代解鎖。",
+      "lockedUseDoctorDetailBridgeMissing": "請在本機啟動 Myrm 桌面用戶端，以便離席模式與桌面殼協同。",
+      "lockedUseDoctorDetailShellUnavailable": "請重啟 Myrm 桌面用戶端，並在設定中檢查離席模式與防窺帷幕。",
+      "lockedUseDoctorDetailGeneric": "離席模式或防窺帷幕尚未就緒，請開啟系統設定或重啟桌面用戶端。"
     },
     "rate_limits": {
       "title": "速率限制監控",
@@ -16294,7 +16317,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "內部子智慧體",
-        "invoke_external_agent": "外部 CLI 智慧體"
+        "invoke_external_agent": "外部 CLI 智慧體",
+        "web_search_tool": "搜尋引擎",
+        "net_fetch": "讀取網頁",
+        "shell_exec": "執行中的程序",
+        "file_read": "讀取檔案",
+        "file_write": "寫入檔案",
+        "mcp_invoke": "外部工具",
+        "code_interpreter": "命令與程式碼",
+        "browser_navigate": "瀏覽器導航",
+        "browser_fill": "瀏覽器填寫表單",
+        "browser_upload": "瀏覽器上傳",
+        "browser_download": "瀏覽器下載",
+        "browser_session": "瀏覽器會話",
+        "knowledge_read": "讀取知識庫",
+        "knowledge_write": "寫入知識庫"
       },
       "leastPrivilege": {
         "antiPatternTitle": "為何拒絕「完全存取」",

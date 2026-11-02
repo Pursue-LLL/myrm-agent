@@ -2698,7 +2698,11 @@
       "copiedReasoning": "思考過程をコピーしました",
       "deltaNegative": "前のターンより {tokens} トークン（圧縮済み）",
       "deltaZero": "前のターンと同じ",
-      "growthTrend": "増加の推移（直近12ターン）"
+      "growthTrend": "増加の推移（直近12ターン）",
+      "weatherClear": "余裕あり（25%未満）",
+      "weatherCloudy": "やや使用中（25〜75%）",
+      "weatherWarning": "注意（75〜90%）",
+      "weatherCritical": "まもなく圧縮（90%以上）"
     },
     "compactedSummary": {
       "foldLabel": "コンテキストを圧縮しました — アーカイブを表示",
@@ -6450,7 +6454,14 @@
       "binary": "ファイル",
       "spreadsheet": "スプレッドシート",
       "presentation": "プレゼンテーション",
-      "word_document": "Word ドキュメント"
+      "word_document": "Word ドキュメント",
+      "video": "動画",
+      "audio": "オーディオ",
+      "architecture": "アーキテクチャ図",
+      "canvas": "キャンバス",
+      "wechat_article": "WeChat 記事",
+      "prototype": "プロトタイプ",
+      "dashboard": "ダッシュボード"
     },
     "spreadsheet": {
       "search": "検索...",
@@ -14955,7 +14966,19 @@
       "setupGuideTitle": "クイックセットアップ（デスクトップアプリ）",
       "setupGuideStep1": "上で入力制御と画面キャプチャを許可し、「画面キャプチャを含む再チェック」をタップしてください。",
       "screenLockGuardLocked": "ロック中",
-      "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。"
+      "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。",
+      "lockedUseDoctorBadgeLoading": "確認中…",
+      "lockedUseDoctorUnavailable": "未検出",
+      "lockedUseDoctorWarn": "要確認",
+      "lockedUseDoctorFail": "利用不可",
+      "lockedUseDoctorBadgeNotMac": "macOS デスクトップアプリ",
+      "lockedUseDoctorBadgeAwayOn": "離席モード ON",
+      "lockedUseDoctorBadgeBridgeReady": "シェル接続済み",
+      "lockedUseDoctorDetailNotMac": "離席モードとプライバシーカーテンは macOS の Myrm デスクトップアプリでご利用ください。",
+      "lockedUseDoctorDetailAwayOff": "デスクトップシェルは準備完了です。無人運転時は上で Locked Use をオンにしてください。エージェントはカーテン下でロックを解除します。",
+      "lockedUseDoctorDetailBridgeMissing": "離席モードがシェルと連携できるよう、この Mac で Myrm デスクトップアプリを起動してください。",
+      "lockedUseDoctorDetailShellUnavailable": "Myrm デスクトップアプリを再起動し、設定で離席モードとプライバシーカーテンを確認してください。",
+      "lockedUseDoctorDetailGeneric": "離席モードまたはプライバシーカーテンが未準備です。システム設定を開くかデスクトップアプリを再起動してください。"
     },
     "rate_limits": {
       "title": "レート制限モニタリング",
@@ -16294,7 +16317,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "内部サブエージェント",
-        "invoke_external_agent": "外部 CLI エージェント"
+        "invoke_external_agent": "外部 CLI エージェント",
+        "web_search_tool": "検索エンジン",
+        "net_fetch": "Web ページを読み取り",
+        "shell_exec": "実行中のプロセス",
+        "file_read": "ファイルを読み取り",
+        "file_write": "ファイル書き込み",
+        "mcp_invoke": "外部ツール",
+        "code_interpreter": "コマンドとコード",
+        "browser_navigate": "ブラウザ移動",
+        "browser_fill": "ブラウザフォーム入力",
+        "browser_upload": "ブラウザアップロード",
+        "browser_download": "ブラウザダウンロード",
+        "browser_session": "ブラウザセッション",
+        "knowledge_read": "ナレッジベースを読み取り",
+        "knowledge_write": "ナレッジベース書き込み"
       },
       "leastPrivilege": {
         "antiPatternTitle": "「フルアクセス」を拒否する理由",
