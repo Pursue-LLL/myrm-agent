@@ -3432,20 +3432,6 @@
       "stopped": "{name} を停止しました。作業中の下書きは保持されています",
       "stopFailed": "タスクの停止に失敗しました"
     },
-    "routeAgentDiscoverChip": {
-      "title": "専門エージェントに任せる",
-      "guardrailBadge": "ガードレール有効",
-      "subtitle": "コーディング・レビュー・リサーチ・設計・セキュリティ監査の各エージェントがすぐに引き継げます。",
-      "action": "専門エージェントを見る",
-      "dismiss": "閉じる",
-      "specialists": {
-        "coder": "コーダー",
-        "reviewer": "レビュアー",
-        "researcher": "リサーチャー",
-        "architect": "アーキテクト",
-        "auditor": "監査"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "セッション",
       "panesCount": "ペイン",
@@ -3484,18 +3470,6 @@
           "prompt": "ロールチェーンを使ってください。まず執筆用サブエージェントが下書きを作り、次にファクトチェック用サブエージェントが主張と出典をすべて検証し、最後に編集用サブエージェントが推敲して公開できる形に整えてください。"
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "ティア1 · 最先端の推論",
-      "tier2Badge": "ティア2 · 高性能ベース",
-      "tier3Badge": "ティア3 · 高速・軽量",
-      "hybridFolded": "ハイブリッド折りたたみ",
-      "directFolded": "直接実行に折りたたみ",
-      "savedTurnsTokens": "約 {turns} ターン・{tokens} トークンを節約",
-      "fanoutMode": "マルチエージェント展開",
-      "strategyAuto": "自動",
-      "strategyDirect": "直接実行のみ",
-      "strategyMultiAgent": "常にマルチエージェント"
     },
     "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした",

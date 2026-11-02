@@ -3432,20 +3432,6 @@
       "stopped": "{name}을(를) 중지했습니다. 작업 중이던 초안은 안전하게 보존되었습니다",
       "stopFailed": "작업 중지에 실패했습니다"
     },
-    "routeAgentDiscoverChip": {
-      "title": "전문 에이전트에게 맡기기",
-      "guardrailBadge": "가드레일 활성",
-      "subtitle": "코딩·리뷰·리서치·아키텍처·보안 감사 에이전트가 바로 이어받을 수 있습니다.",
-      "action": "전문 에이전트 보기",
-      "dismiss": "닫기",
-      "specialists": {
-        "coder": "코더",
-        "reviewer": "리뷰어",
-        "researcher": "리서처",
-        "architect": "아키텍트",
-        "auditor": "감사"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "세션",
       "panesCount": "개 창",
@@ -3484,18 +3470,6 @@
           "prompt": "역할 체인을 사용하세요. 먼저 작성 서브에이전트가 초안을 쓰고, 팩트체크 서브에이전트가 모든 주장과 출처를 검증한 다음, 편집 서브에이전트가 다듬어 게시 가능한 형태로 정리하세요."
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "티어 1 · 최첨단 추론",
-      "tier2Badge": "티어 2 · 강력한 기본 모델",
-      "tier3Badge": "티어 3 · 빠르고 가벼움",
-      "hybridFolded": "하이브리드 접기",
-      "directFolded": "직접 실행으로 접기",
-      "savedTurnsTokens": "약 {turns}턴, {tokens}토큰 절약",
-      "fanoutMode": "멀티 에이전트 팬아웃",
-      "strategyAuto": "자동",
-      "strategyDirect": "직접 실행만",
-      "strategyMultiAgent": "항상 멀티 에이전트"
     },
     "pdfScannedPages": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없어 이미지로 전송했습니다",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: {pages}페이지에 텍스트 레이어가 없고 전송 한도를 초과하여 보내지 못했습니다",

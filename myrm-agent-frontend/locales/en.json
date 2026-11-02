@@ -3432,20 +3432,6 @@
       "stopped": "Stopped {name}; the partial draft was kept",
       "stopFailed": "Failed to stop the task"
     },
-    "routeAgentDiscoverChip": {
-      "title": "Hand this work to a specialist agent",
-      "guardrailBadge": "Guardrails on",
-      "subtitle": "Coder, reviewer, researcher, architect and auditor agents are ready to take over.",
-      "action": "View specialists",
-      "dismiss": "Dismiss",
-      "specialists": {
-        "coder": "Coder",
-        "reviewer": "Reviewer",
-        "researcher": "Researcher",
-        "architect": "Architect",
-        "auditor": "Auditor"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "Sessions",
       "panesCount": "panes",
@@ -3484,18 +3470,6 @@
           "prompt": "Use a role chain: first have a writer sub-agent draft the piece, then have a fact-checker sub-agent verify every claim and source, then have an editor sub-agent polish it and prepare it for publishing."
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "Tier 1 · Frontier reasoning",
-      "tier2Badge": "Tier 2 · Strong base",
-      "tier3Badge": "Tier 3 · Fast and light",
-      "hybridFolded": "Hybrid folded",
-      "directFolded": "Folded to a direct run",
-      "savedTurnsTokens": "saves about {turns} turns and {tokens} tokens",
-      "fanoutMode": "Multi-agent fan-out",
-      "strategyAuto": "Auto",
-      "strategyDirect": "Direct only",
-      "strategyMultiAgent": "Always multi-agent"
     },
     "pdfScannedPages": "[PDF] {fileName}: pages {pages} have no text layer and were sent as images",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: pages {pages} have no text layer and could not be sent (over the per-delivery limit)",

@@ -12,4 +12,3 @@
 | `DigitalSelfToneSelector.tsx` | UI 组件 | 4 档语气风格（严谨正式/职场得体/友好活泼/简明干练）快速切换胶囊 | React 可交互组件 |
 | `ToneDraftApprovalCard.tsx` | UI 组件 | 待审草稿卡片，集成原消息摘要、关系标签、参考依据展开、内联编辑与出站硬门禁 | React 核心审核卡片 |
 | `DigitalSelfDraftInboxSatellite.tsx` | UI 卫星 | 全局待审草稿悬浮通知条与卡片抽屉，保障出站草稿第一时间触达人工 | React 浮层组件 |
-| `index.ts` | 导出出口 | 子包干净聚合出口 | 模块门面 |

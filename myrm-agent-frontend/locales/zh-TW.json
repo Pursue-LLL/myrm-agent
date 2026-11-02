@@ -3432,20 +3432,6 @@
       "stopped": "已停止 {name}，半成品草稿已安全保留",
       "stopFailed": "叫停任務失敗"
     },
-    "routeAgentDiscoverChip": {
-      "title": "把任務交給專家智能體",
-      "guardrailBadge": "護欄已啟用",
-      "subtitle": "編碼、評審、研究、架構與安全稽核智能體隨時可以接手。",
-      "action": "查看專家",
-      "dismiss": "關閉",
-      "specialists": {
-        "coder": "編碼",
-        "reviewer": "評審",
-        "researcher": "研究",
-        "architect": "架構",
-        "auditor": "稽核"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "工作階段",
       "panesCount": "個窗格",
@@ -3484,18 +3470,6 @@
           "prompt": "請使用角色鏈：先由撰稿子代理起草，再由事實查核子代理逐條核實論斷與來源，最後由編輯子代理潤飾並整理成可發布的版本。"
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "第 1 檔 · 前沿推理",
-      "tier2Badge": "第 2 檔 · 強基礎模型",
-      "tier3Badge": "第 3 檔 · 快速輕量",
-      "hybridFolded": "混合折疊",
-      "directFolded": "折疊為直接執行",
-      "savedTurnsTokens": "預計節省約 {turns} 輪、{tokens} 個 Token",
-      "fanoutMode": "多智能體扇出",
-      "strategyAuto": "自動",
-      "strategyDirect": "僅直接執行",
-      "strategyMultiAgent": "一律多智能體"
     },
     "pdfScannedPages": "[PDF] {fileName}：第 {pages} 頁無文字層，已以圖片傳送",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 頁無文字層，且超出單次傳送上限，未能傳送",

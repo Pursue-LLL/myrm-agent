@@ -3432,20 +3432,6 @@
       "stopped": "{name} gestoppt; der Teilentwurf wurde gesichert",
       "stopFailed": "Aufgabe konnte nicht gestoppt werden"
     },
-    "routeAgentDiscoverChip": {
-      "title": "Diese Aufgabe an einen Spezialisten-Agenten übergeben",
-      "guardrailBadge": "Leitplanken aktiv",
-      "subtitle": "Agenten für Code, Review, Recherche, Architektur und Sicherheitsaudit übernehmen sofort.",
-      "action": "Spezialisten ansehen",
-      "dismiss": "Schließen",
-      "specialists": {
-        "coder": "Entwickler",
-        "reviewer": "Code-Reviewer",
-        "researcher": "Rechercheur",
-        "architect": "Architekt",
-        "auditor": "Prüfer"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "Sitzungen",
       "panesCount": "Bereiche",
@@ -3484,18 +3470,6 @@
           "prompt": "Nutze eine Rollenkette: Zuerst entwirft ein Autoren-Sub-Agent den Text, dann prüft ein Faktencheck-Sub-Agent jede Aussage und Quelle, zuletzt überarbeitet ein Redaktions-Sub-Agent den Text und bereitet ihn zur Veröffentlichung vor."
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "Stufe 1 · Spitzen-Reasoning",
-      "tier2Badge": "Stufe 2 · Starke Basis",
-      "tier3Badge": "Stufe 3 · Schnell und leicht",
-      "hybridFolded": "Hybrid zusammengefaltet",
-      "directFolded": "Zu direkter Ausführung zusammengefaltet",
-      "savedTurnsTokens": "spart etwa {turns} Runden und {tokens} Token",
-      "fanoutMode": "Multi-Agent-Auffächerung",
-      "strategyAuto": "Automatisch",
-      "strategyDirect": "Nur direkt",
-      "strategyMultiAgent": "Immer Multi-Agent"
     },
     "pdfScannedPages": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und wurden als Bilder gesendet",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)",

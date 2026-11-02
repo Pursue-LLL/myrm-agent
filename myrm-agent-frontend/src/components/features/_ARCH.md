@@ -65,7 +65,6 @@
 | `browser-annotation/`                       | 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统（选区高亮、编号 Pin、DOM 特征提取、脱敏与子树分组并行修复） | [_ARCH.md](browser-annotation/_ARCH.md)                                           |
 | `workspace-cockpit/`                        | 个人数字员工工作区总控驾驶舱（“你不在的时候”离线成果统计、4 泳道任务流、实时 streaming tail 与悬浮会话托盘） | [_ARCH.md](workspace-cockpit/_ARCH.md)                                             |
 | `activity-feed/` | 组件 `ActivityFeedAggregatorDeck`、`ActivityFeedStreamCard`；状态仓库 `useActivityFeedStore` | [_ARCH.md](activity-feed/_ARCH.md) |
-| `approval/` | 组件 `ExecutiveApprovalCard`、`VisualGatekeepingDeck`；状态仓库 `useExecutiveApprovalStore` | [_ARCH.md](approval/_ARCH.md) |
 | `arena/` | 组件 `AdoptSynthesizeBar`、`LocalProjectWorkspaceCard`、`MultiModelSplitArenaView`；状态仓库 `useArenaStore` | [_ARCH.md](arena/_ARCH.md) |
 | `artifact-sandbox/` | 组件 `FinancialSandplayWidget`、`InteractiveArtifactSandbox`、`NewsletterRichStyler`；状态仓库 `useArtifactSandboxStore` | [_ARCH.md](artifact-sandbox/_ARCH.md) |
 | `command-center/` | 组件 `CommandCenterHeaderTrigger`、`CommandCenterMaintenanceTab`、`CommandCenterModal`、`CommandCenterSessionsTab` 等 6 个；状态仓库 `useCommandCenterStore` | [_ARCH.md](command-center/_ARCH.md) |
