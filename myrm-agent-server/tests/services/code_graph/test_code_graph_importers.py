@@ -8,9 +8,9 @@
 [OUTPUT]
 - pytest suite: relative imports are recorded under the module they name (and skipped when they climb above the
   index root), a query finds the importers of a module in flat and src layouts under either spelling, relative and
-  absolute alike, a name inside a module narrows the answer, a package is found through its submodules, the
-  answer is case-sensitive and cuts at dot boundaries, and a name shared by several modules is reported as such
-  with every candidate searched.
+  absolute alike, a name inside a module narrows the answer, a package is found through its submodules and by the
+  names ``resolve`` gives what its ``__init__.py`` defines, the answer is case-sensitive and cuts at dot boundaries,
+  and a name shared by several modules is reported as such with every candidate searched.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_importers.py
@@ -123,6 +123,22 @@ def test_a_package_is_found_through_what_is_imported_from_it(tmp_path: Path) -> 
 
     assert _importers(root, tmp_path, "pkg") == ["a.py", "b.py", "c.py", "pkg/__init__.py"]
     assert _importers(root, tmp_path, "pkg.core") == ["c.py", "pkg/__init__.py"]
+
+
+@pytest.mark.parametrize("layout", ["", "src/"])
+def test_importers_accept_the_names_resolve_gives_what_a_package_defines(tmp_path: Path, layout: str) -> None:
+    root = tmp_path / "ws"
+    _write(root, f"{layout}pkg/__init__.py", "class Thing:\n    pass\n")
+    _write(root, "a.py", "from pkg import Thing\n")
+    _write(root, "b.py", "import pkg\n")
+    service = CodeGraphService(tmp_path / "graph.db")
+    service.index_directory(root)
+    symbol = str(service.resolve("Thing")[0]["qualified_name"])
+    package = symbol.removesuffix(".Thing")
+
+    assert package.endswith(".__init__")
+    assert [row["file_path"] for row in service.importers(symbol)] == ["a.py"]
+    assert [row["file_path"] for row in service.importers(package)] == ["a.py", "b.py"]
 
 
 def test_importers_are_case_sensitive(tmp_path: Path) -> None:

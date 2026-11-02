@@ -1,7 +1,7 @@
 """Code graph SQLite store for persistent AST symbols and deterministic call edges.
 
 [INPUT]
-- models.py::(ParsedFile, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
+- models.py::(DEFINITION_KINDS, ParsedFile, SymbolKind, SymbolNode) (POS: 代码图谱领域数据模型与契约)
 - sqlite3（标准库）
 
 [OUTPUT]
@@ -21,7 +21,7 @@ from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from app.services.code_graph.models import ParsedFile, SymbolKind, SymbolNode
+from app.services.code_graph.models import DEFINITION_KINDS, ParsedFile, SymbolKind, SymbolNode
 
 # 测试文件按路径约定识别：tests/ 或 __tests__/ 目录、test_*.py、*_test.py、*.test.* 与 *.spec.*。
 _TEST_FILE_PATTERN = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)test_[^/]*\.py$|_test\.py$|\.(test|spec)\.[jt]sx?$")
@@ -307,13 +307,14 @@ class CodeGraphStore:
             ).fetchall()
         return [{**_call_dict(row), "match": "exact" if row["callee"] == callee_name else "name"} for row in rows]
 
-    def count_definitions(self, name: str) -> int:
-        """Functions, methods and classes sharing the last component of ``name``."""
+    def count_definitions(self, name: str, kinds: Sequence[SymbolKind] = DEFINITION_KINDS) -> int:
+        """Symbols of ``kinds`` sharing the last component of ``name``: functions, methods and classes unless narrowed."""
         bare_name = name.split(".")[-1]
+        marks = ", ".join("?" * len(kinds))
         with self._get_conn() as conn:
             row = conn.execute(
-                "SELECT COUNT(*) AS n FROM symbols WHERE name = ? AND kind IN (?, ?, ?)",
-                (bare_name, SymbolKind.FUNCTION.value, SymbolKind.METHOD.value, SymbolKind.CLASS.value),
+                f"SELECT COUNT(*) AS n FROM symbols WHERE name = ? AND kind IN ({marks})",
+                (bare_name, *(kind.value for kind in kinds)),
             ).fetchone()
             return int(row["n"])
 
@@ -357,7 +358,8 @@ class CodeGraphStore:
 
         Each prefix is one equality plus one range over ``idx_imp_symbol``: every text that starts with ``prefix.``
         sorts between ``prefix.`` and ``prefix/`` (``/`` is the character after ``.``), so the match is exact and
-        case-sensitive like Python names, and a scan of the whole table is avoided.
+        case-sensitive like Python names. Up to 15 prefixes are answered from the index; from 16 on SQLite scans the
+        whole table (65 to 200 ms for 65,000 import rows).
         """
         if not prefixes:
             return []

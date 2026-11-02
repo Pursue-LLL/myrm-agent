@@ -3,7 +3,7 @@
 [INPUT]
 - app.services.code_graph.service::CodeGraphService (POS: incremental directory index and graph queries)
 - app.services.code_graph.import_alignment::MAX_SCOPE_MODULES (POS: alignment of an importers query with the indexed import texts)
-- app.services.code_graph.models::(INDEX_FORMAT_VERSION, IndexStats) (POS: code graph data contracts and index format version)
+- app.services.code_graph.models::(INDEX_FORMAT_VERSION, IndexStats, SymbolKind) (POS: code graph data contracts and index format version)
 - myrm_agent_harness.runtime.paths.execution_paths::get_persistent_root (POS: persistent volume root)
 
 [OUTPUT]
@@ -36,7 +36,7 @@ from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
 from pydantic import BaseModel, Field
 
 from app.services.code_graph.import_alignment import MAX_SCOPE_MODULES
-from app.services.code_graph.models import INDEX_FORMAT_VERSION, IndexStats
+from app.services.code_graph.models import INDEX_FORMAT_VERSION, IndexStats, SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,9 @@ _DOC_CHARS = 300
 # so a qualified name returns the same rows and only a text search inside a directory narrows them.
 _HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
 _HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
-_HINT_EXACT_FIRST_THEN_SEARCH = f"match=exact rows are listed first, and {_HINT_SEARCH}"
+_HINT_EXACT_FIRST_THEN_SEARCH = (
+    f"match=exact rows are listed first unless this name is defined only as methods, and {_HINT_SEARCH}"
+)
 _HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
 _INDEXED_LANGUAGES = "Only Python and TypeScript/JavaScript files are indexed."
@@ -135,6 +137,9 @@ class _Action:
     cut_hint: str
     # What the action cannot see although the index holds it; stated in every answer, empty when it sees all of it.
     gap: str = ""
+    # Call sites matched on the last name part: the answer states how many definitions share the name and lists the
+    # match=exact rows first, except for a name that only methods define (see ``_order_call_sites``).
+    exact_first: bool = False
 
 
 def _definition_lookup(service: CodeGraphService, query: str) -> list[Row]:
@@ -148,6 +153,21 @@ def _exact_first(rows: list[Row]) -> list[Row]:
     The answer is cut at MAX_ROWS, and the same-name rows of a common name would otherwise push the exact ones out;
     the sort is stable, so each group keeps its path and line order."""
     return sorted(rows, key=lambda row: row["match"] != "exact")
+
+
+# A call written as a bare name reaches a function or a class; reaching a method takes a receiver.
+_BARE_CALL_KINDS = (SymbolKind.FUNCTION, SymbolKind.CLASS)
+
+
+def _order_call_sites(service: CodeGraphService, query: str, found: list[Row]) -> tuple[list[Row], int]:
+    """The call sites in the order they are listed, and how many definitions share the name.
+
+    The exact rows go first unless the index holds the name only as methods: a bare call cannot reach those, so the
+    exact rows would fill the window with calls to something else and leave the method calls beyond the cut."""
+    definitions = service.definition_count(query)
+    if definitions == 0 or service.definition_count(query, _BARE_CALL_KINDS):
+        found = _exact_first(found)
+    return found, definitions
 
 
 def _file_distribution(found: list[Row]) -> dict[str, object]:
@@ -169,9 +189,10 @@ _ACTIONS: dict[str, _Action] = {
     # At most one row, so it is never cut.
     "definition": _Action(_definition_lookup, _definition_row, cut_hint=""),
     "callers": _Action(
-        lambda s, t: _exact_first(s.callers(t)),
+        lambda s, t: s.callers(t),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
         cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
+        exact_first=True,
     ),
     "callees": _Action(
         lambda s, t: s.callees(t),
@@ -185,9 +206,10 @@ _ACTIONS: dict[str, _Action] = {
     ),
     "importers": _Action(lambda s, t: s.importers(t), _importer_row, cut_hint=_HINT_QUALIFIED_NAME, gap=_GAP_IMPORTS),
     "tests_calling": _Action(
-        lambda s, t: _exact_first(s.tests_calling(t)),
+        lambda s, t: s.tests_calling(t),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
         cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
+        exact_first=True,
     ),
 }
 
@@ -267,14 +289,15 @@ class _Navigator:
         stats = self._service.index_directory(self._root)
         spec = _ACTIONS[action]
         found = spec.lookup(self._service, query)
+        definitions = 0
+        if spec.exact_first:
+            found, definitions = _order_call_sites(self._service, query, found)
         rows = [spec.row(r) for r in found[:MAX_ROWS]]
 
         payload: dict[str, object] = {"action": action, "query": query, "total": len(found), "rows": rows}
         if len(found) > MAX_ROWS:
             payload.update(_file_distribution(found))
-        definitions = 0
-        if action in ("callers", "tests_calling"):
-            definitions = self._service.definition_count(query)
+        if spec.exact_first:
             payload["definitions"] = definitions
         shared_modules = self._service.importer_scope(query).modules if action == "importers" else ()
         notes = _notes(len(found), definitions, shared_modules, stats, spec)

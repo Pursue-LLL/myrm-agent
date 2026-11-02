@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - pytest suite: a query names a module in either spelling (path-style or as written in source) in flat and src
-  layouts, a name inside a module keeps its tail, packages are named without ``__init__``, only whole dot-separated
+  layouts, a name inside a module keeps its tail, packages are named without ``__init__`` and a whole ``__init__``
+  part of a query never takes part in the matching (the query text itself is still searched), only whole dot-separated
   parts and exact case match, only a ``src`` directory is an import root and standard library names are never taken
   for an alias, and a shared name returns every candidate (capped) instead of choosing one.
 
@@ -14,6 +15,8 @@ myrm-agent-server/tests/services/code_graph/test_code_graph_import_alignment.py
 """
 
 from __future__ import annotations
+
+import pytest
 
 from app.services.code_graph.import_alignment import MAX_SCOPE_MODULES, importer_scope
 
@@ -54,6 +57,38 @@ def test_a_package_is_named_without_its_init_module() -> None:
     scope = importer_scope("pkg", ["src.pkg.__init__", "src.pkg.util"])
 
     assert (scope.prefixes, scope.modules) == (("pkg", "src.pkg"), ("src.pkg",))
+
+
+@pytest.mark.parametrize(
+    ("query", "prefixes"),
+    [
+        ("pkg.__init__", ("pkg", "pkg.__init__")),
+        ("pkg.__init__.Thing", ("pkg.Thing", "pkg.__init__.Thing")),
+    ],
+)
+def test_an_init_part_of_the_query_does_not_take_part_in_the_matching(query: str, prefixes: tuple[str, ...]) -> None:
+    scope = importer_scope(query, ["pkg.__init__", "pkg.util"])
+
+    assert (scope.prefixes, scope.modules) == (prefixes, ("pkg",))
+
+
+def test_a_src_layout_package_is_found_by_the_name_resolve_gives_its_symbols() -> None:
+    scope = importer_scope("src.pkg.__init__.Thing", ["src.pkg.__init__", "src.pkg.util"])
+
+    assert scope.modules == ("src.pkg",)
+    assert scope.prefixes == ("pkg.Thing", "src.pkg.Thing", "src.pkg.__init__.Thing")
+
+
+def test_a_query_made_of_init_alone_is_searched_as_written() -> None:
+    scope = importer_scope("__init__", ["pkg.__init__"])
+
+    assert (scope.prefixes, scope.modules) == (("__init__",), ())
+
+
+def test_an_init_method_asks_for_the_importers_of_its_class() -> None:
+    scope = importer_scope("pkg.mod.Foo.__init__", ["pkg.mod"])
+
+    assert scope.prefixes == ("pkg.mod.Foo", "pkg.mod.Foo.__init__")
 
 
 def test_a_name_that_matches_no_indexed_module_is_searched_as_written() -> None:

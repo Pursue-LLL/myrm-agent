@@ -22,7 +22,8 @@ from dataclasses import dataclass
 # A bare name such as ``models`` can fit hundreds of modules; every searched module adds a range to the SQL query.
 MAX_SCOPE_MODULES = 50
 
-_PACKAGE_INIT = ".__init__"
+_INIT = "__init__"
+_PACKAGE_INIT = f".{_INIT}"
 
 
 @dataclass(frozen=True)
@@ -72,10 +73,12 @@ def importer_scope(query: str, module_names: Iterable[str]) -> ImportScope:
     """Resolve ``query`` (a module, or a name inside one) against the indexed Python module names.
 
     The longest leading part of the query that names a module is that module; the rest is a name inside it. The
-    query text itself always stays in the scope, so imports written exactly as asked are found in any layout.
+    query text itself always stays in the scope, so imports written exactly as asked are found in any layout. A whole
+    ``__init__`` part is left out when matching: ``resolve`` names what ``pkg/__init__.py`` defines ``pkg.__init__.Thing``,
+    while source code imports it as ``pkg.Thing``.
     """
     modules = sorted({_canonical(name) for name in module_names})
-    parts = query.split(".")
+    parts = [part for part in query.split(".") if part != _INIT]
     for end in range(len(parts), 0, -1):
         found = _matching(modules, ".".join(parts[:end]))
         if not found:

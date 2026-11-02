@@ -6,6 +6,7 @@
 [OUTPUT]
 - INDEX_FORMAT_VERSION: 持久化索引的格式版本，决定索引库的文件名
 - SymbolKind: 符号种类枚举
+- DEFINITION_KINDS: 调用点可以指名的符号种类（函数、方法、类），同名定义计数的默认范围
 - SymbolNode、CallEdge、InheritanceEdge、ImportEdge: 符号以及调用、继承、导入关系的记录
 - CallSite: 一次调用在源码中的位置、参数个数与关键字参数名
 - ParsedFile: 单个文件的解析结果及其指纹（决定是否需要重新解析）
@@ -43,6 +44,10 @@ class SymbolKind(str, Enum):
     FUNCTION = "function"
     METHOD = "method"
     INTERFACE = "interface"
+
+
+# The symbols a call site can name; the number of them sharing a name says whether name-matched call sites are ambiguous.
+DEFINITION_KINDS = (SymbolKind.FUNCTION, SymbolKind.METHOD, SymbolKind.CLASS)
 
 
 @dataclass(frozen=True)

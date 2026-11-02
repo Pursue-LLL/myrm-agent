@@ -5,7 +5,7 @@
 - js_ts_extractor.py::JsTsTreeSitterExtractor (POS: 静态解析层，TypeScript/JavaScript 的语法树抽取)
 - graph_store.py::CodeGraphStore (POS: 本地轻量级代码 AST 符号图谱与调用关系持久化存储库)
 - import_alignment.py::(ImportScope, importer_scope) (POS: importers 查询名与索引里导入文本的对齐)
-- models.py::(IndexStats, ParsedFile) (POS: 代码图谱领域数据模型与契约)
+- models.py::(DEFINITION_KINDS, IndexStats, ParsedFile, SymbolKind) (POS: 代码图谱领域数据模型与契约)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer (POS: git-aware workspace file lister)
 
 [OUTPUT]
@@ -21,6 +21,7 @@ import logging
 import stat
 import threading
 import time
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
@@ -29,7 +30,7 @@ from app.services.code_graph import import_alignment
 from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
 from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
-from app.services.code_graph.models import IndexStats, ParsedFile
+from app.services.code_graph.models import DEFINITION_KINDS, IndexStats, ParsedFile, SymbolKind
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +191,9 @@ class CodeGraphService:
         """3. 获取调用指定名称的所有调用点；``match`` 标明是整串相等还是只有最后一段同名。"""
         return self.store.get_callers(callee_name)
 
-    def definition_count(self, name: str) -> int:
-        """与 ``name`` 最后一段同名的函数、方法和类的数量，数量大于 1 说明按名字匹配的调用点可能不是同一个函数。"""
-        return self.store.count_definitions(name)
+    def definition_count(self, name: str, kinds: Sequence[SymbolKind] = DEFINITION_KINDS) -> int:
+        """与 ``name`` 最后一段同名、种类在 ``kinds`` 内的符号数量（默认函数、方法和类）；大于 1 说明按名字匹配的调用点可能不是同一个函数。"""
+        return self.store.count_definitions(name, kinds)
 
     def callees(self, caller_qname: str) -> list[dict[str, object]]:
         """4. 获取指定函数内部的所有调用点（被调用者是调用点上的原文）。"""
