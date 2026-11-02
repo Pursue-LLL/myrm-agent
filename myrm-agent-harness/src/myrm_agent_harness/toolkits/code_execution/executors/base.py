@@ -37,13 +37,12 @@ from myrm_agent_harness.toolkits.code_execution.executors.granted_roots import (
     refuse_write_into_readonly_grant,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.gunzip import gunzip_bounded
+from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPCommunicationConfig, MCPConfigItem
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
     ExecutionContext,
     ExecutionMetrics,
     ExecutionResult,
-    MCPCommunicationConfig,
-    MCPConfigItem,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.shell_file_transfer import (
     read_bytes_via_shell,

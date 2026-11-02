@@ -1,10 +1,10 @@
 """Regression tests for execution model contracts."""
 
+from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPCommunicationConfig
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     ExecutionContext,
     ExecutionMetrics,
     ExecutionResult,
-    MCPCommunicationConfig,
 )
 
 

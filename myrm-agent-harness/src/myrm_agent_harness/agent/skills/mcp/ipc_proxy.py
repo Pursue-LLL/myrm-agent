@@ -112,7 +112,6 @@ class MCPIPCServer:
     通过 Unix Socket 为沙箱环境提供 MCP 工具调用服务。
     """
 
-    _REQUEST_TIMEOUT = 120.0
     _SHUTDOWN_TIMEOUT = 5.0
 
     def __init__(
@@ -244,13 +243,10 @@ class MCPIPCServer:
                 data = await reader.readexactly(length)
                 message = data.decode("utf-8")
 
-                try:
-                    response = await asyncio.wait_for(self._process_request(message), timeout=self._REQUEST_TIMEOUT)
-                except TimeoutError:
-                    logger.error(f"IPC request timed out after {self._REQUEST_TIMEOUT}s")
-                    response = MCPIPCResponse(
-                        success=False, error=f"Request timed out after {self._REQUEST_TIMEOUT}s"
-                    ).model_dump_json()
+                # No deadline of its own: a call is held to the limit its server is configured with, at the point
+                # where it is made (the session actor, then ``call_backstop``). A fixed one here would cut every
+                # server configured above it.
+                response = await self._process_request(message)
 
                 response_bytes = response.encode("utf-8")
                 writer.write(len(response_bytes).to_bytes(4, "big"))

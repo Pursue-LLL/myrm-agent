@@ -5,7 +5,7 @@
 - agent.skills.mcp.executor::skill_executor (POS: Skill MCP execution bridge)
 - agent.skills.runtime.command_paths::rewrite_skill_paths, detect_skill_script_command (POS: Skill command path utilities)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
-- .constants::MCP_MIN_TIMEOUT (POS: MCP timeout floor)
+- .constants::MCP_MIN_TIMEOUT, MCP_HOST_MARGIN_SECONDS (POS: MCP timeout floor and the margin the host keeps over the servers' call limits)
 
 [OUTPUT]
 - BashExecutorPrepareMixin: _prepare_execution, MCP proxy, skill path rewrite
@@ -17,11 +17,13 @@ Code-type detection, skill staging, MCP IPC startup, and Python execution prepar
 from __future__ import annotations
 
 import logging
+import math
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.meta_tools.bash._executor.constants import (
+    MCP_HOST_MARGIN_SECONDS,
     MCP_MIN_TIMEOUT,
 )
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
@@ -39,9 +41,7 @@ from myrm_agent_harness.toolkits.code_execution.utils import WorkspacePathResolv
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution import Workspace
-    from myrm_agent_harness.toolkits.code_execution.executors.models import (
-        MCPConfigItem,
-    )
+    from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
 
 logger = logging.getLogger(__name__)
 
@@ -245,12 +245,16 @@ class BashExecutorPrepareMixin:
         mcp_config_items: list[MCPConfigItem] | None,
         timeout: int | None,
     ) -> int | None:
-        """Raise timeout floor when MCP skill execution is active."""
-        if mcp_config_items and (timeout is None or timeout < MCP_MIN_TIMEOUT):
-            logger.warning(
-                "Auto-increased timeout %ss -> %ss for MCP skill execution",
-                timeout,
-                MCP_MIN_TIMEOUT,
-            )
-            return MCP_MIN_TIMEOUT
-        return timeout
+        """Raise the timeout floor while an MCP skill runs.
+
+        The floor is the longest tool-call limit among the skill's servers plus a margin: a call held to its limit
+        then ends with its own error, which names the stuck tool, instead of with the host's kill.
+        """
+        if not mcp_config_items:
+            return timeout
+        longest_call_limit = max(item.execute_timeout for item in mcp_config_items)
+        floor = max(MCP_MIN_TIMEOUT, math.ceil(longest_call_limit + MCP_HOST_MARGIN_SECONDS))
+        if timeout is not None and timeout >= floor:
+            return timeout
+        logger.warning("Auto-increased timeout %ss -> %ss for MCP skill execution", timeout, floor)
+        return floor

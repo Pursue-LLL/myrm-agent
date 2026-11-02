@@ -11,6 +11,7 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
 from myrm_agent_harness.agent.meta_tools.bash._executor.executor import BashExecutor
+from myrm_agent_harness.toolkits.code_execution import MCPConfigItem
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
 
@@ -914,7 +915,8 @@ def test_maybe_extend_timeout_for_mcp() -> None:
         MCP_MIN_TIMEOUT,
     )
 
-    assert bash_exec._maybe_extend_timeout_for_mcp([MagicMock()], 5) == MCP_MIN_TIMEOUT
+    short_limit_server = MCPConfigItem(name="demo", execute_timeout=10.0)
+    assert bash_exec._maybe_extend_timeout_for_mcp([short_limit_server], 5) == MCP_MIN_TIMEOUT
     assert bash_exec._maybe_extend_timeout_for_mcp(None, 30) == 30
 
 

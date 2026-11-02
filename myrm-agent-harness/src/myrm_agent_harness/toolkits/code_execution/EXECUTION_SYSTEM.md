@@ -240,6 +240,18 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 
 配置参数：`ExecutionConfig.local.*`、`ExecutionConfig.mcp_proxy.*`、`ExecutionConfig.network.allow_network`、`ExecutionConfig.network.allowed_hosts`
 
+### MCP 脚本通道的期限分层
+
+脚本里调用 MCP 工具时，外层的期限必须晚于内层，带名字的错误才能先于外层的强杀到达脚本。`L` 是该 server 的 `MCPConfig.execute_timeout`（默认 120 秒，范围 1–600）。
+
+| 层 | 期限 | 位置 |
+|----|------|------|
+| 会话 actor | `L`；超时后以 `MCPToolFailure` 返回 | `toolkits/mcp/session_actor.py`、`tool_processing.wrap_tools_with_timeout` |
+| 调用后备 | `max(L) + 10 s`，只包 `conn.call`，不含连接阶段 | `agent/skills/mcp/call_backstop.py` |
+| 宿主终止脚本 | `max(MCP_MIN_TIMEOUT, ceil(max(L) + 30 s))` | `bash/_executor/prepare_mixin._maybe_extend_timeout_for_mcp`、`constants.py` |
+
+`max(L)` 取被检测到的 skill 的各 server（`MCPConfigItem.execute_timeout`）。IPC 服务端自己没有固定期限。失败对脚本是异常：`proxy_service` 对 `MCPToolFailure` 抛 `RuntimeError`，读缓存因此不会保存失败。
+
 ---
 
 ## 依赖关系
