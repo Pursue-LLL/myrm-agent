@@ -2,6 +2,60 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-169 · 技能搜索工具在每个 agent 的第一轮就被重建成英文版：构建时挂的是配置语言的描述，每轮技能目录重同步却没传 locale，而重同步在第一轮必然触发（指纹初始为空）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`27c47abcfe`：`SkillAgentToolsMixin._prompt_locale()` 把「prompt locale，其次 UI locale，其次英文」写在一处，构建（`skill_agent/tools.py`）与重同步（`agent/_internals/skill_catalog_turn.py::_sync_skill_search_index`）都调用它；新测试 `tests/agent/_internals/test_skill_search_resync_locale.py`）。 |
+| **发现时间** | 2026-11-01（删除技能搜索的嵌入一半时读到重同步没传 `locale`，当时记成「会话中途重同步才变英文」；2026-11-02 读 `skill_agent.py:218` 才确认第一轮就会触发，范围比当时记的大）。 |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P3：只影响 `skill_search_tool` 的描述语言，工具的检索行为不变；仅当 agent 配了中文 locale 且技能目录溢出内联预算（该工具才会挂载）。没有用户报告。 |
+| **关联产品** | 技能搜索工具 `skill_search_tool`；每轮技能目录步骤（`deliver_bound_skills_catalog`、`sync_bound_skills_for_resume`）。 |
+| **症状** | [实测，单元测试，真实 `SkillAgent` 与真实工具注册表] `locale=zh-CN` 的 agent 绑定 25 个描述较长的技能（溢出内联预算、工具挂载），只调一次 `deliver_bound_skills_catalog` 后，`skill_search_tool` 的描述是英文版（`Search for missing capabilities…`）；`locale=en` 加 `prompt_locale=zh-CN` 同样是英文；没配 locale 时英文本来就对。 |
+| **根因** | `_sync_skill_search_index` 调 `sync_discover_capability_tool` 时没传 `locale`（`b51d17947f` 的版本里就没有）；`_synced_skill_fingerprint` 在 `SkillAgent.__init__` 里初始为 `None`（`skill_agent.py:218`），第一轮的指纹必然不等，所以每个挂载了这个工具的 agent 在第一次调模型之前就把构建时的描述换成了英文。 |
+| **修复** | 见状态栏。`locale` 只决定中文还是英文两份描述（`is_chinese`），日文、韩文、德文的 agent 本来就用英文描述。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 我先把它记成「会话中途重同步才变英文」，低估了范围；② 第一次提交的信息把触发条件写成「绑定集变化时」，不完整，因为还没推送，用只比较并交换的 ref 更新改了信息（树不变）；③ 新测试起初想放进 `test_skill_catalog_turn.py`，它已超过行数上限，改放新文件；④ 第一版装置没有把 4 个缺凭据或程序的预置技能（`notion-workspace` 等）算成可用，导致第一个真模型会话无法通过，作废后才改。 |
+| **回归** | [1] 新测试 3 例（UI locale 为中文、prompt locale 优先、没配 locale 为英文）；改前中文 2 例失败、英文 1 例通过，改后 3 例通过。[2] `tests/agent/_internals`、`tests/integration/test_resume_bound_skill_catalog.py`、`tests/integration/test_skill_tool_boundary_wiring.py`、`tests/agent/skill_agent`、`tests/agent/meta_tools/discover_capability` 共 385 通过（另有 16 个默认不跑）；`tests/architecture` 7,108 通过、10 跳过；ruff、format、mypy（2 个源文件）、行数门禁、测试源码断言门禁通过。[3] 真实模型（`MiniMax-M3.1-Flash-Preview`，一个模型一个端点）：配 `zh-CN` 的 agent 13 个会话，第一次模型调用里搜索工具描述全以中文开头，10/13 在 ≤ 2 次检索内加载到期望技能；不配 locale 的对照 11/13，差 1 个意图（`mcpexp`），没发现退化；三个失败都不是检索没找到（`callgraph` 与 `mcpexp` 的目标在第 1 条查询里都排第 1，`secscan` 没有检索）。 |
+| **仍然存在** | ① 真模型对照：只有 13 个会话、一个模型；系统提示词是 harness 默认而不是 server 的中文提示词，server 的中文系统提示词下没测；意图原话是我重写的，与此前的 13/13 不可配对。② 这条修复让中文 agent 的描述从被误换的英文回到构建时设计的中文版，真模型下没看到退化，但证据弱。 |
+| **代码位置** | `src/myrm_agent_harness/agent/skill_agent/tools.py`、`agent/_internals/skill_catalog_turn.py` · 测试 `tests/agent/_internals/test_skill_search_resync_locale.py` |
+
+### BUG-HARNESS-2026-11-01-168 · 技能整合的预览把「预计减少数」少算：每个合并或降级动作少算 1（真实 134 个技能库上真模型给出的计划，预览写 11，执行实际净减少 18）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`ba63ce07ab`：`ConsolidationAction.net_reduction` 把规则写在一处，`ConsolidationJudge.judge_clusters` 直接累加它；新增测试 `TestPreviewMatchesExecution` 与 `TestConsolidationAction`）。 |
+| **发现时间** | 2026-11-01（把真模型在 134 个预置技能上给出的计划原样重放进真实 `ConsolidationExecutor` 时，对比预览数与执行数）。 |
+| **修复时间** | 2026-11-01 |
+| **严重程度** | P3：设置里整合确认框的「预计减少」偏低，不影响执行结果；没有用户报告。 |
+| **关联产品** | 技能整合的预览与确认（`CuratorSettingsPanel` 的 `consolidation.planSummary`，取 `estimated_reduction`）；`preview_summary` 最后一行。 |
+| **症状** | [实测] 真模型计划 9 个动作（7 个 merge、2 个 create_umbrella）：预览 `Estimated net reduction: 11`；同一份计划重放进真实执行器（写入后端与统计采集器是记录型替身，不写不归档）：归档 20、新建 2，活跃技能 134 → 116，净减少 18。 |
+| **根因** | `judge.py` 对每个非 KEEP 动作累加 `len(source_skills) - 1`。这对 create_umbrella 对（N 个来源换成 1 个新技能），对 merge 与 demote 不对：来源全部归档进一个已存在的目标，目标不在来源里（`left_alone` 把它排除了），净减少是 N 而不是 N − 1。执行端是 `skills_after = skills_before - total_archived + total_created`。该行在首次导入的版本里就是这样。 |
+| **修复** | `ConsolidationAction.net_reduction`：来源数；create_umbrella 减去它新增的 1 个；keep 为 0。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 原来没有任何测试把预览数与执行数放在一起比，所以这个差异没被抓到；先写了对比测试再改代码。 |
+| **回归** | [1] `TestPreviewMatchesExecution` 3 例（merge、demote、create_umbrella 各走一遍预览与执行，要求两个数相等并等于期望）；改前 merge、demote 两例失败（`assert 1 == 2`），create_umbrella 通过。[2] `TestConsolidationAction::test_net_reduction` 4 个参数化用例。[3] `tests/agent/skills/curator` 85 通过；server 的 curator 相关 36 通过；harness 的 `tests/agent/skills tests/agent/meta_tools tests/backends/skills` 5,268 通过；ruff、format、mypy（2 个源文件）、行数门禁、测试源码断言门禁通过。[4] 真实计划按新规则算出的预估是 18，等于重放的执行结果。 |
+| **仍然存在** | ① 摘要里的「N skills affected」（`total_skills_affected`）只数来源（merge 的目标被写入却没计入），语义没有明确规格，没改。② 评审失败是静默的：`ConsolidationJudge` 对单个簇的失败吞成 `None`，全部失败时界面显示「没有可整合的」，部分失败时看不出来，没改（要跨端加字段、文案和六语言，需要先决定）。③ 没有在真实页面上看过这个面板（首次设置对话框挡住），由组件测试覆盖。 |
+| **代码位置** | `src/myrm_agent_harness/agent/skills/curator/consolidation/types.py`、`judge.py` · 测试 `tests/agent/skills/curator/consolidation/test_consolidation_pipeline.py`、`test_consolidation_types.py` |
+
+### BUG-HARNESS-2026-11-01-167 · 技能搜索工具对模型承诺「任意语言」，而索引按词匹配、134 个预置技能里只有 4 个含汉字：用户中文原句检索 20 个意图只命中 9 个（8 个返回空），未命中时只回「Try broader terms or synonyms.」；说明改为索要英文关键词并补同义词，未命中与命中后给出重试指引
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`309e40b5e4`：`discover_capability_tool.py` 的工具描述（中英两份）与 `query` 参数说明改为「索引以英文为主、按词匹配；用英文关键词并补同义词，只写其他语言的词经常搜不到」；未命中返回 `No capabilities found matching '<q>'. Retry with English keywords or synonyms; query='*' lists all <n> bound skills (a long list, use it last).`（前缀不变；没有绑定技能时不带全量列表提示）；命中结果末尾加一行 `If none of these fit, search again with English keywords or synonyms.`（`*` 的全量列表不加）；`ToolSource` 改为从定义它的模块导入；`_ARCH.md` 加 Query contract）。 |
+| **发现时间** | 2026-10-31 至 2026-11-01（评估技能侧嵌入与重排时，用真实 BM25 引擎与 134 个预置技能逐条核对工具对模型的承诺）。 |
+| **修复时间** | 2026-11-01 |
+| **严重程度** | P2：没有用户报告，本机探针与真实模型得出。模型照「任意语言」写中文查询时，检索经常返回空，只能靠多搜一次或自己改写。 |
+| **关联产品** | 技能搜索工具 `skill_search_tool`（词法检索，BM25）。 |
+| **症状** | [实测，本机，脚本不入库；真实 BM25 引擎，134 个预置技能，`top_k=10`] 20 个留出意图：英文关键词检索 20/20 找到满意技能；用户中文原句原样检索只有 9/20，其中 8 条返回空。134 个预置技能里只有 4 个的名字或描述含汉字。改前工具描述写「支持任意自然语言查询 / Query naturally in any language」，`query` 参数说明写「(any language)」，未命中只回 `Try broader terms or synonyms.`。 |
+| **根因** | 工具文案对所有用户承诺任意语言，而词法引擎按词匹配、索引几乎全是英文，中文原句基本匹配不上；未命中的提示也没有告诉模型该怎么重试。 |
+| **修复** | 见状态栏：说明与重试提示都改为索要英文关键词并补同义词；`No capabilities found` 前缀保留（引用它的有源码 1 处、测试 3 个文件 10 处，非测试代码不解析该前缀）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 第一次真模型冒烟把 13 个会话放在同一个进程里，「判据已定」就退出的会话其 LangGraph 任务没有停，继续调用工具并把事件写进下一个会话的记录，还触发限流；整次作废，改成每个意图一个独立进程。② 命中结果末尾那行重试提示是否让模型多搜一次，做了对照：去掉它 24/26 通过（有它 50/52），首条已含目标的会话里一次检索就加载的占比 26% 对 15%，差距小、样本小，按预先登记的规则保留。 |
+| **回归** | [1] 6 个新测试（描述中英参数化、参数说明、未命中重试提示、无绑定技能时不指向全量列表、命中结果给再搜一次的提示、全量列表无重试提示）；`tests/agent/meta_tools/discover_capability` 61 通过。[2] 真实模型冒烟（`MiniMax-M3.1-Flash-Preview`，默认 SkillAgent，134 个预置技能，13 个留出意图，每个意图一个进程，判据：加载期望技能之前最多 2 次 `skill_search_tool` 调用）：4 轮 52 个会话通过 50/52（BASIC 12/13、12/13、13/13；LITE 13/13，LITE 与 BASIC 是同一个模型和端点，只是第 4 次重复）；之后删掉嵌入一半的最终代码上，中文 13/13、日文 13/13、韩文 12/13、德文 12/13（韩、德译文是我写的，没有母语者审过）。 |
+| **仍然存在** | ① 只有一个模型、一个端点；「最多 2 次」是首搜加一次重试，首条检索已含目标的会话占 26/52，其余靠第二次检索，约一半的隐藏技能查找要多一次检索往返。② 失败里多数是模型看到了目标却没加载（或没检索）；也有查询里没写出概念词而搜不到的（德语臂的 `matherr`）。③ 索引里 134 个预置技能只有 4 个含汉字，给技能元数据加用户语言别名是内容债，需要维护者评审，没做。 |
+| **代码位置** | `src/myrm_agent_harness/agent/meta_tools/discover_capability/discover_capability_tool.py`、`_ARCH.md` · 测试 `tests/agent/meta_tools/discover_capability/test_discover_capability_tool.py` |
+
 ### BUG-HARNESS-2026-11-01-165 · 真实模型 PTC 对标压测暴露五处缺陷：循环守卫把「输出里带 error 字样」的成功调用记成失败（连续三次就中止整轮）；推理锚点块每个工具轮重写一次、整段提示词前缀缓存失效（命中 44%～54%）；heredoc 写的 Python 提取不出来；glob/grep 指向 /mcp 的报错把模型引向被拒的 bash；导入 MCP skill 的脚本被当成测试验证
 
 | 字段 | 内容 |
