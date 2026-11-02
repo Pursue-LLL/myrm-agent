@@ -1,8 +1,9 @@
-"""Integration: enabling a prebuilt skill that declares permissions asks for them first.
+"""Integration: enabling a skill that declares permissions asks for them first.
 
-``repo-call-graph`` is the one preset skill that declares ``required_permissions`` (``file_read``). The catalog,
-the enable gate, the grant endpoint and the user config run without mocks; only the database and the storage are
-the test's own.
+``repo-call-graph`` is the one preset skill that declares ``required_permissions`` (``file_read``); a skill folder
+the user keeps declares them in its own SKILL.md. The catalog, the local scan, the enable gate, the grant endpoint and
+the user config run without mocks; only the database, the storage and the folder the local scan reads are the
+test's own.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.skills import models as skill_models
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.service import skills_service
 from app.database.models import Base
@@ -22,6 +24,19 @@ from tests.support.minimal_app import API_PREFIX, build_minimal_app
 
 SKILL_ID = "repo-call-graph"
 SKILL_API = f"{API_PREFIX}/skills/{SKILL_ID}"
+LOCAL_SKILL_NAME = "reads-then-writes"
+# Declared out of order: the permissions the response names come back sorted.
+LOCAL_SKILL_MD = f"""---
+name: {LOCAL_SKILL_NAME}
+description: Copies a file after reading it.
+required_permissions:
+  - file_write
+  - file_read
+---
+# {LOCAL_SKILL_NAME}
+
+Read the file, then write the copy.
+"""
 
 
 @pytest.fixture
@@ -95,3 +110,54 @@ def test_revoking_the_permission_makes_the_next_enable_ask_again(skills_client: 
 
     assert response.json()["pending_approval"] is True
     assert SKILL_ID not in _enabled_prebuilt_ids(skills_client)
+
+
+@pytest.fixture
+def local_skill_api(skills_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """The API path of a skill folder the user keeps, found by the real local scan of a folder of the test's own."""
+    skills_root = tmp_path / "local-skills"
+    (skills_root / LOCAL_SKILL_NAME).mkdir(parents=True)
+    (skills_root / LOCAL_SKILL_NAME / "SKILL.md").write_text(LOCAL_SKILL_MD, encoding="utf-8")
+    # The scan reads these roots; the user's own skill folders stay out of the test.
+    monkeypatch.setattr(skill_models, "DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+    monkeypatch.setattr("app.core.skills.providers.local.DEFAULT_LOCAL_SKILL_PATHS", [str(skills_root)])
+
+    scanned = skills_client.post(f"{API_PREFIX}/skills/local/scan")
+    assert scanned.status_code == 200, scanned.text
+    skill_ids = [skill["id"] for skill in scanned.json()["skills"] if skill["name"] == LOCAL_SKILL_NAME]
+    assert len(skill_ids) == 1, scanned.text
+    return f"{API_PREFIX}/skills/{skill_ids[0]}"
+
+
+def _enabled_local_skill_ids(client: TestClient) -> list[str]:
+    response = client.get(f"{API_PREFIX}/skills/config")
+    assert response.status_code == 200, response.text
+    enabled_ids: list[str] = response.json()["enabled_local_skill_ids"]
+    return enabled_ids
+
+
+def test_a_local_skill_asks_for_every_permission_its_skill_file_declares(skills_client: TestClient, local_skill_api: str) -> None:
+    response = skills_client.post(f"{local_skill_api}/enable")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["pending_approval"] is True
+    assert body["enabled"] is False
+    assert body["required_permissions"] == ["file_read", "file_write"]
+    assert _enabled_local_skill_ids(skills_client) == []
+
+
+def test_only_the_permissions_that_are_still_missing_are_asked_for(skills_client: TestClient, local_skill_api: str) -> None:
+    skills_client.post(f"{local_skill_api}/permissions/grant", json={"permissions": ["file_read"]})
+
+    half_granted = skills_client.post(f"{local_skill_api}/enable")
+
+    assert half_granted.json()["pending_approval"] is True
+    assert half_granted.json()["required_permissions"] == ["file_write"]
+    assert _enabled_local_skill_ids(skills_client) == []
+
+    skills_client.post(f"{local_skill_api}/permissions/grant", json={"permissions": ["file_write"]})
+    fully_granted = skills_client.post(f"{local_skill_api}/enable")
+
+    assert fully_granted.json()["enabled"] is True
+    assert len(_enabled_local_skill_ids(skills_client)) == 1
