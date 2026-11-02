@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-173 · 测试套件不隔离终止性错误登记表：`parent_run_in_progress` 一类辅助把 `network_blocked` 留在进程里时，后面直接跑 `StreamExecutor` 的用例（工具名含 mcp）被断路器挡住，等不到工具启动而超时；`Unit` 作业里 `test_stop_during_silent_tool_e2e` 的两个用例偶发红
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（两次提交。`738fd32ac0`：`parent_run_in_progress()` 用 `isolated_terminal_errors()` 把登记表收进自己的作用域，退出后调用方的登记表原样回来。`064b93d93f`：`tests/conftest.py` 加 autouse 夹具 `_isolate_terminal_errors`，每个测试用自己的空登记表，把「进来时登记表为空」从隐含约定变成框架保证；新增 3 个回归用例锁住「上一个同步测试留下的 `network_blocked`，后面的异步与同步测试都看不到」。） |
+| **发现时间** | 2026-10-30（Actions 运行 41289080085，头 `df58e69104`，Unit 作业 `2 failed, 54912 passed`；两个失败都是 `TimeoutError`，日志有 `Circuit breaker: blocked mcp_silent_probe due to terminal network_blocked`）；污染源修复 `738fd32ac0`（2026-11-01）；本提交是把「只修一个污染者」补成「这一类都挡」。 |
+| **修复时间** | 2026-11-01（污染源）；2026-11-02（框架保证） |
+| **严重程度** | P3：只在同一 pytest 进程里先有测试往登记表写入 `network_blocked`、之后又有直接调用 `StreamExecutor` 且工具名含 mcp/web/search/fetch/browser 的用例时发生；后果是等不到工具启动、超时 30 s。生产路径每轮开始会 `reset_all_guards`，不受影响。 |
+| **关联产品** | harness 测试；断路器（`agent/middlewares/tooling/_circuit_breaker.py`）；终止性错误登记表（`agent/middlewares/_session_context.py`）。 |
+| **症状** | ① [CI 日志] `tests/agent/streaming/test_stop_during_silent_tool_e2e.py` 的两个用例 `TimeoutError`；第一个等 `probe.started` 超过 30 s，第二个等 `probe.finished` 超过 1 s；捕获的日志都有 `Circuit breaker: blocked mcp_silent_probe due to terminal network_blocked`。② 同一次成功的 Unit 作业里这两个用例是 PASSED，取决于 xdist 把模块怎样分给两个 worker。 |
+| **根因** | ① `parent_run_in_progress()`（`tests/agent/sub_agents/guard_state_probe.py`）调用 `use_every_guard(error="network_blocked")` 往登记表写一项，收尾只复位会话绑定与循环守卫，不动登记表。② 该 e2e 直接调 `StreamExecutor.execute()`，绕过生产里每轮开始的 `reset_all_guards`；工具名 `mcp_silent_probe` 含 mcp，断路器把它当网络工具拒绝。③ 共享 `tests/conftest.py` 已有 14 个「每个测试隔离进程状态」的夹具，唯独缺这个登记表。 |
+| **修复** | 见状态栏。夹具用现成的 `isolated_terminal_errors()`（与 `parent_run_in_progress` 里现有的写法同一条路径）。 |
+| **反复次数** | 第 2 次触及这一类：第 1 次修污染源（`738fd32ac0`）；`064b93d93f` 修「谁都可能污染」这一类。 |
+| **踩坑** | ① 先怀疑 God-Mode 状态文件跨 worker 共享：测试里写它的地方都在临时路径下，不是它。② 只修污染源不够：同类「绕过 `reset_all_guards` 的直接 executor 用例」仍要求进来时登记表为空，没有任何东西保证。③ 普查探针要先在修复前的树上验证自己能抓到泄漏，否则「扫了没发现」不可信（对照：修复前树抓到 `test_research_agents_leave_the_dispatching_runs_guard_state_as_it_found_it` 与受害 e2e）。 |
+| **回归** | [1] 变异：同一份新用例在没有该夹具的树上 `2 failed, 18 passed`（异步与同步后续用例看到 `network_blocked`）；有夹具时 `20 passed`。[2] 修复前的树上，夹具原型 + 4 个污染模块 + e2e → `30 passed`（原来 failed）。[3] 带真实夹具在导出树上跑：登记表相关目录 12562 个用例，12561 passed、1 failed（macOS seatbelt 引号用例，未改动的树上同样失败）；其余 agent 相邻目录 7179 passed；`tests/architecture` 7108 passed、2 failed（都需要 `uv`，本机的 `uv` 是 0 字节占位文件）；新增用例所在文件 20 passed；`ruff check`、`ruff format --check` 与文件行数门禁（`tests/conftest.py` 正好 500 行）通过。[4] 该 e2e 文件单独连跑 20 次 20/20 通过；夹具每个测试多 75.9 µs（20000 次平均）。 |
+| **仍然存在** | ① 夹具只隔离登记表，不管别的进程级状态（例如本轮普查里 `test_venv_manager.py::test_uses_default_path_when_no_config` 在约 1.2 万个用例的单进程里失败过一次、单独跑通过；带夹具重跑同一批时它通过了，原因没查，不能算已修）。② 夹具会让泄漏者自己看不见自己留下的东西；直接看守污染源的用例 `test_a_parent_run_in_progress_leaves_no_terminal_error_behind` 仍然在。③ 一次 CI 绿是一个样本。 |
+| **代码位置** | `tests/conftest.py`、`tests/_ARCH.md`（`064b93d93f`） · 测试 `tests/agent/middlewares/test_session_context.py` · 相关生产辅助 `agent/middlewares/_session_context.py:284`、断路器 `agent/middlewares/tooling/_circuit_breaker.py:37,43` · 污染源修复 `738fd32ac0` |
+
 ### BUG-HARNESS-2026-11-02-170 · 全局 PTC IPC 服务端留在已关闭的事件循环上时被继续复用：监听 socket 仍接收连接、没有任何人应答，脚本里的 MCP 调用一直等到 120 s 脚本截止，Unit 作业里 `test_mcp_marker_full_stack` 的第一个用例偶发红
 
 | 字段 | 内容 |
