@@ -12,10 +12,8 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.bash._background.consume import (
     BackgroundRegistryEntry,
 )
-from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
-    BackgroundProcessRegistry,
-    get_background_registry,
-)
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry
+from myrm_agent_harness.agent.meta_tools.bash._background.registry import get_background_registry
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     INPUT_WAIT_IDLE_SECONDS,
     BackgroundProcessInfo,
@@ -105,7 +103,7 @@ def test_registry_snapshot_sets_waiting_for_input() -> None:
         stdout_buffer=deque(),
         stderr_buffer=deque(),
     )
-    snap = BackgroundProcessRegistry._snapshot(entry)
+    snap = snapshot_entry(entry)
     assert snap.waiting_for_input is True
 
 
@@ -129,7 +127,7 @@ def test_registry_snapshot_clears_waiting_after_stdin_closed() -> None:
         stderr_buffer=deque(),
         stdin_closed=True,
     )
-    snap = BackgroundProcessRegistry._snapshot(entry)
+    snap = snapshot_entry(entry)
     assert snap.waiting_for_input is False
     assert snap.stdin_closed is True
 
@@ -152,7 +150,7 @@ def test_registry_snapshot_exposes_stdin_closed_on_running_job() -> None:
         stderr_buffer=deque(),
         stdin_closed=False,
     )
-    snap = BackgroundProcessRegistry._snapshot(entry)
+    snap = snapshot_entry(entry)
     assert snap.stdin_closed is False
     payload = snap.to_dict()
     assert payload.get("stdin_closed") is False

@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - process_alive: whether a worker process whose command line contains the marker is running (a shell that only carries
-  the marker as script text does not count)
+  the marker as script text does not count, and a process that vanishes while it is read is skipped)
 - kill_marked: remove every such worker process (test teardown)
 - wait_until: poll a condition until it holds or a deadline passes
 
@@ -31,11 +31,15 @@ _SHELLS = frozenset({"sh", "bash", "dash", "zsh"})
 def _marked(marker: str) -> list[psutil.Process]:
     own_pid = os.getpid()
     found: list[psutil.Process] = []
-    for process in psutil.process_iter(["pid", "name", "cmdline"]):
-        cmdline = process.info["cmdline"] or []
-        if process.info["pid"] == own_pid or process.info["name"] in _SHELLS:
+    for process in psutil.process_iter():
+        try:
+            if process.pid == own_pid or process.name() in _SHELLS:
+                continue
+            cmdline = " ".join(process.cmdline())
+        except (psutil.Error, SystemError):
+            # A process that exits or execs while it is read is no worker of ours; macOS reports that as SystemError.
             continue
-        if marker in " ".join(cmdline):
+        if marker in cmdline:
             found.append(process)
     return found
 

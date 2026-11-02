@@ -36,6 +36,8 @@ export interface BackgroundTask {
   waiting_for_input?: boolean;
   stdin_closed?: boolean;
   interactive_prompt?: BackgroundPrompt | null;
+  /** Programs a finished shell task started that are still running; cancelling the task stops them. */
+  leftover_processes?: number;
 }
 
 export interface BackgroundTaskListResponse {
@@ -58,7 +60,10 @@ export async function getBackgroundTask(taskId: string): Promise<BackgroundTask>
   return apiRequest<BackgroundTask>(`/background-tasks/${encodeURIComponent(taskId)}`);
 }
 
-export async function cancelBackgroundTask(taskId: string): Promise<{ message: string; task_id: string }> {
+/** A shell task also reports `leftover_processes`: what it started that is still alive after the stop. */
+export async function cancelBackgroundTask(
+  taskId: string,
+): Promise<{ message: string; task_id: string; leftover_processes?: number }> {
   return apiRequest(`/background-tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
 }
 

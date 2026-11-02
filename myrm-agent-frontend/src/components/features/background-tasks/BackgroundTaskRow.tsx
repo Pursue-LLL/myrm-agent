@@ -11,10 +11,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { BackgroundPromptOption, BackgroundTask } from '@/services/background-tasks';
 import { STATUS_CONFIG } from './backgroundTasksPanel.constants';
 
-interface BackgroundTaskRowProps {
-  task: BackgroundTask;
-  allowSteer: boolean;
-  allowShellInput: boolean;
+/** What a row can do on its task: the steer and stdin inputs that may be open, and what each button does. */
+export interface BackgroundTaskRowActions {
   steerTaskId: string | null;
   shellInputTaskId: string | null;
   steerInput: string;
@@ -28,6 +26,13 @@ interface BackgroundTaskRowProps {
   onShellInputClose: (taskId: string) => void;
   onPromptOptionSelect: (taskId: string, option: BackgroundPromptOption) => void;
   onCancel: (taskId: string) => void;
+  onStopLeftover: (taskId: string) => void;
+}
+
+interface BackgroundTaskRowProps extends BackgroundTaskRowActions {
+  task: BackgroundTask;
+  allowSteer: boolean;
+  allowShellInput: boolean;
   onNavigateChat: (chatId: string) => void;
   onViewVaultLog?: (chatId: string, vaultLogRef: string) => void;
 }
@@ -49,6 +54,7 @@ export function BackgroundTaskRow({
   onShellInputClose,
   onPromptOptionSelect,
   onCancel,
+  onStopLeftover,
   onNavigateChat,
   onViewVaultLog,
 }: BackgroundTaskRowProps) {
@@ -61,6 +67,7 @@ export function BackgroundTaskRow({
   const shellPid = task.pid ?? null;
   const exitCode = task.exit_code ?? null;
   const StatusIcon = config.icon;
+  const hasLeftover = task.kind === 'shell' && task.status !== 'running' && (task.leftover_processes ?? 0) > 0;
   const canViewVaultLog = Boolean(task.vault_log_ref && task.chat_id && onViewVaultLog);
   const LogActionIcon = canViewVaultLog ? FileText : Navigation;
   const interactivePrompt =
@@ -139,8 +146,12 @@ export function BackgroundTaskRow({
             </div>
           )}
 
-          {task.status === 'orphaned' && (
-            <p className="mt-1 text-xs text-amber-600/90 dark:text-amber-400/90">{t('orphanedHint')}</p>
+          {task.status === 'orphaned' && <p className="mt-1 text-xs text-warning">{t('orphanedHint')}</p>}
+
+          {hasLeftover && (
+            <p className="mt-1 text-xs text-warning" data-testid="background-task-leftover-hint">
+              {t('leftoverHint')}
+            </p>
           )}
 
           {task.result_preview && (
@@ -154,7 +165,7 @@ export function BackgroundTaskRow({
               <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
                 {interactivePrompt.question}
               </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={interactivePrompt.question}>
+              <fieldset className="mt-1.5 flex min-w-0 flex-wrap gap-1.5" aria-label={interactivePrompt.question}>
                 {interactivePrompt.options.map((option) => (
                   <Button
                     key={option.id}
@@ -168,7 +179,7 @@ export function BackgroundTaskRow({
                     {option.label}
                   </Button>
                 ))}
-              </div>
+              </fieldset>
             </div>
           )}
 
@@ -230,18 +241,32 @@ export function BackgroundTaskRow({
               )}
             </div>
           ) : (
-            task.chat_id && (
-              <div className="mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  data-testid={canViewVaultLog ? 'background-task-view-vault-log' : undefined}
-                  onClick={handleSecondaryAction}
-                >
-                  <LogActionIcon className="mr-1 h-3 w-3" />
-                  {canViewVaultLog ? t('viewFullLog') : t('navigate')}
-                </Button>
+            (hasLeftover || task.chat_id) && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {hasLeftover && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    data-testid="background-task-leftover-stop"
+                    onClick={() => onStopLeftover(task.task_id)}
+                  >
+                    <IconStop className="mr-1 h-3 w-3" />
+                    {t('leftoverStop')}
+                  </Button>
+                )}
+                {task.chat_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    data-testid={canViewVaultLog ? 'background-task-view-vault-log' : undefined}
+                    onClick={handleSecondaryAction}
+                  >
+                    <LogActionIcon className="mr-1 h-3 w-3" />
+                    {canViewVaultLog ? t('viewFullLog') : t('navigate')}
+                  </Button>
+                )}
               </div>
             )
           )}

@@ -2,11 +2,12 @@
 
 [INPUT]
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
+- agent.meta_tools.bash._background.termination::GroupMember / leader_id_reassigned / snapshot_group_members (POS: identity of the processes a job's group still holds, and whether the leader's pid still belongs to the job)
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: async process handle)
 
 [OUTPUT]
-- BackgroundRegistryEntry: Live registry row with ring buffers and spill writer
-- consume_background_entry: Read pipes until exit, persist terminal state, invoke finish hook
+- BackgroundRegistryEntry: Live registry row with ring buffers, spill writer, the leader's recorded identity and the processes the job left running
+- consume_background_entry: Read pipes until exit, record what the job left running, persist terminal state, invoke finish hook
 
 [POS]
 I/O consumer for BackgroundProcessRegistry — keeps registry orchestration separate from pipe reading.
@@ -23,6 +24,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.meta_tools.bash._background.termination import (
+    leader_id_reassigned,
+    snapshot_group_members,
+)
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     BackgroundProcessInfo,
     FinishListener,
@@ -33,6 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import (
         BackgroundOutputSpillWriter,
     )
+    from myrm_agent_harness.agent.meta_tools.bash._background.termination import GroupMember
     from myrm_agent_harness.toolkits.code_execution.executors.models import (
         AsyncProcessProtocol,
     )
@@ -55,6 +61,12 @@ class BackgroundRegistryEntry:
     stderr; this lets ``get_output(since_cursor=...)`` filter both streams
     against the same cursor without confusing rates (a busy stderr will not
     eat into stdout's quota or vice versa).
+
+    ``leader`` is the job leader as it was at registration; it tells a later
+    signal whether the leader's pid still belongs to this job.
+    ``leftover_members`` are the processes the job's group still held when its
+    leader exited (daemons the job detached, children that kept the pipes
+    open); they are what a later stop has to reach.
     """
 
     info: BackgroundProcessInfo
@@ -70,6 +82,8 @@ class BackgroundRegistryEntry:
     stdin_lock: asyncio.Lock | None = None
     stdin_closed: bool = False
     last_progress_emit_at: float = 0.0
+    leader: GroupMember | None = None
+    leftover_members: tuple[GroupMember, ...] = ()
 
 
 async def consume_background_entry(
@@ -163,6 +177,8 @@ async def consume_background_entry(
             return_exceptions=True,
         )
         exit_code = await entry.proc.wait()
+        # A leader pid that another process holds now names that process's group, not the job's.
+        entry.leftover_members = () if leader_id_reassigned(entry.leader) else snapshot_group_members(entry.info.pid)
         entry.info.exit_code = exit_code
         if entry.info.status == "running":
             entry.info.status = "exited"
@@ -183,7 +199,12 @@ async def consume_background_entry(
     finally:
         # Trailing flush: deliver un-emitted tail progress trapped by the 10Hz throttle before finish.
         tail_progress = entry.info.last_progress
-        if tail_progress is not None and entry.last_progress_emit_at < float(tail_progress.get("updated_at") or 0.0):
+        tail_updated_at = tail_progress.get("updated_at") if tail_progress is not None else None
+        if (
+            tail_progress is not None
+            and isinstance(tail_updated_at, int | float)
+            and entry.last_progress_emit_at < tail_updated_at
+        ):
             with suppress(Exception):
                 await _emit_progress(tail_progress, force=True)
 

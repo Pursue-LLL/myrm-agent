@@ -47,6 +47,7 @@ class _FakeShellTask:
     waiting_for_input: bool = False
     stdin_closed: bool = False
     interactive_prompt: object | None = None
+    leftover_processes: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +85,29 @@ async def test_list_merges_agent_and_shell() -> None:
         assert resp.tasks[0].task_id == "a1"
         assert resp.tasks[1].task_id == "s1"
         assert resp.registry_ephemeral is True
+
+
+@pytest.mark.asyncio
+async def test_list_reports_what_a_finished_shell_job_left_running() -> None:
+    with (
+        patch(
+            "app.api.background_tasks.router._list_agent_tasks",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
+        patch("app.api.background_tasks.router.list_shell_background_tasks") as mock_list_shell,
+        patch(
+            "app.api.background_tasks.router.shell_registry_is_ephemeral",
+            return_value=True,
+        ),
+    ):
+        mock_list_shell.return_value = [_FakeShellTask(task_id="s1", status="completed", leftover_processes=2)]
+
+        from app.api.background_tasks.router import list_background_tasks
+
+        resp = await list_background_tasks()
+
+    assert resp.tasks[0].leftover_processes == 2
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +249,34 @@ async def test_cancel_shell_task() -> None:
 
         result = await cancel_background_task("shell:j1")
         assert "Shell" in result["message"]
+        assert result["leftover_processes"] == 0
+
+
+@pytest.mark.asyncio
+async def test_cancel_shell_task_reports_the_processes_still_alive_after_the_stop() -> None:
+    before = _FakeShellTask(task_id="shell:j1", pid=9999)
+    after = _FakeShellTask(task_id="shell:j1", pid=9999, status="completed", leftover_processes=2)
+    with (
+        patch("app.api.background_tasks.router.find_shell_background_task", side_effect=[before, after]),
+        patch("app.api.background_tasks.router.cancel_shell_background_task", new_callable=AsyncMock, return_value=True),
+    ):
+        from app.api.background_tasks.router import cancel_background_task
+
+        result = await cancel_background_task("shell:j1")
+        assert result["leftover_processes"] == 2
+
+
+@pytest.mark.asyncio
+async def test_cancel_shell_task_that_vanished_after_the_stop_has_nothing_left() -> None:
+    before = _FakeShellTask(task_id="shell:j1", pid=9999)
+    with (
+        patch("app.api.background_tasks.router.find_shell_background_task", side_effect=[before, None]),
+        patch("app.api.background_tasks.router.cancel_shell_background_task", new_callable=AsyncMock, return_value=True),
+    ):
+        from app.api.background_tasks.router import cancel_background_task
+
+        result = await cancel_background_task("shell:j1")
+        assert result["leftover_processes"] == 0
 
 
 @pytest.mark.asyncio
@@ -234,6 +286,31 @@ async def test_cancel_shell_invalid_id() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await cancel_background_task("shell:")
     assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("row", [None, _FakeShellTask(task_id="shell:j1", pid=None)], ids=["unknown", "no_pid"])
+async def test_cancel_shell_task_that_cannot_be_stopped_is_rejected(row: _FakeShellTask | None) -> None:
+    with patch("app.api.background_tasks.router.find_shell_background_task", return_value=row):
+        from app.api.background_tasks.router import cancel_background_task
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cancel_background_task("shell:j1")
+        assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_cancel_shell_task_whose_stop_failed_is_rejected() -> None:
+    fake = _FakeShellTask(task_id="shell:j1", pid=9999)
+    with (
+        patch("app.api.background_tasks.router.find_shell_background_task", return_value=fake),
+        patch("app.api.background_tasks.router.cancel_shell_background_task", new_callable=AsyncMock, return_value=False),
+    ):
+        from app.api.background_tasks.router import cancel_background_task
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cancel_background_task("shell:j1")
+        assert exc_info.value.status_code == 400
 
 
 @pytest.mark.asyncio

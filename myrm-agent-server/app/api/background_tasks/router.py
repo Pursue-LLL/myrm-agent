@@ -71,6 +71,7 @@ class BackgroundTaskResponse(BaseModel):
     waiting_for_input: bool = False
     stdin_closed: bool = False
     interactive_prompt: ShellPrompt | None = None
+    leftover_processes: int = 0
 
 
 class BackgroundTaskListResponse(BaseModel):
@@ -113,6 +114,7 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
         waiting_for_input=row.waiting_for_input,
         stdin_closed=row.stdin_closed,
         interactive_prompt=row.interactive_prompt,
+        leftover_processes=row.leftover_processes,
     )
 
 
@@ -231,8 +233,11 @@ async def get_background_task(task_id: str) -> BackgroundTaskResponse:
 
 
 @router.post("/{task_id}/cancel")
-async def cancel_background_task(task_id: str) -> dict[str, str]:
-    """Cancel a background task (running or queued)."""
+async def cancel_background_task(task_id: str) -> dict[str, str | int]:
+    """Cancel a background task (running or queued).
+
+    A shell task answers with ``leftover_processes``: the processes it started that are still alive after the stop.
+    """
     if task_id.startswith("shell:"):
         suffix = task_id.split(":", maxsplit=1)[1] if ":" in task_id else ""
         if not suffix:
@@ -243,7 +248,10 @@ async def cancel_background_task(task_id: str) -> dict[str, str]:
         success = await cancel_shell_background_task(row.pid)
         if not success:
             raise HTTPException(status_code=400, detail="Shell task is not cancellable or not found")
-        return {"message": "Shell background task cancelled", "task_id": task_id}
+        # The stop reports success once the signal went out; only the scan says whether the group really died.
+        after = find_shell_background_task(suffix)
+        leftover = after.leftover_processes if after is not None else 0
+        return {"message": "Shell background task cancelled", "task_id": task_id, "leftover_processes": leftover}
 
     handler = get_background_task_handler()
     if not handler:

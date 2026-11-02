@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shlex
 import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import AsyncMock, patch
 
 from fastapi import APIRouter, HTTPException, Query
@@ -33,13 +34,33 @@ from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
 
+if TYPE_CHECKING:
+    from langchain_core.runnables import RunnableConfig
+    from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
+
 router = APIRouter()
 
 _VAULT_SPILL_LINE_COUNT = 85
 _SUCCESS_MARKER = "MYRM_E2E_SHELL_SUCCESS"
+# Starts a long-lived child inside the job's own process group and exits: the job ends, its child keeps running.
+# Background jobs run on a pseudo-terminal whose hang-up reaches a child that was started a moment before the job
+# ended, so the child ignores SIGHUP as a daemon started with ``nohup`` does; the ignore is inherited through exec.
+_LEFTOVER_SCRIPT = """import signal
+import subprocess
+import sys
+
+signal.signal(signal.SIGHUP, signal.SIG_IGN)
+subprocess.Popen(
+    [sys.executable, "-c", "import time; time.sleep(600)  # {marker}"],
+    stdin=subprocess.DEVNULL,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+print("MYRM_E2E_LEFTOVER_PARENT_DONE", flush=True)
+"""
 
 
-def _make_local_executor(workspace: Path) -> object:
+def _make_local_executor(workspace: Path) -> LocalExecutor:
     from unittest.mock import patch as mock_patch
 
     from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -89,7 +110,7 @@ async def _spawn_shell_fixture(
     set_executor(executor)
     bind_workspace_storage_root(workspace)
 
-    config: dict[str, object] = {
+    config: RunnableConfig = {
         "configurable": {
             "context": {
                 "session_id": chat_id,
@@ -212,12 +233,11 @@ def _write_vault_log_fixture(*, chat_id: str, pid: int, workspace: Path) -> str:
         (evicted_dir / filename).write_text(content, encoding="utf-8")
 
     registry = get_background_registry()
-    live_info: BackgroundProcessInfo | None = None
-    with registry._lock:  # noqa: SLF001 — E2E fixture must mutate live registry, not get() snapshot
+    with registry._lock:  # noqa: SLF001 — E2E fixture must mutate the live entry, not a get() snapshot
         entry = registry._entries.get(pid)  # noqa: SLF001
         if entry is not None:
             entry.info.vault_log_ref = filename
-            live_info = registry._snapshot(entry)  # noqa: SLF001
+    live_info: BackgroundProcessInfo | None = registry.get(pid)
 
     if live_info is not None:
         persist_vault_log_ref(live_info)
@@ -249,7 +269,7 @@ def _backdate_registry_last_output(pid: int, idle_seconds: float) -> None:
     from myrm_agent_harness.api.hooks import get_background_registry
 
     registry = get_background_registry()
-    with registry._lock:  # type: ignore[attr-defined]
+    with registry._lock:
         entry = registry._entries.get(pid)
         if entry is None:
             return
@@ -265,6 +285,7 @@ async def seed_shell_fixture(
         "running_stdin_waiting",
         "success",
         "completed_with_vault",
+        "leftover",
     ] = Query(default="failed"),
 ) -> dict[str, object]:
     """Local dev/test only: seed a shell background job for Chrome E2E."""
@@ -272,6 +293,7 @@ async def seed_shell_fixture(
         raise HTTPException(status_code=404, detail="Not found")
 
     chat_id = f"e2e-shell-{uuid.uuid4().hex[:10]}"
+    leftover_marker: str | None = None
     settings = get_settings()
     workspace = Path(settings.database.state_dir).expanduser() / "e2e-fixtures" / chat_id
     if mode in {"success", "completed_with_vault"}:
@@ -295,6 +317,12 @@ async def seed_shell_fixture(
         command = f"{sys.executable} -c \"print('{_SUCCESS_MARKER}', flush=True)\""
     elif mode == "completed_with_vault":
         command = f"{sys.executable} -c \"print('MYRM_E2E_VAULT_DONE', flush=True)\""
+    elif mode == "leftover":
+        leftover_marker = f"MYRM_E2E_LEFTOVER_{uuid.uuid4().hex[:10]}"
+        workspace.mkdir(parents=True, exist_ok=True)
+        script = workspace / "leave_something_running.py"
+        script.write_text(_LEFTOVER_SCRIPT.format(marker=leftover_marker), encoding="utf-8")
+        command = f"{sys.executable} {shlex.quote(str(script))}"
     else:
         command = f'{sys.executable} -c "import sys; sys.exit(42)"'
 
@@ -304,7 +332,7 @@ async def seed_shell_fixture(
 
     from myrm_agent_harness.api.hooks import get_background_registry
 
-    if mode in {"failed", "success", "completed_with_vault"}:
+    if mode in {"failed", "success", "completed_with_vault", "leftover"}:
         await _wait_registry_pid(pid, want_status="exited")
 
     vault_log_ref: str | None = None
@@ -326,4 +354,5 @@ async def seed_shell_fixture(
         "task_id": f"shell:{job_id}",
         "mode": mode,
         "vault_log_ref": vault_log_ref,
+        "leftover_marker": leftover_marker,
     }
