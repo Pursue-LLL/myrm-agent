@@ -30,12 +30,14 @@ describe('empty chat phone first-screen contract', () => {
     expect(tokens.filter((token) => !source.includes(token))).toEqual([]);
   });
 
-  it('lays the workspace mode tabs out as three equal cells whose labels wrap or hyphenate, never cut mid-word, below sm', () => {
+  it('lays the workspace mode tabs out as three equal cells with top-aligned icons whose labels wrap or hyphenate, never cut mid-word, below sm', () => {
     const source = read('../WorkModeTabs.tsx');
 
     expect(source).toContain('grid w-full grid-cols-3');
     expect(source.match(/mode: '(?:local|cloud|chat)'/g)).toHaveLength(3);
-    expect(source.match(/'flex min-w-0 flex-col [^']*sm:flex-row[^']*'/g)).toHaveLength(1);
+    expect(
+      source.match(/'flex min-w-0 flex-col [^']*justify-start[^']*sm:flex-row[^']*sm:justify-center[^']*'/g),
+    ).toHaveLength(1);
     expect(source).toContain("MODE_LABEL_CLASS = 'max-w-full text-balance hyphens-auto break-words text-center");
     expect(source.match(/<span className=\{MODE_LABEL_CLASS\}>/g)).toHaveLength(1);
   });

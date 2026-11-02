@@ -70,14 +70,14 @@
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`NewTaskWorkContextCard`、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；手机（<`sm`）顶部留白 `8vh`、≥`sm` 为 `20vh`，使 390×844 的干净首屏无需滚动（由 `__tests__/EmptyChat.mobile.contract.test.ts` 守卫）；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
 | `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由，防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
-| `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作区三模式标签（`WorkModeTabs`）为三列网格、标签可换行或自动断字而不被截断；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
+| `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作区三模式标签（`WorkModeTabs`）为三列网格、图标顶对齐、标签可换行或自动断字而不被截断；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失 | ✅ |
 | `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板 | ✅ |
 | `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化与跳转动作覆盖 | ✅ |
 | `NewTaskWorkContextCard.tsx` | 组件 | 新建任务工作上下文卡片：三模式切换（本地工作区/云端沙箱/极速对话）、工作区路径绑定与一键办公标准化脚手架（00_原始资料/01_参考/02_生成结果/03_历史版本）；服务端拒绝的目录（范围过大 / 受保护）只弹说明，不写入本地状态；模式切换的渲染交给 `WorkModeTabs`，卡片只持有切换对 chat store 的语义 | ✅ |
-| `WorkModeTabs.tsx` | 组件 | 工作模式三段式切换（本地工作区/云端沙箱/极速对话），表驱动渲染、无状态；手机（<`sm`）为三列网格（图标在上），标签先按词换行、单词仍超宽时按文档语言（`<html lang>` 由 `DocumentLang` 跟随当前语言）自动断字，不在词中硬截断，≥`sm` 为单行 flex；每个标签的 `data-testid` 为 `context-mode-` 加模式名（`local` / `cloud` / `chat`） | ✅ |
+| `WorkModeTabs.tsx` | 组件 | 工作模式三段式切换（本地工作区/云端沙箱/极速对话），表驱动渲染、无状态；手机（<`sm`）为三列网格（图标在上且顶对齐，标签换行行数不同时三个图标仍在同一水平线），标签先按词换行、单词仍超宽时按文档语言（`<html lang>` 由 `DocumentLang` 跟随当前语言）自动断字，不在词中硬截断，≥`sm` 为单行 flex 居中；三个按钮以 `aria-pressed` 暴露当前模式；标签文案以字面量键 `t('modeLocal')` 等取值，使 `verify:i18n` 能静态校验；每个标签的 `data-testid` 为 `context-mode-` 加模式名（`local` / `cloud` / `chat`） | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
