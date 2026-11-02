@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.code_graph.service::CodeGraphService (POS: incremental directory index and graph queries)
+- app.services.code_graph.import_alignment::MAX_SCOPE_MODULES (POS: alignment of an importers query with the indexed import texts)
 - app.services.code_graph.models::(INDEX_FORMAT_VERSION, IndexStats) (POS: code graph data contracts and index format version)
 - myrm_agent_harness.runtime.paths.execution_paths::get_persistent_root (POS: persistent volume root)
 
@@ -23,6 +24,7 @@ import hashlib
 import json
 import logging
 import sqlite3
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +35,7 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.runtime.paths.execution_paths import get_persistent_root
 from pydantic import BaseModel, Field
 
+from app.services.code_graph.import_alignment import MAX_SCOPE_MODULES
 from app.services.code_graph.models import INDEX_FORMAT_VERSION, IndexStats
 from app.services.code_graph.service import CodeGraphService
 
@@ -40,12 +43,16 @@ logger = logging.getLogger(__name__)
 
 SKILL_NAME = "repo-call-graph"
 MAX_ROWS = 50
+# An answer cut at MAX_ROWS also says how many rows each of the files holding the most of them has.
+MAX_DISTRIBUTION_FILES = 10
+_SHOWN_MODULES = 5
 _DOC_CHARS = 300
 
 # What can narrow an answer cut at MAX_ROWS. callers, tests_calling and implementors match on the last name part,
 # so a qualified name returns the same rows and only a text search inside a directory narrows them.
 _HINT_QUALIFIED_NAME = "use a qualified name to narrow the result."
 _HINT_SEARCH = "a qualified name returns the same rows for this action, so search the directory you care about with grep."
+_HINT_EXACT_FIRST_THEN_SEARCH = f"match=exact rows are listed first, and {_HINT_SEARCH}"
 _HINT_OPEN_FUNCTION = "they are listed by line number, so open the function to see the rest."
 
 _INDEXED_LANGUAGES = "Only Python and TypeScript/JavaScript files are indexed."
@@ -135,6 +142,24 @@ def _definition_lookup(service: CodeGraphService, query: str) -> list[Row]:
     return [found] if found else []
 
 
+def _exact_first(rows: list[Row]) -> list[Row]:
+    """Put the call sites whose text equals the query ahead of those that only share its last name part.
+
+    The answer is cut at MAX_ROWS, and the same-name rows of a common name would otherwise push the exact ones out;
+    the sort is stable, so each group keeps its path and line order."""
+    return sorted(rows, key=lambda row: row["match"] != "exact")
+
+
+def _file_distribution(found: list[Row]) -> dict[str, object]:
+    """How many of all matches each file holds, for the files holding the most: where the cut-off rows are."""
+    counts = Counter(str(row["file_path"]) for row in found)
+    top = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:MAX_DISTRIBUTION_FILES]
+    distribution: dict[str, object] = {"by_file": dict(top)}
+    if len(counts) > len(top):
+        distribution["more_files"] = len(counts) - len(top)
+    return distribution
+
+
 _ACTIONS: dict[str, _Action] = {
     "resolve": _Action(
         lambda s, t: s.resolve(t),
@@ -144,9 +169,9 @@ _ACTIONS: dict[str, _Action] = {
     # At most one row, so it is never cut.
     "definition": _Action(_definition_lookup, _definition_row, cut_hint=""),
     "callers": _Action(
-        lambda s, t: s.callers(t),
+        lambda s, t: _exact_first(s.callers(t)),
         lambda r: _call_row(r, caller=r["caller"], callee=r["callee"], match=r["match"]),
-        cut_hint=_HINT_SEARCH,
+        cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
     ),
     "callees": _Action(
         lambda s, t: s.callees(t),
@@ -160,9 +185,9 @@ _ACTIONS: dict[str, _Action] = {
     ),
     "importers": _Action(lambda s, t: s.importers(t), _importer_row, cut_hint=_HINT_QUALIFIED_NAME, gap=_GAP_IMPORTS),
     "tests_calling": _Action(
-        lambda s, t: s.tests_calling(t),
+        lambda s, t: _exact_first(s.tests_calling(t)),
         lambda r: {"at": _site(r), "test": r["test_symbol"], "match": r["match"]},
-        cut_hint=_HINT_SEARCH,
+        cut_hint=_HINT_EXACT_FIRST_THEN_SEARCH,
     ),
 }
 
@@ -184,7 +209,15 @@ def _remove_stale_indexes(current: Path) -> None:
             logger.warning("Code graph could not remove the stale index %s: %s", entry, exc)
 
 
-def _notes(total: int, definitions: int, stats: IndexStats, spec: _Action) -> list[str]:
+def _shared_modules_note(modules: tuple[str, ...]) -> str:
+    shown = ", ".join(modules[:_SHOWN_MODULES]) + (", ..." if len(modules) > _SHOWN_MODULES else "")
+    note = f"{len(modules)} modules fit this name ({shown}), so rows may import any of them: use the full module name to narrow."
+    if len(modules) > MAX_SCOPE_MODULES:
+        note += f" Only the first {MAX_SCOPE_MODULES} are searched."
+    return note
+
+
+def _notes(total: int, definitions: int, shared_modules: tuple[str, ...], stats: IndexStats, spec: _Action) -> list[str]:
     notes: list[str] = []
     if stats.truncated:
         notes.append(
@@ -198,9 +231,11 @@ def _notes(total: int, definitions: int, stats: IndexStats, spec: _Action) -> li
     elif spec.gap:
         notes.append(spec.gap)
     if total > MAX_ROWS:
-        notes.append(f"More rows exist than the {MAX_ROWS} shown; {spec.cut_hint}")
+        notes.append(f"More rows exist than the {MAX_ROWS} shown (by_file counts all {total} matches per file); {spec.cut_hint}")
     if definitions > 1:
         notes.append(f"{definitions} functions share this name, so match=name rows may call another one.")
+    if len(shared_modules) > 1:
+        notes.append(_shared_modules_note(shared_modules))
     if stats.skipped_files:
         notes.append(f"{stats.skipped_files} source files were not indexed (links, oversized, unreadable or not valid Python).")
     return notes
@@ -235,11 +270,14 @@ class _Navigator:
         rows = [spec.row(r) for r in found[:MAX_ROWS]]
 
         payload: dict[str, object] = {"action": action, "query": query, "total": len(found), "rows": rows}
+        if len(found) > MAX_ROWS:
+            payload.update(_file_distribution(found))
         definitions = 0
         if action in ("callers", "tests_calling"):
             definitions = self._service.definition_count(query)
             payload["definitions"] = definitions
-        notes = _notes(len(found), definitions, stats, spec)
+        shared_modules = self._service.importer_scope(query).modules if action == "importers" else ()
+        notes = _notes(len(found), definitions, shared_modules, stats, spec)
         if notes:
             payload["notes"] = notes
         return {

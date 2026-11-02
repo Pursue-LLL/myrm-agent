@@ -98,9 +98,10 @@ class PythonAstExtractor:
                     self._record_import(node, alias.name, alias)
                 continue
             elif isinstance(node, ast.ImportFrom):
-                module = node.module or ""
-                for alias in node.names:
-                    self._record_import(node, f"{module}.{alias.name}" if module else alias.name, alias)
+                module = self._imported_module(node)
+                if module is not None:
+                    for alias in node.names:
+                        self._record_import(node, f"{module}.{alias.name}" if module else alias.name, alias)
                 continue
             else:
                 if isinstance(node, ast.Call):
@@ -144,6 +145,22 @@ class PythonAstExtractor:
             )
         )
         return _Context(qname, qname, False)
+
+    def _imported_module(self, node: ast.ImportFrom) -> str | None:
+        """The module a ``from`` import reads from, as dotted text.
+
+        A relative import is resolved from this file's directory, so it reads like a module name of the index
+        (``src.pkg.util`` for ``from . import util`` in ``src/pkg/mod.py``). None when the dots climb above the
+        index root: nothing in the index can be that module.
+        """
+        module = node.module or ""
+        if not node.level:
+            return module
+        package = self.module_name.split(".")[:-1]
+        kept = len(package) - (node.level - 1)
+        if kept < 0:
+            return None
+        return ".".join([*package[:kept], *([module] if module else [])])
 
     def _record_import(self, node: ast.Import | ast.ImportFrom, symbol: str, alias: ast.alias) -> None:
         self.imports.append(

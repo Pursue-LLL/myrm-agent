@@ -50,6 +50,16 @@ def _escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+_CALL_COLUMNS = "caller, callee, file_path, line, col, end_line, end_col, arg_count, kwarg_names"
+
+
+def _call_dict(row: sqlite3.Row) -> dict[str, object]:
+    """A ``calls`` row with its keyword argument names decoded."""
+    item = dict(row)
+    item["kwarg_names"] = json.loads(item["kwarg_names"]) if item["kwarg_names"] else []
+    return item
+
+
 class CodeGraphStore:
     """基于 SQLite WAL 模式的高性能本地代码图谱持久化存储。"""
 
@@ -223,12 +233,7 @@ class CodeGraphStore:
 
     def get_symbol(self, qualified_name: str) -> SymbolNode | None:
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM symbols WHERE qualified_name = ? LIMIT 1",
-                (qualified_name,),
-            )
-            row = cursor.fetchone()
+            row = conn.execute("SELECT * FROM symbols WHERE qualified_name = ? LIMIT 1", (qualified_name,)).fetchone()
             if not row:
                 return None
             return SymbolNode(
@@ -291,24 +296,16 @@ class CodeGraphStore:
         """
         bare_name = callee_name.split(".")[-1]
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT caller, callee, file_path, line, col, end_line, end_col, arg_count, kwarg_names
+            rows = conn.execute(
+                f"""
+                SELECT {_CALL_COLUMNS}
                 FROM calls
                 WHERE callee = ? OR callee = ? OR callee LIKE ? ESCAPE '\\'
                 ORDER BY file_path ASC, line ASC
                 """,
                 (callee_name, bare_name, f"%.{_escape_like(bare_name)}"),
-            )
-            rows = cursor.fetchall()
-            results = []
-            for r in rows:
-                item = dict(r)
-                item["kwarg_names"] = json.loads(item["kwarg_names"]) if item["kwarg_names"] else []
-                item["match"] = "exact" if item["callee"] == callee_name else "name"
-                results.append(item)
-            return results
+            ).fetchall()
+        return [{**_call_dict(row), "match": "exact" if row["callee"] == callee_name else "name"} for row in rows]
 
     def count_definitions(self, name: str) -> int:
         """Functions, methods and classes sharing the last component of ``name``."""
@@ -322,29 +319,21 @@ class CodeGraphStore:
 
     def get_callees(self, caller_qname: str) -> list[dict[str, object]]:
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT caller, callee, file_path, line, col, end_line, end_col, arg_count, kwarg_names
+            rows = conn.execute(
+                f"""
+                SELECT {_CALL_COLUMNS}
                 FROM calls
                 WHERE caller = ?
                 ORDER BY line ASC
                 """,
                 (caller_qname,),
-            )
-            rows = cursor.fetchall()
-            results = []
-            for r in rows:
-                item = dict(r)
-                item["kwarg_names"] = json.loads(item["kwarg_names"]) if item["kwarg_names"] else []
-                results.append(item)
-            return results
+            ).fetchall()
+        return [_call_dict(row) for row in rows]
 
     def get_implementors(self, super_type_name: str) -> list[dict[str, object]]:
         bare_name = super_type_name.split(".")[-1]
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            rows = conn.execute(
                 """
                 SELECT sub_type, super_type, file_path, line
                 FROM inheritances
@@ -352,22 +341,39 @@ class CodeGraphStore:
                 ORDER BY sub_type ASC
                 """,
                 (super_type_name, bare_name, f"%.{_escape_like(bare_name)}"),
-            )
-            return [dict(r) for r in cursor.fetchall()]
+            ).fetchall()
+        return [dict(row) for row in rows]
 
-    def get_importers(self, module_name: str) -> list[dict[str, object]]:
+    def get_python_module_names(self) -> list[str]:
+        """Module names of the indexed Python files, as ``module_name_for`` wrote them."""
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
+            rows = conn.execute(
+                "SELECT qualified_name FROM symbols WHERE kind = ? AND file_path LIKE '%.py'", (SymbolKind.MODULE.value,)
+            ).fetchall()
+        return [row["qualified_name"] for row in rows]
+
+    def get_importers(self, prefixes: Sequence[str]) -> list[dict[str, object]]:
+        """Import statements whose text equals one of ``prefixes`` or lies inside one (``prefix.name``).
+
+        Each prefix is one equality plus one range over ``idx_imp_symbol``: every text that starts with ``prefix.``
+        sorts between ``prefix.`` and ``prefix/`` (``/`` is the character after ``.``), so the match is exact and
+        case-sensitive like Python names, and a scan of the whole table is avoided.
+        """
+        if not prefixes:
+            return []
+        terms = " OR ".join("imported_symbol = ? OR (imported_symbol >= ? AND imported_symbol < ?)" for _ in prefixes)
+        params = [bound for prefix in prefixes for bound in (prefix, f"{prefix}.", f"{prefix}/")]
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                f"""
                 SELECT importer_module, imported_symbol, file_path, line, col, alias
                 FROM imports
-                WHERE imported_symbol = ? OR imported_symbol LIKE ? ESCAPE '\\'
+                WHERE {terms}
                 ORDER BY file_path ASC, line ASC
                 """,
-                (module_name, f"{_escape_like(module_name)}.%"),
-            )
-            return [dict(r) for r in cursor.fetchall()]
+                params,
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_tests_calling(self, target_qname: str) -> list[dict[str, object]]:
         """Call sites of ``target_qname`` that sit in test files, one row per call site.
@@ -383,11 +389,8 @@ class CodeGraphStore:
 
     def count_totals(self) -> dict[str, int]:
         with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) as total_files FROM files")
-            tf = cursor.fetchone()["total_files"]
-            cursor.execute("SELECT COUNT(*) as total_symbols FROM symbols")
-            ts = cursor.fetchone()["total_symbols"]
-            cursor.execute("SELECT COUNT(*) as total_calls FROM calls")
-            tc = cursor.fetchone()["total_calls"]
-            return {"total_files": tf, "total_symbols": ts, "total_calls": tc}
+            row = conn.execute(
+                "SELECT (SELECT COUNT(*) FROM files) AS total_files, (SELECT COUNT(*) FROM symbols) AS total_symbols, "
+                "(SELECT COUNT(*) FROM calls) AS total_calls"
+            ).fetchone()
+        return {"total_files": row["total_files"], "total_symbols": row["total_symbols"], "total_calls": row["total_calls"]}

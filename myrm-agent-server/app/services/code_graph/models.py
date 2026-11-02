@@ -23,7 +23,7 @@ from pathlib import Path
 # Format of the persisted index: the tables and what the extractors write into them. It is part of the database
 # file name, because a file whose fingerprint is unchanged is never parsed again: any change to the tables or to
 # extraction output must increase it, which starts a fresh database that is indexed from scratch.
-INDEX_FORMAT_VERSION = 1
+INDEX_FORMAT_VERSION = 2
 
 
 def module_name_for(file_path: str) -> str:

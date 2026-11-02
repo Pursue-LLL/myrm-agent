@@ -4,6 +4,7 @@
 - ast_extractor.py::PythonAstExtractor (POS: 静态解析层，把单个源文件解析为符号与关系)
 - js_ts_extractor.py::JsTsTreeSitterExtractor (POS: 静态解析层，TypeScript/JavaScript 的语法树抽取)
 - graph_store.py::CodeGraphStore (POS: 本地轻量级代码 AST 符号图谱与调用关系持久化存储库)
+- import_alignment.py::(ImportScope, importer_scope) (POS: importers 查询名与索引里导入文本的对齐)
 - models.py::(IndexStats, ParsedFile) (POS: 代码图谱领域数据模型与契约)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer (POS: git-aware workspace file lister)
 
@@ -24,6 +25,7 @@ from pathlib import Path, PurePosixPath
 
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 
+from app.services.code_graph import import_alignment
 from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
 from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
@@ -200,9 +202,13 @@ class CodeGraphService:
         """5. 获取继承或实现指定类/接口的所有派生类型。"""
         return self.store.get_implementors(super_type_name)
 
+    def importer_scope(self, module_name: str) -> import_alignment.ImportScope:
+        """``module_name`` 在索引里指哪些 Python 模块（多于 1 个即重名），以及哪些导入文本属于它。"""
+        return import_alignment.importer_scope(module_name, self.store.get_python_module_names())
+
     def importers(self, module_name: str) -> list[dict[str, object]]:
-        """6. 获取导入了指定模块的所有文件及行号列号。"""
-        return self.store.get_importers(module_name)
+        """6. 获取导入了指定模块（或其内部名字）的 Python 导入语句及行号列号，写法与路径布局无关。"""
+        return self.store.get_importers(self.importer_scope(module_name).prefixes)
 
     def tests_calling(self, target_qname: str) -> list[dict[str, object]]:
         """7. 获取测试文件里直接调用目标的调用点（按名字匹配，不沿调用链继续向上）。"""
