@@ -14,7 +14,7 @@ Poll half of EmailChannel. The host owns credentials, connections and the loop; 
 batch, hands it to the inbound pipeline, and keeps what the next poll resumes from: the high-water mark, the messages handed
 out and not yet confirmed, and the UIDVALIDITY the mark was taken under. Opening INBOX or searching it being refused is an
 error carrying the server's words, never read as data, and a message the server refuses to hand over is fetched again by the
-next poll instead of being passed over. A poll takes at most 20 messages, oldest first; one the parser cannot read is logged
+next poll instead of being passed over. A poll takes at most 20 new messages, oldest first; one the parser cannot read is logged
 and skipped. A message that fails for any other reason (a disk error, a connection that drops) ends the poll: the messages
 before it are delivered and it is read again by the next poll. A message is confirmed once the pipeline has decided about it,
 and until then every poll offers it again, so a stop or reload under a poll does not lose the messages the server has already
@@ -37,7 +37,7 @@ from .inbound import EmailInboundMixin
 
 logger = logging.getLogger(__name__)
 
-# Messages per poll: a backlog drains over the next polls, oldest first; the first poll has no mark and takes the newest.
+# New messages per poll, plus unconfirmed ones: a backlog drains oldest first; the first poll has no mark and takes the newest.
 _MAX_FETCHED_PER_POLL = 20
 
 

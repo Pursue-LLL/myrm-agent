@@ -3,7 +3,8 @@ that fails leaves no file behind.
 
 Each case hands the raw bytes of a message to the real parser. The disposition, the file name and the saved path all depend
 on what the standard library returns for those bytes (an encoded word comes back undecoded, raw UTF-8 comes back as a
-``Header``), which a hand-built message object would not reproduce.
+``Header``), which a hand-built message object would not reproduce. Saved files land in each test's ``tmp_path``: the
+``conftest.py`` beside this file points ``tempfile`` there.
 """
 
 from __future__ import annotations
@@ -32,11 +33,6 @@ _PDF = b"%PDF-1.4 stand-in"
 _NAME = "发票.docx"
 # What a saved attachment may be called: the temp file's own random name and, at most, a plain extension.
 _SAVED_NAME = re.compile(r"email_att_\w{8}(\.[A-Za-z0-9]{1,16})?")
-
-
-@pytest.fixture(autouse=True)
-def _save_into_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
 
 
 def _part(content_type: bytes, headers: bytes = b"") -> bytes:
