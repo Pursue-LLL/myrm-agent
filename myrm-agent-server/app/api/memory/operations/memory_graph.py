@@ -8,8 +8,7 @@ router: `GET /memory/command-center/graph` claim graph nodes, edges and ranked h
 
 [POS]
 记忆知识图谱 API 操作层。对所有用户挂载：成长页（`/journey`）的「知识图谱」标签页读取它。
-路径沿用历史的 `/command-center` 前缀，使 WebUI 客户端与已发布的 API 路径保持不变；
-与 `command_center.py` 不同，它不受 `MYRM_MEMORY_LABS` 开关控制。
+路径前缀为 `/command-center`；与 `command_center.py` 不同，它不受 `MYRM_MEMORY_LABS` 开关控制。
 """
 
 from __future__ import annotations

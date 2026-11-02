@@ -11,7 +11,7 @@ router: `GET /memory/guardian/cognitive-clock/status` nested clock status and
 
 [POS]
 认知时钟控制台 API 操作层。只有 Memory Labs 的认知时钟面板调用这两个接口，因此只在 `MYRM_MEMORY_LABS=1` 时挂载；
-前台活跃上报 `POST /guardian/cognitive-clock/activity` 由默认的聊天输入框调用，留在 `guardian.py`，对所有用户挂载。
+前台活跃上报 `POST /guardian/cognitive-clock/activity` 由默认的聊天输入框调用，由 `guardian.py` 提供，对所有用户挂载。
 """
 
 from __future__ import annotations

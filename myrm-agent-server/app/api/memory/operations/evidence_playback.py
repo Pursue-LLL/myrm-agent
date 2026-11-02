@@ -8,8 +8,7 @@ router: `GET /memory/command-center/evidence/playback` sanitized conversation sl
 
 [POS]
 记忆证据溯源 API 操作层。对所有用户挂载：记忆卡片的证据徽标点开后由溯源抽屉调用。
-路径沿用历史的 `/command-center` 前缀，使 WebUI 客户端与已发布的 API 路径保持不变；
-与 `command_center.py` 不同，它不受 `MYRM_MEMORY_LABS` 开关控制。
+路径前缀为 `/command-center`；与 `command_center.py` 不同，它不受 `MYRM_MEMORY_LABS` 开关控制。
 """
 
 from __future__ import annotations

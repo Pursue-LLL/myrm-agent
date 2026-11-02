@@ -6,9 +6,11 @@ Organized memory operation endpoints by functionality.
 - Memory API requests routed from the memory router into domain subpackages.
 
 [OUTPUT]
-- Aggregate facade re-exporting every memory operation subpackage:
-  archive_restore, backup, backup_remote, cognitive_clock_console, command_center, crud, evidence_playback,
-  guardian, import_rollback_preview, memory_graph, pending, reindex, working_state, shared_context.
+- Aggregate facade re-exporting the operation modules archive_restore, backup, backup_remote, cognitive_clock_console,
+  command_center, command_center_consolidation, command_center_diagnostics, conflicts, crud, domain_mesh,
+  evidence_playback, external_transcripts, guardian, head_probe, import_rollback_preview, memory_graph, pending,
+  radar, reindex, working_state, plus shared_context_health, shared_context_history and shared_contexts from the
+  shared_context subpackage.
 
 [POS]
 Server business layer (Memory API). Single import facade for memory operation

@@ -8,7 +8,7 @@ router: `POST /memory/import/rollback/dry-run` content-safe preview of what roll
 
 [POS]
 导入回滚预演 API 操作层。只有 Memory Labs 命令中心的导入回滚弹窗调用它，因此只在 `MYRM_MEMORY_LABS=1` 时挂载；
-实际回滚 `POST /import/rollback` 不依赖预演结果，迁移向导与演示数据清理都直接调用，留在 `crud.py`，对所有用户挂载。
+实际回滚 `POST /import/rollback` 不依赖预演结果，迁移向导与演示数据清理都直接调用，由 `crud.py` 提供，对所有用户挂载。
 """
 
 from __future__ import annotations
