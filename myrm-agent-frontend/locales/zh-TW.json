@@ -67,6 +67,7 @@
     "summonSuccess": "已切換至專家 {name}",
     "summonFailed": "召喚專家範本失敗",
     "featuredTitle": "精選專家與團隊",
+    "featuredDismiss": "關閉精選專家推薦",
     "teamBadge": "團隊",
     "expertBadge": "專家",
     "searchPlaceholder": "搜尋專家或團隊...",

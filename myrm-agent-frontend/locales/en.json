@@ -67,6 +67,7 @@
     "summonSuccess": "Switched to expert {name}",
     "summonFailed": "Failed to summon expert template",
     "featuredTitle": "Featured Experts & Squads",
+    "featuredDismiss": "Dismiss featured experts",
     "teamBadge": "Team",
     "expertBadge": "Expert",
     "searchPlaceholder": "Search experts or squads...",

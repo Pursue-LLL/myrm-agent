@@ -67,6 +67,7 @@
     "summonSuccess": "Zu Experte {name} gewechselt",
     "summonFailed": "Experten-Vorlage konnte nicht aufgerufen werden",
     "featuredTitle": "Empfohlene Experten & Teams",
+    "featuredDismiss": "Empfohlene Experten ausblenden",
     "teamBadge": "Gruppe",
     "expertBadge": "Experte",
     "searchPlaceholder": "Experten oder Teams suchen...",

@@ -31,7 +31,6 @@
   "src/components/features/chat-window/RealTimeCostAndCacheHud.tsx": 3,
   "src/components/features/chat-window/ReferenceMentionPopover.tsx": 3,
   "src/components/features/chat-window/ScopedArtifactChip.tsx": 1,
-  "src/components/features/chat-window/agent-config-panel/FeaturedExpertChips.tsx": 1,
   "src/components/features/chat-window/approval/LeaseProgressCapsule.tsx": 6,
   "src/components/features/chat-window/goals/TaskDeliverableBundle.tsx": 1,
   "src/components/features/chat-window/mobile/MobileQuickControlAccessoryToolbar.tsx": 5,

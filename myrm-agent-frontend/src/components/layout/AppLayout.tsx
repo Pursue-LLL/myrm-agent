@@ -94,6 +94,14 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useWuBalanceWatcher();
   const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();
 
+  // The paired-phone surface fills the viewport itself (own status bar, safe-area handling and full-height
+  // boards), so the page frame must not add padding on top of that or the screen gains a phantom scroll.
+  const contentFrameClass = layout.isSettingsPage
+    ? 'h-full overflow-y-auto'
+    : layout.isRemoteSurface
+      ? undefined
+      : 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible';
+
   return (
     <>
       <CrashRecoveryDialog visible={crashLoopActive} errorMessage={crashError} onDismiss={dismissCrashLoop} />
@@ -112,7 +120,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
         />
       )}
 
-      {layout.showMobileLayout && !layout.isSettingsPage && (
+      {layout.showMobileLayout && !layout.isSettingsPage && !layout.isRemoteSurface && (
         <button
           onClick={() => layout.setIsMobileSidebarOpen(true)}
           className={cn(
@@ -171,11 +179,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
         )}
         style={{ paddingLeft: layout.paddingLeft }}
       >
-        <div
-          className={cn(
-            layout.isSettingsPage ? 'h-full overflow-y-auto' : 'max-w-screen-lg mx-auto px-4 pt-4 overflow-visible',
-          )}
-        >
+        <div className={contentFrameClass}>
           <LocalBackendUnavailableBanner />
           <CronSchedulerHealthBanner />
           <ConfigUnreadableBanner />

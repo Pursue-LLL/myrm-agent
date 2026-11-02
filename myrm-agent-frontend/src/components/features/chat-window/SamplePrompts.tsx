@@ -240,7 +240,7 @@ const SamplePrompts = React.memo(() => {
     <div className="w-full space-y-3 animate-in fade-in duration-500">
       {/* Context-Aware Life/Work Operator Selector Bar */}
       {(!agentConfig?.suggestionPrompts || agentConfig.suggestionPrompts.length === 0) && (
-        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+        <div className="flex items-center justify-start gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:justify-center sm:overflow-visible">
           {slotTabs.map(({ id, label, Icon }) => {
             const isActive = (selectedSlot === 'auto' && id === currentTimeSlot) || selectedSlot === id;
             return (
@@ -248,7 +248,7 @@ const SamplePrompts = React.memo(() => {
                 key={id}
                 onClick={() => handleSelectSlot(id === currentTimeSlot && selectedSlot !== 'auto' ? 'auto' : id)}
                 className={cn(
-                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer select-none',
+                  'inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 cursor-pointer select-none',
                   isActive
                     ? 'bg-primary/15 text-primary border border-primary/30 shadow-xs'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent',
@@ -263,13 +263,14 @@ const SamplePrompts = React.memo(() => {
         </div>
       )}
 
-      {/* Prompts Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+      {/* Prompts Cards: a swipeable row on phones (the next card peeks in, and the row bleeds through EmptyChat's
+          px-4 gutter to reach the screen edge), a grid from sm up */}
+      <div className="-mx-4 flex snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto scrollbar-hide px-4 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
         {prompts.map(({ key, text, Icon }) => (
           <button
             key={key}
             onClick={() => setInputMessage(text)}
-            className="group flex items-start gap-3 p-3.5 rounded-xl border border-border/60 bg-secondary/40
+            className="group flex w-[78%] shrink-0 snap-start items-start gap-3 p-3.5 sm:w-auto sm:shrink rounded-xl border border-border/60 bg-secondary/40
                        hover:bg-secondary hover:border-border hover:shadow-sm
                        transition-all duration-200 text-left cursor-pointer"
           >

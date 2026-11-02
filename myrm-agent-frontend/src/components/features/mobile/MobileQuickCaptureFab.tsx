@@ -21,10 +21,7 @@ export interface MobileQuickCaptureFabProps {
   className?: string;
 }
 
-export const MobileQuickCaptureFab: React.FC<MobileQuickCaptureFabProps> = ({
-  onClick,
-  className = '',
-}) => {
+export const MobileQuickCaptureFab: React.FC<MobileQuickCaptureFabProps> = ({ onClick, className = '' }) => {
   const t = useTranslations('mobile.quickCapture');
 
   return (
@@ -33,7 +30,7 @@ export const MobileQuickCaptureFab: React.FC<MobileQuickCaptureFabProps> = ({
       onClick={onClick}
       data-testid="mobile-quick-capture-fab"
       aria-label={t('title')}
-      className={`fixed bottom-6 right-5 z-40 flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all text-xs font-medium cursor-pointer ${className}`}
+      className={`fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-[calc(1.25rem+env(safe-area-inset-right))] z-40 flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all text-xs font-medium cursor-pointer ${className}`}
     >
       <Sparkles className="w-3.5 h-3.5" />
       <span>{t('title')}</span>

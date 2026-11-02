@@ -67,6 +67,7 @@
     "summonSuccess": "専門家 {name} に切り替えました",
     "summonFailed": "専門家テンプレートの呼び出しに失敗しました",
     "featuredTitle": "おすすめの専門家とチーム",
+    "featuredDismiss": "おすすめの専門家を閉じる",
     "teamBadge": "チーム",
     "expertBadge": "専門家",
     "searchPlaceholder": "専門家やチームを検索...",

@@ -10,6 +10,24 @@ vi.mock('@/lib/e2ee', () => ({
   ensureE2EEClient: vi.fn(),
 }));
 
+describe('isMobileRemotePath', () => {
+  it('matches the hub and every page below it', async () => {
+    const { isMobileRemotePath } = await import('../mobileRemote');
+
+    expect(isMobileRemotePath('/mobile')).toBe(true);
+    expect(isMobileRemotePath('/mobile/status/c-1')).toBe(true);
+    expect(isMobileRemotePath('/mobile/takeover/c-1')).toBe(true);
+  });
+
+  it('leaves lookalike and unrelated routes inside the desktop shell', async () => {
+    const { isMobileRemotePath } = await import('../mobileRemote');
+
+    expect(isMobileRemotePath('/mobile-app')).toBe(false);
+    expect(isMobileRemotePath('/settings/mobile')).toBe(false);
+    expect(isMobileRemotePath('/')).toBe(false);
+  });
+});
+
 describe('mobileRemotePost', () => {
   beforeEach(() => {
     fetchMock.mockReset();

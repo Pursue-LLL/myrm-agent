@@ -108,51 +108,54 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
     <div
       data-testid="featured-expert-chips"
       className={cn(
-        'mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-1.5 backdrop-blur-xs',
+        'mb-2 flex items-center gap-1.5 rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-1.5 backdrop-blur-xs',
         className,
       )}
     >
-      <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0 mr-1">
-        <Sparkles size={13} className="text-primary animate-pulse" />
-        {t('featuredTitle')}
-      </span>
+      {/* One swipeable row on phones so the strip stays a single line; it wraps from the sm breakpoint up. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0 mr-1">
+          <Sparkles size={13} className="text-primary animate-pulse" />
+          {t('featuredTitle')}
+        </span>
 
-      {featuredTemplates.map((template) => {
-        const isTeam = template.agent_type === 'team';
-        const isSummoning = summoningId === template.id;
+        {featuredTemplates.map((template) => {
+          const isTeam = template.agent_type === 'team';
+          const isSummoning = summoningId === template.id;
 
-        return (
-          <button
-            key={template.id}
-            type="button"
-            disabled={Boolean(summoningId)}
-            onClick={() => void handleSummon(template)}
-            className={cn(
-              'inline-flex h-6 items-center gap-1.5 rounded-md border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-2xs',
-              isSummoning && 'border-primary text-primary',
-            )}
-            title={template.description ?? template.name}
-          >
-            {isSummoning ? (
-              <Loader2 size={12} className="animate-spin text-primary" />
-            ) : isTeam ? (
-              <Users size={12} className="text-indigo-500" />
-            ) : (
-              <Bot size={12} className="text-emerald-500" />
-            )}
-            <span className="max-w-[120px] truncate">{template.name}</span>
-            <span className="rounded-xs bg-muted/80 px-1 py-0.2 text-[10px] text-muted-foreground">
-              {isTeam ? t('teamBadge') : t('expertBadge')}
-            </span>
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={template.id}
+              type="button"
+              disabled={Boolean(summoningId)}
+              onClick={() => void handleSummon(template)}
+              className={cn(
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-2xs sm:h-6',
+                isSummoning && 'border-primary text-primary',
+              )}
+              title={template.description ?? template.name}
+            >
+              {isSummoning ? (
+                <Loader2 size={12} className="animate-spin text-primary" />
+              ) : isTeam ? (
+                <Users size={12} className="text-indigo-500" />
+              ) : (
+                <Bot size={12} className="text-emerald-500" />
+              )}
+              <span className="max-w-[120px] truncate">{template.name}</span>
+              <span className="rounded-xs bg-muted/80 px-1 py-0.2 text-[10px] text-muted-foreground">
+                {isTeam ? t('teamBadge') : t('expertBadge')}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="ml-auto inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
-        aria-label="Close featured experts"
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground sm:size-5"
+        aria-label={t('featuredDismiss')}
       >
         <X size={12} />
       </button>

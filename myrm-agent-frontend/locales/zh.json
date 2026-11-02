@@ -67,6 +67,7 @@
     "summonSuccess": "已切换至专家 {name}",
     "summonFailed": "召唤专家模板失败",
     "featuredTitle": "精选专家与专家团",
+    "featuredDismiss": "关闭精选专家推荐",
     "teamBadge": "专家团",
     "expertBadge": "专家",
     "searchPlaceholder": "搜索专家或团队...",

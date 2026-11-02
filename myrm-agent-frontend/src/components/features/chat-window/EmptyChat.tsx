@@ -50,7 +50,7 @@ const EmptyChat = React.memo(() => {
 
   return (
     <div className="relative overflow-visible">
-      <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-4 space-y-6">
+      <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[8vh] sm:pt-[20vh] pb-4 space-y-6">
         <h2 data-testid="empty-chat-title" className="text-black/70 dark:text-white/70 text-3xl font-medium">
           {title}
         </h2>
