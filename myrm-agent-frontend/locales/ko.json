@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "기본 설정이 저장되었으며 이 채팅의 이후 답변에 적용됩니다.",
     "briefLearnedInPrefix": "학습된 컨텍스트가 이 답변의 메모리 프리픽스에 포함되었습니다: 선호도 {preferences}개, 규칙 {rules}개, 수정 항목 {corrections}개."
   },
-  "memoryRecallDegraded": {
-    "title": "시맨틱 회상 사용 불가",
-    "description": "벡터 검색이 저하되었습니다. 임베딩이 복원될 때까지 답변이 관련 메모리를 놓칠 수 있습니다.",
-    "actionDoctor": "메모리 닥터 열기",
-    "actionSettings": "메모리 설정",
-    "unavailable": "메모리 회상 상태를 확인할 수 없습니다",
-    "retry": "재시도",
-    "dismiss": "이 채팅에서 닫기"
-  },
   "e2ee": {
     "secured": "E2EE",
     "handshakeFailed": "E2EE 실패",

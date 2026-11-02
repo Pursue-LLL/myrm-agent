@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。",
     "briefLearnedInPrefix": "本回复的记忆前缀已包含学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。"
   },
-  "memoryRecallDegraded": {
-    "title": "语义召回不可用",
-    "description": "向量检索已降级，回复可能遗漏相关记忆，请检查 embedding 配置。",
-    "actionDoctor": "打开 Memory Doctor",
-    "actionSettings": "记忆设置",
-    "unavailable": "无法检查记忆召回健康状态",
-    "retry": "重试",
-    "dismiss": "本会话不再提示"
-  },
   "e2ee": {
     "secured": "端到端加密",
     "handshakeFailed": "加密建立失败",

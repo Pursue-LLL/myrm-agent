@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "設定は保存され、このチャットの以降の返信に適用されます。",
     "briefLearnedInPrefix": "学習済みのコンテキストをこの返信のメモリプレフィックスに含めました：好み {preferences} 件、ルール {rules} 件、修正項目 {corrections} 件。"
   },
-  "memoryRecallDegraded": {
-    "title": "意味記憶を利用できません",
-    "description": "ベクトル検索が低下しています。埋め込みが復元されるまで、返信が関連メモリを見逃す可能性があります。",
-    "actionDoctor": "メモリドクターを開く",
-    "actionSettings": "メモリ設定",
-    "unavailable": "メモリ検索の健全性を確認できませんでした",
-    "retry": "再試行",
-    "dismiss": "このチャットでは閉じる"
-  },
   "e2ee": {
     "secured": "エンドツーエンド暗号化",
     "handshakeFailed": "暗号化の確立に失敗しました",

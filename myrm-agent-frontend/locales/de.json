@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "Ihre Präferenzen wurden gespeichert und gelten für die nächsten Antworten in diesem Chat.",
     "briefLearnedInPrefix": "Gelernter Kontext wurde in das Speicherpräfix dieser Antwort aufgenommen: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturen."
   },
-  "memoryRecallDegraded": {
-    "title": "Semantischer Rückruf nicht verfügbar",
-    "description": "Die Vektorsuche ist beeinträchtigt. Bei Antworten fehlen möglicherweise verwandte Erinnerungen, bis die Einbettung wiederhergestellt ist.",
-    "actionDoctor": "Öffnen Sie Memory Doctor",
-    "actionSettings": "Speichereinstellungen",
-    "unavailable": "Der Zustand des Speicherabrufs konnte nicht überprüft werden",
-    "retry": "Wiederholen",
-    "dismiss": "Für diesen Chat ablehnen"
-  },
   "e2ee": {
     "secured": "E2EE",
     "handshakeFailed": "E2EE ist fehlgeschlagen",

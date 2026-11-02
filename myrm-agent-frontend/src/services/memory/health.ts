@@ -13,9 +13,6 @@ import { apiRequest } from '@/lib/api';
 
 export type SharedContextMemoryHealthStatus = 'ready' | 'not_configured' | 'unreachable';
 
-/** `reason` the server reports when no embedding model was ever configured (keyword recall, the default mode). */
-export const EMBEDDING_NOT_CONFIGURED_REASON = 'embedding_not_configured';
-
 export interface SharedContextMemoryHealthResponse {
   ready: boolean;
   status: SharedContextMemoryHealthStatus;

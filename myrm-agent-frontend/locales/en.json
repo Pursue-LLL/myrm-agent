@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "Your preferences were saved and will apply to the next replies in this chat.",
     "briefLearnedInPrefix": "Learned context was included in this reply's memory prefix: {preferences} preferences, {rules} rules, {corrections} correction items."
   },
-  "memoryRecallDegraded": {
-    "title": "Semantic recall unavailable",
-    "description": "Vector search is degraded. Replies may miss related memories until embedding is restored.",
-    "actionDoctor": "Open Memory Doctor",
-    "actionSettings": "Memory settings",
-    "unavailable": "Could not check memory recall health",
-    "retry": "Retry",
-    "dismiss": "Dismiss for this chat"
-  },
   "e2ee": {
     "secured": "E2EE",
     "handshakeFailed": "E2EE failed",

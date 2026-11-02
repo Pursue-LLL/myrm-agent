@@ -27,7 +27,6 @@ import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
 import WorkspaceTrustBanner from '@/components/features/project-workspace/WorkspaceTrustBanner';
 import { useProjectStore } from '@/store/useProjectStore';
-import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 import ChatWindowSatellites, { GoalControlPlane, GoalStatusCard, LifeStatusCapsule } from './ChatWindowSatellites';
 import { FiveContractDeliveryStatusPanel } from './FiveContractDeliveryStatusPanel';
 import { LoopStatusBar } from './LoopStatusBar';
@@ -613,12 +612,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <ExtensionTakeoverBanner />
             <WorkspaceTrustBanner workspacePath={activeWorkspacePath} />
             <LoopStatusBar chatId={id} />
-            <MemoryRecallDegradedBanner
-              compact
-              hideWhenNotConfigured
-              dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}
-              className="mx-1 mb-1"
-            />
             {activeTab === 'chat' ? (
               <MemoryConflictChatBanner chatId={id} className="px-4 shrink-0 max-w-3xl mx-auto w-full" />
             ) : null}
@@ -704,7 +697,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <EStopBanner />
       <ExtensionDisconnectedBanner />
       <ExtensionTakeoverBanner />
-      <MemoryRecallDegradedBanner compact hideWhenNotConfigured className="mx-2 mt-2" />
       <div className="flex h-full w-full">
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />

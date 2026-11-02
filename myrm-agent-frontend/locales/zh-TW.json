@@ -13540,15 +13540,6 @@
     "sessionMemoryUpdatedHint": "偏好已儲存，將在本會話的後續回覆中生效。",
     "briefLearnedInPrefix": "本回復的記憶字首已包含學習上下文：{preferences} 條偏好，{rules} 條規則，{corrections} 條糾偏項。"
   },
-  "memoryRecallDegraded": {
-    "title": "語義召回不可用",
-    "description": "向量檢索已降級，回復可能遺漏相關記憶，請檢查 embedding 配置。",
-    "actionDoctor": "打開 Memory Doctor",
-    "actionSettings": "記憶設置",
-    "unavailable": "無法檢查記憶召回健康狀態",
-    "retry": "重試",
-    "dismiss": "本會話不再提示"
-  },
   "e2ee": {
     "secured": "端到端加密",
     "handshakeFailed": "加密建立失敗",
