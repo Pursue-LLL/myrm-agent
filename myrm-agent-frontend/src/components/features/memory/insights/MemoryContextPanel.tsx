@@ -38,7 +38,7 @@ const MemoryContextPanel = memo(() => {
     return (
       <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-border/40 bg-accent/20">
         <IconLoader className="h-6 w-6 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">{t('loading') || 'Loading...'}</p>
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }

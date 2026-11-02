@@ -182,7 +182,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     <div className={cn('space-y-3 pt-2', className)}>
       <div className="flex items-center gap-2 px-1">
         <div className="flex-1 h-px bg-border/50" />
-        <span className="text-xs text-muted-foreground">{t('templateMarket') || 'Template Market'}</span>
+        <span className="text-xs text-muted-foreground">{t('templateMarket')}</span>
         <div className="flex-1 h-px bg-border/50" />
       </div>
 
@@ -195,15 +195,15 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
           type="text"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          aria-label={t('searchMarketplace') || 'Search agents'}
-          placeholder={t('searchMarketplace') || 'Search agents...'}
+          aria-label={t('searchMarketplace')}
+          placeholder={t('searchMarketplace')}
           className="h-8 w-full rounded-lg border border-border/60 bg-background pl-7 pr-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/40"
         />
       </div>
 
       <div
         role="tablist"
-        aria-label={t('categoryFilter') || 'Categories'}
+        aria-label={t('categoryFilter')}
         className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5"
       >
         {categories.map((cat) => (
@@ -225,9 +225,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         ))}
       </div>
 
-      {filteredTemplates.length === 0 && (
-        <p className="px-1 text-xs text-muted-foreground/80">{t('noResults') || 'No agents found'}</p>
-      )}
+      {filteredTemplates.length === 0 && <p className="px-1 text-xs text-muted-foreground/80">{t('noResults')}</p>}
 
       {teamTemplates.length > 0 && (
         <div className="grid grid-cols-1 gap-3">

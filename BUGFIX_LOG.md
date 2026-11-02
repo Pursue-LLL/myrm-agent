@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-02 · 前端硬编码文案：删掉 134 处永远不会执行的 `t(key) || '中文'` 兜底，并把对话区 4 个组件里写死的中文换成 6 种语言的翻译；可达范围的存量从 859 处降到 729 处
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（只改前端；已推到 `origin/main`，未发版）。硬编码文案门禁的基线从 859 处 / 168 个文件收紧到 729 处 / 144 个文件。 |
+| **症状** | [实测，硬编码文案门禁] 859 处里有两类并不是「还没翻译」：① 有一批是 `t('key') || '中文'`、`t('key') ?? '中文'` 这种写法，门禁把后面的中文字面量也记成硬编码（删掉之后基线少了 104 处）；② 其余里有 422 处整块位于默认隐藏的 Memory Labs 面板。真正会被默认用户看到、又没有翻译的只有一小部分，例如 `ResponsiveTable`（宽表格「全景」弹层）、`TaskHudOverlay`（任务清单悬浮看板）、`StagedArtifactsNotice`（自动暂存提示）、`LeaseProgressCapsule`（免打扰配额胶囊）：英文、日文用户在这些位置看到的是中文。 |
+| **根因** | [代码] ① next-intl 找不到键时返回键路径本身，不是空串或 `undefined`，`NextIntlClientProvider` 也没有配置 `getMessageFallback`（`ClientIntlProvider.tsx:124`，全仓搜不到 `getMessageFallback`），所以 `t('key') \|\| '中文'` 的右半边永远不会执行：键存在时返回译文，键缺失时返回键路径（非空，`\|\|` 同样不会走到右边）。这些兜底是死代码，只会让门禁虚高、让人误以为缺键时会回落到中文。② 4 个组件是直接把中文写进了 JSX。③ `NEXT_PUBLIC_MEMORY_LABS` 在 `MemorySection.tsx:672` 才挂载 `MemoryCommandCenter`（`memoryLabs.ts:6` 只认 `=== '1'`），前端目录里除了源码和文档没有任何构建配置设置它，所以 `features/memory/command-center` 下 28 个文件的 422 处字面量默认没有用户看得到。 |
+| **修复** | ① 用 AST 脚本只删 `t*(...)` 调用后面的 `\|\| '字面量'` / `?? '字面量'`，共 134 处、32 个文件；删之前逐个核对：被引用的 124 个键在 6 种语言文件里都存在，另有 10 处翻译函数来自 props，人工核对过调用方之后一并删除；9 个原本已符合 prettier 的文件在改动后重新格式化。② 给 4 个组件加 22 个键（`MarkdownTable` 增 7 个，新增 `taskHud` 7 个、`stagedArtifacts` 3 个、`leaseCapsule` 5 个），6 种语言各一份，数量、行数按复数规则（英语、德语）；`LeaseProgressCapsule` 里重复写的 `10` 提为常量 `LEASE_EXTEND_STEPS`；`TaskHudOverlay` 里遮住翻译函数 `t` 的回调参数改名。③ 顺手改了一个错译：德语 `MarkdownTable.tableView` 是 `Tisch`（家具的桌子），改成 `Tabelle`。④ 测试：`responsiveTable.test.tsx` 去掉手写的翻译 mock，改用仓库的 `createRealIntlMock`（真实英文语言包），`TaskHudOverlay.test.tsx`、`LeaseProgressCapsule.test.tsx` 的中文断言换成英文译文，新增 `StagedArtifactsNotice.test.tsx` 3 例（无暂存时不渲染、单复数摘要、展开后的行数 / 大小 / 沙箱说明）；`message-box/_ARCH.md` 补了该组件及测试两行（此前就缺）。⑤ `bun scripts/check-hardcoded-copy.mjs --write-baseline` 收紧基线。 |
+| **行为变化** | 删兜底：没有变化（那段代码本来就不会执行）。4 个组件：中文界面显示的字和以前一样（中文译文逐字取自原来的字面量）；其他 5 种语言以前是中文，现在是各自的语言。 |
+| **回归证据** | [实测，origin 树加本改动] `tsc --noEmit` 无错误；`bun run lint` 7 个门禁全部通过；`verify:i18n` 通过（6 种语言键对齐、占位符，代码引用检查 2833 个文件无缺失键）；测试：删兜底的 32 个文件按 `vitest related` 跑 81 个测试文件 725 例通过，4 个新翻译组件按 `vitest related` 跑 33 个文件 434 例通过。 |
+| **仍然存在** | ① 可达范围里还剩 729 处：422 处在默认隐藏的 Memory Labs（28 个文件），307 处在 116 个文件里，单文件最多 19 处（`DualLayerMemoryCard`、`WikiLayersLedgerPanel`）。我没有批量翻译它们：门禁是棘轮，数字只降不升，新增硬编码会被拦；Labs 那 422 处要等 Labs 转正才有用户看到，现在翻译等于给没人看的界面写 6 份文案。② 日语、韩语、德语、繁体中文的新译文没有母语者审阅，用词参照了同一语言文件里相近组件的现有译法。③ 4 个组件文件在改动前就不符合 prettier（`TaskHudOverlay.tsx` 的 HEAD 版本同样不合格），这次只改了需要改的行，没有整文件重排。④ 孤儿门禁对 `export *` 桶的盲区（`orphan-modules-scan.ts:158`）与上一条记录相同，没有处理。 |
+| **代码位置** | `myrm-agent-frontend/{locales/*.json,scripts/ci/hardcoded_copy_baseline.json,src/components/{agent/CommandBindingsEditor.tsx,approval/PolymorphicApprovalCard.tsx,layout/ChatSidebarContent.tsx,features/{artifacts,chat-window,eval-lab,kanban,markdown-render-tools,memory,message-box,settings,sidebar,skills,task-hud}/…}}`；翻译改造的 4 个组件：`features/markdown-render-tools/ResponsiveTable.tsx`、`features/task-hud/TaskHudOverlay.tsx`、`features/message-box/StagedArtifactsNotice.tsx`、`features/chat-window/approval/LeaseProgressCapsule.tsx` |
+
 ## 2026-11-02 · 44 个没有入口、也没有未闭合规划条目点名的前端模块已删除（审批卡、桌面零侵入套件、弹簧物理组件、技能向导、规划画布、对话区 8 个组件、阶梯大纲），其余 386 个孤儿按「谁在点名」逐类留下
 
 | 字段 | 内容 |

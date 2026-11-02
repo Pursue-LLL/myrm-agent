@@ -13525,8 +13525,15 @@
   "MarkdownTable": {
     "switchToTable": "Wechseln Sie zur Tabellenansicht",
     "switchToCard": "Wechseln Sie zur Kartenansicht",
-    "tableView": "Tisch",
-    "cardView": "Karte"
+    "tableView": "Tabelle",
+    "cardView": "Karte",
+    "expandLightbox": "Ganze Tabelle aufklappen",
+    "expandLightboxShort": "Vollansicht",
+    "lightboxLabel": "Vollansicht der Tabelle",
+    "lightboxTitle": "Tabelle in Vollansicht",
+    "columnCount": "{count} Spalten",
+    "closePreview": "Vorschau schließen",
+    "closePreviewBackdrop": "Vorschau-Hintergrund schließen"
   },
   "messageBox": {
     "consensusActive": "Warten auf die restlichen Modelle…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "An das Dashboard des Arbeitsbereichs anheften",
     "pinned": "Angeheftet",
     "pin": "Anheften"
+  },
+  "taskHud": {
+    "panelLabel": "Aufgabenfortschritt-Panel, das die Kontextkomprimierung übersteht",
+    "allDone": "Alle Aufgaben abgeschlossen",
+    "badge": "Kompaktierungsfest",
+    "collapseAria": "Aufgabenliste einklappen",
+    "collapse": "Liste einklappen",
+    "expand": "Aufgabenliste ausklappen",
+    "toggleTask": "Status der Aufgabe {title} umschalten"
+  },
+  "stagedArtifacts": {
+    "summary": "{count, plural, one {# nicht gespeicherter Artefakt-Entwurf wurde} other {# nicht gespeicherte Artefakt-Entwürfe wurden}} automatisch im Workspace abgelegt",
+    "lineCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
+    "footnote": "Diese Dateien sind in der Sandbox gesichert. Sie können sie jederzeit im Dateibaum links ansehen oder umbenennen und übernehmen."
+  },
+  "leaseCapsule": {
+    "quota": "Auto-Freigabe-Kontingent: {used}/{max} Schritte",
+    "extend": "+{steps} Schritte verlängern",
+    "limitReached": "Limit erreicht",
+    "pauseTitle": "Auto-Freigabe-Hülle sofort pausieren",
+    "pause": "Pausieren"
   }
 }

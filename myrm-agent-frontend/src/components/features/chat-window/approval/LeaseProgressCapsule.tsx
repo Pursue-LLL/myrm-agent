@@ -13,9 +13,12 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Clock, Plus, AlertTriangle, CheckCircle2, Pause } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
+
+const LEASE_EXTEND_STEPS = 10;
 
 export interface LeaseProgressCapsuleProps {
   onExtend?: (additionalSteps: number) => void;
@@ -24,6 +27,7 @@ export interface LeaseProgressCapsuleProps {
 }
 
 export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onExtend, onPause, className = '' }) => {
+  const t = useTranslations('leaseCapsule');
   const [isExtending, setIsExtending] = useState(false);
   const [isPausing, setIsPausing] = useState(false);
   const { activeEnvelope, extendEnvelopeLease, setEnvelope } = useDesktopControlApprovalStore();
@@ -37,7 +41,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
   const isExhausted = remainingBudget <= 0;
   const canExtend = activeEnvelope.canExtend !== false && maxActions < (activeEnvelope.hardLimit ?? 100);
 
-  const handleExtend = (steps = 10) => {
+  const handleExtend = (steps = LEASE_EXTEND_STEPS) => {
     if (!canExtend || isExtending) {return;}
     setIsExtending(true);
     extendEnvelopeLease(steps);
@@ -82,7 +86,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
         )}
         <span>
-          免打扰配额: {usedActions}/{maxActions} 步
+          {t('quota', { used: usedActions, max: maxActions })}
         </span>
       </div>
 
@@ -92,7 +96,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
             type="button"
             data-testid="extend-lease-btn"
             disabled={!canExtend || isExtending}
-            onClick={() => handleExtend(10)}
+            onClick={() => handleExtend(LEASE_EXTEND_STEPS)}
             className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
               !canExtend
                 ? 'border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed'
@@ -100,7 +104,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
             }`}
           >
             <Plus className="h-3 w-3" />
-            {canExtend ? '+10 步续期' : '已达上限'}
+            {canExtend ? t('extend', { steps: LEASE_EXTEND_STEPS }) : t('limitReached')}
           </button>
         )}
         <button
@@ -109,10 +113,10 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
           disabled={isPausing}
           onClick={() => void handlePause()}
           className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive hover:bg-destructive/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-          title="紧急暂停免打扰包络"
+          title={t('pauseTitle')}
         >
           <Pause className="h-3 w-3" />
-          暂停
+          {t('pause')}
         </button>
       </div>
     </div>

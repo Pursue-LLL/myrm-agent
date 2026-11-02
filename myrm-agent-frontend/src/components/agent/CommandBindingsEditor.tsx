@@ -235,11 +235,11 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                     </div>
                     {skillIds.length > 1 && (
                       <div className="space-y-1">
-                        <Label className="text-xs">{t('commandInstruction') || 'Bundle Instruction'}</Label>
+                        <Label className="text-xs">{t('commandInstruction')}</Label>
                         <Input
                           value={binding.instruction || ''}
                           onChange={(e) => updateBinding(index, 'instruction', e.target.value)}
-                          placeholder={t('commandInstructionPlaceholder') || 'Optional guidance for combined skills...'}
+                          placeholder={t('commandInstructionPlaceholder')}
                           className="h-8 text-sm"
                         />
                       </div>

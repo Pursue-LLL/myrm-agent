@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ListTodo,
   CheckCircle2,
@@ -24,6 +25,7 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
   chatId,
   className = '',
 }) => {
+  const t = useTranslations('taskHud');
   const tasks = useTaskHudStore((state) => state.tasks);
   const overallProgress = useTaskHudStore((state) => state.overallProgress);
   const isExpanded = useTaskHudStore((state) => state.isExpanded);
@@ -34,8 +36,8 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
     return null;
   }
 
-  const completedCount = tasks.filter((t) => t.status === 'completed').length;
-  const activeTask = tasks.find((t) => t.status === 'in_progress') || tasks.find((t) => t.status === 'pending');
+  const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  const activeTask = tasks.find((task) => task.status === 'in_progress') || tasks.find((task) => task.status === 'pending');
 
   const getStatusIcon = (status: TaskStatus) => {
     switch (status) {
@@ -58,7 +60,7 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
 
   return (
     <section
-      aria-label="抗压缩会话任务执行状态悬浮看板"
+      aria-label={t('panelLabel')}
       className={`mx-3 my-2 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm transition-all duration-200 ${className}`}
     >
       {/* 顶部主条：当前步骤摘要与总进度条 */}
@@ -71,11 +73,11 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                {activeTask ? activeTask.title : '所有任务已完成'}
+                {activeTask ? activeTask.title : t('allDone')}
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">
                 <ShieldCheck className="w-3 h-3" />
-                抗压缩
+                {t('badge')}
               </span>
             </div>
 
@@ -98,10 +100,10 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
           type="button"
           onClick={toggleExpanded}
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? '收起任务清单' : '展开任务清单'}
+          aria-label={isExpanded ? t('collapseAria') : t('expand')}
           className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
         >
-          <span className="hidden sm:inline">{isExpanded ? '收起清单' : '展开任务清单'}</span>
+          <span className="hidden sm:inline">{isExpanded ? t('collapse') : t('expand')}</span>
           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
       </div>
@@ -122,7 +124,7 @@ export const TaskHudOverlay: React.FC<TaskHudOverlayProps> = ({
                 <button
                   type="button"
                   onClick={() => handleToggleTaskStatus(task.id, task.status)}
-                  aria-label={`切换任务 ${task.title} 状态`}
+                  aria-label={t('toggleTask', { title: task.title })}
                   className="mt-0.5 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   {getStatusIcon(task.status)}

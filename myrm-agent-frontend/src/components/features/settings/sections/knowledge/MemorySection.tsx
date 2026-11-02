@@ -590,7 +590,7 @@ const MemorySection = memo(() => {
                 <button
                   onClick={handleExportMarkdown}
                   disabled={isExportingMd}
-                  title={t('exportMarkdown') || 'Export as Markdown'}
+                  title={t('exportMarkdown')}
                   className={cn(
                     'p-2 rounded-lg transition-colors',
                     'hover:bg-accent',
@@ -604,7 +604,7 @@ const MemorySection = memo(() => {
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{t('exportMarkdown') || 'Export as Markdown (Obsidian-compatible)'}</TooltipContent>
+              <TooltipContent>{t('exportMarkdown')}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>

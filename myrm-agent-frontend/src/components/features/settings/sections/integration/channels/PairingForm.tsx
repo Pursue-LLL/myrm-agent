@@ -81,25 +81,25 @@ export function PairingForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label className="text-xs">{t('role') || '角色'}</Label>
+          <Label className="text-xs">{t('role')}</Label>
           <Select value={role} onValueChange={(v) => setRole(v as 'admin' | 'member')}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="member">{t('roleMember') || '协作成员 (Member)'}</SelectItem>
-              <SelectItem value="admin">{t('roleAdmin') || '所有者 (Admin)'}</SelectItem>
+              <SelectItem value="member">{t('roleMember')}</SelectItem>
+              <SelectItem value="admin">{t('roleAdmin')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div>
-          <Label className="text-xs">{t('dailyQuota') || '每日限额'}</Label>
+          <Label className="text-xs">{t('dailyQuota')}</Label>
           <Input
             type="number"
             min="1"
             value={dailyQuota}
             onChange={(e) => setDailyQuota(e.target.value)}
-            placeholder={t('dailyQuotaPlaceholder') || '默认无限制，如 50'}
+            placeholder={t('dailyQuotaPlaceholder')}
             className="text-sm"
             disabled={role === 'admin'}
           />

@@ -13526,7 +13526,14 @@
     "switchToTable": "切换为表格视图",
     "switchToCard": "切换为卡片视图",
     "tableView": "表格",
-    "cardView": "卡片"
+    "cardView": "卡片",
+    "expandLightbox": "展开全景表格",
+    "expandLightboxShort": "全景",
+    "lightboxLabel": "全景表格预览",
+    "lightboxTitle": "全景表格视图",
+    "columnCount": "{count} 列",
+    "closePreview": "关闭预览",
+    "closePreviewBackdrop": "关闭预览背景"
   },
   "messageBox": {
     "consensusActive": "等待其余模型…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "固定到工作台 Dashboard",
     "pinned": "已固定",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "抗压缩会话任务执行状态悬浮看板",
+    "allDone": "所有任务已完成",
+    "badge": "抗压缩",
+    "collapseAria": "收起任务清单",
+    "collapse": "收起清单",
+    "expand": "展开任务清单",
+    "toggleTask": "切换任务 {title} 状态"
+  },
+  "stagedArtifacts": {
+    "summary": "已自动暂存 {count} 个未落盘工件草案至工作区",
+    "lineCount": "{count} 行",
+    "footnote": "这些文件已保全在沙箱环境，您可随时在左侧文件树中查看或重命名采纳。"
+  },
+  "leaseCapsule": {
+    "quota": "免打扰配额: {used}/{max} 步",
+    "extend": "+{steps} 步续期",
+    "limitReached": "已达上限",
+    "pauseTitle": "紧急暂停免打扰包络",
+    "pause": "暂停"
   }
 }

@@ -267,11 +267,11 @@ const ResponsiveTable = React.memo(({ children, isStreaming }: ResponsiveTablePr
             type="button"
             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-md border border-border/40 hover:border-border transition-colors"
             onClick={() => setIsLightboxOpen(true)}
-            aria-label="展开全景表格"
-            title="展开全景表格"
+            aria-label={t('expandLightbox')}
+            title={t('expandLightbox')}
           >
             <ExpandLightboxIcon />
-            <span>全景</span>
+            <span>{t('expandLightboxShort')}</span>
           </button>
         </div>
       )}
@@ -291,7 +291,7 @@ const ResponsiveTable = React.memo(({ children, isStreaming }: ResponsiveTablePr
         <dialog
           ref={dialogRef}
           tabIndex={-1}
-          aria-label="全景表格预览"
+          aria-label={t('lightboxLabel')}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm m-0 w-full h-full max-w-none max-h-none border-none outline-none"
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
@@ -304,23 +304,23 @@ const ResponsiveTable = React.memo(({ children, isStreaming }: ResponsiveTablePr
             type="button"
             className="fixed inset-0 -z-10 bg-transparent border-none cursor-default"
             onClick={() => setIsLightboxOpen(false)}
-            aria-label="关闭预览背景"
+            aria-label={t('closePreviewBackdrop')}
             tabIndex={-1}
           />
           <div className="relative flex flex-col w-full max-w-6xl max-h-[85vh] bg-background border border-border rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/20">
               <div className="flex items-center gap-2">
                 <TableGridIcon />
-                <h3 className="text-sm font-semibold text-foreground">全景表格视图</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t('lightboxTitle')}</h3>
                 <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted/60">
-                  {headers.length} 列
+                  {t('columnCount', { count: headers.length })}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsLightboxOpen(false)}
                 className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                aria-label="关闭预览"
+                aria-label={t('closePreview')}
               >
                 <CloseIcon />
               </button>

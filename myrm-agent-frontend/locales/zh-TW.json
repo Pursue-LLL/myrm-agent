@@ -13526,7 +13526,14 @@
     "switchToTable": "切換為表格視圖",
     "switchToCard": "切換為卡片視圖",
     "tableView": "表格",
-    "cardView": "卡片"
+    "cardView": "卡片",
+    "expandLightbox": "展開全景表格",
+    "expandLightboxShort": "全景",
+    "lightboxLabel": "全景表格預覽",
+    "lightboxTitle": "全景表格視圖",
+    "columnCount": "{count} 欄",
+    "closePreview": "關閉預覽",
+    "closePreviewBackdrop": "關閉預覽背景"
   },
   "messageBox": {
     "consensusActive": "等待其餘模型…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "固定到工作台 Dashboard",
     "pinned": "已固定",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "抗壓縮會話任務執行狀態懸浮看板",
+    "allDone": "所有任務已完成",
+    "badge": "抗壓縮",
+    "collapseAria": "收起任務清單",
+    "collapse": "收起清單",
+    "expand": "展開任務清單",
+    "toggleTask": "切換任務 {title} 狀態"
+  },
+  "stagedArtifacts": {
+    "summary": "已自動暫存 {count} 個未落盤工件草稿至工作區",
+    "lineCount": "{count} 行",
+    "footnote": "這些檔案已保全在沙箱環境，您可隨時在左側檔案樹中查看或重新命名採納。"
+  },
+  "leaseCapsule": {
+    "quota": "免打擾配額: {used}/{max} 步",
+    "extend": "+{steps} 步續期",
+    "limitReached": "已達上限",
+    "pauseTitle": "緊急暫停免打擾包絡",
+    "pause": "暫停"
   }
 }

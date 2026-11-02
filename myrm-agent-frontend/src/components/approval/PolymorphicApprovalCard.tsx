@@ -717,17 +717,13 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
         return (
           <div className="space-y-4">
-            <h4 className="font-medium text-sm text-red-500">
-              {t('clarificationRequired') || 'Error Clarification Required'}
-            </h4>
+            <h4 className="font-medium text-sm text-red-500">{t('clarificationRequired')}</h4>
             <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive whitespace-pre-wrap">
               {errorMsg}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                {t('fixParameters') || 'Fix Parameters (JSON)'}
-              </label>
+              <label className="text-sm font-medium text-muted-foreground">{t('fixParameters')}</label>
               <div className="rounded-lg border overflow-hidden h-[200px]">
                 <Editor
                   height="200px"

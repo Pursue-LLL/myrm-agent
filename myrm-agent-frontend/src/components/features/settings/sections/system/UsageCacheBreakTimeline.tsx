@@ -27,7 +27,7 @@ export const CacheBreakTimeline = memo<{
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-xs font-medium text-foreground">
           <IconAlertCircle className="w-3.5 h-3.5 text-amber-500" />
-          {t('cacheBreakDiagnostics') || 'Cache Diagnostic Timeline'}
+          {t('cacheBreakDiagnostics')}
         </div>
         <div className="text-[10px] text-muted-foreground flex gap-3">
           <div className="flex items-center gap-1">

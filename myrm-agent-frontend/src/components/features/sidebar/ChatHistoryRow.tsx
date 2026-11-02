@@ -494,7 +494,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
                   >
                     <FlaskConical size={isMobile ? 16 : 14} className="mr-2 text-primary" />
-                    {t('chat.captureEvalCase.action') || 'Capture as Eval Case'}
+                    {t('chat.captureEvalCase.action')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

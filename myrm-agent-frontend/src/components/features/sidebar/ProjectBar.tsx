@@ -234,14 +234,14 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowInput(true)}
-              title={t('project.newProject') || '新建项目'}
+              title={t('project.newProject')}
               className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
               <Plus size={10} className="text-muted-foreground/50" />
             </button>
             <button
               onClick={() => setAdoptDialogOpen(true)}
-              title={t('project.workspaceMount.adoptFolder') || '接纳外部项目文件夹'}
+              title={t('project.workspaceMount.adoptFolder')}
               className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-muted-foreground/50 hover:text-primary"
             >
               <FolderInput size={11} />

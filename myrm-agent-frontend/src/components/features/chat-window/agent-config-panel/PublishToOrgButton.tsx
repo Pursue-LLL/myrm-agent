@@ -84,7 +84,7 @@ const PublishToOrgButton = ({ agentId, agentName, className }: PublishToOrgButto
       ) : (
         <Upload size={12} />
       )}
-      <span>{published ? t('publishedToOrg') || 'Published to Org' : t('publishToOrg') || 'Publish to Org'}</span>
+      <span>{published ? t('publishedToOrg') : t('publishToOrg')}</span>
     </button>
   );
 };

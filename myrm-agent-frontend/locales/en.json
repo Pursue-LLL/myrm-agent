@@ -13526,7 +13526,14 @@
     "switchToTable": "Switch to table view",
     "switchToCard": "Switch to card view",
     "tableView": "Table",
-    "cardView": "Card"
+    "cardView": "Card",
+    "expandLightbox": "Expand full table",
+    "expandLightboxShort": "Full view",
+    "lightboxLabel": "Full table preview",
+    "lightboxTitle": "Full table view",
+    "columnCount": "{count} columns",
+    "closePreview": "Close preview",
+    "closePreviewBackdrop": "Close preview backdrop"
   },
   "messageBox": {
     "consensusActive": "Waiting for remaining models…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "Pin to workspace dashboard",
     "pinned": "Pinned",
     "pin": "Pin"
+  },
+  "taskHud": {
+    "panelLabel": "Persistent task progress panel that survives context compaction",
+    "allDone": "All tasks completed",
+    "badge": "Compaction-proof",
+    "collapseAria": "Collapse task list",
+    "collapse": "Collapse list",
+    "expand": "Expand task list",
+    "toggleTask": "Toggle status of task {title}"
+  },
+  "stagedArtifacts": {
+    "summary": "Auto-staged {count, plural, one {# unsaved artifact draft} other {# unsaved artifact drafts}} to the workspace",
+    "lineCount": "{count, plural, one {# line} other {# lines}}",
+    "footnote": "These files are preserved in the sandbox. You can review or rename them in the file tree on the left at any time."
+  },
+  "leaseCapsule": {
+    "quota": "Auto-approve quota: {used}/{max} steps",
+    "extend": "Extend +{steps} steps",
+    "limitReached": "Limit reached",
+    "pauseTitle": "Emergency pause for the auto-approve envelope",
+    "pause": "Pause"
   }
 }

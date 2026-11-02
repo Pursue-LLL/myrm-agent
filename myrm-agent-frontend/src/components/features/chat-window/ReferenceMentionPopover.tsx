@@ -209,7 +209,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                   <React.Fragment key={`${file.reference_type}:${file.relative_path ?? file.file_id ?? file.label}`}>
                     {isFirstAgent && (
                       <div className="px-3 py-1.5 text-xs font-semibold text-primary/80 bg-primary/5 uppercase tracking-wider mt-1 first:mt-0">
-                        {t('agentsCategory') || '召唤智能体 (Agents)'}
+                        {t('agentsCategory')}
                       </div>
                     )}
                     {isFirstPriorChat && (
@@ -219,7 +219,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                     )}
                     {isFirstContext && (
                       <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/30 uppercase tracking-wider mt-1 first:mt-0">
-                        {t('contextCategory') || '引入上下文 (Context)'}
+                        {t('contextCategory')}
                       </div>
                     )}
                     <button

@@ -352,7 +352,7 @@ export const SubagentTreeNode = ({ node, chatId, setOpen, onOpenDetail }: TreeNo
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
             onClick={() => onOpenDetail && onOpenDetail(node)}
-            title={t('viewDetails') || 'View Details'}
+            title={t('viewDetails')}
             data-testid="subagent-view-detail-btn"
           >
             <ExternalLink className="w-4 h-4" />

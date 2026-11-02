@@ -13526,7 +13526,14 @@
     "switchToTable": "テーブル表示に切り替え",
     "switchToCard": "カード表示に切り替え",
     "tableView": "テーブル",
-    "cardView": "カード"
+    "cardView": "カード",
+    "expandLightbox": "表全体を展開",
+    "expandLightboxShort": "全体表示",
+    "lightboxLabel": "表全体のプレビュー",
+    "lightboxTitle": "表全体ビュー",
+    "columnCount": "{count} 列",
+    "closePreview": "プレビューを閉じる",
+    "closePreviewBackdrop": "プレビューの背景を閉じる"
   },
   "messageBox": {
     "consensusActive": "残りのモデルを待っています…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "ワークスペースのダッシュボードに固定",
     "pinned": "固定済み",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "コンテキスト圧縮後も保持されるタスク進捗パネル",
+    "allDone": "すべてのタスクが完了しました",
+    "badge": "圧縮耐性",
+    "collapseAria": "タスク一覧を閉じる",
+    "collapse": "一覧を閉じる",
+    "expand": "タスク一覧を開く",
+    "toggleTask": "タスク {title} の状態を切り替え"
+  },
+  "stagedArtifacts": {
+    "summary": "未保存の成果物ドラフト {count} 件をワークスペースへ自動退避しました",
+    "lineCount": "{count} 行",
+    "footnote": "これらのファイルはサンドボックスに保全されています。左のファイルツリーでいつでも確認・名前変更して採用できます。"
+  },
+  "leaseCapsule": {
+    "quota": "自動承認枠: {used}/{max} ステップ",
+    "extend": "+{steps} ステップ延長",
+    "limitReached": "上限に達しました",
+    "pauseTitle": "自動承認エンベロープを緊急停止",
+    "pause": "一時停止"
   }
 }

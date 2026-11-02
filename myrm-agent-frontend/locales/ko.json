@@ -13526,7 +13526,14 @@
     "switchToTable": "테이블 보기로 전환",
     "switchToCard": "카드 보기로 전환",
     "tableView": "테이블",
-    "cardView": "카드"
+    "cardView": "카드",
+    "expandLightbox": "전체 표 펼치기",
+    "expandLightboxShort": "전체 보기",
+    "lightboxLabel": "전체 표 미리보기",
+    "lightboxTitle": "전체 표 보기",
+    "columnCount": "열 {count}개",
+    "closePreview": "미리보기 닫기",
+    "closePreviewBackdrop": "미리보기 배경 닫기"
   },
   "messageBox": {
     "consensusActive": "나머지 모델을 기다리는 중…",
@@ -22616,5 +22623,26 @@
     "pinTooltip": "워크스페이스 대시보드에 고정",
     "pinned": "고정됨",
     "pin": "고정"
+  },
+  "taskHud": {
+    "panelLabel": "컨텍스트 압축 후에도 유지되는 작업 진행 패널",
+    "allDone": "모든 작업이 완료되었습니다",
+    "badge": "압축 유지",
+    "collapseAria": "작업 목록 접기",
+    "collapse": "목록 접기",
+    "expand": "작업 목록 펼치기",
+    "toggleTask": "작업 {title} 상태 전환"
+  },
+  "stagedArtifacts": {
+    "summary": "저장되지 않은 산출물 초안 {count}개를 작업 공간에 자동으로 임시 보관했습니다",
+    "lineCount": "{count}줄",
+    "footnote": "이 파일들은 샌드박스에 안전하게 보존되어 있습니다. 왼쪽 파일 트리에서 언제든지 확인하거나 이름을 바꿔 채택할 수 있습니다."
+  },
+  "leaseCapsule": {
+    "quota": "자동 승인 할당량: {used}/{max}단계",
+    "extend": "+{steps}단계 연장",
+    "limitReached": "한도 도달",
+    "pauseTitle": "자동 승인 엔벨로프 긴급 일시정지",
+    "pause": "일시정지"
   }
 }
