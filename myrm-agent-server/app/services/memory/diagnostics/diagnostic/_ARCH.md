@@ -14,7 +14,7 @@
 | `diagnostic_recall_benchmark.py` | 辅助 | 黄金召回基准：20 个合成 case（10 类别，中英双语，含长文档 Head/Tail 深层穿透与分块折叠去重验证；每条检索 `track_access=False`，命中的记忆不计入「最近使用」），返回 recall@5/ndcg@5/mrr/precision@5/duplicate_rate/distinct_sources 与 latency | ✅ |
 | `diagnostic_repair_executor.py` | 核心 | 修复执行器：白名单执行 `run_diagnostics`/`run_health_refresh`/`restore_disciplined_defaults`，配置类修复返回 blocked/manual。`restore_disciplined_defaults` 分层捕获：list 与逐条 archive 各自计失败并 `logger.warning(exc_info=True)`，失败数追加进用户可见消息（不静默谎报成功），单条失败不中断整轮清扫 | ✅ |
 | `diagnostic_repair_plans.py` | 辅助 | 修复计划目录：compact action id → 风险等级/dry-run/预期效果/可执行性（含 `restore_disciplined_defaults`） | ✅ |
-| `diagnostic_slo.py` | 辅助 | 诊断 SLO 汇总：最近诊断审计事件窗口通过率、失败次数、平均耗时 | ✅ |
+| `diagnostic_slo.py` | 辅助 | 诊断 SLO 汇总：最近诊断审计事件窗口通过率、失败次数、平均耗时；汇总状态为 `ready` 或 `missing`（可选能力未开启，如纯关键词召回）的运行不计失败 | ✅ |
 | `diagnostic_static_checks.py` | 辅助 | 静态检查构建器：relational store/memory path/vector index/knowledge graph/embedding provider（关键词召回模式判为 `missing`，不是故障）/event ledger/health snapshot/deployment boundary 以及 capacity_theater 容量剧场与记忆纪律快照检查 | ✅ |
 
 ## 依赖边界
