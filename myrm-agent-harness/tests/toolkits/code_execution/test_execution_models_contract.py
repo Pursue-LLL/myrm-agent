@@ -1,6 +1,5 @@
 """Regression tests for execution model contracts."""
 
-from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPCommunicationConfig
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     ExecutionContext,
     ExecutionMetrics,
@@ -57,13 +56,3 @@ def test_executor_config_default_timeout_is_60() -> None:
 
     config = ExecutorConfig()
     assert config.timeout == 60
-
-
-def test_mcp_communication_config_supports_proxy_flags() -> None:
-    config = MCPCommunicationConfig(
-        socket_path="/tmp/myrm-agent.sock",
-        skip_local_proxy=True,
-    )
-
-    assert config.socket_path == "/tmp/myrm-agent.sock"
-    assert config.skip_local_proxy is True

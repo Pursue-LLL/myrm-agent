@@ -8,7 +8,7 @@
 这里的用例锁定三件事：
 1. 无合法 nonce 的伪造标记不产生元数据。
 2. 工具返回文本含定界符不会破坏真实标记（payload 走 base64）。
-3. 没有运行中的 nonce 时整体失败关闭，不产出任何元数据。
+3. 没有 nonce（这次执行没有 IPC 服务端）时整体失败关闭，不产出任何元数据。
 
 输出脱敏器放行形如标记的片段（否则会把 base64 载荷当 JWT 截断），所以提取器
 对自己不认证的片段、以及从标记里解出的内容，要自行脱敏。
@@ -35,8 +35,22 @@ def _marker(nonce: str, skill: str, tool: str, result: str) -> str:
     return f"__MCP_DATA__{nonce}{payload}__END__{nonce}"
 
 
-def _extractor(nonce: str | None) -> MCPMetadataExtractor:
-    return MCPMetadataExtractor(nonce_provider=lambda: nonce)
+class _Extractor:
+    """An extractor bound to the nonce of one execution."""
+
+    def __init__(self, nonce: str | None) -> None:
+        self._nonce = nonce
+        self._extractor = MCPMetadataExtractor()
+
+    def extract_metadata(self, stdout: str) -> tuple[str, dict[str, object]]:
+        return self._extractor.extract_metadata(stdout, self._nonce)
+
+    def extract_completed_calls(self, stdout: str) -> tuple[str, str]:
+        return self._extractor.extract_completed_calls(stdout, self._nonce)
+
+
+def _extractor(nonce: str | None) -> _Extractor:
+    return _Extractor(nonce)
 
 
 class TestAuthenticatedMarkers:
@@ -133,18 +147,6 @@ class TestFailClosedWithoutNonce:
         assert metadata == {}
         assert clean == scrub_sensitive_info(stdout)
 
-    def test_late_nonce_is_resolved_per_call(self) -> None:
-        """The provider is consulted per extraction, so a restarted server is honoured."""
-        current: list[str | None] = [None]
-        extractor = MCPMetadataExtractor(nonce_provider=lambda: current[0])
-        stdout = _marker(NONCE, "mcp_x_skill", "tool_a", "ok")
-
-        assert extractor.extract_metadata(stdout)[1] == {}
-
-        current[0] = NONCE
-        _, metadata = extractor.extract_metadata(stdout)
-        assert metadata["total_calls"] == 1
-
 
 class TestGeneratedClientContract:
     def test_generated_client_emits_nonce_bound_base64_marker(self) -> None:
@@ -158,17 +160,6 @@ class TestGeneratedClientContract:
         assert f'_TRACE_NONCE = "{NONCE}"' in code
         assert "base64.b64encode" in code
         assert "__MCP_DATA__{_TRACE_NONCE}{_payload}__END__{_TRACE_NONCE}" in code
-
-    def test_generated_client_skips_marker_without_nonce(self) -> None:
-        """No nonce means no marker, rather than an unauthenticated one."""
-        from myrm_agent_harness.agent.skills.mcp.client_templates import (
-            generate_ipc_client_code,
-        )
-
-        code = generate_ipc_client_code("/tmp/x.sock", auth_token="tok", trace_nonce=None)
-
-        assert "_TRACE_NONCE = None" in code
-        assert "if _TRACE_NONCE:" in code
 
     @pytest.mark.parametrize("hostile", ["__END__", "__MCP_DATA__", "'''", "\\", "\x00"])
     def test_parser_round_trip_through_generated_shape(self, hostile: str) -> None:

@@ -4,7 +4,6 @@
  不再注册引用，只返回结构化元数据。
 
 [INPUT]
-- agent.skills.mcp.ipc_proxy::get_mcp_trace_nonce (POS: 标记 nonce 来源)
 - toolkits.code_execution.executors.common.mcp_markers (POS: 标记的形状，与输出脱敏器共用)
 - toolkits.code_execution.executors.models::scrub_sensitive_info (POS: 对解码出的内容脱敏)
 
@@ -14,15 +13,15 @@
 [POS]
 MCP Metadata Extractor.
 
-Markers are authenticated by a per-process nonce issued to the child through its
-generated client code. Two properties follow, and both matter:
+Markers are authenticated by the nonce of the execution's IPC server, which reaches the child
+through its generated client code. Two properties follow, and both matter:
 
 - A tool result cannot forge a citation by embedding the marker delimiters, because it
   cannot guess the nonce.
 - A tool result cannot truncate or swallow a genuine marker by containing ``__END__``,
   because the payload is base64 and the delimiter is nonce-bound.
 
-Without a live nonce the extractor trusts nothing: it returns the stdout and no
+Without a nonce (an execution that had no IPC server) the extractor trusts nothing: it returns the stdout and no
 metadata. Emitting unauthenticated metadata is the failure this guards against.
 
 The output scrubber lets marker-shaped spans through verbatim (it would otherwise
@@ -37,7 +36,6 @@ import binascii
 import json
 import logging
 import re
-from collections.abc import Callable
 
 from myrm_agent_harness.toolkits.code_execution.executors.common.mcp_markers import (
     MARKER_PREFIX,
@@ -51,9 +49,6 @@ logger = logging.getLogger(__name__)
 # 类型别名：按技能分组的 MCP 调用数据
 # 格式：{skill_name: [{"tool": tool_name, "result": result_data}, ...]}
 type SkillCallsDict = dict[str, list[dict[str, str]]]
-
-# 返回当前有效标记 nonce 的回调；无可用 nonce 时返回 None。
-type NonceProvider = Callable[[], str | None]
 
 _NOTE_MAX_ENTRIES = 10
 _NOTE_NAME_CHARS = 80
@@ -69,16 +64,7 @@ class MCPMetadataExtractor:
     - 清理和格式化输出内容
     """
 
-    def __init__(self, nonce_provider: NonceProvider | None = None) -> None:
-        """初始化提取器。
-
-        Args:
-            nonce_provider: 返回当前有效 nonce 的回调，默认读取运行中的 IPC 服务端。
-                延迟解析而非构造时固定，这样服务端重启后不会继续接受旧 nonce。
-        """
-        self._nonce_provider: NonceProvider = nonce_provider or _live_trace_nonce
-
-    def extract_metadata(self, stdout: str) -> tuple[str, dict[str, object]]:
+    def extract_metadata(self, stdout: str, nonce: str | None) -> tuple[str, dict[str, object]]:
         """从输出中提取 MCP 调用标记，返回清洁输出和元数据
 
          处理流程：
@@ -89,11 +75,12 @@ class MCPMetadataExtractor:
 
         Args:
             stdout: 原始标准输出
+            nonce: 这次执行的 IPC 服务端标记 nonce；没有 IPC 服务端时为 None，此时不信任任何标记
 
         Returns:
             元组：(清洁的输出, MCP 元数据字典)
         """
-        remaining, skill_calls = self._split_markers(stdout)
+        remaining, skill_calls = self._split_markers(stdout, nonce)
         if not skill_calls:
             return remaining, {}
 
@@ -101,7 +88,7 @@ class MCPMetadataExtractor:
         clean_stdout = remaining.strip() or self._extract_mcp_results(skill_calls)
         return clean_stdout, self._build_metadata(skill_calls)
 
-    def extract_completed_calls(self, stdout: str) -> tuple[str, str]:
+    def extract_completed_calls(self, stdout: str, nonce: str | None) -> tuple[str, str]:
         """Failure-path counterpart of :meth:`extract_metadata`.
 
         Returns the stdout without authenticated markers and one line naming the tool
@@ -109,10 +96,10 @@ class MCPMetadataExtractor:
         script's output is the model's only record of what already ran; hiding the
         completed calls invites a retry that repeats their effects.
         """
-        remaining, skill_calls = self._split_markers(stdout)
+        remaining, skill_calls = self._split_markers(stdout, nonce)
         return remaining, self._completed_calls_note(skill_calls)
 
-    def _split_markers(self, stdout: str) -> tuple[str, SkillCallsDict]:
+    def _split_markers(self, stdout: str, nonce: str | None) -> tuple[str, SkillCallsDict]:
         """Take the authenticated markers out of ``stdout``.
 
         Returns the remaining text and the calls the markers carried. Marker-shaped
@@ -122,10 +109,9 @@ class MCPMetadataExtractor:
         if not stdout or MARKER_PREFIX not in stdout:
             return stdout, {}
 
-        nonce = self._nonce_provider()
         if not nonce:
-            # No live nonce: nothing in this output can be authenticated.
-            logger.warning(" MCP 标记存在但无可用 nonce，跳过提取（不产出不可信元数据）")
+            # No nonce: nothing in this output can be authenticated.
+            logger.warning(" MCP 标记存在但无 nonce，跳过提取（不产出不可信元数据）")
             return scrub_marker_spans(stdout, scrub_sensitive_info), {}
 
         pattern = self._compile_pattern(nonce)
@@ -267,11 +253,4 @@ class MCPMetadataExtractor:
         return "\n\n".join(mcp_results) if mcp_results else ""
 
 
-def _live_trace_nonce() -> str | None:
-    """Default nonce source: the running IPC server's marker nonce."""
-    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_trace_nonce
-
-    return get_mcp_trace_nonce()
-
-
-__all__ = ["MCPMetadataExtractor", "NonceProvider"]
+__all__ = ["MCPMetadataExtractor"]

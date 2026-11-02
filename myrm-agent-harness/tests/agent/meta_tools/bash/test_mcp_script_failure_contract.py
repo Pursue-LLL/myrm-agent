@@ -27,7 +27,6 @@ import pytest
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
-from myrm_agent_harness.agent.skills.mcp.ipc_proxy import stop_mcp_ipc_server
 from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -130,7 +129,6 @@ async def _script_channel(
             with contextlib.suppress(Exception):
                 await manager.stop()
         MCPConnectionManager._instance = None
-        await stop_mcp_ipc_server()
         reset_executor(token)
         skill_registry.clear()
 

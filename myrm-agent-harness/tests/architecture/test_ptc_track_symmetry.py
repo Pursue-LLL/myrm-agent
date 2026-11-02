@@ -123,15 +123,13 @@ class TestGeneratedClientIsValidPython:
             generate_ipc_client_code,
         )
 
-        for nonce in (None, "abc123"):
+        for tcp_port in (0, 4242):
             code = generate_ipc_client_code(
                 "/tmp/x.sock",
-                session_id="s",
-                workspace_root="/w",
-                read_only_tools=frozenset(),
                 auth_token="t",
-                readonly_workspace=False,
-                trace_nonce=nonce,
+                trace_nonce="abc123",
+                read_only_tools=frozenset(),
+                tcp_port=tcp_port,
             )
             ast.parse(code)
 
@@ -148,13 +146,15 @@ class TestBothTracksShareOneCallBudget:
     """Two independent budget constants would let a script exceed either one silently."""
 
     def test_budget_is_defined_once_per_layer(self) -> None:
-        ipc = _read(MCP_DIR / "ipc_proxy.py")
+        ipc = _read(MCP_DIR / "ipc_endpoint.py")
         rpc = _read(PTC_DIR / "rpc_server.py")
-        assert "max_calls_per_execution" in ipc or "max_tool_calls" in ipc
+        assert "DEFAULT_MAX_CALLS_PER_EXECUTION" in ipc
         assert "max_tool_calls" in rpc or "max_calls_per_execution" in rpc
 
 
-@pytest.mark.parametrize("filename", ["ipc_proxy.py", "client_templates.py", "rpc_server.py", "stub_generator.py"])
+@pytest.mark.parametrize(
+    "filename", ["ipc_proxy.py", "ipc_endpoint.py", "client_templates.py", "rpc_server.py", "stub_generator.py"]
+)
 def test_transport_modules_have_no_bare_except(filename: str) -> None:
     """A bare ``except`` in a transport layer hides protocol errors and leaks silence."""
     path = (MCP_DIR / filename) if (MCP_DIR / filename).exists() else (PTC_DIR / filename)

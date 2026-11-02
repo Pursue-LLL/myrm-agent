@@ -31,20 +31,14 @@ class MockExecutor:
     """Mock CodeExecutor for testing."""
 
     def __init__(self, name: str = "mock"):
-        from myrm_agent_harness.toolkits.code_execution.executors.base import MCPCommunicationConfig
-
         self.name = name
         self.workspace_path: str | None = None
-        self._mcp_config = MCPCommunicationConfig(skip_local_proxy=True)
 
     def bind_workspace(self, path: str) -> None:
         self.workspace_path = path
 
     def get_executor_name(self) -> str:
         return self.name
-
-    def get_mcp_communication_config(self):
-        return self._mcp_config
 
     async def execute_bash(self, *args, **kwargs):
         return {

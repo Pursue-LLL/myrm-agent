@@ -5,7 +5,7 @@
 - myrm_agent_harness.agent.skills.runtime::registry (POS: MCP skill metadata lookup)
 
 [OUTPUT]
-- Coverage for prepare_for_execution, regex fallback, import rewrite, client resolution,
+- Coverage for prepare_for_execution, regex fallback, import rewrite, client assembly from an endpoint,
   and read-only tool collection.
 
 [POS]
@@ -20,9 +20,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from myrm_agent_harness.agent.skills.mcp.executor import SkillExecutor
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import IPCEndpoint
 from myrm_agent_harness.agent.skills.runtime.registry import SkillRegistry
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.code_execution import MCPConfigItem
+
+_ENDPOINT = IPCEndpoint(socket_path="/tmp/sock", tcp_port=0, auth_token="token", trace_nonce="nonce")
 
 
 def _mcp_skill(name: str, tools: list[str], config: list[dict[str, object]]) -> SkillMetadata:
@@ -37,7 +40,7 @@ def test_prepare_without_ptc_returns_original_command(monkeypatch: pytest.Monkey
     executor = SkillExecutor()
     monkeypatch.setattr(executor, "detect_skill_in_command", lambda _command: (False, None))
 
-    context = executor.prepare_for_execution("echo hi", "/tmp/sock")
+    context = executor.prepare_for_execution("echo hi", _ENDPOINT)
 
     assert context.is_skill is False
     assert context.prepared_code == "echo hi"
@@ -49,7 +52,7 @@ def test_prepare_with_ptc_but_no_python_returns_original(monkeypatch: pytest.Mon
     monkeypatch.setattr(executor, "detect_skill_in_command", lambda _command: (True, "demo_skill"))
     monkeypatch.setattr(executor, "_extract_python_code", lambda _command: None)
 
-    context = executor.prepare_for_execution("echo hi", "/tmp/sock")
+    context = executor.prepare_for_execution("echo hi", _ENDPOINT)
 
     assert context.is_skill is False
     assert context.prepared_code == "echo hi"
@@ -65,14 +68,7 @@ def test_prepare_mcp_skill_uses_config_and_injected_client(monkeypatch: pytest.M
     monkeypatch.setattr(executor, "_generate_mcp_client_code", lambda *args, **kwargs: "CLIENT")
     monkeypatch.setattr(executor, "_collect_read_only_tools", lambda _name: frozenset())
 
-    context = executor.prepare_for_execution(
-        "python3 -c 'from skills.demo_skill import ping'",
-        "/tmp/sock",
-        session_id="s1",
-        agent_id="agent-1",
-        workspace_root="/ws",
-        readonly_workspace=True,
-    )
+    context = executor.prepare_for_execution("python3 -c 'from skills.demo_skill import ping'", _ENDPOINT)
 
     assert context.is_skill is True
     assert context.skill_name == "demo_skill"
@@ -93,7 +89,7 @@ def test_prepare_builtin_does_not_look_up_mcp_config(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(executor, "_generate_mcp_client_code", lambda *args, **kwargs: "CLIENT")
     monkeypatch.setattr(executor, "_collect_read_only_tools", lambda _name: frozenset())
 
-    context = executor.prepare_for_execution("python3 -c 'from tools.notify import notify'", "/tmp/sock")
+    context = executor.prepare_for_execution("python3 -c 'from tools.notify import notify'", _ENDPOINT)
 
     assert context.is_skill is True
     assert context.skill_name == "__builtin__"
@@ -117,9 +113,7 @@ def test_rewrite_bare_skill_import_adds_prefix() -> None:
     assert rewritten == "from skills.demo_skill import ping"
 
 
-def test_generate_client_forwards_identity_and_runtime_config(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_generate_client_forwards_the_endpoint_and_read_only_tools(monkeypatch: pytest.MonkeyPatch) -> None:
     import myrm_agent_harness.agent.skills.mcp.client_templates as client_templates
 
     captured: dict[str, object] = {}
@@ -130,39 +124,18 @@ def test_generate_client_forwards_identity_and_runtime_config(
         return "CLIENT"
 
     monkeypatch.setattr(client_templates, "generate_ipc_client_code", fake_generate)
-    executor = SkillExecutor()
-    monkeypatch.setattr(executor, "_resolve_ipc_auth_token", lambda: "token")
-    monkeypatch.setattr(executor, "_resolve_trace_nonce", lambda: "nonce")
-    monkeypatch.setattr(executor, "_resolve_tcp_port", lambda: 4242)
+    endpoint = IPCEndpoint(socket_path="/tmp/sock", tcp_port=4242, auth_token="token", trace_nonce="nonce")
 
-    code = executor._generate_mcp_client_code(
-        "/tmp/sock",
-        session_id="s1",
-        agent_id="agent-1",
-        workspace_root="/ws",
-        read_only_tools=frozenset({"demo.ping"}),
-        readonly_workspace=True,
-    )
+    code = SkillExecutor._generate_mcp_client_code(endpoint, frozenset({"demo.ping"}))
 
     assert code == "CLIENT"
-    assert captured["session_id"] == "s1"
-    assert captured["agent_id"] == "agent-1"
-    assert captured["workspace_root"] == "/ws"
-    assert captured["readonly_workspace"] is True
-    assert captured["auth_token"] == "token"
-    assert captured["trace_nonce"] == "nonce"
-    assert captured["tcp_port"] == 4242
-
-
-def test_resolve_runtime_values_without_ipc_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    import myrm_agent_harness.agent.skills.mcp.ipc_proxy as ipc_proxy
-
-    monkeypatch.setattr(ipc_proxy, "get_mcp_ipc_server", lambda: None)
-    monkeypatch.setattr(ipc_proxy, "get_mcp_trace_nonce", lambda: None)
-
-    assert SkillExecutor._resolve_tcp_port() == 0
-    assert SkillExecutor._resolve_trace_nonce() is None
-    assert SkillExecutor._resolve_ipc_auth_token() is None
+    assert captured == {
+        "socket_path": "/tmp/sock",
+        "auth_token": "token",
+        "trace_nonce": "nonce",
+        "read_only_tools": frozenset({"demo.ping"}),
+        "tcp_port": 4242,
+    }
 
 
 def test_collect_read_only_tools_for_builtin_and_missing_skills(monkeypatch: pytest.MonkeyPatch) -> None:

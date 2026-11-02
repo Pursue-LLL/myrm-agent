@@ -19,7 +19,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 
 DEFAULT_MAX_CALLS_PER_EXECUTION = 50
-"""Tool-call budget of one script execution (one client process, keyed by its trace id).
+"""Tool-call budget of one script execution (one IPC server, keyed by the server).
 
 MCP PTC scripts loop over tools; without a ceiling a runaway script becomes an
 unbounded external-API amplifier. 50 matches ``PtcConfig.max_tool_calls``, so both PTC
@@ -33,18 +33,15 @@ DEFAULT_SESSION_CALL_CEILING = 500
 SESSION_CALL_WINDOW_SECONDS = 600.0
 """Backstop: calls one session may make across all its scripts within one window.
 
-A script controls its own trace id, so the per-execution budget alone can be sidestepped
-by re-keying (or by spawning child processes). This ceiling keeps that from becoming an
-unbounded amplifier again. It is not a security boundary (read-only, path and scope
-policies run on every call regardless of count) and the number is a deliberately loose
-10x of the per-execution budget, not a measured workload limit.
+The per-execution budget starts over with every script, so a chat that keeps starting
+scripts would have no limit at all. This ceiling keeps that from becoming an unbounded
+amplifier. It is not a security boundary (read-only, path and scope policies run on every
+call regardless of count) and the number is a deliberately loose 10x of the per-execution
+budget, not a measured workload limit.
 """
 
 _MAX_TRACKED_BUCKETS = 1024
 """Bound on remembered executions / sessions; the oldest bucket is evicted first."""
-
-_TRACE_KEY_CHARS = 64
-"""Trace ids come from the script; clamp them so a bucket key cannot grow the table."""
 
 
 @dataclass(slots=True)
@@ -76,22 +73,21 @@ class CallBudget:
         self._execution_calls: OrderedDict[str, int] = OrderedDict()
         self._session_windows: OrderedDict[str, _CallWindow] = OrderedDict()
 
-    def consume(self, session_id: str | None, trace_id: str) -> str | None:
+    def consume(self, session_id: str | None, execution_id: str) -> str | None:
         """Account one tool call against the execution budget and the session ceiling.
 
-        The budget belongs to one script execution (``trace_id``), so a script that
-        legitimately makes many calls never starves the scripts that follow it in the
-        same chat. The session ceiling is the backstop for a script that re-keys its
-        trace id. A request without ``trace_id`` / ``session_id`` has no such bucket and
-        is not charged against it (the caller is already constrained by the
-        authenticated socket and the per-call policies).
+        The budget belongs to one script execution (``execution_id``, minted by the IPC
+        server, never by the script), so a script that legitimately makes many calls never
+        starves the scripts that follow it in the same chat. The session ceiling bounds the
+        scripts of one chat together. A call without ``session_id`` has no such bucket and is
+        not charged against it (the caller is already constrained by the authenticated
+        socket and the per-call policies).
 
         Returns an error message when a limit is hit, else ``None``. Nothing is charged
         on rejection.
         """
-        execution_key = trace_id[:_TRACE_KEY_CHARS]
-        executed = self._execution_calls.get(execution_key, 0)
-        if execution_key and executed >= self._max_calls_per_execution:
+        executed = self._execution_calls.get(execution_id, 0)
+        if executed >= self._max_calls_per_execution:
             return (
                 f"Script tool-call budget exhausted: {executed}/{self._max_calls_per_execution} "
                 "calls made in this execution. Summarise results and finish the script."
@@ -105,8 +101,7 @@ class CallBudget:
                 "Stop calling MCP tools from scripts and report what you have."
             )
 
-        if execution_key:
-            _remember(self._execution_calls, execution_key, executed + 1)
+        _remember(self._execution_calls, execution_id, executed + 1)
         if window is not None:
             window.calls += 1
         return None

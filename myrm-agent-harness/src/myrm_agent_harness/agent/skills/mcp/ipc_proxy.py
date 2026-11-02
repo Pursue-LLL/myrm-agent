@@ -4,10 +4,12 @@
 Agent-in-Sandbox 模式下，子进程通过 Unix Socket 与 Agent 主进程通信。
 
 架构：
-- Agent 主进程：运行 IPC Server，监听 Unix Socket
+- Agent 主进程：每次脚本执行起一个 IPC Server（见 ``ipc_endpoint``），监听该次执行专属的 Unix Socket
 - 子进程（代码执行）：通过 Socket 文件与主进程通信
 - 路由：skill_name == "__builtin__" → BuiltinToolRegistry
          其他 → MCPSkillProxyService
+- 调用方范围：会话、agent、工作区、只读状态由宿主在起服务端时固定（``CallerScope``），
+  不从请求里取——脚本可以直接写套接字，请求里的任何字段都不可信。
 - 调用上下文：每个请求设置 ``IPCCallContext`` 到 ContextVar，
   让 ``notify`` 等内置 handler 取到 session_id /
   workspace_root，而无需污染全局或显式参数透传。
@@ -18,18 +20,18 @@ Agent-in-Sandbox 模式下，子进程通过 Unix Socket 与 Agent 主进程通�
 [OUTPUT]
 - IPCCallContext: Frozen per-call context (session_id, workspace_root, trace_id).
 - get_ipc_call_context: ContextVar accessor for builtin handlers.
+- CallerScope: Whom the script's calls are made for; fixed by the host when the server starts.
+- IPCEndpoint: What the generated client needs to reach one server (path/port, token, marker nonce).
 - MCPIPCRequest / MCPIPCResponse: Wire types.
 - MCPIPCServer: Unix Socket server; routes requests to BuiltinToolRegistry or MCPSkillProxyService.
-- start_mcp_ipc_server / stop_mcp_ipc_server: Lifecycle helpers.
-- get_mcp_trace_nonce: Accessor for the marker nonce the host uses to authenticate
-  in-script call markers on stdout.
 
 [POS]
-PTC IPC backbone. Hosts the Unix-Socket server, wire schemas, and the per-call
-context that lets builtin handlers reach session-scoped state.
+PTC IPC backbone: wire types and the server. The caller's identity is the server's, not the request's;
+``ipc_endpoint`` ties a server's lifetime to one script execution.
 """
 
 import asyncio
+import contextlib
 import hmac
 import json
 import logging
@@ -42,8 +44,6 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import (
-    DEFAULT_MAX_CALLS_PER_EXECUTION,
-    DEFAULT_SESSION_CALL_CEILING,
     CallBudget,
 )
 from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import (
@@ -81,26 +81,48 @@ def get_ipc_call_context() -> IPCCallContext | None:
     return _ipc_call_context.get()
 
 
-class MCPIPCRequest(BaseModel):
-    """PTC IPC 请求"""
+@dataclass(frozen=True, slots=True)
+class CallerScope:
+    """Whom a server's calls are made for, fixed by the host when the server starts.
 
-    skill_name: str
-    tool_name: str
-    params: dict[str, object]
-    trace_id: str = ""
+    The script can write to the socket itself, so nothing in a request may say which session it
+    belongs to, which workspace it may touch, or whether the run is read-only: every policy and
+    budget decision reads these values from the server instead.
+    """
+
     session_id: str | None = None
     agent_id: str | None = None
     """Agent identity for MCP scope-gate policy lookup; distinct from session_id."""
     workspace_root: str | None = None
     readonly_workspace: bool = False
-    """True when the caller runs under a read-only capability handle.
+    """True when the run holds a read-only capability handle: the server then refuses every MCP tool
+    that does not declare readOnlyHint. Carried here, not read from the capability ContextVar, because
+    the handler runs in the server's task, which cannot observe the calling run's handle."""
 
-    Sent explicitly instead of relying on the capability ContextVar: the IPC
-    handler runs in the server's asyncio task, which captured the ContextVar at
-    server-start time, so it cannot observe the calling run's handle.
-    """
+
+@dataclass(frozen=True, slots=True)
+class IPCEndpoint:
+    """How the generated in-script client reaches one IPC server and authenticates to it."""
+
+    socket_path: str
+    tcp_port: int
+    """Loopback port on the non-POSIX transport, else 0."""
+    auth_token: str
+    trace_nonce: str
+    """Authenticates in-script call markers on stdout: the host accepts only markers carrying it, so text
+    returned by a tool (a web page, an API payload) cannot forge a citation or cut a real marker short."""
+
+
+class MCPIPCRequest(BaseModel):
+    """PTC IPC 请求；调用方范围不在其中（见 ``CallerScope``），请求里多出的字段被忽略。"""
+
+    skill_name: str
+    tool_name: str
+    params: dict[str, object]
+    trace_id: str = ""
+    """Log correlation only; budgets are keyed by the server, which the script cannot re-key."""
     auth_token: str | None = None
-    """Per-process bearer token; the server rejects requests that omit or fake it."""
+    """Bearer token of this server; the server rejects requests that omit or fake it."""
 
 
 class MCPIPCResponse(BaseModel):
@@ -119,37 +141,24 @@ class MCPIPCServer:
 
     _SHUTDOWN_TIMEOUT = 5.0
 
-    def __init__(
-        self,
-        socket_path: str,
-        max_calls_per_execution: int = DEFAULT_MAX_CALLS_PER_EXECUTION,
-        session_call_ceiling: int = DEFAULT_SESSION_CALL_CEILING,
-    ):
+    def __init__(self, socket_path: str, scope: CallerScope, budget: CallBudget) -> None:
         """初始化 IPC 服务端
 
         Args:
             socket_path: Unix Socket 文件路径
-            max_calls_per_execution: 单次脚本执行（按 trace id）的工具调用预算上限
-            session_call_ceiling: 单会话在一个时间窗口内跨脚本的调用兜底上限
+            scope: 这个服务端替谁调用；策略与预算都按它判定，不看请求
+            budget: 工具调用预算；会话级兜底要跨脚本累计，所以由调用方共享，而不是每个服务端各一份
         """
         self.socket_path = socket_path
+        self._scope = scope
+        self._budget = budget
+        self._execution_id = secrets.token_hex(8)
         self._server: asyncio.Server | None = None
-        self._loop: asyncio.AbstractEventLoop | None = None
+        self._connections: set[asyncio.Task[None]] = set()
         self._running = False
-        self._budget = CallBudget(max_calls_per_execution, session_call_ceiling)
         self._tcp_port: int = 0
         self.auth_token: str = secrets.token_urlsafe(32)
         self.trace_nonce: str = secrets.token_hex(16)
-        """Nonce that authenticates in-script call markers on stdout.
-
-        The generated client stamps every call marker with it. The host only accepts
-        markers carrying this exact value, so text returned by a tool — a web page, an
-        API payload — cannot forge a citation or truncate a genuine marker by embedding
-        the marker delimiters. Rotated per server instance, i.e. per process. Callers
-        obtain this value through ``get_mcp_trace_nonce`` rather than reading the server
-        object, so a stopped server degrades to "no markers trusted" instead of stale
-        acceptance.
-        """
 
     async def start(self) -> None:
         """启动 IPC 服务端"""
@@ -157,7 +166,6 @@ class MCPIPCServer:
             logger.warning("MCP IPC Server already running")
             return
 
-        self._loop = asyncio.get_running_loop()
         if os_compat.IS_WIN:
             # Windows asyncio runs ProactorEventLoop, whose create_unix_connection raises
             # NotImplementedError, so the AF_UNIX path cannot work there. Bind loopback
@@ -181,10 +189,6 @@ class MCPIPCServer:
             os.umask(previous_umask)
         os.chmod(socket_dir, SOCKET_DIR_MODE)
 
-        # 删除已存在的 socket 文件
-        if os.path.exists(self.socket_path):
-            os.unlink(self.socket_path)
-
         # 启动 Unix Socket 服务器
         self._server = await asyncio.start_unix_server(self._handle_client, path=self.socket_path)
 
@@ -200,32 +204,34 @@ class MCPIPCServer:
         return self._tcp_port
 
     @property
-    def is_orphaned(self) -> bool:
-        """Marked running, but its event loop is closed: the socket still accepts and nothing answers."""
-        return self._running and self._loop is not None and self._loop.is_closed()
+    def endpoint(self) -> IPCEndpoint:
+        """What an in-script client needs to reach this server."""
+        return IPCEndpoint(
+            socket_path=self.socket_path,
+            tcp_port=self._tcp_port,
+            auth_token=self.auth_token,
+            trace_nonce=self.trace_nonce,
+        )
 
     async def stop(self) -> None:
-        """停止 IPC 服务端"""
-        if not self._running:
-            return
-
-        orphaned = self.is_orphaned
+        """停止 IPC 服务端并取消在途请求；可重复调用，也可用于只启动了一半的服务端"""
         self._running = False
 
-        if self._server:
-            self._server.close()
-            # A closed loop cannot drain connections: awaiting its futures from another loop raises.
-            if not orphaned:
-                try:
-                    await asyncio.wait_for(self._server.wait_closed(), timeout=self._SHUTDOWN_TIMEOUT)
-                except TimeoutError:
-                    logger.warning(
-                        f"IPC Server wait_closed timed out after {self._SHUTDOWN_TIMEOUT}s, forcing shutdown"
-                    )
-            self._server = None
-
-        if os.path.exists(self.socket_path):
-            os.unlink(self.socket_path)
+        server, self._server = self._server, None
+        if server is not None:
+            server.close()
+            # Handlers still waiting on a client would otherwise keep wait_closed() pending.
+            for task in self._connections:
+                task.cancel()
+            await asyncio.gather(*self._connections, return_exceptions=True)
+            self._connections.clear()
+            try:
+                await asyncio.wait_for(server.wait_closed(), timeout=self._SHUTDOWN_TIMEOUT)
+            except TimeoutError:
+                logger.warning(f"IPC Server wait_closed timed out after {self._SHUTDOWN_TIMEOUT}s, forcing shutdown")
+            # The file exists only once the listener was bound; the TCP transport never creates one.
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(self.socket_path)
 
         logger.info("MCP IPC Server stopped")
 
@@ -236,6 +242,9 @@ class MCPIPCServer:
         - 请求：4字节长度 + JSON数据
         - 响应：4字节长度 + JSON数据
         """
+        task = asyncio.current_task()
+        if task is not None:
+            self._connections.add(task)
         try:
             while True:
                 length_bytes = await reader.readexactly(4)
@@ -265,6 +274,8 @@ class MCPIPCServer:
         except Exception as e:
             logger.error(f"IPC client handler error: {e}")
         finally:
+            if task is not None:
+                self._connections.discard(task)
             writer.close()
             await writer.wait_closed()
 
@@ -310,24 +321,24 @@ class MCPIPCServer:
                     success=False, error="Unauthorized: invalid or missing auth token"
                 ).model_dump_json()
 
-            budget_error = self._budget.consume(request.session_id, request.trace_id)
+            budget_error = self._budget.consume(self._scope.session_id, self._execution_id)
             if budget_error is not None:
-                logger.warning(f"{log_prefix} Call budget exhausted (session={request.session_id})")
+                logger.warning(f"{log_prefix} Call budget exhausted (session={self._scope.session_id})")
                 return MCPIPCResponse(success=False, error=budget_error).model_dump_json()
 
-            policy_error = read_only_policy_error(request)
+            policy_error = read_only_policy_error(request, self._scope)
             if policy_error is not None:
                 logger.warning(f"{log_prefix} Blocked by read-only policy: {request.skill_name}.{request.tool_name}")
                 return MCPIPCResponse(success=False, error=policy_error).model_dump_json()
 
-            path_error = path_policy_error(request)
+            path_error = path_policy_error(request, self._scope)
             if path_error is not None:
                 logger.warning(
                     f"{log_prefix} Blocked by path policy: {request.skill_name}.{request.tool_name} - {path_error}"
                 )
                 return MCPIPCResponse(success=False, error=path_error).model_dump_json()
 
-            scope_error = scope_gate_error(request)
+            scope_error = scope_gate_error(request, self._scope)
             if scope_error is not None:
                 logger.warning(
                     f"{log_prefix} Blocked by agent scope gate: {request.skill_name}.{request.tool_name} - {scope_error}"
@@ -340,8 +351,8 @@ class MCPIPCServer:
             # ContextVar is task-local, so concurrent IPC clients stay isolated.
             ctx_token = _ipc_call_context.set(
                 IPCCallContext(
-                    session_id=request.session_id,
-                    workspace_root=request.workspace_root,
+                    session_id=self._scope.session_id,
+                    workspace_root=self._scope.workspace_root,
                     trace_id=tid,
                 )
             )
@@ -362,7 +373,7 @@ class MCPIPCServer:
                         request.tool_name,
                         request.params,
                         trace_id=tid,
-                        session_id=request.session_id or "-",
+                        session_id=self._scope.session_id or "-",
                     )
             finally:
                 _ipc_call_context.reset(ctx_token)
@@ -387,57 +398,3 @@ class MCPIPCServer:
         if not token:
             return False
         return hmac.compare_digest(token, self.auth_token)
-
-
-# 全局 IPC 服务端实例
-_ipc_server: MCPIPCServer | None = None
-
-
-async def start_mcp_ipc_server(socket_path: str) -> MCPIPCServer:
-    """启动全局 MCP IPC 服务端
-
-    Args:
-        socket_path: Unix Socket 文件路径
-
-    Returns:
-        IPC 服务端实例
-    """
-    global _ipc_server
-
-    if _ipc_server is not None and _ipc_server._running:
-        if not _ipc_server.is_orphaned:
-            return _ipc_server
-        await _ipc_server.stop()
-
-    _ipc_server = MCPIPCServer(socket_path)
-    await _ipc_server.start()
-    return _ipc_server
-
-
-async def stop_mcp_ipc_server() -> None:
-    """停止全局 MCP IPC 服务端"""
-    global _ipc_server
-
-    if _ipc_server is not None:
-        await _ipc_server.stop()
-        _ipc_server = None
-
-
-def get_mcp_ipc_server() -> MCPIPCServer | None:
-    """获取全局 MCP IPC 服务端实例；事件循环已关闭的残留实例视为不存在"""
-    server = _ipc_server
-    return None if server is not None and server.is_orphaned else server
-
-
-def get_mcp_trace_nonce() -> str | None:
-    """Return the live marker nonce, or None when no IPC server is running.
-
-    The host uses this to authenticate in-script call markers. Returning None once the
-    server is gone makes marker parsing fail closed: output from a previous process can no
-    longer be replayed into ``sources``, and a stopped server means no citation metadata
-    rather than trusting an old nonce.
-    """
-    server = _ipc_server
-    if server is None or not server._running or server.is_orphaned:
-        return None
-    return server.trace_nonce

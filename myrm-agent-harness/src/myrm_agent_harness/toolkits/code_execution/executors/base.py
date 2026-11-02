@@ -37,7 +37,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.granted_roots import (
     refuse_write_into_readonly_grant,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.gunzip import gunzip_bounded
-from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPCommunicationConfig, MCPConfigItem
+from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
     ExecutionContext,
@@ -57,7 +57,6 @@ __all__ = [
     "ExecutionContext",
     "ExecutionMetrics",
     "ExecutionResult",
-    "MCPCommunicationConfig",
     "MCPConfigItem",
     "get_executor",
     "require_executor",
@@ -306,9 +305,6 @@ class CodeExecutor(ABC):
 
     def get_executor_name(self) -> str:
         return self.__class__.__name__.removesuffix("Executor") or self.__class__.__name__
-
-    def get_mcp_communication_config(self) -> MCPCommunicationConfig | None:
-        return None
 
     async def save_workspace(self, session_id: str, storage_path: str) -> bool:
         return False

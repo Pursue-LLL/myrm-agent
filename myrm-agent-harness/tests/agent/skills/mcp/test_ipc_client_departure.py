@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.skills.mcp.ipc_proxy import MCPIPCServer
+from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import CallBudget
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, MCPIPCServer
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix socket transport")
 
@@ -40,7 +41,7 @@ async def _read_response(reader: asyncio.StreamReader) -> dict[str, object]:
 async def _server() -> AsyncIterator[MCPIPCServer]:
     # AF_UNIX paths are short-limited; pytest's tmp_path is not.
     socket_dir = Path(tempfile.mkdtemp(prefix="ipc"))
-    server = MCPIPCServer(str(socket_dir / "s.sock"))
+    server = MCPIPCServer(str(socket_dir / "s.sock"), CallerScope(), CallBudget())
     await server.start()
     try:
         yield server

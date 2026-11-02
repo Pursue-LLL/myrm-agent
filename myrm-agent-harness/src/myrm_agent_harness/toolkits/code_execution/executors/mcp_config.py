@@ -1,11 +1,10 @@
-"""MCP server entries and IPC settings that a code-execution run is given.
+"""MCP server entries that a code-execution run is given.
 
 [INPUT]
 - (none)
 
 [OUTPUT]
 - MCPConfigItem: One MCP server a script run can call, including the limit its tool calls are held to.
-- MCPCommunicationConfig: MCP IPC communication config provided by CodeExecutor.
 
 [POS]
 Plain data describing the MCP servers visible to one execution. Kept apart from ``models`` so the host can size a
@@ -14,7 +13,7 @@ script's time from the servers' own limits without that module growing past its 
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # Mirrors ``MCPConfig.execute_timeout``: a skill config written without the key is sized by the limit its connection
 # will actually enforce. ``test_mcp_config_item`` pins the two together.
@@ -67,12 +66,3 @@ class MCPConfigItem:
     def from_dict_list(cls, data_list: list[dict[str, object]]) -> list[MCPConfigItem]:
         """Create a list of MCPConfigItem from dictionaries."""
         return [cls.from_dict(data) for data in data_list]
-
-
-@dataclass
-class MCPCommunicationConfig:
-    """MCP IPC communication config provided by CodeExecutor."""
-
-    socket_path: str | None = None
-    skip_local_proxy: bool = False
-    servers: list[MCPConfigItem] = field(default_factory=list)

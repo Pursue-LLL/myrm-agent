@@ -15,7 +15,6 @@ Network configuration:
 - NetworkConfig: network access configuration model
 - ExecutionMode: execution mode enum (LOCAL)
 - LocalExecutionConfig: local executor settings
-- MCPIPCConfig: MCP IPC communication settings
 - ExecutionConfig: top-level execution configuration
 - get_execution_config(): global config singleton accessor
 
@@ -27,13 +26,6 @@ for the Agent-in-Sandbox architecture.
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
-
-
-def _default_ipc_socket_path() -> str:
-    """Deferred import keeps the execution config free of agent-layer imports."""
-    from myrm_agent_harness.core.network.ipc_socket import default_ipc_socket_path
-
-    return default_ipc_socket_path()
 
 DEFAULT_ALLOWED_HOSTS: frozenset[str] = frozenset(
     {
@@ -87,19 +79,6 @@ class ExecutionMode(StrEnum):
     LOCAL = "local"
 
 
-class MCPIPCConfig(BaseModel):
-    """MCP IPC configuration for subprocess-to-agent MCP tool callbacks via Unix Socket."""
-
-    enabled: bool = Field(default=True, description="Enable MCP IPC")
-    socket_path: str = Field(
-        default_factory=_default_ipc_socket_path,
-        description=(
-            "Unix Socket file path. Defaults to a per-process 0700 directory so another "
-            "local user cannot pre-create or connect to the socket."
-        ),
-    )
-
-
 class LocalExecutionConfig(BaseModel):
     """Local execution configuration."""
 
@@ -126,7 +105,6 @@ class ExecutionConfig(BaseModel):
     mode: ExecutionMode = Field(default=ExecutionMode.LOCAL, description="Execution mode")
 
     local: LocalExecutionConfig = Field(default_factory=LocalExecutionConfig)
-    mcp_proxy: MCPIPCConfig = Field(default_factory=MCPIPCConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
 
 

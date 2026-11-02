@@ -1,6 +1,7 @@
-"""BashExecutor MCP proxy, preparation, and skill path helpers.
+"""BashExecutor preparation, MCP IPC scope, and skill path helpers.
 
 [INPUT]
+- agent.skills.mcp.ipc_endpoint::mcp_ipc_endpoint, ipc_proxy::CallerScope (POS: per-execution MCP IPC server and the run it serves)
 - toolkits.code_execution.code_detector::code_detector, CodeType (POS: Code type detector)
 - agent.skills.mcp.executor::skill_executor (POS: Skill MCP execution bridge)
 - agent.skills.runtime.command_paths::rewrite_skill_paths, detect_skill_script_command (POS: Skill command path utilities)
@@ -8,10 +9,11 @@
 - .constants::MCP_MIN_TIMEOUT, MCP_HOST_MARGIN_SECONDS (POS: MCP timeout floor and the margin the host keeps over the servers' call limits)
 
 [OUTPUT]
-- BashExecutorPrepareMixin: _prepare_execution, MCP proxy, skill path rewrite
+- PreparedExecution: what one execution runs and which marker nonce authenticates its output
+- BashExecutorPrepareMixin: _prepare_execution, _caller_scope, skill path rewrite
 
 [POS]
-Code-type detection, skill staging, MCP IPC startup, and Python execution preparation.
+Code-type detection, skill staging, per-execution MCP IPC server startup, and Python execution preparation.
 """
 
 from __future__ import annotations
@@ -19,8 +21,9 @@ from __future__ import annotations
 import logging
 import math
 import re
+from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from myrm_agent_harness.agent.meta_tools.bash._executor.constants import (
     MCP_HOST_MARGIN_SECONDS,
@@ -29,6 +32,8 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.constants import (
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
+from myrm_agent_harness.agent.skills.mcp.ipc_endpoint import mcp_ipc_endpoint
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope
 from myrm_agent_harness.agent.skills.runtime.command_paths import (
     detect_skill_script_command,
     rewrite_skill_paths,
@@ -46,31 +51,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class PreparedExecution(NamedTuple):
+    """What one execution runs, and the nonce that authenticates the MCP markers in its output."""
+
+    use_python_execution: bool
+    code: str
+    mcp_config_items: list[MCPConfigItem] | None
+    trace_nonce: str | None
+    """None when the execution has no IPC server, so no marker in its output can be trusted."""
+
+
 class BashExecutorPrepareMixin:
-    """Detect execution mode and prepare code, MCP proxy, and skill staging helpers."""
-
-    async def _ensure_mcp_proxy_started(self) -> None:
-        """Ensure MCP IPC server is started for cross-process communication."""
-        if self._mcp_proxy_started:
-            return
-
-        executor_mcp_config = self._executor.get_mcp_communication_config()
-        if executor_mcp_config and executor_mcp_config.skip_local_proxy:
-            logger.warning(
-                " [MCP Proxy] Skipping local proxy startup "
-                f"(executor '{self._executor.get_executor_name()}' uses direct callback)"
-            )
-            self._mcp_proxy_started = True
-            return
-
-        socket_path = self._get_ipc_socket_path()
-        try:
-            await self._start_ipc_server(socket_path)
-            self._mcp_proxy_started = True
-        except Exception as e:
-            error_msg = f"Failed to start MCP IPC server at {socket_path}: {e}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
+    """Detect execution mode and prepare code, MCP IPC scope, and skill staging helpers."""
 
     @staticmethod
     def _is_read_only_scope() -> bool:
@@ -86,57 +78,45 @@ class BashExecutorPrepareMixin:
 
         return not check_capability_access(CapabilityAction.WRITE)
 
-    def _get_ipc_socket_path(self) -> str:
-        """Get IPC socket path from executor config or code execution config."""
-        executor_mcp_config = self._executor.get_mcp_communication_config()
-        if executor_mcp_config and executor_mcp_config.socket_path:
-            return executor_mcp_config.socket_path
+    def _caller_scope(self, session_id: str, workspace_root: str | None) -> CallerScope:
+        """The run an MCP IPC server serves; the server enforces it, the script cannot restate it."""
+        from myrm_agent_harness.agent.middlewares._session_context import get_agent_id
 
-        return self.config.mcp_proxy.socket_path
-
-    async def _start_ipc_server(self, socket_path: str) -> None:
-        """Start the MCP IPC server if not already running."""
-        from myrm_agent_harness.agent.skills.mcp import (
-            get_mcp_ipc_server,
-            start_mcp_ipc_server,
+        return CallerScope(
+            session_id=session_id,
+            agent_id=get_agent_id() or None,
+            workspace_root=workspace_root,
+            readonly_workspace=self._is_read_only_scope(),
         )
 
-        if get_mcp_ipc_server() is None:
-            await start_mcp_ipc_server(socket_path)
-            logger.info(f" [MCP Proxy] Started IPC Server at {socket_path}")
-
-    def _prepare_execution(
+    async def _prepare_execution(
         self,
         command: str,
-        session_id: str | None = None,
-        workspace_root: str | None = None,
-        readonly_workspace: bool = False,
-    ) -> tuple[bool, str, list[MCPConfigItem] | None]:
-        """Detect execution mode (Python/Bash/Skill) and prepare code."""
+        scope: CallerScope,
+        ipc_servers: AsyncExitStack,
+    ) -> PreparedExecution:
+        """Detect execution mode (Python/Bash/Skill) and prepare code.
+
+        A skill command gets its own MCP IPC server, registered on ``ipc_servers`` so it stops
+        with the execution that owns the stack.
+        """
         use_python_execution = False
         prepared_code = command
         mcp_config_items = None
+        trace_nonce = None
 
         if self._enable_skill_execution and self._skill_executor:
             is_skill, skill_name = self._skill_executor.detect_skill_in_command(command)
 
             if is_skill and skill_name:
                 use_python_execution = True
-                ipc_socket_path = self._get_ipc_socket_path()
-                logger.info(f" [MCP] Using IPC mode (socket: {ipc_socket_path})")
+                endpoint = await ipc_servers.enter_async_context(mcp_ipc_endpoint(scope))
+                logger.info(f" [MCP] Using IPC mode (socket: {endpoint.socket_path})")
 
-                from myrm_agent_harness.agent.middlewares._session_context import get_agent_id
-
-                skill_context = self._skill_executor.prepare_for_execution(
-                    command=command,
-                    ipc_socket_path=ipc_socket_path,
-                    session_id=session_id,
-                    agent_id=get_agent_id() or None,
-                    workspace_root=workspace_root,
-                    readonly_workspace=readonly_workspace,
-                )
+                skill_context = self._skill_executor.prepare_for_execution(command=command, endpoint=endpoint)
                 prepared_code = skill_context.prepared_code
                 mcp_config_items = skill_context.mcp_config
+                trace_nonce = endpoint.trace_nonce
 
         if not use_python_execution:
             detection_result = code_detector.detect(command)
@@ -160,7 +140,7 @@ class BashExecutorPrepareMixin:
         if use_python_execution:
             self._validate_python_syntax(prepared_code, command)
 
-        return use_python_execution, prepared_code, mcp_config_items
+        return PreparedExecution(use_python_execution, prepared_code, mcp_config_items, trace_nonce)
 
     def consume_python_c_transform_hint(self) -> str | None:
         """Return + clear the last ``python -c`` transform hint, if any."""

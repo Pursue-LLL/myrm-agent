@@ -1,10 +1,11 @@
 """Per-request policy gates of the MCP IPC server
 
-Each gate inspects one script-originated request and returns an error message when the request must be refused, else
-``None``. They hold no server state, so they live apart from the connection handling in ``ipc_proxy``.
+Each gate inspects one script-originated request against the scope the host gave the server and returns an error
+message when the request must be refused, else ``None``. The scope, never the request, says whose run this is. They
+hold no server state, so they live apart from the connection handling in ``ipc_proxy``.
 
 [INPUT]
-- ipc_proxy.MCPIPCRequest (type only): The request under inspection.
+- ipc_proxy.MCPIPCRequest, CallerScope (type only): The request under inspection and the run it belongs to.
 
 [OUTPUT]
 - read_only_policy_error: Read-only sandbox scope for MCP calls made from scripts.
@@ -20,10 +21,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import MCPIPCRequest
+    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, MCPIPCRequest
 
 
-def read_only_policy_error(request: MCPIPCRequest) -> str | None:
+def read_only_policy_error(request: MCPIPCRequest, scope: CallerScope) -> str | None:
     """Enforce the caller's read-only scope on MCP calls made from scripts.
 
     The direct Function-Calling path drops or blocks non-read-only MCP tools
@@ -36,7 +37,7 @@ def read_only_policy_error(request: MCPIPCRequest) -> str | None:
     from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
 
     # Builtins (notify) do not touch external state.
-    if not request.readonly_workspace or request.skill_name == BUILTIN_SKILL_NAME:
+    if not scope.readonly_workspace or request.skill_name == BUILTIN_SKILL_NAME:
         return None
 
     from myrm_agent_harness.core.security.tool_registry.registry import (
@@ -52,9 +53,9 @@ def read_only_policy_error(request: MCPIPCRequest) -> str | None:
     )
 
 
-def path_policy_error(request: MCPIPCRequest) -> str | None:
+def path_policy_error(request: MCPIPCRequest, scope: CallerScope) -> str | None:
     """Enforce workspace path policy on tool calls made from scripts."""
-    if not request.workspace_root or not isinstance(request.params, dict):
+    if not scope.workspace_root or not isinstance(request.params, dict):
         return None
 
     path_keys = ("path", "file_path", "target", "destination", "filepath")
@@ -70,13 +71,13 @@ def path_policy_error(request: MCPIPCRequest) -> str | None:
     from myrm_agent_harness.agent.security.checks import check_path_policy
     from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
 
-    action, reason = check_path_policy(target_path, PathPolicy(), request.workspace_root)
+    action, reason = check_path_policy(target_path, PathPolicy(), scope.workspace_root)
     if action == PermissionAction.DENY:
         return f"Path policy violation: {reason}"
     return None
 
 
-def scope_gate_error(request: MCPIPCRequest) -> str | None:
+def scope_gate_error(request: MCPIPCRequest, scope: CallerScope) -> str | None:
     """Enforce employee/agent-scoped MCP discovery gate policies."""
     from myrm_agent_harness.agent.sub_agents.mcp_scope_gate.scope_gate import (
         EmployeeScopedMcpDiscoveryGate,
@@ -85,7 +86,7 @@ def scope_gate_error(request: MCPIPCRequest) -> str | None:
         EmployeeToolScopeViolationError,
     )
 
-    agent_id = request.agent_id
+    agent_id = scope.agent_id
     if not agent_id:
         return None
 
