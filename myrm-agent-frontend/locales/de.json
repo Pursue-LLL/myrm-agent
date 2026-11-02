@@ -2397,6 +2397,7 @@
     "researchBegins": "Was möchten Sie wissen?",
     "noProviderBanner": "Kein KI-Modell konfiguriert. Bitte richten Sie einen Modellanbieter ein, um zu chatten.",
     "noProviderAction": "Konfigurieren",
+    "ollamaQuickConnect": "Ollama verwenden: {model}",
     "subscriptionQuickConnect": "Abonnement vorhanden? 1-Klick-Verbindung",
     "subscriptionModalTitle": "Offizielle Abonnements verbinden",
     "subscriptionModalDesc": "Sichere direkte Verbindung über offizielle Gerätecodes ohne API-Schlüsselkauf. Anmeldedaten werden lokal verschlüsselt gespeichert.",

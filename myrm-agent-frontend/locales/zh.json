@@ -2406,6 +2406,7 @@
     "researchBegins": "您想了解什么？",
     "noProviderBanner": "尚未配置 AI 模型，请先配置模型提供商以开始对话",
     "noProviderAction": "去配置",
+    "ollamaQuickConnect": "使用 Ollama：{model}",
     "subscriptionQuickConnect": "已有订阅？一键接入",
     "subscriptionModalTitle": "一键接入官方付费订阅",
     "subscriptionModalDesc": "通过官方设备码安全直连，无需购买和配置 API Key，凭据本地安全加密存储。",

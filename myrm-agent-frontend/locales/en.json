@@ -2406,6 +2406,7 @@
     "researchBegins": "What do you want to know?",
     "noProviderBanner": "No AI model configured. Please set up a model provider to start chatting.",
     "noProviderAction": "Configure",
+    "ollamaQuickConnect": "Use Ollama: {model}",
     "subscriptionQuickConnect": "Have subscriptions? Connect in 1-Click",
     "subscriptionModalTitle": "Connect Official Subscriptions",
     "subscriptionModalDesc": "Securely connect via official device-code grants without buying API keys. Credentials encrypted locally.",

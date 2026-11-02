@@ -4,6 +4,7 @@
  * @/services/models-dev::getModelsForProvider (POS: live model catalog)
  * ./subscriptionDefaultModel::pickSubscriptionDefaultModel (POS: catalog-driven starting model)
  * ./providerTypes::hasUsableProviderAuth (POS: whether a provider can still authenticate)
+ * ./enableProviderWithModel::enableProviderWithModel (POS: the shared enable-and-fill-the-default rule)
  *
  * [OUTPUT]
  * connectProviderSubscription: marks the provider connected, enables it with a model it can run and fills an empty
@@ -19,7 +20,8 @@
 
 import { getModelsForProvider } from '@/services/models-dev';
 import useProviderStore from '@/store/useProviderStore';
-import { hasUsableProviderAuth, type ProviderConfig } from './providerTypes';
+import { enableProviderWithModel } from './enableProviderWithModel';
+import { hasUsableProviderAuth } from './providerTypes';
 import { pickSubscriptionDefaultModel } from './subscriptionDefaultModel';
 
 async function resolveStartingModel(providerId: string): Promise<string | null> {
@@ -38,27 +40,14 @@ async function applyStartingModel(providerId: string): Promise<void> {
   const startingModel = await resolveStartingModel(providerId);
 
   // The catalog request may have taken a while; decide on the state as it is now.
-  const store = useProviderStore.getState();
-  const provider = store.providers.find((p) => p.id === providerId);
+  const provider = useProviderStore.getState().providers.find((p) => p.id === providerId);
   if (!provider) {
     return;
   }
 
-  const hasChosenModels = provider.enabledModels.length > 0;
-  const baseModel = hasChosenModels ? provider.enabledModels[0] : startingModel;
-  if (!baseModel) {
-    return;
-  }
-
-  const update: Partial<ProviderConfig> = { isEnabled: true };
-  if (!hasChosenModels) {
-    update.availableModels = Array.from(new Set([...provider.availableModels, baseModel]));
-    update.enabledModels = [baseModel];
-  }
-  store.updateProvider(providerId, update);
-
-  if (!store.defaultModelConfig.baseModel.primary) {
-    store.setBaseModel({ providerId, model: baseModel });
+  const model = provider.enabledModels.length > 0 ? provider.enabledModels[0] : startingModel;
+  if (model) {
+    enableProviderWithModel(providerId, model);
   }
 }
 

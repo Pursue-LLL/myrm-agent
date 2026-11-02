@@ -2397,6 +2397,7 @@
     "researchBegins": "何を知りたいですか？",
     "noProviderBanner": "AIモデルが未設定です。会話を開始するにはモデルプロバイダーを設定してください",
     "noProviderAction": "設定する",
+    "ollamaQuickConnect": "Ollama を使う：{model}",
     "subscriptionQuickConnect": "サブスクリプションをお持ちですか？ワンクリック連携",
     "subscriptionModalTitle": "公式サブスクリプション連携",
     "subscriptionModalDesc": "公式デバイスコードによる安全な直接連携。APIキーを購入せずに利用可能、認証情報はローカルに暗号化保存されます。",

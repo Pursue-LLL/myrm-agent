@@ -2397,6 +2397,7 @@
     "researchBegins": "您想了解什麼？",
     "noProviderBanner": "尚未配置 AI 模型，請先配置模型提供商以開始對話",
     "noProviderAction": "去配置",
+    "ollamaQuickConnect": "使用 Ollama：{model}",
     "subscriptionQuickConnect": "已有訂閱？一鍵接入",
     "subscriptionModalTitle": "一鍵接入官方付費訂閱",
     "subscriptionModalDesc": "透過官方設備碼安全直連，無需購買和配置 API Key，憑證本地安全加密存儲。",
