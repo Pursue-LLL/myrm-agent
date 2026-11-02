@@ -76,7 +76,7 @@
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失 | ✅ |
 | `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板 | ✅ |
 | `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化与跳转动作覆盖 | ✅ |
-| `NewTaskWorkContextCard.tsx` | 组件 | 新建任务工作上下文卡片：三模式切换（本地工作区/云端沙箱/极速对话）、工作区路径绑定与一键办公标准化脚手架（00_原始资料/01_参考/02_生成结果/03_历史版本）；服务端拒绝的目录（范围过大 / 受保护）只弹说明，不写入本地状态；模式切换的渲染交给 `WorkModeTabs`，卡片只持有切换对 chat store 的语义 | ✅ |
+| `NewTaskWorkContextCard.tsx` | 组件 | 新建任务工作上下文卡片：三模式切换（本地工作区/云端沙箱/极速对话）、工作区路径绑定与一键办公标准化脚手架（00_原始资料/01_参考/02_生成结果/03_历史版本；只创建工作区里缺失的目录，已齐全时按已初始化处理，按钮悬停提示由同一份目录清单生成）；服务端拒绝的目录（范围过大 / 受保护）只弹说明，不写入本地状态；模式切换的渲染交给 `WorkModeTabs`，卡片只持有切换对 chat store 的语义 | ✅ |
 | `WorkModeTabs.tsx` | 组件 | 工作模式三段式切换（本地工作区/云端沙箱/极速对话），表驱动渲染、无状态；手机（<`sm`）为三列网格（图标在上且顶对齐，标签换行行数不同时三个图标仍在同一水平线），标签先按词换行、单词仍超宽时按文档语言（`<html lang>` 由 `DocumentLang` 在水合后同步为当前语言，首屏绘制时仍是默认语言）自动断字，浏览器没有该语言的断字规则时在词内换行（`break-words`），标签不被裁切，<`375px` 时按钮左右内边距由 8px 收到 4px，使 360 宽手机上的 `Lokaler`、`작업` 等词保持完整，≥`sm` 为单行 flex 居中；三个按钮以 `aria-pressed` 暴露当前模式；标签文案以字面量键 `t('modeLocal')` 等取值，使 `verify:i18n` 能静态校验；每个标签的 `data-testid` 为 `context-mode-` 加模式名（`local` / `cloud` / `chat`） | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |

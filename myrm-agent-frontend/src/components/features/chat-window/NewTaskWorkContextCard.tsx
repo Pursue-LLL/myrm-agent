@@ -72,6 +72,8 @@ function addRecentDir(dir: string): void {
 }
 
 const STANDARD_OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
+// The scaffold button's tooltip names exactly the folders it creates.
+const STANDARD_OFFICE_FOLDERS_LABEL = STANDARD_OFFICE_FOLDERS.join(', ');
 
 interface NewTaskWorkContextCardProps {
   className?: string;
@@ -226,7 +228,8 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     }
   }, [handleTauriPicker]);
 
-  // One-click standard office scaffolding creation
+  // One-click standard office scaffolding. Only the folders the workspace lacks are created (the server rejects an
+  // existing path), so running it on an already initialized workspace reports success.
   const handleCreateScaffold = useCallback(async () => {
     if (!workspaceDir) {
       toast({ title: t('noWorkspaceSelected'), variant: 'destructive' });
@@ -234,14 +237,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     }
     setIsScaffolding(true);
     try {
-      const results = await Promise.allSettled(
-        STANDARD_OFFICE_FOLDERS.map((folder) => mkdirInWorkspace(workspaceDir, folder)),
-      );
-      const failures = results.filter((r) => r.status === 'rejected');
-      if (failures.length === 0 || failures.length < STANDARD_OFFICE_FOLDERS.length) {
-        toast({ title: t('scaffoldSuccess') });
-      } else {
+      const { entries: existing } = await browseDirectories(workspaceDir);
+      const existingNames = new Set(existing.map((entry) => entry.name));
+      const missing = STANDARD_OFFICE_FOLDERS.filter((folder) => !existingNames.has(folder));
+      const results = await Promise.allSettled(missing.map((folder) => mkdirInWorkspace(workspaceDir, folder)));
+      if (results.some((result) => result.status === 'rejected')) {
         toast({ title: t('scaffoldFailed'), variant: 'destructive' });
+      } else {
+        toast({ title: t('scaffoldSuccess') });
       }
     } catch {
       toast({ title: t('scaffoldFailed'), variant: 'destructive' });
@@ -439,7 +442,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
               data-testid="scaffold-btn"
               onClick={handleCreateScaffold}
               className="h-8 px-2.5 text-xs font-medium gap-1.5 shrink-0 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
-              title={t('scaffoldTooltip')}
+              title={t('scaffoldTooltip', { folders: STANDARD_OFFICE_FOLDERS_LABEL })}
             >
               <FolderPlus className="h-3.5 w-3.5" />
               <span>{t('scaffoldBtn')}</span>
@@ -456,7 +459,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
           </div>
           <div className="flex items-center gap-1 text-[11px] text-primary/80 font-medium">
             <Layers className="h-3 w-3" />
-            <span>Dedicated Sandbox Volume</span>
+            <span>{t('modeCloudBadge')}</span>
           </div>
         </div>
       )}

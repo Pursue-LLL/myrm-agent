@@ -10,13 +10,14 @@ const translations: Record<string, string> = {
   modeLocalDesc: 'Bind a local folder',
   modeCloud: 'Cloud Sandbox',
   modeCloudDesc: 'Isolated sandbox environment',
+  modeCloudBadge: 'Dedicated sandbox storage',
   modeChat: 'Quick Chat',
   modeChatDesc: 'General AI conversation',
   bindWorkspace: 'Select Workspace',
   currentWorkspace: 'Current Workspace',
   noWorkspaceSelected: 'No workspace selected (click to bind)',
   scaffoldBtn: 'Initialize Office Scaffold',
-  scaffoldTooltip: 'Create standard folders',
+  scaffoldTooltip: 'Create standard folders: {folders}',
   scaffoldSuccess: 'Standard office structure initialized',
   scaffoldFailed: 'Failed to initialize office structure',
   clearWorkspace: 'Unbind',
@@ -30,7 +31,8 @@ const translations: Record<string, string> = {
   tooBroad: 'This folder is too broad',
 };
 
-const stableT = (key: string) => translations[key] ?? key;
+const stableT = (key: string, values?: Record<string, string>) =>
+  (translations[key] ?? key).replace(/\{(\w+)\}/g, (placeholder, name: string) => values?.[name] ?? placeholder);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -69,6 +71,22 @@ vi.mock('@/lib/tauri', () => ({
 import { browseDirectories, mkdirInWorkspace, updateChatWorkspaceDir } from '@/services/chat';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
+
+const STANDARD_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'];
+
+function mockWorkspaceFolders(names: string[]): void {
+  vi.mocked(browseDirectories).mockResolvedValue({
+    current: '/home/user/my-project',
+    parent: '/home/user',
+    entries: names.map((name) => ({ name, path: `/home/user/my-project/${name}`, is_dir: true })),
+  });
+}
+
+function clickScaffoldButton(): void {
+  const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
+  expectNonNull(scaffoldBtn, 'scaffoldBtn');
+  fireEvent.click(scaffoldBtn);
+}
 
 describe('NewTaskWorkContextCard', () => {
   beforeEach(() => {
@@ -131,20 +149,92 @@ describe('NewTaskWorkContextCard', () => {
     mockState.workspaceDir = '/home/user/my-project';
     render(<NewTaskWorkContextCard />);
 
-    const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
-    expect(scaffoldBtn).toBeDefined();
-
-    expectNonNull(scaffoldBtn, 'scaffoldBtn');
-    fireEvent.click(scaffoldBtn);
+    clickScaffoldButton();
 
     await waitFor(() => {
       expect(mkdirInWorkspace).toHaveBeenCalledTimes(4);
-      expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '00_原始资料');
-      expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '01_参考');
-      expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '02_生成结果');
-      expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '03_历史版本');
+      for (const folder of STANDARD_FOLDERS) {
+        expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', folder);
+      }
       expect(toast).toHaveBeenCalledWith({ title: 'Standard office structure initialized' });
     });
+  });
+
+  it('names the folders the scaffold creates in the button tooltip', () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    render(<NewTaskWorkContextCard />);
+
+    expect(screen.getByTitle(`Create standard folders: ${STANDARD_FOLDERS.join(', ')}`)).toBeDefined();
+  });
+
+  it('labels the cloud sandbox storage from the locale messages', () => {
+    mockState.sandboxMode = true;
+    render(<NewTaskWorkContextCard />);
+
+    expect(screen.getByText('Dedicated sandbox storage')).toBeDefined();
+  });
+
+  it('reports success without creating anything when every standard folder already exists', async () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    mockWorkspaceFolders([...STANDARD_FOLDERS, 'notes']);
+    render(<NewTaskWorkContextCard />);
+
+    clickScaffoldButton();
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: 'Standard office structure initialized' });
+    });
+    expect(mkdirInWorkspace).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+  });
+
+  it('creates only the standard folders the workspace lacks', async () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    mockWorkspaceFolders(STANDARD_FOLDERS.slice(0, 2));
+    render(<NewTaskWorkContextCard />);
+
+    clickScaffoldButton();
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({ title: 'Standard office structure initialized' });
+    });
+    expect(mkdirInWorkspace).toHaveBeenCalledTimes(2);
+    expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '02_生成结果');
+    expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '03_历史版本');
+  });
+
+  it('reports failure when a missing folder cannot be created even though others exist', async () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    mockWorkspaceFolders(STANDARD_FOLDERS.slice(0, 3));
+    vi.mocked(mkdirInWorkspace).mockRejectedValue(new Error('Permission denied'));
+    render(<NewTaskWorkContextCard />);
+
+    clickScaffoldButton();
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to initialize office structure',
+        variant: 'destructive',
+      });
+    });
+    expect(mkdirInWorkspace).toHaveBeenCalledTimes(1);
+    expect(mkdirInWorkspace).toHaveBeenCalledWith('/home/user/my-project', '03_历史版本');
+  });
+
+  it('reports failure without creating anything when the workspace cannot be listed', async () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    vi.mocked(browseDirectories).mockRejectedValue(new Error('offline'));
+    render(<NewTaskWorkContextCard />);
+
+    clickScaffoldButton();
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to initialize office structure',
+        variant: 'destructive',
+      });
+    });
+    expect(mkdirInWorkspace).not.toHaveBeenCalled();
   });
 
   it('allows unbinding workspace directory', async () => {
@@ -226,9 +316,7 @@ describe('NewTaskWorkContextCard', () => {
     mockState.workspaceDir = '/home/user/my-project';
     render(<NewTaskWorkContextCard />);
 
-    const scaffoldBtn = screen.getByText('Initialize Office Scaffold').closest('button');
-    expectNonNull(scaffoldBtn, 'scaffoldBtn');
-    fireEvent.click(scaffoldBtn);
+    clickScaffoldButton();
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({
