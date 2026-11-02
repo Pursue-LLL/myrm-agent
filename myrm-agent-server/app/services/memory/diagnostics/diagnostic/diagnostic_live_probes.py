@@ -167,7 +167,7 @@ async def run_sparse_cjk_recall_probe(manager: MemoryManager | None) -> MemoryCo
         label="Sparse CJK recall",
         status="ready",
         evidence=f"Hybrid retrieval accepted a CJK keyword query with RRF enabled; bm25_top_k={config.bm25_top_k}, max_corpus={config.bm25_max_corpus_size}.",
-        impact="Exact keyword recall is available as a complement to semantic vector search.",
+        impact="Hybrid keyword + semantic search runs without error for CJK queries; hit quality is scored by the golden recall benchmark.",
         next_action="No action required.",
         safe_to_retry=True,
         duration_ms=round((perf_counter() - started) * 1000, 2),

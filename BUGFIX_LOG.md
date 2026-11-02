@@ -19,13 +19,13 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（只改注释、文档和官网文案，唯一的运行时字符串变化是探针 `impact` 里的数字；两个仓库各一次提交，未发版）。 |
+| **状态** | **FIXED**（只改注释、文档、官网文案和两条探针 `impact` 字符串，不改探针逻辑；两个仓库各一次提交，未发版）。 |
 | **症状** | [实测，数代码] `diagnostic_recall_benchmark.py` 的 `_BENCHMARK_PAIRS` 是 20 条、10 个类别、每类 2 条，但文件头和函数文档写「8 类」，探针 `impact` 写「9 类」，品牌文档与官网三种语言写「16 个场景、8 类」，中文文档还把延迟写成 P50/P95（代码同时算 P99）。[代码] `diagnostic_live_probes.py:132-168` 的 `run_sparse_cjk_recall_probe` 只发一次搜索、丢弃返回值、不报错就判 `ready`，而文件头与 `diagnostic/_ARCH.md` 把它写成「验证 BM25/RRF 稀疏召回」。[代码] 中文记忆文档的降级表写「聊天页明确提示关键词模式」，但这条提示现在只在记忆设置页（`MemorySection.tsx:535-543`），同一段的测试数也不对（写 15 项，实际 16 项；另一个 1,025 项的数字无法复现，已删）。 |
 | **根因** | 基准加类别（`longdoc_penetration`、`adversarial_conflict`）时只更新了 `_ARCH.md`，文件头、探针文案和对外文案没人改；提示条挪走时只清理了代码与 `_ARCH.md`，没扫对外文档的行文。 |
-| **修复** | ① 基准文件头、函数文档、探针 `impact` 统一为「20 个 case、10 类别、各 2 条」，并写明无稠密向量时判 `missing`。② 稀疏探针的文件头与 `_ARCH.md` 改为实际行为：一次 CJK 关键词 + RRF 查询，只确认搜索不报错，不写入记忆、不核对命中；无稠密向量判 `missing`；`_ARCH.md` 同时补上「检索管线探针关键词模式同样执行」。③ `diagnostics.py` 的 INPUT 里两条 POS 对齐到被引用文件的 POS 首句。④ 品牌文档中英文、官网 en / zh / ko 文案改为 20 场景 / 10 类，中文文档延迟改为 P50/P95/P99，降级表改为指向记忆设置页，测试数改为 16 项。⑤ 本文件里先前几条记录中的外部项目对比措辞删掉，只保留依据本身。 |
-| **行为变化** | 无功能变化；用户唯一可能看到的差别是 Memory Doctor 基准探针详情里的「9 类」变成「10 类」。 |
+| **修复** | ① 基准文件头、函数文档、探针 `impact` 统一为「20 个 case、10 类别、各 2 条」，并写明无稠密向量时判 `missing`。② 稀疏探针的文件头与 `_ARCH.md` 改为实际行为：一次 CJK 关键词 + RRF 查询，只确认搜索不报错，不写入记忆、不核对命中；无稠密向量判 `missing`；`_ARCH.md` 同时补上「检索管线探针关键词模式同样执行」。③ `diagnostics.py` 的 INPUT 里两条 POS 对齐到被引用文件的 POS 首句。④ 品牌文档中英文、官网 en / zh / ko 文案改为 20 场景 / 10 类，中文文档延迟改为 P50/P95/P99，降级表改为指向记忆设置页，测试数改为 16 项。⑤ 本文件里先前几条记录中的外部项目对比措辞删掉，只保留依据本身。⑥ 稀疏探针 `ready` 时的 `impact` 改为只陈述实际检查（CJK 查询可正常执行，命中质量由黄金召回基准评分），不再写「关键词召回可用」。 |
+| **行为变化** | 无功能变化；Memory Doctor 详情里两处文字变了：基准探针的「9 类」变成「10 类」，稀疏召回探针通过时的影响说明更保守。 |
 | **回归证据** | [实测] 3 个改动的 Python 文件 `ruff check` / `ruff format --check` 通过；`check_fractal_docs.py --no-stub` 通过；Doctor 相关 6 个测试文件 49 例通过；公开树门禁 `test_no_private_references.py` 14 例通过；官网 4 个语言文件 JSON 可解析。 |
-| **仍然存在** | ① `sparse_cjk_recall` 探针本身没有改：它仍然只检查不报错，运行时 `impact` 文案「Exact keyword recall is available…」比实际检查的更强，只是文档与文件头不再夸大。② 官网和文档里的 20 / 10 是手写数字，下次改基准还会漂，没有加门禁。③ 日语官网文案没有 Memory Doctor 条目，未改。 |
+| **仍然存在** | ① `sparse_cjk_recall` 探针的检查本身没有加强：它仍然只确认搜索不报错，不核对命中；要核对命中质量，由黄金召回基准的 `cjk_retrieval` 类别承担。② 官网和文档里的 20 / 10 是手写数字，下次改基准还会漂，没有加门禁。③ 日语官网文案没有 Memory Doctor 条目，未改。 |
 | **代码位置** | `myrm-agent-server/app/services/memory/diagnostics/{diagnostics.py,diagnostic/{diagnostic_live_probes.py,diagnostic_recall_benchmark.py,_ARCH.md}}`、`BUGFIX_LOG.md`；品牌仓库 `myrm-docs/docs/{core-concepts,zh/core-concepts}/memory-system.mdx`、`myrm-website/locales/{en,zh,ko}.json` |
 
 ## 2026-11-02 · 成长页的「知识图谱」标签页和记忆卡片的「证据溯源」抽屉在默认配置下请求不到后端（405 / 404）：两个接口不再受 Memory Labs 开关控制
