@@ -8,7 +8,8 @@ itself (its owner no longer runs, and it is a Chromium binary) rather than a gue
 or its ancestors, so a browser that belongs to someone else is never touched.
 
 [INPUT]
-- psutil (optional): process start time, boot time, status and environment reads
+- utils.process_start::start_stamp (POS: a process's start time that stays comparable across system clock adjustments)
+- psutil (optional): process status and environment reads
 
 [OUTPUT]
 - OWNER_ENV_VAR: name of the environment variable that carries the stamp
@@ -23,9 +24,10 @@ the pool and the orphan check do not import each other.
 from __future__ import annotations
 
 import os
-import sys
 from enum import StrEnum
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.utils.process_start import start_stamp
 
 if TYPE_CHECKING:
     import psutil
@@ -34,10 +36,6 @@ OWNER_ENV_VAR = "MYRM_BROWSER_OWNER"
 
 # psutil derives start times per platform with different rounding; a real pid reuse differs by far more.
 _START_TIME_TOLERANCE_MS = 1000
-
-# On Linux psutil reports a start time as boot time plus ticks since boot, and the boot time follows the
-# wall clock (NTP steps, a VM resumed with a corrected clock); elsewhere the start time is a fixed instant.
-_START_TIMES_FOLLOW_WALL_CLOCK = sys.platform.startswith("linux")
 
 
 class OwnerState(StrEnum):
@@ -51,12 +49,7 @@ class OwnerState(StrEnum):
 
 def _start_ms(proc: psutil.Process) -> int:
     """Start time of ``proc`` in milliseconds, comparable across system clock adjustments."""
-    import psutil
-
-    started = proc.create_time()
-    if _START_TIMES_FOLLOW_WALL_CLOCK:
-        started -= psutil.boot_time()
-    return int(started * 1000)
+    return int(start_stamp(proc) * 1000)
 
 
 def owner_stamp_env() -> dict[str, str]:

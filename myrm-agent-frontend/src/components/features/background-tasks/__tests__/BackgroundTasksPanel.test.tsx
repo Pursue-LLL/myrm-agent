@@ -155,6 +155,11 @@ import BackgroundTasksPanel from '../BackgroundTasksPanel';
 describe('BackgroundTasksPanel with Search and Filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCancelBackgroundTask.mockResolvedValue({
+      message: 'cancelled',
+      task_id: 'shell-left-1',
+      leftover_processes: 0,
+    });
     goalActionHttpStatus = 200;
     goalStatus = 'active';
     goalActionGate = null;
@@ -281,6 +286,73 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
 
     await waitFor(() => {
       expect(mockSendShellBackgroundStdin).toHaveBeenCalledWith('shell-prompt-1', 'y', { submit: true });
+    });
+  });
+
+  describe('a finished shell task that left a program running', () => {
+    const finishedShellTask = (leftoverProcesses: number, status = 'completed') => ({
+      tasks: [
+        {
+          task_id: 'shell-left-1',
+          kind: 'shell',
+          prompt: 'start the dev server',
+          status,
+          created_at: Math.floor(Date.now() / 1000) - 30,
+          job_id: 'job-left-1',
+          exit_code: 0,
+          leftover_processes: leftoverProcesses,
+        },
+      ],
+      registry_ephemeral: false,
+    });
+
+    it.each(['completed', 'failed', 'cancelled'])(
+      'says so and offers the same stop a running task has once it is %s',
+      async (status) => {
+        mockListBackgroundTasks.mockResolvedValue(finishedShellTask(1, status));
+        render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+        fireEvent.click(screen.getByTestId('panel-trigger'));
+
+        expect(await screen.findByTestId('background-task-leftover-hint')).toBeDefined();
+        fireEvent.click(screen.getByTestId('background-task-leftover-stop'));
+
+        await waitFor(() => {
+          expect(mockCancelBackgroundTask).toHaveBeenCalledWith('shell-left-1');
+        });
+      },
+    );
+
+    async function pressStopOnTaskThatLeftAProgram() {
+      mockListBackgroundTasks.mockResolvedValue(finishedShellTask(1));
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+      fireEvent.click(await screen.findByTestId('background-task-leftover-stop'));
+    }
+
+    it('confirms what was stopped, not that a task was cancelled', async () => {
+      await pressStopOnTaskThatLeftAProgram();
+
+      await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('leftoverStopSuccess'));
+      expect(toastMock.success).not.toHaveBeenCalledWith('cancelSuccess');
+    });
+
+    it('says the program could not be stopped, not that a task could not be cancelled', async () => {
+      mockCancelBackgroundTask.mockRejectedValueOnce(new Error('network down'));
+
+      await pressStopOnTaskThatLeftAProgram();
+
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('leftoverStopFailed'));
+      expect(toastMock.error).not.toHaveBeenCalledWith('cancelFailed');
+    });
+
+    it('shows nothing extra once nothing is left running', async () => {
+      mockListBackgroundTasks.mockResolvedValue(finishedShellTask(0));
+      render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+      fireEvent.click(screen.getByTestId('panel-trigger'));
+
+      await screen.findByText('start the dev server');
+      expect(screen.queryByTestId('background-task-leftover-hint')).toBeNull();
+      expect(screen.queryByTestId('background-task-leftover-stop')).toBeNull();
     });
   });
 

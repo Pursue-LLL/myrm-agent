@@ -171,6 +171,41 @@ def test_shell_dto_includes_exit_code_and_error_category() -> None:
     assert "failed test" in row.result_preview
 
 
+def test_shell_dto_reports_what_a_finished_job_left_running() -> None:
+    finished = BackgroundProcessInfo(
+        job_id="job-left",
+        pid=43,
+        command="nohup serve &",
+        session_id="chat-1",
+        started_at=1.0,
+        status="exited",
+        exit_code=0,
+        leftover_processes=2,
+    )
+    clean = BackgroundProcessInfo(
+        job_id="job-clean",
+        pid=44,
+        command="ls",
+        session_id="chat-1",
+        started_at=2.0,
+        status="exited",
+        exit_code=0,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [finished, clean]
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = {row.job_id: row for row in list_shell_background_tasks()}
+
+    assert rows["job-left"].leftover_processes == 2
+    assert rows["job-clean"].leftover_processes == 0
+
+
 def test_shell_registry_is_ephemeral() -> None:
     assert shell_registry_is_ephemeral() is True
 

@@ -341,7 +341,7 @@ async def test_bash_process_kill_success() -> None:
     tool = create_bash_process_tool()
     config = {"configurable": {"context": {"session_id": "chat-kill"}}}
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
     ) as mock_kill:
         result = await tool.ainvoke({"action": "kill", "pid": 9034, "force": True}, config=config)
         mock_kill.assert_called()

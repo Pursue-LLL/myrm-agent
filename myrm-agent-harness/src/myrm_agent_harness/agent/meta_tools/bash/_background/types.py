@@ -30,8 +30,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-# Idle time after last stdout/stderr before a running job is flagged as likely
-# waiting for stdin (mirrors OpenClaw DEFAULT_INPUT_WAIT_IDLE_MS = 15_000).
+# Idle time after last stdout/stderr before a running job is flagged as likely waiting for stdin.
 INPUT_WAIT_IDLE_SECONDS = 15.0
 
 
@@ -84,8 +83,12 @@ class BackgroundProcessInfo:
     call instead of forcing the LLM to follow up with one
     ``bash_process_tool(action='output')`` per pid. The ``updated_at`` epoch second is
     embedded by the registry so a multi-minute-old snapshot is recognisable
-    without extra bookkeeping. Mirrors ``jcode``'s
-    ``TaskStatusFile.progress`` field.
+    without extra bookkeeping.
+
+    ``leftover_processes`` counts the processes found still running in the job's
+    process group: after a finished job (detached daemons) or after a kill that
+    did not reach them. Zero means none was found; a process that started its
+    own session is not looked for.
     """
 
     job_id: str
@@ -103,6 +106,7 @@ class BackgroundProcessInfo:
     last_output_at: float = 0.0
     waiting_for_input: bool = False
     stdin_closed: bool = False
+    leftover_processes: int = 0
 
     @property
     def uptime_seconds(self) -> float:
@@ -125,6 +129,8 @@ class BackgroundProcessInfo:
             payload["last_progress"] = self.last_progress
         if self.vault_log_ref is not None:
             payload["vault_log_ref"] = self.vault_log_ref
+        if self.leftover_processes:
+            payload["leftover_processes"] = self.leftover_processes
         if self.status == "running":
             payload["waiting_for_input"] = self.waiting_for_input
             payload["last_output_at"] = self.last_output_at

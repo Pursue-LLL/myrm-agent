@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Terminal } from 'lucide-react';
@@ -8,22 +8,13 @@ import { IconSearch, IconX } from '@/components/features/icons/PremiumIcons';
 import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
-import { toast } from '@/lib/utils/toast';
-import {
-  listBackgroundTasks,
-  cancelBackgroundTask,
-  steerBackgroundTask,
-  sendShellBackgroundStdin,
-  evictedFilenameFromVaultRef,
-  type BackgroundTask,
-} from '@/services/background-tasks';
-import { cancelMediaTask } from '@/services/mediaTasks';
+import { listBackgroundTasks, evictedFilenameFromVaultRef, type BackgroundTask } from '@/services/background-tasks';
 import { subscribeBackgroundTasksChanged } from '@/services/backgroundTasksRefresh';
-import { isRiskHeldError } from '@/services/riskHeldToast';
 import { useGlobalMediaTaskNotifications } from '@/hooks/tasks/useGlobalMediaTaskNotifications';
 import { useMediaBackgroundTasks } from '@/hooks/tasks/useMediaBackgroundTasks';
 import { ActiveGoalsSection } from './ActiveGoalsSection';
 import { useActiveGoals } from './useActiveGoals';
+import { useBackgroundTaskActions } from './useBackgroundTaskActions';
 import { useBackgroundTasksSearch } from './useBackgroundTasksSearch';
 import { BackgroundTaskRow } from './BackgroundTaskRow';
 import { MediaTaskRow } from './MediaTaskRow';
@@ -53,10 +44,6 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const [registryEphemeral, setRegistryEphemeral] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [recentMediaExpanded, setRecentMediaExpanded] = useState(false);
-  const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
-  const [steerInput, setSteerInput] = useState('');
-  const [shellInputTaskId, setShellInputTaskId] = useState<string | null>(null);
-  const [shellInput, setShellInput] = useState('');
   const [vaultLogDrawer, setVaultLogDrawer] = useState<VaultLogDrawerState | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const idleCountRef = useRef(0);
@@ -118,25 +105,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const { filteredActiveGoals, filteredMediaTasks, filteredRecentTerminalMediaTasks, agentTasks, shellTasks } =
     useBackgroundTasksSearch(searchQuery, { activeGoals, mediaTasks, recentTerminalMediaTasks, tasks });
 
-  const handleCancel = async (taskId: string) => {
-    try {
-      await cancelBackgroundTask(taskId);
-      toast.success(t('cancelSuccess'));
-      fetchTasks();
-    } catch {
-      toast.error(t('cancelFailed'));
-    }
-  };
-
-  const handleCancelMediaTask = async (taskId: string) => {
-    try {
-      await cancelMediaTask(taskId);
-      toast.success(t('cancelSuccess'));
-      void refetchMediaTasks();
-    } catch {
-      toast.error(t('cancelFailed'));
-    }
-  };
+  const { rowActions, handleCancelMediaTask } = useBackgroundTaskActions({ fetchTasks, refetchMediaTasks });
 
   const handleNavigateChat = (chatId: string) => {
     setIsOpen(false);
@@ -148,65 +117,6 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       chatId,
       filename: evictedFilenameFromVaultRef(vaultLogRef),
     });
-  };
-
-  const handleSteer = async (taskId: string) => {
-    if (!steerInput.trim()) {
-      return;
-    }
-    try {
-      await steerBackgroundTask(taskId, steerInput.trim());
-      toast.success(t('steerSuccess'));
-      setSteerTaskId(null);
-      setSteerInput('');
-    } catch (error) {
-      // `apiRequest` has already shown the notice for a held instruction; a second toast would repeat it.
-      if (!isRiskHeldError(error)) {
-        toast.error(t('steerFailed'));
-      }
-    }
-  };
-
-  const handleToggleSteer = (taskId: string) => {
-    setSteerTaskId((current) => (current === taskId ? null : taskId));
-    setSteerInput('');
-    setShellInputTaskId(null);
-    setShellInput('');
-  };
-
-  const handleToggleShellInput = (taskId: string) => {
-    setShellInputTaskId((current) => (current === taskId ? null : taskId));
-    setShellInput('');
-    setSteerTaskId(null);
-    setSteerInput('');
-  };
-
-  const handleShellInputSend = async (taskId: string, value?: string) => {
-    const nextValue = value ?? shellInput;
-    if (value === undefined && !nextValue.trim()) {
-      return;
-    }
-    try {
-      await sendShellBackgroundStdin(taskId, nextValue, { submit: true });
-      toast.success(t('shellInputSuccess'));
-      setShellInputTaskId(null);
-      setShellInput('');
-      fetchTasks();
-    } catch {
-      toast.error(t('shellInputFailed'));
-    }
-  };
-
-  const handleShellInputClose = async (taskId: string) => {
-    try {
-      await sendShellBackgroundStdin(taskId, '', { close: true });
-      toast.success(t('shellInputCloseSuccess'));
-      setShellInputTaskId(null);
-      setShellInput('');
-      fetchTasks();
-    } catch {
-      toast.error(t('shellInputCloseFailed'));
-    }
   };
 
   const runningCount = tasks.filter((task) => task.status === 'running').length;
@@ -343,19 +253,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           task={task}
                           allowSteer={false}
                           allowShellInput={task.status === 'running' && !task.stdin_closed}
-                          steerTaskId={steerTaskId}
-                          shellInputTaskId={shellInputTaskId}
-                          steerInput={steerInput}
-                          shellInput={shellInput}
-                          onSteerInputChange={setSteerInput}
-                          onShellInputChange={setShellInput}
-                          onToggleSteer={handleToggleSteer}
-                          onToggleShellInput={handleToggleShellInput}
-                          onSteer={handleSteer}
-                          onShellInputSend={handleShellInputSend}
-                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
-                          onShellInputClose={handleShellInputClose}
-                          onCancel={handleCancel}
+                          {...rowActions}
                           onNavigateChat={handleNavigateChat}
                           onViewVaultLog={handleViewVaultLog}
                         />
@@ -376,19 +274,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           task={task}
                           allowSteer
                           allowShellInput={false}
-                          steerTaskId={steerTaskId}
-                          shellInputTaskId={shellInputTaskId}
-                          steerInput={steerInput}
-                          shellInput={shellInput}
-                          onSteerInputChange={setSteerInput}
-                          onShellInputChange={setShellInput}
-                          onToggleSteer={handleToggleSteer}
-                          onToggleShellInput={handleToggleShellInput}
-                          onSteer={handleSteer}
-                          onShellInputSend={handleShellInputSend}
-                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
-                          onShellInputClose={handleShellInputClose}
-                          onCancel={handleCancel}
+                          {...rowActions}
                           onNavigateChat={handleNavigateChat}
                           onViewVaultLog={handleViewVaultLog}
                         />

@@ -63,6 +63,8 @@ class ShellBackgroundTaskDTO(BaseModel):
     waiting_for_input: bool = False
     stdin_closed: bool = False
     interactive_prompt: ShellPrompt | None = None
+    # Processes the job started that are still running although the job is over; the panel offers to stop them.
+    leftover_processes: int = 0
 
 
 def _map_shell_status(raw: str, exit_code: int | None) -> ShellTaskStatus:
@@ -200,9 +202,8 @@ def _row_from_registry_info(registry: object, info: object) -> ShellBackgroundTa
         vault_log_ref=info.vault_log_ref or _vault_log_ref_from_store(info.job_id),
         waiting_for_input=info.waiting_for_input if status == "running" else False,
         stdin_closed=info.stdin_closed if status == "running" else False,
-        interactive_prompt=(
-            _interactive_prompt_for_live_task(registry, info) if status == "running" else None
-        ),
+        leftover_processes=info.leftover_processes,
+        interactive_prompt=(_interactive_prompt_for_live_task(registry, info) if status == "running" else None),
     )
 
 

@@ -4,7 +4,7 @@ Single ``bash_process_tool`` manages list/output/wait/kill/stdin for jobs spawne
 via ``bash_code_execute_tool(run_in_background=True)``.
 
 [INPUT]
-- agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
+- agent.meta_tools.bash._tool.process_handlers::handle_list / handle_output / handle_wait / handle_kill / handle_stdin (POS: session-scoped action handlers)
 - core.security.ocap::check_capability_access (POS: the active capability handle; acting on a job needs EXECUTE)
 - runtime context (POS: session_id from RunnableConfig)
 
@@ -20,18 +20,19 @@ check the capability handle themselves: a read-only child observes the parent's 
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Literal
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
-    get_background_registry,
-)
-from myrm_agent_harness.agent.meta_tools.bash._background.types import (
-    build_input_wait_hint,
+from myrm_agent_harness.agent.meta_tools.bash._tool.process_handlers import (
+    OUTPUT_DEFAULT_LINES,
+    handle_kill,
+    handle_list,
+    handle_output,
+    handle_stdin,
+    handle_wait,
 )
 from myrm_agent_harness.core.security.ocap import CapabilityAction, check_capability_access
 from myrm_agent_harness.utils.locale import is_chinese
@@ -41,7 +42,6 @@ if TYPE_CHECKING:
 
 BASH_PROCESS_TOOL_NAME = "bash_process_tool"
 
-_OUTPUT_DEFAULT_LINES = 100
 _OUTPUT_MAX_LINES = 500
 _WAIT_DEFAULT_SECONDS = 30
 _WAIT_MAX_SECONDS = 120
@@ -105,7 +105,7 @@ class _BashProcessInput(BaseModel):
         ge=1,
     )
     max_lines: int = Field(
-        default=_OUTPUT_DEFAULT_LINES,
+        default=OUTPUT_DEFAULT_LINES,
         description=f"For output: tail size per stream (1-{_OUTPUT_MAX_LINES}).",
         ge=1,
         le=_OUTPUT_MAX_LINES,
@@ -136,195 +136,6 @@ class _BashProcessInput(BaseModel):
             "For write_stdin/submit_stdin: text to send to the process stdin (e.g. 'y' to confirm an installer prompt)."
         ),
     )
-
-
-async def _handle_list(session_id: str) -> dict[str, object]:
-    registry = get_background_registry()
-    items = registry.list_processes(session_id=session_id)
-    return {
-        "content": {
-            "processes": [i.to_dict() for i in items],
-            "count": len(items),
-        },
-        "metadata": {"session_id": session_id, "action": "list"},
-    }
-
-
-async def _handle_output(
-    session_id: str,
-    pid: int,
-    max_lines: int,
-    since_cursor: int | None,
-    filter_pattern: str | None,
-) -> dict[str, object]:
-    registry = get_background_registry()
-    info = registry.get(pid)
-    if info is None or info.session_id != session_id:
-        return {
-            "content": f"No background process with pid={pid} in this session.",
-            "metadata": {"pid": pid, "found": False, "action": "output"},
-        }
-    line_filter = None
-    if filter_pattern:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            compile_output_filter,
-        )
-
-        try:
-            line_filter = compile_output_filter(filter_pattern)
-        except (re.error, ValueError) as exc:
-            return {
-                "content": f"Invalid output filter regex: {exc}",
-                "metadata": {
-                    "pid": pid,
-                    "found": True,
-                    "action": "output",
-                    "error": "invalid_filter",
-                },
-            }
-
-    streams = registry.get_output(pid, max_lines=max_lines, since_cursor=since_cursor)
-    stdout = streams["stdout"]
-    stderr = streams["stderr"]
-    if line_filter is not None:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            filter_output_lines,
-        )
-
-        stdout = filter_output_lines(list(stdout) if isinstance(stdout, list) else [], line_filter)
-        stderr = filter_output_lines(list(stderr) if isinstance(stderr, list) else [], line_filter)
-
-    poll_hint = streams.get("poll_hint")
-    metadata: dict[str, object] = {
-        "pid": pid,
-        "session_id": session_id,
-        "action": "output",
-    }
-    if filter_pattern:
-        metadata["filter"] = filter_pattern
-    if isinstance(poll_hint, dict):
-        metadata["poll_hint"] = poll_hint
-
-    content: dict[str, object] = {
-        "pid": pid,
-        "status": info.status,
-        "exit_code": info.exit_code,
-        "error_category": info.error_category,
-        "stdout": stdout,
-        "stderr": stderr,
-        "next_cursor": streams["next_cursor"],
-        "dropped": streams["dropped"],
-        "poll_hint": poll_hint,
-    }
-    if streams.get("spill_log_ref"):
-        content["spill_log_ref"] = streams["spill_log_ref"]
-    if info.status == "running":
-        content["waiting_for_input"] = info.waiting_for_input
-        content["last_output_at"] = info.last_output_at
-        hint = build_input_wait_hint(info)
-        if hint:
-            content["input_wait_hint"] = hint
-
-    return {
-        "content": content,
-        "metadata": metadata,
-    }
-
-
-async def _handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[str, object]:
-    registry = get_background_registry()
-    info = registry.get(pid)
-    if info is None or info.session_id != session_id:
-        return {
-            "content": f"No background process with pid={pid} in this session.",
-            "metadata": {"pid": pid, "found": False, "action": "wait"},
-        }
-    result = await registry.wait_for_process(pid, timeout_seconds=float(timeout_seconds))
-    still_running = bool(result.get("still_running"))
-    content: dict[str, object] = {
-        "pid": pid,
-        "still_running": still_running,
-        "status": result.get("status"),
-        "exit_code": result.get("exit_code"),
-        "error_category": result.get("error_category"),
-    }
-    if still_running:
-        live = registry.get(pid)
-        content["message"] = f"pid={pid} still running after {timeout_seconds}s; poll with action=output or wait again."
-        if live is not None and live.status == "running":
-            content["waiting_for_input"] = live.waiting_for_input
-            content["last_output_at"] = live.last_output_at
-            hint = build_input_wait_hint(live)
-            if hint:
-                content["input_wait_hint"] = hint
-    else:
-        streams = registry.get_output(pid, max_lines=_OUTPUT_DEFAULT_LINES)
-        content["stdout"] = streams.get("stdout", [])
-        content["stderr"] = streams.get("stderr", [])
-    return {
-        "content": content,
-        "metadata": {
-            "pid": pid,
-            "session_id": session_id,
-            "action": "wait",
-            "still_running": still_running,
-        },
-    }
-
-
-async def _handle_kill(session_id: str, pid: int, force: bool) -> dict[str, object]:
-    registry = get_background_registry()
-    info = registry.get(pid)
-    if info is None or info.session_id != session_id:
-        return {
-            "content": f"No background process with pid={pid} in this session.",
-            "metadata": {"pid": pid, "found": False, "action": "kill"},
-        }
-    ok = await registry.kill(pid, force=force)
-    return {
-        "content": (f"Sent {'SIGKILL' if force else 'SIGTERM'} to pid={pid}" if ok else f"Failed to signal pid={pid}"),
-        "metadata": {
-            "pid": pid,
-            "force": force,
-            "killed": ok,
-            "session_id": session_id,
-            "action": "kill",
-        },
-    }
-
-
-async def _handle_stdin(
-    session_id: str,
-    pid: int,
-    data: str,
-    *,
-    append_newline: bool,
-    close: bool,
-    action: str,
-) -> dict[str, object]:
-    registry = get_background_registry()
-    info = registry.get(pid)
-    if info is None or info.session_id != session_id:
-        return {
-            "content": f"No background process with pid={pid} in this session.",
-            "metadata": {"pid": pid, "found": False, "action": action},
-        }
-    result = await registry.write_stdin(
-        pid,
-        data,
-        append_newline=append_newline,
-        close=close,
-    )
-    ok = bool(result.get("ok"))
-    return {
-        "content": result,
-        "metadata": {
-            "pid": pid,
-            "session_id": session_id,
-            "action": action,
-            "ok": ok,
-        },
-    }
 
 
 _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
@@ -363,7 +174,7 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
     async def _bash_process(
         action: _BASH_PROCESS_ACTIONS,
         pid: int | None = None,
-        max_lines: int = _OUTPUT_DEFAULT_LINES,
+        max_lines: int = OUTPUT_DEFAULT_LINES,
         since_cursor: int | None = None,
         timeout_seconds: int = _WAIT_DEFAULT_SECONDS,
         force: bool = False,
@@ -383,7 +194,7 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
             }
 
         if action == "list":
-            return await _handle_list(session_id)
+            return await handle_list(session_id)
 
         pid_required = {
             "output",
@@ -401,16 +212,16 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
 
         if action == "output":
             assert pid is not None
-            return await _handle_output(session_id, pid, max_lines, since_cursor, filter)
+            return await handle_output(session_id, pid, max_lines, since_cursor, filter)
         if action == "wait":
             assert pid is not None
-            return await _handle_wait(session_id, pid, timeout_seconds)
+            return await handle_wait(session_id, pid, timeout_seconds)
         if action == "kill":
             assert pid is not None
-            return await _handle_kill(session_id, pid, force)
+            return await handle_kill(session_id, pid, force)
         if action == "write_stdin":
             assert pid is not None
-            return await _handle_stdin(
+            return await handle_stdin(
                 session_id,
                 pid,
                 data,
@@ -420,7 +231,7 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
             )
         if action == "submit_stdin":
             assert pid is not None
-            return await _handle_stdin(
+            return await handle_stdin(
                 session_id,
                 pid,
                 data,
@@ -430,7 +241,7 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
             )
         if action == "close_stdin":
             assert pid is not None
-            return await _handle_stdin(
+            return await handle_stdin(
                 session_id,
                 pid,
                 "",

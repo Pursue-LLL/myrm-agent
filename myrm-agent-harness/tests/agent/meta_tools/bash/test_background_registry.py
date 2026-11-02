@@ -35,10 +35,10 @@ class _FakeStream:
 class _FakeProc:
     """Stand-in for ``AsyncProcessProtocol`` that lets us drive lifecycle.
 
-    The registry kills via :func:`os_compat.kill_process_group` (so it can
+    The registry kills via :func:`os_compat.kill_spawned_group` (so it can
     propagate to forked children), not via the proc handle directly. Tests
-    that want to verify kill semantics patch ``kill_process_group`` and use
-    :meth:`finish` (or :meth:`stay_alive`) to drive the wait future.
+    that want to verify kill semantics patch ``kill_spawned_group`` and use
+    :meth:`finish` to drive the wait future.
     """
 
     def __init__(self, pid: int, stdout: list[bytes], stderr: list[bytes]) -> None:
@@ -146,7 +146,7 @@ async def test_kill_terminates_and_marks_status() -> None:
         proc.finish(-sig)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
         side_effect=_record,
     ):
         ok = await registry.kill(22222, force=False)
@@ -306,7 +306,7 @@ async def test_kill_escalates_to_sigkill_when_sigterm_ignored() -> None:
             proc.finish(-9)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
         side_effect=_record,
     ):
         ok = await registry.kill(70000, force=False, grace_seconds=0.1)
@@ -473,7 +473,7 @@ async def test_kill_session_jobs_only_targets_owner_session() -> None:
             proc_b.finish(-sig)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
         side_effect=_record,
     ):
         killed = await registry.kill_session_jobs("chat-A", grace_seconds=0.05)
@@ -530,7 +530,7 @@ async def test_kill_session_jobs_runs_concurrently() -> None:
     loop = asyncio.get_running_loop()
     start = loop.time()
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
         side_effect=_record,
     ):
         killed = await registry.kill_session_jobs("concurrent-s", grace_seconds=0.2)
@@ -569,7 +569,7 @@ async def test_shutdown_uses_process_group_kill_for_living_children() -> None:
         killed_pids.append((pid, sig))
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry.kill_process_group",
+        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
         side_effect=_record,
     ):
         registry.shutdown()

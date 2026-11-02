@@ -8,6 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from tests.integration.test_background_tasks_rest_api import _build_rest_app
+from tests.support.marked_command_lines import processes_with_marker
 
 
 @pytest.mark.integration
@@ -113,3 +114,54 @@ async def test_seed_shell_fixture_completed_with_vault_exposes_vault_log_ref() -
         assert evicted_resp.status_code == 200, evicted_resp.text
         evicted_body = evicted_resp.json()
         assert "MYRM_E2E_VAULT_LINE_0" in str(evicted_body.get("content", ""))
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_seed_shell_fixture_leftover_mode_reports_and_stops_what_the_job_left_running() -> None:
+    transport = ASGITransport(app=_build_rest_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        seed_resp = await client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=leftover")
+        assert seed_resp.status_code == 200
+        seed = seed_resp.json()
+        task_id = str(seed["task_id"])
+        marker = str(seed["leftover_marker"])
+        try:
+            row_resp = await client.get(f"/api/v1/background-tasks/{task_id}")
+            assert row_resp.status_code == 200
+            row = row_resp.json()
+            assert row["status"] == "completed"
+            assert row["leftover_processes"] == 1
+            assert len(processes_with_marker(marker)) == 1
+
+            cancel_resp = await client.post(f"/api/v1/background-tasks/{task_id}/cancel")
+            assert cancel_resp.status_code == 200
+            assert cancel_resp.json()["leftover_processes"] == 0
+
+            row_after = (await client.get(f"/api/v1/background-tasks/{task_id}")).json()
+            assert row_after["leftover_processes"] == 0
+            assert processes_with_marker(marker) == []
+        finally:
+            await client.post(f"/api/v1/background-tasks/{task_id}/cancel")
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_seed_shell_fixture_leftover_mode_keeps_its_child_when_jobs_start_together() -> None:
+    """Jobs run on a pseudo-terminal; its hang-up must not take the child of a job that ends at once, however many start together."""
+    job_count = 8
+    transport = ASGITransport(app=_build_rest_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        seeds = [
+            response.json()
+            for response in await asyncio.gather(
+                *(client.post("/api/v1/background-tasks/test/seed-shell-fixture?mode=leftover") for _ in range(job_count))
+            )
+        ]
+        try:
+            await asyncio.sleep(1.0)
+            rows = [(await client.get(f"/api/v1/background-tasks/{seed['task_id']}")).json() for seed in seeds]
+            assert [row["leftover_processes"] for row in rows] == [1] * job_count
+            assert [len(processes_with_marker(seed["leftover_marker"])) for seed in seeds] == [1] * job_count
+        finally:
+            await asyncio.gather(*(client.post(f"/api/v1/background-tasks/{seed['task_id']}/cancel") for seed in seeds))

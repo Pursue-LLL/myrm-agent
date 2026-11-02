@@ -1,7 +1,7 @@
 # bash/_tool/
 
 ## Overview
-bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退出码语义、多模态、后台监听、增量输出过滤。
+bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退出码语义、多模态、后台监听、增量输出过滤、后台进程工具的 action 处理器。
 
 ## File Index
 
@@ -16,10 +16,11 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 | `multimodal.py` | Core | Vision ContentBlock 内联返回（生成图片）。 | ✅ |
 | `background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 | ✅ |
 | `output_filter_core.py` | Core | 增量输出轮询纯正则行过滤器（pattern ≤256 字符）。 | ✅ |
+| `process_handlers.py` | Core | `bash_process_tool` 各 action（list/output/wait/kill/stdin）在会话后台任务上的处理器；已结束的任务若留下仍在运行的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）；`kill_report` 如实说明停止的效果（任务进程组内是否发现还有进程在运行；平台无法列出进程组时只说发出了什么信号）。门面 `bash_process_tool` 负责 schema、能力校验与分发。 | ✅ |
 
 ## Key Dependencies
 
 - `../_compression/output_compressor`（语义压缩，单向依赖）
 - `../_compression/constants`（`BASH_OUTPUT_MAX_CHARS` 阈值消费方，单向依赖）
-- `../_background`（后台监听）
+- `../_background`（后台监听；进程工具处理器读写后台任务注册表）
 - `../_executor/error`（共享异常）
