@@ -276,12 +276,12 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border/40">
         <WorkModeTabs value={currentMode} onChange={handleModeChange} />
 
-        {/* Mode description hint */}
-        <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">
-          {currentMode === 'local' && t('modeLocalDesc')}
-          {currentMode === 'cloud' && t('modeCloudDesc')}
-          {currentMode === 'chat' && t('modeChatDesc')}
-        </span>
+        {/* Only the local panel (the folder picker) has no description row of its own; cloud and chat state theirs below. */}
+        {currentMode === 'local' && (
+          <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">
+            {t('modeLocalDesc')}
+          </span>
+        )}
       </div>
 
       {/* Context Action Area */}
@@ -452,13 +452,13 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       )}
 
       {currentMode === 'cloud' && (
-        <div className="pt-3 flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="size-2 rounded-full bg-blue-500 animate-pulse" />
+        <div className="pt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="size-2 shrink-0 rounded-full bg-blue-500 animate-pulse" />
             <span>{t('modeCloudDesc')}</span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-primary/80 font-medium">
-            <Layers className="h-3 w-3" />
+          <div className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-primary/80 font-medium">
+            <Layers className="h-3 w-3 shrink-0" />
             <span>{t('modeCloudBadge')}</span>
           </div>
         </div>
@@ -467,7 +467,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       {currentMode === 'chat' && (
         <div className="pt-3 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <span>{t('modeChatDesc')}</span>
           </div>
         </div>

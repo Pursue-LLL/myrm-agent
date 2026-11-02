@@ -174,6 +174,17 @@ describe('NewTaskWorkContextCard', () => {
     expect(screen.getByText('Dedicated sandbox storage')).toBeDefined();
   });
 
+  it.each([
+    { name: 'local', state: { sandboxMode: false, actionMode: 'agent' }, description: 'Bind a local folder' },
+    { name: 'cloud', state: { sandboxMode: true, actionMode: 'agent' }, description: 'Isolated sandbox environment' },
+    { name: 'chat', state: { sandboxMode: false, actionMode: 'fast' }, description: 'General AI conversation' },
+  ])('states the $name mode description exactly once', ({ state, description }) => {
+    Object.assign(mockState, state);
+    render(<NewTaskWorkContextCard />);
+
+    expect(screen.getAllByText(description)).toHaveLength(1);
+  });
+
   it('reports success without creating anything when every standard folder already exists', async () => {
     mockState.workspaceDir = '/home/user/my-project';
     mockWorkspaceFolders([...STANDARD_FOLDERS, 'notes']);
