@@ -1,6 +1,7 @@
 """Memory diagnostics SLO rollup.
 
 [INPUT]
+app.services.memory.diagnostics.diagnostic.diagnostic_probe_results::DiagnosticStatus (POS: 诊断状态类型)
 app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本服务)
 
 [OUTPUT]
@@ -15,6 +16,7 @@ a failure.
 from __future__ import annotations
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticSlo
+from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import DiagnosticStatus
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 # A `missing` rollup means an optional capability is absent, not that the run failed. The default keyword-recall mode
@@ -37,8 +39,8 @@ async def build_diagnostic_slo(ledger: MemoryOperationLedgerService) -> MemoryCo
     durations: list[float] = []
     for event in diagnostic_events:
         metadata = event.metadata_json or {}
-        status = str(metadata.get("diagnostic_status") or event.status)
-        if status not in _PASSING_RUN_STATUSES:
+        run_status = str(metadata.get("diagnostic_status") or event.status)
+        if run_status not in _PASSING_RUN_STATUSES:
             failed_runs += 1
         duration = metadata.get("duration_ms")
         if isinstance(duration, (int, float)):
@@ -47,6 +49,7 @@ async def build_diagnostic_slo(ledger: MemoryOperationLedgerService) -> MemoryCo
     window_runs = len(diagnostic_events)
     pass_rate = (window_runs - failed_runs) / window_runs if window_runs else 0.0
     average_duration_ms = sum(durations) / len(durations) if durations else 0.0
+    status: DiagnosticStatus
     if pass_rate >= 0.95:
         status = "ready"
     elif pass_rate >= 0.8:

@@ -229,11 +229,12 @@ async def run_golden_recall_benchmark(manager: MemoryManager | None, *, run_id: 
     try:
         for pair in _BENCHMARK_PAIRS:
             content = pair.content.replace("{run_id}", run_id)
-            meta = {
+            meta: dict[str, str | int | float | bool] = {
                 "diagnostic_probe": True,
                 "diagnostic_run_id": run_id,
                 "category": pair.category,
             }
+            mem: SemanticMemory | EpisodicMemory
             if pair.memory_type == MemoryType.SEMANTIC:
                 mem = SemanticMemory(
                     content=content,
