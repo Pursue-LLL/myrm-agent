@@ -35,6 +35,8 @@ _SERVICE_PROFILES: Final[dict[str, ProviderProfile]] = {
 }
 _OPENAI_FAMILY_BARE: Final = ("text-embedding-", "dall-e", "gpt-image")
 _ENDPOINT_SUFFIXES: Final = ("/embeddings", "/embed", "/rerank", "/images/generations", "/images/edits")
+# Ids a custom endpoint still reads as its own scheme; every other ``provider/model`` there is a gateway route.
+_OWN_SCHEME_UNDER_BASE: Final = frozenset({"openai", "azure"})
 
 
 def _root(url: str | None) -> str | None:
@@ -48,12 +50,18 @@ def _root(url: str | None) -> str | None:
     return root
 
 
-def service_route(model: str, *, api_key: str | None, api_base: str | None) -> Route:
-    """Resolve ``model`` (``provider/id``, a bare OpenAI-family id, or any id with an ``api_base``)."""
+def service_route(model: str, *, api_key: str | None, api_base: str | None, gateway_base: bool = False) -> Route:
+    """Resolve ``model`` (``provider/id``, a bare OpenAI-family id, or any id with an ``api_base``).
+
+    ``gateway_base`` reads a custom ``api_base`` as an OpenAI-compatible gateway (LiteLLM proxy, One API, vLLM) that
+    routes on the whole model id, so ``jina_ai/jina-embeddings-v3`` keeps its prefix instead of selecting the Jina API.
+    """
     base = _root(api_base)
     segment, separator, rest = model.partition("/")
     provider = segment.lower()
     profile = (_SERVICE_PROFILES.get(provider) or PROFILES.get(provider)) if separator else None
+    if gateway_base and base and provider not in _OWN_SCHEME_UNDER_BASE:
+        profile = None
     if profile is not None:
         return Route(profile=profile, model=rest, base_url=base or profile.base_url, api_key=api_key)
     if base:

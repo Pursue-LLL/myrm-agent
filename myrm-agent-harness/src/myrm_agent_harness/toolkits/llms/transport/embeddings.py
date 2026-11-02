@@ -1,4 +1,4 @@
-"""Embedding calls: OpenAI-compatible ``/embeddings`` and Cohere ``/embed``.
+"""Embedding calls: OpenAI-compatible ``/embeddings``, Cohere ``/embed`` and Gemini ``:batchEmbedContents``.
 
 [INPUT]
 - transport.service_routes (POS: service_route — provider, endpoint and credential)
@@ -10,8 +10,9 @@
 
 [POS]
 Every provider the settings offer for embeddings speaks the OpenAI ``/embeddings`` shape (OpenAI, Azure, Jina,
-Voyage, SiliconFlow, Ollama, any compatible gateway) except Cohere, which has its own ``/embed``. Both are one
-request and one parse here, so the retriever depends on a function instead of a provider SDK.
+Voyage, SiliconFlow, Ollama, any compatible gateway) except Cohere, which has its own ``/embed``, and Gemini, which
+has ``:batchEmbedContents``. Each is one request and one parse here, so the retriever depends on a function instead
+of a provider SDK. A custom ``api_base`` is an OpenAI-compatible gateway and keeps the whole model id.
 """
 
 from __future__ import annotations
@@ -26,8 +27,8 @@ from myrm_agent_harness.toolkits.llms.transport.profile import Route
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
 
 _TIMEOUT_SECONDS: Final = 60.0
-# Voyage rejects an explicit encoding format: its default is already float arrays.
-_NO_ENCODING_FORMAT: Final = frozenset({"voyage"})
+# Voyage and Jina return float arrays by default; omitting the field is accepted by every API version.
+_NO_ENCODING_FORMAT: Final = frozenset({"voyage", "jina_ai"})
 
 
 def _vector(item: object) -> list[float]:
@@ -80,11 +81,32 @@ def _parse_cohere(payload: dict[str, object], expected: int) -> list[list[float]
     return [_vector(v) for v in vectors]
 
 
+def _gemini_request(route: Route, texts: Sequence[str]) -> PreparedRequest:
+    requests = [{"model": f"models/{route.model}", "content": {"parts": [{"text": t}]}} for t in texts]
+    headers = {"x-goog-api-key": route.api_key} if route.api_key else {}
+    return PreparedRequest(
+        provider="gemini",
+        url=f"{route.base_url}/models/{route.model}:batchEmbedContents",
+        headers=headers,
+        body={"requests": requests},
+        timeout=_TIMEOUT_SECONDS,
+    )
+
+
+def _parse_gemini(payload: dict[str, object], expected: int) -> list[list[float]]:
+    embeddings = payload.get("embeddings")
+    if not isinstance(embeddings, list) or len(embeddings) != expected:
+        raise ValueError("Gemini returned a malformed embeddings payload")
+    return [_vector(e.get("values") if isinstance(e, dict) else None) for e in embeddings]
+
+
 async def aembed(
     model: str, texts: Sequence[str], *, api_key: str | None = None, api_base: str | None = None
 ) -> list[list[float]]:
     """Vectors for ``texts`` in input order; raises LLMHTTPError on a refused call."""
-    route = service_route(model, api_key=api_key, api_base=api_base)
+    route = service_route(model, api_key=api_key, api_base=api_base, gateway_base=True)
     if route.profile.id == "cohere":
         return _parse_cohere(await asend_json(_cohere_request(route, texts)), len(texts))
+    if route.profile.wire == "gemini":
+        return _parse_gemini(await asend_json(_gemini_request(route, texts)), len(texts))
     return _parse_openai(await asend_json(_openai_request(route, texts)), len(texts))

@@ -10,7 +10,7 @@
 - tests that fail on any unregistered difference and on any registry rule that matches nothing
 
 [POS]
-Safety net for replacing the LLM client library: 29 providers x up to 14 scenarios, compared field by field on the
+Safety net for replacing the LLM client library: 30 providers x up to 14 scenarios, compared field by field on the
 final HTTP request.
 """
 

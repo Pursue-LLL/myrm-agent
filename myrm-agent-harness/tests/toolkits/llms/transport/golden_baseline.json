@@ -2,6 +2,7 @@
  "_meta": {
   "client_library": "litellm 1.97.0",
   "configuration": "production (drop_params, modify_params; response cache off)",
+  "extended": "the yunshu cases and the `defaults` scenario were added later on the same commit and library, with LITELLM_LOCAL_MODEL_COST_MAP=True as the production server sets it",
   "matrix": "golden_capture.py",
   "recorded_at_commit": "b6959e7d7e"
  },
@@ -73,6 +74,42 @@
       }
      ],
      "temperature": 0.2
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "authorization": "<redacted:Bearer>",
+     "x-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/v1/messages"
+   }
+  ]
+ },
+ "anthropic_like|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "claude-sonnet-4-5",
+     "system": [
+      {
+       "text": "Be brief.",
+       "type": "text"
+      }
+     ]
     },
     "headers": {
      "anthropic-version": "2023-06-01",
@@ -659,6 +696,42 @@
    }
   ]
  },
+ "anthropic_like|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "claude-sonnet-4-5",
+     "system": [
+      {
+       "text": "Be brief.",
+       "type": "text"
+      }
+     ]
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "authorization": "<redacted:Bearer>",
+     "x-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.anthropic.com/v1/messages"
+   }
+  ]
+ },
  "anthropic_like|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -1233,6 +1306,42 @@
    }
   ]
  },
+ "anthropic|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "claude-sonnet-4-5",
+     "system": [
+      {
+       "text": "Be brief.",
+       "type": "text"
+      }
+     ]
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "authorization": "<redacted:Bearer>",
+     "x-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/v1/messages"
+   }
+  ]
+ },
  "anthropic|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -1795,6 +1904,42 @@
       }
      ],
      "temperature": 0.2
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "authorization": "<redacted:Bearer>",
+     "x-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.anthropic.com/v1/messages"
+   }
+  ]
+ },
+ "anthropic|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "claude-sonnet-4-5",
+     "system": [
+      {
+       "text": "Be brief.",
+       "type": "text"
+      }
+     ]
     },
     "headers": {
      "anthropic-version": "2023-06-01",
@@ -2390,6 +2535,47 @@
    }
   ]
  },
+ "azure|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o",
+     "model_kwargs": {
+      "api_version": "2024-10-21"
+     },
+     "stream": false
+    },
+    "headers": {
+     "api-key": "<redacted:sk-golden-test-key>",
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "api-version=2024-10-21",
+    "url": "http://golden.invalid/v1/openai/deployments/gpt-4o/chat/completions"
+   }
+  ]
+ },
  "azure|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -2843,6 +3029,10 @@
   "error": "APIError: litellm.APIError: AzureException APIError - Must provide one of the `base_url` or `azure_endpoint` arguments, or the `AZURE_OPENAI_ENDPOINT`",
   "requests": []
  },
+ "azure|default_base|defaults": {
+  "error": "APIError: litellm.APIError: AzureException APIError - Must provide one of the `base_url` or `azure_endpoint` arguments, or the `AZURE_OPENAI_ENDPOINT`",
+  "requests": []
+ },
  "azure|default_base|extra_body": {
   "error": "APIError: litellm.APIError: AzureException APIError - Must provide one of the `base_url` or `azure_endpoint` arguments, or the `AZURE_OPENAI_ENDPOINT`",
   "requests": []
@@ -2951,6 +3141,37 @@
        "cachePoint": {
         "type": "default"
        }
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/model/anthropic.claude-3-5-sonnet-20241022-v2%3A0/converse"
+   }
+  ]
+ },
+ "bedrock|custom_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "requests": [
+   {
+    "body": {
+     "inferenceConfig": {},
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "system": [
+      {
+       "text": "Be brief."
       }
      ]
     },
@@ -3627,6 +3848,37 @@
    }
   ]
  },
+ "bedrock|default_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: 'output'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-a",
+  "requests": [
+   {
+    "body": {
+     "inferenceConfig": {},
+     "messages": [
+      {
+       "content": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "system": [
+      {
+       "text": "Be brief."
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2%3A0/converse"
+   }
+  ]
+ },
  "bedrock|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -4273,6 +4525,42 @@
    }
   ]
  },
+ "cerebras|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "llama3.1-8b"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "cerebras|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -4744,6 +5032,42 @@
    }
   ]
  },
+ "cerebras|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "llama3.1-8b"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.cerebras.ai/v1/chat/completions"
+   }
+  ]
+ },
  "cerebras|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -5207,6 +5531,33 @@
      "model": "command-r-plus",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1"
+   }
+  ]
+ },
+ "cohere_chat|custom_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "command-r-plus",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -5688,6 +6039,33 @@
      "model": "command-r-plus",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.cohere.com/v2/chat"
+   }
+  ]
+ },
+ "cohere_chat|default_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: 'message'\nTraceback (most recent call last):\n  File \"/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "command-r-plus",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -6183,6 +6561,42 @@
    }
   ]
  },
+ "dashscope|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen-plus"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "dashscope|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -6660,6 +7074,42 @@
    }
   ]
  },
+ "dashscope|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen-plus"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ]
+ },
  "dashscope|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -7113,6 +7563,34 @@
      "model": "deepseek-reasoner",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "deepseek_reasoner|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "deepseek-reasoner",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -7583,6 +8061,34 @@
    }
   ]
  },
+ "deepseek_reasoner|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "deepseek-reasoner",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.deepseek.com/beta/chat/completions"
+   }
+  ]
+ },
  "deepseek_reasoner|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -8033,6 +8539,33 @@
      "model": "deepseek-chat",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "deepseek|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "deepseek-chat",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -8644,6 +9177,33 @@
      "model": "deepseek-chat",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.deepseek.com/beta/chat/completions"
+   }
+  ]
+ },
+ "deepseek|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "deepseek-chat",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -9275,6 +9835,33 @@
    }
   ]
  },
+ "fireworks_ai|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "fireworks_ai|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -9746,6 +10333,33 @@
      "model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.fireworks.ai/inference/v1/chat/completions"
+   }
+  ]
+ },
+ "fireworks_ai|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -10229,6 +10843,47 @@
      "generationConfig": {
       "max_output_tokens": 16384,
       "temperature": 0.2
+     },
+     "system_instruction": {
+      "parts": [
+       {
+        "text": "Be brief."
+       }
+      ]
+     },
+     "tools": [
+      {
+       "googleSearch": {}
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-goog-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/models/gemini-2.5-pro:generateContent"
+   }
+  ]
+ },
+ "gemini_like|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "contents": [
+      {
+       "parts": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "generationConfig": {
+      "max_output_tokens": 16384
      },
      "system_instruction": {
       "parts": [
@@ -10904,6 +11559,47 @@
    }
   ]
  },
+ "gemini_like|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "contents": [
+      {
+       "parts": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "generationConfig": {
+      "max_output_tokens": 16384
+     },
+     "system_instruction": {
+      "parts": [
+       {
+        "text": "Be brief."
+       }
+      ]
+     },
+     "tools": [
+      {
+       "googleSearch": {}
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-goog-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent"
+   }
+  ]
+ },
  "gemini_like|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -11531,6 +12227,47 @@
      "generationConfig": {
       "max_output_tokens": 16384,
       "temperature": 0.2
+     },
+     "system_instruction": {
+      "parts": [
+       {
+        "text": "Be brief."
+       }
+      ]
+     },
+     "tools": [
+      {
+       "googleSearch": {}
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-goog-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/models/gemini-2.5-flash:generateContent"
+   }
+  ]
+ },
+ "gemini|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "contents": [
+      {
+       "parts": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "generationConfig": {
+      "max_output_tokens": 16384
      },
      "system_instruction": {
       "parts": [
@@ -12206,6 +12943,47 @@
    }
   ]
  },
+ "gemini|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "contents": [
+      {
+       "parts": [
+        {
+         "text": "hi"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "generationConfig": {
+      "max_output_tokens": 16384
+     },
+     "system_instruction": {
+      "parts": [
+       {
+        "text": "Be brief."
+       }
+      ]
+     },
+     "tools": [
+      {
+       "googleSearch": {}
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-goog-api-key": "<redacted:sk-golden-test-key>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+   }
+  ]
+ },
  "gemini|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -12841,6 +13619,33 @@
    }
   ]
  },
+ "groq|custom_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: APIConnectionError: GroqException - 'ModelResponse' object has no attribute 'service_tier'",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "llama-3.3-70b-versatile",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "groq|custom_base|extra_body": {
   "error": "APIConnectionError: litellm.APIConnectionError: APIConnectionError: GroqException - 'ModelResponse' object has no attribute 'service_tier'",
   "requests": [
@@ -13327,6 +14132,33 @@
      "model": "llama-3.3-70b-versatile",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.groq.com/openai/v1/chat/completions"
+   }
+  ]
+ },
+ "groq|default_base|defaults": {
+  "error": "APIConnectionError: litellm.APIConnectionError: APIConnectionError: GroqException - 'ModelResponse' object has no attribute 'service_tier'",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "llama-3.3-70b-versatile",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -13824,6 +14656,42 @@
    }
   ]
  },
+ "lm_studio|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen2.5"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "lm_studio|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -14288,6 +15156,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "lm_studio|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen2.5"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -14762,6 +15666,30 @@
    }
   ]
  },
+ "minimax|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 8192,
+     "messages": [
+      {
+       "content": "Be brief.\n\nhi",
+       "role": "user"
+      }
+     ],
+     "model": "MiniMax-M2",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "minimax|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -15205,6 +16133,30 @@
    }
   ]
  },
+ "minimax|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 8192,
+     "messages": [
+      {
+       "content": "Be brief.\n\nhi",
+       "role": "user"
+      }
+     ],
+     "model": "MiniMax-M2",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.minimax.io/v1/chat/completions"
+   }
+  ]
+ },
  "minimax|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -15634,6 +16586,33 @@
      "model": "mistral-large-latest",
      "stream": false,
      "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "mistral|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "mistral-large-latest",
+     "stream": false
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
@@ -16115,6 +17094,33 @@
    }
   ]
  },
+ "mistral|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "mistral-large-latest",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.mistral.ai/v1/chat/completions"
+   }
+  ]
+ },
  "mistral|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -16579,6 +17585,44 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "moonshot|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "kimi-k2-0905-preview",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "450.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -17060,6 +18104,44 @@
    }
   ]
  },
+ "moonshot|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "kimi-k2-0905-preview",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "450.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.moonshot.ai/v1/chat/completions"
+   }
+  ]
+ },
  "moonshot|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -17520,6 +18602,28 @@
    }
   ]
  },
+ "ollama|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "images": [],
+     "model": "llama3.1",
+     "options": {
+      "num_ctx": 64000
+     },
+     "prompt": "### System:\nBe brief.\n\n### User:\nhi\n\n",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/api/generate"
+   }
+  ]
+ },
  "ollama|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -17843,6 +18947,28 @@
   ]
  },
  "ollama|default_base|cache_control": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "images": [],
+     "model": "llama3.1",
+     "options": {
+      "num_ctx": 64000
+     },
+     "prompt": "### System:\nBe brief.\n\n### User:\nhi\n\n",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://localhost:11434/api/generate"
+   }
+  ]
+ },
+ "ollama|default_base|defaults": {
   "error": "",
   "requests": [
    {
@@ -18229,6 +19355,43 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "openai_gpt5|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-5",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -18862,6 +20025,43 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "openai_gpt5|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-5",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -19677,6 +20877,42 @@
    }
   ]
  },
+ "openai_like|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "some-model"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "openai_like|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -20292,6 +21528,44 @@
    }
   ]
  },
+ "openai_o3|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_completion_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "developer"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "o3",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "600.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "openai_o3|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -20756,6 +22030,44 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "openai_o3|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_completion_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "developer"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "o3",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "600.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -21233,6 +22545,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "openai|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -21843,6 +23191,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "openai|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -22463,6 +23847,39 @@
      "model": "anthropic/claude-sonnet-4.5",
      "stream": false,
      "temperature": 0.2,
+     "usage": {
+      "include": true
+     }
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "http-referer": "https://myrm.ai",
+     "x-title": "Myrm Agent"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "openrouter|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "anthropic/claude-sonnet-4.5",
+     "stream": false,
      "usage": {
       "include": true
      }
@@ -23173,6 +24590,39 @@
    }
   ]
  },
+ "openrouter|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 16384,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "anthropic/claude-sonnet-4.5",
+     "stream": false,
+     "usage": {
+      "include": true
+     }
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "http-referer": "https://myrm.ai",
+     "x-title": "Myrm Agent"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://openrouter.ai/api/v1/chat/completions"
+   }
+  ]
+ },
  "openrouter|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -23852,6 +25302,43 @@
    }
   ]
  },
+ "perplexity|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "sonar",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "perplexity|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -24327,6 +25814,43 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.perplexity.ai/chat/completions"
+   }
+  ]
+ },
+ "perplexity|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "sonar",
+     "web_search_options": {}
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -24814,6 +26338,42 @@
    }
   ]
  },
+ "together_ai|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "together_ai|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -25278,6 +26838,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.together.xyz/v1/chat/completions"
+   }
+  ]
+ },
+ "together_ai|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -25770,6 +27366,42 @@
    }
   ]
  },
+ "volcengine|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "doubao-seed-1-6"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "volcengine|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -26234,6 +27866,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+   }
+  ]
+ },
+ "volcengine|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "doubao-seed-1-6"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -26713,6 +28381,41 @@
      "model": "grok-4",
      "stream": false,
      "temperature": 0.2,
+     "tools": [
+      {
+       "type": "web_search"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/responses"
+   }
+  ]
+ },
+ "xai|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "input": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "input_text"
+        }
+       ],
+       "role": "user",
+       "type": "message"
+      }
+     ],
+     "max_output_tokens": 16384,
+     "model": "grok-4",
+     "stream": false,
      "tools": [
       {
        "type": "web_search"
@@ -27411,6 +29114,41 @@
    }
   ]
  },
+ "xai|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "input": [
+      {
+       "content": [
+        {
+         "text": "hi",
+         "type": "input_text"
+        }
+       ],
+       "role": "user",
+       "type": "message"
+      }
+     ],
+     "max_output_tokens": 16384,
+     "model": "grok-4",
+     "stream": false,
+     "tools": [
+      {
+       "type": "web_search"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.x.ai/v1/responses"
+   }
+  ]
+ },
  "xai|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -28078,6 +29816,42 @@
    }
   ]
  },
+ "xiaomi_mimo|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "mimo-v2-flash"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
  "xiaomi_mimo|custom_base|extra_body": {
   "error": "",
   "requests": [
@@ -28551,6 +30325,42 @@
    }
   ]
  },
+ "xiaomi_mimo|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "mimo-v2-flash"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.xiaomimimo.com/v1/chat/completions"
+   }
+  ]
+ },
  "xiaomi_mimo|default_base|extra_body": {
   "error": "",
   "requests": [
@@ -28958,6 +30768,1252 @@
    }
   ]
  },
+ "yunshu|custom_base|basic": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|cache_control": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": [
+        {
+         "cache_control": {
+          "type": "ephemeral"
+         },
+         "text": "Be brief.",
+         "type": "text"
+        }
+       ],
+       "role": "system"
+      },
+      {
+       "content": [
+        {
+         "cache_control": {
+          "type": "ephemeral"
+         },
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|extra_body": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "foo": "bar",
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|headers": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "model_kwargs": {
+      "extra_headers": {
+       "X-Test": "1"
+      }
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13",
+     "x-test": "1"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|image": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": [
+        {
+         "text": "what is this",
+         "type": "text"
+        },
+        {
+         "image_url": {
+          "url": "data:image/png;base64,iVBORw0KGgo="
+         },
+         "type": "image_url"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|json_schema": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "response_format": {
+      "json_schema": {
+       "name": "r",
+       "schema": {
+        "properties": {
+         "a": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "a"
+        ],
+        "type": "object"
+       }
+      },
+      "type": "json_schema"
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|reasoning_high": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 32768,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "reasoning_effort": "high",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|reasoning_tools": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 32768,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "weather in Paris?",
+       "role": "user"
+      },
+      {
+       "content": "",
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": \"Paris\"}",
+          "name": "get_weather"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      },
+      {
+       "content": "sunny",
+       "role": "tool",
+       "tool_call_id": "call_1"
+      },
+      {
+       "content": "thanks",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "reasoning_effort": "high",
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|stream": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "stream": true,
+     "stream_options": {
+      "include_usage": true
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|tool_history": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "weather in Paris?",
+       "role": "user"
+      },
+      {
+       "content": "",
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": \"Paris\"}",
+          "name": "get_weather"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      },
+      {
+       "content": "sunny",
+       "role": "tool",
+       "tool_call_id": "call_1"
+      },
+      {
+       "content": "thanks",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|custom_base|tools": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|basic": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|cache_control": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": [
+        {
+         "cache_control": {
+          "type": "ephemeral"
+         },
+         "text": "Be brief.",
+         "type": "text"
+        }
+       ],
+       "role": "system"
+      },
+      {
+       "content": [
+        {
+         "cache_control": {
+          "type": "ephemeral"
+         },
+         "text": "hi",
+         "type": "text"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|extra_body": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "foo": "bar",
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|headers": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "model_kwargs": {
+      "extra_headers": {
+       "X-Test": "1"
+      }
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13",
+     "x-test": "1"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|image": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": [
+        {
+         "text": "what is this",
+         "type": "text"
+        },
+        {
+         "image_url": {
+          "url": "data:image/png;base64,iVBORw0KGgo="
+         },
+         "type": "image_url"
+        }
+       ],
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|json_schema": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "response_format": {
+      "json_schema": {
+       "name": "r",
+       "schema": {
+        "properties": {
+         "a": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "a"
+        ],
+        "type": "object"
+       }
+      },
+      "type": "json_schema"
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|reasoning_high": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 32768,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "reasoning_effort": "high",
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|reasoning_tools": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 32768,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "weather in Paris?",
+       "role": "user"
+      },
+      {
+       "content": "",
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": \"Paris\"}",
+          "name": "get_weather"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      },
+      {
+       "content": "sunny",
+       "role": "tool",
+       "tool_call_id": "call_1"
+      },
+      {
+       "content": "thanks",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "reasoning_effort": "high",
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|stream": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "stream": true,
+     "stream_options": {
+      "include_usage": true
+     },
+     "temperature": 0.2
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|tool_history": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "weather in Paris?",
+       "role": "user"
+      },
+      {
+       "content": "",
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": \"Paris\"}",
+          "name": "get_weather"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      },
+      {
+       "content": "sunny",
+       "role": "tool",
+       "tool_call_id": "call_1"
+      },
+      {
+       "content": "thanks",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
+ "yunshu|default_base|tools": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "max_tokens": 128,
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "gpt-4o-mini",
+     "parallel_tool_calls": true,
+     "temperature": 0.2,
+     "tool_choice": "auto",
+     "tools": [
+      {
+       "function": {
+        "description": "weather",
+        "name": "get_weather",
+        "parameters": {
+         "properties": {
+          "city": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "city"
+         ],
+         "type": "object"
+        }
+       },
+       "type": "function"
+      }
+     ]
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.openai.com/v1/chat/completions"
+   }
+  ]
+ },
  "zai|custom_base|basic": {
   "error": "",
   "requests": [
@@ -29023,6 +32079,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "http://golden.invalid/v1/chat/completions"
+   }
+  ]
+ },
+ "zai|custom_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "glm-4.6"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",
@@ -29500,6 +32592,42 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>"
+    },
+    "method": "POST",
+    "query": "",
+    "url": "https://api.z.ai/api/paas/v4/chat/completions"
+   }
+  ]
+ },
+ "zai|default_base|defaults": {
+  "error": "",
+  "requests": [
+   {
+    "body": {
+     "messages": [
+      {
+       "content": "Be brief.",
+       "role": "system"
+      },
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "glm-4.6"
+    },
+    "headers": {
+     "authorization": "<redacted:Bearer>",
+     "x-stainless-arch": "arm64",
+     "x-stainless-async": "async:asyncio",
+     "x-stainless-lang": "python",
+     "x-stainless-os": "MacOS",
+     "x-stainless-package-version": "3.3.0",
+     "x-stainless-raw-response": "true",
+     "x-stainless-read-timeout": "300.0",
+     "x-stainless-retry-count": "0",
+     "x-stainless-runtime": "CPython",
+     "x-stainless-runtime-version": "3.13.13"
     },
     "method": "POST",
     "query": "",

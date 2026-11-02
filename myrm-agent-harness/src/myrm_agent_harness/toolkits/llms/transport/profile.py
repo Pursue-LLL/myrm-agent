@@ -163,7 +163,7 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
             "yunshu",
             "http://yunshu.koolearn.com/yunshu/openai/v1",
             "YUNSHU_API_KEY",
-            extra_body=MappingProxyType({"temperature": 0.2}),
+            cache_control="always",
             headers=MappingProxyType({"User-Agent": "YunShu-AI-SDK/2.1"}),
         ),
     )

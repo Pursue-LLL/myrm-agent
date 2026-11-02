@@ -10,8 +10,8 @@
 [POS]
 Library-agnostic request capture. The committed baseline ``golden_baseline.json`` was recorded the same way at
 commit b6959e7d7e, when the factory still called the previous multi-provider client library (litellm 1.97.0) with
-the production configuration applied; the golden test replays the matrix on the current transport and diffs the
-two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
+the production configuration applied (the Yunshu cases and the ``defaults`` scenario were added later on that same
+commit); the golden test replays the matrix on the current transport and diffs the two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
 """
 
 from __future__ import annotations
@@ -27,12 +27,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
-Record = dict[str, object]
-Case = dict[str, object]
-
-_SECRET_HEADERS = frozenset({"authorization", "x-api-key", "api-key", "x-goog-api-key"})
-_KEPT_HEADER_PREFIXES = ("anthropic-", "x-", "api-", "openai-", "http-referer", "authorization", "content-type")
-_IGNORED_HEADERS = frozenset({"content-type"})
+from .golden_recorder import Case, Record, install_request_recorder
 
 _CHAT_JSON = {
     "id": "chatcmpl-1",
@@ -148,12 +143,14 @@ PROVIDERS: dict[str, tuple[str, dict[str, object]]] = {
     "bedrock": ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", {}),
     "cerebras": ("cerebras/llama3.1-8b", {}),
     "xiaomi_mimo": ("xiaomi_mimo/mimo-v2-flash", {}),
+    "yunshu": ("yunshu/gpt-4o-mini", {}),
     "openai_like": ("openai/some-model", {}),  # gateways reached through an api_base only
     "gemini_like": ("gemini/gemini-2.5-pro", {}),
     "anthropic_like": ("anthropic/claude-sonnet-4-5", {}),
 }
 BASE_SCENARIOS = (
     "basic",
+    "defaults",
     "tools",
     "reasoning_high",
     "json_schema",
@@ -205,27 +202,6 @@ def _canned(request: httpx.Request) -> httpx.Response:
     return answer(_CHAT_SSE, _CHAT_JSON)
 
 
-def _record(request: httpx.Request) -> Record:
-    try:
-        body: object = json.loads(request.content) if request.content else None
-    except ValueError:
-        body = {"__raw_len__": len(request.content or b"")}
-    headers: dict[str, str] = {}
-    for name, value in request.headers.items():
-        key = name.lower()
-        if key in _IGNORED_HEADERS or not key.startswith(_KEPT_HEADER_PREFIXES):
-            continue
-        headers[key] = f"<redacted:{value.split(' ')[0]}>" if key in _SECRET_HEADERS else value
-    split = urlsplit(str(request.url))
-    return {
-        "method": request.method,
-        "url": f"{split.scheme}://{split.netloc}{split.path}",
-        "query": split.query,
-        "headers": headers,
-        "body": body,
-    }
-
-
 def _messages(scenario: str) -> list[BaseMessage]:
     if scenario in _HISTORY_SCENARIOS:
         call = {"name": "get_weather", "args": {"city": "Paris"}, "id": "call_1", "type": "tool_call"}
@@ -258,6 +234,8 @@ def _model_kwargs(extra: Mapping[str, object]) -> dict[str, object]:
 
 def _factory_kwargs(extra: Mapping[str, object], with_base: bool, scenario: str) -> dict[str, object]:
     kwargs: dict[str, object] = {"api_key": "sk-golden-test-key", "temperature": 0.2, "max_tokens": 128, **extra}
+    if scenario == "defaults":  # what each provider adds when the caller sets no sampling parameter at all
+        del kwargs["temperature"], kwargs["max_tokens"]
     if with_base:
         kwargs["base_url"] = _BASE_URL
     if scenario in ("reasoning_high", "reasoning_tools"):
@@ -320,20 +298,8 @@ def case_name(provider: str, with_base: bool, scenario: str) -> str:
 
 
 def install_recorder(monkeypatch: pytest.MonkeyPatch) -> list[Record]:
-    """Replace ``httpx`` ``send`` so every request is recorded and answered with a canned provider response."""
-    sink: list[Record] = []
-
-    async def async_send(self: httpx.AsyncClient, request: httpx.Request, **kwargs: object) -> httpx.Response:
-        sink.append(_record(request))
-        return _canned(request)
-
-    def sync_send(self: httpx.Client, request: httpx.Request, **kwargs: object) -> httpx.Response:
-        sink.append(_record(request))
-        return _canned(request)
-
-    monkeypatch.setattr(httpx.AsyncClient, "send", async_send)
-    monkeypatch.setattr(httpx.Client, "send", sync_send)
-    return sink
+    """Record every request of the chat matrix and answer it with a canned chat provider response."""
+    return install_request_recorder(monkeypatch, _canned)
 
 
 def capture_all(sink: list[Record], only: frozenset[str] | None = None) -> dict[str, Case]:

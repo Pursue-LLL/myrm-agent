@@ -94,6 +94,37 @@ class TestEmbed:
         assert requests[0].url == "https://api.voyageai.com/v1/embeddings"
         assert requests[0].body is not None and "encoding_format" not in requests[0].body
 
+    async def test_jina_sends_no_encoding_format(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
+        requests = sent({"data": [{"index": 0, "embedding": [1.0]}]})
+        await embeddings.aembed("jina_ai/jina-embeddings-v3", ["a"], api_key="k")
+        assert requests[0].url == "https://api.jina.ai/v1/embeddings"
+        assert requests[0].body is not None and "encoding_format" not in requests[0].body
+
+    async def test_custom_base_is_a_gateway_that_keeps_the_whole_model_id(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        requests = sent({"data": [{"index": 0, "embedding": [1.0]}]})
+        await embeddings.aembed("ollama/nomic-embed-text", ["a"], api_key="k", api_base="https://gw.example/v1")
+        assert requests[0].url == "https://gw.example/v1/embeddings"
+        assert requests[0].body == {"model": "ollama/nomic-embed-text", "input": ["a"], "encoding_format": "float"}
+
+    async def test_gemini_uses_batch_embed_contents(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
+        requests = sent({"embeddings": [{"values": [1.0, 2.0]}, {"values": [3.0, 4.0]}]})
+        vectors = await embeddings.aembed("gemini/text-embedding-004", ["a", "b"], api_key="k")
+        assert vectors == [[1.0, 2.0], [3.0, 4.0]]
+        request = requests[0]
+        assert (
+            request.url
+            == "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents"
+        )
+        assert request.headers == {"x-goog-api-key": "k"}
+        assert request.body == {
+            "requests": [
+                {"model": "models/text-embedding-004", "content": {"parts": [{"text": "a"}]}},
+                {"model": "models/text-embedding-004", "content": {"parts": [{"text": "b"}]}},
+            ]
+        }
+
     async def test_azure_addresses_the_deployment(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent({"data": [{"index": 0, "embedding": [1.0]}]})
         await embeddings.aembed("azure/my-embed", ["a"], api_key="k", api_base="https://res.openai.azure.com")

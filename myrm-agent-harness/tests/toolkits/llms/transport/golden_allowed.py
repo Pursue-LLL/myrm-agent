@@ -6,7 +6,7 @@
 [OUTPUT]
 - AllowedDiff: one registered difference (provider, kind of change, field, reason)
 - RULES: the registry
-- HIDDEN_FETCH_HOSTS: hosts the previous library called on its own, outside any model call
+- HIDDEN_FETCHES: URLs the previous library called on its own, outside the model call itself
 
 [POS]
 The golden request test fails on any difference that is not listed here, so replacing the client library cannot
@@ -21,8 +21,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 # Calls the previous library made by itself while serving a model call (tokenizer downloads from a model hub,
-# a configuration file fetched from a code-hosting site). The transport makes none of them.
-HIDDEN_FETCH_HOSTS = ("huggingface.co", "raw.githubusercontent.com")
+# a configuration file fetched from a code-hosting site, Ollama's model-info lookup around an embedding call).
+# The transport makes none of them. Matched as substrings of the request URL.
+HIDDEN_FETCHES = ("huggingface.co", "raw.githubusercontent.com", "/api/show")
 
 _GEMINI = ("gemini", "gemini_like")
 _ANTHROPIC = ("anthropic", "anthropic_like")
@@ -75,11 +76,41 @@ RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "lm-studio-default-endpoint",
-        "LM Studio without an api_base was sent to api.openai.com with the caller's key; the default is the local server.",
+        "LM Studio and Yunshu without an api_base were sent to api.openai.com with the caller's key; the default is "
+        "their own server.",
         "~",
         r"/url",
-        providers=("lm_studio",),
+        providers=("lm_studio", "yunshu"),
         when=_contains("old", "api.openai.com"),
+    ),
+    AllowedDiff(
+        "sdk-fingerprint-headers",
+        "Some calls of the previous library went through the OpenAI Python SDK, which stamps its own client "
+        "fingerprint (platform, runtime, package version, retry counter, read timeout) on the request. The transport "
+        "has no SDK.",
+        "-",
+        r"/headers/x-stainless-[a-z-]+",
+    ),
+    AllowedDiff(
+        "thinking-floor-not-clamped-to-catalog",
+        "With no budget set, a thinking model gets the 16384-token floor. The previous library then lowered it to the "
+        "catalog's output ceiling (8192 for MiniMax-M2) without saying so; the transport sends the floor and, if the "
+        "provider refuses it, learns the limit from the error and retries. Not exercised against a real MiniMax "
+        "server.",
+        "~",
+        r"/body/max_tokens",
+        providers=("minimax",),
+        scenarios=("defaults",),
+        when=lambda diff: (diff.old, diff.new) == (8192, 16384),
+    ),
+    AllowedDiff(
+        "yunshu-output-limit",
+        "`max_tokens` is capped at the model's catalog output limit (16384 for gpt-4o-mini); the previous library found "
+        "no catalog entry under the `yunshu/` prefix and sent 32768, which the model would refuse.",
+        "~",
+        r"/body/max_tokens",
+        providers=("yunshu",),
+        scenarios=("reasoning_high", "reasoning_tools"),
     ),
     AllowedDiff(
         "anthropic-extra-body-nested",

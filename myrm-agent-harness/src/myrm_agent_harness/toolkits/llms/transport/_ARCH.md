@@ -31,7 +31,7 @@ Embeddings, rerank and image generation use the same HTTP layer and credential r
 | `ollama_chat.py` | Core | Native Ollama `/api/chat` wire (tools, structured output, thinking) with NDJSON decoding | ✅ |
 | `json_schema.py` | Core | `inline_refs`: local `$ref` inlining shared by the Anthropic and Gemini schema converters | ✅ |
 | `service_routes.py` | Config | Endpoint and credential resolution for embedding, rerank and image providers | ✅ |
-| `embeddings.py` | Core | OpenAI-compatible `/embeddings` and Cohere `/embed` | ✅ |
+| `embeddings.py` | Core | OpenAI-compatible `/embeddings`, Cohere `/embed` and Gemini `:batchEmbedContents`; a custom `api_base` is a gateway that keeps the whole model id | ✅ |
 | `rerank.py` | Core | `/rerank` for Cohere, Jina, Together, SiliconFlow, Voyage and compatible gateways | ✅ |
 | `images.py` | Core | Image generation and editing: OpenAI-family, Gemini, Stability, MiniMax | ✅ |
 

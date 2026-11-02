@@ -38,6 +38,8 @@ _OPENAI_WIRES: Final = frozenset({"openai_chat", "azure_openai"})
 _NON_OPENAI_IMAGE_PROVIDERS: Final = frozenset({"stability", "minimax_image"})
 # Azure serves its image deployments on a newer API version than its chat default.
 _AZURE_IMAGE_API_VERSION: Final = "2025-02-01-preview"
+# DALL-E 3 is the only OpenAI image model with a `style` option; the other image models take none.
+_STYLE_MODEL: Final = "dall-e-3"
 
 # Model names the settings offer that name a model family instead of a provider-qualified id.
 _ALIASES: Final = {
@@ -140,7 +142,7 @@ def _openai_generation(
         body["model"] = route.model
     if quality:
         body["quality"] = quality
-    if style:
+    if style and route.model == _STYLE_MODEL:
         body["style"] = style
     return PreparedRequest(provider=route.profile.id, url=url, headers=headers, body=body, timeout=timeout, query=query)
 

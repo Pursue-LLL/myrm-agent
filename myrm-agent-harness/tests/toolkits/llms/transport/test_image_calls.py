@@ -85,6 +85,14 @@ class TestOpenAIFamily:
         await _generate("gpt-image-1", quality=None)
         assert set(requests[0].body or {}) == {"prompt", "n", "size", "model"}
 
+    @pytest.mark.parametrize("model", ["gpt-image-1", "dall-e-2", "xai/grok-imagine-image"])
+    async def test_style_is_sent_to_dall_e_3_only(
+        self, sent: Callable[[Answer], list[PreparedRequest]], model: str
+    ) -> None:
+        requests = sent(_OPENAI_ANSWER)
+        await _generate(model, style="vivid")
+        assert "style" not in (requests[0].body or {})
+
     @pytest.mark.parametrize(
         ("model", "url"),
         [

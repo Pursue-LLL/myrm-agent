@@ -18,7 +18,7 @@ import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
-from .golden_allowed import HIDDEN_FETCH_HOSTS, RULES, AllowedDiff
+from .golden_allowed import HIDDEN_FETCHES, RULES, AllowedDiff
 
 _VOLATILE_HEADERS = frozenset({"user-agent", "content-type"})
 
@@ -61,7 +61,7 @@ def _requests(case: Mapping[str, object]) -> list[Mapping[str, object]]:
 
 def visible_requests(case: Mapping[str, object]) -> list[Mapping[str, object]]:
     """The case's requests minus the hidden fetches of the previous client library (tokenizers, config downloads)."""
-    return [r for r in _requests(case) if not any(host in str(r["url"]) for host in HIDDEN_FETCH_HOSTS)]
+    return [r for r in _requests(case) if not any(hidden in str(r["url"]) for hidden in HIDDEN_FETCHES)]
 
 
 def diff_case(baseline: Mapping[str, object], current: Mapping[str, object]) -> list[Diff]:
@@ -75,6 +75,15 @@ def diff_case(baseline: Mapping[str, object], current: Mapping[str, object]) -> 
     return diffs
 
 
+def diff_service_case(baseline: Mapping[str, object], current: Mapping[str, object]) -> list[Diff]:
+    """``diff_case`` plus the decoded result and the failure kind, for the embedding, rerank, image and search paths."""
+    diffs = diff_case(baseline, current)
+    diffs.extend(_walk({"result": baseline["result"]}, {"result": current["result"]}))
+    if baseline["error"] != current["error"]:
+        diffs.append(Diff("~", "/error", baseline["error"], current["error"]))
+    return diffs
+
+
 def _matches(rule: AllowedDiff, provider: str, scenario: str, diff: Diff) -> bool:
     return (
         (rule.providers is None or provider in rule.providers)
@@ -85,13 +94,13 @@ def _matches(rule: AllowedDiff, provider: str, scenario: str, diff: Diff) -> boo
     )
 
 
-def explain(case: str, diffs: list[Diff]) -> tuple[dict[str, int], list[Diff]]:
+def explain(case: str, diffs: list[Diff], rules: tuple[AllowedDiff, ...] = RULES) -> tuple[dict[str, int], list[Diff]]:
     """({rule id: matched count}, differences no rule explains) for the case ``provider|base|scenario``."""
     provider, _, scenario = case.split("|")
     used: dict[str, int] = {}
     unexplained: list[Diff] = []
     for diff in diffs:
-        rule = next((r for r in RULES if _matches(r, provider, scenario, diff)), None)
+        rule = next((r for r in rules if _matches(r, provider, scenario, diff)), None)
         if rule is None:
             unexplained.append(diff)
         else:
