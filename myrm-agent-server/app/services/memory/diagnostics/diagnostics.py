@@ -63,6 +63,9 @@ from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import 
 )
 from app.services.memory.ledger.operation_ledger import JsonObject, MemoryOperationLedgerService
 
+_CAPACITY_SAMPLE_TYPES = (MemoryType.PROFILE, MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC)
+_CAPACITY_SAMPLE_LIMIT = 20
+
 
 class MemoryDiagnosticsService:
     """Builds visible doctor checks and runs executable memory diagnostics."""
@@ -85,53 +88,17 @@ class MemoryDiagnosticsService:
     ) -> list[MemoryCommandDoctorCheck]:
         """Return snapshot doctor checks without mutating storage."""
 
-        # Sample active memory metrics for capacity theater probe
-        total_chars = 0
-        session_memory_count = 0
-        unpinned_count = 0
-        if self._memory_manager is not None:
-            try:
-                for mtype in (MemoryType.PROFILE, MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
-                    items = await self._memory_manager.list_memories(mtype, limit=20)
-                    for item in items:
-                        content_str = str(getattr(item, "content", "") or "")
-                        total_chars += len(content_str)
-                        if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-                            session_memory_count += 1
-                        if not getattr(item, "pinned", False):
-                            unpinned_count += 1
-            except Exception:
-                pass
-
-        # Check relational store integrity
-        relational_integrity_ok = True
-        relational_integrity_detail = "ok"
-        if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
-            try:
-                rel_store = self._memory_manager._relational
-                if rel_store is not None and hasattr(rel_store, "check_integrity"):
-                    relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
-            except Exception as e:
-                relational_integrity_ok = False
-                relational_integrity_detail = str(e)
-
+        capacity_check = await self._check_capacity()
+        relational_check = await self._check_relational_store(runtime)
         checks = [
-            probe_relational_store(
-                runtime,
-                integrity_ok=relational_integrity_ok,
-                integrity_detail=relational_integrity_detail,
-            ),
+            relational_check,
             probe_memory_base_path(runtime),
             probe_vector_index(runtime),
             probe_knowledge_graph(runtime),
             probe_embedding_provider(runtime),
             probe_event_ledger_snapshot(runtime),
             probe_health_snapshot(health_cache_status),
-            probe_capacity_theater(
-                total_active_chars=total_chars,
-                session_memory_count=session_memory_count,
-                unpinned_count=unpinned_count,
-            ),
+            capacity_check,
             probe_context_bundle_manifest(runtime),
             probe_deployment_boundary(runtime),
             await inspect_migration_integrity(self._db),
@@ -150,55 +117,15 @@ class MemoryDiagnosticsService:
         started_at = datetime.now(UTC)
         started_timer = perf_counter()
 
-        # Sample active memory metrics for capacity theater probe
-        total_chars = 0
-        session_memory_count = 0
-        unpinned_count = 0
-        if self._memory_manager is not None:
-            try:
-                for mtype in (MemoryType.PROFILE, MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
-                    items = await self._memory_manager.list_memories(mtype, limit=20)
-                    for item in items:
-                        content_str = str(getattr(item, "content", "") or "")
-                        total_chars += len(content_str)
-                        if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
-                            session_memory_count += 1
-                        if not getattr(item, "pinned", False):
-                            unpinned_count += 1
-            except Exception:
-                pass
-
-        # Check relational store integrity
-        relational_integrity_ok = True
-        relational_integrity_detail = "ok"
-        if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
-            try:
-                rel_store = self._memory_manager._relational
-                if rel_store is not None and hasattr(rel_store, "check_integrity"):
-                    relational_integrity_ok, relational_integrity_detail = await rel_store.check_integrity()
-            except Exception as e:
-                relational_integrity_ok = False
-                relational_integrity_detail = str(e)
-
+        capacity_check = await self._check_capacity()
+        relational_check = await self._check_relational_store(runtime)
         probes = [
-            await self._run_probe(
-                lambda: probe_relational_store(
-                    runtime,
-                    integrity_ok=relational_integrity_ok,
-                    integrity_detail=relational_integrity_detail,
-                )
-            ),
+            await self._run_probe(lambda: relational_check),
             await self._run_probe(lambda: probe_memory_base_path(runtime)),
             await self._run_probe(lambda: probe_vector_index(runtime)),
             await self._run_probe(lambda: probe_knowledge_graph(runtime)),
             await self._run_probe(lambda: probe_embedding_provider(runtime)),
-            await self._run_probe(
-                lambda: probe_capacity_theater(
-                    total_active_chars=total_chars,
-                    session_memory_count=session_memory_count,
-                    unpinned_count=unpinned_count,
-                )
-            ),
+            await self._run_probe(lambda: capacity_check),
             await run_embedding_live_probe(),
             await run_retrieval_pipeline_probe(self._memory_manager),
             await run_sparse_cjk_recall_probe(self._memory_manager),
@@ -228,6 +155,44 @@ class MemoryDiagnosticsService:
         audit_recorded, audit_error = await self._record_run_event(run)
         slo = await build_diagnostic_slo(self._ledger)
         return run.model_copy(update={"audit_recorded": audit_recorded, "audit_error": audit_error, "slo": slo})
+
+    async def _check_capacity(self) -> MemoryCommandDoctorCheck:
+        """Sample the active memory load; a failed read keeps the counts gathered so far."""
+        total_chars = 0
+        session_memory_count = 0
+        unpinned_count = 0
+        if self._memory_manager is not None:
+            try:
+                for mtype in _CAPACITY_SAMPLE_TYPES:
+                    items = await self._memory_manager.list_memories(mtype, limit=_CAPACITY_SAMPLE_LIMIT)
+                    for item in items:
+                        content_str = str(getattr(item, "content", "") or "")
+                        total_chars += len(content_str)
+                        if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
+                            session_memory_count += 1
+                        if not getattr(item, "pinned", False):
+                            unpinned_count += 1
+            except Exception:
+                pass
+        return probe_capacity_theater(
+            total_active_chars=total_chars,
+            session_memory_count=session_memory_count,
+            unpinned_count=unpinned_count,
+        )
+
+    async def _check_relational_store(self, runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
+        """Run the relational store integrity check when the manager exposes one."""
+        integrity_ok = True
+        integrity_detail = "ok"
+        if self._memory_manager is not None and hasattr(self._memory_manager, "_relational"):
+            try:
+                rel_store = self._memory_manager._relational
+                if rel_store is not None and hasattr(rel_store, "check_integrity"):
+                    integrity_ok, integrity_detail = await rel_store.check_integrity()
+            except Exception as e:
+                integrity_ok = False
+                integrity_detail = str(e)
+        return probe_relational_store(runtime, integrity_ok=integrity_ok, integrity_detail=integrity_detail)
 
     async def _run_probe(self, factory: "ProbeFactory") -> MemoryCommandDiagnosticProbeResult:
         started = perf_counter()
