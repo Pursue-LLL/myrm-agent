@@ -1,5 +1,6 @@
 """What one poll takes from the mailbox: a message nobody can parse never stalls it, a failure on one message delivers the
-ones before it and reads it again, and a backlog drains oldest first.
+ones before it and reads it again, a backlog drains oldest first, and the messages not yet confirmed come on top of the new
+ones a poll takes.
 
 The inbox answers the way an IMAP server does (see ``email_inbox``): a message it has handed over is read and no longer
 unread, and ``UID n:*`` returns the newest message when ``n`` is past the end of the mailbox, so the batch the channel
@@ -116,6 +117,20 @@ class TestBacklog:
 
         assert uids(first_poll) == list(range(11, 31))
         assert channel._last_uid == 30
+
+    def test_messages_not_yet_confirmed_come_on_top_of_a_full_batch_of_new_ones(self) -> None:
+        """Nothing confirms the first poll, so the second hands its messages out again and still takes 20 new ones."""
+        inbox = Inbox({uid: raw_mail(uid) for uid in range(1, 41)})
+        channel = make_channel()
+
+        with patch("imaplib.IMAP4_SSL", return_value=inbox.conn):
+            first_poll = channel._fetch_new_emails()
+            inbox.messages.update({uid: raw_mail(uid) for uid in range(41, 101)})
+            second_poll = channel._fetch_new_emails()
+
+        assert uids(first_poll) == list(range(21, 41))
+        assert uids(second_poll) == list(range(21, 61))
+        assert channel._last_uid == 60
 
     def test_nothing_is_fetched_when_the_search_answers_with_the_newest_old_message(self) -> None:
         """``UID 7:*`` on a mailbox that ends at 6 answers with 6; that message was delivered by an earlier poll."""
