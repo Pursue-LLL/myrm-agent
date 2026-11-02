@@ -232,6 +232,7 @@ const AgentIndicator = () => {
       }
       if (parsed?.type === 'image') {
         return (
+          // oxlint-disable-next-line next/no-img-element -- the avatar is a user-supplied arbitrary address (remote or data URL), which next/image cannot optimize
           <img src={parsed.src} alt={agentConfig.agentName || 'Agent'} className="w-full h-full rounded object-cover" />
         );
       }
