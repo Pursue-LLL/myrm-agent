@@ -125,8 +125,10 @@ def test_skill_select_tool_description_unchanged_when_skill_bind_size_varies() -
 def test_metadata_summary_routing_rules_include_search_when_hidden() -> None:
     from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
 
-    inline = get_metadata_summary([_skill("alpha_skill")], hidden_skill_count=0)
-    hidden = get_metadata_summary([_skill("alpha_skill")], hidden_skill_count=3)
+    inline = get_metadata_summary([_skill("alpha_skill")])
+    hidden = get_metadata_summary(
+        [_skill("alpha_skill")], hidden_skill_names=["beta_skill", "gamma_skill", "delta_skill"]
+    )
     assert "skill_search_tool" not in inline
     assert "skill_search_tool" in hidden
 
@@ -140,7 +142,7 @@ def test_routing_rules_keep_only_dynamic_catalog_hints() -> None:
     inline = get_metadata_summary([_skill("alpha_skill"), _skill("beta_skill")])
     assert "routing_rules" not in inline
 
-    hidden_only = get_metadata_summary([], hidden_skill_count=2)
+    hidden_only = get_metadata_summary([], hidden_skill_names=["beta_skill", "gamma_skill"])
     assert "skill_search_tool" in hidden_only
     assert "ask the user which to use" not in hidden_only
 
@@ -152,14 +154,17 @@ def test_routing_rules_keep_only_dynamic_catalog_hints() -> None:
 def test_metadata_summary_all_hidden_still_emits_search_routing() -> None:
     from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
 
-    summary = get_metadata_summary([], hidden_skill_count=25)
+    summary = get_metadata_summary([], hidden_skill_names=[f"hidden_{idx:02d}_skill" for idx in range(25)])
     assert "routing_rules" in summary
     assert "skill_search_tool" in summary
     assert "No skills available" not in summary
 
 
 def test_bound_skills_block_includes_hidden_count_attribute() -> None:
-    block = build_bound_skills_block([_skill("alpha_skill")], hidden_skill_count=5)
+    block = build_bound_skills_block(
+        [_skill("alpha_skill")],
+        hidden_skill_names=[f"hidden_{idx}_skill" for idx in range(5)],
+    )
     assert 'hidden_count="5"' in block
 
 
@@ -272,9 +277,9 @@ def test_resolve_catalog_display_skills_keeps_always_first_within_budget() -> No
     assert resolution.display_skills[0].name == "skill_0_skill"
     assert 0 < len(resolution.display_skills) < len(skills)
     assert resolution.hidden_skill_count == len(skills) - len(resolution.display_skills)
-    assert {skill.name for skill in resolution.hidden_skills} | {
-        skill.name for skill in resolution.display_skills
-    } == {skill.name for skill in skills}
+    assert {skill.name for skill in resolution.hidden_skills} | {skill.name for skill in resolution.display_skills} == {
+        skill.name for skill in skills
+    }
 
 
 def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
@@ -282,7 +287,7 @@ def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
         L1_CATALOG_MAX_TOKENS,
         resolve_catalog_display_skills,
     )
-    from myrm_agent_harness.agent.skills.runtime.registry import get_metadata_summary
+    from myrm_agent_harness.agent.skills.runtime.registry import L1_HIDDEN_NAMES_MAX_TOKENS, get_metadata_summary
     from myrm_agent_harness.utils.text_utils import get_token_count
 
     skills = [
@@ -297,14 +302,16 @@ def test_catalog_token_budget_caps_entries_without_count_cap() -> None:
     resolution = resolve_catalog_display_skills(skills)
     assert 0 < len(resolution.display_skills) < len(skills)
     assert resolution.hidden_skill_count > 0
-    rendered = get_metadata_summary(
+    entries_only = get_metadata_summary(resolution.display_skills)
+    assert get_token_count(entries_only) <= L1_CATALOG_MAX_TOKENS
+    with_names = get_metadata_summary(
         resolution.display_skills,
-        hidden_skill_count=resolution.hidden_skill_count,
+        hidden_skill_names=[skill.name for skill in resolution.hidden_skills],
     )
-    assert get_token_count(rendered) <= L1_CATALOG_MAX_TOKENS
+    assert get_token_count(with_names) <= L1_CATALOG_MAX_TOKENS + L1_HIDDEN_NAMES_MAX_TOKENS
 
 
-def test_hidden_skills_are_count_only_not_name_listed() -> None:
+def test_hidden_skills_are_listed_by_name_next_to_the_routing_rules() -> None:
     from myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery import (
         render_bound_skills_catalog,
     )
@@ -322,10 +329,12 @@ def test_hidden_skills_are_count_only_not_name_listed() -> None:
     rendered = render_bound_skills_catalog(skills)
     assert rendered is not None
     assert rendered.hidden_skill_count > 0
-    assert "<hidden_skills" not in rendered.xml
-    assert "mcp_24_skill" not in rendered.xml
+    names_line = next(line for line in rendered.xml.splitlines() if "<hidden_skill_names>" in line)
+    assert "mcp_24_skill" in names_line
     assert "If the user names a skill" in rendered.xml
 
+
+def test_resolve_catalog_display_skills_inlines_only_the_core_skill_of_a_config() -> None:
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,
     )

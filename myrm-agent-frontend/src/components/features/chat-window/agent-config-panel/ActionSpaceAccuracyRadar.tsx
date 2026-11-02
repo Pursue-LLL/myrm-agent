@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils/classnameUtils';
 export interface Turn1CatalogPreview {
   inline_count: number;
   hidden_count: number;
+  /** Core skills the inline budget left out; they are listed by name instead. */
+  overflow_count: number;
+  catalog_tokens: number;
   search_mounted: boolean;
 }
 
@@ -97,12 +100,16 @@ export function ActionSpaceAccuracyRadar({
             {t('turn1CatalogSummary', {
               inline: catalogPreview.inline_count,
               hidden: catalogPreview.hidden_count,
+              tokens: catalogPreview.catalog_tokens,
               searchState: catalogPreview.search_mounted ? t('turn1CatalogSearchOn') : t('turn1CatalogSearchOff'),
             })}
           </p>
-          {catalogPreview.hidden_count > 0 && (
+          {catalogPreview.overflow_count > 0 && (
             <p className="text-xs text-amber-600 dark:text-amber-400">
-              {t('turn1CatalogOverCapHint', { cap: catalogPreview.inline_count })}
+              {t('turn1CatalogOverCapHint', {
+                inline: catalogPreview.inline_count,
+                overflow: catalogPreview.overflow_count,
+              })}
             </p>
           )}
         </div>

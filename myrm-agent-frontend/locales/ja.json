@@ -1347,10 +1347,10 @@
         "smartPrune": "休眠スキルを整理してアクション空間を解放",
         "smartPruneRunning": "アクション空間を整理しています…",
         "turn1CatalogTitle": "Turn 1 スキルカタログ",
-        "turn1CatalogSummary": "{inline} インライン · {hidden} 非表示 · 検索 {searchState}",
+        "turn1CatalogSummary": "{inline} インライン · {hidden} オンデマンド · 検索 {searchState} · 約 {tokens, number} トークン",
         "turn1CatalogSearchOn": "オン",
         "turn1CatalogSearchOff": "オフ",
-        "turn1CatalogOverCapHint": "会話開始時には最初の{cap}個のCoreスキル（アルファベット順）のみがインライン表示されます。頻度の低いスキルをPeripheralに移動すると検索が無効になり、ターンあたり約203トークンを節約できます。"
+        "turn1CatalogOverCapHint": "コアスキルがインライン枠を超えています。最初の{inline}個（名前順）は完全な形でインライン表示され、残りの{overflow}個は名前のみが一覧に載り、必要なときに名前で読み込まれます。あまり使わないコアスキルを周辺スキルに移すと、他のスキルの枠を空けられます。"
       },
       "skillsZone": {
         "coreTitle": "コアスキル",

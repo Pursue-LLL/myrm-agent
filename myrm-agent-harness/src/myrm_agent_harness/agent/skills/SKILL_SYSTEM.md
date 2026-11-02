@@ -260,13 +260,13 @@ Level 3: 资源（Resources）
 **路由规则**：
 - 通用规则在 `skill_select_tool` 静态 description，减少误触发；
 - `trust` 属性让 LLM 知道技能的信任级别；
-- L1 仅在 `hidden_count > 0` 时输出 search/hidden 动态规则；
+- L1 仅在有技能未内联（`hidden_count > 0`）时输出 search/hidden 动态规则；
 - L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整 `name + description` 条目，不再按技能个数截断；
-- 预算外的技能只计入 `hidden_count`，不列名字；用户点名可直接 select，能力未知才 search。
+- 预算外的技能不再只是一个数字：目录末尾的 `<hidden_skill_names>` 一行按字母序列出它们的名字（上限 `L1_HIDDEN_NAMES_MAX_TOKENS = 1,500`，超出时以 `and N more not listed` 收尾）。名字在目录里，模型直接 select；只知能力、不知名字才 search。
 
 ### 4.3 Always 技能
 
-`always: true` 的真实语义：**在 L1 token 预算内优先排序**，不是“保证出现”。
+`always: true` 的真实语义：**在 L1 token 预算内优先排序**（有 `skill_configs` 时同样先占预算，除非该技能被显式设为外围），不是“保证出现”。
 
 **它不做什么**：
 
@@ -277,20 +277,21 @@ Level 3: 资源（Resources）
 
 ```
 model_visible = 可用且可调用的技能
-always        = always=True，按名字排序
-non_always    = 非 always，按名字排序
-候选          = always + non_always
+候选          = 非空 skill_configs：显式 is_core 优先，未显式配置的技能仅在 always=True 时入选
+                None 或 {}（同一种“未配置”状态）：全部 model_visible
+排序          = always 在前，其后按名字
 显示          = 按候选顺序放入完整 name+description，直到 L1_CATALOG_MAX_TOKENS（2,000）
-hidden_count  = model_visible - 显示
+hidden_count  = model_visible - 显示（它们的名字列在 <hidden_skill_names> 中）
+overflow_count= 候选 - 显示（预算挤掉的候选；外围技能不算）
 ```
 
 **后果**：
 
-1. `always` 只是优先，不保证。MCP 由 `core_generator.py` 设 `always=True`，会优先占用预算；预算耗尽后剩余 MCP 和用户技能都只计 `hidden_count`。
-2. 不再有 `<hidden_skills>` 名字列表。预算外技能只有两种到达方式：用户点名直接 `skill_select_tool`，或能力未知时 `skill_search_tool`。
-3. `skill_select_tool` 的白名单和 `skill_search_tool` 的索引都来自全量 `filtered_skills`；`hidden_count` 只表示“未展示”，不表示“不可选”。
+1. `always` 只是优先，不保证。MCP 由 `core_generator.py` 设 `always=True`，会优先占用预算（含已配置 `skill_configs` 的智能体）；预算耗尽后剩余 MCP 和用户技能只有名字出现在 `<hidden_skill_names>` 里。
+2. 预算外技能有两种到达方式：名字已在目录里（或用户点名）→ 直接 `skill_select_tool`；能力已知、名字未知 → `skill_search_tool`。真实模型会话对照显示，有名字清单时检索往返显著减少、通过率无显著差别；代价是首次提示多出名字行的 token（130 个技能约 780）。
+3. `skill_select_tool` 的白名单和 `skill_search_tool` 的索引都来自全量 `filtered_skills`；`hidden_count` 只表示“没有完整条目”，不表示“不可选”。
 
-**如何被发现**：L1 完整条目 → 直接 select；用户点名 → 直接 select；能力未知/名字未知 → search（BM25 + jieba，MCP 工具名与 80 字符短描述也进索引）→ select。
+**如何被发现**：L1 完整条目 → 直接 select；`<hidden_skill_names>` 里的名字或用户点名 → 直接 select；能力已知/名字未知 → search（BM25 + jieba，MCP 工具名与 80 字符短描述也进索引）→ select。
 
 **约束**：
 - 建议 always 技能数量控制在 1-3 个。
@@ -1047,8 +1048,8 @@ STATIC_SKILL_SLUGS: list[str] = [
    - **适用场景**：用户在 GUI 标记为核心、对当前智能体高频使用的技能。
 
 2. **L2 外围技能 (Peripheral Skills)**：
-   - **机制**：将技能的 `name + description` 注入首条用户消息的 ``<bound_skills>`` 块，按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算截断；超出部分只计 `hidden_count`，通过点名 `skill_select_tool` 或 `skill_search_tool` 发现。``skill_select_tool.description`` 保持字节稳定。
-   - **注意**：不再按 20 个技能硬截断，也不再列 `<hidden_skills>` 名字列表；预算外的技能不展示名字。
+   - **机制**：将技能的 `name + description` 注入首条用户消息的 ``<bound_skills>`` 块，按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算截断；超出部分只列名字（`<hidden_skill_names>`，有独立的 token 上限），按名字 `skill_select_tool`，或能力已知、名字未知时 `skill_search_tool`。``skill_select_tool.description`` 保持字节稳定。
+   - **注意**：不再按 20 个技能硬截断；预算外的技能以 `<hidden_skill_names>` 一行列出名字（不含描述）。
    - **特点**：极低 Token 消耗，0 认知负担。LLM 知道其存在，需要时通过 `skill_select_tool` 渐进式加载完整 SOP。
    - **适用场景**：低频使用、长尾技能。
 

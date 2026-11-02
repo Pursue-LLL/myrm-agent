@@ -219,21 +219,24 @@ class ToolLayer(IntEnum):
 
 | 条件 | 行为 |
 |---|---|
-| 提供 `skill_configs` | 只把 `is_core=true` 的技能放入候选，再按 token 预算选择 |
-| 无 `skill_configs` | `always=True` 优先，其余按名字排序，再按 token 预算选择 |
-| 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能只计 `hidden_count` |
+| 提供非空 `skill_configs` | 候选 = 显式 `is_core=true` 的技能，加上未显式配置且 `always=True` 的技能；显式 `is_core=false` 永远优先于 `always` |
+| 无 `skill_configs`（`None` 与 `{}` 是同一种状态） | 全部可见技能都是候选 |
+| 排序与预算 | `always` 在前，其后按名字，按 token 预算选择完整条目 |
+| 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能计入 `hidden_count`，名字列在 `<hidden_skill_names>`；被预算挤掉的候选另计 `overflow_count` |
 
 **不再按个数截断**：`SKILL_INLINE_THRESHOLD` / `SKILL_SELECT_INLINE_MAX` 已删除。L1 选择由
 `estimate_skill_entry_tokens` + `L1_CATALOG_MAX_TOKENS` 决定；完整 `name + description` 放不下时
-不再塞半截描述，也不列 `<hidden_skills>` 名字列表。
+不再塞半截描述；没有完整条目的技能以 `<hidden_skill_names>` 一行列出名字，该行有独立上限 `L1_HIDDEN_NAMES_MAX_TOKENS`（1,500，约 260 个名字），超出时写 `and N more not listed`。
 
 **预算外技能如何到达**：
-- 用户明确点名 → 直接 `skill_select_tool`（即使不在 L1）；
+- 名字在 `<hidden_skill_names>` 里，或用户明确点名 → 直接 `skill_select_tool`；
 - 只知道能力、不知道名字 → `skill_search_tool` → `skill_select_tool`；
 - `skill_select_tool` 白名单、`skill_search_tool` 索引都取自全量 `filtered_skills`。
 
-**不变量**：`hidden_count` 只表示未展示，不表示不可选。评估目录改动时必须同时看
-`filtered_skills`（供给侧）和 `display_skills + hidden_count`（接收侧）。
+**不变量**：`hidden_count` 只表示没有完整条目，不表示不可选。评估目录改动时必须同时看
+`filtered_skills`（供给侧）和 `display_skills + hidden_skills`（接收侧）。
+
+**实测依据**：真实模型会话对照（两个小模型，全部外围技能）显示，加上名字清单后每个会话的检索次数显著减少，通过率没有显著差别；代价是首次提示多出名字行的 token（130 个技能约 780）。
 
 ### 3.4 成本计算公式
 

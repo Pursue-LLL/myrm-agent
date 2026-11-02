@@ -19,9 +19,13 @@ async def async_client(app):
 def _assert_catalog_preview_shape(result: dict[str, object]) -> None:
     preview = result["catalog_preview"]
     assert isinstance(preview, dict)
-    assert preview["inline_count"] == 0
-    assert preview["hidden_count"] == 0
-    assert preview["search_mounted"] is False
+    assert preview == {
+        "inline_count": 0,
+        "hidden_count": 0,
+        "overflow_count": 0,
+        "catalog_tokens": 0,
+        "search_mounted": False,
+    }
 
 
 @pytest.mark.asyncio
@@ -117,3 +121,5 @@ async def test_evaluate_action_space_scores_the_selected_skills(
     assert result["ascs_score"] == (base + 100 // 50) + int((base + 200 // 50) * 0.5)
     assert result["catalog_preview"]["inline_count"] == 1  # only the core skill is listed inline
     assert result["catalog_preview"]["hidden_count"] == 1
+    assert result["catalog_preview"]["overflow_count"] == 0  # the side skill is peripheral, not a core skill left out
+    assert result["catalog_preview"]["catalog_tokens"] > 0

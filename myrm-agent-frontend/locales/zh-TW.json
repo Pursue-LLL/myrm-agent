@@ -1347,10 +1347,10 @@
         "smartPrune": "一鍵淨化釋放動作空間",
         "smartPruneRunning": "正在清理動作空間…",
         "turn1CatalogTitle": "Turn 1 技能目錄",
-        "turn1CatalogSummary": "{inline} 內聯 · {hidden} 隱藏 · search {searchState}",
+        "turn1CatalogSummary": "{inline} 內聯 · {hidden} 按需 · search {searchState} · 約 {tokens, number} token",
         "turn1CatalogSearchOn": "開啟",
         "turn1CatalogSearchOff": "關閉",
-        "turn1CatalogOverCapHint": "對話開始時 Turn 1 最多內聯 {cap} 個 Core 技能（按名稱排序）。將少用技能改為 Peripheral 可關閉 search，每輪約省 203 token。"
+        "turn1CatalogOverCapHint": "核心技能超出內聯預算：前 {inline} 個（按名稱排序）完整內聯，其餘 {overflow} 個僅在目錄中列出名稱，需要時按名稱載入。將少用的核心技能改為外圍，可為其餘技能騰出內聯位置。"
       },
       "skillsZone": {
         "coreTitle": "核心常駐技能",

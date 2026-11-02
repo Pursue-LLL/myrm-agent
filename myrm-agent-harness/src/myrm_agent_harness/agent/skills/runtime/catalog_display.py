@@ -6,8 +6,8 @@
 - agent.skills.runtime.registry::L1_CATALOG_MAX_TOKENS / estimate_skill_entry_tokens (POS: catalog budget)
 
 [OUTPUT]
-- CatalogDisplayResolution: display_skills + hidden_skill_count for catalog delivery
-- resolve_catalog_display_skills(): shared inline/hidden logic for meta-tools and runtime inject
+- CatalogDisplayResolution: display_skills + hidden skills + overflow_count for catalog delivery
+- resolve_catalog_display_skills(): shared inline/hidden logic for meta-tools, runtime inject and the config preview
 - should_mount_skill_search_tool(): gate for conditional skill_search_tool mount
 
 [POS]
@@ -16,17 +16,23 @@ per-agent cognitive-load rules from get_meta_tools.
 
 Visible vs selectable — the two sets are deliberately different:
 
-- ``display_skills`` is what the model can *see*: full ``name + description`` entries
-  within ``L1_CATALOG_MAX_TOKENS``, rendered by
-  ``skill_catalog_delivery.render_bound_skills_catalog``.
+- ``display_skills`` is what the model sees in full: ``name + description`` entries within
+  ``L1_CATALOG_MAX_TOKENS``, rendered by ``skill_catalog_delivery.render_bound_skills_catalog``.
+- ``hidden_skills`` is every other model-visible skill. The catalog still names them (one
+  ``<hidden_skill_names>`` line), so the model can select a known name directly and only
+  searches when it knows a capability but no name.
 - ``filtered_skills`` is the full bound list. ``skill_select_tool`` validates against it and
-  ``skill_search_tool`` indexes it, so an omitted skill stays *selectable* by an explicit
-  name or a search hit.
+  ``skill_search_tool`` indexes it, so a hidden skill stays *selectable* by name or search hit.
 
-Selection is token-budgeted, not count-budgeted. Skills are considered in ``always``
-first order, then name; an entry that would exceed the budget is omitted. Omitted skills
-are counted in ``hidden_count``; their names are intentionally not listed, so the model
-never has to guess whether a bare name should be selected or searched.
+Who earns a full entry:
+
+- With per-agent configuration (a non-empty ``skill_configs``) an explicit ``is_core`` decides;
+  a skill without an explicit flag earns one only when it is ``always``.
+- Without configuration (``None`` or empty — one state, so a preview and the runtime cannot
+  disagree about ``{}``) every model-visible skill is a candidate.
+
+Candidates are considered ``always`` first, then by name; an entry that would exceed the token
+budget is left out (and counted in ``overflow_count``).
 """
 
 from __future__ import annotations
@@ -51,10 +57,15 @@ class CatalogDisplayResolution:
     display_skills: list[SkillMetadata]
     hidden_skills: list[SkillMetadata]
     hidden_skill_count: int
+    overflow_count: int
+    """Candidates for a full entry that the token budget left out (a subset of ``hidden_skills``)."""
 
 
-def _sorted_skills(skills_to_inline: list[SkillMetadata]) -> list[SkillMetadata]:
-    return sorted(skills_to_inline, key=lambda skill: skill.name)
+def _is_inline_candidate(skill: SkillMetadata, skill_configs: dict[str, dict[str, object]]) -> bool:
+    """An explicit per-agent ``is_core`` wins; without one only an ``always`` skill earns a full entry."""
+    entry = skill_configs.get(skill.id)
+    explicit = entry.get("is_core") if entry is not None else None
+    return skill.always if explicit is None else bool(explicit)
 
 
 def _select_within_token_budget(skills: list[SkillMetadata]) -> list[SkillMetadata]:
@@ -101,15 +112,12 @@ def resolve_catalog_display_skills(
     available_skills = [skill for skill in filtered if skill.available]
     model_visible = [skill for skill in available_skills if skill.model_invocable]
 
-    if skill_configs is not None:
-        core_candidates = _sorted_skills(
-            [skill for skill in model_visible if skill_configs.get(skill.id, {}).get("is_core", False)]
-        )
-        display_skills = _select_within_token_budget(core_candidates)
-    else:
-        always_skills = _sorted_skills([skill for skill in model_visible if skill.always])
-        non_always = _sorted_skills([skill for skill in model_visible if not skill.always])
-        display_skills = _select_within_token_budget(always_skills + non_always)
+    candidates = (
+        [skill for skill in model_visible if _is_inline_candidate(skill, skill_configs)]
+        if skill_configs
+        else model_visible
+    )
+    display_skills = _select_within_token_budget(sorted(candidates, key=lambda skill: (not skill.always, skill.name)))
 
     display_names = {skill.name for skill in display_skills}
     hidden_skills = [skill for skill in model_visible if skill.name not in display_names]
@@ -118,6 +126,7 @@ def resolve_catalog_display_skills(
         display_skills=display_skills,
         hidden_skills=hidden_skills,
         hidden_skill_count=len(hidden_skills),
+        overflow_count=len(candidates) - len(display_skills),
     )
 
 

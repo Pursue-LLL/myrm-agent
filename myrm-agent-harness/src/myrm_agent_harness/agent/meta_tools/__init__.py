@@ -80,9 +80,9 @@ def get_meta_tools(
     返回所有元工具,用于在 create_agent 时传入 tools 参数.
 
     **双层技能注入策略**:
-    - 若提供 `skill_configs`:严格遵循配置中的 `is_core` 标志.
-      `is_core=True` 的技能内联注入,其余作为外围技能放入搜索工具.
-    - 若未提供 `skill_configs` (向下兼容):根据技能自身的 `always` 属性和内置阈值进行自适应截断.
+    - 若提供非空 `skill_configs`:显式 `is_core` 标志优先, 未显式配置的技能仅在自身 `always=True` 时内联.
+      内联技能带完整描述, 其余外围技能在目录中以名称清单列出(可按名称直接选择), 能力检索走搜索工具.
+    - 若未提供或为空 (`None` 与 `{}` 同义):所有技能按 `always` 优先、名称排序在 token 预算内内联, 放不下的同样以名称清单列出.
     - available=False 的技能不内联(不浪费名额)
 
     **搜索模式**: BM25 词法搜索（`skill_search_tool` 的提示词引导模型用英文关键词与同义词检索）。
@@ -156,9 +156,9 @@ def get_meta_tools(
             locale=locale,
         )
         tools.append(skill_select_tool)
-        if skill_configs is not None:
+        if skill_configs:
             logger.info(
-                " Per-Agent 认知负载控制已启用: %d 个内联 (Core) + %d 个隐藏 (Peripheral)",
+                " Per-Agent 认知负载控制已启用: %d 个内联 (Core) + %d 个按名称列出 (Peripheral)",
                 len(inline_skills),
                 hidden_count,
             )

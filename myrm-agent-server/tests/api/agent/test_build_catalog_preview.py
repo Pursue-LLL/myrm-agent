@@ -28,6 +28,8 @@ async def test_build_catalog_preview_empty_skill_ids() -> None:
     assert preview == {
         "inline_count": 0,
         "hidden_count": 0,
+        "overflow_count": 0,
+        "catalog_tokens": 0,
         "search_mounted": False,
     }
 
@@ -48,6 +50,8 @@ async def test_build_catalog_preview_inlines_everything_within_the_token_budget(
 
     assert preview["inline_count"] == 8
     assert preview["hidden_count"] == 0
+    assert preview["overflow_count"] == 0
+    assert preview["catalog_tokens"] > 0
     assert preview["search_mounted"] is False
 
 
@@ -72,7 +76,55 @@ async def test_build_catalog_preview_hidden_mounts_search(
 
     assert preview["hidden_count"] > 0
     assert preview["inline_count"] + preview["hidden_count"] == len(skills)
+    assert preview["overflow_count"] == preview["hidden_count"]  # every skill is core, so each hidden one overflowed
     assert preview["search_mounted"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_catalog_preview_peripheral_skills_are_named_not_overflowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skills = [_skill(f"id-{idx:02d}", f"delta_skill_{idx:02d}") for idx in range(12)]
+    monkeypatch.setattr(
+        "app.core.skills.store.service.skills_service.get_skills_by_ids",
+        AsyncMock(return_value=skills),
+    )
+
+    preview = await _build_catalog_preview([s.id for s in skills], {s.id: {"is_core": False} for s in skills})
+
+    assert preview["inline_count"] == 0
+    assert preview["hidden_count"] == 12
+    assert preview["overflow_count"] == 0
+    assert preview["catalog_tokens"] > 0  # the names line is part of the catalog
+    assert preview["search_mounted"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_catalog_preview_matches_the_runtime_catalog_for_an_empty_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery import render_bound_skills_catalog
+    from myrm_agent_harness.utils.text_utils import get_token_count
+
+    from app.core.skills.runtime_metadata import skill_to_runtime_metadata
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.agent.skills.runtime.catalog_display.L1_CATALOG_MAX_TOKENS",
+        200,
+    )
+    skills = [_skill(f"id-{idx:02d}", f"epsilon_skill_{idx:02d}") for idx in range(25)]
+    monkeypatch.setattr(
+        "app.core.skills.store.service.skills_service.get_skills_by_ids",
+        AsyncMock(return_value=skills),
+    )
+
+    preview = await _build_catalog_preview([s.id for s in skills], {})
+
+    runtime = render_bound_skills_catalog([skill_to_runtime_metadata(skill) for skill in skills], skill_configs=None)
+    assert runtime is not None
+    assert preview["catalog_tokens"] == get_token_count(runtime.xml)
+    assert preview["hidden_count"] == runtime.hidden_skill_count > 0
+    assert preview["inline_count"] > 0  # no config means no peripheral choice: skills fill the budget
 
 
 @pytest.mark.asyncio

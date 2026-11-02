@@ -1347,10 +1347,10 @@
         "smartPrune": "Prune dormant skills to free action space",
         "smartPruneRunning": "Pruning action space...",
         "turn1CatalogTitle": "Turn 1 skill catalog",
-        "turn1CatalogSummary": "{inline} inline · {hidden} hidden · search {searchState}",
+        "turn1CatalogSummary": "{inline} inline · {hidden} on demand · search {searchState} · ~{tokens, number} tokens",
         "turn1CatalogSearchOn": "ON",
         "turn1CatalogSearchOff": "OFF",
-        "turn1CatalogOverCapHint": "Only the first {cap} Core skills (alphabetical) appear inline at conversation start. Move rarely used skills to Peripheral to disable search and save ~203 tokens per turn."
+        "turn1CatalogOverCapHint": "The first {inline} Core skills (alphabetical) fit inline in full. The other {overflow} are listed by name and loaded on demand. Move rarely used Core skills to Peripheral to make room."
       },
       "skillsZone": {
         "coreTitle": "Core Skills",
