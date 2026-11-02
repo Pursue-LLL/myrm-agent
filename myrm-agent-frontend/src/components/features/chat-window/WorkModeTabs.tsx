@@ -35,8 +35,8 @@ const MODE_TABS: readonly ModeTab[] = [
 ];
 
 // Below sm each mode is a narrow cell: the label wraps on word boundaries and, when one word is still wider than the
-// cell, hyphenates by the document language (`DocumentLang` keeps `<html lang>` on the active locale) instead of
-// being cut off or breaking mid-word.
+// cell, hyphenates by the document language (`DocumentLang` keeps `<html lang>` on the active locale) and, where the
+// browser has no hyphenation rules for it, wraps inside the word (`break-words`) instead of being clipped.
 const MODE_LABEL_CLASS = 'max-w-full text-balance hyphens-auto break-words text-center leading-tight sm:text-left';
 
 interface WorkModeTabsProps {
@@ -45,7 +45,9 @@ interface WorkModeTabsProps {
 }
 
 // Below sm the cells stack the icon above the label and top-align it (`justify-start`), so all three icons sit on one
-// line however many lines each label wraps to; the single-row layout from sm up centers its content again.
+// line however many lines each label wraps to; the single-row layout from sm up centers its content. Below 375px the
+// side padding halves (`max-[375px]:px-1`), giving every label 8px more width, which keeps words like "Workspace" and
+// "Schnellchat" whole on 360px phones.
 export const WorkModeTabs = memo(function WorkModeTabs({ value, onChange }: WorkModeTabsProps) {
   const t = useTranslations('chat.newTaskCard');
   // String-literal keys keep the labels visible to the i18n key gate, which only resolves literal `t()` arguments.
@@ -65,7 +67,7 @@ export const WorkModeTabs = memo(function WorkModeTabs({ value, onChange }: Work
           data-testid={`context-mode-${mode}`}
           onClick={() => onChange(mode)}
           className={cn(
-            'flex min-w-0 flex-col items-center justify-start gap-1 px-2 py-2 sm:flex-row sm:justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
+            'flex min-w-0 flex-col items-center justify-start gap-1 px-2 max-[375px]:px-1 py-2 sm:flex-row sm:justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
             value === mode
               ? 'bg-background text-foreground shadow-xs font-semibold'
               : 'text-muted-foreground hover:text-foreground',
