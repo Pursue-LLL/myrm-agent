@@ -28,7 +28,6 @@ src/components/features/chat-window/TurnTimelineRail.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigEditDialog.tsx
 src/components/features/chat-window/agent-config-panel/AgentConfigPanel.tsx
 src/components/features/chat-window/agent-config-panel/BuiltinToolsPanel.tsx
-src/components/features/chat-window/agent-config-panel/TemplateMarket.tsx
 src/components/features/chat-window/goals/GoalStatusCard.tsx
 src/components/features/chat-window/goals/GoalStatusExpanded.tsx
 src/components/features/chat-window/playbook/ModelOrchestrationPlaybookDialog.tsx

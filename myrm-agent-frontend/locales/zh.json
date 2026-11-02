@@ -1099,18 +1099,14 @@
       "instruction": "指令",
       "instructionDesc": "点击配置自定义指令",
       "more": "更多",
-      "savedAgents": "已保存智能体",
       "viewAll": "查看全部",
-      "manage": "管理",
       "noSavedAgents": "暂无保存的智能体",
       "noSavedAgentsDesc": "编辑配置后可保存为智能体",
       "useAgent": "使用",
-      "teamBadge": "团队",
       "noSelected": "未选择",
       "noInstruction": "未设置指令",
       "useGlobalInstructionDefault": "默认使用全局指令",
       "ready": "就绪",
-      "noDescription": "暂无描述",
       "saveAsNewAgent": "保存为新智能体",
       "savingAgent": "保存中...",
       "save": "保存",
@@ -1228,34 +1224,14 @@
       "jitTeamOff": "单 Agent (无下属团队)",
       "jitTeamPlaceholder": "不使用虚拟团队",
       "jitInheritMemory": "继承父级对话记忆",
-      "templateMarket": "模板市场",
-      "categoryFilter": "分类筛选",
       "categoryAll": "全部",
       "categoryOffice": "职场办公",
       "categoryCommerce": "电商零售",
       "categoryEngineering": "技术研发",
       "categoryTeam": "协作团队",
-      "orgMarketplace": "组织集市",
-      "searchMarketplace": "搜索智能体...",
-      "installs": "次安装",
-      "installed": "已安装",
-      "installSuccess": "已从集市安装智能体！",
-      "installError": "安装智能体失败",
-      "noResults": "未找到智能体",
-      "publishToOrg": "发布到组织",
-      "publishedToOrg": "已发布到组织",
-      "publishSuccess": "已发布到组织集市！",
-      "publishError": "发布到组织集市失败",
-      "forcePush": "推送",
-      "forcePushConfirm": "确定将「{name}」v{version} 强制推送给所有已安装用户？这将覆盖他们当前的配置（已自动保存快照可回滚）。",
-      "forcePushSuccess": "强制推送完成",
-      "forcePushError": "推送失败",
-      "forcePushTooltip": "将最新版本强制推送给所有已安装用户",
       "forcePushReceived": "智能体配置已被组织更新",
       "forcePushRollbackHint": "快照已保存，可在智能体设置中回滚。",
       "viewAgent": "查看",
-      "instantiateSuccess": "已从模板创建智能体！",
-      "instantiateError": "从模板创建智能体失败",
       "blueprints": {
         "research_squad": "深度调研小队 (多智能体)",
         "code_audit_squad": "代码红队审查 (多智能体)"
@@ -1293,8 +1269,7 @@
         "equippedCountSuffix": "已装配",
         "pureInstructionNotice": "未装配技能 · 纯指令模式",
         "emptyExplanation": "当前未勾选装配任何技能。该智能体将以纯语言模型指令模式运行；可点击上方「全选」或在下方勾选装配所需技能。"
-      },
-      "forcePushSummary": "v{version} → 已同步 {synced}，已跳过 {skipped}，失败 {failed}（共 {total}）"
+      }
     },
     "validation": {
       "dependencyInvalid": "智能体配置存在问题",
@@ -7068,93 +7043,7 @@
     }
   },
   "presetAgent": {
-    "title": "智能体",
-    "description": "选择一个智能体开始对话",
-    "selectPreset": "选择预置智能体",
-    "workingDirectory": "工作目录",
-    "selectWorkingDirectory": "选择工作目录",
-    "configureWorkingDirectory": "请配置此智能体的工作目录，智能体将在该目录下执行操作。",
-    "notConfigured": "未接入，请先配置",
-    "requiresConfig": "需要配置",
-    "cancel": "取消",
-    "confirm": "确认",
-    "pathHint": "输入项目的完整路径，例如：",
-    "enterDirectoryPath": "请输入项目目录路径",
-    "manualInputPath": "输入您要操作的项目目录绝对路径。",
-    "clickToConfigureDirectory": "点击配置工作路径",
-    "pleaseEnterWorkingDirectory": "请先填写工作路径",
-    "workingDirectoryPlaceholder": "输入工作路径...",
-    "workingPathLabel": "工作路径",
-    "invalidAbsolutePath": "请输入绝对路径",
-    "edit": "编辑",
-    "pathNotExist": "路径不存在",
-    "pathNotDirectory": "路径不是目录",
-    "errors": {
-      "workingDirectoryRequired": "工作路径不能为空",
-      "absolutePathRequired": "请输入绝对路径"
-    },
-    "collapse": "收起",
-    "showMore": "更多 ({count})",
-    "enableInSettings": "请在设置中启用 {name} 后使用",
-    "selectACPProvider": "选择编程助手",
-    "noACPProviderEnabled": "暂无可用的编程助手，请在设置中配置",
-    "goToSettings": "前往配置",
-    "quickTaskHint": "快捷任务示例",
-    "useThisAgent": "使用此智能体",
-    "selectACPModelHint": "选中后在模型选择器中选择 ACP 模型",
-    "category": {
-      "acp": "CLI 可视化",
-      "general": "通用助手"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "通用助手",
-      "description": "通用对话助手，可以回答各种问题"
-    },
-    "cliVisual": {
-      "name": "CLI 可视化",
-      "description": "支持多种 CLI 编程助手，实时展示执行计划和文件变更"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "撰写文档",
-        "guide": "帮我为智能家居行业起草一个外部助手对比框架"
-      },
-      "chatWithWebpage": {
-        "name": "与网页链接聊天",
-        "guide": "直接粘贴网页链接，然后询问你的问题"
-      },
-      "summarizeWebpage": {
-        "name": "总结网页内容",
-        "guide": "直接粘贴网页链接，告诉AI总结该网页"
-      },
-      "createProject": {
-        "name": "创建新项目",
-        "guide": "描述你想要创建的项目，AI 将帮你初始化项目结构"
-      },
-      "codeReview": {
-        "name": "代码审查",
-        "guide": "让 AI 审查当前项目的代码质量和潜在问题"
-      },
-      "fixBug": {
-        "name": "修复 Bug",
-        "guide": "描述遇到的问题，AI 将帮你定位并修复"
-      },
-      "addFeature": {
-        "name": "添加功能",
-        "guide": "描述你想添加的功能，AI 将帮你实现"
-      }
-    },
-    "available": "可用",
-    "exampleCases": "示例案例",
-    "goToSettingsHint": "请先在模型服务中配置并启用 ACP Provider",
-    "browse": "浏览",
     "notAvailable": "此模式下不可用",
-    "recentProjects": "最近项目",
     "tauriModeRequired": "此预设需要桌面应用（Tauri）"
   },
   "pricing": {

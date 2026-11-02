@@ -99,7 +99,7 @@ const AgentIndicator = () => {
 
   // 快速切换预设智能体
   const handleSelectPreset = useCallback(
-    async (preset: PresetAgent, workingDirectory?: string) => {
+    async (preset: PresetAgent) => {
       let config: AgentConfig = {
         agentId: preset.id,
         selectedSkillIds: preset.skillIds || [],
@@ -125,10 +125,6 @@ const AgentIndicator = () => {
         }
       } catch (e) {
         console.error('Failed to fetch full agent details for preset', e);
-      }
-
-      if (workingDirectory) {
-        config.agentDescription = `workingDirectory:${workingDirectory}`;
       }
 
       setAgentConfig(config);

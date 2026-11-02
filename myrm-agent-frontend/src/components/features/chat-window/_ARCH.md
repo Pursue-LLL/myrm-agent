@@ -69,7 +69,7 @@
 | `IncognitoNotice.tsx` | 组件 | 空会话态无痕说明：无痕开启时就地写明条款（复用 `memory.incognitoModeDesc`：不读写记忆、不进历史与搜索、闲置超 1 小时自动删除、模型服务商仍会处理发送内容）；开关的悬停提示在触屏上不出现、手机上开关又在底部抽屉里，所以条款直接写在空会话页面上；`role=status` 的 `<output>`，仅用主题变量 | ✅ |
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`NewTaskWorkContextCard`、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
-| `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由，防止首屏再次堆叠 | ✅ |
+| `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由，防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失 | ✅ |
@@ -130,7 +130,6 @@
 | `AgentConfigEditDialog.tsx`     | 核心 | Agent 配置编辑弹窗（skills/MCP/指令/内置工具/subagents）                                                                                   | ✅    |
 | `AgentConfigSelectableCard.tsx` | 辅助 | 可勾选配置卡片与「添加更多」按钮                                                                                                           | ✅    |
 | `ActionSpaceAccuracyRadar.tsx`  | 辅助 | 动作空间准确度预测条与沉睡技能净化提示                                                                                                     | ✅    |
-| `TemplateMarket.tsx`            | 核心 | Agent 模板市场。请求后端的 `/api/v1/agents/templates` 和 `instantiate-template` 接口，实现模板列表展示和带有原子化依赖预检的智能体实例化。 | ✅    |
 
 ## subagent/
 

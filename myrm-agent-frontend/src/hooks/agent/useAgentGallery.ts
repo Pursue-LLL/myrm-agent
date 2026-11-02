@@ -10,19 +10,15 @@
  *   customAgents,
  *   handlePresetClick,
  *   handleCustomAgentClick,
- *   workingDirectory,
- *   handleWorkingDirectoryChange,
- *   cliCardRef
  * } = useAgentGallery({
  *   onSelectPreset,
  *   onSelectCustomAgent,
- *   externalWorkingDirectory
  * });
  * ```
  */
 
 import { isHiddenBuiltinAgent } from '@/lib/product-surface';
-import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import type { PresetAgent } from '@/types/presetAgent';
@@ -31,41 +27,17 @@ import { AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { isLocalMode } from '@/lib/deploy-mode';
-import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
+import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { toast } from '@/lib/utils/toast';
-import { isAbsolutePath, normalizePath } from '@/lib/utils/pathValidation';
-import { CLI_WORKING_DIRECTORY_STORAGE_KEY } from '@/components/features/chat-window/agent-config-panel/constants';
 
 interface UseAgentGalleryParams {
-  onSelectPreset: (agent: PresetAgent, workingDirectory?: string) => void;
+  onSelectPreset: (agent: PresetAgent) => void;
   onSelectCustomAgent?: (agent: AgentListItem) => void;
-  externalWorkingDirectory?: string;
 }
 
-export function useAgentGallery({
-  onSelectPreset,
-  onSelectCustomAgent,
-  externalWorkingDirectory,
-}: UseAgentGalleryParams) {
+export function useAgentGallery({ onSelectPreset, onSelectCustomAgent }: UseAgentGalleryParams) {
   const t = useTranslations('presetAgent');
   const locale = useLocale();
-
-  // 本地管理的工作目录状态（从 localStorage 读取）
-  const [localWorkingDirectory, setLocalWorkingDirectory] = useState<string>(() => {
-    if (typeof window === 'undefined') {
-      return '';
-    }
-    return localStorage.getItem(CLI_WORKING_DIRECTORY_STORAGE_KEY) || '';
-  });
-
-  // 使用本地状态或外部传入的工作目录
-  const effectiveWorkingDirectory = localWorkingDirectory || externalWorkingDirectory;
-
-  // 保存工作目录到 localStorage
-  const handleWorkingDirectoryChange = useCallback((directory: string) => {
-    setLocalWorkingDirectory(directory);
-    localStorage.setItem(CLI_WORKING_DIRECTORY_STORAGE_KEY, directory);
-  }, []);
 
   // 获取 Provider 状态
   const { isInitialized, initProviders } = useProviderStore(
@@ -93,7 +65,7 @@ export function useAgentGallery({
   }, [isInitialized, initProviders, fetchAgents]);
 
   const isCLIVisualAgent = (agent: PresetAgent) => {
-    return agent.category === 'cli_visual' && agent.requiresWorkingDirectory === true;
+    return agent.category === 'cli_visual';
   };
 
   // 处理预置智能体的可用性
@@ -111,15 +83,10 @@ export function useAgentGallery({
         return {
           id: bp.id,
           name: getBuiltinAgentName(bp.id, bp.name, locale),
-          nameKey: bp.id.replace('builtin-', ''), // Map ID to translation key
-          description: getBuiltinAgentDescription(bp.id, bp.description || '', locale),
-          descriptionKey: bp.id.replace('builtin-', ''),
           category,
           icon: bp.avatar_url?.replace('icon:', '') || 'MessageCircle',
           systemPrompt: '', // Only fetched when activated
           skillIds: [],
-          tools: bp.enabled_builtin_tools ?? [],
-          requiresWorkingDirectory: isCli,
           isAvailable: true,
         };
       });
@@ -143,9 +110,6 @@ export function useAgentGallery({
 
   const customAgents = useMemo(() => customAgentsRaw.filter((a) => !a.is_built_in), [customAgentsRaw]);
 
-  // 用于震动动画的 ref
-  const cliCardRef = useRef<HTMLDivElement>(null);
-
   // 处理预置智能体点击（直接选中，无需展开）
   const handlePresetClick = useCallback(
     (agent: PresetAgent & { isAvailable?: boolean }) => {
@@ -157,31 +121,9 @@ export function useAgentGallery({
         return;
       }
 
-      // CLI 智能体需要有效的绝对工作路径
-      if (isCLIVisualAgent(agent) && agent.requiresWorkingDirectory) {
-        // 规范化路径：去除末尾斜杠
-        const normalizedPath = normalizePath(effectiveWorkingDirectory || '');
-
-        // 检查是否填写或是否为绝对路径
-        if (!normalizedPath || !isAbsolutePath(normalizedPath)) {
-          // 仅震动提示，不显示 toast
-          if (cliCardRef.current) {
-            cliCardRef.current.classList.add('animate-shake');
-            setTimeout(() => {
-              cliCardRef.current?.classList.remove('animate-shake');
-            }, 500);
-          }
-          return;
-        }
-
-        // 有效的绝对路径，传递给回调（已规范化）
-        onSelectPreset(agent, normalizedPath);
-        return;
-      }
-
       onSelectPreset(agent);
     },
-    [onSelectPreset, t, effectiveWorkingDirectory],
+    [onSelectPreset, t],
   );
 
   // 处理自定义智能体点击
@@ -197,8 +139,5 @@ export function useAgentGallery({
     customAgents,
     handlePresetClick,
     handleCustomAgentClick,
-    workingDirectory: effectiveWorkingDirectory,
-    handleWorkingDirectoryChange,
-    cliCardRef,
   };
 }

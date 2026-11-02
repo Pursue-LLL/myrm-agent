@@ -58,4 +58,8 @@ describe('empty chat first-screen contract', () => {
 
     expect(stale, `Remove stale allowlist entries: ${stale.join(', ')}`).toEqual([]);
   });
+
+  it('leaves viewport filling to AppLayout, so the wrapper padding cannot turn a clean screen into a scrollbar', () => {
+    expect(source).not.toMatch(/min-h-(?:screen|dvh|svh|lvh|\[)/);
+  });
 });

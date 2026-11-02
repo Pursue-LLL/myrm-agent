@@ -1099,18 +1099,14 @@
       "instruction": "指示",
       "instructionDesc": "クリックしてカスタム指示を設定",
       "more": "もっと見る",
-      "savedAgents": "保存済みエージェント",
       "viewAll": "表示すべて",
-      "manage": "管理",
       "noSavedAgents": "保存済みエージェントがありません",
       "noSavedAgentsDesc": "設定を編集してエージェントとして保存できます",
       "useAgent": "使用",
-      "teamBadge": "チーム",
       "noSelected": "未選択",
       "noInstruction": "指示が未設定",
       "useGlobalInstructionDefault": "デフォルトでグローバル指示を使用",
       "ready": "準備完了",
-      "noDescription": "説明なし",
       "saveAsNewAgent": "新しいエージェントとして保存",
       "savingAgent": "保存中...",
       "save": "保存",
@@ -1228,34 +1224,14 @@
       "jitTeamOff": "単体Agent（チームなし）",
       "jitTeamPlaceholder": "仮想チームなし",
       "jitInheritMemory": "親会話メモリを継承",
-      "templateMarket": "テンプレートマーケット",
-      "categoryFilter": "カテゴリフィルター",
       "categoryAll": "すべて",
       "categoryOffice": "オフィス・業務",
       "categoryCommerce": "EC・コマース",
       "categoryEngineering": "エンジニアリング",
       "categoryTeam": "チーム",
-      "orgMarketplace": "組織マーケット",
-      "searchMarketplace": "エージェントを検索...",
-      "installs": "インストール",
-      "installed": "インストール済み",
-      "installSuccess": "マーケットからエージェントをインストールしました！",
-      "installError": "エージェントのインストールに失敗しました",
-      "noResults": "エージェントが見つかりません",
-      "publishToOrg": "組織に公開",
-      "publishedToOrg": "組織に公開済み",
-      "publishSuccess": "組織マーケットに公開しました！",
-      "publishError": "組織マーケットへの公開に失敗しました",
-      "forcePush": "プッシュ",
-      "forcePushConfirm": "「{name}」v{version} を全インストール済みユーザーに強制プッシュしますか？現在の設定が上書きされます（スナップショットは保存され、ロールバック可能です）。",
-      "forcePushSuccess": "強制プッシュ完了",
-      "forcePushError": "プッシュに失敗しました",
-      "forcePushTooltip": "最新バージョンを全インストール済みユーザーに強制プッシュ",
       "forcePushReceived": "エージェントプロフィールが組織によって更新されました",
       "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
       "viewAgent": "表示",
-      "instantiateSuccess": "テンプレートからエージェントを作成しました！",
-      "instantiateError": "テンプレートからのエージェント作成に失敗しました",
       "blueprints": {
         "research_squad": "深掘り調査チーム（マルチエージェント）",
         "code_audit_squad": "コードレッドチーム監査（マルチエージェント）"
@@ -1293,8 +1269,7 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      },
-      "forcePushSummary": "v{version} → 同期 {synced} 件、スキップ {skipped} 件、失敗 {failed} 件（合計 {total} 件）"
+      }
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -7068,93 +7043,7 @@
     }
   },
   "presetAgent": {
-    "title": "エージェント",
-    "description": "エージェントを選択して対話を開始",
-    "selectPreset": "プリセットエージェントを選択",
-    "workingDirectory": "作業ディレクトリ",
-    "selectWorkingDirectory": "作業ディレクトリを選択",
-    "configureWorkingDirectory": "このエージェントの作業ディレクトリを設定してください。エージェントはこのディレクトリ内で操作を実行します。",
-    "notConfigured": "未接続です。先に設定してください",
-    "requiresConfig": "設定が必要です",
-    "cancel": "キャンセル",
-    "confirm": "確認",
-    "pathHint": "プロジェクトの完全なパスを入力してください。例:",
-    "enterDirectoryPath": "プロジェクトディレクトリのパスを入力",
-    "manualInputPath": "操作対象のプロジェクトディレクトリの絶対パスを入力してください。",
-    "clickToConfigureDirectory": "クリックしてワークパスを設定",
-    "pleaseEnterWorkingDirectory": "先に作業パスを入力してください",
-    "workingDirectoryPlaceholder": "作業パスを入力...",
-    "workingPathLabel": "工作パス",
-    "invalidAbsolutePath": "絶対パスを入力してください",
-    "edit": "編集",
-    "pathNotExist": "パスない存で",
-    "pathNotDirectory": "パスはディレクトリではありません",
-    "errors": {
-      "workingDirectoryRequired": "作業パスは必須です",
-      "absolutePathRequired": "絶対パスを入力してください"
-    },
-    "collapse": "閉じる",
-    "showMore": "もっと見る ({count})",
-    "enableInSettings": "使用するには設定で {name} を有効にしてください",
-    "selectACPProvider": "コーディングアシスタントを選択",
-    "noACPProviderEnabled": "利用可能なコーディングアシスタントがありません。設定で構成してください",
-    "goToSettings": "設定へ移動",
-    "quickTaskHint": "快捷タスクサンプル",
-    "useThisAgent": "このエージェントを使用",
-    "selectACPModelHint": "選択後、モデルセレクターで ACP モデルを選択",
-    "category": {
-      "acp": "CLI ビジュアライゼーション",
-      "general": "一般助手"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "一般助手",
-      "description": "一般的な対話アシスタント。さまざまな質問に回答できます"
-    },
-    "cliVisual": {
-      "name": "CLI ビジュアライゼーション",
-      "description": "複数の CLI コーディングアシスタントをサポートし、実行計画とファイル変更をリアルタイム表示"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "ドキュメントを執筆",
-        "guide": "スマートホーム業界向けに競合分析フレームワークの草案を作成して"
-      },
-      "chatWithWebpage": {
-        "name": "Web ページとチャット",
-        "guide": "Web ページリンクを直接貼り付けて、質問してください"
-      },
-      "summarizeWebpage": {
-        "name": "Web ページを要約",
-        "guide": "Web ページリンクを直接貼り付けて、AI に要約してもらいます"
-      },
-      "createProject": {
-        "name": "新規プロジェクトを作成",
-        "guide": "作成したいプロジェクトを説明すると、AI がプロジェクト構造の初期化を支援します"
-      },
-      "codeReview": {
-        "name": "コードレビュー",
-        "guide": "AI にプロジェクトのコード品質と潜在的な問題をレビューさせます"
-      },
-      "fixBug": {
-        "name": "Bug 修正",
-        "guide": "発生した問題を説明すると、AI が特定と修正を支援します"
-      },
-      "addFeature": {
-        "name": "機能を追加",
-        "guide": "追加したい機能を説明すると、AI が実装を支援します"
-      }
-    },
-    "available": "利用可能",
-    "exampleCases": "使用例",
-    "goToSettingsHint": "先にモデルサービスで ACP プロバイダーを設定して有効にしてください",
-    "browse": "参照",
     "notAvailable": "このモードでは利用できません",
-    "recentProjects": "最近のプロジェクト",
     "tauriModeRequired": "このプリセットにはデスクトップアプリ（Tauri）が必要です"
   },
   "pricing": {
