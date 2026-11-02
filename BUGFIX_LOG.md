@@ -2,6 +2,20 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。
 
+## 2026-11-02 · `KanbanSection.boardRow` 测试全部通过却带着一个未捕获错误：删除确认的测试把 `getBoardSummary` 的返回写成 `{}` 并强转类型
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（只改测试，组件不变；已推到 `origin/main`，未发版）。 |
+| **症状** | [实测，`bunx vitest run` 该测试文件，修复前] 4 例通过，同时报 `Errors 1 error`：`TypeError: Cannot read properties of undefined (reading 'running')`，出自 `KanbanSection.tsx` 的 `deleteDescription`（读 `deleteSummary.task_counts['running']`）。 |
+| **根因** | [代码] `KanbanSection.boardRow.test.tsx` 的 `beforeEach` 把 `getBoardSummary` 解析为 `{}` 并用 `as Awaited<ReturnType<…>>` 强转。`{}` 的 `total_tasks` 是 `undefined`，不等于 `0`，组件于是继续读 `task_counts['running']`。服务端契约里 `task_counts` 是必填（`myrm-agent-server/app/api/kanban/schemas.py` 的 `task_counts: dict[str, int]`），前端类型 `BoardSummary` 也一样，所以真实响应里这个字段一定存在；出问题的是测试给了一个不合法的返回值，不是组件。 |
+| **修复** | 测试里新增一份按 `BoardSummary` 类型写全字段的 `emptySummary`（`total_tasks: 0`、`task_counts: {}`、`by_agent: []` 等），`getBoardSummary` 解析为它；去掉那处强转。组件没有加任何防御分支——类型和服务端契约都保证字段存在，为一个不会出现的响应加兜底只会掩盖以后真的契约漂移。 |
+| **行为变化** | 无：只改测试。 |
+| **回归证据** | [实测] 同一个测试文件：修复前 4 例通过加 1 个未捕获错误，修复后 4 例通过、没有 `Errors`；`tsc --noEmit` 无错误；`bun run lint` 7 个门禁全部通过；`oxlint` 与 `prettier --check` 对该文件通过。未重跑全量 vitest（只改了这一个测试文件）。 |
+| **踩坑** | 用 `{} as …` 给 mock 返回值强转会让 `tsc` 放行一个类型上不合法的值。 |
+| **仍然存在** | `scripts/__tests__/next-supervisor.test.ts` 的 `footprintProbe` 用例在本机临时工作树里失败（读不到进程占用），与本次无关。 |
+| **代码位置** | `myrm-agent-frontend/src/components/features/settings/sections/system/__tests__/KanbanSection.boardRow.test.tsx` |
+
 ## 2026-11-01 · 2 个没有任何入口的前端目录（`quad-graph`、`layout/adaptive-grid`：11 个源码文件、1648 行）从产品入口不可达，没有活跃规划条目，已整目录删除
 
 | 字段 | 内容 |
