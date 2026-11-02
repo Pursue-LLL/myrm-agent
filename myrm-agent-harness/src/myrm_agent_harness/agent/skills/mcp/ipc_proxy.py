@@ -46,6 +46,11 @@ from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import (
     DEFAULT_SESSION_CALL_CEILING,
     CallBudget,
 )
+from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import (
+    path_policy_error,
+    read_only_policy_error,
+    scope_gate_error,
+)
 from myrm_agent_harness.core.network.ipc_socket import (
     SOCKET_DIR_MODE,
     SOCKET_FILE_MODE,
@@ -246,7 +251,9 @@ class MCPIPCServer:
                 # No deadline of its own: a call is held to the limit its server is configured with, at the point
                 # where it is made (the session actor, then ``call_backstop``). A fixed one here would cut every
                 # server configured above it.
-                response = await self._process_request(message)
+                response = await self._process_until_client_leaves(reader, message)
+                if response is None:
+                    break
 
                 response_bytes = response.encode("utf-8")
                 writer.write(len(response_bytes).to_bytes(4, "big"))
@@ -260,6 +267,25 @@ class MCPIPCServer:
         finally:
             writer.close()
             await writer.wait_closed()
+
+    async def _process_until_client_leaves(self, reader: asyncio.StreamReader, message: str) -> str | None:
+        """Answer one request, or abandon it, returning ``None``, once its client is gone.
+
+        The generated client keeps one request in flight per connection and sends nothing while it waits, so a read
+        that completes here is the connection closing (the script was stopped, or gave the call up) or a protocol
+        violation. Either way nobody is left to receive the answer. Cancelling reaches the MCP server through the
+        session actor; leaving the call running would hold the server, and the next script's calls with it, until
+        the tool's own limit.
+        """
+        request = asyncio.ensure_future(self._process_request(message))
+        client_gone = asyncio.ensure_future(reader.read(1))
+        try:
+            await asyncio.wait({request, client_gone}, return_when=asyncio.FIRST_COMPLETED)
+            return request.result() if request.done() else None
+        finally:
+            request.cancel()
+            client_gone.cancel()
+            await asyncio.gather(request, client_gone, return_exceptions=True)
 
     async def _process_request(self, message: str) -> str:
         """处理 MCP 调用请求
@@ -289,19 +315,19 @@ class MCPIPCServer:
                 logger.warning(f"{log_prefix} Call budget exhausted (session={request.session_id})")
                 return MCPIPCResponse(success=False, error=budget_error).model_dump_json()
 
-            policy_error = self._check_read_only_policy(request)
+            policy_error = read_only_policy_error(request)
             if policy_error is not None:
                 logger.warning(f"{log_prefix} Blocked by read-only policy: {request.skill_name}.{request.tool_name}")
                 return MCPIPCResponse(success=False, error=policy_error).model_dump_json()
 
-            path_error = self._check_path_policy(request)
+            path_error = path_policy_error(request)
             if path_error is not None:
                 logger.warning(
                     f"{log_prefix} Blocked by path policy: {request.skill_name}.{request.tool_name} - {path_error}"
                 )
                 return MCPIPCResponse(success=False, error=path_error).model_dump_json()
 
-            scope_error = self._check_scope_gate(request)
+            scope_error = scope_gate_error(request)
             if scope_error is not None:
                 logger.warning(
                     f"{log_prefix} Blocked by agent scope gate: {request.skill_name}.{request.tool_name} - {scope_error}"
@@ -361,84 +387,6 @@ class MCPIPCServer:
         if not token:
             return False
         return hmac.compare_digest(token, self.auth_token)
-
-    def _check_read_only_policy(self, request: MCPIPCRequest) -> str | None:
-        """Enforce the caller's read-only scope on MCP calls made from scripts.
-
-        The direct Function-Calling path drops or blocks non-read-only MCP tools
-        inside a read-only sandbox. Scripts bypassed that filtering entirely, so a
-        read-only verifier could still mutate external state through PTC. This is
-        the enforcement point for that path.
-
-        Returns an error message when blocked, else ``None``.
-        """
-        from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
-
-        # Builtins (notify) do not touch external state.
-        if not request.readonly_workspace or request.skill_name == BUILTIN_SKILL_NAME:
-            return None
-
-        from myrm_agent_harness.core.security.tool_registry.registry import (
-            get_ptc_safety_metadata,
-        )
-
-        entry = get_ptc_safety_metadata(request.skill_name, request.tool_name)
-        if entry is not None and entry[0].is_read_only:
-            return None
-        return (
-            f"MCP tool '{request.skill_name}.{request.tool_name}' is blocked: the calling run "
-            "is in a read-only sandbox. Only tools declaring readOnlyHint may run here."
-        )
-
-    def _check_path_policy(self, request: MCPIPCRequest) -> str | None:
-        """Enforce workspace path policy on tool calls made from scripts."""
-        if not request.workspace_root or not isinstance(request.params, dict):
-            return None
-
-        path_keys = ("path", "file_path", "target", "destination", "filepath")
-        target_path = None
-        for k in path_keys:
-            val = request.params.get(k)
-            if isinstance(val, str) and val.strip():
-                target_path = val.strip()
-                break
-        if not target_path:
-            return None
-
-        from myrm_agent_harness.agent.security.checks import check_path_policy
-        from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
-
-        action, reason = check_path_policy(target_path, PathPolicy(), request.workspace_root)
-        if action == PermissionAction.DENY:
-            return f"Path policy violation: {reason}"
-        return None
-
-    def _check_scope_gate(self, request: MCPIPCRequest) -> str | None:
-        """Enforce employee/agent-scoped MCP discovery gate policies."""
-        from myrm_agent_harness.agent.sub_agents.mcp_scope_gate.scope_gate import (
-            EmployeeScopedMcpDiscoveryGate,
-        )
-        from myrm_agent_harness.agent.sub_agents.mcp_scope_gate.types import (
-            EmployeeToolScopeViolationError,
-        )
-
-        agent_id = request.agent_id
-        if not agent_id:
-            return None
-
-        gate = EmployeeScopedMcpDiscoveryGate.get_instance()
-        if not gate.get_policy(agent_id):
-            return None
-
-        server_name = request.skill_name
-        if server_name.startswith("mcp_") and server_name.endswith("_skill"):
-            server_name = server_name[4:-6]
-
-        try:
-            gate.verify_tool_invocation(agent_id, server_name, request.tool_name)
-        except EmployeeToolScopeViolationError as e:
-            return f"Agent scope violation: {e.reason}"
-        return None
 
 
 # 全局 IPC 服务端实例

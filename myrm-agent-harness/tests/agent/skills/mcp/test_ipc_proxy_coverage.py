@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.skills.mcp.ipc_proxy (POS: IPC server, guards, globals)
 
 [OUTPUT]
-- Coverage for already-running/stopped lifecycle, path/scope guard early returns,
+- Coverage for already-running/stopped lifecycle, path/scope gate early returns,
   and global server start/stop accessors.
 
 [POS]
@@ -26,6 +26,7 @@ from myrm_agent_harness.agent.skills.mcp.ipc_proxy import (
     start_mcp_ipc_server,
     stop_mcp_ipc_server,
 )
+from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import path_policy_error, scope_gate_error
 
 
 def test_start_is_idempotent_when_already_running(tmp_path: Path) -> None:
@@ -47,16 +48,14 @@ def test_stop_is_noop_when_not_running(tmp_path: Path) -> None:
 
 
 def test_path_policy_skips_request_without_path(tmp_path: Path) -> None:
-    server = MCPIPCServer(str(tmp_path / "path.sock"))
     request = MCPIPCRequest(skill_name="mcp_demo_skill", tool_name="read", params={}, workspace_root=str(tmp_path))
 
-    assert server._check_path_policy(request) is None
+    assert path_policy_error(request) is None
 
 
 def test_path_policy_allows_path_inside_workspace(tmp_path: Path) -> None:
     allowed = tmp_path / "inside.txt"
     allowed.write_text("ok", encoding="utf-8")
-    server = MCPIPCServer(str(tmp_path / "inside.sock"))
     request = MCPIPCRequest(
         skill_name="mcp_demo_skill",
         tool_name="read",
@@ -64,12 +63,10 @@ def test_path_policy_allows_path_inside_workspace(tmp_path: Path) -> None:
         workspace_root=str(tmp_path),
     )
 
-    assert server._check_path_policy(request) is None
+    assert path_policy_error(request) is None
 
 
-def test_scope_gate_skips_without_agent_or_policy(tmp_path: Path) -> None:
-    server = MCPIPCServer(str(tmp_path / "scope.sock"))
-
+def test_scope_gate_skips_without_agent_or_policy() -> None:
     no_agent = MCPIPCRequest(skill_name="mcp_demo_skill", tool_name="read", params={}, agent_id=None)
     unknown_agent = MCPIPCRequest(
         skill_name="mcp_demo_skill",
@@ -78,8 +75,8 @@ def test_scope_gate_skips_without_agent_or_policy(tmp_path: Path) -> None:
         agent_id="agent-without-policy",
     )
 
-    assert server._check_scope_gate(no_agent) is None
-    assert server._check_scope_gate(unknown_agent) is None
+    assert scope_gate_error(no_agent) is None
+    assert scope_gate_error(unknown_agent) is None
 
 
 def test_global_server_lifecycle_and_trace_nonce() -> None:

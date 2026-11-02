@@ -8,7 +8,8 @@ limits are shrunk to seconds. Each test pins a behavior that used to go the othe
   that text as if it were a result;
 - the host kill: the script's own deadline was equal to the actor's, so the host could end the script before the named
   error reached it;
-- a cold start: a bound on the whole request would charge the server's start-up to a call that is within its limit.
+- a cold start: a bound on the whole request would charge the server's start-up to a call that is within its limit;
+- an ended script: its call kept occupying the MCP server until the tool's own limit, so the next script waited for it.
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import Nu
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxStatus
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import bind_workspace_storage_root
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
+from myrm_agent_harness.utils.errors import ToolError
+from tests.support.marked_processes import wait_until
 from tests.support.mcp_testkit import cancel_probe_server
 
 pytestmark = [
@@ -44,6 +47,7 @@ pytestmark = [
 ]
 
 _HOST_FLOOR = "myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.MCP_MIN_TIMEOUT"
+_MCP_FLOOR_RULE = "myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.BashExecutorPrepareMixin._maybe_extend_timeout_for_mcp"
 _BACKSTOP_MARGIN = "myrm_agent_harness.agent.skills.mcp.call_backstop.BACKSTOP_MARGIN_SECONDS"
 _REASON = "verify how a failed MCP call reaches a script"
 _TOOLS = ["slow", "fast"]
@@ -228,3 +232,19 @@ async def test_a_cold_start_is_not_charged_to_the_limit_of_a_call_that_is_within
 
     outcome = _outcome(lines, "cold")
     assert "RETURNED" in outcome and "slow-done" in outcome, f"a healthy call was cut by the start-up time: {outcome}"
+
+
+@pytest.mark.asyncio
+async def test_a_script_ended_by_the_host_frees_the_server_for_the_next_script(tmp_path: Path) -> None:
+    async with _script_channel(tmp_path, execute_timeout=25.0) as tool:
+        # The host ends the first script while its call is still running, as a stop or the script's own deadline would.
+        with patch(_MCP_FLOOR_RULE, lambda self, items, timeout: timeout), pytest.raises(ToolError):
+            command = _python_script(_call_slow(_SLOW_FOREVER_S, "hang"))
+            await tool.ainvoke({"command": command, "reason": _REASON, "timeout": 3}, config=_config(tmp_path))
+        ended = time.monotonic()
+
+        lines = await _run(tool, tmp_path, "    print('next', await fast())")
+
+    assert any("fast-done" in line for line in lines)
+    assert time.monotonic() - ended < 12, "the next script waited for the abandoned call to reach its own limit"
+    await wait_until(lambda: (tmp_path / "marks" / "cancelled").exists(), timeout=5)

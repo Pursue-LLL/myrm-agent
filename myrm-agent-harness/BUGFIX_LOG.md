@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-02-177 · 脚本里调用 MCP 工具的通道：工具失败被当成返回值（读缓存会固化错误）、三层同为 120 秒的期限互相抢先且无视 server 配置的 `execute_timeout`、脚本被宿主杀掉后在途调用继续占住 MCP server
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED（本地分支 `fix/mcp-script-channel-typed-failures`，未推送、未合入）** |
+| **发现时间** | 2026-11-02（排查“启动慢”时对脚本 MCP 通道做真实 stdio MCP server 实验，E9–E14） |
+| **修复时间** | 2026-11-02 |
+| **严重程度** | P2：工具超时对脚本是一段普通文本，且会被读缓存保存；`execute_timeout` 配成 120 以上的 server 在脚本里永远等不到自己的期限；被杀脚本的在途调用让下一个脚本卡到该工具自己的期限。 |
+| **关联产品** | harness `toolkits/mcp`、`agent/skills/mcp`、`agent/meta_tools/bash/_executor`、`toolkits/code_execution/executors`。 |
+| **症状** | ① 工具失败（超时、需要重新授权、不支持）以返回值到达脚本，脚本把错误文本当结果处理；读缓存把它保存下来，之后的执行直接读到旧错误。② 宿主下限 `MCP_MIN_TIMEOUT=120`、IPC 服务端固定的 `_REQUEST_TIMEOUT=120.0`、actor 的 `execute_timeout` 默认 120 三层同值：配置 130 的 server 在 120 秒被宿主强杀，脚本拿不到带工具名的错误。③ 宿主杀掉脚本时（本例 4.8 秒），脚本发出的在途调用继续跑，下一个脚本的 `fast()` 等了 23.8 秒（`execute_timeout=25`）才返回。 |
+| **根因** | ① `tool_processing.wrap_tools_with_timeout` 的失败分支返回普通 `str`，`proxy_service._find_and_invoke` 无法区分结果与失败。② 里层期限不小于外层（与 Agno 60<300、eve“里层必须更低”相反）；`MCPConfigItem` 没有携带 `execute_timeout`，宿主下限不随它变化。③ `MCPIPCServer._handle_client` 对一个请求只在读到请求体后等 `_process_request`，客户端断开不会被发现；原先 120 秒的固定上限恰好给这种在途调用设了界，去掉它之后（见修复）这个界变成 `execute_timeout`，所以必须同时修。 |
+| **修复** | C0a：`MCPToolFailure(str)` 标记失败，模型路径不变（`ToolMessage.content` 仍是 `str`），脚本路径 `proxy_service` 对它抛 `RuntimeError`，失败不进读缓存。C0b：`MCPConfigItem.execute_timeout` 搬到 `executors/mcp_config.py`，宿主下限 `max(MCP_MIN_TIMEOUT, ceil(max(L)+30))`，`call_backstop.call_within_backstop` 只包 `conn.call`（`max(L)+10` 秒，不含连接阶段）。C0c：删除 IPC 服务端的固定 120 秒期限。C0d：`MCPIPCServer._process_until_client_leaves` 让请求与连接上的一次读赛跑，连接关闭（或收到多余字节）就取消请求，取消经会话 actor 到达 MCP server；三个策略闸门原样搬到 `ipc_request_policy.py`（`ipc_proxy.py` 495 行装不下赛跑逻辑）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 去掉 120 秒后我一度只测了“超时有名字”，直到对已提交的树做 E1/E4 探测才测出在途调用占住 server 的 23.8 秒：这是 C0c 对 `execute_timeout>120` 的 server 放大的既有缺陷，不是新缺陷，但放大是我造成的。对整个 `agent/skills/mcp/` 跑过一次 `ruff format`，它顺带改了 3 个无关文件，已用反向补丁撤回，之后只对自己的文件格式化。 |
+| **回归** | [1] 真实 stdio MCP server 的契约测试（`tests/agent/meta_tools/bash/test_mcp_script_failure_contract.py`，5 个）在 origin/main 上红、修复后绿；E13（配置 130，真实下限）：修复后在 132.2 秒收到 `timed out after 130.0s`，整次运行 136.0 秒，基线在 120 秒被宿主强杀。[2] E4（`execute_timeout=25`，宿主在 3 秒杀掉第一个脚本）：已含 C0a–C0c、尚无 C0d 的树上，下一个脚本在宿主杀掉第一个脚本后 24.5 秒才完成（新用例红）；加上 C0d 后整个用例 3.18 秒（含两次脚本启动）。我没有在 origin/main 上单独量这一项。[3] `test_ipc_client_departure.py`：关闭连接与多余字节两个用例在修复前红、修复后绿，正常应答、同一连接连发两个请求的用例前后都绿。[4] `tests/agent tests/architecture tests/toolkits/mcp tests/toolkits/code_execution tests/core`：33498 passed、302 skipped、11 xfailed、1 failed（`test_sandbox_snapshot_runtimes`，该文件用 1 秒的子进程探测期限，机器负载 13.8；单独重跑两次，一次另一个用例红、一次全绿，该文件我没有改）。 |
+| **仍然存在** | ① `is_error` 结果仍以返回值送达脚本。② 内置 handler（只有 `notify`）失去了 120 秒的固定期限，挂住的内置 handler 现在不受限（连接断开仍会取消它）。③ 宿主下限取 `max(L)+30`：一个配成 600 的 server 会把所有 MCP 脚本的上限抬到 630 秒。④ 断开即取消意味着脚本放弃的写类调用也会被取消（MCP 取消通知，尽力而为）。⑤ 授权失败、不支持等触发是合成的；Windows、bwrap、HTTP/SSE 传输没有测。⑥ DW 轨道（`ptc/rpc_server.py`）没有检查是否有同样的在途调用问题。⑦ `prepare_mixin.py` 的 13 个与 `tool_processing.py` 的 1 个 `mypy` 既有报错没有处理（基线相同，修它们要改三个 mixin 的属性声明）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/mcp/errors.py`、`toolkits/mcp/tool_processing.py`、`agent/skills/mcp/{call_backstop,proxy_service,ipc_proxy,ipc_request_policy}.py`、`toolkits/code_execution/executors/{mcp_config,models,base,middleware}.py`、`agent/meta_tools/bash/_executor/{prepare_mixin,constants}.py` |
+
 ### BUG-HARNESS-2026-11-02-176 · 记忆对话集成测试的假嵌入器用带进程盐的 `hash()`：有的进程里查询文本的哈希恰好是 1000 的倍数，得到零向量；`Unit` 作业里 `test_adaptive_quoted_phrase_forces_dual` 偶发红
 
 | 字段 | 内容 |
