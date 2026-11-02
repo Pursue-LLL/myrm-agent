@@ -130,6 +130,7 @@ class MCPIPCServer:
         """
         self.socket_path = socket_path
         self._server: asyncio.Server | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._running = False
         self._budget = CallBudget(max_calls_per_execution, session_call_ceiling)
         self._tcp_port: int = 0
@@ -152,6 +153,7 @@ class MCPIPCServer:
             logger.warning("MCP IPC Server already running")
             return
 
+        self._loop = asyncio.get_running_loop()
         if os_compat.IS_WIN:
             # Windows asyncio runs ProactorEventLoop, whose create_unix_connection raises
             # NotImplementedError, so the AF_UNIX path cannot work there. Bind loopback
@@ -192,6 +194,17 @@ class MCPIPCServer:
     def tcp_port(self) -> int:
         """Loopback TCP port when the server runs on the non-POSIX transport, else 0."""
         return self._tcp_port
+
+    @property
+    def is_orphaned(self) -> bool:
+        """Marked running, but its event loop is closed: the socket still accepts and nothing answers."""
+        return self._running and self._loop is not None and self._loop.is_closed()
+
+    def abandon(self) -> None:
+        """Free the listening sockets of an orphaned server; its closed loop cannot await a clean stop."""
+        self._running = False
+        if self._server is not None:
+            self._server.close()
 
     async def stop(self) -> None:
         """停止 IPC 服务端"""
@@ -449,7 +462,9 @@ async def start_mcp_ipc_server(socket_path: str) -> MCPIPCServer:
     global _ipc_server
 
     if _ipc_server is not None and _ipc_server._running:
-        return _ipc_server
+        if not _ipc_server.is_orphaned:
+            return _ipc_server
+        _ipc_server.abandon()
 
     _ipc_server = MCPIPCServer(socket_path)
     await _ipc_server.start()
@@ -466,8 +481,9 @@ async def stop_mcp_ipc_server() -> None:
 
 
 def get_mcp_ipc_server() -> MCPIPCServer | None:
-    """获取全局 MCP IPC 服务端实例"""
-    return _ipc_server
+    """获取全局 MCP IPC 服务端实例；事件循环已关闭的残留实例视为不存在"""
+    server = _ipc_server
+    return None if server is not None and server.is_orphaned else server
 
 
 def get_mcp_trace_nonce() -> str | None:
@@ -479,6 +495,6 @@ def get_mcp_trace_nonce() -> str | None:
     rather than trusting an old nonce.
     """
     server = _ipc_server
-    if server is None or not server._running:
+    if server is None or not server._running or server.is_orphaned:
         return None
     return server.trace_nonce
