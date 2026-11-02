@@ -3243,7 +3243,6 @@
       "unverifiedWarningDescription": "This model is not officially verified for tool-calling compatibility. Executing complex tools may produce parsing issues."
     },
     "migrationDiscovery": {
-      "detecting": "Scanning for AI assistant data...",
       "title": "Detected {competitor} data",
       "description": "Found {memoryCount} memories and {skillCount} skills — preview before import",
       "descriptionMemoryOnly": "Found {memoryCount} memories — preview before import",
@@ -3556,12 +3555,7 @@
     "collapseReasoning": "Collapse reasoning",
     "reasoningLoading": "Thinking",
     "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens",
-    "systemNotices": {
-      "title": "Notices & discover",
-      "open": "Notices",
-      "playbook": "Model orchestration playbook"
-    }
+    "reasoningTokensEstimated": "≈ {count} tokens"
   },
   "mode": {
     "fast": "Fast Search",

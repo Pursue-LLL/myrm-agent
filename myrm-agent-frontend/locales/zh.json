@@ -3243,7 +3243,6 @@
       "unverifiedWarningDescription": "该模型尚未经官方工具调用兼容性验证，执行复杂技能时可能出现格式异常。建议优先选用推荐标杆模型。"
     },
     "migrationDiscovery": {
-      "detecting": "正在扫描本地 AI 助手数据...",
       "title": "检测到 {competitor} 数据",
       "description": "发现 {memoryCount} 条记忆和 {skillCount} 个技能，可预览后导入",
       "descriptionMemoryOnly": "发现 {memoryCount} 条记忆，可预览后导入",
@@ -3556,12 +3555,7 @@
     "collapseReasoning": "收起思考过程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 个推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 个推理 Token",
-    "systemNotices": {
-      "title": "提醒与发现",
-      "open": "提醒",
-      "playbook": "模型编排手册"
-    }
+    "reasoningTokensEstimated": "≈ {count} 个推理 Token"
   },
   "mode": {
     "fast": "快速搜索",

@@ -7,9 +7,9 @@ import { useTranslations } from 'next-intl';
 import React, { useMemo } from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
+import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import ResourcePressureBanner from './ResourcePressureBanner';
 import UpdateNudgeBanner from './UpdateNudgeBanner';
-import SystemNoticeButton from './SystemNoticeButton';
 import { ModelOrchestrationPlaybookDialog } from './playbook';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
@@ -51,14 +51,9 @@ const EmptyChat = React.memo(() => {
   return (
     <div className="relative min-h-screen overflow-visible">
       <div className="flex flex-col items-center max-w-screen-md lg:max-w-[820px] mx-auto px-4 pt-[20vh] pb-4 space-y-6">
-        <div className="relative flex w-full items-center justify-center">
-          <h2 data-testid="empty-chat-title" className="text-black/70 dark:text-white/70 text-3xl font-medium">
-            {title}
-          </h2>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            <SystemNoticeButton onOpenPlaybook={() => setPlaybookOpen(true)} />
-          </div>
-        </div>
+        <h2 data-testid="empty-chat-title" className="text-black/70 dark:text-white/70 text-3xl font-medium">
+          {title}
+        </h2>
         <NoProviderBanner />
         <div className="flex flex-col items-center gap-2 w-full">
           <WorkUnitBalanceBar />
@@ -91,6 +86,8 @@ const EmptyChat = React.memo(() => {
         <IncognitoNotice />
 
         <NewTaskWorkContextCard />
+
+        <MigrationDiscoveryBanner />
 
         <UpdateNudgeBanner />
 

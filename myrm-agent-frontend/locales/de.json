@@ -3234,7 +3234,6 @@
       "unverifiedWarningDescription": "Dieses Modell ist nicht offiziell für Tool-Calling verifiziert. Bei der Ausführung komplexer Werkzeuge können Formatierungsfehler auftreten."
     },
     "migrationDiscovery": {
-      "detecting": "Suche nach KI-Assistentendaten...",
       "title": "{competitor}-Daten erkannt",
       "description": "{memoryCount} Erinnerungen und {skillCount} Fähigkeiten gefunden – vor dem Import ansehen",
       "descriptionMemoryOnly": "{memoryCount} Erinnerungen gefunden – vor dem Import ansehen",
@@ -3556,12 +3555,7 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens",
-    "systemNotices": {
-      "title": "Hinweise & Entdecken",
-      "open": "Hinweise",
-      "playbook": "Modell-Orchestrierungs-Playbook"
-    }
+    "reasoningTokensEstimated": "≈ {count} Tokens"
   },
   "mode": {
     "fast": "Schnellsuche",

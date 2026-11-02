@@ -3234,7 +3234,6 @@
       "unverifiedWarningDescription": "이 모델은 공식 도구 호출 호환성 검증을 거치지 않았습니다. 복잡한 도구 실행 시 형식 오류가 발생할 수 있습니다."
     },
     "migrationDiscovery": {
-      "detecting": "AI 어시스턴트 데이터 스캔 중...",
       "title": "{competitor} 데이터 감지됨",
       "description": "{memoryCount}개 메모리와 {skillCount}개 스킬을 찾았습니다 — 가져오기 전에 미리보기",
       "descriptionMemoryOnly": "{memoryCount}개 메모리를 찾았습니다 — 가져오기 전에 미리보기",
@@ -3556,12 +3555,7 @@
     "collapseReasoning": "사고 접기",
     "reasoningLoading": "사고 중",
     "reasoningTokens": "{count} 추론 토큰",
-    "reasoningTokensEstimated": "≈ {count} 추론 토큰",
-    "systemNotices": {
-      "title": "알림 및 발견",
-      "open": "알림",
-      "playbook": "모델 오케스트레이션 플레이북"
-    }
+    "reasoningTokensEstimated": "≈ {count} 추론 토큰"
   },
   "mode": {
     "fast": "빠른 검색",

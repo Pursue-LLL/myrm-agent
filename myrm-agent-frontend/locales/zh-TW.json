@@ -3234,7 +3234,6 @@
       "unverifiedWarningDescription": "該模型尚未經官方工具調用相容性驗證，執行複雜技能時可能出現格式異常。建議優先選用推薦標竿模型。"
     },
     "migrationDiscovery": {
-      "detecting": "正在掃描本地 AI 助手資料...",
       "title": "檢測到 {competitor} 資料",
       "description": "發現 {memoryCount} 條記憶和 {skillCount} 個技能，可預覽後匯入",
       "descriptionMemoryOnly": "發現 {memoryCount} 條記憶，可預覽後匯入",
@@ -3556,12 +3555,7 @@
     "collapseReasoning": "收合思考過程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 個推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 個推理 Token",
-    "systemNotices": {
-      "title": "提醒與發現",
-      "open": "提醒",
-      "playbook": "模型編排手冊"
-    }
+    "reasoningTokensEstimated": "≈ {count} 個推理 Token"
   },
   "mode": {
     "fast": "快速搜尋",
