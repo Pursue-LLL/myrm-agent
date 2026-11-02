@@ -7,8 +7,8 @@
 - EmailChannel: package facade for the registry's lazy loader
 
 [POS]
-Package facade; the implementation lives in ``channel.py`` (lifecycle, SMTP/IMAP), ``inbound.py`` (RFC 822 parsing)
-and ``forward.py`` (forwarded-email detection).
+Package facade; the implementation lives in ``channel.py`` (lifecycle, SMTP/IMAP), ``poll.py`` (the batch one poll takes),
+``inbound.py`` (RFC 822 parsing) and ``forward.py`` (forwarded-email detection).
 """
 
 from .channel import EmailChannel

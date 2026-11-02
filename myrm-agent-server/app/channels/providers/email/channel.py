@@ -1,12 +1,12 @@
 """Email channel — bidirectional messaging via IMAP (inbound) + SMTP (outbound).
 
-Inbound: IMAP periodic poll → _parse_email (EmailInboundMixin) → _emit_inbound
+Inbound: IMAP periodic poll (EmailPollMixin) → _parse_email (EmailInboundMixin) → _emit_inbound
 Outbound: SMTP send (HTML body + file attachments)
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.providers.email.imap::send_imap_id, refusal, require_ok (POS: IMAP client ID and the reading of a server's reply)
-- channels.providers.email.inbound::EmailInboundMixin (POS: RFC 822 → InboundMessage parsing)
+- channels.providers.email.imap::send_imap_id (POS: IMAP client ID, reply reading, UIDVALIDITY)
+- channels.providers.email.poll::EmailPollMixin (POS: the batch one IMAP poll takes and where the next resumes)
 - channels.providers.email.outbound::build_message, load_attachments (POS: attachment loading and MIME assembly)
 - channels.types::OutboundMessage (POS: outbound message envelope)
 
@@ -14,15 +14,12 @@ Outbound: SMTP send (HTML body + file attachments)
 - EmailChannel: Email bidirectional messaging Channel (IMAP + SMTP)
 
 [POS]
-Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
-forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly
-live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server certificate
-is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default context verifies
-nothing). Every connection also times out on a silent server instead of blocking its thread. Opening INBOX or searching it
-being refused is an error carrying the server's words, never read as data, and a message the server refuses to hand over
-is fetched again by the next poll instead of being passed over. A poll takes at most 20 messages, oldest first; one the
-parser cannot read is logged and skipped. A message that fails for any other reason (a disk error, a connection that drops)
-ends the poll: the messages before it are delivered and it is read again by the next poll.
+Email channel implementation: credentials, lifecycle, the poll loop and SMTP transport. Which messages a poll takes and
+where the next one resumes live in ``poll.py``; message parsing (attachments, forwarded mail, HTML-to-Markdown cleaning,
+thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly live in ``outbound.py``. Every IMAP and SMTP
+connection is given ``ssl.create_default_context()``: the server certificate is verified, and the enterprise network
+compatibility setting decides what is trusted (the stdlib default context verifies nothing). Every connection also times
+out on a silent server instead of blocking its thread.
 """
 
 from __future__ import annotations
@@ -44,29 +41,26 @@ from app.channels.types import (
     ChannelCapabilities,
     ChannelIssue,
     ChannelStatus,
-    InboundMessage,
     IssueKind,
     IssueSeverity,
     OutboundMessage,
     RenderStyle,
 )
 
-from .imap import refusal, require_ok, send_imap_id
-from .inbound import EmailInboundMixin
+from .imap import send_imap_id
 from .outbound import LoadedAttachment, build_message, load_attachments
+from .poll import EmailPollMixin
 
 logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 100000
 _POLL_INTERVAL = 30.0
-# Messages per poll: a backlog drains over the next polls, oldest first; the first poll has no mark and takes the newest.
-_MAX_FETCHED_PER_POLL = 20
 # Seconds a mail server may stay silent before connecting or a read gives up; without it a stalled server blocks the
 # worker thread, and with it the poll loop and the health check, indefinitely.
 _SOCKET_TIMEOUT = 30
 
 
-class EmailChannel(EmailInboundMixin, BaseChannel):
+class EmailChannel(EmailPollMixin, BaseChannel):
     """Email channel using IMAP inbound + SMTP outbound."""
 
     name = "email"
@@ -136,6 +130,8 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         self._poll_interval = poll_interval
         self._poll_task: asyncio.Task[None] | None = None
         self._last_uid: int = 0
+        self._uidvalidity: bytes | None = None
+        self._retry: set[int] = set()
 
     @property
     def _is_configured(self) -> bool:
@@ -314,76 +310,3 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
             for inbound in new_messages:
                 await self._emit_inbound(inbound)
             await asyncio.sleep(self._poll_interval)
-
-    def _parse_or_skip(self, raw: bytes, uid: int) -> InboundMessage | None:
-        """The message in *raw*, or None for one the parser cannot read: that is logged and the poll moves past it.
-
-        A disk error says nothing about the message and clears up, so it propagates and the message is read again.
-        """
-        try:
-            return self._parse_email(raw, uid)
-        except OSError:
-            raise
-        except Exception:
-            logger.warning("Email: UID %d could not be parsed and is skipped", uid, exc_info=True)
-            return None
-
-    def _fetch_new_emails(self) -> list[InboundMessage]:
-        """Up to ``_MAX_FETCHED_PER_POLL`` of the messages that arrived in INBOX after the high-water mark, oldest first.
-
-        Opening INBOX or searching it being refused raises, and the reconnect loop retries. A refused fetch ends the batch
-        instead: the mark stays below that message so the next poll asks for it again, as skipping it would lose it for good.
-        A message the parser cannot read is skipped. Any other failure on a message (a disk error saving its attachment, a
-        connection that drops) ends the batch the same way, and the messages read before it are still returned; with none
-        read yet it raises, and the reconnect loop backs off. The mark moves past a message once it is delivered or skipped.
-        """
-        results: list[InboundMessage] = []
-        conn = self._connect_imap()
-        high_water = self._last_uid
-        try:
-            conn.login(self._imap_user, self._imap_password)
-            send_imap_id(conn)
-            require_ok(conn.select("INBOX"), "Opening INBOX")
-
-            criteria = f"(UID {self._last_uid + 1}:*)" if self._last_uid else "(UNSEEN)"
-
-            msg_nums = require_ok(conn.uid("search", criteria), "Search")
-            if not msg_nums or not msg_nums[0]:
-                return results
-
-            # `UID n:*` also answers with the newest message when n is past the end of the mailbox.
-            fresh = sorted(uid for uid in map(int, msg_nums[0].split()) if uid > self._last_uid)
-            batch = fresh[:_MAX_FETCHED_PER_POLL] if self._last_uid else fresh[-_MAX_FETCHED_PER_POLL:]
-            for uid in batch:
-                try:
-                    status, data = conn.uid("fetch", str(uid), "(RFC822)")
-                    if status != "OK":
-                        logger.warning("Email: %s; the next poll fetches it again", refusal(f"Fetching UID {uid}", status, data))
-                        break
-                    if not data or not data[0] or not isinstance(data[0], tuple):
-                        continue
-
-                    raw = data[0][1]
-                    parsed = self._parse_or_skip(raw, uid) if isinstance(raw, bytes) else None
-                    if parsed:
-                        results.append(parsed)
-                    high_water = max(high_water, uid)
-                except Exception:
-                    if not results:
-                        raise
-                    logger.warning(
-                        "Email: reading UID %d failed; the messages before it (%d) are delivered and the next poll reads it again",
-                        uid,
-                        len(results),
-                        exc_info=True,
-                    )
-                    break
-
-        finally:
-            self._last_uid = high_water
-            try:
-                conn.logout()
-            except Exception:
-                pass
-
-        return results

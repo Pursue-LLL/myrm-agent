@@ -18,7 +18,7 @@ from app.channels.types import InboundMessage
 from tests.channels.providers.email.email_channel_factory import make_channel, raw_mail
 
 _REFUSAL = b"[SERVERBUG] Internal error"
-_LOGGER = "app.channels.providers.email.channel"
+_LOGGER = "app.channels.providers.email.poll"
 
 
 class _Mailbox:
