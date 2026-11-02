@@ -295,10 +295,9 @@ class ConsolidationJudge:
     @staticmethod
     def _build_preview_summary(plan: ConsolidationPlan) -> str:
         """Build a human-readable preview summary for GUI display."""
-        unevaluated = f"Skill groups that could not be evaluated: {plan.failed_clusters}"
         if plan.is_empty:
             if plan.failed_clusters:
-                return f"No consolidation proposed. {unevaluated}."
+                return f"No consolidation proposed. Skill groups that could not be evaluated: {plan.failed_clusters}."
             return "No consolidation needed — all skills are well-organized."
 
         lines: list[str] = []
@@ -319,6 +318,4 @@ class ConsolidationJudge:
                     pass
 
         lines.append(f"\nEstimated net reduction: {plan.estimated_reduction} active skills")
-        if plan.failed_clusters:
-            lines.append(unevaluated)
         return "\n".join(lines)

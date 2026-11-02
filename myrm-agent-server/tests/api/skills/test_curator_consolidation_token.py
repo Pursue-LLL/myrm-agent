@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.skills.curator.consolidation.types import ConsolidationPlan
+from myrm_agent_harness.agent.skills.curator.consolidation.types import (
+    ConsolidationAction,
+    ConsolidationActionType,
+    ConsolidationPlan,
+)
 
 _PREVIEW_URL = "/api/v1/skills/curator/consolidation/preview"
 _EXECUTE_URL = "/api/v1/skills/curator/consolidation/execute"
@@ -78,3 +83,22 @@ def test_execute_rejects_a_token_when_the_plan_changed_after_the_preview(client:
 
     assert status == 409
     execution.assert_not_awaited()
+
+
+def test_execute_accepts_a_plan_that_differs_only_in_how_many_groups_could_not_be_evaluated(client: TestClient) -> None:
+    """The token binds the plan the user saw; a transient judge failure is not part of that plan."""
+    merge = ConsolidationAction(
+        action_type=ConsolidationActionType.MERGE,
+        target_skill="report_skill",
+        source_skills=("report_a", "report_b"),
+        reasoning="same job",
+    )
+    previewed = ConsolidationPlan(
+        actions=[merge], total_skills_affected=2, estimated_reduction=1, failed_clusters=1, preview_summary="Merge 2"
+    )
+    token = _issue_token(client, previewed)
+
+    status, execution = _execute(client, token, current_plan=replace(previewed, failed_clusters=0))
+
+    assert status == 200
+    execution.assert_awaited_once()

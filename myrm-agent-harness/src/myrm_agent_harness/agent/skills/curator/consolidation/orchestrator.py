@@ -110,11 +110,7 @@ class SkillConsolidator:
         plan = await self._judge.judge_clusters(clusters, skills, reserved_names=reserved_names)
 
         if plan.is_empty:
-            logger.info(
-                "Consolidation: judge proposed no actions (%d of %d clusters could not be judged)",
-                plan.failed_clusters,
-                len(clusters),
-            )
+            logger.info("Consolidation: judge proposed no actions")
             return plan if dry_run else ConsolidationReport()
 
         logger.info(
