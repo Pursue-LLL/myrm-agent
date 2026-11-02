@@ -280,6 +280,16 @@ def _reset_session_loop_guards() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _isolate_terminal_errors() -> Iterator[None]:
+    """Isolate the terminal-error registry between all tests: a direct executor run never calls ``reset_all_guards``,
+    so a stale ``network_blocked`` left by one test makes the circuit breaker refuse the next test's MCP tool."""
+    from myrm_agent_harness.agent.middlewares._session_context import isolated_terminal_errors
+
+    with isolated_terminal_errors():
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _reset_session_executor_stash() -> Iterator[None]:
     """Isolate the process-global session executor stash between all tests.
 
