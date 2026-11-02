@@ -14,9 +14,10 @@ Poll half of EmailChannel. The host owns credentials, connections and the loop; 
 batch, hands it to the inbound pipeline, and keeps what the next poll resumes from: the high-water mark, the messages handed
 out and not yet confirmed, and the UIDVALIDITY the mark was taken under. Opening INBOX or searching it being refused is an
 error carrying the server's words, never read as data, and a message the server refuses to hand over is fetched again by the
-next poll instead of being passed over. A poll takes at most 20 new messages, oldest first; one the parser cannot read is logged
-and skipped. A message that fails for any other reason (a disk error, a connection that drops) ends the poll: the messages
-before it are delivered and it is read again by the next poll. A message is confirmed once the pipeline has decided about it,
+next poll instead of being passed over. A poll takes at most 20 new messages: the oldest after the high-water mark, or the
+newest on the first poll, which has none; one the parser cannot read is logged and skipped. A message that fails for any
+other reason (a disk error, a connection that drops) ends the poll: the messages before it are delivered and it is read again
+by the next poll. A message is confirmed once the pipeline has decided about it,
 and until then every poll offers it again, so a stop or reload under a poll does not lose the messages the server has already
 marked read; the pipeline failing on one message is logged and does not hold back the others. One poll runs at a time. A
 server that numbers INBOX anew is read from its start.
@@ -37,8 +38,8 @@ from .inbound import EmailInboundMixin
 
 logger = logging.getLogger(__name__)
 
-# New messages per poll, plus unconfirmed ones: a backlog drains oldest first; the first poll has no mark and takes the newest.
-_MAX_FETCHED_PER_POLL = 20
+# Unconfirmed messages come on top of this cap. A backlog drains oldest first; the first poll has no mark and takes the newest.
+_MAX_NEW_PER_POLL = 20
 
 
 class EmailPollMixin(EmailInboundMixin):
@@ -118,13 +119,14 @@ class EmailPollMixin(EmailInboundMixin):
             self._poll_lock.release()
 
     def _read_batch(self) -> list[InboundMessage]:
-        """Up to ``_MAX_FETCHED_PER_POLL`` of the messages that arrived in INBOX after the high-water mark, oldest first.
+        """Up to ``_MAX_NEW_PER_POLL`` of the messages that arrived in INBOX after the high-water mark, oldest first.
 
         Opening INBOX or searching it being refused raises, and the reconnect loop retries. A refused fetch ends the batch
         instead: the mark stays below that message so the next poll asks for it again, as skipping it would lose it for good.
         A message the parser cannot read is skipped. Any other failure on a message (a disk error saving its attachment, a
         connection that drops) ends the batch the same way, and the messages read before it are still returned; with none
         read yet it raises, and the reconnect loop backs off. The mark moves past a message once it is read or skipped.
+        The first poll has no mark and takes the newest messages instead.
 
         Every UID enters ``_unconfirmed`` before it is fetched and leaves it when the message is skipped, is gone from the
         mailbox, or is confirmed by ``_poll_round``; until then each batch includes it again. A server that announces another
@@ -151,7 +153,7 @@ class EmailPollMixin(EmailInboundMixin):
 
             # `UID n:*` also answers with the newest message when n is past the end of the mailbox.
             fresh = sorted(uid for uid in map(int, found) if uid > mark)
-            batch = fresh[:_MAX_FETCHED_PER_POLL] if mark else fresh[-_MAX_FETCHED_PER_POLL:]
+            batch = fresh[:_MAX_NEW_PER_POLL] if mark else fresh[-_MAX_NEW_PER_POLL:]
             for uid in sorted({*self._unconfirmed, *batch}):
                 self._unconfirmed.add(uid)
                 try:
