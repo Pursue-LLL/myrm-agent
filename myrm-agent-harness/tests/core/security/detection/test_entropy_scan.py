@@ -35,11 +35,34 @@ class TestScanHighEntropy:
             "raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)",
             "令牌aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG",
             "letters only: abcdefghijklmnopqrstuvwxyzabcdefgh",
+            "pod payments-api-7d9f8b6c5-x4k2p is CrashLoopBackOff",
+            "NAME kube-prometheus-stack-operator-6f7d9c5b8-zt4lq 1/1 Running",
+            "pod/payments-api-7d9f8b6c5-x4k2p condition met",
+            "replicaset.apps/kube-prometheus-stack-operator-6f7d9c5b8 scaled",
+            "payments-api-7d9f8b6c5-x4k2p.prod unreachable",
         ],
-        ids=["url", "uuid", "hex-digest", "base64-blob", "file-path", "reference", "non-ascii", "no-digit"],
+        ids=[
+            "url",
+            "uuid",
+            "hex-digest",
+            "base64-blob",
+            "file-path",
+            "reference",
+            "non-ascii",
+            "no-digit",
+            "k8s-pod-name",
+            "k8s-pod-listing",
+            "k8s-pod-path",
+            "k8s-replicaset-path",
+            "k8s-pod-domain",
+        ],
     )
     def test_text_that_is_not_a_secret_is_ignored(self, text: str) -> None:
         assert scan_high_entropy(text, set()) == []
+
+    def test_credential_that_borrows_a_pod_name_prefix_is_still_reported(self) -> None:
+        token = "payments-api-prod-9f3k2x7m4q8w1zb7"
+        assert scan_high_entropy(f"Found: {token}", set()) == [("high_entropy_token", token)]
 
     def test_token_already_matched_by_another_tier_is_skipped(self) -> None:
         assert scan_high_entropy(f"Found: {RANDOM_TOKEN}", {f"prefix_{RANDOM_TOKEN}_suffix"}) == []

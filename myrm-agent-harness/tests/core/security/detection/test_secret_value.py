@@ -115,6 +115,27 @@ class TestIsReferenceToken:
     @pytest.mark.parametrize(
         "token",
         [
+            "payments-api-7d9f8b6c5-x4k2p",
+            "kube-prometheus-stack-operator-6f7d9c5b8-zt4lq",
+            "coredns-5d78c9869d-8xkqp",
+            "nginx-ingress-controller-5c9bd8b6f9-xk2zq",
+            "nightly-database-backup-28345678-x4k2p",
+            "metrics-collector-agent-daemonset-x4k2p",
+            "kube-prometheus-stack-operator-6f7d9c5b8",
+            "pod/payments-api-7d9f8b6c5-x4k2p",
+            "prod/payments-api-7d9f8b6c5-x4k2p",
+            "replicaset.apps/kube-prometheus-stack-operator-6f7d9c5b8",
+            "payments-api-7d9f8b6c5-x4k2p.payments-api.prod.svc.cluster.local",
+            "payments-api-7d9f8b6c5-x4k2p:8080",
+            "kubernetes.pod.name=payments-api-7d9f8b6c5-x4k2p",
+        ],
+    )
+    def test_kubernetes_generated_resource_name_is_not_a_credential(self, token: str) -> None:
+        assert is_reference_token(token, min_length=_MIN_TOKEN_LENGTH)
+
+    @pytest.mark.parametrize(
+        "token",
+        [
             "aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG",
             "X7k9M2pQvL4nR8s1T6hD0jF5cGaB3xK9",
             "secret_blob=X7k9M2pQvL4nR8s1T6hD0jF5cGaB3xK9",
@@ -123,6 +144,14 @@ class TestIsReferenceToken:
             "docs/search?token=aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG&page=2",
             "callback?api_key=X7k9M2pQvL4nR8s1T6hD0jF5cGaB3xK9&x=1",
             "aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG@internal",
+            "payments-api-prod-9f3k2x7m4q8w1z",
+            "team-deploy-bcdfghjklm2n",
+            "team-deploy-3k9x2m7q-a8f2e",
+            "zq7x2k9m4v8w-bcdfg-hjklm-x4k2p",
+            "pod/payments-api-7d9f8b6c5-x4k2p/Zk9mPq2LwR7vNb3TcY5d",
+            "payments-api-7d9f8b6c5-x4k2p.Xk9mPq2LwR7vNb3TcY5d",
+            "kubernetes.pod.token=Zk9mPq2LwR7vNb3TcY5dHf8Js1Ku",
+            "deployment.apps/payments-api-prod-9f3k2x7m4q8w1z",
         ],
     )
     def test_random_looking_token_stays_a_credential(self, token: str) -> None:
@@ -168,6 +197,9 @@ class TestLinearTime:
             "a" * 100_000 + "1a",
             "HTTPServer" * 10_000 + "9",
             "A" * 100_000 + "b",
+            "ab-" * 40_000 + "x4k2p",
+            "7-" * 50_000 + "x4k2p-",
+            "-" * 100_000 + "x4k2p",
         ],
     )
     def test_adversarial_input_is_judged_quickly(self, token: str) -> None:

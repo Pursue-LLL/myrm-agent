@@ -227,11 +227,12 @@ Level 1: 摘要（Summary）
 Level 2: 正文（Body）
   → get_skill_content() 返回 SKILL.md 正文
   → LLM 选择使用某技能后按需加载
-  → Token 消耗：普通 skill 取决于作者文档；MCP L2 单 server ≤3,000 tokens
-  → **MCP 例外**：`core_generator` 生成的 MCP SKILL.md 每个 server 上限 3,000 tokens；
-    fixed 前缀按实际 Header + Calling 动态计算，instructions 上限由剩余预算推导，
+  → Token 消耗：普通 skill 取决于作者文档；MCP L2 单 server ≤8,000 tokens（仅名称索引时 ≤3,000）
+  → **MCP 例外**：`core_generator` 生成的 MCP SKILL.md 每个 server 有两档上限：带签名的 full / required 档 8,000 tokens，
+    只列名称的 names 档 3,000 tokens（尾部截断而不是把提示词撑大）；
+    fixed 前缀按实际 Header + Calling 动态计算，instructions 上限按 names 档推导，
     工具段用预算阶梯（full → required → names）适配工具数量，超限真正降级而不是只 warning。
-    3,000 是单 server 上限，不是多选 skill 的总预算。
+    上限是单 server 的，不是多选 skill 的总预算。
 
 Level 3: 资源（Resources）
   → get_skill_resources() 返回脚本/参考文档
