@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import imaplib
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from app.channels.providers.email import EmailChannel
 from app.channels.types import InboundMessage
 from tests.channels.providers.email.email_channel_factory import make_channel, raw_mail
+from tests.channels.providers.email.email_inbox import poll_and_confirm
 
 _REFUSAL = b"[SERVERBUG] Internal error"
 _LOGGER = "app.channels.providers.email.poll"
@@ -47,8 +48,7 @@ class _Mailbox:
         return self._answer(uid, [(f"{uid} (RFC822)".encode(), raw_mail(int(uid))), b")"])
 
     def poll(self, channel: EmailChannel) -> list[InboundMessage]:
-        with patch("imaplib.IMAP4_SSL", return_value=self.conn):
-            return channel._fetch_new_emails()
+        return poll_and_confirm(channel, self.conn)
 
 
 class TestRefusalBeforeAnythingIsFetched:

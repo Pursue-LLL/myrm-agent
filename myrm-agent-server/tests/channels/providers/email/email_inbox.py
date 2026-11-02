@@ -5,7 +5,7 @@ from __future__ import annotations
 import errno
 import imaplib
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Literal
 from unittest.mock import MagicMock, patch
@@ -23,7 +23,8 @@ class Inbox:
     untagged reply that one read takes away, as ``imaplib`` keeps it. Without a ``uidvalidity`` the server announces none.
 
     A UID in ``drop_on_fetch`` loses the connection the first time it is fetched: the server has handled the fetch and
-    marked the message read, and the reply never arrives.
+    marked the message read, and the reply never arrives. ``on_fetch`` is called with each UID about to be fetched, on the
+    thread that fetches it, so a test can hold a poll there.
     """
 
     def __init__(self, messages: dict[int, bytes], *, descending: bool = False, uidvalidity: int | None = 1) -> None:
@@ -32,6 +33,7 @@ class Inbox:
         self.seen: set[int] = set()
         self.fetched: list[int] = []
         self.drop_on_fetch: set[int] = set()
+        self.on_fetch: Callable[[int], None] | None = None
         self._descending = descending
         self._announcement_pending = False
         self.conn = MagicMock()
@@ -46,8 +48,7 @@ class Inbox:
         self.uidvalidity = uidvalidity
 
     def poll(self, channel: EmailChannel) -> list[InboundMessage]:
-        with patch("imaplib.IMAP4_SSL", return_value=self.conn):
-            return channel._fetch_new_emails()
+        return poll_and_confirm(channel, self.conn)
 
     def _select(self, mailbox: str) -> tuple[str, list[object]]:
         self._announcement_pending = self.uidvalidity is not None
@@ -62,6 +63,8 @@ class Inbox:
         if command == "fetch":
             uid = int(args[0])
             self.fetched.append(uid)
+            if self.on_fetch:
+                self.on_fetch(uid)
             if uid not in self.messages:
                 return "OK", [None]
             self.seen.add(uid)
@@ -89,6 +92,14 @@ class Inbox:
 
 def uids(messages: list[InboundMessage]) -> list[int]:
     return [int(str(message.metadata["uid"])) for message in messages]
+
+
+def poll_and_confirm(channel: EmailChannel, conn: MagicMock) -> list[InboundMessage]:
+    """One poll over *conn* whose messages the inbound pipeline takes at once: they are confirmed, so the next poll leaves them be."""
+    with patch("imaplib.IMAP4_SSL", return_value=conn):
+        messages = channel._fetch_new_emails()
+    channel._unconfirmed.difference_update(uids(messages))
+    return messages
 
 
 @contextmanager

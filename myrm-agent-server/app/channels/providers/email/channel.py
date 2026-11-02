@@ -6,7 +6,7 @@ Outbound: SMTP send (HTML body + file attachments)
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
 - channels.providers.email.imap::send_imap_id (POS: IMAP client ID, reply reading, UIDVALIDITY)
-- channels.providers.email.poll::EmailPollMixin (POS: the batch one IMAP poll takes and where the next resumes)
+- channels.providers.email.poll::EmailPollMixin (POS: the batch one IMAP poll takes, its hand-over to the pipeline and where the next resumes)
 - channels.providers.email.outbound::build_message, load_attachments (POS: attachment loading and MIME assembly)
 - channels.types::OutboundMessage (POS: outbound message envelope)
 
@@ -14,8 +14,8 @@ Outbound: SMTP send (HTML body + file attachments)
 - EmailChannel: Email bidirectional messaging Channel (IMAP + SMTP)
 
 [POS]
-Email channel implementation: credentials, lifecycle, the poll loop and SMTP transport. Which messages a poll takes and
-where the next one resumes live in ``poll.py``; message parsing (attachments, forwarded mail, HTML-to-Markdown cleaning,
+Email channel implementation: credentials, lifecycle, the poll loop and SMTP transport. Which messages a poll takes, how
+they reach the inbound pipeline and where the next poll resumes live in ``poll.py``; message parsing (attachments, forwarded mail, HTML-to-Markdown cleaning,
 thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly live in ``outbound.py``. Every IMAP and SMTP
 connection is given ``ssl.create_default_context()``: the server certificate is verified, and the enterprise network
 compatibility setting decides what is trusted (the stdlib default context verifies nothing). Every connection also times
@@ -29,6 +29,7 @@ import imaplib
 import logging
 import smtplib
 import ssl
+import threading
 from collections.abc import Sequence
 from typing import Self
 
@@ -131,7 +132,8 @@ class EmailChannel(EmailPollMixin, BaseChannel):
         self._poll_task: asyncio.Task[None] | None = None
         self._last_uid: int = 0
         self._uidvalidity: bytes | None = None
-        self._retry: set[int] = set()
+        self._unconfirmed: set[int] = set()
+        self._poll_lock = threading.Lock()
 
     @property
     def _is_configured(self) -> bool:
@@ -306,7 +308,5 @@ class EmailChannel(EmailPollMixin, BaseChannel):
     async def _poll_once(self) -> None:
         """Poll until the channel stops; a raised error ends the loop and reconnect_loop restarts it after a backoff."""
         while self._status == ChannelStatus.RUNNING:
-            new_messages = await asyncio.to_thread(self._fetch_new_emails)
-            for inbound in new_messages:
-                await self._emit_inbound(inbound)
+            await self._poll_round()
             await asyncio.sleep(self._poll_interval)
