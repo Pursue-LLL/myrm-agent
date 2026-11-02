@@ -565,8 +565,7 @@ class AppSettings(BaseSettings):
         validation_alias="MYRM_MEMORY_LABS",
         description=(
             "[O] Mount the /memory/command-center* routes (except graph and evidence/playback, which are always mounted) "
-            "and the routes only the Labs panels call (archive/restore, tool-guidance, profile-notes, onboarding, ephemeral-delta, "
-            "budget-packing, cubes, score-honesty, notebook, chunker, two-layer-dialectic)"
+            "and every other memory route that only the Labs panels call (see app/api/memory/router.py)"
         ),
     )
 

@@ -3,7 +3,7 @@
 [INPUT]
 - app.api.router.api_router (POS: 全部 REST 路由聚合)
 - app.api.webui.router (POS: /webui 路由)
-- app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、归档恢复、工具指引、画像笔记、首次见面、临时增量、各引擎控制台）(POS: 条件挂载的路由)
+- app.api.internal.org_policy_sync / app.api.memory 的 Labs 路由（command_center*、归档恢复、工具指引、画像笔记、首次见面、临时增量、认知时钟控制台、导入回滚预演、各引擎控制台）(POS: 条件挂载的路由)
 
 [OUTPUT]
 - public_api_openapi(): 路径表 + OpenAPI 生成期间捕获的 `Duplicate Operation ID` 警告 + 指向不存在组件的 `$ref`
@@ -55,9 +55,11 @@ def build_public_api_app() -> FastAPI:
     from app.api.memory.mem_cube_router import router as mem_cube_router
     from app.api.memory.operations import (
         archive_restore,
+        cognitive_clock_console,
         command_center,
         command_center_consolidation,
         command_center_diagnostics,
+        import_rollback_preview,
         tool_guidance,
     )
     from app.api.memory.private_notebook_router import router as private_notebook_router
@@ -83,6 +85,8 @@ def build_public_api_app() -> FastAPI:
             profile_notes_router,
             onboarding.router,
             ephemeral_delta_router,
+            cognitive_clock_console.router,
+            import_rollback_preview.router,
             private_notebook_router,
             two_layer_dialectic_router,
             budget_packing_router,

@@ -4,7 +4,7 @@
 - app.api.memory.router (POS: 按 `MYRM_MEMORY_LABS` 开关决定挂载哪些路由，导入时求值)
 
 [OUTPUT]
-- Labs 关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的两个接口仍可用；指挥中心的 Labs 专属接口、归档恢复、工具指引、画像笔记、首次见面、临时增量与 6 组引擎控制台接口不挂载
+- Labs 关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的两个接口仍可用；指挥中心的 Labs 专属接口、归档恢复、工具指引、画像笔记、首次见面、临时增量、认知时钟控制台、导入回滚预演与 6 组引擎控制台接口不挂载；与它们相邻的默认接口（活跃上报、导入回滚）仍挂载
 
 [POS]
 后端测试默认把 `MYRM_MEMORY_LABS` 设为 1（tests/conftest.py），挂在开关后面的接口因此永远测得到，
@@ -37,6 +37,9 @@ _LAB_ONLY_PREFIXES = (
     "/api/memory/profile-notes",
     "/api/memory/onboarding",
     "/api/memory/ephemeral-delta",
+    "/api/memory/guardian/cognitive-clock/status",
+    "/api/memory/guardian/cognitive-clock/trigger-t1",
+    "/api/memory/import/rollback/dry-run",
     "/api/memory/budget-packing",
     "/api/memory/cubes",
     "/api/memory/score-honesty",
@@ -103,6 +106,14 @@ def test_lab_only_routes_stay_unmounted_without_labs(labs_off_app: FastAPI) -> N
     exposed = sorted(path for path in labs_off_app.openapi()["paths"] if path.startswith(_LAB_ONLY_PREFIXES))
 
     assert exposed == []
+
+
+def test_default_routes_beside_lab_only_ones_stay_mounted_without_labs(labs_off_app: FastAPI) -> None:
+    """The chat input reports activity and the migration wizard rolls back an import, both for every user."""
+    paths = labs_off_app.openapi()["paths"]
+
+    assert "post" in paths["/api/memory/guardian/cognitive-clock/activity"]
+    assert "post" in paths["/api/memory/import/rollback"]
 
 
 def test_every_lab_only_prefix_is_mounted_with_labs(labs_on_app: FastAPI) -> None:

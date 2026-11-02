@@ -28,6 +28,7 @@ from app.api.memory.operations import (
     archive_restore,
     backup,
     backup_remote,
+    cognitive_clock_console,
     command_center,
     command_center_consolidation,
     command_center_diagnostics,
@@ -38,6 +39,7 @@ from app.api.memory.operations import (
     external_transcripts,
     guardian,
     head_probe,
+    import_rollback_preview,
     memory_graph,
     pending,
     radar,
@@ -97,13 +99,16 @@ if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
 # Only the Labs panels call these (engine consoles, archive restore, tool guidance, profile notes, first-encounter
-# onboarding, ephemeral delta); nothing in the default UI does.
+# onboarding, ephemeral delta, cognitive clock status and T1 trigger, import rollback preview); nothing in the default
+# UI does.
 if settings.memory_labs_enabled:
     router.include_router(archive_restore.router, tags=["memory-archive-restore"])
     router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
     router.include_router(profile_notes_router, tags=["memory-profile-notes"])
     router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
     router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
+    router.include_router(cognitive_clock_console.router, tags=["memory-guardian"])
+    router.include_router(import_rollback_preview.router, tags=["memory-crud"])
     router.include_router(private_notebook_router, tags=["memory-private-notebook"])
     router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
     router.include_router(budget_packing_router, tags=["memory-budget-packing"])

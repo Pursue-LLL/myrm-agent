@@ -9,7 +9,6 @@ from app.schemas.memory.archive import (
     MemoryImportConfirmResponse,
     MemoryImportDryRunResponse,
     MemoryImportReadinessRecheckResponse,
-    MemoryImportRollbackPreviewResponse,
     MemoryImportRollbackResponse,
 )
 from app.schemas.memory.crud import (
@@ -47,9 +46,6 @@ router.get("/archive/export", response_model=MemoryArchiveExportResponse)(handle
 router.post("/import/dry-run", response_model=MemoryImportDryRunResponse)(handlers.dry_run_import_memories)
 router.post("/import/confirm", response_model=MemoryImportConfirmResponse)(handlers.confirm_import_memories)
 router.post("/import/readiness-recheck", response_model=MemoryImportReadinessRecheckResponse)(handlers.recheck_import_readiness)
-router.post("/import/rollback/dry-run", response_model=MemoryImportRollbackPreviewResponse)(
-    handlers.dry_run_rollback_import_memories
-)
 router.post("/import/rollback", response_model=MemoryImportRollbackResponse)(handlers.rollback_import_memories)
 router.post("/{memory_id}/rate", response_model=RateMemoryResponse)(handlers.rate_memory)
 router.post("/undo-consolidation")(handlers.undo_consolidation)
