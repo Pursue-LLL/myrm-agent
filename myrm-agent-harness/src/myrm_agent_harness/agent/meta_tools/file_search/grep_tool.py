@@ -10,7 +10,9 @@
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
 - utils.lru_cache::LRUCache (POS: LRU 缓存)
 - _formatter (POS: Grep flat path:line output formatter with line truncation)
-- fallback_discovery::collect_candidate_files (POS: 无 ripgrep 时的候选文件发现与 git-aware ignore 策略)
+- fallback_discovery::collect_candidate_files, VCS_EXCLUDE_GLOB (POS: 候选文件发现策略：Python 档发现 + 两档共用的版本控制目录排除)
+- glob_match::compile_glob, is_match_all (POS: 两档共用的 glob 语义：锚定、**、花括号)
+- _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 
 [OUTPUT]
 - GrepInput: Grep 工具输入参数模型
@@ -26,7 +28,6 @@ and three-tier performance optimization (ripgrep > mmap+concurrency > pure Pytho
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import mmap
@@ -49,7 +50,9 @@ from myrm_agent_harness.utils.locale import is_chinese
 
 from ._formatter import format_grep_results
 from ._redaction import redact_matches
-from .fallback_discovery import collect_candidate_files
+from ._rg_runner import run_rg
+from .fallback_discovery import VCS_EXCLUDE_GLOB, collect_candidate_files
+from .glob_match import compile_glob, is_match_all
 from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
 from .regex_validator import RegexValidator
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
@@ -83,7 +86,7 @@ async def _ripgrep_search(
     literal: bool = False,
 ) -> list[dict[str, str | int]]:
     """Execute search using ripgrep (fastest tier). Returns raw match list."""
-    cmd = ["rg", "--json"]
+    cmd = ["rg", "--json", "--no-require-git"]
 
     if literal:
         cmd.append("--fixed-strings")
@@ -94,74 +97,53 @@ async def _ripgrep_search(
     if context_lines > 0:
         cmd.extend(["-C", str(context_lines)])
 
-    if file_pattern != "**/*":
-        cmd.extend(["--glob", file_pattern])
+    # ``--glob`` overrides ignore and hidden filters for whatever it matches, so a match-all spelling
+    # (``*``, ``**``) must not be passed or it would pull in ignored and hidden trees.
+    if not is_match_all(file_pattern):
+        cmd.extend(["--glob", file_pattern, "--glob", VCS_EXCLUDE_GLOB])
 
     cmd.extend(["--", pattern, str(search_path)])
 
+    results: list[dict[str, str | int]] = []
+    match_count = 0
+
+    def _collect(line_bytes: bytes) -> bool:
+        nonlocal match_count
+        try:
+            data = json.loads(line_bytes)
+            if data.get("type") not in ("match", "context"):
+                return False
+            line_type = data["type"]
+            results.append(
+                {
+                    "file": data["data"]["path"]["text"],
+                    "line": data["data"]["line_number"],
+                    "content": data["data"]["lines"]["text"].rstrip("\n"),
+                    "type": line_type,
+                }
+            )
+        except (ValueError, KeyError):
+            return False
+        if line_type != "match":
+            return False
+        match_count += 1
+        return match_count >= max_results
+
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        outcome = await run_rg(
+            cmd,
+            cwd=search_path if search_path.is_dir() else search_path.parent,
+            timeout_seconds=timeout_seconds,
+            on_line=_collect,
         )
-        if proc.stdout is None or proc.stderr is None:
-            raise RuntimeError("ripgrep pipes unavailable")
-        stdout, stderr = proc.stdout, proc.stderr
-
-        results: list[dict[str, str | int]] = []
-        match_count = 0
-        stderr_data = bytearray()
-
-        async def _read_stderr() -> None:
-            while True:
-                chunk = await stderr.read(4096)
-                if not chunk:
-                    break
-                stderr_data.extend(chunk)
-
-        async def _read_lines() -> None:
-            nonlocal match_count
-            while True:
-                line_bytes = await stdout.readline()
-                if not line_bytes:
-                    break
-
-                try:
-                    line_str = line_bytes.decode("utf-8").strip()
-                    if not line_str:
-                        continue
-                    data = json.loads(line_str)
-
-                    if data.get("type") in ("match", "context"):
-                        path_text = data["data"]["path"]["text"]
-                        line_num = data["data"]["line_number"]
-                        content = data["data"]["lines"]["text"].rstrip("\n")
-                        line_type = data["type"]
-
-                        results.append({"file": path_text, "line": line_num, "content": content, "type": line_type})
-
-                        if line_type == "match":
-                            match_count += 1
-                            if match_count >= max_results:
-                                with contextlib.suppress(ProcessLookupError):
-                                    proc.terminate()
-                                break
-                except (json.JSONDecodeError, KeyError):
-                    continue
-            await proc.wait()
-
-        await asyncio.wait_for(asyncio.gather(_read_lines(), _read_stderr()), timeout=timeout_seconds)
-
-        if proc.returncode not in (0, 1, -15, 143) and match_count < max_results:
-            logger.warning(f"ripgrep error: {stderr_data.decode('utf-8', errors='replace')}")
+        if outcome.failed:
+            logger.warning(f"ripgrep error: {outcome.stderr}")
             raise RuntimeError("ripgrep failed")
-
-        return results
-
     except (TimeoutError, RuntimeError) as e:
         logger.warning(f"ripgrep search failed: {e}, falling back to Python")
-        with contextlib.suppress(ProcessLookupError, AttributeError):
-            proc.terminate()
         raise
+
+    return results
 
 
 def _mmap_search_file(file: Path, regex: re.Pattern[str], max_matches: int = 50) -> list[dict[str, str | int]]:
@@ -342,6 +324,14 @@ def create_grep_tool(
             else:
                 regex = regex_validator.validate_and_compile(pattern, flags)
 
+            try:
+                compile_glob(file_pattern)
+            except ValueError as e:
+                raise ToolError(
+                    message=f"Invalid file pattern '{file_pattern}': {e}",
+                    user_hint=f"The file pattern '{file_pattern}' is invalid. Use patterns like '*.py', '**/*.js', etc.",
+                ) from e
+
             if io_cfg.enable_audit_log:
                 logger.info(
                     f"SECURITY AUDIT: grep_tool - pattern={pattern}, path={path}, "
@@ -370,24 +360,14 @@ def create_grep_tool(
                     logger.debug(f"ripgrep fallback: {e}")
 
             if not used_ripgrep:
-                try:
-                    if "\x00" in file_pattern:
-                        raise ValueError("NUL byte is not allowed in file patterns")
-                    _ = Path("validation.txt").match(file_pattern)
-                    files = await asyncio.to_thread(
-                        collect_candidate_files,
-                        search_root=search_path_obj,
-                        file_pattern=file_pattern,
-                        max_files=io_cfg.max_search_files,
-                        include_hidden=False,
-                        include_ignored=False,
-                    )
-                except (ValueError, OSError) as e:
-                    raise ToolError(
-                        message=f"Invalid file pattern '{file_pattern}': {e}",
-                        user_hint=f"The file pattern '{file_pattern}' is invalid. Use patterns like '*.py', '**/*.js', etc.",
-                    ) from e
-
+                files = await asyncio.to_thread(
+                    collect_candidate_files,
+                    search_root=search_path_obj,
+                    file_pattern=file_pattern,
+                    max_files=io_cfg.max_search_files,
+                    include_hidden=False,
+                    include_ignored=False,
+                )
                 files = [f for f in files if f.is_file()]
 
                 start_time = time.time()

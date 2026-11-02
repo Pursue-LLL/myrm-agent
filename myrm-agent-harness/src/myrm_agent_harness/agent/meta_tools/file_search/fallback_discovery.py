@@ -1,18 +1,21 @@
-"""Fallback candidate discovery for file search tools.
+"""Candidate discovery policy and Python-tier discovery for file search tools.
 
 [INPUT]
 - subprocess (POS: git capability probe and git-aware file listing)
 - os.walk (POS: bounded filesystem traversal fallback)
-- pathlib::Path (POS: path normalization and pattern matching)
+- pathlib::Path (POS: path normalization)
+- glob_match::glob_matches (POS: shared glob semantics for the ripgrep and Python tiers)
 
 [OUTPUT]
 - collect_candidate_files: Consistent fallback candidate list for `glob_tool` and `grep_tool`
 - is_hidden_path: Hidden-path policy helper
+- VCS_EXCLUDE_GLOB: ripgrep ``--glob`` that keeps version-control internals out of every listing
 
 [POS]
-Shared fallback discovery layer for file-search tools. Keeps no-ripgrep behavior
-bounded and predictable with git-aware ignore handling where available and
-root-level ignore files in non-git directories.
+Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control
+directories are never listed; ignore files apply unless the caller opts out) and implements it for the
+Python tier: git-aware listing where available, root-level ignore files in non-git directories,
+bounded traversal.
 """
 
 from __future__ import annotations
@@ -24,19 +27,23 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
+from .glob_match import glob_matches, is_match_all
+
 if TYPE_CHECKING:
     from pathspec import PathSpec
     from pathspec.pattern import Pattern
+
+# Version-control internals hold no searchable project content, so no listing includes them,
+# not even when the caller asks for ignored files.
+_VCS_DIR_NAMES = frozenset({".git", ".hg", ".svn", ".bzr", ".jj", ".sl"})
+VCS_EXCLUDE_GLOB = "!{" + ",".join(sorted(_VCS_DIR_NAMES)) + "}"
 
 # Directories skipped while assembling search candidates. A skip here costs
 # search recall only, so this list may be broader than a security sweep's.
 # ``core.security.path.pattern.PRUNED_DIR_NAMES`` is deliberately separate:
 # skipping a directory there would leave protected files uncovered.
-_DEFAULT_PRUNED_DIR_NAMES = frozenset(
+_DEFAULT_PRUNED_DIR_NAMES = _VCS_DIR_NAMES | frozenset(
     {
-        ".git",
-        ".hg",
-        ".svn",
         "node_modules",
         ".next",
         "dist",
@@ -53,13 +60,13 @@ _ROOT_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".fdignore", ".rgignore")
 
 
 def _pattern_matches(path: Path, root: Path, file_pattern: str) -> bool:
-    if file_pattern == "**/*":
+    if is_match_all(file_pattern):
         return True
     try:
         rel_path = path.relative_to(root)
     except ValueError:
         rel_path = path
-    return rel_path.match(file_pattern) or path.match(file_pattern)
+    return glob_matches(rel_path.as_posix(), file_pattern)
 
 
 def is_hidden_path(path: Path, root: Path) -> bool:
@@ -188,7 +195,7 @@ def collect_candidate_files(
             hidden_filtered_dirs = [d for d in dirnames if not d.startswith(".")]
 
         if include_ignored:
-            dirnames[:] = hidden_filtered_dirs
+            dirnames[:] = [d for d in hidden_filtered_dirs if d not in _VCS_DIR_NAMES]
         else:
             visible_dirs = [d for d in hidden_filtered_dirs if d not in _DEFAULT_PRUNED_DIR_NAMES]
             if root_ignore_spec is not None:

@@ -8,7 +8,9 @@
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - toolkits.storage.base::StorageProvider (POS: 存储协议/接口)
-- fallback_discovery::collect_candidate_files (POS: 无 ripgrep 时的候选文件发现与 git-aware ignore 策略)
+- fallback_discovery::collect_candidate_files, VCS_EXCLUDE_GLOB (POS: 候选文件发现策略：Python 档发现 + 两档共用的版本控制目录排除)
+- glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
+- _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 
 [OUTPUT]
 - GlobInput: Glob 工具输入参数模型
@@ -16,13 +18,15 @@
 
 [POS]
 File search tool (Claude Code compatible). Searches for files using glob patterns (* and **) with recursive search, exclusion patterns, resource limits, and audit logging.
+The ripgrep tier only enumerates files (ignore rules applied by ripgrep); matching uses the same glob semantics as the Python tier.
 
 """
 
 from __future__ import annotations
 
-import contextlib
+import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,15 +39,63 @@ from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executo
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
-from .fallback_discovery import collect_candidate_files
+from ._rg_runner import run_rg
+from .fallback_discovery import VCS_EXCLUDE_GLOB, collect_candidate_files
+from .glob_match import compile_glob
 from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
 if TYPE_CHECKING:
+    import re
+
     from langchain_core.tools import BaseTool
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _list_files_with_ripgrep(
+    search_root: Path,
+    pattern: re.Pattern[str],
+    *,
+    include_ignored: bool,
+    limit: int,
+    timeout_seconds: float,
+) -> list[Path]:
+    """List files under ``search_root`` whose root-relative path matches ``pattern``.
+
+    ripgrep only enumerates (``--files``); the pattern is applied here so ``--glob``'s rule of overriding
+    ignore and hidden filters cannot leak ignored directories into match-all patterns like ``*``.
+    """
+    cmd = [
+        "rg",
+        "--files",
+        "--color=never",
+        "--hidden",
+        "--no-require-git",
+        "--no-messages",
+        "--glob",
+        VCS_EXCLUDE_GLOB,
+    ]
+    if include_ignored:
+        cmd.append("--no-ignore")
+    cmd.extend(["--", "."])
+
+    files: list[Path] = []
+
+    def _collect(raw_line: bytes) -> bool:
+        relative = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+        if os.sep != "/":
+            relative = relative.replace(os.sep, "/")
+        relative = relative.removeprefix("./")
+        if pattern.fullmatch(relative) is not None:
+            files.append(search_root / relative)
+        return len(files) >= limit
+
+    result = await run_rg(cmd, cwd=search_root, timeout_seconds=timeout_seconds, on_line=_collect)
+    if result.failed:
+        logger.warning(f"ripgrep files search failed: {result.stderr}")
+    return files
 
 
 class GlobInput(BaseModel):
@@ -206,7 +258,13 @@ def create_glob_tool(
                     f"SECURITY AUDIT: glob_tool - pattern={pattern}, path={path}, include_ignored={include_ignored}"
                 )
 
-            import asyncio
+            try:
+                compiled_pattern = compile_glob(pattern)
+            except ValueError as e:
+                raise ToolError(
+                    message=f"Invalid pattern '{pattern}': {e}",
+                    user_hint=f"The glob pattern '{pattern}' is invalid. Use patterns like '*.py', '**/*.js', etc.",
+                ) from e
 
             from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import _has_ripgrep
 
@@ -215,76 +273,26 @@ def create_glob_tool(
 
             if _has_ripgrep():
                 try:
-                    cmd = ["rg", "--files", "--color=never", "--hidden"]
-                    if include_ignored:
-                        cmd.append("--no-ignore")
-                    cmd.extend(["--glob", pattern])
-                    cmd.append("--")
-                    cmd.append(str(search_path_obj))
-
-                    proc = await asyncio.create_subprocess_exec(
-                        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                    files = await _list_files_with_ripgrep(
+                        search_path_obj,
+                        compiled_pattern,
+                        include_ignored=include_ignored,
+                        limit=io_cfg.max_search_results,
+                        timeout_seconds=io_cfg.search_timeout_seconds,
                     )
-
-                    stdout_pipe, stderr_pipe = proc.stdout, proc.stderr
-                    if stdout_pipe is None or stderr_pipe is None:
-                        raise RuntimeError("ripgrep pipes were not created")
-                    stderr_data = bytearray()
-
-                    async def _read_stderr() -> None:
-                        while True:
-                            chunk = await stderr_pipe.read(4096)
-                            if not chunk:
-                                break
-                            stderr_data.extend(chunk)
-
-                    async def _read_lines() -> None:
-                        while True:
-                            line = await stdout_pipe.readline()
-                            if not line:
-                                break
-                            files.append(Path(line.decode("utf-8", errors="replace").strip()))
-                            if len(files) >= io_cfg.max_search_results:
-                                with contextlib.suppress(ProcessLookupError):
-                                    proc.terminate()
-                                break
-                        await proc.wait()
-
-                    await asyncio.wait_for(
-                        asyncio.gather(_read_lines(), _read_stderr()), timeout=io_cfg.search_timeout_seconds
-                    )
-
-                    # Ignore non-zero exit codes if we terminated it early
-                    if proc.returncode not in (0, 1, -15, 143) and len(files) < io_cfg.max_search_results:
-                        logger.warning(f"ripgrep files search failed: {stderr_data.decode('utf-8', errors='replace')}")
-
                     used_ripgrep = True
-                except (TimeoutError, Exception) as e:
-                    logger.warning(f"ripgrep files search error: {e}, falling back to rglob")
-                    with contextlib.suppress(ProcessLookupError, AttributeError):
-                        proc.terminate()
+                except Exception as e:
+                    logger.warning(f"ripgrep files search error: {e!r}, falling back to Python discovery")
 
             if not used_ripgrep:
-                # Fallback to Python discovery with bounded candidate scan.
-                try:
-                    if "\x00" in pattern:
-                        raise ValueError("NUL byte is not allowed in glob patterns")
-                    _ = Path("validation.txt").match(pattern)
-                    files = await asyncio.to_thread(
-                        collect_candidate_files,
-                        search_root=search_path_obj,
-                        file_pattern=pattern,
-                        max_files=io_cfg.max_search_results,
-                        include_hidden=True,
-                        include_ignored=include_ignored,
-                    )
-
-                except (ValueError, OSError) as e:
-                    # 无效的 pattern（如包含非法字符）
-                    raise ToolError(
-                        message=f"Invalid pattern '{pattern}': {e}",
-                        user_hint=f"The glob pattern '{pattern}' is invalid. Use patterns like '*.py', '**/*.js', etc.",
-                    ) from e
+                files = await asyncio.to_thread(
+                    collect_candidate_files,
+                    search_root=search_path_obj,
+                    file_pattern=pattern,
+                    max_files=io_cfg.max_search_results,
+                    include_hidden=True,
+                    include_ignored=include_ignored,
+                )
 
             result_limited = len(files) >= io_cfg.max_search_results
             if result_limited:

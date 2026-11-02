@@ -1,11 +1,6 @@
 [
   {
     "present": true,
-    "symbol": "FilesystemFileSearchMiddleware",
-    "type": "class"
-  },
-  {
-    "present": true,
     "symbol": "PlanConfirmMiddleware",
     "type": "class"
   },
