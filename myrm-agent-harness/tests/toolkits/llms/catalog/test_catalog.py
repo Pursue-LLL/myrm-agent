@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from myrm_agent_harness.toolkits.llms.catalog import (
     cost_per_token,
+    is_deprecated,
     known_models,
+    model_facts,
     model_info,
     register_model,
     store,
@@ -50,12 +54,79 @@ class TestLookup:
         assert model_info("no-such-model-anywhere") is None
         assert model_info("vendor-a/no-such-model-anywhere") is None
 
+    def test_a_spelling_that_differs_only_by_case_finds_the_entry_and_an_exact_spelling_wins(self) -> None:
+        register_model("Vendor-C/Model-Mixed", {"provider": "vendor-c", "max_input_tokens": 3})
+        assert (model_info("vendor-c/model-mixed") or {})["max_input_tokens"] == 3
+        assert (model_info("VENDOR-C/MODEL-MIXED") or {})["max_input_tokens"] == 3
+        register_model("vendor-c/model-mixed", {"provider": "vendor-c", "max_input_tokens": 4})
+        assert (model_info("vendor-c/model-mixed") or {})["max_input_tokens"] == 4
+        assert (model_info("Vendor-C/Model-Mixed") or {})["max_input_tokens"] == 3
+
+    def test_a_mixed_case_snapshot_key_resolves_from_any_spelling(self) -> None:
+        key = next(name for name in known_models() if name != name.lower())
+        assert model_info(key.lower()) is not None
+        assert model_info(key.upper()) is not None
+
+
+class TestFacts:
+    """``model_facts`` widens the lookup for facts of the model itself; ``model_info`` stays provider-strict."""
+
+    def test_a_gateway_route_resolves_to_the_model_behind_it(self) -> None:
+        register_model("model-g", {"provider": "vendor-a", "max_input_tokens": 9})
+        assert model_info("gateway/model-g") is None
+        assert (model_facts("gateway/model-g") or {})["max_input_tokens"] == 9
+        assert (model_facts("gateway/vendor-b/model-g") or {})["max_input_tokens"] == 9
+
+    def test_each_leading_segment_is_dropped_in_turn_before_giving_up(self) -> None:
+        register_model("vendor-a/model-d", {"provider": "vendor-a", "max_input_tokens": 5})
+        assert (model_facts("hub/vendor-a/model-d") or {})["max_input_tokens"] == 5
+
+    def test_a_strict_hit_beats_the_stripped_route(self) -> None:
+        register_model("gateway/model-g", {"provider": "gateway", "max_input_tokens": 1})
+        register_model("model-g", {"provider": "vendor-a", "max_input_tokens": 9})
+        assert (model_facts("gateway/model-g") or {})["max_input_tokens"] == 1
+
+    def test_an_unknown_or_empty_id_has_no_facts(self) -> None:
+        assert model_facts("") is None
+        assert model_facts("gateway/no-such-model-anywhere") is None
+
 
 class TestRegistration:
     def test_a_registration_beats_the_snapshot_and_is_listed(self) -> None:
         register_model("gpt-4o", {"provider": "openai", "input_cost_per_token": 1.0})
         assert (model_info("gpt-4o") or {})["input_cost_per_token"] == 1.0
         assert known_models()["gpt-4o"]["input_cost_per_token"] == 1.0
+
+    def test_a_registration_keeps_the_limits_and_flags_it_does_not_state(self) -> None:
+        register_model("gpt-4o", {"provider": "openai", "input_cost_per_token": 1.0, "output_cost_per_token": 2.0})
+        info = model_info("gpt-4o") or {}
+        assert info["input_cost_per_token"] == 1.0
+        assert isinstance(info["max_input_tokens"], int) and info["max_input_tokens"] > 0
+        assert info["supports_vision"] is True
+
+    def test_a_registration_under_a_route_id_inherits_the_entry_its_provider_owns(self) -> None:
+        register_model(
+            "openai/gpt-4o", {"provider": "openai", "input_cost_per_token": 1.0, "output_cost_per_token": 2.0}
+        )
+        routed = model_info("openai/gpt-4o") or {}
+        assert routed["input_cost_per_token"] == 1.0
+        assert isinstance(routed["max_input_tokens"], int) and routed["max_input_tokens"] > 0
+        assert (model_info("gpt-4o") or {})["input_cost_per_token"] != 1.0
+
+    def test_stated_prices_replace_the_catalogs_whole_price_group(self) -> None:
+        assert "cache_read_input_token_cost" in (model_info("claude-sonnet-4-5") or {})
+        register_model(
+            "claude-sonnet-4-5",
+            {"provider": "anthropic", "input_cost_per_token": 1.0, "output_cost_per_token": 2.0},
+        )
+        stated = {field for field in (model_info("claude-sonnet-4-5") or {}) if "_cost" in field}
+        assert stated == {"input_cost_per_token", "output_cost_per_token"}
+
+    def test_registering_again_starts_from_the_snapshot_and_never_accumulates(self) -> None:
+        priced = {"provider": "vendor-a", "input_cost_per_token": 1.0, "output_cost_per_token": 1.0}
+        register_model("vendor-a/again", {**priced, "max_input_tokens": 5})
+        register_model("vendor-a/again", priced)
+        assert "max_input_tokens" not in (model_info("vendor-a/again") or {})
 
     def test_the_stored_entry_is_a_copy(self) -> None:
         info: dict[str, object] = {"provider": "vendor-a", "max_tokens": 3}
@@ -64,9 +135,32 @@ class TestRegistration:
         assert (model_info("vendor-a/copy") or {})["max_tokens"] == 3
 
 
+class TestDeprecation:
+    def test_an_entry_is_deprecated_from_the_day_its_date_comes(self) -> None:
+        today = date(2026, 1, 1)
+        assert is_deprecated({"deprecation_date": "2026-01-01"}, today=today)
+        assert is_deprecated({"deprecation_date": "2025-12-31"}, today=today)
+        assert not is_deprecated({"deprecation_date": "2026-01-02"}, today=today)
+
+    def test_an_absent_or_malformed_date_never_deprecates(self) -> None:
+        assert not is_deprecated({})
+        assert not is_deprecated({"deprecation_date": "soon"})
+        assert not is_deprecated({"deprecation_date": 20260101})
+
+
 class TestSnapshot:
-    def test_it_is_bundled_and_large(self) -> None:
-        assert len(known_models()) > 1000
+    def test_it_is_bundled_and_never_shrinks_below_what_earlier_syncs_collected(self) -> None:
+        assert len(known_models()) >= 4500
+
+    @pytest.mark.parametrize(
+        "model",
+        ["claude-opus-4-1", "claude-3-haiku-20240307", "command-r-plus", "chatgpt-4o-latest", "gpt-4-turbo-preview"],
+    )
+    def test_models_upstream_no_longer_lists_but_providers_still_serve_keep_their_facts(self, model: str) -> None:
+        info = model_info(model)
+        assert info is not None
+        assert isinstance(info["input_cost_per_token"], float) and info["input_cost_per_token"] > 0
+        assert isinstance(info["max_input_tokens"], int) and info["max_input_tokens"] > 0
 
     @pytest.mark.parametrize("model", ["gpt-4o", "claude-sonnet-4-5", "deepseek-chat", "gemini-2.5-pro"])
     def test_flagship_models_carry_prices_and_a_window(self, model: str) -> None:

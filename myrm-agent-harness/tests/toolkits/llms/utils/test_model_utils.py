@@ -51,6 +51,12 @@ class TestGetModelContextLimit:
         llm.model = "vendor/windowed-model"
         assert get_model_context_limit(llm) == 128000
 
+    def test_a_gateway_route_reads_the_window_of_the_model_behind_it(self) -> None:
+        register_model("routed-model", {"provider": "vendor", "max_input_tokens": 64000})
+        llm = MagicMock(spec=[])
+        llm.model_name = "gateway/routed-model"
+        assert get_model_context_limit(llm) == 64000
+
     def test_unknown_model_returns_none(self) -> None:
         llm = MagicMock(spec=[])
         llm.model_name = "vendor/unlisted-model"
@@ -97,6 +103,10 @@ class TestGetModelOutputCeiling:
         register_model("vendor/ceiling-model", {"max_tokens": 200_000, "max_output_tokens": 64_000})
         assert get_model_output_ceiling("vendor/ceiling-model") == 64_000
 
+    def test_a_gateway_route_reads_the_ceiling_of_the_model_behind_it(self) -> None:
+        register_model("routed-model", {"provider": "vendor", "max_output_tokens": 32_000})
+        assert get_model_output_ceiling("gateway/routed-model") == 32_000
+
     def test_unmapped_model_has_no_ceiling(self) -> None:
         assert get_model_output_ceiling("vendor/unmapped-model") is None
 
@@ -109,7 +119,7 @@ class TestGetModelOutputCeiling:
         def _unexpected(_model: str) -> None:
             raise AssertionError("the table must not be consulted for an empty model name")
 
-        monkeypatch.setattr(model_utils, "model_info", _unexpected)
+        monkeypatch.setattr(model_utils, "model_facts", _unexpected)
         assert get_model_output_ceiling("") is None
 
 

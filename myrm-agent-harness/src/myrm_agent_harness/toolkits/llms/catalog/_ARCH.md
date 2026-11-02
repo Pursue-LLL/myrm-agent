@@ -4,15 +4,16 @@
 
 Model catalog: context windows, output ceilings, per-token prices and capability flags per model. The data is a trimmed
 snapshot of the community-maintained model price table, bundled with the package and loaded once on first use;
-`scripts/sync_model_catalog.py` refreshes it from upstream. Runtime registrations (user-defined models, corrected prices)
-sit on top of the snapshot.
+`scripts/sync_model_catalog.py` merges upstream into it (a union by key: a model upstream stops listing stays, because
+providers keep serving it). Runtime registrations (user-defined models, corrected prices) overlay the snapshot entry the
+id resolves to: limits and flags carry over, stated prices replace the whole price group.
 
 ## File Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `__init__.py` | Package | Exports `model_info`, `register_model`, `known_models`, `cost_per_token`, `supports_web_search` | — |
-| `store.py` | Core | Snapshot loading, runtime registrations, lookup: an exact key wins, otherwise provider-strict (`provider/model` never resolves to another provider's entry) | ✅ |
+| `__init__.py` | Package | Exports `model_info`, `model_facts`, `register_model`, `known_models`, `is_deprecated`, `cost_per_token`, `supports_web_search` | — |
+| `store.py` | Core | Snapshot loading, runtime registrations, lookup: case-insensitive, an exact spelling wins, otherwise provider-strict (`provider/model` never resolves to another provider's entry); `model_facts` widens it for window/flag questions by dropping gateway segments; `register_model` overlays; `is_deprecated` reads `deprecation_date` | ✅ |
 | `pricing.py` | Core | `cost_per_token`: cache-aware cost (own rates for cache reads and writes, higher tier above 200k prompt tokens), `None` for an unpriced model | ✅ |
 | `data/model_catalog.json` | Data | The bundled snapshot; every entry names its owning provider under `provider` | — |
 

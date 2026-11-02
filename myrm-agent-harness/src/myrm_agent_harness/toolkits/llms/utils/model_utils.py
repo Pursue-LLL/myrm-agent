@@ -2,7 +2,7 @@
 
 [INPUT]
 - langchain_core.language_models.BaseChatModel (POS: LangChain LLM base class)
-- toolkits.llms.catalog::model_info (POS: context window and output ceiling per model)
+- toolkits.llms.catalog::model_facts (POS: context window and output ceiling per model, also behind a gateway route)
 
 [OUTPUT]
 - get_model_context_limit(): best-effort extraction of model context window size
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
-from myrm_agent_harness.toolkits.llms.catalog import model_info
+from myrm_agent_harness.toolkits.llms.catalog import model_facts
 
 
 def _positive_int(value: object) -> int | None:
@@ -50,7 +50,7 @@ def get_model_context_limit(llm: BaseChatModel) -> int | None:
     if not isinstance(model_name, str) or not model_name:
         return None
 
-    return _positive_int((model_info(model_name) or {}).get("max_input_tokens"))
+    return _positive_int((model_facts(model_name) or {}).get("max_input_tokens"))
 
 
 def get_model_output_ceiling(model_name: str) -> int | None:
@@ -61,7 +61,7 @@ def get_model_output_ceiling(model_name: str) -> int | None:
     """
     if not model_name:
         return None
-    return _positive_int((model_info(model_name) or {}).get("max_output_tokens"))
+    return _positive_int((model_facts(model_name) or {}).get("max_output_tokens"))
 
 
 def clamp_budget_to_model_ceiling(model_name: str, requested: int, *, accepted: int) -> int:
