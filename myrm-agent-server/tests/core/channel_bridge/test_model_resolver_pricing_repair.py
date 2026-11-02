@@ -8,6 +8,7 @@
 - 验证 register_custom_model_pricing 正确推断 provider 前缀（非固定 "custom"）
 - 验证 cache_read_input_token_cost 精确换算
 - 验证限定名与裸模型名双向注册到模型目录
+- 验证给目录内模型填自定义单价不会抹掉它的窗口与视觉能力；窗口只登记用户明确填写的值，不虚构
 
 [POS]
 tests/core/channel_bridge/test_model_resolver_pricing_repair.py 镜像单元测试。
@@ -92,3 +93,34 @@ def test_register_custom_model_pricing_empty_or_zero() -> None:
         }
     }
     assert register_custom_model_pricing(empty_dict) == 0
+
+
+def _proxy_pricing(model: str, **info: object) -> dict[str, object]:
+    return {
+        "providers": [{"id": "myproxy", "providerType": "openai-like"}],
+        "customModelInfo": {
+            f"myproxy/{model}": {"input_cost_per_million": 9.0, "output_cost_per_million": 27.0, **info},
+        },
+    }
+
+
+def test_custom_price_for_a_catalog_model_keeps_its_window_and_vision() -> None:
+    """给代理里的 gpt-4o 填自定义单价：只换价格，窗口与视觉能力仍来自目录（曾被整条替换抹掉）。"""
+    official_window = (model_info("gpt-4o") or {})["max_input_tokens"]
+
+    assert register_custom_model_pricing(_proxy_pricing("gpt-4o")) == 1
+
+    for key in ("openai/gpt-4o", "gpt-4o"):
+        entry = model_info(key) or {}
+        assert entry["input_cost_per_token"] == pytest.approx(9.0 / 1_000_000)
+        assert entry["max_input_tokens"] == official_window
+        assert entry["supports_vision"] is True
+
+
+def test_a_stated_window_is_registered_as_the_window_and_an_unstated_one_is_not_invented() -> None:
+    register_custom_model_pricing(_proxy_pricing("windowed-custom", max_input_tokens=64_000))
+    register_custom_model_pricing(_proxy_pricing("windowless-custom"))
+
+    assert (model_info("openai/windowed-custom") or {})["max_input_tokens"] == 64_000
+    windowless = model_info("openai/windowless-custom") or {}
+    assert "max_input_tokens" not in windowless and "max_tokens" not in windowless

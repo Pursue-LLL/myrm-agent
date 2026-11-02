@@ -30,7 +30,6 @@ export interface ModelCapabilities {
   supports_prompt_caching: boolean;
   input_cost_per_token: number | null;
   output_cost_per_token: number | null;
-  max_tokens: number | null;
   max_input_tokens: number | null;
   max_output_tokens: number | null;
 }
@@ -435,7 +434,6 @@ const defaultCapabilities: ModelCapabilities = {
   supports_prompt_caching: false,
   input_cost_per_token: null,
   output_cost_per_token: null,
-  max_tokens: null,
   max_input_tokens: null,
   max_output_tokens: null,
 };

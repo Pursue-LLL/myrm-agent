@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from myrm_agent_harness.toolkits.llms.catalog import register_model, store
+from myrm_agent_harness.toolkits.llms.catalog import known_models, register_model, store
 
 from app.core.channel_bridge.model_resolver import (
     _build_platform_headers,
@@ -62,9 +62,23 @@ class TestResolveModelMaxInputTokens:
         register_model("vendor/windowed-model", {"max_input_tokens": 200_000})
         assert _resolve_model_max_input_tokens("vendor/windowed-model", None) == 200_000
 
-    def test_catalog_max_tokens_fallback(self) -> None:
+    def test_a_legacy_max_tokens_entry_has_no_window(self) -> None:
+        """``max_tokens`` is the output budget for part of the catalog, so it is never read as a context window."""
         register_model("vendor/legacy-model", {"max_tokens": 16_384})
-        assert _resolve_model_max_input_tokens("vendor/legacy-model", None) == 16_384
+        assert _resolve_model_max_input_tokens("vendor/legacy-model", None) is None
+
+    def test_a_mixed_case_catalog_key_resolves_from_any_spelling(self) -> None:
+        key, entry = next(
+            (name, info)
+            for name, info in known_models().items()
+            if name != name.lower() and isinstance(info.get("max_input_tokens"), int)
+        )
+        assert _resolve_model_max_input_tokens(key, None) == entry["max_input_tokens"]
+        assert _resolve_model_max_input_tokens(key.lower(), None) == entry["max_input_tokens"]
+
+    def test_a_gateway_route_resolves_to_the_model_behind_it(self) -> None:
+        register_model("routed-windowed-model", {"provider": "vendor", "max_input_tokens": 96_000})
+        assert _resolve_model_max_input_tokens("my-gateway/routed-windowed-model", None) == 96_000
 
     def test_unknown_model_returns_none(self) -> None:
         assert _resolve_model_max_input_tokens("unknown/model", None) is None

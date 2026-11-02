@@ -194,7 +194,6 @@ export default function ModelPickerPopover({
           supports_prompt_caching: false,
           input_cost_per_token: local.input_cost_per_million || null,
           output_cost_per_token: local.output_cost_per_million || null,
-          max_tokens: null,
           max_input_tokens: local.max_input_tokens || null,
           max_output_tokens: null,
         };

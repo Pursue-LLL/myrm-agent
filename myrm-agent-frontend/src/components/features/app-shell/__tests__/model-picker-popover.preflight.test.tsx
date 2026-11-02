@@ -115,7 +115,6 @@ const caps: ModelCapabilities = {
   supports_prompt_caching: false,
   input_cost_per_token: null,
   output_cost_per_token: null,
-  max_tokens: null,
   max_input_tokens: 16000,
   max_output_tokens: null,
 };

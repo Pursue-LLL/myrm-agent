@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import secure_request
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
-from myrm_agent_harness.toolkits.llms.catalog import known_models, model_info
+from myrm_agent_harness.toolkits.llms.catalog import is_deprecated, known_models, model_facts
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
@@ -438,34 +438,6 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     return success_response(data=result.model_dump())
 
 
-def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
-    """尝试获取模型信息（优先精确匹配，未命中则剥离网关复合前缀回退查询）
-
-    Args:
-        model: 模型名称
-
-    Returns:
-        模型信息字典，如果找不到则返回 None
-    """
-    model_clean = model.lower()
-
-    if (info := model_info(model_clean)) is not None:
-        return dict(info)
-
-    if "/" in model_clean:
-        candidates: list[str] = []
-        parts = model_clean.split("/")
-        if len(parts) > 2:
-            candidates.append("/".join(parts[1:]))
-        candidates.append(parts[-1])
-
-        for cand in candidates:
-            if (info := model_info(cand)) is not None:
-                return dict(info)
-
-    return None
-
-
 class ModelCapabilities(BaseModel):
     """模型能力信息"""
 
@@ -476,7 +448,6 @@ class ModelCapabilities(BaseModel):
     supports_prompt_caching: bool = Field(default=False, description="是否支持提示词缓存")
     input_cost_per_token: float | None = Field(default=None, description="每个输入 token 的成本（美元）")
     output_cost_per_token: float | None = Field(default=None, description="每个输出 token 的成本（美元）")
-    max_tokens: int | None = Field(default=None, description="最大 token 数（输入+输出）")
     max_input_tokens: int | None = Field(default=None, description="最大输入 token 数")
     max_output_tokens: int | None = Field(default=None, description="最大输出 token 数")
 
@@ -568,7 +539,6 @@ def _build_capabilities(info: Mapping[str, object]) -> ModelCapabilities:
         supports_prompt_caching=bool(info.get("supports_prompt_caching")),
         input_cost_per_token=info.get("input_cost_per_token"),  # type: ignore[arg-type]
         output_cost_per_token=info.get("output_cost_per_token"),  # type: ignore[arg-type]
-        max_tokens=info.get("max_tokens"),  # type: ignore[arg-type]
         max_input_tokens=info.get("max_input_tokens"),  # type: ignore[arg-type]
         max_output_tokens=info.get("max_output_tokens"),  # type: ignore[arg-type]
     )
@@ -587,8 +557,8 @@ def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
     candidates: list[ModelCandidate] = []
 
     for model_key, entry in known_models().items():
-        # 检查模型键是否包含搜索的模型名
-        if model_name_lower in model_key.lower():
+        # 已过弃用日期的条目仍可查事实，但不作为候选推荐给用户
+        if model_name_lower in model_key.lower() and not is_deprecated(entry):
             # 提取提供商名称（键的第一部分）
             provider = model_key.split("/")[0] if "/" in model_key else "unknown"
 
@@ -716,7 +686,7 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
     """
     获取单个模型的能力信息
 
-    只有原始模型名精确匹配时返回 found=true，否则返回候选列表供用户选择
+    目录命中（大小写不敏感；网关复合名回退到其背后的模型）时返回 found=true，否则返回候选列表供用户选择
 
     Args:
         request: 包含模型名称的请求体
@@ -724,14 +694,14 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
     Returns:
         ModelInfoResponse: found=true 时返回 capabilities，否则返回 candidates 候选列表
     """
-    # 1. 首先尝试精确匹配（只用原始名称，不做前缀转换）
-    info = _try_get_model_info_exact(request.model)
+    # 1. 先查目录事实（大小写不敏感，网关复合名回退到其背后的模型）
+    info = model_facts(request.model)
     if info:
         capabilities = _build_capabilities(info)
         response = ModelInfoResponse(found=True, capabilities=capabilities)
         return success_response(data=response.model_dump())
 
-    # 2. 精确匹配失败，进行模糊搜索
+    # 2. 目录未命中，进行名称搜索
     # 提取模型名称部分（去除可能的提供商前缀）
     model_name = request.model.split("/")[-1] if "/" in request.model else request.model
 
@@ -746,7 +716,7 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
 @router.post("/model-info/batch", response_model=StandardSuccessResponse)
 async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
     """
-    批量获取模型的能力信息（精确匹配）
+    批量获取模型的能力信息（目录查找，规则同 /model-info）
 
     Args:
         request: 包含模型名称列表的请求体
@@ -757,7 +727,7 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
     result: dict[str, dict[str, object]] = {}
 
     for model in request.models:
-        info = _try_get_model_info_exact(model)
+        info = model_facts(model)
         if info:
             capabilities = _build_capabilities(info)
             result[model] = capabilities.model_dump()
@@ -779,14 +749,8 @@ def _resolve_target_max_input_tokens(
     """
     if isinstance(fallback, int) and fallback > 0:
         return fallback
-    info = _try_get_model_info_exact(model)
-    if not info:
-        return None
-    for key in ("max_input_tokens", "max_tokens"):
-        value = info.get(key)
-        if isinstance(value, (int, float)) and value > 0:
-            return int(value)
-    return None
+    window = (model_facts(model) or {}).get("max_input_tokens")
+    return int(window) if isinstance(window, (int, float)) and window > 0 else None
 
 
 @router.post("/model-switch-preflight", response_model=StandardSuccessResponse)

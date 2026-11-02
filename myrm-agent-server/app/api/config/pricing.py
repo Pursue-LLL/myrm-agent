@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.llms.catalog::known_models, model_info (POS: 模型目录——价格、窗口与能力的单一事实源)
+- myrm_agent_harness.toolkits.llms.catalog::model_facts (POS: 模型目录——价格、窗口与能力的单一事实源；网关复合名回退到其背后的模型)
 
 [OUTPUT]
 - pricing_router: FastAPI APIRouter 实例，挂载 GET /model-pricing 端点
@@ -16,7 +16,7 @@ from collections.abc import Mapping
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from myrm_agent_harness.toolkits.llms.catalog import known_models, model_info
+from myrm_agent_harness.toolkits.llms.catalog import model_facts
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -42,50 +42,28 @@ class ModelPricingResponse(BaseModel):
     models: dict[str, ModelPricingItem] = Field(default_factory=dict, description="模型单价字典，key 为模型名")
 
 
-# 常见主流模型标杆，用于无特定参数时的默认对比视图
+# 常见主流模型标杆，用于无特定参数时的默认对比视图（均须能在模型目录中精确解析且未过弃用日期，
+# 由 tests/api/config/test_model_pricing.py 守护）
 DEFAULT_REPRESENTATIVE_MODELS: tuple[str, ...] = (
-    "claude-3-5-sonnet-20241022",
-    "claude-3-5-haiku-20241022",
-    "claude-3-opus-20240229",
-    "gpt-4o",
+    "claude-opus-4-7",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5",
+    "gpt-5.5",
+    "gpt-5.4",
+    "gpt-4.1",
     "gpt-4o-mini",
-    "o1",
-    "o3-mini",
-    "deepseek-chat",
-    "deepseek-reasoner",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "qwen-plus",
-    "qwen-max",
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "deepseek/deepseek-v4-pro",
+    "deepseek/deepseek-v4-flash",
+    "dashscope/qwen3.8-max",
 )
 
 
 def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
     """从模型目录中安全提取四维单价并换算为 USD / 1M tokens。"""
     try:
-        catalog = known_models()
-        cost_dict: Mapping[str, object] | None = catalog.get(model_name) or model_info(model_name)
-
-        if not cost_dict:
-            # 常见 Provider 别名候选
-            candidates = [
-                f"anthropic/{model_name}",
-                f"openai/{model_name}",
-                f"google/{model_name}",
-            ]
-            for cand in candidates:
-                if cand in catalog:
-                    cost_dict = catalog[cand]
-                    break
-
-        if not cost_dict:
-            # 模糊前缀/子串匹配（例如匹配到 anthropic.claude-3-5-sonnet-20241022-v2:0）
-            normalized = model_name.strip().lower()
-            for key, val in catalog.items():
-                if normalized in key.lower():
-                    cost_dict = val
-                    break
-
+        cost_dict: Mapping[str, object] | None = model_facts(model_name)
         if not cost_dict:
             return None
 
@@ -93,9 +71,11 @@ def extract_model_pricing_item(model_name: str) -> ModelPricingItem | None:
         multiplier = 1_000_000.0
 
         raw_in = cost_dict.get("input_cost_per_token")
-        in_cost = float(raw_in) * multiplier if isinstance(raw_in, (int, float)) else 0.0
-
         raw_out = cost_dict.get("output_cost_per_token")
+        if not isinstance(raw_in, (int, float)) and not isinstance(raw_out, (int, float)):
+            # 目录收录了模型但没有标价：展示 $0.00 会被误读为免费
+            return None
+        in_cost = float(raw_in) * multiplier if isinstance(raw_in, (int, float)) else 0.0
         out_cost = float(raw_out) * multiplier if isinstance(raw_out, (int, float)) else 0.0
 
         raw_cache_read = cost_dict.get("cache_read_input_token_cost")
@@ -143,20 +123,10 @@ async def get_model_pricing(
     result: dict[str, ModelPricingItem] = {}
 
     if model:
-        # 查询特定模型
+        # 查询特定模型：目录未收录则返回空，不做子串猜测（猜错的单价比没有单价更糟）
         item = extract_model_pricing_item(model.strip())
         if item:
             result[item.model] = item
-        else:
-            # 尝试根据前缀或别名在模型目录中匹配
-            normalized = model.strip().lower()
-            for key in known_models():
-                if normalized in key.lower():
-                    match_item = extract_model_pricing_item(key)
-                    if match_item:
-                        result[key] = match_item
-                        if len(result) >= 5:
-                            break
     else:
         # 默认返回代表性主流模型
         for rep_model in DEFAULT_REPRESENTATIVE_MODELS:

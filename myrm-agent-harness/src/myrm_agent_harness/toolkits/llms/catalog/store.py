@@ -20,7 +20,7 @@ order when two do). Beyond that ``model_info`` is provider-strict: ``provider/mo
 entry or to a bare entry owned by that same provider, never to another provider's price for a similarly named model; a
 bare id with a ``provider`` hint is resolved the same way when the id is not itself a key. ``model_facts`` adds one
 step for facts that belong to the model rather than the route (window, vision, reasoning): when the strict lookup
-finds nothing it drops the leading gateway segments one by one. Prices and routing decisions stay on ``model_info``.
+finds nothing it drops the leading gateway segments one by one. Billing and routing decisions stay on ``model_info``.
 
 A registration overlays the entry the snapshot resolves for that id: limits and capability flags it does not state
 carry over, while stated prices replace the catalog's whole price group, so an official cache or long-prompt rate
@@ -113,8 +113,9 @@ def model_info(model: str, provider: str | None = None) -> ModelInfo | None:
 def model_facts(model: str, provider: str | None = None) -> ModelInfo | None:
     """``model_info``, then the model itself behind a gateway route (``gateway/provider/model`` -> ``model``).
 
-    For questions whose answer belongs to the model, not to the route it is reached through. Never use it for a price
-    or a routing decision: a route the catalog does not list may bill differently from the model's own listing.
+    For questions whose answer belongs to the model, not to the route it is reached through. Never use it to bill a
+    call or to route one: a route the catalog does not list may bill differently from the model's own listing (a list
+    price shown to the user is fine; the cost engine labels such a price as an estimate).
     """
     if (info := model_info(model, provider)) is not None:
         return info

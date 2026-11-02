@@ -11,8 +11,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.llms.catalog import register_model
-from myrm_agent_harness.toolkits.llms.catalog import store as catalog_store
 from myrm_agent_harness.toolkits.llms.fallback.health_check import HealthProbeResult
 
 from tests.support.minimal_app import build_minimal_app
@@ -278,10 +276,10 @@ class TestModelInfoEndpoints:
         info = {
             "supports_vision": True,
             "supports_function_calling": True,
-            "max_tokens": 8192,
+            "max_input_tokens": 8192,
         }
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.model_facts",
             return_value=info,
         ):
             response = client.post(
@@ -307,7 +305,7 @@ class TestModelInfoEndpoints:
         )
         with (
             patch(
-                "app.api.integrations.llms._try_get_model_info_exact",
+                "app.api.integrations.llms.model_facts",
                 return_value=None,
             ),
             patch(
@@ -326,9 +324,9 @@ class TestModelInfoEndpoints:
 
     def test_model_info_batch_mixed(self, client: TestClient) -> None:
         """Batch lookup mixes exact matches and empty capability fallbacks."""
-        info = {"supports_vision": True, "max_tokens": 128000}
+        info = {"supports_vision": True, "max_input_tokens": 128000}
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.model_facts",
             side_effect=lambda model: info if model == "known" else None,
         ):
             response = client.post(
@@ -428,48 +426,15 @@ class TestSpeedTestStreamingPaths:
 
 
 class TestCatalogBackedHelpers:
-    """_try_get_model_info_exact and _search_models_by_name against the model catalog."""
-
-    @pytest.fixture(autouse=True)
-    def _isolated_registrations(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(catalog_store, "_REGISTERED", {})
-
-    def test_try_get_model_info_exact_returns_dict(self) -> None:
-        """An exact catalog key returns its entry as a plain dict."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        register_model("vendor/exact-model", {"max_tokens": 8192})
-
-        assert _try_get_model_info_exact("vendor/exact-model") == {"max_tokens": 8192}
-
-    def test_try_get_model_info_exact_is_case_insensitive(self) -> None:
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        register_model("vendor/exact-model", {"max_tokens": 8192})
-
-        assert _try_get_model_info_exact("Vendor/Exact-Model") == {"max_tokens": 8192}
-
-    def test_try_get_model_info_exact_strips_the_gateway_prefix(self) -> None:
-        """A gateway-composite id (gateway/provider/model) falls back to the provider's own entry."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        register_model("zai/glm-test-vision", {"supports_vision": True})
-
-        assert _try_get_model_info_exact("openrouter/zai/glm-test-vision") == {"supports_vision": True}
-
-    def test_try_get_model_info_exact_unknown_model_is_none(self) -> None:
-        """A model the catalog does not know degrades to None."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        assert _try_get_model_info_exact("nope/xyz-not-a-model") is None
+    """_search_models_by_name against the model catalog."""
 
     def test_search_models_by_name_builds_candidates(self) -> None:
         """Name search iterates the catalog and builds the candidate list."""
         from app.api.integrations.llms import _search_models_by_name
 
         fake_catalog = {
-            "openai/gpt-4o": {"max_tokens": 8192},
-            "anthropic/claude-3.5": {"max_tokens": 200000},
+            "openai/gpt-4o": {"max_input_tokens": 8192},
+            "anthropic/claude-3.5": {"max_input_tokens": 200000},
             "openai/other": {},
         }
         with patch("app.api.integrations.llms.known_models", return_value=fake_catalog):
@@ -477,14 +442,27 @@ class TestCatalogBackedHelpers:
         assert len(candidates) == 1
         assert candidates[0].model_key == "openai/gpt-4o"
         assert candidates[0].provider == "openai"
-        assert candidates[0].capabilities.max_tokens == 8192
+        assert candidates[0].capabilities.max_input_tokens == 8192
 
     def test_search_models_by_name_no_provider_prefix(self) -> None:
         """Keys without a provider prefix resolve to 'unknown'."""
         from app.api.integrations.llms import _search_models_by_name
 
-        with patch("app.api.integrations.llms.known_models", return_value={"plain-name": {"max_tokens": 4096}}):
+        with patch("app.api.integrations.llms.known_models", return_value={"plain-name": {"max_input_tokens": 4096}}):
             candidates = _search_models_by_name("plain")
         assert len(candidates) == 1
         assert candidates[0].provider == "unknown"
         assert candidates[0].model_key == "plain-name"
+
+    def test_search_models_by_name_skips_entries_past_their_deprecation_date(self) -> None:
+        """A retired model keeps answering fact lookups but is no longer offered as a candidate."""
+        from app.api.integrations.llms import _search_models_by_name
+
+        fake_catalog = {
+            "openai/plain-retired": {"deprecation_date": "2020-01-01"},
+            "openai/plain-upcoming": {"deprecation_date": "2999-01-01"},
+            "openai/plain-current": {},
+        }
+        with patch("app.api.integrations.llms.known_models", return_value=fake_catalog):
+            candidates = _search_models_by_name("plain")
+        assert [c.model_key for c in candidates] == ["openai/plain-upcoming", "openai/plain-current"]

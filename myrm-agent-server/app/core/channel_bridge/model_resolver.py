@@ -32,7 +32,7 @@ from myrm_agent_harness.agent.config.parsers import (
     to_route_model_id,
 )
 from myrm_agent_harness.api import ConfigIncompleteError
-from myrm_agent_harness.toolkits.llms.catalog import model_info, register_model
+from myrm_agent_harness.toolkits.llms.catalog import model_facts, register_model
 
 from app.core.wire.enrich import enrich_model_config
 
@@ -189,9 +189,11 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
         cost_entry: dict[str, object] = {
             "input_cost_per_token": float(input_cost_per_m) / 1_000_000,
             "output_cost_per_token": float(output_cost_per_m) / 1_000_000,
-            "max_tokens": info.get("max_input_tokens") or 128_000,
             "provider": inferred_provider,
         }
+        window = info.get("max_input_tokens")
+        if isinstance(window, (int, float)) and window > 0:
+            cost_entry["max_input_tokens"] = int(window)
 
         # 可选缓存读单价
         cache_read_m = info.get("cache_read_cost_per_million") or info.get("cache_cost_per_million")
@@ -591,16 +593,8 @@ def _resolve_model_max_input_tokens(
                     if isinstance(val, (int, float)) and val > 0:
                         return int(val)
 
-    info = model_info(model.lower())
-    if info:
-        max_input = info.get("max_input_tokens")
-        if isinstance(max_input, int) and max_input > 0:
-            return max_input
-        max_tokens = info.get("max_tokens")
-        if isinstance(max_tokens, int) and max_tokens > 0:
-            return max_tokens
-
-    return None
+    window = (model_facts(model) or {}).get("max_input_tokens")
+    return window if isinstance(window, int) and window > 0 else None
 
 
 def _lookup_custom_model_info(
@@ -627,10 +621,7 @@ def _lookup_custom_model_info(
 
 
 def _resolve_supports_vision_from_catalog(model: str) -> bool | None:
-    info = model_info(model.split("/", 1)[-1].lower())
-    if not info:
-        return None
-    vision = info.get("supports_vision")
+    vision = (model_facts(model) or {}).get("supports_vision")
     return vision if isinstance(vision, bool) else None
 
 

@@ -228,6 +228,13 @@ class TestCost:
         assert cost_per_token("vendor-a/priced", 10, 10) is None
         assert cost_per_token("no-such-model-anywhere", 10, 10) is None
 
+    def test_a_gateway_route_is_never_billed_at_the_price_of_the_model_behind_it(self) -> None:
+        """Facts are shared across a route; a price is the route's own, so billing stays provider-strict."""
+        self._register(input_cost_per_token=1e-6, output_cost_per_token=1e-6)
+        assert model_facts("gateway/vendor-a/priced") is not None
+        assert cost_per_token("gateway/vendor-a/priced", 10, 10) is None
+        assert cost_per_token("gateway/gpt-4o", 10, 10) is None
+
     def test_negative_counts_never_produce_negative_cost(self) -> None:
         self._register(input_cost_per_token=1e-6, output_cost_per_token=1e-6)
         prompt, completion = cost_per_token("vendor-a/priced", -5, -5) or (1, 1)

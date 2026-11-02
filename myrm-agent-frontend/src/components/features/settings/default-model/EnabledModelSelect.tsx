@@ -62,7 +62,6 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
               supports_prompt_caching: false,
               input_cost_per_token: localInfo.input_cost_per_million || null,
               output_cost_per_token: localInfo.output_cost_per_million || null,
-              max_tokens: null,
               max_input_tokens: localInfo.max_input_tokens || null,
               max_output_tokens: null,
             };
