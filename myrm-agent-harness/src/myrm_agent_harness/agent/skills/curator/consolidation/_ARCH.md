@@ -28,7 +28,7 @@ The LLM proposes every target name, so no name in a plan is trusted.
 
 ## Clusters the judge could not judge
 
-An empty plan means "nothing to consolidate" only when every cluster was judged. A cluster with no usable verdict is counted in `ConsolidationPlan.failed_clusters`: the model call raised, its answer was not a judgment, or its action was dropped as an untrusted target. KEEP and an action with no member left are verdicts, not failures. The judge logs one warning with the counts. The summary of an empty plan with failures says so instead of "well-organized"; the summary of a plan with actions never mentions failures, because the server's plan token hashes it and a transient failure must not change the plan the user confirms.
+An empty plan means "nothing to consolidate" only when every cluster was judged. A cluster with no usable verdict is counted in `ConsolidationPlan.failed_clusters`: the model call raised, its answer was not a judgment, or its action was dropped as an untrusted target. KEEP and an action with no member left are verdicts, not failures. The judge logs one warning with the counts. The server's plan token covers the actions and their counts, not `failed_clusters`, so a transient failure does not change the plan the user confirms.
 
 `SkillCurator` swallows a failed consolidation pass and returns `None`, so the count travels inside the plan and the host decides what to do with it. The server turns an empty plan with `failed_clusters` into a 502; a plan with actions beside failed clusters is returned as it is.
 

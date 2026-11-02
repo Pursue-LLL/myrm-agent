@@ -18,7 +18,8 @@ judgment schema because JSON mode only guarantees valid JSON, not the fields. Th
 LLM's to propose and never trusted: an action aimed at a taken umbrella name or an unknown skill is dropped,
 so the preview never promises what the executor would refuse. A cluster with no usable verdict (the call failed,
 the answer was unusable or the action was dropped) is counted in ``ConsolidationPlan.failed_clusters`` and
-never passes for a cluster that needs nothing, so an empty plan stays an honest statement.
+never passes for a cluster that needs nothing: a plan with no actions only means 'nothing to consolidate' when
+that count is 0.
 """
 
 from __future__ import annotations
@@ -182,7 +183,6 @@ class ConsolidationJudge:
                 plan.failed_clusters,
                 len(clusters),
             )
-        plan.preview_summary = self._build_preview_summary(plan)
         return plan
 
     async def _judge_single_cluster(
@@ -291,31 +291,3 @@ class ConsolidationJudge:
         if action_type is ConsolidationActionType.CREATE_UMBRELLA:
             return f"umbrella name '{target}' is already taken by a skill" if target.casefold() in occupied else None
         return None if any(skill.name == target for skill in all_skills) else f"target '{target}' is not a known skill"
-
-    @staticmethod
-    def _build_preview_summary(plan: ConsolidationPlan) -> str:
-        """Build a human-readable preview summary for GUI display."""
-        if plan.is_empty:
-            if plan.failed_clusters:
-                return f"No consolidation proposed. Skill groups that could not be evaluated: {plan.failed_clusters}."
-            return "No consolidation needed — all skills are well-organized."
-
-        lines: list[str] = []
-        for action in plan.actions:
-            match action.action_type:
-                case ConsolidationActionType.MERGE:
-                    lines.append(f"• Merge {len(action.source_skills)} skills into '{action.target_skill}'")
-                case ConsolidationActionType.CREATE_UMBRELLA:
-                    lines.append(
-                        f"• Create umbrella '{action.target_skill}' absorbing {len(action.source_skills)} skills"
-                    )
-                case ConsolidationActionType.DEMOTE:
-                    lines.append(
-                        f"• Demote {len(action.source_skills)} skills to "
-                        f"{action.demote_target_dir}/ of '{action.target_skill}'"
-                    )
-                case ConsolidationActionType.KEEP:
-                    pass
-
-        lines.append(f"\nEstimated net reduction: {plan.estimated_reduction} active skills")
-        return "\n".join(lines)

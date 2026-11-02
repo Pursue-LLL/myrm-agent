@@ -911,7 +911,6 @@ export interface ConsolidationPreviewResponse {
   actions: ConsolidationAction[];
   total_skills_affected: number;
   estimated_reduction: number;
-  preview_summary: string;
   plan_token: string;
 }
 

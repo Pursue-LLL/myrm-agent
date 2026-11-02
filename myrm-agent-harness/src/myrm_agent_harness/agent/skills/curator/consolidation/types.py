@@ -121,9 +121,6 @@ class ConsolidationPlan:
     """Clusters the judge could not judge: the model call failed, its answer was unusable or it named a target
     nothing can act on. A plan with no actions only means 'nothing to consolidate' when this is 0."""
 
-    preview_summary: str = ""
-    """Human-readable summary for GUI display."""
-
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     """When this plan was generated."""
 

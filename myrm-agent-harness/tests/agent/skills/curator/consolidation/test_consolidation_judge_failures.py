@@ -1,4 +1,4 @@
-"""A cluster the judge could not judge is counted, so an empty plan is never mistaken for 'well-organized'."""
+"""A cluster the judge could not judge is counted, so an empty plan is never mistaken for 'nothing to consolidate'."""
 
 from __future__ import annotations
 
@@ -45,7 +45,6 @@ class TestAClusterTheJudgeCouldNotJudge:
         )
 
         assert (plan.failed_clusters, plan.is_empty) == (0, True)
-        assert "well-organized" in plan.preview_summary
 
     @pytest.mark.asyncio
     async def test_an_action_with_nothing_left_to_consolidate_was_still_judged(self) -> None:
@@ -73,7 +72,7 @@ class TestAClusterTheJudgeCouldNotJudge:
         ],
         ids=["model-call-raises", "no-usable-judgment", "unknown-merge-target", "umbrella-name-taken"],
     )
-    async def test_an_answer_that_cannot_be_acted_on_is_counted_and_never_called_well_organized(
+    async def test_an_answer_that_cannot_be_acted_on_is_counted_as_not_judged(
         self, answer: _ClusterJudgment | Exception | None
     ) -> None:
         plan = await ConsolidationJudge(_llm_answering(answer)).judge_clusters(
@@ -82,8 +81,6 @@ class TestAClusterTheJudgeCouldNotJudge:
 
         assert plan.failed_clusters == 1
         assert plan.is_empty
-        assert "well-organized" not in plan.preview_summary
-        assert "could not be evaluated: 1" in plan.preview_summary
 
     @pytest.mark.asyncio
     async def test_the_judged_actions_stay_in_the_plan_beside_a_cluster_that_failed(self) -> None:
@@ -95,22 +92,6 @@ class TestAClusterTheJudgeCouldNotJudge:
 
         assert [action.target_skill for action in plan.actions] == ["deploy_a_skill"]
         assert plan.failed_clusters == 1
-        assert "deploy_a_skill" in plan.preview_summary
-
-    @pytest.mark.asyncio
-    async def test_a_plan_with_actions_reads_the_same_beside_a_cluster_that_failed(self) -> None:
-        """The plan token hashes the summary, so a transient failure elsewhere must not change what it says."""
-        skills = [make_skill(name) for name in (*_TASK, *_DEPLOY)]
-        task, deploy = _cluster("task", _TASK), _cluster("deploy", _DEPLOY)
-
-        beside_a_failure = await ConsolidationJudge(
-            _llm_answering(RuntimeError("timeout"), _merge_into("deploy_a_skill"))
-        ).judge_clusters([task, deploy], skills)
-        on_its_own = await ConsolidationJudge(_llm_answering(_merge_into("deploy_a_skill"))).judge_clusters(
-            [deploy], skills
-        )
-
-        assert beside_a_failure.preview_summary == on_its_own.preview_summary
 
 
 class TestAFailingJudgeThroughTheCurator:
@@ -131,4 +112,3 @@ class TestAFailingJudgeThroughTheCurator:
 
         assert isinstance(plan, ConsolidationPlan)
         assert (plan.failed_clusters, plan.is_empty) == (3, True)
-        assert "well-organized" not in plan.preview_summary
