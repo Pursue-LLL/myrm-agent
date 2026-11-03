@@ -6,13 +6,16 @@ Validates (harness scope — 3 checks):
    host-independent basis: the bash tool's live OS hint is swapped for its static
    description, and the hint is capped separately so a host quirk cannot decide the verdict.
 2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤350,
-   SECURITY_BOUNDARY_SYSTEM_RULES ≤350, DATETIME_SYSTEM_RULES ≤120.
+   SECURITY_BOUNDARY_SYSTEM_RULES ≤314, DATETIME_SYSTEM_RULES ≤120.
 3. SystemMessage content hash is immutable across multiple resolutions
    (prompt cache safety).
 
 Business-layer CORE prompt caps (full ≤2000 / lean ≤1200 / lean÷full ≤0.70 on
 ``cl100k_base``) live in the server repo:
 ``myrm-agent-server/tests/ai_agents/test_prompt_integrity.py::TestPromptTokenBudgetGate``.
+The assembled static first system message (core prompt + datetime rules + per-model discipline + channel hint,
+per model family and locale) and ``<widget_capability>`` are capped in
+``myrm-agent-server/tests/architecture/test_first_turn_static_prompt_budget.py``.
 """
 
 from __future__ import annotations
@@ -59,12 +62,11 @@ class TestPromptTokenBudgetGate:
         Scope is description + wrapper only — tool parameter schemas are tracked separately in
         DEFAULT_AGENT_TOKEN_INVENTORY.md §六.
         """
-        from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
-
         from myrm_agent_harness.agent.meta_tools.bash._tool.helpers import get_os_hint
         from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
             resolve_bash_code_execute_tool_description,
         )
+        from scripts.measure_turn1_token_inventory import _build_default_turn1_tools
 
         # Widest hint seen in practice is ~100 tokens; 120 leaves room without hiding a real blowup.
         os_hint_allowance = 120
@@ -95,20 +97,16 @@ class TestPromptTokenBudgetGate:
         sec_boundary_tokens = get_token_count(SECURITY_BOUNDARY_SYSTEM_RULES)
         datetime_tokens = get_token_count(DATETIME_SYSTEM_RULES)
 
-        # AGENT_CORE_RULES baseline ~240 tokens, ceiling 350 tokens
-        assert (
-            agent_core_tokens <= 350
-        ), f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 350"
+        # AGENT_CORE_RULES measures 303 tokens, ceiling 350 tokens
+        assert agent_core_tokens <= 350, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 350"
 
-        # SECURITY_BOUNDARY_SYSTEM_RULES baseline ~257 tokens, ceiling 350 tokens
-        assert (
-            sec_boundary_tokens <= 350
-        ), f"SECURITY_BOUNDARY_SYSTEM_RULES tokens {sec_boundary_tokens} exceeded ceiling 350"
+        # SECURITY_BOUNDARY_SYSTEM_RULES measures 299 tokens, ceiling 314 tokens (measured + 5%)
+        assert sec_boundary_tokens <= 314, (
+            f"SECURITY_BOUNDARY_SYSTEM_RULES tokens {sec_boundary_tokens} exceeded ceiling 314"
+        )
 
-        # DATETIME_SYSTEM_RULES baseline ~70 tokens, ceiling 120 tokens
-        assert (
-            datetime_tokens <= 120
-        ), f"DATETIME_SYSTEM_RULES tokens {datetime_tokens} exceeded ceiling 120"
+        # DATETIME_SYSTEM_RULES measures 89 tokens, ceiling 120 tokens
+        assert datetime_tokens <= 120, f"DATETIME_SYSTEM_RULES tokens {datetime_tokens} exceeded ceiling 120"
 
     def test_harness_rules_byte_and_hash_stability(self) -> None:
         """Assert that harness system rules are immutable string constants preserving KV cache."""
