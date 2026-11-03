@@ -23,6 +23,7 @@
 
 import { memo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -58,6 +59,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
     onResizeStart,
     onResizeDoubleClick,
   }) => {
+    const t = useTranslations('layout');
     const router = useRouter();
     const pathname = usePathname();
     const { initializeChat } = useChatStore(useShallow((state) => ({ initializeChat: state.initializeChat })));
@@ -91,7 +93,7 @@ const ContentSidebar = memo<ContentSidebarProps>(
             'hover:bg-muted transition-colors',
           )}
           style={{ left: `${navbarWidth + 8}px` }}
-          aria-label="Expand sidebar"
+          aria-label={t('showSidebar')}
         >
           <SidebarIcon />
         </button>

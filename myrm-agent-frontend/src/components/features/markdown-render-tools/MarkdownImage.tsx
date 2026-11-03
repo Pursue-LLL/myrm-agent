@@ -71,19 +71,19 @@ const MarkdownImage: React.FC<MarkdownImageProps> = ({ src, alt }) => {
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 gap-0 border-0 bg-transparent shadow-none overflow-hidden [&>button]:hidden">
-          <DialogTitle className="sr-only">{alt || 'Image preview'}</DialogTitle>
+          <DialogTitle className="sr-only">{alt || t('preview')}</DialogTitle>
           <div className="relative flex items-center justify-center">
             <div className="absolute top-3 right-3 z-10 flex gap-2">
               <button
                 onClick={handleOpenInNewTab}
-                aria-label="Open in new tab"
+                aria-label={t('openInNewTab')}
                 className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors backdrop-blur-sm"
               >
                 <ExternalLink size={18} />
               </button>
               <button
                 onClick={() => setPreviewOpen(false)}
-                aria-label="Close preview"
+                aria-label={t('closePreview')}
                 className="p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors backdrop-blur-sm"
               >
                 <X size={18} />

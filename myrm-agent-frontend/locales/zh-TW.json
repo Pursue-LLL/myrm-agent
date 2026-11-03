@@ -2814,7 +2814,13 @@
       "cancelled": "已停止生成。已生成的部分回覆已保留在對話上下文中。"
     },
     "toolImage": {
-      "screenshotLabel": "遠端桌面截圖"
+      "screenshotLabel": "遠端桌面截圖",
+      "lightboxLabel": "截圖預覽",
+      "lightboxClose": "關閉預覽",
+      "lightboxPrevious": "上一張圖片",
+      "lightboxNext": "下一張圖片",
+      "lightboxAlt": "{tool} 截圖（原尺寸）",
+      "thumbnailAlt": "{tool} 截圖 {index}"
     },
     "sessionRecording": {
       "label": "會話錄製"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "收合思考過程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 個推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 個推理 Token"
+    "reasoningTokensEstimated": "≈ {count} 個推理 Token",
+    "thinkingProcess": "思考過程",
+    "customMessage": {
+      "ephemeral": "暫時",
+      "persistent": "持久",
+      "ephemeralHint": "暫時：壓縮上下文時會被清理",
+      "persistentHint": "持久：壓縮摘要後仍會保留",
+      "details": "詳情"
+    }
   },
   "mode": {
     "fast": "快速搜尋",
@@ -4288,7 +4302,8 @@
     "skillManageRollbackSuperseded": "該批次中的技能之後又被修改過。請先撤銷較新的那次修改，或前往「設置 → 技能 → 歷史」恢復版本。",
     "skillManageRollbackSkillMissing": "該批次中的技能之後已被刪除，無法再撤銷這個批次。",
     "skillManageUndoHintBody": "助手在本條回覆中修改了技能。展開下方「任務步驟」可撤銷這些修改並恢復之前的內容。",
-    "skillManageUndoHintAction": "打開任務步驟"
+    "skillManageUndoHintAction": "打開任務步驟",
+    "smartFallbackBadge": "智慧降級"
   },
   "memory": {
     "mesh": {
@@ -6788,7 +6803,8 @@
       "unavailable": "無法載入該檔案",
       "downloadFull": "下載完整檔案"
     },
-    "resizePanel": "調整面板大小"
+    "resizePanel": "調整面板大小",
+    "closePreview": "關閉預覽"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "開啟審查面板",
     "reviewChanges": "審查變更",
     "closeReviewOverlayAria": "關閉審查",
-    "closeReviewPanelAria": "關閉審查面板"
+    "closeReviewPanelAria": "關閉審查面板",
+    "tooLargeBadge": "過大",
+    "tooLargeNotice": "檔案過大，無法內嵌預覽。請在工作區中開啟後檢視。",
+    "noTextChanges": "沒有文字變更。",
+    "refreshDiffs": "重新整理差異",
+    "searchFiles": "搜尋檔案",
+    "filterByStatus": "依狀態篩選",
+    "filterAll": "全部",
+    "noFilesMatch": "沒有檔案符合搜尋條件。"
   },
   "growthDashboard": {
     "title": "成長儀表盤",
@@ -22509,5 +22533,29 @@
     "limitReached": "已達上限",
     "pauseTitle": "緊急暫停免打擾包絡",
     "pause": "暫停"
+  },
+  "embeds": {
+    "load": "載入 {label}",
+    "moreOptions": "更多選項",
+    "alwaysAllow": "一律允許 {label}",
+    "loadFailed": "{label} 嵌入內容載入失敗"
+  },
+  "skeleton": {
+    "loadingList": "正在載入列表",
+    "loadingCards": "正在載入卡片",
+    "loadingTable": "正在載入表格",
+    "loadingForm": "正在載入表單",
+    "loadingWorkspace": "正在載入工作區",
+    "loadingMetrics": "正在載入指標",
+    "loadingTimeline": "正在載入時間軸"
+  },
+  "diffViewer": {
+    "unknownFile": "未知檔案",
+    "splitView": "分欄檢視",
+    "unifiedView": "統一檢視",
+    "copyDiff": "複製差異",
+    "close": "關閉",
+    "binaryChanged": "二進位檔案已變更",
+    "noChanges": "無變更"
   }
 }

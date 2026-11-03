@@ -2814,7 +2814,13 @@
       "cancelled": "今回の返信生成を停止しました。一部の内容はコンテキストに保持されています。"
     },
     "toolImage": {
-      "screenshotLabel": "リモートデスクトップスクリーンショット"
+      "screenshotLabel": "リモートデスクトップスクリーンショット",
+      "lightboxLabel": "スクリーンショットのプレビュー",
+      "lightboxClose": "プレビューを閉じる",
+      "lightboxPrevious": "前の画像",
+      "lightboxNext": "次の画像",
+      "lightboxAlt": "{tool} のスクリーンショット（原寸）",
+      "thumbnailAlt": "{tool} のスクリーンショット {index}"
     },
     "sessionRecording": {
       "label": "セッション録画"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "思考を折りたたむ",
     "reasoningLoading": "思考中",
     "reasoningTokens": "{count} 推論トークン",
-    "reasoningTokensEstimated": "≈ {count} 推論トークン"
+    "reasoningTokensEstimated": "≈ {count} 推論トークン",
+    "thinkingProcess": "思考プロセス",
+    "customMessage": {
+      "ephemeral": "一時",
+      "persistent": "永続",
+      "ephemeralHint": "一時：コンテキスト圧縮時に削除されます",
+      "persistentHint": "永続：圧縮サマリー後も保持されます",
+      "details": "詳細"
+    }
   },
   "mode": {
     "fast": "高速検索",
@@ -4288,7 +4302,8 @@
     "skillManageRollbackSuperseded": "このバッチ内のスキルは、その後さらに変更されています。先に新しい変更を元に戻すか、スキル設定 → 履歴からバージョンを復元してください。",
     "skillManageRollbackSkillMissing": "このバッチ内のスキルはその後削除されたため、このバッチを元に戻せません。",
     "skillManageUndoHintBody": "この返信でアシスタントがスキルを更新しました。下のタスクステップから編集を元に戻せます。",
-    "skillManageUndoHintAction": "タスクステップを開く"
+    "skillManageUndoHintAction": "タスクステップを開く",
+    "smartFallbackBadge": "スマートフォールバック"
   },
   "memory": {
     "mesh": {
@@ -6379,7 +6394,7 @@
     "close": "閉じる",
     "copyCode": "コードをコピー",
     "copied": "コピーしました",
-    "openInNewTab": "で新規タグページ開く",
+    "openInNewTab": "新しいタブで開く",
     "revealInFileManager": "ファイルマネージャーで表示",
     "openWithDefaultApp": "デフォルトアプリで開く",
     "copyPath": "ファイルパスをコピー",
@@ -6788,7 +6803,8 @@
       "unavailable": "このファイルを読み込めません",
       "downloadFull": "完全なファイルをダウンロード"
     },
-    "resizePanel": "パネルサイズを変更"
+    "resizePanel": "パネルサイズを変更",
+    "closePreview": "プレビューを閉じる"
   },
   "MessageSources": {
     "untitled": "無題",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "審査パネルを開く",
     "reviewChanges": "変更を審査",
     "closeReviewOverlayAria": "審査を閉じる",
-    "closeReviewPanelAria": "審査パネルを閉じる"
+    "closeReviewPanelAria": "審査パネルを閉じる",
+    "tooLargeBadge": "大きすぎます",
+    "tooLargeNotice": "ファイルが大きすぎるため、インラインでプレビューできません。ワークスペースで開いて確認してください。",
+    "noTextChanges": "テキストの変更はありません。",
+    "refreshDiffs": "差分を更新",
+    "searchFiles": "ファイルを検索",
+    "filterByStatus": "ステータスで絞り込み",
+    "filterAll": "すべて",
+    "noFilesMatch": "検索に一致するファイルはありません。"
   },
   "growthDashboard": {
     "title": "成長ダッシュボード",
@@ -22509,5 +22533,29 @@
     "limitReached": "上限に達しました",
     "pauseTitle": "自動承認エンベロープを緊急停止",
     "pause": "一時停止"
+  },
+  "embeds": {
+    "load": "{label} を読み込む",
+    "moreOptions": "その他のオプション",
+    "alwaysAllow": "{label} を常に許可",
+    "loadFailed": "{label} の埋め込みを読み込めませんでした"
+  },
+  "skeleton": {
+    "loadingList": "リストを読み込み中",
+    "loadingCards": "カードを読み込み中",
+    "loadingTable": "テーブルを読み込み中",
+    "loadingForm": "フォームを読み込み中",
+    "loadingWorkspace": "ワークスペースを読み込み中",
+    "loadingMetrics": "指標を読み込み中",
+    "loadingTimeline": "タイムラインを読み込み中"
+  },
+  "diffViewer": {
+    "unknownFile": "不明なファイル",
+    "splitView": "分割ビュー",
+    "unifiedView": "統合ビュー",
+    "copyDiff": "差分をコピー",
+    "close": "閉じる",
+    "binaryChanged": "バイナリファイルが変更されました",
+    "noChanges": "変更なし"
   }
 }
