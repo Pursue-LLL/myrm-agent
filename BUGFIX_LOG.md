@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 看板的「计划修订」对话框里 ADD / UPDATE / REMOVE 徽标、无标题兜底名和「Depends on:」是写死的英文，另 5 种语言的用户看到的也是英文；硬编码文案门禁看不到其中大部分
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S'replanDependsOn'` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码] `KanbanReplanDialog.tsx` 的变更列表里，三种动作徽标是字面量 `ADD`、`UPDATE`、`REMOVE`，没有标题时的兜底名是 `'Untitled'`，依赖行是 `Depends on: …`；同一个对话框的其余文案已走 `kanban` 命名空间的 locales，所以这几处在非英文界面里仍是英文原文。门禁（`bun scripts/check-hardcoded-copy.mjs`）改前只数到 `Depends on:` 这 1 处。 |
+| **根因** | [代码] `scripts/hardcoded-copy-scan.ts` 的判定规则是「含 CJK，或含相邻两个英文单词」，并在文件头注明单个英文单词宁可漏判；`ADD`、`UPDATE`、`REMOVE`、`Untitled` 都是单个单词，所以不计入基线，之前一批翻译（`ef570be859`）把该文件在基线里的数量从 12 降到 1，门禁看得见的文案清掉后，这几处留了下来。 |
+| **修复** | `locales/*.json`（6 种语言）的 `kanban` 命名空间新增 `replanActionAdd`、`replanActionUpdate`、`replanActionRemove`、`replanUntitled`、`replanDependsOn`（带 `{ids}` 占位符）；徽标样式加 `uppercase`，英文界面的外观与原来一致；`VoiceSection.tsx` 里两个 Gemini 模型名是产品名、不需要翻译，从 JSX 字面量提取到具名常量 `GEMINI_LIVE_MODELS`（与同文件的 `TTS_PROVIDERS` 同一写法），默认值改读 `DEFAULT_STATE.geminiLiveModel`，去掉重复的字面量。 |
+| **回归证据** | [1] `KanbanReplanDialog.test.tsx` 把三个徽标断言改成读 key，并新增 1 例（无标题时显示任务 id 与 `replanUntitled`、依赖行带上 id 列表）；在干净的 `HEAD` 上只放入新测试文件，2 例红（`Unable to find an element with the text: replanActionAdd` 与 `replanUntitled`），改后全绿。[2] 看板与 integration 两个目录的 vitest 69 个文件、758 例通过。[3] `bun run lint` 7 个门禁全过，`tsc --noEmit` 退出码 0，`verify:i18n` 通过；硬编码文案基线收紧 2 个文件，可达文件的存量 727 → 724 处。 |
+| **仍然存在** | ① 门禁看不到单个英文单词、也看不到写在对象或数组常量里再渲染的文案，本条之外同类的漏网项没有清点；例如 `VoiceSection.tsx` 的 `TTS_PROVIDERS` 里 `(Free)`、`(Local Offline)` 这类英文说明就在常量里。② 可达文件里还剩 724 处，其中 422 处在 `memory/command-center/`（受 `NEXT_PUBLIC_MEMORY_LABS` 控制），其余 302 处分布在 100 多个默认可见的文件里，未处理。③ 没有在浏览器里用 6 种语言逐个看过这个对话框。 |
+| **代码位置** | frontend：`src/components/features/kanban/{KanbanReplanDialog.tsx,__tests__/KanbanReplanDialog.test.tsx}`、`src/components/features/settings/sections/integration/channels/VoiceSection.tsx`、`locales/*.json`、`scripts/ci/hardcoded_copy_baseline.json`。 |
+
 ## 2026-11-03 · 邮件技能 `send` 与 `reply` 发出的邮件没有 `Date` 头，`Message-ID` 以发件机器的主机名结尾（在真实邮件服务器 GreenMail 上跑脚本时发现）
 
 | 字段 | 内容 |
