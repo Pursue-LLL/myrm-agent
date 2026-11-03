@@ -6,7 +6,9 @@
 
 [OUTPUT]
 - Mailbox: the ports of a running server and the PEM bundle that trusts it
-- running_mailbox: start the server, wait until it answers over TLS, remove the container afterwards
+- running_mailbox: start the server, wait until it answers over TLS, remove the container afterwards; a container that an
+  earlier run left behind when it was killed is removed first
+- stale_containers: which of the named containers belong to such a run
 - deliver: put a message into a mailbox the way another sender would
 - messages_of: every message of one user's inbox, parsed
 
@@ -29,7 +31,7 @@ import ssl
 import subprocess
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +45,8 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from tests.support.self_signed_tls import self_signed_certificate
 
 IMAGE = "greenmail/standalone:latest"
+NAME_PREFIX = "myrm-mail-test-"
+_STALE_AFTER_SECONDS = 30 * 60
 SMTP_TLS_HOST_PORT = 465
 _KEYSTORE_PASSWORD = b"changeit"
 _START_TIMEOUT_SECONDS = 120
@@ -61,6 +65,20 @@ class Mailbox:
     smtp_port: int
     ca_bundle: Path
     certificate: Path
+
+
+def stale_containers(names: Sequence[str], now: float) -> list[str]:
+    """The containers a killed run left behind: named by this module, started longer ago than one run can last.
+
+    A killed run cannot remove its container, and that container keeps host port 465 taken, so every later run would be
+    skipped for a port it cannot have. The start time is part of the name, which keeps a run in progress out of this.
+    """
+    stale: list[str] = []
+    for name in names:
+        started = name.removeprefix(NAME_PREFIX).partition("-")[0]
+        if name.startswith(NAME_PREFIX) and started.isdigit() and now - int(started) > _STALE_AFTER_SECONDS:
+            stale.append(name)
+    return stale
 
 
 def _free_port() -> int:
@@ -112,7 +130,10 @@ def running_mailbox(directory: Path) -> Iterator[Mailbox]:
     # The bundle replaces the default trust store of every client that reads SSL_CERT_FILE, the model provider's included.
     ca_bundle.write_text(Path(certifi.where()).read_text() + "\n" + certificate.read_text())
     host, imap_port, smtp_port = "127.0.0.1", _free_port(), _free_port()
-    name = f"myrm-mail-test-{uuid.uuid4().hex[:8]}"
+    listed = _docker("ps", "-a", "--filter", f"name={NAME_PREFIX}", "--format", "{{.Names}}")
+    for stale in stale_containers(listed.stdout.split(), time.time()):
+        _docker("rm", "-f", stale)
+    name = f"{NAME_PREFIX}{int(time.time())}-{uuid.uuid4().hex[:8]}"
     started = _docker(
         "run", "-d", "--rm", "--name", name,
         "-p", f"{host}:{imap_port}:3993", "-p", f"{host}:{smtp_port}:3025", "-p", f"{host}:{SMTP_TLS_HOST_PORT}:3465",
