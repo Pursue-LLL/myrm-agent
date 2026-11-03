@@ -4,7 +4,7 @@
 
 Tool metadata registry domain — the SSOT for built-in tool names, permission-type
 mapping, canonical params, safety metadata, and canonical tool-group mapping.
-Six files by concern: `registry.py` holds the permission/group/governance SSOTs and the safety resolver; `ptc_safety.py` holds the dynamic safety store of MCP tools; `file_args.py` is the one definition of which arguments carry a file tool's files that the engine, the approval hash, the taint extractors and the session grant share;
+Seven files by concern: `registry.py` holds the permission/group SSOTs and the safety resolver; `governance.py` holds the audit-only governance coverage declarations that `registry.py` re-exports; `ptc_safety.py` holds the dynamic safety store of MCP tools; `file_args.py` is the one definition of which arguments carry a file tool's files that the engine, the approval hash, the taint extractors and the session grant share;
 `safety_table.py` holds the `SafetyMetadata` model and the `TOOL_SAFETY_METADATA`
 table; `taint_extractors.py` holds the pure argument extractors that label taint sources;
 `safety.py` is the module-load coverage gate warning when built-in
