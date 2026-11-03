@@ -93,8 +93,8 @@ def _git_listing(repo_root: Path, pathspec: str, timeout_seconds: float) -> list
     """Return what git lists under ``pathspec`` in ``repo_root`` using its index and ignore rules, or None.
 
     An entry is a file, or a directory for a nested repository or submodule (git names those by their root, not
-    by their files). None means git failed, or ``pathspec`` is itself ignored: git lists nothing below an ignored
-    directory, so only the path's own status tells it from an empty one.
+    by their files), and each is listed once. None means git failed, or ``pathspec`` is itself ignored: git lists
+    nothing below an ignored directory, so only the path's own status tells it from an empty one.
     """
     ls_files = subprocess.run(
         hardened_git_argv(
@@ -108,9 +108,9 @@ def _git_listing(repo_root: Path, pathspec: str, timeout_seconds: float) -> list
     if ls_files.returncode != 0:
         return None
 
-    entries = [
-        repo_root / rel_path for rel_path in ls_files.stdout.decode("utf-8", errors="replace").split("\x00") if rel_path
-    ]
+    # A path that is unmerged (a conflicted merge) has one index entry per stage, so git names it up to three times.
+    rel_paths = dict.fromkeys(ls_files.stdout.decode("utf-8", errors="replace").split("\x00"))
+    entries = [repo_root / rel_path for rel_path in rel_paths if rel_path]
     if not entries and _is_git_ignored(repo_root, pathspec, timeout_seconds):
         return None
     return entries

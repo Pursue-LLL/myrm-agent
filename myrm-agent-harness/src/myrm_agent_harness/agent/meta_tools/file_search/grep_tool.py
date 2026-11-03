@@ -12,9 +12,9 @@
 - utils.lru_cache::LRUCache (POS: LRU 缓存)
 - _formatter (POS: Grep flat path:line output formatter with line truncation)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
-- fallback_search::search_files (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
+- fallback_search::search_files, SearchOutcome (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
 - rg_matches::RgMatches (POS: ripgrep --json 事件流收集为匹配行；目录级搜索不返回敏感文件内容)
-- rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档选出同一批文件)
+- rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 
@@ -25,7 +25,7 @@
 [POS]
 Content search tool (Claude Code compatible). Searches file contents for matching text patterns
 with regex and literal (--fixed-strings) modes, flat path:line output and intelligent line truncation.
-Two search tiers choose the same files (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
+Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
 without producing a result. A search over a directory withholds the lines of sensitive files on both tiers.
 
@@ -318,6 +318,7 @@ def create_grep_tool(
             # Only the Python tier knows how many files it searched; ripgrep's own count is wrong before version 15.
             files_searched: int | None = None
             scan_limit: int | None = None
+            timed_out = False
             if found is not None:
                 results = found.rows
             else:
@@ -334,7 +335,7 @@ def create_grep_tool(
                 files = candidates[: io_cfg.max_search_files]
                 if search_path_obj.is_dir():
                     files = [candidate for candidate in files if not is_sensitive_file(str(candidate))]
-                results, files_searched = await search_files(
+                outcome = await search_files(
                     files,
                     regex,
                     search_root,
@@ -343,6 +344,9 @@ def create_grep_tool(
                     timeout_seconds=io_cfg.search_timeout_seconds,
                     context_lines=context_lines,
                 )
+                results = outcome.rows
+                files_searched = outcome.files_searched
+                timed_out = outcome.timed_out
 
             # --- Format phase ---
             if disabled_roots and results:
@@ -361,6 +365,7 @@ def create_grep_tool(
                 io_cfg.max_search_results,
                 is_regex=not literal,
                 scan_limit=scan_limit,
+                timed_out=timed_out,
             )
 
         except ToolError:

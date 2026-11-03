@@ -8,7 +8,8 @@
 [OUTPUT]
 - scan_lines: Match the lines of a byte stream the way ripgrep does and add context rows; shared by both read paths
 - mmap_search_file: Search one file and return its matching lines
-- search_files: Search candidate files in concurrent batches under a wall-clock budget
+- SearchOutcome: The rows a search found, how many files it finished, and whether the time budget cut it short
+- search_files: Search candidate files in concurrent batches under a time budget; returns a SearchOutcome
 
 [POS]
 Content search used when ripgrep is unavailable or fails. Receives the candidate files that
@@ -29,6 +30,7 @@ import re
 import time
 from collections import deque
 from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -42,6 +44,17 @@ logger = logging.getLogger(__name__)
 
 _BINARY_SUFFIXES = frozenset({".pyc", ".so", ".dll", ".exe", ".bin", ".jpg", ".png", ".gif", ".pdf", ".zip"})
 _BATCH_SIZE = 20
+
+
+@dataclass(frozen=True, slots=True)
+class SearchOutcome:
+    """What ``search_files`` found and how far it got."""
+
+    rows: list[dict[str, str | int]]
+    # The files of the batches that finished: all of them unless the result cap or the time limit stopped the search.
+    files_searched: int
+    # Whether the time limit, not the result cap, stopped the search before its last batch.
+    timed_out: bool
 
 
 def scan_lines(
@@ -160,28 +173,28 @@ async def search_files(
     max_results: int,
     timeout_seconds: float,
     context_lines: int = 0,
-) -> tuple[list[dict[str, str | int]], int]:
-    """Search ``files`` for ``regex``; returns the rows and how many files were reached.
+) -> SearchOutcome:
+    """Search ``files`` for ``regex``; the outcome carries the rows and how far the search got.
 
     Files are searched ``_BATCH_SIZE`` at a time. The loop stops once ``max_results`` matches are collected
-    (context rows do not count) or ``timeout_seconds`` have elapsed, so the second value can be smaller than
-    ``len(files)``. Paths in the rows are relative to ``search_root``.
+    (context rows do not count) or ``timeout_seconds`` have elapsed before a batch starts, so the count of files
+    searched can be smaller than ``len(files)``. Paths in the rows are relative to ``search_root``.
     """
     results: list[dict[str, str | int]] = []
     match_count = 0
-    start_time = time.time()
-    start = 0
-    batch: list[Path] = []
+    files_searched = 0
+    started = time.monotonic()
 
     for start in range(0, len(files), _BATCH_SIZE):
-        elapsed = time.time() - start_time
+        elapsed = time.monotonic() - started
         if elapsed > timeout_seconds:
             logger.warning(f"Search timeout after {elapsed:.1f}s")
-            break
+            return SearchOutcome(results, files_searched, timed_out=True)
         batch = files[start : start + _BATCH_SIZE]
         batch_results = await asyncio.gather(
             *[_search_file(file, regex, search_root, regex_validator, max_results, context_lines) for file in batch]
         )
+        files_searched += len(batch)
         for file_results in batch_results:
             results.extend(file_results)
             match_count += sum(1 for row in file_results if row["type"] == "match")
@@ -190,4 +203,4 @@ async def search_files(
         if match_count >= max_results:
             break
 
-    return results, min(start + len(batch), len(files))
+    return SearchOutcome(results, files_searched, timed_out=False)

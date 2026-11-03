@@ -12,7 +12,7 @@
 
 [POS]
 Single definition of what a ``pattern`` / ``file_pattern`` means for ``glob_tool`` and ``grep_tool``,
-shared by the ripgrep tier and the Python tier so both return the same files. The dialect matches
+shared by the ripgrep tier and the Python tier so a pattern selects the same paths on both. The dialect matches
 ripgrep's ``--glob`` for file paths: a pattern without ``/`` matches at any depth, a pattern containing
 ``/`` is anchored at the search root, ``**`` crosses directories, ``{a,b}`` expands, and ``*`` matches
 dot-files (hidden-file policy is applied by the caller, never by the pattern). Matching runs on the server's

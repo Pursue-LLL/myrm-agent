@@ -3,7 +3,7 @@
 [OUTPUT]
 - compact_match_line: Truncates long match lines preserving match context
 - format_grep_results: Formats search results into LLM-friendly output, stating how many files were searched
-  (when known) and when a file cap cut the scan short
+  (when known) and when a file cap or the time limit cut the scan short
 
 [POS]
 Grep output formatter. Transforms raw search matches into LLM-friendly output
@@ -86,6 +86,7 @@ def format_grep_results(
     is_regex: bool = True,
     *,
     scan_limit: int | None = None,
+    timed_out: bool = False,
 ) -> str:
     """Format grep results with non-code truncation and path-grouped densification.
 
@@ -95,22 +96,23 @@ def format_grep_results(
     densification adds no benefit.
 
     ``files_searched`` is None when the caller cannot state the count (the ripgrep tier cannot), and the
-    count is then left out. ``scan_limit`` is the file cap that cut the scan short, when one did.
+    count is then left out. ``scan_limit`` is the file cap that cut the scan short, when one did, and ``timed_out``
+    says that the time limit did.
     """
-    scan_note = (
-        f"... (scan limited to the first {scan_limit} files; narrow path or file_pattern to cover the rest)"
-        if scan_limit is not None
-        else None
-    )
+    notes: list[str] = []
+    if scan_limit is not None:
+        notes.append(
+            f"... (scan limited to the first {scan_limit} files; narrow path or file_pattern to cover the rest)"
+        )
+    if timed_out:
+        notes.append("... (search stopped at the time limit; narrow path or file_pattern to cover the rest)")
     searched = f" (searched {files_searched} file(s))" if files_searched is not None else ""
 
     if not results:
         footer = [f"No matches found for: {pattern}"]
         if files_searched is not None:
             footer.append(f"(Searched {files_searched} file(s))")
-        if scan_note:
-            footer.append(scan_note)
-        return "\n".join(footer)
+        return "\n".join([*footer, *notes])
 
     files_order: list[str] = []
     matches_by_file: dict[str, list[dict[str, str | int]]] = {}
@@ -167,7 +169,7 @@ def format_grep_results(
 
     if total_matches >= max_results:
         lines.append(f"\n... (limited to first {max_results} results)")
-    if scan_note:
-        lines.append(f"\n{scan_note}")
+    if notes:
+        lines.append("\n" + "\n".join(notes))
 
     return "\n".join(lines)
