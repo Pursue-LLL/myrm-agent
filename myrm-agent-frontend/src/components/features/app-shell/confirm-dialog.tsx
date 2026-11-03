@@ -234,31 +234,4 @@ export const ConfirmDialog = ({
   );
 };
 
-/**
- * 删除确认对话框的快捷组件
- */
-export const DeleteConfirmDialog = ({
-  trigger,
-  itemName,
-  onConfirm,
-  ...props
-}: Omit<ConfirmDialogProps, 'title' | 'description' | 'variant'> & {
-  itemName?: string;
-}) => {
-  return (
-    <ConfirmDialog
-      trigger={trigger}
-      title={props.confirmText}
-      description={
-        itemName
-          ? `Are you sure you want to delete ${itemName}? This action cannot be undone.`
-          : 'This action cannot be undone.'
-      }
-      variant="destructive"
-      onConfirm={onConfirm}
-      {...props}
-    />
-  );
-};
-
 export default ConfirmDialog;

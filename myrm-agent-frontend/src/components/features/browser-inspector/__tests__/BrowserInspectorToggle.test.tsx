@@ -101,11 +101,40 @@ describe('BrowserInspectorToggle', () => {
     fireEvent.mouseEnter(container);
     expect(screen.getByTestId('browser-inspector-peek-thumbnail')).toBeDefined();
     expect(screen.getByText('Peek Preview')).toBeDefined();
+    expect(screen.getByAltText('Peek Preview')).toBeDefined();
     expect(screen.getByText('https://example.com/hover')).toBeDefined();
 
     // Leave container
     fireEvent.mouseLeave(container);
     expect(screen.queryByTestId('browser-inspector-peek-thumbnail')).toBeNull();
+  });
+
+  it('falls back to the translated alt text when the page has no title', () => {
+    useBrowserInspectorStore.setState({
+      isBrowserActive: true,
+      viewData: {
+        screenshotBase64: 'untitled_shot',
+        mimeType: 'image/png',
+        refs: {},
+        pageUrl: 'https://example.com/untitled',
+        pageTitle: '',
+        sourceChatId: 'chat-1',
+        viewportWidth: 1280,
+        viewportHeight: 720,
+        isTurnView: true,
+        updatedAt: Date.now(),
+      },
+    });
+
+    render(<BrowserInspectorToggle />);
+    const container = screen.getByTestId('browser-inspector-toggle-button').parentElement;
+    expect(container).not.toBeNull();
+    if (!container) {
+      return;
+    }
+    fireEvent.mouseEnter(container);
+
+    expect(screen.getByAltText('livePeekAlt')).toBeDefined();
   });
 
   it('calls togglePanel on click', () => {

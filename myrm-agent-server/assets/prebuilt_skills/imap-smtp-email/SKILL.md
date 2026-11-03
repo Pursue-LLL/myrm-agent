@@ -13,6 +13,9 @@ tags:
   - inbox
   - productivity
 allowed-tools: bash_code_execute_tool file_write_tool
+required_permissions:
+  - code_interpreter
+  - file_write
 requires:
   env: [EMAIL_IMAP_HOST, EMAIL_IMAP_USER, EMAIL_IMAP_PASSWORD]
 contract:

@@ -2,10 +2,11 @@
  * [INPUT]
  * - services/statistics::ExecutionTrace, TraceToolCall, TraceError (POS: 运行轨迹元数据契约)
  * - lib/utils/fileUtils::sanitizeFilename, triggerDownload (POS: 安全下载工具)
+ * - next-intl::Translator (POS: 国际化翻译函数；调用方传入绑定 `evidencePack` 命名空间的实例，本模块不依赖 React)
  *
  * [OUTPUT]
  * - SixStepEvidencePack: 六步项目经验证据包数据契约
- * - generateEvidencePackFromTrace: 从 ExecutionTrace 组装六步证据包
+ * - generateEvidencePackFromTrace: 从 ExecutionTrace 组装六步证据包（文案按 translator 本地化）
  * - exportEvidencePackToMarkdown: 格式化为 Markdown 文档
  * - exportEvidencePackToJson: 格式化为 JSON 字符串
  * - downloadEvidencePack: 触发文件下载
@@ -17,10 +18,19 @@
 import type { ExecutionTrace, TraceToolCall, TraceError, TraceOutcome } from '@/services/statistics';
 import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
 
+/** Translator bound to the `evidencePack` namespace. */
+export interface EvidencePackTranslator {
+  (key: string, values?: Record<string, string | number>): string;
+}
+
+export type EvidencePackStepId =
+  'requirements' | 'architecture' | 'initial_impl' | 'execution_correction' | 'verification' | 'takeaways';
+
 export interface EvidencePackStep {
   stepIndex: number;
-  id: 'requirements' | 'architecture' | 'initial_impl' | 'execution_correction' | 'verification' | 'takeaways';
+  id: EvidencePackStepId;
   title: string;
+  shortTitle: string;
   summary: string;
   details: string[];
   metrics?: Record<string, string | number>;
@@ -37,152 +47,138 @@ export interface SixStepEvidencePack {
   steps: EvidencePackStep[];
 }
 
+const PLANNING_TOOL_KEYWORDS = ['task_planning', 'structure-planner', 'sequentialthinking', 'delegate_task'];
+const EDIT_TOOL_KEYWORDS = ['file_write_tool', 'file_edit_tool', 'patch', 'write', 'str_replace'];
+const VERIFICATION_TOOL_KEYWORDS = ['test', 'pytest', 'bash', 'audit', 'lint', 'verifier', 'check'];
+
+function matchesAnyKeyword(toolName: string, keywords: readonly string[]): boolean {
+  const lowered = toolName.toLowerCase();
+  return keywords.some((keyword) => lowered.includes(keyword));
+}
+
+function buildRequirementDetails(trace: ExecutionTrace, t: EvidencePackTranslator): string[] {
+  return [trace.task_input ? trace.task_input.trim() : t('noTextInput')];
+}
+
+function buildArchitectureDetails(trace: ExecutionTrace, t: EvidencePackTranslator): string[] {
+  const planningCalls = trace.tool_calls.filter((call: TraceToolCall) =>
+    matchesAnyKeyword(call.tool_name, PLANNING_TOOL_KEYWORDS),
+  );
+  if (planningCalls.length === 0) {
+    return [t('directExecution')];
+  }
+  const details = [t('planningDetected', { count: planningCalls.length })];
+  planningCalls.slice(0, 5).forEach((call) => {
+    const summary =
+      call.output_summary ||
+      (call.input_data ? JSON.stringify(call.input_data).slice(0, 100) : t('planningNodeFallback'));
+    details.push(`[${call.tool_name}] ${summary}`);
+  });
+  return details;
+}
+
+function buildInitialImplDetails(trace: ExecutionTrace, t: EvidencePackTranslator): string[] {
+  const firstWrite = trace.tool_calls.find((call: TraceToolCall) =>
+    matchesAnyKeyword(call.tool_name, EDIT_TOOL_KEYWORDS),
+  );
+  if (!firstWrite) {
+    return [t('noFileChanges')];
+  }
+  const details = [t('firstWrite', { tool: firstWrite.tool_name, sequence: firstWrite.sequence })];
+  if (firstWrite.input_data && typeof firstWrite.input_data === 'object') {
+    const input = firstWrite.input_data as Record<string, unknown>;
+    const pathValue = input.path || input.file_path;
+    if (pathValue) {
+      details.push(t('targetFile', { path: String(pathValue) }));
+    }
+  }
+  return details;
+}
+
+function buildExecutionDetails(
+  trace: ExecutionTrace,
+  failedCalls: TraceToolCall[],
+  t: EvidencePackTranslator,
+): string[] {
+  const details = [t('executionSummary', { total: trace.tool_calls.length, failed: failedCalls.length })];
+  (trace.errors ?? []).slice(0, 3).forEach((err: TraceError) => {
+    details.push(t('errorRecord', { type: err.error_type || 'Error', message: err.error.slice(0, 120) }));
+  });
+  failedCalls.slice(0, 3).forEach((call) => {
+    details.push(t('selfHealPoint', { tool: call.tool_name }));
+  });
+  return details;
+}
+
+function buildVerificationDetails(trace: ExecutionTrace, t: EvidencePackTranslator): string[] {
+  const testCalls = trace.tool_calls.filter((call: TraceToolCall) =>
+    matchesAnyKeyword(call.tool_name, VERIFICATION_TOOL_KEYWORDS),
+  );
+  if (testCalls.length === 0) {
+    return [t('verificationInferred')];
+  }
+  const passedCount = testCalls.filter((call) => call.success).length;
+  const details = [
+    t('verificationSummary', {
+      count: testCalls.length,
+      rate: ((passedCount / testCalls.length) * 100).toFixed(0),
+    }),
+  ];
+  testCalls.slice(0, 3).forEach((call) => {
+    details.push(
+      t('verificationRun', { tool: call.tool_name, result: call.success ? t('resultPassed') : t('resultFailed') }),
+    );
+  });
+  return details;
+}
+
+function buildTakeawayDetails(trace: ExecutionTrace, t: EvidencePackTranslator): string[] {
+  if (trace.outcome === 'success') {
+    return [t('takeawayClosedLoop'), t('takeawayExtractSkill')];
+  }
+  const details = [t('takeawayNotSuccess', { outcome: trace.outcome })];
+  if (trace.first_irrecoverable_index != null) {
+    details.push(t('takeawayFirstFatal', { index: trace.first_irrecoverable_index }));
+  }
+  return details;
+}
+
 /**
  * 从原始执行轨迹提炼六步项目经验证据包
  */
-export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvidencePack {
-  const taskTitle = trace.task_input ? trace.task_input.split('\n')[0].slice(0, 60) : 'Untitled Project Task';
+export function generateEvidencePackFromTrace(trace: ExecutionTrace, t: EvidencePackTranslator): SixStepEvidencePack {
+  const taskTitle = trace.task_input ? trace.task_input.split('\n')[0].slice(0, 60) : t('untitledTask');
+  const failedCalls = trace.tool_calls.filter((call: TraceToolCall) => !call.success || Boolean(call.error));
 
-  // Step 1: 原始需求 (Requirements)
-  const reqDetails: string[] = [];
-  if (trace.task_input) {
-    reqDetails.push(trace.task_input.trim());
-  } else {
-    reqDetails.push('无显式文本输入');
-  }
-
-  // Step 2: 方案与决策 (Architecture & Decisions)
-  const archDetails: string[] = [];
-  const planningCalls = trace.tool_calls.filter((t: TraceToolCall) =>
-    ['task_planning', 'structure-planner', 'sequentialthinking', 'delegate_task'].some((k) =>
-      t.tool_name.toLowerCase().includes(k),
-    ),
-  );
-  if (planningCalls.length > 0) {
-    archDetails.push(`识别到 ${planningCalls.length} 次架构与规划决策阶段调度`);
-    planningCalls.slice(0, 5).forEach((t) => {
-      archDetails.push(
-        `[${t.tool_name}] ${t.output_summary || (t.input_data ? JSON.stringify(t.input_data).slice(0, 100) : '规划节点')}`,
-      );
-    });
-  } else {
-    archDetails.push('遵循端到端直连执行与敏捷响应模式');
-  }
-
-  // Step 3: v0 首稿方案 (Initial Implementation)
-  const v0Details: string[] = [];
-  const editTools = ['file_write_tool', 'file_edit_tool', 'patch', 'write', 'str_replace'];
-  const firstWrite = trace.tool_calls.find((t: TraceToolCall) =>
-    editTools.some((et) => t.tool_name.toLowerCase().includes(et)),
-  );
-  if (firstWrite) {
-    v0Details.push(`首次物料落地动作: [${firstWrite.tool_name}] (序列 #${firstWrite.sequence})`);
-    if (firstWrite.input_data && typeof firstWrite.input_data === 'object') {
-      const pathVal =
-        (firstWrite.input_data as Record<string, unknown>).path ||
-        (firstWrite.input_data as Record<string, unknown>).file_path;
-      if (pathVal) {
-        v0Details.push(`目标文件: ${String(pathVal)}`);
-      }
-    }
-  } else {
-    v0Details.push('未检测到静态文件修改或为纯会话交互任务');
-  }
-
-  // Step 4: 轨迹与纠错 (Execution & Correction)
-  const execDetails: string[] = [];
-  const failedCalls = trace.tool_calls.filter((t: TraceToolCall) => !t.success || Boolean(t.error));
-  execDetails.push(`总工具调用 ${trace.tool_calls.length} 次，其中异常拦截/修复 ${failedCalls.length} 次`);
-  if (trace.errors && trace.errors.length > 0) {
-    trace.errors.slice(0, 3).forEach((err: TraceError) => {
-      execDetails.push(`[异常记录] ${err.error_type || 'Error'}: ${err.error.slice(0, 120)}`);
-    });
-  }
-  if (failedCalls.length > 0) {
-    failedCalls.slice(0, 3).forEach((f) => {
-      execDetails.push(`[自愈点] ${f.tool_name} 失败后触发重试或策略自适应`);
-    });
-  }
-
-  // Step 5: 验证实证 (Verification & Evidence)
-  const verifDetails: string[] = [];
-  const testCalls = trace.tool_calls.filter((t: TraceToolCall) =>
-    ['test', 'pytest', 'bash', 'audit', 'lint', 'verifier', 'check'].some((tk) =>
-      t.tool_name.toLowerCase().includes(tk),
-    ),
-  );
-  if (testCalls.length > 0) {
-    const passedTests = testCalls.filter((t) => t.success).length;
-    verifDetails.push(
-      `执行了 ${testCalls.length} 次验证/测试动作，通过率 ${((passedTests / testCalls.length) * 100).toFixed(0)}%`,
-    );
-    testCalls.slice(0, 3).forEach((tc) => {
-      verifDetails.push(`[实证执行] ${tc.tool_name}: ${tc.success ? 'PASSED ✅' : 'FAILED ❌'}`);
-    });
-  } else {
-    verifDetails.push('完成基于语义一致性与任务结束门禁的推导验证');
-  }
-
-  // Step 6: 沉淀与复盘 (Lessons & Best Practices)
-  const takeawayDetails: string[] = [];
-  if (trace.outcome === 'success') {
-    takeawayDetails.push('任务完整闭环，各阶段决策与实证对齐良好');
-    takeawayDetails.push('建议将本次沉淀的稳定 SOP 提取为专用 Skill 或自动化模板');
-  } else {
-    takeawayDetails.push(`任务状态为 ${trace.outcome}，需重点关注中断或首个不可逆错误`);
-    if (trace.first_irrecoverable_index != null) {
-      takeawayDetails.push(`首个致命异常位于步骤索引 #${trace.first_irrecoverable_index}`);
-    }
-  }
-
-  const steps: EvidencePackStep[] = [
+  const stepSpecs: ReadonlyArray<{
+    id: EvidencePackStepId;
+    details: string[];
+    metrics?: Record<string, string | number>;
+  }> = [
+    { id: 'requirements', details: buildRequirementDetails(trace, t) },
+    { id: 'architecture', details: buildArchitectureDetails(trace, t) },
+    { id: 'initial_impl', details: buildInitialImplDetails(trace, t) },
     {
-      stepIndex: 1,
-      id: 'requirements',
-      title: '原始需求输入 (Original Requirements)',
-      summary: '原始任务目标、业务背景与约束输入',
-      details: reqDetails,
-    },
-    {
-      stepIndex: 2,
-      id: 'architecture',
-      title: '架构与方案决策 (Architecture & Decisions)',
-      summary: '技术路径选型、计划分解与依赖关系',
-      details: archDetails,
-    },
-    {
-      stepIndex: 3,
-      id: 'initial_impl',
-      title: 'v0 首稿实现快照 (v0 Implementation)',
-      summary: '首次代码/物料产出与初始方案形态',
-      details: v0Details,
-    },
-    {
-      stepIndex: 4,
       id: 'execution_correction',
-      title: '执行演进与自愈纠错 (Execution & Correction)',
-      summary: '工具调用流水、报错排查与纠偏证据',
-      details: execDetails,
+      details: buildExecutionDetails(trace, failedCalls, t),
       metrics: {
-        总调用: trace.tool_calls.length,
-        异常数: failedCalls.length,
+        [t('metricTotalCalls')]: trace.tool_calls.length,
+        [t('metricFailures')]: failedCalls.length,
       },
     },
-    {
-      stepIndex: 5,
-      id: 'verification',
-      title: '客观验证与测试实证 (Verification & Tests)',
-      summary: '测试用例、静态检查与环境实测数据',
-      details: verifDetails,
-    },
-    {
-      stepIndex: 6,
-      id: 'takeaways',
-      title: '经验沉淀与防退化要点 (Lessons & Takeaways)',
-      summary: '复盘总结、最佳实践与沉淀建议',
-      details: takeawayDetails,
-    },
+    { id: 'verification', details: buildVerificationDetails(trace, t) },
+    { id: 'takeaways', details: buildTakeawayDetails(trace, t) },
   ];
+
+  const steps: EvidencePackStep[] = stepSpecs.map((spec, index) => ({
+    stepIndex: index + 1,
+    id: spec.id,
+    title: t(`steps.${spec.id}.title`),
+    shortTitle: t(`steps.${spec.id}.shortTitle`),
+    summary: t(`steps.${spec.id}.summary`),
+    details: spec.details,
+    metrics: spec.metrics,
+  }));
 
   return {
     sessionId: trace.session_id,
@@ -199,21 +195,21 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
 /**
  * 导出为标准化 Markdown 报告
  */
-export function exportEvidencePackToMarkdown(pack: SixStepEvidencePack): string {
+export function exportEvidencePackToMarkdown(pack: SixStepEvidencePack, t: EvidencePackTranslator): string {
   const durationSec = (pack.totalDurationMs / 1000).toFixed(1);
   const lines: string[] = [
-    `# 📋 项目实战六步经验证据包: ${pack.taskTitle}`,
+    `# ${t('markdownHeading', { title: pack.taskTitle })}`,
     '',
-    `> **会话 ID**: \`${pack.sessionId}\`  `,
-    `> **执行结果**: \`${pack.outcome.toUpperCase()}\` | **耗时**: ${durationSec}s | **Token 消耗**: ${pack.totalTokens.toLocaleString()} | **工具调用**: ${pack.totalToolCalls} 次  `,
-    `> **生成时间**: ${pack.generatedAt}`,
+    `> **${t('markdownSessionId')}**: \`${pack.sessionId}\`  `,
+    `> **${t('markdownOutcome')}**: \`${pack.outcome.toUpperCase()}\` | **${t('markdownDuration')}**: ${durationSec}s | **${t('markdownTokens')}**: ${pack.totalTokens.toLocaleString()} | **${t('markdownToolCalls')}**: ${pack.totalToolCalls}  `,
+    `> **${t('markdownGeneratedAt')}**: ${pack.generatedAt}`,
     '',
     '---',
     '',
   ];
 
   pack.steps.forEach((step) => {
-    lines.push(`## Step ${step.stepIndex}: ${step.title}`);
+    lines.push(`## ${t('markdownStepHeading', { index: step.stepIndex, title: step.title })}`);
     lines.push(`*${step.summary}*`);
     lines.push('');
     step.details.forEach((item) => {
@@ -221,7 +217,7 @@ export function exportEvidencePackToMarkdown(pack: SixStepEvidencePack): string 
     });
     if (step.metrics) {
       lines.push('');
-      lines.push('**关键度量**:');
+      lines.push(`**${t('markdownMetrics')}**:`);
       Object.entries(step.metrics).forEach(([k, v]) => {
         lines.push(`- ${k}: \`${v}\``);
       });
@@ -230,7 +226,7 @@ export function exportEvidencePackToMarkdown(pack: SixStepEvidencePack): string 
   });
 
   lines.push('---');
-  lines.push('*由 Myrmidon AI 项目经验六步向导自动聚合生成*');
+  lines.push(`*${t('markdownFooter')}*`);
   return lines.join('\n');
 }
 
@@ -244,17 +240,19 @@ export function exportEvidencePackToJson(pack: SixStepEvidencePack): string {
 /**
  * 触发文件下载
  */
-export function downloadEvidencePack(pack: SixStepEvidencePack, format: 'markdown' | 'json'): void {
+export function downloadEvidencePack(
+  pack: SixStepEvidencePack,
+  format: 'markdown' | 'json',
+  t: EvidencePackTranslator,
+): void {
   const dateStr = new Date().toISOString().slice(0, 10);
   const baseName = sanitizeFilename(`EvidencePack_${pack.taskTitle.slice(0, 20)}_${dateStr}`);
 
   if (format === 'markdown') {
-    const mdContent = exportEvidencePackToMarkdown(pack);
-    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([exportEvidencePackToMarkdown(pack, t)], { type: 'text/markdown;charset=utf-8' });
     triggerDownload(blob, `${baseName}.md`);
   } else {
-    const jsonContent = exportEvidencePackToJson(pack);
-    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
+    const blob = new Blob([exportEvidencePackToJson(pack)], { type: 'application/json;charset=utf-8' });
     triggerDownload(blob, `${baseName}.json`);
   }
 }

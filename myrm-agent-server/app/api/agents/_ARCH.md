@@ -11,7 +11,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `__init__.py` | 入口 | AI Agent API 模块 | ✅ |
 | `agent.py` | 核心 | Agent 核心 CRUD、快照/回滚、Avatar 上传、文件服务。创建与更新前，档案里模型会读的文字（`system_prompt`、`description`、建议提示词、命令绑定的指令）经 `reject_if_risky` 过闸，命中返回 400 `risk_held`、不落库；责任单元的 `responsibility_scope` / `acceptance_criteria` 只用于治理展示，不过闸。 | ✅ |
 | `_agent_response.py` | 内部 | AgentProfile → AgentResponse 序列化工具函数（被 agent/portability/templates 共享）。 | ✅ |
-| `agent_extras.py` | 核心 | Agent 辅助端点：Secrets CRUD、使用统计、动作空间 ASCS 评估与 Turn1 技能目录预览（与运行时同一个解析器和渲染器：内联数、按需数、被预算挤掉的核心技能数、目录 token、搜索是否挂载；元数据经 `runtime_metadata.skill_to_runtime_metadata` 适配，技能可用性与 Agent runtime 共用 `requirements_availability` 判定）。 | ✅ |
+| `agent_extras.py` | 核心 | Agent 辅助端点：Secrets CRUD、使用统计、动作空间 ASCS 评估与 Turn1 技能目录预览（与运行时同一个解析器和渲染器：内联数、按需数、被预算挤掉的核心技能数、目录 token、搜索是否挂载；技能经 `loader.create_skill_backend` + `load_skills` 取得，与 Agent 工厂是同一套组装，所以每个技能只计一次、名称与可用性判定（`requirements_availability`、OAuth / provider 门）都与运行时一致；工作区、MCP 与信任覆盖随会话而定，不在预览内）。 | ✅ |
 | `agent_portability.py` | 核心 | Agent 可移植性：克隆、Marketplace 跨沙箱分发（导出/导入）。专家之间交换只走 Agent Plugins ZIP（`/plugins/export`、`/plugins/import`），JSON 导入导出与工作区文件束已退役。 | ✅ |
 | `agent_history.py` | 模块 | Get the version history of an agent's profile. | ✅ |
 | `ai_build.py` | 模块 | AI-driven agent config generator: accepts a natural-language intent, streams a complete AgentCreate-compatible JSON (name, prompt, skills, MCPs, tools); without a usable model it refuses with 422 `{message, error_code: model_not_configured}` so the client can localize it; the intent is screened by the risk gate before the model is resolved (400 `risk_held`); the skill catalog offered to the model lists the installed skills whose dependencies are met (`Skill.available`) | ✅ |

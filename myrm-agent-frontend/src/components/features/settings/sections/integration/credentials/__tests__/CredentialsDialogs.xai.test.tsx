@@ -111,3 +111,17 @@ describe('CredentialsDialogs: xAI device-code login', () => {
     expect(screen.queryByText('xaiOauthCode')).not.toBeInTheDocument();
   });
 });
+
+describe('CredentialsDialogs: disconnect confirmation', () => {
+  it('offers to clear synced memory with the number of sources', () => {
+    render(<CredentialsDialogs {...buildProps({ disconnectConfirmTarget: XAI, providerTreeCount: 3 })} />);
+
+    expect(screen.getByLabelText('clearSyncedMemory:{"count":3}')).toBeInTheDocument();
+  });
+
+  it('hides the synced memory option when nothing was synced', () => {
+    render(<CredentialsDialogs {...buildProps({ disconnectConfirmTarget: XAI, providerTreeCount: 0 })} />);
+
+    expect(screen.queryByLabelText(/clearSyncedMemory/)).not.toBeInTheDocument();
+  });
+});

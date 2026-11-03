@@ -3,6 +3,7 @@
 import React from 'react';
 import { X, FileCode, FileSpreadsheet, FileText, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 
 const PREVIEW_MAX_LEN = 100;
@@ -21,6 +22,7 @@ function getKindIcon(kind?: string) {
 }
 
 export function ScopedArtifactChip() {
+  const t = useTranslations('chat');
   const target = useScopedArtifactStore((s) => s.target);
   const clearTarget = useScopedArtifactStore((s) => s.clearTarget);
 
@@ -57,7 +59,7 @@ export function ScopedArtifactChip() {
             <button
               type="button"
               onClick={clearTarget}
-              aria-label="Remove scoped target"
+              aria-label={t('scopedArtifactRemove')}
               className="flex-shrink-0 p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors ml-auto"
             >
               <X className="h-3.5 w-3.5" />

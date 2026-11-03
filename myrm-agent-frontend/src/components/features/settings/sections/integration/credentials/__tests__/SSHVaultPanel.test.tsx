@@ -163,7 +163,7 @@ describe('SSHVaultPanel', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
 
-    const cmdInput = screen.getByPlaceholderText(/e\.g\. systemctl restart nginx/i);
+    const cmdInput = screen.getByPlaceholderText('breakGlassCommandPlaceholder');
     const reasonInput = screen.getByPlaceholderText(/说明在受保护节点上执行变更的必要性/i);
 
     fireEvent.change(cmdInput, { target: { value: 'systemctl restart nginx' } });

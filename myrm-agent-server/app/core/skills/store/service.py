@@ -354,14 +354,21 @@ class SkillsService:
         )
         return allowed
 
-    async def get_skills_by_ids(self, skill_ids: list[str]) -> list[Skill]:
-        """根据技能 ID 列表获取技能"""
+    async def get_skills_by_ids(self, skill_ids: list[str], *, skill_type: SkillType | None = None) -> list[Skill]:
+        """根据技能 ID 列表获取技能。
+
+        按 ID 解析只覆盖预构建与本地目录（工作区技能按路径发现）；`skill_type` 非空时只读该类型的目录，
+        不列举另一类，None 两类都读。
+        """
         if not skill_ids:
             return []
         config = await self.user_config.get_config()
-        all_prebuilt = await self.list_skills(skill_type=SkillType.PREBUILT)
-        local_skills: list[Skill] = await reader.list_local_skills(self.user_config)
-        skill_map = {s.id: s for s in (all_prebuilt + local_skills)}
+        catalog: list[Skill] = []
+        if skill_type in (None, SkillType.PREBUILT):
+            catalog += await self.list_skills(skill_type=SkillType.PREBUILT)
+        if skill_type in (None, SkillType.LOCAL):
+            catalog += await reader.list_local_skills(self.user_config)
+        skill_map = {s.id: s for s in catalog}
         resolved = [skill_map[sid] for sid in skill_ids if sid in skill_map]
         from app.core.skills.gates.runtime_load import filter_skills_for_runtime_load
 

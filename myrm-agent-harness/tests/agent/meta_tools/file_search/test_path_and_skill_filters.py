@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     find_existing_unicode_path,
@@ -19,7 +22,7 @@ from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
 )
 
 
-def test_suggest_similar_paths_finds_close_name(tmp_path) -> None:
+def test_suggest_similar_paths_finds_close_name(tmp_path: Path) -> None:
     target = tmp_path / "redme.md"
     (tmp_path / "readme.md").write_text("hello", encoding="utf-8")
     suggestions = suggest_similar_paths(str(target))
@@ -78,7 +81,7 @@ def test_filter_disabled_skill_paths() -> None:
 
 
 def test_get_disabled_skill_roots_from_config() -> None:
-    config = {"configurable": {"context": {"disabled_skill_roots": ["/skills/off"]}}}
+    config: RunnableConfig = {"configurable": {"context": {"disabled_skill_roots": ["/skills/off"]}}}
     assert get_disabled_skill_roots(config) == ["/skills/off"]
 
 
@@ -100,7 +103,7 @@ def test_generate_unicode_path_candidates() -> None:
     assert any("src/components/button.tsx" in c for c in candidates)
 
 
-def test_find_existing_unicode_path(tmp_path) -> None:
+def test_find_existing_unicode_path(tmp_path: Path) -> None:
     # Create an on-disk file with ASCII name
     file_path = tmp_path / "app_config.json"
     file_path.write_text("{}", encoding="utf-8")
@@ -111,7 +114,7 @@ def test_find_existing_unicode_path(tmp_path) -> None:
     assert "app_config.json" in probed
 
 
-def test_find_existing_unicode_path_blocked_devices(tmp_path) -> None:
+def test_find_existing_unicode_path_blocked_devices(tmp_path: Path) -> None:
     assert find_existing_unicode_path("/dev/zero") is None
     assert find_existing_unicode_path("CON.txt", base_dir=str(tmp_path)) is None
 
@@ -125,7 +128,7 @@ def test_levenshtein_distance_bounded() -> None:
     assert levenshtein_distance_bounded("completely_different.py", "readme.md", max_dist=2) == 3
 
 
-def test_suggest_similar_paths_levenshtein_ranking(tmp_path) -> None:
+def test_suggest_similar_paths_levenshtein_ranking(tmp_path: Path) -> None:
     (tmp_path / "main_controller.py").write_text("", encoding="utf-8")
     (tmp_path / "main_controller_test.py").write_text("", encoding="utf-8")
 
@@ -135,7 +138,7 @@ def test_suggest_similar_paths_levenshtein_ranking(tmp_path) -> None:
     assert suggestions[0].endswith("main_controller.py")
 
 
-def test_path_hint_edge_cases(tmp_path) -> None:
+def test_path_hint_edge_cases(tmp_path: Path) -> None:
     # Empty path
     assert generate_unicode_path_candidates("") == []
     assert find_existing_unicode_path("") is None

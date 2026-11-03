@@ -600,7 +600,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                   <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
                     <div className="flex flex-col items-end gap-1 min-w-[100px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium">Fit Score:</span>
+                        <span className="text-xs font-medium">{t('fitScore')}</span>
                         <span className={`text-sm font-bold ${getFitLevelColor(rec.effectiveFitLevel).split(' ')[0]}`}>
                           {rec.effectiveFitScore}%
                         </span>

@@ -7,8 +7,6 @@
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
-| | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 指令直达与一键启闭闲置 MCP 服务 | ✅ |
-| | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 
 |                                                         | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 胶囊标签渲染与防膨胀提示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ✅  |
 | ------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
@@ -54,13 +52,14 @@
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`NewTaskWorkContextCard`、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；手机（<`sm`）顶部留白 `8vh`、≥`sm` 为 `20vh`，使 390×844 的干净首屏无需滚动（由 `__tests__/EmptyChat.mobile.contract.test.ts` 守卫）；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
 | `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由，防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
-| `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作区三模式标签（`WorkModeTabs`）为三列网格、图标顶对齐、标签可换行或自动断字而不被截断、<`375px` 时左右内边距减半；云端沙箱 / 极速对话说明行的圆点与图标不被压缩、存储徽章换行而不拆行（`NewTaskWorkContextCard`）；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
+| `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作区三模式标签（`WorkModeTabs`）为三列网格、图标顶对齐、标签可换行或自动断字而不被截断、<`375px` 时左右内边距减半；云端沙箱 / 极速对话说明行的圆点与图标不被压缩、存储徽章换行而不拆行、工作区触发按钮未绑定的整句换行且已绑定的路径收缩成省略号（`NewTaskWorkContextCard`）；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失；本机已运行 Ollama 且有能对话、支持工具调用的模型时（`useOllamaQuickConnect`），多一个「使用 Ollama：模型名」按钮，点击经 `enableProviderWithModel` 启用 Ollama 与该模型、主模型槽位空缺时绑定，没有合格模型时不显示 | ✅ |
 | `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板 | ✅ |
 | `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化与跳转动作覆盖 | ✅ |
-| `NewTaskWorkContextCard.tsx` | 组件 | 新建任务工作上下文卡片：三模式切换（本地工作区/云端沙箱/极速对话）、工作区路径绑定与一键办公标准化脚手架（00_原始资料/01_参考/02_生成结果/03_历史版本；只创建工作区里缺失的目录，已齐全时按已初始化处理，按钮悬停提示由同一份目录清单生成）；服务端拒绝的目录（范围过大 / 受保护）只弹说明，不写入本地状态；云端沙箱与极速对话的面板各带一行说明，本地面板（目录选择器）没有，所以标签栏右侧的说明提示（≥`md`）只在本地模式渲染，其余两个模式不重复同一句话；说明行在手机上让存储徽章换到下一行且不拆行，前缀圆点与图标不被压缩；模式切换的渲染交给 `WorkModeTabs`，卡片只持有切换对 chat store 的语义 | ✅ |
+| `NewTaskWorkContextCard.tsx` | 组件 | 新建任务工作上下文卡片：三模式切换（本地工作区/云端沙箱/极速对话）、工作区路径绑定与一键办公标准化脚手架（00_原始资料/01_参考/02_生成结果/03_历史版本；只创建工作区里缺失的目录，已齐全时按已初始化处理，按钮悬停提示由同一份目录清单生成）；服务端拒绝的目录（范围过大 / 受保护）只弹说明，不写入本地状态；云端沙箱与极速对话的面板各带一行说明，本地面板（目录选择器）没有，所以标签栏右侧的说明提示（≥`md`）只在本地模式渲染，其余两个模式不重复同一句话；说明行在手机上让存储徽章换到下一行且不拆行，前缀圆点与图标不被压缩；工作区触发按钮未绑定时显示本地化整句（各语言长短不一），整句自然换行、不设宽度上限也不省略，已绑定的路径保持单行省略且按钮可收缩，右侧的清除按钮在手机上不被挤出卡片；模式切换的渲染交给 `WorkModeTabs`，卡片只持有切换对 chat store 的语义 | ✅ |
+| `__tests__/NewTaskWorkContextCard.test.tsx` | 测试 | 工作上下文卡片测试：模式切换（云端沙箱、极速对话）；脚手架只创建缺失目录、目录齐全时直接报成功、缺失目录创建失败或工作区无法列出时报失败、悬停提示列出同一份目录清单；云端沙箱存储徽章取自语言包；本地说明不设最大宽度、未绑定整句可换行、已绑定路径单行省略；解除绑定与 Web 浏览弹窗选目录；服务端拒绝过宽目录时不绑定，会话尚未创建时仍本地绑定 | ✅ |
 | `WorkModeTabs.tsx` | 组件 | 工作模式三段式切换（本地工作区/云端沙箱/极速对话），表驱动渲染、无状态；手机（<`sm`）为三列网格（图标在上且顶对齐，标签换行行数不同时三个图标仍在同一水平线），标签先按词换行、单词仍超宽时按文档语言（`<html lang>` 由 `DocumentLang` 在水合后同步为当前语言，首屏绘制时仍是默认语言）自动断字，浏览器没有该语言的断字规则时在词内换行（`break-words`），标签不被裁切，<`375px` 时按钮左右内边距由 8px 收到 4px，使 360 宽手机上的 `Lokaler`、`작업` 等词保持完整，≥`sm` 为单行 flex 居中；三个按钮以 `aria-pressed` 暴露当前模式；标签文案以字面量键 `t('modeLocal')` 等取值，使 `verify:i18n` 能静态校验；每个标签的 `data-testid` 为 `context-mode-` 加模式名（`local` / `cloud` / `chat`） | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
@@ -86,7 +85,10 @@
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |
 | `QuoteCard.tsx` | 组件 | 引用消息预览卡片（回复/转发上下文） | ✅ |
 | `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器 | ✅ |
-| `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务 | ✅ |
+| `ProjectBoundaryBadge.tsx` | 组件 | 输入框上方的项目隔离徽标：当前会话属于某个项目时显示沙箱边界与记忆隔离状态，悬浮提示给出工作区或沙箱路径；文案取自 `chat.projectBoundary`（`__tests__/ProjectBoundaryBadge.test.tsx`） | ✅ |
+| `ScopedArtifactChip.tsx` | 组件 | 输入框上方的限定目标芯片：显示被选中的工件、表格行或文档片段（名称、范围标签与截断预览），可一键清除；文案取自 `chat`（`__tests__/ScopedArtifactChip.test.tsx`） | ✅ |
+| `PreferenceRadarToggle.tsx` | 组件 | 聊天窗口的卫星浮钮：打开停靠的偏好雷达抽屉，实时查看并微调记忆偏好的五个维度，可锁定；标题与无障碍标签取自 `chat.preferenceRadar`（`__tests__/PreferenceRadarToggle.test.tsx`） | ✅ |
+| `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务；三档底噪基线说明取自 `chat.contextFootprint` | ✅ |
 | `__tests__/ContextFootprintInspector.test.tsx` | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 | `__tests__/ReferenceMentionPopover.dedup.test.tsx` | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 `[已在上下文]` 胶囊标签渲染与防膨胀提示 | ✅ |
 | `SamplePrompts.tsx` | 组件 | 空会话情境感知操作算子与示例 prompt 列表：时段智能感知（晨间/午后/晚间/深夜四时段自动自适应与微胶囊切换）+ 模式与等级加权过滤；手机上胶囊为单行横滑、示例卡片为吸附横滑（出血到屏幕边缘），≥`sm` 胶囊换行居中、卡片成 2/4 列网格 | ✅ |
@@ -188,6 +190,7 @@
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |
+| `__tests__/InputHistoryPopup.test.tsx`       | 测试 | 输入历史弹窗单元测试：listbox 的无障碍名称取自翻译键                                                                                                                              | ✅    |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                                          | ✅    |

@@ -10,7 +10,8 @@
 [POS]
 Owns the ripgrep process lifecycle for the file search tools. Both tools stop reading once they have
 enough results; this module makes that early stop safe (no hang waiting for an exit that asyncio cannot
-see) and releases the child on timeout or cancellation.
+see), accepts the very long lines a match inside a minified file produces, and releases the child on
+timeout, cancellation or a failing reader.
 """
 
 from __future__ import annotations
@@ -23,6 +24,9 @@ from pathlib import Path
 
 _DRAIN_CHUNK_BYTES = 65536
 _REAP_TIMEOUT_SECONDS = 2.0
+# ``rg --json`` puts a whole matching line into one event, so a hit inside a minified bundle or a lock file is a
+# single line far above asyncio's 64 KiB default, which would abort the run. Lines beyond this still fail.
+_STREAM_LIMIT_BYTES = 16 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +73,7 @@ async def run_rg(
 
     Raises:
         TimeoutError: ripgrep did not finish within ``timeout_seconds``; the process has been killed.
+        ValueError: A stdout line exceeded ``_STREAM_LIMIT_BYTES``; the process has been killed.
         RuntimeError: The subprocess pipes could not be created.
     """
     proc = await asyncio.create_subprocess_exec(
@@ -77,6 +82,7 @@ async def run_rg(
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        limit=_STREAM_LIMIT_BYTES,
     )
     stdout, stderr = proc.stdout, proc.stderr
     if stdout is None or stderr is None:
@@ -102,12 +108,14 @@ async def run_rg(
         while chunk := await stderr.read(4096):
             stderr_data.extend(chunk)
 
+    pumps = [asyncio.ensure_future(work) for work in (_pump_stdout(), _pump_stderr(), proc.wait())]
     try:
-        await asyncio.wait_for(
-            asyncio.gather(_pump_stdout(), _pump_stderr(), proc.wait()),
-            timeout=timeout_seconds,
-        )
+        await asyncio.wait_for(asyncio.gather(*pumps), timeout=timeout_seconds)
     except BaseException:
+        # gather leaves its siblings running when one of them fails; they must stop reading before _reap drains.
+        for pump in pumps:
+            pump.cancel()
+        await asyncio.gather(*pumps, return_exceptions=True)
         await _reap(proc)
         raise
 

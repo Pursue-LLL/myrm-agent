@@ -331,7 +331,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
     <div
       ref={toolbarRef}
       role="toolbar"
-      aria-label="Selection toolbar"
+      aria-label={t('toolbarLabel')}
       tabIndex={-1}
       className={cn('absolute z-50 animate-in fade-in-0 zoom-in-95 duration-150', 'flex flex-col gap-1')}
       style={{

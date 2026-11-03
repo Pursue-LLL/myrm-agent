@@ -332,14 +332,14 @@ export const AgentCommerceBudgetSection = memo(() => {
                             className="py-2 px-3 space-y-1 font-mono text-[11px] text-muted-foreground border-b border-border/20"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold text-foreground">Entry Hash:</span>
+                              <span className="font-semibold text-foreground">{t('entryHashLabel')}</span>
                               <span className="truncate max-w-[420px] select-all">
-                                {item.entry_hash || 'Pending / N/A'}
+                                {item.entry_hash || t('entryHashPending')}
                               </span>
                             </div>
                             {item.idempotency_key ? (
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground">Idempotency Key:</span>
+                                <span className="font-semibold text-foreground">{t('idempotencyKeyLabel')}</span>
                                 <span className="truncate">{item.idempotency_key}</span>
                               </div>
                             ) : null}

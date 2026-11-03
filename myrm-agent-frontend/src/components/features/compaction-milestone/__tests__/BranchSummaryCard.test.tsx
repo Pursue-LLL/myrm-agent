@@ -28,18 +28,13 @@ describe('BranchSummaryCard component', () => {
     render(<BranchSummaryCard entry={mockBranchEntry} />);
 
     expect(screen.getByText('inheritedBadge')).toBeDefined();
+    expect(screen.getByLabelText('ariaLabel')).toBeDefined();
     expect(screen.getByText('Alpha-Variant')).toBeDefined();
-    expect(
-      screen.getByText('Verified streaming token decoding latency over HTTP SSE vs WebSocket.'),
-    ).toBeDefined();
+    expect(screen.getByText('Verified streaming token decoding latency over HTTP SSE vs WebSocket.')).toBeDefined();
 
     expect(screen.getByText('keyTakeawaysTitle')).toBeDefined();
-    expect(
-      screen.getByText('HTTP SSE is simpler with less reconnect overhead on corporate VPNs.'),
-    ).toBeDefined();
-    expect(
-      screen.getByText('WebSocket provides duplex cancellation without secondary RPC roundtrips.'),
-    ).toBeDefined();
+    expect(screen.getByText('HTTP SSE is simpler with less reconnect overhead on corporate VPNs.')).toBeDefined();
+    expect(screen.getByText('WebSocket provides duplex cancellation without secondary RPC roundtrips.')).toBeDefined();
 
     expect(screen.getByText(/msg-epoch-42/)).toBeDefined();
   });

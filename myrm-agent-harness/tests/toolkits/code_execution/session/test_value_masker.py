@@ -142,6 +142,7 @@ class TestEqualsMaskingInOnePiece:
 
 _AWKWARD = 'p@ss w/rd%1&"x\\y'
 _AWKWARD_URL = "p%40ss%20w%2Frd%251%26%22x%5Cy"
+_AWKWARD_URL_PLUS = "p%40ss+w%2Frd%251%26%22x%5Cy"
 _AWKWARD_JSON = 'p@ss w/rd%1&\\"x\\\\y'
 
 
@@ -150,7 +151,10 @@ class TestPrintedForms:
         assert printed_forms(["correct-horse-battery_staple.9"]) == ["correct-horse-battery_staple.9"]
 
     def test_a_password_with_special_characters_also_has_its_url_and_json_forms(self) -> None:
-        assert set(printed_forms([_AWKWARD])) == {_AWKWARD, _AWKWARD_URL, _AWKWARD_JSON}
+        assert set(printed_forms([_AWKWARD])) == {_AWKWARD, _AWKWARD_URL, _AWKWARD_URL_PLUS, _AWKWARD_JSON}
+
+    def test_a_space_is_written_as_a_percent_escape_or_as_a_plus(self) -> None:
+        assert set(printed_forms(["two words1"])) == {"two words1", "two%20words1", "two+words1"}
 
     def test_a_multi_line_secret_has_the_forms_a_key_takes_in_a_url_or_a_json_string(self) -> None:
         forms = printed_forms(["-----BEGIN KEY-----\nabc\n-----END KEY-----"])
@@ -158,11 +162,15 @@ class TestPrintedForms:
         assert "-----BEGIN%20KEY-----%0Aabc%0A-----END%20KEY-----" in forms
         assert "-----BEGIN KEY-----\\nabc\\n-----END KEY-----" in forms
 
-    def test_non_ascii_is_percent_encoded_as_utf8_and_stays_readable_in_json(self) -> None:
-        assert set(printed_forms(["pässwort1"])) == {"pässwort1", "p%C3%A4sswort1"}
+    def test_non_ascii_is_percent_encoded_as_utf8_and_is_kept_or_escaped_in_json(self) -> None:
+        assert set(printed_forms(["pässwort1"])) == {"pässwort1", "p%C3%A4sswort1", "p\\u00e4sswort1"}
 
     def test_url_encoders_that_leave_the_punctuation_bare_are_covered(self) -> None:
         assert set(printed_forms(["p@ss!1(x)"])) == {"p@ss!1(x)", "p%40ss%211%28x%29", "p%40ss!1(x)"}
+
+    @pytest.mark.parametrize("value", ["abcd\ud800", "abcd\udc80"])
+    def test_a_lone_surrogate_in_a_value_does_not_break_the_forms(self, value: str) -> None:
+        assert value in printed_forms([value])
 
     def test_a_value_under_the_minimum_has_no_forms_at_all(self) -> None:
         assert printed_forms(["a@b"]) == []
@@ -172,8 +180,8 @@ class TestPrintedForms:
 
 
 class TestMaskingTheForms:
-    _TEXT = f'curl https://u:{_AWKWARD_URL}@h/ -d \'{{"p":"{_AWKWARD_JSON}"}}\' raw={_AWKWARD}'
-    _MASKED = f'curl https://u:{MASK}@h/ -d \'{{"p":"{MASK}"}}\' raw={MASK}'
+    _TEXT = f'curl https://u:{_AWKWARD_URL}@h/?p={_AWKWARD_URL_PLUS} -d \'{{"p":"{_AWKWARD_JSON}"}}\' raw={_AWKWARD}'
+    _MASKED = f'curl https://u:{MASK}@h/?p={MASK} -d \'{{"p":"{MASK}"}}\' raw={MASK}'
 
     def test_every_form_is_hidden(self) -> None:
         assert _streamed([self._TEXT], printed_forms([_AWKWARD])) == self._MASKED
@@ -181,3 +189,8 @@ class TestMaskingTheForms:
     @pytest.mark.parametrize("cut", range(len(_TEXT) + 1))
     def test_every_form_is_hidden_wherever_the_read_was_cut(self, cut: int) -> None:
         assert _streamed([self._TEXT[:cut], self._TEXT[cut:]], printed_forms([_AWKWARD])) == self._MASKED
+
+    def test_the_ascii_escaped_json_form_of_non_ascii_text_is_hidden(self) -> None:
+        text = '{"password": "p\\u00e4sswort1", "kept": "pässwort1"}'
+
+        assert _streamed([text], printed_forms(["pässwort1"])) == f'{{"password": "{MASK}", "kept": "{MASK}"}}'

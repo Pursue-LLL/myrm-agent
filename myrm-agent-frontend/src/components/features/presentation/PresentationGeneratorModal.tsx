@@ -2,14 +2,14 @@
  * [INPUT]
  * @/services/presentation::generatePresentation, PresentationArtifactResponse, PresentationGenerateRequest (POS: Presentation API client & types)
  * @/components/features/presentation/PresentationSlidePreviewViewer (POS: High-fidelity presentation previewer)
- * react-i18next::useTranslation (POS: Internationalization hook)
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - PresentationGeneratorModal: Semantic `<dialog>` modal for configuring and generating presentation decks
  *
  * [POS]
  * Presentation Generator Modal Component (Item 16).
- * Single file < 280 lines. Zero `any` types.
+ * Single file < 400 lines. Zero `any` types.
  */
 
 'use client';

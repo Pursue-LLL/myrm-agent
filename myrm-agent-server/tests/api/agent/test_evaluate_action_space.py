@@ -1,8 +1,10 @@
 """Integration tests for evaluate-action-space API."""
 
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.agent.tool_management.action_space import ActionSpaceProfiler
 
@@ -11,7 +13,7 @@ from app.core.storage.types import SkillType
 
 
 @pytest.fixture
-async def async_client(app):
+async def async_client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
@@ -97,7 +99,7 @@ async def test_evaluate_action_space_scores_the_selected_skills(
     async_client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Selected skills are resolved through the skills service; a non-core skill costs half."""
+    """Selected skills are resolved through the skills service; a non-core skill costs half; the preview covers the same selection."""
     skills = [
         _skill("skill-core", "core-skill", "a" * 100),
         _skill("skill-side", "side-skill", "b" * 200),
@@ -106,6 +108,15 @@ async def test_evaluate_action_space_scores_the_selected_skills(
         "app.core.skills.store.service.skills_service.get_skills_by_ids",
         AsyncMock(return_value=skills),
     )
+    # The preview numbers have their own tests (`test_build_catalog_preview.py`); here only the wiring is checked.
+    preview = {"inline_count": 1, "hidden_count": 1, "overflow_count": 0, "catalog_tokens": 321, "search_mounted": True}
+    preview_inputs: list[tuple[list[str], dict[str, dict[str, object]]]] = []
+
+    async def _build_preview(skill_ids: list[str], skill_configs: dict[str, dict[str, object]]) -> dict[str, int | bool]:
+        preview_inputs.append((skill_ids, skill_configs))
+        return preview
+
+    monkeypatch.setattr("app.api.agents.agent_extras._build_catalog_preview", _build_preview)
     payload = {
         "skill_ids": [skill.id for skill in skills],
         "skill_configs": {"skill-core": {"is_core": True}, "skill-side": {"is_core": False}},
@@ -119,7 +130,5 @@ async def test_evaluate_action_space_scores_the_selected_skills(
     result = response.json()["data"]
     base = ActionSpaceProfiler.BASE_TOOL_COST
     assert result["ascs_score"] == (base + 100 // 50) + int((base + 200 // 50) * 0.5)
-    assert result["catalog_preview"]["inline_count"] == 1  # only the core skill is listed inline
-    assert result["catalog_preview"]["hidden_count"] == 1
-    assert result["catalog_preview"]["overflow_count"] == 0  # the side skill is peripheral, not a core skill left out
-    assert result["catalog_preview"]["catalog_tokens"] > 0
+    assert result["catalog_preview"] == preview
+    assert preview_inputs == [(payload["skill_ids"], payload["skill_configs"])]

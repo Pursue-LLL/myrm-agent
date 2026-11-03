@@ -77,15 +77,19 @@ class TestTraversalArguments:
         assert rg_traversal_args(plain_dir)[0] == "--no-config"
         assert rg_traversal_args(plain_dir, include_ignored=True)[0] == "--no-config"
 
-    def test_plain_folder_skips_parent_ignore_files_and_dependency_directories(self, plain_dir: Path) -> None:
+    def test_plain_folder_skips_parent_and_global_ignore_files_and_dependency_directories(
+        self, plain_dir: Path
+    ) -> None:
         arguments = rg_traversal_args(plain_dir)
         assert "--no-ignore-parent" in arguments
+        assert "--no-ignore-global" in arguments
         assert any("node_modules" in argument for argument in arguments)
 
     def test_git_checkout_leaves_ignore_decisions_to_git(self, tmp_path: Path) -> None:
         (tmp_path / ".git").mkdir()
         arguments = rg_traversal_args(tmp_path)
         assert "--no-ignore-parent" not in arguments
+        assert "--no-ignore-global" not in arguments
         assert not any("node_modules" in argument for argument in arguments)
 
     def test_include_ignored_turns_ignore_files_and_pruning_off(self, plain_dir: Path) -> None:
@@ -104,6 +108,20 @@ class TestIgnoreFilesAboveTheWorkspace:
 
         assert listed(await run_glob(workspace, "**/*.py")) == {"src/a.py"}
         assert hit_files(await run_grep(workspace, "needle"), {"src/a.py"}) == {"src/a.py"}
+
+    async def test_global_ignore_file_of_the_user_does_not_hide_a_non_git_workspace(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner, run_grep: SearchRunner
+    ) -> None:
+        home = plain_dir / "home"
+        write_tree(home, {".config/git/ignore": "*.notes\n"})
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
+        workspace = plain_dir / "work"
+        files = {"a.py": "needle\n", "todo.notes": "needle\n"}
+        write_tree(workspace, files)
+
+        assert listed(await run_glob(workspace, "**/*")) == set(files)
+        assert hit_files(await run_grep(workspace, "needle"), set(files)) == set(files)
 
     async def test_ignore_file_of_the_enclosing_repository_still_applies(
         self, tmp_path: Path, require_git: None, run_glob: SearchRunner, run_grep: SearchRunner

@@ -1,9 +1,9 @@
 """Integration: enabling a skill that declares permissions asks for them first.
 
-``repo-call-graph`` is the one preset skill that declares ``required_permissions`` (``file_read``); a skill folder
-the user keeps declares them in its own SKILL.md. The catalog, the local scan, the enable gate, the grant endpoint and
-the user config run without mocks; only the database, the storage and the folder the local scan reads are the
-test's own.
+A preset skill and a skill folder the user keeps declare ``required_permissions`` in their own SKILL.md. The catalog, the
+preset sync, the local scan, the enable gate, the grant endpoint and the user config run without mocks; only the
+database, the storage and the folders the preset sync and the local scan read are the test's own, so the cases do not
+depend on which preset skills the product ships.
 """
 
 from __future__ import annotations
@@ -22,8 +22,18 @@ from app.core.skills.store.service import skills_service
 from app.database.models import Base
 from tests.support.minimal_app import API_PREFIX, build_minimal_app
 
-SKILL_ID = "repo-call-graph"
+SKILL_ID = "reads-the-workspace"
 SKILL_API = f"{API_PREFIX}/skills/{SKILL_ID}"
+SEED_SKILL_MD = f"""---
+name: {SKILL_ID}
+description: Reads the files the user names.
+required_permissions:
+  - file_read
+---
+# {SKILL_ID}
+
+Read the files the user names.
+"""
 LOCAL_SKILL_NAME = "reads-then-writes"
 # Declared out of order: the permissions the response names come back sorted.
 LOCAL_SKILL_MD = f"""---
@@ -55,6 +65,10 @@ async def skills_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Asyn
     monkeypatch.setattr("app.platform_utils.get_storage_provider", lambda: storage)
     monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: factory)
     monkeypatch.setattr("app.database.connection.get_session_factory", lambda: factory)
+    seeds_dir = tmp_path / "seeds"
+    (seeds_dir / SKILL_ID).mkdir(parents=True)
+    (seeds_dir / SKILL_ID / "SKILL.md").write_text(SEED_SKILL_MD, encoding="utf-8")
+    monkeypatch.setattr(prebuilt_sync, "SEEDS_DIR", seeds_dir)
     prebuilt_sync._synced = False  # noqa: SLF001
     await prebuilt_sync.sync_prebuilt_seeds(storage)
 

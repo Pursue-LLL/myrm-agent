@@ -19,6 +19,8 @@
 | `__tests__/SandboxResetCard.test.tsx` | 重置卡单测：成功 / 失败 / 409 运行中 / 非 API 错误各只弹一条本地化提示，不展示 server 英文；请求带 `silent` 与 `reset_python_env: true`；卡片标题只渲染一次 |
 | `__tests__/SandboxResetCard.dialog.test.tsx` | 重置卡确认步骤单测（使用真实确认对话框，不替身）：点按钮只弹确认、确认前不发请求；取消不发请求并关闭对话框；请求进行中重复点确认只发起一次换容器，确认 / 取消 / 触发按钮均禁用，结束后按钮恢复可用 |
 | `__tests__/CustomRulesListEditor.permissionLabels.test.tsx` | 规则编辑器权限下拉的真实渲染测试：6 种语言的真实文案（`describe.each`）下，`KNOWN_PERMISSIONS` 的每一项都以本语言的名称出现、没有任何缺失文案错误 |
+| `__tests__/TimezoneSelector.test.tsx` | 时区选择器在真实 en/zh 文案下的搜索提示与常用分组标题；无匹配时显示无结果提示并隐藏常用分组 |
+| `__tests__/ProjectExperienceWizardModal.test.tsx` | 六步向导弹窗在真实 en/zh 文案下的标题、步骤标签、步骤计数与上一步 / 下一步；复制的 Markdown 与界面同语言；下载按钮触发下载 |
 | `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
@@ -42,6 +44,7 @@
 | 文件                               | 职责                                                                                                                                                                                                                                                      |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AccessCard.tsx`                   | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                                                                                                                                                                                    |
+| `TailscaleAccessCard.tsx`          | Tailscale 访问卡：显示安装 / 守护进程 / serve 状态、HTTPS 或直连访问地址（可打开与复制）、二维码与 MagicDNS；文案取自 `settings.system.access`（`__tests__/TailscaleAccessCard.test.tsx`） |
 | `ServerConnectionCard.tsx`         | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token；切换经 `connection-switch-guard` 健康门（测活拦截+二次点击强制，reload 后复验失败按 roster id 回滚，回滚到本地显式 `switchRemoteFollow(false)` 重启后端；云档案持 OAuth 校验免检；切换占座全局互斥：添加/选择/断开/发现沙箱同一时刻只允许一个切换在飞，占座期间档案行、添加、断开开关、发现按钮统一禁用，当前行显示“切换中”，取消/失败/断开完成时释放）；Rust 侧编排先于 apply（失败 toast 提示且 UI 状态零变化，可安全重试）；切断当前连接前的活跃会话 guard（`useActiveSessionsGuard`：有生成中会话弹 `ActiveSessionsSwitchConfirmDialog` 知情确认，查询失败或 3 s 无应答放行不锁死；添加/选择档案、断开回本地、发起云端登录、发现沙箱五条入口共用）；发现沙箱经 `commitSwitch`（可信）先编排后建 Cloud 档案；reload 由 `app:connections-changed` 事件全局驱动 |
 | `ActiveSessionsSwitchConfirmDialog.tsx` | 切断连接前（含发起云端登录前）活跃会话知情确认对话框，文案如实说明切换可能中断当前连接上进行中的轮次（本地 sidecar 优雅停机后强杀；远程连接断开超过宽限期后非长任务被服务端取消）（六语言 locales `activeSessionsDialog`，复用 primitives AlertDialog，indigo 主题）                                                                                                                               |
 | `useActiveSessionsGuard.ts` | 切断连接前活跃会话守卫 Hook（`getActiveSessions` 查询，有生成中会话时暂存继续动作并输出确认对话框状态，取消回调复位调用方进行中状态；查询失败或超过 3 s 无应答放行，不卡住切走不可达连接；查询进行中的重复触发被忽略，避免并发跑出多次切换） |
@@ -92,6 +95,7 @@
 | 文件                                             | 职责                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SecurityPolicySection.tsx`                      | 安全策略主面板（能力面矩阵、自定义规则列表、命令/域名网络策略、超时配置、Org MAP 只读锁定）                                                                                                                                                                                                        |
+| `DualTrackAuditDashboard.tsx`                    | 双轨事前审计看板（嵌在安全策略主面板内）：意图总数、合规通过率、策略拒绝与人工接管计数、触发最多的规则与最近审计条目，可导出 JSON / CSV / Markdown 合规档案；文案取自 `settings.dualTrackAudit`（`__tests__/DualTrackAuditDashboard.test.tsx`） |
 | `CapabilitySurfaceMatrixGrid.tsx`                | 能力面三态权限矩阵网格（Always/Ask/Deny 卡片组与 Guarded/Balanced/Autonomous 预设切换）                                                                                                                                                                                                            |
 | `CustomRulesListEditor.tsx`                      | 自定义权限规则列表编辑器（添加/删除/修改规则，具体工具与通道粒度）                                                                                                                                                                                                                                 |
 | `SmartIntentGuardEditor.tsx`                     | 智能意图防护与提示注入拦截开关面板                                                                                                                                                                                                                                                                 |
@@ -150,7 +154,7 @@
 | `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
-| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计）                  |
+| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
 | `MemoryGuardianCard.tsx`         | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
 | `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 
@@ -160,6 +164,7 @@
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ExecutionTraceTimeline.tsx`           | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
 | `TraceLLMCallItem.tsx` | 时间轴中的单次 LLM 调用卡片（模型、Token、TTFT/生成耗时条、Model Viewport 展开）；文案取自 `settings.sessionAnalytics.trace.llm*`，`__tests__/TraceLLMCallItem.test.tsx` 覆盖标签与重试徽标 |
+| `TraceGanttWaterfall.tsx` | Trace 的 span 甘特瀑布图：按起止时间排布 LLM / 工具 span，显示缓存命中率与缓存 Token，点选 span 查看耗时、TTFT、重试次数与错误；隐私模式把 span 名称遮成 LLM / Tool；文案取自 `settings.sessionAnalytics.trace`（`__tests__/TraceGanttWaterfall.test.tsx`） |
 | `SessionAnalyticsDialog.tsx`           | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康）                                                                                                                                                                                                                                                |
 | `RuntimeOpsSnapshotCard.tsx`             | 运行快照只读卡片（`GET /api/v1/ops/snapshot`：负载、内存、渠道）                                                                                                                                                                                                                                          |
 | `SessionContextHealthPanel.tsx`        | 会话上下文健康面板（压缩/裁剪/缓存命中）                                                                                                                                                                                                                                                                  |
@@ -185,7 +190,8 @@
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务；创建 / 编辑 board 的默认工作目录被服务端因过宽 / 受保护拒绝时，按 `workspacePathIssueMessageKey` 弹对应的本地化提示，测试 `__tests__/KanbanSection.workdirRefusal.test.tsx`；board 行是并列的「打开 / 编辑 / 删除」三个按钮而非嵌套交互元素，测试 `__tests__/KanbanSection.boardRow.test.tsx`） |
 | `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
-| `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
+| `TimezoneSelector.tsx`       | 时区选择器（搜索提示、常用分组标题与无结果提示均取自 `settings.system` 文案） |
+| `ProjectExperienceWizardModal.tsx` | 项目实战六步经验向导弹窗：界面文案与六步内容均来自 `evidencePack` 命名空间（`services/evidencePackGenerator.ts` 以传入的翻译函数生成），复制 / 下载的 Markdown 与界面同语言 |
 
 ## 连通性 UX
 

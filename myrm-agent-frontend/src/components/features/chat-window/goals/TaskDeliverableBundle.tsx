@@ -346,7 +346,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
                 checked={isSelected}
                 onChange={() => toggleSelect(item.id)}
                 className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-primary cursor-pointer"
-                title="Select item for export"
+                title={t('bundleSelectItem')}
               />
               <button
                 type="button"

@@ -4,6 +4,7 @@
 services.agent.agent_service::AgentService (POS: 业务层 Agent CRUD 服务)
 services.agent.backends::DatabaseSecretBackend (POS: Agent Secrets 加密存储)
 services.agent.builtin_specs.builtin_tool_validation::RequiredBuiltinTools (POS: 内建工具类型)
+core.skills.loader::create_skill_backend (POS: 与 Agent 运行时同一份技能后端组装，Turn1 预览的技能来源)
 
 [OUTPUT]
 - GET    /{agent_id}/secrets: 列出 Agent 机密名称（不含明文）
@@ -17,8 +18,6 @@ Agent 辅助端点。Secrets 管理、使用统计、动作空间复杂度评估
 """
 
 from __future__ import annotations
-
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -34,8 +33,6 @@ from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.agent_service import AgentService
 from app.services.agent.backends import DatabaseSecretBackend
 from app.services.agent.builtin_specs.builtin_tool_validation import RequiredBuiltinTools
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -185,7 +182,12 @@ async def _build_catalog_preview(
     skill_ids: list[str],
     skill_configs: dict[str, dict[str, object]],
 ) -> dict[str, int | bool]:
-    """Turn1 bound-skill catalog preview — the same resolver and renderer the agent runtime runs."""
+    """Turn1 bound-skill catalog preview — the skills, resolver and renderer the agent runtime runs.
+
+    The skills come out of the same backend composition the agent factories build (`create_skill_backend` +
+    `load_skills`), so a skill counts once, under the name the model sees, with the runtime's availability verdict.
+    Workspace, MCP and trust overrides depend on the session and are not part of the preview.
+    """
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,
         should_mount_skill_search_tool,
@@ -194,30 +196,25 @@ async def _build_catalog_preview(
     from myrm_agent_harness.backends.skills.types import SkillMetadata
     from myrm_agent_harness.utils.text_utils import get_token_count
 
-    from app.core.skills.gates.requirements_availability import apply_requirements_availability_to_catalog
-    from app.core.skills.runtime_metadata import skill_to_runtime_metadata
+    from app.core.skills.effective_skill_ids import resolve_runtime_skill_ids
+    from app.core.skills.loader import create_skill_backend
     from app.core.skills.store.service import skills_service
 
-    stored_skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
-    # The agent runtime counts a skill once its keys are saved in settings; the preview must use the same verdict.
-    await apply_requirements_availability_to_catalog(stored_skills)
-    metadata_list: list[SkillMetadata] = []
-    for skill in stored_skills:
-        try:
-            meta = skill_to_runtime_metadata(skill)
-        except ValueError:
-            logger.warning("Skipping skill with invalid name for catalog preview: %s", skill.name)
-            continue
-        meta.available = skill.available
-        meta.unavailable_reason = skill.unavailable_reason
-        metadata_list.append(meta)
+    runtime_skill_ids = await resolve_runtime_skill_ids(skill_ids)
+    skills: list[SkillMetadata] = []
+    if runtime_skill_ids:
+        user_config = await skills_service.user_config.get_config()
+        backend = await create_skill_backend(
+            storage=skills_service.storage,
+            skill_ids=runtime_skill_ids,
+            user_id="default",
+            allowed_prebuilt_ids=frozenset(user_config.enabled_prebuilt_ids),
+        )
+        skills = await backend.load_skills(runtime_skill_ids)
 
-    resolution = resolve_catalog_display_skills(metadata_list, skill_configs=skill_configs)
-    rendered = render_bound_skills_catalog(metadata_list, skill_configs=skill_configs)
-    search_mounted = bool(metadata_list) and should_mount_skill_search_tool(
-        metadata_list,
-        skill_configs=skill_configs,
-    )
+    resolution = resolve_catalog_display_skills(skills, skill_configs=skill_configs)
+    rendered = render_bound_skills_catalog(skills, skill_configs=skill_configs)
+    search_mounted = bool(skills) and should_mount_skill_search_tool(skills, skill_configs=skill_configs)
     return {
         "inline_count": len(resolution.display_skills),
         "hidden_count": resolution.hidden_skill_count,

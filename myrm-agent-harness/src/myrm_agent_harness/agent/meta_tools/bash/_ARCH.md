@@ -68,7 +68,7 @@ bash/
 | `_tool/formatting.py` | Core | 输出压缩编排/截断/脱敏/wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS`；`read_exit_code()` 读回工具写入的退出码（包出口导出，完成验证门使用）。 |
 | `_tool/exit_semantics.py` | Core | Exit-code 语义解释。 |
 | `_tool/terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 |
-| `_tool/helpers.py` | Core | BashInput schema、OS hint、上下文恢复。 |
+| `_tool/helpers.py` | Core | BashInput schema、OS hint、上下文恢复；`resolve_skill_storage_paths` 把技能的存储键（相对存储根）解析成宿主机绝对目录供暂存复制，本地技能的绝对目录原样保留。 |
 | `_tool/multimodal.py` | Core | Vision ContentBlock 内联返回。 |
 | `_tool/background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 |
 | `_tool/output_filter_core.py` | Core | 增量输出轮询纯正则行过滤器。 |

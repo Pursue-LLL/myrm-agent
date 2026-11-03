@@ -9,11 +9,13 @@ myrm_agent_harness.backends.skills.types::SkillMetadata, SkillPermission, SkillT
 skill_to_runtime_metadata: build the SkillMetadata the agent runtime consumes from a catalog Skill
 
 [POS]
-Reverse of ``Skill.from_metadata``. Skills bound to an agent reach the runtime through the catalog record,
+Reverse of ``Skill.from_metadata``. LOCAL skills bound to an agent reach the runtime through the catalog
+record (bound prebuilt skills are served from their own SKILL.md by the prebuilt route and never pass here),
 so every field that drives runtime behaviour (requirement gating, trust and tool limits, always-on and
 invocation flags, env/OAuth injection) is carried here in one place. Availability is not copied: the
 runtime gates recompute it against the live environment. Fields that live only in SKILL.md (hooks,
-conditional-activation tool lists, contract, model routing) are not part of the catalog record.
+conditional-activation tool lists, contract, model routing) are not part of the catalog record, so a LOCAL
+skill does not carry them into the runtime.
 """
 
 from __future__ import annotations

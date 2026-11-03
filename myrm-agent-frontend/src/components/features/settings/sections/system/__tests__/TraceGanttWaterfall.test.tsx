@@ -108,4 +108,18 @@ describe('TraceGanttWaterfall Component', () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  it('uses localized copy for protected spans and retried attempts', async () => {
+    const retried: TracePerformanceSummary = {
+      ...mockPerformance,
+      gantt_spans: [{ ...mockPerformance.gantt_spans[0], attempt: 2 }, mockPerformance.gantt_spans[1]],
+    };
+    render(<TraceGanttWaterfall performance={retried} totalDurationMs={2000} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /privacyMode/ }));
+    await userEvent.click(screen.getByText('LLM'));
+
+    expect(screen.getByText('protectedSpan')).toBeInTheDocument();
+    expect(screen.getByText('retryAttempt')).toBeInTheDocument();
+  });
 });

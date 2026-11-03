@@ -594,7 +594,7 @@ export function SkillDetailSheetContent({
               {skill.primary_env && (
                 <div>
                   <label className="text-xs font-mono text-muted-foreground mb-1 block">
-                    API Key
+                    {t('card.apiKeyLabel')}
                     <span className="ml-1 text-[10px] opacity-60">→ {skill.primary_env}</span>
                   </label>
                   <Input

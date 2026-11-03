@@ -13,7 +13,7 @@
 //! [POS]
 //! Python 后端停机序列单一职责层。停 monitors → 请求服务端 drain
 //! （活跃 turns 完成 + WAL Checkpoint + 资源释放）→ 等待自退（reap 子进程）
-//! → 兜底强杀后端进程（Windows 递归整棵子进程树，POSIX 仅该 PID）。
+//! → 兜底强杀后端进程及此刻仍挂在它名下的后代（含它启动、尚未脱离的后台命令）。
 
 use std::time::Duration;
 
@@ -74,8 +74,9 @@ async fn wait_for_graceful_exit(backend: &State<'_, PythonBackend>, budget: Dura
 /// Graceful backend stop sequence shared by every stop path (connection
 /// switch, config migration, app exit): stop monitors → request server-side
 /// drain (drain turns, WAL checkpoint, close resources) → wait for
-/// self-exit → force-kill the backend process as last resort (Windows kills the
-/// whole child tree, POSIX only the root PID).
+/// self-exit → force-kill the backend process and the descendants still
+/// attached to it as last resort (the background commands it started that are
+/// still linked to it die with it).
 ///
 /// Stopping the monitors first is what keeps the watchdog from resurrecting
 /// a backend that was stopped intentionally.

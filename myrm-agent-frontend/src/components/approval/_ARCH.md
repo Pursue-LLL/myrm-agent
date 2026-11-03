@@ -10,7 +10,9 @@
 | --------------------------------- | ---- | ----------------------------------------------------------------------------------------- |
 | `ApprovalDrawer.tsx`              | 核心 | 全局审批抽屉（subagent 批量 decisions）；被风控拦下的理由让抽屉与卡片留着，不叠加失败提示 |
 | `BatchHighRiskConfirmDialog.tsx`  | UI   | 批量审批高危破坏操作二次确认弹窗                                                          |
-| `PolymorphicApprovalCard.tsx`     | 核心 | 单条审批卡片（shell/MCP/视觉/`knowledge_patch` 等形态）                             |
+| `PolymorphicApprovalCard.tsx`     | 核心 | 单条审批卡片（shell/MCP/视觉/`knowledge_patch` 等形态）；不可逆破坏操作时嵌入确认横幅与执行后撤销卡，升级原因标签取自 `toolApproval.escalationReasons.*` |
+| `DestructiveConfirmationBanner.tsx` | UI | 不可逆破坏操作确认横幅：展示影响范围、涉及目标与快照状态，输入 `CONFIRM` 后才经 `onConfirmationChange` 放行批准；文案取自 `toolApproval.irreversibleDestructive`（`__tests__/DestructiveConfirmationBanner.test.tsx`） |
+| `DestructiveUndoCard.tsx` | UI | 破坏操作执行后的撤销卡：10 分钟倒计时内可经 `POST /api/v1/approvals/{id}/rollback` 回滚到快照，回滚成功后显示完成态，超时后隐藏；文案取自 `toolApproval.destructiveUndo`（`__tests__/DestructiveUndoCard.test.tsx`） |
 | `OutboundDraftApprovalBody.tsx`   | UI   | 渠道回复审核（`outbound_draft`）卡片主体：对方来信、待发回复及其附件、渠道/收件人         |
 | `HighRiskEvidenceScreenshot.tsx`  | UI   | 高危 UI 动作证据截图卡（百分比定位红色圆圈标注目标，响应式、桌面/浏览器双通道）           |
 | `CompactFileWriteApprovalRow.tsx` | UI   | Subagent 本地文件写 compact 行 + 折叠 Monaco 预览                                         |

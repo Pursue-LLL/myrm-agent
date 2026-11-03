@@ -51,7 +51,7 @@ describe('ZeroPromptCloneWorkbench', () => {
     expect(screen.getByText(/前端开发专家/)).toBeInTheDocument();
     expect(screen.getByText('architecture/')).toBeInTheDocument();
     expect(screen.getByText('benchmarks/')).toBeInTheDocument();
-    expect(screen.getByText('Sandbox Ready')).toBeInTheDocument();
+    expect(screen.getByText('sandboxReady')).toBeInTheDocument();
   });
 
   it('submits instant clone with custom name and triggers onSuccess', async () => {

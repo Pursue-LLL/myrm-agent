@@ -237,7 +237,8 @@
     "subgoalAddFailed": "하위 목표를 추가하지 못했습니다",
     "subgoalAddNetworkError": "네트워크 오류: 하위 목표를 추가하지 못했습니다",
     "subgoalRemoveFailed": "하위 목표를 제거하지 못했습니다",
-    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다"
+    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다",
+    "bundleSelectItem": "내보낼 항목 선택"
   },
   "commands": {
     "palette": {
@@ -2794,7 +2795,8 @@
       "agentsCategory": "에이전트",
       "contextCategory": "컨텍스트",
       "dedupNotice": "이미 컨텍스트에 있는 파일이라 중복 내용은 건너뜁니다",
-      "alreadyInContext": "컨텍스트에 포함됨"
+      "alreadyInContext": "컨텍스트에 포함됨",
+      "externalSource": "외부"
     },
     "message": {
       "edit": "편집",
@@ -2847,7 +2849,10 @@
       "waitingHint": "에이전트가 브라우저를 사용하면 라이브 뷰가 표시됩니다",
       "instructionPlaceholder": "이 페이지에서 무엇을 하고 싶은지 설명하세요...",
       "instructionWithElement": "에이전트가 이 요소에 무엇을 해야 합니까?",
-      "send": "지시 보내기"
+      "send": "지시 보내기",
+      "livePeekAlt": "브라우저 실시간 화면",
+      "selectElementLabel": "요소 {refId} 선택({role}: {name})",
+      "clearSelection": "선택 해제"
     },
     "browserRecording": {
       "title": "브라우저 세션 녹화",
@@ -2936,7 +2941,8 @@
         "denyReasonPlaceholder": "거부 사유(선택사항)",
         "targetChangedNotice": "마지막 승인 이후 대상이 변경되었습니다. 다시 확인해 주세요.",
         "deniedNotice": "거부되었습니다. 이 세션 동안 이 요청을 다시 묻지 않습니다."
-      }
+      },
+      "clearSelection": "선택 해제"
     },
     "clarification": {
       "formTitle": "명확화 양식",
@@ -3201,19 +3207,6 @@
       "successDesc": "대화 기록을 평가 벤치마크 데이터셋에 추출했습니다",
       "error": "평가 케이스 추출 실패"
     },
-    "callGraph": {
-      "title": "코드 호출 그래프 분석",
-      "callers": "호출자",
-      "reachingTests": "관련 테스트",
-      "physicalCallChain": "물리적 호출 체인",
-      "noCallers": "외부 호출 지점이 감지되지 않았습니다",
-      "params": "매개변수",
-      "testImpact": "테스트 영향 및 파급 반경",
-      "noTests": "이 로직을 포함하는 테스트 케이스가 감지되지 않았습니다",
-      "depth": "깊이",
-      "level": "단계",
-      "runAffectedTests": "영향받는 {count}개 테스트 실행"
-    },
     "modelPlaybook": {
       "cannotApplyMissingModels": "레시피를 적용할 수 없습니다: 일부 모델이 설정되지 않았습니다.",
       "recipeAppliedSuccess": "레시피가 성공적으로 적용되었습니다!",
@@ -3343,7 +3336,10 @@
       "subtitle": "대화 시작 전에 미리 로드되는 기준 토큰 사용량과 도구 관리",
       "skillsTools": "스킬 및 내장 도구",
       "disabled": "비활성화됨",
-      "totalBaseline": "기준 점유량 합계"
+      "totalBaseline": "기준 점유량 합계",
+      "baselineFeatherlight": "초경량",
+      "baselineModerate": "보통",
+      "baselineHeavy": "높은 기준선"
     },
     "turnLoadedSkills": {
       "triggerLabel": "참고한 작업 스킬 {count}개",
@@ -3489,7 +3485,17 @@
       "popoverTitle": "클릭하여 모델의 4차원 단가 매트릭스와 Prompt Cache 절감 효과 보기",
       "savedAmount": "({amount} 절감)",
       "idleLabel": "연산 HUD"
-    }
+    },
+    "scopedArtifactRemove": "범위 지정 대상 제거",
+    "messageListLoading": "메시지 불러오는 중",
+    "inputHistoryLabel": "입력 기록",
+    "projectBoundary": {
+      "isolated": "격리 보호",
+      "workspaceTooltip": "프로젝트 격리 작업 공간: {path}",
+      "sandboxTooltip": "프로젝트 샌드박스와 전용 메모리 격리가 활성화되었습니다"
+    },
+    "systemPromptDeveloperMode": "시스템 프롬프트(개발자 모드)",
+    "mcpAppRenderFailed": "MCP 앱을 렌더링하지 못했습니다"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -6226,7 +6232,10 @@
     "contextGlobalEmpty": "아직 전역 프로필 데이터가 없습니다.",
     "contextPeerTitle": "우리의 관계와 당신의 페르소나",
     "contextPeerSubtitle": "이 에이전트와의 고유한 상호작용",
-    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다."
+    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다.",
+    "rankedHubSidebarLabel": "허브 순위 사이드바",
+    "shareRulesTitle": "규칙 공유(개인정보 보호)",
+    "shareRulesTooltip": "개인정보를 보호하면서 규칙 공유"
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -6480,7 +6489,8 @@
       "quote": "입력창에 인용",
       "quoteRow": "{row}행 인용",
       "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다",
-      "rowScopeLabel": "{row}행"
+      "rowScopeLabel": "{row}행",
+      "clearSelection": "선택 해제"
     },
     "saving": "저장 중...",
     "saved": "저장됨",
@@ -6756,7 +6766,8 @@
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
       "annotate": "의견",
-      "annotatePlaceholder": "검토용 문제 설명..."
+      "annotatePlaceholder": "검토용 문제 설명...",
+      "toolbarLabel": "선택 영역 도구 모음"
     },
     "skillActions": {
       "moreActions": "더 많은 작업",
@@ -6862,7 +6873,10 @@
       "title": "렌더링 오류",
       "defaultMessage": "이 콘텐츠를 렌더링할 수 없습니다. 새로고침하거나 다운로드해서 확인해 보세요.",
       "retry": "다시 시도"
-    }
+    },
+    "annotationPanelLabel": "아티팩트 주석",
+    "htmlPreviewTitle": "HTML 미리보기",
+    "portalDescription": "파일 {filename}을(를) 미리 보는 중입니다. 유형: {type}, 크기: {size}. Esc 키를 누르면 닫힙니다."
   },
   "MessageSources": {
     "untitled": "제목 없음",
@@ -6898,7 +6912,8 @@
     "conversation_deleted": "대화가 삭제되었습니다",
     "operation_failed": "작업 실패",
     "copyAll": "모두 복사",
-    "copyAllSuccess": "출처가 클립보드에 복사되었습니다"
+    "copyAllSuccess": "출처가 클립보드에 복사되었습니다",
+    "mcpSkillFallback": "MCP 스킬"
   },
   "auth": {
     "setup": {
@@ -9341,7 +9356,12 @@
     "wechatQrAlt": "WeChat 로그인 QR 코드",
     "usageResetTooltip": "매일 00:00 UTC(베이징 시간 08:00)에 자동 갱신",
     "todayUsageDisplay": "오늘 사용량: {used} / {quota}건",
-    "quotaExceeded": "한도 초과"
+    "quotaExceeded": "한도 초과",
+    "groupTriggerRegionLabel": "현재 그룹 트리거 설정",
+    "editGlobalAria": "전역 설정 편집",
+    "matrixProxyPlaceholder": "http://proxy:8080 또는 socks5://proxy:1080",
+    "onebotTokenPlaceholder": "비밀 토큰 입력",
+    "wechatBotIdLabel": "봇 ID:"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -9813,14 +9833,17 @@
       "snapshotNone": "Git 리포지토리가 아님: 자동 스냅샷을 사용할 수 없으며 작업을 취소할 수 없습니다.",
       "confirmPrompt": "파괴적 작업을 승인하려면 CONFIRM을 입력하세요.",
       "confirmButton": "파괴적 작업 승인",
-      "slideConfirm": "실행을 확인하려면 스와이프하세요"
+      "slideConfirm": "실행을 확인하려면 스와이프하세요",
+      "affectedTargets": "대상 경로 / 영향받는 개체:",
+      "confirmedReady": "준비됨"
     },
     "destructiveUndo": {
       "title": "파괴적 작업 실행됨",
       "description": "작업 영역에 중요한 변경 사항이 적용되었습니다. 원클릭 롤백이 가능한 안전한 그림자 스냅샷이 생성되었습니다.",
       "rollbackButton": "스냅샷 실행 취소 및 롤백",
       "rollbackSuccess": "작업 영역이 파괴 전 상태로 성공적으로 롤백되었습니다.",
-      "rollbackFailed": "스냅샷 롤백에 실패했습니다. 작업 영역 상태를 확인하세요."
+      "rollbackFailed": "스냅샷 롤백에 실패했습니다. 작업 영역 상태를 확인하세요.",
+      "snapshotPointer": "스냅샷 포인터: {id}"
     },
     "batchCostTitle": "일괄 작업 비용 확인",
     "batchCostDescription": "에이전트가 여러 서브 에이전트를 생성하려고 합니다. 예상 비용을 확인한 후 진행하세요.",
@@ -9913,6 +9936,21 @@
       "droppedOnEdit": "명령이 변경되어 비밀번호 또는 키를 제거했습니다. 여전히 필요하면 다시 입력해 주세요.",
       "errorRejected": "변수 이름과 값을 확인한 뒤 다시 시도해 주세요.",
       "errorUnavailable": "잠시 후 다시 시도해 주세요."
+    },
+    "escalationTitle": "민감한 권한 경계 요청이 감지되었습니다",
+    "escalationFallbackReason": "권한 범위 초과",
+    "escalationReasons": {
+      "symlink_creation": "심볼릭 링크 생성 (Symlink)",
+      "network_egress": "외부 네트워크 연결 (Network Egress)",
+      "privilege_escalation": "시스템 권한 상승 (Privilege Escalation)",
+      "permission_alteration": "파일 권한 변경 (Permission Change)",
+      "process_termination": "시스템 프로세스 종료 (Process Termination)",
+      "system_administration": "시스템 관리 및 서비스 작업 (System Admin)",
+      "filesystem_destruction": "고위험 파일 시스템 포맷 (Filesystem Modification)",
+      "raw_disk_write": "디스크 저수준 직접 쓰기 (Raw Disk Write)",
+      "system_file_write": "시스템 민감 파일 쓰기 (System File Write)",
+      "git_destructive_action": "Git 저장소 파괴적 리셋/정리 (Git Destructive Action)",
+      "git_remote_sync": "Git 원격 브랜치 동기화/푸시 (Git Remote Push)"
     }
   },
   "notifications": {
@@ -10008,7 +10046,11 @@
     "budgetRemaining": "{dimension} — ${remaining} 남음",
     "subagentStaleDescription": "{minutes}분 동안 진행 없음 · 토큰 {tokens, number}개",
     "subagentStaleStats": "{minutes}분 · 토큰 {tokens, number}개",
-    "agentProfileRollbackSuccess": "에이전트 프로필을 성공적으로 롤백했습니다."
+    "agentProfileRollbackSuccess": "에이전트 프로필을 성공적으로 롤백했습니다.",
+    "locatorHealedTitle": "자가 복구가 실행되었습니다",
+    "locatorHealedDescription": "에이전트가 공간 풋프린트 매칭으로 깨진 로케이터를 자동 복구했습니다.",
+    "locatorHealedTarget": "대상",
+    "locatorHealedUnknownName": "알 수 없음"
   },
   "configConflict": {
     "title": "구성 충돌 감지됨",
@@ -10354,7 +10396,9 @@
         "wait0": "네가 필요해",
         "wait1": "기다리고 있어",
         "wait2": "네 차례야"
-      }
+      },
+      "voiceInterrupt": "음성 중단",
+      "voiceInteraction": "음성 상호작용"
     },
     "palette": {
       "title": "펫 팔레트",
@@ -10738,7 +10782,8 @@
       "confirmLabel": "유지할 어시스턴트 이름을 입력하여 확인",
       "mergeSource": "보관(원본)",
       "planBindings": "옮겨가는 연결",
-      "done": "완료"
+      "done": "완료",
+      "regionLabel": "에이전트 거버넌스"
     },
     "readiness": {
       "dimensions": {
@@ -11378,7 +11423,8 @@
     "insightsSpawned": "{count}개 시작됨",
     "insightsAvgDuration": "평균 소요 시간",
     "insightsTotalTokens": "토큰 합계",
-    "insightsTotalCost": "총 비용"
+    "insightsTotalCost": "총 비용",
+    "waitingOnStage": "({stage} 대기 중)"
   },
   "trajectoryDiff": {
     "title": "세션 간 실행 궤적 비교 (Trajectory Diff)",
@@ -12309,7 +12355,8 @@
     "inlineRouteTemplateNoResults": "일치하는 전문가 템플릿이 없습니다",
     "inlineRouteTemplateEmpty": "사용 가능한 전문가 템플릿이 없습니다",
     "inlineRouteTemplateApplyFailed": "전문가 템플릿 소환 실패",
-    "appshotAlt": "캡처한 앱 스크린샷"
+    "appshotAlt": "캡처한 앱 스크린샷",
+    "captureAlt": "화면 캡처"
   },
   "billing": {
     "wuBalance": "작업 단위",
@@ -12450,7 +12497,8 @@
           "feature2": "8C 샌드박스 + 확장 활성 시간"
         }
       }
-    }
+    },
+    "baseAllowance": "기본 한도"
   },
   "connectWizard": {
     "title": "외부 에이전트 연결",
@@ -13361,7 +13409,10 @@
     "previewTitle": "{name} 실시간 미리보기",
     "consoleStarted": "[{time}] 포트 {port}에서 서비스가 시작되었습니다 ({protocol})",
     "consoleReady": "> 준비 완료: {url}",
-    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}"
+    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}",
+    "previewPort": "포트 {port} 미리보기",
+    "barPortsCount": "포트 {count}개",
+    "barLabel": "개발 포트"
   },
   "toolPicker": {
     "menuLabel": "도구 선택",
@@ -13423,7 +13474,9 @@
     "slideVisualPlaceholder": "멀티모달 아키텍처 다이어그램",
     "slideConfidentialFooter": "기밀 · 엔터프라이즈 덱",
     "slidePage": "{page}쪽",
-    "slideAriaLabel": "슬라이드 {number}: {title}"
+    "slideAriaLabel": "슬라이드 {number}: {title}",
+    "slideThumbnails": "슬라이드 미리보기 목록",
+    "goToSlide": "슬라이드 {number}(으)로 이동: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "출판 품질 스타일 스프레드시트 허브",
@@ -13903,7 +13956,8 @@
     "jumpInAction": "바로 이동",
     "zoomIn": "확대",
     "zoomOut": "축소",
-    "zoomReset": "확대/축소 초기화"
+    "zoomReset": "확대/축소 초기화",
+    "defaultProject": "기본 프로젝트"
   },
   "workbench": {
     "workbenchAriaLabel": "보조 워크벤치",
@@ -13961,14 +14015,16 @@
       "emptyMessages": "이 마일스톤에는 보존된 원본 메시지 스냅샷이 없습니다",
       "originalRoleUser": "사용자 프롬프트",
       "originalRoleAssistant": "에이전트 응답",
-      "originalRoleTool": "도구 실행"
+      "originalRoleTool": "도구 실행",
+      "ariaLabel": "읽기 전용 대화 기록 타임머신"
     },
     "branchSummary": {
       "inheritedBadge": "브랜치 간 경험 플라이라인",
       "sourceBranchLabel": "상속받은 브랜치",
       "keyTakeawaysTitle": "도출된 핵심 학습 및 발견",
       "warpToSource": "원본 브랜치로 워프",
-      "forkIndicator": "분기 원본"
+      "forkIndicator": "분기 원본",
+      "ariaLabel": "브랜치 간 경험 카드"
     },
     "anchors": {
       "title": "검증된 앵커",
@@ -14361,7 +14417,11 @@
       "commerce": "이커머스 운영",
       "team": "멀티 에이전트 팀",
       "general": "범용 어시스턴트"
-    }
+    },
+    "refresh": "템플릿 새로고침",
+    "membersCount": "멤버 {count}명",
+    "zeroPromptReady": "제로 프롬프트 준비 완료",
+    "sandboxReady": "샌드박스 준비 완료"
   },
   "commandMatrix": {
     "allCategories": "전체 카테고리",
@@ -15023,7 +15083,9 @@
         "integration": "통신 및 통합",
         "system": "보안 및 시스템"
       },
-      "brand-studio": "브랜드 스타일"
+      "brand-studio": "브랜드 스타일",
+      "clearSearch": "검색 지우기",
+      "matchedLabel": "일치:"
     },
     "workbench": {
       "badge": "개인 작업 공간 및 데이터 주권",
@@ -16756,7 +16818,8 @@
         "agenticTooltip": "도구 호출 및 장기 기억을 위한 64K 컨텍스트 Modelfile 자동 파생",
         "keepAliveTipTitle": "24/7 상주 및 GPU 메모리 해제 가이드",
         "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요.",
-        "downloadFailed": "다운로드하지 못했습니다"
+        "downloadFailed": "다운로드하지 못했습니다",
+        "fitScore": "적합도 점수:"
       },
       "importFromModelsDev": "models.dev에서 가져오기",
       "getModels": "모델 가져오기",
@@ -16800,7 +16863,10 @@
           "disconnected": "SuperGrok 구독 연결을 해제했습니다",
           "disconnectFailed": "연결을 해제하지 못했습니다"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... 또는 op://vault/item/field 또는 bw://item",
+      "poolStatsCollapse": "접기",
+      "poolStatsExpand": "펼치기"
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",
@@ -17227,7 +17293,9 @@
       "xaiOauthWaiting": "인증 대기 중...",
       "xaiOauthConnectBtn": "SuperGrok 인증",
       "oauthExpiredNotice": "이 인증이 더 이상 유효하지 않습니다(플랫폼에서 해지되었거나 만료되었을 수 있습니다). \"지금 복구\"를 눌러 다시 인증하면 서비스가 복구됩니다.",
-      "oauthFixNow": "지금 복구"
+      "oauthFixNow": "지금 복구",
+      "fileInputLabel": "자격 증명 파일 입력",
+      "clearSyncedMemory": "동기화된 메모리 데이터도 함께 삭제({count}개 데이터 소스)"
     },
     "skillQuality": {
       "title": "스킬 품질 관리",
@@ -18391,6 +18459,21 @@
           "openInEditor": "Wiki 편집기에서 열기",
           "close": "미리보기 닫기"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown 도구 모음",
+        "bold": "굵게",
+        "italic": "기울임",
+        "h2": "제목 2",
+        "code": "코드 블록",
+        "quote": "인용",
+        "bullet": "글머리 기호 목록",
+        "todo": "할 일 목록",
+        "wikilink": "Wiki 링크",
+        "table": "표 삽입"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "타임스탬프로 이동"
       }
     },
     "skills": {
@@ -18722,7 +18805,8 @@
         "undoLastReplace": "마지막 업데이트 실행 취소",
         "undoLastReplaceHint": "지난 업데이트 전에 자동 저장된 버전으로 되돌릴 수 있습니다.",
         "undoLastReplaceSuccess": "이전 버전으로 복원됨",
-        "undoLastReplaceFailed": "마지막 업데이트를 실행 취소하지 못했습니다"
+        "undoLastReplaceFailed": "마지막 업데이트를 실행 취소하지 못했습니다",
+        "apiKeyLabel": "API 키"
       },
       "curator": {
         "safetyPromise": "스킬은 절대 삭제되지 않습니다. 최악의 경우 보관 처리되며 언제든 복원할 수 있습니다.",
@@ -20676,7 +20760,8 @@
           "e2eeAlgorithm": "알고리즘",
           "e2eeFingerprint": "지문"
         },
-        "copied": "클립보드에 복사되었습니다"
+        "copied": "클립보드에 복사되었습니다",
+        "refreshTailscaleStatus": "Tailscale 상태 새로고침"
       },
       "push": {
         "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",
@@ -20786,7 +20871,10 @@
         "guideTitle": "자리 비움 중 컴퓨터 사용 · 빠른 설정",
         "statusOn": "켜짐",
         "statusOptional": "선택"
-      }
+      },
+      "timezoneNoResults": "결과 없음",
+      "timezoneSearchPlaceholder": "시간대 검색...",
+      "timezonePopular": "자주 사용"
     },
     "push": {
       "title": "알림",
@@ -21201,7 +21289,8 @@
       "cacheRadarSavings": "누적 절감액 추정:",
       "cacheRadarCachedTokens": "캐시 재사용 Tokens",
       "cacheRadarFreshInput": "신규 입력 Tokens",
-      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계"
+      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계",
+      "dailyToolCallsTooltip": "{date}: 도구 호출 {count}회"
     },
     "workingState": {
       "title": "작업 상태",
@@ -21641,7 +21730,9 @@
         "llmViewportHide": "모델 뷰포트(숨기기)",
         "experienceWizardTitle": "프로젝트 경험 6단계 증거 패키지 마법사 생성",
         "experienceWizardButton": "경험 마법사",
-        "pluginStateTitle": "플러그인 확장 상태"
+        "pluginStateTitle": "플러그인 확장 상태",
+        "protectedSpan": "보호된 스팬",
+        "retryAttempt": "시도: {attempt}회차(공급자 백오프 / 재시도됨)"
       },
       "contextDoctor": {
         "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",
@@ -21802,7 +21893,10 @@
       "amount": "금액",
       "status": "상태",
       "time": "시간",
-      "verifiedReceipt": "HMAC 서명 검증됨"
+      "verifiedReceipt": "HMAC 서명 검증됨",
+      "entryHashLabel": "항목 해시:",
+      "entryHashPending": "대기 중 / 해당 없음",
+      "idempotencyKeyLabel": "멱등성 키:"
     },
     "channelBudget": {
       "title": "채널 예산 할당",
@@ -22335,7 +22429,9 @@
           "trustRiskHint": "신뢰할 수 없는 확장 프로그램에는 프롬프트 주입이 포함될 수 있습니다. 항상 패키지가 신뢰할 수 있는 출처에서 온 것인지 확인하세요.",
           "trustedCheckboxLabel": "이 플러그인이 신뢰할 수 있는 출처임을 확인하고 시스템 도구 권한을 승인하며 설치에 동의합니다",
           "skillsNotSupported": "이 환경에서는 사용자 지정 스킬을 쓸 수 없습니다 - 자동으로 건너뜁니다",
-          "stdioNotAllowed": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없습니다 - 자동으로 건너뜁니다"
+          "stdioNotAllowed": "이 환경에서는 로컬 프로세스형 MCP 서버를 실행할 수 없습니다 - 자동으로 건너뜁니다",
+          "sourceCloudSandbox": "클라우드 샌드박스",
+          "sourceLocalOs": "로컬 OS 권한"
         },
         "diagnostics": {
           "scope": {
@@ -22563,7 +22659,8 @@
       "tierProd": "프로덕션",
       "tierStaging": "스테이징",
       "tierDev": "개발 환경",
-      "probeFailed": "{host} 점검 실패: {message}"
+      "probeFailed": "{host} 점검 실패: {message}",
+      "breakGlassCommandPlaceholder": "예: systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "화면 승인 하이라이트 — 클릭 대상 위치의 실제 디스플레이에 빨간 테두리를 표시합니다(macOS 및 Windows)",
@@ -22764,5 +22861,92 @@
     "close": "닫기",
     "binaryChanged": "바이너리 파일이 변경되었습니다",
     "noChanges": "변경 사항 없음"
+  },
+  "riskGate": {
+    "regionLabel": "단계별 위험 확인"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "결제 및 검증 완료",
+    "statusReserved": "예약됨",
+    "statusRefunded": "환불됨",
+    "statusRejected": "차단됨",
+    "hashVerified": "원장 해시 HMAC 검증 완료"
+  },
+  "evidencePack": {
+    "modalTitle": "프로젝트 실전 6단계 경험 마법사",
+    "copyMarkdownTitle": "Markdown 복사",
+    "copied": "복사됨",
+    "copyShort": "MD 복사",
+    "downloadMarkdownTitle": "Markdown 다운로드",
+    "exportMarkdown": "Markdown 내보내기",
+    "downloadJsonTitle": "JSON 다운로드",
+    "facts": "핵심 사실 및 증거 기록:",
+    "previous": "이전",
+    "next": "다음",
+    "stepCounter": "단계 {current} / {total}",
+    "untitledTask": "제목 없는 프로젝트 작업",
+    "noTextInput": "명시적인 텍스트 입력 없음",
+    "planningDetected": "아키텍처 및 계획 의사결정 단계 호출이 {count}회 감지되었습니다",
+    "planningNodeFallback": "계획 노드",
+    "directExecution": "엔드투엔드 직접 실행 및 애자일 대응 방식을 따랐습니다",
+    "firstWrite": "최초 산출물 반영 동작: [{tool}] (시퀀스 #{sequence})",
+    "targetFile": "대상 파일: {path}",
+    "noFileChanges": "정적 파일 변경이 감지되지 않았거나 순수 대화형 작업입니다",
+    "executionSummary": "도구 호출 총 {total}회, 이 중 이상 차단/복구 {failed}회",
+    "errorRecord": "[오류 기록] {type}: {message}",
+    "selfHealPoint": "[자가 복구 지점] {tool} 실패 후 재시도 또는 전략 자동 조정이 실행되었습니다",
+    "verificationSummary": "검증/테스트 동작을 {count}회 실행했으며 통과율은 {rate}%입니다",
+    "verificationRun": "[증거 실행] {tool}: {result}",
+    "resultPassed": "통과",
+    "resultFailed": "실패",
+    "verificationInferred": "의미 일관성과 작업 종료 게이트를 기반으로 한 추론 검증을 완료했습니다",
+    "takeawayClosedLoop": "작업이 완전히 마무리되었으며 단계별 의사결정과 증거가 잘 일치합니다",
+    "takeawayExtractSkill": "이번에 정리된 안정적인 SOP를 전용 스킬 또는 자동화 템플릿으로 추출하는 것을 권장합니다",
+    "takeawayNotSuccess": "작업 상태는 {outcome}입니다. 중단 또는 최초의 복구 불가능한 오류에 주목하세요",
+    "takeawayFirstFatal": "최초의 치명적 이상은 단계 인덱스 #{index}에 있습니다",
+    "metricTotalCalls": "총 호출",
+    "metricFailures": "이상 횟수",
+    "steps": {
+      "requirements": {
+        "title": "원본 요구사항",
+        "shortTitle": "요구사항",
+        "summary": "원본 작업 목표, 업무 배경 및 제약 조건"
+      },
+      "architecture": {
+        "title": "아키텍처 및 의사결정",
+        "shortTitle": "아키텍처",
+        "summary": "기술 경로 선정, 계획 분해 및 의존 관계"
+      },
+      "initial_impl": {
+        "title": "v0 초안 구현 스냅샷",
+        "shortTitle": "v0 초안",
+        "summary": "최초 코드/산출물 결과와 초기 방안 형태"
+      },
+      "execution_correction": {
+        "title": "실행 진행과 자가 복구 오류 수정",
+        "shortTitle": "실행·수정",
+        "summary": "도구 호출 기록, 오류 조사 및 수정 증거"
+      },
+      "verification": {
+        "title": "객관적 검증 및 테스트 증거",
+        "shortTitle": "검증",
+        "summary": "테스트 케이스, 정적 검사 및 환경 실측 데이터"
+      },
+      "takeaways": {
+        "title": "경험 정리 및 회귀 방지 요점",
+        "shortTitle": "경험 정리",
+        "summary": "회고 요약, 모범 사례 및 정리 제안"
+      }
+    },
+    "markdownHeading": "프로젝트 실전 6단계 경험 증거 팩: {title}",
+    "markdownSessionId": "세션 ID",
+    "markdownOutcome": "실행 결과",
+    "markdownDuration": "소요 시간",
+    "markdownTokens": "토큰 사용량",
+    "markdownToolCalls": "도구 호출",
+    "markdownGeneratedAt": "생성 시간",
+    "markdownStepHeading": "단계 {index}: {title}",
+    "markdownMetrics": "핵심 지표",
+    "markdownFooter": "프로젝트 경험 6단계 마법사가 자동으로 집계하여 생성"
   }
 }

@@ -381,7 +381,7 @@ export function SourceItem({ source }: { source: Source }) {
               <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                 [{source.index}]
               </span>
-              <span className="text-sm font-medium truncate">{source.skill_name || 'MCP Skill'}</span>
+              <span className="text-sm font-medium truncate">{source.skill_name || t('mcpSkillFallback')}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {t('mcp_source')}

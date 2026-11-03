@@ -64,7 +64,7 @@ export const StageTaskCountStrip: React.FC<StageTaskCountStripProps> = ({ summar
 
               {stage.waitingOnStage && (
                 <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal ml-0.5 opacity-90">
-                  (waiting on {stage.waitingOnStage})
+                  {t('waitingOnStage', { stage: stage.waitingOnStage })}
                 </span>
               )}
             </div>

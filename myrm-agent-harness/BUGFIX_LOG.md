@@ -178,7 +178,7 @@
 | **修复** | 见状态栏。`locale` 只决定中文还是英文两份描述（`is_chinese`），日文、韩文、德文的 agent 本来就用英文描述。 |
 | **反复次数** | 第 1 次。 |
 | **踩坑** | ① 我先把它记成「会话中途重同步才变英文」，低估了范围；② 第一次提交的信息把触发条件写成「绑定集变化时」，不完整，因为还没推送，用只比较并交换的 ref 更新改了信息（树不变）；③ 新测试起初想放进 `test_skill_catalog_turn.py`，它已超过行数上限，改放新文件；④ 第一版装置没有把 4 个缺凭据或程序的预置技能（`notion-workspace` 等）算成可用，导致第一个真模型会话无法通过，作废后才改。 |
-| **回归** | [1] 新测试 3 例（UI locale 为中文、prompt locale 优先、没配 locale 为英文）；改前中文 2 例失败、英文 1 例通过，改后 3 例通过。[2] `tests/agent/_internals`、`tests/integration/test_resume_bound_skill_catalog.py`、`tests/integration/test_skill_tool_boundary_wiring.py`、`tests/agent/skill_agent`、`tests/agent/meta_tools/discover_capability` 共 385 通过（另有 16 个默认不跑）；`tests/architecture` 7,108 通过、10 跳过；ruff、format、mypy（2 个源文件）、行数门禁、测试源码断言门禁通过。[3] 真实模型（`MiniMax-M3.1-Flash-Preview`，一个模型一个端点）：配 `zh-CN` 的 agent 13 个会话，第一次模型调用里搜索工具描述全以中文开头，10/13 在 ≤ 2 次检索内加载到期望技能；不配 locale 的对照 11/13，差 1 个意图（`mcpexp`），没发现退化；三个失败都不是检索没找到（`callgraph` 与 `mcpexp` 的目标在第 1 条查询里都排第 1，`secscan` 没有检索）。 |
+| **回归** | [1] 新测试 3 例（UI locale 为中文、prompt locale 优先、没配 locale 为英文）；改前中文 2 例失败、英文 1 例通过，改后 3 例通过。[2] `tests/agent/_internals`、`tests/integration/test_resume_bound_skill_catalog.py`、`tests/integration/test_skill_tool_boundary_wiring.py`、`tests/agent/skill_agent`、`tests/agent/meta_tools/discover_capability` 共 385 通过（另有 16 个默认不跑）；`tests/architecture` 7,108 通过、10 跳过；ruff、format、mypy（2 个源文件）、行数门禁、测试源码断言门禁通过。[3] 真实模型（`MiniMax-M3.1-Flash-Preview`，一个模型一个端点）：配 `zh-CN` 的 agent 13 个会话，第一次模型调用里搜索工具描述全以中文开头，10/13 在 ≤ 2 次检索内加载到期望技能；不配 locale 的对照 11/13，差 1 个意图（`mcpexp`），没发现退化；三个失败都不是检索没找到（其中两个的目标在第 1 条查询里都排第 1，`secscan` 没有检索）。 |
 | **仍然存在** | ① 真模型对照：只有 13 个会话、一个模型；系统提示词是 harness 默认而不是 server 的中文提示词，server 的中文系统提示词下没测；意图原话是我重写的，与此前的 13/13 不可配对。② 这条修复让中文 agent 的描述从被误换的英文回到构建时设计的中文版，真模型下没看到退化，但证据弱。 |
 | **代码位置** | `src/myrm_agent_harness/agent/skill_agent/tools.py`、`agent/_internals/skill_catalog_turn.py` · 测试 `tests/agent/_internals/test_skill_search_resync_locale.py` |
 
@@ -867,7 +867,7 @@
 | **发现时间** | 2026-10-30（评估 LangChain/LangGraph 依赖时，用 `create_agent` 按 `build_middlewares` 编出的真实图跑同一回合的多个工具调用，把「哪些调用同时在跑」逐个记下来，与文档的说法对比）。 |
 | **修复时间** | 2026-10-30 |
 | **严重程度** | P2（同一回合里模型同时发出读取与写入时，读到写到一半的文件；一个慢写入工具排在另一个写入后面时被重复执行。两者在日常对话里都需要模型一次发出多个工具调用才会碰到）。 |
-| **关联产品** | 所有一次回合里发出多个工具调用的 Agent 运行（文件读写、bash、MCP、宿主声明的工具）。对话外观、提示词与工具 schema 不变，Prompt Cache 不受影响。 |
+| **关联产品** | 所有一次回合里发出多个工具调用的 Agent 运行（文件读写、bash、MCP、宿主应用自带的工具）。对话外观、提示词与工具 schema 不变，Prompt Cache 不受影响。 |
 | **根因** | ① HEAD 的 `safety_dispatcher.py:85-86` 只让「不并发安全」的工具共用一把 `asyncio.Lock` 排队；`is_concurrent_safe` 的工具直接 `return await handler(request)` 绕过，所以写入与读取互相看不见、照样重叠。② 调度器放在栈尾，处于 `tool_interceptor_middleware` 的 `asyncio.timeout` 里面：排队等锁的时间也算进超时，超时后最多重试 2 次，已经被取消的写入又被整个重跑。③ `concurrency_router.py` 在源码与 server 里没有任何调用方（HEAD 里只有 `concurrency/__init__.py` 的导出和三处文档提到它）；材料文档里「路径重叠检测 → 自动串行降级」「O(1) 路径锁」的说法没有对应的运行代码。④ `request.tool_call.get("__smart_concurrent_safe__")` 这个后门没有任何地方会写入。 |
 | **修复** | ① `ConflictGate`（`conflict_gate.py`，90 行）：共享持有者（并发安全的调用）可以一起跑，独占持有者（其余调用，含没有声明过安全属性的 MCP 与宿主工具）独自跑；按到达顺序放行，排在前面的独占请求不会被后到的共享请求一直挤后；等待中被取消的请求不占位也不挡后面的请求，刚被放行就被取消的请求把持有交还；持有在 `finally` 里释放；等待用运行中事件循环上的 future，没有 `asyncio.Lock` 的循环绑定问题。契约是互斥，不保证调用顺序。② `ToolConflictGateMiddleware`（`tool_conflict_gate.py`，101 行，只实现 `awrap_tool_call`）：按 `resolve_safety_metadata(...).is_concurrent_safe` 选共享或独占；独占调用失败后，同一条 AI 消息里还没轮到的独占调用返回 `[SKIPPED]` 的错误消息、不再执行（按 AI 消息 id 记，最多记 128 个回合）。③ 闸门放在 `tool_interceptor_middleware` 外侧、`SubagentLimitMiddleware` 内侧，排队不消耗调用超时。④ 删除 `safety_dispatcher.py`、`concurrency_router.py`、`create_safety_dispatcher` 与 `__smart_concurrent_safe__`，以及只测它们的测试：删除 `test_safety_dispatcher.py`、`test_concurrency_router.py`、`test_toolnode_parallel_execution.py` 三个文件，`test_parallel_tool_execution.py` 删去 196 行。⑤ 材料文档里的相关说法按代码订正（只读并行、其余独占，工具级而不是路径级）。 |
 | **反复次数** | 第 1 次。 |
@@ -1136,7 +1136,7 @@
 | 字段 | 内容 |
 | --- | --- |
 | **状态** | **FIXED**（harness `agent/skills/market/installers/git_installer.py`；测试 `tests/agent/skills/market/installers/test_git_installer_containment.py`、`tests/agent/skills/market/installers/test_git_installer_collection.py`；没有改提示词与工具 schema，不影响提示词缓存）。 |
-| **发现时间** | 2026-10-29（排查同类写法：在 server `app` 与 harness `src` 里找「路径片段配排除集合」，13 处里用绝对路径的只有两处，另一处是代码图谱的目录排除） |
+| **发现时间** | 2026-10-29（排查同类写法：在 server `app` 与 harness `src` 里找「路径片段配排除集合」，13 处里用绝对路径的只有这一处） |
 | **修复时间** | 2026-10-29 |
 | **严重程度** | P3：触发需要 `tempfile.mkdtemp` 所在目录的某个祖先以点开头（用户或部署自己把 `TMPDIR` 设到点目录下）；产品代码不设置 `TMPDIR`，线上没有触发的证据。触发后该函数不报错，返回空集合。第一版修复还留下过一个路径逃逸（见「踩坑」），自查时发现并补上，没有发布、没有 push。 |
 | **关联产品** | 技能市场的 git 安装（`GitInstaller.download` → `_collect_skill_files`）。 |

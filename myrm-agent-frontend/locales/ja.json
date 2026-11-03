@@ -237,7 +237,8 @@
     "subgoalAddFailed": "子ゴールの追加に失敗しました",
     "subgoalAddNetworkError": "ネットワークエラー：子ゴールを追加できませんでした",
     "subgoalRemoveFailed": "子ゴールの削除に失敗しました",
-    "subgoalRemoveNetworkError": "ネットワークエラー：子ゴールを削除できませんでした"
+    "subgoalRemoveNetworkError": "ネットワークエラー：子ゴールを削除できませんでした",
+    "bundleSelectItem": "エクスポートする項目を選択"
   },
   "commands": {
     "palette": {
@@ -2794,7 +2795,8 @@
       "agentsCategory": "エージェント",
       "contextCategory": "コンテキスト",
       "dedupNotice": "このファイルは既にコンテキストにあるため、重複する内容は省略されます",
-      "alreadyInContext": "コンテキスト内"
+      "alreadyInContext": "コンテキスト内",
+      "externalSource": "外部"
     },
     "message": {
       "edit": "編集",
@@ -2847,7 +2849,10 @@
       "waitingHint": "エージェントがブラウザを使用するとライブビューが表示されます",
       "instructionPlaceholder": "このページで何をしたいか説明してください...",
       "instructionWithElement": "エージェントはこの要素に何をすべきですか？",
-      "send": "指示を送信"
+      "send": "指示を送信",
+      "livePeekAlt": "ブラウザのライブ画面",
+      "selectElementLabel": "要素 {refId} を選択（{role}：{name}）",
+      "clearSelection": "選択を解除"
     },
     "browserRecording": {
       "title": "ブラウザ録画",
@@ -2936,7 +2941,8 @@
         "denyReasonPlaceholder": "拒否理由（任意）",
         "targetChangedNotice": "前回の承認以降に対象が変更されました。再度確認してください。",
         "deniedNotice": "拒否されました。このリクエストは本セッション内では再確認されません。"
-      }
+      },
+      "clearSelection": "選択を解除"
     },
     "clarification": {
       "formTitle": "確認フォーム",
@@ -3201,19 +3207,6 @@
       "successDesc": "会話履歴を評価ベンチマークデータセットに書き込みました",
       "error": "評価ケースの抽出に失敗しました"
     },
-    "callGraph": {
-      "title": "コード呼び出しグラフ分析",
-      "callers": "呼び出し元",
-      "reachingTests": "関連テスト",
-      "physicalCallChain": "物理呼び出しチェーン",
-      "noCallers": "外部呼び出し箇所が検出されませんでした",
-      "params": "引数",
-      "testImpact": "テスト影響範囲と波及半径",
-      "noTests": "このロジックをカバーするテストケースが検出されませんでした",
-      "depth": "深度",
-      "level": "階層",
-      "runAffectedTests": "影響を受ける {count} 件のテストを実行"
-    },
     "modelPlaybook": {
       "cannotApplyMissingModels": "レシピを適用できません：一部のモデルが未設定です。",
       "recipeAppliedSuccess": "レシピが正常に適用されました！",
@@ -3343,7 +3336,10 @@
       "subtitle": "会話開始前に事前読み込みされるベースライントークン使用量とツール管理",
       "skillsTools": "スキルと組み込みツール",
       "disabled": "無効",
-      "totalBaseline": "ベースライン合計"
+      "totalBaseline": "ベースライン合計",
+      "baselineFeatherlight": "極めて軽量",
+      "baselineModerate": "標準",
+      "baselineHeavy": "重いベースライン"
     },
     "turnLoadedSkills": {
       "triggerLabel": "参照したワークスキル {count} 件",
@@ -3489,7 +3485,17 @@
       "popoverTitle": "クリックしてモデルの4次元単価マトリクスと Prompt Cache の節約効果を表示",
       "savedAmount": "({amount} 節約)",
       "idleLabel": "コンピュート HUD"
-    }
+    },
+    "scopedArtifactRemove": "対象の限定を解除",
+    "messageListLoading": "メッセージを読み込み中",
+    "inputHistoryLabel": "入力履歴",
+    "projectBoundary": {
+      "isolated": "分離保護",
+      "workspaceTooltip": "プロジェクトの分離ワークスペース：{path}",
+      "sandboxTooltip": "プロジェクトのサンドボックスと専用メモリの分離が有効です"
+    },
+    "systemPromptDeveloperMode": "システムプロンプト（開発者モード）",
+    "mcpAppRenderFailed": "MCP アプリを表示できませんでした"
   },
   "mode": {
     "fast": "高速検索",
@@ -6226,7 +6232,10 @@
     "contextGlobalEmpty": "グローバルプロファイルのデータはまだありません。",
     "contextPeerTitle": "私たちの関係とあなたのペルソナ",
     "contextPeerSubtitle": "このエージェント固有のやり取り",
-    "contextPeerEmpty": "このエージェント固有のプロファイルデータはまだありません。"
+    "contextPeerEmpty": "このエージェント固有のプロファイルデータはまだありません。",
+    "rankedHubSidebarLabel": "ハブランキングのサイドバー",
+    "shareRulesTitle": "ルールを共有（プライバシー保護）",
+    "shareRulesTooltip": "プライバシーを保護したままルールを共有"
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -6480,7 +6489,8 @@
       "quote": "入力欄に引用",
       "quoteRow": "第 {row} 行を引用",
       "quoteRowTooltip": "選択した行を入力欄に引用して質問または編集を行う",
-      "rowScopeLabel": "{row} 行目"
+      "rowScopeLabel": "{row} 行目",
+      "clearSelection": "選択を解除"
     },
     "saving": "保存中...",
     "saved": "保存しました",
@@ -6756,7 +6766,8 @@
       "copy": "コピー",
       "modifyPlaceholder": "変更内容を説明してください…",
       "annotate": "コメント",
-      "annotatePlaceholder": "問題点を説明..."
+      "annotatePlaceholder": "問題点を説明...",
+      "toolbarLabel": "選択範囲のツールバー"
     },
     "skillActions": {
       "moreActions": "もっと見る操作",
@@ -6862,7 +6873,10 @@
       "title": "表示エラー",
       "defaultMessage": "このコンテンツを表示できません。更新するか、ダウンロードしてご確認ください。",
       "retry": "再試行"
-    }
+    },
+    "annotationPanelLabel": "アーティファクトの注釈",
+    "htmlPreviewTitle": "HTML プレビュー",
+    "portalDescription": "ファイル {filename}（種類：{type}、サイズ：{size}）をプレビュー中です。Esc キーで閉じます。"
   },
   "MessageSources": {
     "untitled": "無題",
@@ -6898,7 +6912,8 @@
     "conversation_deleted": "会話を削除しました",
     "operation_failed": "操作に失敗しました",
     "copyAll": "すべてコピー",
-    "copyAllSuccess": "ソースをクリップボードにコピーしました"
+    "copyAllSuccess": "ソースをクリップボードにコピーしました",
+    "mcpSkillFallback": "MCP スキル"
   },
   "auth": {
     "setup": {
@@ -9341,7 +9356,12 @@
     "wechatQrAlt": "WeChat ログイン用 QR コード",
     "usageResetTooltip": "毎日 00:00 UTC（北京時間 08:00）に自動更新",
     "todayUsageDisplay": "本日の使用量：{used} / {quota} 件",
-    "quotaExceeded": "上限超過"
+    "quotaExceeded": "上限超過",
+    "groupTriggerRegionLabel": "現在のグループトリガー設定",
+    "editGlobalAria": "グローバル設定を編集",
+    "matrixProxyPlaceholder": "http://proxy:8080 または socks5://proxy:1080",
+    "onebotTokenPlaceholder": "シークレットトークンを入力",
+    "wechatBotIdLabel": "ボット ID："
   },
   "voice": {
     "sectionTitle": "音声設定",
@@ -9813,14 +9833,17 @@
       "snapshotNone": "Git リポジトリではありません: 自動スナップショットは利用できず、操作を取り消すことはできません",
       "confirmPrompt": "破壊的な操作を承認するには CONFIRM と入力してください",
       "confirmButton": "破壊的操作の承認",
-      "slideConfirm": "スライドして実行を確認"
+      "slideConfirm": "スライドして実行を確認",
+      "affectedTargets": "対象パス / 影響を受けるオブジェクト：",
+      "confirmedReady": "準備完了"
     },
     "destructiveUndo": {
       "title": "破壊的操作が実行されました",
       "description": "ワークスペースに重要な変更が適用されました。安全なシャドウスナップショットが作成され、ワンクリックでロールバック可能です。",
       "rollbackButton": "元に戻す・スナップショットを復元",
       "rollbackSuccess": "ワークスペースが破壊前の状態に正常に復元されました",
-      "rollbackFailed": "スナップショットの復元に失敗しました。状態を確認してください"
+      "rollbackFailed": "スナップショットの復元に失敗しました。状態を確認してください",
+      "snapshotPointer": "スナップショットポインター：{id}"
     },
     "batchCostTitle": "バッチタスク費使用確認",
     "batchCostDescription": "エージェントが複数のサブエージェントを起動しようとしています。推定費使用を確認してから続行してください。",
@@ -9913,6 +9936,21 @@
       "droppedOnEdit": "コマンドが変更されたため、パスワードまたはキーを削除しました。必要な場合は入力し直してください。",
       "errorRejected": "変数名と値を確認して、もう一度お試しください。",
       "errorUnavailable": "しばらくしてからもう一度お試しください。"
+    },
+    "escalationTitle": "機密性の高い権限境界のリクエストを検出しました",
+    "escalationFallbackReason": "権限の逸脱",
+    "escalationReasons": {
+      "symlink_creation": "シンボリックリンクの作成 (Symlink)",
+      "network_egress": "外部ネットワーク接続 (Network Egress)",
+      "privilege_escalation": "システム権限の昇格 (Privilege Escalation)",
+      "permission_alteration": "ファイル権限の変更 (Permission Change)",
+      "process_termination": "システムプロセスの終了 (Process Termination)",
+      "system_administration": "システム管理とサービス操作 (System Admin)",
+      "filesystem_destruction": "高リスクなファイルシステムのフォーマット (Filesystem Modification)",
+      "raw_disk_write": "ディスクへの低レベル直接書き込み (Raw Disk Write)",
+      "system_file_write": "システムの機密ファイルへの書き込み (System File Write)",
+      "git_destructive_action": "Git リポジトリの破壊的なリセット/クリーン (Git Destructive Action)",
+      "git_remote_sync": "Git リモートブランチの同期/プッシュ (Git Remote Push)"
     }
   },
   "notifications": {
@@ -10008,7 +10046,11 @@
     "budgetRemaining": "{dimension} — 残り ${remaining}",
     "subagentStaleDescription": "{minutes} 分間進捗なし · {tokens, number} トークン",
     "subagentStaleStats": "{minutes} 分 · {tokens, number} トークン",
-    "agentProfileRollbackSuccess": "エージェントの設定を正常にロールバックしました。"
+    "agentProfileRollbackSuccess": "エージェントの設定を正常にロールバックしました。",
+    "locatorHealedTitle": "セルフヒーリングを実行しました",
+    "locatorHealedDescription": "エージェントが空間的なフットプリントの照合により、壊れたロケーターを自動的に復旧しました。",
+    "locatorHealedTarget": "対象",
+    "locatorHealedUnknownName": "不明"
   },
   "configConflict": {
     "title": "設定の競合を検出",
@@ -10354,7 +10396,9 @@
         "wait0": "あなたが必要です",
         "wait1": "待っています",
         "wait2": "あなたの番です"
-      }
+      },
+      "voiceInterrupt": "音声を中断",
+      "voiceInteraction": "音声操作"
     },
     "palette": {
       "title": "ペットパレット",
@@ -10738,7 +10782,8 @@
       "confirmLabel": "残すアシスタントの名前を入力して確認",
       "mergeSource": "アーカイブ（移行元）",
       "planBindings": "移行する紐付け",
-      "done": "完了"
+      "done": "完了",
+      "regionLabel": "エージェントのガバナンス"
     },
     "readiness": {
       "dimensions": {
@@ -11378,7 +11423,8 @@
     "insightsSpawned": "{count}件起動",
     "insightsAvgDuration": "平均所要時間",
     "insightsTotalTokens": "トークン合計",
-    "insightsTotalCost": "合計コスト"
+    "insightsTotalCost": "合計コスト",
+    "waitingOnStage": "（{stage} を待機中）"
   },
   "trajectoryDiff": {
     "title": "セッション間実行軌跡の比較 (Trajectory Diff)",
@@ -12309,7 +12355,8 @@
     "inlineRouteTemplateNoResults": "一致する専門家テンプレートがありません",
     "inlineRouteTemplateEmpty": "利用可能な専門家テンプレートはありません",
     "inlineRouteTemplateApplyFailed": "専門家テンプレートの呼び出しに失敗しました",
-    "appshotAlt": "キャプチャしたアプリのスクリーンショット"
+    "appshotAlt": "キャプチャしたアプリのスクリーンショット",
+    "captureAlt": "画面キャプチャ"
   },
   "billing": {
     "wuBalance": "ワークユニット",
@@ -12450,7 +12497,8 @@
           "feature2": "8C サンドボックス + より長いアクティブ時間"
         }
       }
-    }
+    },
+    "baseAllowance": "基本枠"
   },
   "connectWizard": {
     "title": "外部エージェントに接続",
@@ -13361,7 +13409,10 @@
     "previewTitle": "{name} ライブプレビュー",
     "consoleStarted": "[{time}] ポート {port} でサービスを開始しました ({protocol})",
     "consoleReady": "> 準備完了：{url}",
-    "consoleProcess": "> プロセス PID：{pid} | プロセス：{name}"
+    "consoleProcess": "> プロセス PID：{pid} | プロセス：{name}",
+    "previewPort": "ポート {port} をプレビュー",
+    "barPortsCount": "{count} 個のポート",
+    "barLabel": "開発ポート"
   },
   "toolPicker": {
     "menuLabel": "ツール選択",
@@ -13423,7 +13474,9 @@
     "slideVisualPlaceholder": "マルチモーダルアーキテクチャ図",
     "slideConfidentialFooter": "機密 · エンタープライズ資料",
     "slidePage": "{page} ページ",
-    "slideAriaLabel": "スライド {number}：{title}"
+    "slideAriaLabel": "スライド {number}：{title}",
+    "slideThumbnails": "スライドのサムネイル",
+    "goToSlide": "スライド {number} へ移動：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版品質スタイル付きスプレッドシートハブ",
@@ -13903,7 +13956,8 @@
     "jumpInAction": "ジャンプイン",
     "zoomIn": "拡大",
     "zoomOut": "縮小",
-    "zoomReset": "ズームをリセット"
+    "zoomReset": "ズームをリセット",
+    "defaultProject": "デフォルトプロジェクト"
   },
   "workbench": {
     "workbenchAriaLabel": "補助ワークベンチ",
@@ -13961,14 +14015,16 @@
       "emptyMessages": "このマイルストーンに保持された生メッセージのスナップショットはありません",
       "originalRoleUser": "ユーザーのプロンプト",
       "originalRoleAssistant": "エージェントの応答",
-      "originalRoleTool": "ツールの実行"
+      "originalRoleTool": "ツールの実行",
+      "ariaLabel": "読み取り専用の会話履歴タイムマシン"
     },
     "branchSummary": {
       "inheritedBadge": "ブランチ横断の経験フライライン",
       "sourceBranchLabel": "継承元のブランチ",
       "keyTakeawaysTitle": "導き出された主要な学びと発見",
       "warpToSource": "元のブランチへワープ",
-      "forkIndicator": "分岐元"
+      "forkIndicator": "分岐元",
+      "ariaLabel": "ブランチ横断の経験カード"
     },
     "anchors": {
       "title": "検証済みアンカー",
@@ -14361,7 +14417,11 @@
       "commerce": "EC 運営",
       "team": "マルチエージェントチーム",
       "general": "汎用アシスタント"
-    }
+    },
+    "refresh": "テンプレートを更新",
+    "membersCount": "メンバー {count} 人",
+    "zeroPromptReady": "ゼロプロンプトで利用可能",
+    "sandboxReady": "サンドボックス準備完了"
   },
   "commandMatrix": {
     "allCategories": "すべてのカテゴリ",
@@ -15023,7 +15083,9 @@
         "integration": "通信とインテグレーション",
         "system": "システム"
       },
-      "brand-studio": "ブランドスタイル"
+      "brand-studio": "ブランドスタイル",
+      "clearSearch": "検索をクリア",
+      "matchedLabel": "一致："
     },
     "workbench": {
       "badge": "資産保持とプラットフォーム中立性",
@@ -16756,7 +16818,8 @@
         "agenticTooltip": "本番環境レベルのツール呼び出しと長期記憶要件を満たす自動生成された 64K コンテキスト modelfile",
         "keepAliveTipTitle": "24/7 常駐とメモリ解放ガイド",
         "keepAliveTipDesc": "モデルをメモリに保持してバックグラウンドボットを常時稼働させるか、重いタスク時にメモリを解放します。",
-        "downloadFailed": "ダウンロードに失敗しました"
+        "downloadFailed": "ダウンロードに失敗しました",
+        "fitScore": "適合スコア："
       },
       "importFromModelsDev": "から models.dev インポート",
       "getModels": "モデルを取得",
@@ -16800,7 +16863,10 @@
           "disconnected": "SuperGrok サブスクリプションを切断しました",
           "disconnectFailed": "切断に失敗しました"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... または op://vault/item/field または bw://item",
+      "poolStatsCollapse": "折りたたむ",
+      "poolStatsExpand": "展開"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",
@@ -17227,7 +17293,9 @@
       "xaiOauthWaiting": "認証を待機中...",
       "xaiOauthConnectBtn": "SuperGrok を認証",
       "oauthExpiredNotice": "この認証は無効になっています（プラットフォーム側で失効または期限切れの可能性があります）。「今すぐ修復」をクリックして再認証し、サービスを復旧してください。",
-      "oauthFixNow": "今すぐ修復"
+      "oauthFixNow": "今すぐ修復",
+      "fileInputLabel": "認証情報ファイルの入力",
+      "clearSyncedMemory": "同期済みのメモリデータも削除（データソース {count} 件）"
     },
     "skillQuality": {
       "title": "スキル品質管理",
@@ -18391,6 +18459,21 @@
           "openInEditor": "Wiki エディターで開く",
           "close": "プレビューを閉じる"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown ツールバー",
+        "bold": "太字",
+        "italic": "斜体",
+        "h2": "見出し 2",
+        "code": "コードブロック",
+        "quote": "引用",
+        "bullet": "箇条書き",
+        "todo": "ToDo リスト",
+        "wikilink": "Wiki リンク",
+        "table": "表を挿入"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "タイムスタンプへ移動"
       }
     },
     "skills": {
@@ -18722,7 +18805,8 @@
         "undoLastReplace": "直近の更新を元に戻す",
         "undoLastReplaceHint": "前回の更新前に自動保存したバージョンに戻せます。",
         "undoLastReplaceSuccess": "前のバージョンに戻しました",
-        "undoLastReplaceFailed": "直近の更新を元に戻せませんでした"
+        "undoLastReplaceFailed": "直近の更新を元に戻せませんでした",
+        "apiKeyLabel": "API キー"
       },
       "curator": {
         "safetyPromise": "スキルが削除されることはありません。最悪の場合でもアーカイブされるだけで、いつでもワンクリックで復元できます。",
@@ -20676,7 +20760,8 @@
           "e2eeAlgorithm": "アルゴリズム",
           "e2eeFingerprint": "指紋"
         },
-        "copied": "クリップボードにコピーしました"
+        "copied": "クリップボードにコピーしました",
+        "refreshTailscaleStatus": "Tailscale の状態を更新"
       },
       "push": {
         "deniedHint": "通知がブロックされています。ブラウザの設定で有効にしてください。",
@@ -20786,7 +20871,10 @@
         "guideTitle": "離席中のパソコン操作・クイック設定",
         "statusOn": "オン",
         "statusOptional": "任意"
-      }
+      },
+      "timezoneNoResults": "結果がありません",
+      "timezoneSearchPlaceholder": "タイムゾーンを検索...",
+      "timezonePopular": "よく使う"
     },
     "push": {
       "title": "通知",
@@ -21201,7 +21289,8 @@
       "cacheRadarSavings": "累計節約額の推定:",
       "cacheRadarCachedTokens": "再利用されたキャッシュ Tokens",
       "cacheRadarFreshInput": "新規入力 Tokens",
-      "cacheRadarTotalPrompt": "プロンプト Tokens 合計"
+      "cacheRadarTotalPrompt": "プロンプト Tokens 合計",
+      "dailyToolCallsTooltip": "{date}：ツール呼び出し {count} 回"
     },
     "workingState": {
       "title": "作業状態",
@@ -21641,7 +21730,9 @@
         "llmViewportHide": "モデルビューポート（閉じる）",
         "experienceWizardTitle": "プロジェクト経験の6ステップ証拠パックウィザードを生成",
         "experienceWizardButton": "経験ウィザード",
-        "pluginStateTitle": "プラグイン拡張の状態"
+        "pluginStateTitle": "プラグイン拡張の状態",
+        "protectedSpan": "保護されたスパン",
+        "retryAttempt": "試行：{attempt} 回目（プロバイダーのバックオフ / 再試行済み）"
       },
       "contextDoctor": {
         "title": "コンテキスト健康診断 (Token ホットスポットとコスト監査)",
@@ -21802,7 +21893,10 @@
       "amount": "金額",
       "status": "状態",
       "time": "日時",
-      "verifiedReceipt": "HMAC検証済み"
+      "verifiedReceipt": "HMAC検証済み",
+      "entryHashLabel": "エントリーハッシュ：",
+      "entryHashPending": "保留中 / 該当なし",
+      "idempotencyKeyLabel": "冪等性キー："
     },
     "channelBudget": {
       "title": "チャンネル予算制限",
@@ -22335,7 +22429,9 @@
           "trustRiskHint": "信頼できない拡張機能には、プロンプトインジェクションが含まれている可能性があります。常に信頼できるソースからのパッケージであることを確認してください。",
           "trustedCheckboxLabel": "このプラグインが信頼できるソースからのものであることを確認し、システム権限を承認してインストールに同意します",
           "skillsNotSupported": "この環境ではカスタムスキルは利用できません - 自動的にスキップします",
-          "stdioNotAllowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません - 自動的にスキップします"
+          "stdioNotAllowed": "この環境ではローカルプロセス型の MCP サーバーは実行できません - 自動的にスキップします",
+          "sourceCloudSandbox": "クラウドサンドボックス",
+          "sourceLocalOs": "ローカル OS の権限"
         },
         "diagnostics": {
           "scope": {
@@ -22563,7 +22659,8 @@
       "tierProd": "本番環境",
       "tierStaging": "ステージング",
       "tierDev": "開発環境",
-      "probeFailed": "{host} の接続確認に失敗しました：{message}"
+      "probeFailed": "{host} の接続確認に失敗しました：{message}",
+      "breakGlassCommandPlaceholder": "例：systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "画面上の承認ハイライト — クリック対象の実ディスプレイに赤い枠を表示（macOS と Windows）",
@@ -22764,5 +22861,92 @@
     "close": "閉じる",
     "binaryChanged": "バイナリファイルが変更されました",
     "noChanges": "変更なし"
+  },
+  "riskGate": {
+    "regionLabel": "段階別リスク確認"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "支払い済み・検証済み",
+    "statusReserved": "予約済み",
+    "statusRefunded": "返金済み",
+    "statusRejected": "ブロック済み",
+    "hashVerified": "台帳ハッシュを HMAC で検証済み"
+  },
+  "evidencePack": {
+    "modalTitle": "プロジェクト実践・6ステップ経験ウィザード",
+    "copyMarkdownTitle": "Markdown をコピー",
+    "copied": "コピーしました",
+    "copyShort": "MD をコピー",
+    "downloadMarkdownTitle": "Markdown をダウンロード",
+    "exportMarkdown": "Markdown をエクスポート",
+    "downloadJsonTitle": "JSON をダウンロード",
+    "facts": "重要な事実と実証記録：",
+    "previous": "前へ",
+    "next": "次へ",
+    "stepCounter": "ステップ {current} / {total}",
+    "untitledTask": "名称未設定のプロジェクトタスク",
+    "noTextInput": "明示的なテキスト入力なし",
+    "planningDetected": "アーキテクチャと計画の意思決定フェーズのディスパッチを {count} 回検出しました",
+    "planningNodeFallback": "計画ノード",
+    "directExecution": "エンドツーエンドの直接実行とアジャイル対応モードに従いました",
+    "firstWrite": "最初の成果物反映アクション：[{tool}]（シーケンス #{sequence}）",
+    "targetFile": "対象ファイル：{path}",
+    "noFileChanges": "静的ファイルの変更は検出されませんでした。または対話のみのタスクです",
+    "executionSummary": "ツール呼び出しは合計 {total} 回、そのうち異常の遮断/修復は {failed} 回",
+    "errorRecord": "[エラー記録] {type}: {message}",
+    "selfHealPoint": "[自己修復ポイント] {tool} の失敗後に再試行または戦略の自動調整が行われました",
+    "verificationSummary": "検証/テストを {count} 回実行し、合格率は {rate}% でした",
+    "verificationRun": "[実証実行] {tool}: {result}",
+    "resultPassed": "合格",
+    "resultFailed": "不合格",
+    "verificationInferred": "意味的一貫性とタスク終了ゲートに基づく推論検証を完了しました",
+    "takeawayClosedLoop": "タスクは完全にクローズされ、各フェーズの意思決定と実証がよく整合していました",
+    "takeawayExtractSkill": "今回蓄積した安定した SOP を専用スキルまたは自動化テンプレートとして抽出することをおすすめします",
+    "takeawayNotSuccess": "タスクの状態は {outcome} です。中断または最初の回復不能なエラーに注意してください",
+    "takeawayFirstFatal": "最初の致命的な異常はステップインデックス #{index} にあります",
+    "metricTotalCalls": "総呼び出し",
+    "metricFailures": "異常数",
+    "steps": {
+      "requirements": {
+        "title": "元の要件",
+        "shortTitle": "要件",
+        "summary": "元のタスク目標、業務背景、制約条件"
+      },
+      "architecture": {
+        "title": "アーキテクチャと意思決定",
+        "shortTitle": "アーキテクチャ",
+        "summary": "技術的アプローチの選定、計画の分解、依存関係"
+      },
+      "initial_impl": {
+        "title": "v0 初版の実装スナップショット",
+        "shortTitle": "v0 初版",
+        "summary": "最初のコード/成果物の出力と初期方針の形"
+      },
+      "execution_correction": {
+        "title": "実行の進展と自己修復による修正",
+        "shortTitle": "実行と修正",
+        "summary": "ツール呼び出しの履歴、エラー調査、修正の証跡"
+      },
+      "verification": {
+        "title": "客観的な検証とテストの実証",
+        "shortTitle": "検証",
+        "summary": "テストケース、静的チェック、環境での実測データ"
+      },
+      "takeaways": {
+        "title": "得られた知見と回帰防止のポイント",
+        "shortTitle": "知見",
+        "summary": "振り返り、ベストプラクティス、蓄積すべき提案"
+      }
+    },
+    "markdownHeading": "プロジェクト実践・6ステップ経験エビデンスパック：{title}",
+    "markdownSessionId": "セッション ID",
+    "markdownOutcome": "実行結果",
+    "markdownDuration": "所要時間",
+    "markdownTokens": "トークン消費量",
+    "markdownToolCalls": "ツール呼び出し",
+    "markdownGeneratedAt": "生成日時",
+    "markdownStepHeading": "ステップ {index}：{title}",
+    "markdownMetrics": "主要指標",
+    "markdownFooter": "プロジェクト経験6ステップウィザードにより自動生成"
   }
 }

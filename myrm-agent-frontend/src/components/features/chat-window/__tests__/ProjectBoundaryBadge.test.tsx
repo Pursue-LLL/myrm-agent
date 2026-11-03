@@ -76,8 +76,8 @@ describe('ProjectBoundaryBadge', () => {
     const badge = screen.getByTestId('project-boundary-badge');
     expect(badge).toBeInTheDocument();
     expect(screen.getByText('Alpha Customer Portal')).toBeInTheDocument();
-    expect(screen.getByText('隔离保护')).toBeInTheDocument();
-    expect(badge).toHaveAttribute('title', '项目隔离工作区: /sandboxes/alpha');
+    expect(screen.getByText('isolated')).toBeInTheDocument();
+    expect(badge).toHaveAttribute('title', 'workspaceTooltip');
   });
 
   it('renders project boundary badge fallback from activeFilter in new session', () => {
@@ -95,7 +95,7 @@ describe('ProjectBoundaryBadge', () => {
     const badge = screen.getByTestId('project-boundary-badge');
     expect(badge).toBeInTheDocument();
     expect(screen.getByText('Beta Cloud Infra')).toBeInTheDocument();
-    expect(screen.getByText('隔离保护')).toBeInTheDocument();
-    expect(badge).toHaveAttribute('title', '项目沙箱与专属记忆隔离已激活');
+    expect(screen.getByText('isolated')).toBeInTheDocument();
+    expect(badge).toHaveAttribute('title', 'sandboxTooltip');
   });
 });

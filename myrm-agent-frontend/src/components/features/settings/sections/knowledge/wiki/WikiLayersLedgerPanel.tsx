@@ -4,6 +4,7 @@
  * - ./WikiReviewSlipModal (POS: 作者审阅单批量回写确认对话框)
  * - ./WikiLayerItemPreviewModal (POS: 词条 Markdown 只读预览模态框)
  * - ../WikiAgentScopeContext::useWikiAgentScope (POS: Agent Wiki 作用域上下文)
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - WikiLayersLedgerPanel: 五层知识资产全局态势总览、分层下钻浏览与审阅单工作台面板

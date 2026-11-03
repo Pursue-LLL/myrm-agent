@@ -54,6 +54,14 @@ describe('empty chat phone first-screen contract', () => {
     expect(source).toContain('<Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />');
   });
 
+  it('keeps the workspace trigger and its clear button inside the card on phones: the unbound sentence wraps, a bound path shrinks into an ellipsis', () => {
+    const source = read('../NewTaskWorkContextCard.tsx');
+
+    expect(source).toContain("'border-border text-muted-foreground h-auto min-h-8 whitespace-normal py-1.5 text-left'");
+    expect(source).toContain('flex items-center gap-2 min-w-0 flex-1 w-full');
+    expect(source).toContain('gap-1.5 min-w-0 max-w-full justify-start');
+  });
+
   it('renders the composer text at 16px on phones so iOS Safari does not zoom the page on focus', () => {
     const textarea = read('../MessageInput.tsx').match(/<TextareaAutosize[\s\S]*?\/>/)?.[0] ?? '';
 

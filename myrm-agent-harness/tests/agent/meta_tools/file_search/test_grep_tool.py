@@ -161,29 +161,29 @@ class TestMmapSearch:
 
 class TestRipgrepSearch:
     async def test_basic_search(self, workspace: Path, require_ripgrep: None) -> None:
-        results = await _ripgrep_search("def", workspace, "**/*", False, 0, 100)
+        results = (await _ripgrep_search("def", workspace, "**/*", False, 0, 100)).rows
         assert len(results) >= 2
         files = {r["file"] for r in results}
         assert any("hello.py" in str(f) for f in files)
 
     async def test_ignore_case(self, workspace: Path, require_ripgrep: None) -> None:
         (workspace / "case.txt").write_text("Hello\nHELLO\nhello\n")
-        results = await _ripgrep_search("hello", workspace, "**/*", True, 0, 100)
+        results = (await _ripgrep_search("hello", workspace, "**/*", True, 0, 100)).rows
         assert len(results) >= 3
 
     async def test_file_pattern_filter(self, workspace: Path, require_ripgrep: None) -> None:
-        results = await _ripgrep_search("import", workspace, "**/*.py", False, 0, 100)
+        results = (await _ripgrep_search("import", workspace, "**/*.py", False, 0, 100)).rows
         for r in results:
             assert str(r["file"]).endswith(".py")
 
     async def test_max_results_limit(self, workspace: Path, require_ripgrep: None) -> None:
         many = workspace / "big.py"
         many.write_text("\n".join(f"match_{i} = True" for i in range(200)))
-        results = await _ripgrep_search("match_", workspace, "**/*", False, 0, 5)
+        results = (await _ripgrep_search("match_", workspace, "**/*", False, 0, 5)).rows
         assert len(results) <= 5
 
     async def test_no_match_returns_empty(self, workspace: Path, require_ripgrep: None) -> None:
-        results = await _ripgrep_search("NONEXISTENT_STRING_12345", workspace, "**/*", False, 0, 100)
+        results = (await _ripgrep_search("NONEXISTENT_STRING_12345", workspace, "**/*", False, 0, 100)).rows
         assert results == []
 
     async def test_nonzero_returncode_raises_runtime_error_without_name_error(self, workspace: Path) -> None:

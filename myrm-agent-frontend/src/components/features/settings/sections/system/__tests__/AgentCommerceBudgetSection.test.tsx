@@ -73,7 +73,7 @@ describe('AgentCommerceBudgetSection', () => {
     expect(screen.getByText('*.openai.com')).toBeInTheDocument();
     expect(screen.getAllByText('aws.amazon.com').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('$0.99').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Paid & Verified')).toBeInTheDocument();
+    expect(screen.getByText('statusCommitted')).toBeInTheDocument();
   });
 
   it('toggles emergency freeze breaker', async () => {
@@ -126,5 +126,27 @@ describe('AgentCommerceBudgetSection', () => {
         allowed_merchants: ['namesilo.com', '*.openai.com', '2captcha.com'],
       });
     });
+  });
+
+  it('shows localized audit labels when a ledger row is expanded', async () => {
+    render(<AgentCommerceBudgetSection />);
+    await waitFor(() => expect(screen.getByText('title')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText('aws.amazon.com')[0]);
+
+    expect(screen.getByText('entryHashLabel')).toBeInTheDocument();
+    expect(screen.getByText('hash123')).toBeInTheDocument();
+    expect(screen.getByText('idempotencyKeyLabel')).toBeInTheDocument();
+    expect(screen.getByText('idemp_1')).toBeInTheDocument();
+  });
+
+  it('marks a ledger entry without a hash as pending', async () => {
+    vi.mocked(getSpendingLedger).mockResolvedValue([{ ...mockLedger[0], entry_hash: '' }]);
+    render(<AgentCommerceBudgetSection />);
+    await waitFor(() => expect(screen.getByText('title')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText('aws.amazon.com')[0]);
+
+    expect(screen.getByText('entryHashPending')).toBeInTheDocument();
   });
 });

@@ -42,8 +42,10 @@ def serve(monkeypatch: pytest.MonkeyPatch) -> Callable[[list[Events]], _Server]:
     return install
 
 
-def _run(model_selection: dict[str, object] | None = None) -> tuple[str, Events, int]:
-    return perform_agent_stream(cast(TestClient, None), "question", "chat-1", model_selection=model_selection or {"model": "m"})
+def _run(model_selection: dict[str, object] | None = None, agent_id: str | None = None) -> tuple[str, Events, int]:
+    return perform_agent_stream(
+        cast(TestClient, None), "question", "chat-1", model_selection=model_selection or {"model": "m"}, agent_id=agent_id
+    )
 
 
 class TestATurnWithoutApprovals:
@@ -57,6 +59,13 @@ class TestATurnWithoutApprovals:
         assert answer == "hello"
         assert collected == _said("hello")
         assert tool_calls == 0
+
+    def test_runs_on_the_default_agent_unless_a_profile_is_named(self, serve: Callable[[list[Events]], _Server]) -> None:
+        server = serve([_said("hello")])
+
+        _run()
+
+        assert "agentId" not in server.requests[0]
 
     def test_counts_the_tool_calls_of_the_stream(self, serve: Callable[[list[Events]], _Server]) -> None:
         serve([[{"type": "tasks_steps", "tool_name": "bash"}, {"type": "tasks_steps"}, *_said("done")]])
@@ -90,6 +99,13 @@ class TestAnApprovalTheModelAsksFor:
         assert resume["resumeValue"] == {"decisions": [{"type": "approve", "extensions": {"allowAlways": True}}]}
         for key in ("chatId", "modelSelection", "actionMode"):
             assert resume[key] == first[key]
+
+    def test_resume_stays_on_the_agent_profile_the_turn_named(self, serve: Callable[[list[Events]], _Server]) -> None:
+        server = serve([_APPROVAL, _said("ok")])
+
+        _run(agent_id="agent-7")
+
+        assert [request["agentId"] for request in server.requests] == ["agent-7", "agent-7"]
 
     def test_a_second_approval_after_the_first_is_answered_too(self, serve: Callable[[list[Events]], _Server]) -> None:
         server = serve([_APPROVAL, _APPROVAL, _said("finally")])

@@ -3,7 +3,7 @@
 ## 架构概述
 
 “项目维度可视化会话地图与 Agent 状态全景驾驶舱”前端交互矩阵：
-对标 Mobius Agent OS 实践，提供宏观的 2D 拓扑会话地图（Session Map）与多 Agent 状态全景驾驶舱（Fleet Cockpit）。
+提供宏观的 2D 拓扑会话地图（Session Map）与多 Agent 状态全景驾驶舱（Fleet Cockpit）。
 
 - 项目容器强隔离：每个项目外包框强绑定独立的 Git 仓库、本地工作路径（`workspace_path`）与专属记忆/技能库；
 - Agent 运行状态脉冲：SVG 2D 拓扑节点实时展示运行状态脉冲（`working` 绿波微动效、`ready` 蓝光常驻、`waiting_input` 琥珀金闪烁、`error` 绯红警示、`idle` 灰度暗光）；

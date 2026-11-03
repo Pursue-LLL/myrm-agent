@@ -4,6 +4,7 @@
 - backends.skills.protocols::SkillBackend (POS: 技能后端协议，提供技能加载能力)
 - backends.skills.types::SkillMetadata, SkillInstance (POS: 技能元数据与实例)
 - skill_document_loader (POS: SOP 加载与 L2 文件读取)
+- agent.skill_agent.skill_reference::resolve_skill_reference (POS: 模型写出的技能名到已绑定技能的唯一解析，撞名不猜)
 
 [OUTPUT]
 - build_skill_select_static_description: byte-stable tool description (no bound catalog)
@@ -11,6 +12,9 @@
 
 [POS]
 Skill selection meta-tool. Enables the model to select a skill and load its SOP documentation.
+The name the model writes resolves through resolve_skill_reference, so the catalog spelling, a `_skill`
+suffix and case or separator variants all select the same bound skill; loaded-state and instance lookups
+use the listed name.
 """
 
 from __future__ import annotations
@@ -51,7 +55,7 @@ _SKILL_SELECT_TOOL_DESCRIPTION_ZH = """选择并激活已绑定的技能，以�
 2. 每个技能在当前会话只需选择一次 — 加载后的 SOP 及能力在后续对话中持续有效，切勿重复选择已加载的技能。
 3. 若有助于解决问题，可同时选择多个技能。
 4. 如需读取已加载技能的辅助脚本或参考文档，可传入 file_path 参数（例如 'scripts/run.py'、'references/api.md'）。
-5. 切勿混淆基础工具（_tool 后缀，可直接调用）与专业技能（_skill 后缀，必须通过本工具先选择加载）。
+5. 切勿混淆基础工具（_tool 后缀，可直接调用）与专业技能（必须通过本工具先选择加载）。
 6. 当用户消息以 [use <skill_name>] 开头或明确提及技能名称时，必须立即选择该技能。
 7. 如果已激活工具本身就能解决请求，直接调用该工具，不要选择技能；如果没有适用技能，直接继续，不要强行选择。"""
 
@@ -63,7 +67,7 @@ Rules:
 2. Select each skill only ONCE per conversation — its SOP and capabilities remain active for all subsequent turns. Do NOT re-select loaded skills.
 3. You may select multiple skills simultaneously if they jointly help solve the task.
 4. To inspect auxiliary files or reference scripts of a loaded skill, pass file_path (e.g. 'scripts/run.py', 'references/api.md').
-5. Do NOT confuse generic tools (_tool suffix, directly callable) with specialized skills (_skill suffix, must be selected via this tool first).
+5. Do NOT confuse generic tools (_tool suffix, directly callable) with specialized skills (must be selected via this tool first).
 6. When the user message starts with [use <skill_name>] or mentions a skill by name, you MUST immediately select that skill.
 7. If an already-active tool solves the request directly, call it without selecting a skill; if no skill applies, proceed without one."""
 
@@ -96,7 +100,7 @@ def create_select_skill_tool(
 
     class SelectSkillInput(BaseModel):
         skill_names: list[str] = Field(
-            description="Skill names from the bound library (listed catalog entries or an explicitly named bound skill; must end with _skill). One or more allowed.",
+            description="Skill names from the bound library, written exactly as the catalog lists them (or an explicitly named bound skill). One or more allowed.",
             min_length=1,
         )
         reason: str = Field(description="Brief reason for selecting these skills (required, max 100 chars)")
@@ -113,6 +117,7 @@ def create_select_skill_tool(
             add_loaded_skill,
             get_loaded_skills,
         )
+        from myrm_agent_harness.agent.skill_agent.skill_reference import resolve_skill_reference
         from myrm_agent_harness.backends.skills.usage_recorder import (
             record_skill_selection,
         )
@@ -122,7 +127,7 @@ def create_select_skill_tool(
         selected_skills_info = []
 
         for skill_name in skill_names:
-            skill_meta = next((s for s in skills if s.name == skill_name), None)
+            skill_meta = resolve_skill_reference(skill_name, skills)
             if not skill_meta:
                 hint = ", ".join(available_names[:15])
                 selected_skills_info.append(f"\nError: skill '{skill_name}' not found. Available: [{hint}]")
@@ -137,10 +142,10 @@ def create_select_skill_tool(
                     selected_skills_info.append(
                         f"# {skill_name}\n\nError: file '{file_path}' not found or inaccessible"
                     )
-            elif skill_name in loaded_names:
+            elif skill_meta.name in loaded_names:
                 selected_skills_info.append(await build_reload_summary_with_index(skill_meta, skill_backend))
             else:
-                instance = skill_instances.get(skill_name) if skill_instances else None
+                instance = skill_instances.get(skill_meta.name) if skill_instances else None
                 skill_doc = await get_skill_document(skill_meta, skill_backend, skill_instance=instance)
                 if skill_doc:
                     selected_skills_info.append(skill_doc)
