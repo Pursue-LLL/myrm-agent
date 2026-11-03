@@ -152,28 +152,28 @@ export default function KanbanReplanDialog({
                 proposedChanges.map((change, idx) => (
                   <div key={idx} className="flex items-start gap-2 p-2 rounded border bg-background text-xs">
                     {change.action === 'add' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        ADD
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        {t('replanActionAdd')}
                       </span>
                     )}
                     {change.action === 'update' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                        UPDATE
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                        {t('replanActionUpdate')}
                       </span>
                     )}
                     {change.action === 'remove' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-rose-500/20 text-rose-600 dark:text-rose-400">
-                        REMOVE
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-rose-500/20 text-rose-600 dark:text-rose-400">
+                        {t('replanActionRemove')}
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{change.title || change.task_id || 'Untitled'}</div>
+                      <div className="font-medium truncate">{change.title || change.task_id || t('replanUntitled')}</div>
                       {change.description && (
                         <div className="text-[11px] text-muted-foreground truncate">{change.description}</div>
                       )}
                       {change.depends_on && change.depends_on.length > 0 && (
                         <div className="text-[10px] text-muted-foreground mt-0.5">
-                          Depends on: {change.depends_on.join(', ')}
+                          {t('replanDependsOn', { ids: change.depends_on.join(', ') })}
                         </div>
                       )}
                     </div>

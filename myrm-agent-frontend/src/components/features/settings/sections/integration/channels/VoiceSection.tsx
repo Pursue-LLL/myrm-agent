@@ -95,6 +95,11 @@ const TTS_PROVIDERS = [
 
 const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'cedar', 'coral', 'echo', 'marin', 'sage', 'shimmer', 'verse'];
 
+const GEMINI_LIVE_MODELS = [
+  { value: 'gemini-2.5-flash-preview-native-audio-dialog', label: 'Gemini 2.5 Flash (Native Audio)' },
+  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live' },
+];
+
 async function loadVoiceConfig(): Promise<VoiceFormState> {
   try {
     const record = await apiRequest<{ value: VoiceFormState }>('/config/voice');
@@ -520,17 +525,18 @@ const VoiceSection = memo(() => {
           {voiceMode === 'gemini_live' && (
             <FieldRow label={t('geminiLiveModel')}>
               <Select
-                value={form.geminiLiveModel || 'gemini-2.5-flash-preview-native-audio-dialog'}
+                value={form.geminiLiveModel || DEFAULT_STATE.geminiLiveModel}
                 onValueChange={(v) => update({ geminiLiveModel: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gemini-2.5-flash-preview-native-audio-dialog">
-                    Gemini 2.5 Flash (Native Audio)
-                  </SelectItem>
-                  <SelectItem value="gemini-2.0-flash-live-001">Gemini 2.0 Flash Live</SelectItem>
+                  {GEMINI_LIVE_MODELS.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FieldRow>

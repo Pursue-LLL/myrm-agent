@@ -4,7 +4,8 @@ import KanbanReplanDialog from '../KanbanReplanDialog';
 import type { KanbanBoard, PlanRevisionItem } from '@/services/kanban';
 import * as kanbanService from '@/services/kanban';
 
-const stableT = (key: string) => key;
+const stableT = (key: string, values?: Record<string, string>) =>
+  values ? `${key}:${Object.values(values).join('|')}` : key;
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
@@ -65,9 +66,27 @@ describe('KanbanReplanDialog', () => {
     expect(screen.getByText('Analyze Root Cause')).toBeInTheDocument();
     expect(screen.getByText('Fix Engine Bug')).toBeInTheDocument();
     expect(screen.getByText('Legacy Step')).toBeInTheDocument();
-    expect(screen.getByText('ADD')).toBeInTheDocument();
-    expect(screen.getByText('UPDATE')).toBeInTheDocument();
-    expect(screen.getByText('REMOVE')).toBeInTheDocument();
+    expect(screen.getByText('replanActionAdd')).toBeInTheDocument();
+    expect(screen.getByText('replanActionUpdate')).toBeInTheDocument();
+    expect(screen.getByText('replanActionRemove')).toBeInTheDocument();
+  });
+
+  it('names an untitled change by its task id and falls back to a translated label, and lists its dependencies', () => {
+    render(
+      <KanbanReplanDialog
+        board={mockBoard}
+        open={true}
+        onOpenChange={vi.fn()}
+        proposedChanges={[
+          { action: 'update', task_id: 't-keep-1', depends_on: ['t-a', 't-b'] },
+          { action: 'add', task_id: '' },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('t-keep-1')).toBeInTheDocument();
+    expect(screen.getByText('replanUntitled')).toBeInTheDocument();
+    expect(screen.getByText('replanDependsOn:t-a, t-b')).toBeInTheDocument();
   });
 
   it('submits revision and invokes onApplied on success', async () => {
