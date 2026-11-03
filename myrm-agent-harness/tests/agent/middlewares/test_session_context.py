@@ -111,6 +111,26 @@ class TestTerminalErrorsRegistry:
         assert "test_error" not in all_errors
 
 
+class TestTerminalErrorsBetweenTests:
+    """Each test starts with an empty registry, whatever the test before it left in it.
+
+    The three tests are one chain and only mean something in file order, which pytest keeps: a sync test registers a
+    network block, then an async test and a sync test after it must not meet it.
+    """
+
+    def test_a_sync_test_registers_a_network_block(self):
+        get_terminal_errors().add("network_blocked")
+        assert get_terminal_errors().get_all() == {"network_blocked"}
+
+    @pytest.mark.asyncio
+    async def test_an_async_test_after_it_starts_empty(self):
+        assert get_terminal_errors().get_all() == set()
+        get_terminal_errors().add("network_blocked")
+
+    def test_a_sync_test_after_that_starts_empty(self):
+        assert get_terminal_errors().get_all() == set()
+
+
 class TestActiveToolRegistrySessionFallback:
     """Dynamic tool resolution must survive LangGraph copied-context execution.
 

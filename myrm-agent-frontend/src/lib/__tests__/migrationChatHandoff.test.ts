@@ -8,10 +8,8 @@ import {
   consumeMigrationReadinessAnchorForAgent,
   peekMigrationBoundProjectId,
   queueMigrationBoundProjectId,
-  queueMigrationWorkspaceBindCandidates,
   queueMigrationReadinessAnchor,
   readMigrationReadinessAnchor,
-  readMigrationWorkspaceBindCandidates,
 } from '../migrationChatHandoff';
 
 const ANCHOR_KEY = 'myrm:migration-readiness-anchor';
@@ -137,24 +135,5 @@ describe('migrationChatHandoff workspace bind handoff', () => {
     expect(peekMigrationBoundProjectId()).toBe('project-retry');
     expect(consumeMigrationBoundProjectId()).toBe('project-retry');
     expect(peekMigrationBoundProjectId()).toBeNull();
-  });
-
-  it('stores workspace bind candidates for onboarding sync step', () => {
-    queueMigrationWorkspaceBindCandidates([
-      {
-        path: '/tmp/vault',
-        label: 'OpenClaw workspace',
-        has_obsidian_config: true,
-        markdown_file_count: 12,
-      },
-    ]);
-    expect(readMigrationWorkspaceBindCandidates()).toEqual([
-      {
-        path: '/tmp/vault',
-        label: 'OpenClaw workspace',
-        has_obsidian_config: true,
-        markdown_file_count: 12,
-      },
-    ]);
   });
 });

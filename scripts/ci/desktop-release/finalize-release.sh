@@ -20,8 +20,7 @@ gh_err="$WORK_DIR/gh.err"
 cd "$WORK_DIR"
 mkdir -p assets
 if ! release_json="$(gh release view "$TAG" --repo "$REPO" --json assets 2>"$gh_err")"; then
-  recent_tags="$(gh release list --repo "$REPO" --limit 5 --json tagName --jq '.[].tagName' 2>/dev/null | tr '\n' ' ' || true)"
-  fail "[finalize-release] cannot read release ${TAG} of ${REPO}: $(<"$gh_err") Latest releases: ${recent_tags:-<none readable>}"
+  fail "[finalize-release] cannot read release ${TAG} of ${REPO}: $(<"$gh_err")"
 fi
 expected_count="$(jq '.assets | length' <<<"$release_json")"
 local_count=0

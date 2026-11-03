@@ -337,18 +337,17 @@ const MediaGenerationSection = memo(() => {
           {imageProviderStatus && !imageProviderStatus.hasApiKey && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 space-y-3">
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                {t('apiKeyHint') ||
-                  'Please configure the API Key for this provider. The key will be shared globally across all features.'}
+                {t('apiKeyHint')}
               </p>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">{t('apiKey') || 'API Key'}</label>
+                <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
                       type={showImageApiKey ? 'text' : 'password'}
                       value={imageApiKey}
                       onChange={(e) => setImageApiKey(e.target.value)}
-                      placeholder={t('enterApiKey') || 'Enter API Key'}
+                      placeholder={t('enterApiKey')}
                       className="w-full rounded-full border border-border bg-background px-3 py-1.5 text-sm pr-10"
                     />
                     <button
@@ -370,7 +369,7 @@ const MediaGenerationSection = memo(() => {
                     ) : (
                       <IconSave className="h-3 w-3" />
                     )}
-                    {t('save') || 'Save'}
+                    {t('save')}
                   </button>
                 </div>
               </div>
@@ -410,18 +409,17 @@ const MediaGenerationSection = memo(() => {
           {currentProviderStatus && !currentProviderStatus.hasApiKey && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-3 space-y-3">
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                {t('apiKeyHint') ||
-                  'Please configure the API Key for this provider. The key will be shared globally across all features.'}
+                {t('apiKeyHint')}
               </p>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">{t('apiKey') || 'API Key'}</label>
+                <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
                       type={showVideoApiKey ? 'text' : 'password'}
                       value={videoApiKey}
                       onChange={(e) => setVideoApiKey(e.target.value)}
-                      placeholder={t('enterApiKey') || 'Enter API Key'}
+                      placeholder={t('enterApiKey')}
                       className="w-full rounded-full border border-border bg-background px-3 py-1.5 text-sm pr-10"
                     />
                     <button
@@ -443,7 +441,7 @@ const MediaGenerationSection = memo(() => {
                     ) : (
                       <IconSave className="h-3 w-3" />
                     )}
-                    {t('save') || 'Save'}
+                    {t('save')}
                   </button>
                 </div>
               </div>

@@ -124,7 +124,10 @@ export function useTeamAssetsHubSummary({
     setError(null);
 
     try {
-      const [skillResult, pendingResult] = await Promise.allSettled([listSkills(), getPendingMemories()]);
+      const [skillResult, pendingResult] = await Promise.allSettled([
+        listSkills(),
+        getPendingMemories({ silent: true }),
+      ]);
       const overview = await loadAgentOverview();
 
       setSummary({

@@ -70,7 +70,7 @@ describe('empty chat phone first-screen contract', () => {
       /<div className="max-lg:pl-12">[\s\S]*<\/div>\s*<div className="flex h-full w-full">/,
     );
 
-    expect(bannerStack?.[0]).toContain('<MemoryRecallDegradedBanner');
+    expect(bannerStack?.[0]).toContain('<EStopBanner');
     expect(bannerStack?.[0]).toContain('<YoloModeBanner');
   });
 });

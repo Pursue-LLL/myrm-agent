@@ -77,7 +77,7 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
           {data.reply_style && (
             <KeywordRow
               icon={<MessageSquare className="h-3.5 w-3.5 text-blue-500" />}
-              label={t('replyStyle') || '回复风格'}
+              label={t('replyStyle')}
               keywords={[data.reply_style]}
               color="blue"
             />
@@ -85,7 +85,7 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
           {data.technical_depth && (
             <KeywordRow
               icon={<Brain className="h-3.5 w-3.5 text-indigo-500" />}
-              label={t('technicalDepth') || '技术深度'}
+              label={t('technicalDepth')}
               keywords={[data.technical_depth]}
               color="indigo"
             />
@@ -93,7 +93,7 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
           {data.proactivity && (
             <KeywordRow
               icon={<Zap className="h-3.5 w-3.5 text-amber-500" />}
-              label={t('proactivity') || '主动性'}
+              label={t('proactivity')}
               keywords={[data.proactivity]}
               color="amber"
             />
@@ -101,7 +101,7 @@ const TasteSummaryCard = memo<{ className?: string }>(({ className }) => {
           {data.current_goals && data.current_goals.length > 0 && (
             <KeywordRow
               icon={<Target className="h-3.5 w-3.5 text-purple-500" />}
-              label={t('goals') || '当前目标'}
+              label={t('goals')}
               keywords={data.current_goals}
               color="purple"
             />

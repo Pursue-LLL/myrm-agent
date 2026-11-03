@@ -1,6 +1,6 @@
 import type { SearchServiceConfigItem, SearchServiceType } from './types';
 import { generateSearchServiceConfigId } from './searchService';
-import { probeLocalCapabilities } from '@/services/localCapabilitiesProbe';
+import { probeSearxng } from '@/services/searxngProbe';
 import { SEARXNG_REGION_PRESETS, type SearxngRegionPreset } from '@/lib/search/searxngPresets';
 
 function defaultSearxngPreset(): SearxngRegionPreset {
@@ -32,7 +32,7 @@ export function buildQuickSearchConfig(
 }
 
 export async function probeAndBuildQuickSearchConfig(): Promise<SearchServiceConfigItem | null> {
-  const probe = await probeLocalCapabilities(true);
+  const probe = await probeSearxng(true);
   const searxng = probe.search?.find((s) => s.provider === 'searxng' && s.available);
   if (searxng) {
     return buildQuickSearchConfig(

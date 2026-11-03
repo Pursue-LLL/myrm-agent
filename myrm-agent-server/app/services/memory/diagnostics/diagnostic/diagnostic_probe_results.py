@@ -4,8 +4,8 @@
 app.schemas.memory.command_center (POS: Memory Doctor response contracts)
 
 [OUTPUT]
-DiagnosticStatus (the probe status type every diagnostic module shares), probe result construction and
-diagnostic rollup helpers.
+DiagnosticStatus (the probe status type every diagnostic module shares), the keyword-mode wording shared by the
+embedding probes, probe result construction and diagnostic rollup helpers.
 
 [POS]
 单用户记忆诊断结果归一化工具。只处理状态与可视化契约，不读取业务记忆内容。
@@ -22,6 +22,12 @@ from app.schemas.memory.command_center import MemoryCommandDiagnosticProbeResult
 
 DiagnosticStatus = Literal["ready", "warning", "critical", "missing"]
 DiagnosticCategory = Literal["storage", "index", "embedding", "ledger", "deployment", "quality"]
+
+# Keyword recall is the default mode, so a never-configured embedding is an optional capability that is off
+# (`missing`), not a fault (`critical`). Both embedding probes report it with this wording.
+KEYWORD_MODE_EVIDENCE = "No embedding model is configured; memory recall runs in keyword mode (BM25)."
+KEYWORD_MODE_IMPACT = "Semantic recall is off; keyword (BM25) recall still works."
+KEYWORD_MODE_NEXT_ACTION = "Optional: configure an embedding model to enable semantic recall."
 
 
 def rollup_status(statuses: list[str]) -> DiagnosticStatus:

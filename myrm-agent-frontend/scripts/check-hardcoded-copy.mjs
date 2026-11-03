@@ -7,6 +7,9 @@
  *    - 某文件数量高于基线（含基线里没有的新文件）→ 新增了硬编码文案，失败；
  *    - 某文件数量低于基线（含文件已删除或改名）→ 基线 drift，失败；不收紧的话，空出的额度会被后续改动悄悄占用。
  *    按文件而非总数计数，一个文件清掉的额度不能抵扣另一个文件的新增。
+ *    范围只含从产品入口可达的文件：孤儿模块（口径与 `check-orphan-modules.mjs` 相同，见 `orphan-modules-project.mjs`）
+ *    没有任何页面渲染它，用户看不到它的文案，由孤儿门禁管；它们被接入产品入口的那一刻起变成可达，其字面量按
+ *    基线之外的新文件计数，必须先走 i18n。孤儿里的字面量数量照常统计并在通过时如实打印，不会静默消失。
  *    基线只能收紧：`--write-baseline` 写入 `min(当前, 基线)`（见 `ratchet-baseline.ts`），不会新增文件条目、
  *    也不会抬高已有条目，所以它不能被用来把新增的硬编码文案“洗”进基线。
  *
@@ -23,8 +26,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { diffAgainstBaseline } from './hardcoded-copy-ratchet.ts';
+import { diffAgainstBaseline, partitionByReachability } from './hardcoded-copy-ratchet.ts';
 import { findHardcodedCopySites } from './hardcoded-copy-scan.ts';
+import { scanProject } from './orphan-modules-project.mjs';
 import { tightenCounts } from './ratchet-baseline.ts';
 import { walkSourceFiles } from './source-files.mjs';
 import { findToastCopySites } from './toast-copy-scan.ts';
@@ -73,10 +77,17 @@ if (scannedFiles === 0) {
   fail('自检失败：未扫描到任何源码文件，路径可能已失效——拒绝静默通过。');
 }
 
+const projectScan = scanProject(rootDir);
+if (projectScan.scanned === 0) {
+  fail('自检失败：孤儿扫描没有找到任何模块，可达性判定已失效——拒绝静默通过。');
+}
+const { reachable: sitesByFileInScope, orphaned } = partitionByReachability(sitesByFile, new Set(projectScan.orphans));
+const countSites = (byFile) => [...byFile.values()].reduce((sum, sites) => sum + sites.length, 0);
+
 const current = Object.fromEntries(
-  [...sitesByFile].map(([file, sites]) => [file, sites.length]).sort(([a], [b]) => (a < b ? -1 : 1)),
+  [...sitesByFileInScope].map(([file, sites]) => [file, sites.length]).sort(([a], [b]) => (a < b ? -1 : 1)),
 );
-const total = Object.values(current).reduce((sum, count) => sum + count, 0);
+const total = countSites(sitesByFileInScope);
 
 let baseline;
 try {
@@ -103,7 +114,7 @@ if (increased.length > 0) {
   console.error('[hardcoded-copy] 新增硬编码文案（高于基线）：');
   for (const file of increased) {
     console.error(`    - ${file}: ${delta(file)}`);
-    const sites = sitesByFile.get(file) ?? [];
+    const sites = sitesByFileInScope.get(file) ?? [];
     for (const { line, kind, text } of sites.slice(0, MAX_LISTED_SITES)) {
       console.error(`        :${line} [${kind}] ${truncate(text)}`);
     }
@@ -145,5 +156,10 @@ if (increased.length > 0 || drifted.length > 0 || toastSitesByFile.size > 0) {
 
 const seconds = ((performance.now() - startedAt) / 1000).toFixed(1);
 console.log(
-  `[hardcoded-copy] OK：扫描 ${scannedTsxFiles} 个 TSX 文件，存量 ${total} 处（${Object.keys(current).length} 个文件）与基线一致；${scannedFiles} 个源码文件的 toast 文案全部走 i18n，用时 ${seconds}s。`,
+  `[hardcoded-copy] OK：扫描 ${scannedTsxFiles} 个 TSX 文件，可达文件的存量 ${total} 处（${Object.keys(current).length} 个文件）与基线一致；${scannedFiles} 个源码文件的 toast 文案全部走 i18n，用时 ${seconds}s。`,
 );
+if (orphaned.size > 0) {
+  console.log(
+    `[hardcoded-copy] 不在范围内：${orphaned.size} 个孤儿模块文件里有 ${countSites(orphaned)} 处字面量，它们接入产品入口时才会计入（孤儿清单见 \`bun run verify:orphans\`）。`,
+  );
+}

@@ -2382,6 +2382,7 @@
     "researchBegins": "您想了解什么？",
     "noProviderBanner": "尚未配置 AI 模型，请先配置模型提供商以开始对话",
     "noProviderAction": "去配置",
+    "ollamaQuickConnect": "使用 Ollama：{model}",
     "subscriptionQuickConnect": "已有订阅？一键接入",
     "subscriptionModalTitle": "一键接入官方付费订阅",
     "subscriptionModalDesc": "通过官方设备码安全直连，无需购买和配置 API Key，凭据本地安全加密存储。",
@@ -2683,7 +2684,11 @@
       "copiedReasoning": "已复制思考过程",
       "deltaNegative": "较上轮 {tokens} tokens (已压缩)",
       "deltaZero": "与上轮持平",
-      "growthTrend": "近12轮增长轨迹"
+      "growthTrend": "近12轮增长轨迹",
+      "weatherClear": "清朗 (<25%)",
+      "weatherCloudy": "多云 (25–75%)",
+      "weatherWarning": "预警 (75–90%)",
+      "weatherCritical": "即将压缩 (≥90%)"
     },
     "compactedSummary": {
       "foldLabel": "上下文已压缩 — 查看归档",
@@ -3165,60 +3170,6 @@
       "sandbox_ro": "文件系统为只读",
       "healthy": "环境正常"
     },
-    "localModelDetected": {
-      "title": "检测到本地 AI 模型",
-      "description": "发现本地运行的 {provider}，共 {count} 个模型可用。无需配置，即可开始对话。",
-      "useModel": "使用 {model}",
-      "configureManually": "手动配置",
-      "detecting": "正在检测本地 AI 模型...",
-      "noModels": "未检测到本地 AI 模型",
-      "activated": "已就绪！",
-      "activatedDesc": "{model} 已连接成功。试试你的第一个任务：",
-      "tryDemo": "帮我总结今天的科技新闻",
-      "tryDemoLabel": "立即体验"
-    },
-    "localCapabilities": {
-      "detecting": "正在检测本地 AI 与搜索服务...",
-      "searchTitle": "可免费启用联网搜索",
-      "searchDescription": "启用本地 SearXNG（LiteLLM，无需 API Key）。",
-      "enableSearxng": "启用 SearXNG",
-      "enablingSearxng": "正在启用 SearXNG…",
-      "searxngDockerHint": "搜索为可选项；需要本地免费搜索时可一键启动 SearXNG（需本机 Docker）",
-      "startSearxngDocker": "启动 SearXNG（Docker）",
-      "startingSearxng": "正在启动 SearXNG…",
-      "startSearxngFailed": "SearXNG 启动失败，请确认已安装 Docker",
-      "usePaidSearchSettings": "改用付费搜索服务",
-      "configureSearch": "配置搜索",
-      "chipLabel": "启用搜索",
-      "searchEnabled": "已启用 {service} 搜索",
-      "searchEnableFailed": "启用搜索失败",
-      "modelActivateFailed": "启用本地模型失败",
-      "customEndpointTitle": "OpenAI 兼容本地端点",
-      "customEndpointDescription": "粘贴本地端点地址，自动探测模型并一步完成配置。",
-      "customApiUrlLabel": "API 地址",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key（本地/局域网分机可选）",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "localhost 或信任分机端点可留空 API Key；云端公网端点仍需提供 Key。",
-      "customSplitStackHint": "已识别局域网 / Tailscale 分机端点，支持留空 API Key 免密直连。",
-      "customNoAuthDetected": "已识别免鉴权模式，将不会强制附加或存储 API Key。",
-      "customDetectModels": "检测模型",
-      "customUseModel": "使用 {model}",
-      "customErrorApiUrlRequired": "请输入 API 地址",
-      "customErrorDetectFailed": "该端点模型探测失败",
-      "customErrorNoModels": "端点可达，但未返回任何模型",
-      "customErrorProbeFailed": "端点探测失败",
-      "customErrorDetectFirst": "请先执行模型探测",
-      "customErrorReachabilityFailed": "端点连通但模型健康检查失败",
-      "customDetectSuccess": "已检测到 {count} 个模型",
-      "checklistTitle": "工具调用推荐标杆",
-      "checklistSubtitle": "已验证支持复杂任务",
-      "recommendedBadge": "推荐",
-      "verifiedBadge": "已验证支持工具调用：{model}",
-      "verifiedDescription": "该模型经 Myrm 兼容性测试，可稳定执行函数调用、文件读写与联网搜索。",
-      "unverifiedWarningTitle": "未验证模型提示：{model}",
-      "unverifiedWarningDescription": "该模型尚未经官方工具调用兼容性验证，执行复杂技能时可能出现格式异常。建议优先选用推荐标杆模型。"
-    },
     "migrationDiscovery": {
       "title": "检测到 {competitor} 数据",
       "description": "发现 {memoryCount} 条记忆和 {skillCount} 个技能，可预览后导入",
@@ -3457,20 +3408,6 @@
       "stopped": "已停止 {name}，半成品草稿已安全保留",
       "stopFailed": "叫停任务失败"
     },
-    "routeAgentDiscoverChip": {
-      "title": "把任务交给专家智能体",
-      "guardrailBadge": "护栏已启用",
-      "subtitle": "编码、评审、研究、架构与安全审计智能体随时可以接手。",
-      "action": "查看专家",
-      "dismiss": "关闭",
-      "specialists": {
-        "coder": "编码",
-        "reviewer": "评审",
-        "researcher": "研究",
-        "architect": "架构",
-        "auditor": "审计"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "会话",
       "panesCount": "个窗格",
@@ -3509,18 +3446,6 @@
           "prompt": "请使用角色链：先由撰稿子代理起草，再由事实核查子代理逐条核实论断与来源，最后由编辑子代理润色并整理成可发布的版本。"
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "第 1 档 · 前沿推理",
-      "tier2Badge": "第 2 档 · 强基础模型",
-      "tier3Badge": "第 3 档 · 快速轻量",
-      "hybridFolded": "混合折叠",
-      "directFolded": "折叠为直接执行",
-      "savedTurnsTokens": "预计节省约 {turns} 轮、{tokens} 个 Token",
-      "fanoutMode": "多智能体扇出",
-      "strategyAuto": "自动",
-      "strategyDirect": "仅直接执行",
-      "strategyMultiAgent": "始终多智能体"
     },
     "pdfScannedPages": "[PDF] {fileName}：第 {pages} 页无文本层，已按图片发送",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 页无文本层，且超出单次投递上限，未能发送",
@@ -5827,7 +5752,6 @@
           "description": "可选：连接本地文件夹，让助手就地读写你的文件。Wiki 导入会把笔记复制到独立知识库——若要用真实 vault 或同步目录，请在此绑定。",
           "chooseFolder": "选择文件夹",
           "preparing": "准备中…",
-          "skip": "暂时跳过",
           "linkedSuccess": "文件夹已链接，下一条对话将使用该工作区。",
           "defaultProjectName": "我的文件",
           "candidateGeneric": "已从先前助手配置检测到文件夹。",
@@ -6475,7 +6399,14 @@
       "binary": "文件",
       "spreadsheet": "电子表格",
       "presentation": "演示文稿",
-      "word_document": "Word 文档"
+      "word_document": "Word 文档",
+      "video": "视频",
+      "audio": "音频",
+      "architecture": "架构图",
+      "canvas": "画布",
+      "wechat_article": "公众号文章",
+      "prototype": "原型",
+      "dashboard": "仪表盘"
     },
     "spreadsheet": {
       "search": "搜索...",
@@ -12144,40 +12075,13 @@
       "ready": "准备就绪"
     },
     "skipHint": "点击或按 ESC 跳过",
-    "backendSetupHint": "后端未启动。请在项目根目录运行 ./myrm setup，然后刷新页面。",
     "onboarding": {
-      "migrationTitle": "发现历史数据",
-      "migrationDescription": "我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？",
       "migrationCloudTitle": "从其他助手导入",
       "migrationCloudDescription": "上传导出包，将记忆与工作区偏好迁移到你的云端沙箱。",
       "instantStartTitle": "开箱即用体验",
       "instantStartDescription": "已为您预置通用助手、办公文档助手与代码智能体，零配置立即开启对话。",
       "instantStartButton": "即刻开启体验",
-      "customSetupButton": "高级配置向导",
       "skipStep": "跳过此步",
-      "capabilitiesTitle": "配置 AI 引擎",
-      "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。外部工具集成请前往设置 → 智能体 API 配置 Agent API。",
-      "syncFolder": {
-        "pageTitle": "关联笔记文件夹",
-        "pageDescription": "可选：将助手指向 Obsidian、Typora 或任意同步文档目录。",
-        "hint": "文件始终留在你的设备上，助手直接原地编辑，无需导入专用数据库。",
-        "chooseFolder": "选择文件夹",
-        "preparing": "准备中…",
-        "skip": "暂时跳过",
-        "defaultProjectName": "我的文件"
-      },
-      "noLocalModel": "未检测到本地大模型，您可以稍后在设置中手动配置 API Key。",
-      "configureLater": "稍后配置",
-      "searchReady": "已就绪",
-      "enterWorkspace": "进入工作区",
-      "cloudQuickStart": "云端模型快速开始",
-      "cloudQuickStartHint": "没有本地 GPU？还可以使用云端 AI 服务",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "含免费方案",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "国内友好，注册送额度",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "免费开源模型",
       "routing": {
         "pageTitle": "节省 API 费用",
         "pageDescription": "自动将简单任务交给轻量模型处理，质量不变，账单更低。",
@@ -12202,43 +12106,6 @@
         "skip": "跳过",
         "enable": "启用智能守卫"
       },
-      "telegramAssistant": {
-        "pageTitle": "连接 Telegram 助手",
-        "pageDescription": "通过向导一步完成个人 Telegram 助手初始化。",
-        "title": "Telegram 个人助手",
-        "description": "填写 Bot Token、设置助手档案后，即可在手机端直接开始对话。",
-        "safetyHint": "内置连通性校验与失败回滚保护",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "显示 Token",
-        "hideToken": "隐藏 Token",
-        "tokenRequired": "请先输入 Telegram Bot Token。",
-        "webhookLabel": "Webhook 地址（可选）",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "留空将使用轮询模式；如填写 webhook，必须使用 HTTPS。",
-        "webhookHttpsRequired": "Webhook 地址必须以 https:// 开头",
-        "assistantNameLabel": "助手名称",
-        "assistantDescriptionLabel": "助手描述（可选）",
-        "assistantDescriptionPlaceholder": "例如：你的日程管家与执行协作助手",
-        "defaultAssistantName": "Telegram 个人助手",
-        "setupButton": "完成 Telegram 助手配置",
-        "retryButton": "重试连接检测",
-        "continueButton": "先继续进入产品",
-        "skipButton": "暂时跳过",
-        "pendingTitle": "Telegram 已保存配置，连接仍在建立中",
-        "pendingDescription": "{botUsername} 可能还需要几秒钟才能可用。你可以先继续，或再次检测连接状态。",
-        "pendingToast": "配置已保存，Telegram 连接正在初始化。",
-        "retryingToast": "检测到配置正在处理中，正在自动重试...",
-        "inProgressFriendlyError": "配置仍在处理中，请稍后再试。",
-        "tokenRejectedError": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或在下方填写代理后重试，也可以先跳过。",
-        "telegramUnreachableViaProxyError": "通过代理仍无法连接 Telegram。请确认代理已启动，或在下方改填其他代理地址后重试，也可以先跳过。",
-        "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过。",
-        "proxyRejectedError": "该代理地址无法使用。请填写本机或局域网内代理的地址，例如 socks5://127.0.0.1:1080。",
-        "setupFailed": "Telegram 助手配置失败。",
-        "setupFailedToast": "配置失败，请检查凭据后重试。",
-        "successToast": "Telegram 助手已就绪：{agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "连接你的日常工具",
         "pageDescription": "让助手直接访问你每天使用的服务，随时可在设置中添加更多。",
@@ -12253,31 +12120,9 @@
         "continueButton": "继续",
         "skipButton": "保持默认"
       },
-      "deploymentTitle": "你的助手运行在哪里？",
-      "deploymentDescription": "使用本机、连接远端服务器，或使用云托管，随时可以在设置中更改。",
       "doctorTitle": "快速自检",
       "doctorDescription": "我们检查了最常挡住首次使用的三件事，标红的可一键修复，也可稍后处理。",
       "doctorContinueButton": "继续",
-      "powerStack": {
-        "title": "已经在为别的 AI 工具付费？",
-        "description": "留着它们。在各自擅长处使用，让 Myrm 负责编排其余工作。价格以定价页为准，这里不猜。",
-        "pricingLink": "查看真实价格",
-        "columns": {
-          "external": {
-            "title": "编码工具照常用",
-            "description": "日常编码继续用 Cursor、Devin 或 Claude Code，编排、定时与跨渠道工作交给 Myrm。"
-          },
-          "orchestrator": {
-            "title": "Myrm 负责编排",
-            "description": "一个智能体配置驱动对话、定时任务与各渠道，记忆共享，不用反复交代背景。"
-          },
-          "local": {
-            "title": "免费本地档",
-            "description": "草稿与分流用免费本地模型跑，重活再上云。"
-          }
-        },
-        "setupGuideLink": "安装指南"
-      },
       "doctor": {
         "fix": "去修复",
         "allClear": "三项检查全部通过，可以开始了。",
@@ -12301,9 +12146,7 @@
             "failHint": "额度已用完。",
             "pendingHint": "正在检查额度…"
           }
-        },
-        "contextRemote": "你选择了远端服务器，在设置中完成连接后，这些检查将面向它。",
-        "contextCloud": "你选择了云托管，在设置中完成连接后，这些检查将面向你的沙箱。"
+        }
       }
     }
   },
@@ -13560,15 +13403,6 @@
     "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。",
     "briefLearnedInPrefix": "本回复的记忆前缀已包含学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。"
   },
-  "memoryRecallDegraded": {
-    "title": "语义召回不可用",
-    "description": "向量检索已降级，回复可能遗漏相关记忆，请检查 embedding 配置。",
-    "actionDoctor": "打开 Memory Doctor",
-    "actionSettings": "记忆设置",
-    "unavailable": "无法检查记忆召回健康状态",
-    "retry": "重试",
-    "dismiss": "本会话不再提示"
-  },
   "e2ee": {
     "secured": "端到端加密",
     "handshakeFailed": "加密建立失败",
@@ -13581,7 +13415,14 @@
     "switchToTable": "切换为表格视图",
     "switchToCard": "切换为卡片视图",
     "tableView": "表格",
-    "cardView": "卡片"
+    "cardView": "卡片",
+    "expandLightbox": "展开全景表格",
+    "expandLightboxShort": "全景",
+    "lightboxLabel": "全景表格预览",
+    "lightboxTitle": "全景表格视图",
+    "columnCount": "{count} 列",
+    "closePreview": "关闭预览",
+    "closePreviewBackdrop": "关闭预览背景"
   },
   "messageBox": {
     "consensusActive": "等待其余模型…",
@@ -14532,37 +14373,6 @@
     "collapseStep": "收起步骤",
     "expandStep": "展开步骤"
   },
-  "quadGraph": {
-    "closeDrawer": "关闭节点详情",
-    "completedCount": "{count} 个已完成",
-    "dependenciesCount": "依赖数",
-    "drawerAriaLabel": "节点检查面板",
-    "duration": "耗时",
-    "edgesCount": "{count} 条连线",
-    "inputSnapshot": "输入快照",
-    "layerType": "层级",
-    "liveSteerCockpit": "实时引导",
-    "noInputSnapshot": "未记录输入",
-    "noNodesInLayer": "此层级没有节点",
-    "noOutputSnapshot": "未记录输出",
-    "nodesCount": "{count} 个节点",
-    "outputReceipt": "输出回执",
-    "pauseNode": "暂停节点",
-    "resetZoom": "重置缩放",
-    "resumeNode": "恢复节点",
-    "retryNode": "重试节点",
-    "role": "角色",
-    "runningCount": "{count} 个运行中",
-    "steerPlaceholder": "向该节点发送引导指令",
-    "submitSteer": "发送引导指令",
-    "viewportSwitcherAria": "切换图视口",
-    "zoomIn": "放大",
-    "zoomOut": "缩小",
-    "layerTask": "任务全景 (Task)",
-    "layerWorkflow": "算子流道 (Workflow)",
-    "layerTeam": "专家团队 (Team)",
-    "layerCommunication": "即时通信 (Comm)"
-  },
   "externalLinkConfirm": {
     "title": "要在浏览器中打开这个链接吗？",
     "descriptionNamed": "「{source}」想在浏览器中打开下面的地址。只有在你信任它时才继续。",
@@ -14785,33 +14595,6 @@
     "close": "完成",
     "emptyCluster": "暂未接入任何自托管节点，点击右上角按钮快速接入您的第一台机器"
   },
-  "memoryRecall": {
-    "drawerTitle": "记忆与经验召回模拟沙盒",
-    "drawerSubtitle": "对标 EvoX 召回测试与治理中心，透明化验证任意 Prompt 的多路命中与现场二次治理",
-    "queryInputPlaceholder": "输入测试提示词或任务指令 (例如: 排查 Linux 内核死锁、React 频繁重绘)...",
-    "simulateBtn": "模拟召回",
-    "simulatingBtn": "检索中...",
-    "totalMatched": "命中记忆数",
-    "latency": "检索延迟",
-    "rrfScore": "RRF 融合分",
-    "bm25Score": "BM25 词法",
-    "vectorSim": "向量语义",
-    "causalAffinity": "因果基因",
-    "confidenceWeight": "置信度权重",
-    "mustAvoidTrap": "强负向避坑基因",
-    "normalGene": "普通正向经验",
-    "statusActive": "已激活",
-    "statusDisabled": "已禁用",
-    "statusLocked": "已锁定",
-    "lockBtn": "锁定",
-    "unlockBtn": "解锁",
-    "disableBtn": "禁用",
-    "enableBtn": "启用",
-    "mergeDuplicateBtn": "合并相似项",
-    "mergePrompt": "请输入要合并的目标记忆 ID",
-    "emptyResults": "未检索到匹配的记忆或经验基因，请尝试其他查询",
-    "close": "关闭"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "语音暂存审查",
@@ -15017,7 +14800,19 @@
       "setupGuideTitle": "快速上手（桌面客户端）",
       "setupGuideStep1": "在上方授予「输入控制」与「屏幕捕获」，并点击「含屏幕捕获的重新检测」。",
       "screenLockGuardLocked": "已锁定",
-      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。"
+      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。",
+      "lockedUseDoctorBadgeLoading": "检测中…",
+      "lockedUseDoctorUnavailable": "未检测",
+      "lockedUseDoctorWarn": "需注意",
+      "lockedUseDoctorFail": "不可用",
+      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面应用",
+      "lockedUseDoctorBadgeAwayOn": "离席模式已开启",
+      "lockedUseDoctorBadgeBridgeReady": "壳已连接",
+      "lockedUseDoctorDetailNotMac": "离席模式与防窥帷幕需在 macOS 上使用 Myrm 桌面应用。",
+      "lockedUseDoctorDetailAwayOff": "桌面壳已就绪。需要无人值守时在上方开启 Locked Use，Agent 会在帷幕下代解锁。",
+      "lockedUseDoctorDetailBridgeMissing": "请在本机启动 Myrm 桌面应用，以便离席模式与桌面壳协同。",
+      "lockedUseDoctorDetailShellUnavailable": "请重启 Myrm 桌面应用，并在设置中检查离席模式与防窥帷幕。",
+      "lockedUseDoctorDetailGeneric": "离席模式或防窥帷幕尚未就绪，请打开系统设置或重启桌面应用。"
     },
     "rate_limits": {
       "title": "速率限制监控",
@@ -16356,7 +16151,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "内部子智能体",
-        "invoke_external_agent": "外部 CLI 智能体"
+        "invoke_external_agent": "外部 CLI 智能体",
+        "web_search_tool": "搜索引擎",
+        "net_fetch": "读取网页",
+        "shell_exec": "运行中的进程",
+        "file_read": "读取文件",
+        "file_write": "写入文件",
+        "mcp_invoke": "外部工具",
+        "code_interpreter": "命令与代码",
+        "browser_navigate": "浏览器导航",
+        "browser_fill": "浏览器填写表单",
+        "browser_upload": "浏览器上传",
+        "browser_download": "浏览器下载",
+        "browser_session": "浏览器会话",
+        "knowledge_read": "读取知识库",
+        "knowledge_write": "写入知识库"
       },
       "leastPrivilege": {
         "antiPatternTitle": "为何拒绝「完全访问」",
@@ -22674,5 +22483,26 @@
     "pinTooltip": "固定到工作台 Dashboard",
     "pinned": "已固定",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "抗压缩会话任务执行状态悬浮看板",
+    "allDone": "所有任务已完成",
+    "badge": "抗压缩",
+    "collapseAria": "收起任务清单",
+    "collapse": "收起清单",
+    "expand": "展开任务清单",
+    "toggleTask": "切换任务 {title} 状态"
+  },
+  "stagedArtifacts": {
+    "summary": "已自动暂存 {count} 个未落盘工件草案至工作区",
+    "lineCount": "{count} 行",
+    "footnote": "这些文件已保全在沙箱环境，您可随时在左侧文件树中查看或重命名采纳。"
+  },
+  "leaseCapsule": {
+    "quota": "免打扰配额: {used}/{max} 步",
+    "extend": "+{steps} 步续期",
+    "limitReached": "已达上限",
+    "pauseTitle": "紧急暂停免打扰包络",
+    "pause": "暂停"
   }
 }

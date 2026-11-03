@@ -376,7 +376,7 @@ class DomainMetricsManager:
                 timeout = metrics.get_smart_fast_timeout()
                 if timeout is not None:
                     smart_adjustments += 1
-                elif (metrics.networkidle_success_count + metrics.networkidle_fail_count) >= 20:
+                elif metrics.should_skip_smart_fast_path():
                     smart_skips += 1
 
                 domain_size = (

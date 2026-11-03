@@ -3,9 +3,10 @@
 import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Zap, ExternalLink, Copy, Check, Loader2, X, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Zap, Cpu, ExternalLink, Copy, Check, Loader2, X, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { useCopyFeedback } from '@/hooks/shared/useCopyFeedback';
+import { useOllamaQuickConnect } from '@/hooks/shared/useOllamaQuickConnect';
 import { useXaiDeviceLogin, type XaiLoginFailure } from '@/hooks/shared/useXaiDeviceLogin';
 import useProviderStore from '@/store/useProviderStore';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
@@ -85,6 +86,7 @@ const NoProviderBanner = memo(() => {
   // The dialog outlives the strip: a successful login enables the provider, which hides the strip at once, while the
   // confirmation inside the dialog still has to be seen.
   const isStripVisible = isInitialized && !hasEnabledProvider;
+  const ollama = useOllamaQuickConnect(isStripVisible);
   if (!isStripVisible && !isModalOpen) {
     return null;
   }
@@ -99,7 +101,18 @@ const NoProviderBanner = memo(() => {
             <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
             <span className="text-sm font-medium text-amber-900 dark:text-amber-200">{t('noProviderBanner')}</span>
           </div>
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 self-end sm:self-auto">
+            {ollama && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={ollama.connect}
+                className="h-8 max-w-64 gap-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-800 hover:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30 font-medium text-xs rounded-lg transition-colors"
+              >
+                <Cpu className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="truncate">{t('ollamaQuickConnect', { model: ollama.model })}</span>
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"

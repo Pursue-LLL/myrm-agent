@@ -37,7 +37,7 @@ const MermaidLegendPanel: React.FC<MermaidLegendPanelProps> = ({ legends, active
         tabIndex={0}
         onKeyDown={activateOnKey}
       >
-        <span className="text-xs font-semibold text-foreground/80 tracking-wide">{t('legend') || '图例 (Legend)'}</span>
+        <span className="text-xs font-semibold text-foreground/80 tracking-wide">{t('legend')}</span>
         <div className="text-muted-foreground">
           {isCollapsed ? <Maximize01Icon size={14} /> : <Minimize01Icon size={14} />}
         </div>

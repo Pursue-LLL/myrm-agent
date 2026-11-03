@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_db_session
-from app.api.memory.operations import command_center as command_center_operation
+from app.api.memory.operations import evidence_playback as evidence_playback_operation
 from app.schemas.memory.command_center import (
     MemoryEvidencePlaybackResponse,
     MemoryEvidencePlaybackTurn,
@@ -18,7 +18,7 @@ from app.schemas.memory.command_center import (
 @pytest.fixture
 def evidence_client() -> TestClient:
     app = FastAPI()
-    app.include_router(command_center_operation.router, prefix="/api/memory")
+    app.include_router(evidence_playback_operation.router, prefix="/api/memory")
 
     async def _mock_db() -> AsyncMock:
         return AsyncMock()
@@ -60,7 +60,7 @@ def test_get_evidence_playback_endpoint_live(evidence_client: TestClient) -> Non
     )
 
     with patch(
-        "app.api.memory.operations.command_center.EvidencePlaybackService.get_playback",
+        "app.api.memory.operations.evidence_playback.EvidencePlaybackService.get_playback",
         new=AsyncMock(return_value=mock_response),
     ):
         resp = evidence_client.get("/api/memory/command-center/evidence/playback?source_id=chat-123&message_id=msg-target")
@@ -99,7 +99,7 @@ def test_get_evidence_playback_endpoint_archived_fallback(evidence_client: TestC
     )
 
     with patch(
-        "app.api.memory.operations.command_center.EvidencePlaybackService.get_playback",
+        "app.api.memory.operations.evidence_playback.EvidencePlaybackService.get_playback",
         new=AsyncMock(return_value=mock_response),
     ):
         resp = evidence_client.get("/api/memory/command-center/evidence/playback?channel_id=slack&quote_snippet=Temporary")

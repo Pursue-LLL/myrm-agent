@@ -25,12 +25,9 @@ vi.mock('@/lib/backend-health', () => ({
   checkBackendReadyOnce: vi.fn(() => Promise.resolve(mockBackendOk.value)),
 }));
 
+const mockFetchEntitlements = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/cp-billing', () => ({
-  fetchEntitlements: vi.fn(() => Promise.resolve({ balance_wu: 10, subscription_wu: 0 })),
-}));
-
-vi.mock('@/lib/deploy-mode', () => ({
-  isSandbox: () => false,
+  fetchEntitlements: mockFetchEntitlements,
 }));
 
 const mockProviders = vi.hoisted(() => ({
@@ -52,6 +49,8 @@ describe('FirstRunDoctorCard', () => {
     vi.clearAllMocks();
     mockProviders.value = [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-x' }] }] as unknown[];
     mockBackendOk.value = true;
+    mockFetchEntitlements.mockResolvedValue({ balance_wu: 10, subscription_wu: 0 });
+    window.localStorage.clear();
   });
 
   it('shows all-clear when provider, backend and quota pass', async () => {
@@ -60,6 +59,35 @@ describe('FirstRunDoctorCard', () => {
       expect(screen.getByText('allClear')).toBeTruthy();
     });
     expect(screen.queryByText('fix')).toBeNull();
+  });
+
+  it('probes the quota with the signed-in token and flags an empty balance', async () => {
+    window.localStorage.setItem('auth_token', 'tok');
+    mockFetchEntitlements.mockResolvedValue({ balance_wu: 0, subscription_wu: 0 });
+    render(<FirstRunDoctorCard />);
+    await waitFor(() => {
+      expect(screen.getByText('hasIssues')).toBeTruthy();
+    });
+    expect(mockFetchEntitlements).toHaveBeenCalledWith('tok');
+    expect(screen.getAllByText('fix')).toHaveLength(1);
+  });
+
+  it('passes the quota row without probing when no one is signed in', async () => {
+    render(<FirstRunDoctorCard />);
+    await waitFor(() => {
+      expect(screen.getByText('allClear')).toBeTruthy();
+    });
+    expect(mockFetchEntitlements).not.toHaveBeenCalled();
+  });
+
+  it('flags the quota row when the entitlements lookup fails', async () => {
+    window.localStorage.setItem('auth_token', 'tok');
+    mockFetchEntitlements.mockRejectedValue(new Error('offline'));
+    render(<FirstRunDoctorCard />);
+    await waitFor(() => {
+      expect(screen.getByText('hasIssues')).toBeTruthy();
+    });
+    expect(screen.getAllByText('fix')).toHaveLength(1);
   });
 
   it('shows fix actions when nothing is ready', async () => {

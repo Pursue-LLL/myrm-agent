@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LiveTakeoverDrawer } from '../LiveTakeoverDrawer';
 import { MachinesService } from '../machinesService';
@@ -124,9 +124,11 @@ describe('LiveTakeoverDrawer', () => {
     });
 
     const viewport = screen.getByRole('region', { name: /Remote Screen Viewport/i });
-    fireEvent.mouseMove(viewport, { clientX: 250, clientY: 150 });
+    expect(screen.getByText('光标位置: (320, 180)')).toBeInTheDocument();
 
-    expect(screen.getByText(/光标位置:/)).toBeInTheDocument();
+    fireEvent.mouseMove(within(viewport).getByRole('presentation'), { clientX: 250, clientY: 150 });
+
+    expect(screen.getByText('光标位置: (250, 150)')).toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', () => {

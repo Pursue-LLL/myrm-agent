@@ -75,6 +75,15 @@ describe('WorkingStateBadge', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('reads quietly: a failed read renders nothing and never raises the global error toast', async () => {
+    getWorkingState.mockRejectedValue(new Error('Memory system unavailable'));
+
+    const { container } = renderBadge();
+
+    await waitFor(() => expect(getWorkingState).toHaveBeenCalledWith({ silent: true }));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('does not read working state in incognito mode', () => {
     useChatStore.setState({ incognitoMode: true });
 

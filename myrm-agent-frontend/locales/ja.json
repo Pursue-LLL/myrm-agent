@@ -2373,6 +2373,7 @@
     "researchBegins": "何を知りたいですか？",
     "noProviderBanner": "AIモデルが未設定です。会話を開始するにはモデルプロバイダーを設定してください",
     "noProviderAction": "設定する",
+    "ollamaQuickConnect": "Ollama を使う：{model}",
     "subscriptionQuickConnect": "サブスクリプションをお持ちですか？ワンクリック連携",
     "subscriptionModalTitle": "公式サブスクリプション連携",
     "subscriptionModalDesc": "公式デバイスコードによる安全な直接連携。APIキーを購入せずに利用可能、認証情報はローカルに暗号化保存されます。",
@@ -2674,7 +2675,11 @@
       "copiedReasoning": "思考過程をコピーしました",
       "deltaNegative": "前のターンより {tokens} トークン（圧縮済み）",
       "deltaZero": "前のターンと同じ",
-      "growthTrend": "増加の推移（直近12ターン）"
+      "growthTrend": "増加の推移（直近12ターン）",
+      "weatherClear": "余裕あり（25%未満）",
+      "weatherCloudy": "やや使用中（25〜75%）",
+      "weatherWarning": "注意（75〜90%）",
+      "weatherCritical": "まもなく圧縮（90%以上）"
     },
     "compactedSummary": {
       "foldLabel": "コンテキストを圧縮しました — アーカイブを表示",
@@ -3156,60 +3161,6 @@
       "sandbox_ro": "ファイルシステムは読み取り専用です",
       "healthy": "環境通常"
     },
-    "localModelDetected": {
-      "title": "ローカル AI モデルを検出",
-      "description": "ローカルで実行中の {provider} を検出。{count} 個のモデルが利用可能です。設定なしで会話を開始できます。",
-      "useModel": "{model} を使用",
-      "configureManually": "手動設定",
-      "detecting": "ローカル AI モデルを検出中...",
-      "noModels": "ローカル AI モデルは検出されませんでした",
-      "activated": "準備完了！",
-      "activatedDesc": "{model} に接続しました。最初のタスクを試してください：",
-      "tryDemo": "今日のテクノロジーニュースを要約して",
-      "tryDemoLabel": "今すぐ試す"
-    },
-    "localCapabilities": {
-      "detecting": "ローカル AI と検索サービスを検出中...",
-      "searchTitle": "無料のWeb検索が利用可能",
-      "searchDescription": "ローカル SearXNG を有効化（LiteLLM 経由、API Key 不要）。",
-      "enableSearxng": "SearXNG を有効化",
-      "enablingSearxng": "SearXNG を有効化中…",
-      "searxngDockerHint": "検索は任意です。必要なときにローカル無料検索として SearXNG をワンクリック起動できます（Docker が必要）",
-      "startSearxngDocker": "SearXNG（Docker）を起動",
-      "startingSearxng": "SearXNG 起動中…",
-      "startSearxngFailed": "SearXNG を起動できませんでした。Docker がインストールされているか確認してください",
-      "usePaidSearchSettings": "代わりに有料の検索プロバイダーを使用",
-      "configureSearch": "検索を設定",
-      "chipLabel": "検索を有効化",
-      "searchEnabled": "{service} 検索を有効化しました",
-      "searchEnableFailed": "検索の有効化に失敗しました",
-      "modelActivateFailed": "ローカルモデルの有効化に失敗しました",
-      "customEndpointTitle": "OpenAI 互換のローカルエンドポイント",
-      "customEndpointDescription": "ローカルエンドポイントを貼り付けるとモデルが自動検出され、ワンステップで設定が完了します。",
-      "customApiUrlLabel": "API アドレス",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key（ローカル/LAN 分機 任意）",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "localhost または信頼できるスプリットスタックエンドポイントでは API キーを空にできます。",
-      "customSplitStackHint": "LAN / Tailscale スプリットスタックエンドポイントを検出しました。APIキーは空のままで構いません。",
-      "customNoAuthDetected": "認証なしモードを検出しました。APIキーを強制保存せずに使用されます。",
-      "customDetectModels": "検出モデル",
-      "customUseModel": "{model} を使用",
-      "customErrorApiUrlRequired": "API アドレスを入力してください",
-      "customErrorDetectFailed": "このエンドポイントのモデル検出に失敗しました",
-      "customErrorNoModels": "エンドポイントに到達しましたがモデルが返されませんでした",
-      "customErrorProbeFailed": "エンドポイントのプローブに失敗しました",
-      "customErrorDetectFirst": "先にモデル検出を実行してください",
-      "customErrorReachabilityFailed": "エンドポイントには接続できましたが、モデルのヘルスチェックに失敗しました",
-      "customDetectSuccess": "{count} 個のモデルを検出しました",
-      "checklistTitle": "ツール呼び出し推奨ベンチマーク",
-      "checklistSubtitle": "複雑なタスクに対応済み",
-      "recommendedBadge": "推奨",
-      "verifiedBadge": "ツール呼び出し対応確認済み: {model}",
-      "verifiedDescription": "このモデルは Myrm の互換性テストを通過しており、関数呼び出しやファイル操作、Web 検索を安定して実行できます。",
-      "unverifiedWarningTitle": "未検証モデルに関する注意: {model}",
-      "unverifiedWarningDescription": "このモデルは公式のツール呼び出し互換性検証が行われていません。複雑なスキルの実行時にフォーマット異常が発生する可能性があります。"
-    },
     "migrationDiscovery": {
       "title": "{competitor} データを検出",
       "description": "{memoryCount} 件のメモリと {skillCount} 個のスキルを検出 — インポート前にプレビューできます",
@@ -3457,20 +3408,6 @@
       "stopped": "{name} を停止しました。作業中の下書きは保持されています",
       "stopFailed": "タスクの停止に失敗しました"
     },
-    "routeAgentDiscoverChip": {
-      "title": "専門エージェントに任せる",
-      "guardrailBadge": "ガードレール有効",
-      "subtitle": "コーディング・レビュー・リサーチ・設計・セキュリティ監査の各エージェントがすぐに引き継げます。",
-      "action": "専門エージェントを見る",
-      "dismiss": "閉じる",
-      "specialists": {
-        "coder": "コーダー",
-        "reviewer": "レビュアー",
-        "researcher": "リサーチャー",
-        "architect": "アーキテクト",
-        "auditor": "監査"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "セッション",
       "panesCount": "ペイン",
@@ -3509,18 +3446,6 @@
           "prompt": "ロールチェーンを使ってください。まず執筆用サブエージェントが下書きを作り、次にファクトチェック用サブエージェントが主張と出典をすべて検証し、最後に編集用サブエージェントが推敲して公開できる形に整えてください。"
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "ティア1 · 最先端の推論",
-      "tier2Badge": "ティア2 · 高性能ベース",
-      "tier3Badge": "ティア3 · 高速・軽量",
-      "hybridFolded": "ハイブリッド折りたたみ",
-      "directFolded": "直接実行に折りたたみ",
-      "savedTurnsTokens": "約 {turns} ターン・{tokens} トークンを節約",
-      "fanoutMode": "マルチエージェント展開",
-      "strategyAuto": "自動",
-      "strategyDirect": "直接実行のみ",
-      "strategyMultiAgent": "常にマルチエージェント"
     },
     "pdfScannedPages": "[PDF] {fileName}：{pages} ページにはテキスト層がなく、画像として送信しました",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：{pages} ページはテキスト層がなく、1回の送信上限を超えたため送信できませんでした",
@@ -5827,7 +5752,6 @@
           "description": "任意: アシスタントがファイルをその場で読み書きするよう、ローカルフォルダを接続します。Wikiインポートはノートを別のライブラリにコピーします — ライブのボールトや同期フォルダにはこちらを使用してください。",
           "chooseFolder": "フォルダを選択",
           "preparing": "準備中…",
-          "skip": "後でスキップ",
           "linkedSuccess": "フォルダをリンクしました。次のチャットはこのワークスペースを使用します。",
           "defaultProjectName": "マイファイル",
           "candidateGeneric": "以前のアシスタントセットアップからフォルダを検出しました。",
@@ -6475,7 +6399,14 @@
       "binary": "ファイル",
       "spreadsheet": "スプレッドシート",
       "presentation": "プレゼンテーション",
-      "word_document": "Word ドキュメント"
+      "word_document": "Word ドキュメント",
+      "video": "動画",
+      "audio": "オーディオ",
+      "architecture": "アーキテクチャ図",
+      "canvas": "キャンバス",
+      "wechat_article": "WeChat 記事",
+      "prototype": "プロトタイプ",
+      "dashboard": "ダッシュボード"
     },
     "spreadsheet": {
       "search": "検索...",
@@ -12144,40 +12075,13 @@
       "ready": "準備完了"
     },
     "skipHint": "クリックするか ESC キーを押してスキップ",
-    "backendSetupHint": "バックエンドが起動していません。プロジェクトルートで ./myrm setup を実行してから、ページを更新してください。",
     "onboarding": {
-      "migrationTitle": "履歴データを検出",
-      "migrationDescription": "他の AI アシスタントからデータが見つかりました。ワンクリックでシームレスにインポートしますか？",
       "migrationCloudTitle": "別のアシスタントからインポート",
       "migrationCloudDescription": "エクスポートパッケージをアップロードして、メモリとワークスペース設定をクラウドサンドボックスに移行します。",
       "instantStartTitle": "すぐに使える体験",
       "instantStartDescription": "汎用アシスタント、ドキュメントスペシャリスト、コーディングエージェントが事前設定されています。設定なしですぐに対話を開始できます。",
       "instantStartButton": "今すぐ体験を開始",
-      "customSetupButton": "高度なカスタム設定",
       "skipStep": "このステップをスキップ",
-      "capabilitiesTitle": "AI エンジンを設定",
-      "capabilitiesDescription": "ローカルモデルとウェブ検索を接続して、すぐ使える AI 体験を実現します。外部ツール統合は設定 → エージェント API で設定してください。",
-      "syncFolder": {
-        "pageTitle": "ノートフォルダをリンク",
-        "pageDescription": "任意: Obsidian、Typora、または同期済みドキュメントフォルダをアシスタントに指定します。",
-        "hint": "ファイルはデバイス上に残ります。アシスタントはファイルをその場で編集します — 別のデータベースへのインポートはありません。",
-        "chooseFolder": "フォルダを選択",
-        "preparing": "準備中…",
-        "skip": "後でスキップ",
-        "defaultProjectName": "マイファイル"
-      },
-      "noLocalModel": "ローカルモデルが検出されませんでした。後で設定から API キーを手動で構成できます。",
-      "configureLater": "後で設定",
-      "searchReady": "準備完了",
-      "enterWorkspace": "ワークスペースに入る",
-      "cloudQuickStart": "クラウドモデルクイックスタート",
-      "cloudQuickStartHint": "ローカルGPUがない場合、クラウドAIサービスをご利用ください",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "無料プランあり",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "中国対応、登録で無料クレジット",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "無料オープンソースモデル",
       "routing": {
         "pageTitle": "API コストを節約",
         "pageDescription": "簡単なタスクを軽量モデルに自動ルーティング — 品質はそのまま、コストを削減。",
@@ -12202,43 +12106,6 @@
         "skip": "スキップ",
         "enable": "スマートガードを有効化"
       },
-      "telegramAssistant": {
-        "pageTitle": "Telegramアシスタントを接続",
-        "pageDescription": "ガイド付きの1ステップで個人用Telegramアシスタントを設定します。",
-        "title": "Telegram個人アシスタント",
-        "description": "ボットトークンを接続し、アシスタントプロフィールを設定して、追加設定なしでスマホからチャットを始められます。",
-        "safetyHint": "接続検証とロールバック保護を含みます",
-        "tokenLabel": "Telegramボットトークン",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "トークンを表示",
-        "hideToken": "トークンを隠す",
-        "tokenRequired": "Telegramボットトークンが必要です。",
-        "webhookLabel": "Webhook URL（任意）",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "空のままにするとポーリングモードを使用します。Webhook URLを指定する場合はHTTPSを使用してください。",
-        "webhookHttpsRequired": "Webhook URLは https:// で始まる必要があります",
-        "assistantNameLabel": "アシスタント名",
-        "assistantDescriptionLabel": "アシスタントの説明（任意）",
-        "assistantDescriptionPlaceholder": "例: あなたの毎日のプランナー兼実行コパイロット",
-        "defaultAssistantName": "個人用Telegramアシスタント",
-        "setupButton": "Telegramアシスタントを設定",
-        "retryButton": "接続を再試行",
-        "continueButton": "今は続行",
-        "skipButton": "後でスキップ",
-        "pendingTitle": "Telegramは設定済み、接続はウォームアップ中",
-        "pendingDescription": "{botUsername} が到達可能になるまで数秒かかる場合があります。今すぐ続行するか、接続チェックを再試行してください。",
-        "pendingToast": "設定を保存しました。Telegram接続はまだ初期化中です。",
-        "retryingToast": "別のセットアップリクエストが完了中です。今すぐ再試行します…",
-        "inProgressFriendlyError": "セットアップはまだ進行中です。数秒待ってからもう一度お試しください。",
-        "tokenRejectedError": "Telegram がこのボットトークンを受け付けませんでした。@BotFather からトークン全体をコピーし直してください。",
-        "telegramUnreachableError": "このデバイスから Telegram に接続できません。ネットワークを確認するか、下の欄にプロキシを入力して再試行してください。いったんスキップすることもできます。",
-        "telegramUnreachableViaProxyError": "プロキシ経由でも Telegram に接続できません。プロキシが起動していることを確認するか、下の欄に別のプロキシを入力して再試行してください。いったんスキップすることもできます。",
-        "telegramUnreachableSandboxError": "現在 Telegram に接続できません。しばらくしてから再試行するか、いったんスキップしてください。",
-        "proxyRejectedError": "このプロキシ URL は使用できません。このコンピューターまたはローカルネットワーク内のプロキシの URL を入力してください（例: socks5://127.0.0.1:1080）。",
-        "setupFailed": "Telegramアシスタントのセットアップに失敗しました。",
-        "setupFailedToast": "Telegramのセットアップに失敗しました。資格情報を確認して再試行してください。",
-        "successToast": "Telegramアシスタントの準備ができました: {agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "日常のツールを接続",
         "pageDescription": "毎日使うサービスにアシスタントがアクセスできるようにします。設定から後でいつでも追加できます。",
@@ -12253,31 +12120,9 @@
         "continueButton": "続行",
         "skipButton": "デフォルトを維持"
       },
-      "deploymentTitle": "アシスタントの実行場所",
-      "deploymentDescription": "このPC、リモートサーバー、クラウドホスティングから選べます。設定で後から変更できます。",
       "doctorTitle": "クイックヘルスチェック",
       "doctorDescription": "初回利用でつまずきやすい3点を確認しました。赤はワンクリックで修正、後回しも可能です。",
       "doctorContinueButton": "続ける",
-      "powerStack": {
-        "title": "他のAIツールに課金中ですか?",
-        "description": "そのまま使えます。得意分野で使い分け、残りはMyrmが編排します。価格は料金ページが正本です。",
-        "pricingLink": "実際の価格を見る",
-        "columns": {
-          "external": {
-            "title": "コーディングツールは継続",
-            "description": "日常のコーディングはCursor・Devin・Claude Codeのまま。編排・定期実行・チャネル横断はMyrmが担当。"
-          },
-          "orchestrator": {
-            "title": "Myrmが編排",
-            "description": "一つのエージェント設定が対話・定期タスク・各チャネルを駆動し、記憶を共有するので背景説明の繰り返しが不要。"
-          },
-          "local": {
-            "title": "無料のローカル枠",
-            "description": "下書きと振り分けは無料ローカルモデルで、重い処理だけクラウドへ。"
-          }
-        },
-        "setupGuideLink": "セットアップガイド"
-      },
       "doctor": {
         "fix": "修正する",
         "allClear": "3項目すべて通過。開始できます。",
@@ -12301,9 +12146,7 @@
             "failHint": "利用枠が空です。",
             "pendingHint": "利用枠を確認中…"
           }
-        },
-        "contextRemote": "リモートサーバーを選択しました。設定で接続を完了すると、このチェックはそこを対象にします。",
-        "contextCloud": "クラウドホスティングを選択しました。設定で接続を完了すると、このチェックはサンドボックスを対象にします。"
+        }
       }
     }
   },
@@ -13560,15 +13403,6 @@
     "sessionMemoryUpdatedHint": "設定は保存され、このチャットの以降の返信に適用されます。",
     "briefLearnedInPrefix": "学習済みのコンテキストをこの返信のメモリプレフィックスに含めました：好み {preferences} 件、ルール {rules} 件、修正項目 {corrections} 件。"
   },
-  "memoryRecallDegraded": {
-    "title": "意味記憶を利用できません",
-    "description": "ベクトル検索が低下しています。埋め込みが復元されるまで、返信が関連メモリを見逃す可能性があります。",
-    "actionDoctor": "メモリドクターを開く",
-    "actionSettings": "メモリ設定",
-    "unavailable": "メモリ検索の健全性を確認できませんでした",
-    "retry": "再試行",
-    "dismiss": "このチャットでは閉じる"
-  },
   "e2ee": {
     "secured": "エンドツーエンド暗号化",
     "handshakeFailed": "暗号化の確立に失敗しました",
@@ -13581,7 +13415,14 @@
     "switchToTable": "テーブル表示に切り替え",
     "switchToCard": "カード表示に切り替え",
     "tableView": "テーブル",
-    "cardView": "カード"
+    "cardView": "カード",
+    "expandLightbox": "表全体を展開",
+    "expandLightboxShort": "全体表示",
+    "lightboxLabel": "表全体のプレビュー",
+    "lightboxTitle": "表全体ビュー",
+    "columnCount": "{count} 列",
+    "closePreview": "プレビューを閉じる",
+    "closePreviewBackdrop": "プレビューの背景を閉じる"
   },
   "messageBox": {
     "consensusActive": "残りのモデルを待っています…",
@@ -14532,37 +14373,6 @@
     "collapseStep": "ステップを折りたたむ",
     "expandStep": "ステップを展開"
   },
-  "quadGraph": {
-    "closeDrawer": "ノード詳細を閉じる",
-    "completedCount": "{count} 件完了",
-    "dependenciesCount": "依存関係",
-    "drawerAriaLabel": "ノード検査パネル",
-    "duration": "所要時間",
-    "edgesCount": "{count} 本のエッジ",
-    "inputSnapshot": "入力スナップショット",
-    "layerType": "レイヤー",
-    "liveSteerCockpit": "ライブステアリング",
-    "noInputSnapshot": "入力の記録なし",
-    "noNodesInLayer": "このレイヤーにノードはありません",
-    "noOutputSnapshot": "出力の記録なし",
-    "nodesCount": "{count} 個のノード",
-    "outputReceipt": "出力レシート",
-    "pauseNode": "ノードを一時停止",
-    "resetZoom": "ズームをリセット",
-    "resumeNode": "ノードを再開",
-    "retryNode": "ノードを再試行",
-    "role": "ロール",
-    "runningCount": "{count} 件実行中",
-    "steerPlaceholder": "このノードにステアリング指示を送信",
-    "submitSteer": "ステアリング指示を送信",
-    "viewportSwitcherAria": "グラフのビューポートを切り替える",
-    "zoomIn": "拡大",
-    "zoomOut": "縮小",
-    "layerTask": "タスクグラフ",
-    "layerWorkflow": "ワークフローグラフ",
-    "layerTeam": "チームグラフ",
-    "layerCommunication": "通信グラフ"
-  },
   "externalLinkConfirm": {
     "title": "このリンクをブラウザで開きますか？",
     "descriptionNamed": "「{source}」が下のアドレスをブラウザで開こうとしています。信頼できる場合のみ続行してください。",
@@ -14785,33 +14595,6 @@
     "close": "完了",
     "emptyCluster": "セルフホストのマシンはまだ接続されていません。上のボタンをクリックして最初のマシンを追加しましょう"
   },
-  "memoryRecall": {
-    "drawerTitle": "メモリ＆経験リコールシミュレーター",
-    "drawerSubtitle": "EvoX リコールテストとガバナンスセンターのベンチマーク。複数チャネルの候補ヒットとその場での二次ガバナンスを検証します",
-    "queryInputPlaceholder": "テスト用のプロンプトまたはタスクコマンドを入力（例: Linux カーネルのデッドロックをデバッグ、React の再レンダリングを最適化）...",
-    "simulateBtn": "リコールをシミュレート",
-    "simulatingBtn": "検索中...",
-    "totalMatched": "一致した項目",
-    "latency": "レイテンシ",
-    "rrfScore": "RRF スコア",
-    "bm25Score": "BM25 字句",
-    "vectorSim": "ベクトル意味",
-    "causalAffinity": "因果ジーン",
-    "confidenceWeight": "信頼度の重み",
-    "mustAvoidTrap": "必ず避けるべき落とし穴",
-    "normalGene": "良い経験",
-    "statusActive": "アクティブ",
-    "statusDisabled": "無効",
-    "statusLocked": "ロック中",
-    "lockBtn": "ロック",
-    "unlockBtn": "ロック解除",
-    "disableBtn": "無効にする",
-    "enableBtn": "有効にする",
-    "mergeDuplicateBtn": "重複を統合",
-    "mergePrompt": "統合先のメモリ ID を入力",
-    "emptyResults": "一致するメモリ項目や経験ジーンが見つかりません。別のクエリをお試しください。",
-    "close": "閉じる"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "音声入力の確認",
@@ -15017,7 +14800,19 @@
       "setupGuideTitle": "クイックセットアップ（デスクトップアプリ）",
       "setupGuideStep1": "上で入力制御と画面キャプチャを許可し、「画面キャプチャを含む再チェック」をタップしてください。",
       "screenLockGuardLocked": "ロック中",
-      "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。"
+      "setupGuideStep3": "エージェント設定でデスクトップ制御を有効にし、チャットで初回のアプリ承認を完了してください。",
+      "lockedUseDoctorBadgeLoading": "確認中…",
+      "lockedUseDoctorUnavailable": "未検出",
+      "lockedUseDoctorWarn": "要確認",
+      "lockedUseDoctorFail": "利用不可",
+      "lockedUseDoctorBadgeNotMac": "macOS デスクトップアプリ",
+      "lockedUseDoctorBadgeAwayOn": "離席モード ON",
+      "lockedUseDoctorBadgeBridgeReady": "シェル接続済み",
+      "lockedUseDoctorDetailNotMac": "離席モードとプライバシーカーテンは macOS の Myrm デスクトップアプリでご利用ください。",
+      "lockedUseDoctorDetailAwayOff": "デスクトップシェルは準備完了です。無人運転時は上で Locked Use をオンにしてください。エージェントはカーテン下でロックを解除します。",
+      "lockedUseDoctorDetailBridgeMissing": "離席モードがシェルと連携できるよう、この Mac で Myrm デスクトップアプリを起動してください。",
+      "lockedUseDoctorDetailShellUnavailable": "Myrm デスクトップアプリを再起動し、設定で離席モードとプライバシーカーテンを確認してください。",
+      "lockedUseDoctorDetailGeneric": "離席モードまたはプライバシーカーテンが未準備です。システム設定を開くかデスクトップアプリを再起動してください。"
     },
     "rate_limits": {
       "title": "レート制限モニタリング",
@@ -16356,7 +16151,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "内部サブエージェント",
-        "invoke_external_agent": "外部 CLI エージェント"
+        "invoke_external_agent": "外部 CLI エージェント",
+        "web_search_tool": "検索エンジン",
+        "net_fetch": "Web ページを読み取り",
+        "shell_exec": "実行中のプロセス",
+        "file_read": "ファイルを読み取り",
+        "file_write": "ファイル書き込み",
+        "mcp_invoke": "外部ツール",
+        "code_interpreter": "コマンドとコード",
+        "browser_navigate": "ブラウザ移動",
+        "browser_fill": "ブラウザフォーム入力",
+        "browser_upload": "ブラウザアップロード",
+        "browser_download": "ブラウザダウンロード",
+        "browser_session": "ブラウザセッション",
+        "knowledge_read": "ナレッジベースを読み取り",
+        "knowledge_write": "ナレッジベース書き込み"
       },
       "leastPrivilege": {
         "antiPatternTitle": "「フルアクセス」を拒否する理由",
@@ -22674,5 +22483,26 @@
     "pinTooltip": "ワークスペースのダッシュボードに固定",
     "pinned": "固定済み",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "コンテキスト圧縮後も保持されるタスク進捗パネル",
+    "allDone": "すべてのタスクが完了しました",
+    "badge": "圧縮耐性",
+    "collapseAria": "タスク一覧を閉じる",
+    "collapse": "一覧を閉じる",
+    "expand": "タスク一覧を開く",
+    "toggleTask": "タスク {title} の状態を切り替え"
+  },
+  "stagedArtifacts": {
+    "summary": "未保存の成果物ドラフト {count} 件をワークスペースへ自動退避しました",
+    "lineCount": "{count} 行",
+    "footnote": "これらのファイルはサンドボックスに保全されています。左のファイルツリーでいつでも確認・名前変更して採用できます。"
+  },
+  "leaseCapsule": {
+    "quota": "自動承認枠: {used}/{max} ステップ",
+    "extend": "+{steps} ステップ延長",
+    "limitReached": "上限に達しました",
+    "pauseTitle": "自動承認エンベロープを緊急停止",
+    "pause": "一時停止"
   }
 }

@@ -54,7 +54,6 @@
 | `SlidingWindowVisualizerCard.tsx` | 辅助 | 滑动窗口切片可视化检视器：直观呈现切片序列、起止行号范围、内容哈希签名、代码块保护与行级回溯水合扩展上下文视图 | ✅    |
 | `IncrementalDiffInspectorCard.tsx` | 辅助 | 内容哈希增量索引与 Token 节省检视器：呈现版本对比报告、复用/变更/废弃切片分布、进度条与免除重复调用Embedding API遥测 | ✅    |
 | `markdownChunkerFallbacks.ts` | 辅助 | Markdown切片与增量索引离线仿真与预设长篇Markdown数据集 | ✅    |
-| `recall-simulator/` | 子模块 | Item 68 记忆与经验基因交互式召回模拟沙盒与二次治理工作台（[recall-simulator/_ARCH.md](recall-simulator/_ARCH.md)） | ✅    |
 
 ## 依赖
 

@@ -339,7 +339,7 @@ export default function ReportTab({
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                   : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                               }`}
-                              title={t('report.retrievalSpanRecallTitle') || 'Retrieval Span Recall'}
+                              title={t('report.retrievalSpanRecallTitle')}
                             >
                               {`Span ${Math.round(scores.span_recall * 100)}%`}
                               {scores.distinct_sources !== undefined &&

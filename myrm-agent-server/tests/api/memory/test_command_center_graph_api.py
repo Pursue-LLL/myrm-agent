@@ -20,14 +20,14 @@ from myrm_agent_harness.toolkits.memory.graph.base import (
 )
 
 from app.api.dependencies import get_db_session
-from app.api.memory.operations import command_center as command_center_operation
+from app.api.memory.operations import memory_graph as memory_graph_operation
 from app.api.memory.utils import get_crud_memory_manager
 
 
 @pytest.fixture
 def graph_api_client():
     app = FastAPI()
-    app.include_router(command_center_operation.router, prefix="/api/memory")
+    app.include_router(memory_graph_operation.router, prefix="/api/memory")
 
     manager = MagicMock()
     app.dependency_overrides[get_db_session] = lambda: AsyncMock()

@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * RuntimeConsoleDrawer Component.
@@ -61,11 +60,11 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
   }
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-label="Runtime Console and State Projection Drawer"
-      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-slate-950 text-slate-100 shadow-2xl border-l border-slate-800 font-sans backdrop-blur-xl"
+      className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col bg-slate-950 text-slate-100 shadow-2xl border-l border-slate-800 font-sans backdrop-blur-xl m-0 h-full max-h-none p-0 border-0 left-auto"
     >
       {/* Header */}
       <header className="flex h-16 items-center justify-between border-b border-slate-800 px-6 bg-slate-900/60">
@@ -244,6 +243,6 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
           <div>Run ID: {snapshot.run_id}</div>
         </footer>
       ) : null}
-    </div>
+    </dialog>
   );
 };

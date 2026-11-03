@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * FactCheckSheetDrawer Component.
@@ -91,11 +90,11 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
   }
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-labelledby="fact-check-drawer-title"
-      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm m-0 h-full max-h-none w-full max-w-none border-0 p-0 text-inherit"
     >
       <div className="relative w-full max-w-lg h-full bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
         {/* Header */}
@@ -312,6 +311,6 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 };

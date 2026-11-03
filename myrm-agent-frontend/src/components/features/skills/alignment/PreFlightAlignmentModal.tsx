@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * PreFlightAlignmentModal Component.
@@ -108,11 +107,11 @@ export const PreFlightAlignmentModal: React.FC<PreFlightAlignmentModalProps> = (
   }
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-labelledby="alignment-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto m-0 h-full max-h-none w-full max-w-none border-0 text-inherit"
     >
       <div className="relative w-full max-w-2xl rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
@@ -283,6 +282,6 @@ export const PreFlightAlignmentModal: React.FC<PreFlightAlignmentModalProps> = (
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

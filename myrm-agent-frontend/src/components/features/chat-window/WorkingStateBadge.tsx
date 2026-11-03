@@ -30,7 +30,7 @@ const WorkingStateBadge = memo(({ chatId }: WorkingStateBadgeProps = {}) => {
 
   const fetchState = useCallback(async () => {
     try {
-      setState(await getWorkingState());
+      setState(await getWorkingState({ silent: true }));
     } catch {
       setState(null);
     }

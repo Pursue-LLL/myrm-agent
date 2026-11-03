@@ -25,4 +25,3 @@ Project 级同步目录绑定 UI（Mount Wizard）。将用户选择的本地/Ta
 - Server 信任接口：`myrm-agent-server/app/api/security/workspace_trust.py`
 - 侧栏入口：[`sidebar/ProjectBar.tsx`](../sidebar/ProjectBar.tsx)
 - 聊天主窗口：[`chat-window/ChatWindow.tsx`](../chat-window/ChatWindow.tsx)
-- Onboarding：[`onboarding/SyncFolderOnboardingStep.tsx`](../onboarding/SyncFolderOnboardingStep.tsx)

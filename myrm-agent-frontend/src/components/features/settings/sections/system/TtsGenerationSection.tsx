@@ -257,7 +257,7 @@ const TtsGenerationSection = memo(() => {
 
   const isDoubao = ttsProvider === 'volcengine' && ttsModel === 'doubao-tts';
   const isSeedAudio = ttsProvider === 'volcengine' && ttsModel === 'seed-audio-1.0';
-  const keyPlaceholder = isDoubao ? 'appid:access_token' : t('enterApiKey') || 'Enter API Key';
+  const keyPlaceholder = isDoubao ? 'appid:access_token' : t('enterApiKey');
 
   return (
     <SettingsSection title={t('ttsTitle')} description={t('ttsDescription')}>
@@ -310,12 +310,11 @@ const TtsGenerationSection = memo(() => {
           <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
             <p className="text-xs text-amber-700 dark:text-amber-400">
               {isDoubao
-                ? t('ttsDoubaoKeyHint') || 'Doubao-TTS uses the composite credential "appid:access_token".'
-                : t('apiKeyHint') ||
-                    'Please configure the API Key for this provider. The key will be shared globally across all features.'}
+                ? t('ttsDoubaoKeyHint')
+                : t('apiKeyHint')}
             </p>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">{t('apiKey') || 'API Key'}</label>
+              <label className="text-xs font-medium text-foreground">{t('apiKey')}</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <input
@@ -340,7 +339,7 @@ const TtsGenerationSection = memo(() => {
                   className="inline-flex items-center gap-1.5 rounded-full border border-border bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {savingKey ? <IconLoader className="h-3 w-3 animate-spin" /> : <IconSave className="h-3 w-3" />}
-                  {t('save') || 'Save'}
+                  {t('save')}
                 </button>
               </div>
             </div>

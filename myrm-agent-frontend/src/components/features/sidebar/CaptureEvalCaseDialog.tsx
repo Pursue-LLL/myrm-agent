@@ -115,12 +115,9 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
               <FlaskConical className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold">
-                {t('chat.captureEvalCase.title') || 'Capture as Evaluation Case'}
-              </DialogTitle>
+              <DialogTitle className="text-base font-semibold">{t('chat.captureEvalCase.title')}</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                {t('chat.captureEvalCase.description') ||
-                  'Preserve this chat session as a regression test case in your private evaluation lab.'}
+                {t('chat.captureEvalCase.description')}
               </DialogDescription>
             </div>
           </div>
@@ -130,13 +127,13 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Database className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{t('chat.captureEvalCase.selectDataset') || 'Target Dataset'}</span>
+              <span>{t('chat.captureEvalCase.selectDataset')}</span>
             </label>
 
             {loadingDatasets ? (
               <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span>{t('common.loading') || 'Loading...'}</span>
+                <span>{t('common.loading')}</span>
               </div>
             ) : (
               <div className="space-y-2">
@@ -161,7 +158,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
                       className="h-8 text-xs gap-1"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      <span>{t('chat.captureEvalCase.newDataset') || 'New'}</span>
+                      <span>{t('chat.captureEvalCase.newDataset')}</span>
                     </Button>
                   </div>
                 ) : (
@@ -176,9 +173,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
                           handleConfirm();
                         }
                       }}
-                      placeholder={
-                        t('chat.captureEvalCase.newDatasetPlaceholder') || 'Enter dataset name (e.g., regressions)'
-                      }
+                      placeholder={t('chat.captureEvalCase.newDatasetPlaceholder')}
                       className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
                       autoFocus
@@ -189,7 +184,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
                         onClick={() => setIsCreatingNew(false)}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                       >
-                        {t('chat.captureEvalCase.chooseExisting') || 'Choose existing dataset'}
+                        {t('chat.captureEvalCase.chooseExisting')}
                       </button>
                     </div>
                   </div>
@@ -201,7 +196,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
 
         <DialogFooter className="flex gap-2 sm:justify-end">
           <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
-            {t('common.cancel') || 'Cancel'}
+            {t('common.cancel')}
           </Button>
           <Button
             type="button"
@@ -211,7 +206,7 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
             className="gap-1.5"
           >
             {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            <span>{t('chat.captureEvalCase.confirm') || 'Capture'}</span>
+            <span>{t('chat.captureEvalCase.confirm')}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

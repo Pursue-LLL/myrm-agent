@@ -41,7 +41,6 @@ export function ResultStep({
   onRetrySkillSubmit,
   retryingSkills,
   onDone,
-  vaultBindHandoffMode = 'settings',
   workspaceBindCandidates = [],
   migrationSource = null,
   t,
@@ -55,7 +54,6 @@ export function ResultStep({
   onRetrySkillSubmit: () => void;
   retryingSkills: boolean;
   onDone: () => void;
-  vaultBindHandoffMode?: 'settings' | 'onboarding';
   workspaceBindCandidates?: MigrationWorkspaceBindCandidate[];
   migrationSource?: string | null;
   t: TranslationFn;
@@ -77,7 +75,7 @@ export function ResultStep({
   const readinessIssues = effectiveResult.readiness?.issues ?? [];
   const readinessIsCritical = readinessStatus === 'critical';
   const resultAnchorQueuedRef = useRef(false);
-  const showSettingsVaultBind = vaultBindHandoffMode === 'settings' && isLocalMode();
+  const showSettingsVaultBind = isLocalMode();
   const primaryObsidianCandidate =
     workspaceBindCandidates.find((candidate) => candidate.has_obsidian_config) ?? workspaceBindCandidates[0] ?? null;
 

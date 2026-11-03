@@ -94,10 +94,10 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
           'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
           'text-popover-foreground/80 hover:text-popover-foreground hover:bg-accent transition-colors',
         )}
-        title={t('quote') || '引用到输入框'}
+        title={t('quote')}
       >
         <MessageAdd01Icon className="w-3.5 h-3.5 text-primary" />
-        <span>{t('quote') || '引用到输入框'}</span>
+        <span>{t('quote')}</span>
       </button>
       <button
         type="button"
@@ -106,10 +106,10 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
           'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
           'text-popover-foreground/80 hover:text-popover-foreground hover:bg-accent transition-colors',
         )}
-        title={t('copy') || '复制行'}
+        title={t('copy')}
       >
         <Copy01Icon className="w-3.5 h-3.5" />
-        <span>{t('copy') || '复制'}</span>
+        <span>{t('copy')}</span>
       </button>
       <button
         type="button"

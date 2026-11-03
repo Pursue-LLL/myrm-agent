@@ -28,7 +28,6 @@ from pydantic import BaseModel, Field, ValidationError
 
 from app.api.config.pricing import pricing_router
 from app.api.config.privacy_preview import privacy_preview_router
-from app.api.config.telegram_onboarding import telegram_onboarding_router
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 from app.schemas.config import (
@@ -308,17 +307,6 @@ async def complete_config_onboarding() -> dict[str, object]:
     return {"success": True, "message": "Onboarding completed successfully"}
 
 
-@router.get("/onboarding/recommendations")
-async def get_onboarding_recommendations() -> dict[str, object]:
-    """Get recommended provider configurations for new users.
-
-    Returns a list of provider recommendations with setup instructions.
-    """
-    from app.services.config.onboarding import get_recommended_providers
-
-    return {"providers": get_recommended_providers()}
-
-
 @router.get("/onboarding/second-brain/status")
 async def get_second_brain_onboarding_status(request: Request) -> dict[str, object]:
     """Return Second Brain preset checklist (agent, cron, vault, provider)."""
@@ -539,51 +527,31 @@ async def video_health_check() -> VideoHealthResult:
         )
 
 
-@router.get("/onboarding/probe-local")
-async def probe_local_models_endpoint() -> dict[str, object]:
-    """Probe local model services and search backends for zero-config setup.
+@router.get("/onboarding/searxng/probe")
+async def probe_searxng_endpoint() -> dict[str, object]:
+    """Probe local search backends for zero-config setup.
 
     Returns:
-        results: Ollama / LM Studio probe results
-        has_available: Whether at least one model service is available
-        recommended_model: Best model to auto-select (if any)
         search: SearXNG probe results
-        search_has_available: Whether SearXNG is reachable
         recommended_searxng_url: Default api_base when SearXNG is available
     """
     from app.core.channel_bridge.search_topology import get_default_searxng_api_base
-    from app.services.config.onboarding import probe_local_models, probe_local_search
+    from app.services.config.onboarding import probe_local_search
 
-    results = await probe_local_models()
     search_results = await probe_local_search()
-
-    available_results = [r for r in results if r.available]
-    recommended_model: str | None = None
-
-    if available_results:
-        for result in available_results:
-            if result.models:
-                recommended_model = result.models[0].name
-                break
-
     searxng_hit = next(
         (s for s in search_results if s.get("provider") == "searxng" and s.get("available")),
         None,
     )
 
     return {
-        "results": [r.model_dump() for r in results],
-        "has_available": len(available_results) > 0,
-        "recommended_model": recommended_model,
         "search": search_results,
-        "search_has_available": searxng_hit is not None,
         "recommended_searxng_url": (str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()),
     }
 
 
 router.include_router(pricing_router)
 router.include_router(privacy_preview_router)
-router.include_router(telegram_onboarding_router)
 
 
 @router.get("/{config_key}", response_model=ConfigRecord)

@@ -39,8 +39,6 @@ import { useSecurityPolicy } from './useSecurityPolicy';
 
 const SecurityPolicySection = memo(() => {
   const t = useTranslations('settings.securityPolicy');
-  const tCap = useTranslations('cron.capability');
-  const tPerm = useTranslations('settings.securityPolicy.permissionTypes');
 
   const policy = useSecurityPolicy(t);
 

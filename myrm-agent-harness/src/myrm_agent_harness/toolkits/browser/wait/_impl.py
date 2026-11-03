@@ -54,6 +54,29 @@ def _timeout_errors() -> tuple[type[BaseException], ...]:
     return (TimeoutError, PlaywrightTimeoutError)
 
 
+_NAVIGATION_INTERRUPT_TEXT = "Execution context was destroyed"
+
+
+@cache
+def _driver_error_type() -> type[BaseException] | None:
+    """Patchright's base error, resolved on first use so importing this module never loads patchright."""
+    try:
+        from patchright.async_api import Error
+    except ImportError:
+        return None
+    return Error
+
+
+def is_navigation_interrupt(exc: BaseException) -> bool:
+    """True when a navigation replaced the document a probe was evaluating in.
+
+    Patchright reports it as a bare ``Error`` with no subclass, so the driver's message is the only signal.
+    Other driver errors (a closed page, a lost browser) are not interruptions: no wait can continue after them.
+    """
+    error_type = _driver_error_type()
+    return error_type is not None and isinstance(exc, error_type) and _NAVIGATION_INTERRUPT_TEXT in str(exc)
+
+
 def _elapsed_ms_since(start_time: float) -> int:
     """Return milliseconds elapsed since start_time (perf_counter based)."""
     return int((time.perf_counter() - start_time) * 1000)
@@ -176,9 +199,9 @@ async def wait_smart(
     3. Timeout → fall back to hybrid with remaining time
 
     Fast path timeout tuning:
-    - Has history data: use P95 latency × 1.2 (capped at max_ms)
-    - networkidle success rate < 50%: skip fast path
-    - No history data: max_ms × 0.3 (capped at 500ms)
+    - networkidle measured to fail on the domain (>= 20 samples, success rate < 50%): skip fast path
+    - Enough history (>= 20 networkidle latencies): use P95 latency × 1.2 (capped at max_ms)
+    - Otherwise, including too little history to judge: max_ms × 0.3 (capped at 500ms)
     """
     fast_timeout_ms = min(int(max_ms * 0.3), 500)
     skip_fast_path = False
@@ -186,14 +209,12 @@ async def wait_smart(
     if domain and domain_metrics_manager:
         try:
             metrics_data = domain_metrics_manager.get(domain)
-            if metrics_data:
+            if metrics_data and metrics_data.should_skip_smart_fast_path():
+                skip_fast_path = True
+                logger.debug(f"Wait: SMART strategy - skipping networkidle fast path for {domain} (low success rate)")
+            elif metrics_data:
                 learned_timeout = metrics_data.get_smart_fast_timeout()
-                if learned_timeout is None:
-                    skip_fast_path = True
-                    logger.debug(
-                        f"Wait: SMART strategy - skipping networkidle fast path for {domain} (low success rate)"
-                    )
-                elif learned_timeout > 0:
+                if learned_timeout:
                     fast_timeout_ms = min(learned_timeout, max_ms)
                     logger.debug(f"Wait: SMART strategy - using learned fast_timeout={fast_timeout_ms}ms for {domain}")
         except Exception as e:
@@ -414,5 +435,10 @@ async def wait_hybrid(page: Page, max_ms: int, quiet_ms: int, grace_period_ms: i
         logger.warning(f"Wait: hybrid detection error: {e}")
         await _cleanup_hybrid_tasks(dom_task, network_task)
         result = _HybridTaskResult(reason="capped")
+    except BaseException:
+        # A navigation interrupting the probe, a closed page or a cancellation still leaves two live tasks
+        # behind; the caller decides what the error means, but nothing may outlive this call.
+        await _cleanup_hybrid_tasks(dom_task, network_task)
+        raise
 
     return _build_hybrid_metrics(result, start_time)

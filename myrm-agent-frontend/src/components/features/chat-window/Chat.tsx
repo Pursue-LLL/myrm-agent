@@ -54,7 +54,7 @@ import { GoalControlPlane } from './goals/GoalControlPlane';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { TurnTimelineRail, MobileTurnOutlineSheet } from './TurnTimelineRail';
-import { useComposerFastFocus } from './outline';
+import { useComposerFastFocus } from './useComposerFastFocus';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import HumanAttentionBar from './approval/HumanAttentionBar';

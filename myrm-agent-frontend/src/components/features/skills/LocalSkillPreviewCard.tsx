@@ -1,4 +1,3 @@
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 'use client';
 
 import { memo, useState, useCallback } from 'react';
@@ -26,7 +25,7 @@ export const LocalSkillPreviewCard = memo(
     const isActionBlocked = isSecurityBlocked && !allowUntrusted;
     const findings = skill.security?.findings ?? [];
 
-    const handleCardClick = useCallback(() => {
+    const handleCheckboxChange = useCallback(() => {
       if (isActionBlocked) {
         return;
       }
@@ -35,41 +34,14 @@ export const LocalSkillPreviewCard = memo(
       }
     }, [isActionBlocked, skill.skill_id, onToggle]);
 
-    const handleCheckboxChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        e.stopPropagation();
-        if (isActionBlocked) {
-          return;
-        }
-        if (skill.skill_id) {
-          onToggle(skill.skill_id);
-        }
-      },
-      [isActionBlocked, skill.skill_id, onToggle],
-    );
-
-    const handleKeyDown = useCallback(
-      (e: React.KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleCardClick();
-        }
-      },
-      [handleCardClick],
-    );
-
-    const toggleFindings = useCallback((e: React.MouseEvent) => {
-      e.stopPropagation();
+    const toggleFindings = useCallback(() => {
       setIsFindingsExpanded((prev) => !prev);
     }, []);
 
     return (
-      <div
+      <label
         data-testid={`preview-skill-card-${skill.name}`}
-        role="button"
-        tabIndex={isActionBlocked ? -1 : 0}
-        onKeyDown={handleKeyDown}
-        className={`rounded-lg border p-3 shadow-xs transition-colors ${
+        className={`block rounded-lg border p-3 shadow-xs transition-colors ${
           isActionBlocked
             ? 'border-destructive/40 bg-destructive/5 dark:bg-destructive/10 cursor-not-allowed opacity-90'
             : isSecurityBlocked
@@ -80,7 +52,6 @@ export const LocalSkillPreviewCard = memo(
                 ? 'border-primary/60 bg-primary/5 dark:bg-primary/10 cursor-pointer'
                 : 'border-border bg-card hover:border-border/90 cursor-pointer'
         }`}
-        onClick={handleCardClick}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -90,10 +61,10 @@ export const LocalSkillPreviewCard = memo(
               checked={isSelected && !isActionBlocked}
               disabled={isActionBlocked}
               onChange={handleCheckboxChange}
+              aria-label={skill.name}
               className={`mt-1 h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary shrink-0 ${
                 isActionBlocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
               }`}
-              onClick={(e) => e.stopPropagation()}
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
@@ -247,7 +218,7 @@ export const LocalSkillPreviewCard = memo(
             )}
           </div>
         )}
-      </div>
+      </label>
     );
   },
 );

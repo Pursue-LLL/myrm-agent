@@ -77,7 +77,7 @@ const AgentUsageCard = memo(() => {
   const maxUsd = Math.max(...agents.map((a) => a.totalUsd), 0.001);
 
   return (
-    <SettingsSection title={t('agentUsageTitle') || 'Agent Usage Breakdown'}>
+    <SettingsSection title={t('agentUsageTitle')}>
       <div className="space-y-3">
         {agents.map((agent, idx) => {
           const barWidth = (agent.totalUsd / maxUsd) * 100;
@@ -132,7 +132,7 @@ const AgentUsageCard = memo(() => {
                     <span>{formatCost(agent.totalUsd)}</span>
                     <span>{formatTokenCount(agent.totalTokens)} tokens</span>
                     <span>
-                      {agent.totalCalls} {t('calls') || 'calls'}
+                      {agent.totalCalls} {t('calls')}
                     </span>
                   </div>
                 </div>

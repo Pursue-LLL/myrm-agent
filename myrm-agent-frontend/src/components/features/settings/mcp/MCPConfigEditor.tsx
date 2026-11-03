@@ -673,32 +673,32 @@ function OAuthSection({
       {expanded && (
         <div className="p-3 pt-0 space-y-3">
           <InputField
-            label={t('mcpOAuthClientId') || 'Client ID'}
+            label={t('mcpOAuthClientId')}
             value={oauth?.clientId || ''}
             onChange={(e) => updateOAuth({ clientId: e.target.value })}
             placeholder="your-app-client-id"
           />
           <InputField
-            label={t('mcpOAuthClientSecret') || 'Client Secret'}
+            label={t('mcpOAuthClientSecret')}
             isPassword
             value={oauth?.clientSecret || ''}
             onChange={(e) => updateOAuth({ clientSecret: e.target.value || undefined })}
-            placeholder={t('mcpOAuthClientSecretPlaceholder') || 'Optional for public clients'}
+            placeholder={t('mcpOAuthClientSecretPlaceholder')}
           />
           <InputField
-            label={t('mcpOAuthAuthEndpoint') || 'Authorization Endpoint'}
+            label={t('mcpOAuthAuthEndpoint')}
             value={oauth?.authorizationEndpoint || ''}
             onChange={(e) => updateOAuth({ authorizationEndpoint: e.target.value })}
             placeholder="https://provider.com/oauth/authorize"
           />
           <InputField
-            label={t('mcpOAuthTokenEndpoint') || 'Token Endpoint'}
+            label={t('mcpOAuthTokenEndpoint')}
             value={oauth?.tokenEndpoint || ''}
             onChange={(e) => updateOAuth({ tokenEndpoint: e.target.value })}
             placeholder="https://provider.com/oauth/token"
           />
           <InputField
-            label={t('mcpOAuthScope') || 'Scope'}
+            label={t('mcpOAuthScope')}
             value={oauth?.scope || ''}
             onChange={(e) => updateOAuth({ scope: e.target.value || undefined })}
             placeholder="read write"
@@ -709,13 +709,10 @@ function OAuthSection({
               onClick={clearOAuth}
               className="text-xs text-red-500 hover:text-red-600 transition-colors"
             >
-              {t('mcpOAuthClear') || 'Clear OAuth configuration'}
+              {t('mcpOAuthClear')}
             </button>
           )}
-          <p className="text-xs text-muted-foreground">
-            {t('mcpOAuthHint') ||
-              'Configure OAuth 2.0 + PKCE for remote MCP servers requiring authorization. After saving, click "Authorize" in the server list to complete the OAuth flow.'}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('mcpOAuthHint')}</p>
         </div>
       )}
     </div>

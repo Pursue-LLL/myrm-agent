@@ -249,6 +249,9 @@
     "workbench.terminal.headerTitle",
     "templateMarketplace.card.team",
     "memoryInsight.namespaceAgent",
-    "voice.voiceModeAudioOnly"
+    "voice.voiceModeAudioOnly",
+    "artifacts.types.audio",
+    "artifacts.types.dashboard",
+    "artifacts.types.video"
   ]
 }

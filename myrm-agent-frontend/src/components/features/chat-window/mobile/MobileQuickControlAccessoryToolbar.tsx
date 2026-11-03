@@ -93,7 +93,7 @@ export function MobileQuickControlAccessoryToolbar({
         onClick={handleHistoryClick}
         onMouseDown={(e) => e.preventDefault()}
         disabled={historyCount === 0}
-        aria-label={t('historyNav') ?? 'History'}
+        aria-label={t('historyNav')}
         className={cn(
           'inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium border transition-colors touch-manipulation select-none shrink-0',
           isBrowsingHistory
@@ -104,7 +104,7 @@ export function MobileQuickControlAccessoryToolbar({
         )}
       >
         <History className="h-3.5 w-3.5" />
-        <span>{t('history') ?? '历史'}</span>
+        <span>{t('history')}</span>
         {historyBadgeText && (
           <span className="ml-0.5 text-[10px] tabular-nums font-mono opacity-80">{historyBadgeText}</span>
         )}
@@ -114,25 +114,25 @@ export function MobileQuickControlAccessoryToolbar({
         type="button"
         onClick={handlePaste}
         onMouseDown={(e) => e.preventDefault()}
-        aria-label={t('paste') ?? 'Paste'}
+        aria-label={t('paste')}
         className={cn(
           'inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/80 active:scale-95 transition-colors touch-manipulation select-none shrink-0',
           pasteSuccess && 'text-emerald-500 border-emerald-500/50 bg-emerald-500/10',
         )}
       >
         {pasteSuccess ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Clipboard className="h-3.5 w-3.5" />}
-        <span>{t('paste') ?? '粘贴'}</span>
+        <span>{t('paste')}</span>
       </button>
 
       <button
         type="button"
         onClick={onOpenAdvisor}
         onMouseDown={(e) => e.preventDefault()}
-        aria-label={t('advisorAsk') ?? 'Ask Advisor'}
+        aria-label={t('advisorAsk')}
         className="inline-flex items-center gap-1 h-7 px-2.5 rounded-full text-xs font-medium border border-border/60 bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary/80 active:scale-95 transition-colors touch-manipulation select-none shrink-0"
       >
         <Sparkles className="h-3.5 w-3.5 text-amber-500/90" />
-        <span>{t('advisorAsk') ?? '问顾问'}</span>
+        <span>{t('advisorAsk')}</span>
       </button>
 
       {currentValue.length > 0 && (
@@ -140,11 +140,11 @@ export function MobileQuickControlAccessoryToolbar({
           type="button"
           onClick={handleClearClick}
           onMouseDown={(e) => e.preventDefault()}
-          aria-label={t('clear') ?? 'Clear'}
+          aria-label={t('clear')}
           className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-xs text-muted-foreground hover:text-foreground bg-secondary/30 hover:bg-secondary/60 active:scale-95 transition-colors touch-manipulation select-none ml-auto shrink-0"
         >
           <X className="h-3 w-3" />
-          <span className="text-[11px]">{t('clear') ?? '清空'}</span>
+          <span className="text-[11px]">{t('clear')}</span>
         </button>
       )}
     </div>

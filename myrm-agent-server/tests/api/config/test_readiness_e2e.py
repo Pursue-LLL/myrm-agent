@@ -47,26 +47,6 @@ def test_config_readiness_no_provider() -> None:
         assert "onboarding_completed" in data
 
 
-def test_onboarding_recommendations() -> None:
-    """Test getting onboarding recommendations."""
-    with TestClient(app) as client:
-        response = client.get("/api/v1/config/onboarding/recommendations")
-        assert response.status_code == 200
-        data = response.json()
-        assert "providers" in data
-        providers = data["providers"]
-        assert isinstance(providers, list)
-        assert len(providers) >= 3
-
-        if len(providers) > 0:
-            rec = providers[0]
-            assert "id" in rec
-            assert "name" in rec
-            assert "pros" in rec
-            assert "cons" in rec
-            assert "setup_steps" in rec
-
-
 def test_onboarding_complete() -> None:
     """Test marking onboarding as complete."""
     with TestClient(app) as client:

@@ -155,24 +155,22 @@ export default function MemoryBackupSection() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{t('title') || 'Memory Backup'}</CardTitle>
-          <CardDescription>
-            {t('description') || 'Backup and restore your memory data for data safety.'}
-          </CardDescription>
+          <CardTitle>{t('title')}</CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="backup-description">{t('descriptionLabel') || 'Description (Optional)'}</Label>
+            <Label htmlFor="backup-description">{t('descriptionLabel')}</Label>
             <Input
               id="backup-description"
-              placeholder={t('descriptionPlaceholder') || 'E.g., Before major update'}
+              placeholder={t('descriptionPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
           <Button onClick={createBackup} disabled={creating} className="w-full">
             <IconDownload className="mr-2 h-4 w-4" />
-            {creating ? t('creating') || 'Creating...' : t('createBackup') || 'Create Backup'}
+            {creating ? t('creating') : t('createBackup')}
           </Button>
         </CardContent>
       </Card>
@@ -180,7 +178,7 @@ export default function MemoryBackupSection() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>{t('backupListTitle') || 'Backup History'}</CardTitle>
+            <CardTitle>{t('backupListTitle')}</CardTitle>
             <CardDescription>{t('backupListDescription', { count: backups.length })}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={loadBackups} disabled={loading}>
@@ -189,9 +187,9 @@ export default function MemoryBackupSection() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">{t('loading') || 'Loading...'}</div>
+            <div className="text-center py-8 text-muted-foreground">{t('loading')}</div>
           ) : backups.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">{t('noBackups') || 'No backups found'}</div>
+            <div className="text-center py-8 text-muted-foreground">{t('noBackups')}</div>
           ) : (
             <div className="space-y-3">
               {backups.map((backup) => (
@@ -207,7 +205,7 @@ export default function MemoryBackupSection() {
                     <div className="text-sm text-muted-foreground space-y-0.5">
                       <div>{formatDate(backup.created_at)}</div>
                       <div>
-                        {backup.memory_count} {t('memories') || 'memories'} · {formatBytes(backup.size_bytes)}
+                        {backup.memory_count} {t('memories')} · {formatBytes(backup.size_bytes)}
                       </div>
                     </div>
                   </div>
@@ -216,15 +214,13 @@ export default function MemoryBackupSection() {
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm">
                           <IconUpload className="mr-2 h-4 w-4" />
-                          {t('restore') || 'Restore'}
+                          {t('restore')}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t('restoreTitle') || 'Restore Backup'}</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t('restoreWarning') || 'This will restore memories from the backup.'}
-                          </AlertDialogDescription>
+                          <AlertDialogTitle>{t('restoreTitle')}</AlertDialogTitle>
+                          <AlertDialogDescription>{t('restoreWarning')}</AlertDialogDescription>
                           <div className="flex items-center space-x-2 pt-2">
                             <Checkbox
                               id={`overwrite-${backup.backup_id}`}
@@ -235,14 +231,14 @@ export default function MemoryBackupSection() {
                               htmlFor={`overwrite-${backup.backup_id}`}
                               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
-                              {t('overwriteExisting') || 'Clear existing memories before restore'}
+                              {t('overwriteExisting')}
                             </label>
                           </div>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+                          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                           <AlertDialogAction onClick={() => restoreBackup(backup.backup_id)}>
-                            {t('confirm') || 'Confirm'}
+                            {t('confirm')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -256,19 +252,16 @@ export default function MemoryBackupSection() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t('deleteTitle') || 'Delete Backup'}</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {t('deleteWarning') ||
-                              'This action cannot be undone. The backup file will be permanently deleted.'}
-                          </AlertDialogDescription>
+                          <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+                          <AlertDialogDescription>{t('deleteWarning')}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+                          <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
                           <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => deleteBackup(backup.backup_id)}
                           >
-                            {t('delete') || 'Delete'}
+                            {t('delete')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

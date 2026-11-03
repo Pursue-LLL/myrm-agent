@@ -28,6 +28,10 @@ from dataclasses import dataclass, field
 
 from ..fetchers.protocols import FetcherType
 
+# SMART wait tuning trusts a domain's networkidle history only from this many samples on.
+_SMART_MIN_SAMPLES = 20
+_SMART_MIN_SUCCESS_RATE = 0.5
+
 
 class RWLock:
     """Read-write lock: allows concurrent readers, exclusive writers.
@@ -353,25 +357,38 @@ class DomainMetrics:
                 return None
             return sum(latencies) / len(latencies)
 
+    def _networkidle_unreliable_locked(self) -> bool:
+        """Whether enough samples show networkidle rarely settles here (caller holds ``_lock``)."""
+        total = self.networkidle_success_count + self.networkidle_fail_count
+        return total >= _SMART_MIN_SAMPLES and self.networkidle_success_count / total < _SMART_MIN_SUCCESS_RATE
+
+    def should_skip_smart_fast_path(self) -> bool:
+        """Whether SMART waits should go straight to the hybrid probe for this domain (thread-safe)
+
+        Only a measured pattern justifies it: at least 20 networkidle samples with a success rate
+        below 50%. Missing data is no evidence, so the default fast path applies instead.
+        """
+        with self._lock:
+            return self._networkidle_unreliable_locked()
+
     def get_smart_fast_timeout(self) -> int | None:
         """Compute SMART strategy fast_timeout_ms from historical data (thread-safe)
 
+        ``None`` means "nothing learned, use the default timeout". It never means "skip the fast
+        path": that decision is ``should_skip_smart_fast_path``.
+
         Strategy:
-        - Sample count < 20: return None (use default)
-        - networkidle success rate < 50%: return None (skip fast path)
+        - Sample count < 20, or networkidle success rate < 50%: return None
+        - Fewer than 20 recorded networkidle latencies: return None
         - Otherwise return P95 latency * 1.2 (capped at 500ms)
         """
         with self._lock:
             total = self.networkidle_success_count + self.networkidle_fail_count
-            if total < 20:
-                return None
-
-            success_rate = self.networkidle_success_count / total
-            if success_rate < 0.5:
+            if total < _SMART_MIN_SAMPLES or self._networkidle_unreliable_locked():
                 return None
 
             latencies = self.wait_strategy_latencies.get("networkidle")
-            if not latencies or len(latencies) < 20:
+            if not latencies or len(latencies) < _SMART_MIN_SAMPLES:
                 return None
 
             sorted_latencies = sorted(latencies)

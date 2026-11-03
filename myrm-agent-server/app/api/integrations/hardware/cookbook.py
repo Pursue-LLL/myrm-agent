@@ -2,9 +2,11 @@
 [INPUT]
 - myrm_agent_harness.runtime.maintenance::detect_hardware_profile (POS: 跨平台硬件探针能力)
 - app.api.integrations.hardware.model_specs::get_dynamic_model_specs (POS: Ollama 模型规格数据源)
+- app.api.integrations.hardware.ollama_probe::list_ollama_models, find_chat_model (POS: 本机 Ollama 守护进程探测)
 
 [OUTPUT]
 - get_hardware_recommendations: 获取基于硬件的 64K 上下文 KV Cache 显存透视、Reference Ladder 段位与模型推荐
+- get_ollama_chat_model: 给首页一键连接挑出本机 Ollama 里能对话且支持工具调用的模型
 - pull_ollama_model: 代理 Ollama 模型拉取并流式返回进度
 - delete_ollama_model: 代理 Ollama 本地模型删除
 
@@ -29,6 +31,7 @@ from app.api.integrations.hardware.calculator import (
     estimate_tok_per_sec,
 )
 from app.api.integrations.hardware.model_specs import get_dynamic_model_specs
+from app.api.integrations.hardware.ollama_probe import OLLAMA_PROBE_TIMEOUT_S, find_chat_model, list_ollama_models
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.config.onboarding import get_ollama_base_url
@@ -61,17 +64,34 @@ async def _get_cached_hardware_profile() -> object | None:
 
 async def _get_ollama_status() -> tuple[bool, list[str]]:
     """探测 Ollama 状态并获取已安装模型列表"""
+    async with httpx.AsyncClient(timeout=OLLAMA_PROBE_TIMEOUT_S) as client:
+        models = await list_ollama_models(client, get_ollama_base_url())
+    if models is None:
+        return False, []
+    return True, [model.name for model in models]
+
+
+class OllamaChatModelResponse(BaseModel):
+    model: str | None = Field(default=None, description="能对话且支持工具调用的本机模型；没有合格模型时为空")
+    base_url: str = Field(..., description="探测所用的 Ollama 地址，连接时作为该 provider 的 API 地址")
+
+
+@router.get("/ollama/chat-model", response_model=StandardSuccessResponse)
+async def get_ollama_chat_model() -> JSONResponse:
+    """给首页一键连接挑出本机 Ollama 里首个能对话且支持工具调用的模型。
+
+    Ollama 未运行、没有合格模型、或守护进程版本过旧（不报告 capabilities）时 model 为空，前端据此不显示按钮。
+    """
+    from app.config.deploy_mode import DeployMode, get_deploy_mode
+
+    if get_deploy_mode() == DeployMode.SANDBOX:
+        raise HTTPException(status_code=403, detail="Not available in SaaS mode")
+
     base_url = get_ollama_base_url()
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{base_url}/api/tags")
-            if res.status_code == 200:
-                data = res.json()
-                models = [m.get("name") for m in data.get("models", []) if "name" in m]
-                return True, models
-    except Exception:
-        pass
-    return False, []
+    async with httpx.AsyncClient(timeout=OLLAMA_PROBE_TIMEOUT_S) as client:
+        models = await list_ollama_models(client, base_url)
+        chat_model = await find_chat_model(client, base_url, models) if models else None
+    return success_response(data=OllamaChatModelResponse(model=chat_model, base_url=base_url).model_dump())
 
 
 class OllamaPullRequest(BaseModel):

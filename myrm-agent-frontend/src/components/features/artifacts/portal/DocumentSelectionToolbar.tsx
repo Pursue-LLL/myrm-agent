@@ -287,7 +287,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
     {
       type: 'quote',
       icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
-      label: t('quote') || '引用到输入框',
+      label: t('quote'),
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
         const artifactName = activeTab?.artifact?.filename || '文档工件';

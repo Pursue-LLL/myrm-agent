@@ -9,6 +9,8 @@ import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalSto
 
 const mockApiRequest = vi.fn();
 
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
+
 vi.mock('@/lib/api', () => ({
   apiRequest: (...args: unknown[]) => mockApiRequest(...args),
 }));
@@ -40,7 +42,7 @@ describe('LeaseProgressCapsule', () => {
 
   it('renders current envelope quota and pause button', () => {
     render(<LeaseProgressCapsule />);
-    expect(screen.getByText('免打扰配额: 5/30 步')).toBeInTheDocument();
+    expect(screen.getByText('Auto-approve quota: 5/30 steps')).toBeInTheDocument();
     expect(screen.getByTestId('pause-lease-btn')).toBeInTheDocument();
   });
 

@@ -13,18 +13,9 @@ head_probe.router
 backup.router
 backup_remote.router
 reindex.router
-archive_restore.router
-tool_guidance.router
 external_transcripts.router
 domain_mesh.router
-profile_notes_router
 radar.router
 follow_ups_router
-onboarding.router
-private_notebook_router
-ephemeral_delta_router
-two_layer_dialectic_router
-budget_packing_router
-mem_cube_router
-markdown_chunker_router
-score_honesty_router
+memory_graph.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/insights/MemoryKnowledgeGraph.tsx:142
+evidence_playback.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/drawers/EvidenceDrawer.tsx:149

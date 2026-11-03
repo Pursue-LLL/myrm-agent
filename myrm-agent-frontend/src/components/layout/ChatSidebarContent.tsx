@@ -258,8 +258,8 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
               'transition-all duration-200 ease-in-out',
               'active:scale-[0.98]',
             )}
-            title={t('chat.import.buttonTitle') || 'Import external session'}
-            aria-label={t('chat.import.buttonTitle') || 'Import external session'}
+            title={t('chat.import.buttonTitle')}
+            aria-label={t('chat.import.buttonTitle')}
           >
             <UploadCloud size={18} />
           </button>

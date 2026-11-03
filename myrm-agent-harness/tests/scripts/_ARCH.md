@@ -14,6 +14,7 @@ Unit tests for `scripts/` maintenance tooling (tool registry engine/models/confi
 | `test_tool_registry_models.py` | Unit | `scripts/tool_registry_models.py` DTO validation |
 | `test_validate_tool_registry.py` | Unit | `scripts/validate_tool_registry.py` CLI + exit codes |
 | `test_check_file_line_limit.py` | Unit | `scripts/check_file_line_limit.py` incremental scope (explicit file list) |
+| `test_ci_stall_guard.py` | Unit | `scripts/ci_stall_guard.py` on real child processes: a silent command is dumped (stacks, thread states) and killed with its whole process tree, one that keeps printing (including output without a newline) is left alone, exit codes (own / 128+signal / 124 / usage 2), arguments after `--` reach the command, cancelling the guard takes the command down, guard lines end an open line without resetting the stall clock; `/proc` readers on a fake `/proc`; a real pytest process started with the suite's `tests/conftest.py` writes its stacks to the real stderr on `SIGUSR1` while a test runs under fd capture |
 | `test_boundary_engine.py` | Unit | `scripts/boundary_engine.py` core detection (git-change discovery, static/dynamic import collection, banned/priority classification, fix) |
 | `test_check_test_source_assertions.py` | Unit | `scripts/check_test_source_assertions.py` AST scanners (source-text assertion detection, non-Python and structural reads ignored, unparsable input) |
 | `test_check_module_coverage.py` | Unit | `scripts/check_module_coverage.py` floor CLI (below/at floor, unmeasured module, missing data file) |

@@ -7,11 +7,13 @@
  */
 
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TaskHudOverlay } from './TaskHudOverlay';
 import { useTaskHudStore } from '@/store/useTaskHudStore';
 import type { TaskItem } from './taskHudTypes';
+
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
 describe('TaskHudOverlay', () => {
   beforeEach(() => {
@@ -55,7 +57,7 @@ describe('TaskHudOverlay', () => {
     render(<TaskHudOverlay />);
 
     expect(screen.getByText('Implement anti-compaction engine')).toBeInTheDocument();
-    expect(screen.getByText('抗压缩')).toBeInTheDocument();
+    expect(screen.getByText('Compaction-proof')).toBeInTheDocument();
     // Overall progress: (100 + 40) / 2 = 70%
     expect(screen.getByText(/70% \(1\/2\)/)).toBeInTheDocument();
   });
@@ -69,7 +71,7 @@ describe('TaskHudOverlay', () => {
 
     expect(screen.queryByText(/Check index coverage and migration files/)).not.toBeInTheDocument();
 
-    const expandBtn = screen.getByRole('button', { name: /展开任务清单/ });
+    const expandBtn = screen.getByRole('button', { name: /Expand task list/ });
     fireEvent.click(expandBtn);
 
     expect(screen.getByText(/Check index coverage and migration files/)).toBeInTheDocument();
@@ -85,7 +87,7 @@ describe('TaskHudOverlay', () => {
     render(<TaskHudOverlay />);
 
     const toggleStep2Btn = screen.getByRole('button', {
-      name: /切换任务 Implement anti-compaction engine 状态/,
+      name: /Toggle status of task Implement anti-compaction engine/,
     });
     fireEvent.click(toggleStep2Btn);
 

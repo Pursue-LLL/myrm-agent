@@ -18,49 +18,22 @@
  * 运行：bun scripts/check-orphan-modules.mjs [--base origin/main]
  * 退出码：0 = 无孤儿；1 = 发现孤儿或自检失败；2 = --base 指定的对照无法确定
  */
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, extname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { BaseUnavailableError, introducedOrphans, materializeBase } from './orphan-modules-base.ts';
-import { findOrphanModules } from './orphan-modules-scan.ts';
-import { walkSourceFiles } from './source-files.mjs';
+import { CONSUMER_EXTENSIONS, scanProject } from './orphan-modules-project.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
-const CONSUMER_EXTENSIONS = new Set(['.ts', '.mjs', '.cjs', '.js']);
 const BASE_DIRECTORIES = ['src', 'scripts'];
 const EXIT_BASE_UNAVAILABLE = 2;
 
 function fail(message, code = 1) {
   console.error(`[orphan-gate] ${message}`);
   process.exit(code);
-}
-
-function toSourceFile(root, file) {
-  return { path: relative(root, file).split(sep).join('/'), source: readFileSync(file, 'utf8') };
-}
-
-/** `src/` 之外会引用 `src/` 模块的文件：项目根的构建配置与 `scripts/`（测试除外）。 */
-function* consumerPaths(root) {
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (entry.isFile() && CONSUMER_EXTENSIONS.has(extname(entry.name)) && !entry.name.endsWith('.d.ts')) {
-      yield join(root, entry.name);
-    }
-  }
-  yield* walkSourceFiles(join(root, 'scripts'), CONSUMER_EXTENSIONS);
-}
-
-/** 扫描 `root` 下的项目树（工作区或 merge-base 的对照树）。 */
-function scanProject(root) {
-  return findOrphanModules({
-    srcFiles: [...walkSourceFiles(join(root, 'src'), SOURCE_EXTENSIONS, { includeTests: true })].map((file) =>
-      toSourceFile(root, file),
-    ),
-    consumerFiles: [...consumerPaths(root)].map((file) => toSourceFile(root, file)),
-  });
 }
 
 /** merge-base 上的孤儿集合；取不到或扫不出模块都算对照无法确定。 */

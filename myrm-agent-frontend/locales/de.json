@@ -2373,6 +2373,7 @@
     "researchBegins": "Was möchten Sie wissen?",
     "noProviderBanner": "Kein KI-Modell konfiguriert. Bitte richten Sie einen Modellanbieter ein, um zu chatten.",
     "noProviderAction": "Konfigurieren",
+    "ollamaQuickConnect": "Ollama verwenden: {model}",
     "subscriptionQuickConnect": "Abonnement vorhanden? 1-Klick-Verbindung",
     "subscriptionModalTitle": "Offizielle Abonnements verbinden",
     "subscriptionModalDesc": "Sichere direkte Verbindung über offizielle Gerätecodes ohne API-Schlüsselkauf. Anmeldedaten werden lokal verschlüsselt gespeichert.",
@@ -2674,7 +2675,11 @@
       "copiedReasoning": "Denkprozess kopiert",
       "deltaNegative": "{tokens} Tokens gegenüber der letzten Runde (komprimiert)",
       "deltaZero": "Wie in der letzten Runde",
-      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)"
+      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)",
+      "weatherClear": "Klar (<25 %)",
+      "weatherCloudy": "Wolkig (25–75 %)",
+      "weatherWarning": "Warnung (75–90 %)",
+      "weatherCritical": "Bald komprimiert (≥90 %)"
     },
     "compactedSummary": {
       "foldLabel": "Kontext komprimiert – Archiv ansehen",
@@ -3156,60 +3161,6 @@
       "sandbox_ro": "Dateisystem ist schreibgeschützt",
       "healthy": "Umgebung gesund"
     },
-    "localModelDetected": {
-      "title": "Lokales KI-Modell erkannt",
-      "description": "Es wurde festgestellt, dass {provider} lokal läuft und {count} Modelle verfügbar sind. Beginnen Sie mit dem Chatten ohne Konfiguration.",
-      "useModel": "Verwenden Sie {model}",
-      "configureManually": "Manuell konfigurieren",
-      "detecting": "Lokale KI-Modelle erkennen...",
-      "noModels": "Keine lokalen KI-Modelle erkannt",
-      "activated": "Bereit!",
-      "activatedDesc": "{model} ist jetzt verbunden. Probieren Sie Ihre erste Aufgabe aus:",
-      "tryDemo": "Fassen Sie die heutigen Tech-News zusammen",
-      "tryDemoLabel": "Jetzt ausprobieren"
-    },
-    "localCapabilities": {
-      "detecting": "Lokale KI und Suchdienste werden erkannt...",
-      "searchTitle": "Kostenlose Websuche verfügbar",
-      "searchDescription": "Lokales SearXNG aktivieren (über LiteLLM, kein API-Schlüssel).",
-      "enableSearxng": "SearXNG aktivieren",
-      "enablingSearxng": "SearXNG wird aktiviert…",
-      "searxngDockerHint": "Suche ist optional. Starten Sie lokale kostenlose Suche über SearXNG bei Bedarf (Docker erforderlich).",
-      "startSearxngDocker": "SearXNG starten (Docker)",
-      "startingSearxng": "SearXNG wird gestartet…",
-      "startSearxngFailed": "SearXNG konnte nicht gestartet werden. Ist Docker installiert?",
-      "usePaidSearchSettings": "Stattdessen kostenpflichtigen Suchanbieter verwenden",
-      "configureSearch": "Suche konfigurieren",
-      "chipLabel": "Suche aktivieren",
-      "searchEnabled": "{service}-Suche aktiviert",
-      "searchEnableFailed": "Aktivieren der Suche fehlgeschlagen",
-      "modelActivateFailed": "Aktivieren des lokalen Modells fehlgeschlagen",
-      "customEndpointTitle": "OpenAI-kompatibler lokaler Endpunkt",
-      "customEndpointDescription": "Fügen Sie Ihren lokalen Endpunkt ein, um Modelle automatisch zu erkennen und die Einrichtung in einem Schritt abzuschließen.",
-      "customApiUrlLabel": "API URL",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API-Schlüssel (optional für lokale/LAN-Endpunkte)",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "Localhost- und Split-Stack-Endpunkte können den API-Schlüssel leer lassen.",
-      "customSplitStackHint": "LAN / Tailscale Split-Stack-Endpunkt erkannt; API-Schlüssel kann leer gelassen werden.",
-      "customNoAuthDetected": "No-Auth-Modus erkannt. Es wird kein API-Schlüssel erzwungen oder gespeichert.",
-      "customDetectModels": "Modelle erkennen",
-      "customUseModel": "Verwenden Sie {model}",
-      "customErrorApiUrlRequired": "Bitte API-URL eingeben",
-      "customErrorDetectFailed": "Erkennen der Modelle von diesem Endpunkt fehlgeschlagen",
-      "customErrorNoModels": "Endpunkt ist erreichbar, hat aber keine Modelle zurückgegeben",
-      "customErrorProbeFailed": "Sondieren des Endpunkts fehlgeschlagen",
-      "customErrorDetectFirst": "Bitte zuerst Modelle erkennen",
-      "customErrorReachabilityFailed": "Endpunkt verbunden, aber Modell-Gesundheitsprüfung fehlgeschlagen",
-      "customDetectSuccess": "Erkannte {count}-Modelle",
-      "checklistTitle": "Empfohlene Tool-Calling-Benchmarks",
-      "checklistSubtitle": "Für komplexe Aufgaben verifiziert",
-      "recommendedBadge": "Empfohlen",
-      "verifiedBadge": "Tool-Calling verifiziert: {model}",
-      "verifiedDescription": "Dieses Modell wurde auf Myrm-Kompatibilität getestet und führt Funktionsaufrufe, Dateioperationen und Websuchen zuverlässig aus.",
-      "unverifiedWarningTitle": "Hinweis zu unbestätigtem Modell: {model}",
-      "unverifiedWarningDescription": "Dieses Modell ist nicht offiziell für Tool-Calling verifiziert. Bei der Ausführung komplexer Werkzeuge können Formatierungsfehler auftreten."
-    },
     "migrationDiscovery": {
       "title": "{competitor}-Daten erkannt",
       "description": "{memoryCount} Erinnerungen und {skillCount} Fähigkeiten gefunden – vor dem Import ansehen",
@@ -3457,20 +3408,6 @@
       "stopped": "{name} gestoppt; der Teilentwurf wurde gesichert",
       "stopFailed": "Aufgabe konnte nicht gestoppt werden"
     },
-    "routeAgentDiscoverChip": {
-      "title": "Diese Aufgabe an einen Spezialisten-Agenten übergeben",
-      "guardrailBadge": "Leitplanken aktiv",
-      "subtitle": "Agenten für Code, Review, Recherche, Architektur und Sicherheitsaudit übernehmen sofort.",
-      "action": "Spezialisten ansehen",
-      "dismiss": "Schließen",
-      "specialists": {
-        "coder": "Entwickler",
-        "reviewer": "Code-Reviewer",
-        "researcher": "Rechercheur",
-        "architect": "Architekt",
-        "auditor": "Prüfer"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "Sitzungen",
       "panesCount": "Bereiche",
@@ -3509,18 +3446,6 @@
           "prompt": "Nutze eine Rollenkette: Zuerst entwirft ein Autoren-Sub-Agent den Text, dann prüft ein Faktencheck-Sub-Agent jede Aussage und Quelle, zuletzt überarbeitet ein Redaktions-Sub-Agent den Text und bereitet ihn zur Veröffentlichung vor."
         }
       }
-    },
-    "topologyPruning": {
-      "tier1Badge": "Stufe 1 · Spitzen-Reasoning",
-      "tier2Badge": "Stufe 2 · Starke Basis",
-      "tier3Badge": "Stufe 3 · Schnell und leicht",
-      "hybridFolded": "Hybrid zusammengefaltet",
-      "directFolded": "Zu direkter Ausführung zusammengefaltet",
-      "savedTurnsTokens": "spart etwa {turns} Runden und {tokens} Token",
-      "fanoutMode": "Multi-Agent-Auffächerung",
-      "strategyAuto": "Automatisch",
-      "strategyDirect": "Nur direkt",
-      "strategyMultiAgent": "Immer Multi-Agent"
     },
     "pdfScannedPages": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und wurden als Bilder gesendet",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)",
@@ -5827,7 +5752,6 @@
           "description": "Optional: Verbinden Sie einen lokalen Ordner, damit der Assistent Ihre Dateien direkt vor Ort liest und bearbeitet. Der Wiki-Import kopiert Notizen in eine separate Bibliothek – nutzen Sie dies für Ihren aktiven Vault oder synchronisierten Ordner.",
           "chooseFolder": "Ordner auswählen",
           "preparing": "Wird vorbereitet…",
-          "skip": "Überspringen Sie es vorerst",
           "linkedSuccess": "Ordner verlinkt. Ihr nächster Chat wird diesen Arbeitsbereich verwenden.",
           "defaultProjectName": "Meine Dateien",
           "candidateGeneric": "Ordner, der von Ihrem vorherigen Assistenten-Setup erkannt wurde.",
@@ -6475,7 +6399,14 @@
       "binary": "Datei",
       "spreadsheet": "Kalkulationstabelle",
       "presentation": "Präsentation",
-      "word_document": "Word-Dokument"
+      "word_document": "Word-Dokument",
+      "video": "Video",
+      "audio": "Audio",
+      "architecture": "Architekturdiagramm",
+      "canvas": "Leinwand",
+      "wechat_article": "WeChat-Artikel",
+      "prototype": "Prototyp",
+      "dashboard": "Dashboard"
     },
     "spreadsheet": {
       "search": "Suchen...",
@@ -12144,40 +12075,13 @@
       "ready": "Bereit"
     },
     "skipHint": "Klicken Sie auf oder drücken Sie ESC, um zu überspringen",
-    "backendSetupHint": "Backend läuft nicht. Führen Sie ./myrm setup im Projektstammverzeichnis aus und aktualisieren Sie es anschließend.",
     "onboarding": {
-      "migrationTitle": "Verlaufsdaten erkannt",
-      "migrationDescription": "Wir haben Ihre Daten von anderen KI-Assistenten gefunden. Nahtlos importieren?",
       "migrationCloudTitle": "Von einem anderen Assistenten importieren",
       "migrationCloudDescription": "Laden Sie ein Exportpaket hoch, um Erinnerungen und Arbeitsbereichseinstellungen in Ihre Cloud-Sandbox zu migrieren.",
       "instantStartTitle": "Sofortiges Squad-Erlebnis",
       "instantStartDescription": "Vorab mit universellem Assistenten, Dokumentenspezialisten und Programmier-Agenten ausgestattet. Sofort ohne Konfiguration starten.",
       "instantStartButton": "Sofort-Squad starten",
-      "customSetupButton": "Erweitertes Setup",
       "skipStep": "Überspringen",
-      "capabilitiesTitle": "AI Engine konfigurieren",
-      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",
-      "syncFolder": {
-        "pageTitle": "Verknüpfen Sie Ihren Notizenordner",
-        "pageDescription": "Optional: Richten Sie den Assistenten auf Obsidian, Typora oder einen beliebigen Ordner mit synchronisierten Dokumenten.",
-        "hint": "Dateien bleiben auf Ihrem Gerät. Der Assistent bearbeitet sie direkt vor Ort – kein Import in eine separate Datenbank.",
-        "chooseFolder": "Ordner auswählen",
-        "preparing": "Wird vorbereitet…",
-        "skip": "Überspringen Sie es vorerst",
-        "defaultProjectName": "Meine Dateien"
-      },
-      "noLocalModel": "Keine lokalen Modelle erkannt. Sie können einen API-Schlüssel später manuell in den Einstellungen konfigurieren.",
-      "configureLater": "Später konfigurieren",
-      "searchReady": "Bereit",
-      "enterWorkspace": "Betreten Sie den Arbeitsbereich",
-      "cloudQuickStart": "Cloud-Modelle Schnellstart",
-      "cloudQuickStartHint": "Keine lokale GPU? Nutzen Sie stattdessen Cloud-KI-Dienste",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "Kostenloser Plan verfügbar",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "China-freundlich, kostenloses Guthaben bei Registrierung",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "Kostenlose Open-Source-Modelle",
       "routing": {
         "pageTitle": "API-Kosten sparen",
         "pageDescription": "Einfache Aufgaben automatisch an leichtere Modelle weiterleiten — gleiche Qualität, niedrigere Kosten.",
@@ -12202,43 +12106,6 @@
         "skip": "Überspringen",
         "enable": "Aktivieren Sie Smart Guard"
       },
-      "telegramAssistant": {
-        "pageTitle": "Verbinden Sie den Telegram-Assistenten",
-        "pageDescription": "Richten Sie Ihren persönlichen Telegram-Assistenten in einem geführten Schritt ein.",
-        "title": "Telegram Persönlicher Assistent",
-        "description": "Verbinden Sie Ihren Bot-Token, richten Sie ein Assistentenprofil ein und beginnen Sie ohne zusätzliche Einrichtung von Ihrem Telefon aus mit dem Chatten.",
-        "safetyHint": "Beinhaltet Verbindungsvalidierung und Rollback-Schutz",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "Token anzeigen",
-        "hideToken": "Token ausblenden",
-        "tokenRequired": "Telegram Bot-Token ist erforderlich.",
-        "webhookLabel": "Webhook-URL (optional)",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "Lassen Sie das Feld leer, um den Abfragemodus zu verwenden. Verwenden Sie HTTPS, wenn Sie einen Webhook URL bereitstellen.",
-        "webhookHttpsRequired": "Webhook URL must start with https://",
-        "assistantNameLabel": "Name des Assistenten",
-        "assistantDescriptionLabel": "Beschreibung des Assistenten (optional)",
-        "assistantDescriptionPlaceholder": "z.B. Ihr Tagesplaner und Ausführungs-Copilot",
-        "defaultAssistantName": "Persönlicher Telegram-Assistent",
-        "setupButton": "Richten Sie den Telegram-Assistenten ein",
-        "retryButton": "Verbindung erneut versuchen",
-        "continueButton": "Fahren Sie vorerst fort",
-        "skipButton": "Überspringen Sie es vorerst",
-        "pendingTitle": "Telegram ist konfiguriert, die Verbindung wird noch aufgewärmt",
-        "pendingDescription": "Es kann einige Sekunden dauern, bis {botUsername} erreichbar ist. Sie können jetzt fortfahren oder die Verbindungsprüfung erneut versuchen.",
-        "pendingToast": "Konfiguration gespeichert. Die Telegram-Verbindung wird noch initialisiert.",
-        "retryingToast": "Eine weitere Einrichtungsanfrage wird beendet. Versuche es jetzt noch einmal...",
-        "inProgressFriendlyError": "Die Einrichtung ist noch im Gange. Bitte warten Sie ein paar Sekunden und versuchen Sie es erneut.",
-        "tokenRejectedError": "Telegram hat diesen Bot-Token nicht akzeptiert. Kopieren Sie den vollständigen Token erneut von @BotFather.",
-        "telegramUnreachableError": "Telegram ist von diesem Gerät aus nicht erreichbar. Prüfen Sie Ihr Netzwerk oder tragen Sie unten einen Proxy ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
-        "telegramUnreachableViaProxyError": "Telegram ist auch über den Proxy nicht erreichbar. Prüfen Sie, ob der Proxy läuft, oder tragen Sie unten eine andere Proxy-Adresse ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
-        "telegramUnreachableSandboxError": "Telegram ist derzeit nicht erreichbar. Versuchen Sie es gleich noch einmal oder überspringen Sie den Schritt.",
-        "proxyRejectedError": "Diese Proxy-Adresse kann nicht verwendet werden. Geben Sie die Adresse eines Proxys auf diesem Computer oder in Ihrem lokalen Netzwerk an, zum Beispiel socks5://127.0.0.1:1080.",
-        "setupFailed": "Der Telegram-Assistent konnte nicht eingerichtet werden.",
-        "setupFailedToast": "Die Einrichtung von Telegram ist fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten und versuchen Sie es erneut.",
-        "successToast": "Telegram-Assistent ist bereit: {agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "Verbinden Sie Ihre Alltagswerkzeuge",
         "pageDescription": "Lassen Sie Ihren Assistenten auf die Dienste zugreifen, die Sie täglich nutzen. Sie können später jederzeit in den Einstellungen weitere hinzufügen.",
@@ -12253,31 +12120,9 @@
         "continueButton": "Weitermachen",
         "skipButton": "Behalten Sie die Standardeinstellung bei"
       },
-      "deploymentTitle": "Wo läuft Ihr Assistent?",
-      "deploymentDescription": "Dieser Computer, ein Remote-Server oder Cloud-Hosting. Jederzeit in den Einstellungen änderbar.",
       "doctorTitle": "Kurzer Gesundheitscheck",
       "doctorDescription": "Wir haben die drei häufigsten Hürden der ersten Nutzung geprüft. Rote Punkte lassen sich mit einem Klick beheben oder später nachholen.",
       "doctorContinueButton": "Weiter",
-      "powerStack": {
-        "title": "Zahlen Sie bereits für andere KI-Tools?",
-        "description": "Behalten Sie sie. Nutzen Sie jedes Tool dort, wo es stark ist, den Rest orchestriert Myrm. Preise stehen auf der Preisseite.",
-        "pricingLink": "Echte Preise ansehen",
-        "columns": {
-          "external": {
-            "title": "Coding-Tools bleiben",
-            "description": "Alltägliches Coding bleibt bei Cursor, Devin oder Claude Code. Orchestrierung, Pläne und Kanäle übernimmt Myrm."
-          },
-          "orchestrator": {
-            "title": "Myrm orchestriert",
-            "description": "Ein Assistentenprofil steuert Chat, geplante Aufgaben und Kanäle mit geteiltem Gedächtnis. Kein ständiges Wiederholen des Kontexts."
-          },
-          "local": {
-            "title": "Kostenloser lokaler Slot",
-            "description": "Entwürfe und Triage laufen lokal kostenlos, nur schwere Last geht in die Cloud."
-          }
-        },
-        "setupGuideLink": "Setup-Anleitung"
-      },
       "doctor": {
         "fix": "Beheben",
         "allClear": "Alle drei Prüfungen bestanden. Es kann losgehen.",
@@ -12301,9 +12146,7 @@
             "failHint": "Das Kontingent ist leer.",
             "pendingHint": "Kontingent wird geprüft…"
           }
-        },
-        "contextRemote": "Sie haben einen Remote-Server gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen dagegen.",
-        "contextCloud": "Sie haben Cloud-Hosting gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen gegen Ihre Sandbox."
+        }
       }
     }
   },
@@ -13560,15 +13403,6 @@
     "sessionMemoryUpdatedHint": "Ihre Präferenzen wurden gespeichert und gelten für die nächsten Antworten in diesem Chat.",
     "briefLearnedInPrefix": "Gelernter Kontext wurde in das Speicherpräfix dieser Antwort aufgenommen: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturen."
   },
-  "memoryRecallDegraded": {
-    "title": "Semantischer Rückruf nicht verfügbar",
-    "description": "Die Vektorsuche ist beeinträchtigt. Bei Antworten fehlen möglicherweise verwandte Erinnerungen, bis die Einbettung wiederhergestellt ist.",
-    "actionDoctor": "Öffnen Sie Memory Doctor",
-    "actionSettings": "Speichereinstellungen",
-    "unavailable": "Der Zustand des Speicherabrufs konnte nicht überprüft werden",
-    "retry": "Wiederholen",
-    "dismiss": "Für diesen Chat ablehnen"
-  },
   "e2ee": {
     "secured": "E2EE",
     "handshakeFailed": "E2EE ist fehlgeschlagen",
@@ -13580,8 +13414,15 @@
   "MarkdownTable": {
     "switchToTable": "Wechseln Sie zur Tabellenansicht",
     "switchToCard": "Wechseln Sie zur Kartenansicht",
-    "tableView": "Tisch",
-    "cardView": "Karte"
+    "tableView": "Tabelle",
+    "cardView": "Karte",
+    "expandLightbox": "Ganze Tabelle aufklappen",
+    "expandLightboxShort": "Vollansicht",
+    "lightboxLabel": "Vollansicht der Tabelle",
+    "lightboxTitle": "Tabelle in Vollansicht",
+    "columnCount": "{count} Spalten",
+    "closePreview": "Vorschau schließen",
+    "closePreviewBackdrop": "Vorschau-Hintergrund schließen"
   },
   "messageBox": {
     "consensusActive": "Warten auf die restlichen Modelle…",
@@ -14532,37 +14373,6 @@
     "collapseStep": "Schritt einklappen",
     "expandStep": "Schritt ausklappen"
   },
-  "quadGraph": {
-    "closeDrawer": "Knotendetails schließen",
-    "completedCount": "{count} abgeschlossen",
-    "dependenciesCount": "Abhängigkeiten",
-    "drawerAriaLabel": "Knoten-Inspektionsbereich",
-    "duration": "Dauer",
-    "edgesCount": "{count} Kanten",
-    "inputSnapshot": "Eingabe-Snapshot",
-    "layerType": "Ebene",
-    "liveSteerCockpit": "Live-Steuerung",
-    "noInputSnapshot": "Keine Eingabe aufgezeichnet",
-    "noNodesInLayer": "Keine Knoten in dieser Ebene",
-    "noOutputSnapshot": "Keine Ausgabe aufgezeichnet",
-    "nodesCount": "{count} Knoten",
-    "outputReceipt": "Ausgabebeleg",
-    "pauseNode": "Knoten pausieren",
-    "resetZoom": "Zoom zurücksetzen",
-    "resumeNode": "Knoten fortsetzen",
-    "retryNode": "Knoten wiederholen",
-    "role": "Rolle",
-    "runningCount": "{count} laufend",
-    "steerPlaceholder": "Steuerungsanweisung an diesen Knoten senden",
-    "submitSteer": "Steuerungsanweisung senden",
-    "viewportSwitcherAria": "Graph-Ansicht wechseln",
-    "zoomIn": "Vergrößern",
-    "zoomOut": "Verkleinern",
-    "layerTask": "Aufgabengraph",
-    "layerWorkflow": "Workflow-Graph",
-    "layerTeam": "Teamgraph",
-    "layerCommunication": "Kommunikationsgraph"
-  },
   "externalLinkConfirm": {
     "title": "Diesen Link im Browser öffnen?",
     "descriptionNamed": "{source} möchte die folgende Adresse im Browser öffnen. Fahren Sie nur fort, wenn Sie der Quelle vertrauen.",
@@ -14785,33 +14595,6 @@
     "close": "Fertig",
     "emptyCluster": "Noch keine selbst gehosteten Maschinen verbunden. Klicken Sie oben auf die Schaltfläche, um Ihre erste Maschine einzubinden"
   },
-  "memoryRecall": {
-    "drawerTitle": "Simulator für Speicher- & Erfahrungsabruf",
-    "drawerSubtitle": "Benchmarking des EvoX-Abruftests und Governance-Centers: prüft Mehrkanal-Kandidatentreffer und direkte Zweitgovernance",
-    "queryInputPlaceholder": "Test-Prompt oder Aufgabenbefehl eingeben (z. B. Linux-Kernel-Deadlock debuggen, React-Rerenders optimieren)...",
-    "simulateBtn": "Abruf simulieren",
-    "simulatingBtn": "Suche läuft...",
-    "totalMatched": "Treffer",
-    "latency": "Latenz",
-    "rrfScore": "RRF-Wert",
-    "bm25Score": "BM25 lexikalisch",
-    "vectorSim": "Vektor-Semantik",
-    "causalAffinity": "Kausal-Gen",
-    "confidenceWeight": "Konfidenzgewicht",
-    "mustAvoidTrap": "Unbedingt zu vermeidende Falle",
-    "normalGene": "Positive Erfahrung",
-    "statusActive": "Aktiv",
-    "statusDisabled": "Deaktiviert",
-    "statusLocked": "Gesperrt",
-    "lockBtn": "Sperren",
-    "unlockBtn": "Entsperren",
-    "disableBtn": "Deaktivieren",
-    "enableBtn": "Aktivieren",
-    "mergeDuplicateBtn": "Duplikat zusammenführen",
-    "mergePrompt": "Ziel-Speicher-ID zum Zusammenführen eingeben",
-    "emptyResults": "Keine passenden Speichereinträge oder Erfahrungs-Gene gefunden. Bitte versuchen Sie eine andere Abfrage.",
-    "close": "Schließen"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Sprachaufnahme prüfen",
@@ -15017,7 +14800,19 @@
       "setupGuideTitle": "Schnellstart (Desktop-App)",
       "setupGuideStep1": "Oben Eingabesteuerung und Bildschirmaufnahme erlauben, dann „Mit Bildschirmaufnahme prüfen“.",
       "screenLockGuardLocked": "Gesperrt",
-      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen."
+      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen.",
+      "lockedUseDoctorBadgeLoading": "Prüfe…",
+      "lockedUseDoctorUnavailable": "Unbekannt",
+      "lockedUseDoctorWarn": "Achtung",
+      "lockedUseDoctorFail": "Blockiert",
+      "lockedUseDoctorBadgeNotMac": "macOS-Desktop-App",
+      "lockedUseDoctorBadgeAwayOn": "Abwesenheitsmodus an",
+      "lockedUseDoctorBadgeBridgeReady": "Shell verbunden",
+      "lockedUseDoctorDetailNotMac": "Abwesenheitsmodus und Privatsphäre-Vorhang erfordern die Myrm-Desktop-App unter macOS.",
+      "lockedUseDoctorDetailAwayOff": "Desktop-Shell ist bereit. Aktivieren Sie oben Locked Use für unbeaufsichtigte Läufe — der Agent entsperrt hinter dem Vorhang.",
+      "lockedUseDoctorDetailBridgeMissing": "Starten Sie die Myrm-Desktop-App auf diesem Mac, damit der Abwesenheitsmodus mit der Shell koordinieren kann.",
+      "lockedUseDoctorDetailShellUnavailable": "Starten Sie die Myrm-Desktop-App neu und prüfen Sie Abwesenheitsmodus und Vorhang in den Einstellungen.",
+      "lockedUseDoctorDetailGeneric": "Abwesenheitsmodus oder Vorhang ist nicht bereit. Öffnen Sie die Systemeinstellungen oder starten Sie die Desktop-App neu."
     },
     "rate_limits": {
       "title": "Rate-Limit-Überwachung",
@@ -16356,7 +16151,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "Interner Sub-Agent",
-        "invoke_external_agent": "Externer CLI-Agent"
+        "invoke_external_agent": "Externer CLI-Agent",
+        "web_search_tool": "Suchmaschine",
+        "net_fetch": "Webseite lesen",
+        "shell_exec": "Laufende Prozesse",
+        "file_read": "Dateien lesen",
+        "file_write": "Dateien schreiben",
+        "mcp_invoke": "Externe Tools",
+        "code_interpreter": "Befehle & Code",
+        "browser_navigate": "Browser-Navigation",
+        "browser_fill": "Browser-Ausfüllformular",
+        "browser_upload": "Browser-Upload",
+        "browser_download": "Browser-Download",
+        "browser_session": "Browsersitzung",
+        "knowledge_read": "Wissensbasis lesen",
+        "knowledge_write": "Wissensbasis schreiben"
       },
       "leastPrivilege": {
         "antiPatternTitle": "Warum „Vollzugriff“ abgelehnt wird",
@@ -22674,5 +22483,26 @@
     "pinTooltip": "An das Dashboard des Arbeitsbereichs anheften",
     "pinned": "Angeheftet",
     "pin": "Anheften"
+  },
+  "taskHud": {
+    "panelLabel": "Aufgabenfortschritt-Panel, das die Kontextkomprimierung übersteht",
+    "allDone": "Alle Aufgaben abgeschlossen",
+    "badge": "Kompaktierungsfest",
+    "collapseAria": "Aufgabenliste einklappen",
+    "collapse": "Liste einklappen",
+    "expand": "Aufgabenliste ausklappen",
+    "toggleTask": "Status der Aufgabe {title} umschalten"
+  },
+  "stagedArtifacts": {
+    "summary": "{count, plural, one {# nicht gespeicherter Artefakt-Entwurf wurde} other {# nicht gespeicherte Artefakt-Entwürfe wurden}} automatisch im Workspace abgelegt",
+    "lineCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
+    "footnote": "Diese Dateien sind in der Sandbox gesichert. Sie können sie jederzeit im Dateibaum links ansehen oder umbenennen und übernehmen."
+  },
+  "leaseCapsule": {
+    "quota": "Auto-Freigabe-Kontingent: {used}/{max} Schritte",
+    "extend": "+{steps} Schritte verlängern",
+    "limitReached": "Limit erreicht",
+    "pauseTitle": "Auto-Freigabe-Hülle sofort pausieren",
+    "pause": "Pausieren"
   }
 }

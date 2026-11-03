@@ -117,9 +117,10 @@ def test_probe_embedding_provider_ready() -> None:
     assert check.repair_actions == []
 
 
-def test_probe_embedding_provider_critical() -> None:
-    check = probe_embedding_provider(_runtime(embedding_status="unavailable"))
-    assert check.status == "critical"
+def test_probe_embedding_provider_missing_in_keyword_mode() -> None:
+    check = probe_embedding_provider(_runtime(embedding_status="unavailable", retrieval_mode="keyword"))
+    assert check.status == "missing"
+    assert "keyword mode" in check.evidence
     assert check.repair_actions == ["configure_embedding"]
 
 

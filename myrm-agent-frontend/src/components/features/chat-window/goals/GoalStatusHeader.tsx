@@ -1,9 +1,9 @@
 'use client';
 
+import { useId } from 'react';
 import type { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
-import { activateOnKey } from '@/lib/utils/a11y';
 import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon } from './goal-icons';
 import type { GoalAction, GoalState, GoalStatus } from './goalStatusTypes';
 import { formatEta } from './goalStatusUtils';
@@ -43,21 +43,22 @@ export function GoalStatusHeader({
   const statusIcon = getStatusIcon(goal);
   const statusText = getStatusText(goal, t);
   const isActionPending = pendingAction !== null;
+  const summaryId = useId();
 
   return (
-    <div
-      data-testid="goal-status-header"
-      className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
-      onClick={onToggleExpand}
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
-      role="button"
-      tabIndex={0}
-      onKeyDown={activateOnKey}
-    >
+    <div className="relative p-3 flex items-center justify-between hover:bg-muted/50">
+      {/* The toggle covers the row; the action buttons sit above it, so no button is nested in another. */}
+      <button
+        type="button"
+        data-testid="goal-status-header"
+        aria-labelledby={summaryId}
+        onClick={onToggleExpand}
+        className="absolute inset-0 cursor-pointer"
+      />
       <div className="flex items-center gap-3 overflow-hidden">
         <div className="flex-shrink-0">{statusIcon}</div>
         <div className="flex flex-col overflow-hidden">
-          <span className="text-sm font-medium truncate flex items-center gap-2">
+          <span id={summaryId} className="text-sm font-medium truncate flex items-center gap-2">
             <GoalIcon className="h-3 w-3 text-muted-foreground" />
             {goal.uiSummary || (goal.objective.length > 120 ? goal.objective.slice(0, 120) + '...' : goal.objective)}
             {gitBranch && <GitBranchBadge branch={gitBranch} />}
@@ -133,7 +134,7 @@ export function GoalStatusHeader({
 
       <div
         role="presentation"
-        className="flex items-center gap-2"
+        className="relative flex items-center gap-2"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >

@@ -552,6 +552,16 @@ describe('useMemoryStore - pending memory operations', () => {
       expect(state.pendingError).toBe('Fetch failed');
       expect(state.pendingLoading).toBe(false);
     });
+
+    it('fetchPendingMemories asks the API client not to raise the global error toast', async () => {
+      mockGetPendingMemories.mockResolvedValueOnce({ items: [], total: 0 });
+
+      await act(async () => {
+        await useMemoryStore.getState().fetchPendingMemories(true);
+      });
+
+      expect(mockGetPendingMemories).toHaveBeenCalledWith({ silent: true });
+    });
   });
 
   // ==================== 边界条件 ====================
