@@ -7,7 +7,7 @@
 - SKILL_SCRIPTS, SCRIPT: the script directory and the script
 - Session, serve_sessions: serve one scripted session per client on a loopback port
 - run_email_script: run the script, or a copy of it such as the one the seed sync writes, in a child process with only the
-  variables a skill run injects
+  variables a skill run injects (and the ones the skill's settings add)
 
 [POS]
 Server pytest-only helper shared by the certificate tests and the command tests of the skill script. The script runs
@@ -22,7 +22,7 @@ import ssl
 import subprocess
 import sys
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -65,9 +65,19 @@ def serve_sessions(session: Session, context: ssl.SSLContext) -> Iterator[int]:
 
 
 def run_email_script(
-    tmp_path: Path, args: list[str], *, port: int, protocol: str = "imap", trust: Path | None = None, script: Path = SCRIPT
+    tmp_path: Path,
+    args: list[str],
+    *,
+    port: int,
+    protocol: str = "imap",
+    trust: Path | None = None,
+    script: Path = SCRIPT,
+    extra_env: Mapping[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run *script* (the source tree's by default, or another copy of it) from another directory with a minimal environment, as a skill run does."""
+    """Run *script* (the source tree's by default, or another copy of it) from another directory with a minimal environment, as a skill run does.
+
+    *extra_env* is what the skill's settings add on top, and wins over the defaults.
+    """
     env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
     env |= {
         "HOME": str(tmp_path),
@@ -80,6 +90,7 @@ def run_email_script(
         env["EMAIL_SMTP_HOST"] = "127.0.0.1"
     if trust is not None:
         env["SSL_CERT_FILE"] = str(trust)
+    env |= extra_env or {}
     return subprocess.run(
         [sys.executable, str(script), *args], cwd=tmp_path, env=env, capture_output=True, text=True, timeout=60, check=False
     )
