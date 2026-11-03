@@ -63,6 +63,26 @@ class TestRequest:
         assert _sent_messages(body) == [{"role": "user", "content": "hi"}]
         assert "input_audio" in caplog.text
 
+    @pytest.mark.parametrize(
+        ("part", "named"),
+        [
+            ({"type": "input_text", "text": "x"}, "input_text"),
+            ({"type": "output_text", "text": "x"}, "output_text"),
+            ({"text": "x"}, "None"),
+        ],
+        ids=["input_text", "output_text", "untyped"],
+    )
+    def test_only_a_part_typed_text_carries_text_so_any_other_one_is_dropped_loudly(
+        self, part: Message, named: str, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The old stack read the `text` key of any part on this wire; Anthropic and Gemini never did, so a request
+        # built for one provider must not silently mean something else on another.
+        with caplog.at_level(logging.WARNING):
+            body = _body([{"role": "user", "content": [{"type": "text", "text": "hi"}, part]}])
+
+        assert _sent_messages(body) == [{"role": "user", "content": "hi"}]
+        assert f"unsupported type {named}" in caplog.text.replace("'", "")
+
     def test_a_tool_result_whose_call_is_unknown_is_sent_without_a_tool_name(self) -> None:
         body = _body([{"role": "user", "content": "x"}, {"role": "tool", "tool_call_id": "nope", "content": "42"}])
 
