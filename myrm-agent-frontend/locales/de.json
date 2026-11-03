@@ -2496,7 +2496,7 @@
       "modeChatDesc": "Allgemeine KI-Konversation und schnelle Antworten ohne Arbeitsbereich",
       "bindWorkspace": "Arbeitsbereich auswählen",
       "currentWorkspace": "Aktueller Arbeitsbereich",
-      "noWorkspaceSelected": "Kein Verzeichnis gewählt (Klicken zum Binden)",
+      "noWorkspaceSelected": "Kein Ordner gewählt (Klicken zum Binden)",
       "scaffoldBtn": "Standardordner initialisieren",
       "scaffoldTooltip": "Erstellt Standardordner: {folders}",
       "scaffoldSuccess": "Standard-Ordnerstruktur initialisiert",
