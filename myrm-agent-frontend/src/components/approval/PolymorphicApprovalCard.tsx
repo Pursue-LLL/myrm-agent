@@ -640,7 +640,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   );
                 }
 
-                // save_skill / skill_manage save — bundle preview (OW SaveSkillPreview parity)
+                // save_skill / skill_manage save — bundle preview
                 if (
                   typeof call.args === 'object' &&
                   call.args !== null &&

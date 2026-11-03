@@ -131,7 +131,7 @@ describe('EvolutionRejectionDashboard force retry', () => {
     await renderAndForceRetry();
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalledTimes(1));
-    expect(mockToastError).toHaveBeenCalledWith('重试失败 / Retry failed');
+    expect(mockToastError).toHaveBeenCalledWith(en.settingsTabs.evolutionRejection.forceRetryFailed);
     expect(screen.getByText(en.settingsTabs.evolutionRejection.status.BLOCKED_LOCKED)).toBeInTheDocument();
   });
 

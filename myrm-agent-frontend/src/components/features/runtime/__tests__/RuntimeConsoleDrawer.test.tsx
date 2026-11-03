@@ -8,7 +8,7 @@ import { RuntimeConsoleDrawer } from '../RuntimeConsoleDrawer';
 const stableT = (key: string) => {
   const table: Record<string, string> = {
     title: '运行时控制台与多端状态投影中枢',
-    mateclawParity: '对标 MateClaw 纯函数式投影架构 · View = Project(RunState, Events)',
+    liveStateSummary: '实时呈现运行状态与事件',
     'attemptInspector.title': 'Attempt 状态机变迁与吞吐水位线',
     'deliverablesSection.title': '产出工件与事实矩阵',
     'auditSection.title': '合规安全与权限决策流水',
@@ -35,15 +35,14 @@ describe('RuntimeConsoleDrawer', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders drawer header, MateClaw parity badge, and telemetry watermark', async () => {
+  it('renders drawer header, live state summary, and telemetry watermark', async () => {
     render(<RuntimeConsoleDrawer runId="run_mateclaw_demo_001" isOpen={true} onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText('Enterprise Microservice State Projection Refactor')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('MateClaw Parity')).toBeInTheDocument();
-    expect(screen.getByText(/对标 MateClaw 纯函数式投影架构/i)).toBeInTheDocument();
+    expect(screen.getByText('实时呈现运行状态与事件')).toBeInTheDocument();
     expect(screen.getByText(/5970/i)).toBeInTheDocument();
     expect(screen.getByText(/平均生成速率/i)).toBeInTheDocument();
   });

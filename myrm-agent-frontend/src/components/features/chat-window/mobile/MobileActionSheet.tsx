@@ -261,7 +261,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
                   onClick={handleBack}
                 >
                   <ChevronLeft size={16} />
-                  <span>{t('back', { defaultMessage: 'Back' })}</span>
+                  <span>{t('back')}</span>
                 </button>
                 <span className="flex-1 text-center text-sm font-semibold pr-12">{activeSub.title}</span>
               </div>
@@ -269,7 +269,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
               <div className="flex-1 min-h-0 overflow-y-auto py-1">
                 {activeSub.options.length === 0 ? (
                   <div className="py-6 text-center text-sm text-muted-foreground">
-                    {activeSub.emptyText ?? t('noOptions', { defaultMessage: 'No options available' })}
+                    {activeSub.emptyText ?? t('noOptions')}
                   </div>
                 ) : (
                   activeSub.options.map((option) => {

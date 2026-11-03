@@ -1455,7 +1455,11 @@
         "userName": "User name"
       },
       "modelOverride": "Model override",
-      "subagentCostSaving": "Subagent cost saving"
+      "subagentCostSaving": "Subagent cost saving",
+      "subagentModelInherit": "Follow main agent (default)",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash (recommended, lowest cost)",
+      "subagentModelGpt4oMini": "GPT-4o Mini (fast review)",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku (high-throughput audit)"
     },
     "preview": "Preview",
     "avatarColor": "Avatar Color",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "Export Redacted (Safe)",
         "export": "Export"
       }
-    }
+    },
+    "cloneCopySuffix": "Copy"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "Must be a JSON object",
-      "invalidJson": "Invalid JSON format"
+      "invalidJson": "Invalid JSON format",
+      "cannotFormat": "Unable to format JSON",
+      "invalidJsonCannotFormat": "Invalid JSON format; cannot format"
     },
     "schemaForm": {
       "resetDefaults": "Reset to Defaults",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "No agent-specific profile data yet.",
     "rankedHubSidebarLabel": "Ranked hub sidebar",
     "shareRulesTitle": "Share rules (privacy-safe)",
-    "shareRulesTooltip": "Share rules with privacy protection"
+    "shareRulesTooltip": "Share rules with privacy protection",
+    "dualLayer": {
+      "title": "User profile and agent notes (dual-layer memory)",
+      "description": "Two explicit layers with capacity gauges: USER up to {userMax, number} characters (long-term preferences), MEMORY up to {memoryMax, number} characters (domain notes)",
+      "refresh": "Refresh",
+      "save": "Save memory",
+      "budget": "≤ {max, number} characters",
+      "capacity": "Capacity: {current, number} / {max, number} characters ({percent}%)",
+      "level": {
+        "safe": "Normal",
+        "warning": "Warning",
+        "critical": "Critical",
+        "overflow": "Over limit"
+      },
+      "userProfile": {
+        "title": "User profile",
+        "hint": "Shared across agents: native language, coding habits, formatting, hard prohibitions and communication preferences.",
+        "placeholder": "e.g. Native language is Chinese; follow Python PEP8; never use the Any type; keep delivered files under 400 lines..."
+      },
+      "agentNotes": {
+        "title": "Agent notes",
+        "hint": "Specific to this agent: architecture rules, frequent terminology, boundaries and troubleshooting tips.",
+        "placeholder": "e.g. This project follows Clean Architecture; the harness layer must never depend on the server layer..."
+      },
+      "intakeProbe": {
+        "title": "Short-term noise intake tester",
+        "placeholder": "Enter a candidate memory (e.g. 'Phase 2 completed', 'PR #882', 'Traceback...' or 'prefers PEP8')",
+        "check": "Check intake",
+        "accepted": "Accepted: routed to the {layer} layer",
+        "rejected": "Rejected: classified as short-term transient noise [{category}]",
+        "longTerm": "LONG-TERM"
+      },
+      "intakeCheckFailed": "Network or server error; the intake check failed.",
+      "feedback": {
+        "loadFailed": "Failed to load the dual-layer memory. Check your network or the backend status.",
+        "saved": "Dual-layer memory saved.",
+        "saveFailed": "Failed to save the dual-layer memory. The capacity may be exceeded or the content is not allowed."
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6490,7 +6535,8 @@
       "quoteRow": "Quote row {row}",
       "quoteRowTooltip": "Quote selected row to composer for targeted inquiry or partial edit",
       "rowScopeLabel": "Row {row}",
-      "clearSelection": "Clear selection"
+      "clearSelection": "Clear selection",
+      "artifactFallbackName": "Spreadsheet artifact"
     },
     "saving": "Saving...",
     "saved": "Saved",
@@ -6756,7 +6802,10 @@
       "quote": "Quote to Composer",
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
-      "queued": "Action queued, will execute when current task completes"
+      "queued": "Action queued, will execute when current task completes",
+      "artifactFallbackName": "Code artifact",
+      "selectedCode": "Selected code",
+      "selectionLines": "Selection ({count, plural, one {# line} other {# lines}})"
     },
     "documentSelection": {
       "modify": "AI Modify",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "Describe what to change...",
       "annotate": "Comment",
       "annotatePlaceholder": "Describe the issue for review...",
-      "toolbarLabel": "Selection toolbar"
+      "toolbarLabel": "Selection toolbar",
+      "artifactFallbackName": "Document artifact",
+      "selectedParagraph": "Selected paragraph"
     },
     "skillActions": {
       "moreActions": "More Actions",
@@ -10861,7 +10912,12 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "applyFailed": "Apply Failed"
-      }
+      },
+      "forceRetryStarted": "Forced retry started",
+      "forceRetryFailed": "Forced retry failed",
+      "loadFailed": "Failed to load the evolution rejection audit logs",
+      "loadStatsFailed": "Failed to load the evolution rejection statistics",
+      "retrying": "Retrying…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "Deadline",
       "care_check_in": "Care",
       "open_loop": "Follow-up"
+    },
+    "dueWindow": {
+      "overdueHours": "Overdue {count, plural, one {# hour} other {# hours}}",
+      "overdueDays": "Overdue {count, plural, one {# day} other {# days}}",
+      "underOneHour": "Under 1 hour",
+      "inHours": "In {count, plural, one {# hour} other {# hours}}",
+      "inDays": "In {count, plural, one {# day} other {# days}}",
+      "overdueUnderOneHour": "Overdue under 1 hour"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot Mode Multi-Agent Group Chat Workspace",
-    "hermesParity": "Bot mode and peer-to-peer messaging",
+    "botModeSummary": "Bot mode and peer-to-peer messaging",
     "roomsTitle": "Collaboration Channels",
     "createRoom": "Create New Room",
     "roomNamePlaceholder": "Room name (e.g. Architecture War Room)",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "Runtime Console & Multi-Surface Projection Hub",
-    "mateclawParity": "Live view of run state and events",
+    "liveStateSummary": "Live view of run state and events",
     "surfaces": {
       "chat": "Chat View",
       "runtimeConsole": "Runtime Console",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "Edit",
-        "preview": "Preview"
+        "preview": "Preview",
+        "snippets": {
+          "bold": "bold text",
+          "italic": "italic text",
+          "heading": "Heading",
+          "code": "code",
+          "quote": "Quoted text",
+          "bullet": "List item",
+          "todo": "To-do",
+          "wikilink": "Page name",
+          "tableHeader": "Header {index}",
+          "tableCell": "Content {index}"
+        }
       },
       "concepts": {
         "discard": "Discard",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "Cached tokens",
       "cacheRadarFreshInput": "Fresh input",
       "cacheRadarTotalPrompt": "Total prompt tokens",
-      "dailyToolCallsTooltip": "{date}: {count} tool calls"
+      "dailyToolCallsTooltip": "{date}: {count} tool calls",
+      "weekdayToolCallsTooltip": "{day}: {count, plural, one {# tool call} other {# tool calls}}",
+      "daysCount": "{count, plural, one {# day} other {# days}}"
     },
     "workingState": {
       "title": "Working State",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "Recent window",
       "digestWindow": "Digest window: {range}",
       "digestRuns": "Runs",
-      "digestManualRuns": "Manual runs"
+      "digestManualRuns": "Manual runs",
+      "dimension": {
+        "freshness": "Freshness",
+        "coverage": "Coverage",
+        "retention_health": "Retention health",
+        "coherence": "Coherence"
+      }
     },
     "memoryBackup": {
       "title": "Memory Backup",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "Experience wizard",
         "pluginStateTitle": "Plugin extension state",
         "protectedSpan": "Protected span",
-        "retryAttempt": "Attempt: {attempt} (provider backoff / retried)"
+        "retryAttempt": "Attempt: {attempt} (provider backoff / retried)",
+        "toolSpanLabel": "Tool"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",
@@ -22863,7 +22948,11 @@
     "noChanges": "No changes"
   },
   "riskGate": {
-    "regionLabel": "Tiered risk confirmation"
+    "regionLabel": "Tiered risk confirmation",
+    "dryRunImpact": "Simulated execution of {tool} with dry_run=true",
+    "dryRunDefaultTarget": "target_entity",
+    "dryRunParamsVerified": "Parameter verification passed ({count, plural, one {# field} other {# fields}})",
+    "dryRunNoPersistentChanges": "No persistent changes applied to filesystem or database"
   },
   "commerceReceipt": {
     "statusCommitted": "Paid & Verified",

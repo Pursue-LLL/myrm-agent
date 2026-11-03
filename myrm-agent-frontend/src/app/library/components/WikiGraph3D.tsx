@@ -358,9 +358,7 @@ export default function WikiGraph3D({
                 onKeyDown={activateOnKey}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    {t('graph.legend', { defaultMessage: 'Node Types' })}
-                  </span>
+                  <span className="text-xs font-semibold text-foreground">{t('graph.legend')}</span>
                   <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
                     {activeGroups.size === 0 ? uniqueGroups.length : activeGroups.size} / {uniqueGroups.length}
                   </span>
@@ -382,9 +380,7 @@ export default function WikiGraph3D({
                     onKeyDown={activateOnKey}
                   >
                     <span>
-                      {activeGroups.size === uniqueGroups.length
-                        ? t('graph.selectAll', { defaultMessage: 'Select All' })
-                        : t('graph.deselectAll', { defaultMessage: 'Toggle All' })}
+                      {activeGroups.size === uniqueGroups.length ? t('graph.selectAll') : t('graph.deselectAll')}
                     </span>
                     {activeGroups.size === 0 ? <Eye size={12} /> : <EyeOff size={12} />}
                   </div>

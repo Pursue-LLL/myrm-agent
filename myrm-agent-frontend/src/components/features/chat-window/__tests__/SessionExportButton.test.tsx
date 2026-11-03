@@ -5,8 +5,6 @@ import SessionExportButton from '../SessionExportButton';
 
 const modalPropsSpy = vi.fn();
 
-const stableT = (key: string, values?: { defaultMessage?: string }): string => values?.defaultMessage ?? key;
-
 vi.mock('../SessionExportModal', () => ({
   SessionExportModal: (props: unknown) => {
     modalPropsSpy(props);
@@ -14,9 +12,7 @@ vi.mock('../SessionExportModal', () => ({
   },
 }));
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
 
 vi.mock('@/store/useChatStore', () => ({
   default: () => 'Store Chat Title',

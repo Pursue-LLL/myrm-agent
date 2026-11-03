@@ -114,12 +114,10 @@ export function CredentialsDialogs({
             setDeleteTarget(null);
           }
         }}
-        title={t('deleteConfirmTitle', { defaultValue: 'Delete Credential' })}
-        description={t('deleteConfirmDesc', {
-          defaultValue: `Are you sure you want to delete "${deleteTarget}"? This action cannot be undone.`,
-        })}
-        confirmText={t('deleteConfirmBtn', { defaultValue: 'Delete' })}
-        cancelText={t('deleteCancel', { defaultValue: 'Cancel' })}
+        title={t('deleteConfirmTitle')}
+        description={t('deleteConfirmDesc')}
+        confirmText={t('deleteConfirmBtn')}
+        cancelText={t('deleteCancel')}
         variant="destructive"
         onConfirm={handleDeleteConfirm}
       />
@@ -133,8 +131,8 @@ export function CredentialsDialogs({
         }}
         title={t('vaultDeleteTitle')}
         description={t('vaultDeleteDesc', { label: deleteVaultTarget ?? '' })}
-        confirmText={t('deleteConfirmBtn', { defaultValue: 'Delete' })}
-        cancelText={t('deleteCancel', { defaultValue: 'Cancel' })}
+        confirmText={t('deleteConfirmBtn')}
+        cancelText={t('deleteCancel')}
         variant="destructive"
         onConfirm={handleDeleteVaultConfirm}
       />
@@ -217,7 +215,7 @@ export function CredentialsDialogs({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setVaultModalOpen(false)}>
-                {t('deleteCancel', { defaultValue: 'Cancel' })}
+                {t('deleteCancel')}
               </Button>
               <Button onClick={() => void handleSaveVaultCredential()}>{t('vaultSave')}</Button>
             </DialogFooter>

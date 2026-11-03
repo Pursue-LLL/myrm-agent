@@ -134,12 +134,12 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
       try {
         await resolveConflict(id, resolution, mergedContent);
         toast({
-          title: t('conflict.resolveSuccess', { defaultMessage: '冲突已解决' }),
-          description: t('conflict.resolveSuccessDesc', { defaultMessage: '记忆冲突已成功处理' }),
+          title: t('conflict.resolveSuccess'),
+          description: t('conflict.resolveSuccessDesc'),
         });
       } catch (error) {
         toast({
-          title: t('conflict.resolveFailed', { defaultMessage: '解决失败' }),
+          title: t('conflict.resolveFailed'),
           description: error instanceof Error ? error.message : t('unknownError'),
           variant: 'destructive',
         });
@@ -174,11 +174,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
 
   const conflictsRefreshFailed = conflictsError ? (
     <div className="mb-4 flex flex-col items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-center">
-      <p className="text-sm text-destructive">
-        {t('conflict.fetchRefreshFailed', {
-          defaultMessage: 'Could not refresh conflict status. Check your connection and try again.',
-        })}
-      </p>
+      <p className="text-sm text-destructive">{t('conflict.fetchRefreshFailed')}</p>
       <button
         type="button"
         onClick={() => void fetchConflicts()}

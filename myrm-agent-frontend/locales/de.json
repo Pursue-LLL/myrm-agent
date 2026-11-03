@@ -1455,7 +1455,11 @@
         "userName": "Benutzername"
       },
       "modelOverride": "Modellüberschreibung",
-      "subagentCostSaving": "Kostensenkung für Subagenten"
+      "subagentCostSaving": "Kostensenkung für Subagenten",
+      "subagentModelInherit": "Wie Hauptagent (Standard)",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash (empfohlen, niedrigste Kosten)",
+      "subagentModelGpt4oMini": "GPT-4o Mini (schnelle Prüfung)",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku (Audit mit hohem Durchsatz)"
     },
     "preview": "Vorschau",
     "avatarColor": "Avatar-Farbe",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "Geschwärzt exportieren (sicher)",
         "export": "Exportieren"
       }
-    }
+    },
+    "cloneCopySuffix": "Kopie"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "Muss ein JSON-Objekt sein",
-      "invalidJson": "Ungültiges JSON-Format"
+      "invalidJson": "Ungültiges JSON-Format",
+      "cannotFormat": "JSON kann nicht formatiert werden",
+      "invalidJsonCannotFormat": "Ungültiges JSON-Format; Formatieren nicht möglich"
     },
     "schemaForm": {
       "resetDefaults": "Auf Standardeinstellungen zurücksetzen",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten.",
     "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste",
     "shareRulesTitle": "Regeln teilen (datenschutzsicher)",
-    "shareRulesTooltip": "Regeln unter Wahrung der Privatsphäre teilen"
+    "shareRulesTooltip": "Regeln unter Wahrung der Privatsphäre teilen",
+    "dualLayer": {
+      "title": "Benutzerprofil und Agent-Notizen (zweischichtiger Speicher)",
+      "description": "Zwei explizite Ebenen mit Kapazitätsanzeige: USER bis zu {userMax, number} Zeichen (langfristige Präferenzen), MEMORY bis zu {memoryMax, number} Zeichen (Fachnotizen)",
+      "refresh": "Aktualisieren",
+      "save": "Speicher sichern",
+      "budget": "≤ {max, number} Zeichen",
+      "capacity": "Auslastung: {current, number} / {max, number} Zeichen ({percent} %)",
+      "level": {
+        "safe": "Normal",
+        "warning": "Warnung",
+        "critical": "Kritisch",
+        "overflow": "Limit überschritten"
+      },
+      "userProfile": {
+        "title": "Benutzerprofil",
+        "hint": "Agentenübergreifend: Muttersprache, Programmiergewohnheiten, Formatierung, harte Tabus und Kommunikationspräferenzen.",
+        "placeholder": "z. B. Muttersprache ist Chinesisch; Python PEP8 befolgen; den Typ Any nie verwenden; gelieferte Dateien unter 400 Zeilen halten..."
+      },
+      "agentNotes": {
+        "title": "Agent-Notizen",
+        "hint": "Nur für diesen Agenten: Architekturregeln, häufige Fachbegriffe, Grenzen und Tipps zur Fehlersuche.",
+        "placeholder": "z. B. Dieses Projekt folgt Clean Architecture; die Harness-Schicht darf nie von der Server-Schicht abhängen..."
+      },
+      "intakeProbe": {
+        "title": "Test für die Aufnahme kurzlebigen Rauschens",
+        "placeholder": "Kandidaten-Erinnerung eingeben (z. B. 'Phase 2 completed', 'PR #882', 'Traceback...' oder 'bevorzugt PEP8')",
+        "check": "Aufnahme prüfen",
+        "accepted": "Aufgenommen: an die Ebene {layer} weitergeleitet",
+        "rejected": "Abgelehnt: als kurzlebiges, flüchtiges Rauschen eingestuft [{category}]",
+        "longTerm": "LANGFRISTIG"
+      },
+      "intakeCheckFailed": "Netzwerk- oder Serverfehler; die Aufnahmeprüfung ist fehlgeschlagen.",
+      "feedback": {
+        "loadFailed": "Der zweischichtige Speicher konnte nicht geladen werden. Prüfe das Netzwerk oder den Backend-Status.",
+        "saved": "Zweischichtiger Speicher gespeichert.",
+        "saveFailed": "Der zweischichtige Speicher konnte nicht gespeichert werden. Möglicherweise ist die Kapazität überschritten oder der Inhalt nicht zulässig."
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6490,7 +6535,8 @@
       "quoteRow": "Zeile {row} zitieren",
       "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten",
       "rowScopeLabel": "Zeile {row}",
-      "clearSelection": "Auswahl aufheben"
+      "clearSelection": "Auswahl aufheben",
+      "artifactFallbackName": "Tabellen-Artefakt"
     },
     "saving": "Speichern...",
     "saved": "Gespeichert",
@@ -6756,7 +6802,10 @@
       "quote": "In Eingabe zitieren",
       "copy": "Kopie",
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
-      "queued": "Aktion in der Warteschlange, wird ausgeführt, wenn die aktuelle Aufgabe abgeschlossen ist"
+      "queued": "Aktion in der Warteschlange, wird ausgeführt, wenn die aktuelle Aufgabe abgeschlossen ist",
+      "artifactFallbackName": "Code-Artefakt",
+      "selectedCode": "Ausgewählter Code",
+      "selectionLines": "Auswahl ({count, plural, one {# Zeile} other {# Zeilen}})"
     },
     "documentSelection": {
       "modify": "KI-Änderung",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
       "annotate": "Kommentieren",
       "annotatePlaceholder": "Problem für Review beschreiben...",
-      "toolbarLabel": "Werkzeugleiste für die Auswahl"
+      "toolbarLabel": "Werkzeugleiste für die Auswahl",
+      "artifactFallbackName": "Dokument-Artefakt",
+      "selectedParagraph": "Ausgewählter Absatz"
     },
     "skillActions": {
       "moreActions": "Weitere Aktionen",
@@ -10861,7 +10912,12 @@
         "approved": "Genehmigt",
         "rejected": "Abgelehnt",
         "applyFailed": "Anwenden fehlgeschlagen"
-      }
+      },
+      "forceRetryStarted": "Erzwungene Wiederholung gestartet",
+      "forceRetryFailed": "Erzwungene Wiederholung fehlgeschlagen",
+      "loadFailed": "Die Evolutionsablehnungs-Audit-Protokolle konnten nicht geladen werden",
+      "loadStatsFailed": "Die Statistiken zu Evolutionsablehnungen konnten nicht geladen werden",
+      "retrying": "Wiederhole…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "Frist",
       "care_check_in": "Pflege",
       "open_loop": "Nachverfolgen"
+    },
+    "dueWindow": {
+      "overdueHours": "{count, plural, one {# Stunde} other {# Stunden}} überfällig",
+      "overdueDays": "{count, plural, one {# Tag} other {# Tage}} überfällig",
+      "underOneHour": "Weniger als 1 Stunde",
+      "inHours": "In {count, plural, one {# Stunde} other {# Stunden}}",
+      "inDays": "In {count, plural, one {# Tag} other {# Tagen}}",
+      "overdueUnderOneHour": "Weniger als 1 Stunde überfällig"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot-Modus: Multi-Agent-Gruppenchat-Arbeitsbereich",
-    "hermesParity": "Bot-Modus und Peer-to-Peer-Nachrichten",
+    "botModeSummary": "Bot-Modus und Peer-to-Peer-Nachrichten",
     "roomsTitle": "Kollaborationskanäle",
     "createRoom": "Neuen Raum erstellen",
     "roomNamePlaceholder": "Raumname (z. B. Architektur-War-Room)",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "Laufzeitkonsole & Multi-Surface-Projektionszentrum",
-    "mateclawParity": "Live-Ansicht von Laufzustand und Ereignissen",
+    "liveStateSummary": "Live-Ansicht von Laufzustand und Ereignissen",
     "surfaces": {
       "chat": "Chat-Ansicht",
       "runtimeConsole": "Laufzeitkonsole",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "Bearbeiten",
-        "preview": "Vorschau"
+        "preview": "Vorschau",
+        "snippets": {
+          "bold": "fetter Text",
+          "italic": "kursiver Text",
+          "heading": "Überschrift",
+          "code": "Code",
+          "quote": "Zitat",
+          "bullet": "Listenpunkt",
+          "todo": "Aufgabe",
+          "wikilink": "Seitenname",
+          "tableHeader": "Kopfzeile {index}",
+          "tableCell": "Inhalt {index}"
+        }
       },
       "concepts": {
         "discard": "Verwerfen",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "Wiederverwendete Cache-Tokens",
       "cacheRadarFreshInput": "Neue Eingabe-Tokens",
       "cacheRadarTotalPrompt": "Prompt-Tokens gesamt",
-      "dailyToolCallsTooltip": "{date}: {count} Tool-Aufrufe"
+      "dailyToolCallsTooltip": "{date}: {count} Tool-Aufrufe",
+      "weekdayToolCallsTooltip": "{day}: {count, plural, one {# Tool-Aufruf} other {# Tool-Aufrufe}}",
+      "daysCount": "{count, plural, one {# Tag} other {# Tage}}"
     },
     "workingState": {
       "title": "Arbeitsstatus",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "Aktuelles Fenster",
       "digestWindow": "Digest-Fenster: {range}",
       "digestRuns": "Läufe",
-      "digestManualRuns": "Manuelle Läufe"
+      "digestManualRuns": "Manuelle Läufe",
+      "dimension": {
+        "freshness": "Aktualität",
+        "coverage": "Abdeckung",
+        "retention_health": "Aufbewahrungszustand",
+        "coherence": "Kohärenz"
+      }
     },
     "memoryBackup": {
       "title": "Speichersicherung",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "Erfahrungs-Assistent",
         "pluginStateTitle": "Plugin-Erweiterungsstatus",
         "protectedSpan": "Geschützter Span",
-        "retryAttempt": "Versuch: {attempt} (Anbieter-Backoff / wiederholt)"
+        "retryAttempt": "Versuch: {attempt} (Anbieter-Backoff / wiederholt)",
+        "toolSpanLabel": "Tool"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
@@ -22863,7 +22948,11 @@
     "noChanges": "Keine Änderungen"
   },
   "riskGate": {
-    "regionLabel": "Gestufte Risikobestätigung"
+    "regionLabel": "Gestufte Risikobestätigung",
+    "dryRunImpact": "Simulierte Ausführung von {tool} mit dry_run=true",
+    "dryRunDefaultTarget": "Zielobjekt",
+    "dryRunParamsVerified": "Parameterprüfung bestanden ({count, plural, one {# Feld} other {# Felder}})",
+    "dryRunNoPersistentChanges": "Keine dauerhaften Änderungen an Dateisystem oder Datenbank vorgenommen"
   },
   "commerceReceipt": {
     "statusCommitted": "Bezahlt und geprüft",

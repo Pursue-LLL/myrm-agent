@@ -53,15 +53,15 @@ export const TieredRiskGateContainer: React.FC = () => {
       return {
         simulated: true,
         tool_name: toolName,
-        simulated_impact: `Simulated execution of ${toolName} with dry_run=true`,
-        affected_target: String(params.path || params.target || 'target_entity'),
+        simulated_impact: t('dryRunImpact', { tool: toolName }),
+        affected_target: String(params.path || params.target || t('dryRunDefaultTarget')),
         predicted_changes: [
-          `Parameter verification passed (${Object.keys(params).length} fields)`,
-          'No persistent changes applied to filesystem or database',
+          t('dryRunParamsVerified', { count: Object.keys(params).length }),
+          t('dryRunNoPersistentChanges'),
         ],
       };
     },
-    [],
+    [t],
   );
 
   if (!activeEvaluation) {

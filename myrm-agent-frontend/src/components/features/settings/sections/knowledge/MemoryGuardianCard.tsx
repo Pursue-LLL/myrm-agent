@@ -3,14 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import {
-  IconAlertTriangle,
-  IconBrain,
-  IconCheckCircle,
-  IconRefresh,
-  IconShield,
-  IconGlow,
-} from '@/components/features/icons/PremiumIcons';
+import { IconAlertTriangle, IconRefresh } from '@/components/features/icons/PremiumIcons';
 import { toast } from 'sonner';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -26,12 +19,13 @@ import {
   type MemoryHealthResponse,
 } from '@/services/memory';
 
-const DIMENSION_LABELS: Record<string, { en: string; zh: string; icon: typeof IconBrain }> = {
-  freshness: { en: 'Freshness', zh: '新鲜度', icon: IconGlow },
-  coverage: { en: 'Coverage', zh: '覆盖率', icon: IconShield },
-  retention_health: { en: 'Retention', zh: '保留健康', icon: IconBrain },
-  coherence: { en: 'Coherence', zh: '一致性', icon: IconCheckCircle },
-};
+const MEMORY_DIMENSIONS = ['freshness', 'coverage', 'retention_health', 'coherence'] as const;
+
+type MemoryDimension = (typeof MEMORY_DIMENSIONS)[number];
+
+function isMemoryDimension(key: string): key is MemoryDimension {
+  return (MEMORY_DIMENSIONS as readonly string[]).includes(key);
+}
 
 function getHealthColor(score: number): string {
   if (score >= 80) {
@@ -355,11 +349,12 @@ const MemoryGuardianCard = memo(() => {
           {/* Dimension bars */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
             {Object.entries(health.dimensions).map(([key, val]) => {
-              const label = DIMENSION_LABELS[key];
               const score = Math.round(val);
               return (
                 <div key={key} className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground w-14 truncate">{label?.en ?? key}</span>
+                  <span className="text-[10px] text-muted-foreground w-20 truncate">
+                    {isMemoryDimension(key) ? t(`dimension.${key}`) : key}
+                  </span>
                   <div className="flex-1 h-1.5 rounded-full bg-border/40 overflow-hidden">
                     <motion.div
                       className={cn('h-full rounded-full', getHealthBg(score))}

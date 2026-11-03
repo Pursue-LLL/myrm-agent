@@ -3,7 +3,7 @@
 /**
  * RuntimeConsoleDrawer Component.
  * Pure functional multi-surface run projection drawer.
- * Implements MateClaw parity: UI = Project(RunState, Events).
+ * UI = Project(RunState, Events).
  * Supports Quad-Surface switching and Attempt level diagnostics with zero emojis.
  */
 
@@ -16,7 +16,6 @@ import {
   Lock,
   MessageSquare,
   PackageCheck,
-  Shield,
   ShieldAlert,
   Terminal,
   X,
@@ -49,11 +48,7 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
     // Fallback in tests
   }
 
-  const { snapshot, activeSurface, setSurface, isLoading } = useRunProjection(
-    runId,
-    initialSurface,
-    isOpen
-  );
+  const { snapshot, activeSurface, setSurface, isLoading } = useRunProjection(runId, initialSurface, isOpen);
 
   if (!isOpen) {
     return null;
@@ -77,14 +72,8 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
               <h2 className="text-sm font-semibold text-slate-100 truncate">
                 {snapshot?.title || 'Runtime Execution State'}
               </h2>
-              <span className="flex items-center gap-1 rounded bg-indigo-950/60 border border-indigo-700/50 px-1.5 py-0.5 text-[10px] text-indigo-300 font-mono">
-                <Shield className="h-2.5 w-2.5" />
-                MateClaw Parity
-              </span>
             </div>
-            <p className="text-xs text-slate-400 truncate">
-              {t('mateclawParity')}
-            </p>
+            <p className="text-xs text-slate-400 truncate">{t('liveStateSummary')}</p>
           </div>
         </div>
 
@@ -129,9 +118,7 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
                 <Activity className="h-3.5 w-3.5 text-indigo-400" />
                 <span>{t('attemptInspector.title')}</span>
               </h3>
-              <span className="text-xs font-mono text-slate-400">
-                Current Attempt: #{snapshot.current_attempt}
-              </span>
+              <span className="text-xs font-mono text-slate-400">Current Attempt: #{snapshot.current_attempt}</span>
             </div>
             <AttemptWaterfallInspector attempts={snapshot.attempts} />
           </div>
@@ -196,9 +183,7 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 font-mono text-[10px]">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                      Risk: {entry.risk_level}
-                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">Risk: {entry.risk_level}</span>
                     <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">
                       {entry.decision}
                     </span>
@@ -213,11 +198,10 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
         {activeSurface === 'chat' && snapshot ? (
           <div className="p-6 rounded-lg bg-slate-900/40 border border-slate-800 text-center space-y-2">
             <MessageSquare className="h-8 w-8 text-indigo-400 mx-auto" />
-            <h4 className="text-xs font-semibold text-slate-200">
-              Interactive Dialogue Surface
-            </h4>
+            <h4 className="text-xs font-semibold text-slate-200">Interactive Dialogue Surface</h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Current Run state is actively projected into the Chat conversational stream. Switch surfaces anytime to inspect raw execution watermarks.
+              Current Run state is actively projected into the Chat conversational stream. Switch surfaces anytime to
+              inspect raw execution watermarks.
             </p>
           </div>
         ) : null}

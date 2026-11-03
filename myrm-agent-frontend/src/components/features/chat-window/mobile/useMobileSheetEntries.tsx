@@ -155,10 +155,10 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       {
         key: 'model',
         icon: <Brain size={16} />,
-        label: t('model', { defaultMessage: '模型' }),
+        label: t('model'),
         meta: currentModelLabel,
         submenu: {
-          title: t('model', { defaultMessage: '模型' }),
+          title: t('model'),
           options: modelOptions,
           onSelect: handleModelSelect,
         },
@@ -166,10 +166,10 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       {
         key: 'thinking',
         icon: <Sparkles size={16} />,
-        label: thinkT('title', { defaultMessage: '思考强度' }),
-        meta: currentEffort ?? thinkT('off', { defaultMessage: 'off' }),
+        label: thinkT('title'),
+        meta: currentEffort ?? thinkT('off'),
         submenu: {
-          title: thinkT('title', { defaultMessage: '思考强度' }),
+          title: thinkT('title'),
           options: intensityOptions,
           onSelect: handleIntensitySelect,
         },
@@ -180,8 +180,8 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       entries.push({
         key: 'goal',
         icon: <Target size={16} />,
-        label: t('goalMode', { defaultMessage: '目标模式' }),
-        meta: isGoalMode ? t('enabled', { defaultMessage: '已开启' }) : undefined,
+        label: t('goalMode'),
+        meta: isGoalMode ? t('enabled') : undefined,
         onClick: handleGoalToggle,
       });
     }
@@ -190,7 +190,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     entries.push({
       key: 'knowledge',
       icon: <BookOpen size={16} className="text-violet-500" />,
-      label: tKnowledge('title', { defaultMessage: '挂载知识库' }),
+      label: tKnowledge('title'),
       meta: mountedCount > 0 ? tKnowledge('activeCount', { count: mountedCount }) : undefined,
       onClick: () => {
         onClose();
@@ -205,7 +205,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       entries.push({
         key: 'fork',
         icon: <GitFork size={16} />,
-        label: t('forkBranch', { defaultMessage: '分支对话' }),
+        label: t('forkBranch'),
         onClick: handleFork,
       });
     }

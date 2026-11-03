@@ -2,7 +2,7 @@
 
 ## 1. 业务目标与核心价值
 彻底破除桌面端 Agent 迁移到 Web 端时因浏览器沙箱机制导致麦克风权限缺失、音频 Autoplay 策略拦截报错以及高延迟卡顿的核心能力断裂硬伤。
-对标 Hermes PR #93508 官方核心维护者 @Teknium 与音频架构专家 @Kyssta 深度论证，实现：
+实现：
 1. **安全上下文环境探针 (Secure Context Detector)**：高精度识别页面运行环境是否具备调用 getUserMedia 与 WebCrypto 的安全凭据，特别针对局域网 HTTP 直连（如 192.168.x.x / 10.x.x.x）提供即时能力降级警示与 Tailscale TLS 域名迁移自愈指引；
 2. **Autoplay 策略弹性防御 (Autoplay Policy Resilience)**：监听并探测 AudioContext 的 `suspended` 挂起状态，通过用户显式手势交互优雅解除静默拦截，杜绝 `NotAllowedError` 报错；
 3. **AudioWorklet 独立采样与轻量 VAD (PCM Sampling & VAD)**：在独立音频上下文中完成 16kHz PCM 单声道重采样与 RMS 分贝能量测算，利用前端状态机精准捕捉用户说话（Speech）与静音（Silence）断句，避免主 UI 线程卡顿引起的爆音丢帧；

@@ -31,13 +31,9 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Radio className="h-3 w-3" />
-        {t('triggerStreamLabel', { defaultMessage: 'Stream (WS/SSE)' })}
+        {t('triggerStreamLabel')}
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        {t('triggerStreamDesc', {
-          defaultMessage: 'Real-time monitoring via outbound WebSocket or SSE connection. Works behind NAT.',
-        })}
-      </p>
+      <p className="text-[10px] text-muted-foreground">{t('triggerStreamDesc')}</p>
       {drafts.map((draft, i) => (
         <div key={i} className="space-y-1">
           <div className="flex items-center gap-1.5">
@@ -67,13 +63,13 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
             <Input
               value={draft.filter_json_path}
               onChange={(e) => updateDraft(i, { filter_json_path: e.target.value })}
-              placeholder={t('triggerStreamJsonPath', { defaultMessage: 'JSONPath e.g. $.data.price' })}
+              placeholder={t('triggerStreamJsonPath')}
               className="h-7 text-xs font-mono flex-1"
             />
             <Input
               value={draft.filter_regex}
               onChange={(e) => updateDraft(i, { filter_regex: e.target.value })}
-              placeholder={t('triggerStreamRegex', { defaultMessage: 'Regex filter (optional)' })}
+              placeholder={t('triggerStreamRegex')}
               className="h-7 text-xs font-mono flex-1"
             />
           </div>
@@ -85,7 +81,7 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
         className="h-6 text-[10px] gap-1"
         onClick={() => onChange([...drafts, { url: '', protocol: 'ws', filter_json_path: '', filter_regex: '' }])}
       >
-        <Plus className="h-3 w-3" /> {t('triggerStreamAdd', { defaultMessage: 'Add Stream' })}
+        <Plus className="h-3 w-3" /> {t('triggerStreamAdd')}
       </Button>
     </div>
   );

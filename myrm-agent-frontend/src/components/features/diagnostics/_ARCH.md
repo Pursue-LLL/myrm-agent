@@ -1,7 +1,7 @@
 # Bounded Stderr Diagnostic Surface & Actionable Error UX Suite Architecture
 
 ## 1. 业务痛点与第一性原理
-彻底终结子进程/沙箱崩溃时仅报冷冰冰的 Exit Code 1 / 137、无诊断线索甚至向 UI 泄露未脱敏敏感栈轨迹的恶劣体验。对标 Cherry Studio PR #20042 生产级客户端排障架构实践。
+彻底终结子进程/沙箱崩溃时仅报冷冰冰的 Exit Code 1 / 137、无诊断线索甚至向 UI 泄露未脱敏敏感栈轨迹的恶劣体验。
 
 ## 2. 核心架构设计
 1. **受限内存环形缓冲区（Bounded Stderr Tail Buffer）**：

@@ -527,10 +527,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                   htmlFor="revoke-clear-memory"
                   className="text-xs leading-relaxed cursor-pointer text-muted-foreground"
                 >
-                  {t('clearSyncedMemory', {
-                    count: providerTreeCount,
-                    defaultMessage: `Also remove synced memory data (${providerTreeCount} source${providerTreeCount > 1 ? 's' : ''})`,
-                  })}
+                  {t('clearSyncedMemory', { count: providerTreeCount })}
                 </label>
               </div>
             )}

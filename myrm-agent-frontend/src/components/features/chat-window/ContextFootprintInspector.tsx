@@ -11,7 +11,7 @@
  * - ContextFootprintInspector: initial baseline context token footprint inspector & idle MCP switcher modal.
  *
  * [POS]
- * Claude Code /context command parity inspector. Reveals pre-conversation baseline token footprint
+ * Inspector for the pre-conversation baseline token footprint, shown
  * across System Prompt, Persona, Workspace Rules, and MCP Tool Schemas with an instant idle MCP switcher.
  */
 

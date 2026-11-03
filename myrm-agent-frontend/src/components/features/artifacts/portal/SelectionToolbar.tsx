@@ -274,15 +274,15 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     {
       type: 'quote',
       icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
-      label: t('quote') || '引用到输入框',
+      label: t('quote'),
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
-        const artifactName = activeTab?.artifact.filename || '代码工件';
+        const artifactName = activeTab?.artifact.filename || t('artifactFallbackName');
         useScopedArtifactStore.getState().setTarget({
           artifactId: activeTab?.artifact.id || 'current',
           artifactName,
           kind: 'code',
-          scopeLabel: selection ? `选区 (${selection.text.split('\n').length}行)` : '选中代码',
+          scopeLabel: selection ? t('selectionLines', { count: selection.text.split('\n').length }) : t('selectedCode'),
           selectedSnippet: selection?.text,
         });
         setVisible(false);

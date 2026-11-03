@@ -27,18 +27,18 @@ const formatDate = (dateString: string) => {
 const formatTimeRemaining = (autoResolveAt: string, t: ReturnType<typeof useTranslations<'memory'>>): string => {
   const diff = new Date(autoResolveAt).getTime() - Date.now();
   if (diff <= 0) {
-    return t('conflict.autoResolveSoon', { defaultMessage: '即将自动解决' });
+    return t('conflict.autoResolveSoon');
   }
   const minutes = Math.floor(diff / (1000 * 60));
   if (minutes < 60) {
-    return t('conflict.autoResolveInMinutes', { minutes, defaultMessage: '{minutes}分钟后自动保留旧记忆' });
+    return t('conflict.autoResolveInMinutes', { minutes });
   }
   const hours = Math.floor(minutes / 60);
   if (hours >= 24) {
     const days = Math.floor(hours / 24);
-    return t('conflict.autoResolveInDays', { days, defaultMessage: '{days}天后自动保留旧记忆' });
+    return t('conflict.autoResolveInDays', { days });
   }
-  return t('conflict.autoResolveInHours', { hours, defaultMessage: '{hours}小时后自动保留旧记忆' });
+  return t('conflict.autoResolveInHours', { hours });
 };
 
 const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }) => {
@@ -96,7 +96,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             isHighRisk ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400',
           )}
         >
-          {t('conflict.title', { defaultMessage: '记忆冲突' })}
+          {t('conflict.title')}
         </span>
         <MemoryTypeIcon type={conflict.memory_type} size={14} showBackground />
         <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -111,14 +111,14 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
                     : 'bg-muted text-muted-foreground',
               )}
             >
-              {showHighRiskBadge ? `${t('conflict.highRisk', { defaultMessage: '高风险' })} · ` : ''}
-              {t('conflict.importance', { defaultMessage: '重要度' })} {importancePercent}%
+              {showHighRiskBadge ? `${t('conflict.highRisk')} · ` : ''}
+              {t('conflict.importance')} {importancePercent}%
             </span>
           )}
           {isHighRisk ? (
             <span className="flex items-center gap-1 font-medium text-red-600 dark:text-red-400">
               <Clock size={11} />
-              {t('conflict.autoResolveNever', { defaultMessage: '不会自动解决 · 需手动确认' })}
+              {t('conflict.autoResolveNever')}
             </span>
           ) : (
             conflict.conflict_auto_resolve_at && (
@@ -131,11 +131,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
         </div>
         {!isHighRisk ? (
           <p className="w-full px-4 pb-1 text-[11px] leading-relaxed text-muted-foreground">
-            {t('conflict.lowRiskPolicyHint', {
-              hours: conflictAutoResolveHours,
-              defaultMessage:
-                'If you do not choose, lower-importance conflicts automatically keep the previous memory after about {hours} hours.',
-            })}
+            {t('conflict.lowRiskPolicyHint', { hours: conflictAutoResolveHours })}
           </p>
         ) : null}
       </div>
@@ -146,11 +142,11 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
         <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('conflict.currentMemory', { defaultMessage: '当前记忆' })}
+              {t('conflict.currentMemory')}
             </span>
           </div>
           <p className="text-sm text-foreground/80 leading-relaxed line-clamp-4">
-            {conflict.conflict_old_content || t('conflict.unknown', { defaultMessage: '（内容不可用）' })}
+            {conflict.conflict_old_content || t('conflict.unknown')}
           </p>
         </div>
 
@@ -162,7 +158,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-              {t('conflict.newMemory', { defaultMessage: '新提取内容' })}
+              {t('conflict.newMemory')}
             </span>
           </div>
           <p className="text-sm text-foreground leading-relaxed line-clamp-4">{conflict.content}</p>
@@ -174,7 +170,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             <div className="flex items-center gap-1.5">
               <GitMerge size={12} className="text-primary" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-                {t('conflict.mergedContent', { defaultMessage: '合并内容' })}
+                {t('conflict.mergedContent')}
               </span>
             </div>
             <textarea
@@ -186,7 +182,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
                 'focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50',
                 'resize-y',
               )}
-              placeholder={t('conflict.mergePlaceholder', { defaultMessage: '编辑合并后的记忆内容...' })}
+              placeholder={t('conflict.mergePlaceholder')}
             />
           </div>
         )}
@@ -196,8 +192,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           <span>{formatDate(conflict.created_at)}</span>
           {conflict.conflict_accuracy_score !== undefined && conflict.conflict_accuracy_score !== null && (
             <span>
-              {t('conflict.accuracy', { defaultMessage: '准确度' })}:{' '}
-              {Math.round(conflict.conflict_accuracy_score * 100)}%
+              {t('conflict.accuracy')}: {Math.round(conflict.conflict_accuracy_score * 100)}%
             </span>
           )}
         </div>
@@ -216,7 +211,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           )}
         >
           <RotateCcw size={13} />
-          {t('conflict.keepOld', { defaultMessage: '保留旧的' })}
+          {t('conflict.keepOld')}
         </button>
 
         <button
@@ -230,7 +225,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           )}
         >
           <Check size={13} />
-          {t('conflict.keepNew', { defaultMessage: '使用新的' })}
+          {t('conflict.keepNew')}
         </button>
 
         <button
@@ -253,9 +248,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           )}
         >
           {showMergeEditor ? <Pencil size={13} /> : <GitMerge size={13} />}
-          {showMergeEditor
-            ? t('conflict.confirmMerge', { defaultMessage: '确认合并' })
-            : t('conflict.merge', { defaultMessage: '合并' })}
+          {showMergeEditor ? t('conflict.confirmMerge') : t('conflict.merge')}
         </button>
 
         <button
@@ -267,7 +260,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
             'text-muted-foreground/60 hover:text-destructive',
             'hover:bg-destructive/5',
           )}
-          title={t('conflict.discardBoth', { defaultMessage: '丢弃两者' })}
+          title={t('conflict.discardBoth')}
         >
           <Trash2 size={13} />
         </button>

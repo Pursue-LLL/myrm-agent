@@ -3,7 +3,7 @@
 ## Overview
 
 Pure functional multi-surface run state projection and Attempt telemetry drawer components.
-Implements MateClaw parity (`UI = Project(RunState, Events)`), providing seamless switching between Chat View, Runtime Console, Deliverables Board, and Audit Ledger without losing state across view transitions.
+Projects run state into every view (`UI = Project(RunState, Events)`), providing seamless switching between Chat View, Runtime Console, Deliverables Board, and Audit Ledger without losing state across view transitions.
 
 ## File Index
 

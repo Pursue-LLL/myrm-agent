@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,16 +26,15 @@ interface CloneAgentDialogProps {
 
 export default function CloneAgentDialog({ open, onOpenChange, agentId, agentName, onCloned }: CloneAgentDialogProps) {
   const t = useTranslations();
-  const locale = useLocale();
 
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && agentName) {
-      setName(`${agentName} (${locale === 'zh' ? '副本' : 'Copy'})`);
+      setName(`${agentName} (${t('agent.cloneCopySuffix')})`);
     }
-  }, [open, agentName, locale]);
+  }, [open, agentName, t]);
 
   const resetAndClose = useCallback(() => {
     setName('');

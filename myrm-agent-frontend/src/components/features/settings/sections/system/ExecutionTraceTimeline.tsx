@@ -95,7 +95,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
       setIsExportingPack(true);
       await exportSessionZipPack(sessionId);
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : t('exportZipFailed', { defaultMessage: '导出会话包失败' });
+      const errorMsg = err instanceof Error ? err.message : t('exportZipFailed');
       toast.error(errorMsg);
       console.error('Failed to export session zip pack:', err);
     } finally {
@@ -186,7 +186,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
             onClick={() => setReplayMode(false)}
             className="text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-full transition-colors"
           >
-            {t('exitReplay', { defaultMessage: 'Exit Replay Mode' })}
+            {t('exitReplay')}
           </button>
         </div>
         <SessionReplayPlayer sessionId={sessionId} trace={trace} />
@@ -215,22 +215,20 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
             className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-blue-500/20"
           >
             <IconPlay className="w-3 h-3" />
-            {t('enterReplay', { defaultMessage: 'Enter Replay' })}
+            {t('enterReplay')}
           </button>
           <button
             type="button"
             onClick={handleExportPack}
             disabled={isExportingPack}
             className="text-xs bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-sky-500/20 disabled:opacity-50"
-            title={t('exportZipTooltip', {
-              defaultMessage: '导出会话原始事件日志与工件 ZIP 归档包',
-            })}
+            title={t('exportZipTooltip')}
           >
             {isExportingPack ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
-            {t('exportZip', { defaultMessage: '导出轨迹 (ZIP)' })}
+            {t('exportZip')}
           </button>
           {trace.outcome === 'failure' && showEvalCase && (
-            <div className="mr-2" title={t('saveAsEval', { defaultMessage: 'Save as Eval Case' })}>
+            <div className="mr-2" title={t('saveAsEval')}>
               <SaveEvalCase chatId={sessionId} />
             </div>
           )}
@@ -334,9 +332,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
 
       {trace.llm_calls && trace.llm_calls.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-semibold text-muted-foreground mb-2 mt-4 px-1">
-            {t('llmCalls', { defaultMessage: 'LLM Invocations' })}
-          </div>
+          <div className="text-xs font-semibold text-muted-foreground mb-2 mt-4 px-1">{t('llmCalls')}</div>
           {trace.llm_calls.map((lc, idx) => (
             <TraceLLMCallItem
               key={`lc-${lc.sequence}-${idx}`}
@@ -389,11 +385,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
         <div className="space-y-1">
           <div className="text-xs font-semibold text-muted-foreground mb-2 mt-4 px-1 flex items-center gap-1.5">
             <IconBrain className="w-3.5 h-3.5 text-purple-500" />
-            <span>
-              {t('memoryEvents', {
-                defaultMessage: 'Context Injections & Memory',
-              })}
-            </span>
+            <span>{t('memoryEvents')}</span>
           </div>
           {trace.memory_events.map((me, idx) => (
             <div
@@ -404,10 +396,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
                 <span className="font-medium text-foreground">{me.title || me.phase}</span>
                 {me.influence_count > 0 && (
                   <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">
-                    {t('influenceCount', {
-                      count: me.influence_count,
-                      defaultMessage: `Influenced turns: ${me.influence_count}`,
-                    })}
+                    {t('influenceCount', { count: me.influence_count })}
                   </span>
                 )}
               </div>

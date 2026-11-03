@@ -3,7 +3,7 @@
 ## Overview
 
 Global fuzzy command palette (Cmd+K / Ctrl+K), rotating task placeholder engine, and live performance telemetry status bar suite.
-Implements Hermes Agent v0.21.0 CLI/GUI parity & OpenHuman unified search hub parity, merging Actions/Controls with Thread/Message search under debounced and stale-cancelled query processing.
+A unified search hub that merges Actions/Controls with Thread/Message search under debounced and stale-cancelled query processing.
 
 ## File Index
 

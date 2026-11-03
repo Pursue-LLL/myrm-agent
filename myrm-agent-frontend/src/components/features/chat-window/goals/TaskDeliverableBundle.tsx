@@ -246,15 +246,15 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   }
 
   const categoryLabelMap: Record<DeliverableCategory, string> = {
-    all: t('bundleCategoryAll', { defaultMessage: '全部' }),
-    strategy: t('bundleCategoryStrategy', { defaultMessage: '策略与方案' }),
-    copywriting: t('bundleCategoryCopywriting', { defaultMessage: '文案与内容' }),
-    visual: t('bundleCategoryVisual', { defaultMessage: '视觉与多媒体' }),
-    data_sheet: t('bundleCategoryDataSheet', { defaultMessage: '数据与表格' }),
-    fact_check: t('bundleCategoryFactCheck', { defaultMessage: '事实核查' }),
-    schedule: t('bundleCategorySchedule', { defaultMessage: '排期与规划' }),
-    code: t('bundleCategoryCode', { defaultMessage: '代码与脚本' }),
-    other: t('bundleCategoryOther', { defaultMessage: '其他资产' }),
+    all: t('bundleCategoryAll'),
+    strategy: t('bundleCategoryStrategy'),
+    copywriting: t('bundleCategoryCopywriting'),
+    visual: t('bundleCategoryVisual'),
+    data_sheet: t('bundleCategoryDataSheet'),
+    fact_check: t('bundleCategoryFactCheck'),
+    schedule: t('bundleCategorySchedule'),
+    code: t('bundleCategoryCode'),
+    other: t('bundleCategoryOther'),
   };
 
   return (
@@ -282,7 +282,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
               data-testid="bundle-export-selected-btn"
             >
               <Download className="h-3 w-3" />
-              {t('bundleExportSelected', { count: selectedIds.size, defaultMessage: `导出选中 (${selectedIds.size})` })}
+              {t('bundleExportSelected', { count: selectedIds.size })}
             </Button>
           )}
           <Button

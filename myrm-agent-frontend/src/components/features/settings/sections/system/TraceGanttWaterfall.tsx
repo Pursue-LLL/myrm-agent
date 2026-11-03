@@ -183,11 +183,11 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
                     <IconWrench className="h-3 w-3 text-emerald-400" />
                   )}
                   <span className="font-medium truncate max-w-[140px] text-[11px]">
-                    {privacyMode ? (isLLM ? 'LLM' : 'Tool') : span.label}
+                    {privacyMode ? (isLLM ? 'LLM' : t('toolSpanLabel')) : span.label}
                   </span>
                   {isLLM && ((span.attempt && span.attempt > 1) || (span.retry_count && span.retry_count > 0)) && (
                     <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                      Retry x{retryBadge}
+                      {t('llmRetry', { count: retryBadge })}
                     </span>
                   )}
                 </div>

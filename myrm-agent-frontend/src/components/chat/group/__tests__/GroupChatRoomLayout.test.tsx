@@ -8,7 +8,7 @@ import { GroupChatRoomLayout } from '../GroupChatRoomLayout';
 const stableT = (key: string) => {
   const table: Record<string, string> = {
     title: 'Bot Mode 多 Agent 协同群聊工作区',
-    hermesParity: '对标 Hermes v0.21.0 Bot Mode 与 hermes peer 点对点私信',
+    botModeSummary: 'Bot Mode 与点对点私信',
     roomsTitle: '协同工作频道',
     createRoom: '创建新房间',
     composerPlaceholder: '输入协作指令，按 @ 呼叫特定 Agent...',
@@ -32,7 +32,7 @@ describe('GroupChatRoomLayout', () => {
     });
   });
 
-  it('renders room header, Bot Mode badge, and Hermes parity label', async () => {
+  it('renders room header, Bot Mode badge, and bot mode summary', async () => {
     render(<GroupChatRoomLayout />);
 
     await waitFor(() => {
@@ -40,7 +40,7 @@ describe('GroupChatRoomLayout', () => {
     });
 
     expect(screen.getByText('Bot Mode')).toBeInTheDocument();
-    expect(screen.getByText('Hermes Parity')).toBeInTheDocument();
+    expect(screen.getByText('Bot Mode 与点对点私信')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('输入协作指令，按 @ 呼叫特定 Agent...')).toBeInTheDocument();
   });
 

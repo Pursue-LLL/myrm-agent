@@ -87,7 +87,7 @@ describe('TraceGanttWaterfall Component', () => {
     // Labels should be masked to LLM and Tool
     expect(screen.queryByText('deepseek-chat')).not.toBeInTheDocument();
     expect(screen.getByText('LLM')).toBeInTheDocument();
-    expect(screen.getByText('Tool')).toBeInTheDocument();
+    expect(screen.getByText('toolSpanLabel')).toBeInTheDocument();
   });
 
   it('handles empty spans gracefully without crashing', () => {

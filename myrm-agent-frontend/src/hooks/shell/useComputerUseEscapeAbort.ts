@@ -6,7 +6,7 @@
  * - @/store/useDesktopInspectorStore (engagedChatId for active CU turn)
  *
  * [OUTPUT]
- * - useComputerUseEscapeAbort: global Escape aborts an in-flight Computer Use turn (Claude CU parity)
+ * - useComputerUseEscapeAbort: global Escape aborts an in-flight Computer Use turn
  *
  * [POS]
  * Registered from AppLayout capture phase; only when CU tools are enabled and the agent is running.

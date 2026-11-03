@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { IconHelpCircle, IconAlertCircle, IconCode } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import Tooltip from './Tooltip';
@@ -26,6 +27,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
   error,
   placeholder = '{\n  "key": "value"\n}',
 }) => {
+  const t = useTranslations('common.jsonEditor');
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,9 +53,9 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       setJsonError(null);
     } catch (err) {
       console.error('JSON格式化错误:', err);
-      setJsonError('无法格式化JSON');
+      setJsonError(t('cannotFormat'));
     }
-  }, [value]);
+  }, [value, t]);
 
   // 处理文本变化（实时解析并通知父组件）
   const handleTextChange = (text: string) => {
@@ -89,7 +91,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       setJsonError(null);
     } catch (err) {
       console.error('JSON解析错误:', err);
-      setJsonError('JSON格式无效');
+      setJsonError(t('invalidJson'));
     }
   };
 
@@ -110,7 +112,7 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
       setJsonError(null);
     } catch (err) {
       console.error('JSON格式化错误:', err);
-      setJsonError('JSON格式无效，无法格式化');
+      setJsonError(t('invalidJsonCannotFormat'));
     }
   };
 
