@@ -36,6 +36,10 @@ def test_exports_are_the_defining_module_objects() -> None:
     assert transport.resolve_route is profile.resolve_route
 
 
+def test_the_package_lists_exactly_what_it_exports() -> None:
+    assert dir(transport) == sorted(transport.__all__)
+
+
 def test_an_unknown_name_is_an_attribute_error() -> None:
     try:
         transport.no_such_name  # noqa: B018 - the access is the assertion

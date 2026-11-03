@@ -1,0 +1,199 @@
+{
+ "config": "responses_minimax",
+ "wire": "responses",
+ "model": "minimax-cn/MiniMax-M3.1-Flash-Preview",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/v1/responses",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "event: response.created",
+    "data: {\"response\":{\"created_at\":1793694415,\"id\":\"resp_0738cdcd4e45ba8409c2c3e8b45f1fc2\",\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[],\"parallel_tool_calls\":true,\"status\":\"in_progress\",\"tool_choice\":\"auto\",\"tools\":[]},\"sequence_number\":0,\"type\":\"response.created\"}",
+    "",
+    "event: response.in_progress",
+    "data: {\"response\":{\"created_at\":1793694415,\"id\":\"resp_0738cdcd4e45ba8409c2c3e8b45f1fc2\",\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[],\"parallel_tool_calls\":true,\"status\":\"in_progress\",\"tool_choice\":\"auto\",\"tools\":[]},\"sequence_number\":1,\"type\":\"response.in_progress\"}",
+    "",
+    "event: response.output_item.added",
+    "data: {\"item\":{\"id\":\"rs_18e47b912ed97690000001e5\",\"status\":\"in_progress\",\"summary\":[],\"type\":\"reasoning\"},\"output_index\":0,\"sequence_number\":2,\"type\":\"response.output_item.added\"}",
+    "",
+    "event: response.reasoning_summary_part.added",
+    "data: {\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"part\":{\"text\":\"\",\"type\":\"summary_text\"},\"sequence_number\":3,\"summary_index\":0,\"type\":\"response.reasoning_summary_part.added\"}",
+    "",
+    "event: response.reasoning_summary_text.delta",
+    "data: {\"delta\":\"We\",\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"sequence_number\":4,\"summary_index\":0,\"type\":\"response.reasoning_summary_text.delta\"}",
+    "",
+    "event: response.reasoning_summary_text.delta",
+    "data: {\"delta\":\" need answer\",\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"sequence_number\":5,\"summary_index\":0,\"type\":\"response.reasoning_summary_text.delta\"}",
+    "",
+    "event: response.reasoning_summary_text.delta",
+    "data: {\"delta\":\" exactly one word P\",\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"sequence_number\":6,\"summary_index\":0,\"type\":\"response.reasoning_summary_text.delta\"}",
+    "",
+    "event: response.reasoning_summary_text.delta",
+    "data: {\"delta\":\"ONG. Need comply.\",\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"sequence_number\":7,\"summary_index\":0,\"type\":\"response.reasoning_summary_text.delta\"}",
+    "",
+    "event: response.reasoning_summary_text.done",
+    "data: {\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"sequence_number\":8,\"summary_index\":0,\"text\":\"We need answer exactly one word PONG. Need comply.\",\"type\":\"response.reasoning_summary_text.done\"}",
+    "",
+    "event: response.reasoning_summary_part.done",
+    "data: {\"item_id\":\"rs_18e47b912ed97690000001e5\",\"output_index\":0,\"part\":{\"text\":\"We need answer exactly one word PONG. Need comply.\",\"type\":\"summary_text\"},\"sequence_number\":9,\"summary_index\":0,\"type\":\"response.reasoning_summary_part.done\"}",
+    "",
+    "event: response.output_item.done",
+    "data: {\"item\":{\"id\":\"rs_18e47b912ed97690000001e5\",\"status\":\"completed\",\"summary\":[{\"text\":\"We need answer exactly one word PONG. Need comply.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},\"output_index\":0,\"sequence_number\":10,\"type\":\"response.output_item.done\"}",
+    "",
+    "event: response.output_item.added",
+    "data: {\"item\":{\"content\":[],\"id\":\"msg_18e47b9134d942a0000001e6\",\"role\":\"assistant\",\"status\":\"in_progress\",\"type\":\"message\"},\"output_index\":1,\"sequence_number\":11,\"type\":\"response.output_item.added\"}",
+    "",
+    "event: response.content_part.added",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b9134d942a0000001e6\",\"output_index\":1,\"part\":{\"annotations\":[],\"logprobs\":[],\"text\":\"\",\"type\":\"output_text\"},\"sequence_number\":12,\"type\":\"response.content_part.added\"}",
+    "",
+    "event: response.output_text.delta",
+    "data: {\"content_index\":0,\"delta\":\"PONG\",\"item_id\":\"msg_18e47b9134d942a0000001e6\",\"logprobs\":[],\"output_index\":1,\"sequence_number\":13,\"type\":\"response.output_text.delta\"}",
+    "",
+    "event: response.output_text.done",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b9134d942a0000001e6\",\"logprobs\":[],\"output_index\":1,\"sequence_number\":14,\"text\":\"PONG\",\"type\":\"response.output_text.done\"}",
+    "",
+    "event: response.content_part.done",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b9134d942a0000001e6\",\"output_index\":1,\"part\":{\"annotations\":[],\"logprobs\":[],\"text\":\"PONG\",\"type\":\"output_text\"},\"sequence_number\":15,\"type\":\"response.content_part.done\"}",
+    "",
+    "event: response.output_item.done",
+    "data: {\"item\":{\"content\":[{\"annotations\":[],\"logprobs\":[],\"text\":\"PONG\",\"type\":\"output_text\"}],\"id\":\"msg_18e47b9134d942a0000001e6\",\"phase\":\"final_answer\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"},\"output_index\":1,\"sequence_number\":16,\"type\":\"response.output_item.done\"}",
+    "",
+    "event: response.completed",
+    "data: {\"response\":{\"created_at\":1793694415,\"id\":\"resp_0738cdcd4e45ba8409c2c3e8b45f1fc2\",\"incomplete_details\":null,\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[{\"id\":\"rs_18e47b912ed97690000001e5\",\"status\":\"completed\",\"summary\":[{\"text\":\"We need answer exactly one word PONG. Need comply.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\"},{\"content\":[{\"annotations\":[],\"logprobs\":[],\"text\":\"PONG\",\"type\":\"output_text\"}],\"id\":\"msg_18e47b9134d942a0000001e6\",\"phase\":\"final_answer\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"}],\"parallel_tool_calls\":true,\"status\":\"completed\",\"tool_choice\":\"auto\",\"tools\":[],\"usage\":{\"input_tokens\":210,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":209},\"output_tokens\":17,\"output_tokens_details\":{\"reasoning_tokens\":12},\"total_tokens\":227}},\"sequence_number\":17,\"type\":\"response.completed\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "We need answer exactly one word PONG. Need comply.",
+    "tool_calls": [],
+    "usage": [
+     210,
+     17,
+     209
+    ]
+   }
+  },
+  "tools2_nonstream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/responses",
+   "content_type": "application/json",
+   "lines": [
+    "{\"created_at\":1793694416,\"error\":null,\"id\":\"resp_0738cdcfeaf890b92630a4eafa417af6\",\"incomplete_details\":null,\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[{\"content\":[{\"annotations\":[],\"text\":\"I'll check both cities now.\",\"type\":\"output_text\"}],\"id\":\"msg_18e47b9171c5c5a8000001e7\",\"phase\":\"commentary\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"},{\"arguments\":\"{\\\"city\\\":\\\"Tokyo\\\"}\",\"call_id\":\"call_01a1a084bce776bf921f5722\",\"id\":\"fc_18e47b9171c60fe0000001e8\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"},{\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"call_id\":\"call_01a1a084bd27751496d94185\",\"id\":\"fc_18e47b9171c61b98000001e9\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"}],\"parallel_tool_calls\":true,\"status\":\"completed\",\"tool_choice\":\"auto\",\"tools\":[],\"usage\":{\"input_tokens\":460,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":256},\"output_tokens\":57,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":517}}"
+   ],
+   "expect": {
+    "text": "I'll check both cities now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": "call_01a1a084bce776bf921f5722",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "call_01a1a084bd27751496d94185",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     460,
+     57,
+     256
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/responses",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "event: response.created",
+    "data: {\"response\":{\"created_at\":1793694412,\"id\":\"resp_0738cdcc7116d0edb2665355a25ee7e4\",\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[],\"parallel_tool_calls\":true,\"status\":\"in_progress\",\"tool_choice\":\"auto\",\"tools\":[]},\"sequence_number\":0,\"type\":\"response.created\"}",
+    "",
+    "event: response.in_progress",
+    "data: {\"response\":{\"created_at\":1793694412,\"id\":\"resp_0738cdcc7116d0edb2665355a25ee7e4\",\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[],\"parallel_tool_calls\":true,\"status\":\"in_progress\",\"tool_choice\":\"auto\",\"tools\":[]},\"sequence_number\":1,\"type\":\"response.in_progress\"}",
+    "",
+    "event: response.output_item.added",
+    "data: {\"item\":{\"content\":[],\"id\":\"msg_18e47b90a31d4ac8000001e2\",\"role\":\"assistant\",\"status\":\"in_progress\",\"type\":\"message\"},\"output_index\":0,\"sequence_number\":2,\"type\":\"response.output_item.added\"}",
+    "",
+    "event: response.content_part.added",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b90a31d4ac8000001e2\",\"output_index\":0,\"part\":{\"annotations\":[],\"logprobs\":[],\"text\":\"\",\"type\":\"output_text\"},\"sequence_number\":3,\"type\":\"response.content_part.added\"}",
+    "",
+    "event: response.output_text.delta",
+    "data: {\"content_index\":0,\"delta\":\"I'll\",\"item_id\":\"msg_18e47b90a31d4ac8000001e2\",\"logprobs\":[],\"output_index\":0,\"sequence_number\":4,\"type\":\"response.output_text.delta\"}",
+    "",
+    "event: response.output_text.delta",
+    "data: {\"content_index\":0,\"delta\":\" check the weather in both cities at once.\",\"item_id\":\"msg_18e47b90a31d4ac8000001e2\",\"logprobs\":[],\"output_index\":0,\"sequence_number\":5,\"type\":\"response.output_text.delta\"}",
+    "",
+    "event: response.output_text.done",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b90a31d4ac8000001e2\",\"logprobs\":[],\"output_index\":0,\"sequence_number\":6,\"text\":\"I'll check the weather in both cities at once.\",\"type\":\"response.output_text.done\"}",
+    "",
+    "event: response.content_part.done",
+    "data: {\"content_index\":0,\"item_id\":\"msg_18e47b90a31d4ac8000001e2\",\"output_index\":0,\"part\":{\"annotations\":[],\"logprobs\":[],\"text\":\"I'll check the weather in both cities at once.\",\"type\":\"output_text\"},\"sequence_number\":7,\"type\":\"response.content_part.done\"}",
+    "",
+    "event: response.output_item.done",
+    "data: {\"item\":{\"content\":[{\"annotations\":[],\"logprobs\":[],\"text\":\"I'll check the weather in both cities at once.\",\"type\":\"output_text\"}],\"id\":\"msg_18e47b90a31d4ac8000001e2\",\"phase\":\"commentary\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"},\"output_index\":0,\"sequence_number\":8,\"type\":\"response.output_item.done\"}",
+    "",
+    "event: response.output_item.added",
+    "data: {\"item\":{\"arguments\":\"\",\"call_id\":\"call_MsX9GFV9SkUBUUddtHYsj29q\",\"id\":\"fc_18e47b90b0a0df20000001e3\",\"name\":\"get_weather\",\"status\":\"in_progress\",\"type\":\"function_call\"},\"output_index\":1,\"sequence_number\":9,\"type\":\"response.output_item.added\"}",
+    "",
+    "event: response.function_call_arguments.delta",
+    "data: {\"delta\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"item_id\":\"fc_18e47b90b0a0df20000001e3\",\"output_index\":1,\"sequence_number\":10,\"type\":\"response.function_call_arguments.delta\"}",
+    "",
+    "event: response.function_call_arguments.done",
+    "data: {\"arguments\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"call_id\":\"call_MsX9GFV9SkUBUUddtHYsj29q\",\"item_id\":\"fc_18e47b90b0a0df20000001e3\",\"name\":\"get_weather\",\"output_index\":1,\"sequence_number\":11,\"type\":\"response.function_call_arguments.done\"}",
+    "",
+    "event: response.output_item.done",
+    "data: {\"item\":{\"arguments\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"call_id\":\"call_MsX9GFV9SkUBUUddtHYsj29q\",\"id\":\"fc_18e47b90b0a0df20000001e3\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"},\"output_index\":1,\"sequence_number\":12,\"type\":\"response.output_item.done\"}",
+    "",
+    "event: response.output_item.added",
+    "data: {\"item\":{\"arguments\":\"\",\"call_id\":\"call_Ez99sIhmPtGN8UvxLP0Fqb7y\",\"id\":\"fc_18e47b90b734f038000001e4\",\"name\":\"get_weather\",\"status\":\"in_progress\",\"type\":\"function_call\"},\"output_index\":2,\"sequence_number\":13,\"type\":\"response.output_item.added\"}",
+    "",
+    "event: response.function_call_arguments.delta",
+    "data: {\"delta\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"item_id\":\"fc_18e47b90b734f038000001e4\",\"output_index\":2,\"sequence_number\":14,\"type\":\"response.function_call_arguments.delta\"}",
+    "",
+    "event: response.function_call_arguments.done",
+    "data: {\"arguments\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"call_id\":\"call_Ez99sIhmPtGN8UvxLP0Fqb7y\",\"item_id\":\"fc_18e47b90b734f038000001e4\",\"name\":\"get_weather\",\"output_index\":2,\"sequence_number\":15,\"type\":\"response.function_call_arguments.done\"}",
+    "",
+    "event: response.output_item.done",
+    "data: {\"item\":{\"arguments\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"call_id\":\"call_Ez99sIhmPtGN8UvxLP0Fqb7y\",\"id\":\"fc_18e47b90b734f038000001e4\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"},\"output_index\":2,\"sequence_number\":16,\"type\":\"response.output_item.done\"}",
+    "",
+    "event: response.completed",
+    "data: {\"response\":{\"created_at\":1793694412,\"id\":\"resp_0738cdcc7116d0edb2665355a25ee7e4\",\"incomplete_details\":null,\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"object\":\"response\",\"output\":[{\"content\":[{\"annotations\":[],\"logprobs\":[],\"text\":\"I'll check the weather in both cities at once.\",\"type\":\"output_text\"}],\"id\":\"msg_18e47b90a31d4ac8000001e2\",\"phase\":\"commentary\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"},{\"arguments\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"call_id\":\"call_MsX9GFV9SkUBUUddtHYsj29q\",\"id\":\"fc_18e47b90b0a0df20000001e3\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"},{\"arguments\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"call_id\":\"call_Ez99sIhmPtGN8UvxLP0Fqb7y\",\"id\":\"fc_18e47b90b734f038000001e4\",\"name\":\"get_weather\",\"status\":\"completed\",\"type\":\"function_call\"}],\"parallel_tool_calls\":true,\"status\":\"completed\",\"tool_choice\":\"auto\",\"tools\":[],\"usage\":{\"input_tokens\":456,\"input_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":455},\"output_tokens\":61,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":517}},\"sequence_number\":17,\"type\":\"response.completed\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "I'll check the weather in both cities at once.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": "call_MsX9GFV9SkUBUUddtHYsj29q",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "call_Ez99sIhmPtGN8UvxLP0Fqb7y",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     456,
+     61,
+     455
+    ]
+   }
+  }
+ }
+}

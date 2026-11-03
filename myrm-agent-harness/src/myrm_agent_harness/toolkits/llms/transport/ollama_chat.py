@@ -29,6 +29,7 @@ from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +187,7 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
         proxy=opts.proxy,
         stream=opts.stream,
         framing="ndjson",
+        retries=DEFAULT_RETRIES,
     )
 
 
@@ -195,14 +197,15 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
 def _calls_out(message: Mapping[str, object], first_index: int = 0) -> list[Message]:
     calls: list[Message] = []
     raw = message.get("tool_calls")
-    for offset, call in enumerate(raw if isinstance(raw, list) else []):
+    for call in raw if isinstance(raw, list) else []:
         function = call.get("function") if isinstance(call, Mapping) else None
         if not isinstance(function, Mapping):
             continue
         arguments = function.get("arguments")
         calls.append(
             {
-                "index": first_index + offset,
+                # Numbered by the calls kept, so a skipped entry leaves no gap for the next line to collide with.
+                "index": first_index + len(calls),
                 "id": f"call_{uuid.uuid4().hex[:24]}",
                 "type": "function",
                 "function": {

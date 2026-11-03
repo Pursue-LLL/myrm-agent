@@ -1,4 +1,4 @@
-"""One request/stream round trip: SSE and NDJSON framing, status mapping, the single connect retry, header rules."""
+"""One request/stream round trip: SSE and NDJSON framing, status mapping, header rules (retries: test_http_retry)."""
 
 from __future__ import annotations
 
@@ -132,47 +132,6 @@ class TestSendJson:
     async def test_async_twin(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
         network(lambda request: httpx.Response(200, json={"ok": 1}))
         assert await asend_json(_request()) == {"ok": 1}
-
-
-class TestConnectRetry:
-    def test_a_refused_connection_is_retried_exactly_once(
-        self, network: Callable[[Handler], list[httpx.Request]]
-    ) -> None:
-        attempts: list[int] = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            attempts.append(1)
-            if len(attempts) == 1:
-                raise httpx.ConnectError("refused")
-            return httpx.Response(200, json={"ok": True})
-
-        network(handler)
-        assert send_json(_request()) == {"ok": True}
-        assert len(attempts) == 2
-
-    def test_a_second_refusal_propagates(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            raise httpx.ConnectError("refused")
-
-        seen = network(handler)
-        with pytest.raises(httpx.ConnectError):
-            send_json(_request())
-        assert len(seen) == 2
-
-    def test_a_read_timeout_is_never_retried_here(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            raise httpx.ReadTimeout("slow")
-
-        seen = network(handler)
-        with pytest.raises(httpx.ReadTimeout):
-            send_json(_request())
-        assert len(seen) == 1
-
-    def test_a_server_error_is_never_retried_here(self, network: Callable[[Handler], list[httpx.Request]]) -> None:
-        seen = network(lambda request: httpx.Response(503, text="down"))
-        with pytest.raises(LLMHTTPError):
-            send_json(_request())
-        assert len(seen) == 1
 
 
 class TestStreaming:

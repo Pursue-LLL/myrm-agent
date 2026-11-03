@@ -42,6 +42,7 @@ from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_s
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,7 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
         proxy=opts.proxy,
         stream=opts.stream,
         query={"alt": "sse"} if opts.stream else {},
+        retries=DEFAULT_RETRIES,
     )
 
 

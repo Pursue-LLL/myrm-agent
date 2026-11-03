@@ -343,7 +343,7 @@ def test_cache_write_tokens_are_reported_when_present() -> None:
 def test_state_resolves_a_call_by_any_of_its_names() -> None:
     state = ResponsesStreamState()
     assert state.has_calls is False
-    state.on_item({"output_index": 0}, _item(TOKYO, arguments=""), done=False)
+    state.on_item({"output_index": 0}, _item(TOKYO, arguments=""))
     assert state.has_calls is True
     # The call_id alone (legacy servers) finds the call announced with both names.
     assert state.on_arguments({"call_id": "call_tokyo", "delta": "{"}, final=False)[0]["index"] == 0

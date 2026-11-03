@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedReque
 from myrm_agent_harness.toolkits.llms.transport.openai_chat import drop_unsupported_temperature, openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ def prepare(route: Route, params: Mapping[str, object]) -> PreparedRequest:
         proxy=opts.proxy,
         stream=opts.stream,
         query=query,
+        retries=DEFAULT_RETRIES,
     )
 
 

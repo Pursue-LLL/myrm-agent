@@ -62,8 +62,10 @@ def _parts(content: object) -> list[Part]:
                 parts.append({"text": item})
         elif isinstance(item, Mapping):
             kind = item.get("type")
-            if kind == "text" and isinstance(item.get("text"), str) and item["text"]:
-                parts.append({"text": item["text"]})
+            if kind == "text":
+                text = item.get("text")
+                if isinstance(text, str) and text:
+                    parts.append({"text": text})
             elif kind == "image_url":
                 image = item.get("image_url")
                 url = image.get("url") if isinstance(image, Mapping) else image

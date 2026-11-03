@@ -6,10 +6,11 @@
 [OUTPUT]
 - LLMHTTPError: a non-2xx answer, carrying the status, the parsed body and the response
 - LLMStreamError: an error event inside an already-open stream
+- LLMResponseError: a 2xx answer that is not the JSON object the wire expects
 - raise_for_status / araise_for_status: turn a failed response into LLMHTTPError (sync / async, streaming-safe)
 
 [POS]
-The one exception type of the model transport. Its attributes (``status_code``, ``body``, ``response``)
+The exception types of the model transport. Their attributes (``status_code``, ``body``, ``response``)
 are the shape ``errors.normalize`` already reads from every client SDK, so the failure classifier,
 retry-after reader and gateway-rejection recovery work on it without any provider-specific branch.
 """
@@ -48,6 +49,20 @@ class LLMStreamError(Exception):
         self.body = payload
         self.status_code = _error_status(payload)
         super().__init__(f"{provider} stream error: {json.dumps(payload, ensure_ascii=False)[:_MESSAGE_LIMIT]}")
+
+
+class LLMResponseError(ValueError):
+    """A 2xx answer that is not the JSON object the wire expects (a gateway's error page, a cut-off body).
+
+    It carries the 502 of a gateway that relayed an invalid upstream answer, so the failure classifier treats it as the
+    provider fault it is and not as an unknown error nobody can act on.
+    """
+
+    status_code = 502
+
+    def __init__(self, provider: str, message: str) -> None:
+        self.llm_provider = provider
+        super().__init__(message)
 
 
 def _error_status(payload: dict[str, object]) -> int | None:

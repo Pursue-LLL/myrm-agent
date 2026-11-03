@@ -3,6 +3,7 @@
 [INPUT]
 - httpx (POS: the HTTP client; proxy and TLS behavior come from it and from infra.tls_compat)
 - transport.errors (POS: LLMHTTPError for failed statuses)
+- transport.retry (POS: which failures are retried and how long to wait)
 
 [OUTPUT]
 - PreparedRequest: one fully built provider request (what a wire module produces)
@@ -15,23 +16,29 @@
 
 [POS]
 The only place the transport touches the network. A wire module builds a PreparedRequest and a decoder; this module
-sends it, maps a failed status to LLMHTTPError, retries a refused connection once (the request never reached the
-provider) and nothing else, so the agent layer stays the single retry authority. Clients are shared per event loop
-and egress proxy; the per-request timeout is the provider's silence budget, as a stream that keeps producing is not cut.
+sends it, maps a failed status to LLMHTTPError and, for a request that allows it, retries what failed before the
+provider produced anything (see transport.retry). A stream is never retried once it has begun. Clients are shared per
+event loop and egress proxy; the per-request timeout is the provider's silence budget, as a stream that keeps
+producing is not cut.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import threading
+import time
 from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Final, Protocol
 
 import httpx
 
-from myrm_agent_harness.toolkits.llms.transport.errors import araise_for_status, raise_for_status
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMResponseError, araise_for_status, raise_for_status
+from myrm_agent_harness.toolkits.llms.transport.retry import answer_wait, error_wait
+
+logger = logging.getLogger(__name__)
 
 _LIMITS: Final = httpx.Limits(max_connections=200, max_keepalive_connections=50, keepalive_expiry=30.0)
 _ASYNC_CLIENTS: dict[int, tuple[asyncio.AbstractEventLoop, dict[str | None, httpx.AsyncClient]]] = {}
@@ -60,6 +67,8 @@ class PreparedRequest:
     # A multipart request carries text fields in ``form`` and uploads in ``files`` instead of a JSON ``body``.
     form: Mapping[str, str] | None = None
     files: Mapping[str, FilePart] | None = None
+    # Retries after the first attempt for a failure before anything came back; 0 for a call that must not be repeated.
+    retries: int = 0
 
 
 class StreamDecoder(Protocol):
@@ -149,31 +158,65 @@ def _with_json_headers(req: PreparedRequest) -> PreparedRequest:
     return replace(req, headers={**req.headers, "Content-Type": "application/json"})
 
 
+def _pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+async def _apause(seconds: float) -> None:
+    await asyncio.sleep(seconds)
+
+
+def _log_retry(req: PreparedRequest, retried: int, wait: float, reason: str) -> None:
+    logger.warning("Retrying %s request in %.1fs (retry %d) after %s", req.provider, wait, retried, reason)
+
+
 def _send(req: PreparedRequest) -> httpx.Response:
     client = _sync_client(req.proxy)
-    request = _build(client, req)
-    try:
-        return client.send(request, stream=req.stream)
-    except httpx.ConnectError:
-        return client.send(_build(client, req), stream=req.stream)
+    retried = 0
+    while True:
+        try:
+            response = client.send(_build(client, req), stream=req.stream)
+        except httpx.TransportError as exc:
+            wait, reason = error_wait(exc, retried, req.retries), type(exc).__name__
+            if wait is None:
+                raise
+        else:
+            wait, reason = answer_wait(response, retried, req.retries), f"HTTP {response.status_code}"
+            if wait is None:
+                return response
+            response.close()
+        retried += 1
+        _log_retry(req, retried, wait, reason)
+        _pause(wait)
 
 
 async def _asend(req: PreparedRequest) -> httpx.Response:
     client = _async_client(req.proxy)
-    request = _build(client, req)
-    try:
-        return await client.send(request, stream=req.stream)
-    except httpx.ConnectError:
-        return await client.send(_build(client, req), stream=req.stream)
+    retried = 0
+    while True:
+        try:
+            response = await client.send(_build(client, req), stream=req.stream)
+        except httpx.TransportError as exc:
+            wait, reason = error_wait(exc, retried, req.retries), type(exc).__name__
+            if wait is None:
+                raise
+        else:
+            wait, reason = answer_wait(response, retried, req.retries), f"HTTP {response.status_code}"
+            if wait is None:
+                return response
+            await response.aclose()
+        retried += 1
+        _log_retry(req, retried, wait, reason)
+        await _apause(wait)
 
 
 def _json_payload(response: httpx.Response, provider: str) -> dict[str, object]:
     try:
         payload = response.json()
     except ValueError as exc:
-        raise ValueError(f"{provider} answered with a non-JSON body: {response.text[:200]!r}") from exc
+        raise LLMResponseError(provider, f"{provider} answered with a non-JSON body: {response.text[:200]!r}") from exc
     if not isinstance(payload, dict):
-        raise ValueError(f"{provider} answered with a non-object JSON body")
+        raise LLMResponseError(provider, f"{provider} answered with a non-object JSON body")
     return payload
 
 

@@ -112,7 +112,7 @@ class ResponsesStreamState:
             self._by_key.setdefault(key, found)
         return found, created
 
-    def on_item(self, event: Mapping[str, object], item: Mapping[str, object], *, done: bool) -> list[ToolCallDelta]:
+    def on_item(self, event: Mapping[str, object], item: Mapping[str, object]) -> list[ToolCallDelta]:
         """``output_item.added`` / ``output_item.done`` of a function call."""
         call_id = _text(item.get("call_id")) or _text(item.get("id"))
         name = _text(item.get("name"))
@@ -131,8 +131,6 @@ class ResponsesStreamState:
             )
         elif announce:
             out.append(_delta(call, call_id=call_id, name=name, arguments=""))
-        elif done:
-            return []
         return out
 
     def on_arguments(self, event: Mapping[str, object], *, final: bool) -> list[ToolCallDelta]:
@@ -168,7 +166,6 @@ class ResponsesStreamState:
             call, _ = self._resolve(item, {"output_index": position}, create=True)
             if call is None:
                 continue
-            call.named = True
             if call.arguments is _Arguments.NONE:
                 call.arguments = _Arguments.COMPLETE
                 # An empty string is a call without parameters; consumers parse the final string as JSON.

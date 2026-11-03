@@ -31,11 +31,13 @@ from typing import TYPE_CHECKING
 import httpx
 from tenacity import (
     AsyncRetrying,
+    RetryCallState,
     retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
 
+from myrm_agent_harness.toolkits.llms.errors.retry_after import extract_retry_after
 from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 from myrm_agent_harness.toolkits.llms.transport.embeddings import aembed
 from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
@@ -53,13 +55,16 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-_TRANSIENT_STATUSES = frozenset({408, 502, 503, 504})
+# Besides every 5xx: a request timeout, a conflict and a rate limit all clear by themselves.
+_TRANSIENT_STATUSES = frozenset({408, 409, 429})
+# A provider's own retry boundary is honoured up to this; a longer one is a quota, not a hiccup.
+_MAX_RETRY_AFTER_SECONDS = 60.0
 
 
 def _is_transient(exc: BaseException) -> bool:
-    """A failure that may succeed on retry: a dropped or timed-out connection, or a gateway-side 408/5xx."""
+    """A failure that may succeed on retry: a dropped or timed-out connection, a rate limit or a server-side fault."""
     if isinstance(exc, LLMHTTPError):
-        return exc.status_code in _TRANSIENT_STATUSES
+        return exc.status_code in _TRANSIENT_STATUSES or exc.status_code >= 500
     return isinstance(exc, (httpx.TransportError, TimeoutError, ConnectionError, OSError))
 
 
@@ -104,7 +109,7 @@ class CloudEmbedding(EmbeddingService):
         api_key: Provider API key (optional if set via env).
         api_base: Custom API base URL (optional).
         cache: Embedding cache instance for hit-rate optimization (optional).
-        max_retries: Max retry attempts for transient errors (TimeoutError, ConnectionError).
+        max_retries: Max retry attempts for transient errors (connection faults, 408/409/429 and 5xx answers).
         retry_wait_min: Minimum wait between retries in seconds.
         retry_wait_max: Maximum wait between retries in seconds.
 
@@ -189,6 +194,26 @@ class CloudEmbedding(EmbeddingService):
                     model=self._model,
                 )
 
+    def _retrying(self) -> AsyncRetrying:
+        """Retry policy of one call: transient failures only, backing off, and never sooner than the provider asks."""
+        backoff = wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max)
+
+        def wait(state: RetryCallState) -> float:
+            delay = backoff(state)
+            error = state.outcome.exception() if state.outcome is not None else None
+            hinted = extract_retry_after(error) if isinstance(error, Exception) else None
+            return max(delay, hinted) if hinted is not None and hinted <= _MAX_RETRY_AFTER_SECONDS else delay
+
+        return AsyncRetrying(
+            stop=stop_after_attempt(self._max_retries + 1),
+            wait=wait,
+            retry=retry_if_exception(_is_transient),
+            reraise=True,
+        )
+
+    async def _embed_with_retry(self, texts: list[str]) -> list[list[float]]:
+        return await self._retrying()(self._embed_batch_impl, texts)
+
     async def embed(self, text: str) -> list[float]:
         """Embed a single text with cache lookup and transient-error retry."""
         if self._cache is not None:
@@ -196,15 +221,8 @@ class CloudEmbedding(EmbeddingService):
             if cached is not None:
                 return cached
 
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(self._max_retries + 1),
-            wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-            retry=retry_if_exception(_is_transient),
-            reraise=True,
-        ):
-            with attempt:
-                results = await self._embed_batch_impl([text])
-                vec = results[0] if results else []
+        results = await self._embed_with_retry([text])
+        vec = results[0] if results else []
 
         if self._cache is not None and vec:
             await self._cache.put(text, vec)
@@ -220,14 +238,7 @@ class CloudEmbedding(EmbeddingService):
             return []
 
         if self._cache is None:
-            async for attempt in AsyncRetrying(
-                stop=stop_after_attempt(self._max_retries + 1),
-                wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-                retry=retry_if_exception(_is_transient),
-                reraise=True,
-            ):
-                with attempt:
-                    return await self._embed_batch_impl(texts)
+            return await self._embed_with_retry(texts)
 
         cached = await self._cache.get_batch(texts)
         miss_indices = [i for i, v in enumerate(cached) if v is None]
@@ -236,14 +247,7 @@ class CloudEmbedding(EmbeddingService):
 
         miss_texts = [texts[i] for i in miss_indices]
 
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(self._max_retries + 1),
-            wait=wait_exponential(min=self._retry_wait_min, max=self._retry_wait_max),
-            retry=retry_if_exception(_is_transient),
-            reraise=True,
-        ):
-            with attempt:
-                new_vecs = await self._embed_batch_impl(miss_texts)
+        new_vecs = await self._embed_with_retry(miss_texts)
 
         await self._cache.put_batch(miss_texts, new_vecs)
 

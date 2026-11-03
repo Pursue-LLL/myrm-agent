@@ -22,7 +22,7 @@ from myrm_agent_harness.toolkits.llms.errors.provider_window import (
     extract_provider_window,
     has_rejected_quota_window,
 )
-from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError, get_transport
+from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError, get_transport, http
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -43,6 +43,12 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         return
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_pauses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tests read what the transport raises once its retries are spent, not how long it waits between them."""
+    monkeypatch.setattr(http, "_pause", lambda seconds: None)
 
 
 @pytest.fixture

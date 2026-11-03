@@ -103,10 +103,10 @@ def _safe_get_finish_reason(response: Mapping[str, Any]) -> str:
     choices = response.get("choices")
     if not choices or not isinstance(choices, list) or len(choices) == 0:
         return "N/A (empty choices)"
-    return choices[0].get("finish_reason", "N/A")
+    return str(choices[0].get("finish_reason", "N/A"))
 
 
-def _decode_tool_call_arguments(tool_calls: list[dict]) -> None:
+def _decode_tool_call_arguments(tool_calls: list[dict[str, Any]]) -> None:
     """Decode tool_calls arguments in-place (for log display only).
 
     Parses JSON string arguments into dicts for readability.
@@ -293,7 +293,9 @@ def log_llm_response(
 
     model = response.get("model", "N/A")
     token_usage = response.get("usage", {})
-    messages_data = [choice.get("message", {}) for choice in response.get("choices", [])]
+    # The display clean-up below drops tool-call ids and thinking signatures and decodes arguments, so it must
+    # work on a copy: the caller builds the AIMessage from this same dict after logging it.
+    messages_data = copy.deepcopy([choice.get("message", {}) for choice in response.get("choices", [])])
 
     # Decode tool_calls arguments (if JSON strings) for readability
     for msg in messages_data:

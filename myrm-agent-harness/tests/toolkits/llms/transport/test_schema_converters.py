@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.toolkits.llms.transport.anthropic_schema import to_output_schema
 from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_schema
 from myrm_agent_harness.toolkits.llms.transport.json_schema import inline_refs
@@ -41,6 +43,24 @@ class TestInlineRefs:
     def test_a_schema_without_references_is_unchanged(self) -> None:
         schema = {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]}
         assert inline_refs(schema) == schema
+
+    def test_a_schema_nested_beyond_the_depth_limit_is_cut_to_any_value_instead_of_recursing_forever(self) -> None:
+        schema: dict[str, object] = {"type": "string"}
+        for _ in range(60):
+            schema = {"type": "object", "properties": {"next": schema}}
+
+        node: object = inline_refs(schema)
+        levels = 0
+        while isinstance(node, dict) and "properties" in node:
+            node = node["properties"].get("next", {})  # the cut can fall on the table itself
+            levels += 1
+
+        assert node == {}
+        assert 10 <= levels < 60
+
+    @pytest.mark.parametrize("malformed", [None, [], "string", 7], ids=["none", "list", "text", "number"])
+    def test_a_tool_schema_that_is_not_an_object_becomes_any_value(self, malformed: object) -> None:
+        assert inline_refs(malformed) == {}  # type: ignore[arg-type]
 
 
 class TestGeminiSchema:

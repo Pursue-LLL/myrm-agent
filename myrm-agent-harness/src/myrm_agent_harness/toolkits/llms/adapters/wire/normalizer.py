@@ -297,8 +297,7 @@ def responses_event_to_completion_chunk(
 
     item = event.get("item")
     if isinstance(item, dict) and item.get("type") == "function_call":
-        done = normalized_type.endswith(("output_item.done", "output_item_done"))
-        return _tool_calls_chunk(state.on_item(event, item, done=done))
+        return _tool_calls_chunk(state.on_item(event, item))
 
     if "function_call_arguments" in normalized_type:
         final = normalized_type.endswith(("arguments.done", "arguments_done"))
