@@ -102,8 +102,8 @@ class ToolLayer(IntEnum):
 #### 2.2.3 EXTENDED 层 (Layer 3) - 扩展层
 - **特征**: harness 可选能力，默认关闭，按需 Turn1 或 RUNTIME_ONLY 绑定；组内统一按字母序稳定排序
 - **缓存**: harness 三层末尾；变化不影响 CORE/HIGH_PRIORITY 前缀
-- **工具数量**: 登记 **40** EXTENDED（harness 静态；见 TOOL_COUNT 块）
-- **Token 消耗**: 典型 ~2,246 tokens，满载 ~7,290+ tokens
+- **工具数量**: 登记 **38** EXTENDED（harness 静态；见 TOOL_COUNT 块）
+- **Token 消耗**: 典型 ~2,246 tokens，满载 ~6,037+ tokens（`DEFAULT_AGENT_TOKEN_INVENTORY.md` §四 已列 31 个 EXTENDED 工具的描述值求和）
 
 **子分类**:
 
@@ -347,7 +347,7 @@ const staleCoreSkills = useMemo(() => {
 |------|--------:|----------:|------|
 | 最小场景 | 8 个 | ~5,876 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
 | 典型场景 | 13 个 | ~10,320 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 61 个 | ~19,873（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 未逐项实测 |
+| 满载场景 | 56 个 | ~20,041（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 已列工具的描述值求和，另 7 个工具无记录、未计入 |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 

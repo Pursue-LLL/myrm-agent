@@ -308,20 +308,20 @@ Token 明细（历史 tiktoken 计量保留）：
 | 消息格式 | ~300 |
 | **tiktoken 小计** | **~5,876** |
 
-### 满载场景（所有可选功能全开：浏览器+Cron+Wiki+子Agent+渲染UI+看板+日历+计算机+IM）
+### 满载场景（全部已登记 LLM 工具同轮 bind：浏览器+Cron+Wiki+子Agent+看板+桌面控制+IM 通知+媒体生成+发布）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
 | System Prompt 层 | **2,369** |
 | CORE 工具层 | **2,655** |
-| HIGH_PRIORITY 工具层 | ~2,692 |
-| EXTENDED + EXTERNAL（42 + 7 = 49 工具） | ~7,400（**粗估，未逐项实测**；EXTENDED 装配依赖各 backend，无法在离线脚本中全量构建） |
-| schema wrapper 包装 | ~3,185 (49 工具 × 65) |
+| HIGH_PRIORITY 工具层 | **2,717** |
+| EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,960（**粗估，未逐项实测**：§四 已列 36 个工具的描述值求和，EXTENDED 31 个 ~6,037 + EXTERNAL 5 个 ~923；EXTENDED 装配依赖各 backend，无法在离线脚本中全量构建） |
+| schema wrapper 包装 | **3,640** (56 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~19,873（粗估）** |
+| **tiktoken 小计** | **~20,041（粗估）** |
 
-> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind；EXTENDED/EXTERNAL 描述 token 未逐项实测，仅作量级参考。
+> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind；EXTENDED 工具中 `delegate_task_tool`、`subagent_control_tool`（§4.6 标 TBD）与 `browser_ask_human_tool`、`browser_execute_script_tool`、`kanban_cancel_task`、`kanban_retry_task`、`kanban_revise_plan`（未列入 §四）共 7 个没有描述 token 记录，未计入上表，仅作量级参考。
 
 ---
 
@@ -331,10 +331,10 @@ Token 明细（历史 tiktoken 计量保留）：
 [CORE: web_fetch + bash + file_* + glob + grep (~2,655 tok, 8 tools)]
   ↑ 通用 Agent 基线前缀（agent 模式）
 
-[HIGH_PRIORITY: web_search + memory_* + skill_select (~2,692 tok)]
+[HIGH_PRIORITY: web_search + memory_* + skill_select (~2,717 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~7,411 tok)]
+[EXTENDED: 可选工具 (~0~6,037+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 2,070 (GPT-5·ZH·full) + messages[1] 299]
