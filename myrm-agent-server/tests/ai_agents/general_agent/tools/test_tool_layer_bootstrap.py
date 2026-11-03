@@ -25,8 +25,5 @@ class TestServerToolLayerRegistration:
     def test_artifact_publish_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("artifact_publish") == ToolLayer.EXTERNAL
 
-    def test_code_graph_tool_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("code_graph_tool") == ToolLayer.EXTERNAL
-
     def test_browser_local_search_not_registered(self) -> None:
         assert "browser_local_search_tool" not in _SERVER_TOOL_LAYERS

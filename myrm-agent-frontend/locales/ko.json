@@ -3198,19 +3198,6 @@
       "successDesc": "대화 기록을 평가 벤치마크 데이터셋에 추출했습니다",
       "error": "평가 케이스 추출 실패"
     },
-    "callGraph": {
-      "title": "코드 호출 그래프 분석",
-      "callers": "호출자",
-      "reachingTests": "관련 테스트",
-      "physicalCallChain": "물리적 호출 체인",
-      "noCallers": "외부 호출 지점이 감지되지 않았습니다",
-      "params": "매개변수",
-      "testImpact": "테스트 영향 및 파급 반경",
-      "noTests": "이 로직을 포함하는 테스트 케이스가 감지되지 않았습니다",
-      "depth": "깊이",
-      "level": "단계",
-      "runAffectedTests": "영향받는 {count}개 테스트 실행"
-    },
     "modelPlaybook": {
       "cannotApplyMissingModels": "레시피를 적용할 수 없습니다: 일부 모델이 설정되지 않았습니다.",
       "recipeAppliedSuccess": "레시피가 성공적으로 적용되었습니다!",
