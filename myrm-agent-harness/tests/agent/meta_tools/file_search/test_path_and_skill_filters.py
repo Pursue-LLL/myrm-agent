@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     find_existing_unicode_path,
     format_path_not_found_hint,
     generate_unicode_path_candidates,
     levenshtein_distance_bounded,
+    mcp_namespace_error,
     suggest_similar_paths,
 )
 from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
@@ -33,6 +36,19 @@ def test_format_path_not_found_hint_with_suggestions() -> None:
     hint = format_path_not_found_hint("/a/missing.py", ["/a/main.py"])
     assert "Did you mean" in hint
     assert "/a/main.py" in hint
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/", "/mcp/k8s_skill", " /mcp/k8s_skill/list_pods.md "])
+def test_mcp_namespace_error_names_the_tool_that_reads_it(path: str) -> None:
+    message = mcp_namespace_error(path)
+    assert message is not None
+    assert "file_read_tool" in message
+    assert "/mcp/<skill_name>/<function_name>.md" in message
+
+
+@pytest.mark.parametrize("path", ["mcp", "/mcpfoo", "/workspace/mcp/a.md", ".", "src/mcp", ""])
+def test_mcp_namespace_error_ignores_other_paths(path: str) -> None:
+    assert mcp_namespace_error(path) is None
 
 
 def test_suggest_similar_paths_empty_basename() -> None:
@@ -151,5 +167,3 @@ def test_path_hint_edge_cases(tmp_path) -> None:
     # Levenshtein distance longer s1 shorter s2
     assert levenshtein_distance_bounded("a", "abcde", max_dist=2) == 3
     assert levenshtein_distance_bounded("abc", "a", max_dist=1) == 2
-
-

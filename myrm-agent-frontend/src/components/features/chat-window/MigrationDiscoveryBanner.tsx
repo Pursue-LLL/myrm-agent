@@ -9,7 +9,8 @@
  *
  * [POS]
  * Local/Tauri-only banner shown in EmptyChat when external assistant data is detected.
- * Routes user to migration wizard in settings for full preview and confirm flow.
+ * Renders nothing while scanning and when nothing is found, so users without external data never see a
+ * placeholder card flash in and out. Routes user to migration wizard in settings for full preview and confirm flow.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -24,9 +25,9 @@ import {
   getMigrationSourceDisplayName,
   type ExternalSource,
 } from '@/services/migrationDiscovery';
-import { IconArrowRight, IconDownload, IconLoader } from '@/components/features/icons/PremiumIcons';
+import { IconArrowRight, IconDownload } from '@/components/features/icons/PremiumIcons';
 
-type BannerState = 'idle' | 'scanning' | 'found' | 'dismissed';
+type BannerState = 'idle' | 'found' | 'dismissed';
 
 export default function MigrationDiscoveryBanner() {
   const t = useTranslations('chat.migrationDiscovery');
@@ -49,7 +50,6 @@ export default function MigrationDiscoveryBanner() {
 
     let cancelled = false;
     const scan = async () => {
-      setState('scanning');
       try {
         const result = await discoverMigrationSources();
         if (cancelled) {
@@ -90,23 +90,7 @@ export default function MigrationDiscoveryBanner() {
     router.push('/settings/memory?sub=migration');
   }, [router, sources]);
 
-  if (!isLocalMode() || state === 'idle' || state === 'dismissed') {
-    return null;
-  }
-
-  if (state === 'scanning') {
-    return (
-      <div className="w-full rounded-xl border border-border/60 bg-secondary/30 p-4">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <IconLoader className="h-4 w-4 animate-spin" />
-          <span>{t('detecting')}</span>
-        </div>
-      </div>
-    );
-  }
-
-  const primarySource = sources[0];
-  if (!primarySource) {
+  if (!isLocalMode() || state !== 'found' || sources.length === 0) {
     return null;
   }
 

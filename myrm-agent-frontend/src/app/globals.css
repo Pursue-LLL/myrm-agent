@@ -316,12 +316,6 @@
     color-mix(in srgb, var(--primary) 8%, transparent) 72%,
     color-mix(in srgb, var(--accent-warm) 8%, transparent) 100%
   );
-  --gallery-ink-0: color-mix(in srgb, var(--primary) 14%, transparent);
-  --gallery-ink-1: color-mix(in srgb, var(--primary) 18%, transparent);
-  --gallery-ink-2: color-mix(in srgb, var(--accent-warm) 10%, transparent);
-  --gallery-ink-3: color-mix(in srgb, var(--primary) 12%, transparent);
-  --gallery-ink-spot: color-mix(in srgb, var(--primary) 14%, transparent);
-  --gallery-ink-spot-warm: color-mix(in srgb, var(--accent-warm) 10%, transparent);
   --brand-gradient-border: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 40%, transparent) 0%,
@@ -416,12 +410,6 @@
     color-mix(in srgb, var(--primary) 10%, transparent) 72%,
     color-mix(in srgb, var(--accent-warm) 10%, transparent) 100%
   );
-  --gallery-ink-0: color-mix(in srgb, var(--primary) 11%, transparent);
-  --gallery-ink-1: color-mix(in srgb, var(--primary) 14%, transparent);
-  --gallery-ink-2: color-mix(in srgb, var(--accent-warm) 9%, transparent);
-  --gallery-ink-3: color-mix(in srgb, var(--primary) 10%, transparent);
-  --gallery-ink-spot: color-mix(in srgb, var(--primary) 10%, transparent);
-  --gallery-ink-spot-warm: color-mix(in srgb, var(--accent-warm) 8%, transparent);
   --brand-gradient-border: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 42%, transparent) 0%,
@@ -1009,14 +997,29 @@ button.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs)
 button.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs),
 a.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs),
 a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs) {
-  position: relative;
-  z-index: 1;
   border: 0;
   box-shadow: var(--shadow-brand);
   animation:
     button-float 6.5s ease-in-out infinite,
     button-glow-breathe 6.5s ease-in-out infinite;
   transition: background-color 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * The brand shadow needs a stacking context, hence `position: relative` + `z-index`. This block is unlayered, so it
+ * beats Tailwind's layered utilities: elements that already carry a positioning utility (fixed / absolute / sticky,
+ * with or without a breakpoint prefix) are excluded through a zero-specificity `:where(:not(...))`, otherwise a
+ * floating action button silently drops back into the document flow and loses its own z-index.
+ * Guarded by `__tests__/brand-elevation-positioning.test.ts`.
+ */
+.btn-brand-elevation:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+.brand-gradient-bg:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+button.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])) {
+  position: relative;
+  z-index: 1;
 }
 
 .brand-gradient-bg {
@@ -1040,9 +1043,17 @@ button.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs)
 button.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):hover:not(:disabled),
 a.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):hover,
 a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):hover {
-  z-index: 2;
   animation-play-state: paused, paused;
   box-shadow: var(--shadow-brand-lg);
+}
+
+.btn-brand-elevation:hover:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+.brand-gradient-bg:hover:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):hover:not(:disabled):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+button.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):hover:not(:disabled):where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):hover:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])),
+a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):hover:where(:not([class*='fixed'], [class*='absolute'], [class*='sticky'])) {
+  z-index: 2;
 }
 
 .btn-brand-elevation:active,

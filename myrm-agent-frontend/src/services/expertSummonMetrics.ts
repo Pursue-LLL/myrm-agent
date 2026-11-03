@@ -7,7 +7,7 @@
  * - getExpertSummonSummary: 专家召唤漏斗聚合查询。
  *
  * [POS]
- * 专家召唤漏斗可观测客户端。负责 TemplateMarket/FlowPad 的统一埋点口径、
+ * 专家召唤漏斗可观测客户端。负责 ExpertSummonPopover/FeaturedExpertChips/FlowPad 的统一埋点口径、
  * 离线丢样聚合回补，以及主路径成功率/失败率/首条发送转化率观测。
  */
 import { apiRequest } from '@/lib/api';

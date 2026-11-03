@@ -26,12 +26,10 @@ from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.skills.mcp.description import resolve_description
 from myrm_agent_harness.agent.skills.mcp.doc_rendering import (
-    INDEX_NOTE_TOKENS,
-    INSTRUCTIONS_TOKEN_LIMIT,
-    L2_MAX_TOKENS,
-    MIN_TOOL_SECTION_TOKENS,
     build_tool_section,
     cap_instructions,
+    instructions_token_cap,
+    l2_ceiling,
     text_field,
     tool_section_budget,
 )
@@ -169,7 +167,7 @@ class MCPSkillGenerator:
 
         server_name = skill_meta.mcp.server
         tool_schemas = skill_meta.mcp.tool_schemas
-        instructions = tool_schemas.get("__instructions__", {}).get("content", "")
+        instructions = text_field(tool_schemas.get("__instructions__", {}), "content", "")
 
         tool_count = len(skill_meta.mcp.tools)
         # The registry matches on skill_meta.name, so L2 must advertise the same string:
@@ -181,8 +179,7 @@ class MCPSkillGenerator:
         title = server_name.replace("_", " ").replace("-", " ").title()
         fixed_prefix = f"# {title} Skill\n\n**Skill Name**: `{skill_name}` (use this exact name in import paths and doc paths)\n\n## Functions\n\n{usage_section}"
         fixed_tokens = get_token_count(fixed_prefix)
-        instruction_cap = max(0, min(INSTRUCTIONS_TOKEN_LIMIT, L2_MAX_TOKENS - fixed_tokens - INDEX_NOTE_TOKENS - MIN_TOOL_SECTION_TOKENS))
-        instructions = cap_instructions(instructions, skill_meta.name, instruction_cap)
+        instructions = cap_instructions(instructions, skill_meta.name, instructions_token_cap(fixed_tokens))
         tool_list, tier = build_tool_section(
             tools, tool_schemas, skill_name, tool_section_budget(instructions, fixed_tokens)
         )
@@ -211,12 +208,13 @@ class MCPSkillGenerator:
 
         skill_meta.mcp.skill_content = content
         tokens = get_token_count(content)
-        if tokens > L2_MAX_TOKENS:
+        ceiling = l2_ceiling(tier)
+        if tokens > ceiling:
             logger.warning(
                 "MCP SKILL.md for '%s' is %d tokens (soft budget %d); server instructions may need trimming",
                 skill_meta.name,
                 tokens,
-                L2_MAX_TOKENS,
+                ceiling,
             )
         return content
 

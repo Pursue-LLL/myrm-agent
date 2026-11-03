@@ -67,6 +67,7 @@
     "summonSuccess": "전문가 {name}(으)로 전환되었습니다",
     "summonFailed": "전문가 템플릿 호출 실패",
     "featuredTitle": "추천 전문가 및 팀",
+    "featuredDismiss": "추천 전문가 닫기",
     "teamBadge": "팀",
     "expertBadge": "전문가",
     "searchPlaceholder": "전문가 또는 팀 검색...",
@@ -1099,18 +1100,14 @@
       "instruction": "지침",
       "instructionDesc": "사용자 정의 지침 구성",
       "more": "더 보기",
-      "savedAgents": "저장된 에이전트",
       "viewAll": "모두 보기",
-      "manage": "관리",
       "noSavedAgents": "저장된 에이전트가 없습니다",
       "noSavedAgentsDesc": "구성을 에이전트로 저장하세요",
       "useAgent": "사용",
-      "teamBadge": "팀",
       "noSelected": "선택되지 않음",
       "noInstruction": "지침 세트 없음",
       "useGlobalInstructionDefault": "전역 지침 사용 중",
       "ready": "준비됨",
-      "noDescription": "설명 없음",
       "saveAsNewAgent": "새 에이전트로 저장",
       "savingAgent": "저장 중...",
       "save": "저장",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "단일 Agent (팀 없음)",
       "jitTeamPlaceholder": "가상 팀 미사용",
       "jitInheritMemory": "상위 대화 메모리 상속",
-      "templateMarket": "템플릿 마켓",
-      "categoryFilter": "카테고리 필터",
       "categoryAll": "전체",
       "categoryOffice": "오피스·업무",
       "categoryCommerce": "커머스·유통",
       "categoryEngineering": "엔지니어링",
       "categoryTeam": "팀",
-      "orgMarketplace": "조직 마켓",
-      "searchMarketplace": "에이전트 검색...",
-      "installs": "설치",
-      "installed": "설치됨",
-      "installSuccess": "마켓에서 에이전트를 설치했습니다!",
-      "installError": "에이전트 설치 실패",
-      "noResults": "에이전트를 찾을 수 없습니다",
-      "publishToOrg": "조직에 게시",
-      "publishedToOrg": "조직에 게시됨",
-      "publishSuccess": "조직 마켓에 게시했습니다!",
-      "publishError": "조직 마켓에 게시 실패",
-      "forcePush": "푸시",
-      "forcePushConfirm": "「{name}」v{version}을(를) 모든 설치 사용자에게 강제 푸시하시겠습니까? 현재 설정이 덮어쓰기됩니다(스냅샷이 저장되어 롤백 가능합니다).",
-      "forcePushSuccess": "강제 푸시 완료",
-      "forcePushError": "푸시 실패",
-      "forcePushTooltip": "최신 버전을 모든 설치 사용자에게 강제 푸시",
       "forcePushReceived": "에이전트 설정이 조직에 의해 업데이트되었습니다",
       "forcePushRollbackHint": "스냅샷이 저장되었습니다. 에이전트 설정에서 롤백할 수 있습니다.",
       "viewAgent": "보기",
-      "instantiateSuccess": "템플릿에서 에이전트가 생성되었습니다!",
-      "instantiateError": "템플릿에서 에이전트 생성 실패",
       "blueprints": {
         "research_squad": "심층 조사 팀 (멀티 에이전트)",
         "code_audit_squad": "코드 레드팀 감사 (멀티 에이전트)"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "장착됨",
         "pureInstructionNotice": "스킬 미장착 · 순수 지시 모드",
         "emptyExplanation": "현재 장착된 스킬이 없습니다. 이 에이전트는 순수 지시 모드로 실행됩니다. 위의 \"모두 선택\"을 클릭하거나 아래에서 스킬을 선택하여 장착할 수 있습니다."
-      },
-      "forcePushSummary": "v{version} → 동기화 {synced}개, 건너뜀 {skipped}개, 실패 {failed}개 (총 {total}개)"
+      }
     },
     "validation": {
       "dependencyInvalid": "에이전트 구성에 문제가 있습니다",
@@ -1361,7 +1337,7 @@
       "addMore": "더 추가",
       "actionSpaceRadar": {
         "title": "의사결정 정확도 예측",
-        "loadMeterLabel": "핵심 스킬 Token 부하",
+        "loadMeterLabel": "액션 공간 복잡도",
         "evaluating": "계산 중...",
         "evaluatingHint": "엔진에 연결하여 액션 공간을 분석하는 중...",
         "statusCritical": "정확도 급락 위험: 도구가 너무 많습니다! 심각한 환각 위험 — 지금 정리하세요.",
@@ -1371,10 +1347,10 @@
         "smartPrune": "휴면 스킬 정리로 액션 공간 확보",
         "smartPruneRunning": "액션 공간을 정리하는 중…",
         "turn1CatalogTitle": "1턴 스킬 카탈로그",
-        "turn1CatalogSummary": "인라인 {inline} · 숨김 {hidden} · 검색 {searchState}",
+        "turn1CatalogSummary": "인라인 {inline} · 온디맨드 {hidden} · 검색 {searchState} · 약 {tokens, number} 토큰",
         "turn1CatalogSearchOn": "켬",
         "turn1CatalogSearchOff": "끔",
-        "turn1CatalogOverCapHint": "대화 시작 시 처음 {cap}개의 Core 스킬(알파벳순)만 인라인으로 표시됩니다. 자주 사용하지 않는 스킬을 Peripheral로 이동하면 검색이 꺼지고 턴당 약 203 토큰을 절약할 수 있습니다."
+        "turn1CatalogOverCapHint": "Core 스킬이 인라인 한도를 넘었습니다. 처음 {inline}개(알파벳순)는 전체 내용이 인라인으로 표시되고, 나머지 {overflow}개는 이름만 목록에 표시되어 필요할 때 이름으로 불러옵니다. 자주 쓰지 않는 Core 스킬을 Peripheral로 옮기면 나머지 스킬이 들어갈 자리가 생깁니다."
       },
       "skillsZone": {
         "coreTitle": "핵심 스킬",
@@ -2515,13 +2491,14 @@
       "modeLocalDesc": "로컬 폴더를 바인딩하여 AI가 파일 읽기/쓰기 및 분석을 수행합니다",
       "modeCloud": "클라우드 샌드박스",
       "modeCloudDesc": "격리된 샌드박스 환경에서 호스트 오염 없이 안전하게 코드를 실행합니다",
+      "modeCloudBadge": "전용 샌드박스 저장소",
       "modeChat": "빠른 대화",
       "modeChatDesc": "작업 공간 설정 없이 일반 AI 대화 및 빠른 질의응답",
       "bindWorkspace": "작업 디렉터리 선택",
       "currentWorkspace": "현재 디렉터리",
       "noWorkspaceSelected": "디렉터리 미선택 (클릭하여 바인딩)",
       "scaffoldBtn": "표준 폴더 일괄 초기화",
-      "scaffoldTooltip": "현재 작업 공간에 표준 폴더 구조 생성: 00_원시자료, 01_참고, 02_생성결과, 03_히스토리버전",
+      "scaffoldTooltip": "현재 작업 공간에 표준 폴더 구조 생성: {folders}",
       "scaffoldSuccess": "표준 사무 폴더 초기화 완료",
       "scaffoldFailed": "표준 사무 폴더 초기화 실패",
       "clearWorkspace": "바인딩 해제",
@@ -3185,7 +3162,6 @@
       "healthy": "환경 정상"
     },
     "migrationDiscovery": {
-      "detecting": "AI 어시스턴트 데이터 스캔 중...",
       "title": "{competitor} 데이터 감지됨",
       "description": "{memoryCount}개 메모리와 {skillCount}개 스킬을 찾았습니다 — 가져오기 전에 미리보기",
       "descriptionMemoryOnly": "{memoryCount}개 메모리를 찾았습니다 — 가져오기 전에 미리보기",
@@ -3481,12 +3457,7 @@
     "collapseReasoning": "사고 접기",
     "reasoningLoading": "사고 중",
     "reasoningTokens": "{count} 추론 토큰",
-    "reasoningTokensEstimated": "≈ {count} 추론 토큰",
-    "systemNotices": {
-      "title": "알림 및 발견",
-      "open": "알림",
-      "playbook": "모델 오케스트레이션 플레이북"
-    }
+    "reasoningTokensEstimated": "≈ {count} 추론 토큰"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -7005,93 +6976,7 @@
     }
   },
   "presetAgent": {
-    "title": "에이전트",
-    "description": "대화를 시작할 에이전트를 선택하세요",
-    "selectPreset": "프리셋 에이전트 선택",
-    "workingDirectory": "작업 디렉터리",
-    "selectWorkingDirectory": "작업 디렉터리 선택",
-    "configureWorkingDirectory": "이 에이전트의 작업 디렉터리를 구성하세요. 에이전트는 이 디렉터리 내에서 작동합니다.",
-    "notConfigured": "연결되지 않음, 먼저 구성하세요",
-    "requiresConfig": "구성 필요",
-    "cancel": "취소",
-    "confirm": "확인",
-    "pathHint": "프로젝트의 전체 경로를 입력하세요, 예:",
-    "enterDirectoryPath": "프로젝트 디렉터리 경로 입력",
-    "manualInputPath": "작동할 프로젝트 디렉터리의 절대 경로를 입력하세요.",
-    "clickToConfigureDirectory": "작업 경로 구성하려면 클릭",
-    "pleaseEnterWorkingDirectory": "먼저 작업 경로를 입력하세요",
-    "workingDirectoryPlaceholder": "작업 경로 입력...",
-    "workingPathLabel": "작업 경로",
-    "invalidAbsolutePath": "절대 경로를 입력하세요",
-    "edit": "편집",
-    "pathNotExist": "경로가 존재하지 않습니다",
-    "pathNotDirectory": "경로가 디렉터리가 아닙니다",
-    "errors": {
-      "workingDirectoryRequired": "작업 경로는 필수입니다",
-      "absolutePathRequired": "절대 경로를 입력하세요"
-    },
-    "collapse": "접기",
-    "showMore": "더 보기 ({count})",
-    "enableInSettings": "먼저 설정에서 {name}을(를) 활성화하세요",
-    "selectACPProvider": "코딩 어시스턴트 선택",
-    "noACPProviderEnabled": "사용 가능한 코딩 어시스턴트가 없습니다, 설정에서 구성하세요",
-    "goToSettings": "구성하러 가기",
-    "quickTaskHint": "빠른 작업 예시",
-    "useThisAgent": "이 에이전트 사용",
-    "selectACPModelHint": "선택 후 모델 선택기에서 ACP 모델을 선택하세요",
-    "category": {
-      "acp": "CLI 시각화",
-      "general": "일반 어시스턴트"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "일반 어시스턴트",
-      "description": "다양한 질문에 답할 수 있는 일반 대화 어시스턴트"
-    },
-    "cliVisual": {
-      "name": "CLI 시각화",
-      "description": "실시간 실행 계획과 파일 변경 시각화로 여러 CLI 코딩 어시스턴트를 지원합니다"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "문서 작성",
-        "guide": "스마트 홈 산업을 위한 경쟁 분석 프레임워크 초안을 도와주세요"
-      },
-      "chatWithWebpage": {
-        "name": "웹페이지와 채팅",
-        "guide": "웹페이지 링크를 붙여넣고 질문하세요"
-      },
-      "summarizeWebpage": {
-        "name": "웹페이지 요약",
-        "guide": "웹페이지 링크를 붙여넣고 AI에게 요약을 요청하세요"
-      },
-      "createProject": {
-        "name": "새 프로젝트 만들기",
-        "guide": "만들고 싶은 프로젝트를 설명하면 AI가 프로젝트 구조 초기화를 도와줍니다"
-      },
-      "codeReview": {
-        "name": "코드 리뷰",
-        "guide": "AI에게 프로젝트의 코드 품질과 잠재적 문제를 검토하게 하세요"
-      },
-      "fixBug": {
-        "name": "버그 수정",
-        "guide": "발생한 문제를 설명하면 AI가 위치를 찾아 수정해 줍니다"
-      },
-      "addFeature": {
-        "name": "기능 추가",
-        "guide": "추가할 기능을 설명하면 AI가 구현을 도와줍니다"
-      }
-    },
-    "available": "사용 가능",
-    "exampleCases": "예시",
-    "goToSettingsHint": "먼저 모델 서비스에서 ACP 제공자를 구성하고 활성화하세요",
-    "browse": "찾아보기",
     "notAvailable": "이 모드에서는 사용할 수 없습니다",
-    "recentProjects": "최근 프로젝트",
     "tauriModeRequired": "이 프리셋에는 데스크톱 앱(Tauri)이 필요합니다"
   },
   "pricing": {
@@ -16324,8 +16209,8 @@
       "embeddingModelDescription": "의미 검색용 텍스트 벡터화 모델 (로컬 실행)",
       "embeddingModelDescriptionSaas": "의미 검색용 텍스트 벡터화 모델 (구독자 무료)",
       "rerankerModel": "리랭커 모델",
-      "rerankerModelDescription": "관련성 향상을 위한 검색 결과 재정렬 모델 (로컬 실행)",
-      "rerankerModelDescriptionSaas": "관련성 향상을 위한 검색 결과 재정렬 모델 (구독자 무료)",
+      "rerankerModelDescription": "페이지 읽기 및 메모리 불러오기에서 관련성 순으로 정렬하는 리랭커 모델 (로컬 실행)",
+      "rerankerModelDescriptionSaas": "페이지 읽기 및 메모리 불러오기에서 관련성 순으로 정렬하는 리랭커 모델 (구독자 무료)",
       "localModel": "로컬 모델",
       "platformService": "플랫폼 서비스",
       "customProvider": "사용자 정의 제공자",
@@ -16377,7 +16262,7 @@
         "networkError": "네트워크 연결 실패"
       },
       "hint": {
-        "title": "임베딩 및 리랭커 모델은 검색 품질을 크게 향상시키고 웹 검색과 페이지 읽기 중 토큰 소비를 줄이며, LLM보다 비용이 훨씬 낮습니다.",
+        "title": "임베딩 및 리랭커 모델은 웹 페이지 읽기와 메모리 불러오기에 사용되어 질문과 가장 관련 있는 내용을 LLM에 우선 전달하며, LLM보다 비용이 훨씬 낮습니다.",
         "options": "무료 또는 유료 서비스 제공자 모델을 사용할 수 있습니다. 최고의 개인정보 보호를 위해 오픈소스 모델을 OpenAI 호환 형식으로 로컬에 배포할 수 있습니다.",
         "recommendation": "다국어 모델을 권장하며 실제 사용 상황에 따라 선택할 수 있습니다.",
         "deployTip": "AI에게 배포 방법 물어보기",
@@ -16385,10 +16270,8 @@
       },
       "advancedRetrieval": {
         "title": "고급 검색",
-        "description": "임베딩 및 리랭커 모델로 웹 페이지 읽기와 메모리 불러오기에서 가장 관련성 높은 내용을 우선 선택",
         "toggleLabel": "페이지 읽기 및 메모리 불러오기 최적화",
         "toggleDescription": "활성화하면 긴 웹 페이지와 메모리를 임베딩 및 리랭커 모델로 관련성 순으로 정렬해 가장 유용한 내용을 LLM에 우선 전달합니다 (임베딩 및 리랭커 모델 구성 필요)",
-        "modelsRequired": "먼저 임베딩 및 리랭커 모델을 구성하고 적용하세요",
         "cannotEnable": "먼저 기본 모델 페이지에서 임베딩 및 리랭커 모델을 구성하고 적용하세요"
       },
       "validationMessages": {
@@ -16947,7 +16830,7 @@
         "reindexPartial": "{migrated}개 완료, {failed}개는 마이그레이션하지 못했습니다. 다시 시도해 주세요",
         "reindexError": "마이그레이션이 중단되었습니다. 다시 실행하면 이어서 진행합니다",
         "rerankerModel": "리랭커 모델",
-        "rerankerModelDescription": "지식 베이스, 메모리 등 기능의 의미 순위 지정을 위한 검색 결과 재정렬 모델",
+        "rerankerModelDescription": "페이지 읽기 및 메모리 불러오기에서 관련성 순으로 정렬하는 리랭커 모델",
         "provider": "제공자",
         "modelName": "모델 이름",
         "modelNamePlaceholder": "모델 이름 입력",

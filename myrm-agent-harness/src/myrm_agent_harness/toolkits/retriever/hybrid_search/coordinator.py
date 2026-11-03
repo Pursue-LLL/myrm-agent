@@ -7,7 +7,11 @@ All model dependencies (embedding, reranker) are passed explicitly via method pa
 - toolkits.retriever.bm25_retrieval::BM25Retriever (POS: BM25 sparse retrieval engine)
 - toolkits.retriever.embedding::EmbeddingService (POS: Embedding protocol)
 - toolkits.retriever.reranker::RerankerService (POS: Reranker contract layer)
-- toolkits.retriever.autocut::AutocutConfig (POS: autocut configuration)
+- toolkits.retriever.vector_search::search_with_numpy_retriever (POS: in-memory vector search for ephemeral document chunks)
+- toolkits.retriever.fusion_strategies::rrf_fusion (POS: score-fusion utilities for hybrid retrieval)
+- toolkits.retriever.hybrid_search.fusion_pipeline::FusionPipeline (POS: multi-query result aggregation and ranking)
+- toolkits.retriever.hybrid_search.reranking_pipeline::RerankingPipeline (POS: batch reranker dispatch and score sorting)
+- toolkits.retriever.performance_monitor::get_performance_monitor (POS: performance monitor hooks)
 
 [OUTPUT]
 - HybridSearchCoordinator: Coordinates BM25 sparse retrieval and vector retrieval with RRF fusion and reranking
@@ -23,7 +27,6 @@ import logging
 
 from langchain_core.documents import Document
 
-from myrm_agent_harness.toolkits.retriever.autocut import AutocutConfig
 from myrm_agent_harness.toolkits.retriever.bm25_retrieval import BM25Retriever
 from myrm_agent_harness.toolkits.retriever.embedding import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.fusion_strategies import rrf_fusion
@@ -39,9 +42,11 @@ logger = logging.getLogger(__name__)
 class HybridSearchCoordinator:
     """Hybrid search coordinator.
 
-    Coordinates BM25 sparse retrieval and vector retrieval with two modes:
-    1. Direct reranking: for small document sets (< 100 docs).
-    2. Hybrid retrieval + reranking: for large document sets (> 100 docs).
+    Coordinates BM25 sparse retrieval and vector retrieval with two modes; the caller picks one
+    (``RetrieverManager`` switches on the chunk count versus ``hybrid_top_k_per_query``):
+    1. Direct reranking: every document goes to the reranker, for small document sets.
+    2. Hybrid retrieval + reranking: BM25 and vector search fused with RRF narrow each query to
+       ``hybrid_top_k_per_query`` candidates before reranking, for large document sets.
 
     All AI models (reranker/embedding) are passed via method parameters.
     """
@@ -57,7 +62,6 @@ class HybridSearchCoordinator:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Direct reranking (skips hybrid retrieval, for small document sets)."""
         if not _validate_inputs(queries, documents, final_top_k):
@@ -78,7 +82,6 @@ class HybridSearchCoordinator:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
         async with monitor.track_operation("result fusion"):
             selected = fusion.fuse_query_results(query_reranked, final_top_k)
@@ -99,7 +102,6 @@ class HybridSearchCoordinator:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Hybrid retrieval + reranking (for large document sets)."""
         if not _validate_inputs(queries, documents, final_top_k):
@@ -129,7 +131,6 @@ class HybridSearchCoordinator:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
         async with monitor.track_operation("result fusion"):
             selected = fusion.fuse_query_results(query_reranked, final_top_k)

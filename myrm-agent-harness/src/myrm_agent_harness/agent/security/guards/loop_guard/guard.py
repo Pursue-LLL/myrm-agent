@@ -390,11 +390,13 @@ class LoopGuard(LoopDetectorMixin):
         result_text: str,
         *,
         record: CallRecord | None = None,
+        errored: bool = False,
     ) -> LoopVerdict:
         """Record a completed tool call and check for no-progress loops.
 
         ``record`` is the call the result belongs to (see ``latest_record``); without it the result goes to the
-        latest record, which is right only when calls do not overlap.
+        latest record, which is right only when calls do not overlap. ``errored`` is the executor's error status
+        for the call, which outranks whatever the result text says.
         """
         rec = record if record is not None else self.latest_record()
         if rec is None:
@@ -402,7 +404,7 @@ class LoopGuard(LoopDetectorMixin):
 
         rec.result_hash = _result_hash(tool_name, result_text)
         rec.result_content = result_text
-        success_level = evaluate_success_level(tool_name, result_text)
+        success_level = evaluate_success_level(tool_name, result_text, errored=errored)
         rec.success_level = success_level
 
         if self._pending_follow_check:

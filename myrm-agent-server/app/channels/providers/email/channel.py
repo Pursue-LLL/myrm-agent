@@ -1,11 +1,12 @@
 """Email channel — bidirectional messaging via IMAP (inbound) + SMTP (outbound).
 
-Inbound: IMAP periodic poll → _parse_email (EmailInboundMixin) → _emit_inbound
+Inbound: IMAP periodic poll (EmailPollMixin) → _parse_email (EmailInboundMixin) → _emit_inbound
 Outbound: SMTP send (HTML body + file attachments)
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Channel abstract base class)
-- channels.providers.email.inbound::EmailInboundMixin (POS: RFC 822 → InboundMessage parsing)
+- channels.providers.email.imap::send_imap_id (POS: IMAP client ID, reply reading, UIDVALIDITY)
+- channels.providers.email.poll::EmailPollMixin (POS: the batch one IMAP poll takes, its hand-over to the pipeline and where the next resumes)
 - channels.providers.email.outbound::build_message, load_attachments (POS: attachment loading and MIME assembly)
 - channels.types::OutboundMessage (POS: outbound message envelope)
 
@@ -13,11 +14,12 @@ Outbound: SMTP send (HTML body + file attachments)
 - EmailChannel: Email bidirectional messaging Channel (IMAP + SMTP)
 
 [POS]
-Email channel implementation: credentials, lifecycle, IMAP polling and SMTP transport. Message parsing (attachments,
-forwarded mail, HTML-to-Markdown cleaning, thread tracking) lives in ``inbound.py``; attachment loading and MIME
-assembly live in ``outbound.py``. Every IMAP and SMTP connection is given ``ssl.create_default_context()``: the server
-certificate is verified, and the enterprise network compatibility setting decides what is trusted (the stdlib default
-context verifies nothing). Every connection also times out on a silent server instead of blocking its thread.
+Email channel implementation: credentials, lifecycle, the poll loop and SMTP transport. Which messages a poll takes, how
+they reach the inbound pipeline and where the next poll resumes live in ``poll.py``; message parsing (attachments, forwarded mail, HTML-to-Markdown cleaning,
+thread tracking) lives in ``inbound.py``; attachment loading and MIME assembly live in ``outbound.py``. Every IMAP and SMTP
+connection is given ``ssl.create_default_context()``: the server certificate is verified, and the enterprise network
+compatibility setting decides what is trusted (the stdlib default context verifies nothing). Every connection also times
+out on a silent server instead of blocking its thread.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ import imaplib
 import logging
 import smtplib
 import ssl
+import threading
 from collections.abc import Sequence
 from typing import Self
 
@@ -39,15 +42,15 @@ from app.channels.types import (
     ChannelCapabilities,
     ChannelIssue,
     ChannelStatus,
-    InboundMessage,
     IssueKind,
     IssueSeverity,
     OutboundMessage,
     RenderStyle,
 )
 
-from .inbound import EmailInboundMixin
+from .imap import send_imap_id
 from .outbound import LoadedAttachment, build_message, load_attachments
+from .poll import EmailPollMixin
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +61,7 @@ _POLL_INTERVAL = 30.0
 _SOCKET_TIMEOUT = 30
 
 
-def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
-    """Send RFC 2971 IMAP ID command. Required by 163/NetEase after LOGIN."""
-    try:
-        conn.xatom(
-            "ID",
-            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrm.sh")',
-        )
-    except Exception:
-        pass
-
-
-class EmailChannel(EmailInboundMixin, BaseChannel):
+class EmailChannel(EmailPollMixin, BaseChannel):
     """Email channel using IMAP inbound + SMTP outbound."""
 
     name = "email"
@@ -139,6 +131,9 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         self._poll_interval = poll_interval
         self._poll_task: asyncio.Task[None] | None = None
         self._last_uid: int = 0
+        self._uidvalidity: bytes | None = None
+        self._unconfirmed: set[int] = set()
+        self._poll_lock = threading.Lock()
 
     @property
     def _is_configured(self) -> bool:
@@ -270,7 +265,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         conn = self._connect_imap()
         try:
             conn.login(self._imap_user, self._imap_password)
-            _send_imap_id(conn)
+            send_imap_id(conn)
             conn.noop()
             return True
         finally:
@@ -311,51 +306,7 @@ class EmailChannel(EmailInboundMixin, BaseChannel):
         return msg_id
 
     async def _poll_once(self) -> None:
-        """Single poll cycle. reconnect_loop handles retry on failure."""
+        """Poll until the channel stops; a raised error ends the loop and reconnect_loop restarts it after a backoff."""
         while self._status == ChannelStatus.RUNNING:
-            new_messages = await asyncio.to_thread(self._fetch_new_emails)
-            for inbound in new_messages:
-                await self._emit_inbound(inbound)
+            await self._poll_round()
             await asyncio.sleep(self._poll_interval)
-
-    def _fetch_new_emails(self) -> list[InboundMessage]:
-        results: list[InboundMessage] = []
-        conn = self._connect_imap()
-        try:
-            conn.login(self._imap_user, self._imap_password)
-            _send_imap_id(conn)
-            conn.select("INBOX")
-
-            if self._last_uid:
-                criteria = f"(UID {self._last_uid + 1}:*)"
-            else:
-                criteria = "(UNSEEN)"
-
-            _status, msg_nums = conn.uid("search", criteria)
-            if not msg_nums or not msg_nums[0]:
-                return results
-
-            uids = msg_nums[0].split()
-            for uid_bytes in uids[-20:]:
-                uid = int(uid_bytes)
-                if uid <= self._last_uid:
-                    continue
-
-                _status, data = conn.uid("fetch", str(uid), "(RFC822)")
-                if not data or not data[0] or not isinstance(data[0], tuple):
-                    continue
-
-                raw = data[0][1]
-                if isinstance(raw, bytes):
-                    parsed = self._parse_email(raw, uid)
-                    if parsed:
-                        results.append(parsed)
-                self._last_uid = max(self._last_uid, uid)
-
-        finally:
-            try:
-                conn.logout()
-            except Exception:
-                pass
-
-        return results

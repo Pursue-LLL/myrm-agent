@@ -21,10 +21,10 @@ import pytest
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import FileIOConfig
+from myrm_agent_harness.agent.meta_tools.file_search.fallback_search import mmap_search_file
 from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import (
     GrepInput,
     _has_ripgrep,
-    _mmap_search_file,
     _ripgrep_search,
     create_grep_tool,
 )
@@ -107,16 +107,16 @@ class TestMmapSearch:
         import re
 
         regex = re.compile("def hello")
-        results = _mmap_search_file(workspace / "hello.py", regex)
+        results = mmap_search_file(workspace / "hello.py", regex)
         assert len(results) == 1
         assert results[0]["line"] == 1
-        assert "def hello" in results[0]["content"]
+        assert "def hello" in str(results[0]["content"])
 
     def test_search_empty_file(self, workspace: Path) -> None:
         import re
 
         regex = re.compile("anything")
-        results = _mmap_search_file(workspace / "empty.txt", regex)
+        results = mmap_search_file(workspace / "empty.txt", regex)
         assert results == []
 
     def test_search_max_matches(self, workspace: Path) -> None:
@@ -125,14 +125,14 @@ class TestMmapSearch:
         many_lines = workspace / "many.txt"
         many_lines.write_text("\n".join(f"match line {i}" for i in range(100)))
         regex = re.compile("match")
-        results = _mmap_search_file(many_lines, regex, max_matches=5)
+        results = mmap_search_file(many_lines, regex, max_matches=5)
         assert len(results) == 5
 
     def test_search_nonexistent_file(self, workspace: Path) -> None:
         import re
 
         regex = re.compile("test")
-        results = _mmap_search_file(workspace / "nonexistent.py", regex)
+        results = mmap_search_file(workspace / "nonexistent.py", regex)
         assert results == []
 
     def test_search_binary_like_content(self, workspace: Path) -> None:
@@ -141,14 +141,14 @@ class TestMmapSearch:
         bin_file = workspace / "data.bin"
         bin_file.write_bytes(b"\x00\x01\x02\xff\xfe")
         regex = re.compile("test")
-        results = _mmap_search_file(bin_file, regex)
+        results = mmap_search_file(bin_file, regex)
         assert results == []
 
     def test_search_multiple_matches_in_file(self, workspace: Path) -> None:
         import re
 
         regex = re.compile("def")
-        results = _mmap_search_file(workspace / "hello.py", regex)
+        results = mmap_search_file(workspace / "hello.py", regex)
         assert len(results) == 2
         assert results[0]["line"] == 1
         assert results[1]["line"] == 4
@@ -160,39 +160,29 @@ class TestMmapSearch:
 
 
 class TestRipgrepSearch:
-    async def test_basic_search(self, workspace: Path) -> None:
-        if not _has_ripgrep():
-            pytest.skip("ripgrep not installed")
+    async def test_basic_search(self, workspace: Path, require_ripgrep: None) -> None:
         results = await _ripgrep_search("def", workspace, "**/*", False, 0, 100)
         assert len(results) >= 2
         files = {r["file"] for r in results}
-        assert any("hello.py" in f for f in files)
+        assert any("hello.py" in str(f) for f in files)
 
-    async def test_ignore_case(self, workspace: Path) -> None:
-        if not _has_ripgrep():
-            pytest.skip("ripgrep not installed")
+    async def test_ignore_case(self, workspace: Path, require_ripgrep: None) -> None:
         (workspace / "case.txt").write_text("Hello\nHELLO\nhello\n")
         results = await _ripgrep_search("hello", workspace, "**/*", True, 0, 100)
         assert len(results) >= 3
 
-    async def test_file_pattern_filter(self, workspace: Path) -> None:
-        if not _has_ripgrep():
-            pytest.skip("ripgrep not installed")
+    async def test_file_pattern_filter(self, workspace: Path, require_ripgrep: None) -> None:
         results = await _ripgrep_search("import", workspace, "**/*.py", False, 0, 100)
         for r in results:
             assert str(r["file"]).endswith(".py")
 
-    async def test_max_results_limit(self, workspace: Path) -> None:
-        if not _has_ripgrep():
-            pytest.skip("ripgrep not installed")
+    async def test_max_results_limit(self, workspace: Path, require_ripgrep: None) -> None:
         many = workspace / "big.py"
         many.write_text("\n".join(f"match_{i} = True" for i in range(200)))
         results = await _ripgrep_search("match_", workspace, "**/*", False, 0, 5)
         assert len(results) <= 5
 
-    async def test_no_match_returns_empty(self, workspace: Path) -> None:
-        if not _has_ripgrep():
-            pytest.skip("ripgrep not installed")
+    async def test_no_match_returns_empty(self, workspace: Path, require_ripgrep: None) -> None:
         results = await _ripgrep_search("NONEXISTENT_STRING_12345", workspace, "**/*", False, 0, 100)
         assert results == []
 
@@ -437,6 +427,21 @@ class TestCreateGrepTool:
                 config=runnable_config,
             )
 
+    async def test_mcp_namespace_gets_guidance_not_a_workspace_error(self, runnable_config: RunnableConfig) -> None:
+        mock_executor_bad = AsyncMock()
+        mock_executor_bad.resolve_path = AsyncMock(side_effect=ValueError("Path traversal detected"))
+        tool_fn = create_grep_tool()
+        with (
+            patch(
+                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool.ensure_executor",
+                return_value=mock_executor_bad,
+            ),
+            pytest.raises(ToolError, match="file_read_tool"),
+        ):
+            await tool_fn.ainvoke({"pattern": "pods", "path": "/mcp/mcp_k8s_ops_skill"}, config=runnable_config)
+
+        mock_executor_bad.resolve_path.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Tests: Python fallback path (when ripgrep is unavailable)
@@ -598,7 +603,7 @@ class TestPythonFallback:
             )
             assert "No matches found" in result
 
-    async def test_fallback_skips_hidden_files_by_default(
+    async def test_fallback_searches_hidden_files(
         self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
     ) -> None:
         (workspace / ".hidden.py").write_text("hidden_token = True\n")
@@ -617,7 +622,7 @@ class TestPythonFallback:
                 {"pattern": "hidden_token"},
                 config=runnable_config,
             )
-            assert ".hidden.py" not in result
+            assert ".hidden.py" in result
 
     async def test_fallback_allows_explicit_hidden_file_path(
         self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig

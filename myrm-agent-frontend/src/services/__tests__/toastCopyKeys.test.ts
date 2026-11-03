@@ -34,7 +34,6 @@ const WITH_VALUES: ReadonlyArray<readonly [string, Values]> = [
   ['settings.skills.growth.approveFailedStaleBase', { name: 'skill-x' }],
   ['settings.skills.growth.approveFailedUnloadable', { name: 'skill-x' }],
   ['agent.openapi.presetAdded', { name: 'preset-x' }],
-  ['agent.configPanel.forcePushSummary', { version: 8, synced: 3, skipped: 5, failed: 2, total: 10 }],
   ['channels.dataPlane.deletedCount', { count: 1 }],
   ['channels.dataPlane.deletedCount', { count: 5 }],
   ['memory.shareRules.exported', { count: 1 }],

@@ -1,7 +1,7 @@
 # discover_capability/
 
 ## Overview
-Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP PTC + user skills) into a semantic search index. When bound skills exceed inline catalog capacity (`hidden_skill_count > 0`), ``sync_discover_capability_tool()`` registers the discovery tool (LLM-facing name: `skill_search_tool`); otherwise it removes it. Stream and HITL resume paths call the same sync when the bound-set fingerprint changes (`agent/_internals/skill_catalog_turn.py`).
+Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP PTC + user skills) into a BM25 (lexical) search index. When bound skills exceed inline catalog capacity (`hidden_skill_count > 0`), ``sync_discover_capability_tool()`` registers the discovery tool (LLM-facing name: `skill_search_tool`); otherwise it removes it. Stream and HITL resume paths call the same sync when the bound-set fingerprint changes (`agent/_internals/skill_catalog_turn.py`).
 
 **Query contract**: the index matches words in skill names and descriptions, and those are mostly English, so the description and the `query` argument ask for English keywords plus synonyms and do not promise that any language works. A miss names the retry (English keywords or synonyms) and, when skills are bound, how many skills `query='*'` would list; a hit ends with the same one-line retry, except the `*` listing itself. The `No capabilities found` prefix is stable for callers that test for it.
 

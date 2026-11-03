@@ -4,10 +4,7 @@
 - backends.skills.types::SkillMetadata (POS: 技能元数据定义)
 - langchain.tools::tool (POS: LangChain 工具装饰器)
 - pydantic::BaseModel, Field (POS: 参数验证)
-- .engine::SkillSearchEngine (POS: BM25/Regex 搜索引擎)
-- .hybrid_engine::HybridSkillSearchEngine (POS: 混合搜索引擎, 可选)
-- toolkits.retriever.embedding.factory::EmbeddingConfig (POS: Embedding 配置, 可选)
-- toolkits.memory.protocols.cache::EmbeddingCacheProtocol (POS: Embedding 缓存协议, 可选)
+- agent.meta_tools.skills.search.engine::SkillSearchEngine (POS: BM25/Regex 搜索引擎)
 - agent.tool_management.registry::ToolRegistry (POS: 工具注册表，由 sync_discover_capability_tool 使用)
 
 [OUTPUT]
@@ -17,12 +14,11 @@
 
 [POS]
 Unified Capability Discovery meta-tool. Indexes agent-bound searchable skills (MCP PTC + user skills)
-via SkillSearchEngine into a semantic search index.
+via SkillSearchEngine into a BM25 (lexical) search index.
 """
 
 from __future__ import annotations
 
-import inspect
 from typing import TYPE_CHECKING, Literal
 
 from langchain.tools import tool
@@ -31,10 +27,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
-    from myrm_agent_harness.toolkits.memory.protocols.cache import (
-        EmbeddingCacheProtocol,
-    )
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+    from myrm_agent_harness.agent.meta_tools.skills.search.engine import SkillSearchEngine
 
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -98,8 +91,6 @@ IMPORTANT: You MUST search here BEFORE declining any user request due to missing
 
 def create_discover_capability_tool(
     skills: list[SkillMetadata] | None = None,
-    embedding_config: EmbeddingConfig | None = None,
-    cache: EmbeddingCacheProtocol | None = None,
     *,
     market_tool_mounted: bool = False,
     locale: str | None = None,
@@ -108,30 +99,17 @@ def create_discover_capability_tool(
 
     Args:
         skills: 全部可用技能列表 (用于构建 agent 已绑定技能搜索索引)
-        embedding_config: Embedding 模型配置(可选)
-        cache: Embedding 缓存实例(可选)
         market_tool_mounted: Whether skill_market_tool is Turn1-mounted on this agent.
 
     Returns:
         discover_capability 工具函数
     """
-    skills = skills or []
-    all_skills = list(skills)
-
-    if embedding_config is not None and all_skills:
-        from myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine import (
-            HybridSkillSearchEngine,
-        )
-
-        engine = HybridSkillSearchEngine(all_skills, embedding_config, embedding_cache=cache)
-    elif all_skills:
-        from myrm_agent_harness.agent.meta_tools.skills.search.engine import (
-            SkillSearchEngine,
-        )
+    all_skills = list(skills or [])
+    engine: SkillSearchEngine | None = None
+    if all_skills:
+        from myrm_agent_harness.agent.meta_tools.skills.search.engine import SkillSearchEngine
 
         engine = SkillSearchEngine(all_skills)
-    else:
-        engine = None
 
     tool_description = _build_tool_description(market_tool_mounted=market_tool_mounted, locale=locale)
 
@@ -171,9 +149,6 @@ def create_discover_capability_tool(
         else:
             matches = engine.search_bm25(query, top_k=10)
 
-        if inspect.isawaitable(matches):
-            matches = await matches
-
         if not matches:
             return not_found
 
@@ -196,8 +171,6 @@ def sync_discover_capability_tool(
     skill_configs: dict[str, dict[str, object]] | None = None,
     available_tool_names: frozenset[str] | None = None,
     available_tool_groups: frozenset[str] | None = None,
-    embedding_config: EmbeddingConfig | None = None,
-    embedding_cache: EmbeddingCacheProtocol | None = None,
     locale: str | None = None,
 ) -> BaseTool | None:
     """Register skill_search_tool when inline catalog has hidden bound skills.
@@ -236,8 +209,6 @@ def sync_discover_capability_tool(
 
     tool = create_discover_capability_tool(
         skills=discoverable_skills,
-        embedding_config=embedding_config,
-        cache=embedding_cache,
         market_tool_mounted=market_tool_mounted,
         locale=locale,
     )

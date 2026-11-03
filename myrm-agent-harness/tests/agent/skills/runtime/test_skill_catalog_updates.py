@@ -60,12 +60,20 @@ class TestLastDelivered:
 
         assert last_delivered_catalog_key(thread) == EMPTY_CATALOG_KEY
 
-    def test_hidden_count_changes_the_hash_even_when_display_xml_is_equal(self) -> None:
+    def test_hidden_names_change_the_hash_even_when_display_entries_are_equal(self) -> None:
         skill = _skill("alpha_skill")
-        one = RenderedCatalog.from_display([skill], hidden_skill_count=1)
-        two = RenderedCatalog.from_display([skill], hidden_skill_count=2)
-        assert one.xml == two.xml
-        assert one.hash != two.hash
+        one = RenderedCatalog.from_display([skill], hidden_skill_names=["beta_skill"])
+        two = RenderedCatalog.from_display([skill], hidden_skill_names=["beta_skill", "gamma_skill"])
+        renamed = RenderedCatalog.from_display([skill], hidden_skill_names=["delta_skill"])
+        assert (one.hidden_skill_count, two.hidden_skill_count) == (1, 2)
+        assert len({one.hash, two.hash, renamed.hash}) == 3
+
+    def test_the_hash_ignores_the_order_the_hidden_names_arrive_in(self) -> None:
+        skill = _skill("alpha_skill")
+        forward = RenderedCatalog.from_display([skill], hidden_skill_names=["beta_skill", "gamma_skill"])
+        backward = RenderedCatalog.from_display([skill], hidden_skill_names=["gamma_skill", "beta_skill"])
+        assert forward.xml == backward.xml
+        assert forward.hash == backward.hash
 
     def test_the_baseline_hash_is_read_from_the_first_human_message(self) -> None:
         rendered = _render(_skill("alpha_skill"))

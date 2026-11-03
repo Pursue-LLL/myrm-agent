@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - pytest suite covering re-indexing an unchanged directory, deleted and changed files, same-named files in different
-  directories, git-ignore aware file listing, symlink and size limits, a listing cut at its cap, and call-site match labels.
+  directories, definitions counted by kind, git-ignore aware file listing, symlink and size limits, a listing cut at
+  its cap, call-site match labels, and names matched literally with their letter case.
 
 [POS]
 myrm-agent-server/tests/services/code_graph/test_code_graph_index_lifecycle.py
@@ -27,6 +28,7 @@ from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 from app.services.code_graph import service as service_module
 from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
+from app.services.code_graph.models import SymbolKind
 from app.services.code_graph.service import CodeGraphService
 
 
@@ -125,6 +127,17 @@ def test_same_named_typescript_files_in_different_directories_keep_their_symbols
 
     assert {r["qualified_name"] for r in graph.resolve("render")} == {"web.index.render", "admin.index.render"}
     assert graph.definition_count("render") == 2
+
+
+def test_definitions_are_counted_by_kind(root: Path, graph: CodeGraphService) -> None:
+    _write(root, "m.py", "def run():\n    return 1\n\nclass Job:\n    def run(self):\n        return 2\n")
+
+    graph.index_directory(root)
+
+    assert graph.definition_count("run") == 2
+    assert graph.definition_count("m.Job.run", (SymbolKind.METHOD,)) == 1
+    assert graph.definition_count("run", (SymbolKind.FUNCTION, SymbolKind.CLASS)) == 1
+    assert graph.definition_count("Job", (SymbolKind.FUNCTION,)) == 0
 
 
 def test_the_file_list_follows_gitignore_and_includes_untracked_files(root: Path, graph: CodeGraphService) -> None:
@@ -300,3 +313,54 @@ def test_names_match_literally_so_underscores_and_percent_signs_are_not_wildcard
     assert [r["callee"] for r in graph.callers("get_user")] == ["o.get_user"]
     assert graph.callers("%") == []
     assert graph.resolve("get%") == []
+
+
+def test_call_sites_are_matched_with_the_letter_case_that_was_asked_for(root: Path, graph: CodeGraphService) -> None:
+    _write(root, "use.py", "def run(c):\n    c.select()\n    c.Select()\n    Select()\n    select()\n")
+    _write(root, "tests/test_use.py", "def test_it(c):\n    c.select()\n    c.Select()\n")
+    graph.index_directory(root)
+
+    assert [(r["callee"], r["match"]) for r in graph.callers("select")] == [
+        ("c.select", "name"),
+        ("c.select", "name"),
+        ("select", "exact"),
+    ]
+    assert [(r["callee"], r["match"]) for r in graph.callers("Select")] == [
+        ("c.Select", "name"),
+        ("c.Select", "name"),
+        ("Select", "exact"),
+    ]
+    assert [(r["file_path"], r["line"]) for r in graph.tests_calling("select")] == [("tests/test_use.py", 2)]
+    assert graph.callers("SELECT") == []
+
+
+def test_typescript_call_sites_are_matched_with_the_letter_case_that_was_asked_for(root: Path, graph: CodeGraphService) -> None:
+    _write(
+        root,
+        "use.ts",
+        "export class Store {\n  find(c: Client) {\n    c.select();\n    c.Select();\n    this.select();\n"
+        "    new Select();\n    c?.select();\n    select();\n  }\n}\n",
+    )
+    graph.index_directory(root)
+
+    assert [(r["callee"], r["line"], r["match"]) for r in graph.callers("select")] == [
+        ("c.select", 3, "name"),
+        ("this.select", 5, "name"),
+        ("c.select", 7, "name"),
+        ("select", 8, "exact"),
+    ]
+    assert [(r["callee"], r["line"], r["match"]) for r in graph.callers("Select")] == [
+        ("c.Select", 4, "name"),
+        ("Select", 6, "exact"),
+    ]
+    assert graph.callers("SELECT") == []
+
+
+def test_resolve_lists_names_spelt_as_asked_before_the_same_name_in_another_letter_case(
+    root: Path, graph: CodeGraphService
+) -> None:
+    _write(root, "m.py", "class Event:\n    pass\n\ndef event():\n    return 1\n")
+    graph.index_directory(root)
+
+    assert [r["qualified_name"] for r in graph.resolve("event")] == ["m.event", "m.Event"]
+    assert [r["qualified_name"] for r in graph.resolve("Event")] == ["m.Event", "m.event"]

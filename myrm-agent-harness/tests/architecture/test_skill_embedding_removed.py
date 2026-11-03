@@ -88,22 +88,6 @@ _REMOVALS = (
     ),
 )
 
-# Removals not yet carried out; each step of the work deletes its own entry when it lands.
-_PENDING = {"skill-search-embedding"}
-
-
-def _params(removals: tuple[_Removal, ...]) -> list[object]:
-    return [
-        pytest.param(
-            removal,
-            id=removal.name,
-            marks=pytest.mark.xfail(strict=True, reason="removal not carried out yet")
-            if removal.name in _PENDING
-            else (),
-        )
-        for removal in removals
-    ]
-
 
 def _text_files(entry: str) -> list[Path]:
     path = _PACKAGE / entry
@@ -133,13 +117,15 @@ def _offences(removal: _Removal) -> dict[str, list[str]]:
     return found
 
 
-@pytest.mark.parametrize("removal", _params(tuple(removal for removal in _REMOVALS if removal.files)))
+@pytest.mark.parametrize(
+    "removal", [removal for removal in _REMOVALS if removal.files], ids=lambda removal: removal.name
+)
 def test_removed_files_do_not_exist(removal: _Removal) -> None:
     leftover = [path for path in removal.files if (_PACKAGE / path).exists()]
     assert not leftover, f"{removal.name}: {leftover}"
 
 
-@pytest.mark.parametrize("removal", _params(_REMOVALS))
+@pytest.mark.parametrize("removal", _REMOVALS, ids=lambda removal: removal.name)
 def test_removed_names_do_not_appear(removal: _Removal) -> None:
     offences = _offences(removal)
     assert not offences, f"{removal.name}: {offences}"

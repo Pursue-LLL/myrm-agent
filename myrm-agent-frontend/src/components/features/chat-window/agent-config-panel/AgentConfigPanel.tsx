@@ -6,7 +6,6 @@ import { Save, Zap } from 'lucide-react';
 import AgentConfigCards from './AgentConfigCards';
 import TypewriterWelcome from './TypewriterWelcome';
 import { useAgentConfigPanel } from '@/hooks/agent/useAgentConfigPanel';
-import { GalleryBackground } from './GalleryBackground';
 import { useTranslations } from 'next-intl';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { getConfigSyncManager, type ExternalAgentConfig } from '@/services/config';
@@ -18,24 +17,19 @@ import { Switch } from '@/components/primitives/switch';
 
 // 懒加载大型组件，减少初始加载时间
 const AgentConfigEditDialog = lazy(() => import('./AgentConfigEditDialog'));
-const PresetAgentGallery = lazy(() => import('./PresetAgentGallery'));
-const PublishToOrgButton = lazy(() => import('./PublishToOrgButton'));
 const EMPTY_AUTO_RESTORE_DOMAINS: string[] = [];
 
 interface AgentConfigPanelProps {
+  /** 作用于展开后的编辑面板；折叠时面板不占任何高度 */
   className?: string;
-  /** 隐藏已保存智能体画廊（在有消息的聊天页面中使用） */
-  hideGallery?: boolean;
-  /** 是否渲染泼墨背景（EmptyChat 页面启用） */
-  showInkBackground?: boolean;
 }
 
 /**
  * 智能体配置面板主容器
  * 仅在智能代理模式下显示
- * 包含：编辑面板（四个配置卡片）+ 橱窗面板（已保存智能体画廊）
+ * 包含：编辑面板（四个配置卡片）
  */
-const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = true }: AgentConfigPanelProps) => {
+const AgentConfigPanel = ({ className }: AgentConfigPanelProps) => {
   // 使用自定义 Hook 获取所有状态和处理器
   const {
     // State
@@ -57,18 +51,12 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
     selectedMcpDetails,
     currentBuiltinTools,
 
-    // Preset
-    selectedPresetId,
-
     // Handlers
     setEditDialogOpen,
     handleCardClick,
     handleSaveConfig,
     handleSaveAsNewAgent,
     handleUpdateAgent,
-    handleSelectAgent,
-    handleSelectPreset,
-    clearPresetSelection,
     handleTypewriterComplete,
 
     refreshSkills,
@@ -92,19 +80,11 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
   }
 
   return (
-    <div className={cn('relative w-full overflow-visible', className)}>
-      {showInkBackground && (
-        <div className="pointer-events-none absolute left-1/2 top-[-0.75rem] z-0 w-screen -translate-x-1/2 overflow-visible">
-          <div className="mx-auto h-[min(32rem,48vh)] w-[135vw] max-w-none">
-            <GalleryBackground variant="panel" />
-          </div>
-        </div>
-      )}
-
+    <div className="relative w-full overflow-visible">
       <div className="relative z-10 space-y-6">
         {/* 编辑面板区域 - 根据展开状态显示/隐藏 */}
         {isConfigPanelExpanded && (
-          <div className={cn('relative py-4 px-2', 'animate-in fade-in-50 slide-in-from-top-2 duration-300')}>
+          <div className={cn('relative py-4 px-2', 'animate-in fade-in-50 slide-in-from-top-2 duration-300', className)}>
             {/* 指向智能体按钮的箭头 - 在气泡外面 */}
             <div
               className="absolute -top-8 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none"
@@ -150,17 +130,6 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
               <MemoryExtractionPresetSelector />
 
               {/* 保存按钮逻辑 */}
-              {/* Publish to Org (sandbox only, saved agents) */}
-              {agentConfig?.agentId && !hasConfigChanges && (
-                <Suspense fallback={null}>
-                  <PublishToOrgButton
-                    agentId={agentConfig.agentId}
-                    agentName={agentConfig.agentName || 'Agent'}
-                    className="mt-3"
-                  />
-                </Suspense>
-              )}
-
               {(() => {
                 const hasConfig =
                   (agentConfig?.selectedSkillIds?.length || 0) > 0 ||
@@ -222,23 +191,6 @@ const AgentConfigPanel = ({ className, hideGallery = false, showInkBackground = 
                 );
               })()}
             </div>
-          </div>
-        )}
-
-        {/* 智能体画廊（预置 + 自定义） - 懒加载 */}
-        {!hideGallery && (
-          <div className={cn(isConfigPanelExpanded && 'pt-2')}>
-            <Suspense fallback={<div className="h-32 animate-pulse bg-muted/50 rounded-lg" />}>
-              <PresetAgentGallery
-                onSelectPreset={handleSelectPreset}
-                onSelectCustomAgent={(agent: { id: string }) => {
-                  clearPresetSelection(); // 清除预置智能体选中状态
-                  handleSelectAgent(agent);
-                }}
-                selectedPresetId={selectedPresetId}
-                selectedAgentId={agentConfig?.agentId}
-              />
-            </Suspense>
           </div>
         )}
       </div>

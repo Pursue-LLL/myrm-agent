@@ -6,6 +6,7 @@
 - levenshtein_distance_bounded: Bounded Levenshtein edit distance computation (<= max_dist).
 - suggest_similar_paths: Return closest paths under parent dirs using Levenshtein-2 and similarity.
 - format_path_not_found_hint: Format informative error message with 'Did you mean' suggestions.
+- mcp_namespace_error: Error text for a glob/grep aimed at the virtual /mcp skill-doc namespace.
 
 [POS]
 File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths.
@@ -20,6 +21,8 @@ from difflib import SequenceMatcher, get_close_matches
 from pathlib import Path
 
 from myrm_agent_harness.core.security.path import is_blocked_device_path
+
+_MCP_NAMESPACE = "/mcp"
 
 _QUOTE_STRIP_RE = re.compile(r"^[\s\"'“”‘’`]+|[\s\"'“”‘’`]+$")
 _SLASH_COLLAPSE_RE = re.compile(r"[\\/]+")
@@ -237,3 +240,20 @@ def format_path_not_found_hint(target_path: str, suggestions: list[str]) -> str:
         return f"The path '{target_path}' does not exist. Please check the path and try again."
     joined = ", ".join(f"'{s}'" for s in suggestions)
     return f"The path '{target_path}' does not exist. Did you mean: {joined}?"
+
+
+def mcp_namespace_error(target_path: str) -> str | None:
+    """The error text for a search aimed at the virtual ``/mcp`` skill-doc namespace, or ``None`` for any other path.
+
+    ``/mcp/<skill>/<function>.md`` is served by ``file_read_tool`` only; no directory exists for glob or grep to walk.
+    Without this text the failure reads as a workspace-boundary error whose hints send the model on to bash, where
+    ``/mcp`` is refused as well.
+    """
+    path = target_path.strip()
+    if path != _MCP_NAMESPACE and not path.startswith(f"{_MCP_NAMESPACE}/"):
+        return None
+    return (
+        f"'{target_path}' is the virtual MCP skill-doc namespace, not a directory, so glob_tool and grep_tool cannot "
+        "search it. Read a function's documentation with file_read_tool on "
+        "`/mcp/<skill_name>/<function_name>.md`; skill_select_tool lists every function name of a skill."
+    )

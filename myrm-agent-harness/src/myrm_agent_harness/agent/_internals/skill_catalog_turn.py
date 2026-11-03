@@ -121,8 +121,7 @@ def _sync_skill_search_index(agent_state: SkillAgent, bound_skills: list[SkillMe
         skill_configs=getattr(agent_state, "skill_configs", None),
         available_tool_names=getattr(agent_state, "_available_tool_names", None),
         available_tool_groups=getattr(agent_state, "_available_tool_groups", None),
-        embedding_config=getattr(agent_state, "_embedding_config", None),
-        embedding_cache=getattr(agent_state, "_embedding_cache", None),
+        locale=agent_state._prompt_locale(),
     )
     agent_state._cached_tools = _weave_dynamic_schemas(registry.resolve())
     agent_state._cached_tools.sort(key=lambda tool: get_tool_registry_sort_key(tool.name, get_tool_layer(tool.name)))

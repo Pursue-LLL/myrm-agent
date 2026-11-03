@@ -7,8 +7,6 @@
   (POS: 上下文管道中间件工厂，集成 ContextPipeline)
 - debug_logger_middleware::debug_logger_middleware (POS: Provides debug_logger_middleware.)
   (POS: 调试日志中间件，记录完整消息列表)
-- filesystem_search_middleware::FilesystemFileSearchMiddleware, (POS: Provides FilesystemFileSearchMiddleware, create_filesystem_search_middleware.)
-  (POS: 文件系统搜索中间件，注入 glob/grep 工具)
 - tool_interceptor_middleware::tool_interceptor_middleware (POS: Single interception point for all tool calls. Each guard is an independent module; this middleware only orchestrates their execution order.)
   (POS: 工具拦截中间件，异常捕获和验证)
 - approval::ApprovalRateLimiter, (POS: Approval queue helpers. Handles AnyMemory ↔ PendingRecord conversion for the approval pipeline. Internal only — not part of the public API.)
@@ -30,8 +28,6 @@
 - create_context_pipeline_middleware(): 上下文管道中间件工厂函数
 - debug_logger_middleware: 调试日志中间件
 - tool_interceptor_middleware: 工具拦截中间件
-- FilesystemFileSearchMiddleware: 文件系统搜索中间件类
-- create_filesystem_search_middleware(): 文件系统搜索中间件工厂函数
 - create_concurrency_limiter(): Subagent 并发限制中间件工厂函数
 - ToolConflictGateMiddleware: 工具冲突闸门中间件类
 - get_subagent_semaphore(): 获取特定 agent_type 的 semaphore
@@ -42,7 +38,7 @@
 - validate_tool_result(): 工具结果验证函数（security 模块的再导出）
 
 [POS]
-Agent middleware system exports. Provides the complete middleware stack (context management, debug logging, tool interception, filesystem search).
+Agent middleware system exports. Provides the complete middleware stack (context management, debug logging, tool interception).
 
 """
 
@@ -75,10 +71,6 @@ from myrm_agent_harness.agent.middlewares.context_pipeline.context_pipeline_midd
 )
 from myrm_agent_harness.agent.middlewares.debug_logger_middleware import (
     debug_logger_middleware,
-)
-from myrm_agent_harness.agent.middlewares.filesystem_search_middleware import (
-    FilesystemFileSearchMiddleware,
-    create_filesystem_search_middleware,
 )
 from myrm_agent_harness.agent.middlewares.guardrails import (
     GuardrailMiddleware,
@@ -116,7 +108,6 @@ __all__ = [
     "AdvisorRiskTriggerRouter",
     "ApprovalRateLimiter",
     "CompletionGuard",
-    "FilesystemFileSearchMiddleware",
     "GuardrailMiddleware",
     "PlanConfirmMiddleware",
     "RateLimitMiddleware",
@@ -127,7 +118,6 @@ __all__ = [
     "ValidationResult",
     "create_concurrency_limiter",
     "create_context_pipeline_middleware",
-    "create_filesystem_search_middleware",
     "create_moa_advisor_middleware",
     "ToolConflictGateMiddleware",
     "debug_logger_middleware",

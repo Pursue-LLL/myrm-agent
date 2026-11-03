@@ -121,12 +121,16 @@ def extract_reasoning_anchors(
     *,
     turn_index: int = 0,
     max_anchors: int = 2,
+    tail_fallback: bool = True,
 ) -> list[ReasoningAnchor]:
     """Extract up to max_anchors decision anchors from reasoning text.
 
     Scans reasoning tail deterministically. Prioritizes lines matching explicit
-    decision/constraint/finding prefixes. If none match, extracts final conclusive
-    sentences from the tail summary.
+    decision/constraint/finding prefixes. If none match and ``tail_fallback`` is
+    set, extracts the final sentence of the tail as a conclusion. Callers pass
+    ``tail_fallback=False`` for reasoning that precedes a tool call: its last
+    sentence is the plan for the next call ("Let me read the docs"), not a
+    conclusion worth preserving.
     """
     if not reasoning_text or not reasoning_text.strip():
         return []
@@ -167,7 +171,7 @@ def extract_reasoning_anchors(
                 break
 
     # Pass 2: Fallback to conclusive tail sentences if no explicit prefix matched
-    if not anchors:
+    if not anchors and tail_fallback:
         last_chunk = lines[-1]
         # Sentence splitting by punctuation
         sentences = [s.strip() for s in re.split(r"[。！？\n.!?]+", last_chunk) if len(s.strip()) >= 8]

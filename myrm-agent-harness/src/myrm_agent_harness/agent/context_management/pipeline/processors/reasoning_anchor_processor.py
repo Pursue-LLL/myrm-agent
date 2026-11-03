@@ -1,7 +1,7 @@
 """Reasoning Anchor Pipeline Processor.
 
 Extracts decision anchors from thinking streams before ThinkingBlockCleaner
-strips them, and injects preserved decision anchors into the context window
+strips them, and injects preserved decision anchors into the latest user message
 without disrupting Prompt Prefix Cache.
 
 [INPUT]
@@ -15,6 +15,9 @@ without disrupting Prompt Prefix Cache.
 
 [POS]
 Positioned at the front of the default pipeline, immediately before ThinkingBlockCleaner.
+The injected block is frozen per user turn: in a tool loop the latest user message is the
+first message of the request, so rewriting it between rounds would invalidate the cached
+prefix of the whole conversation behind it.
 """
 
 from __future__ import annotations
@@ -38,13 +41,35 @@ _ANCHOR_BLOCK_REGEX = re.compile(
 )
 
 
+def _precedes_tool_call(msg: AIMessage) -> bool:
+    """Whether the message's reasoning leads into a tool call rather than ending the turn."""
+    return bool(msg.tool_calls or msg.additional_kwargs.get("tool_calls"))
+
+
+def _with_anchor_block(content: str | list[str | dict[str, object]], block: str) -> str | list[str | dict[str, object]]:
+    """Return ``content`` carrying exactly one anchor block, dropping any earlier one."""
+    if isinstance(content, str):
+        return f"{_ANCHOR_BLOCK_REGEX.sub('', content).rstrip()}\n\n{block}"
+    kept: list[str | dict[str, object]] = []
+    for item in content:
+        if isinstance(item, dict) and item.get("type") == "text":
+            text = _ANCHOR_BLOCK_REGEX.sub("", str(item.get("text", ""))).rstrip()
+            if text and not text.startswith(_ANCHOR_BLOCK_PREFIX):
+                kept.append({"type": "text", "text": text})
+        else:
+            kept.append(item)
+    kept.append({"type": "text", "text": block})
+    return kept
+
+
 class ReasoningAnchorProcessor(BaseProcessor):
     """Reasoning Anchor Processor.
 
     1. Scans messages for reasoning content and extracts core decision anchors
        into the session's immutable ledger before ThinkingBlockCleaner strips raw thoughts.
-    2. Injects compact anchor constraints into the latest HumanMessage, preserving
-       Prompt Prefix Cache stability across multiple execution steps.
+    2. Injects the anchors known at the start of the turn into the latest HumanMessage.
+       Anchors recorded while the turn runs appear from the next turn on, so the message
+       stays byte-identical across tool rounds and the Prompt Prefix Cache keeps matching.
     """
 
     def __init__(self, *, max_anchors: int = 10) -> None:
@@ -64,11 +89,20 @@ class ReasoningAnchorProcessor(BaseProcessor):
 
         # Step 1: Scan AIMessages to extract new decision anchors before stripping
         extracted_count = 0
+        last_human_idx = -1
+        human_count = 0
         for idx, msg in enumerate(context.messages):
-            if isinstance(msg, AIMessage):
+            if isinstance(msg, HumanMessage):
+                last_human_idx = idx
+                human_count += 1
+            elif isinstance(msg, AIMessage):
                 raw_reasoning = extract_raw_reasoning(msg)
                 if raw_reasoning:
-                    anchors = extract_reasoning_anchors(raw_reasoning, turn_index=idx)
+                    anchors = extract_reasoning_anchors(
+                        raw_reasoning,
+                        turn_index=idx,
+                        tail_fallback=not _precedes_tool_call(msg),
+                    )
                     if anchors:
                         ledger.record_anchors(anchors)
                         extracted_count += len(anchors)
@@ -84,40 +118,6 @@ class ReasoningAnchorProcessor(BaseProcessor):
             for a in active_anchors
         ]
 
-        if not active_anchors:
-            return context
-
-        # Step 2: Inject compact anchor block into the last HumanMessage
-        # Finding the last HumanMessage ensures we do not mutate earlier message prefixes
-        last_human_idx = -1
-        for i in range(len(context.messages) - 1, -1, -1):
-            if isinstance(context.messages[i], HumanMessage):
-                last_human_idx = i
-                break
-
-        if last_human_idx != -1:
-            human_msg = context.messages[last_human_idx]
-            raw_content = human_msg.content
-            rendered_block = ledger.render_anchors_context()
-            if isinstance(raw_content, str):
-                # Remove any existing anchor block to prevent repeated stacking
-                cleaned_content = _ANCHOR_BLOCK_REGEX.sub("", raw_content).rstrip()
-                updated_content = f"{cleaned_content}\n\n{rendered_block}"
-                human_msg.content = updated_content
-            elif isinstance(raw_content, list):
-                # Multimodal content block list: locate or append text block
-                cleaned_list: list[object] = []
-                for item in raw_content:
-                    if isinstance(item, dict) and item.get("type") == "text":
-                        t_text = str(item.get("text", ""))
-                        cleaned_t = _ANCHOR_BLOCK_REGEX.sub("", t_text).rstrip()
-                        if cleaned_t:
-                            cleaned_list.append({"type": "text", "text": cleaned_t})
-                    else:
-                        cleaned_list.append(item)
-                cleaned_list.append({"type": "text", "text": rendered_block})
-                human_msg.content = cleaned_list  # type: ignore[assignment]
-
         if extracted_count > 0:
             logger.info(
                 "[ReasoningAnchor] Extracted %d new anchors, active total=%d (session=%s)",
@@ -126,4 +126,16 @@ class ReasoningAnchorProcessor(BaseProcessor):
                 session_id,
             )
 
+        if last_human_idx == -1:
+            return context
+
+        # Step 2: Inject the block frozen for this turn into the latest HumanMessage
+        human_msg = context.messages[last_human_idx]
+        block = ledger.render_for_turn(f"{human_count}:{human_msg.id or id(human_msg)}")
+        if not block:
+            return context
+
+        updated = _with_anchor_block(human_msg.content, block)
+        if updated != human_msg.content:
+            human_msg.content = updated
         return context

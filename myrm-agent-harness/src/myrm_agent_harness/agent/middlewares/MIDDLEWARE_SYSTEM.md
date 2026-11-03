@@ -33,7 +33,6 @@
 │ tool_history_hygiene.py                 │  ← ToolMessage dedup + within/cross-turn tool_call_id re-id
 │ dangling_tool_call_middleware           │  ← 悬空 tool_call 修复 + invalid 重放隔离
 │ skill_attenuation_middleware (tooling/)  │  ← skill attenuation + runtime intent gating
-│ filesystem_search_middleware            │  ← glob/grep 注入
 │ tool_interceptor_middleware (tooling/)  │  ← ★ 工具执行主拦截点
 │   └─ tool_executor (timeout/retry)      │
 │   └─ approval/                          │  ← HITL 审批
@@ -71,7 +70,6 @@
 | `security/` | `security_boundary_middleware.py`（SECURITY_BOUNDARY_SYSTEM_RULES 每次运行注入一次，state 以追加方式合并，落在最新用户消息之后）、`security_guardrail_middleware.py`（八层防御：circuit-breaker cognition / intent router / prompt guard / PII / leak / canary / history redact）、`user_input_guard.py`（意图 / 注入 / PII 三层筛查用户亲写消息，文本或图文块均可；runtime 追加的 `is_system_synthetic` 消息不筛。最新一条完整筛查：审计、日志、安全告诫前缀与 PII 改写只在该输入的首次模型调用写入，之后每轮工具调用字节不变；更早的用户消息随历史在每轮再次送入模型，故静默执行同一策略（PII 改写；注入 / 危险意图为 `fail_closed` 时拦截），不写审计、日志与告诫，且无任何策略生效时整段跳过）、`pii_actions.py`（按级别执行 warn / redact / pseudonymize / block，入站、出站、工具结果与模型调用出口共用）、`outbound_privacy_guard.py`（模型调用出口闸门：注册到 `toolkits.llms` 的 `outbound_guard`，对每一次 ChatLiteLLM 调用的非 system 消息按隐私策略处理（直连 litellm / 厂商 SDK 的调用与 embedding、语音、图像、视频等非对话调用不经过它）——运行策略优先，其次进程级策略；与主循环同一动作语义，主循环已处理过的文本字节不变，不伤 prompt cache；主循环自带 `privacy_enforced_by_loop` 标记避免重复处理；出错即中止调用，不放行）、`text_blocks.py`（文本与图文块内容的统一文本变换） |
 | `subagent_limit_middleware.py` | 单轮 delegate 上限 |
 | `plan_confirm_middleware.py` | 计划阶段人机协同确认与重大 Re-plan 拦截门禁 |
-| `filesystem_search_middleware.py` | 工作区搜索工具注入 |
 | `progress_middleware.py` | 活跃 todo 紧凑焦点注入与幂等清洗（末位 HumanMessage）；仅持有 `todo_write` 的 Agent 注入 |
 | `advisor_risk_trigger_router.py` | 自适应事件门禁路由：多维感知 Replan 连续失败与 LoopGuard 异常模式，兼具致命错误旁路与冷却免疫/会话配额门禁 |
 | `moa_advisor_middleware.py` | Agent 环 MoA 顾问叠加（支持 `risk_triggered` 模式自适应路由接入；`moa_overlay_active` 透传 `trigger_reason` + 渐进 SSE `moa_ref_done` + 6s 硬超时静默降级 + 瞬态 Cache-Safe 尾注入与 KV-Cache 保全 + `privacy_filter` display/full 分流） |

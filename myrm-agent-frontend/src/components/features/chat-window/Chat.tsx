@@ -401,8 +401,8 @@ const Chat = ({
               <MessageInput key={chatId} loading={loading} />
             </div>
           </div>
-          {/* 智能体配置面板 - 仅在智能代理模式下显示，隐藏已保存智能体画廊 */}
-          <AgentConfigPanel hideGallery showInkBackground={false} />
+          {/* 智能体配置面板 - 仅在智能代理模式下显示 */}
+          <AgentConfigPanel />
         </div>
       </div>
     );

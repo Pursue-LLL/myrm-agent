@@ -7,8 +7,7 @@
 [POS]
 Grep output formatter. Transforms raw search matches into LLM-friendly output
 with intelligent truncation, non-code file capping, and path-grouped
-densification (eliminates repeated path strings when >= 5 matches,
-saving 18-39% tokens in typical scenarios).
+densification (eliminates repeated path strings when >= 5 matches).
 """
 
 from __future__ import annotations
@@ -88,7 +87,7 @@ def format_grep_results(
     """Format grep results with non-code truncation and path-grouped densification.
 
     When total matches >= _DENSIFY_MIN_MATCHES, groups consecutive matches under
-    a single path header to eliminate repeated path strings (saves 18-39% tokens).
+    a single path header to eliminate repeated path strings.
     Falls back to flat ``path:line: content`` format for small result sets where
     densification adds no benefit.
     """

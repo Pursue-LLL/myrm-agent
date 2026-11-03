@@ -37,6 +37,28 @@ class TestSkillCluster:
             cluster.cluster_id = "changed"  # type: ignore[misc]
 
 
+class TestConsolidationAction:
+    """Tests for the reduction a single action delivers."""
+
+    @pytest.mark.parametrize(
+        ("action_type", "sources", "expected"),
+        [
+            pytest.param(ConsolidationActionType.MERGE, ("a", "b", "c"), 3, id="merge-archives-every-source"),
+            pytest.param(ConsolidationActionType.DEMOTE, ("a", "b"), 2, id="demote-archives-every-source"),
+            pytest.param(ConsolidationActionType.CREATE_UMBRELLA, ("a", "b", "c", "d"), 3, id="umbrella-adds-one"),
+            pytest.param(ConsolidationActionType.KEEP, ("a", "b"), 0, id="keep-removes-nothing"),
+        ],
+    )
+    def test_net_reduction(self, action_type: ConsolidationActionType, sources: tuple[str, ...], expected: int) -> None:
+        action = ConsolidationAction(
+            action_type=action_type,
+            target_skill="target",
+            source_skills=sources,
+            reasoning="test",
+        )
+        assert action.net_reduction == expected
+
+
 class TestConsolidationPlan:
     """Tests for ConsolidationPlan data type."""
 

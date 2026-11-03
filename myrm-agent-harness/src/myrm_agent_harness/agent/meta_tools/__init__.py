@@ -32,10 +32,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
     from myrm_agent_harness.backends.skills.types import SkillInstance, SkillMetadata
-    from myrm_agent_harness.toolkits.memory.protocols.cache import (
-        EmbeddingCacheProtocol,
-    )
-    from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 # Agent 专属工具(本模块)
 from myrm_agent_harness.agent.skills.runtime.catalog_display import (
@@ -66,8 +62,6 @@ from .spawn_subagent import (
 def get_meta_tools(
     skills: list[SkillMetadata],
     skill_backend: SkillBackend | None = None,
-    embedding_config: EmbeddingConfig | None = None,
-    embedding_cache: EmbeddingCacheProtocol | None = None,
     skill_env_map: dict[str, dict[str, str]] | None = None,
     skill_configs: dict[str, dict[str, object]] | None = None,
     global_env: dict[str, str] | None = None,
@@ -86,14 +80,12 @@ def get_meta_tools(
     返回所有元工具,用于在 create_agent 时传入 tools 参数.
 
     **双层技能注入策略**:
-    - 若提供 `skill_configs`:严格遵循配置中的 `is_core` 标志.
-      `is_core=True` 的技能内联注入,其余作为外围技能放入搜索工具.
-    - 若未提供 `skill_configs` (向下兼容):根据技能自身的 `always` 属性和内置阈值进行自适应截断.
+    - 若提供非空 `skill_configs`:显式 `is_core` 标志优先, 未显式配置的技能仅在自身 `always=True` 时内联.
+      内联技能带完整描述, 其余外围技能在目录中以名称清单列出(可按名称直接选择), 能力检索走搜索工具.
+    - 若未提供或为空 (`None` 与 `{}` 同义):所有技能按 `always` 优先、名称排序在 token 预算内内联, 放不下的同样以名称清单列出.
     - available=False 的技能不内联(不浪费名额)
 
-    **搜索模式**:
-    - 无 embedding_config (默认): BM25 词法 + Prompt 引导多语言
-    - 有 embedding_config: Hybrid 混合搜索(BM25+Embedding+RRF), 词法+语义双保障
+    **搜索模式**: BM25 词法搜索（`skill_search_tool` 的提示词引导模型用英文关键词与同义词检索）。
 
     Skill tools extract user_id at runtime from RunnableConfig context
     (consistent with bash_code_execute_tool's session_id pattern).
@@ -103,8 +95,6 @@ def get_meta_tools(
         skill_backend: 技能后端(用于 skill_select_tool)
         registry: ToolRegistry（必填；skill_search_tool 由 SkillAgent 末尾 sync 注册）
         has_manage_tool: skill_manage_tool 是否 Turn1 挂载（由 server user_tools 或 SkillAgent 后端注入）
-        embedding_config: Embedding 配置(可选, 用于语义搜索)
-        embedding_cache: Embedding 缓存实例(可选, 仅 Hybrid 模式使用)
         skill_env_map: Per-skill resolved env vars (skill_name -> env dict).
         skill_configs: Per-agent skill configurations (e.g., is_core).
         skill_instances: Per-skill resolved SkillInstance objects (skill_name -> instance).
@@ -166,9 +156,9 @@ def get_meta_tools(
             locale=locale,
         )
         tools.append(skill_select_tool)
-        if skill_configs is not None:
+        if skill_configs:
             logger.info(
-                " Per-Agent 认知负载控制已启用: %d 个内联 (Core) + %d 个隐藏 (Peripheral)",
+                " Per-Agent 认知负载控制已启用: %d 个内联 (Core) + %d 个按名称列出 (Peripheral)",
                 len(inline_skills),
                 hidden_count,
             )

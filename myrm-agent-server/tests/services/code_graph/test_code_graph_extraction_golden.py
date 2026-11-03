@@ -15,7 +15,7 @@ from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
 from app.services.code_graph.models import INDEX_FORMAT_VERSION
 
-EXPECTED = (1, "86813c131c4eb026cfea1f6d830f390db5823ec1928ac48aeceacafb11c631c4")
+EXPECTED = (2, "443c4569fd7a3566ff3a8ee103aea2978dd2f1a7e4972622ef2ba1df2d0d3204")
 
 _PANEL_TSX = """import { useCallback, useEffect, useState } from "react";
 
@@ -110,6 +110,20 @@ def standalone_helper():
     audit.record(s)
 """
 
+# Relative imports are read from the importing file's directory: one dot is its package, each further dot goes one
+# level up, and dots that climb above the index root name nothing in the index.
+_RELATIVE_PY = """from . import sibling, helpers as aid
+from .shared import tool
+from .. import uncle
+from ..cousins.deep import leaf
+from ... import top_level
+from .... import above_the_root
+"""
+
+_PACKAGE_INIT_PY = """from .core import run
+from . import settings
+"""
+
 _SAMPLES = {
     "web/Panel.tsx": _PANEL_TSX,
     "web/api.ts": _API_TS,
@@ -117,6 +131,8 @@ _SAMPLES = {
     "web/View.jsx": _VIEW_JSX,
     "web/partial.ts": _PARTIAL_TS,
     "services/user.py": _USER_PY,
+    "pkg/sub/mod.py": _RELATIVE_PY,
+    "pkg/__init__.py": _PACKAGE_INIT_PY,
 }
 
 

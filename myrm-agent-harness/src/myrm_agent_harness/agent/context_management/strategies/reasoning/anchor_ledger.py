@@ -12,6 +12,8 @@ retention, cross-subagent scope routing, and prompt cache-friendly text renderin
 
 [POS]
 Pure in-memory ledger with bounded capacity to guarantee zero CPU/memory thrashing.
+The rendered block is frozen per user turn (render_for_turn) so injecting it never
+changes the prompt prefix between tool rounds.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ class SessionAnchorLedger:
         self.session_id = session_id
         self.max_anchors = max_anchors
         self._anchors: list[ReasoningAnchor] = []
+        self._turn_snapshot: tuple[str, str] | None = None
         self._lock = threading.Lock()
 
     def record_anchor(self, anchor: ReasoningAnchor) -> None:
@@ -64,15 +67,32 @@ class SessionAnchorLedger:
         """Clear all anchors in this ledger."""
         with self._lock:
             self._anchors.clear()
+            self._turn_snapshot = None
 
     def render_anchors_context(self, *, max_count: int | None = None) -> str:
         """Render active anchors into a clean, compact system injection block."""
         with self._lock:
-            if not self._anchors:
-                return ""
-            selected = self._anchors if max_count is None else self._anchors[-max_count:]
-            lines = [f"- {a.to_compact_string()}" for a in selected]
-            return "[PRESERVED REASONING ANCHORS & CONSTRAINTS]\n" + "\n".join(lines)
+            return self._render_locked(max_count)
+
+    def render_for_turn(self, turn_key: str) -> str:
+        """Render the block frozen when ``turn_key`` was first seen.
+
+        Anchors recorded while the turn is still running show up from the next
+        turn on, so the user message that carries the block keeps identical bytes
+        across every tool round of the turn and the provider prompt cache keeps
+        matching the whole prefix behind it.
+        """
+        with self._lock:
+            if self._turn_snapshot is None or self._turn_snapshot[0] != turn_key:
+                self._turn_snapshot = (turn_key, self._render_locked(None))
+            return self._turn_snapshot[1]
+
+    def _render_locked(self, max_count: int | None) -> str:
+        if not self._anchors:
+            return ""
+        selected = self._anchors if max_count is None else self._anchors[-max_count:]
+        lines = [f"- {a.to_compact_string()}" for a in selected]
+        return "[PRESERVED REASONING ANCHORS & CONSTRAINTS]\n" + "\n".join(lines)
 
 
 def get_session_anchor_ledger(session_id: str, *, max_anchors: int = _DEFAULT_MAX_ANCHORS) -> SessionAnchorLedger:

@@ -158,6 +158,7 @@ myrm_agent_harness.agent.skills.packaging
 myrm_agent_harness.agent.skills.packaging.validator
 myrm_agent_harness.agent.skills.runtime.catalog_display
 myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
+myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
 myrm_agent_harness.agent.skills.sync.manager

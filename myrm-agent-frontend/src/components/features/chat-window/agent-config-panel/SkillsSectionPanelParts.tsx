@@ -12,8 +12,8 @@ export function NoiseGauge({
   isNoiseHigh,
   isNoiseCritical,
   noiseLevel,
-  coreSkillsTokenCost,
-  maxCoreTokens,
+  actionSpaceScore,
+  maxSafeScore,
   staleCoreSkillCount,
   isSmartPruning = false,
   onSmartPrune,
@@ -22,8 +22,8 @@ export function NoiseGauge({
   isNoiseHigh: boolean;
   isNoiseCritical: boolean;
   noiseLevel: number;
-  coreSkillsTokenCost: number;
-  maxCoreTokens: number;
+  actionSpaceScore: number;
+  maxSafeScore: number;
   staleCoreSkillCount: number;
   isSmartPruning?: boolean;
   onSmartPrune: () => void;
@@ -49,7 +49,7 @@ export function NoiseGauge({
                 : 'text-muted-foreground',
           )}
         >
-          ~{coreSkillsTokenCost} / {maxCoreTokens}
+          ~{actionSpaceScore} / {maxSafeScore}
         </span>
       </div>
       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">

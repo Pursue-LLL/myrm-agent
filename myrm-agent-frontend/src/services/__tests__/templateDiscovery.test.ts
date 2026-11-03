@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeTemplateSearchText,
   resolveTemplateKind,
-  templateMatchesCategory,
   templateMatchesSearchQuery,
 } from '../templateDiscovery';
 import type { TemplateListItem } from '@/services/agent';
@@ -15,18 +14,6 @@ describe('templateDiscovery', () => {
     category: 'office',
     agent_type: 'individual',
     use_cases: ['编写招聘 JD', '设计结构化面试'],
-  };
-
-  const sampleTeam: TemplateListItem = {
-    id: 'software_dev_squad',
-    name: '软件研发专家小队',
-    description: '端到端软件需求分析、架构设计与代码实现',
-    category: 'team',
-    agent_type: 'team',
-    members: [
-      { role: 'architect', name: '架构师' },
-      { role: 'coder', name: '程序员' },
-    ],
   };
 
   it('normalizes search text', () => {
@@ -45,15 +32,7 @@ describe('templateDiscovery', () => {
     expect(templateMatchesSearchQuery(sampleIndividual, '不存在的关键词')).toBe(false);
   });
 
-  it('matches category correctly including office and team', () => {
-    expect(templateMatchesCategory(sampleIndividual, 'all')).toBe(true);
-    expect(templateMatchesCategory(sampleIndividual, '')).toBe(true);
-    expect(templateMatchesCategory(sampleIndividual, 'office')).toBe(true);
-    expect(templateMatchesCategory(sampleIndividual, 'engineering')).toBe(false);
-
-    expect(templateMatchesCategory(sampleTeam, 'team')).toBe(true);
-    expect(templateMatchesCategory(sampleTeam, 'office')).toBe(false);
-
+  it('matches search query on commerce templates', () => {
     const sampleCommerce: TemplateListItem = {
       id: 'storefront_shopper_agent',
       name: '智能导购伙伴',
@@ -62,8 +41,6 @@ describe('templateDiscovery', () => {
       agent_type: 'individual',
       use_cases: ['多规格选品', '购物车小计计算'],
     };
-    expect(templateMatchesCategory(sampleCommerce, 'commerce')).toBe(true);
-    expect(templateMatchesCategory(sampleCommerce, 'office')).toBe(false);
     expect(templateMatchesSearchQuery(sampleCommerce, '导购')).toBe(true);
     expect(templateMatchesSearchQuery(sampleCommerce, '变体')).toBe(true);
   });
@@ -81,7 +58,7 @@ describe('templateDiscovery', () => {
     expect(templateMatchesSearchQuery(meetingTemplate, '会议纪要')).toBe(true);
   });
 
-  it('matches commerce category and id/category search queries', () => {
+  it('matches id and category search queries', () => {
     const shopperTemplate: TemplateListItem = {
       id: 'storefront_shopper_agent',
       name: '智能导购伙伴',
@@ -91,8 +68,6 @@ describe('templateDiscovery', () => {
       use_cases: ['跑鞋选品与尺码收敛', '商品比价与政策解读'],
     };
 
-    expect(templateMatchesCategory(shopperTemplate, 'commerce')).toBe(true);
-    expect(templateMatchesCategory(shopperTemplate, 'office')).toBe(false);
     expect(templateMatchesSearchQuery(shopperTemplate, 'storefront')).toBe(true);
     expect(templateMatchesSearchQuery(shopperTemplate, 'commerce')).toBe(true);
     expect(templateMatchesSearchQuery(shopperTemplate, '导购')).toBe(true);
@@ -106,8 +81,6 @@ describe('templateDiscovery', () => {
       use_cases: ['销售大盘分析', '合规调价与利润保护'],
     };
 
-    expect(templateMatchesCategory(merchantTemplate, 'commerce')).toBe(true);
-    expect(templateMatchesCategory(merchantTemplate, 'office')).toBe(false);
     expect(templateMatchesSearchQuery(merchantTemplate, 'backoffice')).toBe(true);
     expect(templateMatchesSearchQuery(merchantTemplate, 'merchant')).toBe(true);
     expect(templateMatchesSearchQuery(merchantTemplate, '经营参谋')).toBe(true);

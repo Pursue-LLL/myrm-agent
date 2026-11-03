@@ -3,9 +3,7 @@
 提供自适应的技能搜索功能。
 当技能数量超过阈值时，使用搜索引擎替代完全内联。
 
-支持两种搜索模式：
-1. BM25 词法搜索（默认）：通过 Prompt 引导多语言查询
-2. Embedding 语义搜索（可选）：天然跨语言理解，需配置 embedding_config
+搜索是 BM25 词法搜索：技能名与描述按词匹配，由工具提示词引导模型用英文关键词与同义词查询。
 """
 
 from .query_expansion import QueryExpander

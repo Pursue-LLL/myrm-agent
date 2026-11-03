@@ -587,7 +587,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                   onKeyUp={updateCursorPosition}
                   onClick={updateCursorPosition}
                   minRows={isExpanded ? 8 : 2}
-                  className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
+                  className={`bg-transparent placeholder:text-muted-foreground/50 text-base sm:text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
                   placeholder={
                     inputHistory.ghostText
                       ? inputHistory.ghostText

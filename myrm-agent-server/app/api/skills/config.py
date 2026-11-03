@@ -154,8 +154,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
             granted = {g.permission for g in result.scalars().all()}
 
         # Check if all required permissions are granted
-        required = {p.value for p in required_permissions}
-        missing = required - granted
+        missing = set(required_permissions) - granted
 
         if missing:
             # Return pending_approval response
@@ -164,7 +163,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
                 skill_id=skill_id,
                 enabled=False,
                 pending_approval=True,
-                required_permissions=list(missing),
+                required_permissions=sorted(missing),
                 scan_findings=scan_responses,
             )
 

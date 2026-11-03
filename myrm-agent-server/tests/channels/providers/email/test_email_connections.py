@@ -27,6 +27,7 @@ def _assert_verifies_the_server(context: object) -> None:
 @pytest.fixture
 def imap() -> Iterator[MagicMock]:
     with patch("imaplib.IMAP4_SSL", autospec=True) as client:
+        client.return_value.select.return_value = ("OK", [b"0"])
         client.return_value.uid.return_value = ("OK", [b""])
         yield client
 

@@ -179,6 +179,25 @@ class TestConsecutiveFailures:
         verdict = guard.pre_check("web_search_tool", {"query": "test"})
         assert verdict.action == LoopAction.ALLOW
 
+    def test_data_results_that_mention_errors_do_not_build_a_streak(self, guard: LoopGuard) -> None:
+        """Skill docs and file contents full of error words are successful calls, however often they come."""
+        doc = "## fetch_pods\n" + "Raises TimeoutError or ConnectionRefused when the cluster is down.\n" * 4
+        for i in range(5):
+            tool = ("skill_select_tool", "file_read_tool")[i % 2]
+            guard.pre_check(tool, {"arg": f"doc_{i}"})
+            guard.record_result(tool, {"arg": f"doc_{i}"}, doc)
+
+        assert guard.pre_check("web_search_tool", {"query": "test"}).action == LoopAction.ALLOW
+
+    def test_errored_tool_messages_build_a_streak_even_when_the_text_looks_fine(self, guard: LoopGuard) -> None:
+        """An error status from the executor counts as a failure whatever the message says."""
+        for i in range(3):
+            guard.pre_check("file_read_tool", {"arg": f"f_{i}"})
+            guard.record_result("file_read_tool", {"arg": f"f_{i}"}, "all good", errored=True)
+
+        with pytest.raises(ToolStuckException):
+            guard.pre_check("web_search_tool", {"query": "test"})
+
 
 # ---------------------------------------------------------------------------
 # 4. Ping-Pong Detection

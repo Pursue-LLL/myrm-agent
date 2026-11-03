@@ -50,9 +50,9 @@ Path resolution: `core/artifacts/paths.py` (`AGENT_WORKSPACE_VAULT_RELATIVE` opt
 
 ## Workspace Search
 
-Workspace file discovery uses agentic search (`grep_tool` / `glob_tool`) via
-`FilesystemFileSearchMiddleware` on the Server agent factory. No vector index
-or `/context-search` HTTP endpoint.
+Workspace file discovery uses agentic search (`grep_tool` / `glob_tool`, harness meta
+tools mounted according to the run's file access mode). No vector index or
+`/context-search` HTTP endpoint.
 
 ## Health Probes
 

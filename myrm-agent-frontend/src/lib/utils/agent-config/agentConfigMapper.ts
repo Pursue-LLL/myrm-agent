@@ -7,7 +7,7 @@
  * buildAgentConfig: Agent → AgentConfig 转换函数
  *
  * [POS]
- * Agent 数据模型到会话级配置的标准映射。消除 messageManagement、AgentInfoBanner、usePresetAgent 间的重复映射逻辑。
+ * Agent 数据模型到会话级配置的标准映射。消除 messageManagement、AgentInfoBanner、AgentIndicator、useDefaultAgentBootstrap 间的重复映射逻辑。
  */
 
 import type { Agent, AgentModelSelection } from '@/services/agent';

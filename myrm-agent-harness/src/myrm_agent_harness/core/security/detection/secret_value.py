@@ -11,7 +11,9 @@
 - is_reference_value(): True for a value that names a secret instead of being one (template, identifier, call,
   character class, the key itself, camel-case name).
 - is_reference_token(): the same question for a free-standing high-entropy token (true when every piece between
-  non-alphanumeric characters is a readable word or number: identifier, class name, constant, slug, domain, query string).
+  non-alphanumeric characters is a readable word or number: identifier, class name, constant, slug, domain, query
+  string; also the generated name of a Kubernetes pod or ReplicaSet, whose random hash and suffix follow a fixed
+  alphabet, alone or inside a path, domain or port).
 - mask_markdown_emphasis(): same-length copy of a text with markdown bold markers blanked, so markup is never read
   as secret characters.
 
@@ -137,9 +139,37 @@ _READABLE_PIECE_RE = re.compile(
 )
 
 
+# Kubernetes names what it generates ("payments-api-7d9f8b6c5-x4k2p" pod, "payments-api-7d9f8b6c5" ReplicaSet,
+# "backup-28345678-x4k2p" CronJob pod, "node-agent-x4k2p" DaemonSet pod): a readable base name followed by a hash of
+# 8-10 characters, a 5-character suffix, or both. The random parts are drawn from this 27-character alphabet (vowels
+# and look-alike digits left out), which a credential generator does not honour.
+_K8S_RANDOM = "[bcdfghjklmnpqrstvwxz2456789]"
+_K8S_GENERATED_SUFFIX_RE = re.compile(rf"-{_K8S_RANDOM}{{8,10}}(?:-{_K8S_RANDOM}{{5}})?\Z|-{_K8S_RANDOM}{{5}}\Z")
+_DNS_NAME_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)+")
+# A name also appears inside a path ("pod/x", "prod/x"), a domain ("x.prod.svc") or a port ("x:8080"); the segments
+# between these are judged one by one.
+_NAME_DELIMITERS_RE = re.compile(r"[/.:]")
+
+
+def _is_readable(text: str) -> bool:
+    return all(_READABLE_PIECE_RE.fullmatch(piece) for piece in _PIECE_SEPARATORS_RE.split(text) if piece)
+
+
+def _is_kubernetes_generated_name(value: str) -> bool:
+    suffix = _K8S_GENERATED_SUFFIX_RE.search(value) if _DNS_NAME_RE.fullmatch(value) else None
+    return bool(suffix and suffix.start() and _is_readable(value[: suffix.start()]))
+
+
+def _is_reference_segment(segment: str) -> bool:
+    argument = _KEYWORD_ARGUMENT_RE.match(segment)
+    value = segment[argument.end() :] if argument else segment
+    return _is_readable(value) or _is_kubernetes_generated_name(value)
+
+
 def is_reference_token(token: str, *, min_length: int) -> bool:
     """Whether a high-entropy-looking token is made only of readable words and numbers: an identifier, class name,
-    constant, slug, domain, address or query string.
+    constant, slug, domain, address or query string; or the generated name of a Kubernetes pod or ReplicaSet, alone or
+    inside a path, domain or port.
 
     A keyword argument (``max_tokens=...``) is judged by its value alone. The token is cut at every non-alphanumeric
     character; one random piece (a secret behind ``?token=`` or ``@``) makes the whole token a candidate again.
@@ -148,7 +178,9 @@ def is_reference_token(token: str, *, min_length: int) -> bool:
     value = token[argument.end() :] if argument else token
     if len(value) < min_length:
         return True
-    return all(_READABLE_PIECE_RE.fullmatch(piece) for piece in _PIECE_SEPARATORS_RE.split(value) if piece)
+    return _is_readable(value) or all(
+        _is_reference_segment(segment) for segment in _NAME_DELIMITERS_RE.split(value) if segment
+    )
 
 
 # --- value extraction --------------------------------------------------------------------------------------------

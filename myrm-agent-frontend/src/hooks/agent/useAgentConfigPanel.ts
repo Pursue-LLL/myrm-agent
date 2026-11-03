@@ -7,11 +7,10 @@ import useConfigStore from '@/store/useConfigStore';
 import useAgentStore from '@/store/useAgentStore';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
-import { getAgent, createAgent, updateAgent, AgentCreate, AgentUpdate } from '@/services/agent';
+import { createAgent, updateAgent, AgentCreate, AgentUpdate } from '@/services/agent';
 import { isRiskHeldError } from '@/services/riskHeldToast';
-import { AgentConfig, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { toast } from '@/hooks/shared/useToast';
-import { usePresetAgent } from '@/hooks/agent/usePresetAgent';
+import { useDefaultAgentBootstrap } from '@/hooks/agent/useDefaultAgentBootstrap';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { createSaveConfigHandler } from './config-panel/handlers';
 import { detectAgentConfigChanges, type OriginalAgentSnapshot } from './config-panel/configChanges';
@@ -23,7 +22,7 @@ import { detectAgentConfigChanges, type OriginalAgentSnapshot } from './config-p
  * - Store集成（Chat, Config, Skill, Agent, Auth）
  * - 本地状态管理（对话框、加载状态、打字机效果）
  * - 数据计算（已启用技能、选中详情、配置变化检测）
- * - 事件处理（选择智能体、保存配置、更新智能体）
+ * - 事件处理（保存配置、保存为新智能体、更新智能体）
  *
  * @example
  * ```tsx
@@ -53,15 +52,11 @@ import { detectAgentConfigChanges, type OriginalAgentSnapshot } from './config-p
  * @returns {Array} returns.enabledMcps - 已启用的MCP列表
  * @returns {Array} returns.selectedSkillDetails - 选中技能的详情
  * @returns {Array} returns.selectedMcpDetails - 选中MCP的详情
- * @returns {string | null} returns.selectedPresetId - 选中的预置智能体ID
  * @returns {Function} returns.setEditDialogOpen - 设置编辑对话框状态
  * @returns {Function} returns.handleCardClick - 处理卡片点击事件
  * @returns {Function} returns.handleSaveConfig - 保存配置
  * @returns {Function} returns.handleSaveAsNewAgent - 保存为新智能体
  * @returns {Function} returns.handleUpdateAgent - 更新已保存的智能体
- * @returns {Function} returns.handleSelectAgent - 选择智能体
- * @returns {Function} returns.handleSelectPreset - 选择预置智能体
- * @returns {Function} returns.clearPresetSelection - 清除预置选择
  * @returns {Function} returns.handleTypewriterComplete - 打字机完成回调
  * @returns {Function} returns.t - 翻译函数（configPanel）
  * @returns {Function} returns.tAgent - 翻译函数（agent）
@@ -145,11 +140,8 @@ export const useAgentConfigPanel = () => {
 
   const originalAgentConfigRef = useRef<OriginalAgentSnapshot | null>(null);
 
-  // 使用预置智能体 Hook
-  const { selectedPresetId, handleSelectPreset, clearPresetSelection } = usePresetAgent({
-    setAgentConfig,
-    originalAgentConfigRef,
-  });
+  // 首次进入且无任何配置时选中内置通用智能体
+  useDefaultAgentBootstrap(setAgentConfig);
 
   // ==================== Memoized Values ====================
 
@@ -370,74 +362,6 @@ export const useAgentConfigPanel = () => {
     }
   }, [isSavingAgent, agentConfig, currentBuiltinTools, tAgent, updateAgentStore]);
 
-  /** 选择已保存的智能体 */
-  const handleSelectAgent = useCallback(
-    async (agent: { id: string }) => {
-      try {
-        const agentDetail = await getAgent(agent.id);
-        const builtinTools = (agentDetail.enabled_builtin_tools ?? [
-          ...DEFAULT_ENABLED_BUILTIN_TOOLS,
-        ]) as BuiltinToolId[];
-        const newConfig: AgentConfig = {
-          agentId: agentDetail.id,
-          agentName: agentDetail.name,
-          avatarUrl: agentDetail.avatar_url,
-          selectedSkillIds: agentDetail.skill_ids || [],
-          skillConfigs: agentDetail.skill_configs || {},
-          selectedMcpNames: agentDetail.mcp_ids || [],
-          systemPrompt: agentDetail.system_prompt || '',
-          useGlobalInstruction: true,
-          autoRestoreDomains: agentDetail.auto_restore_domains || [],
-          suggestionPrompts: agentDetail.suggestion_prompts || undefined,
-          enabledBuiltinTools: builtinTools,
-          modelSelection: agentDetail.model_selection ?? null,
-          fallbackModelSelection:
-            agentDetail.model_selection?.fallbackProviderId && agentDetail.model_selection?.fallbackModel
-              ? {
-                  providerId: agentDetail.model_selection.fallbackProviderId,
-                  model: agentDetail.model_selection.fallbackModel,
-                }
-              : null,
-          safetyFallbackModelSelection:
-            agentDetail.model_selection?.safetyFallbackProviderId && agentDetail.model_selection?.safetyFallbackModel
-              ? {
-                  providerId: agentDetail.model_selection.safetyFallbackProviderId,
-                  model: agentDetail.model_selection.safetyFallbackModel,
-                }
-              : null,
-          memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
-          memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
-          browserSource: agentDetail.browser_source || undefined,
-          promptMode: agentDetail.prompt_mode || undefined,
-          defaultSecurityPreset: agentDetail.default_security_preset ?? undefined,
-        };
-        setAgentConfig(newConfig);
-
-        originalAgentConfigRef.current = {
-          agentId: agentDetail.id,
-          selectedSkillIds: agentDetail.skill_ids || [],
-          skillConfigs: agentDetail.skill_configs || {},
-          selectedMcpNames: agentDetail.mcp_ids || [],
-          systemPrompt: agentDetail.system_prompt || '',
-          autoRestoreDomains: agentDetail.auto_restore_domains || [],
-          enabledBuiltinTools: builtinTools,
-          memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
-          memoryExtractionPreset: agentDetail.memory_extraction_preset || 'auto',
-          modelSelection: newConfig.modelSelection ?? null,
-          fallbackModelSelection: newConfig.fallbackModelSelection ?? null,
-          safetyFallbackModelSelection: newConfig.safetyFallbackModelSelection ?? null,
-        };
-      } catch (error) {
-        console.error('加载智能体详情失败:', error);
-        toast({
-          title: tAgent('loadAgentFailed'),
-          variant: 'destructive',
-        });
-      }
-    },
-    [setAgentConfig, tAgent],
-  );
-
   const refreshSkills = useCallback(async () => {
     await Promise.all([fetchMarketSkills(), fetchLocalSkills()]);
   }, [fetchMarketSkills, fetchLocalSkills]);
@@ -465,18 +389,12 @@ export const useAgentConfigPanel = () => {
     selectedMcpDetails,
     currentBuiltinTools,
 
-    // Preset
-    selectedPresetId,
-
     // Handlers
     setEditDialogOpen,
     handleCardClick,
     handleSaveConfig,
     handleSaveAsNewAgent,
     handleUpdateAgent,
-    handleSelectAgent,
-    handleSelectPreset,
-    clearPresetSelection,
     handleTypewriterComplete,
     refreshSkills,
 

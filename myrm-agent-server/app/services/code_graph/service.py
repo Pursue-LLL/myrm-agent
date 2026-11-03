@@ -4,7 +4,8 @@
 - ast_extractor.py::PythonAstExtractor (POS: 静态解析层，把单个源文件解析为符号与关系)
 - js_ts_extractor.py::JsTsTreeSitterExtractor (POS: 静态解析层，TypeScript/JavaScript 的语法树抽取)
 - graph_store.py::CodeGraphStore (POS: 本地轻量级代码 AST 符号图谱与调用关系持久化存储库)
-- models.py::(IndexStats, ParsedFile) (POS: 代码图谱领域数据模型与契约)
+- import_alignment.py::(ImportScope, importer_scope) (POS: importers 查询名与索引里导入文本的对齐)
+- models.py::(DEFINITION_KINDS, IndexStats, ParsedFile, SymbolKind) (POS: 代码图谱领域数据模型与契约)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer (POS: git-aware workspace file lister)
 
 [OUTPUT]
@@ -20,14 +21,16 @@ import logging
 import stat
 import threading
 import time
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
 from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer
 
+from app.services.code_graph import import_alignment
 from app.services.code_graph.ast_extractor import PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
 from app.services.code_graph.js_ts_extractor import JsTsTreeSitterExtractor
-from app.services.code_graph.models import IndexStats, ParsedFile
+from app.services.code_graph.models import DEFINITION_KINDS, IndexStats, ParsedFile, SymbolKind
 
 logger = logging.getLogger(__name__)
 
@@ -188,9 +191,9 @@ class CodeGraphService:
         """3. 获取调用指定名称的所有调用点；``match`` 标明是整串相等还是只有最后一段同名。"""
         return self.store.get_callers(callee_name)
 
-    def definition_count(self, name: str) -> int:
-        """与 ``name`` 最后一段同名的函数、方法和类的数量，数量大于 1 说明按名字匹配的调用点可能不是同一个函数。"""
-        return self.store.count_definitions(name)
+    def definition_count(self, name: str, kinds: Sequence[SymbolKind] = DEFINITION_KINDS) -> int:
+        """与 ``name`` 最后一段同名、种类在 ``kinds`` 内的符号数量（默认函数、方法和类）；大于 1 说明按名字匹配的调用点可能不是同一个函数。"""
+        return self.store.count_definitions(name, kinds)
 
     def callees(self, caller_qname: str) -> list[dict[str, object]]:
         """4. 获取指定函数内部的所有调用点（被调用者是调用点上的原文）。"""
@@ -200,9 +203,13 @@ class CodeGraphService:
         """5. 获取继承或实现指定类/接口的所有派生类型。"""
         return self.store.get_implementors(super_type_name)
 
+    def importer_scope(self, module_name: str) -> import_alignment.ImportScope:
+        """``module_name`` 在索引里指哪些 Python 模块（多于 1 个即重名），以及哪些导入文本属于它。"""
+        return import_alignment.importer_scope(module_name, self.store.get_python_module_names())
+
     def importers(self, module_name: str) -> list[dict[str, object]]:
-        """6. 获取导入了指定模块的所有文件及行号列号。"""
-        return self.store.get_importers(module_name)
+        """6. 获取导入了指定模块（或其内部名字）的 Python 导入语句及行号列号，写法与路径布局无关。"""
+        return self.store.get_importers(self.importer_scope(module_name).prefixes)
 
     def tests_calling(self, target_qname: str) -> list[dict[str, object]]:
         """7. 获取测试文件里直接调用目标的调用点（按名字匹配，不沿调用链继续向上）。"""

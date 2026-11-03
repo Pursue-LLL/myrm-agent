@@ -381,7 +381,6 @@ async def build_general_agent(
 
     # 6. Create middlewares
     from myrm_agent_harness.agent.middlewares import (
-        FilesystemFileSearchMiddleware,
         PlanConfirmMiddleware,
         RateLimitMiddleware,
     )
@@ -479,9 +478,6 @@ async def build_general_agent(
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
-
-    if workspace_root:
-        middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
 
     # Human-tail blocks run after context pipeline so compression cannot strip them; the knowledge pack goes
     # first so explicit session deltas stay closest to the end of the user turn.
@@ -802,7 +798,6 @@ async def build_general_agent(
         fallback_llms=stream_fallback_llms,
         safety_fallback_llm=safety_fallback_llm,
         escalation_target_llm=escalation_target_llm,
-        embedding_config=agent_wrapper.embedding_config,
         checkpointer=checkpointer,
         privacy_routing_config=privacy_routing_cfg,
         event_log_backend=agent_wrapper.event_log_backend,

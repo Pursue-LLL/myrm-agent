@@ -1,0 +1,227 @@
+"""What one poll takes from the mailbox: a message nobody can parse never stalls it, a failure on one message delivers the
+ones before it and reads it again, a backlog drains oldest first, and the messages not yet confirmed come on top of the new
+ones a poll takes.
+
+The inbox answers the way an IMAP server does (see ``email_inbox``): a message it has handed over is read and no longer
+unread, and ``UID n:*`` returns the newest message when ``n`` is past the end of the mailbox, so the batch the channel
+picks is checked against what a server really sends.
+"""
+
+from __future__ import annotations
+
+import errno
+import imaplib
+import logging
+import tempfile
+from pathlib import Path
+from typing import Literal
+from unittest.mock import patch
+
+import pytest
+
+from app.channels.types import InboundMessage
+from tests.channels.providers.email.email_channel_factory import make_channel, raw_mail, raw_mail_with_attachments
+from tests.channels.providers.email.email_inbox import Inbox, failing_once, uids
+
+_LOGGER = "app.channels.providers.email.poll"
+_BATCH = (5, 6, 7)
+
+
+class TestUnparseableMessage:
+    @pytest.mark.parametrize(("unreadable", "readable"), [(5, 6), (6, 5)], ids=["oldest", "newest"])
+    def test_it_is_skipped_and_logged_by_uid_and_not_fetched_again(
+        self, unreadable: int, readable: int, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        inbox = Inbox({5: raw_mail(5), 6: raw_mail(6)})
+        channel = make_channel()
+        parse = channel._parse_email
+
+        def refuse_unreadable(raw: bytes, uid: int) -> InboundMessage | None:
+            if uid == unreadable:
+                raise LookupError("unknown encoding")
+            return parse(raw, uid)
+
+        with (
+            patch.object(channel, "_parse_email", side_effect=refuse_unreadable),
+            caplog.at_level(logging.WARNING, logger=_LOGGER),
+        ):
+            first_poll = inbox.poll(channel)
+            second_poll = inbox.poll(channel)
+
+        assert uids(first_poll) == [readable]
+        assert channel._last_uid == 6
+        assert [record.getMessage() for record in caplog.records] == [
+            f"Email: UID {unreadable} could not be parsed and is skipped"
+        ]
+        assert caplog.records[0].exc_info is not None
+        assert second_poll == []
+        assert inbox.fetched == [5, 6]
+
+
+class TestDiskError:
+    def test_a_message_the_disk_could_not_take_is_read_again_by_the_next_poll(self) -> None:
+        """A full disk clears up, so the message it failed on is retried, unlike one the parser can never read."""
+        inbox = Inbox({5: raw_mail(5), 6: raw_mail(6)})
+        channel = make_channel()
+        parse = channel._parse_email
+        disk_full = True
+
+        def parse_when_the_disk_has_room(raw: bytes, uid: int) -> InboundMessage | None:
+            if disk_full and uid == 5:
+                raise OSError(errno.ENOSPC, "No space left on device")
+            return parse(raw, uid)
+
+        with patch.object(channel, "_parse_email", side_effect=parse_when_the_disk_has_room):
+            with pytest.raises(OSError, match="No space left"):
+                inbox.poll(channel)
+            assert channel._last_uid == 0
+
+            disk_full = False
+            retry = inbox.poll(channel)
+
+        assert uids(retry) == [5, 6]
+        assert inbox.fetched == [5, 5, 6]
+        assert channel._last_uid == 6
+
+
+class TestBacklog:
+    def test_a_backlog_drains_oldest_first_and_each_message_is_fetched_once(self) -> None:
+        inbox = Inbox({uid: raw_mail(uid) for uid in range(101, 131)})
+        channel = make_channel()
+        channel._last_uid = 100
+
+        first_poll = inbox.poll(channel)
+        second_poll = inbox.poll(channel)
+        third_poll = inbox.poll(channel)
+
+        assert uids(first_poll) == list(range(101, 121))
+        assert uids(second_poll) == list(range(121, 131))
+        assert third_poll == []
+        assert inbox.fetched == list(range(101, 131))
+        assert channel._last_uid == 130
+
+    def test_a_server_that_lists_the_uids_newest_first_still_drains_oldest_first(self) -> None:
+        """RFC 3501 gives the numbers of a SEARCH response no order."""
+        inbox = Inbox({uid: raw_mail(uid) for uid in range(101, 131)}, descending=True)
+        channel = make_channel()
+        channel._last_uid = 100
+
+        assert uids(inbox.poll(channel)) == list(range(101, 121))
+        assert channel._last_uid == 120
+
+    def test_the_first_poll_takes_the_newest_unseen_messages(self) -> None:
+        inbox = Inbox({uid: raw_mail(uid) for uid in range(1, 31)})
+        channel = make_channel()
+
+        first_poll = inbox.poll(channel)
+
+        assert uids(first_poll) == list(range(11, 31))
+        assert channel._last_uid == 30
+
+    def test_messages_not_yet_confirmed_come_on_top_of_a_full_batch_of_new_ones(self) -> None:
+        """Nothing confirms the first poll, so the second hands its messages out again and still takes 20 new ones."""
+        inbox = Inbox({uid: raw_mail(uid) for uid in range(1, 41)})
+        channel = make_channel()
+
+        with patch("imaplib.IMAP4_SSL", return_value=inbox.conn):
+            first_poll = channel._fetch_new_emails()
+            inbox.messages.update({uid: raw_mail(uid) for uid in range(41, 101)})
+            second_poll = channel._fetch_new_emails()
+
+        assert uids(first_poll) == list(range(21, 41))
+        assert uids(second_poll) == list(range(21, 61))
+        assert channel._last_uid == 60
+
+    def test_nothing_is_fetched_when_the_search_answers_with_the_newest_old_message(self) -> None:
+        """``UID 7:*`` on a mailbox that ends at 6 answers with 6; that message was delivered by an earlier poll."""
+        inbox = Inbox({5: raw_mail(5), 6: raw_mail(6)})
+        channel = make_channel()
+        channel._last_uid = 6
+
+        assert inbox.poll(channel) == []
+        assert inbox.fetched == []
+
+
+class TestFailureMidBatch:
+    """Every message of the batch is delivered exactly once, wherever in it a failure strikes and whatever the failure is."""
+
+    @pytest.mark.parametrize("kind", ["disk", "connection"])
+    @pytest.mark.parametrize(("failing", "before"), [(6, [5]), (7, [5, 6])], ids=["middle", "last"])
+    def test_the_messages_before_it_are_delivered_and_it_is_read_again(
+        self, kind: Literal["disk", "connection"], failing: int, before: list[int], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        inbox = Inbox({uid: raw_mail(uid) for uid in _BATCH})
+        channel = make_channel()
+
+        with failing_once(kind, failing, inbox, channel), caplog.at_level(logging.WARNING, logger=_LOGGER):
+            first_poll = uids(inbox.poll(channel))
+            mark_after_first_poll = channel._last_uid
+            second_poll = uids(inbox.poll(channel))
+
+        assert first_poll == before
+        assert mark_after_first_poll == before[-1]
+        assert first_poll + second_poll == list(_BATCH)
+        assert inbox.fetched == [*before, failing, *(uid for uid in _BATCH if uid >= failing)]
+        [warning] = [record for record in caplog.records if record.name == _LOGGER]
+        assert f"UID {failing}" in warning.getMessage()
+        assert warning.exc_info is not None
+
+    @pytest.mark.parametrize("kind", ["disk", "connection"])
+    def test_a_failure_on_the_first_message_raises_for_the_backoff_and_it_is_read_again(
+        self, kind: Literal["disk", "connection"]
+    ) -> None:
+        """Before any message has been delivered the poll asks for the unread ones, and the server has marked the message
+        that failed read: it must be read again although a search for the unread ones no longer finds it."""
+        inbox = Inbox({uid: raw_mail(uid) for uid in _BATCH})
+        channel = make_channel()
+
+        with failing_once(kind, 5, inbox, channel):
+            with pytest.raises((OSError, imaplib.IMAP4.abort)):
+                inbox.poll(channel)
+            assert channel._last_uid == 0
+            retry = uids(inbox.poll(channel))
+            after_retry = inbox.poll(channel)
+
+        assert retry == list(_BATCH)
+        assert after_retry == []
+        assert inbox.fetched == [5, 5, 6, 7]
+
+    @pytest.mark.parametrize("unreadable", _BATCH, ids=["first", "middle", "last"])
+    def test_an_unreadable_message_holds_back_none_of_the_ones_around_it(self, unreadable: int) -> None:
+        inbox = Inbox({uid: raw_mail(uid) for uid in _BATCH})
+        channel = make_channel()
+        parse = channel._parse_email
+
+        def refuse_unreadable(raw: bytes, uid: int) -> InboundMessage | None:
+            if uid == unreadable:
+                raise ValueError("bad header")
+            return parse(raw, uid)
+
+        with patch.object(channel, "_parse_email", side_effect=refuse_unreadable):
+            first_poll = inbox.poll(channel)
+            second_poll = inbox.poll(channel)
+
+        assert uids(first_poll) == [uid for uid in _BATCH if uid != unreadable]
+        assert channel._last_uid == 7
+        assert second_poll == []
+        assert inbox.fetched == list(_BATCH)
+
+
+class TestUnwritableTempDirectory:
+    def test_the_messages_before_the_one_that_cannot_be_saved_are_delivered_and_it_is_saved_once_the_disk_recovers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The failure is the file system's own: the attachment of UID 6 has no directory to be written into."""
+        inbox = Inbox({5: raw_mail(5), 6: raw_mail_with_attachments(6, "a.pdf", "b.pdf"), 7: raw_mail(7)})
+        channel = make_channel()
+
+        monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "missing"))
+        first_poll = uids(inbox.poll(channel))
+        monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+        second_poll = inbox.poll(channel)
+
+        assert first_poll == [5]
+        assert uids(second_poll) == [6, 7]
+        saved = list(second_poll[0].media)
+        assert [attachment.filename for attachment in saved] == ["a.pdf", "b.pdf"]
+        assert {Path(str(attachment.path)) for attachment in saved} == set(tmp_path.iterdir())

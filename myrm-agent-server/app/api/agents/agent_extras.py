@@ -185,12 +185,14 @@ async def _build_catalog_preview(
     skill_ids: list[str],
     skill_configs: dict[str, dict[str, object]],
 ) -> dict[str, int | bool]:
-    """Turn1 bound-skill catalog preview — harness SSOT for inline/hidden/search gate."""
+    """Turn1 bound-skill catalog preview — the same resolver and renderer the agent runtime runs."""
     from myrm_agent_harness.agent.skills.runtime.catalog_display import (
         resolve_catalog_display_skills,
         should_mount_skill_search_tool,
     )
+    from myrm_agent_harness.agent.skills.runtime.skill_catalog_delivery import render_bound_skills_catalog
     from myrm_agent_harness.backends.skills.types import SkillMetadata
+    from myrm_agent_harness.utils.text_utils import get_token_count
 
     from app.core.skills.gates.requirements_availability import apply_requirements_availability_to_catalog
     from app.core.skills.runtime_metadata import skill_to_runtime_metadata
@@ -210,15 +212,17 @@ async def _build_catalog_preview(
         meta.unavailable_reason = skill.unavailable_reason
         metadata_list.append(meta)
 
-    configs = skill_configs or None
-    resolution = resolve_catalog_display_skills(metadata_list, skill_configs=configs)
+    resolution = resolve_catalog_display_skills(metadata_list, skill_configs=skill_configs)
+    rendered = render_bound_skills_catalog(metadata_list, skill_configs=skill_configs)
     search_mounted = bool(metadata_list) and should_mount_skill_search_tool(
         metadata_list,
-        skill_configs=configs,
+        skill_configs=skill_configs,
     )
     return {
         "inline_count": len(resolution.display_skills),
         "hidden_count": resolution.hidden_skill_count,
+        "overflow_count": resolution.overflow_count,
+        "catalog_tokens": get_token_count(rendered.xml) if rendered is not None else 0,
         "search_mounted": search_mounted,
     }
 

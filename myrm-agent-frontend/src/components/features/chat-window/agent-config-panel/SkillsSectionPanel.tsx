@@ -20,8 +20,8 @@ export interface SkillsSectionPanelProps {
     isNoiseHigh: boolean;
     isNoiseCritical: boolean;
     noiseLevel: number;
-    coreSkillsTokenCost: number;
-    maxCoreTokens: number;
+    actionSpaceScore: number;
+    maxSafeScore: number;
   };
   staleCoreSkills: string[];
   isSmartPruning?: boolean;
@@ -50,7 +50,7 @@ export const SkillsSectionPanel = ({
 }: SkillsSectionPanelProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [instancesBySkillName, setInstancesBySkillName] = useState<Record<string, string[]>>({});
-  const { isNoiseHigh, isNoiseCritical, noiseLevel, coreSkillsTokenCost, maxCoreTokens } = noiseData;
+  const { isNoiseHigh, isNoiseCritical, noiseLevel, actionSpaceScore, maxSafeScore } = noiseData;
 
   useEffect(() => {
     let cancelled = false;
@@ -215,8 +215,8 @@ export const SkillsSectionPanel = ({
         isNoiseHigh={isNoiseHigh}
         isNoiseCritical={isNoiseCritical}
         noiseLevel={noiseLevel}
-        coreSkillsTokenCost={coreSkillsTokenCost}
-        maxCoreTokens={maxCoreTokens}
+        actionSpaceScore={actionSpaceScore}
+        maxSafeScore={maxSafeScore}
         staleCoreSkillCount={staleCoreSkills.length}
         isSmartPruning={isSmartPruning}
         onSmartPrune={onSmartPrune}

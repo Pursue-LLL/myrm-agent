@@ -67,6 +67,7 @@
     "summonSuccess": "已切換至專家 {name}",
     "summonFailed": "召喚專家範本失敗",
     "featuredTitle": "精選專家與團隊",
+    "featuredDismiss": "關閉精選專家推薦",
     "teamBadge": "團隊",
     "expertBadge": "專家",
     "searchPlaceholder": "搜尋專家或團隊...",
@@ -1099,18 +1100,14 @@
       "instruction": "指令",
       "instructionDesc": "點選配置自定義指令",
       "more": "更多",
-      "savedAgents": "已儲存智慧體",
       "viewAll": "檢視全部",
-      "manage": "管理",
       "noSavedAgents": "暫無儲存的智慧體",
       "noSavedAgentsDesc": "編輯配置後可儲存為智慧體",
       "useAgent": "使用",
-      "teamBadge": "團隊",
       "noSelected": "未選擇",
       "noInstruction": "未設定指令",
       "useGlobalInstructionDefault": "預設使用全域性指令",
       "ready": "就緒",
-      "noDescription": "暫無描述",
       "saveAsNewAgent": "儲存為新智慧體",
       "savingAgent": "儲存中...",
       "save": "儲存",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "單 Agent (無下屬團隊)",
       "jitTeamPlaceholder": "不使用虛擬團隊",
       "jitInheritMemory": "繼承父級對話記憶",
-      "templateMarket": "模板市場",
-      "categoryFilter": "分類篩選",
       "categoryAll": "全部",
       "categoryOffice": "職場辦公",
       "categoryCommerce": "電商零售",
       "categoryEngineering": "技術研發",
       "categoryTeam": "協作團隊",
-      "orgMarketplace": "組織集市",
-      "searchMarketplace": "搜尋智慧體...",
-      "installs": "次安裝",
-      "installed": "已安裝",
-      "installSuccess": "已從集市安裝智慧體！",
-      "installError": "安裝智慧體失敗",
-      "noResults": "未找到智慧體",
-      "publishToOrg": "釋出到組織",
-      "publishedToOrg": "已釋出到組織",
-      "publishSuccess": "已釋出到組織集市！",
-      "publishError": "釋出到組織集市失敗",
-      "forcePush": "推送",
-      "forcePushConfirm": "確定將「{name}」v{version} 強制推送給所有已安裝使用者？這將覆蓋他們當前的配置（已自動儲存快照可回滾）。",
-      "forcePushSuccess": "強制推送完成",
-      "forcePushError": "推送失敗",
-      "forcePushTooltip": "將最新版本強制推送給所有已安裝使用者",
       "forcePushReceived": "智慧體配置已被組織更新",
       "forcePushRollbackHint": "快照已儲存，可在智慧體設定中回滾。",
       "viewAgent": "檢視",
-      "instantiateSuccess": "已從模板建立智慧體！",
-      "instantiateError": "從模板建立智慧體失敗",
       "blueprints": {
         "research_squad": "深度調研小隊 (多智慧體)",
         "code_audit_squad": "程式碼紅隊審查 (多智慧體)"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "已裝配",
         "pureInstructionNotice": "未裝配技能 · 純指令模式",
         "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
-      },
-      "forcePushSummary": "v{version} → 已同步 {synced}，已略過 {skipped}，失敗 {failed}（共 {total}）"
+      }
     },
     "validation": {
       "dependencyInvalid": "智慧體配置存在問題",
@@ -1361,7 +1337,7 @@
       "addMore": "新增更多",
       "actionSpaceRadar": {
         "title": "大模型決策準確度預測",
-        "loadMeterLabel": "核心技能 Token 負載",
+        "loadMeterLabel": "動作空間複雜度",
         "evaluating": "計算中...",
         "evaluatingHint": "正在連線底層引擎進行動作空間解析...",
         "statusCritical": "準確率暴跌風險：工具過度氾濫！模型面臨極嚴重的幻覺風險，請清理。",
@@ -1371,10 +1347,10 @@
         "smartPrune": "一鍵淨化釋放動作空間",
         "smartPruneRunning": "正在清理動作空間…",
         "turn1CatalogTitle": "Turn 1 技能目錄",
-        "turn1CatalogSummary": "{inline} 內聯 · {hidden} 隱藏 · search {searchState}",
+        "turn1CatalogSummary": "{inline} 內聯 · {hidden} 按需 · search {searchState} · 約 {tokens, number} token",
         "turn1CatalogSearchOn": "開啟",
         "turn1CatalogSearchOff": "關閉",
-        "turn1CatalogOverCapHint": "對話開始時 Turn 1 最多內聯 {cap} 個 Core 技能（按名稱排序）。將少用技能改為 Peripheral 可關閉 search，每輪約省 203 token。"
+        "turn1CatalogOverCapHint": "核心技能超出內聯預算：前 {inline} 個（按名稱排序）完整內聯，其餘 {overflow} 個僅在目錄中列出名稱，需要時按名稱載入。將少用的核心技能改為外圍，可為其餘技能騰出內聯位置。"
       },
       "skillsZone": {
         "coreTitle": "核心常駐技能",
@@ -2515,13 +2491,14 @@
       "modeLocalDesc": "綁定本地資料夾，AI 在該目錄內執行分析與讀寫",
       "modeCloud": "雲端沙箱",
       "modeCloudDesc": "隔離沙箱環境，安全執行程式碼，不汙染本機",
+      "modeCloudBadge": "專屬沙箱儲存",
       "modeChat": "極速對話",
       "modeChatDesc": "通用智能對話與快速問答，無須工作區",
       "bindWorkspace": "選擇工作目錄",
       "currentWorkspace": "當前目錄",
       "noWorkspaceSelected": "未選擇工作目錄 (點擊綁定)",
       "scaffoldBtn": "一鍵初始化辦公目錄",
-      "scaffoldTooltip": "在當前工作區生成標準化結構：00_原始資料、01_參考、02_生成結果、03_歷史版本",
+      "scaffoldTooltip": "在當前工作區生成標準化結構：{folders}",
       "scaffoldSuccess": "標準化辦公目錄已就緒",
       "scaffoldFailed": "初始化辦公目錄失敗",
       "clearWorkspace": "解綁目錄",
@@ -3185,7 +3162,6 @@
       "healthy": "環境正常"
     },
     "migrationDiscovery": {
-      "detecting": "正在掃描本地 AI 助手資料...",
       "title": "檢測到 {competitor} 資料",
       "description": "發現 {memoryCount} 條記憶和 {skillCount} 個技能，可預覽後匯入",
       "descriptionMemoryOnly": "發現 {memoryCount} 條記憶，可預覽後匯入",
@@ -3481,12 +3457,7 @@
     "collapseReasoning": "收合思考過程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 個推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 個推理 Token",
-    "systemNotices": {
-      "title": "提醒與發現",
-      "open": "提醒",
-      "playbook": "模型編排手冊"
-    }
+    "reasoningTokensEstimated": "≈ {count} 個推理 Token"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -7005,93 +6976,7 @@
     }
   },
   "presetAgent": {
-    "title": "智慧體",
-    "description": "選擇一個智慧體開始對話",
-    "selectPreset": "選擇預置智慧體",
-    "workingDirectory": "工作目錄",
-    "selectWorkingDirectory": "選擇工作目錄",
-    "configureWorkingDirectory": "請配置此智慧體的工作目錄，智慧體將在該目錄下執行操作。",
-    "notConfigured": "未接入，請先配置",
-    "requiresConfig": "需要配置",
-    "cancel": "取消",
-    "confirm": "確認",
-    "pathHint": "輸入專案的完整路徑，例如：",
-    "enterDirectoryPath": "請輸入專案目錄路徑",
-    "manualInputPath": "輸入您要操作的專案目錄絕對路徑。",
-    "clickToConfigureDirectory": "點選配置工作路徑",
-    "pleaseEnterWorkingDirectory": "請先填寫工作路徑",
-    "workingDirectoryPlaceholder": "輸入工作路徑...",
-    "workingPathLabel": "工作路徑",
-    "invalidAbsolutePath": "請輸入絕對路徑",
-    "edit": "編輯",
-    "pathNotExist": "路徑不存在",
-    "pathNotDirectory": "路徑不是目錄",
-    "errors": {
-      "workingDirectoryRequired": "工作路徑不能為空",
-      "absolutePathRequired": "請輸入絕對路徑"
-    },
-    "collapse": "收起",
-    "showMore": "更多 ({count})",
-    "enableInSettings": "請在設定中啟用 {name} 後使用",
-    "selectACPProvider": "選擇程式設計助手",
-    "noACPProviderEnabled": "暫無可用的程式設計助手，請在設定中配置",
-    "goToSettings": "前往配置",
-    "quickTaskHint": "快捷任務示例",
-    "useThisAgent": "使用此智慧體",
-    "selectACPModelHint": "選中後在模型選擇器中選擇 ACP 模型",
-    "category": {
-      "acp": "CLI 視覺化",
-      "general": "通用助手"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "通用助手",
-      "description": "通用對話助手，可以回答各種問題"
-    },
-    "cliVisual": {
-      "name": "CLI 視覺化",
-      "description": "支援多種 CLI 程式設計助手，實時展示執行計劃和檔案變更"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "撰寫文件",
-        "guide": "幫我為智慧家居行業起草一個外部助手對比框架"
-      },
-      "chatWithWebpage": {
-        "name": "與網頁連結聊天",
-        "guide": "直接貼上網頁連結，然後詢問你的問題"
-      },
-      "summarizeWebpage": {
-        "name": "總結網頁內容",
-        "guide": "直接貼上網頁連結，告訴AI總結該網頁"
-      },
-      "createProject": {
-        "name": "建立新專案",
-        "guide": "描述你想要建立的專案，AI 將幫你初始化專案結構"
-      },
-      "codeReview": {
-        "name": "程式碼審查",
-        "guide": "讓 AI 審查當前專案的程式碼質量和潛在問題"
-      },
-      "fixBug": {
-        "name": "修復 Bug",
-        "guide": "描述遇到的問題，AI 將幫你定位並修復"
-      },
-      "addFeature": {
-        "name": "新增功能",
-        "guide": "描述你想新增的功能，AI 將幫你實現"
-      }
-    },
-    "available": "可用",
-    "exampleCases": "示例案例",
-    "goToSettingsHint": "請先在模型服務中配置並啟用 ACP Provider",
-    "browse": "瀏覽",
     "notAvailable": "此模式下不可用",
-    "recentProjects": "最近專案",
     "tauriModeRequired": "此預設需要桌面應用程式（Tauri）"
   },
   "pricing": {
@@ -16324,8 +16209,8 @@
       "embeddingModelDescription": "文字向量化模型，用於語義搜尋（本地執行）",
       "embeddingModelDescriptionSaas": "文字向量化模型，用於語義搜尋（訂閱使用者免費）",
       "rerankerModel": "重排序模型",
-      "rerankerModelDescription": "檢索結果重排序模型，提升相關性（本地執行）",
-      "rerankerModelDescriptionSaas": "檢索結果重排序模型，提升相關性（訂閱使用者免費）",
+      "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序（本地執行）",
+      "rerankerModelDescriptionSaas": "重排序模型，在網頁讀取與記憶召回時按相關性排序（訂閱使用者免費）",
       "localModel": "本地模型",
       "platformService": "平臺服務",
       "customProvider": "自定義提供商",
@@ -16377,7 +16262,7 @@
         "networkError": "網路連線失敗"
       },
       "hint": {
-        "title": "嵌入和重排序模型在網路搜尋和網頁讀取時能大幅提高搜尋質量並減少 Token 消耗，且其價格遠遠低於大語言模型。",
+        "title": "嵌入和重排序模型用於讀取網頁和召回記憶，把與問題最相關的內容優先交給 LLM，且其價格遠遠低於大語言模型。",
         "options": "你可以使用免費或付費服務商模型，如果追求極致的隱私也可使用 OpenAI 相容的格式在本地部署開源模型。",
         "recommendation": "推薦使用多語言模型，可根據實際使用情況選擇。",
         "deployTip": "具體部署方法可以直接詢問 AI",
@@ -16385,10 +16270,8 @@
       },
       "advancedRetrieval": {
         "title": "高階檢索",
-        "description": "使用嵌入和重排序模型，在讀取網頁和召回記憶時優先選出最相關的內容",
         "toggleLabel": "最佳化網頁讀取與記憶召回",
         "toggleDescription": "開啟後，將用嵌入和重排序模型對較長的網頁內容和記憶按相關性排序，優先把最有用的內容交給 LLM（需先配置嵌入和重排序模型）",
-        "modelsRequired": "請先配置並應用嵌入模型和重排序模型",
         "cannotEnable": "請先在「預設模型」頁配置並應用嵌入模型和重排序模型"
       },
       "validationMessages": {
@@ -16947,7 +16830,7 @@
         "reindexPartial": "已遷移 {migrated} 條，{failed} 條未能遷移，可再次嘗試",
         "reindexError": "遷移被中斷，再次點擊可從中斷處繼續",
         "rerankerModel": "重排序模型",
-        "rerankerModelDescription": "檢索結果重排序模型，用於支援知識庫、記憶等能力的語義排序",
+        "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序",
         "provider": "提供商",
         "modelName": "模型名稱",
         "modelNamePlaceholder": "輸入模型名稱",

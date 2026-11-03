@@ -1,4 +1,4 @@
-"""fetch_and_extract retrieves through one shared RetrieverManager."""
+"""fetch_and_extract retrieves through RetrieverManager.retrieve_from_urls."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def retrieval_calls(monkeypatch: pytest.MonkeyPatch) -> list[_Call]:
         use_raw_markdown: bool = False,
         allow_private_networks: bool = False,
     ) -> tuple[list[dict[str, object]], str, str | None]:
-        calls.append({"manager": self, "urls": urls, "allow_private_networks": allow_private_networks})
+        calls.append({"urls": urls, "allow_private_networks": allow_private_networks})
         return result
 
     monkeypatch.setattr(RetrieverManager, "retrieve_from_urls", fake_retrieve)
@@ -54,14 +54,6 @@ async def test_extract_wraps_retrieved_snippets(retrieval_calls: list[_Call]) ->
         "questions": ["what?"],
     }
     assert len(retrieval_calls) == 1
-
-
-@pytest.mark.asyncio
-async def test_manager_is_shared_so_the_bm25_index_cache_survives_calls(retrieval_calls: list[_Call]) -> None:
-    await _fetch_and_extract(["https://a.test"], ["q1"], MagicMock(), MagicMock())
-    await _fetch_and_extract(["https://b.test"], ["q2"], MagicMock(), MagicMock())
-
-    assert retrieval_calls[0]["manager"] is retrieval_calls[1]["manager"]
 
 
 @pytest.mark.asyncio

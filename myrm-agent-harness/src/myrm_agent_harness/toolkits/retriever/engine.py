@@ -1,21 +1,22 @@
 """Retrieval tools orchestrator.
 
 [INPUT]
-- retriever.autocut::AutocutConfig (POS: score-discontinuity autocut configuration)
+- retriever.embedding::EmbeddingService (POS: embedding module facade, embedding service abstraction)
+- retriever.reranker::RerankerService (POS: reranker module facade, reranking interface abstraction)
 - retriever.preprocessing::create_document_chunks_from_crawl_results (POS: document preprocessing, convert crawl results to document chunks)
-- retriever.hybrid_retriever::hybrid_retriever (POS: hybrid retriever, combining vector and keyword search)
+- retriever.hybrid_retriever::hybrid_retriever (POS: stable public facade for hybrid retrieval)
 - web_fetch::SuccessResult, FailedResult (POS: web crawl result types)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
-- pydantic::BaseModel, Field (POS: configuration validation)
+- pydantic::BaseModel, ConfigDict, Field (POS: configuration validation)
 
 [OUTPUT]
 - RetrieverConfig: retrieval config class, unified management of retrieval parameters
 - RetrieverManager: retrieval manager class, providing hybrid retrieval and reranking
 
 [POS]
-Retrieval tools wrapper. Provides hybrid retrieval and reranking, integrating BM25, vector search,
-and Reranker with multi-query fusion support. As the toolkit's external interface, provides unified
-retrieval capability for Agent and business layer.
+Hybrid retrieval manager for fetched pages. Chunk sets no larger than `hybrid_top_k_per_query` go
+straight to the reranker; larger sets are first narrowed by BM25 + vector retrieval fused with RRF,
+then reranked. Multi-query input is supported.
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ import logging
 from langchain_core.documents import Document
 from pydantic import BaseModel, ConfigDict, Field
 
-from myrm_agent_harness.toolkits.retriever.autocut import AutocutConfig
 from myrm_agent_harness.toolkits.retriever.embedding import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.hybrid_retriever import hybrid_retriever
 from myrm_agent_harness.toolkits.retriever.preprocessing import create_document_chunks_from_crawl_results
@@ -79,7 +79,6 @@ class RetrieverManager:
         fusion_weights: tuple[float, float, float, float] | None = None,
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> tuple[list[dict[str, object]], str]:
         """Retrieve relevant docs from crawl results and return formatted text (auto-selects optimal strategy).
 
@@ -122,7 +121,6 @@ class RetrieverManager:
                 fusion_weights=fusion_weights,
                 rerank_score_threshold=rerank_score_threshold,
                 fusion_score_threshold=fusion_score_threshold,
-                autocut_config=autocut_config,
             )
         else:
             logger.info(
@@ -139,7 +137,6 @@ class RetrieverManager:
                 fusion_weights=fusion_weights,
                 rerank_score_threshold=rerank_score_threshold,
                 fusion_score_threshold=fusion_score_threshold,
-                autocut_config=autocut_config,
             )
 
         sources_metadata, formatted_context, _ = format_documents_with_metadata(
@@ -159,7 +156,6 @@ class RetrieverManager:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.6,
         fusion_score_threshold: float = 0.6,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Direct reranking entry point, skipping hybrid retrieval (for small document sets)."""
         return await hybrid_retriever.direct_reranking_only(
@@ -171,7 +167,6 @@ class RetrieverManager:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
 
     async def hybrid_retrieval_with_reranking(
@@ -187,7 +182,6 @@ class RetrieverManager:
         fusion_weights: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0),
         rerank_score_threshold: float = 0.0,
         fusion_score_threshold: float = 0.0,
-        autocut_config: AutocutConfig | None = None,
     ) -> list[Document]:
         """Hybrid retrieval + reranking entry point."""
         return await hybrid_retriever.hybrid_retrieval_with_reranking(
@@ -201,7 +195,6 @@ class RetrieverManager:
             fusion_weights=fusion_weights,
             rerank_score_threshold=rerank_score_threshold,
             fusion_score_threshold=fusion_score_threshold,
-            autocut_config=autocut_config,
         )
 
     async def retrieve_from_urls(

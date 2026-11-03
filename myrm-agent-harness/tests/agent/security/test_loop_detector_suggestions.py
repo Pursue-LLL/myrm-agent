@@ -148,6 +148,53 @@ class TestEvaluateSuccessLevel:
         assert evaluate_success_level("file_read_tool", "no tests ran") == SuccessLevel.FULL_SUCCESS
 
 
+def _bash_result(output: str, *, exit_code: int = 0) -> str:
+    """Shape of a finished bash result: output block, plus an exit trailer only for a non-zero exit."""
+    body = output if exit_code == 0 else f"{output}\n[exit_code: {exit_code}]"
+    return f'{{"content": "<<<TOOL_OUTPUT id=\\"a1\\">>>\\n{body}\\n<<<END_TOOL_OUTPUT id=\\"a1\\">>>"}}'
+
+
+class TestEvaluateSuccessLevelExecutorVerdict:
+    """Failure follows the executor's verdict; error words inside returned data do not count."""
+
+    def test_errored_result_is_failure_whatever_it_says(self) -> None:
+        assert evaluate_success_level("file_read_tool", "all good", errored=True) == SuccessLevel.FAILURE
+
+    def test_docs_mentioning_errors_deep_inside_are_not_failures(self) -> None:
+        doc = "## fetch_pods\nLists pods.\n\n" + "Raises TimeoutError, ConnectionRefused and PermissionDenied.\n" * 5
+        for tool in ("skill_select_tool", "file_read_tool", "grep_tool"):
+            assert evaluate_success_level(tool, doc) == SuccessLevel.FULL_SUCCESS
+
+    def test_tool_error_text_on_the_first_line_is_still_a_failure(self) -> None:
+        text = "Error: file not found: /workspace/a.py\n\nTried: /workspace/a.py"
+        assert evaluate_success_level("file_read_tool", text) == SuccessLevel.FAILURE
+
+    def test_bash_exit_zero_with_error_words_in_data_is_not_a_failure(self) -> None:
+        out = "pod api-0 CrashLoopBackOff: connection refused (timeout 30s)\\nPermission denied on audit.log"
+        assert evaluate_success_level("bash_code_execute_tool", _bash_result(out)) == SuccessLevel.FULL_SUCCESS
+
+    def test_bash_exit_zero_still_reports_trivial_test_runs(self) -> None:
+        result = _bash_result("collected 0 items")
+        assert evaluate_success_level("bash_code_execute_tool", result) == SuccessLevel.EMPTY_OK
+
+    def test_bash_exit_zero_survives_a_corrupted_json_wrapper(self) -> None:
+        """Secret redaction can leave the wrapper unparseable; the output markers still tell the exit."""
+        result = _bash_result("token=abc connection refused").replace('"}', "\\ [REDACTED:high_entropy_token]")
+        assert evaluate_success_level("bash_code_execute_tool", result) == SuccessLevel.FULL_SUCCESS
+
+    def test_bash_nonzero_exit_is_read_whole(self) -> None:
+        result = _bash_result("starting\\nTraceback (most recent call last):\\nValueError: bad input", exit_code=1)
+        assert evaluate_success_level("bash_code_execute_tool", result) == SuccessLevel.FAILURE
+
+    def test_bash_result_without_output_block_is_read_whole(self) -> None:
+        """A command still running or cut short shows no closed block, so its error wording counts."""
+        assert evaluate_success_level("bash_code_execute_tool", "connection refused by host") == SuccessLevel.FAILURE
+
+    def test_browser_error_deep_in_the_page_is_still_a_failure(self) -> None:
+        page = "Loading...\n" * 5 + "Page 404 not found"
+        assert evaluate_success_level("browser_navigate_tool", page) == SuccessLevel.FAILURE
+
+
 class TestPrioritizeSuggestions:
     def test_empty(self) -> None:
         assert prioritize_suggestions([]) == DEFAULT_SUGGESTION

@@ -693,10 +693,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     <>
       <ToolApprovalDialog />
       <ToolApprovalExpiryWatcher />
-      <YoloModeBanner />
-      <EStopBanner />
-      <ExtensionDisconnectedBanner />
-      <ExtensionTakeoverBanner />
+      {/* AppLayout floats its sidebar toggle over the top-left corner below the desktop breakpoint; the banners keep clear of it. */}
+      <div className="max-lg:pl-12">
+        <YoloModeBanner />
+        <EStopBanner />
+        <ExtensionDisconnectedBanner />
+        <ExtensionTakeoverBanner />
+      </div>
       <div className="flex h-full w-full">
         <div className="flex-1 min-w-0 min-h-0">
           <EmptyChat />

@@ -1,18 +1,21 @@
-"""Fallback candidate discovery for file search tools.
+"""Candidate discovery policy and Python-tier discovery for file search tools.
 
 [INPUT]
 - subprocess (POS: git capability probe and git-aware file listing)
 - os.walk (POS: bounded filesystem traversal fallback)
-- pathlib::Path (POS: path normalization and pattern matching)
+- pathlib::Path (POS: path normalization)
+- glob_match::glob_matches (POS: shared glob semantics for the ripgrep and Python tiers)
 
 [OUTPUT]
 - collect_candidate_files: Consistent fallback candidate list for `glob_tool` and `grep_tool`
-- is_hidden_path: Hidden-path policy helper
+- VCS_DIR_NAMES, VCS_EXCLUDE_GLOB: Version-control internals that no listing includes, and the ripgrep ``--glob`` for them
+- DEFAULT_PRUNED_DIR_NAMES: Dependency, build and cache directories skipped in plain folders
 
 [POS]
-Shared fallback discovery layer for file-search tools. Keeps no-ripgrep behavior
-bounded and predictable with git-aware ignore handling where available and
-root-level ignore files in non-git directories.
+Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control
+directories are never listed; ignore files apply unless the caller opts out; hidden files are searched;
+symbolic links are never followed) and implements it for the Python tier: git-aware listing where
+available, root-level ignore files and default directory pruning in non-git directories, bounded traversal.
 """
 
 from __future__ import annotations
@@ -24,19 +27,23 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
+from .glob_match import glob_matches, is_match_all
+
 if TYPE_CHECKING:
     from pathspec import PathSpec
     from pathspec.pattern import Pattern
 
-# Directories skipped while assembling search candidates. A skip here costs
-# search recall only, so this list may be broader than a security sweep's.
-# ``core.security.path.pattern.PRUNED_DIR_NAMES`` is deliberately separate:
-# skipping a directory there would leave protected files uncovered.
-_DEFAULT_PRUNED_DIR_NAMES = frozenset(
+# Version-control internals hold no searchable project content, so no listing includes them,
+# not even when the caller asks for ignored files.
+VCS_DIR_NAMES = frozenset({".git", ".hg", ".svn", ".bzr", ".jj", ".sl"})
+VCS_EXCLUDE_GLOB = "!{" + ",".join(sorted(VCS_DIR_NAMES)) + "}"
+
+# Directories skipped while assembling search candidates in a folder that is not a git checkout (inside one,
+# git's ignore rules decide). A skip here costs search recall only, so this list may be broader than a
+# security sweep's. ``core.security.path.pattern.PRUNED_DIR_NAMES`` is deliberately separate: skipping a
+# directory there would leave protected files uncovered.
+DEFAULT_PRUNED_DIR_NAMES = VCS_DIR_NAMES | frozenset(
     {
-        ".git",
-        ".hg",
-        ".svn",
         "node_modules",
         ".next",
         "dist",
@@ -47,28 +54,21 @@ _DEFAULT_PRUNED_DIR_NAMES = frozenset(
         ".ruff_cache",
         ".turbo",
         ".cache",
+        ".venv",
+        "venv",
     }
 )
 _ROOT_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".fdignore", ".rgignore")
 
 
 def _pattern_matches(path: Path, root: Path, file_pattern: str) -> bool:
-    if file_pattern == "**/*":
+    if is_match_all(file_pattern):
         return True
     try:
         rel_path = path.relative_to(root)
     except ValueError:
         rel_path = path
-    return rel_path.match(file_pattern) or path.match(file_pattern)
-
-
-def is_hidden_path(path: Path, root: Path) -> bool:
-    """Return True when any path component under root starts with '.'."""
-    try:
-        rel_path = path.relative_to(root)
-    except ValueError:
-        rel_path = path
-    return any(part.startswith(".") for part in rel_path.parts if part not in {".", ".."})
+    return glob_matches(rel_path.as_posix(), file_pattern)
 
 
 def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> list[Path] | None:
@@ -109,7 +109,7 @@ def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> 
             if not rel_path:
                 continue
             candidate = repo_root / rel_path
-            if not candidate.is_file():
+            if candidate.is_symlink() or not candidate.is_file():
                 continue
             results.append(candidate)
         return results
@@ -152,7 +152,6 @@ def collect_candidate_files(
     search_root: Path,
     file_pattern: str,
     max_files: int,
-    include_hidden: bool,
     include_ignored: bool,
 ) -> list[Path]:
     """Collect candidate files for fallback engines with bounded cost."""
@@ -160,7 +159,7 @@ def collect_candidate_files(
         return []
 
     if search_root.is_file():
-        # Explicit file targets should remain searchable even when hidden.
+        # Explicit file targets stay searchable even when hidden or ignored.
         return [search_root] if _pattern_matches(search_root, search_root.parent, file_pattern) else []
 
     candidates: list[Path] = []
@@ -169,8 +168,6 @@ def collect_candidate_files(
         git_files = _list_git_visible_files(search_root)
         if git_files is not None:
             for file_path in git_files:
-                if not include_hidden and is_hidden_path(file_path, search_root):
-                    continue
                 if not _pattern_matches(file_path, search_root, file_pattern):
                     continue
                 candidates.append(file_path)
@@ -182,15 +179,10 @@ def collect_candidate_files(
     for dirpath, dirnames, filenames in os.walk(search_root, topdown=True):
         current_dir = Path(dirpath)
 
-        if include_hidden:
-            hidden_filtered_dirs = dirnames
-        else:
-            hidden_filtered_dirs = [d for d in dirnames if not d.startswith(".")]
-
         if include_ignored:
-            dirnames[:] = hidden_filtered_dirs
+            dirnames[:] = [d for d in dirnames if d not in VCS_DIR_NAMES]
         else:
-            visible_dirs = [d for d in hidden_filtered_dirs if d not in _DEFAULT_PRUNED_DIR_NAMES]
+            visible_dirs = [d for d in dirnames if d not in DEFAULT_PRUNED_DIR_NAMES]
             if root_ignore_spec is not None:
                 keep_dirs: list[str] = []
                 for dirname in visible_dirs:
@@ -202,11 +194,8 @@ def collect_candidate_files(
             dirnames[:] = visible_dirs
 
         for filename in filenames:
-            if not include_hidden and filename.startswith("."):
-                continue
-
             file_path = current_dir / filename
-            if not file_path.is_file():
+            if file_path.is_symlink() or not file_path.is_file():
                 continue
             if root_ignore_spec is not None:
                 rel_file = file_path.relative_to(search_root).as_posix()

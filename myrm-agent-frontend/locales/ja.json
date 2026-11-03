@@ -67,6 +67,7 @@
     "summonSuccess": "専門家 {name} に切り替えました",
     "summonFailed": "専門家テンプレートの呼び出しに失敗しました",
     "featuredTitle": "おすすめの専門家とチーム",
+    "featuredDismiss": "おすすめの専門家を閉じる",
     "teamBadge": "チーム",
     "expertBadge": "専門家",
     "searchPlaceholder": "専門家やチームを検索...",
@@ -1099,18 +1100,14 @@
       "instruction": "指示",
       "instructionDesc": "クリックしてカスタム指示を設定",
       "more": "もっと見る",
-      "savedAgents": "保存済みエージェント",
       "viewAll": "表示すべて",
-      "manage": "管理",
       "noSavedAgents": "保存済みエージェントがありません",
       "noSavedAgentsDesc": "設定を編集してエージェントとして保存できます",
       "useAgent": "使用",
-      "teamBadge": "チーム",
       "noSelected": "未選択",
       "noInstruction": "指示が未設定",
       "useGlobalInstructionDefault": "デフォルトでグローバル指示を使用",
       "ready": "準備完了",
-      "noDescription": "説明なし",
       "saveAsNewAgent": "新しいエージェントとして保存",
       "savingAgent": "保存中...",
       "save": "保存",
@@ -1228,34 +1225,14 @@
       "jitTeamOff": "単体Agent（チームなし）",
       "jitTeamPlaceholder": "仮想チームなし",
       "jitInheritMemory": "親会話メモリを継承",
-      "templateMarket": "テンプレートマーケット",
-      "categoryFilter": "カテゴリフィルター",
       "categoryAll": "すべて",
       "categoryOffice": "オフィス・業務",
       "categoryCommerce": "EC・コマース",
       "categoryEngineering": "エンジニアリング",
       "categoryTeam": "チーム",
-      "orgMarketplace": "組織マーケット",
-      "searchMarketplace": "エージェントを検索...",
-      "installs": "インストール",
-      "installed": "インストール済み",
-      "installSuccess": "マーケットからエージェントをインストールしました！",
-      "installError": "エージェントのインストールに失敗しました",
-      "noResults": "エージェントが見つかりません",
-      "publishToOrg": "組織に公開",
-      "publishedToOrg": "組織に公開済み",
-      "publishSuccess": "組織マーケットに公開しました！",
-      "publishError": "組織マーケットへの公開に失敗しました",
-      "forcePush": "プッシュ",
-      "forcePushConfirm": "「{name}」v{version} を全インストール済みユーザーに強制プッシュしますか？現在の設定が上書きされます（スナップショットは保存され、ロールバック可能です）。",
-      "forcePushSuccess": "強制プッシュ完了",
-      "forcePushError": "プッシュに失敗しました",
-      "forcePushTooltip": "最新バージョンを全インストール済みユーザーに強制プッシュ",
       "forcePushReceived": "エージェントプロフィールが組織によって更新されました",
       "forcePushRollbackHint": "スナップショットが保存されました。エージェント設定からロールバックできます。",
       "viewAgent": "表示",
-      "instantiateSuccess": "テンプレートからエージェントを作成しました！",
-      "instantiateError": "テンプレートからのエージェント作成に失敗しました",
       "blueprints": {
         "research_squad": "深掘り調査チーム（マルチエージェント）",
         "code_audit_squad": "コードレッドチーム監査（マルチエージェント）"
@@ -1293,8 +1270,7 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      },
-      "forcePushSummary": "v{version} → 同期 {synced} 件、スキップ {skipped} 件、失敗 {failed} 件（合計 {total} 件）"
+      }
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -1361,7 +1337,7 @@
       "addMore": "さらに追加",
       "actionSpaceRadar": {
         "title": "意思決定精度の予測",
-        "loadMeterLabel": "コアスキルの Token 負荷",
+        "loadMeterLabel": "アクション空間の複雑度",
         "evaluating": "計算中...",
         "evaluatingHint": "エンジンに接続してアクション空間を分析しています...",
         "statusCritical": "精度低下リスク：ツールが多すぎます。深刻な幻覚リスク — 今すぐ整理してください。",
@@ -1371,10 +1347,10 @@
         "smartPrune": "休眠スキルを整理してアクション空間を解放",
         "smartPruneRunning": "アクション空間を整理しています…",
         "turn1CatalogTitle": "Turn 1 スキルカタログ",
-        "turn1CatalogSummary": "{inline} インライン · {hidden} 非表示 · 検索 {searchState}",
+        "turn1CatalogSummary": "{inline} インライン · {hidden} オンデマンド · 検索 {searchState} · 約 {tokens, number} トークン",
         "turn1CatalogSearchOn": "オン",
         "turn1CatalogSearchOff": "オフ",
-        "turn1CatalogOverCapHint": "会話開始時には最初の{cap}個のCoreスキル（アルファベット順）のみがインライン表示されます。頻度の低いスキルをPeripheralに移動すると検索が無効になり、ターンあたり約203トークンを節約できます。"
+        "turn1CatalogOverCapHint": "コアスキルがインライン枠を超えています。最初の{inline}個（名前順）は完全な形でインライン表示され、残りの{overflow}個は名前のみが一覧に載り、必要なときに名前で読み込まれます。あまり使わないコアスキルを周辺スキルに移すと、他のスキルの枠を空けられます。"
       },
       "skillsZone": {
         "coreTitle": "コアスキル",
@@ -2515,13 +2491,14 @@
       "modeLocalDesc": "ローカルフォルダをバインドし、AI が直接ファイルの読み書きと分析を行います",
       "modeCloud": "クラウドサンドボックス",
       "modeCloudDesc": "分離されたサンドボックス環境で、ホストを汚染せず安全にコードを実行します",
+      "modeCloudBadge": "専用サンドボックスストレージ",
       "modeChat": "クイックチャット",
       "modeChatDesc": "ワークスペース設定なしの一般的な AI 対話と迅速な Q&A",
       "bindWorkspace": "作業ディレクトリを選択",
       "currentWorkspace": "現在のディレクトリ",
       "noWorkspaceSelected": "ディレクトリ未選択 (クリックしてバインド)",
       "scaffoldBtn": "標準フォルダ一括初期化",
-      "scaffoldTooltip": "現在の作業領域に標準構造を生成: 00_元資料、01_参考、02_生成結果、03_履歴バージョン",
+      "scaffoldTooltip": "現在の作業領域に標準構造を生成: {folders}",
       "scaffoldSuccess": "標準オフィスフォルダの初期化が完了しました",
       "scaffoldFailed": "標準オフィスフォルダの初期化に失敗しました",
       "clearWorkspace": "バインド解除",
@@ -3185,7 +3162,6 @@
       "healthy": "環境通常"
     },
     "migrationDiscovery": {
-      "detecting": "ローカル AI アシスタントのデータをスキャン中...",
       "title": "{competitor} データを検出",
       "description": "{memoryCount} 件のメモリと {skillCount} 個のスキルを検出 — インポート前にプレビューできます",
       "descriptionMemoryOnly": "{memoryCount} 件のメモリを検出 — インポート前にプレビューできます",
@@ -3481,12 +3457,7 @@
     "collapseReasoning": "思考を折りたたむ",
     "reasoningLoading": "思考中",
     "reasoningTokens": "{count} 推論トークン",
-    "reasoningTokensEstimated": "≈ {count} 推論トークン",
-    "systemNotices": {
-      "title": "通知と発見",
-      "open": "通知",
-      "playbook": "モデル編成プレイブック"
-    }
+    "reasoningTokensEstimated": "≈ {count} 推論トークン"
   },
   "mode": {
     "fast": "高速検索",
@@ -7005,93 +6976,7 @@
     }
   },
   "presetAgent": {
-    "title": "エージェント",
-    "description": "エージェントを選択して対話を開始",
-    "selectPreset": "プリセットエージェントを選択",
-    "workingDirectory": "作業ディレクトリ",
-    "selectWorkingDirectory": "作業ディレクトリを選択",
-    "configureWorkingDirectory": "このエージェントの作業ディレクトリを設定してください。エージェントはこのディレクトリ内で操作を実行します。",
-    "notConfigured": "未接続です。先に設定してください",
-    "requiresConfig": "設定が必要です",
-    "cancel": "キャンセル",
-    "confirm": "確認",
-    "pathHint": "プロジェクトの完全なパスを入力してください。例:",
-    "enterDirectoryPath": "プロジェクトディレクトリのパスを入力",
-    "manualInputPath": "操作対象のプロジェクトディレクトリの絶対パスを入力してください。",
-    "clickToConfigureDirectory": "クリックしてワークパスを設定",
-    "pleaseEnterWorkingDirectory": "先に作業パスを入力してください",
-    "workingDirectoryPlaceholder": "作業パスを入力...",
-    "workingPathLabel": "工作パス",
-    "invalidAbsolutePath": "絶対パスを入力してください",
-    "edit": "編集",
-    "pathNotExist": "パスない存で",
-    "pathNotDirectory": "パスはディレクトリではありません",
-    "errors": {
-      "workingDirectoryRequired": "作業パスは必須です",
-      "absolutePathRequired": "絶対パスを入力してください"
-    },
-    "collapse": "閉じる",
-    "showMore": "もっと見る ({count})",
-    "enableInSettings": "使用するには設定で {name} を有効にしてください",
-    "selectACPProvider": "コーディングアシスタントを選択",
-    "noACPProviderEnabled": "利用可能なコーディングアシスタントがありません。設定で構成してください",
-    "goToSettings": "設定へ移動",
-    "quickTaskHint": "快捷タスクサンプル",
-    "useThisAgent": "このエージェントを使用",
-    "selectACPModelHint": "選択後、モデルセレクターで ACP モデルを選択",
-    "category": {
-      "acp": "CLI ビジュアライゼーション",
-      "general": "一般助手"
-    },
-    "acpProvider": {
-      "claudeCode": "Claude Code",
-      "geminiCli": "Gemini CLI",
-      "codexCli": "Codex CLI"
-    },
-    "general": {
-      "name": "一般助手",
-      "description": "一般的な対話アシスタント。さまざまな質問に回答できます"
-    },
-    "cliVisual": {
-      "name": "CLI ビジュアライゼーション",
-      "description": "複数の CLI コーディングアシスタントをサポートし、実行計画とファイル変更をリアルタイム表示"
-    },
-    "quickTask": {
-      "writeDocument": {
-        "name": "ドキュメントを執筆",
-        "guide": "スマートホーム業界向けに競合分析フレームワークの草案を作成して"
-      },
-      "chatWithWebpage": {
-        "name": "Web ページとチャット",
-        "guide": "Web ページリンクを直接貼り付けて、質問してください"
-      },
-      "summarizeWebpage": {
-        "name": "Web ページを要約",
-        "guide": "Web ページリンクを直接貼り付けて、AI に要約してもらいます"
-      },
-      "createProject": {
-        "name": "新規プロジェクトを作成",
-        "guide": "作成したいプロジェクトを説明すると、AI がプロジェクト構造の初期化を支援します"
-      },
-      "codeReview": {
-        "name": "コードレビュー",
-        "guide": "AI にプロジェクトのコード品質と潜在的な問題をレビューさせます"
-      },
-      "fixBug": {
-        "name": "Bug 修正",
-        "guide": "発生した問題を説明すると、AI が特定と修正を支援します"
-      },
-      "addFeature": {
-        "name": "機能を追加",
-        "guide": "追加したい機能を説明すると、AI が実装を支援します"
-      }
-    },
-    "available": "利用可能",
-    "exampleCases": "使用例",
-    "goToSettingsHint": "先にモデルサービスで ACP プロバイダーを設定して有効にしてください",
-    "browse": "参照",
     "notAvailable": "このモードでは利用できません",
-    "recentProjects": "最近のプロジェクト",
     "tauriModeRequired": "このプリセットにはデスクトップアプリ（Tauri）が必要です"
   },
   "pricing": {
@@ -16324,8 +16209,8 @@
       "embeddingModelDescription": "テキストベクトル化モデル。セマンティック検索用（ローカル実行）",
       "embeddingModelDescriptionSaas": "テキストベクトル化モデル。セマンティック検索に使用（サブスクリプションユーザーは無料）",
       "rerankerModel": "リランカーモデル",
-      "rerankerModelDescription": "検索結果の関連性を向上させるリランカーモデル（ローカル実行）",
-      "rerankerModelDescriptionSaas": "検索結果の再ランキングモデル。関連性を向上（サブスクリプションユーザーは無料）",
+      "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（ローカル実行）",
+      "rerankerModelDescriptionSaas": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（サブスクリプションユーザーは無料）",
       "localModel": "ローカルモデル",
       "platformService": "プラットフォームサービス",
       "customProvider": "カスタムプロバイダー",
@@ -16377,7 +16262,7 @@
         "networkError": "ネットワーク接続失敗"
       },
       "hint": {
-        "title": "エンベディングと再ランキングモデルを使用すると、Web 検索とページ読み取り時の検索品質が大幅に向上し、トークン消費も削減されます。コストは大規模言語モデルよりはるかに低くなります。",
+        "title": "エンベディングと再ランキングモデルは Web ページの読み取りとメモリの呼び出しで使われ、質問に最も関連する内容を優先して LLM に渡します。コストは大規模言語モデルよりはるかに低くなります。",
         "options": "無料または有料のサービスプロバイダーモデルを使用できます。究極のプライバシーを求める場合は、OpenAI 互換形式でローカルにオープンソースモデルをデプロイすることもできます。",
         "recommendation": "多言語モデルを推奨します。実際の利用状況に応じて選択できます。",
         "deployTip": "具体的なデプロイ方法は AI に直接質問できます",
@@ -16385,10 +16270,8 @@
       },
       "advancedRetrieval": {
         "title": "詳細検索",
-        "description": "エンベディングと再ランキングモデルで、Web ページの読み取りとメモリの呼び出し時に最も関連性の高い内容を優先します",
         "toggleLabel": "ページ読み取りとメモリ呼び出しを最適化",
         "toggleDescription": "有効にすると、長い Web ページやメモリをエンベディングと再ランキングモデルで関連性順に並べ、最も有用な内容を優先して LLM に渡します（エンベディングと再ランキングモデルの設定が必要）",
-        "modelsRequired": "先にエンベディングモデルとリランカーモデルを設定して適用してください",
         "cannotEnable": "先に「デフォルトモデル」ページでエンベディングモデルとリランカーモデルを設定して適用してください"
       },
       "validationMessages": {
@@ -16947,7 +16830,7 @@
         "reindexPartial": "{migrated} 件を移行、{failed} 件は移行できませんでした。もう一度お試しください",
         "reindexError": "移行が中断されました。もう一度実行すると続きから再開します",
         "rerankerModel": "リランカーモデル",
-        "rerankerModelDescription": "ナレッジベースやメモリなどのセマンティック再ランキング用モデル",
+        "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル",
         "provider": "プロバイダー",
         "modelName": "モデル名前",
         "modelNamePlaceholder": "モデル名を入力",

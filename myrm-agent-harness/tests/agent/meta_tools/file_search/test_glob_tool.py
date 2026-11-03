@@ -194,6 +194,25 @@ class TestCreateGlobTool:
                 config=runnable_config,
             )
 
+    @pytest.mark.parametrize("path", ["/mcp", "/mcp/", "/mcp/mcp_k8s_ops_skill"])
+    async def test_mcp_namespace_gets_guidance_not_a_workspace_error(
+        self, path: str, runnable_config: RunnableConfig
+    ) -> None:
+        mock_exec = AsyncMock()
+        mock_exec.resolve_path = AsyncMock(side_effect=ValueError("Path traversal detected (workspace is /private/x)"))
+        tool_fn = create_glob_tool()
+        with (
+            patch(
+                "myrm_agent_harness.agent.meta_tools.file_search.glob_tool.ensure_executor",
+                return_value=mock_exec,
+            ),
+            pytest.raises(ToolError, match="file_read_tool") as exc_info,
+        ):
+            await tool_fn.ainvoke({"pattern": "*.md", "path": path}, config=runnable_config)
+
+        assert "workspace is" not in str(exc_info.value)
+        mock_exec.resolve_path.assert_not_called()
+
     async def test_result_limit(
         self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
     ) -> None:

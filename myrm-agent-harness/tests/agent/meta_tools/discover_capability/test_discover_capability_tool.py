@@ -1,7 +1,5 @@
 """Tests for unified capability discovery meta-tool."""
 
-from unittest.mock import MagicMock
-
 import pytest
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -229,79 +227,3 @@ async def test_wildcard_query(mock_skills):
     tool = create_discover_capability_tool(skills=mock_skills)
     result = await tool.ainvoke({"query": "*"})
     assert "bound_skill_1" in result or "No capabilities" in result
-
-
-@pytest.mark.asyncio
-async def test_hybrid_engine_path(mock_skills):
-    """Cover HybridSkillSearchEngine initialization path (lines 79-83) and await path (line 141)."""
-    from unittest.mock import AsyncMock, patch
-
-    from myrm_agent_harness.agent.meta_tools.skills.search.types import SkillSearchResult
-
-    mock_engine_instance = MagicMock()
-    mock_engine_instance.search_bm25 = AsyncMock(
-        return_value=[SkillSearchResult(name="bound_skill_1", description="A bound skill", score=1.0)]
-    )
-    mock_hybrid_cls = MagicMock(return_value=mock_engine_instance)
-
-    mock_embedding_config = MagicMock()
-
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine.HybridSkillSearchEngine",
-        mock_hybrid_cls,
-    ):
-        tool = create_discover_capability_tool(
-            skills=mock_skills,
-            embedding_config=mock_embedding_config,
-        )
-
-    result = await tool.ainvoke({"query": "bound"})
-    assert "bound_skill_1" in result
-
-
-@pytest.mark.asyncio
-async def test_async_engine_isawaitable():
-    """Verify discover_capability handles async engines (HybridSkillSearchEngine).
-
-    Before the fix, HybridSkillSearchEngine.search_bm25 returns a coroutine,
-    and the tool would fail with 'coroutine object is not iterable'.
-    This test validates the isawaitable() guard works correctly.
-    """
-    import inspect
-
-    from myrm_agent_harness.agent.meta_tools.skills.search.types import SkillSearchResult
-
-    class AsyncMockEngine:
-        """Mimics HybridSkillSearchEngine with async search methods."""
-
-        async def search_bm25(self, query: str, top_k: int = 10) -> list[SkillSearchResult]:
-            return [SkillSearchResult(name="skill_a", description="Async skill A", score=1.0)]
-
-        async def search_regex(self, pattern: str, top_k: int = 10) -> list[SkillSearchResult]:
-            return [SkillSearchResult(name="skill_b", description="Async skill B", score=1.0)]
-
-    engine = AsyncMockEngine()
-
-    # BM25 path: calling async method returns a coroutine
-    bm25_result = engine.search_bm25("test", top_k=10)
-    assert inspect.isawaitable(bm25_result), "Async engine.search_bm25 should return awaitable"
-    matches = await bm25_result
-    assert len(matches) == 1
-    assert matches[0].name == "skill_a"
-
-    # Regex path
-    regex_result = engine.search_regex("test")
-    assert inspect.isawaitable(regex_result), "Async engine.search_regex should return awaitable"
-    matches = await regex_result
-    assert len(matches) == 1
-    assert matches[0].name == "skill_b"
-
-    # Sync engine should NOT be awaitable
-    class SyncMockEngine:
-        def search_bm25(self, query: str, top_k: int = 10) -> list[SkillSearchResult]:
-            return [SkillSearchResult(name="sync_skill", description="Sync", score=1.0)]
-
-    sync_engine = SyncMockEngine()
-    sync_result = sync_engine.search_bm25("test")
-    assert not inspect.isawaitable(sync_result), "Sync engine result should not be awaitable"
-    assert sync_result[0].name == "sync_skill"
