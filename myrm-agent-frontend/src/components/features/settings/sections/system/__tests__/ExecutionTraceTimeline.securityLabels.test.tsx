@@ -177,6 +177,14 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
     expect(screen.getByText('influenceCount')).toBeInTheDocument();
   });
 
+  it('labels the experience wizard entry and the plugin state section from translations', async () => {
+    await renderTrace(baseTrace({ custom_states: { demo_plugin: { phase: 'ready' } } }));
+
+    expect(screen.getByTitle('experienceWizardTitle')).toBeInTheDocument();
+    expect(screen.getByText('experienceWizardButton')).toBeInTheDocument();
+    expect(screen.getByText('pluginStateTitle')).toBeInTheDocument();
+  });
+
   it('renders anomaly banners with critical and warning styles when anomalies exist', async () => {
     const trace = baseTrace({
       anomalies: [

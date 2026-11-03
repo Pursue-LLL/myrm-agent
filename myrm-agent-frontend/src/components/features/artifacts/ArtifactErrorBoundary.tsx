@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
@@ -14,6 +15,37 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+interface FallbackProps {
+  fallbackMessage?: string;
+  error: Error | null;
+  onReset: () => void;
+}
+
+/** Class components cannot call hooks, so the translated fallback UI lives in its own function component. */
+function ArtifactErrorFallback({ fallbackMessage, error, onReset }: FallbackProps) {
+  const t = useTranslations('artifacts.errorBoundary');
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-muted/30">
+      <div className="flex flex-col items-center gap-4 max-w-md text-center">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-destructive" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">{t('title')}</h3>
+          <p className="text-sm text-muted-foreground">{fallbackMessage || t('defaultMessage')}</p>
+          {error && (
+            <p className="text-xs text-destructive/80 mt-2 font-mono break-all">{redactErrorMessage(error.message)}</p>
+          )}
+        </div>
+        <Button variant="outline" onClick={onReset} className="gap-2">
+          <RefreshCw className="w-4 h-4" />
+          {t('retry')}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -42,28 +74,11 @@ class ArtifactErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-muted/30">
-          <div className="flex flex-col items-center gap-4 max-w-md text-center">
-            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 text-destructive" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">渲染出错</h3>
-              <p className="text-sm text-muted-foreground">
-                {this.props.fallbackMessage || '无法渲染该内容，请尝试刷新或下载查看'}
-              </p>
-              {this.state.error && (
-                <p className="text-xs text-destructive/80 mt-2 font-mono break-all">
-                  {redactErrorMessage(this.state.error.message)}
-                </p>
-              )}
-            </div>
-            <Button variant="outline" onClick={this.handleReset} className="gap-2">
-              <RefreshCw className="w-4 h-4" />
-              重试
-            </Button>
-          </div>
-        </div>
+        <ArtifactErrorFallback
+          fallbackMessage={this.props.fallbackMessage}
+          error={this.state.error}
+          onReset={this.handleReset}
+        />
       );
     }
 

@@ -184,7 +184,7 @@
 | `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批：持有决定状态（编辑、拒绝、记住授权、一次性凭据），只读内容与按钮分给 `approval/ApprovalDetails`、`ApprovalActions` 等（shell edit 经 mergeShellEditedArgs） | ✅    |
 | `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批                                                                                                                                                                | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                                                                                                                                      | ✅    |
-| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层                        | ✅    |
+| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层；浮层标题/节省额/待命文案取自 `chat.costHud.*`                        | ✅    |
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |

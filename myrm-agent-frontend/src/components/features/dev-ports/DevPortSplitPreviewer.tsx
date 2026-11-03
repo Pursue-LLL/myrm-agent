@@ -61,7 +61,7 @@ export const DevPortSplitPreviewer: React.FC<DevPortSplitPreviewerProps> = ({
 
   const isControlled = controlledIsOpen !== undefined;
   const isPanelOpen = isControlled ? controlledIsOpen : internalIsOpen;
-  const port = isControlled ? controlledPort ?? null : currentPort;
+  const port = isControlled ? (controlledPort ?? null) : currentPort;
 
   // Listen to global open/close events when uncontrolled or globally mounted
   useEffect(() => {
@@ -223,11 +223,7 @@ export const DevPortSplitPreviewer: React.FC<DevPortSplitPreviewerProps> = ({
             title={tunnelUrl ? t('copyTunnel') : t('createTunnel')}
             className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer"
           >
-            {copied ? (
-              <IconCheck className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <IconCopy className="w-4 h-4" />
-            )}
+            {copied ? <IconCheck className="w-4 h-4 text-emerald-400" /> : <IconCopy className="w-4 h-4" />}
           </button>
 
           <a
@@ -261,7 +257,7 @@ export const DevPortSplitPreviewer: React.FC<DevPortSplitPreviewerProps> = ({
           <iframe
             key={iframeKey}
             src={previewTargetUrl}
-            title={`${port.process_name} live preview`}
+            title={t('previewTitle', { name: port.process_name })}
             className="w-full h-full border-0"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
@@ -280,11 +276,7 @@ export const DevPortSplitPreviewer: React.FC<DevPortSplitPreviewerProps> = ({
             {t('consoleDrawerTitle')}
             <span className="text-[10px] text-emerald-400 font-sans">({t('listening')})</span>
           </span>
-          {isConsoleOpen ? (
-            <IconChevronDown className="w-3.5 h-3.5" />
-          ) : (
-            <IconChevronUp className="w-3.5 h-3.5" />
-          )}
+          {isConsoleOpen ? <IconChevronDown className="w-3.5 h-3.5" /> : <IconChevronUp className="w-3.5 h-3.5" />}
         </button>
 
         {isConsoleOpen && (
@@ -293,14 +285,16 @@ export const DevPortSplitPreviewer: React.FC<DevPortSplitPreviewerProps> = ({
             className="px-4 py-2 text-xs font-mono bg-zinc-950 text-zinc-300 border-t border-zinc-800/50 max-h-36 overflow-y-auto space-y-1"
           >
             <div className="text-zinc-500 text-[11px]">
-              [{port.created_at}] Service started on port {port.port} ({port.protocol})
+              {t('consoleStarted', {
+                time: port.created_at,
+                port: String(port.port),
+                protocol: port.protocol,
+              })}
             </div>
-            <div className="text-emerald-400/90 text-[11px]">
-              &gt; Ready: {previewTargetUrl}
-            </div>
+            <div className="text-emerald-400/90 text-[11px]">{t('consoleReady', { url: previewTargetUrl })}</div>
             {port.pid && (
               <div className="text-zinc-500 text-[11px]">
-                &gt; Process PID: {port.pid} | Process: {port.process_name}
+                {t('consoleProcess', { pid: String(port.pid), name: port.process_name })}
               </div>
             )}
           </div>

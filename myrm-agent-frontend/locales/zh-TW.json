@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "預估 Turn1 schema（約 {tokens} tokens）超出直接綁定預算（{budget}）。請減少已選 endpoint，否則 Agent 無法使用這些 API 工具。",
       "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。",
       "atLeastOneEndpoint": "必須至少保留一個端點。",
-      "presetAdded": "已新增 {name} 連接器"
+      "presetAdded": "已新增 {name} 連接器",
+      "presetsLoading": "正在載入預設...",
+      "presetsEmpty": "暫無可用預設。",
+      "presetEnable": "啟用"
     },
     "sharedContexts": {
       "targetLabel": "智能體",
@@ -3481,6 +3484,11 @@
       "successRate": "成功率",
       "errors": "錯誤數",
       "avgTime": "平均耗時"
+    },
+    "costHud": {
+      "popoverTitle": "點擊檢視模型四維單價矩陣與 Prompt Cache 經濟效益",
+      "savedAmount": "(省 {amount})",
+      "idleLabel": "算力透視 HUD"
     }
   },
   "mode": {
@@ -6849,7 +6857,12 @@
       "downloadFull": "下載完整檔案"
     },
     "resizePanel": "調整面板大小",
-    "closePreview": "關閉預覽"
+    "closePreview": "關閉預覽",
+    "errorBoundary": {
+      "title": "渲染出錯",
+      "defaultMessage": "無法渲染該內容，請嘗試重新整理或下載檢視",
+      "retry": "重試"
+    }
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -11967,7 +11980,10 @@
       "captureTraceTruncatedNotice": "錄製達到容量上限，已丟棄較早的 {count} 步互動。產生的技能可能缺少開頭的步驟。",
       "captureUnavailableTitle": "擷取無法使用",
       "publishConflictNotice": "已存在名為「{name}」的技能。可用本次錄製覆蓋它，或取消後回到第一步改用其他名稱。",
-      "replaceSkill": "覆蓋技能"
+      "replaceSkill": "覆蓋技能",
+      "workflowNamePlaceholder": "例如：每月報稅流程",
+      "intentHintPlaceholder": "例如：讀取 Excel 並同步到報稅平台",
+      "deleteStep": "刪除步驟"
     }
   },
   "followUps": {
@@ -13341,7 +13357,11 @@
     "consoleDrawerTitle": "控制台與服務日誌",
     "consoleDrawerEmpty": "暫無更多服務輸出",
     "sniffTrigger": "自動嗅探服務",
-    "sniffSuccess": "已成功捕獲並註冊服務埠"
+    "sniffSuccess": "已成功捕獲並註冊服務埠",
+    "previewTitle": "{name} 即時預覽",
+    "consoleStarted": "[{time}] 服務已在連接埠 {port} 啟動 ({protocol})",
+    "consoleReady": "> 就緒：{url}",
+    "consoleProcess": "> 處理程序 PID：{pid} | 處理程序：{name}"
   },
   "toolPicker": {
     "menuLabel": "工具選擇",
@@ -13395,7 +13415,15 @@
     "nextSlide": "下一頁",
     "slideCounter": "第 {current} / {total} 頁",
     "speakerNotes": "演講者備註",
-    "noSpeakerNotes": "暫無備註"
+    "noSpeakerNotes": "暫無備註",
+    "newPresentation": "+ 新增簡報",
+    "enterpriseBadge": "P0 · 企業級 PPTX",
+    "illustrationsHint": "多模態視覺概念與版面",
+    "slideVisualConcept": "視覺概念",
+    "slideVisualPlaceholder": "多模態架構圖",
+    "slideConfidentialFooter": "機密 · 企業簡報",
+    "slidePage": "第 {page} 頁",
+    "slideAriaLabel": "投影片 {number}：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版級高顏值電子表格看板",
@@ -16305,7 +16333,12 @@
       "permittedSummary": "放行 {permitted} 次",
       "recentAuditTrail": "近期執行審計日誌",
       "loadingEntries": "正在載入審計條目...",
-      "noEntriesYet": "暫無審計記錄"
+      "noEntriesYet": "暫無審計記錄",
+      "viewDetails": "檢視條目詳情",
+      "detailRule": "規則：",
+      "detailSessionId": "會話 ID：",
+      "detailReason": "錯誤/原因：",
+      "detailArgs": "脫敏參數："
     },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
@@ -21605,7 +21638,10 @@
         "llmCompletion": "補全：{count}",
         "llmMessages": "訊息：{count}",
         "llmViewportInspect": "模型視口（檢視）",
-        "llmViewportHide": "模型視口（收合）"
+        "llmViewportHide": "模型視口（收合）",
+        "experienceWizardTitle": "產生專案經驗六步證據包精靈",
+        "experienceWizardButton": "經驗精靈",
+        "pluginStateTitle": "外掛擴充狀態"
       },
       "contextDoctor": {
         "title": "上下文健檢（Token 熱點與成本審計）",

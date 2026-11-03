@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
       "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
-      "presetAdded": "{name}-Konnektor hinzugefügt"
+      "presetAdded": "{name}-Konnektor hinzugefügt",
+      "presetsLoading": "Voreinstellungen werden geladen ...",
+      "presetsEmpty": "Keine Voreinstellungen verfügbar.",
+      "presetEnable": "Aktivieren"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -3481,6 +3484,11 @@
       "successRate": "Erfolgsquote",
       "errors": "Fehler",
       "avgTime": "Durchschn. Zeit"
+    },
+    "costHud": {
+      "popoverTitle": "Klicken, um die vierdimensionale Preismatrix des Modells und die Prompt-Cache-Ersparnis anzuzeigen",
+      "savedAmount": "({amount} gespart)",
+      "idleLabel": "Rechen-HUD"
     }
   },
   "mode": {
@@ -6849,7 +6857,12 @@
       "downloadFull": "Vollständige Datei herunterladen"
     },
     "resizePanel": "Panelgröße ändern",
-    "closePreview": "Vorschau schließen"
+    "closePreview": "Vorschau schließen",
+    "errorBoundary": {
+      "title": "Darstellungsfehler",
+      "defaultMessage": "Dieser Inhalt kann nicht dargestellt werden. Aktualisieren Sie die Seite oder laden Sie ihn zum Ansehen herunter.",
+      "retry": "Erneut versuchen"
+    }
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -11967,7 +11980,10 @@
       "captureTraceTruncatedNotice": "{count} frühere Interaktionen wurden verworfen, weil die Aufzeichnung ihr Größenlimit erreicht hat. Dem erstellten Skill könnten die ersten Schritte fehlen.",
       "captureUnavailableTitle": "Aufzeichnung nicht verfügbar",
       "publishConflictNotice": "Ein Skill mit dem Namen „{name}“ existiert bereits. Ersetzen Sie ihn durch diese Aufnahme oder brechen Sie ab und wählen Sie im ersten Schritt einen anderen Namen.",
-      "replaceSkill": "Skill ersetzen"
+      "replaceSkill": "Skill ersetzen",
+      "workflowNamePlaceholder": "z. B. Monatliche Steuererklärungs-Pipeline",
+      "intentHintPlaceholder": "z. B. Excel lesen und mit dem Steuerportal synchronisieren",
+      "deleteStep": "Schritt löschen"
     }
   },
   "followUps": {
@@ -13341,7 +13357,11 @@
     "consoleDrawerTitle": "Konsole und Dienstprotokolle",
     "consoleDrawerEmpty": "Keine aktuellen Protokolle erfasst",
     "sniffTrigger": "Entwicklungsdienst erkennen",
-    "sniffSuccess": "Dienstport erkannt und registriert"
+    "sniffSuccess": "Dienstport erkannt und registriert",
+    "previewTitle": "{name} Live-Vorschau",
+    "consoleStarted": "[{time}] Dienst auf Port {port} gestartet ({protocol})",
+    "consoleReady": "> Bereit: {url}",
+    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}"
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
@@ -13395,7 +13415,15 @@
     "nextSlide": "Nächste Folie",
     "slideCounter": "Folie {current} von {total}",
     "speakerNotes": "Sprechernotizen",
-    "noSpeakerNotes": "Keine Notizen für diese Folie"
+    "noSpeakerNotes": "Keine Notizen für diese Folie",
+    "newPresentation": "+ Neue Präsentation",
+    "enterpriseBadge": "P0 · Enterprise-PPTX",
+    "illustrationsHint": "Multimodale visuelle Konzepte und Layouts",
+    "slideVisualConcept": "Visuelles Konzept",
+    "slideVisualPlaceholder": "Multimodales Architekturdiagramm",
+    "slideConfidentialFooter": "VERTRAULICH · ENTERPRISE-DECK",
+    "slidePage": "SEITE {page}",
+    "slideAriaLabel": "Folie {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
@@ -16305,7 +16333,12 @@
       "permittedSummary": "Zugelassen {permitted}",
       "recentAuditTrail": "Aktuelles Ausführungs-Audit-Protokoll",
       "loadingEntries": "Audit-Einträge werden geladen...",
-      "noEntriesYet": "Bisher keine Audit-Einträge erfasst"
+      "noEntriesYet": "Bisher keine Audit-Einträge erfasst",
+      "viewDetails": "Eintragsdetails anzeigen",
+      "detailRule": "Regel:",
+      "detailSessionId": "Sitzungs-ID:",
+      "detailReason": "Fehler/Grund:",
+      "detailArgs": "Bereinigte Argumente:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding-Modellkonfiguration",
@@ -21605,7 +21638,10 @@
         "llmCompletion": "Ausgabe: {count}",
         "llmMessages": "Nachrichten: {count}",
         "llmViewportInspect": "Modell-Viewport (Ansehen)",
-        "llmViewportHide": "Modell-Viewport (Ausblenden)"
+        "llmViewportHide": "Modell-Viewport (Ausblenden)",
+        "experienceWizardTitle": "Assistent für das sechsstufige Projekterfahrungs-Nachweispaket erstellen",
+        "experienceWizardButton": "Erfahrungs-Assistent",
+        "pluginStateTitle": "Plugin-Erweiterungsstatus"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",

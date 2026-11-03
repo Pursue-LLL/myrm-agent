@@ -106,22 +106,17 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
         {artifact ? (
           <div className="flex flex-col h-[85vh]">
             <div className="flex justify-between items-center px-6 py-2 bg-slate-950/80 border-b border-white/10">
-              <span className="text-xs text-slate-400 font-mono">
-                {artifact.file_name}
-              </span>
+              <span className="text-xs text-slate-400 font-mono">{artifact.file_name}</span>
               <button
                 type="button"
                 onClick={handleReset}
                 className="text-xs text-blue-400 hover:text-blue-300 font-medium px-2 py-1 rounded bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
               >
-                + New Presentation
+                {t('newPresentation')}
               </button>
             </div>
             <div className="flex-1 min-h-0">
-              <PresentationSlidePreviewViewer
-                artifact={artifact}
-                onClose={onClose}
-              />
+              <PresentationSlidePreviewViewer artifact={artifact} onClose={onClose} />
             </div>
           </div>
         ) : (
@@ -131,15 +126,13 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
               <div>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                    P0 · ENTERPRISE PPTX
+                    {t('enterpriseBadge')}
                   </span>
                   <h2 id="presentation-modal-title" className="text-xl font-bold text-white tracking-tight">
                     {t('modalTitle')}
                   </h2>
                 </div>
-                <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-                  {t('modalSubtitle')}
-                </p>
+                <p className="text-sm text-slate-400 mt-1 max-w-2xl">{t('modalSubtitle')}</p>
               </div>
 
               <button
@@ -158,7 +151,10 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
             <div className="py-6 space-y-6">
               {/* Topic Input */}
               <div>
-                <label htmlFor="topic-input" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                <label
+                  htmlFor="topic-input"
+                  className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2"
+                >
                   {t('topicLabel')}
                 </label>
                 <input
@@ -182,7 +178,11 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
                     [
                       { id: 'enterprise_blue', nameKey: 'styleEnterpriseBlue', color: 'from-blue-600 to-indigo-800' },
                       { id: 'minimal_dark', nameKey: 'styleMinimalDark', color: 'from-zinc-700 to-neutral-900' },
-                      { id: 'creative_gradient', nameKey: 'styleCreativeGradient', color: 'from-purple-600 to-pink-800' },
+                      {
+                        id: 'creative_gradient',
+                        nameKey: 'styleCreativeGradient',
+                        color: 'from-purple-600 to-pink-800',
+                      },
                       { id: 'tech_emerald', nameKey: 'styleTechEmerald', color: 'from-emerald-600 to-teal-800' },
                     ] as const
                   ).map((styleItem) => {
@@ -198,10 +198,10 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
                             : 'border-white/5 bg-slate-950/40 hover:border-white/20'
                         }`}
                       >
-                        <div className={`w-full h-8 rounded-lg bg-gradient-to-r ${styleItem.color} mb-2 shadow-inner`} />
-                        <span className="text-xs font-medium text-slate-200">
-                          {t(styleItem.nameKey)}
-                        </span>
+                        <div
+                          className={`w-full h-8 rounded-lg bg-gradient-to-r ${styleItem.color} mb-2 shadow-inner`}
+                        />
+                        <span className="text-xs font-medium text-slate-200">{t(styleItem.nameKey)}</span>
                       </button>
                     );
                   })}
@@ -212,12 +212,13 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label htmlFor="slides-count-range" className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                    <label
+                      htmlFor="slides-count-range"
+                      className="text-xs font-semibold uppercase tracking-wider text-slate-300"
+                    >
                       {t('slidesCountLabel')}
                     </label>
-                    <span className="font-mono text-sm font-bold text-blue-400">
-                      {slidesCount} Pages
-                    </span>
+                    <span className="font-mono text-sm font-bold text-blue-400">{slidesCount} Pages</span>
                   </div>
                   <input
                     id="slides-count-range"
@@ -237,12 +238,8 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
 
                 <div className="flex items-center justify-between p-4 rounded-xl bg-slate-950/40 border border-white/5">
                   <div>
-                    <span className="text-xs font-semibold text-slate-200 block">
-                      {t('illustrationsLabel')}
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Multi-modal visual concepts & layouts
-                    </span>
+                    <span className="text-xs font-semibold text-slate-200 block">{t('illustrationsLabel')}</span>
+                    <span className="text-[11px] text-slate-400">{t('illustrationsHint')}</span>
                   </div>
                   <button
                     type="button"
@@ -290,7 +287,11 @@ export const PresentationGeneratorModal: React.FC<PresentationGeneratorModalProp
                   <>
                     <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     <span>{t('generating')}</span>
                   </>

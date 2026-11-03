@@ -88,7 +88,9 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const [isExportingPack, setIsExportingPack] = useState(false);
 
   const handleExportPack = useCallback(async () => {
-    if (!sessionId || isExportingPack) {return;}
+    if (!sessionId || isExportingPack) {
+      return;
+    }
     try {
       setIsExportingPack(true);
       await exportSessionZipPack(sessionId);
@@ -203,10 +205,10 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           <button
             onClick={() => setWizardOpen(true)}
             className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-emerald-500/20"
-            title="生成项目经验六步证据包向导"
+            title={t('experienceWizardTitle')}
           >
             <FileText className="w-3 h-3" />
-            经验向导
+            {t('experienceWizardButton')}
           </button>
           <button
             onClick={() => setReplayMode(true)}
@@ -294,7 +296,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
         <div className="rounded-lg border border-border/50 bg-background/60 p-3 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <IconWrench className="h-3.5 w-3.5 text-primary" />
-            <span>插件扩展状态 (Plugin State Inspector)</span>
+            <span>{t('pluginStateTitle')}</span>
           </div>
           <div className="space-y-1.5">
             {Object.entries(trace.custom_states).map(([pluginName, state]) => (

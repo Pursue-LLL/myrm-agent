@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
       "atLeastOneEndpoint": "At least one endpoint must remain selected.",
-      "presetAdded": "Added {name} connector"
+      "presetAdded": "Added {name} connector",
+      "presetsLoading": "Loading presets...",
+      "presetsEmpty": "No presets available.",
+      "presetEnable": "Enable"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -3481,6 +3484,11 @@
       "successRate": "Success Rate",
       "errors": "Errors",
       "avgTime": "Avg Time"
+    },
+    "costHud": {
+      "popoverTitle": "Click to view the model's four-dimension price matrix and Prompt Cache savings",
+      "savedAmount": "(saved {amount})",
+      "idleLabel": "Compute HUD"
     }
   },
   "mode": {
@@ -6849,7 +6857,12 @@
       "downloadFull": "Download full file"
     },
     "resizePanel": "Resize panel",
-    "closePreview": "Close preview"
+    "closePreview": "Close preview",
+    "errorBoundary": {
+      "title": "Render error",
+      "defaultMessage": "This content could not be rendered. Try refreshing or download it to view.",
+      "retry": "Retry"
+    }
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -11967,7 +11980,10 @@
       "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps.",
       "captureUnavailableTitle": "Capture unavailable",
       "publishConflictNotice": "A skill named “{name}” already exists. Replace it with this recording, or cancel and choose a different name in the first step.",
-      "replaceSkill": "Replace skill"
+      "replaceSkill": "Replace skill",
+      "workflowNamePlaceholder": "e.g. Monthly Tax Filing Pipeline",
+      "intentHintPlaceholder": "e.g. Read Excel and sync to tax portal",
+      "deleteStep": "Delete step"
     }
   },
   "followUps": {
@@ -13341,7 +13357,11 @@
     "consoleDrawerTitle": "Console & Service Logs",
     "consoleDrawerEmpty": "No recent logs captured",
     "sniffTrigger": "Sniff Dev Service",
-    "sniffSuccess": "Successfully detected and registered service port"
+    "sniffSuccess": "Successfully detected and registered service port",
+    "previewTitle": "{name} live preview",
+    "consoleStarted": "[{time}] Service started on port {port} ({protocol})",
+    "consoleReady": "> Ready: {url}",
+    "consoleProcess": "> Process PID: {pid} | Process: {name}"
   },
   "toolPicker": {
     "menuLabel": "Tool picker",
@@ -13395,7 +13415,15 @@
     "nextSlide": "Next Slide",
     "slideCounter": "Slide {current} of {total}",
     "speakerNotes": "Speaker Notes",
-    "noSpeakerNotes": "No notes for this slide"
+    "noSpeakerNotes": "No notes for this slide",
+    "newPresentation": "+ New Presentation",
+    "enterpriseBadge": "P0 · ENTERPRISE PPTX",
+    "illustrationsHint": "Multi-modal visual concepts & layouts",
+    "slideVisualConcept": "Visual Concept",
+    "slideVisualPlaceholder": "Multimodal Architecture Diagram",
+    "slideConfidentialFooter": "CONFIDENTIAL · ENTERPRISE DECK",
+    "slidePage": "PAGE {page}",
+    "slideAriaLabel": "Slide {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Publication-Grade Styled Spreadsheet Hub",
@@ -16305,7 +16333,12 @@
       "permittedSummary": "Permitted {permitted}",
       "recentAuditTrail": "Recent Execution Audit Trail",
       "loadingEntries": "Loading audit entries...",
-      "noEntriesYet": "No audit entries recorded yet"
+      "noEntriesYet": "No audit entries recorded yet",
+      "viewDetails": "View entry details",
+      "detailRule": "Rule:",
+      "detailSessionId": "Session ID:",
+      "detailReason": "Error/Reason:",
+      "detailArgs": "Sanitized Args:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding Model Configuration",
@@ -21605,7 +21638,10 @@
         "llmCompletion": "Completion: {count}",
         "llmMessages": "Messages: {count}",
         "llmViewportInspect": "Model Viewport (Inspect)",
-        "llmViewportHide": "Model Viewport (Hide)"
+        "llmViewportHide": "Model Viewport (Hide)",
+        "experienceWizardTitle": "Generate the six-step project experience evidence pack wizard",
+        "experienceWizardButton": "Experience wizard",
+        "pluginStateTitle": "Plugin extension state"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",

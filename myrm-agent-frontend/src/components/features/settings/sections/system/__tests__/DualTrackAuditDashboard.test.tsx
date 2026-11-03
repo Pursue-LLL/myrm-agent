@@ -124,10 +124,14 @@ describe('DualTrackAuditDashboard', () => {
     });
 
     const eyeBtn = screen.getByTestId('toggle-entry-ent_001');
+    expect(eyeBtn).toHaveAttribute('aria-label', 'viewDetails');
     fireEvent.click(eyeBtn);
     await waitFor(() => {
       expect(screen.getByText(/SANDBOX_EXEC/)).toBeInTheDocument();
     });
+    expect(screen.getByText('detailRule')).toBeInTheDocument();
+    expect(screen.getByText('detailSessionId')).toBeInTheDocument();
+    expect(screen.getByText('detailArgs')).toBeInTheDocument();
   });
 
   it('triggers export for JSON, CSV, and Markdown', async () => {

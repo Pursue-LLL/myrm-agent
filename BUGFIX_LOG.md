@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 产物渲染出错回退页、算力胶囊浮层、分屏预览控制台、演示文稿卡片与弹窗、OpenAPI 预设选择器、双轨审计详情、执行 Trace 区段标题、工作流录制弹窗里的界面文案是写死的，其余语言的用户看到的是中文或英文原文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S"artifacts.errorBoundary"` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码] 门禁（`bun scripts/check-hardcoded-copy.mjs`）基线里这 9 个文件共 27 处（每个文件 3 处）：`ArtifactErrorBoundary.tsx`（「渲染出错」、默认提示、「重试」写死中文）、`RealTimeCostAndCacheHud.tsx`（浮层标题、「省 $x」、待命标签「算力透视 HUD」）、`DevPortSplitPreviewer.tsx`（预览标题与三行控制台日志）、`PresentationGeneratorModal.tsx`（新建演示文稿、企业版徽标、配图提示）、`PresentationSlideCard.tsx`（页码、机密页脚、配图占位与无障碍标签）、`AgentOpenAPIServicesTab.tsx`（预设加载中、无预设、启用按钮）、`DualTrackAuditDashboard.tsx`（详情按钮标签与规则/会话 ID/原因/参数四个标签）、`ExecutionTraceTimeline.tsx`（经验向导按钮与提示、插件状态标题）、`WorkflowRecorderModal.tsx`（工作流名称与意图提示占位符、删除步骤无障碍标签）。 |
+| **根因** | [代码] 这些组件没有接 `useTranslations`，文案直接写在 JSX 里；`ArtifactErrorBoundary` 是类组件，无法调用 hook，之前没有可以挂翻译的位置。 |
+| **修复** | `locales/*.json`（6 种语言）新增 `artifacts.errorBoundary.*`、`chat.costHud.*`、`devPorts` 的 4 个预览键、`presentation` 的 7 个键、`agent.openapi` 的 3 个预设键、`settings.dualTrackAudit` 的 5 个详情键、`settings.sessionAnalytics.trace` 的 3 个键、`skills.workflowRecorder` 的 3 个键，共 32 个键；组件改读这些键；`ArtifactErrorBoundary` 的回退界面拆成函数组件 `ArtifactErrorFallback` 并接收 `error` 与重置回调；控制台日志里的端口、PID 等数值以字符串传入，避免被格式化成千分位；基线收紧 572 → 545（104 个文件）。 |
+| **回归证据** | [1] 新增 `ArtifactErrorBoundary`、`AgentOpenAPIServicesTab` 2 个测试文件，更新 `DevPortSplitPreviewer`、`RealTimeCostAndCacheHud`、`PresentationGeneratorModal`、`PresentationSlideCard`（含两个新用例）、`DualTrackAuditDashboard`、`ExecutionTraceTimeline`、`WorkflowRecorderModal` 7 个测试；把这 9 个测试文件放到干净的 `719375a200` 上，9 个文件全红、16 例失败。[2] 修复后相关目录（`artifacts`、`chat-window`、`dev-ports`、`presentation`、`skills`、`settings/sections/{system,ai-core}`、`message-box`、`runs`）共 437 个文件 2819 例全过。[3] `bun run lint`（7 个门禁）、`bunx tsc --noEmit`、`bun run verify:i18n`、`check_typescript_strict`、`check_fractal_docs --no-stub`、`check_barrel_exports`、`check_module_resolution`、孤儿门禁全部通过。 |
+| **仍然存在** | ① 门禁看不到单个英文单词和对象/数组常量里的文案。② 6 种语言的译文由机器撰写，没有母语者审阅，也没有在浏览器里逐语言目检。③ 可达文件里还剩 545 处，其中 422 处在 `memory/command-center/`（受 `NEXT_PUBLIC_MEMORY_LABS` 控制）。 |
+| **代码位置** | frontend：`src/components/features/{artifacts/ArtifactErrorBoundary,chat-window/RealTimeCostAndCacheHud,dev-ports/DevPortSplitPreviewer,presentation/PresentationGeneratorModal,presentation/PresentationSlideCard,settings/sections/ai-core/agent/AgentOpenAPIServicesTab,settings/sections/system/DualTrackAuditDashboard,settings/sections/system/ExecutionTraceTimeline,skills/WorkflowRecorderModal}.tsx` 及对应 `__tests__`、`_ARCH.md`；`locales/*.json`；`scripts/ci/hardcoded_copy_baseline.json`。 |
+
 ## 2026-11-03 · 工具诊断弹窗、定时任务生产力收益卡、记忆画像面板、会话地图缩放按钮、项目接纳对话框、审计详情、渠道配对用量、OAuth 失效提示、LLM 调用卡里的界面文案是写死的，其余语言的用户看到的是中文或英文原文
 
 | 字段 | 内容 |

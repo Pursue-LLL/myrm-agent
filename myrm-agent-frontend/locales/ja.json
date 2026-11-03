@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "推定Turn1スキーマ（約{tokens}トークン）が直接バインド予算（{budget}）を超えています。選択エンドポイントを減らさないとエージェントはこれらのAPIツールを使用できません。",
       "turn1BudgetServiceWarning": "このサービスの選択エンドポイントがTurn1バインド予算を超える可能性があります。エージェント起動エラーを避けるため選択を減らしてください。",
       "atLeastOneEndpoint": "エンドポイントを少なくとも1つ選択してください。",
-      "presetAdded": "{name} コネクターを追加しました"
+      "presetAdded": "{name} コネクターを追加しました",
+      "presetsLoading": "プリセットを読み込み中...",
+      "presetsEmpty": "利用可能なプリセットはありません。",
+      "presetEnable": "有効にする"
     },
     "sharedContexts": {
       "targetLabel": "エージェント",
@@ -3481,6 +3484,11 @@
       "successRate": "成功率",
       "errors": "エラー数",
       "avgTime": "平均所要時間"
+    },
+    "costHud": {
+      "popoverTitle": "クリックしてモデルの4次元単価マトリクスと Prompt Cache の節約効果を表示",
+      "savedAmount": "({amount} 節約)",
+      "idleLabel": "コンピュート HUD"
     }
   },
   "mode": {
@@ -6849,7 +6857,12 @@
       "downloadFull": "完全なファイルをダウンロード"
     },
     "resizePanel": "パネルサイズを変更",
-    "closePreview": "プレビューを閉じる"
+    "closePreview": "プレビューを閉じる",
+    "errorBoundary": {
+      "title": "表示エラー",
+      "defaultMessage": "このコンテンツを表示できません。更新するか、ダウンロードしてご確認ください。",
+      "retry": "再試行"
+    }
   },
   "MessageSources": {
     "untitled": "無題",
@@ -11967,7 +11980,10 @@
       "captureTraceTruncatedNotice": "録画が上限に達したため、古い操作 {count} 件を破棄しました。生成されるスキルは冒頭の手順を欠いている可能性があります。",
       "captureUnavailableTitle": "キャプチャを利用できません",
       "publishConflictNotice": "「{name}」という名前のスキルが既に存在します。今回の録画で置き換えるか、キャンセルして最初の手順で別の名前を指定してください。",
-      "replaceSkill": "スキルを置き換え"
+      "replaceSkill": "スキルを置き換え",
+      "workflowNamePlaceholder": "例：月次の税務申告フロー",
+      "intentHintPlaceholder": "例：Excel を読み取り、税務ポータルに同期する",
+      "deleteStep": "ステップを削除"
     }
   },
   "followUps": {
@@ -13341,7 +13357,11 @@
     "consoleDrawerTitle": "コンソールとサービスログ",
     "consoleDrawerEmpty": "最近のログはありません",
     "sniffTrigger": "開発サービスを検出",
-    "sniffSuccess": "サービスのポートを検出して登録しました"
+    "sniffSuccess": "サービスのポートを検出して登録しました",
+    "previewTitle": "{name} ライブプレビュー",
+    "consoleStarted": "[{time}] ポート {port} でサービスを開始しました ({protocol})",
+    "consoleReady": "> 準備完了：{url}",
+    "consoleProcess": "> プロセス PID：{pid} | プロセス：{name}"
   },
   "toolPicker": {
     "menuLabel": "ツール選択",
@@ -13395,7 +13415,15 @@
     "nextSlide": "次のスライド",
     "slideCounter": "スライド {current} / {total}",
     "speakerNotes": "スピーカーノート",
-    "noSpeakerNotes": "このスライドにノートはありません"
+    "noSpeakerNotes": "このスライドにノートはありません",
+    "newPresentation": "+ 新しいプレゼンテーション",
+    "enterpriseBadge": "P0 · エンタープライズ PPTX",
+    "illustrationsHint": "マルチモーダルなビジュアルコンセプトとレイアウト",
+    "slideVisualConcept": "ビジュアルコンセプト",
+    "slideVisualPlaceholder": "マルチモーダルアーキテクチャ図",
+    "slideConfidentialFooter": "機密 · エンタープライズ資料",
+    "slidePage": "{page} ページ",
+    "slideAriaLabel": "スライド {number}：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版品質スタイル付きスプレッドシートハブ",
@@ -16305,7 +16333,12 @@
       "permittedSummary": "許可 {permitted} 回",
       "recentAuditTrail": "最近の実行監査ログ",
       "loadingEntries": "監査エントリを読み込み中...",
-      "noEntriesYet": "監査レコードはまだありません"
+      "noEntriesYet": "監査レコードはまだありません",
+      "viewDetails": "エントリの詳細を表示",
+      "detailRule": "ルール：",
+      "detailSessionId": "セッション ID：",
+      "detailReason": "エラー/理由：",
+      "detailArgs": "サニタイズ済み引数："
     },
     "retrieval": {
       "embeddingConfig": "エンベディングモデル設定",
@@ -21605,7 +21638,10 @@
         "llmCompletion": "補完：{count}",
         "llmMessages": "メッセージ：{count}",
         "llmViewportInspect": "モデルビューポート（確認）",
-        "llmViewportHide": "モデルビューポート（閉じる）"
+        "llmViewportHide": "モデルビューポート（閉じる）",
+        "experienceWizardTitle": "プロジェクト経験の6ステップ証拠パックウィザードを生成",
+        "experienceWizardButton": "経験ウィザード",
+        "pluginStateTitle": "プラグイン拡張の状態"
       },
       "contextDoctor": {
         "title": "コンテキスト健康診断 (Token ホットスポットとコスト監査)",

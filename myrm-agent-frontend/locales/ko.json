@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "예상 Turn1 스키마(~{tokens} 토큰)가 직접 바인딩 예산({budget})을 초과합니다. 선택한 엔드포인트를 줄이지 않으면 에이전트가 이 API 도구를 사용할 수 없습니다.",
       "turn1BudgetServiceWarning": "이 서비스의 선택된 엔드포인트가 Turn1 바인딩 예산을 초과할 수 있습니다. 에이전트 시작 오류를 방지하려면 선택을 줄이세요.",
       "atLeastOneEndpoint": "하나 이상의 엔드포인트를 선택해야 합니다.",
-      "presetAdded": "{name} 커넥터를 추가했습니다"
+      "presetAdded": "{name} 커넥터를 추가했습니다",
+      "presetsLoading": "프리셋을 불러오는 중...",
+      "presetsEmpty": "사용 가능한 프리셋이 없습니다.",
+      "presetEnable": "활성화"
     },
     "sharedContexts": {
       "targetLabel": "에이전트",
@@ -3481,6 +3484,11 @@
       "successRate": "성공률",
       "errors": "오류 수",
       "avgTime": "평균 소요 시간"
+    },
+    "costHud": {
+      "popoverTitle": "클릭하여 모델의 4차원 단가 매트릭스와 Prompt Cache 절감 효과 보기",
+      "savedAmount": "({amount} 절감)",
+      "idleLabel": "연산 HUD"
     }
   },
   "mode": {
@@ -6849,7 +6857,12 @@
       "downloadFull": "전체 파일 다운로드"
     },
     "resizePanel": "패널 크기 조정",
-    "closePreview": "미리보기 닫기"
+    "closePreview": "미리보기 닫기",
+    "errorBoundary": {
+      "title": "렌더링 오류",
+      "defaultMessage": "이 콘텐츠를 렌더링할 수 없습니다. 새로고침하거나 다운로드해서 확인해 보세요.",
+      "retry": "다시 시도"
+    }
   },
   "MessageSources": {
     "untitled": "제목 없음",
@@ -11967,7 +11980,10 @@
       "captureTraceTruncatedNotice": "녹화가 용량 한도에 도달해 이전 상호작용 {count}건을 삭제했습니다. 생성된 스킬에 처음 단계가 누락될 수 있습니다.",
       "captureUnavailableTitle": "캡처 사용 불가",
       "publishConflictNotice": "'{name}' 이름의 스킬이 이미 있습니다. 이번 녹화로 덮어쓰거나, 취소하고 첫 단계에서 다른 이름을 선택하세요.",
-      "replaceSkill": "스킬 덮어쓰기"
+      "replaceSkill": "스킬 덮어쓰기",
+      "workflowNamePlaceholder": "예: 월간 세무 신고 파이프라인",
+      "intentHintPlaceholder": "예: Excel을 읽어 세무 포털에 동기화",
+      "deleteStep": "단계 삭제"
     }
   },
   "followUps": {
@@ -13341,7 +13357,11 @@
     "consoleDrawerTitle": "콘솔 및 서비스 로그",
     "consoleDrawerEmpty": "최근 로그가 없습니다",
     "sniffTrigger": "개발 서비스 탐지",
-    "sniffSuccess": "서비스 포트를 탐지하여 등록했습니다"
+    "sniffSuccess": "서비스 포트를 탐지하여 등록했습니다",
+    "previewTitle": "{name} 실시간 미리보기",
+    "consoleStarted": "[{time}] 포트 {port}에서 서비스가 시작되었습니다 ({protocol})",
+    "consoleReady": "> 준비 완료: {url}",
+    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}"
   },
   "toolPicker": {
     "menuLabel": "도구 선택",
@@ -13395,7 +13415,15 @@
     "nextSlide": "다음 슬라이드",
     "slideCounter": "슬라이드 {current} / {total}",
     "speakerNotes": "발표자 노트",
-    "noSpeakerNotes": "이 슬라이드에는 노트가 없습니다"
+    "noSpeakerNotes": "이 슬라이드에는 노트가 없습니다",
+    "newPresentation": "+ 새 프레젠테이션",
+    "enterpriseBadge": "P0 · 엔터프라이즈 PPTX",
+    "illustrationsHint": "멀티모달 비주얼 콘셉트 및 레이아웃",
+    "slideVisualConcept": "비주얼 콘셉트",
+    "slideVisualPlaceholder": "멀티모달 아키텍처 다이어그램",
+    "slideConfidentialFooter": "기밀 · 엔터프라이즈 덱",
+    "slidePage": "{page}쪽",
+    "slideAriaLabel": "슬라이드 {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "출판 품질 스타일 스프레드시트 허브",
@@ -16305,7 +16333,12 @@
       "permittedSummary": "허용 {permitted}회",
       "recentAuditTrail": "최근 실행 감사 로그",
       "loadingEntries": "감사 항목을 로드하는 중...",
-      "noEntriesYet": "감사 기록이 아직 없습니다"
+      "noEntriesYet": "감사 기록이 아직 없습니다",
+      "viewDetails": "항목 상세 보기",
+      "detailRule": "규칙:",
+      "detailSessionId": "세션 ID:",
+      "detailReason": "오류/사유:",
+      "detailArgs": "정제된 인수:"
     },
     "retrieval": {
       "embeddingConfig": "임베딩 모델 구성",
@@ -21605,7 +21638,10 @@
         "llmCompletion": "완성: {count}",
         "llmMessages": "메시지: {count}",
         "llmViewportInspect": "모델 뷰포트(확인)",
-        "llmViewportHide": "모델 뷰포트(숨기기)"
+        "llmViewportHide": "모델 뷰포트(숨기기)",
+        "experienceWizardTitle": "프로젝트 경험 6단계 증거 패키지 마법사 생성",
+        "experienceWizardButton": "경험 마법사",
+        "pluginStateTitle": "플러그인 확장 상태"
       },
       "contextDoctor": {
         "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",
