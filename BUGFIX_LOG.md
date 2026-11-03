@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 邮件技能 `send` 与 `reply` 发出的邮件没有 `Date` 头，`Message-ID` 以发件机器的主机名结尾（在真实邮件服务器 GreenMail 上跑脚本时发现）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S'stamp_envelope'` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [实测，GreenMail 2.1.15（Docker，`greenmail/standalone`，换上自己生成的证书并用 `SSL_CERT_FILE` 信任），脚本经 465 口隐式 TLS 发信、再用 IMAP 取回收件人邮箱里的原始头部，Python 3.13.13]：`reply` 与 `send` 发出的邮件头部只有 `From`、`To`、`Subject`、`Message-ID`（回复另有 `In-Reply-To`、`References`），没有 `Date`，收件人用 `read` 看到的 `date` 是空串；`Message-ID` 形如 `<179368522425.64491.…@<本机主机名>.local>`，域是这台机器的主机名，每个收件人都读得到，同一串也回给了调用方。 |
+| **根因** | [代码] `email_manager.py` 的 `cmd_send` 与 `cmd_reply` 只设 `From`、`To`、`Subject` 与 `Message-ID = email.utils.make_msgid()`；标准库 `smtplib.SMTP.send_message` 只处理 `Resent-Date`、不补 `Date`（`inspect.getsource` 实测）；`make_msgid` 不传 `domain` 时取 `socket.getfqdn()`（同法实测）。RFC 5322 要求发出的邮件有 `Date`。此前的用例都用假服务器、只看发出的命令，没有读收件人收到的头部，所以没暴露。 |
+| **修复** | `mail_client/message.py` 新增 `stamp_envelope(msg, from_addr, smtp_host)`：写 `Date`（`formatdate(localtime=True)`，带时区），`Message-ID` 的域取发件人地址（`EMAIL_FROM_ADDRESS`，没有就用登录名，带显示名的写法取其中的地址）的域，发件人没有域时取 SMTP 主机；`send` 与 `reply` 都改用它。 |
+| **回归证据** | [1] 新增 `tests/assets/test_imap_smtp_email_outgoing_headers.py`（6 例：send、reply 各配登录名、带显示名的发件地址、没有域的发件地址）；临时改回旧行为（不写 `Date`、`make_msgid()` 不传域）时 6 例全红，改后全绿。[2] 同一台 GreenMail 上改后复测：收到的回复 `Date: Tue, 03 Nov 2026 13:55:46 +0800`、`Message-ID: <…@localhost>`；`EMAIL_FROM_ADDRESS="Alice A <alice@corp.test>"` 时 `<…@corp.test>`。[3] 技能测试 270 通过，默认覆盖率 97%（`email_manager.py` 97%、`message.py` 100%、`transport.py` 91%；余下的行由起子进程的用例覆盖，默认度量看不到）。 |
+| **仍然存在** | ① `send` 与 `reply` 回给调用方的 JSON 用 `json.dumps` 的默认转义，非 ASCII 主题显示成 `\uXXXX`（合法 JSON，其余命令用 `ensure_ascii=False`），未改。② GreenMail 的 `FROM`、`TO` 搜索只匹配完整地址（`--from bob` 无命中、`--from bob@localhost` 命中），这是该服务器的行为；SKILL.md 只写了完整地址的用法，脚本未改。③ 仍未用真实邮件服务商（Gmail、163 等）与真实模型验证。 |
+| **代码位置** | server：`assets/prebuilt_skills/imap-smtp-email/scripts/{email_manager.py,mail_client/message.py}`、`tests/assets/test_imap_smtp_email_outgoing_headers.py`、`tests/_ARCH.md`。 |
+
 ## 2026-11-02 · glob_tool / grep_tool 在 ripgrep 档读满结果上限后会挂到超时；同一个 pattern 在 ripgrep 档与 Python 档选出不同的文件（带目录的模式、`**`、花括号、`*`、非 git 目录的 .gitignore）；FilesystemFileSearchMiddleware 绕过文件访问模式再挂一份 glob/grep；之后两档仍选不出同一批文件：grep 不搜隐藏文件、ripgrep 档受用户配置与上级目录的忽略文件影响并把 `.venv` 当项目内容、Python 档跟随符号链接且依赖没有声明的 `pathspec`、`./` 开头的 `file_pattern` 在 ripgrep 档选不出文件、ripgrep 部分失败时已找到的结果被丢弃、叠加通配符让 glob 匹配耗时数秒
 
 | 字段 | 内容 |

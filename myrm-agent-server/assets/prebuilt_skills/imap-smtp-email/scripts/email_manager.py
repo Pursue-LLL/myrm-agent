@@ -8,7 +8,8 @@
 - Process env SSL_CERT_FILE (optional): PEM bundle that replaces the default trust store, for servers signed by a private CA
 - mail_client.transport: verified IMAP/SMTP connections, quoted command arguments, the check that the server did not refuse a
   command, and the JSON error exit
-- mail_client.message: MIME header, date, summary, attachment, reply recipients and body decoding
+- mail_client.message: MIME header, date, summary, attachment, reply recipients and body decoding, and the Date and Message-ID
+  of an outgoing message
 - mail_client.attachments: saving a download under a safe name as a new file, never over one that exists
 
 [OUTPUT]
@@ -16,7 +17,8 @@
   a command the server refuses is such a failure carrying the server's reason, never a success or an empty list
 - read lists what the sender attached, a message that is one attachment included, but not a part the HTML body embeds;
   download saves each part that holds a file, an attached message/rfc822 with its headers as read unless it cannot be written;
-  reply goes to every address of Reply-To, else of From, and is refused when neither holds an address
+  reply goes to every address of Reply-To, else of From, and is refused when neither holds an address;
+  send and reply write a Date and a Message-ID on the sender's domain, never this machine's host name
 - download never overwrites: a name taken on disk or by an earlier attachment gets ``-1`` to ``-999``, then it is an error;
   a name is made safe and short enough for the file system; a write that fails leaves no file behind, and the error lists
   the files saved before it
@@ -35,7 +37,6 @@ import email as email_lib
 import email.message
 import email.mime.multipart
 import email.mime.text
-import email.utils
 import imaplib
 import json
 import os
@@ -53,6 +54,7 @@ from mail_client.message import (
     extract_body,
     message_summary,
     reply_recipients,
+    stamp_envelope,
 )
 from mail_client.transport import (
     connect_imap,
@@ -237,8 +239,7 @@ def cmd_send(args: argparse.Namespace) -> None:
     msg["From"] = from_addr
     msg["To"] = args.to
     msg["Subject"] = args.subject
-    msg_id = email.utils.make_msgid()
-    msg["Message-ID"] = msg_id
+    msg_id = stamp_envelope(msg, from_addr, host)
     msg.attach(email.mime.text.MIMEText(args.body, "plain", "utf-8"))
 
     deliver(msg, host, port, user, password)
@@ -273,8 +274,7 @@ def cmd_reply(args: argparse.Namespace) -> None:
     msg["From"] = from_addr
     msg["To"] = recipients
     msg["Subject"] = subject
-    msg_id = email.utils.make_msgid()
-    msg["Message-ID"] = msg_id
+    msg_id = stamp_envelope(msg, from_addr, host)
     if original_msg_id:
         msg["In-Reply-To"] = original_msg_id
     if references:
