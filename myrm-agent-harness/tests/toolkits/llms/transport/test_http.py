@@ -213,6 +213,30 @@ class TestStreaming:
         with pytest.raises(StopIteration):
             next(stream)
 
+    async def test_async_ndjson_framing_decodes_one_object_per_line_and_skips_blank_lines(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=b'{"n": 1}\n\n{"n": 2}\n'))
+        stream = await aopen_stream(_request(stream=True, framing="ndjson"), _JsonLineDecoder())
+        assert [chunk async for chunk in stream] == [{"n": 1}, {"n": 2}]
+
+    async def test_async_final_event_without_a_trailing_blank_line_is_still_delivered(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=b'data: {"n": 1}'))
+        stream = await aopen_stream(_request(stream=True), _JsonLineDecoder())
+        assert [chunk async for chunk in stream] == [{"n": 1}]
+
+    async def test_closing_an_async_stream_early_ends_it(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(200, content=b'data: {"n": 1}\n\ndata: {"n": 2}\n\n'))
+        stream = await aopen_stream(_request(stream=True), _JsonLineDecoder())
+        assert await anext(stream) == {"n": 1}
+        await stream.aclose()
+        with pytest.raises(StopAsyncIteration):
+            await anext(stream)
+
 
 class TestSharedClients:
     async def test_closing_forgets_the_clients_so_the_next_request_builds_a_new_one(self) -> None:

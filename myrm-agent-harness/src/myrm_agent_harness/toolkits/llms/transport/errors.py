@@ -18,10 +18,33 @@ retry-after reader and gateway-rejection recovery work on it without any provide
 from __future__ import annotations
 
 import json
+from typing import Final
 
 import httpx
 
 _MESSAGE_LIMIT = 2000
+
+# The HTTP status a provider's error kind stands for. An error event follows the 200 status line, so the kind is all
+# that tells a rejected request (never worth repeating) from a fault on the provider's side (worth repeating).
+_STATUS_OF_KIND: Final = {
+    "invalid_request_error": 400,
+    "authentication_error": 401,
+    "billing_error": 402,
+    "permission_error": 403,
+    "not_found_error": 404,
+    "request_too_large": 413,
+    "rate_limit_error": 429,
+    "rate_limit_exceeded": 429,
+    "api_error": 500,
+    "server_error": 500,
+    "internal_error": 500,
+    "internal_server_error": 500,
+    "timeout_error": 504,
+    "overloaded_error": 529,
+    "overloaded": 529,
+}
+# An event that names neither a status nor a known kind reports a fault after the provider accepted the request.
+_UNNAMED_STATUS: Final = 500
 
 
 class LLMHTTPError(Exception):
@@ -42,7 +65,11 @@ class LLMHTTPError(Exception):
 
 
 class LLMStreamError(Exception):
-    """A provider reported a failure inside an already-open stream (HTTP 200 with an error event)."""
+    """A provider reported a failure inside an already-open stream (HTTP 200 with an error event).
+
+    ``status_code`` is the HTTP status the event stands for: the one it carries, else the one its kind implies, else a
+    server fault. The failure classifier then treats the event like the same failure answered with a status.
+    """
 
     def __init__(self, provider: str, payload: dict[str, object]) -> None:
         self.llm_provider = provider
@@ -65,14 +92,18 @@ class LLMResponseError(ValueError):
         super().__init__(message)
 
 
-def _error_status(payload: dict[str, object]) -> int | None:
+def _error_status(payload: dict[str, object]) -> int:
     error = payload.get("error")
-    code = error.get("code") if isinstance(error, dict) else payload.get("code")
+    detail = error if isinstance(error, dict) else payload
+    code = detail.get("code")
     if isinstance(code, int) and 400 <= code < 600:
         return code
     if isinstance(code, str) and code.isdigit() and 400 <= int(code) < 600:
         return int(code)
-    return None
+    for kind in (code, detail.get("type")):
+        if isinstance(kind, str) and (status := _STATUS_OF_KIND.get(kind.lower())):
+            return status
+    return _UNNAMED_STATUS
 
 
 def _parse_body(text: str) -> dict[str, object]:

@@ -13,6 +13,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.catalog import store
 from myrm_agent_harness.toolkits.llms.transport import anthropic_messages
+from myrm_agent_harness.toolkits.llms.transport.anthropic_thinking import Thinking, request_thinking
+from myrm_agent_harness.toolkits.llms.transport.capabilities import ClaudeTraits
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError, resolve_route
 
 Message = dict[str, object]
@@ -174,3 +176,13 @@ class TestRequestOptions:
 
         with pytest.raises(UnsupportedProviderError, match="needs an api_base"):
             anthropic_messages.prepare(route, [{"role": "user", "content": "hi"}], {})
+
+
+class TestEffortClamp:
+    @pytest.mark.parametrize("asked", ["max", "xhigh", "high"])
+    def test_a_model_offering_neither_higher_level_gets_high(self, asked: str) -> None:
+        traits = ClaudeTraits(adaptive_thinking=True, xhigh_effort=False, max_effort=False)
+
+        thinking = request_thinking({"reasoning_effort": asked}, traits, [])
+
+        assert thinking == Thinking({"type": "adaptive"}, "high")

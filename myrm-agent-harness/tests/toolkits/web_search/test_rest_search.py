@@ -363,3 +363,9 @@ class TestFailures:
         monkeypatch.setattr(httpx.AsyncClient, "request", html)
         with pytest.raises(ValueError, match="non-JSON"):
             await _search("tavily")
+
+    async def test_a_json_answer_that_is_not_an_object_is_an_error(self, network: Arm) -> None:
+        network([{"title": "a list where an object belongs"}], 200)
+
+        with pytest.raises(ValueError, match="unexpected JSON payload"):
+            await _search("tavily")

@@ -159,6 +159,20 @@ class TestAnthropicOutputSchema:
         converted = to_output_schema({"oneOf": [{"type": "string"}, {"type": "integer"}]})
         assert converted == {"anyOf": [{"type": "string"}, {"type": "integer"}]}
 
+    def test_array_items_are_converted_like_any_other_schema(self) -> None:
+        converted = to_output_schema(
+            {"type": "array", "items": {"type": "object", "properties": {"s": {"type": "string", "minLength": 3}}}}
+        )
+        assert converted["items"] == {
+            "type": "object",
+            "properties": {"s": {"type": "string", "description": "Note: minimum length: 3."}},
+            "additionalProperties": False,
+        }
+
+    def test_a_boolean_sub_schema_is_kept_as_it_is(self) -> None:
+        converted = to_output_schema({"type": "object", "properties": {"anything": True}})
+        assert converted["properties"] == {"anything": True}
+
     def test_references_are_inlined_first(self) -> None:
         converted = to_output_schema(
             {

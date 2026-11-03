@@ -170,13 +170,12 @@ def _thinking_blocks(message: Mapping[str, object]) -> list[Block]:
 
 
 def _trim_prefill(blocks: list[Block]) -> None:
-    """A closing assistant message is a prefill, and the API refuses a prefill that ends in whitespace."""
-    while blocks and blocks[-1].get("type") == "text":
-        text = str(blocks[-1]["text"]).rstrip()
-        if text:
-            blocks[-1] = {**blocks[-1], "text": text}
-            return
-        blocks.pop()
+    """A closing assistant message is a prefill, and the API refuses a prefill that ends in whitespace.
+
+    Text blocks are never blank here (``_content_blocks`` drops them), so trimming cannot empty one.
+    """
+    if blocks[-1].get("type") == "text":
+        blocks[-1] = {**blocks[-1], "text": str(blocks[-1]["text"]).rstrip()}
 
 
 def _to_messages(messages: Sequence[Mapping[str, object]]) -> tuple[list[Block], list[Block]]:
@@ -215,8 +214,6 @@ def _to_messages(messages: Sequence[Mapping[str, object]]) -> tuple[list[Block],
             push("user", _content_blocks(message.get("content")))
     if turns and turns[-1][0] == "assistant":
         _trim_prefill(turns[-1][1])
-        if not turns[-1][1]:
-            turns.pop()
     if not turns or turns[0][0] != "user":
         turns.insert(0, ("user", [{"type": "text", "text": "."}]))
     return system, [{"role": role, "content": blocks} for role, blocks in turns]

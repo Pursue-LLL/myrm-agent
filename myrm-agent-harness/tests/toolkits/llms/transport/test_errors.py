@@ -43,15 +43,36 @@ class TestLLMStreamError:
     @pytest.mark.parametrize(
         ("payload", "status"),
         [
+            # The status an event carries is the status it stands for, wherever it sits and however it is written.
             ({"error": {"code": 429, "message": "quota"}}, 429),
             ({"error": {"code": "503"}}, 503),
             ({"code": 500}, 500),
-            ({"error": {"code": "rate_limit_exceeded"}}, None),
-            ({"error": {"code": 200}}, None),
-            ({"error": "plain text"}, None),
+            ({"error": {"code": 429, "type": "server_error"}}, 429),
+            # Without one, the kind of error says what a status would have: a rejected request or a provider fault.
+            ({"error": {"type": "invalid_request_error"}}, 400),
+            ({"error": {"type": "authentication_error"}}, 401),
+            ({"error": {"type": "permission_error"}}, 403),
+            ({"error": {"type": "not_found_error"}}, 404),
+            ({"error": {"type": "request_too_large"}}, 413),
+            ({"error": {"type": "rate_limit_error"}}, 429),
+            ({"error": {"type": "api_error"}}, 500),
+            ({"error": {"type": "timeout_error"}}, 504),
+            ({"error": {"type": "overloaded_error"}}, 529),
+            ({"code": "server_error"}, 500),
+            ({"error": {"code": "Rate_Limit_Exceeded"}}, 429),
+            ({"error": {"type": "invalid_request_error", "code": "rate_limit_exceeded"}}, 429),
+            # An event that names neither is a fault of the provider, which had accepted the request.
+            ({"error": {"code": 200}}, 500),
+            ({"error": {"code": 600}}, 500),
+            ({"error": {"code": True}}, 500),
+            ({"error": {"code": "mystery", "type": "mystery"}}, 500),
+            ({"error": "plain text"}, 500),
+            ({}, 500),
         ],
     )
-    def test_status_comes_only_from_a_numeric_error_code(self, payload: dict[str, object], status: int | None) -> None:
+    def test_the_status_is_the_one_the_event_carries_or_its_kind_implies(
+        self, payload: dict[str, object], status: int
+    ) -> None:
         assert LLMStreamError("openrouter", payload).status_code == status
 
     def test_keeps_the_payload_as_body(self) -> None:
@@ -93,6 +114,7 @@ class TestClassification:
             (401, '{"error": {"message": "Incorrect API key provided"}}', ErrorKind.AUTH),
             (429, '{"error": {"message": "Rate limit reached for requests"}}', ErrorKind.RATE_LIMIT),
             (503, '{"error": {"message": "The server is overloaded"}}', ErrorKind.OVERLOADED),
+            (408, '{"error": {"message": "The request could not be completed"}}', ErrorKind.TIMEOUT),
             (
                 400,
                 '{"error": {"message": "This model\'s maximum context length is 8192 tokens", "code": "context_length_exceeded"}}',
@@ -111,3 +133,53 @@ class TestClassification:
     def test_a_stream_error_with_a_numeric_code_classifies_like_the_http_failure(self) -> None:
         error = LLMStreamError("openrouter", {"error": {"code": 429, "message": "Rate limit exceeded"}})
         assert classify_error(error) == ErrorKind.RATE_LIMIT
+
+    @pytest.mark.parametrize(
+        ("payload", "kind"),
+        [
+            # A fault of the provider is worth repeating, whichever way the wire words it.
+            ({"error": {"type": "server_error", "message": "The server had an error"}}, ErrorKind.OVERLOADED),
+            (
+                {"type": "error", "error": {"type": "api_error", "message": "Internal server error"}},
+                ErrorKind.OVERLOADED,
+            ),
+            ({"error": "model runner has unexpectedly stopped"}, ErrorKind.OVERLOADED),
+            ({"error": {"type": "overloaded_error", "message": "Overloaded"}}, ErrorKind.OVERLOADED),
+            # A rejected request or credential is not: repeating it only repeats the refusal.
+            (
+                {
+                    "type": "error",
+                    "error": {"type": "invalid_request_error", "message": "messages: roles must alternate"},
+                },
+                ErrorKind.FORMAT_ERROR,
+            ),
+            (
+                {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}},
+                ErrorKind.AUTH,
+            ),
+            # What the text says about the failure still outranks the status.
+            (
+                {
+                    "error": {
+                        "type": "insufficient_quota",
+                        "message": "You exceeded your current quota, please check your plan and billing details",
+                    }
+                },
+                ErrorKind.BILLING,
+            ),
+            (
+                {
+                    "error": {
+                        "type": "invalid_request_error",
+                        "code": "context_length_exceeded",
+                        "message": "This model's maximum context length is 8192 tokens",
+                    }
+                },
+                ErrorKind.CONTEXT_OVERFLOW,
+            ),
+        ],
+    )
+    def test_a_stream_error_event_classifies_like_the_same_failure_answered_with_a_status(
+        self, payload: dict[str, object], kind: ErrorKind
+    ) -> None:
+        assert classify_error(LLMStreamError("openai", payload)) == kind

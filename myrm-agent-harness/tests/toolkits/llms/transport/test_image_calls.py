@@ -243,6 +243,21 @@ class TestGemini:
             "imageSize": "2K",
         }
 
+    @pytest.mark.parametrize(("size", "image_size"), [("512x512", "512"), ("4096x4096", "4K")])
+    async def test_smaller_and_larger_outputs_request_their_image_size(
+        self, sent: Callable[[Answer], list[PreparedRequest]], size: str, image_size: str
+    ) -> None:
+        requests = sent({"predictions": [{"bytesBase64Encoded": "QUJD"}]})
+        await _generate("gemini/imagen-4.0-generate-001", size=size)
+        assert requests[0].body["parameters"]["imageSize"] == image_size  # type: ignore[index]
+
+    async def test_a_size_that_is_neither_a_ratio_nor_dimensions_sends_no_aspect_ratio(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        requests = sent({"predictions": [{"bytesBase64Encoded": "QUJD"}]})
+        await _generate("gemini/imagen-3.0-generate-002", size="huge")
+        assert requests[0].body["parameters"] == {"sampleCount": 1}  # type: ignore[index]
+
     async def test_gemini_image_model_uses_generate_content(
         self, sent: Callable[[Answer], list[PreparedRequest]]
     ) -> None:
@@ -306,6 +321,14 @@ class TestStability:
         requests = sent({"image": "QUJD"})
         await _generate(model)
         assert requests[0].url == f"https://api.stability.ai{endpoint}"
+
+    async def test_errors_listed_in_the_answer_are_a_refusal(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        sent({"errors": ["prompt rejected"]})
+        with pytest.raises(ImageProviderError, match="prompt rejected") as excinfo:
+            await _generate("stability/sd3")
+        assert excinfo.value.status_code == 400
 
     async def test_filtered_content_is_a_refusal(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         sent({"image": "QUJD", "finish_reason": "CONTENT_FILTERED"})

@@ -180,3 +180,102 @@ class TestWaiting:
         await service.embed_batch(["hello"])
 
         assert waits == [1.0, 2.0]
+
+
+class _Cache:
+    """In-memory ``EmbeddingCacheProtocol`` that remembers what was asked of it."""
+
+    def __init__(self, stored: dict[str, list[float]] | None = None) -> None:
+        self.stored = dict(stored or {})
+        self.batch_writes: list[tuple[list[str], list[list[float]]]] = []
+
+    async def get(self, text: str) -> list[float] | None:
+        return self.stored.get(text)
+
+    async def put(self, text: str, embedding: list[float]) -> None:
+        self.stored[text] = embedding
+
+    async def get_batch(self, texts: list[str]) -> list[list[float] | None]:
+        return [self.stored.get(text) for text in texts]
+
+    async def put_batch(self, texts: list[str], embeddings: list[list[float]]) -> None:
+        self.batch_writes.append((list(texts), [list(vector) for vector in embeddings]))
+        self.stored.update(zip(texts, embeddings, strict=True))
+
+
+def _cached_service(monkeypatch: pytest.MonkeyPatch, provider: _Provider, cache: _Cache) -> CloudEmbedding:
+    monkeypatch.setattr(cloud_embedding, "aembed", provider)
+    return CloudEmbedding(model="text-embedding-3-small", api_key="k", cache=cache, retry_wait_min=0, retry_wait_max=0)
+
+
+class TestCache:
+    """Only what the cache lacks is sent to the provider, every answer lands back in input order, and a retry still
+    covers the call that fills the gaps."""
+
+    async def test_a_batch_asks_the_provider_only_for_the_texts_the_cache_lacks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sent: list[Sequence[str]] = []
+
+        async def provider(model: str, texts: Sequence[str], **_: object) -> list[list[float]]:
+            sent.append(list(texts))
+            return [[float(len(text))] for text in texts]
+
+        cache = _Cache({"known": [9.0]})
+        monkeypatch.setattr(cloud_embedding, "aembed", provider)
+        service = CloudEmbedding(model="text-embedding-3-small", api_key="k", cache=cache)
+
+        vectors = await service.embed_batch(["alpha", "known", "be"])
+
+        assert sent == [["alpha", "be"]]
+        assert vectors == [[5.0], [9.0], [2.0]], "each vector sits at the position of its text"
+        assert cache.batch_writes == [(["alpha", "be"], [[5.0], [2.0]])]
+
+    async def test_a_batch_the_cache_fully_holds_never_reaches_the_provider(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        provider = _Provider([])
+        cache = _Cache({"a": [1.0], "b": [2.0]})
+
+        vectors = await _cached_service(monkeypatch, provider, cache).embed_batch(["b", "a"])
+
+        assert vectors == [[2.0], [1.0]]
+        assert provider.calls == 0
+        assert cache.batch_writes == []
+
+    async def test_the_call_that_fills_the_gaps_is_retried_and_cached_once_it_answers(
+        self, monkeypatch: pytest.MonkeyPatch, waits: list[float]
+    ) -> None:
+        provider = _Provider([_refusal(503)])
+        cache = _Cache({"known": [9.0]})
+
+        vectors = await _cached_service(monkeypatch, provider, cache).embed_batch(["known", "new"])
+
+        assert vectors == [[9.0], [0.5, 0.25]]
+        assert provider.calls == 2
+        assert cache.batch_writes == [(["new"], [[0.5, 0.25]])]
+
+    async def test_a_failed_call_leaves_the_cache_untouched(
+        self, monkeypatch: pytest.MonkeyPatch, waits: list[float]
+    ) -> None:
+        provider = _Provider([_refusal(401)])
+        cache = _Cache()
+
+        with pytest.raises(LLMHTTPError):
+            await _cached_service(monkeypatch, provider, cache).embed_batch(["new"])
+
+        assert cache.stored == {}
+
+    async def test_a_single_text_is_served_from_the_cache_or_fetched_and_remembered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        provider = _Provider([])
+        cache = _Cache({"known": [9.0]})
+        service = _cached_service(monkeypatch, provider, cache)
+
+        assert await service.embed("known") == [9.0]
+        assert provider.calls == 0
+
+        assert await service.embed("new") == [0.5, 0.25]
+        assert provider.calls == 1
+        assert cache.stored["new"] == [0.5, 0.25]

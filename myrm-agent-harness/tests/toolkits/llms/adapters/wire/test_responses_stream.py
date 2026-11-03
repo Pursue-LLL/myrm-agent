@@ -347,3 +347,19 @@ def test_state_resolves_a_call_by_any_of_its_names() -> None:
     assert state.has_calls is True
     # The call_id alone (legacy servers) finds the call announced with both names.
     assert state.on_arguments({"call_id": "call_tokyo", "delta": "{"}, final=False)[0]["index"] == 0
+
+
+def test_an_item_naming_no_call_and_matching_none_streamed_is_ignored() -> None:
+    state = ResponsesStreamState()
+    assert state.on_item({"output_index": 3}, {"type": "function_call", "arguments": "{}"}) == []
+    assert state.has_calls is False
+
+
+def test_a_closing_call_missing_its_id_or_its_name_is_skipped() -> None:
+    state = ResponsesStreamState()
+    output = [
+        {"type": "function_call", "name": "get_weather", "arguments": "{}"},
+        {"type": "function_call", "call_id": "call_x", "arguments": "{}"},
+    ]
+    assert state.on_completed(output) == []
+    assert state.has_calls is False

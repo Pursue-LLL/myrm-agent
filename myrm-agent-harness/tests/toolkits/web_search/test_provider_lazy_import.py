@@ -13,8 +13,11 @@ Unit tests mirroring src/myrm_agent_harness/toolkits/web_search/providers/__init
 
 from __future__ import annotations
 
+import importlib
 import subprocess
 import sys
+
+import pytest
 
 _REST_MODULE = "myrm_agent_harness.toolkits.web_search.providers.rest_search"
 _TRANSPORT_MODULE = "myrm_agent_harness.toolkits.llms.transport"
@@ -43,3 +46,34 @@ def test_rest_search_loads_on_first_access() -> None:
         f"assert '{_REST_MODULE}' in sys.modules"
     )
     assert result.returncode == 0, result.stderr
+
+
+_TOOLKIT = "myrm_agent_harness.toolkits.web_search"
+_PROVIDERS = f"{_TOOLKIT}.providers"
+
+
+@pytest.mark.parametrize(
+    ("package", "name", "home"),
+    [
+        (_TOOLKIT, "RestSearch", _REST_MODULE),
+        (_TOOLKIT, "SearchServiceConfig", f"{_PROVIDERS}.web_searcher"),
+        (_TOOLKIT, "WebSearchTools", f"{_TOOLKIT}.engine"),
+        (_PROVIDERS, "RestSearch", _REST_MODULE),
+    ],
+)
+def test_a_lazy_name_is_the_class_of_its_home_module_and_is_cached(
+    monkeypatch: pytest.MonkeyPatch, package: str, name: str, home: str
+) -> None:
+    module = importlib.import_module(package)
+    monkeypatch.delitem(vars(module), name, raising=False)  # forces the module-level __getattr__
+
+    resolved = getattr(module, name)
+
+    assert resolved is getattr(importlib.import_module(home), name)
+    assert vars(module)[name] is resolved, "the next lookup must not go through __getattr__ again"
+
+
+@pytest.mark.parametrize("package", [_TOOLKIT, _PROVIDERS])
+def test_an_unknown_name_is_an_attribute_error(package: str) -> None:
+    with pytest.raises(AttributeError, match="has no attribute 'NotAThing'"):
+        importlib.import_module(package).NotAThing  # noqa: B018 - the access itself is what raises

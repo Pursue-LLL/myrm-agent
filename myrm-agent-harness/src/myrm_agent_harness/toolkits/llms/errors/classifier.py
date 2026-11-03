@@ -288,6 +288,10 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
         return FailoverReason.TIMEOUT
 
     # 8. Fallback Status Code Probes
+    if normalized.status_code == 408:
+        # The server gave up waiting for the request; sending it again can succeed.
+        return FailoverReason.TIMEOUT
+
     if normalized.status_code == 400:
         # A generic 400 that isn't caught by above patterns is treated as a format error
         # to prevent infinite retry loops.
