@@ -339,6 +339,26 @@ class TestCoercePromptMode:
         assert get_core_system_prompt(coerce_prompt_mode(mode)) is get_core_system_prompt("full")
 
 
+class TestIdentityStatesQualityBar:
+    """The identity keeps the pinned persona opening and states the quality bar once, without slogans."""
+
+    @pytest.mark.parametrize("mode", ["full", "lean"])
+    def test_zh_identity(self, mode: str) -> None:
+        identity = get_core_system_prompt(mode, locale="zh-CN").split("</identity>")[0]
+        assert "你是一个功能强大且求真务实的通用AI智能助手" in identity
+        assert "你的答案应当**事实准确**、时效性强，并对用户真正有用。" in identity
+        assert "让用户惊叹" not in identity
+        assert "绝不提供平庸" not in identity
+
+    @pytest.mark.parametrize("mode", ["full", "lean"])
+    def test_en_identity(self, mode: str) -> None:
+        identity = get_core_system_prompt(mode, locale="en").split("</identity>")[0]
+        assert "You are a powerful, pragmatic, and versatile AI assistant" in identity
+        assert "Your answers should be **factually accurate**, timely, and genuinely useful to the user." in identity
+        assert "ultra-high-quality" not in identity
+        assert "comprehensive" not in identity
+
+
 class TestSharedRulesAreRenderedText:
     """Shared rule constants reach the model verbatim, so format escapes must not leak into them."""
 
