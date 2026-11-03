@@ -1,8 +1,8 @@
-"""Chrome MCP E2E: switching ``repo-call-graph`` on in Settings asks for its ``file_read`` permission, then enables it.
+"""Chrome MCP E2E: switching ``repo-call-graph`` on in Settings asks for its ``file_read`` permission first.
 
-Real user flow on /settings/skills: flip the skill's switch, see the permission approval dialog name the permission,
-approve it, and find the skill switched on after the page is loaded again. The flow runs against the real backend, so the
-enable endpoint has to answer with the pending approval instead of an error, and the grant has to be stored.
+Real user flows on /settings/skills: flip the skill's switch, see the permission approval dialog name the permission, then
+approve it, approve it through a permission template, or deny it. The flows run against the real backend, so the enable
+endpoint has to answer with the pending approval instead of an error, and the grants have to be stored, or not stored.
 
 The model is not involved: ``test_code_graph_callers_live_chrome_e2e.py`` covers the turn that calls ``code_graph_tool``.
 """
@@ -11,10 +11,14 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    ChromeMcpClient,
+    McpPage,
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
@@ -29,9 +33,15 @@ from tests.support.chrome_mcp_e2e import (
 
 SKILL_ID = "repo-call-graph"
 PERMISSION = "file_read"
+# The "data analysis" template covers the permission the skill asks for and one more, so the grants tell it apart from
+# approving the permission itself.
+TEMPLATE_LABEL = r"\(file_read, code_interpreter\)"
+TEMPLATE_PERMISSIONS = ["code_interpreter", "file_read"]
 SKILLS_URL = f"/settings/skills?search={SKILL_ID}"
 PERMISSION_LABEL = r"Read File|读取文件"
 ENABLED_WITHIN_SECONDS = 30.0
+SETTLE_SECONDS = 1.5
+RECHECK_WITHIN_SECONDS = 10.0
 
 # ``?search=`` opens the Installed tab with the list narrowed to the skill. The skill's switch is the one in the nearest
 # ancestor that names the skill and holds no other switch: the card.
@@ -62,34 +72,6 @@ _SWITCH_OFF_JS = _probe(
 """
 )
 
-# Flipping the switch is guarded by a window flag so that a repeated poll does not flip it back.
-_FLIP_SWITCH_JS = _probe(
-    """
-  if (skillSwitch && !window.__codeGraphSwitchFlipped) {
-    window.__codeGraphSwitchFlipped = true;
-    skillSwitch.click();
-  }
-  const text = dialog ? dialog.innerText : '';
-  return {
-    ready: !!dialog && text.includes('__SKILL__') && /__PERMISSION_LABEL__/.test(text),
-    dialogText: text.slice(0, 600),
-  };
-""".replace("__PERMISSION_LABEL__", PERMISSION_LABEL)
-)
-
-_APPROVE_JS = _probe(
-    """
-  const approve = dialog
-    ? Array.from(dialog.querySelectorAll('button')).find((b) => /^(Approve|批准)$/.test((b.textContent || '').trim()))
-    : null;
-  if (approve && !window.__codeGraphApproved) {
-    window.__codeGraphApproved = true;
-    approve.click();
-  }
-  return { ready: !dialog && !!window.__codeGraphApproved, approveFound: !!approve, dialogOpen: !!dialog };
-"""
-)
-
 _SWITCH_ON_JS = _probe(
     """
   return {
@@ -98,6 +80,66 @@ _SWITCH_ON_JS = _probe(
     checked: skillSwitch ? skillSwitch.getAttribute('aria-checked') : null,
   };
 """
+)
+
+
+def _flip_switch_js(flag: str) -> str:
+    """Click the skill's switch once (``flag`` stops a repeated poll from flipping it back); ready when the dialog names the permission."""
+    return _probe(
+        """
+  if (skillSwitch && !window.__FLAG__) {
+    window.__FLAG__ = true;
+    skillSwitch.click();
+  }
+  const text = dialog ? dialog.innerText : '';
+  return {
+    ready: !!dialog && text.includes('__SKILL__') && /__PERMISSION_LABEL__/.test(text),
+    dialogText: text.slice(0, 600),
+  };
+""".replace("__PERMISSION_LABEL__", PERMISSION_LABEL).replace("__FLAG__", flag)
+    )
+
+
+def _dialog_button_js(label: str, flag: str) -> str:
+    """Click the dialog button called ``label`` once; ready when the dialog is gone."""
+    return _probe(
+        """
+  const button = dialog
+    ? Array.from(dialog.querySelectorAll('button')).find((b) => /^(__LABEL__)$/.test((b.textContent || '').trim()))
+    : null;
+  if (button && !window.__FLAG__) {
+    window.__FLAG__ = true;
+    button.click();
+  }
+  return { ready: !dialog && !!window.__FLAG__, buttonFound: !!button, dialogOpen: !!dialog };
+""".replace("__LABEL__", label).replace("__FLAG__", flag)
+    )
+
+
+_OPEN_TEMPLATES_JS = _probe(
+    """
+  const trigger = dialog ? dialog.querySelector('[role="combobox"]') : null;
+  if (trigger && !window.__templatesOpened) {
+    window.__templatesOpened = true;
+    trigger.click();
+  }
+  const options = Array.from(document.querySelectorAll('[role="option"]')).map((o) => (o.textContent || '').trim());
+  return { ready: options.length > 0, triggerFound: !!trigger, options };
+"""
+)
+
+_PICK_TEMPLATE_JS = _probe(
+    """
+  const option = Array.from(document.querySelectorAll('[role="option"]'))
+    .find((o) => /__TEMPLATE__/.test((o.textContent || '').trim()));
+  if (option && !window.__templatePicked) {
+    window.__templatePicked = true;
+    option.click();
+  }
+  const trigger = dialog ? dialog.querySelector('[role="combobox"]') : null;
+  const chosen = (trigger?.textContent || '').trim();
+  return { ready: !!window.__templatePicked && /__TEMPLATE__/.test(chosen), optionFound: !!option, chosen };
+""".replace("__TEMPLATE__", TEMPLATE_LABEL)
 )
 
 
@@ -114,7 +156,7 @@ def _enabled_prebuilt_ids() -> list[str]:
 def _granted_permissions() -> list[str]:
     permissions = http_json("GET", f"{_skill_api()}/permissions")
     assert isinstance(permissions, dict)
-    return [str(grant["permission"]) for grant in permissions["granted_permissions"]]
+    return sorted(str(grant["permission"]) for grant in permissions["granted_permissions"])
 
 
 def _wait_until_enabled() -> None:
@@ -122,6 +164,35 @@ def _wait_until_enabled() -> None:
     while SKILL_ID not in _enabled_prebuilt_ids():
         assert time.monotonic() < deadline, f"approving the permission did not enable {SKILL_ID}"
         time.sleep(0.5)
+
+
+def _expect(client: ChromeMcpClient, page: McpPage, expression: str, timeout_sec: float) -> None:
+    state = wait_for_state(client, page, expression, timeout_sec=timeout_sec)
+    assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
+
+
+def _assert_still_off_and_ungranted() -> None:
+    assert SKILL_ID not in _enabled_prebuilt_ids(), "the skill must stay off until the permission is approved"
+    assert _granted_permissions() == []
+
+
+@contextmanager
+def _skills_page() -> Iterator[tuple[ChromeMcpClient, McpPage, float]]:
+    """The Installed tab narrowed to the skill, which is off with nothing granted; both are put back afterwards."""
+    prepare_e2e_ui_session(get_e2e_api_url())
+    _assert_still_off_and_ungranted()
+
+    warm_ui_route("/settings")
+    warm_ui_route("/settings/skills", timeout_sec=_warm_ui_parallel_wait_sec(180.0))
+    try:
+        with open_settings_subroute(SKILLS_URL, timeout_ms=120_000) as (client, page):
+            dismiss_blocking_modals(client, page)
+            wait = _warm_ui_parallel_wait_sec(90.0)
+            _expect(client, page, _SWITCH_OFF_JS, wait)
+            yield client, page, wait
+    finally:
+        http_json("POST", f"{_skill_api()}/disable")
+        http_json("POST", f"{_skill_api()}/permissions/revoke", {"permissions": sorted({PERMISSION, *TEMPLATE_PERMISSIONS})})
 
 
 @pytest.mark.chrome_e2e(
@@ -133,36 +204,62 @@ def _wait_until_enabled() -> None:
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_switching_the_skill_on_asks_for_file_read_and_enables_it_once_approved() -> None:
-    api_url = get_e2e_api_url()
-    prepare_e2e_ui_session(api_url)
-    assert SKILL_ID not in _enabled_prebuilt_ids()
-    assert _granted_permissions() == []
+    with _skills_page() as (client, page, wait):
+        # The enable request is answered with the pending approval; the dialog opens only once the page has loaded
+        # the code that builds it, which takes long on a dev server that compiles on demand.
+        _expect(client, page, _flip_switch_js("__codeGraphFlipped"), wait)
+        _assert_still_off_and_ungranted()
 
-    warm_ui_route("/settings")
-    warm_ui_route("/settings/skills", timeout_sec=_warm_ui_parallel_wait_sec(180.0))
-    try:
-        with open_settings_subroute(SKILLS_URL, timeout_ms=120_000) as (client, page):
-            dismiss_blocking_modals(client, page)
-            wait = _warm_ui_parallel_wait_sec(90.0)
+        _expect(client, page, _dialog_button_js("Approve|批准", "__codeGraphApproved"), wait)
+        _wait_until_enabled()
+        assert _granted_permissions() == [PERMISSION]
 
-            off = wait_for_state(client, page, _SWITCH_OFF_JS, timeout_sec=wait)
-            assert off.get("ready") is True, json.dumps(off, indent=2, ensure_ascii=False)
+        reload_mcp_page(client, page, target_url=f"{get_e2e_ui_url()}{SKILLS_URL}")
+        _expect(client, page, _SWITCH_ON_JS, wait)
 
-            # The enable request is answered with the pending approval; the dialog opens only once the page has loaded
-            # the code that builds it, which takes long on a dev server that compiles on demand.
-            asked = wait_for_state(client, page, _FLIP_SWITCH_JS, timeout_sec=wait)
-            assert asked.get("ready") is True, json.dumps(asked, indent=2, ensure_ascii=False)
-            assert SKILL_ID not in _enabled_prebuilt_ids(), "the skill must stay off until the permission is approved"
-            assert _granted_permissions() == []
 
-            approved = wait_for_state(client, page, _APPROVE_JS, timeout_sec=wait)
-            assert approved.get("ready") is True, json.dumps(approved, indent=2, ensure_ascii=False)
-            _wait_until_enabled()
-            assert _granted_permissions() == [PERMISSION]
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_a_permission_template_covering_file_read_grants_the_template_and_enables_the_skill() -> None:
+    with _skills_page() as (client, page, wait):
+        _expect(client, page, _flip_switch_js("__codeGraphFlipped"), wait)
+        _assert_still_off_and_ungranted()
 
-            reload_mcp_page(client, page, target_url=f"{get_e2e_ui_url()}{SKILLS_URL}")
-            on = wait_for_state(client, page, _SWITCH_ON_JS, timeout_sec=wait)
-            assert on.get("ready") is True, json.dumps(on, indent=2, ensure_ascii=False)
-    finally:
-        http_json("POST", f"{_skill_api()}/disable")
-        http_json("POST", f"{_skill_api()}/permissions/revoke", {"permissions": [PERMISSION]})
+        _expect(client, page, _OPEN_TEMPLATES_JS, wait)
+        _expect(client, page, _PICK_TEMPLATE_JS, wait)
+        _assert_still_off_and_ungranted()
+
+        _expect(client, page, _dialog_button_js("Approve|批准", "__codeGraphApproved"), wait)
+        _wait_until_enabled()
+        assert _granted_permissions() == TEMPLATE_PERMISSIONS
+
+        reload_mcp_page(client, page, target_url=f"{get_e2e_ui_url()}{SKILLS_URL}")
+        _expect(client, page, _SWITCH_ON_JS, wait)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_denying_the_permission_keeps_the_skill_off_and_it_is_asked_again() -> None:
+    with _skills_page() as (client, page, wait):
+        _expect(client, page, _flip_switch_js("__codeGraphFlipped"), wait)
+        _expect(client, page, _dialog_button_js("Deny|拒绝", "__codeGraphDenied"), wait)
+
+        # A switch that turns itself on after the dialog closed would show up here.
+        time.sleep(SETTLE_SECONDS)
+        _expect(client, page, _SWITCH_OFF_JS, RECHECK_WITHIN_SECONDS)
+        _assert_still_off_and_ungranted()
+
+        _expect(client, page, _flip_switch_js("__codeGraphFlippedAgain"), wait)
+        _assert_still_off_and_ungranted()
