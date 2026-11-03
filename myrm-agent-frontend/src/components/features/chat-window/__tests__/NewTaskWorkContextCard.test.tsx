@@ -186,13 +186,36 @@ describe('NewTaskWorkContextCard', () => {
   });
 
   // The hint sizes to its text in every locale and only ellipsizes when the row itself runs out of width;
-  // a fixed max width would cut the longer translations (en, de, ja, ko) on a default desktop first screen.
-  it('sizes the local mode hint to its text without a fixed max width', () => {
+  // any max-width utility would cut the longer translations on a default desktop first screen.
+  it('sizes the local mode hint to its text without any max-width utility', () => {
     render(<NewTaskWorkContextCard />);
 
     const hint = screen.getByText('Bind a local folder');
     expect(hint.className).toContain('truncate');
     expect(hint.className).not.toMatch(/\bmax-w-/);
+  });
+
+  // Unbound, the trigger shows a localized sentence that wraps (a cap or an ellipsis would clip the longer
+  // translations); a bound path is user data, so it stays one capped, ellipsized line.
+  it('lets the unbound workspace sentence wrap instead of clipping or capping it', () => {
+    render(<NewTaskWorkContextCard />);
+
+    const triggerClasses = screen.getByTestId('workspace-picker-trigger').className.split(' ');
+    expect(triggerClasses).toContain('whitespace-normal');
+    expect(triggerClasses).not.toContain('whitespace-nowrap');
+    expect(screen.getByText('No workspace selected (click to bind)').getAttribute('class')).toBeNull();
+  });
+
+  it('keeps a bound workspace path on one capped, ellipsized line', () => {
+    mockState.workspaceDir = '/home/user/my-project';
+    render(<NewTaskWorkContextCard />);
+
+    const triggerClasses = screen.getByTestId('workspace-picker-trigger').className.split(' ');
+    expect(triggerClasses).toContain('whitespace-nowrap');
+    expect(triggerClasses).not.toContain('whitespace-normal');
+    expect(screen.getByText('~/my-project').className.split(' ')).toEqual(
+      expect.arrayContaining(['truncate', 'max-w-[220px]']),
+    );
   });
 
   it('reports success without creating anything when every standard folder already exists', async () => {

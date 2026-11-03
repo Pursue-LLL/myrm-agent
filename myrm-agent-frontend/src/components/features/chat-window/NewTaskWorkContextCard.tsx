@@ -74,6 +74,8 @@ function addRecentDir(dir: string): void {
 const STANDARD_OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
 // The scaffold button's tooltip names exactly the folders it creates.
 const STANDARD_OFFICE_FOLDERS_LABEL = STANDARD_OFFICE_FOLDERS.join(', ');
+// Unbound, the trigger shows a localized sentence: it wraps instead of being clipped or capped, whatever the locale.
+const UNBOUND_TRIGGER_CLASS = 'border-border text-muted-foreground h-auto min-h-8 whitespace-normal py-1.5 text-left';
 
 interface NewTaskWorkContextCardProps {
   className?: string;
@@ -288,7 +290,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       {currentMode === 'local' && (
         <div className="pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
           {/* Workspace Path Display & Picker */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1 w-full">
             <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -297,16 +299,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
                   data-testid="workspace-picker-trigger"
                   onClick={handleOpenPicker}
                   className={cn(
-                    'h-8 px-2.5 text-xs font-normal gap-1.5 max-w-full justify-start rounded-lg border-dashed',
-                    workspaceDir
-                      ? 'border-primary/40 bg-primary/5 text-foreground'
-                      : 'border-border text-muted-foreground',
+                    'h-8 px-2.5 text-xs font-normal gap-1.5 min-w-0 max-w-full justify-start rounded-lg border-dashed',
+                    workspaceDir ? 'border-primary/40 bg-primary/5 text-foreground' : UNBOUND_TRIGGER_CLASS,
                   )}
                 >
                   <FolderOpen
                     className={cn('h-3.5 w-3.5 shrink-0', workspaceDir ? 'text-primary' : 'text-muted-foreground')}
                   />
-                  <span className="truncate max-w-[220px] sm:max-w-[320px]">
+                  <span className={workspaceDir ? 'truncate max-w-[220px] sm:max-w-[320px]' : undefined}>
                     {workspaceDir ? shortenPath(workspaceDir) : t('noWorkspaceSelected')}
                   </span>
                 </Button>
