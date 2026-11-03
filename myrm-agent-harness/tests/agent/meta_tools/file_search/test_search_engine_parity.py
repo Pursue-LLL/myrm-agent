@@ -21,6 +21,7 @@ from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_fi
 PROJECT_FILES = {
     ".gitignore": "node_modules/\nbuild/\n*.log\n",
     ".env": "SECRET=needle\n",
+    ".hidden/notes.txt": "needle\n",
     "src/app.ts": "const needle = 1\n",
     "src/index.py": "needle = 1\n",
     "src/pkg/mod.py": "def mod():\n    return 'needle'\n",
@@ -38,6 +39,7 @@ PROJECT_FILES = {
 VISIBLE_FILES = {
     ".gitignore",
     ".env",
+    ".hidden/notes.txt",
     "src/app.ts",
     "src/index.py",
     "src/pkg/mod.py",
@@ -154,7 +156,8 @@ class TestGrepFilePatterns:
         output = await run_grep(project, "needle", file_pattern=file_pattern)
         hits = hit_files(output, ALL_FILES)
         assert hits.isdisjoint(IGNORED_FILES)
-        assert ".env" in hits
+        assert ".hidden/notes.txt" in hits
+        assert ".env" not in hits, "sensitive files are withheld from a directory search"
         assert {"src/app.ts", "src/pkg/mod.py", "config/settings.json"} <= hits
 
     async def test_ignore_files_apply_by_default(self, project: Path, run_grep: SearchRunner) -> None:

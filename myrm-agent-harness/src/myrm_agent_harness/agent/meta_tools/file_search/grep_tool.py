@@ -5,13 +5,15 @@
 - pydantic::BaseModel, Field (POS: 参数验证)
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏，防止凭证泄露到 LLM 上下文)
+- core.security.path::is_sensitive_file (POS: 敏感文件模式的唯一来源)
 - _redaction::redact_matches (POS: 逐文件按类型脱敏匹配行，源码里含 token 的类型名/变量名不被误遮)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
 - utils.lru_cache::LRUCache (POS: LRU 缓存)
 - _formatter (POS: Grep flat path:line output formatter with line truncation)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
-- fallback_search::search_files (POS: Python 档内容搜索：mmap 扫描、分批并发、结果与时间上限)
+- fallback_search::search_files (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
+- rg_matches::RgMatches (POS: ripgrep --json 事件流收集为匹配行；目录级搜索不返回敏感文件内容)
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档选出同一批文件)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
@@ -25,14 +27,13 @@ Content search tool (Claude Code compatible). Searches file contents for matchin
 with regex and literal (--fixed-strings) modes, flat path:line output and intelligent line truncation.
 Two search tiers choose the same files (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
-without producing a result.
+without producing a result. A search over a directory withholds the lines of sensitive files on both tiers.
 
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 import subprocess
@@ -47,6 +48,7 @@ from pydantic import BaseModel, Field
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executor
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.core.security.path import is_sensitive_file
 from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
@@ -58,6 +60,7 @@ from .fallback_search import search_files
 from .glob_match import compile_glob, is_match_all, normalize_glob
 from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
 from .regex_validator import RegexValidator
+from .rg_matches import RgMatches
 from .rg_traversal import rg_traversal_args
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
@@ -88,8 +91,8 @@ async def _ripgrep_search(
     timeout_seconds: float = 10.0,
     *,
     literal: bool = False,
-) -> list[dict[str, str | int]]:
-    """Execute search using ripgrep (fastest tier). Returns raw match list."""
+) -> RgMatches:
+    """Execute search using ripgrep (fastest tier). Returns the rows it found."""
     search_root = search_path if search_path.is_dir() else search_path.parent
     cmd = ["rg", "--json", *rg_traversal_args(search_root)]
 
@@ -109,49 +112,27 @@ async def _ripgrep_search(
 
     cmd.extend(["--", pattern, str(search_path)])
 
-    results: list[dict[str, str | int]] = []
-    match_count = 0
-
-    def _collect(line_bytes: bytes) -> bool:
-        nonlocal match_count
-        try:
-            data = json.loads(line_bytes)
-            if data.get("type") not in ("match", "context"):
-                return False
-            line_type = data["type"]
-            results.append(
-                {
-                    "file": data["data"]["path"]["text"],
-                    "line": data["data"]["line_number"],
-                    "content": data["data"]["lines"]["text"].rstrip("\n"),
-                    "type": line_type,
-                }
-            )
-        except (ValueError, KeyError):
-            return False
-        if line_type != "match":
-            return False
-        match_count += 1
-        return match_count >= max_results
+    # Naming a sensitive file as the path is a deliberate read (approval-gated); walking a directory is not.
+    matches = RgMatches(max_results, withhold_sensitive=search_path.is_dir())
 
     try:
         outcome = await run_rg(
             cmd,
             cwd=search_root,
             timeout_seconds=timeout_seconds,
-            on_line=_collect,
+            on_line=matches.feed,
         )
         if outcome.failed:
             logger.warning(f"ripgrep error: {outcome.stderr}")
             # An unreadable directory fails the run but leaves valid matches; a pattern ripgrep cannot parse
             # leaves none, and the Python tier (look-around, back-references) may still be able to search it.
-            if not results:
+            if not matches.rows:
                 raise RuntimeError("ripgrep failed")
     except (TimeoutError, RuntimeError) as e:
         logger.warning(f"ripgrep search failed: {e}, falling back to Python")
         raise
 
-    return results
+    return matches
 
 
 class GrepInput(BaseModel):
@@ -314,14 +295,14 @@ def create_grep_tool(
                     f"file_pattern={file_pattern}, ignore_case={ignore_case}, literal={literal}"
                 )
 
-            # --- Search phase: collect raw results from ripgrep or Python fallback ---
-            results: list[dict[str, str | int]] = []
-            files_searched = 0
-            used_ripgrep = False
+            # Rows name a file relative to the directory searched; a single file is named by its own name.
+            search_root = search_path_obj if search_path_obj.is_dir() else search_path_obj.parent
 
+            # --- Search phase: collect raw results from ripgrep or Python fallback ---
+            found: RgMatches | None = None
             if _has_ripgrep():
                 try:
-                    results = await _ripgrep_search(
+                    found = await _ripgrep_search(
                         pattern,
                         search_path_obj,
                         file_pattern,
@@ -331,25 +312,36 @@ def create_grep_tool(
                         io_cfg.search_timeout_seconds,
                         literal=literal,
                     )
-                    used_ripgrep = True
                 except Exception as e:
                     logger.debug(f"ripgrep fallback: {e}")
 
-            if not used_ripgrep:
-                files = await asyncio.to_thread(
+            # Only the Python tier knows how many files it searched; ripgrep's own count is wrong before version 15.
+            files_searched: int | None = None
+            scan_limit: int | None = None
+            if found is not None:
+                results = found.rows
+            else:
+                # One candidate beyond the cap shows whether the cap cut the scan short.
+                candidates = await asyncio.to_thread(
                     collect_candidate_files,
                     search_root=search_path_obj,
                     file_pattern=file_pattern,
-                    max_files=io_cfg.max_search_files,
+                    max_files=io_cfg.max_search_files + 1,
                     include_ignored=False,
                 )
+                if len(candidates) > io_cfg.max_search_files:
+                    scan_limit = io_cfg.max_search_files
+                files = candidates[: io_cfg.max_search_files]
+                if search_path_obj.is_dir():
+                    files = [candidate for candidate in files if not is_sensitive_file(str(candidate))]
                 results, files_searched = await search_files(
                     files,
                     regex,
-                    search_path_obj,
+                    search_root,
                     regex_validator=regex_validator,
                     max_results=io_cfg.max_search_results,
                     timeout_seconds=io_cfg.search_timeout_seconds,
+                    context_lines=context_lines,
                 )
 
             # --- Format phase ---
@@ -357,13 +349,10 @@ def create_grep_tool(
                 filtered_results: list[dict[str, str | int]] = []
                 for match in results:
                     rel_file = str(match.get("file", ""))
-                    abs_file = str(search_path_obj / rel_file) if rel_file else str(search_path_obj)
+                    abs_file = str(search_root / rel_file) if rel_file else str(search_root)
                     if not is_under_disabled_skill_root(abs_file, disabled_roots):
                         filtered_results.append(match)
                 results = filtered_results
-
-            if used_ripgrep:
-                files_searched = len({str(r["file"]) for r in results})
 
             return format_grep_results(
                 redact_matches(results),
@@ -371,6 +360,7 @@ def create_grep_tool(
                 files_searched,
                 io_cfg.max_search_results,
                 is_regex=not literal,
+                scan_limit=scan_limit,
             )
 
         except ToolError:

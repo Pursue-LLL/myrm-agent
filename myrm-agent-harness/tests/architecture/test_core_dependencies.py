@@ -185,7 +185,7 @@ def _lock_entry(registry: str, file_host: str) -> dict[str, object]:
 @pytest.mark.architecture
 def test_lock_provenance_check_distinguishes_pypi_from_mirror() -> None:
     """Positive and negative control for the check behind ``test_uv_lock_resolves_from_pypi``."""
-    project = {"name": _PROJECT_NAME, "source": {"editable": "."}}
+    project: dict[str, object] = {"name": _PROJECT_NAME, "source": {"editable": "."}}
     pypi = _lock_entry(_PYPI_INDEX, _PYPI_FILE_HOST)
     mirror = _lock_entry("https://pypi.tuna.tsinghua.edu.cn/simple", "pypi.tuna.tsinghua.edu.cn")
 

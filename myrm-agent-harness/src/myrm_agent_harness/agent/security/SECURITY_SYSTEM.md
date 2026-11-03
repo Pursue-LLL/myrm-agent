@@ -1182,6 +1182,8 @@ LangChain 工具有具体名称（如 `bash_code_execute_tool`），而安全策
 | `wiki_query_tool` | `knowledge_read` |
 | `wiki_apply_tool` / `wiki_ingest_tool` | `knowledge_write` |
 
+`grep_tool` 与 `glob_tool` 同属 `file_read`，但路径策略只检查调用时传入的 `path`：点名 `.env`、私钥等敏感文件按上文规则 ASK，传入工作区目录则是 ALLOW。为避免「搜目录」成为绕过审批读取敏感文件的旁路，`grep_tool` 在目录级搜索时不返回敏感文件（`core.security.path.is_sensitive_file` 判定）的任何匹配行：ripgrep 档由 `RgMatches` 在计入结果上限之前丢弃，Python 档在候选文件阶段剔除。点名单个文件作为 `path` 时不扣留，该读取已经过审批；`glob_tool` 只返回路径，不受此限。
+
 ### 破坏性操作的 HITL 保护
 
 以下权限类型在 `DEFAULT_RULESET` 中被设为 `ASK`（需人工审批），因为它们可修改 Agent 行为或系统调度：

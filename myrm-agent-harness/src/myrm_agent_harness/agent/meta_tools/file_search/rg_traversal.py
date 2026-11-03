@@ -11,8 +11,8 @@
 Single place that decides which files ripgrep walks, so the ripgrep tier and the Python tier
 (``fallback_discovery``) search the same files: user configuration never applies, hidden files are walked,
 version-control internals are never listed, and in a plain folder (no ``.git`` above it) dependency and build
-directories are skipped and ignore files of parent directories are not honoured. Inside a git checkout the
-decision stays with git's own ignore rules.
+directories are skipped and neither the ignore files of parent directories nor the user's global ignore file are
+honoured. Inside a git checkout the decision stays with git's own ignore rules.
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ def rg_traversal_args(search_root: Path, *, include_ignored: bool = False) -> li
         args.append("--no-ignore")
     elif not has_git_ancestor(search_root):
         # ``--no-require-git`` makes ripgrep honour ``.gitignore`` files without a repository, and it also reads
-        # those of parent directories: a stray ``*`` in one of them would hide the whole workspace.
-        args.extend(["--no-ignore-parent", "--glob", _PRUNE_DIRECTORIES_GLOB])
+        # those of parent directories and the user's global ignore file (``core.excludesFile``): a stray ``*`` in
+        # either would hide the whole workspace, and the Python tier reads neither outside a checkout.
+        args.extend(["--no-ignore-parent", "--no-ignore-global", "--glob", _PRUNE_DIRECTORIES_GLOB])
     return args

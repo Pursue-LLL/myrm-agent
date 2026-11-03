@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from myrm_agent_harness.agent.meta_tools.file_search._formatter import (
     _DENSIFY_MIN_MATCHES,
     MAX_LINE_CHARS,
@@ -9,6 +11,8 @@ from myrm_agent_harness.agent.meta_tools.file_search._formatter import (
     compact_match_line,
     format_grep_results,
 )
+
+type Rows = list[dict[str, str | int]]
 
 
 class TestCompactMatchLine:
@@ -55,7 +59,7 @@ class TestFormatGrepResults:
         assert "No matches found" in output
 
     def test_flat_output(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 5, "content": "hello world"},
             {"file": "b.py", "line": 10, "content": "hello again"},
         ]
@@ -65,46 +69,46 @@ class TestFormatGrepResults:
         assert "Found 2 match(es)" in output
 
     def test_non_code_file_capping(self) -> None:
-        matches = [{"file": "config.json", "line": i, "content": f'"key": {i}'} for i in range(10)]
+        matches: Rows = [{"file": "config.json", "line": i, "content": f'"key": {i}'} for i in range(10)]
         output = format_grep_results(matches, "key", 1, 100)
         visible_lines = [ln for ln in output.split("\n") if "config.json" in ln and ":" in ln and "omitted" not in ln]
         assert len(visible_lines) <= NON_CODE_MATCH_CAP
         assert "non-code matches omitted" in output
 
     def test_max_results_limit_message(self) -> None:
-        results = [{"file": "a.py", "line": i, "content": "match"} for i in range(5)]
+        results: Rows = [{"file": "a.py", "line": i, "content": "match"} for i in range(5)]
         output = format_grep_results(results, "match", 10, 5)
         assert "limited to first 5" in output
 
     def test_long_line_truncation_in_output(self) -> None:
         long_content = "x" * 500
-        results = [{"file": "a.py", "line": 10, "content": long_content}]
+        results: Rows = [{"file": "a.py", "line": 10, "content": long_content}]
         output = format_grep_results(results, "x", 5, 100)
         assert "truncated" in output
 
     def test_non_code_lock_file_capped(self) -> None:
-        matches = [{"file": "yarn.lock", "line": i, "content": f"pkg@{i}"} for i in range(10)]
+        matches: Rows = [{"file": "yarn.lock", "line": i, "content": f"pkg@{i}"} for i in range(10)]
         output = format_grep_results(matches, "pkg", 1, 100)
         assert "non-code matches omitted" in output
 
     def test_non_code_log_file_capped(self) -> None:
-        matches = [{"file": "app.log", "line": i, "content": f"ERROR {i}"} for i in range(10)]
+        matches: Rows = [{"file": "app.log", "line": i, "content": f"ERROR {i}"} for i in range(10)]
         output = format_grep_results(matches, "ERROR", 1, 100)
         assert "non-code matches omitted" in output
 
     def test_non_code_svg_file_capped(self) -> None:
-        matches = [{"file": "icon.svg", "line": i, "content": f"<path d='{i}'/>"} for i in range(10)]
+        matches: Rows = [{"file": "icon.svg", "line": i, "content": f"<path d='{i}'/>"} for i in range(10)]
         output = format_grep_results(matches, "path", 1, 100)
         assert "non-code matches omitted" in output
 
     def test_code_file_not_capped(self) -> None:
-        matches = [{"file": "service.py", "line": i, "content": f"x = {i}"} for i in range(10)]
+        matches: Rows = [{"file": "service.py", "line": i, "content": f"x = {i}"} for i in range(10)]
         output = format_grep_results(matches, "x", 1, 100)
         assert "non-code matches omitted" not in output
         assert output.count("x =") == 10
 
     def test_multiple_files_ordered(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 10, "content": "match_a"},
             {"file": "b.py", "line": 20, "content": "match_b"},
         ]
@@ -120,7 +124,7 @@ class TestFlatContextSeparator:
     """Flat (non-densified) context separators and context line formatting."""
 
     def test_flat_context_separator(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 10, "content": "match1", "type": "match"},
             {"file": "a.py", "line": 50, "content": "match2", "type": "match"},
         ]
@@ -130,7 +134,7 @@ class TestFlatContextSeparator:
         assert "  --" not in lines
 
     def test_flat_context_line_uses_dash_sep(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 10, "content": "match line", "type": "match"},
             {"file": "a.py", "line": 11, "content": "context line", "type": "context"},
         ]
@@ -169,7 +173,7 @@ class TestDensification:
     """Path-grouped densification: eliminates repeated paths when >= 5 matches."""
 
     def test_below_threshold_flat(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": i * 10, "content": f"line {i}", "type": "match"}
             for i in range(_DENSIFY_MIN_MATCHES - 1)
         ]
@@ -177,7 +181,7 @@ class TestDensification:
         assert "a.py:" in output
 
     def test_at_threshold_densified(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "src/long/path/module.py", "line": i * 10, "content": f"match {i}", "type": "match"}
             for i in range(_DENSIFY_MIN_MATCHES)
         ]
@@ -188,7 +192,7 @@ class TestDensification:
         assert len(indented) == _DENSIFY_MIN_MATCHES
 
     def test_single_file_densified(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "src/utils/api.ts", "line": i * 5, "content": f"data = fetch({i})", "type": "match"}
             for i in range(7)
         ]
@@ -198,7 +202,7 @@ class TestDensification:
         assert path_header_count == 1
 
     def test_multi_file_densified(self) -> None:
-        results = []
+        results: Rows = []
         for j, path in enumerate(["a.py", "b.py", "c.py"]):
             for i in range(3):
                 results.append({"file": path, "line": 10 + i + j * 100, "content": f"x = {i}", "type": "match"})
@@ -210,7 +214,7 @@ class TestDensification:
         assert not any(ln.startswith("a.py:") for ln in lines)
 
     def test_densified_saves_tokens(self) -> None:
-        results = [
+        results: Rows = [
             {
                 "file": "src/features/dashboard/UserStatsCard.tsx",
                 "line": i * 10,
@@ -227,7 +231,7 @@ class TestDensification:
         assert len(dense_output) < sum(len(ln) for ln in flat_lines) + 200
 
     def test_densified_context_separator(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 10, "content": "line1", "type": "match"},
             {"file": "a.py", "line": 50, "content": "line2", "type": "match"},
             {"file": "b.py", "line": 5, "content": "line3", "type": "match"},
@@ -238,7 +242,7 @@ class TestDensification:
         assert "  --" in output
 
     def test_densified_non_code_capping_preserved(self) -> None:
-        results = [{"file": "data.json", "line": i, "content": f'"key": {i}', "type": "match"} for i in range(10)]
+        results: Rows = [{"file": "data.json", "line": i, "content": f'"key": {i}', "type": "match"} for i in range(10)]
         output = format_grep_results(results, "key", 1, 100, is_regex=False)
         assert "non-code matches omitted" in output
         match_lines = [
@@ -249,7 +253,7 @@ class TestDensification:
         assert len(match_lines) <= NON_CODE_MATCH_CAP + 1
 
     def test_densified_with_context_lines(self) -> None:
-        results = [
+        results: Rows = [
             {"file": "a.py", "line": 10, "content": "match line", "type": "match"},
             {"file": "a.py", "line": 11, "content": "context line", "type": "context"},
             {"file": "a.py", "line": 12, "content": "match again", "type": "match"},
@@ -262,3 +266,37 @@ class TestDensification:
         lines = output.split("\n")
         context_lines = [ln for ln in lines if "- " in ln and ("context" in ln or "ctx" in ln)]
         assert len(context_lines) >= 1
+
+
+class TestFooters:
+    _MATCH: ClassVar[Rows] = [{"file": "a.py", "line": 1, "content": "x", "type": "match"}]
+
+    def test_unknown_files_searched_is_left_out_of_the_header(self) -> None:
+        output = format_grep_results(self._MATCH, "x", None, 100)
+        assert output.splitlines()[0] == "Found 1 match(es) for 'x':"
+
+    def test_unknown_files_searched_is_left_out_of_the_no_match_footer(self) -> None:
+        assert format_grep_results([], "x", None, 100) == "No matches found for: x"
+
+    def test_known_files_searched_is_reported(self) -> None:
+        assert format_grep_results([], "x", 7, 100) == "No matches found for: x\n(Searched 7 file(s))"
+        assert format_grep_results(self._MATCH, "x", 7, 100).splitlines()[0] == (
+            "Found 1 match(es) for 'x' (searched 7 file(s)):"
+        )
+
+    def test_scan_limit_note_closes_a_result_with_matches(self) -> None:
+        output = format_grep_results(self._MATCH, "x", 3, 100, scan_limit=3)
+        assert output.endswith(
+            "\n... (scan limited to the first 3 files; narrow path or file_pattern to cover the rest)"
+        )
+
+    def test_scan_limit_note_closes_a_result_without_matches(self) -> None:
+        output = format_grep_results([], "x", 3, 100, scan_limit=3)
+        assert output.splitlines() == [
+            "No matches found for: x",
+            "(Searched 3 file(s))",
+            "... (scan limited to the first 3 files; narrow path or file_pattern to cover the rest)",
+        ]
+
+    def test_no_scan_limit_note_by_default(self) -> None:
+        assert "scan limited" not in format_grep_results(self._MATCH, "x", 3, 100)

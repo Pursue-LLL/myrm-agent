@@ -30,6 +30,7 @@ the rule lists have exactly one home.
 ## Consumers
 - `agent/meta_tools/file_ops/validators/` — `SensitiveFileValidator`, `EvidenceReadOnlyValidator`, `InvariantValidator`
 - `agent/meta_tools/bash/_security/path_guard.py` — shell channel, via the predicates
+- `agent/meta_tools/file_search/` — `grep_tool.py` and `rg_matches.py` withhold the lines of a sensitive file from a directory search, which no path check sees
 - `agent/goals/invariant_snapshot.py` — post-hoc tamper detection
 - `agent/workspace_rules/rule_read_guard.py`, `backends/skills/local.py` (workspace scan), `agent/security/workspace_trust/manifest.py` and `repo_policy.py` — `read_text_bounded` for files read before the folder is trusted
 - `agent/security/path_security.py` — stable `agent.security.*` shim over this package

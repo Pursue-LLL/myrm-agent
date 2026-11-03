@@ -59,13 +59,20 @@ def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> s
 
 @pytest.fixture
 def run_glob(engine: str, monkeypatch: pytest.MonkeyPatch) -> SearchRunner:
-    async def invoke(root: Path, pattern: str, *, include_ignored: bool = False, max_results: int = 100) -> str:
+    async def invoke(
+        root: Path,
+        pattern: str,
+        *,
+        path: str = ".",
+        include_ignored: bool = False,
+        max_results: int = 100,
+    ) -> str:
         bind_executor(monkeypatch, root)
         tool = glob_tool.create_glob_tool(FileIOConfig(max_search_results=max_results))
         return str(
             await asyncio.wait_for(
                 tool.ainvoke(
-                    {"pattern": pattern, "include_ignored": include_ignored},
+                    {"pattern": pattern, "path": path, "include_ignored": include_ignored},
                     config=RunnableConfig(configurable={}),
                 ),
                 timeout=SEARCH_TIMEOUT_GUARD_SECONDS,
@@ -81,7 +88,9 @@ def run_grep(engine: str, monkeypatch: pytest.MonkeyPatch) -> SearchRunner:
         root: Path,
         pattern: str,
         *,
+        path: str = ".",
         file_pattern: str = "**/*",
+        context_lines: int = 0,
         max_results: int = 100,
         max_files: int = 1000,
     ) -> str:
@@ -89,7 +98,7 @@ def run_grep(engine: str, monkeypatch: pytest.MonkeyPatch) -> SearchRunner:
         tool = grep_tool.create_grep_tool(FileIOConfig(max_search_results=max_results, max_search_files=max_files))
         output = await asyncio.wait_for(
             tool.ainvoke(
-                {"pattern": pattern, "file_pattern": file_pattern},
+                {"pattern": pattern, "path": path, "file_pattern": file_pattern, "context_lines": context_lines},
                 config=RunnableConfig(configurable={}),
             ),
             timeout=SEARCH_TIMEOUT_GUARD_SECONDS,
