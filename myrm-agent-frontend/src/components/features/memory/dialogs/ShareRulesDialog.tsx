@@ -108,23 +108,20 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
       <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span>Share Rules Safely</span>
+            <span>{t('title')}</span>
             <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
-              Privacy Protected
+              {t('privacyBadge')}
             </span>
           </DialogTitle>
-          <DialogDescription>
-            Export your AI-learned rules with automatic path anonymization and credential redaction. Safe to share
-            publicly or with your team.
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center gap-3 py-2 border-b">
           <button onClick={toggleAll} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-            {selectedIds.size === previews.length ? 'Deselect All' : 'Select All'}
+            {selectedIds.size === previews.length ? t('deselectAll') : t('selectAll')}
           </button>
           <span className="text-xs text-muted-foreground">
-            {selectedIds.size}/{previews.length} selected
+            {t('selectedCount', { selected: selectedIds.size, total: previews.length })}
           </span>
           <div className="ml-auto flex gap-1">
             <button
@@ -158,9 +155,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : previews.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-8">
-              No procedural rules found. Rules are automatically learned from your conversations.
-            </div>
+            <div className="text-center text-sm text-muted-foreground py-8">{t('empty')}</div>
           ) : (
             previews.map((item) => (
               <div key={item.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-accent/50 transition-colors">
@@ -176,7 +171,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
                 <button
                   onClick={() => handlePreview(item)}
                   className="shrink-0 p-1 rounded hover:bg-accent transition-colors"
-                  title="Preview sanitized content"
+                  title={t('previewSanitized')}
                 >
                   <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
@@ -204,7 +199,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
             )}
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? t('copiedButton') : t('copyButton')}
           </button>
           <button
             onClick={handleExport}
@@ -216,7 +211,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
             )}
           >
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Download ZIP
+            {t('downloadZip')}
           </button>
         </DialogFooter>
       </DialogContent>

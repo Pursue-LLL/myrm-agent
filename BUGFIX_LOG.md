@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 知识库「五层资产看板」、审阅单弹窗、记忆监控卡、共享规则对话框、架构图预览的界面文案是写死的英文，另 5 种语言的用户看到的也是英文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S"settings.wiki.ledger"` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码] 门禁（`bun scripts/check-hardcoded-copy.mjs`）基线里这 6 个文件共 70 处：`WikiLayersLedgerPanel.tsx`（五层标题/副标题/徽章/说明、抽屉、拦截规则提示）、`WikiLayerItemPreviewModal.tsx`（预览弹窗各字段）、`WikiReviewSlipModal.tsx`（标题、说明、提取中、确认/稍后）、`MemoryMonitorCard.tsx`（标题、堆分析按钮与提示、表头、图表系列名）、`ShareRulesDialog.tsx`（标题、隐私徽标、全选、已选计数、空态、复制/下载）、`ArchitecturePreview.tsx`（搜索占位、Diff 徽章、最短路径、依赖追踪提示）。在非英文界面里这些位置仍是英文原文。 |
+| **根因** | [代码] 这些组件没有接 `useTranslations`，或只接了一部分命名空间；五层看板的层级信息写在对象数组常量里，门禁看不到。 |
+| **修复** | `locales/*.json`（6 种语言）新增 `settings.wiki.ledger.*`（含 `layers.l1..l5`、`preview.*`）、`settings.wiki.reviewSlip` 的 12 个键、`settings.memoryCenter.monitor` 的 15 个键、`memory.shareRules` 的 10 个键、`artifacts.architecture` 的 18 个键；组件改读这些键；`WikiLayerItemPreviewModal` 的图标按钮补上本地化 `aria-label`；`bun scripts/check-hardcoded-copy.mjs --write-baseline` 收紧基线 687 → 617（122 个文件）。 |
+| **回归证据** | [1] 新增 `WikiReviewSlipModal.test.tsx`、`ShareRulesDialog.test.tsx`、`ArchitecturePreview.test.tsx`，重写 `WikiLayersLedgerPanel.test.tsx`、更新 `MemoryMonitorCard.test.tsx`；把这 5 个测试文件放到干净的 `28ae37a30f` 上，21 例红（找不到翻译键对应的元素）。[2] 本修复后 `settings`、`memory`、`artifacts` 三个目录共 297 个文件 2375 例全过。[3] `bun run lint`（7 个门禁）、`bunx tsc --noEmit`、`bun run verify:i18n`、`check_typescript_strict`、`check_fractal_docs --no-stub`、`check_barrel_exports`、`check_module_resolution`、孤儿门禁、prettier 全部通过。 |
+| **仍然存在** | ① 门禁看不到单个英文单词和对象/数组常量里的文案，同类漏网项没有清点。② `WikiReviewSlipModal` 的示例洞察数据仍是中文样例；审阅单里的「WorkBuddy architecture」徽标是第三方产品名，保持原样；`ProjectExperienceWizardModal` 的导出内容由 `evidencePackGenerator.ts` 生成（约 55 行中文），是否本地化导出内容需要单独决定，本条未处理。③ 6 种语言的译文由机器撰写，没有母语者审阅，也没有在浏览器里逐语言目检。④ 可达文件里还剩 617 处，其中 422 处在 `memory/command-center/`（受 `NEXT_PUBLIC_MEMORY_LABS` 控制）。 |
+| **代码位置** | frontend：`src/components/features/{settings/sections/knowledge/{MemoryMonitorCard.tsx,wiki/{WikiLayersLedgerPanel,WikiLayerItemPreviewModal,WikiReviewSlipModal}.tsx},memory/dialogs/ShareRulesDialog.tsx,artifacts/renderers/architecture/ArchitecturePreview.tsx}` 及对应 `__tests__`、`_ARCH.md`；`locales/*.json`；`scripts/ci/hardcoded_copy_baseline.json`。 |
+
 ## 2026-11-03 · 思考块标题、截图预览按钮、嵌入内容的加载按钮、Diff 工具栏、变更审阅面板的搜索与过滤、骨架屏的无障碍标签、侧栏展开按钮等 11 个组件里的界面文案是写死的英文，另 5 种语言的用户看到的也是英文
 
 | 字段 | 内容 |

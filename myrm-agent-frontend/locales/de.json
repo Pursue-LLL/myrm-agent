@@ -6190,7 +6190,18 @@
       "selectAtLeastOne": "Bitte wählen Sie mindestens eine Regel aus",
       "exported": "{count, plural, one {# Regel erfolgreich exportiert} other {# Regeln erfolgreich exportiert}}",
       "exportFailed": "Export fehlgeschlagen",
-      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}"
+      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}",
+      "title": "Regeln sicher teilen",
+      "privacyBadge": "Datenschutz gewährleistet",
+      "description": "Exportiere die von der KI gelernten Regeln mit automatischer Pfad-Anonymisierung und Entfernung von Zugangsdaten. Sicher zum Teilen – öffentlich oder im Team.",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
+      "selectedCount": "{selected}/{total} ausgewählt",
+      "empty": "Keine Verfahrensregeln gefunden. Regeln werden automatisch aus deinen Gesprächen gelernt.",
+      "previewSanitized": "Bereinigten Inhalt ansehen",
+      "copyButton": "Kopieren",
+      "copiedButton": "Kopiert!",
+      "downloadZip": "ZIP herunterladen"
     }
   },
   "sharedContextTargetBinding": {
@@ -6795,7 +6806,25 @@
       "viewportNotFound": "Viewport-Element nicht gefunden",
       "exportSuccess": "Export erfolgreich",
       "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
-      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
+      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert",
+      "invalidSchema": "Ungültiges Architektur-JSON-Schema oder Parsing fehlgeschlagen.",
+      "defaultTitle": "Systemarchitektur-Karte",
+      "evolutionDiffActive": "Evolutions-Diff aktiv",
+      "searchNodes": "Knoten suchen ...",
+      "liveView": "Live-Ansicht",
+      "diffView": "Diff-Ansicht",
+      "copied": "Kopiert",
+      "diffNodesAdded": "+{count} Knoten",
+      "diffNodesDeleted": "-{count} Knoten",
+      "diffNodesModified": "~{count} geändert",
+      "diffEdgesAdded": "+{count} Kanten",
+      "diffEdgesDeleted": "-{count} Kanten",
+      "shortestPath": "Kürzester Pfad:",
+      "hops": "({count, plural, one {# Hop} other {# Hops}})",
+      "noDirectedPath": "(kein gerichteter Pfad)",
+      "tracingFor": "Abhängigkeitsbaum wird verfolgt für:",
+      "clickToTrace": "(Auf einen anderen Knoten klicken, um die Route zu verfolgen)",
+      "clear": "Zurücksetzen"
     },
     "vaultCard": {
       "loading": "Datei wird geladen...",
@@ -15021,7 +15050,21 @@
         "profilingStartNetworkError": "Netzwerkfehler beim Starten des Profilings",
         "profilingStopped": "Heap-Profiling gestoppt. Ergebnisse liegen vor.",
         "profilingStopFailed": "Profiling konnte nicht gestoppt werden",
-        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings"
+        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings",
+        "title": "Speicher und Profiling",
+        "stopProfiling": "Profiling stoppen",
+        "startProfiling": "Heap-Profiling starten",
+        "loadingHistory": "Speicherverlauf wird geladen ...",
+        "noHistory": "Kein Speicherverlauf verfügbar.",
+        "profilingActiveTitle": "Heap-Profiling läuft",
+        "profilingActiveBody": "Das System verfolgt derzeit alle Python-Speicherzuweisungen. Das kann 10–20 % Leistungs-Overhead verursachen. Klicke auf „Profiling stoppen“, um die Ergebnisse anzuzeigen.",
+        "topAllocations": "Größte Speicherzuweisungen",
+        "colFile": "Datei",
+        "colLine": "Zeile",
+        "colSizeKb": "Größe (KB)",
+        "colCount": "Anzahl",
+        "seriesRss": "RSS gesamt (MB)",
+        "seriesNative": "Native-Schätzung (MB)"
       }
     },
     "commands": {
@@ -18198,7 +18241,88 @@
       "reviewSlip": {
         "fetchFailed": "Prüfliste konnte nicht geladen werden",
         "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
-        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen"
+        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen",
+        "engineLabel": "Engine zur Wissenssicherung aus Ergebnissen",
+        "title": "Autoren-Prüfliste",
+        "description": "Prüfe die wertvollen Erkenntnisse, die aus dem Ergebnis extrahiert wurden. Alles zurückzuschreiben würde die Wissensbasis verunreinigen, deshalb bestätigt der Autor die Zielschicht jedes Eintrags.",
+        "exclusionTitle": "Negativregeln aktiv: {count} flüchtige Störeinträge blockiert",
+        "exclusionBody": "Einmalige Test-IPs, Dummy-Konfigurationen, Demo-Mitschriften und temporäre Debug-Logs wurden automatisch ausgeschlossen, damit der Kern der Wissensbasis sauber bleibt.",
+        "extracting": "Wertvolle Erkenntnisse werden extrahiert und Filterregeln bewertet ...",
+        "noQuestions": "Diese Aufgabe hat keine allgemeinen Erfahrungen zum Zurückschreiben ergeben; alles bleibt sicher im Ergebnis erhalten.",
+        "pendingLayer": "Schicht offen",
+        "recommended": "Empfohlen",
+        "footerNote": "Nach dem Absenden werden die Einträge in ihre Schichten geschrieben und als Draft markiert; die Veröffentlichung erfolgt später manuell.",
+        "later": "Später",
+        "confirm": "Bestätigen und sicher zurückschreiben"
+      },
+      "ledger": {
+        "title": "Übersicht der fünf Wissensschichten",
+        "architectureBadge": "WorkBuddy-Architektur",
+        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten; dazu gibt es Aufgabenprotokoll-Audits und selektives Zurückschreiben über die Autoren-Prüfliste.",
+        "refreshStats": "Statistik aktualisieren",
+        "openReviewSlip": "Autoren-Prüfliste öffnen",
+        "viewLayerItems": "Eintragsliste von {title} anzeigen",
+        "archivedItems": "Archivierte Einträge",
+        "drawerTitle": "{title} · archivierte Einträge",
+        "itemCount": "{count} Dokumente",
+        "closeDrawer": "Eintragsliste schließen",
+        "loadingItems": "Dokumentliste dieser Schicht wird geladen ...",
+        "emptyItems": "In dieser Schicht gibt es noch keine archivierten Markdown-Einträge. Sie entstehen, wenn nach einer langen Aufgabe über die Prüfliste zurückgeschrieben wird.",
+        "previewItem": "Eintrag {title} in der Vorschau ansehen",
+        "noSnippet": "Noch keine Zusammenfassung",
+        "justNow": "Gerade eben",
+        "quickPreview": "Schnellvorschau",
+        "blockNoticeLead": "Aktiv: ",
+        "blockNoticeRule": "Hartes Sperren negativer Rückschreibungen",
+        "blockNoticeTail": ": Demo-Umgebungen, bestimmte IPs, einmalige Testdaten und temporäre Skripte werden automatisch ausgeschlossen.",
+        "reviewSlipGuide": "Regeln zur Prüfliste",
+        "layers": {
+          "l1": {
+            "title": "Rohdaten und Kandidatenpool",
+            "subtext": "Rohdaten & Posteingang",
+            "badge": "Rohbeleg",
+            "description": "Unverarbeitete Web-Snapshots, Besprechungsaufnahmen und flüchtige Entwürfe; nehmen strikt nicht an der Langzeitsuche teil."
+          },
+          "l2": {
+            "title": "Quellen-Nachweiskarten",
+            "subtext": "Sources (Ausweiskarten)",
+            "badge": "Beweisquelle",
+            "description": "Quellen-Ausweiskarten mit Autoritätsstufe und SHA256-Signatur – die Grundlage für die Rückverfolgbarkeit allen Faktenwissens."
+          },
+          "l3": {
+            "title": "Kernwissensbasis",
+            "subtext": "Konzepte & Methoden",
+            "badge": "Hochvertrauenswürdig",
+            "description": "Objektive Fakten, atomare Konzepte und Engineering-Methoden, die das strenge Draft-to-Live-Gate passieren."
+          },
+          "l4": {
+            "title": "Meinungen und Behauptungen",
+            "subtext": "Claims (noch zu prüfen)",
+            "badge": "Subjektive Annahme",
+            "description": "Hypothesen mit Konfidenz und Diskussionsverlauf, strikt von objektiven Fakten getrennt, damit sie die Wahrheitsschicht nicht verunreinigen."
+          },
+          "l5": {
+            "title": "Ergebnisse und Nutzungsprotokolle",
+            "subtext": "Ergebnisse & Verzeichnisse",
+            "badge": "Lieferprotokoll",
+            "description": "Endergebnisse einer Aufgabe, mit vollständigem Protokoll über zitiertes, abgeleitetes und nicht übernommenes Wissen."
+          }
+        },
+        "preview": {
+          "ariaLabel": "Dokumentvorschau des Eintrags",
+          "jsonLedgerBadge": "JSON-Protokoll",
+          "taskBadge": "Aufgabe #{id}",
+          "updatedAt": "Aktualisiert: {value}",
+          "storageLayer": "Speicherschicht: {value}",
+          "fileType": "Dateityp: {value}",
+          "fileTypeJson": "Strukturiertes Audit-Protokoll (JSON)",
+          "fileTypeMarkdown": "Markdown-Wissensasset",
+          "sourceTask": "Quellaufgabe: {value}",
+          "pathCopied": "Pfad kopiert",
+          "copyPath": "Relativen Pfad kopieren",
+          "openInEditor": "Im Wiki-Editor öffnen",
+          "close": "Vorschau schließen"
+        }
       }
     },
     "skills": {
