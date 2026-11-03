@@ -3,7 +3,8 @@
 [INPUT]
 - transport.profile (POS: Route — provider id and bare model)
 - transport.http (POS: Chunk, StreamDecoder)
-- transport.errors (POS: LLMStreamError for errors inside a 200 stream)
+- transport.errors (POS: LLMAnswerError for an error inside a 200 answer or stream)
+- transport.frames (POS: the JSON payload of a stream frame)
 
 [OUTPUT]
 - parse: a Messages answer as a chat.completion dict (content, reasoning, tool_calls, usage with cache accounting)
@@ -22,7 +23,8 @@ import json
 from collections.abc import Mapping
 from typing import Final
 
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
+from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.profile import Route
 
@@ -31,6 +33,7 @@ _STOP_REASON: Final = {
     "stop_sequence": "stop",
     "pause_turn": "stop",
     "max_tokens": "length",
+    "model_context_window_exceeded": "length",
     "tool_use": "tool_calls",
     "refusal": "content_filter",
 }
@@ -62,6 +65,8 @@ def _usage(raw: Mapping[str, object]) -> dict[str, object]:
 
 
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    if payload.get("type") == "error":
+        raise LLMAnswerError(route.profile.id, payload)
     texts: list[str] = []
     reasoning: list[str] = []
     thinking_blocks: list[Block] = []
@@ -153,15 +158,12 @@ class AnthropicStreamDecoder:
             self._usage.update({k: v for k, v in raw.items() if isinstance(v, int)})
 
     def feed(self, event: str | None, data: str) -> list[Chunk]:
-        try:
-            payload = json.loads(data)
-        except ValueError:
-            return []
-        if not isinstance(payload, dict):
+        payload = json_frame(self._provider, data)
+        if payload is None:
             return []
         kind = payload.get("type") or event
         if kind == "error":
-            raise LLMStreamError(self._provider, payload)
+            raise LLMAnswerError(self._provider, payload, stream=True)
         if kind == "message_start":
             message = payload.get("message")
             if isinstance(message, Mapping):

@@ -13,7 +13,7 @@ from myrm_agent_harness.toolkits.llms.transport import (
     openai_chat,
     openai_responses,
 )
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.profile import resolve_route
 
 from .decoding_helpers import Payload, feed_events, first_delta, first_finish_reason
@@ -168,7 +168,7 @@ class TestGeminiStream:
         )
 
     def test_an_error_event_raises(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             feed_events(gemini_generate.decoder(self.route), [(None, {"error": {"code": 429, "message": "quota"}})])
 
 
@@ -242,7 +242,7 @@ class TestOllama:
         assert first_finish_reason(chunks[-1]) == "tool_calls"
 
     def test_an_error_line_raises(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             feed_events(ollama_chat.decoder(self.route), [(None, {"error": "model 'x' not found"})])
 
 
@@ -258,15 +258,15 @@ class TestOpenAIChatDecoder:
         assert decoder.done
 
     def test_an_error_object_without_choices_raises(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             feed_events(openai_chat.decoder(self.route), [(None, {"error": {"message": "boom", "code": 500}})])
 
     def test_a_chunk_with_choices_and_an_error_field_is_not_an_error(self) -> None:
         chunk = {"error": None, "choices": [{"index": 0, "delta": {"content": "x"}}]}
         assert feed_events(openai_chat.decoder(self.route), [(None, chunk)]) == [chunk]
 
-    @pytest.mark.parametrize("data", ["", ": keep-alive", "{broken", "[1]"])
-    def test_garbage_is_skipped(self, data: str) -> None:
+    @pytest.mark.parametrize("data", ["", ": keep-alive", "ping", "[1]"])
+    def test_a_frame_without_a_payload_is_skipped(self, data: str) -> None:
         assert feed_events(openai_chat.decoder(self.route), [(None, data)]) == []
 
     def test_parse_returns_the_provider_answer_itself(self) -> None:
@@ -331,7 +331,7 @@ class TestResponsesDecoder:
         assert decoder.done
 
     def test_an_untyped_error_object_raises(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             feed_events(openai_responses.decoder(self.route), [(None, {"error": {"message": "boom"}})])
 
     def test_the_event_header_names_the_type_when_the_payload_has_none(self) -> None:

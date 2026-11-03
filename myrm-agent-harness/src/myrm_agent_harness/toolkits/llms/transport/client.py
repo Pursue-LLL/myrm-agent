@@ -3,6 +3,7 @@
 [INPUT]
 - transport.profile (POS: resolve_route — provider, endpoint and credential of a call)
 - transport.http (POS: request execution and stream iterators)
+- transport.chat_shape (POS: the chat.completion shape the adapter reads, applied to every chat answer)
 - transport.openai_chat / openai_responses / anthropic_messages / anthropic_response / gemini_generate / ollama_chat (POS: the wires)
 
 [OUTPUT]
@@ -11,7 +12,8 @@
 
 [POS]
 Facade over the wires: resolve the route, let the wire build the provider request, execute it, and return the answer
-in the OpenAI chat shape (dict, or an iterator of chunk dicts when streaming). It holds no state, so one instance
+in the OpenAI chat shape (dict, or an iterator of chunk dicts when streaming); ``chat_shape`` guarantees that shape
+whichever wire or gateway produced the answer. It holds no state, so one instance
 serves every model and thread; connection pools live in ``http``. It exposes the same four calls and keyword
 arguments the chat adapter has always issued, which keeps the adapter's retry, failover and recovery logic untouched.
 """
@@ -31,6 +33,7 @@ from myrm_agent_harness.toolkits.llms.transport import (
     openai_chat,
     openai_responses,
 )
+from myrm_agent_harness.toolkits.llms.transport.chat_shape import ShapedDecoder, shape_completion
 from myrm_agent_harness.toolkits.llms.transport.http import (
     AsyncProviderStream,
     PreparedRequest,
@@ -86,16 +89,16 @@ class LLMTransport:
         wire = _CHAT_WIRES[route.profile.wire]
         request = wire.prepare(route, messages, params)
         if request.stream:
-            return open_stream(request, wire.decoder(route))
-        return wire.parse(route, send_json(request))
+            return open_stream(request, ShapedDecoder(wire.decoder(route)))
+        return shape_completion(route.profile.id, wire.parse(route, send_json(request)))
 
     async def acompletion(self, *, messages: Messages, **params: object) -> dict[str, object] | AsyncProviderStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
         request = wire.prepare(route, messages, params)
         if request.stream:
-            return await aopen_stream(request, wire.decoder(route))
-        return wire.parse(route, await asend_json(request))
+            return await aopen_stream(request, ShapedDecoder(wire.decoder(route)))
+        return shape_completion(route.profile.id, wire.parse(route, await asend_json(request)))
 
     def responses(self, **params: object) -> dict[str, object] | ProviderStream:
         route = _route(params)

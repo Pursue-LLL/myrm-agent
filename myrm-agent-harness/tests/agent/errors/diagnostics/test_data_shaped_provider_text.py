@@ -15,7 +15,7 @@ import openai
 import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from tests.support.provider_errors import provider_error
 
 _MODEL = "stub-model"
@@ -145,7 +145,7 @@ def test_a_body_whose_message_is_empty_still_names_the_model(rejection: Callable
     "payload", [{}, {"code": 1027, "msg": "output sensitive"}], ids=["empty object", "code and msg"]
 )
 def test_a_stream_error_event_with_no_sentence_names_the_exception(payload: dict[str, object]) -> None:
-    exc = LLMStreamError("openai", payload)
+    exc = LLMAnswerError("openai", payload)
 
     result = LLMErrorDiagnostic.diagnose(exc, _CONTEXT, locale="en")
 

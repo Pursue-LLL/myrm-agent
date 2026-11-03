@@ -25,7 +25,8 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import Final
 
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
+from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
@@ -233,6 +234,8 @@ def _finish(payload: Mapping[str, object], has_tool_calls: bool) -> str:
 
 
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    if payload.get("error"):
+        raise LLMAnswerError(route.profile.id, payload)
     raw = payload.get("message")
     source: Mapping[str, object] = raw if isinstance(raw, Mapping) else {}
     calls = _calls_out(source)
@@ -266,14 +269,11 @@ class OllamaStreamDecoder:
         self.done = False
 
     def feed(self, event: str | None, data: str) -> list[Chunk]:
-        try:
-            payload = json.loads(data)
-        except ValueError:
-            return []
-        if not isinstance(payload, dict):
+        payload = json_frame(self._provider, data)
+        if payload is None:
             return []
         if payload.get("error"):
-            raise LLMStreamError(self._provider, payload)
+            raise LLMAnswerError(self._provider, payload, stream=True)
         raw = payload.get("message")
         source: Mapping[str, object] = raw if isinstance(raw, Mapping) else {}
         delta: Message = {}

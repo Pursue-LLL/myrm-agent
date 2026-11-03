@@ -2,12 +2,15 @@
 
 [INPUT]
 - typing::Any (POS: Python 类型标注标准库)
+- utils.coercion::parse_int (POS: token counts a provider sends as text, null or negative)
+- toolkits.llms.transport.errors::error_status (POS: the HTTP status a failure reported inside a 2xx answer stands for)
 - .responses_stream::ResponsesStreamState (POS: per-stream function-call and reasoning bookkeeping)
 
 [OUTPUT]
 - responses_dict_to_chat_completion: completed payload → chat.completion dict
 - responses_event_to_completion_chunk: SSE event (+ the stream's state) → chat.completion.chunk or None
-- extract_responses_stream_error / assert_responses_payload_not_failed: failure surfacing
+- responses_stream_failure / assert_responses_payload_not_failed: failure surfacing as ResponsesStreamError, which
+  carries the HTTP status the failure stands for
 - extract_responses_reasoning_items: encrypted reasoning items for later replay
 
 [POS]
@@ -21,11 +24,25 @@ from __future__ import annotations
 
 from typing import Any
 
+from myrm_agent_harness.toolkits.llms.transport.errors import error_status
+from myrm_agent_harness.utils.coercion import parse_int
+
 from .responses_stream import ResponsesStreamState, ToolCallDelta
+
+_REQUEST_FAILED = "Responses API request failed"
 
 
 class ResponsesStreamError(Exception):
-    """OpenAI Responses API returned a failed or error stream/completion payload."""
+    """OpenAI Responses API returned a failed or error stream/completion payload.
+
+    ``status_code`` is the HTTP status the failure stands for (``None`` when it names none and nothing else implies
+    one), which is what lets the failure classifier repeat a ``server_error`` or a rate limit and leave a rejected
+    prompt alone.
+    """
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def _error_message_from_payload(error: object) -> str | None:
@@ -41,32 +58,32 @@ def _error_message_from_payload(error: object) -> str | None:
     return None
 
 
-def extract_responses_stream_error(event: dict[str, Any]) -> str | None:
-    """Return a human-readable API error from a Responses SSE event, if present."""
+def _failure(error: object, *, in_stream: bool) -> ResponsesStreamError | None:
+    message = _error_message_from_payload(error)
+    if message is None:
+        return None
+    return ResponsesStreamError(message, error_status(error if isinstance(error, dict) else {}, in_stream=in_stream))
+
+
+def responses_stream_failure(event: dict[str, Any]) -> ResponsesStreamError | None:
+    """The failure a Responses SSE event reports, if it reports one.
+
+    An ``error`` event or a ``response.failed`` event is a failure even when it says nothing more: reading it as an
+    ordinary event would end the answer where the provider broke it, and call that a success.
+    """
     event_type = str(event.get("type") or "").lower()
-
-    if event_type == "error" or event_type.endswith(".error"):
-        direct = _error_message_from_payload(event.get("error"))
-        if direct:
-            return direct
-
-    if "failed" in event_type:
-        response = event.get("response")
-        if isinstance(response, dict):
-            nested = _error_message_from_payload(response.get("error"))
-            if nested:
-                return nested
-        top_level = _error_message_from_payload(event.get("error"))
-        if top_level:
-            return top_level
-
-    if "response.completed" in event_type or event_type.endswith("response_completed"):
-        response = event.get("response")
-        if isinstance(response, dict) and response.get("status") == "failed":
-            nested = _error_message_from_payload(response.get("error"))
-            if nested:
-                return nested
-
+    response = event.get("response")
+    nested = response if isinstance(response, dict) else {}
+    is_error = event_type == "error" or event_type.endswith(".error")
+    reports_failure = "failed" in event_type or nested.get("status") == "failed"
+    if not (is_error or reports_failure):
+        return None
+    # OpenAI's own error event carries ``code`` and ``message`` on the event itself; gateways nest them in ``error``.
+    for error in (event.get("error"), nested.get("error"), event if is_error else None):
+        if failure := _failure(error, in_stream=True):
+            return failure
+    if is_error or event_type == "response.failed" or nested.get("status") == "failed":
+        return ResponsesStreamError(_REQUEST_FAILED, error_status(event, in_stream=True))
     return None
 
 
@@ -74,10 +91,7 @@ def assert_responses_payload_not_failed(response: dict[str, Any]) -> None:
     """Raise when a non-stream Responses payload reports failed status."""
     if response.get("status") != "failed":
         return
-    message = _error_message_from_payload(response.get("error"))
-    if message:
-        raise ResponsesStreamError(message)
-    raise ResponsesStreamError("Responses API request failed")
+    raise _failure(response.get("error"), in_stream=False) or ResponsesStreamError(_REQUEST_FAILED)
 
 
 def _extract_output_text(response: dict[str, Any]) -> str:
@@ -167,12 +181,17 @@ def _usage_details(raw: object, keys: tuple[str, ...]) -> dict[str, int]:
     return {key: count for key in keys if isinstance(count := raw.get(key), int) and count > 0}
 
 
-def _map_usage(usage: dict[str, Any] | None) -> dict[str, Any] | None:
+def _map_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
+    """Chat-completions usage of a Responses ``usage`` object; empty when the provider reported none.
+
+    A count that is text, null or negative is read the way every chat wire reads it (``chat_shape.shape_usage``):
+    as the number it spells, else zero.
+    """
     if not usage:
-        return None
-    input_tokens = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
-    output_tokens = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
-    total = int(usage.get("total_tokens") or (input_tokens + output_tokens))
+        return {}
+    input_tokens = parse_int(usage.get("input_tokens") or usage.get("prompt_tokens"), 0, min_val=0)
+    output_tokens = parse_int(usage.get("output_tokens") or usage.get("completion_tokens"), 0, min_val=0)
+    total = parse_int(usage.get("total_tokens"), 0, min_val=0) or input_tokens + output_tokens
     mapped: dict[str, Any] = {
         "prompt_tokens": input_tokens,
         "completion_tokens": output_tokens,

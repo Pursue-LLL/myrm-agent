@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
 
+from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS
 from myrm_agent_harness.toolkits.llms.transport.http import FilePart, PreparedRequest, asend_json
 from myrm_agent_harness.toolkits.llms.transport.openai_chat import openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
@@ -74,8 +75,6 @@ _MINIMAX_SIZES: Final = {
     "720x1280": "9:16",
     "1344x576": "21:9",
 }
-# MiniMax answers 200 with its own status code in ``base_resp``; these are the HTTP statuses they stand for.
-_MINIMAX_STATUS: Final = {1002: 429, 1004: 401, 1008: 402, 1026: 400, 2013: 400, 2049: 401}
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,7 +321,7 @@ def _parse_minimax(payload: dict[str, object]) -> list[GeneratedImage]:
         message = base.get("status_msg", "unknown") if isinstance(base, dict) else "unknown"
         raise ImageProviderError(
             "minimax_image",
-            _MINIMAX_STATUS.get(status, 500) if isinstance(status, int) else 500,
+            BASE_RESP_STATUS.get(status, 500) if isinstance(status, int) else 500,
             f"{status}: {message}",
         )
     data = payload.get("data")

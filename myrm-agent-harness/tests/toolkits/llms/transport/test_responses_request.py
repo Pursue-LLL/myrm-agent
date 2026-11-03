@@ -7,7 +7,7 @@ import json
 import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import openai_chat, openai_responses
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError, resolve_route
 
@@ -86,7 +86,7 @@ class TestEventDecoder:
         assert decoder.feed(None, " [DONE] \n") == []
         assert decoder.done is True
 
-    @pytest.mark.parametrize("data", ["{broken", "[1, 2]", "7", "null"], ids=["not-json", "array", "number", "null"])
+    @pytest.mark.parametrize("data", ["keep-alive", "[1, 2]", "7", "null"], ids=["text", "array", "number", "null"])
     def test_a_frame_that_is_not_an_event_object_is_skipped(self, data: str) -> None:
         decoder = self._decoder()
 
@@ -109,7 +109,7 @@ class TestEventDecoder:
         assert decoder.done is True
 
     def test_a_typeless_error_payload_raises_instead_of_ending_quietly(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             self._decoder().feed(None, json.dumps({"error": {"code": "server_error", "message": "boom"}}))
 
     def test_an_event_that_merely_mentions_an_error_field_is_still_an_event(self) -> None:

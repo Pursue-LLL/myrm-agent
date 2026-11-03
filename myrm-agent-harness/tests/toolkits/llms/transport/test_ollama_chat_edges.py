@@ -9,7 +9,7 @@ from dataclasses import replace
 import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import ollama_chat
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError, resolve_route
 
 Message = dict[str, object]
@@ -96,7 +96,7 @@ class TestStreamLines:
     def _decoder(self) -> ollama_chat.OllamaStreamDecoder:
         return ollama_chat.OllamaStreamDecoder("ollama", "llama3.1")
 
-    @pytest.mark.parametrize("line", ["{broken", "[1, 2]", "42"], ids=["not-json", "array", "number"])
+    @pytest.mark.parametrize("line", ["keep-alive", "[1, 2]", "42"], ids=["text", "array", "number"])
     def test_a_line_that_is_not_an_object_is_skipped(self, line: str) -> None:
         decoder = self._decoder()
 
@@ -112,7 +112,7 @@ class TestStreamLines:
         assert decoder.done is True
 
     def test_an_error_line_raises_instead_of_ending_the_stream_quietly(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             self._decoder().feed(None, json.dumps({"error": "model not found"}))
 
     def test_a_call_without_a_function_leaves_no_gap_that_a_later_line_would_collide_with(self) -> None:

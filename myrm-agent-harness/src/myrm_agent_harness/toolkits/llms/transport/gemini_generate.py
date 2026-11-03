@@ -36,7 +36,8 @@ from myrm_agent_harness.toolkits.llms.transport.capabilities import (
     gemini_thinking_level,
     gemini_thinks_by_level,
 )
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
+from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.gemini_contents import SIGNATURE_SEPARATOR, Part, to_contents
 from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_schema
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
@@ -294,6 +295,8 @@ def _blocked(payload: Mapping[str, object]) -> bool:
 
 
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    if payload.get("error") and not payload.get("candidates"):
+        raise LLMAnswerError(route.profile.id, payload)
     candidate = _candidate(payload)
     texts: list[str] = []
     reasoning: list[str] = []
@@ -340,14 +343,11 @@ class GeminiStreamDecoder:
         self.done = False
 
     def feed(self, event: str | None, data: str) -> list[Chunk]:
-        try:
-            payload = json.loads(data)
-        except ValueError:
+        payload = json_frame(self._provider, data)
+        if payload is None:
             return []
-        if not isinstance(payload, dict):
-            return []
-        if "error" in payload and "candidates" not in payload:
-            raise LLMStreamError(self._provider, payload)
+        if payload.get("error") and not payload.get("candidates"):
+            raise LLMAnswerError(self._provider, payload, stream=True)
         self._model = str(payload.get("modelVersion") or self._model)
         candidate = _candidate(payload)
         delta: Part = {}

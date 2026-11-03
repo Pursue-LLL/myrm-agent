@@ -4,10 +4,11 @@
 - transport.openai_chat (POS: openai_endpoint — URL and credential headers of the OpenAI family)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
 - transport.http (POS: PreparedRequest, StreamDecoder)
+- transport.frames (POS: the JSON payload of a stream frame)
 
 [OUTPUT]
 - prepare: a PreparedRequest for ``POST {base}/responses``
-- parse: the provider's JSON answer (identity; the adapter's normalizer reads the Responses object)
+- parse: the provider's JSON answer (the adapter's normalizer reads the Responses object); a bare error body raises
 - decoder: the SSE decoder yielding Responses event dicts
 
 [POS]
@@ -18,12 +19,12 @@ provider sent them; ``response.completed`` / ``response.failed`` / ``response.in
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping
 from typing import Final
 
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
+from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.openai_chat import drop_unsupported_temperature, openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
@@ -64,6 +65,10 @@ def prepare(route: Route, params: Mapping[str, object]) -> PreparedRequest:
 
 
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    # A Response object carries a status or an output; a body with an error and neither is the provider's refusal
+    # to answer. (A ``failed`` Response is the adapter's to read: it names the failure in the provider's words.)
+    if payload.get("error") and "status" not in payload and "output" not in payload:
+        raise LLMAnswerError(route.profile.id, payload)
     return payload
 
 
@@ -78,16 +83,12 @@ class ResponsesEventDecoder:
         if data.strip() == "[DONE]":
             self.done = True
             return []
-        try:
-            payload = json.loads(data)
-        except ValueError:
-            logger.debug("Skipping a non-JSON stream event from %s", self._provider)
-            return []
-        if not isinstance(payload, dict):
+        payload = json_frame(self._provider, data)
+        if payload is None:
             return []
         kind = payload.get("type") or event
-        if "type" not in payload and "error" in payload:
-            raise LLMStreamError(self._provider, payload)
+        if "type" not in payload and payload.get("error"):
+            raise LLMAnswerError(self._provider, payload, stream=True)
         if kind in _TERMINAL_EVENTS:
             self.done = True
         return [payload]

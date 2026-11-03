@@ -7,9 +7,9 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import (
     _error_message_from_payload,
     assert_responses_payload_not_failed,
     extract_responses_reasoning_items,
-    extract_responses_stream_error,
     responses_dict_to_chat_completion,
     responses_event_to_completion_chunk,
+    responses_stream_failure,
 )
 from myrm_agent_harness.toolkits.llms.adapters.wire.responses_stream import ResponsesStreamState
 
@@ -154,7 +154,7 @@ def test_delta_then_completed_does_not_duplicate_arguments() -> None:
 
 
 def test_extract_error_from_response_failed_event() -> None:
-    message = extract_responses_stream_error(
+    failure = responses_stream_failure(
         {
             "type": "response.failed",
             "response": {
@@ -163,18 +163,18 @@ def test_extract_error_from_response_failed_event() -> None:
             },
         }
     )
-    assert message == "training_not_allowed: Training not allowed for muse-spark contributor"
+    assert str(failure) == "training_not_allowed: Training not allowed for muse-spark contributor"
 
 
 def test_extract_error_from_error_event() -> None:
-    message = extract_responses_stream_error(
+    failure = responses_stream_failure(
         {"type": "error", "error": {"message": "Internal server error"}},
     )
-    assert message == "Internal server error"
+    assert str(failure) == "Internal server error"
 
 
 def test_extract_error_from_completed_failed_response() -> None:
-    message = extract_responses_stream_error(
+    failure = responses_stream_failure(
         {
             "type": "response.completed",
             "response": {
@@ -183,7 +183,7 @@ def test_extract_error_from_completed_failed_response() -> None:
             },
         }
     )
-    assert message == "data policy error: allowTraining required"
+    assert str(failure) == "data policy error: allowTraining required"
 
 
 def test_assert_responses_payload_not_failed_raises() -> None:
@@ -194,10 +194,10 @@ def test_assert_responses_payload_not_failed_raises() -> None:
 
 
 def test_error_payload_with_code_prefix() -> None:
-    message = extract_responses_stream_error(
+    failure = responses_stream_failure(
         {"type": "error", "error": {"code": "rate_limit", "message": "Too many requests"}},
     )
-    assert message == "rate_limit: Too many requests"
+    assert str(failure) == "rate_limit: Too many requests"
 
 
 def test_output_text_field_used_when_present() -> None:

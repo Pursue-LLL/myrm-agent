@@ -8,7 +8,7 @@ from dataclasses import replace
 import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import gemini_generate
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError, resolve_route
 
 Body = dict[str, object]
@@ -96,7 +96,7 @@ class TestStreamFrames:
     def _decoder(self) -> gemini_generate.GeminiStreamDecoder:
         return gemini_generate.GeminiStreamDecoder("gemini", "gemini-2.5-pro")
 
-    @pytest.mark.parametrize("data", ["{broken", "[1]", "3", "null"], ids=["not-json", "array", "number", "null"])
+    @pytest.mark.parametrize("data", ["keep-alive", "[1]", "3", "null"], ids=["text", "array", "number", "null"])
     def test_a_frame_that_is_not_an_object_is_skipped(self, data: str) -> None:
         decoder = self._decoder()
 
@@ -104,7 +104,7 @@ class TestStreamFrames:
         assert decoder.done is False
 
     def test_an_error_frame_raises_instead_of_ending_quietly(self) -> None:
-        with pytest.raises(LLMStreamError):
+        with pytest.raises(LLMAnswerError):
             self._decoder().feed(None, json.dumps({"error": {"code": 429, "message": "quota"}}))
 
     def test_a_frame_with_no_new_text_and_no_finish_yields_nothing(self) -> None:

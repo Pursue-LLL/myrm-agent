@@ -79,13 +79,13 @@ _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
 _PROVIDER_WORDS_REASONS = frozenset({FailoverReason.LONG_CONTEXT_TIER, FailoverReason.PROVIDER_POLICY_BLOCKED})
 
 # Framing in front of the provider's words: the model transport's own ("openai API error 400: ", "anthropic stream
-# error: "), a LiteLLM proxy's relayed exception class ("litellm.BadRequestError: ") and provider tag
+# error: ", "openai answer error: "), a LiteLLM proxy's relayed exception class ("litellm.BadRequestError: ") and provider tag
 # ("OpenAIException - ", "AzureException BadRequestError - "), the OpenAI SDK's status line ("Error code: 400 - ", or
 # "Error code: 400" alone when the SDK leaves the body out of the text). The `provider` group is non-empty only when
 # the provider's framing is present.
 _LLM_LIBRARY_PREFIX = re.compile(
     r"^(?:litellm\.[A-Za-z]+Error:\s*)*"
-    r"(?P<provider>[\w.-]+\s+(?:API error\s+\d{3}|stream error):\s*"
+    r"(?P<provider>[\w.-]+\s+(?:API error\s+\d{3}|(?:stream|answer) error):\s*"
     r"|(?:[A-Za-z]+Exception(?:\s+[A-Za-z]+Error)?\s+-\s+)?(?:Error code:\s*\d{3}(?:\s+-\s+|\s*$))?)"
 )
 # The human sentence inside a JSON or Python-dict error body: `{"error": {"message": "..."}}`. Each quote style

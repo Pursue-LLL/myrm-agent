@@ -74,7 +74,10 @@ class PreparedRequest:
 class StreamDecoder(Protocol):
     """Turns the framed stream of one provider into OpenAI-shaped chat chunks."""
 
-    done: bool
+    @property
+    def done(self) -> bool:
+        """True once the provider has said the stream is over; the framing layer stops reading there."""
+        ...
 
     def feed(self, event: str | None, data: str) -> list[Chunk]:
         """Chunks carried by one SSE event / NDJSON line (may be empty)."""

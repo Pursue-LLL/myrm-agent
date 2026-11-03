@@ -7,8 +7,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from myrm_agent_harness.toolkits.llms.transport.errors import (
+    LLMAnswerError,
     LLMHTTPError,
-    LLMStreamError,
     araise_for_status,
     raise_for_status,
 )
@@ -39,11 +39,22 @@ class TestLLMHTTPError:
         assert len(str(LLMHTTPError("p", 500, text, _response(500, text)))) < 2100
 
 
-class TestLLMStreamError:
+_UNNAMED: list[dict[str, object]] = [
+    {"error": {"code": 200}},
+    {"error": {"code": 600}},
+    {"error": {"code": True}},
+    {"error": {"code": "mystery", "type": "mystery"}},
+    {"error": "plain text"},
+    {},
+]
+
+
+class TestLLMAnswerError:
+    @pytest.mark.parametrize("stream", [True, False])
     @pytest.mark.parametrize(
         ("payload", "status"),
         [
-            # The status an event carries is the status it stands for, wherever it sits and however it is written.
+            # The status a failure carries is the status it stands for, wherever it sits and however it is written.
             ({"error": {"code": 429, "message": "quota"}}, 429),
             ({"error": {"code": "503"}}, 503),
             ({"code": 500}, 500),
@@ -61,23 +72,30 @@ class TestLLMStreamError:
             ({"code": "server_error"}, 500),
             ({"error": {"code": "Rate_Limit_Exceeded"}}, 429),
             ({"error": {"type": "invalid_request_error", "code": "rate_limit_exceeded"}}, 429),
-            # An event that names neither is a fault of the provider, which had accepted the request.
-            ({"error": {"code": 200}}, 500),
-            ({"error": {"code": 600}}, 500),
-            ({"error": {"code": True}}, 500),
-            ({"error": {"code": "mystery", "type": "mystery"}}, 500),
-            ({"error": "plain text"}, 500),
-            ({}, 500),
         ],
     )
-    def test_the_status_is_the_one_the_event_carries_or_its_kind_implies(
-        self, payload: dict[str, object], status: int
+    def test_the_status_is_the_one_the_failure_carries_or_its_kind_implies(
+        self, payload: dict[str, object], status: int, stream: bool
     ) -> None:
-        assert LLMStreamError("openrouter", payload).status_code == status
+        assert LLMAnswerError("openrouter", payload, stream=stream).status_code == status
+
+    @pytest.mark.parametrize("payload", _UNNAMED)
+    def test_an_event_that_names_no_status_or_kind_is_a_fault_of_the_provider(self, payload: dict[str, object]) -> None:
+        """The provider had accepted the request and broke down while answering it: worth repeating."""
+        assert LLMAnswerError("openrouter", payload, stream=True).status_code == 500
+
+    @pytest.mark.parametrize("payload", _UNNAMED)
+    def test_a_body_that_names_no_status_or_kind_stays_unknown(self, payload: dict[str, object]) -> None:
+        """It is the provider's verdict on the whole request, which may be a rejection: nothing repeats it blindly."""
+        assert LLMAnswerError("openrouter", payload).status_code is None
+
+    def test_the_message_says_where_the_failure_was_found(self) -> None:
+        assert str(LLMAnswerError("openai", {"error": "x"}, stream=True)).startswith("openai stream error: ")
+        assert str(LLMAnswerError("openai", {"error": "x"})).startswith("openai answer error: ")
 
     def test_keeps_the_payload_as_body(self) -> None:
         payload: dict[str, object] = {"error": {"message": "boom"}}
-        assert LLMStreamError("p", payload).body == payload
+        assert LLMAnswerError("p", payload).body == payload
 
 
 class TestRaiseForStatus:
@@ -131,7 +149,7 @@ class TestClassification:
         assert classify_error(self._error(status, body)) == kind
 
     def test_a_stream_error_with_a_numeric_code_classifies_like_the_http_failure(self) -> None:
-        error = LLMStreamError("openrouter", {"error": {"code": 429, "message": "Rate limit exceeded"}})
+        error = LLMAnswerError("openrouter", {"error": {"code": 429, "message": "Rate limit exceeded"}}, stream=True)
         assert classify_error(error) == ErrorKind.RATE_LIMIT
 
     @pytest.mark.parametrize(
@@ -182,4 +200,27 @@ class TestClassification:
     def test_a_stream_error_event_classifies_like_the_same_failure_answered_with_a_status(
         self, payload: dict[str, object], kind: ErrorKind
     ) -> None:
-        assert classify_error(LLMStreamError("openai", payload)) == kind
+        assert classify_error(LLMAnswerError("openai", payload, stream=True)) == kind
+
+    @pytest.mark.parametrize(
+        ("payload", "kind"),
+        [
+            ({"error": {"type": "server_error", "message": "The server had an error"}}, ErrorKind.OVERLOADED),
+            ({"error": {"code": 429, "message": "Rate limit reached for requests"}}, ErrorKind.RATE_LIMIT),
+            ({"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}, ErrorKind.OVERLOADED),
+            (
+                {"type": "error", "error": {"type": "invalid_request_error", "message": "messages: bad"}},
+                ErrorKind.FORMAT_ERROR,
+            ),
+            (
+                {"error": {"type": "insufficient_quota", "message": "You exceeded your current quota"}},
+                ErrorKind.BILLING,
+            ),
+            ({"error": {"message": "Something went wrong"}}, ErrorKind.UNKNOWN),
+            ({"error": "model not loaded"}, ErrorKind.UNKNOWN),
+        ],
+    )
+    def test_an_error_body_classifies_like_the_same_failure_answered_with_a_status(
+        self, payload: dict[str, object], kind: ErrorKind
+    ) -> None:
+        assert classify_error(LLMAnswerError("openai", payload)) == kind

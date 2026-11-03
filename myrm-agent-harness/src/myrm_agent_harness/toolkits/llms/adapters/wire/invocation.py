@@ -4,8 +4,7 @@
 - logging::logging (POS: Python 标准日志库)
 - collections.abc::AsyncIterator, Iterator (POS: Python 迭代器抽象类型)
 - typing::Any (POS: Python 类型标注标准库)
-- toolkits.llms.adapters.wire.normalizer::ResponsesStreamError,
-  assert_responses_payload_not_failed, extract_responses_stream_error,
+- toolkits.llms.adapters.wire.normalizer::assert_responses_payload_not_failed, responses_stream_failure,
   responses_dict_to_chat_completion, responses_event_to_completion_chunk
   (POS: Responses wire 响应归一化层)
 - toolkits.llms.adapters.wire.params::build_responses_kwargs
@@ -32,11 +31,10 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import (
-    ResponsesStreamError,
     assert_responses_payload_not_failed,
-    extract_responses_stream_error,
     responses_dict_to_chat_completion,
     responses_event_to_completion_chunk,
+    responses_stream_failure,
 )
 from myrm_agent_harness.toolkits.llms.adapters.wire.params import build_responses_kwargs
 from myrm_agent_harness.toolkits.llms.adapters.wire.responses_stream import ResponsesStreamState
@@ -228,9 +226,8 @@ async def stream_responses_async(
     state = ResponsesStreamState()
     async for event in _aiter_responses_stream(client, message_dicts, params):
         event_dict = _event_to_dict(event)
-        error_message = extract_responses_stream_error(event_dict)
-        if error_message:
-            raise ResponsesStreamError(error_message)
+        if failure := responses_stream_failure(event_dict):
+            raise failure
         chunk = responses_event_to_completion_chunk(event_dict, state)
         if chunk is not None:
             yield chunk
@@ -244,9 +241,8 @@ def stream_responses_sync(
     state = ResponsesStreamState()
     for event in _iter_responses_stream(client, message_dicts, params):
         event_dict = _event_to_dict(event)
-        error_message = extract_responses_stream_error(event_dict)
-        if error_message:
-            raise ResponsesStreamError(error_message)
+        if failure := responses_stream_failure(event_dict):
+            raise failure
         chunk = responses_event_to_completion_chunk(event_dict, state)
         if chunk is not None:
             yield chunk

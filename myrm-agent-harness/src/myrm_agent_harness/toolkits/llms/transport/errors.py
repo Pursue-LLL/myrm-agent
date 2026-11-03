@@ -5,8 +5,10 @@
 
 [OUTPUT]
 - LLMHTTPError: a non-2xx answer, carrying the status, the parsed body and the response
-- LLMStreamError: an error event inside an already-open stream
+- LLMAnswerError: a failure the provider reports inside a 2xx answer (an error event of an open stream, or an error body)
 - LLMResponseError: a 2xx answer that is not the JSON object the wire expects
+- error_status: the HTTP status a failure reported inside a 2xx answer stands for
+- BASE_RESP_STATUS: the HTTP statuses of the failure codes MiniMax answers with in ``base_resp``
 - raise_for_status / araise_for_status: turn a failed response into LLMHTTPError (sync / async, streaming-safe)
 
 [POS]
@@ -43,8 +45,11 @@ _STATUS_OF_KIND: Final = {
     "overloaded_error": 529,
     "overloaded": 529,
 }
-# An event that names neither a status nor a known kind reports a fault after the provider accepted the request.
-_UNNAMED_STATUS: Final = 500
+# MiniMax answers a failure with HTTP 200 and its own code in ``base_resp``; these are the HTTP statuses they stand for.
+BASE_RESP_STATUS: Final = {1002: 429, 1004: 401, 1008: 402, 1026: 400, 2013: 400, 2049: 401}
+# An event that names neither a status nor a known kind and interrupts a stream the provider had accepted reports a
+# fault on its side.
+_STREAM_UNNAMED_STATUS: Final = 500
 
 
 class LLMHTTPError(Exception):
@@ -64,18 +69,22 @@ class LLMHTTPError(Exception):
         super().__init__(f"{provider} API error {status_code}: {body_text[:_MESSAGE_LIMIT]}")
 
 
-class LLMStreamError(Exception):
-    """A provider reported a failure inside an already-open stream (HTTP 200 with an error event).
+class LLMAnswerError(Exception):
+    """A provider reported a failure inside a 2xx answer: an error event of an open stream, or an error body.
 
-    ``status_code`` is the HTTP status the event stands for: the one it carries, else the one its kind implies, else a
-    server fault. The failure classifier then treats the event like the same failure answered with a status.
+    ``status_code`` is the HTTP status the failure stands for: the one it carries, else the one its kind implies, else
+    (for an event that interrupts a stream the provider had accepted) a server fault. A body that replaces the whole
+    answer and names nothing stays unknown (``None``), as the failure of a request answered with such a body always
+    was, so nothing retries a request the provider may have rejected. The failure classifier then treats the
+    failure like the same one answered with a status.
     """
 
-    def __init__(self, provider: str, payload: dict[str, object]) -> None:
+    def __init__(self, provider: str, payload: dict[str, object], *, stream: bool = False) -> None:
         self.llm_provider = provider
         self.body = payload
-        self.status_code = _error_status(payload)
-        super().__init__(f"{provider} stream error: {json.dumps(payload, ensure_ascii=False)[:_MESSAGE_LIMIT]}")
+        self.status_code = error_status(payload, in_stream=stream)
+        where = "stream" if stream else "answer"
+        super().__init__(f"{provider} {where} error: {json.dumps(payload, ensure_ascii=False)[:_MESSAGE_LIMIT]}")
 
 
 class LLMResponseError(ValueError):
@@ -92,7 +101,13 @@ class LLMResponseError(ValueError):
         super().__init__(message)
 
 
-def _error_status(payload: dict[str, object]) -> int:
+def error_status(payload: dict[str, object], *, in_stream: bool) -> int | None:
+    """The HTTP status a failure reported inside a 2xx answer stands for.
+
+    ``payload`` is an error object, or an answer or event whose ``error`` field holds one. The status is the one the
+    failure carries, else the one its kind implies; a failure that names neither is a fault of the provider when it
+    interrupts a stream (``in_stream``) and stays unknown (``None``) when it is the whole answer.
+    """
     error = payload.get("error")
     detail = error if isinstance(error, dict) else payload
     code = detail.get("code")
@@ -103,7 +118,7 @@ def _error_status(payload: dict[str, object]) -> int:
     for kind in (code, detail.get("type")):
         if isinstance(kind, str) and (status := _STATUS_OF_KIND.get(kind.lower())):
             return status
-    return _UNNAMED_STATUS
+    return _STREAM_UNNAMED_STATUS if in_stream else None
 
 
 def _parse_body(text: str) -> dict[str, object]:

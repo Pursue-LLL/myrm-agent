@@ -10,7 +10,7 @@ import pytest
 from myrm_agent_harness.toolkits.llms.transport import (
     anthropic_response,
 )
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.http import StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.profile import resolve_route
 
@@ -84,6 +84,8 @@ class TestAnthropicParse:
             ("end_turn", "stop"),
             ("stop_sequence", "stop"),
             ("max_tokens", "length"),
+            # The response filled the context window: it is cut off, whatever the input size was.
+            ("model_context_window_exceeded", "length"),
             ("tool_use", "tool_calls"),
             ("refusal", "content_filter"),
             ("something_new", "stop"),
@@ -182,6 +184,26 @@ class TestAnthropicStream:
             "cache_read_input_tokens": 8,
         }
         assert all(c["id"] == "msg_1" for c in chunks)
+
+    @pytest.mark.parametrize(
+        ("stop_reason", "finish"),
+        [("max_tokens", "length"), ("model_context_window_exceeded", "length"), ("something_new", "stop")],
+    )
+    def test_the_stop_reason_of_a_streamed_answer_maps_like_the_one_of_a_whole_answer(
+        self, stop_reason: str, finish: str
+    ) -> None:
+        chunks = feed_events(
+            self._decoder(),
+            [
+                ("message_start", {"type": "message_start", "message": {"id": "m", "usage": {"input_tokens": 1}}}),
+                (
+                    "message_delta",
+                    {"type": "message_delta", "delta": {"stop_reason": stop_reason}, "usage": {"output_tokens": 1}},
+                ),
+                ("message_stop", {"type": "message_stop"}),
+            ],
+        )
+        assert first_finish_reason(chunks[-1]) == finish
 
     def test_parallel_tool_calls_get_running_zero_based_indexes_and_stream_their_arguments(self) -> None:
         chunks = feed_events(
@@ -349,7 +371,7 @@ class TestAnthropicStream:
 
     def test_an_error_event_raises_with_the_payload(self) -> None:
         payload = {"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}
-        with pytest.raises(LLMStreamError) as caught:
+        with pytest.raises(LLMAnswerError) as caught:
             feed_events(self._decoder(), [("error", payload)])
         assert caught.value.body == payload
 

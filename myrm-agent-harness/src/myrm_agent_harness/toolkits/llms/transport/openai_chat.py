@@ -4,32 +4,36 @@
 - transport.profile (POS: Route / ProviderProfile — endpoint, credential and per-provider body quirks)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
 - transport.http (POS: PreparedRequest, StreamDecoder)
+- transport.frames (POS: the JSON payload of a stream frame)
 
 [OUTPUT]
 - prepare: a PreparedRequest for ``/chat/completions`` (OpenAI, Azure OpenAI and every OpenAI-compatible provider)
-- parse: the provider's JSON answer as the chat.completion dict the adapter consumes
-- decoder: the SSE decoder yielding chat.completion.chunk dicts
+- parse: the provider's JSON answer as the chat.completion dict the adapter consumes; a failure sent in its place raises
+- decoder: the SSE decoder yielding chat.completion.chunk dicts; a failure sent in the stream raises
 - openai_endpoint: URL, query and auth headers for an OpenAI-family path (shared with the Responses wire)
 
 [POS]
 The wire most providers speak. The adapter's messages and parameters are already OpenAI-shaped, so building is
 a few deterministic rules: provider body defaults, the reasoning-model parameter names, text-content flattening
 for APIs that reject content arrays, and ``extra_body`` laid over the typed fields. Responses are returned as the
-provider sent them, with one correction: cache reads a provider reports at the top level of ``usage`` (DeepSeek's
+provider sent them, with two corrections: cache reads a provider reports at the top level of ``usage`` (DeepSeek's
 ``prompt_cache_hit_tokens``, Anthropic-style ``cache_read_input_tokens`` from gateways) are also reported where every
-usage reader looks for them (``prompt_tokens_details.cached_tokens``). The adapter reads the dict directly, so nothing
-is re-parsed into SDK models.
+usage reader looks for them (``prompt_tokens_details.cached_tokens``), and a failure the provider sends with a 200
+status (an ``error`` object, MiniMax's ``base_resp`` code, an ``error`` finish reason) is raised, never read as an
+answer. The adapter reads the dict directly, so nothing is re-parsed into SDK models; ``chat_shape`` evens out the
+shape differences between gateways afterwards.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping, Sequence
+from typing import Final
 from urllib.parse import urlsplit
 
 from myrm_agent_harness.toolkits.llms.transport.capabilities import keeps_temperature_without_reasoning
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS, LLMAnswerError
+from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import ProviderProfile, Route, UnsupportedProviderError
@@ -41,6 +45,10 @@ _DEFAULT_AZURE_API_VERSION = "2024-10-21"
 _DEFAULT_AZURE_RESPONSES_API_VERSION = "preview"
 _OFFICIAL_HOST = "api.openai.com"
 _TOP_LEVEL_CACHE_READ_KEYS = ("prompt_cache_hit_tokens", "cache_read_input_tokens")
+# Finish reasons that say the provider cut the answer off, with the HTTP status the cut stands for (``None``: no hint).
+# OpenRouter ends an answer whose upstream broke with ``error``; DeepSeek documents ``insufficient_system_resource`` and
+# ``aborted`` for a request its inference system interrupted, which a retry fixes.
+_CUT_OFF_FINISH: Final[dict[str, int | None]] = {"error": None, "insufficient_system_resource": 503, "aborted": 503}
 
 
 def _flatten_text(messages: Sequence[Mapping[str, object]], mode: str) -> list[dict[str, object]]:
@@ -196,7 +204,41 @@ def _report_cache_hits(payload: dict[str, object]) -> None:
         details["cached_tokens"] = hits
 
 
+def _cut_off(reason: str) -> dict[str, object]:
+    detail: dict[str, object] = {"message": f'the provider ended the answer with finish reason "{reason}"'}
+    if status := _CUT_OFF_FINISH[reason]:
+        detail["code"] = status
+    return detail
+
+
+def _failure(payload: Mapping[str, object]) -> dict[str, object] | None:
+    """The failure an answer reports instead of a completion, in the shape ``LLMAnswerError`` reads; ``None`` if none.
+
+    Providers report one in HTTP 200 as an ``error`` object (also next to ``choices``: a gateway that relays a failed
+    upstream), as MiniMax's ``base_resp`` code with no choices, or as a finish reason that says the answer was cut off
+    (OpenRouter's ``error``, whose detail may sit on the choice; DeepSeek's resource shortage). Reading any of them as
+    an answer would hand the agent half an answer, or none.
+    """
+    if payload.get("error"):
+        return dict(payload)
+    base = payload.get("base_resp")
+    status = base.get("status_code") if isinstance(base, Mapping) else None
+    if isinstance(status, int) and status != 0 and not payload.get("choices"):
+        message = f"{status}: {base.get('status_msg')}" if isinstance(base, Mapping) else str(status)
+        return {"error": {"message": message, "code": BASE_RESP_STATUS.get(status, 500)}}
+    choices = payload.get("choices")
+    for choice in choices if isinstance(choices, list) else []:
+        if not isinstance(choice, Mapping):
+            continue
+        reason = str(choice.get("finish_reason") or "").lower()
+        if reason in _CUT_OFF_FINISH:
+            return {"error": choice.get("error") or _cut_off(reason)}
+    return None
+
+
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
+    if failure := _failure(payload):
+        raise LLMAnswerError(route.profile.id, failure)
     _report_cache_hits(payload)
     return payload
 
@@ -214,15 +256,11 @@ class OpenAIChunkDecoder:
         if data.strip() == "[DONE]":
             self.done = True
             return []
-        try:
-            chunk = json.loads(data)
-        except ValueError:
-            logger.debug("Skipping a non-JSON stream event from %s", self._provider)
+        chunk = json_frame(self._provider, data)
+        if chunk is None:
             return []
-        if not isinstance(chunk, dict):
-            return []
-        if "error" in chunk and not chunk.get("choices"):
-            raise LLMStreamError(self._provider, chunk)
+        if failure := _failure(chunk):
+            raise LLMAnswerError(self._provider, failure, stream=True)
         _report_cache_hits(chunk)
         return [chunk]
 
