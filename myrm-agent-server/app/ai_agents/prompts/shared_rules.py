@@ -129,7 +129,7 @@ RESPONSE_RULES_EN = """
   - **Tables**: Prefer Markdown tables for structured data comparisons.
   - **Strict LaTeX math**:
       - All mathematical formulas and symbols must use LaTeX format.
-      - Inline formulas: Must be enclosed in double dollar signs `$$...$$` (e.g. `$$E=mc^2$$`, `$$\\frac{{a}}{{b}}$$`, `$$x_i$$`, `$$\\%$$`).
+      - Inline formulas: Must be enclosed in double dollar signs `$$...$$` (e.g. `$$E=mc^2$$`, `$$\\frac{a}{b}$$`, `$$x_i$$`, `$$\\%$$`).
       - Block formulas: Use newline-wrapped double dollar signs `$$\\n...\\n$$` to center on a separate line.
       - Never use single `$` for formulas (reserved only for USD currency). Never wrap non-math text or numbers (e.g. prices, dates) in `$$`.
   </formatting_rules>
@@ -155,7 +155,7 @@ RESPONSE_RULES_ZH = """
   - **严格的公式格式**:
       - **必须格式化**: 所有数学和科学公式、符号都必须使用 LaTeX 格式。
       - **行内公式**: 必须使用**两个美元符号 `$$` 包围**，`$$`...`$$`。
-        示例：`$$E=mc^2$$`, `$$\\frac{{a}}{{b}}$$`, `$$x_i$$`, `$$\\%$$`。
+        示例：`$$E=mc^2$$`, `$$\\frac{a}{b}$$`, `$$x_i$$`, `$$\\%$$`。
       - **块级公式**: 使用换行的两个美元符号 `$$\\n`...`\\n$$` 包围，使其独立成行并居中。
           - 示例：
               $$\n

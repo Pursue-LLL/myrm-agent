@@ -8,6 +8,7 @@ and that prompt strings are stable for KV Cache optimization.
 import pytest
 from myrm_agent_harness.core.security.detection.content_boundary import SECURITY_BOUNDARY_SYSTEM_RULES
 
+from app.ai_agents.prompts import shared_rules
 from app.ai_agents.prompts.general_agent_prompt import (
     CORE_SYSTEM_PROMPT,
     coerce_prompt_mode,
@@ -336,3 +337,12 @@ class TestCoercePromptMode:
     def test_unknown_modes_fall_back_to_full(self, mode: str) -> None:
         assert coerce_prompt_mode(mode) == "full"
         assert get_core_system_prompt(coerce_prompt_mode(mode)) is get_core_system_prompt("full")
+
+
+class TestSharedRulesAreRenderedText:
+    """Shared rule constants reach the model verbatim, so format escapes must not leak into them."""
+
+    def test_no_format_escapes_in_shared_rule_constants(self) -> None:
+        for name, value in vars(shared_rules).items():
+            if name.isupper() and isinstance(value, str):
+                assert "{{" not in value and "}}" not in value, name
