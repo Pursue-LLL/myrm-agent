@@ -1,6 +1,6 @@
 'use client';
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import MessageBox from '@/components/features/message-box/MessageBox';
@@ -126,5 +126,20 @@ describe('MessageBox wake notice rows', () => {
 
     expect(screen.getByTestId('wakeup-notice').getAttribute('data-kind')).toBe(kind);
     expect(screen.queryByText(/system_notification/)).toBeNull();
+  });
+});
+
+describe('MessageBox developer-mode system prompt row', () => {
+  it('stays hidden until developer mode shows system messages, then carries a localized label', () => {
+    const systemPrompt = message('s1', 'system');
+    storeMessages.current = [systemPrompt];
+    const { container } = render(<MessageBox message={systemPrompt} messageIndex={0} loading={false} isLast={false} />);
+    expect(container.innerHTML).toBe('');
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('developer-mode-changed', { detail: { showSystemMessages: true } }));
+    });
+
+    expect(screen.getByText('systemPromptDeveloperMode')).toBeTruthy();
   });
 });

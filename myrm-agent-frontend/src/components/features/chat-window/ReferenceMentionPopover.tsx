@@ -195,14 +195,9 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                   (!prevFile || prevFile.source === 'agent' || prevFile.reference_type === 'prior_chat');
 
                 const rawPath = file.relative_path ?? (file.label.startsWith('@') ? file.label.slice(1) : file.label);
-                const isFileLike =
-                  file.reference_type === 'workspace_file' ||
-                  file.source === 'workspace';
+                const isFileLike = file.reference_type === 'workspace_file' || file.source === 'workspace';
                 const isAlreadyInContext = Boolean(
-                  chatId &&
-                    rawPath &&
-                    isFileLike &&
-                    inSessionMentionDeduplicator.isPathInjected(chatId, rawPath),
+                  chatId && rawPath && isFileLike && inSessionMentionDeduplicator.isPathInjected(chatId, rawPath),
                 );
 
                 return (
@@ -269,7 +264,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                                 ? 'Claude Code'
                                 : file.source === 'external:codex'
                                   ? 'Codex'
-                                  : 'External'}
+                                  : t('externalSource')}
                             </span>
                           )}
                         </div>

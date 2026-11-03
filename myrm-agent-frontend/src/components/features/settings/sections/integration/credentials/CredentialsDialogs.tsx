@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Button } from '@/components/primitives/button';
@@ -104,7 +104,6 @@ export function CredentialsDialogs({
   xaiVerificationUrl,
 }: CredentialsDialogsProps) {
   const t = useTranslations('settings.credentials');
-  const locale = useLocale();
 
   return (
     <>
@@ -257,9 +256,7 @@ export function CredentialsDialogs({
                   htmlFor="clear-synced-memory"
                   className="text-sm leading-relaxed cursor-pointer text-muted-foreground"
                 >
-                  {locale === 'zh'
-                    ? `同时清除已同步的记忆数据（${providerTreeCount} 个数据源）`
-                    : `Also remove synced memory data (${providerTreeCount} source${providerTreeCount > 1 ? 's' : ''})`}
+                  {t('clearSyncedMemory', { count: providerTreeCount })}
                 </label>
               </div>
             )}

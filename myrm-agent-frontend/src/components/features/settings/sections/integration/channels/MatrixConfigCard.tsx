@@ -146,7 +146,7 @@ export function MatrixConfigCard() {
         <Label htmlFor="matrix-proxy">{t('matrixProxy')}</Label>
         <Input
           id="matrix-proxy"
-          placeholder="http://proxy:8080 or socks5://proxy:1080"
+          placeholder={t('matrixProxyPlaceholder')}
           value={creds.proxy}
           onChange={(e) => handleChange('proxy', e.target.value)}
         />

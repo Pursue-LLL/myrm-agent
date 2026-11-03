@@ -610,13 +610,13 @@ const MemorySection = memo(() => {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setShowShareRules(true)}
-                  title="Share Rules (Privacy-safe)"
+                  title={t('shareRulesTitle')}
                   className={cn('p-2 rounded-lg transition-colors', 'hover:bg-accent')}
                 >
                   <IconShieldCheck className="w-[18px] h-[18px] text-muted-foreground" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Share rules with privacy protection</TooltipContent>
+              <TooltipContent>{t('shareRulesTooltip')}</TooltipContent>
             </Tooltip>
             <button
               onClick={handleRefresh}

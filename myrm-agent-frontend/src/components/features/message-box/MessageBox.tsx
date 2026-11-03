@@ -353,7 +353,7 @@ const MessageBox = ({
         <div className="flex items-center gap-2">
           <ShieldAlert className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
           <span className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
-            SYSTEM PROMPT (Developer Mode)
+            {t('systemPromptDeveloperMode')}
           </span>
         </div>
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-lg">
@@ -514,7 +514,7 @@ const MessageBox = ({
 
         {/* MCP Apps (ext-apps) 嵌入式 UI */}
         {mcpApps.length > 0 && (
-          <ArtifactErrorBoundary fallbackMessage="MCP App failed to render">
+          <ArtifactErrorBoundary fallbackMessage={t('mcpAppRenderFailed')}>
             <McpAppSection views={mcpApps} />
           </ArtifactErrorBoundary>
         )}

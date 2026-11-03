@@ -13,6 +13,7 @@ describe('StagedVaultQueueView', () => {
         titleLabel="待同步项"
         emptyLabel="暂无暂存笔记"
         untitledLabel="未命名笔记"
+        convertToTaskLabel="派发任务"
       />,
     );
 
@@ -62,6 +63,7 @@ describe('StagedVaultQueueView', () => {
         titleLabel="待同步项"
         emptyLabel="暂无暂存笔记"
         untitledLabel="未命名笔记"
+        convertToTaskLabel="派发任务"
       />,
     );
 
@@ -107,6 +109,7 @@ describe('StagedVaultQueueView', () => {
 
     const convertBtn = screen.getByTestId('staging-convert-task-rec-test-convert');
     expect(convertBtn).toBeInTheDocument();
+    expect(convertBtn).toHaveTextContent('派发任务');
     fireEvent.click(convertBtn);
 
     expect(handleConvertToTask).toHaveBeenCalledTimes(1);

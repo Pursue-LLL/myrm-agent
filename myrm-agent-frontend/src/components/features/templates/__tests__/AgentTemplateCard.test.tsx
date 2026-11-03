@@ -56,13 +56,14 @@ describe('AgentTemplateCard', () => {
     expect(screen.getByText('Web 交互开发')).toBeInTheDocument();
     expect(screen.getByText('-35%')).toBeInTheDocument();
     expect(screen.getByText('Pareto')).toBeInTheDocument();
+    expect(screen.getByText('zeroPromptReady')).toBeInTheDocument();
   });
 
   it('renders team template with team badge and member count info', () => {
     render(<AgentTemplateCard template={mockTeamTemplate} />);
 
     expect(screen.getByText('内容创作小队')).toBeInTheDocument();
-    expect(screen.getByText('2 members')).toBeInTheDocument();
+    expect(screen.getByText('membersCount')).toBeInTheDocument();
   });
 
   it('triggers openCloneWorkbench when clone button is clicked', () => {

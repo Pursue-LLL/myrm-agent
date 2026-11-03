@@ -48,12 +48,12 @@ export const PluginTrustedSourceDisclosure = memo(function PluginTrustedSourceDi
               {sandbox ? (
                 <span className="flex items-center gap-1">
                   <IconFolder className="w-2.5 h-2.5" />
-                  Cloud Sandbox
+                  {t('sourceCloudSandbox')}
                 </span>
               ) : (
                 <span className="flex items-center gap-1">
                   <IconTerminal className="w-2.5 h-2.5" />
-                  Local OS Permissions
+                  {t('sourceLocalOs')}
                 </span>
               )}
             </Badge>

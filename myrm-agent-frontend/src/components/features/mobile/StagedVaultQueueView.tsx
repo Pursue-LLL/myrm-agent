@@ -20,7 +20,7 @@ export interface StagedVaultQueueViewProps {
   titleLabel: string;
   emptyLabel: string;
   untitledLabel: string;
-  convertToTaskLabel?: string;
+  convertToTaskLabel: string;
   onConvertToTask?: (content: string) => void;
 }
 
@@ -39,8 +39,7 @@ export const StagedVaultQueueView: React.FC<StagedVaultQueueViewProps> = ({
         <p className="text-xs text-muted-foreground text-center py-4">{emptyLabel}</p>
       ) : (
         records.map((item) => {
-          const displayTitle =
-            item.payload.title || item.payload.content.slice(0, 24) || untitledLabel;
+          const displayTitle = item.payload.title || item.payload.content.slice(0, 24) || untitledLabel;
           const isSynced = item.status === 'synced';
 
           return (
@@ -71,7 +70,7 @@ export const StagedVaultQueueView: React.FC<StagedVaultQueueViewProps> = ({
                     className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                   >
                     <Send className="w-2.5 h-2.5" />
-                    <span>{convertToTaskLabel || '派发任务'}</span>
+                    <span>{convertToTaskLabel}</span>
                   </button>
                 </div>
               )}

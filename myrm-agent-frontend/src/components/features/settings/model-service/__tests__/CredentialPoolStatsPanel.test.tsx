@@ -142,4 +142,17 @@ describe('CredentialPoolStatsPanel', () => {
       );
     });
   });
+
+  it('labels the toggle with localized expand and collapse copy', async () => {
+    vi.mocked(llmConfig.fetchCredentialPoolStats).mockResolvedValueOnce([]);
+
+    render(<CredentialPoolStatsPanel hasMultipleKeys={true} />);
+
+    const toggleBtn = screen.getByTestId('toggle-pool-stats');
+    expect(toggleBtn).toHaveTextContent('poolStatsExpand');
+
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => expect(toggleBtn).toHaveTextContent('poolStatsCollapse'));
+  });
 });

@@ -2804,7 +2804,8 @@
       "agentsCategory": "智能体",
       "contextCategory": "上下文",
       "dedupNotice": "该文件已在上下文中，将跳过重复内容直读",
-      "alreadyInContext": "已在上下文"
+      "alreadyInContext": "已在上下文",
+      "externalSource": "外部"
     },
     "message": {
       "edit": "编辑",
@@ -3344,7 +3345,10 @@
       "subtitle": "会话开始前底层预加载的基线 Token 占用与工具治理",
       "skillsTools": "业务技能与内置工具",
       "disabled": "已关闭",
-      "totalBaseline": "初始基线底噪总计"
+      "totalBaseline": "初始基线底噪总计",
+      "baselineFeatherlight": "极轻量",
+      "baselineModerate": "中等",
+      "baselineHeavy": "高基线"
     },
     "modelPricing": {
       "title": "算力单价与 Prompt Cache 透视",
@@ -3484,7 +3488,14 @@
     },
     "scopedArtifactRemove": "移除限定目标",
     "messageListLoading": "正在加载消息",
-    "inputHistoryLabel": "输入历史"
+    "inputHistoryLabel": "输入历史",
+    "projectBoundary": {
+      "isolated": "隔离保护",
+      "workspaceTooltip": "项目隔离工作区：{path}",
+      "sandboxTooltip": "项目沙箱与专属记忆隔离已激活"
+    },
+    "systemPromptDeveloperMode": "系统提示词（开发者模式）",
+    "mcpAppRenderFailed": "MCP 应用渲染失败"
   },
   "mode": {
     "fast": "快速搜索",
@@ -6222,7 +6233,9 @@
     "contextPeerTitle": "我们的关系与你的人设",
     "contextPeerSubtitle": "该智能体专属的互动",
     "contextPeerEmpty": "暂无该智能体专属的画像数据。",
-    "rankedHubSidebarLabel": "枢纽排行侧栏"
+    "rankedHubSidebarLabel": "枢纽排行侧栏",
+    "shareRulesTitle": "分享规则（隐私安全）",
+    "shareRulesTooltip": "在保护隐私的前提下分享规则"
   },
   "sharedContextTargetBinding": {
     "title": "继承的共享上下文",
@@ -6862,7 +6875,8 @@
       "retry": "重试"
     },
     "annotationPanelLabel": "工件批注",
-    "htmlPreviewTitle": "HTML 预览"
+    "htmlPreviewTitle": "HTML 预览",
+    "portalDescription": "正在预览文件 {filename}，类型为 {type}，大小 {size}。按 Esc 键关闭。"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -6898,7 +6912,8 @@
     "conversation_deleted": "会话已删除",
     "operation_failed": "操作失败",
     "copyAll": "复制全部",
-    "copyAllSuccess": "来源已复制到剪贴板"
+    "copyAllSuccess": "来源已复制到剪贴板",
+    "mcpSkillFallback": "MCP 技能"
   },
   "auth": {
     "setup": {
@@ -9343,7 +9358,10 @@
     "todayUsageDisplay": "今日用量：{used} / {quota} 次",
     "quotaExceeded": "已超额",
     "groupTriggerRegionLabel": "当前群聊触发配置",
-    "editGlobalAria": "编辑全局配置"
+    "editGlobalAria": "编辑全局配置",
+    "matrixProxyPlaceholder": "http://proxy:8080 或 socks5://proxy:1080",
+    "onebotTokenPlaceholder": "输入访问令牌",
+    "wechatBotIdLabel": "机器人 ID："
   },
   "voice": {
     "sectionTitle": "语音设置",
@@ -9815,14 +9833,17 @@
       "snapshotNone": "非 Git 仓库，无版本快照保护，操作不可撤销",
       "confirmPrompt": "请输入 CONFIRM 确认执行破坏性操作",
       "confirmButton": "确认执行破坏性操作",
-      "slideConfirm": "滑动以二次确认执行"
+      "slideConfirm": "滑动以二次确认执行",
+      "affectedTargets": "目标路径 / 影响对象：",
+      "confirmedReady": "已就绪"
     },
     "destructiveUndo": {
       "title": "破坏性操作已执行",
       "description": "工作区已发生重大变更。已为您创建安全影子快照，支持限时无损回滚。",
       "rollbackButton": "一键撤销并回滚快照",
       "rollbackSuccess": "工作区已成功回滚至破坏前状态",
-      "rollbackFailed": "回滚快照失败，请检查工作区状态"
+      "rollbackFailed": "回滚快照失败，请检查工作区状态",
+      "snapshotPointer": "快照指针：{id}"
     },
     "batchCostTitle": "批量任务费用确认",
     "batchCostDescription": "智能体即将派发多个子任务。请确认预估费用后再继续。",
@@ -9915,6 +9936,21 @@
       "droppedOnEdit": "因为命令已被修改，密码或密钥已移除。如仍需要，请重新填写。",
       "errorRejected": "请检查变量名和值后重试。",
       "errorUnavailable": "请稍后重试。"
+    },
+    "escalationTitle": "检测到敏感能力边界申请",
+    "escalationFallbackReason": "能力越界",
+    "escalationReasons": {
+      "symlink_creation": "创建符号链接 (Symlink)",
+      "network_egress": "外部网络连接 (Network Egress)",
+      "privilege_escalation": "系统提权操作 (Privilege Escalation)",
+      "permission_alteration": "修改文件权限 (Permission Change)",
+      "process_termination": "终止系统进程 (Process Termination)",
+      "system_administration": "系统管理与服务操作 (System Admin)",
+      "filesystem_destruction": "高危文件系统格式化 (Filesystem Modification)",
+      "raw_disk_write": "裸磁盘底层写入 (Raw Disk Write)",
+      "system_file_write": "系统敏感文件写入 (System File Write)",
+      "git_destructive_action": "Git 仓库破坏性重置/清理 (Git Destructive Action)",
+      "git_remote_sync": "Git 远程分支同步/推送 (Git Remote Push)"
     }
   },
   "notifications": {
@@ -10010,7 +10046,11 @@
     "budgetRemaining": "{dimension} — 剩余 ${remaining}",
     "subagentStaleDescription": "已 {minutes} 分钟无进展 · {tokens, number} tokens",
     "subagentStaleStats": "{minutes} 分钟 · {tokens, number} tokens",
-    "agentProfileRollbackSuccess": "已成功回滚智能体配置。"
+    "agentProfileRollbackSuccess": "已成功回滚智能体配置。",
+    "locatorHealedTitle": "自愈已触发",
+    "locatorHealedDescription": "智能体通过空间位置匹配自动修复了失效的定位器。",
+    "locatorHealedTarget": "目标",
+    "locatorHealedUnknownName": "未知"
   },
   "configConflict": {
     "title": "配置冲突检测",
@@ -11383,7 +11423,8 @@
     "insightsSpawned": "已启动 {count} 个",
     "insightsAvgDuration": "平均耗时",
     "insightsTotalTokens": "Token 总量",
-    "insightsTotalCost": "总成本"
+    "insightsTotalCost": "总成本",
+    "waitingOnStage": "（等待 {stage}）"
   },
   "trajectoryDiff": {
     "title": "跨会话执行轨迹对比 (Cross-Session Trajectory Diff)",
@@ -12456,7 +12497,8 @@
           "feature2": "8C 沙箱 + 更长活跃时间"
         }
       }
-    }
+    },
+    "baseAllowance": "基础额度"
   },
   "connectWizard": {
     "title": "连接外部智能体",
@@ -13914,7 +13956,8 @@
     "jumpInAction": "跳入会话现场",
     "zoomIn": "放大",
     "zoomOut": "缩小",
-    "zoomReset": "重置缩放"
+    "zoomReset": "重置缩放",
+    "defaultProject": "默认项目"
   },
   "workbench": {
     "workbenchAriaLabel": "辅助工作台",
@@ -14375,7 +14418,10 @@
       "team": "多智能体小队",
       "general": "通用助手"
     },
-    "refresh": "刷新模板"
+    "refresh": "刷新模板",
+    "membersCount": "{count} 位成员",
+    "zeroPromptReady": "零提示词就绪",
+    "sandboxReady": "沙箱已就绪"
   },
   "commandMatrix": {
     "allCategories": "全部分类",
@@ -16772,7 +16818,8 @@
         "agenticTooltip": "自动生成的 64K 上下文 modelfile，满足生产级工具调用与长期记忆需求",
         "keepAliveTipTitle": "全天候常驻与显存释放指南",
         "keepAliveTipDesc": "将模型保留在显存中以支持全天候后台机器人，或在重负载任务时释放显存。",
-        "downloadFailed": "下载失败"
+        "downloadFailed": "下载失败",
+        "fitScore": "适配得分："
       },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",
@@ -16816,7 +16863,10 @@
           "disconnected": "已断开 SuperGrok 订阅登录",
           "disconnectFailed": "断开失败"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... 或 op://vault/item/field 或 bw://item",
+      "poolStatsCollapse": "收起",
+      "poolStatsExpand": "展开"
     },
     "defaultModel": {
       "localModelWarning": "本地轻量模型在处理复杂 Agent 工具链时极易产生幻觉或陷入死循环。执行长任务建议使用 30B 以上规模模型或云端高阶模型（如 Claude 3.5 Sonnet）。",
@@ -17244,7 +17294,8 @@
       "xaiOauthConnectBtn": "授权 SuperGrok",
       "oauthExpiredNotice": "当前凭证已失效（可能在三方平台被吊销或到期）。请点击一键修复重新授权，以恢复该服务。",
       "oauthFixNow": "一键修复",
-      "fileInputLabel": "凭证文件输入"
+      "fileInputLabel": "凭证文件输入",
+      "clearSyncedMemory": "同时清除已同步的记忆数据（{count} 个数据源）"
     },
     "skillQuality": {
       "title": "技能质量管理",
@@ -18420,6 +18471,9 @@
         "todo": "待办任务",
         "wikilink": "Wiki 双链",
         "table": "插入表格"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "时间戳快速导航"
       }
     },
     "skills": {
@@ -18751,7 +18805,8 @@
         "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。之后可在技能详情页撤销此次更新。",
         "confirmAction": "继续",
         "cancelAction": "取消",
-        "export": "导出"
+        "export": "导出",
+        "apiKeyLabel": "API 密钥"
       },
       "curator": {
         "safetyPromise": "技能绝不会被自动删除。最坏情况仅为归档，您可以随时一键恢复。",
@@ -20816,7 +20871,10 @@
         "guideTitle": "离席用电脑 · 快速设置",
         "statusOn": "已开启",
         "statusOptional": "可选"
-      }
+      },
+      "timezoneNoResults": "无结果",
+      "timezoneSearchPlaceholder": "搜索时区...",
+      "timezonePopular": "常用"
     },
     "push": {
       "title": "通知",
@@ -21672,7 +21730,9 @@
         "llmViewportHide": "模型视口（收起）",
         "experienceWizardTitle": "生成项目经验六步证据包向导",
         "experienceWizardButton": "经验向导",
-        "pluginStateTitle": "插件扩展状态"
+        "pluginStateTitle": "插件扩展状态",
+        "protectedSpan": "受保护的跨度",
+        "retryAttempt": "第 {attempt} 次尝试（服务商退避 / 已重试）"
       },
       "contextDoctor": {
         "title": "上下文体检（Token 热点与成本审计）",
@@ -21833,7 +21893,10 @@
       "amount": "金额",
       "status": "状态",
       "time": "时间",
-      "verifiedReceipt": "HMAC 防篡改签名已验证"
+      "verifiedReceipt": "HMAC 防篡改签名已验证",
+      "entryHashLabel": "条目哈希：",
+      "entryHashPending": "待生成 / 不适用",
+      "idempotencyKeyLabel": "幂等键："
     },
     "channelBudget": {
       "title": "频道预算配额",
@@ -22366,7 +22429,9 @@
           "trustRiskHint": "不可信的恶意扩展可能包含提示注入指令，诱导智能体在后台越权调用工具窃取敏感配置或执行恶意脚本。请务必确认包文件来源安全可信。",
           "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装",
           "skillsNotSupported": "当前环境不支持自定义技能 — 已自动跳过",
-          "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过"
+          "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过",
+          "sourceCloudSandbox": "云端沙箱",
+          "sourceLocalOs": "本机系统权限"
         },
         "diagnostics": {
           "scope": {
@@ -22594,7 +22659,8 @@
       "tierProd": "生产环境",
       "tierStaging": "预发环境",
       "tierDev": "开发环境",
-      "probeFailed": "探测 {host} 失败：{message}"
+      "probeFailed": "探测 {host} 失败：{message}",
+      "breakGlassCommandPlaceholder": "例如：systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "屏幕审批高亮 — 在真实显示器上对点击目标显示红框（macOS 与 Windows）",
@@ -22805,5 +22871,82 @@
     "statusRefunded": "已退款",
     "statusRejected": "已拦截",
     "hashVerified": "账本哈希已通过 HMAC 校验"
+  },
+  "evidencePack": {
+    "modalTitle": "项目实战六步经验向导",
+    "copyMarkdownTitle": "复制 Markdown",
+    "copied": "已复制",
+    "copyShort": "复制 MD",
+    "downloadMarkdownTitle": "下载 Markdown",
+    "exportMarkdown": "导出 Markdown",
+    "downloadJsonTitle": "下载 JSON",
+    "facts": "关键事实与实证记录：",
+    "previous": "上一步",
+    "next": "下一步",
+    "stepCounter": "步骤 {current} / {total}",
+    "untitledTask": "未命名项目任务",
+    "noTextInput": "无显式文本输入",
+    "planningDetected": "识别到 {count} 次架构与规划决策阶段调度",
+    "planningNodeFallback": "规划节点",
+    "directExecution": "遵循端到端直连执行与敏捷响应模式",
+    "firstWrite": "首次物料落地动作：[{tool}]（序列 #{sequence}）",
+    "targetFile": "目标文件：{path}",
+    "noFileChanges": "未检测到静态文件修改或为纯会话交互任务",
+    "executionSummary": "总工具调用 {total} 次，其中异常拦截/修复 {failed} 次",
+    "errorRecord": "[异常记录] {type}: {message}",
+    "selfHealPoint": "[自愈点] {tool} 失败后触发重试或策略自适应",
+    "verificationSummary": "执行了 {count} 次验证/测试动作，通过率 {rate}%",
+    "verificationRun": "[实证执行] {tool}: {result}",
+    "resultPassed": "通过",
+    "resultFailed": "失败",
+    "verificationInferred": "完成基于语义一致性与任务结束门禁的推导验证",
+    "takeawayClosedLoop": "任务完整闭环，各阶段决策与实证对齐良好",
+    "takeawayExtractSkill": "建议将本次沉淀的稳定 SOP 提取为专用技能或自动化模板",
+    "takeawayNotSuccess": "任务状态为 {outcome}，需重点关注中断或首个不可逆错误",
+    "takeawayFirstFatal": "首个致命异常位于步骤索引 #{index}",
+    "metricTotalCalls": "总调用",
+    "metricFailures": "异常数",
+    "steps": {
+      "requirements": {
+        "title": "原始需求输入",
+        "shortTitle": "原始需求",
+        "summary": "原始任务目标、业务背景与约束输入"
+      },
+      "architecture": {
+        "title": "架构与方案决策",
+        "shortTitle": "架构决策",
+        "summary": "技术路径选型、计划分解与依赖关系"
+      },
+      "initial_impl": {
+        "title": "v0 首稿实现快照",
+        "shortTitle": "v0 首稿",
+        "summary": "首次代码/物料产出与初始方案形态"
+      },
+      "execution_correction": {
+        "title": "执行演进与自愈纠错",
+        "shortTitle": "执行纠错",
+        "summary": "工具调用流水、报错排查与纠偏证据"
+      },
+      "verification": {
+        "title": "客观验证与测试实证",
+        "shortTitle": "验证实证",
+        "summary": "测试用例、静态检查与环境实测数据"
+      },
+      "takeaways": {
+        "title": "经验沉淀与防退化要点",
+        "shortTitle": "经验沉淀",
+        "summary": "复盘总结、最佳实践与沉淀建议"
+      }
+    },
+    "markdownHeading": "项目实战六步经验证据包：{title}",
+    "markdownSessionId": "会话 ID",
+    "markdownOutcome": "执行结果",
+    "markdownDuration": "耗时",
+    "markdownTokens": "Token 消耗",
+    "markdownToolCalls": "工具调用",
+    "markdownGeneratedAt": "生成时间",
+    "markdownStepHeading": "步骤 {index}：{title}",
+    "markdownMetrics": "关键度量",
+    "markdownFooter": "由项目经验六步向导自动聚合生成"
   }
 }

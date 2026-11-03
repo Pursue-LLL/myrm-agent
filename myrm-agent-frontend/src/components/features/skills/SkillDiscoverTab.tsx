@@ -396,7 +396,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
               {t('allTags')}
             </TagButton>
             <TagButton active={activeTag === 'wb-top20'} onClick={() => setActiveTag('wb-top20')}>
-              <span className="font-medium text-amber-600 dark:text-amber-400">✨ WorkBuddy Top 20</span>
+              <span className="font-medium text-amber-600 dark:text-amber-400">WorkBuddy Top 20</span>
             </TagButton>
             {availableTags.slice(0, 8).map((tag) => (
               <TagButton key={tag} active={activeTag === tag} onClick={() => setActiveTag(tag)}>

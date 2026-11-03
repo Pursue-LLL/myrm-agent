@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { IconPlay, IconVideo } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 
@@ -145,6 +146,7 @@ export function VideoKnowledgePlayer({
   onTimeUpdate,
   className = '',
 }: VideoKnowledgePlayerProps) {
+  const t = useTranslations('settings.wiki.videoPlayer');
   const [currentSeconds, setCurrentSeconds] = useState(initialSeconds);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -216,7 +218,7 @@ export function VideoKnowledgePlayer({
 
       {chapters.length > 0 && (
         <div className="flex flex-col gap-1.5 pt-1">
-          <div className="text-xs font-medium text-muted-foreground">时间戳快速导航</div>
+          <div className="text-xs font-medium text-muted-foreground">{t('chapterNavigation')}</div>
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
             {chapters.map((ch, idx) => {
               const isActive = currentSeconds >= ch.startSeconds && currentSeconds <= ch.endSeconds;

@@ -1,10 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import type { ExecutionTrace } from '@/services/statistics';
+import en from '../../../locales/en.json';
+import zh from '../../../locales/zh.json';
 import {
   generateEvidencePackFromTrace,
   exportEvidencePackToMarkdown,
   exportEvidencePackToJson,
+  type EvidencePackTranslator,
 } from '../evidencePackGenerator';
+
+type MessageNode = string | { [key: string]: MessageNode };
+
+/** Resolves keys against a real locale bundle and fails loudly on a missing key or unfilled placeholder. */
+function createTranslator(messages: { evidencePack: MessageNode }): EvidencePackTranslator {
+  return (key, values = {}) => {
+    let node: MessageNode | undefined = messages.evidencePack;
+    for (const part of key.split('.')) {
+      node = typeof node === 'object' ? node[part] : undefined;
+    }
+    if (typeof node !== 'string') {
+      throw new Error(`Missing evidencePack key: ${key}`);
+    }
+    return node.replace(/\{(\w+)\}/g, (_, name: string) => {
+      if (!(name in values)) {
+        throw new Error(`Missing value "${name}" for evidencePack key: ${key}`);
+      }
+      return String(values[name]);
+    });
+  };
+}
+
+const tEn = createTranslator(en);
+const tZh = createTranslator(zh);
 
 describe('evidencePackGenerator', () => {
   const mockTrace: ExecutionTrace = {
@@ -70,7 +97,7 @@ describe('evidencePackGenerator', () => {
   };
 
   it('correctly parses execution trace into 6 distinct steps', () => {
-    const pack = generateEvidencePackFromTrace(mockTrace);
+    const pack = generateEvidencePackFromTrace(mockTrace, tEn);
     expect(pack.sessionId).toBe('sess-abc-123');
     expect(pack.steps).toHaveLength(6);
 
@@ -80,7 +107,7 @@ describe('evidencePackGenerator', () => {
 
     // Step 2: Architecture
     expect(pack.steps[1].id).toBe('architecture');
-    expect(pack.steps[1].details[0]).toContain('架构与规划');
+    expect(pack.steps[1].details[0]).toBe('Detected 1 architecture and planning dispatch phases');
 
     // Step 3: Initial Impl
     expect(pack.steps[2].id).toBe('initial_impl');
@@ -89,22 +116,22 @@ describe('evidencePackGenerator', () => {
 
     // Step 4: Execution & Correction
     expect(pack.steps[3].id).toBe('execution_correction');
-    expect(pack.steps[3].metrics?.['总调用']).toBe(4);
-    expect(pack.steps[3].metrics?.['异常数']).toBe(1);
+    expect(pack.steps[3].metrics?.['Total calls']).toBe(4);
+    expect(pack.steps[3].metrics?.['Failures']).toBe(1);
 
     // Step 5: Verification
     expect(pack.steps[4].id).toBe('verification');
-    expect(pack.steps[4].details[0]).toContain('验证/测试动作');
+    expect(pack.steps[4].details[0]).toBe('Ran 2 verification/test actions with a 50% pass rate');
 
     // Step 6: Takeaways
     expect(pack.steps[5].id).toBe('takeaways');
-    expect(pack.steps[5].details[0]).toContain('任务完整闭环');
+    expect(pack.steps[5].details[0]).toContain('Task closed the loop');
   });
 
   it('exports formatted Markdown containing all 6 steps', () => {
-    const pack = generateEvidencePackFromTrace(mockTrace);
-    const md = exportEvidencePackToMarkdown(pack);
-    expect(md).toContain('# 📋 项目实战六步经验证据包');
+    const pack = generateEvidencePackFromTrace(mockTrace, tEn);
+    const md = exportEvidencePackToMarkdown(pack, tEn);
+    expect(md).toContain('# Project experience evidence pack (six steps):');
     expect(md).toContain('## Step 1:');
     expect(md).toContain('## Step 2:');
     expect(md).toContain('## Step 3:');
@@ -114,10 +141,61 @@ describe('evidencePackGenerator', () => {
   });
 
   it('exports valid JSON representation', () => {
-    const pack = generateEvidencePackFromTrace(mockTrace);
+    const pack = generateEvidencePackFromTrace(mockTrace, tEn);
     const jsonStr = exportEvidencePackToJson(pack);
     const parsed = JSON.parse(jsonStr) as typeof pack;
     expect(parsed.sessionId).toBe(mockTrace.session_id);
     expect(parsed.steps).toHaveLength(6);
+  });
+
+  it('labels every step with a short tab title and localizes all generated copy', () => {
+    const pack = generateEvidencePackFromTrace(mockTrace, tEn);
+    expect(pack.steps.map((step) => step.shortTitle)).toEqual([
+      'Requirements',
+      'Architecture',
+      'v0 draft',
+      'Execution',
+      'Verification',
+      'Lessons',
+    ]);
+
+    const asciiTrace: ExecutionTrace = {
+      ...mockTrace,
+      task_input: 'Refactor the sync module',
+      tool_calls: mockTrace.tool_calls.map((call) => ({ ...call, output_summary: 'split into 3 tasks' })),
+    };
+    const generated = generateEvidencePackFromTrace(asciiTrace, tEn).steps.flatMap((step) => [
+      step.title,
+      step.shortTitle,
+      step.summary,
+      ...step.details,
+    ]);
+    expect(generated.join('\n')).not.toMatch(/[\u4e00-\u9fff]/);
+    expect(generated.join('\n')).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+
+  it('renders the same pack in Chinese when given the zh translator', () => {
+    const pack = generateEvidencePackFromTrace(mockTrace, tZh);
+    expect(pack.steps[0].shortTitle).toBe('原始需求');
+    expect(pack.steps[3].metrics).toEqual({ 总调用: 4, 异常数: 1 });
+    expect(exportEvidencePackToMarkdown(pack, tZh)).toContain('## 步骤 1：');
+  });
+
+  it('falls back to localized placeholders when the trace has no input, plans or edits', () => {
+    const pack = generateEvidencePackFromTrace(
+      { ...mockTrace, task_input: '', tool_calls: [], errors: [], outcome: 'failure', first_irrecoverable_index: 2 },
+      tEn,
+    );
+    expect(pack.taskTitle).toBe('Untitled project task');
+    expect(pack.steps[0].details).toEqual(['No explicit text input']);
+    expect(pack.steps[1].details).toEqual(['Followed an end-to-end direct execution and agile response mode']);
+    expect(pack.steps[2].details).toEqual(['No static file changes detected, or this was a pure conversation task']);
+    expect(pack.steps[4].details).toEqual([
+      'Completed inferred verification based on semantic consistency and the task-end gate',
+    ]);
+    expect(pack.steps[5].details).toEqual([
+      'Task status is failure; focus on the interruption or the first irrecoverable error',
+      'First fatal error at step index #2',
+    ]);
   });
 });

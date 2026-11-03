@@ -81,7 +81,7 @@ export function SessionContextJumpModal({ isOpen, onClose, session, project, onJ
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-foreground font-semibold">
               <IconFolder className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span>{project?.name || 'Default Project'}</span>
+              <span>{project?.name || t('defaultProject')}</span>
             </div>
             <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-background border border-border/40">
               {session.state}

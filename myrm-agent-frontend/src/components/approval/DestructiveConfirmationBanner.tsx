@@ -70,7 +70,7 @@ export function DestructiveConfirmationBanner({
 
           {Array.isArray(blastRadius.affected_targets) && blastRadius.affected_targets.length > 0 && (
             <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">目标路径 / 影响对象:</span>
+              <span className="text-[11px] text-muted-foreground">{t('affectedTargets')}</span>
               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
                 {blastRadius.affected_targets.map((target, idx) => (
                   <code
@@ -110,7 +110,9 @@ export function DestructiveConfirmationBanner({
         >
           <span>{t('confirmPrompt')}</span>
           {isConfirmed && (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">已就绪 / Ready</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+              {t('confirmedReady')}
+            </span>
           )}
         </label>
         <div className="relative">

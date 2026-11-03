@@ -2795,7 +2795,8 @@
       "agentsCategory": "Agenten",
       "contextCategory": "Kontext",
       "dedupNotice": "Datei ist bereits im Kontext; doppelter Inhalt wird übersprungen",
-      "alreadyInContext": "Im Kontext"
+      "alreadyInContext": "Im Kontext",
+      "externalSource": "Extern"
     },
     "message": {
       "edit": "Bearbeiten",
@@ -3335,7 +3336,10 @@
       "subtitle": "Basis-Token-Verbrauch vor Gesprächsbeginn und Tool-Verwaltung",
       "skillsTools": "Skills und integrierte Tools",
       "disabled": "Deaktiviert",
-      "totalBaseline": "Basisverbrauch gesamt"
+      "totalBaseline": "Basisverbrauch gesamt",
+      "baselineFeatherlight": "Federleicht",
+      "baselineModerate": "Moderat",
+      "baselineHeavy": "Hohe Grundlast"
     },
     "turnLoadedSkills": {
       "triggerLabel": "{count} Arbeits-Skills referenziert",
@@ -3484,7 +3488,14 @@
     },
     "scopedArtifactRemove": "Eingegrenztes Ziel entfernen",
     "messageListLoading": "Nachrichten werden geladen",
-    "inputHistoryLabel": "Eingabeverlauf"
+    "inputHistoryLabel": "Eingabeverlauf",
+    "projectBoundary": {
+      "isolated": "Isolationsschutz",
+      "workspaceTooltip": "Isolierter Projekt-Arbeitsbereich: {path}",
+      "sandboxTooltip": "Projekt-Sandbox und dedizierte Gedächtnis-Isolation sind aktiv"
+    },
+    "systemPromptDeveloperMode": "System-Prompt (Entwicklermodus)",
+    "mcpAppRenderFailed": "MCP-App konnte nicht dargestellt werden"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -6222,7 +6233,9 @@
     "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
     "contextPeerSubtitle": "Agentenspezifische Interaktionen",
     "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten.",
-    "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste"
+    "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste",
+    "shareRulesTitle": "Regeln teilen (datenschutzsicher)",
+    "shareRulesTooltip": "Regeln unter Wahrung der Privatsphäre teilen"
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6862,7 +6875,8 @@
       "retry": "Erneut versuchen"
     },
     "annotationPanelLabel": "Artefakt-Anmerkungen",
-    "htmlPreviewTitle": "HTML-Vorschau"
+    "htmlPreviewTitle": "HTML-Vorschau",
+    "portalDescription": "Vorschau der Datei {filename}, Typ {type}, Größe {size}. Mit Esc schließen."
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -6898,7 +6912,8 @@
     "conversation_deleted": "Konversation gelöscht",
     "operation_failed": "Der Vorgang ist fehlgeschlagen",
     "copyAll": "Alle kopieren",
-    "copyAllSuccess": "Quellen in die Zwischenablage kopiert"
+    "copyAllSuccess": "Quellen in die Zwischenablage kopiert",
+    "mcpSkillFallback": "MCP-Skill"
   },
   "auth": {
     "setup": {
@@ -9343,7 +9358,10 @@
     "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
     "quotaExceeded": "Kontingent überschritten",
     "groupTriggerRegionLabel": "Aktuelle Gruppentrigger-Konfiguration",
-    "editGlobalAria": "Globale Konfiguration bearbeiten"
+    "editGlobalAria": "Globale Konfiguration bearbeiten",
+    "matrixProxyPlaceholder": "http://proxy:8080 oder socks5://proxy:1080",
+    "onebotTokenPlaceholder": "Geheimes Token eingeben",
+    "wechatBotIdLabel": "Bot-ID:"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -9815,14 +9833,17 @@
       "snapshotNone": "Kein Git-Repository: Kein automatischer Snapshot verfuegbar, Aktion kann nicht rueckgaengig gemacht werden",
       "confirmPrompt": "Geben Sie CONFIRM ein, um die zerstoererische Operation zu bestaetigen",
       "confirmButton": "Zerstoererische Operation autorisieren",
-      "slideConfirm": "Wischen, um die Ausfuehrung zu bestaetigen"
+      "slideConfirm": "Wischen, um die Ausfuehrung zu bestaetigen",
+      "affectedTargets": "Zielpfade / betroffene Objekte:",
+      "confirmedReady": "Bereit"
     },
     "destructiveUndo": {
       "title": "Zerstoererische Aktion ausgefuehrt",
       "description": "Wesentliche Aenderungen wurden am Arbeitsbereich vorgenommen. Ein sicherer Schatten-Snapshot ist fuer ein Rueckgaengigmachen verfuegbar.",
       "rollbackButton": "Rueckgaengig machen & Snapshot wiederherstellen",
       "rollbackSuccess": "Arbeitsbereich erfolgreich auf den Zustand vor der Zerstoerung zurueckgesetzt",
-      "rollbackFailed": "Snapshot-Rollback fehlgeschlagen, bitte Arbeitsbereich pruefen"
+      "rollbackFailed": "Snapshot-Rollback fehlgeschlagen, bitte Arbeitsbereich pruefen",
+      "snapshotPointer": "Snapshot-Zeiger: {id}"
     },
     "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
     "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
@@ -9915,6 +9936,21 @@
       "droppedOnEdit": "Passwort bzw. Schlüssel wurden entfernt, weil der Befehl geändert wurde. Geben Sie sie bei Bedarf erneut ein.",
       "errorRejected": "Bitte prüfen Sie Variablenname und Wert und versuchen Sie es erneut.",
       "errorUnavailable": "Bitte versuchen Sie es gleich noch einmal."
+    },
+    "escalationTitle": "Anfrage zur Überschreitung einer sensiblen Fähigkeitsgrenze erkannt",
+    "escalationFallbackReason": "Fähigkeitsüberschreitung",
+    "escalationReasons": {
+      "symlink_creation": "Symbolischen Link erstellen (Symlink)",
+      "network_egress": "Ausgehende Netzwerkverbindung (Network Egress)",
+      "privilege_escalation": "Rechteausweitung im System (Privilege Escalation)",
+      "permission_alteration": "Dateiberechtigungen ändern (Permission Change)",
+      "process_termination": "Systemprozess beenden (Process Termination)",
+      "system_administration": "Systemverwaltung und Dienstoperationen (System Admin)",
+      "filesystem_destruction": "Riskantes Formatieren des Dateisystems (Filesystem Modification)",
+      "raw_disk_write": "Direktes Low-Level-Schreiben auf die Festplatte (Raw Disk Write)",
+      "system_file_write": "Schreiben in sensible Systemdateien (System File Write)",
+      "git_destructive_action": "Destruktives Git-Reset/-Clean (Git Destructive Action)",
+      "git_remote_sync": "Git-Remote-Synchronisierung/-Push (Git Remote Push)"
     }
   },
   "notifications": {
@@ -10010,7 +10046,11 @@
     "budgetRemaining": "{dimension} — ${remaining} verbleibend",
     "subagentStaleDescription": "Seit {minutes} Min. kein Fortschritt · {tokens, number} Tokens",
     "subagentStaleStats": "{minutes} Min. · {tokens, number} Tokens",
-    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt."
+    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt.",
+    "locatorHealedTitle": "Selbstheilung aktiviert",
+    "locatorHealedDescription": "Der Agent hat einen defekten Locator automatisch per räumlichem Abgleich wiederhergestellt.",
+    "locatorHealedTarget": "Ziel",
+    "locatorHealedUnknownName": "Unbekannt"
   },
   "configConflict": {
     "title": "Konfigurationskonflikt erkannt",
@@ -11383,7 +11423,8 @@
     "insightsSpawned": "{count} gestartet",
     "insightsAvgDuration": "Ø Dauer",
     "insightsTotalTokens": "Token gesamt",
-    "insightsTotalCost": "Gesamtkosten"
+    "insightsTotalCost": "Gesamtkosten",
+    "waitingOnStage": "(wartet auf {stage})"
   },
   "trajectoryDiff": {
     "title": "Sitzungsübergreifender Trajektorien-Diff",
@@ -12456,7 +12497,8 @@
           "feature2": "8C Sandbox + verlängerte Aktivzeit"
         }
       }
-    }
+    },
+    "baseAllowance": "Basiskontingent"
   },
   "connectWizard": {
     "title": "Externen Agenten anschließen",
@@ -13914,7 +13956,8 @@
     "jumpInAction": "Einsteigen",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern",
-    "zoomReset": "Zoom zurücksetzen"
+    "zoomReset": "Zoom zurücksetzen",
+    "defaultProject": "Standardprojekt"
   },
   "workbench": {
     "workbenchAriaLabel": "Zusatz-Workbench",
@@ -14375,7 +14418,10 @@
       "team": "Multi-Agent-Teams",
       "general": "Allgemeine Assistenten"
     },
-    "refresh": "Vorlagen aktualisieren"
+    "refresh": "Vorlagen aktualisieren",
+    "membersCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+    "zeroPromptReady": "Zero-Prompt bereit",
+    "sandboxReady": "Sandbox bereit"
   },
   "commandMatrix": {
     "allCategories": "Alle Kategorien",
@@ -16772,7 +16818,8 @@
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
         "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben.",
-        "downloadFailed": "Download fehlgeschlagen"
+        "downloadFailed": "Download fehlgeschlagen",
+        "fitScore": "Eignungswert:"
       },
       "importFromModelsDev": "Von models.dev importieren",
       "getModels": "Modelle abrufen",
@@ -16816,7 +16863,10 @@
           "disconnected": "SuperGrok-Abonnement getrennt",
           "disconnectFailed": "Trennen fehlgeschlagen"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... oder op://vault/item/field oder bw://item",
+      "poolStatsCollapse": "Einklappen",
+      "poolStatsExpand": "Ausklappen"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",
@@ -17244,7 +17294,8 @@
       "xaiOauthConnectBtn": "SuperGrok autorisieren",
       "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
       "oauthFixNow": "Jetzt beheben",
-      "fileInputLabel": "Eingabe der Anmeldedaten-Datei"
+      "fileInputLabel": "Eingabe der Anmeldedaten-Datei",
+      "clearSyncedMemory": "Auch synchronisierte Speicherdaten entfernen ({count, plural, one {# Quelle} other {# Quellen}})"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -18420,6 +18471,9 @@
         "todo": "Aufgabenliste",
         "wikilink": "Wiki-Link",
         "table": "Tabelle einfügen"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "Zu Zeitstempel springen"
       }
     },
     "skills": {
@@ -18751,7 +18805,8 @@
         "undoLastReplace": "Letztes Update rückgängig",
         "undoLastReplaceHint": "Stellt die automatisch gespeicherte Version vor dem letzten Update wieder her.",
         "undoLastReplaceSuccess": "Vorherige Version wiederhergestellt",
-        "undoLastReplaceFailed": "Letztes Update konnte nicht rückgängig gemacht werden"
+        "undoLastReplaceFailed": "Letztes Update konnte nicht rückgängig gemacht werden",
+        "apiKeyLabel": "API-Schlüssel"
       },
       "curator": {
         "safetyPromise": "Fähigkeiten werden nie gelöscht. Im schlimmsten Fall werden sie archiviert, und Sie können sie jederzeit wiederherstellen.",
@@ -20816,7 +20871,10 @@
         "guideTitle": "Computer-Nutzung bei Abwesenheit · Schnelleinrichtung",
         "statusOn": "An",
         "statusOptional": "Wahlweise"
-      }
+      },
+      "timezoneNoResults": "Keine Ergebnisse",
+      "timezoneSearchPlaceholder": "Zeitzonen suchen ...",
+      "timezonePopular": "Beliebt"
     },
     "push": {
       "title": "Benachrichtigungen",
@@ -21672,7 +21730,9 @@
         "llmViewportHide": "Modell-Viewport (Ausblenden)",
         "experienceWizardTitle": "Assistent für das sechsstufige Projekterfahrungs-Nachweispaket erstellen",
         "experienceWizardButton": "Erfahrungs-Assistent",
-        "pluginStateTitle": "Plugin-Erweiterungsstatus"
+        "pluginStateTitle": "Plugin-Erweiterungsstatus",
+        "protectedSpan": "Geschützter Span",
+        "retryAttempt": "Versuch: {attempt} (Anbieter-Backoff / wiederholt)"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
@@ -21833,7 +21893,10 @@
       "amount": "Betrag",
       "status": "Statuszustand",
       "time": "Zeit",
-      "verifiedReceipt": "HMAC-Signatur verifiziert"
+      "verifiedReceipt": "HMAC-Signatur verifiziert",
+      "entryHashLabel": "Eintrags-Hash:",
+      "entryHashPending": "Ausstehend / entfällt",
+      "idempotencyKeyLabel": "Idempotenzschlüssel:"
     },
     "channelBudget": {
       "title": "Kanal-Budgetlimits",
@@ -22366,7 +22429,9 @@
           "trustRiskHint": "Nicht vertrauenswürdige Erweiterungen können Prompt-Injections enthalten. Stellen Sie sicher, dass Pakete aus vertrauenswürdigen Quellen stammen.",
           "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu",
           "skillsNotSupported": "Diese Umgebung erlaubt keine eigenen Fähigkeiten - automatisch übersprungen",
-          "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen"
+          "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen",
+          "sourceCloudSandbox": "Cloud-Sandbox",
+          "sourceLocalOs": "Lokale Betriebssystemrechte"
         },
         "diagnostics": {
           "scope": {
@@ -22594,7 +22659,8 @@
       "tierProd": "Produktion",
       "tierStaging": "Staging-Umgebung",
       "tierDev": "Entwicklung",
-      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}"
+      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}",
+      "breakGlassCommandPlaceholder": "z. B. systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "Bildschirmhervorhebung bei Freigaben — roter Rahmen auf dem echten Display am Klickziel (macOS und Windows)",
@@ -22805,5 +22871,82 @@
     "statusRefunded": "Erstattet",
     "statusRejected": "Blockiert",
     "hashVerified": "Ledger-Hash per HMAC geprüft"
+  },
+  "evidencePack": {
+    "modalTitle": "Projekterfahrung in sechs Schritten",
+    "copyMarkdownTitle": "Markdown kopieren",
+    "copied": "Kopiert",
+    "copyShort": "MD kopieren",
+    "downloadMarkdownTitle": "Markdown herunterladen",
+    "exportMarkdown": "Markdown exportieren",
+    "downloadJsonTitle": "JSON herunterladen",
+    "facts": "Wichtige Fakten und Belege:",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "stepCounter": "Schritt {current} / {total}",
+    "untitledTask": "Unbenannte Projektaufgabe",
+    "noTextInput": "Keine explizite Texteingabe",
+    "planningDetected": "{count} Dispatch-Phasen für Architektur- und Planungsentscheidungen erkannt",
+    "planningNodeFallback": "Planungsknoten",
+    "directExecution": "Ende-zu-Ende-Direktausführung im agilen Reaktionsmodus",
+    "firstWrite": "Erste Artefaktänderung: [{tool}] (Sequenz #{sequence})",
+    "targetFile": "Zieldatei: {path}",
+    "noFileChanges": "Keine statischen Dateiänderungen erkannt oder reine Konversationsaufgabe",
+    "executionSummary": "Insgesamt {total} Tool-Aufrufe, davon {failed} nach Fehlern abgefangen oder repariert",
+    "errorRecord": "[Fehlerprotokoll] {type}: {message}",
+    "selfHealPoint": "[Selbstheilungspunkt] Nach dem Fehlschlag von {tool} wurde eine Wiederholung oder Strategieanpassung ausgelöst",
+    "verificationSummary": "{count} Verifikations-/Testaktionen ausgeführt, Erfolgsquote {rate} %",
+    "verificationRun": "[Nachweislauf] {tool}: {result}",
+    "resultPassed": "Bestanden",
+    "resultFailed": "Fehlgeschlagen",
+    "verificationInferred": "Abgeleitete Verifikation anhand semantischer Konsistenz und des Aufgabenabschluss-Gates abgeschlossen",
+    "takeawayClosedLoop": "Aufgabe vollständig abgeschlossen; Entscheidungen und Belege der Phasen stimmen gut überein",
+    "takeawayExtractSkill": "Empfehlung: den stabilen SOP aus diesem Lauf als eigenen Skill oder Automatisierungsvorlage extrahieren",
+    "takeawayNotSuccess": "Aufgabenstatus: {outcome}; Unterbrechung oder erster nicht behebbarer Fehler beachten",
+    "takeawayFirstFatal": "Erster schwerwiegender Fehler bei Schrittindex #{index}",
+    "metricTotalCalls": "Aufrufe gesamt",
+    "metricFailures": "Fehler",
+    "steps": {
+      "requirements": {
+        "title": "Ursprüngliche Anforderungen",
+        "shortTitle": "Anforderungen",
+        "summary": "Ursprüngliches Aufgabenziel, fachlicher Hintergrund und Randbedingungen"
+      },
+      "architecture": {
+        "title": "Architektur und Entscheidungen",
+        "shortTitle": "Architektur",
+        "summary": "Auswahl des technischen Wegs, Planzerlegung und Abhängigkeiten"
+      },
+      "initial_impl": {
+        "title": "Snapshot der v0-Implementierung",
+        "shortTitle": "v0-Entwurf",
+        "summary": "Erste Code-/Artefakt-Ausgabe und Ausgangsform der Lösung"
+      },
+      "execution_correction": {
+        "title": "Ausführung und selbstheilende Korrekturen",
+        "shortTitle": "Ausführung",
+        "summary": "Tool-Aufrufprotokoll, Fehleranalyse und Korrekturbelege"
+      },
+      "verification": {
+        "title": "Objektive Verifikation und Testnachweise",
+        "shortTitle": "Verifikation",
+        "summary": "Testfälle, statische Prüfungen und gemessene Umgebungsdaten"
+      },
+      "takeaways": {
+        "title": "Erkenntnisse und Regressionsschutz",
+        "shortTitle": "Erkenntnisse",
+        "summary": "Rückblick, Best Practices und Empfehlungen zur Verankerung"
+      }
+    },
+    "markdownHeading": "Projekterfahrungs-Nachweispaket (sechs Schritte): {title}",
+    "markdownSessionId": "Sitzungs-ID",
+    "markdownOutcome": "Ergebnis",
+    "markdownDuration": "Dauer",
+    "markdownTokens": "Token-Verbrauch",
+    "markdownToolCalls": "Tool-Aufrufe",
+    "markdownGeneratedAt": "Erstellt am",
+    "markdownStepHeading": "Schritt {index}: {title}",
+    "markdownMetrics": "Wichtige Kennzahlen",
+    "markdownFooter": "Automatisch vom Sechs-Schritte-Assistenten für Projekterfahrung erstellt"
   }
 }

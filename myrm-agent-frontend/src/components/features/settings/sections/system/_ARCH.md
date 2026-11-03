@@ -19,6 +19,8 @@
 | `__tests__/SandboxResetCard.test.tsx` | 重置卡单测：成功 / 失败 / 409 运行中 / 非 API 错误各只弹一条本地化提示，不展示 server 英文；请求带 `silent` 与 `reset_python_env: true`；卡片标题只渲染一次 |
 | `__tests__/SandboxResetCard.dialog.test.tsx` | 重置卡确认步骤单测（使用真实确认对话框，不替身）：点按钮只弹确认、确认前不发请求；取消不发请求并关闭对话框；请求进行中重复点确认只发起一次换容器，确认 / 取消 / 触发按钮均禁用，结束后按钮恢复可用 |
 | `__tests__/CustomRulesListEditor.permissionLabels.test.tsx` | 规则编辑器权限下拉的真实渲染测试：6 种语言的真实文案（`describe.each`）下，`KNOWN_PERMISSIONS` 的每一项都以本语言的名称出现、没有任何缺失文案错误 |
+| `__tests__/TimezoneSelector.test.tsx` | 时区选择器在真实 en/zh 文案下的搜索提示与常用分组标题；无匹配时显示无结果提示并隐藏常用分组 |
+| `__tests__/ProjectExperienceWizardModal.test.tsx` | 六步向导弹窗在真实 en/zh 文案下的标题、步骤标签、步骤计数与上一步 / 下一步；复制的 Markdown 与界面同语言；下载按钮触发下载 |
 | `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
 | `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
@@ -150,7 +152,7 @@
 | `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
-| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计）                  |
+| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
 | `MemoryGuardianCard.tsx`         | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
 | `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 
@@ -185,7 +187,8 @@
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务；创建 / 编辑 board 的默认工作目录被服务端因过宽 / 受保护拒绝时，按 `workspacePathIssueMessageKey` 弹对应的本地化提示，测试 `__tests__/KanbanSection.workdirRefusal.test.tsx`；board 行是并列的「打开 / 编辑 / 删除」三个按钮而非嵌套交互元素，测试 `__tests__/KanbanSection.boardRow.test.tsx`） |
 | `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
-| `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
+| `TimezoneSelector.tsx`       | 时区选择器（搜索提示、常用分组标题与无结果提示均取自 `settings.system` 文案） |
+| `ProjectExperienceWizardModal.tsx` | 项目实战六步经验向导弹窗：界面文案与六步内容均来自 `evidencePack` 命名空间（`services/evidencePackGenerator.ts` 以传入的翻译函数生成），复制 / 下载的 Markdown 与界面同语言 |
 
 ## 连通性 UX
 

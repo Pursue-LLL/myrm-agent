@@ -656,8 +656,7 @@ export default function ModelPickerPopover({
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
                                 {cost.isLocalOwned
-                                  ? tCap('localOwnedMarginalCostHint') ||
-                                    `${tCap('refCost')}: ↓$0/M ↑$0/M (本地自有推理 · 仅电力与硬件折旧)`
+                                  ? tCap('localOwnedMarginalCostHint')
                                   : `${tCap('refCost')}: ↓${formatPrice(cost.input)} ↑${formatPrice(cost.output)}`}
                               </TooltipContent>
                             </Tooltip>
