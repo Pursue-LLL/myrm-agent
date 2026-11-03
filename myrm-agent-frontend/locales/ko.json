@@ -2814,7 +2814,13 @@
       "cancelled": "응답 생성이 중단되었습니다. 부분 내용이 컨텍스트에 유지됩니다."
     },
     "toolImage": {
-      "screenshotLabel": "원격 데스크톱 스크린샷"
+      "screenshotLabel": "원격 데스크톱 스크린샷",
+      "lightboxLabel": "스크린샷 미리보기",
+      "lightboxClose": "미리보기 닫기",
+      "lightboxPrevious": "이전 이미지",
+      "lightboxNext": "다음 이미지",
+      "lightboxAlt": "{tool} 스크린샷(원본 크기)",
+      "thumbnailAlt": "{tool} 스크린샷 {index}"
     },
     "sessionRecording": {
       "label": "세션 녹화"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "사고 접기",
     "reasoningLoading": "사고 중",
     "reasoningTokens": "{count} 추론 토큰",
-    "reasoningTokensEstimated": "≈ {count} 추론 토큰"
+    "reasoningTokensEstimated": "≈ {count} 추론 토큰",
+    "thinkingProcess": "사고 과정",
+    "customMessage": {
+      "ephemeral": "임시",
+      "persistent": "영구",
+      "ephemeralHint": "임시: 컨텍스트 압축 시 제거됩니다",
+      "persistentHint": "영구: 압축 요약 이후에도 유지됩니다",
+      "details": "상세 정보"
+    }
   },
   "mode": {
     "fast": "빠른 검색",
@@ -4288,7 +4302,8 @@
     "skillManageRollbackSuperseded": "이 배치의 스킬이 이후에 다시 변경되었습니다. 더 최신 변경을 먼저 실행 취소하거나 스킬 설정 → 기록에서 버전을 복원하세요.",
     "skillManageRollbackSkillMissing": "이 배치의 스킬이 이후에 삭제되어 이 배치를 더 이상 실행 취소할 수 없습니다.",
     "skillManageUndoHintBody": "어시스턴트가 이 답변에서 스킬을 업데이트했습니다. 아래 태스크 단계에서 편집을 실행 취소할 수 있습니다.",
-    "skillManageUndoHintAction": "태스크 단계 열기"
+    "skillManageUndoHintAction": "태스크 단계 열기",
+    "smartFallbackBadge": "스마트 폴백"
   },
   "memory": {
     "mesh": {
@@ -6788,7 +6803,8 @@
       "unavailable": "이 파일을 불러올 수 없습니다",
       "downloadFull": "전체 파일 다운로드"
     },
-    "resizePanel": "패널 크기 조정"
+    "resizePanel": "패널 크기 조정",
+    "closePreview": "미리보기 닫기"
   },
   "MessageSources": {
     "untitled": "제목 없음",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "검토 패널 열기",
     "reviewChanges": "변경 사항 검토",
     "closeReviewOverlayAria": "검토 닫기",
-    "closeReviewPanelAria": "검토 패널 닫기"
+    "closeReviewPanelAria": "검토 패널 닫기",
+    "tooLargeBadge": "너무 큼",
+    "tooLargeNotice": "파일이 너무 커서 인라인으로 미리 볼 수 없습니다. 워크스페이스에서 열어 검토하세요.",
+    "noTextChanges": "텍스트 변경 사항이 없습니다.",
+    "refreshDiffs": "차이 새로고침",
+    "searchFiles": "파일 검색",
+    "filterByStatus": "상태별 필터",
+    "filterAll": "전체",
+    "noFilesMatch": "검색과 일치하는 파일이 없습니다."
   },
   "growthDashboard": {
     "title": "성장 대시보드",
@@ -22509,5 +22533,29 @@
     "limitReached": "한도 도달",
     "pauseTitle": "자동 승인 엔벨로프 긴급 일시정지",
     "pause": "일시정지"
+  },
+  "embeds": {
+    "load": "{label} 불러오기",
+    "moreOptions": "추가 옵션",
+    "alwaysAllow": "{label} 항상 허용",
+    "loadFailed": "{label} 임베드를 불러오지 못했습니다"
+  },
+  "skeleton": {
+    "loadingList": "목록 불러오는 중",
+    "loadingCards": "카드 불러오는 중",
+    "loadingTable": "표 불러오는 중",
+    "loadingForm": "양식 불러오는 중",
+    "loadingWorkspace": "워크스페이스 불러오는 중",
+    "loadingMetrics": "지표 불러오는 중",
+    "loadingTimeline": "타임라인 불러오는 중"
+  },
+  "diffViewer": {
+    "unknownFile": "알 수 없는 파일",
+    "splitView": "분할 보기",
+    "unifiedView": "통합 보기",
+    "copyDiff": "차이 복사",
+    "close": "닫기",
+    "binaryChanged": "바이너리 파일이 변경되었습니다",
+    "noChanges": "변경 사항 없음"
   }
 }

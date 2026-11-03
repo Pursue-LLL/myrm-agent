@@ -2814,7 +2814,13 @@
       "cancelled": "Generierung gestoppt. Teilweise Antwort im Kontext beibehalten."
     },
     "toolImage": {
-      "screenshotLabel": "Remote-Desktop-Screenshot"
+      "screenshotLabel": "Remote-Desktop-Screenshot",
+      "lightboxLabel": "Screenshot-Vorschau",
+      "lightboxClose": "Vorschau schließen",
+      "lightboxPrevious": "Vorheriges Bild",
+      "lightboxNext": "Nächstes Bild",
+      "lightboxAlt": "{tool}-Screenshot (Originalgröße)",
+      "thumbnailAlt": "{tool}-Screenshot {index}"
     },
     "sessionRecording": {
       "label": "Sitzungsaufzeichnung"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens"
+    "reasoningTokensEstimated": "≈ {count} Tokens",
+    "thinkingProcess": "Denkprozess",
+    "customMessage": {
+      "ephemeral": "Temporär",
+      "persistent": "Dauerhaft",
+      "ephemeralHint": "Temporär: wird bei der Kompaktierung entfernt",
+      "persistentHint": "Dauerhaft: bleibt über Kompaktierungs-Zusammenfassungen hinweg erhalten",
+      "details": "Einzelheiten"
+    }
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -4288,7 +4302,8 @@
     "skillManageRollbackSuperseded": "Ein Skill in diesem Batch wurde danach erneut geändert. Machen Sie zuerst die neuere Änderung rückgängig oder stellen Sie unter Skill-Einstellungen → Verlauf eine Version wieder her.",
     "skillManageRollbackSkillMissing": "Ein Skill in diesem Batch wurde inzwischen gelöscht, daher lässt sich der Batch nicht mehr rückgängig machen.",
     "skillManageUndoHintBody": "Der Assistent hat in dieser Antwort Skills aktualisiert. Öffnen Sie unten „Task“, um die Änderungen rückgängig zu machen.",
-    "skillManageUndoHintAction": "Task öffnen"
+    "skillManageUndoHintAction": "Task öffnen",
+    "smartFallbackBadge": "Intelligenter Fallback"
   },
   "memory": {
     "mesh": {
@@ -6788,7 +6803,8 @@
       "unavailable": "Diese Datei kann nicht geladen werden",
       "downloadFull": "Vollständige Datei herunterladen"
     },
-    "resizePanel": "Panelgröße ändern"
+    "resizePanel": "Panelgröße ändern",
+    "closePreview": "Vorschau schließen"
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "Überprüfungsbereich öffnen",
     "reviewChanges": "Änderungen überprüfen",
     "closeReviewOverlayAria": "Überprüfung schließen",
-    "closeReviewPanelAria": "Überprüfungsbereich schließen"
+    "closeReviewPanelAria": "Überprüfungsbereich schließen",
+    "tooLargeBadge": "Zu groß",
+    "tooLargeNotice": "Die Datei ist zu groß für die Inline-Vorschau. Öffne sie zur Prüfung im Arbeitsbereich.",
+    "noTextChanges": "Keine Textänderungen.",
+    "refreshDiffs": "Diffs aktualisieren",
+    "searchFiles": "Dateien durchsuchen",
+    "filterByStatus": "Nach Status filtern",
+    "filterAll": "Alle",
+    "noFilesMatch": "Keine Dateien entsprechen der Suche."
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
@@ -22509,5 +22533,29 @@
     "limitReached": "Limit erreicht",
     "pauseTitle": "Auto-Freigabe-Hülle sofort pausieren",
     "pause": "Pausieren"
+  },
+  "embeds": {
+    "load": "{label} laden",
+    "moreOptions": "Weitere Optionen",
+    "alwaysAllow": "{label} immer zulassen",
+    "loadFailed": "{label}-Einbettung konnte nicht geladen werden"
+  },
+  "skeleton": {
+    "loadingList": "Liste wird geladen",
+    "loadingCards": "Karten werden geladen",
+    "loadingTable": "Tabelle wird geladen",
+    "loadingForm": "Formular wird geladen",
+    "loadingWorkspace": "Arbeitsbereich wird geladen",
+    "loadingMetrics": "Metriken werden geladen",
+    "loadingTimeline": "Zeitachse wird geladen"
+  },
+  "diffViewer": {
+    "unknownFile": "Unbekannte Datei",
+    "splitView": "Geteilte Ansicht",
+    "unifiedView": "Einheitliche Ansicht",
+    "copyDiff": "Diff kopieren",
+    "close": "Schließen",
+    "binaryChanged": "Binärdatei geändert",
+    "noChanges": "Keine Änderungen"
   }
 }

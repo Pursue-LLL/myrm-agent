@@ -17,6 +17,12 @@ const stableT = (key: string, params?: Record<string, unknown>) => {
     feedbackPlaceholder: 'Send feedback to this agent...',
     loadingMessages: 'Loading messages...',
     noMessages: 'No messages yet',
+    searchFiles: 'Search files',
+    filterByStatus: 'Filter by status',
+    filterAll: 'All',
+    noFilesMatch: 'No files match your search.',
+    tooLargeBadge: 'Too large',
+    tooLargeNotice: 'File too large to preview inline. Open it in the workspace to review.',
   };
   let text = translations[key] || key;
   if (params) {
@@ -156,6 +162,11 @@ describe('ReviewPanel Component', () => {
     expect(scroller.scrollTop).toBe(0);
     expect(screen.queryByText('a.ts')).not.toBeInTheDocument();
     expect(screen.getByText('b.ts')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search files'), { target: { value: 'nothing-matches' } });
+    expect(screen.getByText('No files match your search.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
+    expect(screen.getByText('All')).toBeInTheDocument();
   });
 
   it('renders truncated rows with stats hint and no inline diff', async () => {

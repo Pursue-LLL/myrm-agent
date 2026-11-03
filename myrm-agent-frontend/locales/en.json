@@ -2823,7 +2823,13 @@
       "cancelled": "Generation stopped. Partial response retained in context."
     },
     "toolImage": {
-      "screenshotLabel": "Remote Desktop Screenshot"
+      "screenshotLabel": "Remote Desktop Screenshot",
+      "lightboxLabel": "Screenshot preview",
+      "lightboxClose": "Close preview",
+      "lightboxPrevious": "Previous image",
+      "lightboxNext": "Next image",
+      "lightboxAlt": "{tool} screenshot (full size)",
+      "thumbnailAlt": "{tool} screenshot {index}"
     },
     "sessionRecording": {
       "label": "Session Recording"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "Collapse reasoning",
     "reasoningLoading": "Thinking",
     "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens"
+    "reasoningTokensEstimated": "≈ {count} tokens",
+    "thinkingProcess": "Thinking Process",
+    "customMessage": {
+      "ephemeral": "Ephemeral",
+      "persistent": "Persistent",
+      "ephemeralHint": "Ephemeral: will be pruned during compaction",
+      "persistentHint": "Persistent: retained across compaction summaries",
+      "details": "Details"
+    }
   },
   "mode": {
     "fast": "Fast Search",
@@ -4288,7 +4302,8 @@
       "copyRaw": "Copy Raw JSON",
       "copied": "Copied",
       "close": "Close"
-    }
+    },
+    "smartFallbackBadge": "Smart Fallback"
   },
   "memory": {
     "mesh": {
@@ -6788,7 +6803,8 @@
       "unavailable": "This file is no longer available",
       "downloadFull": "Download full file"
     },
-    "resizePanel": "Resize panel"
+    "resizePanel": "Resize panel",
+    "closePreview": "Close preview"
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "Open review panel",
     "reviewChanges": "Review changes",
     "closeReviewOverlayAria": "Close review",
-    "closeReviewPanelAria": "Close review panel"
+    "closeReviewPanelAria": "Close review panel",
+    "tooLargeBadge": "Too large",
+    "tooLargeNotice": "File too large to preview inline. Open it in the workspace to review.",
+    "noTextChanges": "No text changes.",
+    "refreshDiffs": "Refresh diffs",
+    "searchFiles": "Search files",
+    "filterByStatus": "Filter by status",
+    "filterAll": "All",
+    "noFilesMatch": "No files match your search."
   },
   "growthDashboard": {
     "title": "Growth Dashboard",
@@ -22509,5 +22533,29 @@
     "limitReached": "Limit reached",
     "pauseTitle": "Emergency pause for the auto-approve envelope",
     "pause": "Pause"
+  },
+  "embeds": {
+    "load": "Load {label}",
+    "moreOptions": "More options",
+    "alwaysAllow": "Always allow {label}",
+    "loadFailed": "Failed to load {label} embed"
+  },
+  "skeleton": {
+    "loadingList": "Loading list",
+    "loadingCards": "Loading cards",
+    "loadingTable": "Loading table",
+    "loadingForm": "Loading form",
+    "loadingWorkspace": "Loading workspace",
+    "loadingMetrics": "Loading metrics",
+    "loadingTimeline": "Loading timeline"
+  },
+  "diffViewer": {
+    "unknownFile": "Unknown file",
+    "splitView": "Split view",
+    "unifiedView": "Unified view",
+    "copyDiff": "Copy diff",
+    "close": "Close",
+    "binaryChanged": "Binary file changed",
+    "noChanges": "No changes"
   }
 }

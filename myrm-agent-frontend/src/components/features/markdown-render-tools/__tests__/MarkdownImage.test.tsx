@@ -23,4 +23,12 @@ describe('MarkdownImage 键盘可达性', () => {
 
     expect(screen.getByRole('button', { name: 'preview' })).toBeInTheDocument();
   });
+
+  it('预览弹窗的操作按钮使用本地化名称', () => {
+    render(<MarkdownImage src="https://example.com/architecture.png" alt="Architecture" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Architecture' }));
+
+    expect(screen.getByRole('button', { name: 'openInNewTab' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'closePreview' })).toBeInTheDocument();
+  });
 });

@@ -99,7 +99,7 @@ const ReviewDiffRow: React.FC<ReviewDiffRowProps> = memo(
               </span>
             ) : null}
             {diff.truncated ? (
-              <span className="text-[11px] text-yellow-600 dark:text-yellow-400 shrink-0">Too large</span>
+              <span className="text-[11px] text-yellow-600 dark:text-yellow-400 shrink-0">{t('tooLargeBadge')}</span>
             ) : null}
           </button>
 
@@ -121,9 +121,7 @@ const ReviewDiffRow: React.FC<ReviewDiffRowProps> = memo(
         )}
 
         {expanded && diff.truncated && (
-          <div className="px-4 pb-3 text-xs text-muted-foreground">
-            File too large to preview inline. Open it in the workspace to review.
-          </div>
+          <div className="px-4 pb-3 text-xs text-muted-foreground">{t('tooLargeNotice')}</div>
         )}
 
         {expanded && !diff.isBinary && !diff.truncated && rawDiff && (
@@ -162,7 +160,7 @@ const ReviewDiffRow: React.FC<ReviewDiffRowProps> = memo(
         {expanded && !diff.isBinary && !diff.truncated && !rawDiff && (
           <div className="px-4 pb-3 text-xs text-muted-foreground flex items-center gap-1.5">
             <FileEdit size={13} />
-            No text changes.
+            {t('noTextChanges')}
           </div>
         )}
       </div>

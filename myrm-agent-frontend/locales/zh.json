@@ -2823,7 +2823,13 @@
       "cancelled": "本次回复已停止生成，部分内容已保留在上下文中。"
     },
     "toolImage": {
-      "screenshotLabel": "远程桌面截屏"
+      "screenshotLabel": "远程桌面截屏",
+      "lightboxLabel": "截图预览",
+      "lightboxClose": "关闭预览",
+      "lightboxPrevious": "上一张图片",
+      "lightboxNext": "下一张图片",
+      "lightboxAlt": "{tool} 截图（原尺寸）",
+      "thumbnailAlt": "{tool} 截图 {index}"
     },
     "sessionRecording": {
       "label": "会话录制"
@@ -3457,7 +3463,15 @@
     "collapseReasoning": "收起思考过程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 个推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 个推理 Token"
+    "reasoningTokensEstimated": "≈ {count} 个推理 Token",
+    "thinkingProcess": "思考过程",
+    "customMessage": {
+      "ephemeral": "临时",
+      "persistent": "持久",
+      "ephemeralHint": "临时：压缩上下文时会被清理",
+      "persistentHint": "持久：压缩摘要后仍会保留",
+      "details": "详情"
+    }
   },
   "mode": {
     "fast": "快速搜索",
@@ -4288,7 +4302,8 @@
       "copyRaw": "复制原始 JSON",
       "copied": "已复制",
       "close": "关闭"
-    }
+    },
+    "smartFallbackBadge": "智能降级"
   },
   "memory": {
     "mesh": {
@@ -6788,7 +6803,8 @@
       "unavailable": "无法加载该文件",
       "downloadFull": "下载完整文件"
     },
-    "resizePanel": "调整面板大小"
+    "resizePanel": "调整面板大小",
+    "closePreview": "关闭预览"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -10781,7 +10797,15 @@
     "openReviewPanelAria": "打开审查面板",
     "reviewChanges": "审查变更",
     "closeReviewOverlayAria": "关闭审查",
-    "closeReviewPanelAria": "关闭审查面板"
+    "closeReviewPanelAria": "关闭审查面板",
+    "tooLargeBadge": "过大",
+    "tooLargeNotice": "文件过大，无法内联预览。请在工作区中打开后查看。",
+    "noTextChanges": "没有文本更改。",
+    "refreshDiffs": "刷新差异",
+    "searchFiles": "搜索文件",
+    "filterByStatus": "按状态筛选",
+    "filterAll": "全部",
+    "noFilesMatch": "没有文件匹配搜索条件。"
   },
   "growthDashboard": {
     "title": "成长仪表盘",
@@ -22509,5 +22533,29 @@
     "limitReached": "已达上限",
     "pauseTitle": "紧急暂停免打扰包络",
     "pause": "暂停"
+  },
+  "embeds": {
+    "load": "加载 {label}",
+    "moreOptions": "更多选项",
+    "alwaysAllow": "始终允许 {label}",
+    "loadFailed": "{label} 嵌入内容加载失败"
+  },
+  "skeleton": {
+    "loadingList": "正在加载列表",
+    "loadingCards": "正在加载卡片",
+    "loadingTable": "正在加载表格",
+    "loadingForm": "正在加载表单",
+    "loadingWorkspace": "正在加载工作区",
+    "loadingMetrics": "正在加载指标",
+    "loadingTimeline": "正在加载时间线"
+  },
+  "diffViewer": {
+    "unknownFile": "未知文件",
+    "splitView": "分栏视图",
+    "unifiedView": "统一视图",
+    "copyDiff": "复制差异",
+    "close": "关闭",
+    "binaryChanged": "二进制文件已更改",
+    "noChanges": "无更改"
   }
 }

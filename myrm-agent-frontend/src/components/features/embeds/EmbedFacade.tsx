@@ -1,6 +1,7 @@
 'use client';
 
 import { type CSSProperties, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import useEmbedConsentStore from '@/store/useEmbedConsentStore';
 import type { EmbedDescriptor } from './providers/types';
 
@@ -16,6 +17,7 @@ function hostOf(descriptor: EmbedDescriptor): string {
 }
 
 export function EmbedFacade({ descriptor, onLoad }: { descriptor: EmbedDescriptor; onLoad: () => void }) {
+  const t = useTranslations('embeds');
   const allowProvider = useEmbedConsentStore((s) => s.allowProvider);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -36,13 +38,13 @@ export function EmbedFacade({ descriptor, onLoad }: { descriptor: EmbedDescripto
           <svg className="h-3 w-3 translate-x-px fill-current" viewBox="0 0 16 16">
             <path d="M4 2l10 6-10 6z" />
           </svg>
-          Load {descriptor.label}
+          {t('load', { label: descriptor.label })}
         </button>
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
             className="rounded-lg border border-border/60 bg-background px-2 py-2 text-xs text-muted-foreground transition hover:bg-accent"
-            aria-label="More options"
+            aria-label={t('moreOptions')}
           >
             <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor">
               <path d="M4 8l4 4 4-4z" />
@@ -58,7 +60,7 @@ export function EmbedFacade({ descriptor, onLoad }: { descriptor: EmbedDescripto
                 }}
                 className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition hover:bg-accent"
               >
-                Always allow {descriptor.label}
+                {t('alwaysAllow', { label: descriptor.label })}
               </button>
             </div>
           )}
