@@ -34,10 +34,10 @@ from app.ai_agents.prompts.fast_search_agent_prompt import (
 from app.ai_agents.prompts.shared_rules import (
     ABSOLUTE_OBEDIENCE_RULES_EN,
     ABSOLUTE_OBEDIENCE_RULES_ZH,
+    AGENT_RESPONSE_RULES_EN,
+    AGENT_RESPONSE_RULES_ZH,
     EXTERNAL_SOURCES_CITATION_RULES_EN,
     EXTERNAL_SOURCES_CITATION_RULES_ZH,
-    RESPONSE_RULES_EN,
-    RESPONSE_RULES_ZH,
     TASK_INTEGRITY_RULES_EN,
     TASK_INTEGRITY_RULES_ZH,
 )
@@ -165,7 +165,7 @@ def _build_prompt_map(
         full_parts = [
             identity,
             ABSOLUTE_OBEDIENCE_RULES_ZH,
-            RESPONSE_RULES_ZH,
+            AGENT_RESPONSE_RULES_ZH,
             TASK_INTEGRITY_RULES_ZH,
         ]
 
@@ -181,7 +181,7 @@ def _build_prompt_map(
     full_parts = [
         identity,
         ABSOLUTE_OBEDIENCE_RULES_EN,
-        RESPONSE_RULES_EN,
+        AGENT_RESPONSE_RULES_EN,
         TASK_INTEGRITY_RULES_EN,
     ]
 
