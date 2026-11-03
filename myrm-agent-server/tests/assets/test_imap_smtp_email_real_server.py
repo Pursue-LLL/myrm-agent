@@ -61,7 +61,8 @@ def _run(tmp_path: Path, mailbox: Mailbox, *args: str, user: str = _USER) -> dic
         },
     )
     assert proc.returncode == 0, f"{args[0]} failed: {proc.stderr[-400:]}"
-    return json.loads(proc.stdout)
+    output: dict[str, object] = json.loads(proc.stdout)
+    return output
 
 
 def _incoming(sender: str, user: str, token: str) -> email.message.EmailMessage:
@@ -77,7 +78,9 @@ def _incoming(sender: str, user: str, token: str) -> email.message.EmailMessage:
 def _the_only_message(listing: dict[str, object]) -> dict[str, object]:
     messages = listing["messages"]
     assert isinstance(messages, list) and len(messages) == 1, f"expected the one delivered mail, got {listing}"
-    return messages[0]
+    message = messages[0]
+    assert isinstance(message, dict)
+    return message
 
 
 def test_check_search_and_read_find_the_mail_the_server_holds(tmp_path: Path, mailbox: Mailbox) -> None:

@@ -40,6 +40,7 @@ import certifi
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import pkcs12
 
 from tests.support.self_signed_tls import self_signed_certificate
@@ -95,6 +96,7 @@ def _write_keystore(directory: Path) -> Path:
     certificate_file, key_file = self_signed_certificate(directory)
     certificate = x509.load_pem_x509_certificate(certificate_file.read_bytes())
     key = serialization.load_pem_private_key(key_file.read_bytes(), password=None)
+    assert isinstance(key, ec.EllipticCurvePrivateKey)  # what self_signed_certificate writes
     encryption = serialization.BestAvailableEncryption(_KEYSTORE_PASSWORD)
     keystore = directory / "greenmail.p12"
     keystore.write_bytes(pkcs12.serialize_key_and_certificates(b"greenmail", key, certificate, None, encryption))
@@ -161,7 +163,7 @@ def messages_of(mailbox: Mailbox, user: str) -> list[email.message.EmailMessage]
     with imaplib.IMAP4_SSL(mailbox.host, mailbox.imap_port, ssl_context=context, timeout=15) as conn:
         conn.login(user, "pw")
         conn.select("INBOX", readonly=True)
-        _, found = conn.uid("search", None, "ALL")
+        _, found = conn.uid("search", "ALL")
         uids = found[0].split() if found and found[0] else []
         messages: list[email.message.EmailMessage] = []
         for uid in uids:
