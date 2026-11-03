@@ -47,10 +47,48 @@ def _walk(old: object, new: object, path: str = "") -> Iterator[Diff]:
         yield Diff("~", path, old, new)
 
 
+def _camel(key: str) -> str:
+    head, *rest = key.split("_")
+    return head + "".join(part.title() for part in rest)
+
+
+def _camel_keys(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {_camel(str(k)): _camel_keys(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_camel_keys(v) for v in value]
+    return value
+
+
+def _canonical_contents(turns: object) -> object:
+    """Gemini turns in the one form the API treats alike: no empty text part, one turn per run of a role.
+
+    Compared this way a Gemini request still differs on every field that matters (ids, signatures, arguments, text),
+    without a rule per spelling of the same turn.
+    """
+    if not isinstance(turns, list):
+        return turns
+    merged: list[dict[str, object]] = []
+    for turn in turns:
+        parts = [p for p in turn.get("parts", []) if p != {"text": ""}]
+        if merged and merged[-1]["role"] == turn.get("role"):
+            merged[-1]["parts"] = [*merged[-1]["parts"], *parts]  # type: ignore[misc]
+        else:
+            merged.append({**turn, "parts": parts})
+    return merged
+
+
 def _comparable(request: Mapping[str, object]) -> dict[str, object]:
     headers = request["headers"]
     assert isinstance(headers, Mapping)
-    return {**request, "headers": {k: v for k, v in headers.items() if k not in _VOLATILE_HEADERS}}
+    result = {**request, "headers": {k: v for k, v in headers.items() if k not in _VOLATILE_HEADERS}}
+    body = request.get("body")
+    if isinstance(body, Mapping) and "contents" in body:
+        # The Gemini API reads a field in snake_case or camelCase alike, so only the value is compared.
+        gemini = _camel_keys(body)
+        assert isinstance(gemini, dict)
+        result["body"] = {**gemini, "contents": _canonical_contents(gemini["contents"])}
+    return result
 
 
 def _requests(case: Mapping[str, object]) -> list[Mapping[str, object]]:

@@ -213,6 +213,30 @@ class TestGateway400Downgrade:
         assert "top_p" not in params
         assert "temperature" in params
 
+    @pytest.mark.parametrize("param", ["temperature", "top_p", "top_k"])
+    def test_sanitize_params_strips_a_sampling_parameter_the_model_deprecated(self, param: str) -> None:
+        params = {"model": "claude-opus-4-7", "temperature": 0.7, "top_p": 0.9, "top_k": 40}
+        exc = Exception(f"BadRequestError: 400 invalid_request_error: `{param}` is deprecated for this model.")
+        stripped = sanitize_gateway_params_on_400(params, exc)
+
+        assert stripped == [param]
+        assert param not in params
+        assert {"temperature", "top_p", "top_k"} - {param} <= params.keys()
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "400 invalid_request_error: output_format: Extra inputs are not permitted",
+            "400 invalid_request_error: Structured outputs are not supported for this model",
+        ],
+    )
+    def test_sanitize_params_strips_response_format_when_structured_output_is_refused(self, message: str) -> None:
+        params = {"model": "claude-3-haiku", "response_format": {"type": "json_object"}, "temperature": 0.2}
+        stripped = sanitize_gateway_params_on_400(params, Exception(message))
+
+        assert stripped == ["response_format"]
+        assert params["temperature"] == 0.2
+
 
 def _internal_transport_response_format() -> dict:
     return {

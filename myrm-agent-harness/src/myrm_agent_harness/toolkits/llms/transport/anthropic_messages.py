@@ -5,6 +5,8 @@
 - transport.params (POS: CallOptions split of the call's keyword arguments)
 - transport.http (POS: PreparedRequest)
 - transport.anthropic_schema (POS: structured-output schema conversion)
+- transport.anthropic_thinking (POS: thinking block and effort of a request)
+- transport.capabilities (POS: what the model accepts)
 
 [OUTPUT]
 - prepare: a PreparedRequest for ``POST {base}/v1/messages``
@@ -12,9 +14,10 @@
 [POS]
 Request half of the Anthropic wire (answers are read by ``anthropic_response``). Messages and tools arrive
 OpenAI-shaped and leave as content blocks; cache_control markers on content parts, tools and system blocks are
-carried through unchanged; consecutive turns of one role are merged because the API demands alternation. Extended
-thinking is switched off for a turn whose earlier tool calls carry no signed thinking block, because the API
-rejects such a replay.
+carried through unchanged; consecutive turns of one role are merged because the API demands alternation. What the
+model itself accepts shapes the body: the newest generation takes no sampling parameters, and an unstated output
+budget is the model's ceiling. A request that replays tool calls but declares no tools gets a placeholder tool,
+which the API demands.
 """
 
 from __future__ import annotations
@@ -27,6 +30,8 @@ from typing import Final
 from urllib.parse import urlsplit
 
 from myrm_agent_harness.toolkits.llms.transport.anthropic_schema import to_output_schema
+from myrm_agent_harness.toolkits.llms.transport.anthropic_thinking import request_thinking
+from myrm_agent_harness.toolkits.llms.transport.capabilities import claude_traits
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
@@ -36,11 +41,20 @@ logger = logging.getLogger(__name__)
 _API_VERSION: Final = "2023-06-01"
 _OFFICIAL_HOST: Final = "api.anthropic.com"
 _STRUCTURED_OUTPUT_BETA: Final = "structured-outputs-2025-11-13"
-_THINKING_TYPES: Final = ("thinking", "redacted_thinking")
+# The answer budget when the caller states none and the catalog does not know the model's own ceiling.
 _DEFAULT_MAX_TOKENS: Final = 8192
+_PLACEHOLDER_TOOL: Final[dict[str, object]] = {
+    "name": "dummy_tool",
+    "description": "This is a dummy tool call",
+    "input_schema": {"type": "object", "properties": {}},
+    "type": "custom",
+}
 _DATA_URL: Final = re.compile(r"^data:(?P<media>[^;,]+);base64,(?P<data>.+)$", re.DOTALL)
-_THINKING_BUDGET: Final = {"minimal": 1024, "low": 1024, "medium": 2048, "high": 4096, "xhigh": 8192, "max": 8192}
-_DISABLED_EFFORT: Final = frozenset({"none", "off", "disable", "disabled"})
+# The API accepts ids of letters, digits, underscore and hyphen only; ids minted by other providers or by the history
+# hygiene step (``id@2``) are rewritten the same way on the call and on its result, so the pair still matches.
+_INVALID_ID_CHARS: Final = re.compile(r"[^a-zA-Z0-9_-]")
+# An email address or a phone number is not an opaque identifier and is refused as ``metadata.user_id``.
+_PERSONAL_ID: Final = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$|^\+?[\d\s()-]{7,}$")
 Block = dict[str, object]
 
 
@@ -77,13 +91,13 @@ def _file_block(part: Mapping[str, object]) -> Block | None:
 
 
 def _content_blocks(content: object) -> list[Block]:
-    """OpenAI ``content`` (string or parts) as Anthropic content blocks; empty text blocks are rejected by the API."""
+    """OpenAI ``content`` (string or parts) as Anthropic content blocks; the API rejects blank text blocks."""
     if isinstance(content, str):
-        return [{"type": "text", "text": content}] if content else []
+        return [{"type": "text", "text": content}] if content.strip() else []
     blocks: list[Block] = []
     for part in content if isinstance(content, list) else []:
         if isinstance(part, str):
-            if part:
+            if part.strip():
                 blocks.append({"type": "text", "text": part})
             continue
         if not isinstance(part, Mapping):
@@ -92,7 +106,11 @@ def _content_blocks(content: object) -> list[Block]:
         block: Block | None = None
         if kind == "text":
             text = part.get("text")
-            block = {"type": "text", "text": text, **_cache_control(part)} if isinstance(text, str) and text else None
+            block = (
+                {"type": "text", "text": text, **_cache_control(part)}
+                if isinstance(text, str) and text.strip()
+                else None
+            )
         elif kind == "image_url":
             block = _image_block(part)
         elif kind == "file":
@@ -102,6 +120,10 @@ def _content_blocks(content: object) -> list[Block]:
         if block is not None:
             blocks.append(block)
     return blocks
+
+
+def _tool_id(raw: object) -> str:
+    return _INVALID_ID_CHARS.sub("_", str(raw or "")) or "tool_use_id"
 
 
 def _tool_use_blocks(tool_calls: object) -> list[Block]:
@@ -118,7 +140,7 @@ def _tool_use_blocks(tool_calls: object) -> list[Block]:
         blocks.append(
             {
                 "type": "tool_use",
-                "id": call.get("id") or "",
+                "id": _tool_id(call.get("id")),
                 "name": function.get("name") or "",
                 "input": arguments if isinstance(arguments, dict) else {},
             }
@@ -128,10 +150,9 @@ def _tool_use_blocks(tool_calls: object) -> list[Block]:
 
 def _tool_result_block(message: Mapping[str, object]) -> Block:
     content = message.get("content")
-    block: Block = {"type": "tool_result", "tool_use_id": message.get("tool_call_id") or ""}
+    block: Block = {"type": "tool_result", "tool_use_id": _tool_id(message.get("tool_call_id"))}
     if isinstance(content, str):
-        if content:
-            block["content"] = content
+        block["content"] = content
     else:
         parts = _content_blocks(content)
         if parts:
@@ -145,6 +166,16 @@ def _thinking_blocks(message: Mapping[str, object]) -> list[Block]:
     return (
         [dict(b) for b in blocks if isinstance(b, Mapping) and b.get("signature")] if isinstance(blocks, list) else []
     )
+
+
+def _trim_prefill(blocks: list[Block]) -> None:
+    """A closing assistant message is a prefill, and the API refuses a prefill that ends in whitespace."""
+    while blocks and blocks[-1].get("type") == "text":
+        text = str(blocks[-1]["text"]).rstrip()
+        if text:
+            blocks[-1] = {**blocks[-1], "text": text}
+            return
+        blocks.pop()
 
 
 def _to_messages(messages: Sequence[Mapping[str, object]]) -> tuple[list[Block], list[Block]]:
@@ -181,7 +212,11 @@ def _to_messages(messages: Sequence[Mapping[str, object]]) -> tuple[list[Block],
                 push("user", [result])
         elif role == "user":
             push("user", _content_blocks(message.get("content")))
-    if turns and turns[0][0] != "user":
+    if turns and turns[-1][0] == "assistant":
+        _trim_prefill(turns[-1][1])
+        if not turns[-1][1]:
+            turns.pop()
+    if not turns or turns[0][0] != "user":
         turns.insert(0, ("user", [{"type": "text", "text": "."}]))
     return system, [{"role": role, "content": blocks} for role, blocks in turns]
 
@@ -215,6 +250,8 @@ def _tools(raw: object, web_search: Mapping[str, object] | None) -> list[Block]:
 
 
 def _tool_choice(choice: object, parallel: object) -> Block | None:
+    if choice is None and parallel is None:  # the API's own default is automatic choice with parallel calls
+        return None
     disable_parallel = parallel is False
     if choice in (None, "auto"):
         kind: Block = {"type": "auto"}
@@ -232,15 +269,13 @@ def _tool_choice(choice: object, parallel: object) -> Block | None:
     return kind
 
 
-def _thinking(body_params: Mapping[str, object]) -> Block | None:
-    explicit = body_params.get("thinking")
-    if isinstance(explicit, Mapping):
-        return dict(explicit)
-    effort = body_params.get("reasoning_effort")
-    if not isinstance(effort, str) or effort.lower() in _DISABLED_EFFORT:
-        return None
-    budget = _THINKING_BUDGET.get(effort.lower())
-    return {"type": "enabled", "budget_tokens": budget} if budget else None
+def _replays_tool_calls(turns: Sequence[Mapping[str, object]]) -> bool:
+    """Whether the history holds tool calls: the API then insists that the request declares tools."""
+    for turn in turns:
+        content = turn.get("content")
+        if isinstance(content, list) and any(isinstance(b, Mapping) and b.get("type") == "tool_use" for b in content):
+            return True
+    return False
 
 
 def _stop_sequences(stop: object) -> list[str] | None:
@@ -251,46 +286,41 @@ def _stop_sequences(stop: object) -> list[str] | None:
     return None
 
 
-def _lacks_thinking_replay(turns: Sequence[Mapping[str, object]]) -> bool:
-    """Whether an assistant turn calls tools without the thinking block the API demands first when thinking is on."""
-    for turn in turns:
-        blocks = turn.get("content")
-        if turn.get("role") != "assistant" or not isinstance(blocks, list):
-            continue
-        calls_tool = any(isinstance(b, Mapping) and b.get("type") == "tool_use" for b in blocks)
-        leads = bool(blocks) and isinstance(blocks[0], Mapping) and blocks[0].get("type") in _THINKING_TYPES
-        if calls_tool and not leads:
-            return True
-    return False
-
-
 def _body(route: Route, messages: Sequence[Mapping[str, object]], opts: CallOptions) -> dict[str, object]:
     params = opts.body
+    traits = claude_traits(route.model)
     system, turns = _to_messages(messages)
     max_tokens = params.get("max_completion_tokens") or params.get("max_tokens")
     body: dict[str, object] = {
         "model": route.model,
-        "max_tokens": max_tokens if isinstance(max_tokens, int) and max_tokens > 0 else _DEFAULT_MAX_TOKENS,
+        "max_tokens": max_tokens
+        if isinstance(max_tokens, int) and max_tokens > 0
+        else traits.max_output_tokens or _DEFAULT_MAX_TOKENS,
         "messages": turns,
     }
     if system:
         body["system"] = system
-    thinking = _thinking(params)
-    if thinking is not None and _lacks_thinking_replay(turns):
-        logger.info("Thinking is off for this turn: earlier tool calls carry no signed thinking block to replay")
-        thinking = None
-    if thinking is not None:
-        body["thinking"] = thinking
-    # Extended thinking accepts only the default sampling: the API rejects an explicit temperature or top_k.
-    if thinking is None or thinking.get("type") == "disabled":
+    thinking = request_thinking(params, traits, turns)
+    if thinking.block is not None:
+        body["thinking"] = thinking.block
+    if thinking.effort is not None:
+        body["output_config"] = {"effort": thinking.effort}
+    # Extended thinking accepts only the default sampling, and the newest generation none at all: the API rejects an
+    # explicit temperature, top_p or top_k. Current models also refuse temperature and top_p together; temperature is
+    # the one callers tune, so it wins.
+    if traits.sampling and (thinking.block is None or thinking.block.get("type") == "disabled"):
         for key in ("temperature", "top_p", "top_k"):
             if params.get(key) is not None:
                 body[key] = params[key]
+        if "temperature" in body:
+            body.pop("top_p", None)
     stop = _stop_sequences(params.get("stop"))
     if stop:
         body["stop_sequences"] = stop
     web_search = params.get("web_search_options")
     tools = _tools(params.get("tools"), web_search if isinstance(web_search, Mapping) else None)
+    if not tools and _replays_tool_calls(turns):
+        tools = [_PLACEHOLDER_TOOL]
     if tools:
         body["tools"] = tools
         choice = _tool_choice(params.get("tool_choice"), params.get("parallel_tool_calls"))
@@ -303,7 +333,7 @@ def _body(route: Route, messages: Sequence[Mapping[str, object]], opts: CallOpti
         if isinstance(schema, Mapping):
             body["output_format"] = {"type": "json_schema", "schema": to_output_schema(schema)}
     user = params.get("user")
-    if isinstance(user, str) and user:
+    if isinstance(user, str) and user and not _PERSONAL_ID.match(user):
         body["metadata"] = {"user_id": user}
     if opts.stream:
         body["stream"] = True

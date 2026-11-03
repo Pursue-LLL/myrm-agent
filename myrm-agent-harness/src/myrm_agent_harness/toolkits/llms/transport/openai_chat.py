@@ -28,6 +28,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from urllib.parse import urlsplit
 
+from myrm_agent_harness.toolkits.llms.transport.capabilities import keeps_temperature_without_reasoning
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
@@ -87,14 +88,23 @@ def _demote_developer(messages: Sequence[Mapping[str, object]]) -> list[dict[str
     return [{**m, "role": "system"} if m.get("role") == "developer" else dict(m) for m in messages]
 
 
+def _reasoning_effort(body: Mapping[str, object]) -> object:
+    """The effort a Chat Completions (``reasoning_effort``) or Responses (``reasoning.effort``) body asks for."""
+    reasoning = body.get("reasoning")
+    return reasoning.get("effort") if isinstance(reasoning, Mapping) else body.get("reasoning_effort")
+
+
 def drop_unsupported_temperature(profile: ProviderProfile, model: str, body: dict[str, object]) -> None:
-    """Reasoning families accept no temperature other than 1."""
+    """Reasoning families accept no temperature other than 1, except while a model that can stop reasoning does."""
     if (
-        profile.reasoning_model is not None
-        and profile.reasoning_model.match(model)
-        and body.get("temperature") not in (None, 1, 1.0)
+        profile.reasoning_model is None
+        or not profile.reasoning_model.match(model)
+        or body.get("temperature") in (None, 1, 1.0)
     ):
-        body.pop("temperature")
+        return
+    if _reasoning_effort(body) in (None, "none") and keeps_temperature_without_reasoning(model):
+        return
+    body.pop("temperature")
 
 
 def _apply_reasoning_model_rules(profile: ProviderProfile, model: str, body: dict[str, object]) -> None:

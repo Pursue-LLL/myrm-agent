@@ -57,6 +57,13 @@ _MODEL_CEILING_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(rf"max_(?:completion_)?tokens must be less than or equal to\s*{_NUM}"),
 )
 
+# Vertex / Gemini: "... a maxOutputTokens value of 65536 but the supported range is from 1 (inclusive) to 65536
+# (exclusive)". The upper bound is exclusive, so the largest accepted value is one lower. Pinned to
+# maxOutputTokens because temperature / topK rejections share the range wording.
+_EXCLUSIVE_CEILING_RE = re.compile(
+    rf"maxoutputtokens value of\s*\d+\s*but the supported range is from\s*\d+\s*\(inclusive\)\s*to\s*{_NUM}\s*\(exclusive\)"
+)
+
 # Wordings in which the provider prints the room its context window leaves for the completion.
 _AVAILABLE_TOKENS_RE = re.compile(r"available\s*_?tokens\s*:\s*(\d+)")
 _OPENROUTER_BREAKDOWN_RE = re.compile(r"\((\d+)\s+of text input,\s*(\d+)\s+of tool input,\s*\d+\s+in the output\)")
@@ -92,6 +99,8 @@ def _model_ceiling(msg: str) -> int | None:
         match = pattern.search(msg)
         if match and (tokens := _as_int(match.group(1))) >= 1:
             return tokens
+    if (match := _EXCLUSIVE_CEILING_RE.search(msg)) and (tokens := _as_int(match.group(1)) - 1) >= 1:
+        return tokens
     return None
 
 

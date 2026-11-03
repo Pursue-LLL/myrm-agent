@@ -13,7 +13,9 @@
 [POS]
 Maintainer tool: new models and price changes reach the product by re-running this script and committing the diff.
 Only the modes and fields the product reads are kept, which keeps the snapshot a fraction of the upstream size; the
-upstream ``litellm_provider`` field is stored as ``provider``.
+upstream ``litellm_provider`` field is stored as ``provider``. The request-shaping flags are among them
+(``supports_sampling_params``, ``supports_adaptive_thinking``, ``supports_output_config`` and the
+``supports_{none,xhigh,max}_reasoning_effort`` levels): the transport reads them to decide what a request may carry.
 
 The merge is a union by key. A model upstream still lists takes upstream's whole entry (upstream corrects flags such as
 ``supports_reasoning``, so stale flags must not survive), a model upstream stopped listing keeps its last entry because
@@ -42,7 +44,8 @@ MODES = frozenset({"chat", "completion", "responses", "embedding", "rerank", "im
 FIELDS = re.compile(
     r"^(?:litellm_provider|mode|max_tokens|max_input_tokens|max_output_tokens|output_vector_size|deprecation_date"
     r"|supports_(?:function_calling|vision|reasoning|prompt_caching|web_search|response_schema|tool_choice"
-    r"|pdf_input|parallel_function_calling|system_messages|audio_input|video_input)"
+    r"|pdf_input|parallel_function_calling|system_messages|audio_input|video_input"
+    r"|sampling_params|adaptive_thinking|output_config|(?:none|xhigh|max)_reasoning_effort)"
     r"|(?:input|output)_cost_per_(?:token|image|query|pixel|second)(?:_above_\d+k?_tokens)?"
     r"|cache_(?:read|creation)_input_token_cost(?:_above_\d+k?_tokens)?"
     r"|search_context_cost_per_query|output_cost_per_reasoning_token)$"

@@ -2,7 +2,8 @@
 
 ## Overview
 
-Model catalog: context windows, output ceilings, per-token prices and capability flags per model. The data is a trimmed
+Model catalog: context windows, output ceilings, per-token prices and capability flags per model, including the flags that
+shape a request (sampling parameters, adaptive thinking, `none`/`xhigh`/`max` reasoning effort). The data is a trimmed
 snapshot of the community-maintained model price table, bundled with the package and loaded once on first use;
 `scripts/sync_model_catalog.py` merges upstream into it (a union by key: a model upstream stops listing stays, because
 providers keep serving it). Runtime registrations (user-defined models, corrected prices) overlay the snapshot entry the
@@ -20,4 +21,4 @@ id resolves to: limits and flags carry over, stated prices replace the whole pri
 ## Key Dependencies
 
 - Consumed by `utils/token_economics` (cost and cache savings), `toolkits/llms/core/llm.py` and `toolkits/llms/utils/model_utils.py` (limits, native
-  search), `toolkits/llms/adapters/wire/routing.py` (responses-only models) and the server model-listing and pricing APIs
+  search), `toolkits/llms/transport/capabilities.py` (request-shaping flags), `toolkits/llms/adapters/wire/routing.py` (responses-only models) and the server model-listing and pricing APIs

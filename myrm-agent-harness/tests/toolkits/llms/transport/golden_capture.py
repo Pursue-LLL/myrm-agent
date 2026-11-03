@@ -10,8 +10,14 @@
 [POS]
 Library-agnostic request capture. The committed baseline ``golden_baseline.json`` was recorded the same way at
 commit b6959e7d7e, when the factory still called the previous multi-provider client library (litellm 1.97.0) with
-the production configuration applied (the Yunshu cases and the ``defaults`` and ``sampling`` scenarios were added later on
-that same commit); the golden test replays the matrix on the current transport and diffs the two. Only the final request on the wire is observed, so the comparison does not depend on any library internals.
+the production configuration applied; the golden test replays the matrix on the current transport and diffs the two.
+Only the final request on the wire is observed, so the comparison does not depend on any library internals.
+
+The matrix has three parts: every provider against the base scenarios (plus the Responses and Anthropic-wire ones
+where the provider has them), one model of each capability family that changes how a request is built (``VARIANTS``:
+sampling parameters, reasoning effort, tool-call history), and requests the providers' APIs are strict about
+(``EDGE_SCENARIOS``: blank text, parallel tool results, a closing assistant message, an image in a tool result, JSON
+output beside tools).
 """
 
 from __future__ import annotations
@@ -148,6 +154,48 @@ PROVIDERS: dict[str, tuple[str, dict[str, object]]] = {
     "gemini_like": ("gemini/gemini-2.5-pro", {}),
     "anthropic_like": ("anthropic/claude-sonnet-4-5", {}),
 }
+# One model of each capability family that changes how a request is built (sampling parameters, reasoning effort,
+# tool-call history). They share their provider's endpoint, so only the scenarios those rules touch are run.
+VARIANTS: dict[str, tuple[str, dict[str, object]]] = {
+    "anthropic_opus45": ("anthropic/claude-opus-4-5", {}),
+    "anthropic_sonnet46": ("anthropic/claude-sonnet-4-6", {}),
+    "anthropic_opus47": ("anthropic/claude-opus-4-7", {}),
+    "anthropic_haiku45": ("anthropic/claude-haiku-4-5", {}),
+    "gemini25pro": ("gemini/gemini-2.5-pro", {}),
+    "gemini25flashlite": ("gemini/gemini-2.5-flash-lite", {}),
+    "gemini3": ("gemini/gemini-3-pro-preview", {}),
+    "gemini31": ("gemini/gemini-3.1-pro-preview", {}),
+    "gemini3flash": ("gemini/gemini-3-flash-preview", {}),
+    "openai_gpt51": ("openai/gpt-5.1", {}),
+    "openai_gpt52": ("openai/gpt-5.2", {}),
+}
+PROVIDERS.update(VARIANTS)
+# Reasoning efforts other than the base matrix's ``high``: how each maps to a budget, a level or a switch-off differs
+# by model, so every variant and one model of each other reasoning family run them.
+EFFORT_SCENARIOS = ("reasoning_minimal", "reasoning_medium", "reasoning_none")
+EFFORT_PROVIDERS = frozenset({"anthropic", "gemini", "openai_gpt5", "openai_o3", "deepseek", "deepseek_reasoner"})
+_EFFORT_OF_SCENARIO = {
+    "reasoning_high": "high",
+    "reasoning_tools": "high",
+    "reasoning_xhigh": "xhigh",
+    "reasoning_minimal": "minimal",
+    "reasoning_medium": "medium",
+    "reasoning_none": "none",
+}
+VARIANT_SCENARIOS = (
+    "basic",
+    "defaults",
+    "sampling",
+    "tools",
+    "reasoning_high",
+    "reasoning_xhigh",
+    *EFFORT_SCENARIOS,
+    "stream",
+    "tool_history",
+    "tool_history_unbound",
+    "tool_history_foreign_ids",
+    "reasoning_tools",
+)
 BASE_SCENARIOS = (
     "basic",
     "defaults",
@@ -163,12 +211,43 @@ BASE_SCENARIOS = (
     "cache_control",
     "reasoning_tools",
 )
+# Requests the providers' APIs are strict about: blank text, parallel tool results, a closing assistant message, an
+# image in a tool result, JSON output beside tools. Run on one provider per message translation (OpenAI-compatible,
+# Anthropic, Gemini, Ollama) at its default endpoint.
+EDGE_PROVIDERS = frozenset({"openai", "deepseek", "anthropic", "anthropic_opus47", "gemini", "gemini3", "ollama"})
+EDGE_SCENARIOS = (
+    "history_blank_assistant",
+    "history_blank_assistant_tool",
+    "history_blank_user",
+    "history_parallel_tools",
+    "history_prefill_space",
+    "history_empty_tool_result",
+    "history_tool_image",
+    "tools_json_output",
+)
 RESPONSES_PROVIDERS = frozenset({"openai", "openai_gpt5", "openai_like", "xai", "deepseek", "openrouter"})
 RESPONSES_SCENARIOS = ("responses", "responses_stream", "responses_tools")
 ANTHROPIC_WIRE_PROVIDERS = frozenset({"openai_like"})
 ANTHROPIC_WIRE_SCENARIOS = ("anthropic_wire", "anthropic_wire_stream", "anthropic_wire_tools")
-_TOOL_SCENARIOS = frozenset({"tools", "tool_history", "reasoning_tools", "responses_tools", "anthropic_wire_tools"})
-_HISTORY_SCENARIOS = frozenset({"tool_history", "reasoning_tools", "responses_tools", "anthropic_wire_tools"})
+_TOOL_SCENARIOS = frozenset(
+    {
+        "tools",
+        "tool_history",
+        "tool_history_foreign_ids",
+        "reasoning_tools",
+        "responses_tools",
+        "anthropic_wire_tools",
+        "history_blank_assistant_tool",
+        "history_parallel_tools",
+        "history_empty_tool_result",
+        "history_tool_image",
+        "tools_json_output",
+    }
+)
+# The history replays a tool call and its result; ``tool_history_unbound`` sends it without any tool definition.
+_HISTORY_SCENARIOS = _TOOL_SCENARIOS - {"tools"} | {"tool_history_unbound"}
+# Tool-call ids another provider minted (Kimi style: dots and a colon), replayed into this provider.
+_FOREIGN_CALL_ID = "functions.get_weather:0"
 
 
 def _canned(request: httpx.Request) -> httpx.Response:
@@ -203,14 +282,64 @@ def _canned(request: httpx.Request) -> httpx.Response:
     return answer(_CHAT_SSE, _CHAT_JSON)
 
 
+def _tool_call(index: int, city: str) -> dict[str, object]:
+    return {"name": "get_weather", "args": {"city": city}, "id": f"call_{index}", "type": "tool_call"}
+
+
+def _edge_messages(scenario: str) -> list[BaseMessage]:
+    system, asked = SystemMessage(content="Be brief."), HumanMessage(content="weather?")
+    if scenario == "history_blank_assistant":
+        return [system, HumanMessage(content="hi"), AIMessage(content="  \n"), HumanMessage(content="thanks")]
+    if scenario == "history_blank_assistant_tool":
+        return [
+            system,
+            asked,
+            AIMessage(content="\n\n", tool_calls=[_tool_call(1, "Paris")]),
+            ToolMessage(content="sunny", tool_call_id="call_1"),
+            HumanMessage(content="thanks"),
+        ]
+    if scenario == "history_blank_user":
+        return [system, HumanMessage(content="   ")]
+    if scenario == "history_parallel_tools":
+        return [
+            system,
+            asked,
+            AIMessage(content="Checking.", tool_calls=[_tool_call(1, "Paris"), _tool_call(2, "Rome")]),
+            ToolMessage(content="sunny", tool_call_id="call_1"),
+            ToolMessage(content="rainy", tool_call_id="call_2"),
+            HumanMessage(content="thanks"),
+        ]
+    if scenario == "history_prefill_space":
+        return [system, HumanMessage(content="hi"), AIMessage(content="Hello there. ")]
+    if scenario == "history_tool_image":
+        screenshot = {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgo="}}
+        return [
+            system,
+            asked,
+            AIMessage(content="", tool_calls=[_tool_call(1, "Paris")]),
+            ToolMessage(content=[{"type": "text", "text": "shot"}, screenshot], tool_call_id="call_1"),
+        ]
+    if scenario == "tools_json_output":
+        return [system, asked]
+    return [  # history_empty_tool_result
+        system,
+        asked,
+        AIMessage(content="", tool_calls=[_tool_call(1, "Paris")]),
+        ToolMessage(content="", tool_call_id="call_1"),
+    ]
+
+
 def _messages(scenario: str) -> list[BaseMessage]:
+    if scenario in EDGE_SCENARIOS:
+        return _edge_messages(scenario)
     if scenario in _HISTORY_SCENARIOS:
-        call = {"name": "get_weather", "args": {"city": "Paris"}, "id": "call_1", "type": "tool_call"}
+        call_id = _FOREIGN_CALL_ID if scenario == "tool_history_foreign_ids" else "call_1"
+        call = {"name": "get_weather", "args": {"city": "Paris"}, "id": call_id, "type": "tool_call"}
         return [
             SystemMessage(content="Be brief."),
             HumanMessage(content="weather in Paris?"),
             AIMessage(content="", tool_calls=[call]),
-            ToolMessage(content="sunny", tool_call_id="call_1"),
+            ToolMessage(content="sunny", tool_call_id=call_id),
             HumanMessage(content="thanks"),
         ]
     if scenario == "cache_control":
@@ -242,8 +371,8 @@ def _factory_kwargs(extra: Mapping[str, object], with_base: bool, scenario: str)
         del kwargs["temperature"], kwargs["max_tokens"]
     if with_base:
         kwargs["base_url"] = _BASE_URL
-    if scenario in ("reasoning_high", "reasoning_tools"):
-        kwargs.update(reasoning_effort="high", max_tokens=4096)
+    if scenario in _EFFORT_OF_SCENARIO:
+        kwargs.update(reasoning_effort=_EFFORT_OF_SCENARIO[scenario], max_tokens=4096)
     if scenario.startswith("responses"):
         kwargs["wire_protocol"] = "responses"
     if scenario.startswith("anthropic_wire"):
@@ -267,6 +396,8 @@ async def _run_case(
         runnable = llm
         if scenario in _TOOL_SCENARIOS:
             runnable = llm.bind_tools(_TOOLS, tool_choice="auto", parallel_tool_calls=True)
+            if scenario == "tools_json_output":
+                runnable = runnable.bind(response_format=_JSON_SCHEMA)
         elif scenario == "json_schema":
             runnable = llm.bind(response_format=_JSON_SCHEMA)
         if scenario.endswith("stream"):
@@ -285,10 +416,19 @@ def case_keys(only: frozenset[str] | None = None) -> list[tuple[str, bool, str]]
     for provider in PROVIDERS:
         if only is not None and provider not in only:
             continue
+        if provider in VARIANTS:
+            keys.extend((provider, False, scenario) for scenario in VARIANT_SCENARIOS)
+            if provider in EDGE_PROVIDERS:
+                keys.extend((provider, False, scenario) for scenario in EDGE_SCENARIOS)
+            continue
         for with_base in (False, True):
             if provider == "openai_like" and not with_base:
                 continue
             scenarios = list(BASE_SCENARIOS)
+            if provider in EDGE_PROVIDERS and not with_base:
+                scenarios += EDGE_SCENARIOS
+            if provider in EFFORT_PROVIDERS and not with_base:
+                scenarios += EFFORT_SCENARIOS
             if provider in RESPONSES_PROVIDERS:
                 scenarios += RESPONSES_SCENARIOS
             if provider in ANTHROPIC_WIRE_PROVIDERS:

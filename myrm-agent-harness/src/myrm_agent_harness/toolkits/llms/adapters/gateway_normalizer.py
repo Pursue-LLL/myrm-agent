@@ -59,14 +59,15 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
     ),
     (
         re.compile(
-            r"temperature.*(?:not supported|unsupported|does not support)|unsupported.*temperature",
+            r"temperature.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*temperature",
             re.IGNORECASE,
         ),
         ("temperature",),
     ),
     (
         re.compile(
-            r"response_format|unknown field.*response_format|unsupported.*response_format",
+            r"response_format|unknown field.*response_format|unsupported.*response_format"
+            r"|output_format|structured outputs?[^.]{0,40}(?:not supported|unsupported)",
             re.IGNORECASE,
         ),
         ("response_format",),
@@ -80,10 +81,17 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
     ),
     (
         re.compile(
-            r"top_p.*(?:not supported|unsupported|does not support)|unsupported.*top_p|temperature.*top_p|top_p.*temperature",
+            r"top_p.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*top_p"
+            r"|temperature.*top_p|top_p.*temperature",
             re.IGNORECASE,
         ),
         ("top_p",),
+    ),
+    (
+        re.compile(
+            r"top_k.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*top_k", re.IGNORECASE
+        ),
+        ("top_k",),
     ),
 )
 

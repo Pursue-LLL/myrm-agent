@@ -19,14 +19,26 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Protocol
 
 # Calls the previous library made by itself while serving a model call (tokenizer downloads from a model hub,
 # a configuration file fetched from a code-hosting site, Ollama's model-info lookup around an embedding call).
 # The transport makes none of them. Matched as substrings of the request URL.
 HIDDEN_FETCHES = ("huggingface.co", "raw.githubusercontent.com", "/api/show")
 
-_GEMINI = ("gemini", "gemini_like")
-_ANTHROPIC = ("anthropic", "anthropic_like")
+_GEMINI_2 = ("gemini", "gemini_like", "gemini25pro", "gemini25flashlite")
+_GEMINI_3 = ("gemini3", "gemini31", "gemini3flash")
+_GEMINI = (*_GEMINI_2, *_GEMINI_3)
+_ANTHROPIC = (
+    "anthropic",
+    "anthropic_like",
+    "anthropic_opus45",
+    "anthropic_sonnet46",
+    "anthropic_opus47",
+    "anthropic_haiku45",
+)
+# Claude generations whose catalog entry flags the native web search tool (the previous library's map did not).
+_NATIVE_SEARCH_CLAUDE = ("anthropic_sonnet46", "anthropic_opus47")
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,13 +56,51 @@ def _contains(side: str, text: str) -> Callable[..., bool]:
     return lambda diff: text in str(getattr(diff, side))
 
 
+class _Change(Protocol):
+    old: object
+    new: object
+
+
+def _only_repair_turns(diff: _Change) -> bool:
+    """Whether the current Gemini turns are the baseline's plus the model turns that keep a tool result and the user
+    message after it apart (both sides arrive canonical: adjacent turns of one role already merged)."""
+    if not isinstance(diff.new, list) or not isinstance(diff.old, list):
+        return False
+    placeholder = [{"text": "[The previous response was interrupted before it completed.]"}]
+    kept: list[dict[str, object]] = []
+    for turn in diff.new:
+        if turn["parts"] == placeholder:
+            continue
+        if kept and kept[-1]["role"] == turn["role"]:
+            kept[-1] = {**turn, "parts": [*kept[-1]["parts"], *turn["parts"]]}  # type: ignore[misc]
+        else:
+            kept.append(turn)
+    return kept == diff.old
+
+
+def _media_moved_beside(diff: _Change) -> bool:
+    """Whether the current Gemini parts are the baseline's with the media nested in each function response moved out
+    to parts beside it."""
+    if not isinstance(diff.new, list) or not isinstance(diff.old, list):
+        return False
+    moved: list[dict[str, object]] = []
+    for part in diff.old:
+        response = part.get("functionResponse")
+        if not isinstance(response, dict) or "parts" not in response:
+            moved.append(part)
+            continue
+        moved.append({"functionResponse": {key: value for key, value in response.items() if key != "parts"}})
+        moved.extend(response["parts"])
+    return moved == diff.new
+
+
 RULES: tuple[AllowedDiff, ...] = (
     # --- defects of the previous request construction -------------------------------------------------------------
     AllowedDiff(
         "model-kwargs-leak",
         "The caller's `model_kwargs` container was copied into the provider body as an unknown top-level field.",
         "-",
-        r"/body/model_kwargs",
+        r"/body/model(_k|K)wargs",
     ),
     AllowedDiff(
         "stream-false-explicit",
@@ -132,6 +182,43 @@ RULES: tuple[AllowedDiff, ...] = (
         "-",
         r"/body/temperature",
         providers=_ANTHROPIC,
+        scenarios=("reasoning_high", "reasoning_tools", "reasoning_xhigh", "reasoning_medium", "reasoning_minimal"),
+    ),
+    AllowedDiff(
+        "anthropic-xhigh-unsupported-model",
+        "Claude Sonnet 4.6 has no `xhigh` effort: the previous library refused the call before sending anything; the "
+        "wire sends the highest level the model has (`max`).",
+        "count",
+        r"",
+        providers=("anthropic_sonnet46",),
+        scenarios=("reasoning_xhigh",),
+    ),
+    AllowedDiff(
+        "anthropic-native-search-added",
+        "The bundled catalog is newer than the previous library's price map and marks Claude Sonnet 4.6 / Opus 4.7 as "
+        "offering the native web search tool; the model factory enables it for every model the catalog flags "
+        "(`core/llm.py`), as it already did for GPT-5, Gemini and Grok.",
+        "+",
+        r"/body/tools",
+        providers=_NATIVE_SEARCH_CLAUDE,
+        when=_contains("new", "web_search_20250305"),
+    ),
+    AllowedDiff(
+        "anthropic-native-search-appended",
+        "The native search tool next to the caller's tools, or in place of the placeholder tool a tool-call history "
+        "needs when the request declares none (see `anthropic-native-search-added`).",
+        "~",
+        r"/body/tools(\[\d+\]/(name|type))?",
+        providers=_NATIVE_SEARCH_CLAUDE,
+        when=_contains("new", "web_search"),
+    ),
+    AllowedDiff(
+        "anthropic-native-search-replaces-placeholder",
+        "The placeholder tool's fields, absent from the native search tool that now makes the declaration.",
+        "-",
+        r"/body/tools\[\d+\]/(description|input_schema)",
+        providers=_NATIVE_SEARCH_CLAUDE,
+        scenarios=("tool_history_unbound",),
     ),
     AllowedDiff(
         "anthropic-empty-turn-placeholder",
@@ -139,6 +226,26 @@ RULES: tuple[AllowedDiff, ...] = (
         "~",
         r"/body/messages\[\d+\]/content",
         providers=(*_ANTHROPIC, "openai_like"),
+        when=_contains("old", "Empty message content sanitised"),
+    ),
+    AllowedDiff(
+        "anthropic-blank-turn-dropped",
+        "A blank assistant turn between two user messages carried an injected placeholder sentence; the turn is "
+        "dropped and the two user messages merge (the API takes no blank text, and the sentence read as content).",
+        "~",
+        r"/body/messages",
+        providers=_ANTHROPIC,
+        scenarios=("history_blank_assistant",),
+        when=_contains("old", "Empty message content sanitised"),
+    ),
+    AllowedDiff(
+        "anthropic-blank-request-placeholder",
+        "A request holding nothing but blank text gets the one-character placeholder the wire already uses when the "
+        "history does not open with a user turn, instead of an injected instruction-like sentence.",
+        "~",
+        r"/body/messages\[\d+\]/content\[\d+\]/text",
+        providers=_ANTHROPIC,
+        scenarios=("history_blank_user",),
         when=_contains("old", "Empty message content sanitised"),
     ),
     AllowedDiff(
@@ -159,27 +266,11 @@ RULES: tuple[AllowedDiff, ...] = (
     ),
     # --- the same meaning in another valid form -------------------------------------------------------------------
     AllowedDiff(
-        "gemini-json-names-old",
-        "Gemini fields were written in snake_case; the transport writes the canonical camelCase (both are accepted).",
-        "-",
-        r"/body/(generationConfig/(max_output_tokens|response_json_schema|response_mime_type|frequency_penalty|stop_sequences)"
-        r"|tools\[\d+\]/function_declarations|contents\[\d+\]/parts\[\d+\]/inline_data)",
-        providers=_GEMINI,
-    ),
-    AllowedDiff(
-        "gemini-json-names-new",
-        "The camelCase counterpart of `gemini-json-names-old`.",
-        "+",
-        r"/body/(generationConfig/(maxOutputTokens|responseJsonSchema|responseMimeType|frequencyPenalty|stopSequences)"
-        r"|tools\[\d+\]/functionDeclarations|contents\[\d+\]/parts\[\d+\]/inlineData)",
-        providers=_GEMINI,
-    ),
-    AllowedDiff(
         "gemini-body-leaks",
         "`reasoning_effort` (top level) and the raw `response_format` (inside generationConfig) leaked into the "
         "Gemini body, which has no such fields; thinking and structured output are expressed natively.",
         "-",
-        r"/body/(reasoning_effort|generationConfig/response_format)",
+        r"/body/(reasoningEffort|generationConfig/responseFormat)",
         providers=_GEMINI,
     ),
     AllowedDiff(
@@ -188,7 +279,7 @@ RULES: tuple[AllowedDiff, ...] = (
         "bodies, where neither API reads them (Gemini rejects unknown fields); they now sit in `generationConfig` "
         "and `options`.",
         "-",
-        r"/body/top_(p|k)",
+        r"/body/top(_(p|k)|[PK])",
         providers=(*_GEMINI, "ollama"),
         scenarios=("sampling",),
     ),
@@ -202,11 +293,11 @@ RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "anthropic-sampling-sent",
-        "`top_p` and `top_k` from the model configuration are sent to the Messages API, which reads both; the "
-        "previous library dropped them without saying so. A model that refuses `top_p` next to `temperature` is "
-        "answered by the adapter's strip-and-retry. Not exercised against a real Anthropic server.",
+        "`top_k` from the model configuration is sent to the Messages API, which reads it; the previous library "
+        "dropped it without saying so. `top_p` stays unsent beside a temperature, which current Claude models "
+        "refuse. Not exercised against a real Anthropic server.",
         "+",
-        r"/body/top_(p|k)",
+        r"/body/top_k",
         providers=_ANTHROPIC,
         scenarios=("sampling",),
     ),
@@ -220,11 +311,84 @@ RULES: tuple[AllowedDiff, ...] = (
         scenarios=("sampling",),
     ),
     AllowedDiff(
-        "gemini-empty-text-part",
-        "A tool-calling model turn carried an empty text part; the turn is sent as its function call alone.",
+        "gemini-2-json-output-beside-tools",
+        "Models before Gemini 3 refuse JSON output next to function declarations; the tools stay and the JSON "
+        "constraint is dropped, as the reference agents do. Not exercised against a real Gemini server.",
+        "-",
+        r"/body/generationConfig/(responseMimeType|responseJsonSchema)",
+        providers=_GEMINI_2,
+        scenarios=("tools_json_output",),
+    ),
+    AllowedDiff(
+        "gemini-user-message-after-tool-result",
+        "A user message right after a tool result was sent as a second user turn, which the API refuses (turns must "
+        "alternate) or, folded into the result's turn, which Gemini 3 reads as the result's continuation; a model "
+        "turn now separates them.",
         "~",
         r"/body/contents",
         providers=_GEMINI,
+        when=_only_repair_turns,
+    ),
+    AllowedDiff(
+        "gemini-2-tool-result-media-beside",
+        "Google documents media inside a function response for Gemini 3 and later only; the previous library nested "
+        "it for every model. Earlier models now get it as parts beside the response in the same turn, the shape "
+        "Google's own CLI sends. Not exercised against a real Gemini server.",
+        "~",
+        r"/body/contents\[\d+\]/parts",
+        providers=_GEMINI_2,
+        scenarios=("history_tool_image",),
+        when=_media_moved_beside,
+    ),
+    AllowedDiff(
+        "gemini-3-api-version",
+        "Gemini 3 models are called on the stable-beta path (`v1beta`, which carries thinking levels, thought "
+        "signatures and function-call ids); the previous library used the `v1alpha` path.",
+        "~",
+        r"/url",
+        providers=_GEMINI_3,
+        when=_contains("old", "/v1alpha/"),
+    ),
+    AllowedDiff(
+        "gemini-3-default-temperature",
+        "The previous library stated Gemini 3's default temperature (1.0) explicitly when the caller set none; the "
+        "API applies the same default on its own.",
+        "-",
+        r"/body/generationConfig/temperature",
+        providers=_GEMINI_3,
+        scenarios=("defaults",),
+        when=lambda diff: diff.old == 1.0,
+    ),
+    AllowedDiff(
+        "gemini-xhigh-thinking-level",
+        "`xhigh` is mapped to Gemini's highest thinking level (`high`), or to a token budget of 8192 on models that "
+        "think by budget; the previous library dropped the effort it could not map and sent no thinking configuration.",
+        "+",
+        r"/body/generationConfig/thinkingConfig",
+        providers=_GEMINI,
+        scenarios=("reasoning_xhigh",),
+    ),
+    AllowedDiff(
+        "gemini-pro-thinking-floor",
+        "Gemini 2.5 Pro cannot switch thinking off and refuses a budget of 0; with the effort disabled the wire sends "
+        "the model's floor (128). Not exercised against a real Gemini server.",
+        "~",
+        r"/body/generationConfig/thinkingConfig/thinkingBudget",
+        providers=("gemini25pro",),
+        scenarios=("reasoning_none",),
+        when=lambda diff: (diff.old, diff.new) == (0, 128),
+    ),
+    AllowedDiff(
+        "gemini-flash-ceiling-catalog",
+        "The bundled catalog is newer than the previous library's price map and states 65536 as the output ceiling of "
+        "Gemini 2.5 Flash-Lite and 3 Flash (65535 there); the thinking headroom lifts a small cap to that ceiling "
+        "for `xhigh`. Vertex refuses 65536 on the Flash-Lite line, which the output-cap recovery reads from the "
+        "rejection and remembers.",
+        "~",
+        r"/body/generationConfig/maxOutputTokens",
+        providers=("gemini25flashlite", "gemini3flash"),
+        scenarios=("reasoning_xhigh",),
+        when=lambda diff: (diff.old, diff.new) == (65535, 65536),
     ),
     AllowedDiff(
         "ollama-native-chat-api",
@@ -286,7 +450,7 @@ RULES: tuple[AllowedDiff, ...] = (
         "library rewrote it back to `system`. It now reaches api.openai.com as `developer`; gateways still get `system`.",
         "~",
         r"/body/messages\[\d+\]/role",
-        providers=("openai_gpt5", "openai_o3"),
+        providers=("openai_gpt5", "openai_gpt51", "openai_gpt52", "openai_o3"),
     ),
     # --- Responses wire: adapter translation replaces the previous library's bridge --------------------------------
     AllowedDiff(

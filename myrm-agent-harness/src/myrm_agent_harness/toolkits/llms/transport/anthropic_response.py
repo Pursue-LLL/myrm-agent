@@ -117,15 +117,19 @@ def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
 
 
 class AnthropicStreamDecoder:
-    """Maps Messages stream events onto chat.completion.chunk dicts; tool blocks get running 0-based indexes."""
+    """Maps Messages stream events onto chat.completion.chunk dicts; the caller's tool blocks get running 0-based indexes.
 
-    __slots__ = ("_block_kind", "_id", "_model", "_provider", "_stop", "_tool_index", "_usage", "done")
+    A server tool (the native web search) runs on the provider's side, so its blocks produce no tool call: the
+    answer text that follows is all the caller sees.
+    """
+
+    __slots__ = ("_id", "_model", "_provider", "_stop", "_tool_index", "_tool_of_block", "_usage", "done")
 
     def __init__(self, provider: str, model: str) -> None:
         self._provider = provider
         self._model = model
         self._id: object = None
-        self._block_kind: dict[int, str] = {}
+        self._tool_of_block: dict[int, int] = {}
         self._tool_index = -1
         self._stop: str | None = None
         self._usage: dict[str, int] = {}
@@ -169,17 +173,16 @@ class AnthropicStreamDecoder:
         index = raw_index if isinstance(raw_index, int) else 0
         if kind == "content_block_start":
             block = payload.get("content_block")
-            if isinstance(block, Mapping):
-                self._block_kind[index] = str(block.get("type"))
-                if block.get("type") == "tool_use":
-                    self._tool_index += 1
-                    call = {
-                        "index": self._tool_index,
-                        "id": block.get("id"),
-                        "type": "function",
-                        "function": {"name": block.get("name"), "arguments": ""},
-                    }
-                    return [self._chunk({"tool_calls": [call]})]
+            if isinstance(block, Mapping) and block.get("type") == "tool_use":
+                self._tool_index += 1
+                self._tool_of_block[index] = self._tool_index
+                call = {
+                    "index": self._tool_index,
+                    "id": block.get("id"),
+                    "type": "function",
+                    "function": {"name": block.get("name"), "arguments": ""},
+                }
+                return [self._chunk({"tool_calls": [call]})]
             return []
         if kind == "content_block_delta":
             delta = payload.get("delta")
@@ -190,8 +193,8 @@ class AnthropicStreamDecoder:
                 return [self._chunk({"content": delta.get("text") or ""})]
             if delta_type == "thinking_delta":
                 return [self._chunk({"reasoning_content": delta.get("thinking") or ""})]
-            if delta_type == "input_json_delta":
-                call = {"index": max(self._tool_index, 0), "function": {"arguments": delta.get("partial_json") or ""}}
+            if delta_type == "input_json_delta" and index in self._tool_of_block:
+                call = {"index": self._tool_of_block[index], "function": {"arguments": delta.get("partial_json") or ""}}
                 return [self._chunk({"tool_calls": [call]})]
             return []
         if kind == "message_delta":

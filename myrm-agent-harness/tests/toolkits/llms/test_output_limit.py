@@ -82,6 +82,12 @@ MODEL_CAP_WORDINGS = [
         40960,
         id="groq",
     ),
+    pytest.param(
+        "Unable to submit request because it has a maxOutputTokens value of 65536 but the supported range is from 1 "
+        "(inclusive) to 65536 (exclusive). Update the value and try again.",
+        65535,
+        id="gemini-exclusive-range",
+    ),
 ]
 
 
@@ -298,6 +304,11 @@ NOT_AN_OUTPUT_LIMIT = [
         id="other-parameter-above-maximum",
     ),
     pytest.param("temperature must be less than or equal to 2", id="other-parameter-less-than-or-equal"),
+    pytest.param(
+        "Unable to submit request because it has a temperature value of 3 but the supported range is from 0 "
+        "(inclusive) to 2 (exclusive). Update the value and try again.",
+        id="gemini-other-parameter-range",
+    ),
     pytest.param(
         "Invalid 'max_tokens': integer below minimum value. Expected a value >= 1, but got 0 instead.",
         id="max-tokens-below-minimum",

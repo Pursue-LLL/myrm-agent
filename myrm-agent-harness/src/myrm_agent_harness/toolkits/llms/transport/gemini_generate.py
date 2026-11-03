@@ -1,6 +1,8 @@
 """Gemini generateContent wire: OpenAI-shaped input to ``models/{model}:generateContent`` and back.
 
 [INPUT]
+- transport.capabilities (POS: gemini_from_3, gemini_thinks_by_level, gemini_thinking_level — what a Gemini generation takes)
+- transport.gemini_contents (POS: history as alternating turns, the call-id signature convention)
 - transport.gemini_schema (POS: tool-parameter schema reduction to the Gemini subset)
 - transport.profile (POS: Route — endpoint root and credential)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
@@ -13,24 +15,29 @@
 
 [POS]
 Translation boundary for the Gemini API (first-party and Gemini-compatible gateways, which speak this native
-wire rather than the OpenAI one). Messages become ``contents`` with role alternation, tools become function
-declarations, the system prompt becomes ``system_instruction``. Gemini 3 demands that a function call's
-``thoughtSignature`` comes back on the next turn: it travels inside the tool-call id (``<id>__thought__<signature>``),
-the one field every layer above preserves verbatim, so no other layer needs to know about it.
+wire rather than the OpenAI one). Messages become ``contents`` (``gemini_contents``), tools become function
+declarations, the system prompt becomes ``system_instruction``. Gemini 3 hands out a ``thoughtSignature`` with each
+function call and demands it back on the next turn: the answer side folds it into the tool-call id
+(``<id>__thought__<signature>``), the one field every layer above preserves verbatim, so no other layer needs to know
+about it.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import mimetypes
-import re
 import uuid
 from collections.abc import Mapping, Sequence
 from typing import Final
 from urllib.parse import urlsplit
 
+from myrm_agent_harness.toolkits.llms.transport.capabilities import (
+    gemini_from_3,
+    gemini_thinking_level,
+    gemini_thinks_by_level,
+)
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMStreamError
+from myrm_agent_harness.toolkits.llms.transport.gemini_contents import SIGNATURE_SEPARATOR, Part, to_contents
 from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_schema
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
@@ -38,11 +45,9 @@ from myrm_agent_harness.toolkits.llms.transport.profile import Route, Unsupporte
 
 logger = logging.getLogger(__name__)
 
-_SIGNATURE_SEPARATOR: Final = "__thought__"
-_DATA_URL: Final = re.compile(r"^data:(?P<media>[^;,]+);base64,(?P<data>.+)$", re.DOTALL)
-_THINKING_BUDGET: Final = {"minimal": 1024, "low": 1024, "medium": 2048, "high": 4096, "xhigh": 8192, "max": 8192}
+_THINKING_BUDGET: Final = {"low": 1024, "medium": 2048, "high": 4096, "xhigh": 8192, "max": 8192}
 _DISABLED_EFFORT: Final = frozenset({"none", "off", "disable", "disabled"})
-_GEMINI_3: Final = re.compile(r"^gemini-3", re.IGNORECASE)
+_JSON_OUTPUT: Final = ("responseMimeType", "responseJsonSchema")
 _FILTERED: Final = frozenset(
     {
         "SAFETY",
@@ -56,118 +61,37 @@ _FILTERED: Final = frozenset(
     }
 )
 _OFFICIAL_HOST: Final = "generativelanguage.googleapis.com"
-Part = dict[str, object]
 
 
 # --- request ---------------------------------------------------------------------------------------------------
 
 
-def _split_signature(call_id: str) -> tuple[str, str | None]:
-    base, sep, signature = call_id.partition(_SIGNATURE_SEPARATOR)
-    return base, (signature if sep and signature else None)
+def _thinking_budget(model: str, level: str) -> int | None:
+    """Token budget of a 2.x model for an effort; ``minimal`` is the smallest the model takes (Pro 128, Flash-Lite 512)."""
+    if level != "minimal":
+        return _THINKING_BUDGET.get(level)
+    name = model.lower()
+    if "pro" in name:
+        return 128
+    return 512 if "flash-lite" in name else 1
 
 
-def _media_part(url: str, fallback_media: str) -> Part:
-    match = _DATA_URL.match(url)
-    if match:
-        return {"inlineData": {"mimeType": match["media"], "data": match["data"]}}
-    media = mimetypes.guess_type(urlsplit(url).path)[0] or fallback_media
-    return {"fileData": {"fileUri": url, "mimeType": media}}
-
-
-def _parts(content: object) -> list[Part]:
-    if isinstance(content, str):
-        return [{"text": content}] if content else []
-    parts: list[Part] = []
-    for item in content if isinstance(content, list) else []:
-        if isinstance(item, str):
-            if item:
-                parts.append({"text": item})
-        elif isinstance(item, Mapping):
-            kind = item.get("type")
-            if kind == "text" and isinstance(item.get("text"), str) and item["text"]:
-                parts.append({"text": item["text"]})
-            elif kind == "image_url":
-                image = item.get("image_url")
-                url = image.get("url") if isinstance(image, Mapping) else image
-                if isinstance(url, str) and url:
-                    parts.append(_media_part(url, "image/jpeg"))
-            elif kind == "file":
-                file = item.get("file")
-                data = file.get("file_data") if isinstance(file, Mapping) else None
-                if isinstance(data, str) and _DATA_URL.match(data):
-                    parts.append(_media_part(data, "application/octet-stream"))
-            else:
-                logger.warning("Dropping content part of unsupported type %r for the Gemini API", kind)
-    return parts
-
-
-def _function_calls(tool_calls: object, names: dict[str, str]) -> list[Part]:
-    parts: list[Part] = []
-    for call in tool_calls if isinstance(tool_calls, list) else []:
-        function = call.get("function") if isinstance(call, Mapping) else None
-        if not isinstance(function, Mapping):
-            continue
-        raw = function.get("arguments")
-        try:
-            args = json.loads(raw) if isinstance(raw, str) and raw.strip() else {}
-        except ValueError:
-            args = {}
-        name = str(function.get("name") or "")
-        call_id = str(call.get("id") or "")
-        names[call_id] = name
-        part: Part = {"functionCall": {"name": name, "args": args if isinstance(args, dict) else {}}}
-        signature = _split_signature(call_id)[1]
-        if signature:
-            part["thoughtSignature"] = signature
-        parts.append(part)
-    return parts
-
-
-def _function_response(message: Mapping[str, object], names: Mapping[str, str]) -> Part:
-    content = message.get("content")
-    text = content if isinstance(content, str) else "".join(str(p["text"]) for p in _parts(content) if "text" in p)
-    try:
-        parsed = json.loads(text)
-    except ValueError:
-        parsed = None
-    name = message.get("name") or names.get(str(message.get("tool_call_id") or "")) or "tool"
-    return {"functionResponse": {"name": name, "response": parsed if isinstance(parsed, dict) else {"content": text}}}
-
-
-def _to_contents(messages: Sequence[Mapping[str, object]]) -> tuple[list[Part], list[Part]]:
-    system: list[Part] = []
-    turns: list[tuple[str, list[Part]]] = []
-    names: dict[str, str] = {}
-
-    def push(role: str, parts: list[Part]) -> None:
-        if not parts:
-            return
-        if turns and turns[-1][0] == role:
-            turns[-1][1].extend(parts)
-        else:
-            turns.append((role, list(parts)))
-
-    for message in messages:
-        role = message.get("role")
-        if role in ("system", "developer"):
-            system.extend(_parts(message.get("content")))
-        elif role == "assistant":
-            push("model", _parts(message.get("content")) + _function_calls(message.get("tool_calls"), names))
-        elif role == "tool":
-            push("user", [_function_response(message, names)])
-        elif role == "user":
-            push("user", _parts(message.get("content")))
-    return system, [{"role": role, "parts": parts} for role, parts in turns]
+def _thinking_off(model: str) -> Part:
+    """Thinking switched off as far as the model allows: Gemini 3 has a lowest level, 2.5 Pro a budget floor."""
+    if gemini_thinks_by_level(model):
+        return {"includeThoughts": False, "thinkingLevel": gemini_thinking_level(model, "minimal")}
+    return {"includeThoughts": False, "thinkingBudget": 128 if "pro" in model.lower() else 0}
 
 
 def _thinking_config(model: str, effort: object) -> Part | None:
-    if not isinstance(effort, str) or effort.lower() in _DISABLED_EFFORT:
+    if not isinstance(effort, str):
         return None
     level = effort.lower()
-    if _GEMINI_3.match(model):
-        return {"includeThoughts": True, "thinkingLevel": "low" if level in ("minimal", "low") else "high"}
-    budget = _THINKING_BUDGET.get(level)
+    if level in _DISABLED_EFFORT:
+        return _thinking_off(model)
+    if gemini_thinks_by_level(model):
+        return {"includeThoughts": True, "thinkingLevel": gemini_thinking_level(model, level)}
+    budget = _thinking_budget(model, level)
     return {"includeThoughts": True, "thinkingBudget": budget} if budget else None
 
 
@@ -235,20 +159,32 @@ def _declarations(raw: object) -> list[Part]:
     return declarations
 
 
+def _forces_call(tool_config: Part | None) -> bool:
+    calling = tool_config.get("functionCallingConfig") if tool_config else None
+    return isinstance(calling, Mapping) and calling.get("mode") == "ANY"
+
+
 def _body(route: Route, messages: Sequence[Mapping[str, object]], opts: CallOptions) -> dict[str, object]:
     params = opts.body
-    system, contents = _to_contents(messages)
+    gemini_3 = gemini_from_3(route.model)
+    system, contents = to_contents(messages, gemini_3=gemini_3)
     body: dict[str, object] = {"contents": contents}
     if system:
         body["system_instruction"] = {"parts": system}
     config = _generation_config(route, params)
+    declarations = _declarations(params.get("tools"))
+    tool_config = _tool_config(params.get("tool_choice")) if declarations else None
+    # The API refuses JSON output beside function declarations before Gemini 3, and beside a forced call on any model:
+    # the tools win and the answer comes back unconstrained.
+    if declarations and (not gemini_3 or _forces_call(tool_config)) and "responseMimeType" in config:
+        logger.debug("Gemini cannot combine JSON output with these function tools; the response format is skipped")
+        for key in _JSON_OUTPUT:
+            config.pop(key, None)
     if config:
         body["generationConfig"] = config
-    declarations = _declarations(params.get("tools"))
     tools: list[Part] = []
     if declarations:
         tools.append({"functionDeclarations": declarations})
-        tool_config = _tool_config(params.get("tool_choice"))
         if tool_config is not None:
             body["toolConfig"] = tool_config
     if isinstance(params.get("web_search_options"), Mapping):
@@ -329,7 +265,7 @@ def _tool_call(part: Mapping[str, object], index: int) -> Part | None:
     call_id = f"call_{uuid.uuid4().hex[:24]}"
     signature = part.get("thoughtSignature")
     if isinstance(signature, str) and signature:
-        call_id += _SIGNATURE_SEPARATOR + signature
+        call_id += SIGNATURE_SEPARATOR + signature
     return {
         "index": index,
         "id": call_id,

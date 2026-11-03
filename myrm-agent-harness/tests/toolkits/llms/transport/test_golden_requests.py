@@ -10,14 +10,15 @@
 - tests that fail on any unregistered difference and on any registry rule that matches nothing
 
 [POS]
-Safety net for replacing the LLM client library: 30 providers x up to 15 scenarios, compared field by field on the
-final HTTP request.
+Safety net for replacing the LLM client library: every provider, a model of each capability family and the strict
+histories (see ``golden_capture``), compared field by field on the final HTTP request.
 """
 
 from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -38,6 +39,7 @@ def comparison(monkeypatch_module: pytest.MonkeyPatch) -> tuple[dict[str, list[s
     baseline.pop("_meta")
     pinned = json.loads(_CATALOG.read_text(encoding="utf-8"))
     monkeypatch_module.setattr(store, "_snapshot", lambda: pinned)
+    store._snapshot_by_lowercase.cache_clear()  # derived from the snapshot: must not keep the pinned subset
     current = capture_all(install_recorder(monkeypatch_module))
     assert set(current) == set(baseline), "the scenario matrix changed: re-record the baseline"
     unexplained: dict[str, list[str]] = {}
@@ -51,9 +53,10 @@ def comparison(monkeypatch_module: pytest.MonkeyPatch) -> tuple[dict[str, list[s
 
 
 @pytest.fixture(scope="module")
-def monkeypatch_module() -> pytest.MonkeyPatch:
+def monkeypatch_module() -> Iterator[pytest.MonkeyPatch]:
     with pytest.MonkeyPatch.context() as patch:
         yield patch
+    store._snapshot_by_lowercase.cache_clear()
 
 
 def test_every_difference_is_registered(comparison: tuple[dict[str, list[str]], Counter[str]]) -> None:

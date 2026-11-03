@@ -35,6 +35,18 @@ class TestTrim:
         )
         assert trimmed == {"kept": {"provider": "vendor", "mode": "chat", "max_input_tokens": 8}}
 
+    def test_the_flags_that_shape_a_request_are_kept(self) -> None:
+        flags = {
+            "supports_sampling_params": False,
+            "supports_adaptive_thinking": True,
+            "supports_output_config": True,
+            "supports_none_reasoning_effort": True,
+            "supports_xhigh_reasoning_effort": True,
+            "supports_max_reasoning_effort": False,
+        }
+        trimmed = _sync.trim({"m": {"litellm_provider": "vendor", "mode": "chat", **flags, "supports_unrelated": True}})
+        assert trimmed == {"m": {"provider": "vendor", "mode": "chat", **flags}}
+
 
 class TestMerge:
     def test_upstream_replaces_a_listed_entry_whole_so_a_corrected_flag_does_not_survive(self) -> None:
