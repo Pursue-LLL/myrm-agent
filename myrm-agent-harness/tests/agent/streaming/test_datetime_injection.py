@@ -1,16 +1,19 @@
-"""测试时间戳注入功能 — 确保星期几信息正确注入，以及多模态时间戳注入"""
+"""测试时间戳注入功能 — 确保星期几信息正确注入，以及多模态时间戳注入；族纪律不把当前时间交给工具"""
 
 from contextvars import copy_context
 from datetime import datetime
+from unittest.mock import MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.agent.streaming.message_builder import (
     _inject_datetime_into_multimodal,
     inject_datetime_tags,
 )
+from myrm_agent_harness.agent.streaming.model_discipline import resolve_execution_discipline
 from myrm_agent_harness.agent.streaming.utils import (
     DATETIME_FORMAT,
     DATETIME_TAG,
@@ -203,3 +206,23 @@ class TestMultimodalDatetimeInjection:
             assert "Simple question" in content
 
         self._run_with_injection_enabled(_test)
+
+
+class TestDisciplineDefersTimeToInjectedTag:
+    """The user's clock comes from <current_datetime>; a shell on the host may sit in another timezone."""
+
+    @staticmethod
+    def _discipline_for(model_name: str) -> str:
+        llm = MagicMock(spec=BaseChatModel)
+        llm.model_name = model_name
+        return resolve_execution_discipline(llm)
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", "codex-mini", "grok-4"])
+    def test_gpt_family_discipline_does_not_delegate_the_clock_to_a_tool(self, model_name: str) -> None:
+        text = self._discipline_for(model_name)
+
+        assert "Current time" not in text
+        assert "What time is it" not in text
+        # The rest of the mandatory-tool-use contract stays in place.
+        assert "System state: OS, CPU, memory, disk, ports, processes" in text
+        assert "'What OS am I running?'" in text
