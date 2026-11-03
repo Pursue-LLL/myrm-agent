@@ -515,8 +515,8 @@ const AgentConfigEditDialog = ({
               isNoiseHigh,
               isNoiseCritical,
               noiseLevel,
-              coreSkillsTokenCost: actionSpaceScore,
-              maxCoreTokens: maxSafeScore,
+              actionSpaceScore,
+              maxSafeScore,
             }}
             staleCoreSkills={staleCoreSkills}
             isSmartPruning={isSmartPruning}

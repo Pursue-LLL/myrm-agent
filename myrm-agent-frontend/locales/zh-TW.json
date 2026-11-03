@@ -1337,7 +1337,7 @@
       "addMore": "新增更多",
       "actionSpaceRadar": {
         "title": "大模型決策準確度預測",
-        "loadMeterLabel": "核心技能 Token 負載",
+        "loadMeterLabel": "動作空間複雜度",
         "evaluating": "計算中...",
         "evaluatingHint": "正在連線底層引擎進行動作空間解析...",
         "statusCritical": "準確率暴跌風險：工具過度氾濫！模型面臨極嚴重的幻覺風險，請清理。",

@@ -10,7 +10,11 @@ import { render, screen } from '@testing-library/react';
 import { ActionSpaceAccuracyRadar, type Turn1CatalogPreview } from '../ActionSpaceAccuracyRadar';
 
 interface RadarMessages {
-  agent: { configEditor: { actionSpaceRadar: { turn1CatalogSummary: string; turn1CatalogOverCapHint: string } } };
+  agent: {
+    configEditor: {
+      actionSpaceRadar: { loadMeterLabel: string; turn1CatalogSummary: string; turn1CatalogOverCapHint: string };
+    };
+  };
 }
 
 let currentLocale: 'en' | 'zh' = 'en';
@@ -92,5 +96,11 @@ describe('turn-1 catalog preview copy in every locale', () => {
       expect(radar.turn1CatalogOverCapHint).toContain(placeholder);
     }
     expect(radar.turn1CatalogOverCapHint).not.toMatch(/203/);
+  });
+
+  // The meter shows the server's action-space complexity score (skills, MCP servers and built-in tools),
+  // so it must not claim a token count that would contradict the real catalog tokens beside it.
+  it.each(packs)('%s labels the load meter as a score, not as tokens', (_path, messages) => {
+    expect(messages.agent.configEditor.actionSpaceRadar.loadMeterLabel).not.toMatch(/token|トークン|토큰/i);
   });
 });

@@ -1337,7 +1337,7 @@
       "addMore": "더 추가",
       "actionSpaceRadar": {
         "title": "의사결정 정확도 예측",
-        "loadMeterLabel": "핵심 스킬 Token 부하",
+        "loadMeterLabel": "액션 공간 복잡도",
         "evaluating": "계산 중...",
         "evaluatingHint": "엔진에 연결하여 액션 공간을 분석하는 중...",
         "statusCritical": "정확도 급락 위험: 도구가 너무 많습니다! 심각한 환각 위험 — 지금 정리하세요.",

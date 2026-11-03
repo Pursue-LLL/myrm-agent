@@ -1337,7 +1337,7 @@
       "addMore": "さらに追加",
       "actionSpaceRadar": {
         "title": "意思決定精度の予測",
-        "loadMeterLabel": "コアスキルの Token 負荷",
+        "loadMeterLabel": "アクション空間の複雑度",
         "evaluating": "計算中...",
         "evaluatingHint": "エンジンに接続してアクション空間を分析しています...",
         "statusCritical": "精度低下リスク：ツールが多すぎます。深刻な幻覚リスク — 今すぐ整理してください。",

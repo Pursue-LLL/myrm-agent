@@ -1337,7 +1337,7 @@
       "addMore": "Weitere hinzufügen",
       "actionSpaceRadar": {
         "title": "Entscheidungsgenauigkeit-Prognose",
-        "loadMeterLabel": "Token-Last der Kern-Skills",
+        "loadMeterLabel": "Komplexität des Aktionsraums",
         "evaluating": "Wird berechnet...",
         "evaluatingHint": "Verbindung zur Engine für Aktionsraum-Analyse...",
         "statusCritical": "Genauigkeitsrisiko: Zu viele Tools! Erhebliches Halluzinationsrisiko — jetzt aufräumen.",
@@ -1348,8 +1348,8 @@
         "smartPruneRunning": "Aktionsraum wird bereinigt…",
         "turn1CatalogTitle": "Skill-Katalog Runde 1",
         "turn1CatalogSummary": "{inline} inline · {hidden} bei Bedarf · Suche {searchState} · ca. {tokens, number} Token",
-        "turn1CatalogSearchOn": "ON",
-        "turn1CatalogSearchOff": "OFF",
+        "turn1CatalogSearchOn": "an",
+        "turn1CatalogSearchOff": "aus",
         "turn1CatalogOverCapHint": "Die Kernfähigkeiten überschreiten das Inline-Budget: Die ersten {inline} (alphabetisch) erscheinen vollständig inline, die übrigen {overflow} werden nur mit Namen aufgelistet und bei Bedarf geladen. Verschieben Sie selten genutzte Kernfähigkeiten in den Bereich „Periphere Fähigkeiten“, um Platz zu schaffen."
       },
       "skillsZone": {

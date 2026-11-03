@@ -1337,7 +1337,7 @@
       "addMore": "Add More",
       "actionSpaceRadar": {
         "title": "Decision accuracy forecast",
-        "loadMeterLabel": "Core skills token load",
+        "loadMeterLabel": "Action space complexity",
         "evaluating": "Calculating...",
         "evaluatingHint": "Connecting to the engine for action-space analysis...",
         "statusCritical": "Accuracy crash risk: too many tools! Severe hallucination risk — clean up now.",
