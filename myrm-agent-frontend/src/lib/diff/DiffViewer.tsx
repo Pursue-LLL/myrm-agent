@@ -8,6 +8,7 @@
  * - prism-react-renderer::Highlight (POS: 语法高亮引擎)
  * - lib/syntax/prism::resolveLanguage (POS: 已注册全部语法的 Prism 与语言校验)
  * - features/files/FileTypeIcon (POS: 文件图标组件)
+ * - next-intl::useTranslations (POS: 工具栏与空态文案)
  *
  * [OUTPUT]
  * - DiffViewer: 通用 Diff 对比预览组件
@@ -24,6 +25,7 @@
 'use client';
 
 import React, { memo, useState, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -222,12 +224,13 @@ HunkContent.displayName = 'HunkContent';
 
 export const DiffViewer: React.FC<DiffViewerProps> = memo(
   ({ diff, filePath, onClose, defaultViewMode = 'unified', className, embedded = false, maxHeight }) => {
+    const t = useTranslations('diffViewer');
     const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
     const [copied, setCopied] = useState(false);
     const { resolvedTheme } = useTheme();
 
     const parsed = useDiffParser(diff);
-    const displayPath = filePath || parsed.filePath || 'Unknown file';
+    const displayPath = filePath || parsed.filePath || t('unknownFile');
     const language = useMemo(() => resolveLanguage(inferLanguage(displayPath)), [displayPath]);
 
     const prismTheme = syntaxThemeFor(resolvedTheme);
@@ -272,7 +275,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
               <button
                 onClick={toggleViewMode}
                 className="p-1.5 rounded hover:bg-muted transition-colors hidden sm:block"
-                title={viewMode === 'unified' ? 'Split view' : 'Unified view'}
+                title={viewMode === 'unified' ? t('splitView') : t('unifiedView')}
               >
                 {viewMode === 'unified' ? (
                   <SplitSquareHorizontal className="h-4 w-4" />
@@ -280,11 +283,15 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
                   <AlignJustify className="h-4 w-4" />
                 )}
               </button>
-              <button onClick={handleCopy} className="p-1.5 rounded hover:bg-muted transition-colors" title="Copy diff">
+              <button
+                onClick={handleCopy}
+                className="p-1.5 rounded hover:bg-muted transition-colors"
+                title={t('copyDiff')}
+              >
                 {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
               </button>
               {onClose && (
-                <button onClick={onClose} className="p-1.5 rounded hover:bg-muted transition-colors" title="Close">
+                <button onClick={onClose} className="p-1.5 rounded hover:bg-muted transition-colors" title={t('close')}>
                   <X className="h-4 w-4" />
                 </button>
               )}
@@ -297,9 +304,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
           style={maxHeight !== undefined ? { maxHeight } : undefined}
         >
           {parsed.isBinary ? (
-            <div className="p-4 text-center text-muted-foreground">Binary file changed</div>
+            <div className="p-4 text-center text-muted-foreground">{t('binaryChanged')}</div>
           ) : parsed.hunks.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">No changes</div>
+            <div className="p-4 text-center text-muted-foreground">{t('noChanges')}</div>
           ) : (
             <AnimatePresence mode="wait">
               <motion.div

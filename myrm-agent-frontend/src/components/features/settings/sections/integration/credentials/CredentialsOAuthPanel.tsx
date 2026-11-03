@@ -98,18 +98,14 @@ export function CredentialsOAuthPanel({
                   {state === 'expired' && (
                     <div className="mt-4 flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-xs text-red-600 dark:text-red-400 leading-relaxed animate-in fade-in-50 duration-200">
                       <IconAlertCircle className="w-4 h-4 flex-shrink-0 text-red-500" />
-                      <div className="flex-1 font-medium">
-                        {locale === 'zh'
-                          ? '当前凭证已失效（可能在三方平台被吊销或到期）。请点击一键修复重新授权，以恢复该服务。'
-                          : 'This authorization has invalidated (revoked or expired on the platform). Please click Fix Now to re-authorize.'}
-                      </div>
+                      <div className="flex-1 font-medium">{t('oauthExpiredNotice')}</div>
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() => void openConnectModal(plat)}
                         className="h-7 px-2.5 text-xs font-semibold whitespace-nowrap bg-red-500 hover:bg-red-600 text-white flex-shrink-0 shadow-red-500/20"
                       >
-                        {locale === 'zh' ? '一键修复' : 'Fix Now'}
+                        {t('oauthFixNow')}
                       </Button>
                     </div>
                   )}

@@ -12,6 +12,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { FileText, X, Copy, Check, ExternalLink, Database } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -30,6 +31,8 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
   onClose,
   onOpenInEditor,
 }) => {
+  const t = useTranslations('settings.wiki.ledger.preview');
+  const tLedger = useTranslations('settings.wiki.ledger');
   const [copied, setCopied] = useState(false);
 
   if (!item) {
@@ -59,7 +62,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-50">
       <dialog
         open
-        aria-label="词条文档预览"
+        aria-label={t('ariaLabel')}
         className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden m-auto"
       >
         <div className="p-4 border-b border-border/60 flex items-center justify-between bg-secondary/20">
@@ -76,11 +79,11 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
                     item.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
                   }`}
                 >
-                  {isJson ? 'JSON Ledger' : item.publish_status === 'draft' ? 'Draft' : 'Live'}
+                  {isJson ? t('jsonLedgerBadge') : item.publish_status === 'draft' ? 'Draft' : 'Live'}
                 </Badge>
                 {item.source_task_id && (
                   <Badge variant="outline" className="text-[10px] shrink-0 border-primary/30 text-primary">
-                    Task #{item.source_task_id.slice(-6)}
+                    {t('taskBadge', { id: item.source_task_id.slice(-6) })}
                   </Badge>
                 )}
               </h3>
@@ -91,6 +94,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
             variant="ghost"
             size="sm"
             onClick={onClose}
+            aria-label={t('close')}
             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground shrink-0"
           >
             <X className="w-4 h-4" />
@@ -99,10 +103,10 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
 
         <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed text-foreground/90">
           <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 font-mono text-[11px] text-muted-foreground flex flex-col gap-1">
-            <div>更新时间：{item.updated_at || '刚刚'}</div>
-            <div>存储分层：{layerTitle}</div>
-            <div>文件类型：{isJson ? '结构化审计台账 (JSON)' : 'Markdown 知识资产'}</div>
-            {item.source_task_id && <div>来源任务：{item.source_task_id}</div>}
+            <div>{t('updatedAt', { value: item.updated_at || tLedger('justNow') })}</div>
+            <div>{t('storageLayer', { value: layerTitle })}</div>
+            <div>{t('fileType', { value: isJson ? t('fileTypeJson') : t('fileTypeMarkdown') })}</div>
+            {item.source_task_id && <div>{t('sourceTask', { value: item.source_task_id })}</div>}
           </div>
 
           <div className="p-4 rounded-xl border border-border/50 bg-background/60 font-sans whitespace-pre-wrap leading-relaxed">
@@ -118,7 +122,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
             className="h-8 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? '已复制路径' : '复制相对路径'}
+            {copied ? t('pathCopied') : t('copyPath')}
           </Button>
 
           <div className="flex items-center gap-2">
@@ -129,11 +133,12 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
                 onClick={handleOpenEditor}
                 className="h-8 text-xs flex items-center gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
               >
-                <ExternalLink className="w-3.5 h-3.5" />在 Wiki 编辑器中打开
+                <ExternalLink className="w-3.5 h-3.5" />
+                {t('openInEditor')}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">
-              关闭预览
+              {t('close')}
             </Button>
           </div>
         </div>

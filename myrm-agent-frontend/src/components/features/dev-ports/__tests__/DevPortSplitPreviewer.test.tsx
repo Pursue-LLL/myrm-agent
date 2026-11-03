@@ -4,7 +4,8 @@ import { DevPortSplitPreviewer } from '../DevPortSplitPreviewer';
 import type { DevPortInfo } from '@/services/devPorts';
 import * as devPortsService from '@/services/devPorts';
 
-const stableT = (key: string) => key;
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -39,9 +40,7 @@ describe('DevPortSplitPreviewer component', () => {
   });
 
   it('renders nothing when controlled isOpen is false', () => {
-    const { container } = render(
-      <DevPortSplitPreviewer isOpen={false} activePort={samplePort} />,
-    );
+    const { container } = render(<DevPortSplitPreviewer isOpen={false} activePort={samplePort} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -52,12 +51,9 @@ describe('DevPortSplitPreviewer component', () => {
     expect(screen.getByText('next-dev')).toBeInTheDocument();
     expect(screen.getByText(':3000')).toBeInTheDocument();
 
-    const iframe = screen.getByTitle('next-dev live preview');
+    const iframe = screen.getByTitle('previewTitle:next-dev');
     expect(iframe).toHaveAttribute('src', 'http://localhost:3000');
-    expect(iframe).toHaveAttribute(
-      'sandbox',
-      'allow-scripts allow-same-origin allow-forms allow-popups',
-    );
+    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
   });
 
   it('switches viewport modes between desktop, tablet and mobile', () => {
@@ -82,9 +78,7 @@ describe('DevPortSplitPreviewer component', () => {
       tunnel_url: 'https://tunnel-3000.sandbox.myrm.io',
       expires_in_seconds: 3600,
     };
-    vi.spyOn(devPortsService, 'createDevPortTunnel').mockResolvedValueOnce(
-      mockTunnelResponse,
-    );
+    vi.spyOn(devPortsService, 'createDevPortTunnel').mockResolvedValueOnce(mockTunnelResponse);
 
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
@@ -130,20 +124,14 @@ describe('DevPortSplitPreviewer component', () => {
     fireEvent.click(toggleButton);
 
     expect(screen.getByTestId('dev-port-console-drawer')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Service started on port 3000/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^consoleStarted:.*\/3000\/http$/)).toBeInTheDocument();
+    expect(screen.getByText(/^consoleReady:/)).toBeInTheDocument();
+    expect(screen.getByText('consoleProcess:1234/next-dev')).toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', () => {
     const onCloseMock = vi.fn();
-    render(
-      <DevPortSplitPreviewer
-        isOpen={true}
-        activePort={samplePort}
-        onClose={onCloseMock}
-      />,
-    );
+    render(<DevPortSplitPreviewer isOpen={true} activePort={samplePort} onClose={onCloseMock} />);
 
     const closeButton = screen.getByLabelText('closeAriaLabel');
     fireEvent.click(closeButton);

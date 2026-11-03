@@ -14,6 +14,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { ProjectCluster, SessionNode, AgentState } from '@/services/sessionMap';
 
 export interface SessionMapGraphProps {
@@ -75,6 +76,7 @@ export function SessionMapGraph({
   stateFilter,
   searchQuery = '',
 }: SessionMapGraphProps) {
+  const t = useTranslations('sessionMap');
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
@@ -95,9 +97,7 @@ export function SessionMapGraph({
       const cx = 220 + col * clusterSpacing;
       const cy = 200 + row * clusterSpacing;
 
-      const filteredSessions = stateFilter
-        ? proj.sessions.filter((s) => s.state === stateFilter)
-        : proj.sessions;
+      const filteredSessions = stateFilter ? proj.sessions.filter((s) => s.state === stateFilter) : proj.sessions;
 
       const nodeCount = filteredSessions.length;
       const radius = Math.max(120, 80 + nodeCount * 14);
@@ -111,10 +111,10 @@ export function SessionMapGraph({
 
         const isMatch = Boolean(
           cleanQuery &&
-            (session.title.toLowerCase().includes(cleanQuery) ||
-              session.agent_name.toLowerCase().includes(cleanQuery) ||
-              (session.current_task && session.current_task.toLowerCase().includes(cleanQuery)) ||
-              session.tags.some((t) => t.toLowerCase().includes(cleanQuery))),
+          (session.title.toLowerCase().includes(cleanQuery) ||
+            session.agent_name.toLowerCase().includes(cleanQuery) ||
+            (session.current_task && session.current_task.toLowerCase().includes(cleanQuery)) ||
+            session.tags.some((t) => t.toLowerCase().includes(cleanQuery))),
         );
 
         return {
@@ -161,8 +161,8 @@ export function SessionMapGraph({
           type="button"
           onClick={handleZoomIn}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-foreground hover:bg-muted transition-colors"
-          title="Zoom in"
-          aria-label="Zoom in"
+          title={t('zoomIn')}
+          aria-label={t('zoomIn')}
         >
           +
         </button>
@@ -170,8 +170,8 @@ export function SessionMapGraph({
           type="button"
           onClick={handleZoomOut}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-foreground hover:bg-muted transition-colors"
-          title="Zoom out"
-          aria-label="Zoom out"
+          title={t('zoomOut')}
+          aria-label={t('zoomOut')}
         >
           −
         </button>
@@ -179,8 +179,8 @@ export function SessionMapGraph({
           type="button"
           onClick={handleResetZoom}
           className="px-2 h-7 rounded-lg flex items-center justify-center text-[10px] font-mono text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Reset zoom"
-          aria-label="Reset zoom"
+          title={t('zoomReset')}
+          aria-label={t('zoomReset')}
         >
           {Math.round(zoomLevel * 100)}%
         </button>
@@ -286,11 +286,7 @@ export function SessionMapGraph({
                 )}
 
                 {/* State Glow Ring */}
-                <circle
-                  r={isHovered ? 17 : 14}
-                  fill={colors.ring}
-                  className="transition-all duration-200"
-                />
+                <circle r={isHovered ? 17 : 14} fill={colors.ring} className="transition-all duration-200" />
 
                 {/* Main Node Body */}
                 <circle
@@ -302,13 +298,7 @@ export function SessionMapGraph({
                 />
 
                 {/* Working Pulse Indicator Core */}
-                {session.state === 'working' && (
-                  <circle
-                    r="4"
-                    fill="#ffffff"
-                    className="animate-ping opacity-75"
-                  />
-                )}
+                {session.state === 'working' && <circle r="4" fill="#ffffff" className="animate-ping opacity-75" />}
 
                 {/* Session Node Title Badge */}
                 <text
@@ -321,9 +311,7 @@ export function SessionMapGraph({
                     fontWeight: isSelected ? 700 : 500,
                   }}
                 >
-                  {session.title.length > 16
-                    ? `${session.title.slice(0, 15)}…`
-                    : session.title}
+                  {session.title.length > 16 ? `${session.title.slice(0, 15)}…` : session.title}
                 </text>
 
                 {/* Agent Name Tag */}

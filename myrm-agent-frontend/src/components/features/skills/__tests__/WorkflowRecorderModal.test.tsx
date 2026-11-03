@@ -75,6 +75,8 @@ describe('WorkflowRecorderModal', () => {
 
     expect(screen.getByText('title')).toBeInTheDocument();
     expect(screen.getByText('startRecording')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('workflowNamePlaceholder')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('intentHintPlaceholder')).toBeInTheDocument();
 
     // 1. Click Start Recording
     fireEvent.click(screen.getByText('startRecording'));
@@ -88,6 +90,7 @@ describe('WorkflowRecorderModal', () => {
       expect(screen.getByText('reviewStepsTitle')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Switch to Excel')).toBeInTheDocument();
     });
+    expect(screen.getByLabelText('deleteStep')).toBeInTheDocument();
 
     // 3. Test Add Step
     const addBtn = screen.getByText('addStep');

@@ -183,10 +183,13 @@ export function PairingItem({
           {!isAdmin && (
             <div
               className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground cursor-help"
-              title="每日 00:00 UTC (北京时间 08:00) 自动刷新"
+              title={t('usageResetTooltip')}
             >
               <span>
-                今日用量：{p.today_usage ?? 0} / {p.daily_quota ? String(p.daily_quota) : '∞'} 次
+                {t('todayUsageDisplay', {
+                  used: p.today_usage ?? 0,
+                  quota: p.daily_quota ? String(p.daily_quota) : '∞',
+                })}
               </span>
               {p.daily_quota &&
                 p.daily_quota > 0 &&
@@ -219,7 +222,7 @@ export function PairingItem({
                           variant="outline"
                           className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30"
                         >
-                          已超额
+                          {t('quotaExceeded')}
                         </Badge>
                       )}
                     </>

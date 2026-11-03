@@ -96,7 +96,7 @@
 | `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `ExtensionTakeoverBanner.tsx` | 组件/模块 | 外部浏览器 HITL 横幅（harness `is_managed=false` → `uiMode=extension`：CDP/auto/extension 均 in-chat 引导本地 Chrome + Done/Skip；支持打开/复制签名远程接管链接；CAPTCHA auto_detect 时隐藏按钮） | ✅ |
 | `SessionTrashPanel.tsx` | 组件 | 软删除会话回收站面板（恢复/永久删除） | ✅ |
-| `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时） | ✅ |
+| `AgentToolDiagnostics.tsx` | 组件 | Agent 工具健康诊断弹窗（tool 成功率/耗时）；文案取自 `chat.toolDiagnostics`，`__tests__/AgentToolDiagnostics.test.tsx` 覆盖触发按钮、标题、各指标标签与空态 | ✅ |
 | `SubagentPromptButton.tsx` | 组件 | 子代理完成后延迟 5s 出现的「查看结果」入口按钮：倒计时仅作提示，点击才发送按界面语言本地化的 `chat.subagent.viewResults` | ✅ |
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher（queue 过期 toast） | ✅ |
 | `WorkspaceDirPicker.tsx` | 组件 | 工作目录选择器 Popover：路径直接输入+Enter导航、子目录过滤（>8项）、最近使用 LRU 5（localStorage）、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）；Web/Cloud 走 Popover+Input，后端 `GET /browse` 零改动；服务端拒绝的目录（范围过大 / 受保护）按原因给出说明 | ✅ |
@@ -184,7 +184,7 @@
 | `SingleApprovalCard.tsx`                     | UI   | 主 Agent 单条/批量审批：持有决定状态（编辑、拒绝、记住授权、一次性凭据），只读内容与按钮分给 `approval/ApprovalDetails`、`ApprovalActions` 等（shell edit 经 mergeShellEditedArgs） | ✅    |
 | `ToolApprovalDialog.tsx`                     | UI   | modal 非 visual 审批                                                                                                                                                                | ✅    |
 | `MobileStatusBoard.tsx`                      | UI   | 移动端审批面板                                                                                                                                                                      | ✅    |
-| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层                        | ✅    |
+| `RealTimeCostAndCacheHud.tsx`                | 组件 | 输入框底栏常驻算力胶囊 HUD：显示 Token 水位、Prompt Cache 命中率与绿色微徽章（测量衰减纠偏门限保护：cached>=1024 且 net_savings>=$0.0001），点击弹出单价浮层；浮层标题/节省额/待命文案取自 `chat.costHud.*`                        | ✅    |
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |

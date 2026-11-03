@@ -278,7 +278,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
 
         {/* Only the local panel (the folder picker) has no description row of its own; cloud and chat state theirs below. */}
         {currentMode === 'local' && (
-          <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">
+          <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate">
             {t('modeLocalDesc')}
           </span>
         )}

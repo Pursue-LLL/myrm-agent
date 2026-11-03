@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
       "atLeastOneEndpoint": "At least one endpoint must remain selected.",
-      "presetAdded": "Added {name} connector"
+      "presetAdded": "Added {name} connector",
+      "presetsLoading": "Loading presets...",
+      "presetsEmpty": "No presets available.",
+      "presetEnable": "Enable"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -2823,7 +2826,13 @@
       "cancelled": "Generation stopped. Partial response retained in context."
     },
     "toolImage": {
-      "screenshotLabel": "Remote Desktop Screenshot"
+      "screenshotLabel": "Remote Desktop Screenshot",
+      "lightboxLabel": "Screenshot preview",
+      "lightboxClose": "Close preview",
+      "lightboxPrevious": "Previous image",
+      "lightboxNext": "Next image",
+      "lightboxAlt": "{tool} screenshot (full size)",
+      "thumbnailAlt": "{tool} screenshot {index}"
     },
     "sessionRecording": {
       "label": "Session Recording"
@@ -3457,7 +3466,30 @@
     "collapseReasoning": "Collapse reasoning",
     "reasoningLoading": "Thinking",
     "reasoningTokens": "{count} tokens",
-    "reasoningTokensEstimated": "≈ {count} tokens"
+    "reasoningTokensEstimated": "≈ {count} tokens",
+    "thinkingProcess": "Thinking Process",
+    "customMessage": {
+      "ephemeral": "Ephemeral",
+      "persistent": "Persistent",
+      "ephemeralHint": "Ephemeral: will be pruned during compaction",
+      "persistentHint": "Persistent: retained across compaction summaries",
+      "details": "Details"
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool Health",
+      "title": "Agent Tool Diagnostics",
+      "loading": "Loading diagnostics...",
+      "empty": "No tool execution data for this agent yet.",
+      "calls": "{count, plural, one {# call} other {# calls}}",
+      "successRate": "Success Rate",
+      "errors": "Errors",
+      "avgTime": "Avg Time"
+    },
+    "costHud": {
+      "popoverTitle": "Click to view the model's four-dimension price matrix and Prompt Cache savings",
+      "savedAmount": "(saved {amount})",
+      "idleLabel": "Compute HUD"
+    }
   },
   "mode": {
     "fast": "Fast Search",
@@ -4288,7 +4320,8 @@
       "copyRaw": "Copy Raw JSON",
       "copied": "Copied",
       "close": "Close"
-    }
+    },
+    "smartFallbackBadge": "Smart Fallback"
   },
   "memory": {
     "mesh": {
@@ -6175,8 +6208,25 @@
       "selectAtLeastOne": "Please select at least one rule",
       "exported": "{count, plural, one {Exported # rule successfully} other {Exported # rules successfully}}",
       "exportFailed": "Export failed",
-      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}"
-    }
+      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}",
+      "title": "Share Rules Safely",
+      "privacyBadge": "Privacy Protected",
+      "description": "Export your AI-learned rules with automatic path anonymization and credential redaction. Safe to share publicly or with your team.",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "selectedCount": "{selected}/{total} selected",
+      "empty": "No procedural rules found. Rules are automatically learned from your conversations.",
+      "previewSanitized": "Preview sanitized content",
+      "copyButton": "Copy",
+      "copiedButton": "Copied!",
+      "downloadZip": "Download ZIP"
+    },
+    "contextGlobalTitle": "Global user profile",
+    "contextGlobalSubtitle": "Stable identity shared across agents",
+    "contextGlobalEmpty": "No global profile data yet.",
+    "contextPeerTitle": "Our relationship & your persona",
+    "contextPeerSubtitle": "Interactions specific to this agent",
+    "contextPeerEmpty": "No agent-specific profile data yet."
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6780,7 +6830,25 @@
       "viewportNotFound": "Viewport element not found",
       "exportSuccess": "Export Successful",
       "svgExported": "Architecture diagram exported as standalone SVG",
-      "pngExported": "Architecture diagram exported as high-res PNG"
+      "pngExported": "Architecture diagram exported as high-res PNG",
+      "invalidSchema": "Invalid architecture JSON schema or failed to parse.",
+      "defaultTitle": "System Architecture Map",
+      "evolutionDiffActive": "Evolution Diff Active",
+      "searchNodes": "Search nodes...",
+      "liveView": "Live View",
+      "diffView": "Diff View",
+      "copied": "Copied",
+      "diffNodesAdded": "+{count} Nodes",
+      "diffNodesDeleted": "-{count} Nodes",
+      "diffNodesModified": "~{count} Modified",
+      "diffEdgesAdded": "+{count} Edges",
+      "diffEdgesDeleted": "-{count} Edges",
+      "shortestPath": "Shortest Path:",
+      "hops": "({count, plural, one {# hop} other {# hops}})",
+      "noDirectedPath": "(no directed path)",
+      "tracingFor": "Tracing dependency tree for:",
+      "clickToTrace": "(Click another node to trace route)",
+      "clear": "Clear"
     },
     "vaultCard": {
       "loading": "Loading the file...",
@@ -6788,7 +6856,13 @@
       "unavailable": "This file is no longer available",
       "downloadFull": "Download full file"
     },
-    "resizePanel": "Resize panel"
+    "resizePanel": "Resize panel",
+    "closePreview": "Close preview",
+    "errorBoundary": {
+      "title": "Render error",
+      "defaultMessage": "This content could not be rendered. Try refreshing or download it to view.",
+      "retry": "Retry"
+    }
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -7764,7 +7838,14 @@
     "preflightUpdated": "Pre-flight probe updated",
     "preflightTemplateInserted": "Template inserted",
     "preflightInsertTemplate": "Insert Template",
-    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped."
+    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped.",
+    "roiTitle": "Automation productivity gains",
+    "roiSubtitle": "Estimated from baseline hours per automated task and actual run volume",
+    "hoursSavedTotal": "Total hours saved",
+    "hoursUnit": "hrs",
+    "productivityValue": "Estimated productivity value",
+    "tokenCostLine": "Token cost ${amount}",
+    "columnHoursSaved": "Est. time saved"
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -7910,6 +7991,11 @@
     "replanRationaleRequired": "Rationale is required for plan revision",
     "replanChangesList": "Detailed Diff Changes",
     "replanNoChanges": "No task modifications proposed",
+    "replanActionAdd": "Add",
+    "replanActionUpdate": "Update",
+    "replanActionRemove": "Remove",
+    "replanUntitled": "Untitled",
+    "replanDependsOn": "Depends on: {ids}",
     "replanInvariantGuaranteed": "Completed and In-Review tasks are strictly locked and will not be altered. DAG acyclicity will be validated on commit.",
     "replanApply": "Apply Plan Revision",
     "replanAppliedSuccess": "Plan revision applied successfully",
@@ -9252,7 +9338,10 @@
     "imessageDeployGuideLocal": "Local / Tauri: Connect directly to BlueBubbles running on your Mac (e.g. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Connect to your Mac's BlueBubbles server via Cloudflare Tunnel, Tailscale, or Ngrok.",
     "whatsappQrAlt": "WhatsApp login QR code",
-    "wechatQrAlt": "WeChat login QR code"
+    "wechatQrAlt": "WeChat login QR code",
+    "usageResetTooltip": "Refreshes automatically daily at 00:00 UTC (08:00 Beijing time)",
+    "todayUsageDisplay": "Today's usage: {used} / {quota} msgs",
+    "quotaExceeded": "Over quota"
   },
   "voice": {
     "sectionTitle": "Voice Settings",
@@ -10776,7 +10865,15 @@
     "openReviewPanelAria": "Open review panel",
     "reviewChanges": "Review changes",
     "closeReviewOverlayAria": "Close review",
-    "closeReviewPanelAria": "Close review panel"
+    "closeReviewPanelAria": "Close review panel",
+    "tooLargeBadge": "Too large",
+    "tooLargeNotice": "File too large to preview inline. Open it in the workspace to review.",
+    "noTextChanges": "No text changes.",
+    "refreshDiffs": "Refresh diffs",
+    "searchFiles": "Search files",
+    "filterByStatus": "Filter by status",
+    "filterAll": "All",
+    "noFilesMatch": "No files match your search."
   },
   "growthDashboard": {
     "title": "Growth Dashboard",
@@ -11883,7 +11980,10 @@
       "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps.",
       "captureUnavailableTitle": "Capture unavailable",
       "publishConflictNotice": "A skill named “{name}” already exists. Replace it with this recording, or cancel and choose a different name in the first step.",
-      "replaceSkill": "Replace skill"
+      "replaceSkill": "Replace skill",
+      "workflowNamePlaceholder": "e.g. Monthly Tax Filing Pipeline",
+      "intentHintPlaceholder": "e.g. Read Excel and sync to tax portal",
+      "deleteStep": "Delete step"
     }
   },
   "followUps": {
@@ -12589,7 +12689,11 @@
         "trust": "Trust and link",
         "mcpServers": "Local MCP servers",
         "plugins": "Local plugins"
-      }
+      },
+      "adoptProjectName": "Project name",
+      "adoptCancel": "Cancel",
+      "adoptSubmitting": "Adopting...",
+      "adoptSubmit": "Adopt project now"
     },
     "workspaceTrust": {
       "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
@@ -13253,7 +13357,11 @@
     "consoleDrawerTitle": "Console & Service Logs",
     "consoleDrawerEmpty": "No recent logs captured",
     "sniffTrigger": "Sniff Dev Service",
-    "sniffSuccess": "Successfully detected and registered service port"
+    "sniffSuccess": "Successfully detected and registered service port",
+    "previewTitle": "{name} live preview",
+    "consoleStarted": "[{time}] Service started on port {port} ({protocol})",
+    "consoleReady": "> Ready: {url}",
+    "consoleProcess": "> Process PID: {pid} | Process: {name}"
   },
   "toolPicker": {
     "menuLabel": "Tool picker",
@@ -13307,7 +13415,15 @@
     "nextSlide": "Next Slide",
     "slideCounter": "Slide {current} of {total}",
     "speakerNotes": "Speaker Notes",
-    "noSpeakerNotes": "No notes for this slide"
+    "noSpeakerNotes": "No notes for this slide",
+    "newPresentation": "+ New Presentation",
+    "enterpriseBadge": "P0 · ENTERPRISE PPTX",
+    "illustrationsHint": "Multi-modal visual concepts & layouts",
+    "slideVisualConcept": "Visual Concept",
+    "slideVisualPlaceholder": "Multimodal Architecture Diagram",
+    "slideConfidentialFooter": "CONFIDENTIAL · ENTERPRISE DECK",
+    "slidePage": "PAGE {page}",
+    "slideAriaLabel": "Slide {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Publication-Grade Styled Spreadsheet Hub",
@@ -13784,7 +13900,10 @@
     "activeTaskLabel": "Active Task Objective",
     "lastActiveLabel": "Last Active",
     "cancelAction": "Close",
-    "jumpInAction": "Jump In"
+    "jumpInAction": "Jump In",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom"
   },
   "workbench": {
     "workbenchAriaLabel": "Auxiliary Workbench",
@@ -14992,7 +15111,21 @@
         "profilingStartNetworkError": "Network error starting profiling",
         "profilingStopped": "Heap profiling stopped. Results ready.",
         "profilingStopFailed": "Failed to stop profiling",
-        "profilingStopNetworkError": "Network error stopping profiling"
+        "profilingStopNetworkError": "Network error stopping profiling",
+        "title": "Memory & Profiling",
+        "stopProfiling": "Stop Profiling",
+        "startProfiling": "Start Heap Profiling",
+        "loadingHistory": "Loading memory history...",
+        "noHistory": "No memory history available.",
+        "profilingActiveTitle": "Heap Profiling is Active",
+        "profilingActiveBody": "The system is currently tracking all Python memory allocations. This may cause a 10-20% performance overhead. Click Stop Profiling to view the results.",
+        "topAllocations": "Top Memory Allocations",
+        "colFile": "File",
+        "colLine": "Line",
+        "colSizeKb": "Size (KB)",
+        "colCount": "Count",
+        "seriesRss": "Total RSS (MB)",
+        "seriesNative": "Native Estimate (MB)"
       }
     },
     "commands": {
@@ -16200,7 +16333,12 @@
       "permittedSummary": "Permitted {permitted}",
       "recentAuditTrail": "Recent Execution Audit Trail",
       "loadingEntries": "Loading audit entries...",
-      "noEntriesYet": "No audit entries recorded yet"
+      "noEntriesYet": "No audit entries recorded yet",
+      "viewDetails": "View entry details",
+      "detailRule": "Rule:",
+      "detailSessionId": "Session ID:",
+      "detailReason": "Error/Reason:",
+      "detailArgs": "Sanitized Args:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding Model Configuration",
@@ -17087,7 +17225,9 @@
       "xaiOauthCodeHint": "Enter this code in the browser to complete authorization...",
       "xaiOauthReopen": "Open authorization page again",
       "xaiOauthWaiting": "Waiting...",
-      "xaiOauthConnectBtn": "Authorize SuperGrok"
+      "xaiOauthConnectBtn": "Authorize SuperGrok",
+      "oauthExpiredNotice": "This authorization is no longer valid (revoked or expired on the platform). Click Fix Now to re-authorize and restore the service.",
+      "oauthFixNow": "Fix Now"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -18169,7 +18309,88 @@
       "reviewSlip": {
         "fetchFailed": "Failed to load the review slip",
         "applied": "Selective write-back complete: {committed} saved, {discarded} skipped",
-        "applyFailed": "Failed to apply selective write-back"
+        "applyFailed": "Failed to apply selective write-back",
+        "engineLabel": "Deliverable knowledge capture engine",
+        "title": "Author review slip",
+        "description": "Review the high-value insights extracted from the deliverable. Writing everything back would pollute the knowledge base, so the author confirms the target layer for each one.",
+        "exclusionTitle": "Negative rules applied: {count} transient items blocked",
+        "exclusionBody": "One-off test IPs, dummy configs, demo transcripts and temporary debug logs were excluded automatically to keep the core truth of the knowledge base clean.",
+        "extracting": "Extracting high-value insights and evaluating filter rules...",
+        "noQuestions": "This task produced no general lessons worth writing back; everything stays safely in the deliverable.",
+        "pendingLayer": "Layer to be decided",
+        "recommended": "Recommended",
+        "footerNote": "After submitting, items are written to their layers and tagged Draft, to be published manually later.",
+        "later": "Not now",
+        "confirm": "Confirm and write back safely"
+      },
+      "ledger": {
+        "title": "Five-layer knowledge asset overview",
+        "architectureBadge": "WorkBuddy architecture",
+        "description": "Facts and hypotheses are kept in physically separate layers, with task-ledger auditing and selective write-back through the author review slip.",
+        "refreshStats": "Refresh stats",
+        "openReviewSlip": "Open author review slip",
+        "viewLayerItems": "View the entry list of {title}",
+        "archivedItems": "Archived entries",
+        "drawerTitle": "{title} · archived entries",
+        "itemCount": "{count} docs",
+        "closeDrawer": "Close entry list",
+        "loadingItems": "Loading the document list for this layer...",
+        "emptyItems": "No archived Markdown entries in this layer yet. Complete a long-running task and write back through the review slip to create some.",
+        "previewItem": "Preview entry {title}",
+        "noSnippet": "No summary yet",
+        "justNow": "Just now",
+        "quickPreview": "Quick preview",
+        "blockNoticeLead": "Active: ",
+        "blockNoticeRule": "negative write-back hard block",
+        "blockNoticeTail": " — demo environments, specific IPs, one-off test data and temporary scripts are screened out automatically.",
+        "reviewSlipGuide": "Review slip guide",
+        "layers": {
+          "l1": {
+            "title": "Raw inputs & candidate pool",
+            "subtext": "Raw & Inbox",
+            "badge": "Raw evidence",
+            "description": "Unprocessed web snapshots, meeting recordings and transient drafts; strictly excluded from long-term retrieval."
+          },
+          "l2": {
+            "title": "Source credential cards",
+            "subtext": "Sources (ID cards)",
+            "badge": "Evidence source",
+            "description": "Source ID cards with authority ratings and SHA256 signatures — the traceability foundation for all factual knowledge."
+          },
+          "l3": {
+            "title": "Core knowledge base",
+            "subtext": "Concepts & Methods",
+            "badge": "High-trust truth",
+            "description": "Objective facts, atomic concepts and engineering methods that pass the strict Draft-to-Live gate."
+          },
+          "l4": {
+            "title": "Opinions & claims",
+            "subtext": "Claims (to be verified)",
+            "badge": "Subjective inference",
+            "description": "Hypotheses with confidence levels and debate records, kept strictly apart from objective facts so they cannot contaminate the truth layer."
+          },
+          "l5": {
+            "title": "Deliverables & usage ledgers",
+            "subtext": "Deliverables & Ledgers",
+            "badge": "Delivery ledger",
+            "description": "Final task outputs, with a full ledger of knowledge cited, derived and not adopted."
+          }
+        },
+        "preview": {
+          "ariaLabel": "Entry document preview",
+          "jsonLedgerBadge": "JSON ledger",
+          "taskBadge": "Task #{id}",
+          "updatedAt": "Updated: {value}",
+          "storageLayer": "Storage layer: {value}",
+          "fileType": "File type: {value}",
+          "fileTypeJson": "Structured audit ledger (JSON)",
+          "fileTypeMarkdown": "Markdown knowledge asset",
+          "sourceTask": "Source task: {value}",
+          "pathCopied": "Path copied",
+          "copyPath": "Copy relative path",
+          "openInEditor": "Open in Wiki editor",
+          "close": "Close preview"
+        }
       }
     },
     "skills": {
@@ -21405,7 +21626,22 @@
         "searchPlaceholder": "Search traces by prompt or title...",
         "exportZip": "Export Trace (ZIP)",
         "exportZipTooltip": "Export raw session event logs and artifacts ZIP pack",
-        "exportZipFailed": "Failed to export session pack"
+        "exportZipFailed": "Failed to export session pack",
+        "llmUnknownModel": "Unknown model",
+        "llmRetry": "Retry ×{count}",
+        "llmTokens": "{count} tokens",
+        "llmNetworkWaitTitle": "Network wait (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token generation: {ms}ms",
+        "llmTtft": "TTFT: {ms}ms",
+        "llmGeneration": "Generation: {ms}ms",
+        "llmPrompt": "Prompt: {count}",
+        "llmCompletion": "Completion: {count}",
+        "llmMessages": "Messages: {count}",
+        "llmViewportInspect": "Model Viewport (Inspect)",
+        "llmViewportHide": "Model Viewport (Hide)",
+        "experienceWizardTitle": "Generate the six-step project experience evidence pack wizard",
+        "experienceWizardButton": "Experience wizard",
+        "pluginStateTitle": "Plugin extension state"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",
@@ -22504,5 +22740,29 @@
     "limitReached": "Limit reached",
     "pauseTitle": "Emergency pause for the auto-approve envelope",
     "pause": "Pause"
+  },
+  "embeds": {
+    "load": "Load {label}",
+    "moreOptions": "More options",
+    "alwaysAllow": "Always allow {label}",
+    "loadFailed": "Failed to load {label} embed"
+  },
+  "skeleton": {
+    "loadingList": "Loading list",
+    "loadingCards": "Loading cards",
+    "loadingTable": "Loading table",
+    "loadingForm": "Loading form",
+    "loadingWorkspace": "Loading workspace",
+    "loadingMetrics": "Loading metrics",
+    "loadingTimeline": "Loading timeline"
+  },
+  "diffViewer": {
+    "unknownFile": "Unknown file",
+    "splitView": "Split view",
+    "unifiedView": "Unified view",
+    "copyDiff": "Copy diff",
+    "close": "Close",
+    "binaryChanged": "Binary file changed",
+    "noChanges": "No changes"
   }
 }

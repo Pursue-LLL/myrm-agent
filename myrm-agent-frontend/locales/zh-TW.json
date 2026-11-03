@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "預估 Turn1 schema（約 {tokens} tokens）超出直接綁定預算（{budget}）。請減少已選 endpoint，否則 Agent 無法使用這些 API 工具。",
       "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。",
       "atLeastOneEndpoint": "必須至少保留一個端點。",
-      "presetAdded": "已新增 {name} 連接器"
+      "presetAdded": "已新增 {name} 連接器",
+      "presetsLoading": "正在載入預設...",
+      "presetsEmpty": "暫無可用預設。",
+      "presetEnable": "啟用"
     },
     "sharedContexts": {
       "targetLabel": "智能體",
@@ -2814,7 +2817,13 @@
       "cancelled": "已停止生成。已生成的部分回覆已保留在對話上下文中。"
     },
     "toolImage": {
-      "screenshotLabel": "遠端桌面截圖"
+      "screenshotLabel": "遠端桌面截圖",
+      "lightboxLabel": "截圖預覽",
+      "lightboxClose": "關閉預覽",
+      "lightboxPrevious": "上一張圖片",
+      "lightboxNext": "下一張圖片",
+      "lightboxAlt": "{tool} 截圖（原尺寸）",
+      "thumbnailAlt": "{tool} 截圖 {index}"
     },
     "sessionRecording": {
       "label": "會話錄製"
@@ -3457,7 +3466,30 @@
     "collapseReasoning": "收合思考過程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 個推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 個推理 Token"
+    "reasoningTokensEstimated": "≈ {count} 個推理 Token",
+    "thinkingProcess": "思考過程",
+    "customMessage": {
+      "ephemeral": "暫時",
+      "persistent": "持久",
+      "ephemeralHint": "暫時：壓縮上下文時會被清理",
+      "persistentHint": "持久：壓縮摘要後仍會保留",
+      "details": "詳情"
+    },
+    "toolDiagnostics": {
+      "trigger": "工具健康度",
+      "title": "智慧體工具診斷",
+      "loading": "正在載入診斷資料...",
+      "empty": "此智慧體暫無工具執行資料。",
+      "calls": "{count} 次呼叫",
+      "successRate": "成功率",
+      "errors": "錯誤數",
+      "avgTime": "平均耗時"
+    },
+    "costHud": {
+      "popoverTitle": "點擊檢視模型四維單價矩陣與 Prompt Cache 經濟效益",
+      "savedAmount": "(省 {amount})",
+      "idleLabel": "算力透視 HUD"
+    }
   },
   "mode": {
     "fast": "快速搜尋",
@@ -4288,7 +4320,8 @@
     "skillManageRollbackSuperseded": "該批次中的技能之後又被修改過。請先撤銷較新的那次修改，或前往「設置 → 技能 → 歷史」恢復版本。",
     "skillManageRollbackSkillMissing": "該批次中的技能之後已被刪除，無法再撤銷這個批次。",
     "skillManageUndoHintBody": "助手在本條回覆中修改了技能。展開下方「任務步驟」可撤銷這些修改並恢復之前的內容。",
-    "skillManageUndoHintAction": "打開任務步驟"
+    "skillManageUndoHintAction": "打開任務步驟",
+    "smartFallbackBadge": "智慧降級"
   },
   "memory": {
     "mesh": {
@@ -6175,8 +6208,25 @@
       "selectAtLeastOne": "請至少選擇一條規則",
       "exported": "已成功匯出 {count} 條規則",
       "exportFailed": "匯出失敗",
-      "copied": "已複製 {count} 條規則到剪貼簿"
-    }
+      "copied": "已複製 {count} 條規則到剪貼簿",
+      "title": "安全分享規則",
+      "privacyBadge": "隱私已保護",
+      "description": "匯出 AI 學到的規則，自動匿名化路徑並清除憑證，可放心公開分享或與團隊共享。",
+      "selectAll": "全選",
+      "deselectAll": "取消全選",
+      "selectedCount": "已選 {selected}/{total}",
+      "empty": "未找到流程規則。規則會從你的對話中自動學習。",
+      "previewSanitized": "預覽脫敏後的內容",
+      "copyButton": "複製",
+      "copiedButton": "已複製",
+      "downloadZip": "下載 ZIP"
+    },
+    "contextGlobalTitle": "全域使用者畫像",
+    "contextGlobalSubtitle": "跨智慧體共享的穩定身分",
+    "contextGlobalEmpty": "暫無全域畫像資料。",
+    "contextPeerTitle": "我們的關係與你的人設",
+    "contextPeerSubtitle": "此智慧體專屬的互動",
+    "contextPeerEmpty": "暫無此智慧體專屬的畫像資料。"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -6780,7 +6830,25 @@
       "viewportNotFound": "找不到畫布視口元素",
       "exportSuccess": "匯出成功",
       "svgExported": "架構圖已匯出為獨立 SVG",
-      "pngExported": "架構圖已匯出為高解析度 PNG"
+      "pngExported": "架構圖已匯出為高解析度 PNG",
+      "invalidSchema": "架構 JSON 結構無效或解析失敗。",
+      "defaultTitle": "系統架構圖",
+      "evolutionDiffActive": "演進對比已開啟",
+      "searchNodes": "搜尋節點...",
+      "liveView": "即時檢視",
+      "diffView": "對比檢視",
+      "copied": "已複製",
+      "diffNodesAdded": "+{count} 個節點",
+      "diffNodesDeleted": "-{count} 個節點",
+      "diffNodesModified": "~{count} 個已修改",
+      "diffEdgesAdded": "+{count} 條連線",
+      "diffEdgesDeleted": "-{count} 條連線",
+      "shortestPath": "最短路徑：",
+      "hops": "（{count} 跳）",
+      "noDirectedPath": "（無有向路徑）",
+      "tracingFor": "正在追蹤依賴樹：",
+      "clickToTrace": "（點擊另一個節點可追蹤路徑）",
+      "clear": "清除"
     },
     "vaultCard": {
       "loading": "正在讀取檔案...",
@@ -6788,7 +6856,13 @@
       "unavailable": "無法載入該檔案",
       "downloadFull": "下載完整檔案"
     },
-    "resizePanel": "調整面板大小"
+    "resizePanel": "調整面板大小",
+    "closePreview": "關閉預覽",
+    "errorBoundary": {
+      "title": "渲染出錯",
+      "defaultMessage": "無法渲染該內容，請嘗試重新整理或下載檢視",
+      "retry": "重試"
+    }
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -7764,7 +7838,14 @@
     "preflightUpdated": "預檢探針已更新",
     "preflightTemplateInserted": "已插入範本",
     "preflightInsertTemplate": "插入範本",
-    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。"
+    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。",
+    "roiTitle": "自動化生產力收益",
+    "roiSubtitle": "基於自動化任務基線工時與實際執行量量化",
+    "hoursSavedTotal": "累計節省工時",
+    "hoursUnit": "小時",
+    "productivityValue": "預估生產力價值",
+    "tokenCostLine": "Token 成本 ${amount}",
+    "columnHoursSaved": "預估省時"
   },
   "heartbeat": {
     "title": "Agent 自動巡檢",
@@ -7910,6 +7991,11 @@
     "replanRationaleRequired": "必須填寫規劃修訂原因",
     "replanChangesList": "變更明細 Diff",
     "replanNoChanges": "沒有提議的任務修改",
+    "replanActionAdd": "新增",
+    "replanActionUpdate": "更新",
+    "replanActionRemove": "移除",
+    "replanUntitled": "未命名",
+    "replanDependsOn": "依賴：{ids}",
     "replanInvariantGuaranteed": "已完成與審核中的任務處於嚴格唯讀保護狀態，不會被篡改。提交時保證 DAG 無環。",
     "replanApply": "應用規劃修訂",
     "replanAppliedSuccess": "規劃修訂已成功原子應用",
@@ -9252,7 +9338,10 @@
     "imessageDeployGuideLocal": "本地 / 桌面端：直接連線 Mac 本機常開的 BlueBubbles 服務（如 http://localhost:1234）。",
     "imessageDeployGuideCloud": "雲端部署：透過 Cloudflare Tunnel、Tailscale 或 Ngrok 安全連線自建的 Mac iMessage 閘道器。",
     "whatsappQrAlt": "WhatsApp 登入 QR Code",
-    "wechatQrAlt": "微信登入 QR Code"
+    "wechatQrAlt": "微信登入 QR Code",
+    "usageResetTooltip": "每日 00:00 UTC（北京時間 08:00）自動重新整理",
+    "todayUsageDisplay": "今日用量：{used} / {quota} 次",
+    "quotaExceeded": "已超額"
   },
   "voice": {
     "sectionTitle": "語音設定",
@@ -10776,7 +10865,15 @@
     "openReviewPanelAria": "開啟審查面板",
     "reviewChanges": "審查變更",
     "closeReviewOverlayAria": "關閉審查",
-    "closeReviewPanelAria": "關閉審查面板"
+    "closeReviewPanelAria": "關閉審查面板",
+    "tooLargeBadge": "過大",
+    "tooLargeNotice": "檔案過大，無法內嵌預覽。請在工作區中開啟後檢視。",
+    "noTextChanges": "沒有文字變更。",
+    "refreshDiffs": "重新整理差異",
+    "searchFiles": "搜尋檔案",
+    "filterByStatus": "依狀態篩選",
+    "filterAll": "全部",
+    "noFilesMatch": "沒有檔案符合搜尋條件。"
   },
   "growthDashboard": {
     "title": "成長儀表盤",
@@ -11883,7 +11980,10 @@
       "captureTraceTruncatedNotice": "錄製達到容量上限，已丟棄較早的 {count} 步互動。產生的技能可能缺少開頭的步驟。",
       "captureUnavailableTitle": "擷取無法使用",
       "publishConflictNotice": "已存在名為「{name}」的技能。可用本次錄製覆蓋它，或取消後回到第一步改用其他名稱。",
-      "replaceSkill": "覆蓋技能"
+      "replaceSkill": "覆蓋技能",
+      "workflowNamePlaceholder": "例如：每月報稅流程",
+      "intentHintPlaceholder": "例如：讀取 Excel 並同步到報稅平台",
+      "deleteStep": "刪除步驟"
     }
   },
   "followUps": {
@@ -12589,7 +12689,11 @@
         "trust": "信任並關聯",
         "mcpServers": "本機 MCP 服務",
         "plugins": "本機外掛"
-      }
+      },
+      "adoptProjectName": "專案名稱",
+      "adoptCancel": "取消",
+      "adoptSubmitting": "正在接納...",
+      "adoptSubmit": "立即接納專案"
     },
     "workspaceTrust": {
       "trusted": "已信任此工作區，擴充功能與工具已完全啟用。",
@@ -13253,7 +13357,11 @@
     "consoleDrawerTitle": "控制台與服務日誌",
     "consoleDrawerEmpty": "暫無更多服務輸出",
     "sniffTrigger": "自動嗅探服務",
-    "sniffSuccess": "已成功捕獲並註冊服務埠"
+    "sniffSuccess": "已成功捕獲並註冊服務埠",
+    "previewTitle": "{name} 即時預覽",
+    "consoleStarted": "[{time}] 服務已在連接埠 {port} 啟動 ({protocol})",
+    "consoleReady": "> 就緒：{url}",
+    "consoleProcess": "> 處理程序 PID：{pid} | 處理程序：{name}"
   },
   "toolPicker": {
     "menuLabel": "工具選擇",
@@ -13307,7 +13415,15 @@
     "nextSlide": "下一頁",
     "slideCounter": "第 {current} / {total} 頁",
     "speakerNotes": "演講者備註",
-    "noSpeakerNotes": "暫無備註"
+    "noSpeakerNotes": "暫無備註",
+    "newPresentation": "+ 新增簡報",
+    "enterpriseBadge": "P0 · 企業級 PPTX",
+    "illustrationsHint": "多模態視覺概念與版面",
+    "slideVisualConcept": "視覺概念",
+    "slideVisualPlaceholder": "多模態架構圖",
+    "slideConfidentialFooter": "機密 · 企業簡報",
+    "slidePage": "第 {page} 頁",
+    "slideAriaLabel": "投影片 {number}：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版級高顏值電子表格看板",
@@ -13784,7 +13900,10 @@
     "activeTaskLabel": "當前正在推進的任務",
     "lastActiveLabel": "最後活躍時間",
     "cancelAction": "關閉",
-    "jumpInAction": "跳入會話現場"
+    "jumpInAction": "跳入會話現場",
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "zoomReset": "重設縮放"
   },
   "workbench": {
     "workbenchAriaLabel": "輔助工作臺",
@@ -14992,7 +15111,21 @@
         "profilingStartNetworkError": "啟動記憶體剖析時網路出錯",
         "profilingStopped": "記憶體剖析已停止，結果已就緒。",
         "profilingStopFailed": "停止記憶體剖析失敗",
-        "profilingStopNetworkError": "停止記憶體剖析時網路出錯"
+        "profilingStopNetworkError": "停止記憶體剖析時網路出錯",
+        "title": "記憶體與效能分析",
+        "stopProfiling": "停止分析",
+        "startProfiling": "開始堆積記憶體分析",
+        "loadingHistory": "正在載入記憶體歷史...",
+        "noHistory": "暫無記憶體歷史資料。",
+        "profilingActiveTitle": "堆積記憶體分析進行中",
+        "profilingActiveBody": "系統正在追蹤所有 Python 記憶體配置，可能帶來 10%–20% 的效能開銷。點擊「停止分析」檢視結果。",
+        "topAllocations": "記憶體配置排行",
+        "colFile": "檔案",
+        "colLine": "行",
+        "colSizeKb": "大小 (KB)",
+        "colCount": "次數",
+        "seriesRss": "總 RSS (MB)",
+        "seriesNative": "原生記憶體估算 (MB)"
       }
     },
     "commands": {
@@ -16200,7 +16333,12 @@
       "permittedSummary": "放行 {permitted} 次",
       "recentAuditTrail": "近期執行審計日誌",
       "loadingEntries": "正在載入審計條目...",
-      "noEntriesYet": "暫無審計記錄"
+      "noEntriesYet": "暫無審計記錄",
+      "viewDetails": "檢視條目詳情",
+      "detailRule": "規則：",
+      "detailSessionId": "會話 ID：",
+      "detailReason": "錯誤/原因：",
+      "detailArgs": "脫敏參數："
     },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
@@ -17087,7 +17225,9 @@
       "xaiOauthCodeHint": "請在瀏覽器中輸入此驗證碼完成授權...",
       "xaiOauthReopen": "重新打開授權頁面",
       "xaiOauthWaiting": "等待授權...",
-      "xaiOauthConnectBtn": "授權 SuperGrok"
+      "xaiOauthConnectBtn": "授權 SuperGrok",
+      "oauthExpiredNotice": "目前憑證已失效（可能在第三方平台被撤銷或到期）。請點擊一鍵修復重新授權，以恢復該服務。",
+      "oauthFixNow": "一鍵修復"
     },
     "skillQuality": {
       "title": "技能質量管理",
@@ -18169,7 +18309,88 @@
       "reviewSlip": {
         "fetchFailed": "取得審閱單失敗",
         "applied": "選擇性回寫完成：已沉澱 {committed} 項，略過 {discarded} 項",
-        "applyFailed": "套用選擇性回寫失敗"
+        "applyFailed": "套用選擇性回寫失敗",
+        "engineLabel": "交付物知識沉澱引擎",
+        "title": "作者審閱單 (Review Slip)",
+        "description": "審查交付成果中萃取出的高價值洞察。杜絕全量回寫汙染知識庫，由作者確認歸屬層級。",
+        "exclusionTitle": "負向規則已生效：已硬攔截 {count} 項暫態雜質",
+        "exclusionBody": "系統已自動排除一次性測試 IP、虛擬設定、示範逐字稿與暫時偵錯日誌，保護知識庫核心真理的純淨度。",
+        "extracting": "正在萃取高價值洞察並評估過濾規則...",
+        "noQuestions": "目前任務未產生需要回寫的通用經驗，全部內容已安全保留在交付物中。",
+        "pendingLayer": "待定層級",
+        "recommended": "推薦",
+        "footerNote": "提交後將寫入對應層並標上 Draft 標籤，由人工後續發布",
+        "later": "稍後再說",
+        "confirm": "確認並安全回寫"
+      },
+      "ledger": {
+        "title": "五層知識資產全域態勢",
+        "architectureBadge": "WorkBuddy 架構",
+        "description": "以實體分層隔離事實與假說，提供任務台帳稽核與作者審閱單選擇性回寫機制。",
+        "refreshStats": "重新整理統計",
+        "openReviewSlip": "開啟作者審閱單",
+        "viewLayerItems": "檢視 {title} 詞條清單",
+        "archivedItems": "已封存條目",
+        "drawerTitle": "{title} · 封存詞條清單",
+        "itemCount": "{count} 篇",
+        "closeDrawer": "關閉詞條清單",
+        "loadingItems": "正在載入該層文件清單...",
+        "emptyItems": "目前這一層尚無已封存的 Markdown 詞條，完成長程任務後可透過審閱單回寫產生。",
+        "previewItem": "預覽詞條 {title}",
+        "noSnippet": "暫無內文摘要",
+        "justNow": "剛剛",
+        "quickPreview": "快速預覽",
+        "blockNoticeLead": "已啟用",
+        "blockNoticeRule": "負向不回寫硬攔截",
+        "blockNoticeTail": "：自動屏蔽示範環境、特定 IP、一次性測試資料與暫時腳本。",
+        "reviewSlipGuide": "審閱單規範",
+        "layers": {
+          "l1": {
+            "title": "原始輸入與候選池",
+            "subtext": "原始資料與收件匣",
+            "badge": "原始存證",
+            "description": "未處理的網頁快照、會議錄音與暫態草稿，嚴格不參與長期檢索。"
+          },
+          "l2": {
+            "title": "來源憑證卡",
+            "subtext": "Sources (身分證)",
+            "badge": "證據來源",
+            "description": "帶有權威度與 SHA256 簽章的來源身分卡，是所有事實知識的追溯基石。"
+          },
+          "l3": {
+            "title": "核心知識體系",
+            "subtext": "概念與方法",
+            "badge": "高可信真理",
+            "description": "客觀事實、原子概念與工程方法論，通過 Draft-to-Live 嚴格門禁。"
+          },
+          "l4": {
+            "title": "觀點與主張",
+            "subtext": "Claims (待驗證)",
+            "badge": "主觀推斷",
+            "description": "帶有信心度與辯論紀錄的假說，與客觀事實強制隔離，避免汙染真理。"
+          },
+          "l5": {
+            "title": "交付物與使用台帳",
+            "subtext": "交付物與台帳",
+            "badge": "交付台帳",
+            "description": "任務最終產出的交付物，完整記錄知識引用、衍生與未採納台帳。"
+          }
+        },
+        "preview": {
+          "ariaLabel": "詞條文件預覽",
+          "jsonLedgerBadge": "JSON 台帳",
+          "taskBadge": "任務 #{id}",
+          "updatedAt": "更新時間：{value}",
+          "storageLayer": "儲存分層：{value}",
+          "fileType": "檔案類型：{value}",
+          "fileTypeJson": "結構化稽核台帳 (JSON)",
+          "fileTypeMarkdown": "Markdown 知識資產",
+          "sourceTask": "來源任務：{value}",
+          "pathCopied": "已複製路徑",
+          "copyPath": "複製相對路徑",
+          "openInEditor": "在 Wiki 編輯器中開啟",
+          "close": "關閉預覽"
+        }
       }
     },
     "skills": {
@@ -21405,7 +21626,22 @@
         "searchPlaceholder": "依任務內容或標題搜尋 Trace...",
         "exportZip": "匯出軌跡 (ZIP)",
         "exportZipTooltip": "匯出工作階段原始事件記錄與產物 ZIP 封存包",
-        "exportZipFailed": "匯出工作階段封存包失敗"
+        "exportZipFailed": "匯出工作階段封存包失敗",
+        "llmUnknownModel": "未知模型",
+        "llmRetry": "重試 ×{count}",
+        "llmTokens": "{count} 個 token",
+        "llmNetworkWaitTitle": "網路等待 (TTFT)：{ms}ms",
+        "llmGenerationTitle": "Token 生成：{ms}ms",
+        "llmTtft": "TTFT：{ms}ms",
+        "llmGeneration": "生成：{ms}ms",
+        "llmPrompt": "提示詞：{count}",
+        "llmCompletion": "補全：{count}",
+        "llmMessages": "訊息：{count}",
+        "llmViewportInspect": "模型視口（檢視）",
+        "llmViewportHide": "模型視口（收合）",
+        "experienceWizardTitle": "產生專案經驗六步證據包精靈",
+        "experienceWizardButton": "經驗精靈",
+        "pluginStateTitle": "外掛擴充狀態"
       },
       "contextDoctor": {
         "title": "上下文健檢（Token 熱點與成本審計）",
@@ -22504,5 +22740,29 @@
     "limitReached": "已達上限",
     "pauseTitle": "緊急暫停免打擾包絡",
     "pause": "暫停"
+  },
+  "embeds": {
+    "load": "載入 {label}",
+    "moreOptions": "更多選項",
+    "alwaysAllow": "一律允許 {label}",
+    "loadFailed": "{label} 嵌入內容載入失敗"
+  },
+  "skeleton": {
+    "loadingList": "正在載入列表",
+    "loadingCards": "正在載入卡片",
+    "loadingTable": "正在載入表格",
+    "loadingForm": "正在載入表單",
+    "loadingWorkspace": "正在載入工作區",
+    "loadingMetrics": "正在載入指標",
+    "loadingTimeline": "正在載入時間軸"
+  },
+  "diffViewer": {
+    "unknownFile": "未知檔案",
+    "splitView": "分欄檢視",
+    "unifiedView": "統一檢視",
+    "copyDiff": "複製差異",
+    "close": "關閉",
+    "binaryChanged": "二進位檔案已變更",
+    "noChanges": "無變更"
   }
 }

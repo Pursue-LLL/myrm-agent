@@ -1,10 +1,13 @@
+'use client';
+
 /**
- * [INPUT] skeleton::Skeleton (POS: 基础微光脉冲占位基元), classnameUtils::cn (POS: Tailwind 类名合并工具)
+ * [INPUT] skeleton::Skeleton (POS: 基础微光脉冲占位基元), classnameUtils::cn (POS: Tailwind 类名合并工具), next-intl::useTranslations (POS: 加载态无障碍文案)
  * [OUTPUT] ListSkeleton, CardGridSkeleton, TableSkeleton, FormSkeleton, ListDetailSkeleton, MetricCardsSkeleton, TimelineSkeleton: 常用结构骨架模板
  * [POS] UI基元层。提供多种标准化页面拓扑骨架模板，消除加载阶段布局跳动(CLS)。
  */
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Skeleton } from './skeleton';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -12,8 +15,9 @@ import { cn } from '@/lib/utils/classnameUtils';
  * 列表拓扑骨架模板（支持多行列表项）
  */
 export function ListSkeleton({ count = 3, className }: { count?: number; className?: string }) {
+  const t = useTranslations('skeleton');
   return (
-    <div role="status" aria-busy="true" aria-label="Loading list" className={cn('space-y-3', className)}>
+    <div role="status" aria-busy="true" aria-label={t('loadingList')} className={cn('space-y-3', className)}>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
@@ -52,11 +56,12 @@ export function CardGridSkeleton({
           ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
           : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
 
+  const t = useTranslations('skeleton');
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading cards"
+      aria-label={t('loadingCards')}
       className={cn('grid gap-3.5', gridColsClass, className)}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -94,11 +99,12 @@ export function TableSkeleton({
   columns?: number;
   className?: string;
 }) {
+  const t = useTranslations('skeleton');
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading table"
+      aria-label={t('loadingTable')}
       className={cn('overflow-hidden rounded-xl border border-border/50 bg-card/40 shadow-sm', className)}
     >
       <div className="flex items-center border-b border-border/50 bg-muted/40 p-3.5 gap-4">
@@ -123,8 +129,9 @@ export function TableSkeleton({
  * 设置/表单拓扑骨架模板
  */
 export function FormSkeleton({ count = 3, className }: { count?: number; className?: string }) {
+  const t = useTranslations('skeleton');
   return (
-    <div role="status" aria-busy="true" aria-label="Loading form" className={cn('space-y-6', className)}>
+    <div role="status" aria-busy="true" aria-label={t('loadingForm')} className={cn('space-y-6', className)}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-4 w-32" />
@@ -140,11 +147,12 @@ export function FormSkeleton({ count = 3, className }: { count?: number; classNa
  * 左右双栏结构骨架模板（用于工件库、主从详情等）
  */
 export function ListDetailSkeleton({ className }: { className?: string }) {
+  const t = useTranslations('skeleton');
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading workspace"
+      aria-label={t('loadingWorkspace')}
       className={cn('flex h-full w-full rounded-xl border border-border/50 bg-background overflow-hidden', className)}
     >
       <div className="w-1/3 border-r border-border/40 bg-muted/10 p-4 space-y-3">
@@ -174,11 +182,12 @@ export function ListDetailSkeleton({ className }: { className?: string }) {
  * 指标/概览卡片网格骨架模板（用于仪表盘 KPI）
  */
 export function MetricCardsSkeleton({ count = 4, className }: { count?: number; className?: string }) {
+  const t = useTranslations('skeleton');
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading metrics"
+      aria-label={t('loadingMetrics')}
       className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}
     >
       {Array.from({ length: count }).map((_, i) => (
@@ -201,11 +210,12 @@ export function MetricCardsSkeleton({ count = 4, className }: { count?: number; 
  * 时序成长流/时间线节点骨架模板
  */
 export function TimelineSkeleton({ count = 4, className }: { count?: number; className?: string }) {
+  const t = useTranslations('skeleton');
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading timeline"
+      aria-label={t('loadingTimeline')}
       className={cn(
         'relative pl-6 space-y-4 before:absolute before:bottom-2 before:left-2.5 before:top-2 before:w-[2px] before:bg-border/60',
         className,

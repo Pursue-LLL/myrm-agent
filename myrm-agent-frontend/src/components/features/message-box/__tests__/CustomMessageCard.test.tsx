@@ -17,7 +17,7 @@ describe('CustomMessageCard', () => {
 
     expect(screen.getByText('code_analysis')).toBeDefined();
     expect(screen.getByText('AST parsed 42 source files')).toBeDefined();
-    expect(screen.getByText('Persistent')).toBeDefined();
+    expect(screen.getByText('customMessage.persistent')).toBeDefined();
   });
 
   it('renders ephemeral badge when retention is ephemeral', () => {
@@ -30,7 +30,15 @@ describe('CustomMessageCard', () => {
       />,
     );
 
-    expect(screen.getByText('Ephemeral')).toBeDefined();
+    expect(screen.getByText('customMessage.ephemeral')).toBeDefined();
+  });
+
+  it('explains each retention mode through a translated tooltip', () => {
+    const { rerender } = render(<CustomMessageCard customType="rate_limit" content="x" retention="ephemeral" />);
+    expect(screen.getByTitle('customMessage.ephemeralHint')).toBeDefined();
+
+    rerender(<CustomMessageCard customType="rate_limit" content="x" retention="persistent" />);
+    expect(screen.getByTitle('customMessage.persistentHint')).toBeDefined();
   });
 
   it('returns null when display is false', () => {
@@ -53,7 +61,7 @@ describe('CustomMessageCard', () => {
 
     expect(screen.queryByText(/abc123/)).toBeNull();
 
-    const detailsBtn = screen.getByText('Details').closest('button');
+    const detailsBtn = screen.getByText('customMessage.details').closest('button');
     expect(detailsBtn?.getAttribute('aria-expanded')).toBe('false');
     expect(detailsBtn?.getAttribute('aria-controls')).toBe('custom-message-details');
 

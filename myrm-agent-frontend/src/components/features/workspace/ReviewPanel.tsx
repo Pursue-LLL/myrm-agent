@@ -273,7 +273,7 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
             <button
               onClick={fetchDiffs}
               disabled={loading}
-              aria-label="Refresh diffs"
+              aria-label={t('refreshDiffs')}
               className="p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground"
             >
               <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
@@ -290,12 +290,12 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search files"
-              aria-label="Search files"
+              placeholder={t('searchFiles')}
+              aria-label={t('searchFiles')}
               className="flex-1 min-w-0 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground"
             />
           </div>
-          <div className="flex items-center gap-1 shrink-0" aria-label="Filter by status">
+          <div className="flex items-center gap-1 shrink-0" aria-label={t('filterByStatus')}>
             {(['all', 'create', 'modify'] as StatusFilter[]).map((s) => (
               <button
                 key={s}
@@ -308,7 +308,7 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
                 )}
               >
-                {s === 'all' ? 'All' : s === 'create' ? 'A' : 'M'}
+                {s === 'all' ? t('filterAll') : s === 'create' ? 'A' : 'M'}
               </button>
             ))}
           </div>
@@ -326,7 +326,7 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
             )}
             {diffs.length > 0 && filteredDiffs.length === 0 && !loading && (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                No files match your search.
+                {t('noFilesMatch')}
               </div>
             )}
             <div ref={parentRef} className="flex-1 overflow-auto">

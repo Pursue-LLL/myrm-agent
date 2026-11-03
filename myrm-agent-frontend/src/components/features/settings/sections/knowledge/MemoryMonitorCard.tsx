@@ -123,7 +123,7 @@ export const MemoryMonitorCard = memo(() => {
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-3">
           <IconActivity className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">Memory & Profiling</h2>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
         </div>
         <div className="flex items-center gap-2">
           {isProfiling ? (
@@ -132,7 +132,7 @@ export const MemoryMonitorCard = memo(() => {
               className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 rounded-lg text-xs font-bold transition-colors"
             >
               <IconSquare className="w-3.5 h-3.5 fill-current" />
-              Stop Profiling
+              {t('stopProfiling')}
             </button>
           ) : (
             <button
@@ -140,7 +140,7 @@ export const MemoryMonitorCard = memo(() => {
               className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 rounded-lg text-xs font-bold transition-colors"
             >
               <IconPlay className="w-3.5 h-3.5 fill-current" />
-              Start Heap Profiling
+              {t('startProfiling')}
             </button>
           )}
         </div>
@@ -151,12 +151,10 @@ export const MemoryMonitorCard = memo(() => {
         <div className="h-64 w-full">
           {loading && history.length === 0 ? (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground animate-pulse">
-              Loading memory history...
+              {t('loadingHistory')}
             </div>
           ) : history.length === 0 ? (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-              No memory history available.
-            </div>
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">{t('noHistory')}</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -192,7 +190,7 @@ export const MemoryMonitorCard = memo(() => {
                 <Area
                   type="monotone"
                   dataKey="memory_mb"
-                  name="Total RSS (MB)"
+                  name={t('seriesRss')}
                   stroke="#818cf8"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -201,7 +199,7 @@ export const MemoryMonitorCard = memo(() => {
                 <Area
                   type="monotone"
                   dataKey="native_mb_estimate"
-                  name="Native Estimate (MB)"
+                  name={t('seriesNative')}
                   stroke="#34d399"
                   strokeWidth={2}
                   fillOpacity={1}
@@ -217,11 +215,8 @@ export const MemoryMonitorCard = memo(() => {
           <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
             <IconAlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0 animate-pulse" />
             <div>
-              <p className="text-xs font-bold text-amber-500 mb-1">Heap Profiling is Active</p>
-              <p className="text-xs text-amber-500/80 leading-relaxed">
-                The system is currently tracking all Python memory allocations. This may cause a 10-20% performance
-                overhead. Click Stop Profiling to view the results.
-              </p>
+              <p className="text-xs font-bold text-amber-500 mb-1">{t('profilingActiveTitle')}</p>
+              <p className="text-xs text-amber-500/80 leading-relaxed">{t('profilingActiveBody')}</p>
             </div>
           </div>
         )}
@@ -231,16 +226,16 @@ export const MemoryMonitorCard = memo(() => {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-bold text-foreground">
               <IconCpu className="w-4 h-4 text-indigo-400" />
-              Top Memory Allocations
+              {t('topAllocations')}
             </div>
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
               <table className="w-full text-left text-xs">
                 <thead className="bg-white/5 text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3 font-medium">File</th>
-                    <th className="px-4 py-3 font-medium">Line</th>
-                    <th className="px-4 py-3 font-medium text-right">Size (KB)</th>
-                    <th className="px-4 py-3 font-medium text-right">Count</th>
+                    <th className="px-4 py-3 font-medium">{t('colFile')}</th>
+                    <th className="px-4 py-3 font-medium">{t('colLine')}</th>
+                    <th className="px-4 py-3 font-medium text-right">{t('colSizeKb')}</th>
+                    <th className="px-4 py-3 font-medium text-right">{t('colCount')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">

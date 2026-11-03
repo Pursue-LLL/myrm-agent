@@ -276,7 +276,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   variant="outline"
                   className="ml-2 bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] uppercase tracking-wider font-bold"
                 >
-                  Smart Fallback
+                  {t('smartFallbackBadge')}
                 </Badge>
               )}
             </h4>
@@ -705,7 +705,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   variant="outline"
                   className="ml-2 bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 text-[10px] uppercase tracking-wider font-bold"
                 >
-                  Smart Fallback
+                  {t('smartFallbackBadge')}
                 </Badge>
               )}
             </h4>

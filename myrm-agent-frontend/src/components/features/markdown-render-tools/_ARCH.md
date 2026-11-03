@@ -23,7 +23,8 @@ Markdown 渲染扩展与工具块展示。
 | `ResponsiveTable.tsx`            | 核心 | Markdown 表格响应式渲染：宿主 DOM 所有权保留与滚动锁定、流式 Delta 追加防抖动、宽表格全景 Lightbox 展开、多列卡片视图、零原生 emoji | ✅    |
 | `rehypeHeadingIds.ts`            | 辅助 | rehype 插件：为 heading 注入 anchor id                                                                                         | ✅    |
 | `__tests__/LinkPopover.test.tsx` | 测试 | 链接 hover 预览卡片、相对时间格式化与 anchor/span 状态单测                                                                     | ✅    |
-| `__tests__/MarkdownImage.test.tsx` | 测试 | 图片按钮化：点击打开 Lightbox、空 alt 回退本地化名称 | ✅    |
+| `__tests__/MarkdownImage.test.tsx` | 测试 | 图片按钮化：点击打开 Lightbox、空 alt 回退本地化名称、预览弹窗按钮用本地化名称 | ✅    |
+| `__tests__/ThinkBox.test.tsx` | 测试 | 折叠块标题走翻译、点击后展开内容 | ✅    |
 
 ## 依赖
 

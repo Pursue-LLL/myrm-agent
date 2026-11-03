@@ -285,7 +285,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                   value={skillName}
                   onChange={(e) => setSkillName(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  placeholder="e.g. Monthly Tax Filing Pipeline"
+                  placeholder={t('workflowNamePlaceholder')}
                 />
               </div>
               <div className="space-y-3">
@@ -295,7 +295,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                   value={intentHint}
                   onChange={(e) => setIntentHint(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  placeholder="e.g. Read Excel and sync to tax portal"
+                  placeholder={t('intentHintPlaceholder')}
                 />
               </div>
             </div>
@@ -374,7 +374,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                         type="button"
                         onClick={() => handleDeleteStep(idx)}
                         className="text-muted-foreground hover:text-destructive p-1 rounded transition"
-                        aria-label="Delete step"
+                        aria-label={t('deleteStep')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

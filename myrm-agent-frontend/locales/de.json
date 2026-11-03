@@ -1025,7 +1025,10 @@
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
       "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
-      "presetAdded": "{name}-Konnektor hinzugefügt"
+      "presetAdded": "{name}-Konnektor hinzugefügt",
+      "presetsLoading": "Voreinstellungen werden geladen ...",
+      "presetsEmpty": "Keine Voreinstellungen verfügbar.",
+      "presetEnable": "Aktivieren"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -2814,7 +2817,13 @@
       "cancelled": "Generierung gestoppt. Teilweise Antwort im Kontext beibehalten."
     },
     "toolImage": {
-      "screenshotLabel": "Remote-Desktop-Screenshot"
+      "screenshotLabel": "Remote-Desktop-Screenshot",
+      "lightboxLabel": "Screenshot-Vorschau",
+      "lightboxClose": "Vorschau schließen",
+      "lightboxPrevious": "Vorheriges Bild",
+      "lightboxNext": "Nächstes Bild",
+      "lightboxAlt": "{tool}-Screenshot (Originalgröße)",
+      "thumbnailAlt": "{tool}-Screenshot {index}"
     },
     "sessionRecording": {
       "label": "Sitzungsaufzeichnung"
@@ -3457,7 +3466,30 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens"
+    "reasoningTokensEstimated": "≈ {count} Tokens",
+    "thinkingProcess": "Denkprozess",
+    "customMessage": {
+      "ephemeral": "Temporär",
+      "persistent": "Dauerhaft",
+      "ephemeralHint": "Temporär: wird bei der Kompaktierung entfernt",
+      "persistentHint": "Dauerhaft: bleibt über Kompaktierungs-Zusammenfassungen hinweg erhalten",
+      "details": "Einzelheiten"
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool-Zustand",
+      "title": "Agent-Tool-Diagnose",
+      "loading": "Diagnosedaten werden geladen ...",
+      "empty": "Für diesen Agent liegen noch keine Tool-Ausführungsdaten vor.",
+      "calls": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
+      "successRate": "Erfolgsquote",
+      "errors": "Fehler",
+      "avgTime": "Durchschn. Zeit"
+    },
+    "costHud": {
+      "popoverTitle": "Klicken, um die vierdimensionale Preismatrix des Modells und die Prompt-Cache-Ersparnis anzuzeigen",
+      "savedAmount": "({amount} gespart)",
+      "idleLabel": "Rechen-HUD"
+    }
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -4288,7 +4320,8 @@
     "skillManageRollbackSuperseded": "Ein Skill in diesem Batch wurde danach erneut geändert. Machen Sie zuerst die neuere Änderung rückgängig oder stellen Sie unter Skill-Einstellungen → Verlauf eine Version wieder her.",
     "skillManageRollbackSkillMissing": "Ein Skill in diesem Batch wurde inzwischen gelöscht, daher lässt sich der Batch nicht mehr rückgängig machen.",
     "skillManageUndoHintBody": "Der Assistent hat in dieser Antwort Skills aktualisiert. Öffnen Sie unten „Task“, um die Änderungen rückgängig zu machen.",
-    "skillManageUndoHintAction": "Task öffnen"
+    "skillManageUndoHintAction": "Task öffnen",
+    "smartFallbackBadge": "Intelligenter Fallback"
   },
   "memory": {
     "mesh": {
@@ -6175,8 +6208,25 @@
       "selectAtLeastOne": "Bitte wählen Sie mindestens eine Regel aus",
       "exported": "{count, plural, one {# Regel erfolgreich exportiert} other {# Regeln erfolgreich exportiert}}",
       "exportFailed": "Export fehlgeschlagen",
-      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}"
-    }
+      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}",
+      "title": "Regeln sicher teilen",
+      "privacyBadge": "Datenschutz gewährleistet",
+      "description": "Exportiere die von der KI gelernten Regeln mit automatischer Pfad-Anonymisierung und Entfernung von Zugangsdaten. Sicher zum Teilen – öffentlich oder im Team.",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
+      "selectedCount": "{selected}/{total} ausgewählt",
+      "empty": "Keine Verfahrensregeln gefunden. Regeln werden automatisch aus deinen Gesprächen gelernt.",
+      "previewSanitized": "Bereinigten Inhalt ansehen",
+      "copyButton": "Kopieren",
+      "copiedButton": "Kopiert!",
+      "downloadZip": "ZIP herunterladen"
+    },
+    "contextGlobalTitle": "Globales Nutzerprofil",
+    "contextGlobalSubtitle": "Stabile Identität über Agenten hinweg",
+    "contextGlobalEmpty": "Noch keine globalen Profildaten.",
+    "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
+    "contextPeerSubtitle": "Agentenspezifische Interaktionen",
+    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten."
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6780,7 +6830,25 @@
       "viewportNotFound": "Viewport-Element nicht gefunden",
       "exportSuccess": "Export erfolgreich",
       "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
-      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
+      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert",
+      "invalidSchema": "Ungültiges Architektur-JSON-Schema oder Parsing fehlgeschlagen.",
+      "defaultTitle": "Systemarchitektur-Karte",
+      "evolutionDiffActive": "Evolutions-Diff aktiv",
+      "searchNodes": "Knoten suchen ...",
+      "liveView": "Live-Ansicht",
+      "diffView": "Diff-Ansicht",
+      "copied": "Kopiert",
+      "diffNodesAdded": "+{count} Knoten",
+      "diffNodesDeleted": "-{count} Knoten",
+      "diffNodesModified": "~{count} geändert",
+      "diffEdgesAdded": "+{count} Kanten",
+      "diffEdgesDeleted": "-{count} Kanten",
+      "shortestPath": "Kürzester Pfad:",
+      "hops": "({count, plural, one {# Hop} other {# Hops}})",
+      "noDirectedPath": "(kein gerichteter Pfad)",
+      "tracingFor": "Abhängigkeitsbaum wird verfolgt für:",
+      "clickToTrace": "(Auf einen anderen Knoten klicken, um die Route zu verfolgen)",
+      "clear": "Zurücksetzen"
     },
     "vaultCard": {
       "loading": "Datei wird geladen...",
@@ -6788,7 +6856,13 @@
       "unavailable": "Diese Datei kann nicht geladen werden",
       "downloadFull": "Vollständige Datei herunterladen"
     },
-    "resizePanel": "Panelgröße ändern"
+    "resizePanel": "Panelgröße ändern",
+    "closePreview": "Vorschau schließen",
+    "errorBoundary": {
+      "title": "Darstellungsfehler",
+      "defaultMessage": "Dieser Inhalt kann nicht dargestellt werden. Aktualisieren Sie die Seite oder laden Sie ihn zum Ansehen herunter.",
+      "retry": "Erneut versuchen"
+    }
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -7764,7 +7838,14 @@
     "preflightUpdated": "Vorabprüfung aktualisiert",
     "preflightTemplateInserted": "Vorlage eingefügt",
     "preflightInsertTemplate": "Vorlage einfügen",
-    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen."
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen.",
+    "roiTitle": "Produktivitätsgewinn durch Automatisierung",
+    "roiSubtitle": "Geschätzt aus der Basisarbeitszeit je automatisierter Aufgabe und dem tatsächlichen Ausführungsvolumen",
+    "hoursSavedTotal": "Eingesparte Stunden gesamt",
+    "hoursUnit": "Std.",
+    "productivityValue": "Geschätzter Produktivitätswert",
+    "tokenCostLine": "Token-Kosten ${amount}",
+    "columnHoursSaved": "Geschätzte Zeitersparnis"
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -7910,6 +7991,11 @@
     "replanRationaleRequired": "Begründung für die Planüberarbeitung ist erforderlich",
     "replanChangesList": "Detaillierte Diff-Änderungen",
     "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
+    "replanActionAdd": "Hinzufügen",
+    "replanActionUpdate": "Aktualisieren",
+    "replanActionRemove": "Entfernen",
+    "replanUntitled": "Ohne Titel",
+    "replanDependsOn": "Abhängig von: {ids}",
     "replanInvariantGuaranteed": "Abgeschlossene und in Überprüfung befindliche Aufgaben sind streng geschützt und werden nicht geändert. DAG-Zyklenfreiheit wird bei der Übernahme validiert.",
     "replanApply": "Planüberarbeitung anwenden",
     "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
@@ -9252,7 +9338,10 @@
     "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden.",
     "whatsappQrAlt": "WhatsApp-Anmelde-QR-Code",
-    "wechatQrAlt": "WeChat-Anmelde-QR-Code"
+    "wechatQrAlt": "WeChat-Anmelde-QR-Code",
+    "usageResetTooltip": "Wird täglich um 00:00 UTC (08:00 Peking-Zeit) automatisch zurückgesetzt",
+    "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
+    "quotaExceeded": "Kontingent überschritten"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -10776,7 +10865,15 @@
     "openReviewPanelAria": "Überprüfungsbereich öffnen",
     "reviewChanges": "Änderungen überprüfen",
     "closeReviewOverlayAria": "Überprüfung schließen",
-    "closeReviewPanelAria": "Überprüfungsbereich schließen"
+    "closeReviewPanelAria": "Überprüfungsbereich schließen",
+    "tooLargeBadge": "Zu groß",
+    "tooLargeNotice": "Die Datei ist zu groß für die Inline-Vorschau. Öffne sie zur Prüfung im Arbeitsbereich.",
+    "noTextChanges": "Keine Textänderungen.",
+    "refreshDiffs": "Diffs aktualisieren",
+    "searchFiles": "Dateien durchsuchen",
+    "filterByStatus": "Nach Status filtern",
+    "filterAll": "Alle",
+    "noFilesMatch": "Keine Dateien entsprechen der Suche."
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
@@ -11883,7 +11980,10 @@
       "captureTraceTruncatedNotice": "{count} frühere Interaktionen wurden verworfen, weil die Aufzeichnung ihr Größenlimit erreicht hat. Dem erstellten Skill könnten die ersten Schritte fehlen.",
       "captureUnavailableTitle": "Aufzeichnung nicht verfügbar",
       "publishConflictNotice": "Ein Skill mit dem Namen „{name}“ existiert bereits. Ersetzen Sie ihn durch diese Aufnahme oder brechen Sie ab und wählen Sie im ersten Schritt einen anderen Namen.",
-      "replaceSkill": "Skill ersetzen"
+      "replaceSkill": "Skill ersetzen",
+      "workflowNamePlaceholder": "z. B. Monatliche Steuererklärungs-Pipeline",
+      "intentHintPlaceholder": "z. B. Excel lesen und mit dem Steuerportal synchronisieren",
+      "deleteStep": "Schritt löschen"
     }
   },
   "followUps": {
@@ -12589,7 +12689,11 @@
         "trust": "Vertrauen und verknüpfen",
         "mcpServers": "Lokale MCP-Server",
         "plugins": "Lokale Plugins"
-      }
+      },
+      "adoptProjectName": "Projektname",
+      "adoptCancel": "Abbrechen",
+      "adoptSubmitting": "Wird übernommen ...",
+      "adoptSubmit": "Projekt jetzt übernehmen"
     },
     "workspaceTrust": {
       "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
@@ -13253,7 +13357,11 @@
     "consoleDrawerTitle": "Konsole und Dienstprotokolle",
     "consoleDrawerEmpty": "Keine aktuellen Protokolle erfasst",
     "sniffTrigger": "Entwicklungsdienst erkennen",
-    "sniffSuccess": "Dienstport erkannt und registriert"
+    "sniffSuccess": "Dienstport erkannt und registriert",
+    "previewTitle": "{name} Live-Vorschau",
+    "consoleStarted": "[{time}] Dienst auf Port {port} gestartet ({protocol})",
+    "consoleReady": "> Bereit: {url}",
+    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}"
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
@@ -13307,7 +13415,15 @@
     "nextSlide": "Nächste Folie",
     "slideCounter": "Folie {current} von {total}",
     "speakerNotes": "Sprechernotizen",
-    "noSpeakerNotes": "Keine Notizen für diese Folie"
+    "noSpeakerNotes": "Keine Notizen für diese Folie",
+    "newPresentation": "+ Neue Präsentation",
+    "enterpriseBadge": "P0 · Enterprise-PPTX",
+    "illustrationsHint": "Multimodale visuelle Konzepte und Layouts",
+    "slideVisualConcept": "Visuelles Konzept",
+    "slideVisualPlaceholder": "Multimodales Architekturdiagramm",
+    "slideConfidentialFooter": "VERTRAULICH · ENTERPRISE-DECK",
+    "slidePage": "SEITE {page}",
+    "slideAriaLabel": "Folie {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
@@ -13784,7 +13900,10 @@
     "activeTaskLabel": "Ziel der aktiven Aufgabe",
     "lastActiveLabel": "Zuletzt aktiv",
     "cancelAction": "Schließen",
-    "jumpInAction": "Einsteigen"
+    "jumpInAction": "Einsteigen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Zoom zurücksetzen"
   },
   "workbench": {
     "workbenchAriaLabel": "Zusatz-Workbench",
@@ -14992,7 +15111,21 @@
         "profilingStartNetworkError": "Netzwerkfehler beim Starten des Profilings",
         "profilingStopped": "Heap-Profiling gestoppt. Ergebnisse liegen vor.",
         "profilingStopFailed": "Profiling konnte nicht gestoppt werden",
-        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings"
+        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings",
+        "title": "Speicher und Profiling",
+        "stopProfiling": "Profiling stoppen",
+        "startProfiling": "Heap-Profiling starten",
+        "loadingHistory": "Speicherverlauf wird geladen ...",
+        "noHistory": "Kein Speicherverlauf verfügbar.",
+        "profilingActiveTitle": "Heap-Profiling läuft",
+        "profilingActiveBody": "Das System verfolgt derzeit alle Python-Speicherzuweisungen. Das kann 10–20 % Leistungs-Overhead verursachen. Klicke auf „Profiling stoppen“, um die Ergebnisse anzuzeigen.",
+        "topAllocations": "Größte Speicherzuweisungen",
+        "colFile": "Datei",
+        "colLine": "Zeile",
+        "colSizeKb": "Größe (KB)",
+        "colCount": "Anzahl",
+        "seriesRss": "RSS gesamt (MB)",
+        "seriesNative": "Native-Schätzung (MB)"
       }
     },
     "commands": {
@@ -16200,7 +16333,12 @@
       "permittedSummary": "Zugelassen {permitted}",
       "recentAuditTrail": "Aktuelles Ausführungs-Audit-Protokoll",
       "loadingEntries": "Audit-Einträge werden geladen...",
-      "noEntriesYet": "Bisher keine Audit-Einträge erfasst"
+      "noEntriesYet": "Bisher keine Audit-Einträge erfasst",
+      "viewDetails": "Eintragsdetails anzeigen",
+      "detailRule": "Regel:",
+      "detailSessionId": "Sitzungs-ID:",
+      "detailReason": "Fehler/Grund:",
+      "detailArgs": "Bereinigte Argumente:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding-Modellkonfiguration",
@@ -17087,7 +17225,9 @@
       "xaiOauthCodeHint": "Geben Sie diesen Code im Browser ein, um die Autorisierung abzuschließen...",
       "xaiOauthReopen": "Autorisierungsseite erneut öffnen",
       "xaiOauthWaiting": "Warten auf Autorisierung...",
-      "xaiOauthConnectBtn": "SuperGrok autorisieren"
+      "xaiOauthConnectBtn": "SuperGrok autorisieren",
+      "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
+      "oauthFixNow": "Jetzt beheben"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -18169,7 +18309,88 @@
       "reviewSlip": {
         "fetchFailed": "Prüfliste konnte nicht geladen werden",
         "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
-        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen"
+        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen",
+        "engineLabel": "Engine zur Wissenssicherung aus Ergebnissen",
+        "title": "Autoren-Prüfliste",
+        "description": "Prüfe die wertvollen Erkenntnisse, die aus dem Ergebnis extrahiert wurden. Alles zurückzuschreiben würde die Wissensbasis verunreinigen, deshalb bestätigt der Autor die Zielschicht jedes Eintrags.",
+        "exclusionTitle": "Negativregeln aktiv: {count} flüchtige Störeinträge blockiert",
+        "exclusionBody": "Einmalige Test-IPs, Dummy-Konfigurationen, Demo-Mitschriften und temporäre Debug-Logs wurden automatisch ausgeschlossen, damit der Kern der Wissensbasis sauber bleibt.",
+        "extracting": "Wertvolle Erkenntnisse werden extrahiert und Filterregeln bewertet ...",
+        "noQuestions": "Diese Aufgabe hat keine allgemeinen Erfahrungen zum Zurückschreiben ergeben; alles bleibt sicher im Ergebnis erhalten.",
+        "pendingLayer": "Schicht offen",
+        "recommended": "Empfohlen",
+        "footerNote": "Nach dem Absenden werden die Einträge in ihre Schichten geschrieben und als Draft markiert; die Veröffentlichung erfolgt später manuell.",
+        "later": "Später",
+        "confirm": "Bestätigen und sicher zurückschreiben"
+      },
+      "ledger": {
+        "title": "Übersicht der fünf Wissensschichten",
+        "architectureBadge": "WorkBuddy-Architektur",
+        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten; dazu gibt es Aufgabenprotokoll-Audits und selektives Zurückschreiben über die Autoren-Prüfliste.",
+        "refreshStats": "Statistik aktualisieren",
+        "openReviewSlip": "Autoren-Prüfliste öffnen",
+        "viewLayerItems": "Eintragsliste von {title} anzeigen",
+        "archivedItems": "Archivierte Einträge",
+        "drawerTitle": "{title} · archivierte Einträge",
+        "itemCount": "{count} Dokumente",
+        "closeDrawer": "Eintragsliste schließen",
+        "loadingItems": "Dokumentliste dieser Schicht wird geladen ...",
+        "emptyItems": "In dieser Schicht gibt es noch keine archivierten Markdown-Einträge. Sie entstehen, wenn nach einer langen Aufgabe über die Prüfliste zurückgeschrieben wird.",
+        "previewItem": "Eintrag {title} in der Vorschau ansehen",
+        "noSnippet": "Noch keine Zusammenfassung",
+        "justNow": "Gerade eben",
+        "quickPreview": "Schnellvorschau",
+        "blockNoticeLead": "Aktiv: ",
+        "blockNoticeRule": "Hartes Sperren negativer Rückschreibungen",
+        "blockNoticeTail": ": Demo-Umgebungen, bestimmte IPs, einmalige Testdaten und temporäre Skripte werden automatisch ausgeschlossen.",
+        "reviewSlipGuide": "Regeln zur Prüfliste",
+        "layers": {
+          "l1": {
+            "title": "Rohdaten und Kandidatenpool",
+            "subtext": "Rohdaten & Posteingang",
+            "badge": "Rohbeleg",
+            "description": "Unverarbeitete Web-Snapshots, Besprechungsaufnahmen und flüchtige Entwürfe; nehmen strikt nicht an der Langzeitsuche teil."
+          },
+          "l2": {
+            "title": "Quellen-Nachweiskarten",
+            "subtext": "Sources (Ausweiskarten)",
+            "badge": "Beweisquelle",
+            "description": "Quellen-Ausweiskarten mit Autoritätsstufe und SHA256-Signatur – die Grundlage für die Rückverfolgbarkeit allen Faktenwissens."
+          },
+          "l3": {
+            "title": "Kernwissensbasis",
+            "subtext": "Konzepte & Methoden",
+            "badge": "Hochvertrauenswürdig",
+            "description": "Objektive Fakten, atomare Konzepte und Engineering-Methoden, die das strenge Draft-to-Live-Gate passieren."
+          },
+          "l4": {
+            "title": "Meinungen und Behauptungen",
+            "subtext": "Claims (noch zu prüfen)",
+            "badge": "Subjektive Annahme",
+            "description": "Hypothesen mit Konfidenz und Diskussionsverlauf, strikt von objektiven Fakten getrennt, damit sie die Wahrheitsschicht nicht verunreinigen."
+          },
+          "l5": {
+            "title": "Ergebnisse und Nutzungsprotokolle",
+            "subtext": "Ergebnisse & Verzeichnisse",
+            "badge": "Lieferprotokoll",
+            "description": "Endergebnisse einer Aufgabe, mit vollständigem Protokoll über zitiertes, abgeleitetes und nicht übernommenes Wissen."
+          }
+        },
+        "preview": {
+          "ariaLabel": "Dokumentvorschau des Eintrags",
+          "jsonLedgerBadge": "JSON-Protokoll",
+          "taskBadge": "Aufgabe #{id}",
+          "updatedAt": "Aktualisiert: {value}",
+          "storageLayer": "Speicherschicht: {value}",
+          "fileType": "Dateityp: {value}",
+          "fileTypeJson": "Strukturiertes Audit-Protokoll (JSON)",
+          "fileTypeMarkdown": "Markdown-Wissensasset",
+          "sourceTask": "Quellaufgabe: {value}",
+          "pathCopied": "Pfad kopiert",
+          "copyPath": "Relativen Pfad kopieren",
+          "openInEditor": "Im Wiki-Editor öffnen",
+          "close": "Vorschau schließen"
+        }
       }
     },
     "skills": {
@@ -21405,7 +21626,22 @@
         "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen...",
         "exportZip": "Trace exportieren (ZIP)",
         "exportZipTooltip": "Rohe Sitzungsereignisprotokolle und Artefakte als ZIP-Paket exportieren",
-        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets"
+        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets",
+        "llmUnknownModel": "Unbekanntes Modell",
+        "llmRetry": "Wiederholung ×{count}",
+        "llmTokens": "{count} Token",
+        "llmNetworkWaitTitle": "Netzwerkwartezeit (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token-Generierung: {ms}ms",
+        "llmTtft": "Erstes Token (TTFT): {ms}ms",
+        "llmGeneration": "Generierung: {ms}ms",
+        "llmPrompt": "Eingabe: {count}",
+        "llmCompletion": "Ausgabe: {count}",
+        "llmMessages": "Nachrichten: {count}",
+        "llmViewportInspect": "Modell-Viewport (Ansehen)",
+        "llmViewportHide": "Modell-Viewport (Ausblenden)",
+        "experienceWizardTitle": "Assistent für das sechsstufige Projekterfahrungs-Nachweispaket erstellen",
+        "experienceWizardButton": "Erfahrungs-Assistent",
+        "pluginStateTitle": "Plugin-Erweiterungsstatus"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
@@ -22504,5 +22740,29 @@
     "limitReached": "Limit erreicht",
     "pauseTitle": "Auto-Freigabe-Hülle sofort pausieren",
     "pause": "Pausieren"
+  },
+  "embeds": {
+    "load": "{label} laden",
+    "moreOptions": "Weitere Optionen",
+    "alwaysAllow": "{label} immer zulassen",
+    "loadFailed": "{label}-Einbettung konnte nicht geladen werden"
+  },
+  "skeleton": {
+    "loadingList": "Liste wird geladen",
+    "loadingCards": "Karten werden geladen",
+    "loadingTable": "Tabelle wird geladen",
+    "loadingForm": "Formular wird geladen",
+    "loadingWorkspace": "Arbeitsbereich wird geladen",
+    "loadingMetrics": "Metriken werden geladen",
+    "loadingTimeline": "Zeitachse wird geladen"
+  },
+  "diffViewer": {
+    "unknownFile": "Unbekannte Datei",
+    "splitView": "Geteilte Ansicht",
+    "unifiedView": "Einheitliche Ansicht",
+    "copyDiff": "Diff kopieren",
+    "close": "Schließen",
+    "binaryChanged": "Binärdatei geändert",
+    "noChanges": "Keine Änderungen"
   }
 }
