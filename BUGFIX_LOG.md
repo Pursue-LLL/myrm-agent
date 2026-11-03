@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 预置技能的脚本在真实智能体回合里进不了 bash 工作区（相对存储根的存储键被当成宿主机路径复制），邮件技能还缺权限声明，护栏拒绝它自己的脚本（真实模型回合里发现）
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S'resolve_skill_storage_paths'` 与 `git log -S'required_permissions:'` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [实测，`.env.test` 的 LITE 模型，整条 agent-stream，邮件技能由种子同步装好并加进智能体档案] ① 技能启用后模型调 bash 跑 `.claude/skills/imap-smtp-email/scripts/email_manager.py`，护栏 `skill_boundary` 拒绝，原因是技能没有被授予 `code_interpreter` 与 `file_write`；② 授予后同一回合的日志是 `Skill storage path not found: skills/prebuilt/imap-smtp-email`、`Failed to copy skills: imap-smtp-email`，工作区里没有技能目录，模型转而在文件系统里到处找脚本、撞上沙箱策略，连续三次失败后被 `ToolStuckException` 中断。 |
+| **根因** | [代码] ① `SKILL.md` 只写了 `allowed-tools: bash_code_execute_tool file_write_tool`，没有 `required_permissions`；技能页启用时只会向用户申请声明过的权限，没声明就没有授予，而护栏要求已装载技能里有授予了对应权限的才放行工具。② `StorageSkillBackend._load_skill_metadata` 给预置技能的 `storage_path` 是相对存储根的存储键（`skills/prebuilt/<id>`，对 `create_skill_backend` 的真实装配实测），`create_bash_code_execute_tool` 把它原样当作 `skill_paths`，而 `SkillWorkspaceManager._copy_skill_to_workspace` 对它做 `Path(...).exists()` 再 `rglob`，要的是宿主机绝对目录；进程工作目录不是存储根时必然复制失败。同一仓库里另一处（`_get_skill_storage_paths`）早就用 `storage_config.get_base_path() / storage_path` 解析，只是结果放进了没有任何读取方的 `context["skill_paths"]`。 |
+| **修复** | ① `SKILL.md` 增加 `required_permissions: [code_interpreter, file_write]`，与 `allowed-tools` 对应。② `bash/_tool/helpers.py` 新增 `resolve_skill_storage_paths(skills)`：用存储根解析存储键，本地技能的绝对目录原样保留（`Path / 绝对路径` 取右侧），无 `storage_path` 的技能略去；`create_bash_code_execute_tool` 改用它。另外让测试的回合请求能指定 `agentId`（默认智能体没有技能），Lane-C 按技能页的流程启用技能（申请权限、授予、再启用）。 |
+| **回归证据** | [1] `tests/assets/test_imap_smtp_email_skill_permissions.py`：声明缺权限时红、补上后绿。[2] harness 的 `tests/agent/meta_tools/bash/test_skill_storage_paths.py` 3 例：存储键在工作目录不是存储根时仍解析到存储根下、本地绝对目录不变、无 `storage_path` 的略去；把实现临时改回原样返回存储键时 2 例红，改回后全绿。[3] 同一条 Lane-C 测试在修复前后各跑一次：修复前日志是上面的 `Skill storage path not found`，修复后回合工作区里出现 `.claude/skills/imap-smtp-email/scripts/email_manager.py`，模型跑出的 `check` 已进入脚本本身（返回脚本自己的 JSON 错误）。 |
+| **仍然存在** | ① 真实回合里 `EMAIL_IMAP_HOST`、`EMAIL_IMAP_USER` 到了脚本，`EMAIL_IMAP_PASSWORD` 没有：脚本依次检查主机、用户、密码（`mail_client/transport.py:57-60`），模型每次拿到的都是 `{"error": "Environment variable EMAIL_IMAP_PASSWORD is not set"}`；密码类变量名被 `scrubbed_user_env`（`toolkits/code_execution/executors/local/_command_env.py`）按键名从 shell 环境剥掉，设置页保存的邮箱密码因此到不了任何技能的脚本。这是框架有意的安全设计，也有人在同一区域改动，本次未动；Lane-C 因此在开头跳过并写明原因，剥离放开后自动开始运行，**所以真实模型驱动的邮件收发路径仍然没有被端到端验证过**。② 该回合里模型自己读了设置存储里的明文配置、写了包装脚本绕过剥离并发出了回复，随后完成度检查两次把回答拦下（`evidence`、`query_grounding`），回合在第三次模型调用上一直没有结束；`pytest.mark.timeout(480, method="thread")` 在 17 分钟后仍没触发，我手动结束了这个测试进程。③ `create_bash_code_execute_tool` 以外的调用方没有逐个清点是否也把存储键当宿主机路径用。 |
+| **代码位置** | harness：`src/myrm_agent_harness/agent/meta_tools/bash/{bash_code_execute_tool.py,_tool/helpers.py,_ARCH.md}`、`tests/agent/meta_tools/bash/test_skill_storage_paths.py`。server：`assets/prebuilt_skills/imap-smtp-email/SKILL.md`、`tests/{assets/test_imap_smtp_email_skill_permissions.py,api/agent/test_imap_smtp_email_skill_e2e.py,support/{real_model_workspace_turns.py,test_real_model_workspace_turns.py},_ARCH.md}`。 |
+
 ## 2026-11-03 · 思考块标题、截图预览按钮、嵌入内容的加载按钮、Diff 工具栏、变更审阅面板的搜索与过滤、骨架屏的无障碍标签、侧栏展开按钮等 11 个组件里的界面文案是写死的英文，另 5 种语言的用户看到的也是英文
 
 | 字段 | 内容 |
