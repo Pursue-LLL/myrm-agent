@@ -2470,7 +2470,7 @@
     "searchNotConfiguredTooltip": "Suchdienst nicht konfiguriert – zum Einrichten klicken",
     "workspaceDir": {
       "label": "Arbeitsverzeichnis",
-      "placeholder": "Select a directory...",
+      "placeholder": "Pfad eingeben oder auswählen...",
       "tooltip": "Arbeitsverzeichnis für diesen Chat festlegen. Der Agent arbeitet in diesem Ordner.",
       "change": "Ändern",
       "clear": "Leeren",
