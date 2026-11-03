@@ -1297,9 +1297,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
     transport = transport_stall_cap_sec()
     if not is_transport_stall_node(current_node):
         return transport
-    open_page_family = current_node.startswith(
-        "open_mcp_page"
-    ) or current_node.startswith("open_page_")
+    open_page_family = current_node.startswith(("open_mcp_page", "open_page_"))
     if is_e2e_signoff_runtime():
         if open_page_family:
             try:
@@ -1331,7 +1329,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
         elif transport > float(NODE_STUCK_FAIL_FAST_SEC):
             peer_hint = max(
                 2,
-                int(round((transport - float(NODE_STUCK_FAIL_FAST_SEC)) / 22.0)),
+                round((transport - float(NODE_STUCK_FAIL_FAST_SEC)) / 22.0),
             )
             live = max(
                 live, live_open_page_transport_stall_cap_sec(active_peers=peer_hint)
@@ -1362,10 +1360,11 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
             mux_upstream_wait_cap,
         )
 
-        if boot_mux_body_transport_gate_required():
-            bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
-            bootstrap_sec += float(mux_upstream_wait_cap(pessimistic=True))
-        elif shpoib or normalized_lane in {"LIVE_AGENT", "RESOURCE_WRITE"}:
+        if (
+            boot_mux_body_transport_gate_required()
+            or shpoib
+            or normalized_lane in {"LIVE_AGENT", "RESOURCE_WRITE"}
+        ):
             bootstrap_sec = float(bootstrap_wall_cap_sec(pessimistic=True))
             bootstrap_sec += float(mux_upstream_wait_cap(pessimistic=True))
         else:
@@ -1990,11 +1989,12 @@ def explicit_node_has_chrome_e2e_marker(path_arg: str) -> bool:
         if node.name != test_name:
             continue
         for decorator in node.decorator_list:
-            if isinstance(decorator, ast.Call) and isinstance(
-                decorator.func, ast.Attribute
+            if (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and decorator.func.attr == "chrome_e2e"
             ):
-                if decorator.func.attr == "chrome_e2e":
-                    return True
+                return True
         return False
     return False
 
