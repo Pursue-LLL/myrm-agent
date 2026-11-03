@@ -20,7 +20,7 @@
 | `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                                                             |
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx`                             | 连接状态、Ingress 提示                                                                                                                                     |
 | `PairingManager.tsx`                                                          | 外部渠道配对审批管理容器（数据获取、状态更新、角色切换与配额管理回调编排）                                                                                 |
-| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除）                                                                   |
+| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除；今日用量、超额徽标与刷新提示取自 `channels.todayUsageDisplay` 等键）                                                                   |
 | `PairingForm.tsx`                                                             | 新增配对表单（Channel/Sender ID 输入、角色选择与每日调用上限配置）                                                                                         |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota；`useChannelConfig` 的连接测试失败时，服务端 `reason` 在 `channels.testReasons` 有文案就显示它，否则显示服务端消息）                                                                                     |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
@@ -45,7 +45,7 @@
 - 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
-- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
+- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互、今日用量与超额文案断言）
 - `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
 - `__tests__/TelegramConfigCard.test.tsx` — Telegram 卡片的转发代理：回显已保存的代理并用它做连接检查，改过的代理随连接测试与保存带出，地址缺协议时给出提示并禁用保存与连接测试，沙箱模式不显示该输入；失败的连接检查（含保存后的检查）按 `reason` 显示本地化提示，未知 `reason` 回退到服务端消息
 

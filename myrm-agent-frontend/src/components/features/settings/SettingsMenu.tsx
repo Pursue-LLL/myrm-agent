@@ -368,7 +368,7 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
           <button
             onClick={clearSearch}
             className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
-            aria-label="Clear search"
+            aria-label={t('clearSearch')}
           >
             <XCircle />
           </button>
@@ -436,7 +436,7 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
                       </div>
                       {fItem.matchedSubLabel && (
                         <div className="text-[10px] pl-[30px] text-muted-foreground/50 font-normal">
-                          匹配: {highlightMatch(fItem.matchedSubLabel, searchQuery)}
+                          {t('matchedLabel')} {highlightMatch(fItem.matchedSubLabel, searchQuery)}
                         </div>
                       )}
                     </button>

@@ -13,6 +13,7 @@ CI 门禁脚本与 baseline 数据。由 GitHub Actions 与 `run_architecture_ga
 | `run_architecture_gates.sh` | 核心 | 串联 fractal docs、md-refs 反引号引用校验（`validate_arch_inventory.py --md-refs`，本地 harness 源码模式生效）、导入可解析性门禁（harness `check_import_resolvability.py`：`app/` 内每条 `app.*` / `myrm_agent_harness.*` import 须指向真实模块与名字；harness 源码在旁时生效，PyPI 模式显式跳过）、模块可达性门禁（harness `check_module_reachability.py --server --base`：diff 模式，仅工作树（含未跟踪文件）里已死、基线时不死的 server 单元失败；基线修订取 `MYRM_REACHABILITY_BASE`，默认 `origin/main`）、profile capability 门禁、ruff lint、pyright unbound/undefined 门禁（`check_pyright_unbound.py`；CI 默认开启，本地设 `MYRM_PYRIGHT_GATE=1` 运行）、`promtool check rules`、architecture pytest |
 | `run_default_tests.sh` | 核心 | ruff lint + 默认 pytest 套件（`-m 'not e2e and not performance' -n0`；CI `server-unit-tests.yml`） |
 | `run_locked_use_tests.sh` | 核心 | Locked Use / Privacy Curtain 聚焦 pytest（`tests/services/locked_use/` + `test_desktop_locked_use_diagnostic.py`；CI job `locked-use-pytest`） |
+| `run_startup_gate_tests.sh` | 核心 | 启动导入门禁（`tests/startup/test_import_budget.py`：导入 HTTP 应用不联网、模块数不超预算）；独立于默认套件单独运行，使默认套件失败或超时时门禁结果仍可见（CI job `startup-import-gate`） |
 | `file_line_budget_baseline.txt` | 数据 | 已超过 400 行的 Python 模块路径台账（相对 server 根；由 `check_file_line_budget.py --write-baseline` 维护，非 CI 阻断项） |
 
 ## 运行

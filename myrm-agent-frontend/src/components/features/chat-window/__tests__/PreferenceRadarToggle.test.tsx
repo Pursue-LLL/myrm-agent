@@ -42,6 +42,8 @@ describe('PreferenceRadarToggle', () => {
 
     const toggleBtn = screen.getByTestId('preference-radar-toggle-button');
     expect(toggleBtn).toBeInTheDocument();
+    expect(toggleBtn).toHaveAttribute('title', 'title');
+    expect(toggleBtn).toHaveAttribute('aria-label', 'ariaLabel');
 
     // Drawer is closed initially
     expect(screen.queryByTestId('preference-radar-drawer')).toBeNull();

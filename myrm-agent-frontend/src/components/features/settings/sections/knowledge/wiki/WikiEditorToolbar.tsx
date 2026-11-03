@@ -7,6 +7,7 @@
  */
 import React, { memo } from 'react';
 import { Bold, Italic, Heading2, Code, Quote, List, ListTodo, Link2, Table } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export type ToolbarAction = 'bold' | 'italic' | 'h2' | 'code' | 'quote' | 'bullet' | 'todo' | 'wikilink' | 'table';
@@ -19,28 +20,29 @@ interface WikiEditorToolbarProps {
 
 interface ToolbarItem {
   id: ToolbarAction;
-  label: string;
   icon: React.ComponentType<{ className?: string }>;
   hotkey?: string;
 }
 
 const TOOLBAR_ITEMS: ToolbarItem[] = [
-  { id: 'bold', label: '加粗', icon: Bold, hotkey: 'Ctrl+B' },
-  { id: 'italic', label: '斜体', icon: Italic, hotkey: 'Ctrl+I' },
-  { id: 'h2', label: '二级标题', icon: Heading2 },
-  { id: 'code', label: '代码块', icon: Code },
-  { id: 'quote', label: '引用', icon: Quote },
-  { id: 'bullet', label: '无序列表', icon: List },
-  { id: 'todo', label: '待办任务', icon: ListTodo },
-  { id: 'wikilink', label: 'Wiki 双链', icon: Link2, hotkey: '[[' },
-  { id: 'table', label: '插入表格', icon: Table },
+  { id: 'bold', icon: Bold, hotkey: 'Ctrl+B' },
+  { id: 'italic', icon: Italic, hotkey: 'Ctrl+I' },
+  { id: 'h2', icon: Heading2 },
+  { id: 'code', icon: Code },
+  { id: 'quote', icon: Quote },
+  { id: 'bullet', icon: List },
+  { id: 'todo', icon: ListTodo },
+  { id: 'wikilink', icon: Link2, hotkey: '[[' },
+  { id: 'table', icon: Table },
 ];
 
 export const WikiEditorToolbar: React.FC<WikiEditorToolbarProps> = memo(({ onAction, disabled = false, className }) => {
+  const t = useTranslations('settings.wiki.toolbar');
+
   return (
     <div
       role="toolbar"
-      aria-label="Wiki Markdown 工具栏"
+      aria-label={t('label')}
       className={cn(
         'flex items-center gap-0.5 px-2 py-1 border-b border-border bg-card/60 backdrop-blur-sm select-none overflow-x-auto',
         className,
@@ -49,13 +51,14 @@ export const WikiEditorToolbar: React.FC<WikiEditorToolbarProps> = memo(({ onAct
       {TOOLBAR_ITEMS.map((item) => {
         const Icon = item.icon;
         const isWikiLink = item.id === 'wikilink';
+        const label = t(item.id);
 
         return (
           <button
             key={item.id}
             type="button"
             disabled={disabled}
-            title={item.hotkey ? `${item.label} (${item.hotkey})` : item.label}
+            title={item.hotkey ? `${label} (${item.hotkey})` : label}
             onClick={(e) => {
               e.preventDefault();
               onAction(item.id);
@@ -68,7 +71,7 @@ export const WikiEditorToolbar: React.FC<WikiEditorToolbarProps> = memo(({ onAct
             )}
           >
             <Icon className="w-3.5 h-3.5 mr-1 shrink-0" />
-            <span className="hidden sm:inline">{item.label}</span>
+            <span className="hidden sm:inline">{label}</span>
           </button>
         );
       })}

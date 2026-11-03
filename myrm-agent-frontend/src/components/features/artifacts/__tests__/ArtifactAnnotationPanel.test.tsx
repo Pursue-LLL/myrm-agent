@@ -123,7 +123,7 @@ describe('ArtifactAnnotationPanel with no comments yet', () => {
     try {
       renderPanel();
 
-      expect(screen.getByRole('region', { name: 'Artifact annotations' })).toBeTruthy();
+      expect(screen.getByRole('region', { name: 'annotationPanelLabel' })).toBeTruthy();
       expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       errorSpy.mockRestore();

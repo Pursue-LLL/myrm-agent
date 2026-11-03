@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 const ROWS = [
   { align: 'right' as const, widths: ['75%', '55%'] },
   { align: 'left' as const, widths: ['100%', '85%', '60%'] },
@@ -43,11 +45,12 @@ function SkeletonBubble({
 }
 
 export default function MessageListSkeleton() {
+  const t = useTranslations('chat');
   let delay = 0;
   return (
     <div
       className="flex flex-col mx-auto max-w-5xl px-4 md:px-0 pt-8 pb-40 space-y-6"
-      aria-label="Loading messages"
+      aria-label={t('messageListLoading')}
       data-testid="message-list-skeleton"
     >
       {ROWS.map((row, i) => {

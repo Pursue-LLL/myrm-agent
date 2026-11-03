@@ -293,13 +293,13 @@ export default function ProjectWorkspaceAdoptDialog({
 
           <div>
             <label htmlFor="adopt-project-name" className="text-xs font-medium text-muted-foreground">
-              项目名称
+              {t('adoptProjectName')}
             </label>
             <Input
               id="adopt-project-name"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="项目名称"
+              placeholder={t('adoptProjectName')}
               className="mt-1 text-sm"
             />
           </div>
@@ -307,10 +307,10 @@ export default function ProjectWorkspaceAdoptDialog({
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t('adoptCancel')}
           </Button>
           <Button onClick={() => void handleAdopt()} disabled={submitting || !currentPath.trim()}>
-            {submitting ? '正在接纳...' : '立即接纳项目'}
+            {submitting ? t('adoptSubmitting') : t('adoptSubmit')}
           </Button>
         </div>
       </div>

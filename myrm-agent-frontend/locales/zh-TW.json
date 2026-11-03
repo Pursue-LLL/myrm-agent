@@ -237,7 +237,8 @@
     "subgoalAddFailed": "新增子目標失敗",
     "subgoalAddNetworkError": "網路錯誤：新增子目標失敗",
     "subgoalRemoveFailed": "移除子目標失敗",
-    "subgoalRemoveNetworkError": "網路錯誤：移除子目標失敗"
+    "subgoalRemoveNetworkError": "網路錯誤：移除子目標失敗",
+    "bundleSelectItem": "選擇要匯出的項目"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "預估 Turn1 schema（約 {tokens} tokens）超出直接綁定預算（{budget}）。請減少已選 endpoint，否則 Agent 無法使用這些 API 工具。",
       "turn1BudgetServiceWarning": "該服務已選 endpoint 可能超出 Turn1 綁定預算。請減少選擇，避免 Agent 啟動失敗。",
       "atLeastOneEndpoint": "必須至少保留一個端點。",
-      "presetAdded": "已新增 {name} 連接器"
+      "presetAdded": "已新增 {name} 連接器",
+      "presetsLoading": "正在載入預設...",
+      "presetsEmpty": "暫無可用預設。",
+      "presetEnable": "啟用"
     },
     "sharedContexts": {
       "targetLabel": "智能體",
@@ -2844,7 +2848,10 @@
       "waitingHint": "當 Agent 使用瀏覽器時，實時檢視將自動顯示",
       "instructionPlaceholder": "描述你想在這個頁面上做什麼...",
       "instructionWithElement": "Agent 應該對這個元素做什麼？",
-      "send": "傳送指令"
+      "send": "傳送指令",
+      "livePeekAlt": "瀏覽器即時畫面",
+      "selectElementLabel": "選取元素 {refId}（{role}：{name}）",
+      "clearSelection": "清除選取"
     },
     "browserRecording": {
       "title": "瀏覽器錄製",
@@ -2933,7 +2940,8 @@
         "denyReasonPlaceholder": "拒絕原因（選填）",
         "targetChangedNotice": "目標自上次批准後發生變化，請重新確認。",
         "deniedNotice": "已拒絕，該請求在本會話內不再詢問。"
-      }
+      },
+      "clearSelection": "清除選取"
     },
     "clarification": {
       "formTitle": "澄清表單",
@@ -3458,7 +3466,25 @@
       "ephemeralHint": "暫時：壓縮上下文時會被清理",
       "persistentHint": "持久：壓縮摘要後仍會保留",
       "details": "詳情"
-    }
+    },
+    "toolDiagnostics": {
+      "trigger": "工具健康度",
+      "title": "智慧體工具診斷",
+      "loading": "正在載入診斷資料...",
+      "empty": "此智慧體暫無工具執行資料。",
+      "calls": "{count} 次呼叫",
+      "successRate": "成功率",
+      "errors": "錯誤數",
+      "avgTime": "平均耗時"
+    },
+    "costHud": {
+      "popoverTitle": "點擊檢視模型四維單價矩陣與 Prompt Cache 經濟效益",
+      "savedAmount": "(省 {amount})",
+      "idleLabel": "算力透視 HUD"
+    },
+    "scopedArtifactRemove": "移除限定目標",
+    "messageListLoading": "正在載入訊息",
+    "inputHistoryLabel": "輸入歷史"
   },
   "mode": {
     "fast": "快速搜尋",
@@ -6189,7 +6215,14 @@
       "copyButton": "複製",
       "copiedButton": "已複製",
       "downloadZip": "下載 ZIP"
-    }
+    },
+    "contextGlobalTitle": "全域使用者畫像",
+    "contextGlobalSubtitle": "跨智慧體共享的穩定身分",
+    "contextGlobalEmpty": "暫無全域畫像資料。",
+    "contextPeerTitle": "我們的關係與你的人設",
+    "contextPeerSubtitle": "此智慧體專屬的互動",
+    "contextPeerEmpty": "暫無此智慧體專屬的畫像資料。",
+    "rankedHubSidebarLabel": "樞紐排行側欄"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -6443,7 +6476,8 @@
       "quote": "引用到輸入框",
       "quoteRow": "引用第 {row} 行",
       "quoteRowTooltip": "引用選中行到對話輸入框進行針對性提問或局部編輯",
-      "rowScopeLabel": "第 {row} 列"
+      "rowScopeLabel": "第 {row} 列",
+      "clearSelection": "清除選取"
     },
     "saving": "儲存中...",
     "saved": "已儲存",
@@ -6719,7 +6753,8 @@
       "copy": "複製",
       "modifyPlaceholder": "描述你想對選中內容做的修改...",
       "annotate": "批註",
-      "annotatePlaceholder": "描述問題以供審閱..."
+      "annotatePlaceholder": "描述問題以供審閱...",
+      "toolbarLabel": "選取範圍工具列"
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -6820,7 +6855,14 @@
       "downloadFull": "下載完整檔案"
     },
     "resizePanel": "調整面板大小",
-    "closePreview": "關閉預覽"
+    "closePreview": "關閉預覽",
+    "errorBoundary": {
+      "title": "渲染出錯",
+      "defaultMessage": "無法渲染該內容，請嘗試重新整理或下載檢視",
+      "retry": "重試"
+    },
+    "annotationPanelLabel": "工件註解",
+    "htmlPreviewTitle": "HTML 預覽"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -7796,7 +7838,14 @@
     "preflightUpdated": "預檢探針已更新",
     "preflightTemplateInserted": "已插入範本",
     "preflightInsertTemplate": "插入範本",
-    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。"
+    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。",
+    "roiTitle": "自動化生產力收益",
+    "roiSubtitle": "基於自動化任務基線工時與實際執行量量化",
+    "hoursSavedTotal": "累計節省工時",
+    "hoursUnit": "小時",
+    "productivityValue": "預估生產力價值",
+    "tokenCostLine": "Token 成本 ${amount}",
+    "columnHoursSaved": "預估省時"
   },
   "heartbeat": {
     "title": "Agent 自動巡檢",
@@ -9289,7 +9338,12 @@
     "imessageDeployGuideLocal": "本地 / 桌面端：直接連線 Mac 本機常開的 BlueBubbles 服務（如 http://localhost:1234）。",
     "imessageDeployGuideCloud": "雲端部署：透過 Cloudflare Tunnel、Tailscale 或 Ngrok 安全連線自建的 Mac iMessage 閘道器。",
     "whatsappQrAlt": "WhatsApp 登入 QR Code",
-    "wechatQrAlt": "微信登入 QR Code"
+    "wechatQrAlt": "微信登入 QR Code",
+    "usageResetTooltip": "每日 00:00 UTC（北京時間 08:00）自動重新整理",
+    "todayUsageDisplay": "今日用量：{used} / {quota} 次",
+    "quotaExceeded": "已超額",
+    "groupTriggerRegionLabel": "目前群組觸發設定",
+    "editGlobalAria": "編輯全域設定"
   },
   "voice": {
     "sectionTitle": "語音設定",
@@ -10302,7 +10356,9 @@
         "wait0": "需要你",
         "wait1": "等你確認",
         "wait2": "輪到你了"
-      }
+      },
+      "voiceInterrupt": "中斷語音",
+      "voiceInteraction": "語音互動"
     },
     "palette": {
       "title": "寵物面板",
@@ -10686,7 +10742,8 @@
       "confirmLabel": "輸入保留的智慧體名稱以確認",
       "mergeSource": "歸檔（來源）",
       "planBindings": "將遷移的繫結",
-      "done": "完成"
+      "done": "完成",
+      "regionLabel": "智慧體治理"
     },
     "readiness": {
       "dimensions": {
@@ -11928,7 +11985,10 @@
       "captureTraceTruncatedNotice": "錄製達到容量上限，已丟棄較早的 {count} 步互動。產生的技能可能缺少開頭的步驟。",
       "captureUnavailableTitle": "擷取無法使用",
       "publishConflictNotice": "已存在名為「{name}」的技能。可用本次錄製覆蓋它，或取消後回到第一步改用其他名稱。",
-      "replaceSkill": "覆蓋技能"
+      "replaceSkill": "覆蓋技能",
+      "workflowNamePlaceholder": "例如：每月報稅流程",
+      "intentHintPlaceholder": "例如：讀取 Excel 並同步到報稅平台",
+      "deleteStep": "刪除步驟"
     }
   },
   "followUps": {
@@ -12254,7 +12314,8 @@
     "inlineRouteTemplateNoResults": "未找到匹配的專家模板",
     "inlineRouteTemplateEmpty": "暫無可用專家模板",
     "inlineRouteTemplateApplyFailed": "召喚專家模板失敗",
-    "appshotAlt": "已擷取的應用程式截圖"
+    "appshotAlt": "已擷取的應用程式截圖",
+    "captureAlt": "螢幕截圖"
   },
   "billing": {
     "wuBalance": "工作單元",
@@ -12634,7 +12695,11 @@
         "trust": "信任並關聯",
         "mcpServers": "本機 MCP 服務",
         "plugins": "本機外掛"
-      }
+      },
+      "adoptProjectName": "專案名稱",
+      "adoptCancel": "取消",
+      "adoptSubmitting": "正在接納...",
+      "adoptSubmit": "立即接納專案"
     },
     "workspaceTrust": {
       "trusted": "已信任此工作區，擴充功能與工具已完全啟用。",
@@ -13298,7 +13363,14 @@
     "consoleDrawerTitle": "控制台與服務日誌",
     "consoleDrawerEmpty": "暫無更多服務輸出",
     "sniffTrigger": "自動嗅探服務",
-    "sniffSuccess": "已成功捕獲並註冊服務埠"
+    "sniffSuccess": "已成功捕獲並註冊服務埠",
+    "previewTitle": "{name} 即時預覽",
+    "consoleStarted": "[{time}] 服務已在連接埠 {port} 啟動 ({protocol})",
+    "consoleReady": "> 就緒：{url}",
+    "consoleProcess": "> 處理程序 PID：{pid} | 處理程序：{name}",
+    "previewPort": "預覽埠 {port}",
+    "barPortsCount": "{count} 個埠",
+    "barLabel": "開發埠"
   },
   "toolPicker": {
     "menuLabel": "工具選擇",
@@ -13352,7 +13424,17 @@
     "nextSlide": "下一頁",
     "slideCounter": "第 {current} / {total} 頁",
     "speakerNotes": "演講者備註",
-    "noSpeakerNotes": "暫無備註"
+    "noSpeakerNotes": "暫無備註",
+    "newPresentation": "+ 新增簡報",
+    "enterpriseBadge": "P0 · 企業級 PPTX",
+    "illustrationsHint": "多模態視覺概念與版面",
+    "slideVisualConcept": "視覺概念",
+    "slideVisualPlaceholder": "多模態架構圖",
+    "slideConfidentialFooter": "機密 · 企業簡報",
+    "slidePage": "第 {page} 頁",
+    "slideAriaLabel": "投影片 {number}：{title}",
+    "slideThumbnails": "投影片縮圖",
+    "goToSlide": "跳至第 {number} 頁：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版級高顏值電子表格看板",
@@ -13829,7 +13911,10 @@
     "activeTaskLabel": "當前正在推進的任務",
     "lastActiveLabel": "最後活躍時間",
     "cancelAction": "關閉",
-    "jumpInAction": "跳入會話現場"
+    "jumpInAction": "跳入會話現場",
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "zoomReset": "重設縮放"
   },
   "workbench": {
     "workbenchAriaLabel": "輔助工作臺",
@@ -13887,14 +13972,16 @@
       "emptyMessages": "此記憶結晶未保留原始訊息快照",
       "originalRoleUser": "使用者提問",
       "originalRoleAssistant": "Agent 執行",
-      "originalRoleTool": "工具呼叫"
+      "originalRoleTool": "工具呼叫",
+      "ariaLabel": "唯讀對話紀錄回溯"
     },
     "branchSummary": {
       "inheritedBadge": "跨分支經驗飛線",
       "sourceBranchLabel": "繼承自分支",
       "keyTakeawaysTitle": "衍生核心認知與探索經驗",
       "warpToSource": "穿梭回源分支",
-      "forkIndicator": "從節點分叉"
+      "forkIndicator": "從節點分叉",
+      "ariaLabel": "跨分支經驗卡片"
     },
     "anchors": {
       "title": "已驗證錨點",
@@ -14287,7 +14374,8 @@
       "commerce": "電商運營",
       "team": "多智慧體小隊",
       "general": "通用助手"
-    }
+    },
+    "refresh": "重新整理範本"
   },
   "commandMatrix": {
     "allCategories": "全部分類",
@@ -14949,7 +15037,9 @@
         "integration": "通訊與整合",
         "system": "系統與安全"
       },
-      "brand-studio": "品牌風格"
+      "brand-studio": "品牌風格",
+      "clearSearch": "清除搜尋",
+      "matchedLabel": "符合："
     },
     "workbench": {
       "badge": "資產留存 & 平台中立",
@@ -16259,7 +16349,12 @@
       "permittedSummary": "放行 {permitted} 次",
       "recentAuditTrail": "近期執行審計日誌",
       "loadingEntries": "正在載入審計條目...",
-      "noEntriesYet": "暫無審計記錄"
+      "noEntriesYet": "暫無審計記錄",
+      "viewDetails": "檢視條目詳情",
+      "detailRule": "規則：",
+      "detailSessionId": "會話 ID：",
+      "detailReason": "錯誤/原因：",
+      "detailArgs": "脫敏參數："
     },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
@@ -17146,7 +17241,10 @@
       "xaiOauthCodeHint": "請在瀏覽器中輸入此驗證碼完成授權...",
       "xaiOauthReopen": "重新打開授權頁面",
       "xaiOauthWaiting": "等待授權...",
-      "xaiOauthConnectBtn": "授權 SuperGrok"
+      "xaiOauthConnectBtn": "授權 SuperGrok",
+      "oauthExpiredNotice": "目前憑證已失效（可能在第三方平台被撤銷或到期）。請點擊一鍵修復重新授權，以恢復該服務。",
+      "oauthFixNow": "一鍵修復",
+      "fileInputLabel": "憑證檔案輸入"
     },
     "skillQuality": {
       "title": "技能質量管理",
@@ -18310,6 +18408,18 @@
           "openInEditor": "在 Wiki 編輯器中開啟",
           "close": "關閉預覽"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown 工具列",
+        "bold": "粗體",
+        "italic": "斜體",
+        "h2": "二級標題",
+        "code": "程式碼區塊",
+        "quote": "引用",
+        "bullet": "無序清單",
+        "todo": "待辦任務",
+        "wikilink": "Wiki 雙向連結",
+        "table": "插入表格"
       }
     },
     "skills": {
@@ -20595,7 +20705,8 @@
           "e2eeAlgorithm": "演算法",
           "e2eeFingerprint": "指紋"
         },
-        "copied": "已複製到剪貼簿"
+        "copied": "已複製到剪貼簿",
+        "refreshTailscaleStatus": "重新整理 Tailscale 狀態"
       },
       "push": {
         "deniedHint": "通知已被封鎖。請在瀏覽器設定中啟用。",
@@ -21120,7 +21231,8 @@
       "cacheRadarSavings": "累計節省美金:",
       "cacheRadarCachedTokens": "快取重用 Tokens",
       "cacheRadarFreshInput": "冷啟動 Tokens",
-      "cacheRadarTotalPrompt": "總 Prompt Tokens"
+      "cacheRadarTotalPrompt": "總 Prompt Tokens",
+      "dailyToolCallsTooltip": "{date}：{count} 次工具呼叫"
     },
     "workingState": {
       "title": "工作狀態",
@@ -21545,7 +21657,22 @@
         "searchPlaceholder": "依任務內容或標題搜尋 Trace...",
         "exportZip": "匯出軌跡 (ZIP)",
         "exportZipTooltip": "匯出工作階段原始事件記錄與產物 ZIP 封存包",
-        "exportZipFailed": "匯出工作階段封存包失敗"
+        "exportZipFailed": "匯出工作階段封存包失敗",
+        "llmUnknownModel": "未知模型",
+        "llmRetry": "重試 ×{count}",
+        "llmTokens": "{count} 個 token",
+        "llmNetworkWaitTitle": "網路等待 (TTFT)：{ms}ms",
+        "llmGenerationTitle": "Token 生成：{ms}ms",
+        "llmTtft": "TTFT：{ms}ms",
+        "llmGeneration": "生成：{ms}ms",
+        "llmPrompt": "提示詞：{count}",
+        "llmCompletion": "補全：{count}",
+        "llmMessages": "訊息：{count}",
+        "llmViewportInspect": "模型視口（檢視）",
+        "llmViewportHide": "模型視口（收合）",
+        "experienceWizardTitle": "產生專案經驗六步證據包精靈",
+        "experienceWizardButton": "經驗精靈",
+        "pluginStateTitle": "外掛擴充狀態"
       },
       "contextDoctor": {
         "title": "上下文健檢（Token 熱點與成本審計）",
@@ -22668,5 +22795,15 @@
     "close": "關閉",
     "binaryChanged": "二進位檔案已變更",
     "noChanges": "無變更"
+  },
+  "riskGate": {
+    "regionLabel": "分級風險確認"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "已付款並核驗",
+    "statusReserved": "已預留",
+    "statusRefunded": "已退款",
+    "statusRejected": "已攔截",
+    "hashVerified": "帳本雜湊已通過 HMAC 驗證"
   }
 }

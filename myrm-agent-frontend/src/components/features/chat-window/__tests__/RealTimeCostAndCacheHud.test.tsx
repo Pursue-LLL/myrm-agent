@@ -20,6 +20,13 @@ import { RealTimeCostAndCacheHud } from '../RealTimeCostAndCacheHud';
 import useChatStore from '@/store/useChatStore';
 import type { Message } from '@/store/chat/types';
 
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
+
 vi.mock('@/services/pricing', () => ({
   fetchModelPricing: vi.fn().mockResolvedValue({
     models: {
@@ -46,7 +53,7 @@ describe('RealTimeCostAndCacheHud Component', () => {
 
   it('renders initial standby capsule when no usage is present', () => {
     render(<RealTimeCostAndCacheHud />);
-    expect(screen.getByText('算力透视 HUD')).toBeInTheDocument();
+    expect(screen.getByText('idleLabel')).toBeInTheDocument();
   });
 
   it('renders token watermark without cache badge when cache threshold is not met', () => {
@@ -93,6 +100,6 @@ describe('RealTimeCostAndCacheHud Component', () => {
     render(<RealTimeCostAndCacheHud />);
     expect(screen.getByText('20.8K tok')).toBeInTheDocument();
     expect(screen.getByText('80% Cache')).toBeInTheDocument();
-    expect(screen.getByText(/\(省 \$0\.043\)/)).toBeInTheDocument();
+    expect(screen.getByText(/^savedAmount:\$0\.043$/)).toBeInTheDocument();
   });
 });

@@ -115,7 +115,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
         type="button"
         onClick={onClearSelection}
         className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        aria-label="Clear selection"
+        aria-label={t('clearSelection')}
       >
         <Cancel01Icon className="w-3.5 h-3.5" />
       </button>

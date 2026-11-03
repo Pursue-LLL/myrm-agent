@@ -239,10 +239,10 @@ function ServiceEditor({ service, index, onUpdate, onRemove, readonly }: Service
                             if (isCurrentlyAll) {
                               return;
                             }
-                            const next = Array.from(new Set([...service.selected_endpoints ?? [], ep.operation_id]));
+                            const next = Array.from(new Set([...(service.selected_endpoints ?? []), ep.operation_id]));
                             updateField('selected_endpoints', next.length === allIds.length ? undefined : next);
                           } else {
-                            const currentList = isCurrentlyAll ? allIds : service.selected_endpoints ?? [];
+                            const currentList = isCurrentlyAll ? allIds : (service.selected_endpoints ?? []);
                             const next = currentList.filter((id) => id !== ep.operation_id);
                             if (next.length === 0) {
                               toast({
@@ -532,9 +532,9 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
       {showPresets && (
         <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
           {loadingPresets ? (
-            <div className="text-xs text-muted-foreground">Loading presets...</div>
+            <div className="text-xs text-muted-foreground">{t('presetsLoading')}</div>
           ) : presets.length === 0 ? (
-            <div className="text-xs text-muted-foreground">No presets available.</div>
+            <div className="text-xs text-muted-foreground">{t('presetsEmpty')}</div>
           ) : (
             presets.map((preset) => (
               <div
@@ -557,7 +557,7 @@ export function AgentOpenAPIServicesTab({ services, onChange, readonly }: AgentO
                   className="mt-3 w-full text-xs h-7"
                   onClick={() => handleApplyPreset(preset)}
                 >
-                  启用
+                  {t('presetEnable')}
                 </Button>
               </div>
             ))

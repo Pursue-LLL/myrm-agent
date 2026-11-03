@@ -1,10 +1,17 @@
 'use client';
 
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import ElementOverlay from '@/components/features/browser-inspector/ElementOverlay';
 import type { BrowserRefInfo } from '@/store/chat/types';
+
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
 
 function makeRef(overrides: Partial<NonNullable<BrowserRefInfo['bbox']>>): BrowserRefInfo {
   return {

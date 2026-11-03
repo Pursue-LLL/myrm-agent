@@ -237,7 +237,8 @@
     "subgoalAddFailed": "하위 목표를 추가하지 못했습니다",
     "subgoalAddNetworkError": "네트워크 오류: 하위 목표를 추가하지 못했습니다",
     "subgoalRemoveFailed": "하위 목표를 제거하지 못했습니다",
-    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다"
+    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다",
+    "bundleSelectItem": "내보낼 항목 선택"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "예상 Turn1 스키마(~{tokens} 토큰)가 직접 바인딩 예산({budget})을 초과합니다. 선택한 엔드포인트를 줄이지 않으면 에이전트가 이 API 도구를 사용할 수 없습니다.",
       "turn1BudgetServiceWarning": "이 서비스의 선택된 엔드포인트가 Turn1 바인딩 예산을 초과할 수 있습니다. 에이전트 시작 오류를 방지하려면 선택을 줄이세요.",
       "atLeastOneEndpoint": "하나 이상의 엔드포인트를 선택해야 합니다.",
-      "presetAdded": "{name} 커넥터를 추가했습니다"
+      "presetAdded": "{name} 커넥터를 추가했습니다",
+      "presetsLoading": "프리셋을 불러오는 중...",
+      "presetsEmpty": "사용 가능한 프리셋이 없습니다.",
+      "presetEnable": "활성화"
     },
     "sharedContexts": {
       "targetLabel": "에이전트",
@@ -2844,7 +2848,10 @@
       "waitingHint": "에이전트가 브라우저를 사용하면 라이브 뷰가 표시됩니다",
       "instructionPlaceholder": "이 페이지에서 무엇을 하고 싶은지 설명하세요...",
       "instructionWithElement": "에이전트가 이 요소에 무엇을 해야 합니까?",
-      "send": "지시 보내기"
+      "send": "지시 보내기",
+      "livePeekAlt": "브라우저 실시간 화면",
+      "selectElementLabel": "요소 {refId} 선택({role}: {name})",
+      "clearSelection": "선택 해제"
     },
     "browserRecording": {
       "title": "브라우저 세션 녹화",
@@ -2933,7 +2940,8 @@
         "denyReasonPlaceholder": "거부 사유(선택사항)",
         "targetChangedNotice": "마지막 승인 이후 대상이 변경되었습니다. 다시 확인해 주세요.",
         "deniedNotice": "거부되었습니다. 이 세션 동안 이 요청을 다시 묻지 않습니다."
-      }
+      },
+      "clearSelection": "선택 해제"
     },
     "clarification": {
       "formTitle": "명확화 양식",
@@ -3458,7 +3466,25 @@
       "ephemeralHint": "임시: 컨텍스트 압축 시 제거됩니다",
       "persistentHint": "영구: 압축 요약 이후에도 유지됩니다",
       "details": "상세 정보"
-    }
+    },
+    "toolDiagnostics": {
+      "trigger": "도구 상태",
+      "title": "에이전트 도구 진단",
+      "loading": "진단 데이터를 불러오는 중...",
+      "empty": "이 에이전트의 도구 실행 데이터가 아직 없습니다.",
+      "calls": "호출 {count}회",
+      "successRate": "성공률",
+      "errors": "오류 수",
+      "avgTime": "평균 소요 시간"
+    },
+    "costHud": {
+      "popoverTitle": "클릭하여 모델의 4차원 단가 매트릭스와 Prompt Cache 절감 효과 보기",
+      "savedAmount": "({amount} 절감)",
+      "idleLabel": "연산 HUD"
+    },
+    "scopedArtifactRemove": "범위 지정 대상 제거",
+    "messageListLoading": "메시지 불러오는 중",
+    "inputHistoryLabel": "입력 기록"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -6189,7 +6215,14 @@
       "copyButton": "복사",
       "copiedButton": "복사됨",
       "downloadZip": "ZIP 다운로드"
-    }
+    },
+    "contextGlobalTitle": "전역 사용자 프로필",
+    "contextGlobalSubtitle": "에이전트 간에 공유되는 안정적인 신원",
+    "contextGlobalEmpty": "아직 전역 프로필 데이터가 없습니다.",
+    "contextPeerTitle": "우리의 관계와 당신의 페르소나",
+    "contextPeerSubtitle": "이 에이전트와의 고유한 상호작용",
+    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다.",
+    "rankedHubSidebarLabel": "허브 순위 사이드바"
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -6443,7 +6476,8 @@
       "quote": "입력창에 인용",
       "quoteRow": "{row}행 인용",
       "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다",
-      "rowScopeLabel": "{row}행"
+      "rowScopeLabel": "{row}행",
+      "clearSelection": "선택 해제"
     },
     "saving": "저장 중...",
     "saved": "저장됨",
@@ -6719,7 +6753,8 @@
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
       "annotate": "의견",
-      "annotatePlaceholder": "검토용 문제 설명..."
+      "annotatePlaceholder": "검토용 문제 설명...",
+      "toolbarLabel": "선택 영역 도구 모음"
     },
     "skillActions": {
       "moreActions": "더 많은 작업",
@@ -6820,7 +6855,14 @@
       "downloadFull": "전체 파일 다운로드"
     },
     "resizePanel": "패널 크기 조정",
-    "closePreview": "미리보기 닫기"
+    "closePreview": "미리보기 닫기",
+    "errorBoundary": {
+      "title": "렌더링 오류",
+      "defaultMessage": "이 콘텐츠를 렌더링할 수 없습니다. 새로고침하거나 다운로드해서 확인해 보세요.",
+      "retry": "다시 시도"
+    },
+    "annotationPanelLabel": "아티팩트 주석",
+    "htmlPreviewTitle": "HTML 미리보기"
   },
   "MessageSources": {
     "untitled": "제목 없음",
@@ -7796,7 +7838,14 @@
     "preflightUpdated": "사전 점검 프로브를 업데이트했습니다",
     "preflightTemplateInserted": "템플릿을 삽입했습니다",
     "preflightInsertTemplate": "템플릿 삽입",
-    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다. 스크립트가 오류로 종료되거나 시간 초과되면 건너뛰지 않고 실행이 실패로 기록됩니다."
+    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다. 스크립트가 오류로 종료되거나 시간 초과되면 건너뛰지 않고 실행이 실패로 기록됩니다.",
+    "roiTitle": "자동화 생산성 효과",
+    "roiSubtitle": "자동화 작업의 기준 공수와 실제 실행량으로 산출",
+    "hoursSavedTotal": "누적 절감 시간",
+    "hoursUnit": "시간",
+    "productivityValue": "예상 생산성 가치",
+    "tokenCostLine": "토큰 비용 ${amount}",
+    "columnHoursSaved": "예상 절감 시간"
   },
   "heartbeat": {
     "title": "에이전트 자동 점검",
@@ -9289,7 +9338,12 @@
     "imessageDeployGuideLocal": "로컬 / 데스크톱: Mac에서 실행 중인 BlueBubbles 서비스에 직접 연결합니다(예: http://localhost:1234).",
     "imessageDeployGuideCloud": "클라우드: Cloudflare Tunnel, Tailscale 또는 Ngrok을 통해 Mac의 BlueBubbles 서버에 안전하게 연결합니다.",
     "whatsappQrAlt": "WhatsApp 로그인 QR 코드",
-    "wechatQrAlt": "WeChat 로그인 QR 코드"
+    "wechatQrAlt": "WeChat 로그인 QR 코드",
+    "usageResetTooltip": "매일 00:00 UTC(베이징 시간 08:00)에 자동 갱신",
+    "todayUsageDisplay": "오늘 사용량: {used} / {quota}건",
+    "quotaExceeded": "한도 초과",
+    "groupTriggerRegionLabel": "현재 그룹 트리거 설정",
+    "editGlobalAria": "전역 설정 편집"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -10302,7 +10356,9 @@
         "wait0": "네가 필요해",
         "wait1": "기다리고 있어",
         "wait2": "네 차례야"
-      }
+      },
+      "voiceInterrupt": "음성 중단",
+      "voiceInteraction": "음성 상호작용"
     },
     "palette": {
       "title": "펫 팔레트",
@@ -10686,7 +10742,8 @@
       "confirmLabel": "유지할 어시스턴트 이름을 입력하여 확인",
       "mergeSource": "보관(원본)",
       "planBindings": "옮겨가는 연결",
-      "done": "완료"
+      "done": "완료",
+      "regionLabel": "에이전트 거버넌스"
     },
     "readiness": {
       "dimensions": {
@@ -11928,7 +11985,10 @@
       "captureTraceTruncatedNotice": "녹화가 용량 한도에 도달해 이전 상호작용 {count}건을 삭제했습니다. 생성된 스킬에 처음 단계가 누락될 수 있습니다.",
       "captureUnavailableTitle": "캡처 사용 불가",
       "publishConflictNotice": "'{name}' 이름의 스킬이 이미 있습니다. 이번 녹화로 덮어쓰거나, 취소하고 첫 단계에서 다른 이름을 선택하세요.",
-      "replaceSkill": "스킬 덮어쓰기"
+      "replaceSkill": "스킬 덮어쓰기",
+      "workflowNamePlaceholder": "예: 월간 세무 신고 파이프라인",
+      "intentHintPlaceholder": "예: Excel을 읽어 세무 포털에 동기화",
+      "deleteStep": "단계 삭제"
     }
   },
   "followUps": {
@@ -12254,7 +12314,8 @@
     "inlineRouteTemplateNoResults": "일치하는 전문가 템플릿이 없습니다",
     "inlineRouteTemplateEmpty": "사용 가능한 전문가 템플릿이 없습니다",
     "inlineRouteTemplateApplyFailed": "전문가 템플릿 소환 실패",
-    "appshotAlt": "캡처한 앱 스크린샷"
+    "appshotAlt": "캡처한 앱 스크린샷",
+    "captureAlt": "화면 캡처"
   },
   "billing": {
     "wuBalance": "작업 단위",
@@ -12634,7 +12695,11 @@
         "trust": "신뢰하고 연결",
         "mcpServers": "로컬 MCP 서버",
         "plugins": "로컬 플러그인"
-      }
+      },
+      "adoptProjectName": "프로젝트 이름",
+      "adoptCancel": "취소",
+      "adoptSubmitting": "가져오는 중...",
+      "adoptSubmit": "지금 프로젝트 가져오기"
     },
     "workspaceTrust": {
       "trusted": "작업 공간을 신뢰합니다. 모든 확장 기능과 도구가 활성화되었습니다.",
@@ -13298,7 +13363,14 @@
     "consoleDrawerTitle": "콘솔 및 서비스 로그",
     "consoleDrawerEmpty": "최근 로그가 없습니다",
     "sniffTrigger": "개발 서비스 탐지",
-    "sniffSuccess": "서비스 포트를 탐지하여 등록했습니다"
+    "sniffSuccess": "서비스 포트를 탐지하여 등록했습니다",
+    "previewTitle": "{name} 실시간 미리보기",
+    "consoleStarted": "[{time}] 포트 {port}에서 서비스가 시작되었습니다 ({protocol})",
+    "consoleReady": "> 준비 완료: {url}",
+    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}",
+    "previewPort": "포트 {port} 미리보기",
+    "barPortsCount": "포트 {count}개",
+    "barLabel": "개발 포트"
   },
   "toolPicker": {
     "menuLabel": "도구 선택",
@@ -13352,7 +13424,17 @@
     "nextSlide": "다음 슬라이드",
     "slideCounter": "슬라이드 {current} / {total}",
     "speakerNotes": "발표자 노트",
-    "noSpeakerNotes": "이 슬라이드에는 노트가 없습니다"
+    "noSpeakerNotes": "이 슬라이드에는 노트가 없습니다",
+    "newPresentation": "+ 새 프레젠테이션",
+    "enterpriseBadge": "P0 · 엔터프라이즈 PPTX",
+    "illustrationsHint": "멀티모달 비주얼 콘셉트 및 레이아웃",
+    "slideVisualConcept": "비주얼 콘셉트",
+    "slideVisualPlaceholder": "멀티모달 아키텍처 다이어그램",
+    "slideConfidentialFooter": "기밀 · 엔터프라이즈 덱",
+    "slidePage": "{page}쪽",
+    "slideAriaLabel": "슬라이드 {number}: {title}",
+    "slideThumbnails": "슬라이드 미리보기 목록",
+    "goToSlide": "슬라이드 {number}(으)로 이동: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "출판 품질 스타일 스프레드시트 허브",
@@ -13829,7 +13911,10 @@
     "activeTaskLabel": "활성 작업 목표",
     "lastActiveLabel": "마지막 활동",
     "cancelAction": "닫기",
-    "jumpInAction": "바로 이동"
+    "jumpInAction": "바로 이동",
+    "zoomIn": "확대",
+    "zoomOut": "축소",
+    "zoomReset": "확대/축소 초기화"
   },
   "workbench": {
     "workbenchAriaLabel": "보조 워크벤치",
@@ -13887,14 +13972,16 @@
       "emptyMessages": "이 마일스톤에는 보존된 원본 메시지 스냅샷이 없습니다",
       "originalRoleUser": "사용자 프롬프트",
       "originalRoleAssistant": "에이전트 응답",
-      "originalRoleTool": "도구 실행"
+      "originalRoleTool": "도구 실행",
+      "ariaLabel": "읽기 전용 대화 기록 타임머신"
     },
     "branchSummary": {
       "inheritedBadge": "브랜치 간 경험 플라이라인",
       "sourceBranchLabel": "상속받은 브랜치",
       "keyTakeawaysTitle": "도출된 핵심 학습 및 발견",
       "warpToSource": "원본 브랜치로 워프",
-      "forkIndicator": "분기 원본"
+      "forkIndicator": "분기 원본",
+      "ariaLabel": "브랜치 간 경험 카드"
     },
     "anchors": {
       "title": "검증된 앵커",
@@ -14287,7 +14374,8 @@
       "commerce": "이커머스 운영",
       "team": "멀티 에이전트 팀",
       "general": "범용 어시스턴트"
-    }
+    },
+    "refresh": "템플릿 새로고침"
   },
   "commandMatrix": {
     "allCategories": "전체 카테고리",
@@ -14949,7 +15037,9 @@
         "integration": "통신 및 통합",
         "system": "보안 및 시스템"
       },
-      "brand-studio": "브랜드 스타일"
+      "brand-studio": "브랜드 스타일",
+      "clearSearch": "검색 지우기",
+      "matchedLabel": "일치:"
     },
     "workbench": {
       "badge": "개인 작업 공간 및 데이터 주권",
@@ -16259,7 +16349,12 @@
       "permittedSummary": "허용 {permitted}회",
       "recentAuditTrail": "최근 실행 감사 로그",
       "loadingEntries": "감사 항목을 로드하는 중...",
-      "noEntriesYet": "감사 기록이 아직 없습니다"
+      "noEntriesYet": "감사 기록이 아직 없습니다",
+      "viewDetails": "항목 상세 보기",
+      "detailRule": "규칙:",
+      "detailSessionId": "세션 ID:",
+      "detailReason": "오류/사유:",
+      "detailArgs": "정제된 인수:"
     },
     "retrieval": {
       "embeddingConfig": "임베딩 모델 구성",
@@ -17146,7 +17241,10 @@
       "xaiOauthCodeHint": "브라우저에서 이 코드를 입력하여 인증을 완료하세요...",
       "xaiOauthReopen": "인증 페이지 다시 열기",
       "xaiOauthWaiting": "인증 대기 중...",
-      "xaiOauthConnectBtn": "SuperGrok 인증"
+      "xaiOauthConnectBtn": "SuperGrok 인증",
+      "oauthExpiredNotice": "이 인증이 더 이상 유효하지 않습니다(플랫폼에서 해지되었거나 만료되었을 수 있습니다). \"지금 복구\"를 눌러 다시 인증하면 서비스가 복구됩니다.",
+      "oauthFixNow": "지금 복구",
+      "fileInputLabel": "자격 증명 파일 입력"
     },
     "skillQuality": {
       "title": "스킬 품질 관리",
@@ -18310,6 +18408,18 @@
           "openInEditor": "Wiki 편집기에서 열기",
           "close": "미리보기 닫기"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown 도구 모음",
+        "bold": "굵게",
+        "italic": "기울임",
+        "h2": "제목 2",
+        "code": "코드 블록",
+        "quote": "인용",
+        "bullet": "글머리 기호 목록",
+        "todo": "할 일 목록",
+        "wikilink": "Wiki 링크",
+        "table": "표 삽입"
       }
     },
     "skills": {
@@ -20595,7 +20705,8 @@
           "e2eeAlgorithm": "알고리즘",
           "e2eeFingerprint": "지문"
         },
-        "copied": "클립보드에 복사되었습니다"
+        "copied": "클립보드에 복사되었습니다",
+        "refreshTailscaleStatus": "Tailscale 상태 새로고침"
       },
       "push": {
         "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",
@@ -21120,7 +21231,8 @@
       "cacheRadarSavings": "누적 절감액 추정:",
       "cacheRadarCachedTokens": "캐시 재사용 Tokens",
       "cacheRadarFreshInput": "신규 입력 Tokens",
-      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계"
+      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계",
+      "dailyToolCallsTooltip": "{date}: 도구 호출 {count}회"
     },
     "workingState": {
       "title": "작업 상태",
@@ -21545,7 +21657,22 @@
         "searchPlaceholder": "프롬프트 또는 제목으로 추적 검색...",
         "exportZip": "추적 내보내기 (ZIP)",
         "exportZipTooltip": "세션 원본 이벤트 로그 및 아티팩트 ZIP 팩 내보내기",
-        "exportZipFailed": "세션 팩 내보내기 실패"
+        "exportZipFailed": "세션 팩 내보내기 실패",
+        "llmUnknownModel": "알 수 없는 모델",
+        "llmRetry": "재시도 ×{count}",
+        "llmTokens": "토큰 {count}개",
+        "llmNetworkWaitTitle": "네트워크 대기 (TTFT): {ms}ms",
+        "llmGenerationTitle": "토큰 생성: {ms}ms",
+        "llmTtft": "첫 토큰(TTFT): {ms}ms",
+        "llmGeneration": "생성: {ms}ms",
+        "llmPrompt": "프롬프트: {count}",
+        "llmCompletion": "완성: {count}",
+        "llmMessages": "메시지: {count}",
+        "llmViewportInspect": "모델 뷰포트(확인)",
+        "llmViewportHide": "모델 뷰포트(숨기기)",
+        "experienceWizardTitle": "프로젝트 경험 6단계 증거 패키지 마법사 생성",
+        "experienceWizardButton": "경험 마법사",
+        "pluginStateTitle": "플러그인 확장 상태"
       },
       "contextDoctor": {
         "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",
@@ -22668,5 +22795,15 @@
     "close": "닫기",
     "binaryChanged": "바이너리 파일이 변경되었습니다",
     "noChanges": "변경 사항 없음"
+  },
+  "riskGate": {
+    "regionLabel": "단계별 위험 확인"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "결제 및 검증 완료",
+    "statusReserved": "예약됨",
+    "statusRefunded": "환불됨",
+    "statusRejected": "차단됨",
+    "hashVerified": "원장 해시 HMAC 검증 완료"
   }
 }

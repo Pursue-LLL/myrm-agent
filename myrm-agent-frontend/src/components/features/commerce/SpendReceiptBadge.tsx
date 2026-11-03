@@ -14,6 +14,7 @@
  */
 
 import React, { memo } from 'react';
+import { useTranslations } from 'next-intl';
 import { CreditCard, ShieldCheck, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -28,28 +29,29 @@ export interface SpendReceiptBadgeProps {
 
 export const SpendReceiptBadge: React.FC<SpendReceiptBadgeProps> = memo(
   ({ merchantDomain, amountCents, currency = 'USD', status, hasEntryHash = false, className }) => {
+    const t = useTranslations('commerceReceipt');
     const formattedAmount = (amountCents / 100).toFixed(2);
 
     const statusConfig = {
       committed: {
         badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
         icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
-        text: 'Paid & Verified',
+        text: t('statusCommitted'),
       },
       reserved: {
         badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         icon: <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0 animate-spin" />,
-        text: 'Reserved',
+        text: t('statusReserved'),
       },
       refunded: {
         badgeClass: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20',
         icon: <CreditCard className="w-3.5 h-3.5 text-zinc-500 shrink-0" />,
-        text: 'Refunded',
+        text: t('statusRefunded'),
       },
       rejected: {
         badgeClass: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
         icon: <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />,
-        text: 'Blocked',
+        text: t('statusRejected'),
       },
     }[status];
 
@@ -71,7 +73,7 @@ export const SpendReceiptBadge: React.FC<SpendReceiptBadgeProps> = memo(
         <span className="opacity-60">•</span>
         <span className="text-[10px] uppercase tracking-wider">{statusConfig.text}</span>
         {hasEntryHash && status === 'committed' && (
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="HMAC Ledger Hash Verified" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title={t('hashVerified')} />
         )}
       </div>
     );

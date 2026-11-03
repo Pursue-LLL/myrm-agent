@@ -237,7 +237,8 @@
     "subgoalAddFailed": "Failed to add subgoal",
     "subgoalAddNetworkError": "Network error: failed to add subgoal",
     "subgoalRemoveFailed": "Failed to remove subgoal",
-    "subgoalRemoveNetworkError": "Network error: failed to remove subgoal"
+    "subgoalRemoveNetworkError": "Network error: failed to remove subgoal",
+    "bundleSelectItem": "Select item for export"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "Estimated Turn1 schema (~{tokens} tokens) exceeds the direct bind budget ({budget}). Reduce selected endpoints or the agent cannot use these API tools.",
       "turn1BudgetServiceWarning": "This service's selected endpoints may exceed the Turn1 bind budget. Reduce the selection to avoid agent startup errors.",
       "atLeastOneEndpoint": "At least one endpoint must remain selected.",
-      "presetAdded": "Added {name} connector"
+      "presetAdded": "Added {name} connector",
+      "presetsLoading": "Loading presets...",
+      "presetsEmpty": "No presets available.",
+      "presetEnable": "Enable"
     },
     "sharedContexts": {
       "targetLabel": "agent",
@@ -2853,7 +2857,10 @@
       "waitingHint": "The live view will appear when the agent uses the browser",
       "instructionPlaceholder": "Describe what you want to do on this page...",
       "instructionWithElement": "What should the agent do with this element?",
-      "send": "Send instruction"
+      "send": "Send instruction",
+      "livePeekAlt": "Live browser view",
+      "selectElementLabel": "Select element {refId} ({role}: {name})",
+      "clearSelection": "Clear selection"
     },
     "browserRecording": {
       "title": "Browser Recording",
@@ -2942,7 +2949,8 @@
         "denyReasonPlaceholder": "Reason for denial (optional)",
         "targetChangedNotice": "The target changed since your last approval. Please review again.",
         "deniedNotice": "Denied. This request will not be asked again in this session."
-      }
+      },
+      "clearSelection": "Clear selection"
     },
     "clarification": {
       "formTitle": "Clarification form",
@@ -3458,7 +3466,25 @@
       "ephemeralHint": "Ephemeral: will be pruned during compaction",
       "persistentHint": "Persistent: retained across compaction summaries",
       "details": "Details"
-    }
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool Health",
+      "title": "Agent Tool Diagnostics",
+      "loading": "Loading diagnostics...",
+      "empty": "No tool execution data for this agent yet.",
+      "calls": "{count, plural, one {# call} other {# calls}}",
+      "successRate": "Success Rate",
+      "errors": "Errors",
+      "avgTime": "Avg Time"
+    },
+    "costHud": {
+      "popoverTitle": "Click to view the model's four-dimension price matrix and Prompt Cache savings",
+      "savedAmount": "(saved {amount})",
+      "idleLabel": "Compute HUD"
+    },
+    "scopedArtifactRemove": "Remove scoped target",
+    "messageListLoading": "Loading messages",
+    "inputHistoryLabel": "Input history"
   },
   "mode": {
     "fast": "Fast Search",
@@ -6189,7 +6215,14 @@
       "copyButton": "Copy",
       "copiedButton": "Copied!",
       "downloadZip": "Download ZIP"
-    }
+    },
+    "contextGlobalTitle": "Global user profile",
+    "contextGlobalSubtitle": "Stable identity shared across agents",
+    "contextGlobalEmpty": "No global profile data yet.",
+    "contextPeerTitle": "Our relationship & your persona",
+    "contextPeerSubtitle": "Interactions specific to this agent",
+    "contextPeerEmpty": "No agent-specific profile data yet.",
+    "rankedHubSidebarLabel": "Ranked hub sidebar"
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -6443,7 +6476,8 @@
       "quote": "Quote to Composer",
       "quoteRow": "Quote row {row}",
       "quoteRowTooltip": "Quote selected row to composer for targeted inquiry or partial edit",
-      "rowScopeLabel": "Row {row}"
+      "rowScopeLabel": "Row {row}",
+      "clearSelection": "Clear selection"
     },
     "saving": "Saving...",
     "saved": "Saved",
@@ -6719,7 +6753,8 @@
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "annotate": "Comment",
-      "annotatePlaceholder": "Describe the issue for review..."
+      "annotatePlaceholder": "Describe the issue for review...",
+      "toolbarLabel": "Selection toolbar"
     },
     "skillActions": {
       "moreActions": "More Actions",
@@ -6820,7 +6855,14 @@
       "downloadFull": "Download full file"
     },
     "resizePanel": "Resize panel",
-    "closePreview": "Close preview"
+    "closePreview": "Close preview",
+    "errorBoundary": {
+      "title": "Render error",
+      "defaultMessage": "This content could not be rendered. Try refreshing or download it to view.",
+      "retry": "Retry"
+    },
+    "annotationPanelLabel": "Artifact annotations",
+    "htmlPreviewTitle": "HTML preview"
   },
   "MessageSources": {
     "untitled": "Untitled",
@@ -7796,7 +7838,14 @@
     "preflightUpdated": "Pre-flight probe updated",
     "preflightTemplateInserted": "Template inserted",
     "preflightInsertTemplate": "Insert Template",
-    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped."
+    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped.",
+    "roiTitle": "Automation productivity gains",
+    "roiSubtitle": "Estimated from baseline hours per automated task and actual run volume",
+    "hoursSavedTotal": "Total hours saved",
+    "hoursUnit": "hrs",
+    "productivityValue": "Estimated productivity value",
+    "tokenCostLine": "Token cost ${amount}",
+    "columnHoursSaved": "Est. time saved"
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -9289,7 +9338,12 @@
     "imessageDeployGuideLocal": "Local / Tauri: Connect directly to BlueBubbles running on your Mac (e.g. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Connect to your Mac's BlueBubbles server via Cloudflare Tunnel, Tailscale, or Ngrok.",
     "whatsappQrAlt": "WhatsApp login QR code",
-    "wechatQrAlt": "WeChat login QR code"
+    "wechatQrAlt": "WeChat login QR code",
+    "usageResetTooltip": "Refreshes automatically daily at 00:00 UTC (08:00 Beijing time)",
+    "todayUsageDisplay": "Today's usage: {used} / {quota} msgs",
+    "quotaExceeded": "Over quota",
+    "groupTriggerRegionLabel": "Current group trigger configuration",
+    "editGlobalAria": "Edit global configuration"
   },
   "voice": {
     "sectionTitle": "Voice Settings",
@@ -10302,7 +10356,9 @@
         "wait0": "Need you",
         "wait1": "Waiting on you",
         "wait2": "Your turn"
-      }
+      },
+      "voiceInterrupt": "Interrupt voice",
+      "voiceInteraction": "Voice interaction"
     },
     "palette": {
       "title": "Pet Palette",
@@ -10686,7 +10742,8 @@
       "confirmLabel": "Type the kept assistant name to confirm",
       "mergeSource": "Archive (source)",
       "planBindings": "Bindings on the move",
-      "done": "Done"
+      "done": "Done",
+      "regionLabel": "Agent governance"
     },
     "readiness": {
       "dimensions": {
@@ -11928,7 +11985,10 @@
       "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps.",
       "captureUnavailableTitle": "Capture unavailable",
       "publishConflictNotice": "A skill named “{name}” already exists. Replace it with this recording, or cancel and choose a different name in the first step.",
-      "replaceSkill": "Replace skill"
+      "replaceSkill": "Replace skill",
+      "workflowNamePlaceholder": "e.g. Monthly Tax Filing Pipeline",
+      "intentHintPlaceholder": "e.g. Read Excel and sync to tax portal",
+      "deleteStep": "Delete step"
     }
   },
   "followUps": {
@@ -12254,7 +12314,8 @@
     "inlineRouteTemplateNoResults": "No matching expert templates",
     "inlineRouteTemplateEmpty": "No expert templates available",
     "inlineRouteTemplateApplyFailed": "Failed to summon expert template",
-    "appshotAlt": "Captured app screenshot"
+    "appshotAlt": "Captured app screenshot",
+    "captureAlt": "Screen capture"
   },
   "billing": {
     "wuBalance": "Work Units",
@@ -12634,7 +12695,11 @@
         "trust": "Trust and link",
         "mcpServers": "Local MCP servers",
         "plugins": "Local plugins"
-      }
+      },
+      "adoptProjectName": "Project name",
+      "adoptCancel": "Cancel",
+      "adoptSubmitting": "Adopting...",
+      "adoptSubmit": "Adopt project now"
     },
     "workspaceTrust": {
       "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
@@ -13298,7 +13363,14 @@
     "consoleDrawerTitle": "Console & Service Logs",
     "consoleDrawerEmpty": "No recent logs captured",
     "sniffTrigger": "Sniff Dev Service",
-    "sniffSuccess": "Successfully detected and registered service port"
+    "sniffSuccess": "Successfully detected and registered service port",
+    "previewTitle": "{name} live preview",
+    "consoleStarted": "[{time}] Service started on port {port} ({protocol})",
+    "consoleReady": "> Ready: {url}",
+    "consoleProcess": "> Process PID: {pid} | Process: {name}",
+    "previewPort": "Preview port {port}",
+    "barPortsCount": "{count} Ports",
+    "barLabel": "Dev Ports"
   },
   "toolPicker": {
     "menuLabel": "Tool picker",
@@ -13352,7 +13424,17 @@
     "nextSlide": "Next Slide",
     "slideCounter": "Slide {current} of {total}",
     "speakerNotes": "Speaker Notes",
-    "noSpeakerNotes": "No notes for this slide"
+    "noSpeakerNotes": "No notes for this slide",
+    "newPresentation": "+ New Presentation",
+    "enterpriseBadge": "P0 · ENTERPRISE PPTX",
+    "illustrationsHint": "Multi-modal visual concepts & layouts",
+    "slideVisualConcept": "Visual Concept",
+    "slideVisualPlaceholder": "Multimodal Architecture Diagram",
+    "slideConfidentialFooter": "CONFIDENTIAL · ENTERPRISE DECK",
+    "slidePage": "PAGE {page}",
+    "slideAriaLabel": "Slide {number}: {title}",
+    "slideThumbnails": "Slide thumbnails",
+    "goToSlide": "Go to slide {number}: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Publication-Grade Styled Spreadsheet Hub",
@@ -13829,7 +13911,10 @@
     "activeTaskLabel": "Active Task Objective",
     "lastActiveLabel": "Last Active",
     "cancelAction": "Close",
-    "jumpInAction": "Jump In"
+    "jumpInAction": "Jump In",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom"
   },
   "workbench": {
     "workbenchAriaLabel": "Auxiliary Workbench",
@@ -13887,14 +13972,16 @@
       "emptyMessages": "No raw message snapshots retained in this milestone",
       "originalRoleUser": "User Prompt",
       "originalRoleAssistant": "Agent Response",
-      "originalRoleTool": "Tool Execution"
+      "originalRoleTool": "Tool Execution",
+      "ariaLabel": "Read-only transcript time machine"
     },
     "branchSummary": {
       "inheritedBadge": "Cross-Branch Experience Fly-Line",
       "sourceBranchLabel": "Inherited from branch",
       "keyTakeawaysTitle": "Derived Core Learnings & Discoveries",
       "warpToSource": "Warp to Source Branch",
-      "forkIndicator": "Forked from"
+      "forkIndicator": "Forked from",
+      "ariaLabel": "Cross-branch experience card"
     },
     "anchors": {
       "title": "Verified Anchors",
@@ -14287,7 +14374,8 @@
       "commerce": "E-Commerce Ops",
       "team": "Multi-Agent Squads",
       "general": "General Assistants"
-    }
+    },
+    "refresh": "Refresh templates"
   },
   "commandMatrix": {
     "allCategories": "All categories",
@@ -14949,7 +15037,9 @@
         "integration": "Communications & Integrations",
         "system": "Security & System"
       },
-      "brand-studio": "Brand Style"
+      "brand-studio": "Brand Style",
+      "clearSearch": "Clear search",
+      "matchedLabel": "Matched:"
     },
     "workbench": {
       "badge": "Asset Retention & Platform Neutrality",
@@ -16259,7 +16349,12 @@
       "permittedSummary": "Permitted {permitted}",
       "recentAuditTrail": "Recent Execution Audit Trail",
       "loadingEntries": "Loading audit entries...",
-      "noEntriesYet": "No audit entries recorded yet"
+      "noEntriesYet": "No audit entries recorded yet",
+      "viewDetails": "View entry details",
+      "detailRule": "Rule:",
+      "detailSessionId": "Session ID:",
+      "detailReason": "Error/Reason:",
+      "detailArgs": "Sanitized Args:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding Model Configuration",
@@ -17146,7 +17241,10 @@
       "xaiOauthCodeHint": "Enter this code in the browser to complete authorization...",
       "xaiOauthReopen": "Open authorization page again",
       "xaiOauthWaiting": "Waiting...",
-      "xaiOauthConnectBtn": "Authorize SuperGrok"
+      "xaiOauthConnectBtn": "Authorize SuperGrok",
+      "oauthExpiredNotice": "This authorization is no longer valid (revoked or expired on the platform). Click Fix Now to re-authorize and restore the service.",
+      "oauthFixNow": "Fix Now",
+      "fileInputLabel": "Credential file input"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -18310,6 +18408,18 @@
           "openInEditor": "Open in Wiki editor",
           "close": "Close preview"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown toolbar",
+        "bold": "Bold",
+        "italic": "Italic",
+        "h2": "Heading 2",
+        "code": "Code block",
+        "quote": "Quote",
+        "bullet": "Bulleted list",
+        "todo": "To-do list",
+        "wikilink": "Wikilink",
+        "table": "Insert table"
       }
     },
     "skills": {
@@ -20595,7 +20705,8 @@
           "e2eeAlgorithm": "Algorithm",
           "e2eeFingerprint": "Fingerprint"
         },
-        "copied": "Copied to clipboard"
+        "copied": "Copied to clipboard",
+        "refreshTailscaleStatus": "Refresh Tailscale status"
       },
       "push": {
         "deniedHint": "Notifications are blocked. Enable them in your browser settings.",
@@ -21120,7 +21231,8 @@
       "cacheRadarSavings": "Est. total savings:",
       "cacheRadarCachedTokens": "Cached tokens",
       "cacheRadarFreshInput": "Fresh input",
-      "cacheRadarTotalPrompt": "Total prompt tokens"
+      "cacheRadarTotalPrompt": "Total prompt tokens",
+      "dailyToolCallsTooltip": "{date}: {count} tool calls"
     },
     "workingState": {
       "title": "Working State",
@@ -21545,7 +21657,22 @@
         "searchPlaceholder": "Search traces by prompt or title...",
         "exportZip": "Export Trace (ZIP)",
         "exportZipTooltip": "Export raw session event logs and artifacts ZIP pack",
-        "exportZipFailed": "Failed to export session pack"
+        "exportZipFailed": "Failed to export session pack",
+        "llmUnknownModel": "Unknown model",
+        "llmRetry": "Retry ×{count}",
+        "llmTokens": "{count} tokens",
+        "llmNetworkWaitTitle": "Network wait (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token generation: {ms}ms",
+        "llmTtft": "TTFT: {ms}ms",
+        "llmGeneration": "Generation: {ms}ms",
+        "llmPrompt": "Prompt: {count}",
+        "llmCompletion": "Completion: {count}",
+        "llmMessages": "Messages: {count}",
+        "llmViewportInspect": "Model Viewport (Inspect)",
+        "llmViewportHide": "Model Viewport (Hide)",
+        "experienceWizardTitle": "Generate the six-step project experience evidence pack wizard",
+        "experienceWizardButton": "Experience wizard",
+        "pluginStateTitle": "Plugin extension state"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",
@@ -22668,5 +22795,15 @@
     "close": "Close",
     "binaryChanged": "Binary file changed",
     "noChanges": "No changes"
+  },
+  "riskGate": {
+    "regionLabel": "Tiered risk confirmation"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "Paid & Verified",
+    "statusReserved": "Reserved",
+    "statusRefunded": "Refunded",
+    "statusRejected": "Blocked",
+    "hashVerified": "Ledger hash verified (HMAC)"
   }
 }

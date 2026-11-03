@@ -14,6 +14,7 @@
  */
 
 import React, { memo, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import { ModelPricingPopover } from './ModelPricingPopover';
 import { Zap, Activity } from 'lucide-react';
@@ -36,6 +37,7 @@ function formatCost(usd: number): string {
 }
 
 export const RealTimeCostAndCacheHud: React.FC = memo(() => {
+  const t = useTranslations('chat.costHud');
   const messages = useChatStore((state) => state.messages);
   const selectedModels = useChatStore((state) => state.selectedModels);
 
@@ -82,12 +84,10 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
     }
 
     // 全局命中率：若最近一轮无独立率，则使用累计 prompt tokens 计算
-    const overallHitRate =
-      totalPromptTokens > 0 ? (totalCachedTokens / totalPromptTokens) * 100 : latestCacheHitRate;
+    const overallHitRate = totalPromptTokens > 0 ? (totalCachedTokens / totalPromptTokens) * 100 : latestCacheHitRate;
 
     // 测量衰减纠偏门限：只有当 cached_tokens >= 1024 且 net_savings >= 0.0001 时才高亮
-    const isCacheActive =
-      latestHasEffectiveCache || (totalCachedTokens >= 1024 && totalNetSavingsUsd >= 0.0001);
+    const isCacheActive = latestHasEffectiveCache || (totalCachedTokens >= 1024 && totalNetSavingsUsd >= 0.0001);
 
     return {
       totalTokens,
@@ -106,13 +106,13 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
     <ModelPricingPopover currentModel={currentModelName}>
       <button
         type="button"
-        title="点击查看模型四维单价矩阵与 Prompt Cache 经济学效益"
+        title={t('popoverTitle')}
         className={cn(
           'group flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono transition-all select-none',
           'border bg-background/80 hover:bg-muted/80 backdrop-blur-sm shadow-2xs cursor-pointer',
           sessionEconomics.isCacheActive
             ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-            : 'border-border/60 text-muted-foreground hover:text-foreground'
+            : 'border-border/60 text-muted-foreground hover:text-foreground',
         )}
       >
         <Activity className="w-3 h-3 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
@@ -120,9 +120,7 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
         {hasUsage ? (
           <>
             {/* 上下文/总 Token 水位 */}
-            <span className="font-medium">
-              {formatTokens(sessionEconomics.totalTokens)} tok
-            </span>
+            <span className="font-medium">{formatTokens(sessionEconomics.totalTokens)} tok</span>
 
             {/* Prompt Cache 命中率高亮或常规显示 */}
             {sessionEconomics.isCacheActive ? (
@@ -131,20 +129,16 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
                 <span>{sessionEconomics.hitRate.toFixed(0)}% Cache</span>
                 {sessionEconomics.totalNetSavingsUsd > 0 && (
                   <span className="ml-0.5 opacity-90">
-                    (省 {formatCost(sessionEconomics.totalNetSavingsUsd)})
+                    {t('savedAmount', { amount: formatCost(sessionEconomics.totalNetSavingsUsd) })}
                   </span>
                 )}
               </span>
             ) : sessionEconomics.totalCachedTokens > 0 ? (
-              <span className="text-[10px] text-muted-foreground/80">
-                {sessionEconomics.hitRate.toFixed(0)}% Cache
-              </span>
+              <span className="text-[10px] text-muted-foreground/80">{sessionEconomics.hitRate.toFixed(0)}% Cache</span>
             ) : null}
           </>
         ) : (
-          <span className="text-[10px] text-muted-foreground group-hover:text-foreground">
-            算力透视 HUD
-          </span>
+          <span className="text-[10px] text-muted-foreground group-hover:text-foreground">{t('idleLabel')}</span>
         )}
       </button>
     </ModelPricingPopover>

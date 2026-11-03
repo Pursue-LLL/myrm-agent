@@ -5,7 +5,8 @@ import { DevPortPreviewModal } from '../DevPortPreviewModal';
 import type { DevPortInfo } from '@/services/devPorts';
 import * as devPortsService from '@/services/devPorts';
 
-const stableT = (key: string) => key;
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -37,16 +38,12 @@ describe('DevPortPreviewModal component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     if (!HTMLDialogElement.prototype.showModal) {
-      HTMLDialogElement.prototype.showModal = function showModalMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.showModal = function showModalMock(this: HTMLDialogElement) {
         this.open = true;
       };
     }
     if (!HTMLDialogElement.prototype.close) {
-      HTMLDialogElement.prototype.close = function closeMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.close = function closeMock(this: HTMLDialogElement) {
         this.open = false;
       };
     }
@@ -59,46 +56,26 @@ describe('DevPortPreviewModal component', () => {
   });
 
   it('renders nothing when isOpen is false or portInfo is null', () => {
-    const { container: c1 } = render(
-      <DevPortPreviewModal
-        isOpen={false}
-        portInfo={mockPortInfo}
-        onClose={vi.fn()}
-      />,
-    );
+    const { container: c1 } = render(<DevPortPreviewModal isOpen={false} portInfo={mockPortInfo} onClose={vi.fn()} />);
     expect(c1.innerHTML).toBe('');
 
-    const { container: c2 } = render(
-      <DevPortPreviewModal isOpen={true} portInfo={null} onClose={vi.fn()} />,
-    );
+    const { container: c2 } = render(<DevPortPreviewModal isOpen={true} portInfo={null} onClose={vi.fn()} />);
     expect(c2.innerHTML).toBe('');
   });
 
   it('renders port details and iframe preview when open', () => {
-    render(
-      <DevPortPreviewModal
-        isOpen={true}
-        portInfo={mockPortInfo}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<DevPortPreviewModal isOpen={true} portInfo={mockPortInfo} onClose={vi.fn()} />);
 
     expect(screen.getByText(':3000')).toBeDefined();
     expect(screen.getByText('(next-dev)')).toBeDefined();
 
-    const iframe = screen.getByTitle('Preview port 3000') as HTMLIFrameElement;
+    const iframe = screen.getByTitle('previewPort:3000') as HTMLIFrameElement;
     expect(iframe).toBeDefined();
     expect(iframe.src).toContain('http://localhost:3000');
   });
 
   it('switches viewport when clicking viewport controls', () => {
-    render(
-      <DevPortPreviewModal
-        isOpen={true}
-        portInfo={mockPortInfo}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<DevPortPreviewModal isOpen={true} portInfo={mockPortInfo} onClose={vi.fn()} />);
 
     const tabletBtn = screen.getByRole('button', { name: /viewportTablet/i });
     fireEvent.click(tabletBtn);
@@ -118,22 +95,14 @@ describe('DevPortPreviewModal component', () => {
       expires_in_seconds: 3600,
     });
 
-    render(
-      <DevPortPreviewModal
-        isOpen={true}
-        portInfo={mockPortInfo}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<DevPortPreviewModal isOpen={true} portInfo={mockPortInfo} onClose={vi.fn()} />);
 
     const tunnelBtn = screen.getByTitle('copyTunnel');
     fireEvent.click(tunnelBtn);
 
     await waitFor(() => {
       expect(devPortsService.createDevPortTunnel).toHaveBeenCalledWith(3000);
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'https://preview-tunnel-3000.sandbox.myrm.io',
-      );
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://preview-tunnel-3000.sandbox.myrm.io');
     });
   });
 

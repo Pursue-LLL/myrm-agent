@@ -59,3 +59,22 @@ jobs:
 
       - name: Run Locked Use pytest suite
         run: bash scripts/ci/run_locked_use_tests.sh
+
+  # A job of its own, so the gate's result does not depend on the default suite being green.
+  startup-import-gate:
+    name: Startup import gate (tests/startup/test_import_budget.py)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Run startup import gate
+        run: bash scripts/ci/run_startup_gate_tests.sh

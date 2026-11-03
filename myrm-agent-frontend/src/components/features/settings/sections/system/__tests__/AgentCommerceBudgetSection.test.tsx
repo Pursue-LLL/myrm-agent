@@ -73,7 +73,7 @@ describe('AgentCommerceBudgetSection', () => {
     expect(screen.getByText('*.openai.com')).toBeInTheDocument();
     expect(screen.getAllByText('aws.amazon.com').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('$0.99').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Paid & Verified')).toBeInTheDocument();
+    expect(screen.getByText('statusCommitted')).toBeInTheDocument();
   });
 
   it('toggles emergency freeze breaker', async () => {

@@ -135,7 +135,7 @@ export function ChannelPolicyOverride({
       {effectiveGroup !== 'disabled' && (
         <section
           className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-2 hover:shadow-md transition-shadow"
-          aria-label="Current Group Trigger Configuration"
+          aria-label={t('groupTriggerRegionLabel')}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -149,7 +149,7 @@ export function ChannelPolicyOverride({
                 policySection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }}
               className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0"
-              aria-label="Edit global configuration"
+              aria-label={t('editGlobalAria')}
             >
               {t('editGlobal')}
               <IconExternalLink className="h-3 w-3" />

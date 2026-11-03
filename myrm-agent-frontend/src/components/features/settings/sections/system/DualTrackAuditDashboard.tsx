@@ -228,7 +228,7 @@ export const DualTrackAuditDashboard = memo(() => {
                         size="sm"
                         onClick={() => setExpandedId(expandedId === entry.entryId ? null : entry.entryId)}
                         className="h-5 w-5 p-0"
-                        aria-label="View entry details"
+                        aria-label={t('viewDetails')}
                         data-testid={`toggle-entry-${entry.entryId}`}
                       >
                         <IconEye className="w-3 h-3 text-muted-foreground hover:text-foreground" />
@@ -241,21 +241,21 @@ export const DualTrackAuditDashboard = memo(() => {
                   {expandedId === entry.entryId && (
                     <div className="mt-2 rounded bg-muted/40 p-2 text-[11px] font-mono space-y-1">
                       <div>
-                        <span className="text-muted-foreground">Rule: </span>
+                        <span className="text-muted-foreground">{t('detailRule')} </span>
                         <span className="text-foreground">{entry.ruleName}</span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Session ID: </span>
+                        <span className="text-muted-foreground">{t('detailSessionId')} </span>
                         <span className="text-foreground">{entry.sessionId}</span>
                       </div>
                       {entry.errorMessage && (
                         <div className="text-destructive">
-                          <span className="text-muted-foreground">Error/Reason: </span>
+                          <span className="text-muted-foreground">{t('detailReason')} </span>
                           {entry.errorMessage}
                         </div>
                       )}
                       <div>
-                        <span className="text-muted-foreground">Sanitized Args: </span>
+                        <span className="text-muted-foreground">{t('detailArgs')} </span>
                         <pre className="mt-1 text-[10px] max-h-24 overflow-y-auto whitespace-pre-wrap">
                           {JSON.stringify(entry.rawIntentArgs, null, 2)}
                         </pre>

@@ -237,7 +237,8 @@
     "subgoalAddFailed": "Teilziel konnte nicht hinzugefügt werden",
     "subgoalAddNetworkError": "Netzwerkfehler: Teilziel konnte nicht hinzugefügt werden",
     "subgoalRemoveFailed": "Teilziel konnte nicht entfernt werden",
-    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden"
+    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden",
+    "bundleSelectItem": "Element für den Export auswählen"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
       "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
-      "presetAdded": "{name}-Konnektor hinzugefügt"
+      "presetAdded": "{name}-Konnektor hinzugefügt",
+      "presetsLoading": "Voreinstellungen werden geladen ...",
+      "presetsEmpty": "Keine Voreinstellungen verfügbar.",
+      "presetEnable": "Aktivieren"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -2844,7 +2848,10 @@
       "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent den Browser verwendet",
       "instructionPlaceholder": "Beschreiben Sie, was Sie auf dieser Seite tun möchten...",
       "instructionWithElement": "Was soll der Agent mit diesem Element tun?",
-      "send": "Anweisung senden"
+      "send": "Anweisung senden",
+      "livePeekAlt": "Live-Ansicht des Browsers",
+      "selectElementLabel": "Element {refId} auswählen ({role}: {name})",
+      "clearSelection": "Auswahl aufheben"
     },
     "browserRecording": {
       "title": "Browser-Aufzeichnung",
@@ -2933,7 +2940,8 @@
         "denyReasonPlaceholder": "Grund für die Ablehnung (optional)",
         "targetChangedNotice": "Das Ziel hat sich seit Ihrer letzten Genehmigung geändert. Bitte überprüfen Sie es erneut.",
         "deniedNotice": "Abgelehnt. Diese Anfrage wird in dieser Sitzung nicht mehr gestellt."
-      }
+      },
+      "clearSelection": "Auswahl aufheben"
     },
     "clarification": {
       "formTitle": "Klärungsformular",
@@ -3458,7 +3466,25 @@
       "ephemeralHint": "Temporär: wird bei der Kompaktierung entfernt",
       "persistentHint": "Dauerhaft: bleibt über Kompaktierungs-Zusammenfassungen hinweg erhalten",
       "details": "Einzelheiten"
-    }
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool-Zustand",
+      "title": "Agent-Tool-Diagnose",
+      "loading": "Diagnosedaten werden geladen ...",
+      "empty": "Für diesen Agent liegen noch keine Tool-Ausführungsdaten vor.",
+      "calls": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
+      "successRate": "Erfolgsquote",
+      "errors": "Fehler",
+      "avgTime": "Durchschn. Zeit"
+    },
+    "costHud": {
+      "popoverTitle": "Klicken, um die vierdimensionale Preismatrix des Modells und die Prompt-Cache-Ersparnis anzuzeigen",
+      "savedAmount": "({amount} gespart)",
+      "idleLabel": "Rechen-HUD"
+    },
+    "scopedArtifactRemove": "Eingegrenztes Ziel entfernen",
+    "messageListLoading": "Nachrichten werden geladen",
+    "inputHistoryLabel": "Eingabeverlauf"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -6189,7 +6215,14 @@
       "copyButton": "Kopieren",
       "copiedButton": "Kopiert!",
       "downloadZip": "ZIP herunterladen"
-    }
+    },
+    "contextGlobalTitle": "Globales Nutzerprofil",
+    "contextGlobalSubtitle": "Stabile Identität über Agenten hinweg",
+    "contextGlobalEmpty": "Noch keine globalen Profildaten.",
+    "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
+    "contextPeerSubtitle": "Agentenspezifische Interaktionen",
+    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten.",
+    "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste"
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6443,7 +6476,8 @@
       "quote": "In Eingabefeld zitieren",
       "quoteRow": "Zeile {row} zitieren",
       "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten",
-      "rowScopeLabel": "Zeile {row}"
+      "rowScopeLabel": "Zeile {row}",
+      "clearSelection": "Auswahl aufheben"
     },
     "saving": "Speichern...",
     "saved": "Gespeichert",
@@ -6719,7 +6753,8 @@
       "copy": "Kopie",
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
       "annotate": "Kommentieren",
-      "annotatePlaceholder": "Problem für Review beschreiben..."
+      "annotatePlaceholder": "Problem für Review beschreiben...",
+      "toolbarLabel": "Werkzeugleiste für die Auswahl"
     },
     "skillActions": {
       "moreActions": "Weitere Aktionen",
@@ -6820,7 +6855,14 @@
       "downloadFull": "Vollständige Datei herunterladen"
     },
     "resizePanel": "Panelgröße ändern",
-    "closePreview": "Vorschau schließen"
+    "closePreview": "Vorschau schließen",
+    "errorBoundary": {
+      "title": "Darstellungsfehler",
+      "defaultMessage": "Dieser Inhalt kann nicht dargestellt werden. Aktualisieren Sie die Seite oder laden Sie ihn zum Ansehen herunter.",
+      "retry": "Erneut versuchen"
+    },
+    "annotationPanelLabel": "Artefakt-Anmerkungen",
+    "htmlPreviewTitle": "HTML-Vorschau"
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -7796,7 +7838,14 @@
     "preflightUpdated": "Vorabprüfung aktualisiert",
     "preflightTemplateInserted": "Vorlage eingefügt",
     "preflightInsertTemplate": "Vorlage einfügen",
-    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen."
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen.",
+    "roiTitle": "Produktivitätsgewinn durch Automatisierung",
+    "roiSubtitle": "Geschätzt aus der Basisarbeitszeit je automatisierter Aufgabe und dem tatsächlichen Ausführungsvolumen",
+    "hoursSavedTotal": "Eingesparte Stunden gesamt",
+    "hoursUnit": "Std.",
+    "productivityValue": "Geschätzter Produktivitätswert",
+    "tokenCostLine": "Token-Kosten ${amount}",
+    "columnHoursSaved": "Geschätzte Zeitersparnis"
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -9289,7 +9338,12 @@
     "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden.",
     "whatsappQrAlt": "WhatsApp-Anmelde-QR-Code",
-    "wechatQrAlt": "WeChat-Anmelde-QR-Code"
+    "wechatQrAlt": "WeChat-Anmelde-QR-Code",
+    "usageResetTooltip": "Wird täglich um 00:00 UTC (08:00 Peking-Zeit) automatisch zurückgesetzt",
+    "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
+    "quotaExceeded": "Kontingent überschritten",
+    "groupTriggerRegionLabel": "Aktuelle Gruppentrigger-Konfiguration",
+    "editGlobalAria": "Globale Konfiguration bearbeiten"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -10302,7 +10356,9 @@
         "wait0": "Brauche dich",
         "wait1": "Ich warte auf dich",
         "wait2": "Sie sind dran"
-      }
+      },
+      "voiceInterrupt": "Sprachausgabe unterbrechen",
+      "voiceInteraction": "Sprachinteraktion"
     },
     "palette": {
       "title": "Haustierpalette",
@@ -10686,7 +10742,8 @@
       "confirmLabel": "Namen des behaltenen Assistenten zur Bestätigung eingeben",
       "mergeSource": "Archivieren (Quelle)",
       "planBindings": "Bindungen im Umzug",
-      "done": "Fertig"
+      "done": "Fertig",
+      "regionLabel": "Agent-Governance"
     },
     "readiness": {
       "dimensions": {
@@ -11928,7 +11985,10 @@
       "captureTraceTruncatedNotice": "{count} frühere Interaktionen wurden verworfen, weil die Aufzeichnung ihr Größenlimit erreicht hat. Dem erstellten Skill könnten die ersten Schritte fehlen.",
       "captureUnavailableTitle": "Aufzeichnung nicht verfügbar",
       "publishConflictNotice": "Ein Skill mit dem Namen „{name}“ existiert bereits. Ersetzen Sie ihn durch diese Aufnahme oder brechen Sie ab und wählen Sie im ersten Schritt einen anderen Namen.",
-      "replaceSkill": "Skill ersetzen"
+      "replaceSkill": "Skill ersetzen",
+      "workflowNamePlaceholder": "z. B. Monatliche Steuererklärungs-Pipeline",
+      "intentHintPlaceholder": "z. B. Excel lesen und mit dem Steuerportal synchronisieren",
+      "deleteStep": "Schritt löschen"
     }
   },
   "followUps": {
@@ -12254,7 +12314,8 @@
     "inlineRouteTemplateNoResults": "Keine passenden Expertenvorlagen",
     "inlineRouteTemplateEmpty": "Keine Expertenvorlagen verfügbar",
     "inlineRouteTemplateApplyFailed": "Expertenvorlage konnte nicht beschworen werden",
-    "appshotAlt": "Erfasster App-Screenshot"
+    "appshotAlt": "Erfasster App-Screenshot",
+    "captureAlt": "Bildschirmaufnahme"
   },
   "billing": {
     "wuBalance": "Arbeitseinheiten",
@@ -12634,7 +12695,11 @@
         "trust": "Vertrauen und verknüpfen",
         "mcpServers": "Lokale MCP-Server",
         "plugins": "Lokale Plugins"
-      }
+      },
+      "adoptProjectName": "Projektname",
+      "adoptCancel": "Abbrechen",
+      "adoptSubmitting": "Wird übernommen ...",
+      "adoptSubmit": "Projekt jetzt übernehmen"
     },
     "workspaceTrust": {
       "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
@@ -13298,7 +13363,14 @@
     "consoleDrawerTitle": "Konsole und Dienstprotokolle",
     "consoleDrawerEmpty": "Keine aktuellen Protokolle erfasst",
     "sniffTrigger": "Entwicklungsdienst erkennen",
-    "sniffSuccess": "Dienstport erkannt und registriert"
+    "sniffSuccess": "Dienstport erkannt und registriert",
+    "previewTitle": "{name} Live-Vorschau",
+    "consoleStarted": "[{time}] Dienst auf Port {port} gestartet ({protocol})",
+    "consoleReady": "> Bereit: {url}",
+    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}",
+    "previewPort": "Port {port} in der Vorschau öffnen",
+    "barPortsCount": "{count} aktive Ports",
+    "barLabel": "Dev-Ports"
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
@@ -13352,7 +13424,17 @@
     "nextSlide": "Nächste Folie",
     "slideCounter": "Folie {current} von {total}",
     "speakerNotes": "Sprechernotizen",
-    "noSpeakerNotes": "Keine Notizen für diese Folie"
+    "noSpeakerNotes": "Keine Notizen für diese Folie",
+    "newPresentation": "+ Neue Präsentation",
+    "enterpriseBadge": "P0 · Enterprise-PPTX",
+    "illustrationsHint": "Multimodale visuelle Konzepte und Layouts",
+    "slideVisualConcept": "Visuelles Konzept",
+    "slideVisualPlaceholder": "Multimodales Architekturdiagramm",
+    "slideConfidentialFooter": "VERTRAULICH · ENTERPRISE-DECK",
+    "slidePage": "SEITE {page}",
+    "slideAriaLabel": "Folie {number}: {title}",
+    "slideThumbnails": "Folienminiaturen",
+    "goToSlide": "Zu Folie {number} springen: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
@@ -13829,7 +13911,10 @@
     "activeTaskLabel": "Ziel der aktiven Aufgabe",
     "lastActiveLabel": "Zuletzt aktiv",
     "cancelAction": "Schließen",
-    "jumpInAction": "Einsteigen"
+    "jumpInAction": "Einsteigen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Zoom zurücksetzen"
   },
   "workbench": {
     "workbenchAriaLabel": "Zusatz-Workbench",
@@ -13887,14 +13972,16 @@
       "emptyMessages": "In diesem Meilenstein wurden keine Roh-Nachrichten-Snapshots aufbewahrt",
       "originalRoleUser": "Nutzer-Prompt",
       "originalRoleAssistant": "Agent-Antwort",
-      "originalRoleTool": "Tool-Ausführung"
+      "originalRoleTool": "Tool-Ausführung",
+      "ariaLabel": "Schreibgeschützte Verlaufsrückschau"
     },
     "branchSummary": {
       "inheritedBadge": "Zweigübergreifende Erfahrungsflugbahn",
       "sourceBranchLabel": "Geerbt von Zweig",
       "keyTakeawaysTitle": "Abgeleitete Kernerkenntnisse und Entdeckungen",
       "warpToSource": "Zum Quellzweig springen",
-      "forkIndicator": "Abgezweigt von"
+      "forkIndicator": "Abgezweigt von",
+      "ariaLabel": "Branchübergreifende Erfahrungskarte"
     },
     "anchors": {
       "title": "Verifizierte Anker",
@@ -14287,7 +14374,8 @@
       "commerce": "E-Commerce-Betrieb",
       "team": "Multi-Agent-Teams",
       "general": "Allgemeine Assistenten"
-    }
+    },
+    "refresh": "Vorlagen aktualisieren"
   },
   "commandMatrix": {
     "allCategories": "Alle Kategorien",
@@ -14949,7 +15037,9 @@
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
       },
-      "brand-studio": "Markenstil"
+      "brand-studio": "Markenstil",
+      "clearSearch": "Suche löschen",
+      "matchedLabel": "Treffer:"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
@@ -16259,7 +16349,12 @@
       "permittedSummary": "Zugelassen {permitted}",
       "recentAuditTrail": "Aktuelles Ausführungs-Audit-Protokoll",
       "loadingEntries": "Audit-Einträge werden geladen...",
-      "noEntriesYet": "Bisher keine Audit-Einträge erfasst"
+      "noEntriesYet": "Bisher keine Audit-Einträge erfasst",
+      "viewDetails": "Eintragsdetails anzeigen",
+      "detailRule": "Regel:",
+      "detailSessionId": "Sitzungs-ID:",
+      "detailReason": "Fehler/Grund:",
+      "detailArgs": "Bereinigte Argumente:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding-Modellkonfiguration",
@@ -17146,7 +17241,10 @@
       "xaiOauthCodeHint": "Geben Sie diesen Code im Browser ein, um die Autorisierung abzuschließen...",
       "xaiOauthReopen": "Autorisierungsseite erneut öffnen",
       "xaiOauthWaiting": "Warten auf Autorisierung...",
-      "xaiOauthConnectBtn": "SuperGrok autorisieren"
+      "xaiOauthConnectBtn": "SuperGrok autorisieren",
+      "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
+      "oauthFixNow": "Jetzt beheben",
+      "fileInputLabel": "Eingabe der Anmeldedaten-Datei"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -18310,6 +18408,18 @@
           "openInEditor": "Im Wiki-Editor öffnen",
           "close": "Vorschau schließen"
         }
+      },
+      "toolbar": {
+        "label": "Wiki-Markdown-Werkzeugleiste",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "h2": "Überschrift 2",
+        "code": "Codeblock",
+        "quote": "Zitat",
+        "bullet": "Aufzählung",
+        "todo": "Aufgabenliste",
+        "wikilink": "Wiki-Link",
+        "table": "Tabelle einfügen"
       }
     },
     "skills": {
@@ -20595,7 +20705,8 @@
           "e2eeAlgorithm": "Algorithmus",
           "e2eeFingerprint": "Fingerabdruck"
         },
-        "copied": "In die Zwischenablage kopiert"
+        "copied": "In die Zwischenablage kopiert",
+        "refreshTailscaleStatus": "Tailscale-Status aktualisieren"
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",
@@ -21120,7 +21231,8 @@
       "cacheRadarSavings": "Geschätzte Gesamteinsparung:",
       "cacheRadarCachedTokens": "Wiederverwendete Cache-Tokens",
       "cacheRadarFreshInput": "Neue Eingabe-Tokens",
-      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt"
+      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt",
+      "dailyToolCallsTooltip": "{date}: {count} Tool-Aufrufe"
     },
     "workingState": {
       "title": "Arbeitsstatus",
@@ -21545,7 +21657,22 @@
         "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen...",
         "exportZip": "Trace exportieren (ZIP)",
         "exportZipTooltip": "Rohe Sitzungsereignisprotokolle und Artefakte als ZIP-Paket exportieren",
-        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets"
+        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets",
+        "llmUnknownModel": "Unbekanntes Modell",
+        "llmRetry": "Wiederholung ×{count}",
+        "llmTokens": "{count} Token",
+        "llmNetworkWaitTitle": "Netzwerkwartezeit (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token-Generierung: {ms}ms",
+        "llmTtft": "Erstes Token (TTFT): {ms}ms",
+        "llmGeneration": "Generierung: {ms}ms",
+        "llmPrompt": "Eingabe: {count}",
+        "llmCompletion": "Ausgabe: {count}",
+        "llmMessages": "Nachrichten: {count}",
+        "llmViewportInspect": "Modell-Viewport (Ansehen)",
+        "llmViewportHide": "Modell-Viewport (Ausblenden)",
+        "experienceWizardTitle": "Assistent für das sechsstufige Projekterfahrungs-Nachweispaket erstellen",
+        "experienceWizardButton": "Erfahrungs-Assistent",
+        "pluginStateTitle": "Plugin-Erweiterungsstatus"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
@@ -22668,5 +22795,15 @@
     "close": "Schließen",
     "binaryChanged": "Binärdatei geändert",
     "noChanges": "Keine Änderungen"
+  },
+  "riskGate": {
+    "regionLabel": "Gestufte Risikobestätigung"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "Bezahlt und geprüft",
+    "statusReserved": "Reserviert",
+    "statusRefunded": "Erstattet",
+    "statusRejected": "Blockiert",
+    "hashVerified": "Ledger-Hash per HMAC geprüft"
   }
 }

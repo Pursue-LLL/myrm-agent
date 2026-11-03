@@ -250,7 +250,7 @@ export function ArtifactAnnotationPanel({
   };
 
   return (
-    <section className="rounded-xl border bg-card p-4 space-y-3" aria-label="Artifact annotations">
+    <section className="rounded-xl border bg-card p-4 space-y-3" aria-label={t('annotationPanelLabel')}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">
           {t('annotation.title', { fallback: 'Review comments' })} ({annotations.length})

@@ -1,8 +1,15 @@
 /** @vitest-environment jsdom */
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PresentationSlideCard } from '../PresentationSlideCard';
 import type { SlideData } from '@/services/presentation';
+
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
 
 describe('PresentationSlideCard component', () => {
   const heroSlide: SlideData = {
@@ -110,14 +117,32 @@ describe('PresentationSlideCard component', () => {
   it('renders concept illustration focus layout', () => {
     render(<PresentationSlideCard slide={visualSlide} templateStyle="creative_gradient" />);
     expect(screen.getByText('Agent Mesh Topology')).toBeInTheDocument();
-    expect(screen.getByText('Visual Concept')).toBeInTheDocument();
+    expect(screen.getByText('slideVisualConcept')).toBeInTheDocument();
     expect(screen.getByText('High-tech distributed mesh topology node graph')).toBeInTheDocument();
   });
 
-  it('renders properly in thumbnail mode without crashing', () => {
-    const { container } = render(
-      <PresentationSlideCard slide={heroSlide} isThumbnail={true} />,
+  it('labels the slide, its footer and the page number from translations', () => {
+    render(<PresentationSlideCard slide={heroSlide} />);
+
+    expect(screen.getByLabelText('slideAriaLabel:1/Enterprise Multi-Agent Architecture')).toBeInTheDocument();
+    expect(screen.getByText('slideConfidentialFooter')).toBeInTheDocument();
+    expect(screen.getByText('slidePage:1')).toBeInTheDocument();
+  });
+
+  it('falls back to the translated placeholder when no illustration prompt is given', () => {
+    render(
+      <PresentationSlideCard
+        slide={{
+          ...visualSlide,
+          elements: visualSlide.elements.map((el) => ({ ...el, illustration_prompt: undefined })),
+        }}
+      />,
     );
+    expect(screen.getByText('slideVisualPlaceholder')).toBeInTheDocument();
+  });
+
+  it('renders properly in thumbnail mode without crashing', () => {
+    const { container } = render(<PresentationSlideCard slide={heroSlide} isThumbnail={true} />);
     expect(container.querySelector('article')).toHaveClass('aspect-video');
   });
 });
