@@ -334,6 +334,28 @@ def test_call_sites_are_matched_with_the_letter_case_that_was_asked_for(root: Pa
     assert graph.callers("SELECT") == []
 
 
+def test_typescript_call_sites_are_matched_with_the_letter_case_that_was_asked_for(root: Path, graph: CodeGraphService) -> None:
+    _write(
+        root,
+        "use.ts",
+        "export class Store {\n  find(c: Client) {\n    c.select();\n    c.Select();\n    this.select();\n"
+        "    new Select();\n    c?.select();\n    select();\n  }\n}\n",
+    )
+    graph.index_directory(root)
+
+    assert [(r["callee"], r["line"], r["match"]) for r in graph.callers("select")] == [
+        ("c.select", 3, "name"),
+        ("this.select", 5, "name"),
+        ("c.select", 7, "name"),
+        ("select", 8, "exact"),
+    ]
+    assert [(r["callee"], r["line"], r["match"]) for r in graph.callers("Select")] == [
+        ("c.Select", 4, "name"),
+        ("Select", 6, "exact"),
+    ]
+    assert graph.callers("SELECT") == []
+
+
 def test_resolve_lists_names_spelt_as_asked_before_the_same_name_in_another_letter_case(
     root: Path, graph: CodeGraphService
 ) -> None:
