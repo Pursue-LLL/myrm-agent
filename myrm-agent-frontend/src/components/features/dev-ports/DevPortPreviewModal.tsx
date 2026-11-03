@@ -257,7 +257,7 @@ export const DevPortPreviewModal: React.FC<DevPortPreviewModalProps> = ({
             key={iframeKey}
             ref={iframeRef}
             src={activeUrl}
-            title={`Preview port ${portInfo.port}`}
+            title={t('previewPort', { port: portInfo.port })}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             className="w-full h-full border-none"
           />

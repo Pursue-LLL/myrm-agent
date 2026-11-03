@@ -5,14 +5,14 @@ import { CompactedMilestoneCard } from '../CompactedMilestoneCard';
 import type { CompactionEntry } from '../compactionTypes';
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
-    if (values && 'count' in values && 'tokens' in values) {
-      return `${key}:${String(values.count)}:${String(values.tokens)}`;
-    }
-    if (values && 'count' in values) {
-      return `${key}:${String(values.count)}`;
-    }
-    return key;
-  };
+  if (values && 'count' in values && 'tokens' in values) {
+    return `${key}:${String(values.count)}:${String(values.tokens)}`;
+  }
+  if (values && 'count' in values) {
+    return `${key}:${String(values.count)}`;
+  }
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -25,14 +25,8 @@ const mockEntry: CompactionEntry = {
   savedTokens: 68400,
   goal: 'Implement dual-mode layout and auxiliary workbench',
   progress: 'Refactored file tree, terminals and diff editors',
-  keyDecisions: [
-    'Decoupled Zustand store for layout states',
-    'Applied Tailwind CSS responsive split views',
-  ],
-  nextSteps: [
-    'Execute comprehensive Vitest suites',
-    'Verify oxlint 0-warning baseline',
-  ],
+  keyDecisions: ['Decoupled Zustand store for layout states', 'Applied Tailwind CSS responsive split views'],
+  nextSteps: ['Execute comprehensive Vitest suites', 'Verify oxlint 0-warning baseline'],
   criticalContext: 'Preserve existing message list scroll positions',
   filesTouched: ['src/services/workbench.ts', 'src/store/useWorkbenchStore.ts'],
   originalMessages: [
@@ -95,19 +89,19 @@ describe('CompactedMilestoneCard component', () => {
     render(<CompactedMilestoneCard entry={mockEntry} defaultExpanded />);
 
     expect(screen.getByText('goalTitle')).toBeDefined();
-    expect(screen.queryByLabelText('Read-Only Transcript Time Machine')).toBeNull();
+    expect(screen.queryByLabelText('ariaLabel')).toBeNull();
 
     // Click time machine entrance button
     const timeMachineBtn = screen.getByRole('button', { name: /timeMachine\.openButton/i });
     fireEvent.click(timeMachineBtn);
 
     // Time machine is revealed
-    expect(screen.getByLabelText('Read-Only Transcript Time Machine')).toBeDefined();
+    expect(screen.getByLabelText('ariaLabel')).toBeDefined();
     expect(screen.getByText('Can we enhance the workbench drawer?')).toBeDefined();
 
     // Close time machine
     const closeTimeMachineBtn = screen.getByRole('button', { name: /timeMachine\.closeButton/i });
     fireEvent.click(closeTimeMachineBtn);
-    expect(screen.queryByLabelText('Read-Only Transcript Time Machine')).toBeNull();
+    expect(screen.queryByLabelText('ariaLabel')).toBeNull();
   });
 });

@@ -29,7 +29,7 @@ const CredentialsSection = memo(() => {
 
   return localizeReactNode(
     <SettingsSection title={t('title')} description={t('description')}>
-      <input ref={state.fileInputRef} type="file" className="hidden" aria-label="Credential file input" />
+      <input ref={state.fileInputRef} type="file" className="hidden" aria-label={t('fileInputLabel')} />
 
       <div className="space-y-6">
         <CredentialsVaultPanel

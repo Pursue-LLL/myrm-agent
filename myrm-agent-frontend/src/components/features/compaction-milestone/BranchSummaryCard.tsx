@@ -24,11 +24,7 @@ interface BranchSummaryCardProps {
   onWarpToSource?: (branchId: string) => void;
 }
 
-export function BranchSummaryCard({
-  entry,
-  className = '',
-  onWarpToSource,
-}: BranchSummaryCardProps) {
+export function BranchSummaryCard({ entry, className = '', onWarpToSource }: BranchSummaryCardProps) {
   const t = useTranslations('compaction.branchSummary');
 
   const handleWarp = () => {
@@ -45,7 +41,7 @@ export function BranchSummaryCard({
 
   return (
     <article
-      aria-label="Cross-Branch Experience Card"
+      aria-label={t('ariaLabel')}
       className={`my-3 mx-auto w-full max-w-3xl rounded-2xl border border-indigo-500/30 bg-card/80 p-3.5 shadow-xs backdrop-blur-md flex flex-col gap-2.5 select-none transition-all ${className}`}
     >
       {/* Top Fly-line Badge & Branch Title */}
@@ -54,9 +50,7 @@ export function BranchSummaryCard({
           <div className="w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0">
             <GitBranch className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-foreground truncate">
-            {t('inheritedBadge')}
-          </span>
+          <span className="font-semibold text-foreground truncate">{t('inheritedBadge')}</span>
           <span className="text-[11px] font-mono text-muted-foreground truncate">
             {t('sourceBranchLabel')}: <strong className="text-foreground">{entry.sourceBranchName}</strong>
           </span>
@@ -74,9 +68,7 @@ export function BranchSummaryCard({
       </div>
 
       {/* Summary Narrative */}
-      <div className="text-xs text-foreground/85 leading-relaxed select-text font-sans">
-        {entry.summary}
-      </div>
+      <div className="text-xs text-foreground/85 leading-relaxed select-text font-sans">{entry.summary}</div>
 
       {/* Key Takeaways */}
       {entry.keyTakeaways && entry.keyTakeaways.length > 0 && (

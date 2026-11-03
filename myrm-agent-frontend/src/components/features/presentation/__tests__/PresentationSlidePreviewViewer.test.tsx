@@ -5,11 +5,11 @@ import { PresentationSlidePreviewViewer } from '../PresentationSlidePreviewViewe
 import type { PresentationArtifactResponse } from '@/services/presentation';
 
 const stableT = (key: string, options?: { current?: number; total?: number }) => {
-    if (key === 'slideCounter' && options) {
-      return `Slide ${options.current} of ${options.total}`;
-    }
-    return key;
-  };
+  if (key === 'slideCounter' && options) {
+    return `Slide ${options.current} of ${options.total}`;
+  }
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -74,7 +74,8 @@ describe('PresentationSlidePreviewViewer component', () => {
     expect(downloadLink).toHaveAttribute('href', '/api/v1/presentation/test-pres-123/download');
 
     // 3 thumbnails in aside navigation
-    const aside = screen.getByLabelText('Slide thumbnails');
+    const aside = screen.getByLabelText('slideThumbnails');
+    expect(screen.getAllByLabelText('goToSlide').length).toBeGreaterThan(0);
     expect(aside).toBeInTheDocument();
   });
 

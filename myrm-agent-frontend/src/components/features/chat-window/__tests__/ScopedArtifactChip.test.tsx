@@ -65,7 +65,7 @@ describe('ScopedArtifactStore & ScopedArtifactChip', () => {
 
     render(<ScopedArtifactChip />);
 
-    const closeBtn = screen.getByLabelText('Remove scoped target');
+    const closeBtn = screen.getByLabelText('scopedArtifactRemove');
     fireEvent.click(closeBtn);
 
     expect(useScopedArtifactStore.getState().target).toBeNull();

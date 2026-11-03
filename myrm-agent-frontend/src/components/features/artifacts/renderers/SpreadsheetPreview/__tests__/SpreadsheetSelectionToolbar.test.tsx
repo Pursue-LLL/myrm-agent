@@ -78,7 +78,7 @@ describe('SpreadsheetSelectionToolbar', () => {
       />,
     );
 
-    const clearBtn = screen.getByLabelText('Clear selection');
+    const clearBtn = screen.getByLabelText('clearSelection');
     fireEvent.click(clearBtn);
     expect(onClear).toHaveBeenCalled();
   });

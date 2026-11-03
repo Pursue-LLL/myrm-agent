@@ -76,6 +76,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
     storageNamespace,
     chatId,
   }) => {
+    const t = useTranslations('artifacts');
     const [isLoading, setIsLoading] = useState(true);
     const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -182,7 +183,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
             src={url}
             className="w-full h-full border-0 bg-background"
             sandbox={SANDBOX_POLICY}
-            title="HTML Preview"
+            title={t('htmlPreviewTitle')}
             onLoad={handleLoad}
           />
         </div>
@@ -210,7 +211,7 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
           className={cn('w-full border-0 bg-background', autoHeight ? '' : 'h-full')}
           style={autoHeight && iframeHeight ? { height: iframeHeight } : undefined}
           sandbox={SANDBOX_POLICY}
-          title="HTML Preview"
+          title={t('htmlPreviewTitle')}
           onLoad={handleLoad}
         />
       </div>

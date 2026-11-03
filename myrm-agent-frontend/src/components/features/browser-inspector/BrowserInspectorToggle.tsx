@@ -78,7 +78,7 @@ const BrowserInspectorToggle: React.FC = () => {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`data:${scopedViewData.mimeType};base64,${scopedViewData.screenshotBase64}`}
-              alt={scopedViewData.pageTitle || 'Live peek'}
+              alt={scopedViewData.pageTitle || t('livePeekAlt')}
               className="w-full h-full object-cover"
               draggable={false}
             />

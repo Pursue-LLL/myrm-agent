@@ -75,7 +75,7 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
           onClick={() => void fetchStatus()}
           disabled={loading}
           className="p-1.5 hover:bg-white/5 rounded-lg transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
-          title="Refresh Tailscale status"
+          title={t('refreshTailscaleStatus')}
         >
           <IconRefresh className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>

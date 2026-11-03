@@ -10,9 +10,10 @@ interface SelectedElementBadgeProps {
   refId: string;
   info: BrowserRefInfo;
   onClear: () => void;
+  clearLabel: string;
 }
 
-const SelectedElementBadge: React.FC<SelectedElementBadgeProps> = ({ refId, info, onClear }) => (
+const SelectedElementBadge: React.FC<SelectedElementBadgeProps> = ({ refId, info, onClear, clearLabel }) => (
   <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 border border-primary/30 rounded-md text-xs">
     <span className="font-mono text-primary font-medium">[{refId}]</span>
     <span className="text-foreground truncate max-w-[150px]">
@@ -23,7 +24,7 @@ const SelectedElementBadge: React.FC<SelectedElementBadgeProps> = ({ refId, info
       type="button"
       onClick={onClear}
       className="ml-1 text-muted-foreground hover:text-foreground"
-      aria-label="Clear selection"
+      aria-label={clearLabel}
     >
       <X className="w-3 h-3" />
     </button>
@@ -83,7 +84,12 @@ const InspectorInstructionInput: React.FC<InspectorInstructionInputProps> = ({
     <div className="border-t border-border bg-background px-3 py-2">
       {selectedRefId && selectedInfo && (
         <div className="mb-2">
-          <SelectedElementBadge refId={selectedRefId} info={selectedInfo} onClear={onClearSelection} />
+          <SelectedElementBadge
+            refId={selectedRefId}
+            info={selectedInfo}
+            onClear={onClearSelection}
+            clearLabel={t('clearSelection')}
+          />
         </div>
       )}
 

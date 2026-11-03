@@ -48,7 +48,7 @@ export function GovernancePanel({ agentNames, onReview, onChanged }: GovernanceP
   }
 
   return (
-    <section className="rounded-xl border bg-card p-5 mb-6" aria-label="Agent governance">
+    <section className="rounded-xl border bg-card p-5 mb-6" aria-label={t('regionLabel')}>
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="h-4 w-4 text-primary" />
         <h2 className="text-base font-semibold">{t('title', { fallback: 'Agent Health Check' })}</h2>

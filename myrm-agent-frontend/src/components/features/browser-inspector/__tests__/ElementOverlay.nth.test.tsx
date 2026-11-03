@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from 'vitest';
 import ElementOverlay from '../ElementOverlay';
 import type { BrowserRefInfo } from '@/store/chat/types';
 
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
+
 const viewport = { width: 400, height: 300 };
 
 function makeRef(role: string, nth: number | undefined, id: string): [string, BrowserRefInfo] {
@@ -69,7 +76,7 @@ describe('ElementOverlay SOM nth badges', () => {
       />,
     );
 
-    const button = screen.getByRole('button', { name: /Select element d1/i });
+    const button = screen.getByRole('button', { name: /^selectElementLabel:d1\// });
     expect(button).toHaveAttribute('title', '[d1] button: button');
     expect(screen.queryByText('1')).not.toBeInTheDocument();
   });
@@ -89,7 +96,7 @@ describe('ElementOverlay SOM nth badges', () => {
       />,
     );
 
-    const button = screen.getByRole('button', { name: /Select element d5/i });
+    const button = screen.getByRole('button', { name: /^selectElementLabel:d5\// });
     expect(button).toHaveAttribute('title', '[5] [d5] button: button');
   });
 
@@ -109,7 +116,7 @@ describe('ElementOverlay SOM nth badges', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Select element d1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^selectElementLabel:d1\// }));
     expect(onElementClick).toHaveBeenCalledWith('d1', refs.d1);
   });
 });

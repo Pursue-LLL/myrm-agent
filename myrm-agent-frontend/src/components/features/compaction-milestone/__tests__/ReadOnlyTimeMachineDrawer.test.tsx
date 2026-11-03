@@ -5,11 +5,11 @@ import { ReadOnlyTimeMachineDrawer } from '../ReadOnlyTimeMachineDrawer';
 import type { CompactedMessageSnapshot } from '../compactionTypes';
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
-    if (values && 'count' in values) {
-      return `${key}:${String(values.count)}`;
-    }
-    return key;
-  };
+  if (values && 'count' in values) {
+    return `${key}:${String(values.count)}`;
+  }
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -42,6 +42,7 @@ describe('ReadOnlyTimeMachineDrawer component', () => {
     render(<ReadOnlyTimeMachineDrawer messages={[]} onClose={vi.fn()} />);
 
     expect(screen.getByText('emptyMessages')).toBeDefined();
+    expect(screen.getByLabelText('ariaLabel')).toBeDefined();
     expect(screen.getByText('watermarkBadge')).toBeDefined();
   });
 

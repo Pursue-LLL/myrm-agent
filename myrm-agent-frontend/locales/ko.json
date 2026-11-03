@@ -237,7 +237,8 @@
     "subgoalAddFailed": "하위 목표를 추가하지 못했습니다",
     "subgoalAddNetworkError": "네트워크 오류: 하위 목표를 추가하지 못했습니다",
     "subgoalRemoveFailed": "하위 목표를 제거하지 못했습니다",
-    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다"
+    "subgoalRemoveNetworkError": "네트워크 오류: 하위 목표를 제거하지 못했습니다",
+    "bundleSelectItem": "내보낼 항목 선택"
   },
   "commands": {
     "palette": {
@@ -2847,7 +2848,10 @@
       "waitingHint": "에이전트가 브라우저를 사용하면 라이브 뷰가 표시됩니다",
       "instructionPlaceholder": "이 페이지에서 무엇을 하고 싶은지 설명하세요...",
       "instructionWithElement": "에이전트가 이 요소에 무엇을 해야 합니까?",
-      "send": "지시 보내기"
+      "send": "지시 보내기",
+      "livePeekAlt": "브라우저 실시간 화면",
+      "selectElementLabel": "요소 {refId} 선택({role}: {name})",
+      "clearSelection": "선택 해제"
     },
     "browserRecording": {
       "title": "브라우저 세션 녹화",
@@ -2936,7 +2940,8 @@
         "denyReasonPlaceholder": "거부 사유(선택사항)",
         "targetChangedNotice": "마지막 승인 이후 대상이 변경되었습니다. 다시 확인해 주세요.",
         "deniedNotice": "거부되었습니다. 이 세션 동안 이 요청을 다시 묻지 않습니다."
-      }
+      },
+      "clearSelection": "선택 해제"
     },
     "clarification": {
       "formTitle": "명확화 양식",
@@ -3489,7 +3494,10 @@
       "popoverTitle": "클릭하여 모델의 4차원 단가 매트릭스와 Prompt Cache 절감 효과 보기",
       "savedAmount": "({amount} 절감)",
       "idleLabel": "연산 HUD"
-    }
+    },
+    "scopedArtifactRemove": "범위 지정 대상 제거",
+    "messageListLoading": "메시지 불러오는 중",
+    "inputHistoryLabel": "입력 기록"
   },
   "mode": {
     "fast": "빠른 검색",
@@ -6226,7 +6234,8 @@
     "contextGlobalEmpty": "아직 전역 프로필 데이터가 없습니다.",
     "contextPeerTitle": "우리의 관계와 당신의 페르소나",
     "contextPeerSubtitle": "이 에이전트와의 고유한 상호작용",
-    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다."
+    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다.",
+    "rankedHubSidebarLabel": "허브 순위 사이드바"
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -6480,7 +6489,8 @@
       "quote": "입력창에 인용",
       "quoteRow": "{row}행 인용",
       "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다",
-      "rowScopeLabel": "{row}행"
+      "rowScopeLabel": "{row}행",
+      "clearSelection": "선택 해제"
     },
     "saving": "저장 중...",
     "saved": "저장됨",
@@ -6756,7 +6766,8 @@
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
       "annotate": "의견",
-      "annotatePlaceholder": "검토용 문제 설명..."
+      "annotatePlaceholder": "검토용 문제 설명...",
+      "toolbarLabel": "선택 영역 도구 모음"
     },
     "skillActions": {
       "moreActions": "더 많은 작업",
@@ -6862,7 +6873,9 @@
       "title": "렌더링 오류",
       "defaultMessage": "이 콘텐츠를 렌더링할 수 없습니다. 새로고침하거나 다운로드해서 확인해 보세요.",
       "retry": "다시 시도"
-    }
+    },
+    "annotationPanelLabel": "아티팩트 주석",
+    "htmlPreviewTitle": "HTML 미리보기"
   },
   "MessageSources": {
     "untitled": "제목 없음",
@@ -9341,7 +9354,9 @@
     "wechatQrAlt": "WeChat 로그인 QR 코드",
     "usageResetTooltip": "매일 00:00 UTC(베이징 시간 08:00)에 자동 갱신",
     "todayUsageDisplay": "오늘 사용량: {used} / {quota}건",
-    "quotaExceeded": "한도 초과"
+    "quotaExceeded": "한도 초과",
+    "groupTriggerRegionLabel": "현재 그룹 트리거 설정",
+    "editGlobalAria": "전역 설정 편집"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -10354,7 +10369,9 @@
         "wait0": "네가 필요해",
         "wait1": "기다리고 있어",
         "wait2": "네 차례야"
-      }
+      },
+      "voiceInterrupt": "음성 중단",
+      "voiceInteraction": "음성 상호작용"
     },
     "palette": {
       "title": "펫 팔레트",
@@ -10738,7 +10755,8 @@
       "confirmLabel": "유지할 어시스턴트 이름을 입력하여 확인",
       "mergeSource": "보관(원본)",
       "planBindings": "옮겨가는 연결",
-      "done": "완료"
+      "done": "완료",
+      "regionLabel": "에이전트 거버넌스"
     },
     "readiness": {
       "dimensions": {
@@ -12309,7 +12327,8 @@
     "inlineRouteTemplateNoResults": "일치하는 전문가 템플릿이 없습니다",
     "inlineRouteTemplateEmpty": "사용 가능한 전문가 템플릿이 없습니다",
     "inlineRouteTemplateApplyFailed": "전문가 템플릿 소환 실패",
-    "appshotAlt": "캡처한 앱 스크린샷"
+    "appshotAlt": "캡처한 앱 스크린샷",
+    "captureAlt": "화면 캡처"
   },
   "billing": {
     "wuBalance": "작업 단위",
@@ -13361,7 +13380,10 @@
     "previewTitle": "{name} 실시간 미리보기",
     "consoleStarted": "[{time}] 포트 {port}에서 서비스가 시작되었습니다 ({protocol})",
     "consoleReady": "> 준비 완료: {url}",
-    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}"
+    "consoleProcess": "> 프로세스 PID: {pid} | 프로세스: {name}",
+    "previewPort": "포트 {port} 미리보기",
+    "barPortsCount": "포트 {count}개",
+    "barLabel": "개발 포트"
   },
   "toolPicker": {
     "menuLabel": "도구 선택",
@@ -13423,7 +13445,9 @@
     "slideVisualPlaceholder": "멀티모달 아키텍처 다이어그램",
     "slideConfidentialFooter": "기밀 · 엔터프라이즈 덱",
     "slidePage": "{page}쪽",
-    "slideAriaLabel": "슬라이드 {number}: {title}"
+    "slideAriaLabel": "슬라이드 {number}: {title}",
+    "slideThumbnails": "슬라이드 미리보기 목록",
+    "goToSlide": "슬라이드 {number}(으)로 이동: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "출판 품질 스타일 스프레드시트 허브",
@@ -13961,14 +13985,16 @@
       "emptyMessages": "이 마일스톤에는 보존된 원본 메시지 스냅샷이 없습니다",
       "originalRoleUser": "사용자 프롬프트",
       "originalRoleAssistant": "에이전트 응답",
-      "originalRoleTool": "도구 실행"
+      "originalRoleTool": "도구 실행",
+      "ariaLabel": "읽기 전용 대화 기록 타임머신"
     },
     "branchSummary": {
       "inheritedBadge": "브랜치 간 경험 플라이라인",
       "sourceBranchLabel": "상속받은 브랜치",
       "keyTakeawaysTitle": "도출된 핵심 학습 및 발견",
       "warpToSource": "원본 브랜치로 워프",
-      "forkIndicator": "분기 원본"
+      "forkIndicator": "분기 원본",
+      "ariaLabel": "브랜치 간 경험 카드"
     },
     "anchors": {
       "title": "검증된 앵커",
@@ -14361,7 +14387,8 @@
       "commerce": "이커머스 운영",
       "team": "멀티 에이전트 팀",
       "general": "범용 어시스턴트"
-    }
+    },
+    "refresh": "템플릿 새로고침"
   },
   "commandMatrix": {
     "allCategories": "전체 카테고리",
@@ -15023,7 +15050,9 @@
         "integration": "통신 및 통합",
         "system": "보안 및 시스템"
       },
-      "brand-studio": "브랜드 스타일"
+      "brand-studio": "브랜드 스타일",
+      "clearSearch": "검색 지우기",
+      "matchedLabel": "일치:"
     },
     "workbench": {
       "badge": "개인 작업 공간 및 데이터 주권",
@@ -17227,7 +17256,8 @@
       "xaiOauthWaiting": "인증 대기 중...",
       "xaiOauthConnectBtn": "SuperGrok 인증",
       "oauthExpiredNotice": "이 인증이 더 이상 유효하지 않습니다(플랫폼에서 해지되었거나 만료되었을 수 있습니다). \"지금 복구\"를 눌러 다시 인증하면 서비스가 복구됩니다.",
-      "oauthFixNow": "지금 복구"
+      "oauthFixNow": "지금 복구",
+      "fileInputLabel": "자격 증명 파일 입력"
     },
     "skillQuality": {
       "title": "스킬 품질 관리",
@@ -18391,6 +18421,18 @@
           "openInEditor": "Wiki 편집기에서 열기",
           "close": "미리보기 닫기"
         }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown 도구 모음",
+        "bold": "굵게",
+        "italic": "기울임",
+        "h2": "제목 2",
+        "code": "코드 블록",
+        "quote": "인용",
+        "bullet": "글머리 기호 목록",
+        "todo": "할 일 목록",
+        "wikilink": "Wiki 링크",
+        "table": "표 삽입"
       }
     },
     "skills": {
@@ -20676,7 +20718,8 @@
           "e2eeAlgorithm": "알고리즘",
           "e2eeFingerprint": "지문"
         },
-        "copied": "클립보드에 복사되었습니다"
+        "copied": "클립보드에 복사되었습니다",
+        "refreshTailscaleStatus": "Tailscale 상태 새로고침"
       },
       "push": {
         "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",
@@ -21201,7 +21244,8 @@
       "cacheRadarSavings": "누적 절감액 추정:",
       "cacheRadarCachedTokens": "캐시 재사용 Tokens",
       "cacheRadarFreshInput": "신규 입력 Tokens",
-      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계"
+      "cacheRadarTotalPrompt": "프롬프트 Tokens 합계",
+      "dailyToolCallsTooltip": "{date}: 도구 호출 {count}회"
     },
     "workingState": {
       "title": "작업 상태",
@@ -22764,5 +22808,15 @@
     "close": "닫기",
     "binaryChanged": "바이너리 파일이 변경되었습니다",
     "noChanges": "변경 사항 없음"
+  },
+  "riskGate": {
+    "regionLabel": "단계별 위험 확인"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "결제 및 검증 완료",
+    "statusReserved": "예약됨",
+    "statusRefunded": "환불됨",
+    "statusRejected": "차단됨",
+    "hashVerified": "원장 해시 HMAC 검증 완료"
   }
 }

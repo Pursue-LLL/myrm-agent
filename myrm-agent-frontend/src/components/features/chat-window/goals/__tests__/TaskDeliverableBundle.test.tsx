@@ -85,6 +85,7 @@ describe('TaskDeliverableBundle', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
     expect(screen.getByText('Task Deliverables')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getAllByTitle('bundleSelectItem').length).toBe(5);
 
     // Verify all files rendered
     expect(screen.getByText('campaign_strategy.md')).toBeInTheDocument();

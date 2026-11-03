@@ -24,11 +24,7 @@ interface ReadOnlyTimeMachineDrawerProps {
   className?: string;
 }
 
-export function ReadOnlyTimeMachineDrawer({
-  messages,
-  onClose,
-  className = '',
-}: ReadOnlyTimeMachineDrawerProps) {
+export function ReadOnlyTimeMachineDrawer({ messages, onClose, className = '' }: ReadOnlyTimeMachineDrawerProps) {
   const t = useTranslations('compaction.timeMachine');
 
   const getRoleIcon = (role: CompactedMessageSnapshot['role']) => {
@@ -59,16 +55,14 @@ export function ReadOnlyTimeMachineDrawer({
 
   return (
     <section
-      aria-label="Read-Only Transcript Time Machine"
+      aria-label={t('ariaLabel')}
       className={`mt-2 rounded-2xl border border-dashed border-border/80 bg-muted/40 p-3 flex flex-col gap-2.5 backdrop-blur-xs select-text ${className}`}
     >
       {/* Time Machine Header Bar */}
       <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-2 text-xs">
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-primary" />
-          <span className="font-semibold text-foreground">
-            {t('openButton', { count: messages.length })}
-          </span>
+          <span className="font-semibold text-foreground">{t('openButton', { count: messages.length })}</span>
           <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
             <ShieldAlert className="w-3 h-3" />
             <span>{t('watermarkBadge')}</span>
@@ -88,9 +82,7 @@ export function ReadOnlyTimeMachineDrawer({
       {/* Messages List Container */}
       <div className="max-h-72 overflow-y-auto flex flex-col gap-2 pr-1 font-mono text-xs">
         {messages.length === 0 ? (
-          <div className="py-4 text-center text-muted-foreground text-xs italic">
-            {t('emptyMessages')}
-          </div>
+          <div className="py-4 text-center text-muted-foreground text-xs italic">{t('emptyMessages')}</div>
         ) : (
           messages.map((msg, idx) => (
             <div
@@ -108,9 +100,7 @@ export function ReadOnlyTimeMachineDrawer({
                   )}
                 </div>
                 {msg.timestamp && (
-                  <span className="text-[10px] text-muted-foreground/70 font-mono">
-                    {msg.timestamp}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground/70 font-mono">{msg.timestamp}</span>
                 )}
               </div>
               <div className="text-[11px] leading-relaxed text-foreground/80 whitespace-pre-wrap select-text font-sans">

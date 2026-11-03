@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { BrowserRefInfo } from '@/store/chat/types';
 
@@ -42,6 +43,7 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
   selectedRefId,
   onElementClick,
 }) => {
+  const t = useTranslations('chat.browserInspector');
   const scaleX = imageWidth / viewportWidth;
   const scaleY = imageHeight / viewportHeight;
 
@@ -104,7 +106,7 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
                 ? `[${info.nth}] [${refId}] ${info.role}: ${info.name}`
                 : `[${refId}] ${info.role}: ${info.name}`
             }
-            aria-label={`Select element ${refId} (${info.role}: ${info.name})`}
+            aria-label={t('selectElementLabel', { refId, role: info.role, name: info.name })}
           >
             {info.nth !== undefined && info.nth !== null && (
               <span

@@ -8,7 +8,7 @@ import MessageListSkeleton from '../MessageListSkeleton';
 describe('MessageListSkeleton', () => {
   it('renders container with aria-label', () => {
     render(<MessageListSkeleton />);
-    expect(screen.getByLabelText('Loading messages')).toBeInTheDocument();
+    expect(screen.getByLabelText('messageListLoading')).toBeInTheDocument();
   });
 
   it('renders 4 skeleton bubbles', () => {

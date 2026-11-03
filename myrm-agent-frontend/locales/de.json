@@ -237,7 +237,8 @@
     "subgoalAddFailed": "Teilziel konnte nicht hinzugefügt werden",
     "subgoalAddNetworkError": "Netzwerkfehler: Teilziel konnte nicht hinzugefügt werden",
     "subgoalRemoveFailed": "Teilziel konnte nicht entfernt werden",
-    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden"
+    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden",
+    "bundleSelectItem": "Element für den Export auswählen"
   },
   "commands": {
     "palette": {
@@ -2847,7 +2848,10 @@
       "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent den Browser verwendet",
       "instructionPlaceholder": "Beschreiben Sie, was Sie auf dieser Seite tun möchten...",
       "instructionWithElement": "Was soll der Agent mit diesem Element tun?",
-      "send": "Anweisung senden"
+      "send": "Anweisung senden",
+      "livePeekAlt": "Live-Ansicht des Browsers",
+      "selectElementLabel": "Element {refId} auswählen ({role}: {name})",
+      "clearSelection": "Auswahl aufheben"
     },
     "browserRecording": {
       "title": "Browser-Aufzeichnung",
@@ -2936,7 +2940,8 @@
         "denyReasonPlaceholder": "Grund für die Ablehnung (optional)",
         "targetChangedNotice": "Das Ziel hat sich seit Ihrer letzten Genehmigung geändert. Bitte überprüfen Sie es erneut.",
         "deniedNotice": "Abgelehnt. Diese Anfrage wird in dieser Sitzung nicht mehr gestellt."
-      }
+      },
+      "clearSelection": "Auswahl aufheben"
     },
     "clarification": {
       "formTitle": "Klärungsformular",
@@ -3489,7 +3494,10 @@
       "popoverTitle": "Klicken, um die vierdimensionale Preismatrix des Modells und die Prompt-Cache-Ersparnis anzuzeigen",
       "savedAmount": "({amount} gespart)",
       "idleLabel": "Rechen-HUD"
-    }
+    },
+    "scopedArtifactRemove": "Eingegrenztes Ziel entfernen",
+    "messageListLoading": "Nachrichten werden geladen",
+    "inputHistoryLabel": "Eingabeverlauf"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -6226,7 +6234,8 @@
     "contextGlobalEmpty": "Noch keine globalen Profildaten.",
     "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
     "contextPeerSubtitle": "Agentenspezifische Interaktionen",
-    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten."
+    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten.",
+    "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste"
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -6480,7 +6489,8 @@
       "quote": "In Eingabefeld zitieren",
       "quoteRow": "Zeile {row} zitieren",
       "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten",
-      "rowScopeLabel": "Zeile {row}"
+      "rowScopeLabel": "Zeile {row}",
+      "clearSelection": "Auswahl aufheben"
     },
     "saving": "Speichern...",
     "saved": "Gespeichert",
@@ -6756,7 +6766,8 @@
       "copy": "Kopie",
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
       "annotate": "Kommentieren",
-      "annotatePlaceholder": "Problem für Review beschreiben..."
+      "annotatePlaceholder": "Problem für Review beschreiben...",
+      "toolbarLabel": "Werkzeugleiste für die Auswahl"
     },
     "skillActions": {
       "moreActions": "Weitere Aktionen",
@@ -6862,7 +6873,9 @@
       "title": "Darstellungsfehler",
       "defaultMessage": "Dieser Inhalt kann nicht dargestellt werden. Aktualisieren Sie die Seite oder laden Sie ihn zum Ansehen herunter.",
       "retry": "Erneut versuchen"
-    }
+    },
+    "annotationPanelLabel": "Artefakt-Anmerkungen",
+    "htmlPreviewTitle": "HTML-Vorschau"
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -9341,7 +9354,9 @@
     "wechatQrAlt": "WeChat-Anmelde-QR-Code",
     "usageResetTooltip": "Wird täglich um 00:00 UTC (08:00 Peking-Zeit) automatisch zurückgesetzt",
     "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
-    "quotaExceeded": "Kontingent überschritten"
+    "quotaExceeded": "Kontingent überschritten",
+    "groupTriggerRegionLabel": "Aktuelle Gruppentrigger-Konfiguration",
+    "editGlobalAria": "Globale Konfiguration bearbeiten"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -10354,7 +10369,9 @@
         "wait0": "Brauche dich",
         "wait1": "Ich warte auf dich",
         "wait2": "Sie sind dran"
-      }
+      },
+      "voiceInterrupt": "Sprachausgabe unterbrechen",
+      "voiceInteraction": "Sprachinteraktion"
     },
     "palette": {
       "title": "Haustierpalette",
@@ -10738,7 +10755,8 @@
       "confirmLabel": "Namen des behaltenen Assistenten zur Bestätigung eingeben",
       "mergeSource": "Archivieren (Quelle)",
       "planBindings": "Bindungen im Umzug",
-      "done": "Fertig"
+      "done": "Fertig",
+      "regionLabel": "Agent-Governance"
     },
     "readiness": {
       "dimensions": {
@@ -12309,7 +12327,8 @@
     "inlineRouteTemplateNoResults": "Keine passenden Expertenvorlagen",
     "inlineRouteTemplateEmpty": "Keine Expertenvorlagen verfügbar",
     "inlineRouteTemplateApplyFailed": "Expertenvorlage konnte nicht beschworen werden",
-    "appshotAlt": "Erfasster App-Screenshot"
+    "appshotAlt": "Erfasster App-Screenshot",
+    "captureAlt": "Bildschirmaufnahme"
   },
   "billing": {
     "wuBalance": "Arbeitseinheiten",
@@ -13361,7 +13380,10 @@
     "previewTitle": "{name} Live-Vorschau",
     "consoleStarted": "[{time}] Dienst auf Port {port} gestartet ({protocol})",
     "consoleReady": "> Bereit: {url}",
-    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}"
+    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}",
+    "previewPort": "Port {port} in der Vorschau öffnen",
+    "barPortsCount": "{count} aktive Ports",
+    "barLabel": "Dev-Ports"
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
@@ -13423,7 +13445,9 @@
     "slideVisualPlaceholder": "Multimodales Architekturdiagramm",
     "slideConfidentialFooter": "VERTRAULICH · ENTERPRISE-DECK",
     "slidePage": "SEITE {page}",
-    "slideAriaLabel": "Folie {number}: {title}"
+    "slideAriaLabel": "Folie {number}: {title}",
+    "slideThumbnails": "Folienminiaturen",
+    "goToSlide": "Zu Folie {number} springen: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
@@ -13961,14 +13985,16 @@
       "emptyMessages": "In diesem Meilenstein wurden keine Roh-Nachrichten-Snapshots aufbewahrt",
       "originalRoleUser": "Nutzer-Prompt",
       "originalRoleAssistant": "Agent-Antwort",
-      "originalRoleTool": "Tool-Ausführung"
+      "originalRoleTool": "Tool-Ausführung",
+      "ariaLabel": "Schreibgeschützte Verlaufsrückschau"
     },
     "branchSummary": {
       "inheritedBadge": "Zweigübergreifende Erfahrungsflugbahn",
       "sourceBranchLabel": "Geerbt von Zweig",
       "keyTakeawaysTitle": "Abgeleitete Kernerkenntnisse und Entdeckungen",
       "warpToSource": "Zum Quellzweig springen",
-      "forkIndicator": "Abgezweigt von"
+      "forkIndicator": "Abgezweigt von",
+      "ariaLabel": "Branchübergreifende Erfahrungskarte"
     },
     "anchors": {
       "title": "Verifizierte Anker",
@@ -14361,7 +14387,8 @@
       "commerce": "E-Commerce-Betrieb",
       "team": "Multi-Agent-Teams",
       "general": "Allgemeine Assistenten"
-    }
+    },
+    "refresh": "Vorlagen aktualisieren"
   },
   "commandMatrix": {
     "allCategories": "Alle Kategorien",
@@ -15023,7 +15050,9 @@
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
       },
-      "brand-studio": "Markenstil"
+      "brand-studio": "Markenstil",
+      "clearSearch": "Suche löschen",
+      "matchedLabel": "Treffer:"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
@@ -17227,7 +17256,8 @@
       "xaiOauthWaiting": "Warten auf Autorisierung...",
       "xaiOauthConnectBtn": "SuperGrok autorisieren",
       "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
-      "oauthFixNow": "Jetzt beheben"
+      "oauthFixNow": "Jetzt beheben",
+      "fileInputLabel": "Eingabe der Anmeldedaten-Datei"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -18391,6 +18421,18 @@
           "openInEditor": "Im Wiki-Editor öffnen",
           "close": "Vorschau schließen"
         }
+      },
+      "toolbar": {
+        "label": "Wiki-Markdown-Werkzeugleiste",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "h2": "Überschrift 2",
+        "code": "Codeblock",
+        "quote": "Zitat",
+        "bullet": "Aufzählung",
+        "todo": "Aufgabenliste",
+        "wikilink": "Wiki-Link",
+        "table": "Tabelle einfügen"
       }
     },
     "skills": {
@@ -20676,7 +20718,8 @@
           "e2eeAlgorithm": "Algorithmus",
           "e2eeFingerprint": "Fingerabdruck"
         },
-        "copied": "In die Zwischenablage kopiert"
+        "copied": "In die Zwischenablage kopiert",
+        "refreshTailscaleStatus": "Tailscale-Status aktualisieren"
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",
@@ -21201,7 +21244,8 @@
       "cacheRadarSavings": "Geschätzte Gesamteinsparung:",
       "cacheRadarCachedTokens": "Wiederverwendete Cache-Tokens",
       "cacheRadarFreshInput": "Neue Eingabe-Tokens",
-      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt"
+      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt",
+      "dailyToolCallsTooltip": "{date}: {count} Tool-Aufrufe"
     },
     "workingState": {
       "title": "Arbeitsstatus",
@@ -22764,5 +22808,15 @@
     "close": "Schließen",
     "binaryChanged": "Binärdatei geändert",
     "noChanges": "Keine Änderungen"
+  },
+  "riskGate": {
+    "regionLabel": "Gestufte Risikobestätigung"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "Bezahlt und geprüft",
+    "statusReserved": "Reserviert",
+    "statusRefunded": "Erstattet",
+    "statusRejected": "Blockiert",
+    "hashVerified": "Ledger-Hash per HMAC geprüft"
   }
 }

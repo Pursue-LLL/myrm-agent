@@ -332,7 +332,7 @@ export default function PetOverlayWindowApp() {
             (!state.voiceState || state.voiceState === 'idle') &&
               'bg-popover text-muted-foreground hover:text-foreground',
           )}
-          aria-label={state.voiceState === 'speaking' ? 'Interrupt Voice' : 'Voice Interaction'}
+          aria-label={state.voiceState === 'speaking' ? t('voiceInterrupt') : t('voiceInteraction')}
         >
           {state.voiceState === 'speaking' ? (
             <Volume2 className="h-3.5 w-3.5" />

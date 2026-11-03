@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { type FlowPadCapture } from '@/store/useFlowPadStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import { REVEAL_ON_HOVER } from '@/lib/utils/a11y';
@@ -44,6 +45,7 @@ export function CapturePreview({
   onRemove: () => void;
   collapseLabel: string;
 }) {
+  const t = useTranslations('flowPad');
   const [textExpanded, setTextExpanded] = useState(false);
   const hasText = capture.extractedText.trim().length > 0;
   const previewText =
@@ -71,7 +73,7 @@ export function CapturePreview({
         >
           <img
             src={`data:image/jpeg;base64,${capture.screenshot}`}
-            alt={capture.windowTitle || 'Screen capture'}
+            alt={capture.windowTitle || t('captureAlt')}
             className="w-full h-full object-cover"
           />
         </button>
