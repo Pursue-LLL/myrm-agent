@@ -50,25 +50,6 @@ def workspace(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture
-def mock_executor(workspace: Path) -> MagicMock:
-    """Create a mock executor with resolve_path returning workspace paths."""
-    executor = AsyncMock()
-
-    async def _resolve_path(p: str) -> str:
-        if p == ".":
-            return str(workspace)
-        return str(workspace / p)
-
-    executor.resolve_path = _resolve_path
-    return executor
-
-
-@pytest.fixture
-def runnable_config() -> RunnableConfig:
-    return RunnableConfig(configurable={})
-
-
 # ---------------------------------------------------------------------------
 # Tests: GlobInput schema
 # ---------------------------------------------------------------------------
