@@ -90,7 +90,7 @@ export default function ConsensusThinkingPanel({ refs, isStreaming, totalExpecte
         ) : (
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
         )}
-        <span className="font-medium">{t('consensusMetaTitle', { defaultMessage: 'Multi-model Consensus' })}</span>
+        <span className="font-medium">{t('consensusMetaTitle')}</span>
         <span className="tabular-nums">
           {completedCount}/{total}
         </span>
@@ -104,7 +104,7 @@ export default function ConsensusThinkingPanel({ refs, isStreaming, totalExpecte
           {isStreaming && completedCount < total && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin" />
-              <span>{t('consensusActive', { defaultMessage: 'Waiting for remaining models…' })}</span>
+              <span>{t('consensusActive')}</span>
             </div>
           )}
         </div>

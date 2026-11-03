@@ -21,11 +21,29 @@ import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitives/card';
 import {
-  BookOpen, Search, PlusCircle, RefreshCw, History, ArrowRightLeft, FileCheck2, AlertCircle, Sparkles,
+  BookOpen,
+  Search,
+  PlusCircle,
+  RefreshCw,
+  History,
+  ArrowRightLeft,
+  FileCheck2,
+  AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 import {
-  listNotes, searchNotes, getNote, appendNote, rewriteNote, deleteNote, listContexts,
-  type NoteMetadataDTO, type NoteEntryDTO, type NoteSearchResultDTO, type HistoryContextItemDTO, type NewContextResponseDTO,
+  listNotes,
+  searchNotes,
+  getNote,
+  appendNote,
+  rewriteNote,
+  deleteNote,
+  listContexts,
+  type NoteMetadataDTO,
+  type NoteEntryDTO,
+  type NoteSearchResultDTO,
+  type HistoryContextItemDTO,
+  type NewContextResponseDTO,
 } from '@/services/memory/privateNotebook';
 import { PrivateNotebookNotesListView } from './PrivateNotebookNotesListView';
 import { PrivateNotebookHistoryView } from './PrivateNotebookHistoryView';
@@ -162,7 +180,9 @@ export function PrivateNotebookCard(): React.JSX.Element {
 
   const applyPresetArchitecture = () => {
     setNewTitle('system_architecture_spec');
-    setNewContent('## 核心架构原则\n1. 透明物理笔记存储于 `.myrm/agent_notes/`\n2. 跨窗口移交保留沙箱文件与长程记忆\n3. 人工随时纠偏');
+    setNewContent(
+      '## 核心架构原则\n1. 透明物理笔记存储于 `.myrm/agent_notes/`\n2. 跨窗口移交保留沙箱文件与长程记忆\n3. 人工随时纠偏',
+    );
   };
 
   return (
@@ -171,9 +191,7 @@ export function PrivateNotebookCard(): React.JSX.Element {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm font-semibold tracking-tight">
-              透明可检视模型私有笔记本 (PR #42385 超越版)
-            </CardTitle>
+            <CardTitle className="text-sm font-semibold tracking-tight">透明可检视模型私有笔记本</CardTitle>
             <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
               Item 89 P0
             </Badge>
@@ -226,18 +244,14 @@ export function PrivateNotebookCard(): React.JSX.Element {
               <ArrowRightLeft className="h-3 w-3 text-amber-500" />
               <span>跨窗口轮转继承</span>
             </div>
-            <div className="text-base font-bold text-foreground">
-              100% (透明保真)
-            </div>
+            <div className="text-base font-bold text-foreground">100% (透明保真)</div>
           </div>
           <div className="rounded-md border border-border/70 p-2 bg-card">
             <div className="text-[10px] text-muted-foreground flex items-center gap-1">
               <History className="h-3 w-3 text-blue-500" />
               <span>归档窗口</span>
             </div>
-            <div className="text-base font-bold text-foreground">
-              {historyContexts.length} 个
-            </div>
+            <div className="text-base font-bold text-foreground">{historyContexts.length} 个</div>
           </div>
         </div>
       </CardHeader>
@@ -287,7 +301,10 @@ export function PrivateNotebookCard(): React.JSX.Element {
         {/* Tab 1: Notes Management & Rectification */}
         {activeTab === 'notes' && (
           <div className="space-y-3">
-            <form onSubmit={handleAppendNote} className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2.5 rounded-md border border-border/60 bg-muted/20">
+            <form
+              onSubmit={handleAppendNote}
+              className="grid grid-cols-1 md:grid-cols-3 gap-2 p-2.5 rounded-md border border-border/60 bg-muted/20"
+            >
               <div className="space-y-1">
                 <label htmlFor="note-title-input" className="text-[10px] font-medium text-foreground">
                   笔记标题 (Markdown 标识符):
@@ -314,7 +331,12 @@ export function PrivateNotebookCard(): React.JSX.Element {
                     onChange={(e) => setNewContent(e.target.value)}
                     className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
-                  <Button type="submit" size="sm" className="h-7 text-xs px-2.5 gap-1 shrink-0" data-testid="append-note-submit-btn">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-7 text-xs px-2.5 gap-1 shrink-0"
+                    data-testid="append-note-submit-btn"
+                  >
                     <PlusCircle className="h-3 w-3" />
                     追加笔记
                   </Button>
@@ -323,7 +345,9 @@ export function PrivateNotebookCard(): React.JSX.Element {
             </form>
 
             <form onSubmit={handleSearchNotes} className="flex gap-2 items-center" data-testid="search-notes-form">
-              <label htmlFor="search-notes-input" className="sr-only">搜索私有笔记</label>
+              <label htmlFor="search-notes-input" className="sr-only">
+                搜索私有笔记
+              </label>
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
@@ -355,7 +379,8 @@ export function PrivateNotebookCard(): React.JSX.Element {
                 <div className="text-[10px] font-semibold text-primary">匹配切片 ({noteSearchResults.length})</div>
                 {noteSearchResults.map((sr) => (
                   <div key={sr.title} className="p-1 rounded bg-background border border-border/40 text-[11px]">
-                    <span className="font-semibold">{sr.title}:</span> <span className="text-muted-foreground font-mono">{sr.snippet}</span>
+                    <span className="font-semibold">{sr.title}:</span>{' '}
+                    <span className="text-muted-foreground font-mono">{sr.snippet}</span>
                   </div>
                 ))}
               </div>
@@ -374,10 +399,7 @@ export function PrivateNotebookCard(): React.JSX.Element {
 
         {/* Tab 2: History Search Subview */}
         {activeTab === 'history' && (
-          <PrivateNotebookHistoryView
-            historyContexts={historyContexts}
-            onRefreshContexts={loadHistoryContexts}
-          />
+          <PrivateNotebookHistoryView historyContexts={historyContexts} onRefreshContexts={loadHistoryContexts} />
         )}
 
         {/* Tab 3: Handover Subview */}

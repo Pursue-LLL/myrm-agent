@@ -1455,7 +1455,11 @@
         "userName": "使用者名稱"
       },
       "modelOverride": "模型覆寫",
-      "subagentCostSaving": "子智慧體降本"
+      "subagentCostSaving": "子智慧體降本",
+      "subagentModelInherit": "跟隨主智慧體（預設）",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash（推薦·極致低成本）",
+      "subagentModelGpt4oMini": "GPT-4o Mini（快速審查）",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高吞吐稽核）"
     },
     "preview": "預覽",
     "avatarColor": "頭像顏色",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "匯出脫敏版 (安全)",
         "export": "匯出"
       }
-    }
+    },
+    "cloneCopySuffix": "副本"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "必須是 JSON 物件",
-      "invalidJson": "JSON 格式無效"
+      "invalidJson": "JSON 格式無效",
+      "cannotFormat": "無法格式化 JSON",
+      "invalidJsonCannotFormat": "JSON 格式無效，無法格式化"
     },
     "schemaForm": {
       "resetDefaults": "重置為預設值",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "暫無此智慧體專屬的畫像資料。",
     "rankedHubSidebarLabel": "樞紐排行側欄",
     "shareRulesTitle": "分享規則（隱私安全）",
-    "shareRulesTooltip": "在保護隱私的前提下分享規則"
+    "shareRulesTooltip": "在保護隱私的前提下分享規則",
+    "dualLayer": {
+      "title": "雙層畫像與智慧體筆記看板",
+      "description": "顯式分層與容量水位：USER 最多 {userMax, number} 字元（長期偏好），MEMORY 最多 {memoryMax, number} 字元（領域筆記）",
+      "refresh": "重新整理",
+      "save": "儲存記憶",
+      "budget": "≤ {max, number} 字元",
+      "capacity": "容量水位：{current, number} / {max, number} 字元（{percent}%）",
+      "level": {
+        "safe": "正常",
+        "warning": "預警",
+        "critical": "臨界",
+        "overflow": "超限"
+      },
+      "userProfile": {
+        "title": "使用者長期偏好",
+        "hint": "跨智慧體共用：母語、編碼習慣、縮排排版、核心禁忌與溝通偏好。",
+        "placeholder": "例如：母語為中文，偏好 Python PEP8 規範，嚴禁使用 Any 型別，交付程式碼單檔不超過 400 行..."
+      },
+      "agentNotes": {
+        "title": "智慧體專屬筆記",
+        "hint": "目前智慧體專屬：專案架構規範、高頻專業術語、邊界要求與工程排障要領。",
+        "placeholder": "例如：本專案遵循 Clean Architecture，harness 框架層與 server 業務層嚴禁反向依賴..."
+      },
+      "intakeProbe": {
+        "title": "短期雜訊記憶准入試算探針",
+        "placeholder": "輸入候選記憶（如：'Phase 2 completed'、'PR #882'、'Traceback...' 或 '偏好 PEP8'）",
+        "check": "檢測准入",
+        "accepted": "准入放行：路由至 {layer} 層",
+        "rejected": "准入拒絕：判定為短期暫態雜訊 [{category}]",
+        "longTerm": "長期"
+      },
+      "intakeCheckFailed": "網路或伺服器錯誤，准入檢測失敗。",
+      "feedback": {
+        "loadFailed": "載入雙層記憶失敗，請檢查網路或後端狀態。",
+        "saved": "雙層記憶已成功同步儲存。",
+        "saveFailed": "儲存雙層記憶失敗，容量可能超限或內容不合規。"
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -6490,7 +6535,8 @@
       "quoteRow": "引用第 {row} 行",
       "quoteRowTooltip": "引用選中行到對話輸入框進行針對性提問或局部編輯",
       "rowScopeLabel": "第 {row} 列",
-      "clearSelection": "清除選取"
+      "clearSelection": "清除選取",
+      "artifactFallbackName": "表格工件"
     },
     "saving": "儲存中...",
     "saved": "已儲存",
@@ -6756,7 +6802,10 @@
       "quote": "引用到輸入框",
       "copy": "複製",
       "modifyPlaceholder": "描述你想要的修改...",
-      "queued": "操作已排隊，當前任務完成後自動執行"
+      "queued": "操作已排隊，當前任務完成後自動執行",
+      "artifactFallbackName": "程式碼工件",
+      "selectedCode": "選取程式碼",
+      "selectionLines": "選取範圍（{count} 行）"
     },
     "documentSelection": {
       "modify": "AI 修改",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "描述你想對選中內容做的修改...",
       "annotate": "批註",
       "annotatePlaceholder": "描述問題以供審閱...",
-      "toolbarLabel": "選取範圍工具列"
+      "toolbarLabel": "選取範圍工具列",
+      "artifactFallbackName": "文件工件",
+      "selectedParagraph": "所選段落"
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -10861,7 +10912,12 @@
         "approved": "已批准",
         "rejected": "已拒絕",
         "applyFailed": "應用失敗"
-      }
+      },
+      "forceRetryStarted": "已強制重試",
+      "forceRetryFailed": "強制重試失敗",
+      "loadFailed": "載入進化拒絕審計日誌失敗",
+      "loadStatsFailed": "載入進化拒絕統計失敗",
+      "retrying": "重試中…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "截止日期",
       "care_check_in": "關懷",
       "open_loop": "待跟進"
+    },
+    "dueWindow": {
+      "overdueHours": "逾期{count}小時",
+      "overdueDays": "逾期{count}天",
+      "underOneHour": "不到1小時",
+      "inHours": "{count}小時後",
+      "inDays": "{count}天後",
+      "overdueUnderOneHour": "逾期不到1小時"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot Mode 多 Agent 協同群聊工作區",
-    "hermesParity": "支援智慧體機器人模式與點對點訊息",
+    "botModeSummary": "支援智慧體機器人模式與點對點訊息",
     "roomsTitle": "協同工作頻道",
     "createRoom": "建立新房間",
     "roomNamePlaceholder": "房間名稱 (如: 架構戰情室)",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "執行時控制台與多端狀態投影中樞",
-    "mateclawParity": "即時呈現執行狀態與事件",
+    "liveStateSummary": "即時呈現執行狀態與事件",
     "surfaces": {
       "chat": "Chat 對話檢視",
       "runtimeConsole": "Runtime Console 控制台",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "編輯",
-        "preview": "預覽"
+        "preview": "預覽",
+        "snippets": {
+          "bold": "粗體文字",
+          "italic": "斜體文字",
+          "heading": "二級標題",
+          "code": "程式碼",
+          "quote": "引用文字",
+          "bullet": "清單項目",
+          "todo": "待辦任務",
+          "wikilink": "頁面名稱",
+          "tableHeader": "標題 {index}",
+          "tableCell": "內容 {index}"
+        }
       },
       "concepts": {
         "discard": "捨棄",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "快取重用 Tokens",
       "cacheRadarFreshInput": "冷啟動 Tokens",
       "cacheRadarTotalPrompt": "總 Prompt Tokens",
-      "dailyToolCallsTooltip": "{date}：{count} 次工具呼叫"
+      "dailyToolCallsTooltip": "{date}：{count} 次工具呼叫",
+      "weekdayToolCallsTooltip": "{day}：{count} 次工具呼叫",
+      "daysCount": "{count} 天"
     },
     "workingState": {
       "title": "工作狀態",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "最近視窗",
       "digestWindow": "摘要視窗：{range}",
       "digestRuns": "執行次數",
-      "digestManualRuns": "手動次數"
+      "digestManualRuns": "手動次數",
+      "dimension": {
+        "freshness": "新鮮度",
+        "coverage": "覆蓋度",
+        "retention_health": "留存健康度",
+        "coherence": "一致性"
+      }
     },
     "memoryBackup": {
       "title": "記憶備份",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "經驗精靈",
         "pluginStateTitle": "外掛擴充狀態",
         "protectedSpan": "受保護的跨度",
-        "retryAttempt": "第 {attempt} 次嘗試（供應商退避 / 已重試）"
+        "retryAttempt": "第 {attempt} 次嘗試（供應商退避 / 已重試）",
+        "toolSpanLabel": "工具"
       },
       "contextDoctor": {
         "title": "上下文健檢（Token 熱點與成本審計）",
@@ -22863,7 +22948,11 @@
     "noChanges": "無變更"
   },
   "riskGate": {
-    "regionLabel": "分級風險確認"
+    "regionLabel": "分級風險確認",
+    "dryRunImpact": "以 dry_run=true 模擬執行 {tool}",
+    "dryRunDefaultTarget": "目標物件",
+    "dryRunParamsVerified": "參數驗證通過（{count} 個欄位）",
+    "dryRunNoPersistentChanges": "未對檔案系統或資料庫做任何持久化修改"
   },
   "commerceReceipt": {
     "statusCommitted": "已付款並核驗",

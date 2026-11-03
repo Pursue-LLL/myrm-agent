@@ -6,7 +6,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Activity, AlertTriangle, Clock, Loader2, RefreshCw, ShieldX, TrendingDown } from 'lucide-react';
 import { useGrowthTypeLabel } from '@/components/features/growth/useGrowthTypeLabel';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
@@ -15,7 +15,6 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { cn } from '@/lib/utils/classnameUtils';
-import { localizeReactNode, selectLocalizedText } from '@/lib/utils/locale';
 import {
   getSkillGrowthAuditStats,
   listSkillGrowthAudit,
@@ -70,8 +69,6 @@ const STATUS_TONE: Record<
 export function EvolutionRejectionDashboard() {
   const t = useTranslations('settingsTabs.evolutionRejection');
   const growthTypeLabel = useGrowthTypeLabel();
-  const locale = useLocale();
-  const text = useCallback((value: string) => selectLocalizedText(value, locale), [locale]);
 
   const [entries, setEntries] = useState<SkillGrowthAuditEntry[]>([]);
   const [stats, setStats] = useState<SkillGrowthAuditStats | null>(null);
@@ -80,8 +77,8 @@ export function EvolutionRejectionDashboard() {
   const [timeRange, setTimeRange] = useState(30);
   const { retryingIds, retry } = useEvolutionForceRetry({
     messages: {
-      started: text('已强制重试 / Force retry started'),
-      failed: text('重试失败 / Retry failed'),
+      started: t('forceRetryStarted'),
+      failed: t('forceRetryFailed'),
       locked: t('forceRetryLocked'),
     },
     // The server accepted the retry: show the row as pending review right away instead of waiting for the next sync.
@@ -98,24 +95,24 @@ export function EvolutionRejectionDashboard() {
     try {
       setEntries(await listSkillGrowthAudit(20, timeRange));
     } catch (error) {
-      toast.error(text('加载技能成长审计失败 / Failed to fetch skill growth audit'));
+      toast.error(t('loadFailed'));
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [text, timeRange]);
+  }, [t, timeRange]);
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     try {
       setStats(await getSkillGrowthAuditStats(timeRange));
     } catch (error) {
-      toast.error(text('加载技能成长审计统计失败 / Failed to fetch skill growth audit stats'));
+      toast.error(t('loadStatsFailed'));
       console.error(error);
     } finally {
       setStatsLoading(false);
     }
-  }, [text, timeRange]);
+  }, [t, timeRange]);
 
   useEffect(() => {
     void fetchEntries();
@@ -151,7 +148,7 @@ export function EvolutionRejectionDashboard() {
     );
   };
 
-  return localizeReactNode(
+  return (
     <div className="animate-in slide-in-from-bottom-4 space-y-6 fade-in duration-500">
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-semibold tracking-tight">{t('title')}</h2>
@@ -361,7 +358,7 @@ export function EvolutionRejectionDashboard() {
                             {retryingIds.has(entry.eventId) ? (
                               <>
                                 <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                {text('重试中... / Retrying...')}
+                                {t('retrying')}
                               </>
                             ) : (
                               t('forceRetry')
@@ -377,7 +374,6 @@ export function EvolutionRejectionDashboard() {
           )}
         </CardContent>
       </Card>
-    </div>,
-    locale,
+    </div>
   );
 }

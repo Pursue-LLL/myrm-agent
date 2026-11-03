@@ -46,10 +46,10 @@ const COLOR_HEX: Record<string, string> = {
 };
 
 const SUGGESTED_MODELS = [
-  { value: 'inherit', label: '跟随主智能体 (Default)' },
-  { value: 'deepseek-chat', label: 'DeepSeek-V3 / Flash (推荐·极致低成本)' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (快速审查)' },
-  { value: 'claude-3-5-haiku', label: 'Claude 3.5 Haiku (高吞吐审计)' },
+  { value: 'inherit', labelKey: 'subagentModelInherit' },
+  { value: 'deepseek-chat', labelKey: 'subagentModelDeepseek' },
+  { value: 'gpt-4o-mini', labelKey: 'subagentModelGpt4oMini' },
+  { value: 'claude-3-5-haiku', labelKey: 'subagentModelClaudeHaiku' },
 ];
 
 export interface SubagentCardProps {
@@ -144,7 +144,10 @@ export const SubagentCard = memo(function SubagentCard({
       {/* Model Override (Cost Optimization) */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor={`model-override-${subagentKey}`} className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <Label
+            htmlFor={`model-override-${subagentKey}`}
+            className="text-xs font-medium text-muted-foreground flex items-center gap-1"
+          >
             <Cpu size={12} className="text-primary" />
             <span>{t('modelOverride')}</span>
           </Label>
@@ -162,7 +165,7 @@ export const SubagentCard = memo(function SubagentCard({
           <SelectContent>
             {SUGGESTED_MODELS.map((item) => (
               <SelectItem key={item.value} value={item.value}>
-                {item.label}
+                {t(item.labelKey)}
               </SelectItem>
             ))}
           </SelectContent>

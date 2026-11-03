@@ -302,9 +302,8 @@ export default function ActiveFilesPanel() {
       chatId,
       workspaceDir: workspaceDir ?? undefined,
       portalOpenOptions: { lineRange: file.lineRange },
-      formatTruncated: (content) =>
-        `/* [Warning] ${t('fileTooLarge', { defaultMessage: 'File is too large, showing the first 1MB.' })} */\n\n${content}`,
-      formatNotFound: () => `// 👻 ${t('ghostFile', { defaultMessage: 'This file was deleted or moved by the AI.' })}`,
+      formatTruncated: (content) => `/* [Warning] ${t('fileTooLarge')} */\n\n${content}`,
+      formatNotFound: () => `// 👻 ${t('ghostFile')}`,
       onMissingContext: () => undefined,
     });
   };
@@ -371,10 +370,10 @@ export default function ActiveFilesPanel() {
                   </span>
                   <span className="text-xs font-medium text-indigo-300">
                     {file.action === 'write'
-                      ? t('action.modifying', { defaultMessage: 'AI is modifying this file' })
+                      ? t('action.modifying')
                       : file.action === 'search'
-                        ? t('action.scanning', { defaultMessage: 'AI is scanning this directory/file' })
-                        : t('action.reading', { defaultMessage: 'AI is reading this file' })}
+                        ? t('action.scanning')
+                        : t('action.reading')}
                   </span>
                   <span className="text-[10px] text-slate-400 mt-1">
                     {file.sizeBytes !== undefined ? `${formatBytes(file.sizeBytes)} • ` : ''}
@@ -389,7 +388,7 @@ export default function ActiveFilesPanel() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 cursor-default shrink-0">
-                  +{hiddenCount} {t('more', { defaultMessage: 'more' })}
+                  +{hiddenCount} {t('more')}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[300px] bg-slate-900 text-slate-50 border-slate-800">

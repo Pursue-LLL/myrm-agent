@@ -6,7 +6,7 @@
  * useDividerSelfLimiting, UseDividerSelfLimitingOptions, UseDividerSelfLimitingReturn
  *
  * [POS]
- * Resizable divider iteration-bounded negotiation hook inspired by DSH TUI Commit e992914.
+ * Resizable divider iteration-bounded negotiation hook.
  * Prevents layout feedback loops (Maximum update depth exceeded / React #185 crash)
  * in narrow viewports or non-converging nested resizable panels by bounding measurement
  * to at most 3 iterations before locking safe fallback dimensions.

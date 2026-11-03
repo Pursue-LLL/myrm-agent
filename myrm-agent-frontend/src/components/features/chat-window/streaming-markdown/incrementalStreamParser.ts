@@ -9,16 +9,12 @@
  * - parseIncrementalStream: (fullText: string, isStreaming: boolean) => IncrementalParsedStream
  *
  * [POS]
- * 增量流式渲染核心算法层。借鉴 pi-tui 增量渲染思想，将全量 AST 重复构建转化为
+ * 增量流式渲染核心算法层。将全量 AST 重复构建转化为
  * 冻结快照块（Frozen Blocks）与末尾活跃块（Active Tail Block）的精准双分流，
  * 消除主线程对超长文档反复全量重绘导致的掉帧。
  */
 
-import type {
-  IncrementalParsedStream,
-  MarkdownBlock,
-  MarkdownBlockType,
-} from './streamingMarkdownTypes';
+import type { IncrementalParsedStream, MarkdownBlock, MarkdownBlockType } from './streamingMarkdownTypes';
 
 /**
  * 提取围栏代码块中的语言标识符
@@ -74,10 +70,7 @@ function extractHeadingLevel(rawText: string): number | undefined {
 /**
  * 将连续 Markdown 纯文本增量拆解为冻结块与末尾活跃块
  */
-export function parseIncrementalStream(
-  fullText: string,
-  isStreaming: boolean,
-): IncrementalParsedStream {
+export function parseIncrementalStream(fullText: string, isStreaming: boolean): IncrementalParsedStream {
   if (!fullText) {
     return {
       frozenBlocks: [],

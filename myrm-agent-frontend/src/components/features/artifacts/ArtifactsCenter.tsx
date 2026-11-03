@@ -93,7 +93,7 @@ export const ArtifactsCenter: React.FC = () => {
       <div className="w-1/3 border-r bg-muted/10 overflow-y-auto p-4">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <IconFileText className="w-5 h-5 text-primary" />
-          {t('title', { defaultMessage: '企业工件库' })}
+          {t('title')}
         </h2>
         <div className="space-y-2">
           {artifacts.map((a) => (
@@ -111,14 +111,7 @@ export const ArtifactsCenter: React.FC = () => {
             </button>
           ))}
           {artifacts.length === 0 && (
-            <EmptyState
-              variant="compact"
-              icon={IconFileText}
-              title={t('empty', { defaultMessage: '暂无工件资产' })}
-              description={t('emptyDesc', {
-                defaultMessage: '智能体在对话中生成的报告、图表、代码将自动归档在此',
-              })}
-            />
+            <EmptyState variant="compact" icon={IconFileText} title={t('empty')} description={t('emptyDesc')} />
           )}
         </div>
       </div>
@@ -128,12 +121,10 @@ export const ArtifactsCenter: React.FC = () => {
         {selectedArtifact ? (
           <div>
             <h2 className="text-2xl font-bold mb-2">{selectedArtifact.name}</h2>
-            <p className="text-sm text-muted-foreground mb-8">
-              {selectedArtifact.description || t('no_desc', { defaultMessage: '无描述' })}
-            </p>
+            <p className="text-sm text-muted-foreground mb-8">{selectedArtifact.description || t('no_desc')}</p>
 
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-              {t('version_history', { defaultMessage: '版本时间线 (不可篡改)' })}
+              {t('version_history')}
             </h3>
 
             <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
@@ -157,21 +148,19 @@ export const ArtifactsCenter: React.FC = () => {
                         {parseServerTimestamp(v.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-sm mb-3">
-                      {v.commit_message || t('auto_saved_version', { defaultMessage: '自动保存的版本' })}
-                    </p>
+                    <p className="text-sm mb-3">{v.commit_message || t('auto_saved_version')}</p>
 
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-2">
                         {verifyResult[v.id] === true ? (
                           <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-1 rounded-full">
                             <IconShieldCheck className="w-3 h-3" />
-                            {t('tamper_free', { defaultMessage: '防篡改校验通过' })}
+                            {t('tamper_free')}
                           </span>
                         ) : verifyResult[v.id] === false ? (
                           <span className="flex items-center gap-1 text-xs text-red-600 bg-red-500/10 px-2 py-1 rounded-full">
                             <IconAlertCircle className="w-3 h-3" />
-                            {t('corrupted', { defaultMessage: '文件已被篡改！' })}
+                            {t('corrupted')}
                           </span>
                         ) : (
                           <button
@@ -180,9 +169,7 @@ export const ArtifactsCenter: React.FC = () => {
                             className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
                           >
                             <IconShieldCheck className="w-3 h-3" />
-                            {verifying === v.id
-                              ? t('verifying', { defaultMessage: '校验中...' })
-                              : t('verify_hash', { defaultMessage: '验证完整性' })}
+                            {verifying === v.id ? t('verifying') : t('verify_hash')}
                           </button>
                         )}
                       </div>
@@ -199,14 +186,14 @@ export const ArtifactsCenter: React.FC = () => {
                         className="text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded transition-colors flex items-center gap-1 ml-2"
                       >
                         <IconEye className="w-3 h-3" />
-                        {t('preview', { defaultMessage: '预览' })}
+                        {t('preview')}
                       </a>
                       <a
                         href={`/api/v1/files/vault/${v.vault_uri.replace('vault://', '')}/content?download=1`}
                         className="text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded transition-colors flex items-center gap-1"
                       >
                         <IconDownload className="w-3 h-3" />
-                        {t('download', { defaultMessage: '下载' })}
+                        {t('download')}
                       </a>
                     </div>
                   </div>
@@ -214,7 +201,7 @@ export const ArtifactsCenter: React.FC = () => {
               ))}
               {!selectedArtifact.versions && (
                 <div className="text-center py-4 text-sm text-muted-foreground animate-pulse">
-                  {t('loading_versions', { defaultMessage: '加载版本中...' })}
+                  {t('loading_versions')}
                 </div>
               )}
             </div>
@@ -222,7 +209,7 @@ export const ArtifactsCenter: React.FC = () => {
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <IconShieldCheck className="w-16 h-16 mb-4 opacity-20" />
-            <p>{t('select_prompt', { defaultMessage: '选择左侧工件查看不可变时间线' })}</p>
+            <p>{t('select_prompt')}</p>
           </div>
         )}
       </div>

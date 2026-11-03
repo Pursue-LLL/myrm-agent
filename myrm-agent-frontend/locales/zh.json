@@ -1455,7 +1455,11 @@
         "userName": "用户名"
       },
       "modelOverride": "模型覆盖",
-      "subagentCostSaving": "子智能体降本"
+      "subagentCostSaving": "子智能体降本",
+      "subagentModelInherit": "跟随主智能体（默认）",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash（推荐·极致低成本）",
+      "subagentModelGpt4oMini": "GPT-4o Mini（快速审查）",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高吞吐审计）"
     },
     "preview": "预览",
     "avatarColor": "头像颜色",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "导出脱敏版 (安全)",
         "export": "导出"
       }
-    }
+    },
+    "cloneCopySuffix": "副本"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "必须是 JSON 对象",
-      "invalidJson": "JSON 格式无效"
+      "invalidJson": "JSON 格式无效",
+      "cannotFormat": "无法格式化 JSON",
+      "invalidJsonCannotFormat": "JSON 格式无效，无法格式化"
     },
     "schemaForm": {
       "resetDefaults": "重置为默认值",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "暂无该智能体专属的画像数据。",
     "rankedHubSidebarLabel": "枢纽排行侧栏",
     "shareRulesTitle": "分享规则（隐私安全）",
-    "shareRulesTooltip": "在保护隐私的前提下分享规则"
+    "shareRulesTooltip": "在保护隐私的前提下分享规则",
+    "dualLayer": {
+      "title": "双层画像与智能体笔记看板",
+      "description": "显式分层与容量水位：USER 最多 {userMax, number} 字符（长期偏好），MEMORY 最多 {memoryMax, number} 字符（领域笔记）",
+      "refresh": "刷新",
+      "save": "保存记忆",
+      "budget": "≤ {max, number} 字符",
+      "capacity": "容量水位：{current, number} / {max, number} 字符（{percent}%）",
+      "level": {
+        "safe": "正常",
+        "warning": "预警",
+        "critical": "临界",
+        "overflow": "超限"
+      },
+      "userProfile": {
+        "title": "用户长期偏好",
+        "hint": "跨智能体共享：母语、编码习惯、缩进排版、核心禁忌与沟通偏好。",
+        "placeholder": "例如：母语为中文，偏好 Python PEP8 规范，严禁使用 Any 类型，交付代码单文件不超过 400 行..."
+      },
+      "agentNotes": {
+        "title": "智能体专属笔记",
+        "hint": "当前智能体专属：项目架构规范、高频专业术语、边界要求与工程排障要领。",
+        "placeholder": "例如：本项目遵循 Clean Architecture，harness 框架层与 server 业务层严禁反向依赖..."
+      },
+      "intakeProbe": {
+        "title": "短期垃圾记忆准入试算探针",
+        "placeholder": "输入候选记忆（如：'Phase 2 completed'、'PR #882'、'Traceback...' 或 '偏好 PEP8'）",
+        "check": "检测准入",
+        "accepted": "准入放行：路由至 {layer} 层",
+        "rejected": "准入拒绝：判定为短期瞬态垃圾 [{category}]",
+        "longTerm": "长期"
+      },
+      "intakeCheckFailed": "网络或服务器错误，准入检测失败。",
+      "feedback": {
+        "loadFailed": "加载双层记忆失败，请检查网络或后端状态。",
+        "saved": "双层记忆已成功同步保存。",
+        "saveFailed": "保存双层记忆失败，容量可能超限或内容不合规。"
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "继承的共享上下文",
@@ -6490,7 +6535,8 @@
       "quoteRow": "引用第 {row} 行",
       "quoteRowTooltip": "引用选中行到对话输入框进行针对性提问或局部编辑",
       "rowScopeLabel": "第 {row} 行",
-      "clearSelection": "清除选择"
+      "clearSelection": "清除选择",
+      "artifactFallbackName": "表格工件"
     },
     "saving": "保存中...",
     "saved": "已保存",
@@ -6756,7 +6802,10 @@
       "quote": "引用到输入框",
       "copy": "复制",
       "modifyPlaceholder": "描述你想要的修改...",
-      "queued": "操作已排队，当前任务完成后自动执行"
+      "queued": "操作已排队，当前任务完成后自动执行",
+      "artifactFallbackName": "代码工件",
+      "selectedCode": "选中代码",
+      "selectionLines": "选区（{count} 行）"
     },
     "documentSelection": {
       "modify": "AI 修改",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "描述你想对选中内容做的修改...",
       "annotate": "批注",
       "annotatePlaceholder": "描述问题以供审阅...",
-      "toolbarLabel": "选区工具栏"
+      "toolbarLabel": "选区工具栏",
+      "artifactFallbackName": "文档工件",
+      "selectedParagraph": "所选段落"
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -10861,7 +10912,12 @@
         "approved": "已批准",
         "rejected": "已拒绝",
         "applyFailed": "应用失败"
-      }
+      },
+      "forceRetryStarted": "已强制重试",
+      "forceRetryFailed": "强制重试失败",
+      "loadFailed": "加载进化拒绝审计日志失败",
+      "loadStatsFailed": "加载进化拒绝统计失败",
+      "retrying": "重试中…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "截止日期",
       "care_check_in": "关怀",
       "open_loop": "待跟进"
+    },
+    "dueWindow": {
+      "overdueHours": "逾期{count}小时",
+      "overdueDays": "逾期{count}天",
+      "underOneHour": "不到1小时",
+      "inHours": "{count}小时后",
+      "inDays": "{count}天后",
+      "overdueUnderOneHour": "逾期不到1小时"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot Mode 多 Agent 协同群聊工作区",
-    "hermesParity": "支持智能体机器人模式与点对点私信",
+    "botModeSummary": "支持智能体机器人模式与点对点私信",
     "roomsTitle": "协同工作频道",
     "createRoom": "创建新房间",
     "roomNamePlaceholder": "房间名称 (如: 架构战情室)",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "运行时控制台与多端状态投影中枢",
-    "mateclawParity": "实时呈现运行状态与事件",
+    "liveStateSummary": "实时呈现运行状态与事件",
     "surfaces": {
       "chat": "Chat 对话视图",
       "runtimeConsole": "Runtime Console 控制台",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "编辑",
-        "preview": "预览"
+        "preview": "预览",
+        "snippets": {
+          "bold": "粗体文本",
+          "italic": "斜体文本",
+          "heading": "二级标题",
+          "code": "代码",
+          "quote": "引用文本",
+          "bullet": "列表项",
+          "todo": "待办任务",
+          "wikilink": "页面名称",
+          "tableHeader": "标题 {index}",
+          "tableCell": "内容 {index}"
+        }
       },
       "concepts": {
         "discard": "放弃",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "缓存复用 Tokens",
       "cacheRadarFreshInput": "冷启动 Tokens",
       "cacheRadarTotalPrompt": "总 Prompt Tokens",
-      "dailyToolCallsTooltip": "{date}：{count} 次工具调用"
+      "dailyToolCallsTooltip": "{date}：{count} 次工具调用",
+      "weekdayToolCallsTooltip": "{day}：{count} 次工具调用",
+      "daysCount": "{count} 天"
     },
     "workingState": {
       "title": "工作状态",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "最近窗口",
       "digestWindow": "摘要窗口：{range}",
       "digestRuns": "运行次数",
-      "digestManualRuns": "手动次数"
+      "digestManualRuns": "手动次数",
+      "dimension": {
+        "freshness": "新鲜度",
+        "coverage": "覆盖度",
+        "retention_health": "留存健康度",
+        "coherence": "一致性"
+      }
     },
     "memoryBackup": {
       "title": "记忆备份",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "经验向导",
         "pluginStateTitle": "插件扩展状态",
         "protectedSpan": "受保护的跨度",
-        "retryAttempt": "第 {attempt} 次尝试（服务商退避 / 已重试）"
+        "retryAttempt": "第 {attempt} 次尝试（服务商退避 / 已重试）",
+        "toolSpanLabel": "工具"
       },
       "contextDoctor": {
         "title": "上下文体检（Token 热点与成本审计）",
@@ -22863,7 +22948,11 @@
     "noChanges": "无更改"
   },
   "riskGate": {
-    "regionLabel": "分级风险确认"
+    "regionLabel": "分级风险确认",
+    "dryRunImpact": "以 dry_run=true 模拟执行 {tool}",
+    "dryRunDefaultTarget": "目标对象",
+    "dryRunParamsVerified": "参数校验通过（{count} 个字段）",
+    "dryRunNoPersistentChanges": "未对文件系统或数据库做任何持久化修改"
   },
   "commerceReceipt": {
     "statusCommitted": "已支付并核验",

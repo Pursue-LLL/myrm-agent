@@ -2,7 +2,7 @@
 
 ## 1. 业务目标与核心价值
 彻底破除桌面端 Agent 走向 Web 后终端沦为只读日志输出面板导致无法运行交互式 CLI/Vim/Top 命令以及页面刷新后台长任务被意外杀死的硬伤。
-对标 Hermes PR #93508 核心承诺与工业级 Web Terminal 实践，实现：
+实现：
 1. **轻量高性能 ANSI 虚拟终端仿真 (Virtual Terminal Emulator)**：支持 VT100 / xterm 控制序列、ANSI 256 色/真彩色着色高保真渲染、光标回退、清屏与字符对齐；
 2. **全键盘捕获与控制字符映射 (Full Keyboard & Signals)**：捕获 `Ctrl+C` (SIGINT)、`Ctrl+D` (EOF)、`Ctrl+Z` (SIGTSTP)、`Tab` 补全与方向键，支持交互式 REPL 与全屏工具；
 3. **Detachable 持久化 PTY 会话流 (Detachable PTY Sessions)**：支持终端会话“脱钩 (Detach)”与“重新挂载 (Attach)”。用户刷新网页或切换标签页时，后台长任务进程在后台守护运行，重新连接后秒级回显历史屏幕缓冲区，绝不意外中断任务；

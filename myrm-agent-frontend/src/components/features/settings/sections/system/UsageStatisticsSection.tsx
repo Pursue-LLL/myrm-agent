@@ -26,6 +26,7 @@ import SessionAnalyticsDialog from './SessionAnalyticsDialog';
 import { Download } from 'lucide-react';
 import { downloadUsageCsv } from './usageExport';
 import { localizeReactNode } from '@/lib/utils/locale';
+import { weekdayLabels } from '@/lib/utils/weekdayLabels';
 import {
   getDailyUsage,
   getSessionUsage,
@@ -240,9 +241,7 @@ function UsageStatisticsSection() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2">
                 <IconDatabase className="w-4 h-4 text-emerald-500" />
-                <span className="font-semibold text-sm text-foreground">
-                  {t('cacheRadarTitle')}
-                </span>
+                <span className="font-semibold text-sm text-foreground">{t('cacheRadarTitle')}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
                   {t('cacheRadarWindow', {
                     days: promptCacheRadar.days,
@@ -259,33 +258,25 @@ function UsageStatisticsSection() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">
-                  {t('cacheHitRate')}
-                </div>
+                <div className="text-muted-foreground text-[11px]">{t('cacheHitRate')}</div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {(promptCacheRadar.prompt_cache_hit_ratio * 100).toFixed(1)}%
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">
-                  {t('cacheRadarCachedTokens')}
-                </div>
+                <div className="text-muted-foreground text-[11px]">{t('cacheRadarCachedTokens')}</div>
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_cache_read_tokens)}
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">
-                  {t('cacheRadarFreshInput')}
-                </div>
+                <div className="text-muted-foreground text-[11px]">{t('cacheRadarFreshInput')}</div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.fresh_input_tokens)}
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">
-                  {t('cacheRadarTotalPrompt')}
-                </div>
+                <div className="text-muted-foreground text-[11px]">{t('cacheRadarTotalPrompt')}</div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_prompt_tokens)}
                 </div>
@@ -435,15 +426,13 @@ function UsageStatisticsSection() {
               <StatCard
                 icon={IconChart}
                 label={t('maxStreak')}
-                value={`${activity.max_streak} days`}
+                value={t('daysCount', { count: activity.max_streak })}
                 colorClass="bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400"
               />
               <StatCard
                 icon={IconChat}
                 label={t('busiestDay')}
-                value={(locale === 'zh'
-                  ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])[activity.busiest_day_of_week] || '-'}
+                value={weekdayLabels(locale)[activity.busiest_day_of_week] || '-'}
                 colorClass="bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
               />
               <StatCard

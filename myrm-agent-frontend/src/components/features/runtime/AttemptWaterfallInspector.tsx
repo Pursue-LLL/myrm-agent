@@ -3,30 +3,20 @@
 /**
  * AttemptWaterfallInspector Component.
  * Visual waterfall timeline and throughput inspector for individual execution attempts.
- * Implements MateClaw Attempt telemetry and fault diagnostics with zero emojis.
+ * Attempt telemetry and fault diagnostics with zero emojis.
  */
 
 import React, { useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  FileCode,
-  RotateCw,
-  XCircle,
-  Zap,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FileCode, RotateCw, XCircle, Zap } from 'lucide-react';
 import { AttemptRecord } from './runtimeProjectionTypes';
 
 interface AttemptWaterfallInspectorProps {
   attempts: AttemptRecord[];
 }
 
-export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps> = ({
-  attempts,
-}) => {
+export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps> = ({ attempts }) => {
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(
-    attempts.find((a) => a.status === 'failed')?.attempt_id || null
+    attempts.find((a) => a.status === 'failed')?.attempt_id || null,
   );
 
   if (attempts.length === 0) {
@@ -72,9 +62,7 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                 ) : (
                   <RotateCw className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
                 )}
-                <span className="text-xs font-semibold text-slate-200">
-                  Attempt #{att.attempt_number}
-                </span>
+                <span className="text-xs font-semibold text-slate-200">Attempt #{att.attempt_number}</span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wider ${
                     isCompleted
@@ -104,9 +92,7 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                   </span>
                 ) : null}
 
-                <span className="text-[11px] text-slate-400">
-                  {att.tokens_in + att.tokens_out} tokens
-                </span>
+                <span className="text-[11px] text-slate-400">{att.tokens_in + att.tokens_out} tokens</span>
               </span>
             </button>
 
@@ -120,9 +106,7 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                       <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                       <span>Fault Diagnostic Reason:</span>
                     </div>
-                    <p className="font-mono text-[11px] leading-relaxed break-all">
-                      {att.error_reason}
-                    </p>
+                    <p className="font-mono text-[11px] leading-relaxed break-all">{att.error_reason}</p>
                   </div>
                 ) : null}
 

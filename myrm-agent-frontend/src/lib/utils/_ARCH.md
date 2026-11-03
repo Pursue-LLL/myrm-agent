@@ -33,6 +33,7 @@
 - `backend-url.ts`：后端服务基础地址层 — `BACKEND_BASE_URL` 动态解析常量与 `createDynamicUrl` 动态 URL 构建器（懒解析 toString/valueOf 伪装 string），独立于 API 请求层供 URL 类工具与 API 层共同消费。
 - `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。
 - `avatarUtils.ts`：智能体头像解析工具层 — `parseAvatarUrl` 统一解析 avatar URL（icon:/lucide:/emoji:/home:///http(s):///gradient: 六格式）与 `isIconAvatar` 快捷判断、`ParsedAvatar` 结果类型。
+- `weekdayLabels.ts`：星期简称 — `weekdayLabels(locale)` 用 `Intl.DateTimeFormat` 按界面语言给出周一起算的七个简称，统计图表的星期轴与提示共用，不需要每种语言各维护一份列表。
 - `classnameUtils.ts`：类名合并 — `cn` 组合 clsx 条件拼接与 tailwind-merge 冲突消解。
 - `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）；成功 / 失败 / 读取被拒的 toast 文案，以及读取权限确认（Tauri 原生对话框；浏览器走应用内 `confirmAction`，同时发起的读取共用同一个提问）的标题、问句、按钮文案，都经 `translateI18nKey('common.clipboard.*')` 取（单测 `__tests__/clipboardUtils.test.ts`）。
 - `userPresence.ts`：用户在场判定 — `isUserPresent`（页面可见且窗口有焦点）是「用户正在看」的唯一定义，供离开才提醒的通道（完成提示音、桌宠未读邮件）与 Catchup 在场盖章共用。

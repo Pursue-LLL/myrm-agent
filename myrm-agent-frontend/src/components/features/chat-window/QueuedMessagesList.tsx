@@ -9,7 +9,7 @@
  * - QueuedMessagesList: 可折叠、按会话持久化、可拖拽排序并支持 Esc 暂停自动展开的排队消息 Dock 列表。
  *
  * [POS]
- * 消息队列可视化与拖拽排序 Dock 栏。对标 Traycer PR #2441 与 Hermes Composer Queue Editing 生产级连续交互心法。
+ * 消息队列可视化与拖拽排序 Dock 栏。
  */
 
 import React, { useCallback, useEffect, useMemo } from 'react';

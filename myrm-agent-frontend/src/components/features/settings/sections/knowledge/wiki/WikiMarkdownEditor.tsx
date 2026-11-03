@@ -7,6 +7,7 @@ import { IconEdit, IconEye } from '@/components/features/icons/PremiumIcons';
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { WikiEditorToolbar, type ToolbarAction } from './WikiEditorToolbar';
+import { buildToolbarEdit } from './markdownToolbarEdit';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { editor, IDisposable } from 'monaco-editor';
@@ -113,90 +114,56 @@ export function WikiMarkdownEditor({
     };
   }, []);
 
-  const handleToolbarAction = useCallback((action: ToolbarAction) => {
-    const editorInstance = editorInstanceRef.current;
-    if (!editorInstance) {
-      return;
-    }
+  const handleToolbarAction = useCallback(
+    (action: ToolbarAction) => {
+      const editorInstance = editorInstanceRef.current;
+      if (!editorInstance) {
+        return;
+      }
 
-    const selection = editorInstance.getSelection();
-    const model = editorInstance.getModel();
-    if (!selection || !model) {
-      return;
-    }
+      const selection = editorInstance.getSelection();
+      const model = editorInstance.getModel();
+      if (!selection || !model) {
+        return;
+      }
 
-    const selectedText = model.getValueInRange(selection);
-    const isCollapsed = !selectedText;
-    let targetSelectionOffset: { startOffset: number; length: number } | null = null;
-    let replaceText = '';
-
-    switch (action) {
-      case 'bold':
-        replaceText = selectedText ? `**${selectedText}**` : '**粗体文本**';
-        if (isCollapsed) {
-          targetSelectionOffset = { startOffset: 2, length: 4 };
-        }
-        break;
-      case 'italic':
-        replaceText = selectedText ? `*${selectedText}*` : '*斜体文本*';
-        if (isCollapsed) {
-          targetSelectionOffset = { startOffset: 1, length: 4 };
-        }
-        break;
-      case 'h2':
-        replaceText = selectedText ? `\n## ${selectedText}\n` : '\n## 二级标题\n';
-        break;
-      case 'code':
-        if (selectedText.includes('\n')) {
-          replaceText = `\n\`\`\`markdown\n${selectedText}\n\`\`\`\n`;
-        } else {
-          replaceText = selectedText ? `\`${selectedText}\`` : '`代码`';
-          if (isCollapsed) {
-            targetSelectionOffset = { startOffset: 1, length: 2 };
-          }
-        }
-        break;
-      case 'quote':
-        replaceText = selectedText ? `\n> ${selectedText}\n` : '\n> 引用文本\n';
-        break;
-      case 'bullet':
-        replaceText = selectedText ? `\n- ${selectedText}\n` : '\n- 列表项\n';
-        break;
-      case 'todo':
-        replaceText = selectedText ? `\n- [ ] ${selectedText}\n` : '\n- [ ] 待办任务\n';
-        break;
-      case 'wikilink':
-        replaceText = selectedText ? `[[${selectedText}]]` : '[[页面名称]]';
-        if (isCollapsed) {
-          targetSelectionOffset = { startOffset: 2, length: 4 };
-        }
-        break;
-      case 'table':
-        replaceText = '\n| 标题 1 | 标题 2 |\n| --- | --- |\n| 内容 1 | 内容 2 |\n';
-        break;
-    }
-
-    editorInstance.executeEdits('toolbar-action', [
-      {
-        range: selection,
-        text: replaceText,
-        forceMoveMarkers: true,
-      },
-    ]);
-
-    if (isCollapsed && targetSelectionOffset) {
-      const startLine = selection.startLineNumber;
-      const startCol = selection.startColumn + targetSelectionOffset.startOffset;
-      editorInstance.setSelection({
-        startLineNumber: startLine,
-        startColumn: startCol,
-        endLineNumber: startLine,
-        endColumn: startCol + targetSelectionOffset.length,
+      const selectedText = model.getValueInRange(selection);
+      const { text: replaceText, select } = buildToolbarEdit(action, selectedText, {
+        bold: t('snippets.bold'),
+        italic: t('snippets.italic'),
+        heading: t('snippets.heading'),
+        code: t('snippets.code'),
+        quote: t('snippets.quote'),
+        bullet: t('snippets.bullet'),
+        todo: t('snippets.todo'),
+        wikilink: t('snippets.wikilink'),
+        tableHeader: (index) => t('snippets.tableHeader', { index }),
+        tableCell: (index) => t('snippets.tableCell', { index }),
       });
-    }
 
-    editorInstance.focus();
-  }, []);
+      editorInstance.executeEdits('toolbar-action', [
+        {
+          range: selection,
+          text: replaceText,
+          forceMoveMarkers: true,
+        },
+      ]);
+
+      if (!selectedText && select) {
+        const startLine = selection.startLineNumber;
+        const startCol = selection.startColumn + select.startOffset;
+        editorInstance.setSelection({
+          startLineNumber: startLine,
+          startColumn: startCol,
+          endLineNumber: startLine,
+          endColumn: startCol + select.length,
+        });
+      }
+
+      editorInstance.focus();
+    },
+    [t],
+  );
 
   handleToolbarActionRef.current = handleToolbarAction;
 

@@ -53,10 +53,10 @@ export default function SessionExportButton({ chatId, chatTitle }: SessionExport
           setModalOpen(true);
         }}
         className="h-7 px-2 text-xs gap-1 border-border/50 hover:bg-muted/60 text-muted-foreground hover:text-foreground"
-        title={t('exportChat.tooltip', { defaultMessage: '导出会话或复制 Markdown' })}
+        title={t('exportChat.tooltip')}
       >
         <Download className="h-3.5 w-3.5 text-primary" />
-        <span>{t('exportChat.action', { defaultMessage: '导出' })}</span>
+        <span>{t('exportChat.action')}</span>
       </Button>
 
       <SessionExportModal

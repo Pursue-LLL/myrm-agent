@@ -290,15 +290,16 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
       label: t('quote'),
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
-        const artifactName = activeTab?.artifact?.filename || '文档工件';
+        const artifactName = activeTab?.artifact?.filename || t('artifactFallbackName');
         const targetArtifactId = artifactId || activeTab?.artifact?.id || 'current';
+        const selectedParagraphLabel = t('selectedParagraph');
 
         // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
         useScopedArtifactStore.getState().setTarget({
           artifactId: targetArtifactId,
           artifactName,
           kind: 'document',
-          scopeLabel: '所选段落',
+          scopeLabel: selectedParagraphLabel,
           selectedSnippet: selectedText,
         });
 
@@ -307,7 +308,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
           type: 'artifact_range',
           label: artifactName,
           artifactId: targetArtifactId,
-          range: '所选段落',
+          range: selectedParagraphLabel,
           source: 'generated',
           size: selectedText.length,
           content: selectedText,

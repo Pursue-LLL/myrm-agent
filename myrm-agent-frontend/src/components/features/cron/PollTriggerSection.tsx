@@ -29,13 +29,9 @@ export function PollTriggerSection({ drafts, onChange }: PollTriggerSectionProps
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <RefreshCw className="h-3 w-3" />
-        {t('triggerPollLabel', { defaultMessage: 'Poll (HTTP)' })}
+        {t('triggerPollLabel')}
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        {t('triggerPollDesc', {
-          defaultMessage: 'Periodically fetch a URL and fire when content changes.',
-        })}
-      </p>
+      <p className="text-[10px] text-muted-foreground">{t('triggerPollDesc')}</p>
       {drafts.map((draft, i) => (
         <div key={i} className="flex items-center gap-1.5">
           <Input
@@ -47,7 +43,7 @@ export function PollTriggerSection({ drafts, onChange }: PollTriggerSectionProps
           <Input
             value={draft.json_path}
             onChange={(e) => updateDraft(i, { json_path: e.target.value })}
-            placeholder={t('triggerPollJsonPath', { defaultMessage: 'JSONPath (optional)' })}
+            placeholder={t('triggerPollJsonPath')}
             className="h-7 text-xs font-mono w-36"
           />
           <Input
@@ -73,7 +69,7 @@ export function PollTriggerSection({ drafts, onChange }: PollTriggerSectionProps
         className="h-6 text-[10px] gap-1"
         onClick={() => onChange([...drafts, { url: '', json_path: '', interval_seconds: 300 }])}
       >
-        <Plus className="h-3 w-3" /> {t('triggerPollAdd', { defaultMessage: 'Add Poll' })}
+        <Plus className="h-3 w-3" /> {t('triggerPollAdd')}
       </Button>
     </div>
   );

@@ -1455,7 +1455,11 @@
         "userName": "사용자 이름"
       },
       "modelOverride": "모델 재정의",
-      "subagentCostSaving": "하위 에이전트 비용 절감"
+      "subagentCostSaving": "하위 에이전트 비용 절감",
+      "subagentModelInherit": "메인 에이전트를 따름(기본값)",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash(추천·최저 비용)",
+      "subagentModelGpt4oMini": "GPT-4o Mini(빠른 검토)",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku(고처리량 감사)"
     },
     "preview": "미리보기",
     "avatarColor": "아바타 색상",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "편집본 내보내기 (안전)",
         "export": "내보내기"
       }
-    }
+    },
+    "cloneCopySuffix": "복사본"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "JSON 객체여야 합니다",
-      "invalidJson": "잘못된 JSON 형식"
+      "invalidJson": "잘못된 JSON 형식",
+      "cannotFormat": "JSON 서식을 지정할 수 없습니다",
+      "invalidJsonCannotFormat": "JSON 형식이 올바르지 않아 서식을 지정할 수 없습니다"
     },
     "schemaForm": {
       "resetDefaults": "기본값으로 재설정",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다.",
     "rankedHubSidebarLabel": "허브 순위 사이드바",
     "shareRulesTitle": "규칙 공유(개인정보 보호)",
-    "shareRulesTooltip": "개인정보를 보호하면서 규칙 공유"
+    "shareRulesTooltip": "개인정보를 보호하면서 규칙 공유",
+    "dualLayer": {
+      "title": "사용자 프로필 및 에이전트 노트(2계층 메모리)",
+      "description": "명시적인 2계층 구조와 용량 게이지: USER는 최대 {userMax, number}자(장기 선호), MEMORY는 최대 {memoryMax, number}자(도메인 노트)",
+      "refresh": "새로고침",
+      "save": "메모리 저장",
+      "budget": "최대 {max, number}자",
+      "capacity": "용량: {current, number} / {max, number}자({percent}%)",
+      "level": {
+        "safe": "정상",
+        "warning": "경고",
+        "critical": "임계",
+        "overflow": "한도 초과"
+      },
+      "userProfile": {
+        "title": "사용자 프로필",
+        "hint": "에이전트 간 공유: 모국어, 코딩 습관, 들여쓰기와 서식, 절대 금지 사항, 소통 선호.",
+        "placeholder": "예: 모국어는 중국어, Python PEP8 규칙 선호, Any 타입 사용 금지, 납품 코드는 파일당 400줄 이내..."
+      },
+      "agentNotes": {
+        "title": "에이전트 노트",
+        "hint": "이 에이전트 전용: 프로젝트 아키텍처 규칙, 자주 쓰는 전문 용어, 경계 요건, 문제 해결 요령.",
+        "placeholder": "예: 이 프로젝트는 Clean Architecture를 따르며 harness 계층은 server 계층에 역으로 의존해서는 안 됩니다..."
+      },
+      "intakeProbe": {
+        "title": "단기 노이즈 수용 테스트",
+        "placeholder": "후보 메모리를 입력하세요(예: 'Phase 2 completed', 'PR #882', 'Traceback...', 'PEP8 선호')",
+        "check": "수용 여부 확인",
+        "accepted": "수용됨: {layer} 계층으로 보냅니다",
+        "rejected": "수용 거부: 단기 일시적 노이즈로 판정됨 [{category}]",
+        "longTerm": "장기"
+      },
+      "intakeCheckFailed": "네트워크 또는 서버 오류로 수용 확인에 실패했습니다.",
+      "feedback": {
+        "loadFailed": "2계층 메모리를 불러오지 못했습니다. 네트워크 또는 백엔드 상태를 확인하세요.",
+        "saved": "2계층 메모리를 저장했습니다.",
+        "saveFailed": "2계층 메모리를 저장하지 못했습니다. 용량이 초과되었거나 허용되지 않는 내용일 수 있습니다."
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -6490,7 +6535,8 @@
       "quoteRow": "{row}행 인용",
       "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다",
       "rowScopeLabel": "{row}행",
-      "clearSelection": "선택 해제"
+      "clearSelection": "선택 해제",
+      "artifactFallbackName": "스프레드시트 아티팩트"
     },
     "saving": "저장 중...",
     "saved": "저장됨",
@@ -6756,7 +6802,10 @@
       "quote": "입력창에 인용",
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
-      "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다"
+      "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다",
+      "artifactFallbackName": "코드 아티팩트",
+      "selectedCode": "선택한 코드",
+      "selectionLines": "선택 영역({count}줄)"
     },
     "documentSelection": {
       "modify": "AI 수정",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
       "annotate": "의견",
       "annotatePlaceholder": "검토용 문제 설명...",
-      "toolbarLabel": "선택 영역 도구 모음"
+      "toolbarLabel": "선택 영역 도구 모음",
+      "artifactFallbackName": "문서 아티팩트",
+      "selectedParagraph": "선택한 단락"
     },
     "skillActions": {
       "moreActions": "더 많은 작업",
@@ -10861,7 +10912,12 @@
         "approved": "승인됨",
         "rejected": "거부됨",
         "applyFailed": "적용 실패"
-      }
+      },
+      "forceRetryStarted": "강제 재시도를 시작했습니다",
+      "forceRetryFailed": "강제 재시도에 실패했습니다",
+      "loadFailed": "진화 거부 감사 로그를 불러오지 못했습니다",
+      "loadStatsFailed": "진화 거부 통계를 불러오지 못했습니다",
+      "retrying": "재시도 중…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "마감",
       "care_check_in": "돌봄",
       "open_loop": "후속 조치"
+    },
+    "dueWindow": {
+      "overdueHours": "{count}시간 지연",
+      "overdueDays": "{count}일 지연",
+      "underOneHour": "1시간 미만",
+      "inHours": "{count}시간 후",
+      "inDays": "{count}일 후",
+      "overdueUnderOneHour": "지연 1시간 미만"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "봇 모드 멀티 에이전트 그룹 채팅 워크스페이스",
-    "hermesParity": "봇 모드와 피어 투 피어 메시지를 지원합니다",
+    "botModeSummary": "봇 모드와 피어 투 피어 메시지를 지원합니다",
     "roomsTitle": "협업 채널",
     "createRoom": "새 룸 만들기",
     "roomNamePlaceholder": "룸 이름(예: 아키텍처 워룸)",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "런타임 콘솔 및 멀티 서피스 프로젝션 허브",
-    "mateclawParity": "실행 상태와 이벤트를 실시간으로 표시",
+    "liveStateSummary": "실행 상태와 이벤트를 실시간으로 표시",
     "surfaces": {
       "chat": "채팅 보기",
       "runtimeConsole": "런타임 콘솔",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "편집",
-        "preview": "미리보기"
+        "preview": "미리보기",
+        "snippets": {
+          "bold": "굵은 글씨",
+          "italic": "기울임 글씨",
+          "heading": "제목",
+          "code": "코드",
+          "quote": "인용문",
+          "bullet": "목록 항목",
+          "todo": "할 일",
+          "wikilink": "페이지 이름",
+          "tableHeader": "머리글 {index}",
+          "tableCell": "내용 {index}"
+        }
       },
       "concepts": {
         "discard": "폐기",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "캐시 재사용 Tokens",
       "cacheRadarFreshInput": "신규 입력 Tokens",
       "cacheRadarTotalPrompt": "프롬프트 Tokens 합계",
-      "dailyToolCallsTooltip": "{date}: 도구 호출 {count}회"
+      "dailyToolCallsTooltip": "{date}: 도구 호출 {count}회",
+      "weekdayToolCallsTooltip": "{day}: 도구 호출 {count}회",
+      "daysCount": "{count}일"
     },
     "workingState": {
       "title": "작업 상태",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "최근 윈도우",
       "digestWindow": "요약 구간: {range}",
       "digestRuns": "실행 횟수",
-      "digestManualRuns": "수동 실행"
+      "digestManualRuns": "수동 실행",
+      "dimension": {
+        "freshness": "최신성",
+        "coverage": "커버리지",
+        "retention_health": "보존 건강도",
+        "coherence": "일관성"
+      }
     },
     "memoryBackup": {
       "title": "메모리 백업",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "경험 마법사",
         "pluginStateTitle": "플러그인 확장 상태",
         "protectedSpan": "보호된 스팬",
-        "retryAttempt": "시도: {attempt}회차(공급자 백오프 / 재시도됨)"
+        "retryAttempt": "시도: {attempt}회차(공급자 백오프 / 재시도됨)",
+        "toolSpanLabel": "도구"
       },
       "contextDoctor": {
         "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",
@@ -22863,7 +22948,11 @@
     "noChanges": "변경 사항 없음"
   },
   "riskGate": {
-    "regionLabel": "단계별 위험 확인"
+    "regionLabel": "단계별 위험 확인",
+    "dryRunImpact": "dry_run=true로 {tool} 실행을 시뮬레이션했습니다",
+    "dryRunDefaultTarget": "대상 개체",
+    "dryRunParamsVerified": "매개변수 검증 통과({count}개 필드)",
+    "dryRunNoPersistentChanges": "파일 시스템이나 데이터베이스에 영구적인 변경이 적용되지 않았습니다"
   },
   "commerceReceipt": {
     "statusCommitted": "결제 및 검증 완료",

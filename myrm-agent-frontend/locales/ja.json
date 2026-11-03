@@ -1455,7 +1455,11 @@
         "userName": "ユーザー名"
       },
       "modelOverride": "モデルの上書き",
-      "subagentCostSaving": "サブエージェントのコスト削減"
+      "subagentCostSaving": "サブエージェントのコスト削減",
+      "subagentModelInherit": "メインエージェントに従う（デフォルト）",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash（おすすめ・最小コスト）",
+      "subagentModelGpt4oMini": "GPT-4o Mini（高速レビュー）",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高スループット監査）"
     },
     "preview": "プレビュー",
     "avatarColor": "アバターの色",
@@ -1763,7 +1767,8 @@
         "exportRedacted": "匿名化版をエクスポート（安全）",
         "export": "エクスポート"
       }
-    }
+    },
+    "cloneCopySuffix": "コピー"
   },
   "common": {
     "dnd": {
@@ -1785,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "JSON オブジェクトである必要があります",
-      "invalidJson": "JSON フォーマットが無効です"
+      "invalidJson": "JSON フォーマットが無効です",
+      "cannotFormat": "JSON を整形できません",
+      "invalidJsonCannotFormat": "JSON 形式が無効なため整形できません"
     },
     "schemaForm": {
       "resetDefaults": "デフォルト値にリセット",
@@ -6235,7 +6242,45 @@
     "contextPeerEmpty": "このエージェント固有のプロファイルデータはまだありません。",
     "rankedHubSidebarLabel": "ハブランキングのサイドバー",
     "shareRulesTitle": "ルールを共有（プライバシー保護）",
-    "shareRulesTooltip": "プライバシーを保護したままルールを共有"
+    "shareRulesTooltip": "プライバシーを保護したままルールを共有",
+    "dualLayer": {
+      "title": "ユーザープロフィールとエージェントノート（二層メモリ）",
+      "description": "明示的な二層構造と容量ゲージ：USER は最大 {userMax, number} 文字（長期的な好み）、MEMORY は最大 {memoryMax, number} 文字（ドメインノート）",
+      "refresh": "更新",
+      "save": "メモリを保存",
+      "budget": "{max, number} 文字まで",
+      "capacity": "使用量：{current, number} / {max, number} 文字（{percent}%）",
+      "level": {
+        "safe": "正常",
+        "warning": "警告",
+        "critical": "危険域",
+        "overflow": "上限超過"
+      },
+      "userProfile": {
+        "title": "ユーザープロフィール",
+        "hint": "エージェント間で共有：母語、コーディングの習慣、インデントや書式、絶対に避けたいこと、コミュニケーションの好み。",
+        "placeholder": "例：母語は中国語。Python PEP8 に従い、Any 型は使わず、納品するコードは 1 ファイル 400 行以内にする..."
+      },
+      "agentNotes": {
+        "title": "エージェントノート",
+        "hint": "このエージェント専用：プロジェクトのアーキテクチャ規約、頻出する専門用語、守るべき境界、トラブルシューティングのコツ。",
+        "placeholder": "例：このプロジェクトは Clean Architecture に従い、harness 層は server 層に逆依存してはならない..."
+      },
+      "intakeProbe": {
+        "title": "短期ノイズの受け入れテスト",
+        "placeholder": "候補のメモリを入力（例：'Phase 2 completed'、'PR #882'、'Traceback...'、'PEP8 を好む'）",
+        "check": "受け入れを確認",
+        "accepted": "受け入れ：{layer} 層に振り分けました",
+        "rejected": "受け入れ拒否：短期的な一過性ノイズと判定されました [{category}]",
+        "longTerm": "長期"
+      },
+      "intakeCheckFailed": "ネットワークまたはサーバーのエラーにより、受け入れの確認に失敗しました。",
+      "feedback": {
+        "loadFailed": "二層メモリを読み込めませんでした。ネットワークまたはバックエンドの状態を確認してください。",
+        "saved": "二層メモリを保存しました。",
+        "saveFailed": "二層メモリを保存できませんでした。容量超過か、許可されない内容の可能性があります。"
+      }
+    }
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -6490,7 +6535,8 @@
       "quoteRow": "第 {row} 行を引用",
       "quoteRowTooltip": "選択した行を入力欄に引用して質問または編集を行う",
       "rowScopeLabel": "{row} 行目",
-      "clearSelection": "選択を解除"
+      "clearSelection": "選択を解除",
+      "artifactFallbackName": "表計算の成果物"
     },
     "saving": "保存中...",
     "saved": "保存しました",
@@ -6756,7 +6802,10 @@
       "quote": "入力欄に引用",
       "copy": "コピー",
       "modifyPlaceholder": "変更内容を説明してください…",
-      "queued": "操作がキューに追加されました。現在のタスク完了後に実行されます"
+      "queued": "操作がキューに追加されました。現在のタスク完了後に実行されます",
+      "artifactFallbackName": "コードの成果物",
+      "selectedCode": "選択したコード",
+      "selectionLines": "選択範囲（{count} 行）"
     },
     "documentSelection": {
       "modify": "AI 変更",
@@ -6767,7 +6816,9 @@
       "modifyPlaceholder": "変更内容を説明してください…",
       "annotate": "コメント",
       "annotatePlaceholder": "問題点を説明...",
-      "toolbarLabel": "選択範囲のツールバー"
+      "toolbarLabel": "選択範囲のツールバー",
+      "artifactFallbackName": "ドキュメントの成果物",
+      "selectedParagraph": "選択した段落"
     },
     "skillActions": {
       "moreActions": "もっと見る操作",
@@ -10861,7 +10912,12 @@
         "approved": "承認済み",
         "rejected": "拒否済み",
         "applyFailed": "適用に失敗しました"
-      }
+      },
+      "forceRetryStarted": "強制再試行を開始しました",
+      "forceRetryFailed": "強制再試行に失敗しました",
+      "loadFailed": "進化拒否監査ログを読み込めませんでした",
+      "loadStatsFailed": "進化拒否の統計を読み込めませんでした",
+      "retrying": "再試行中…"
     }
   },
   "quarantineDialog": {
@@ -12068,6 +12124,14 @@
       "deadline_check": "截止日付",
       "care_check_in": "気遣い",
       "open_loop": "フォローアップ"
+    },
+    "dueWindow": {
+      "overdueHours": "{count} 時間超過",
+      "overdueDays": "{count} 日超過",
+      "underOneHour": "1 時間未満",
+      "inHours": "{count} 時間後",
+      "inDays": "{count} 日後",
+      "overdueUnderOneHour": "超過 1 時間未満"
     }
   },
   "Catchup": {
@@ -14700,7 +14764,7 @@
   },
   "groupChat": {
     "title": "ボットモードのマルチエージェントグループチャットワークスペース",
-    "hermesParity": "ボットモードとピアツーピアのメッセージに対応",
+    "botModeSummary": "ボットモードとピアツーピアのメッセージに対応",
     "roomsTitle": "コラボレーションチャンネル",
     "createRoom": "新しいルームを作成",
     "roomNamePlaceholder": "ルーム名（例: アーキテクチャ対策会議）",
@@ -14824,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "ランタイムコンソール＆マルチサーフェス投影ハブ",
-    "mateclawParity": "実行状態とイベントをリアルタイムで表示",
+    "liveStateSummary": "実行状態とイベントをリアルタイムで表示",
     "surfaces": {
       "chat": "チャットビュー",
       "runtimeConsole": "ランタイムコンソール",
@@ -18042,7 +18106,19 @@
       },
       "editor": {
         "edit": "編集",
-        "preview": "プレビュー"
+        "preview": "プレビュー",
+        "snippets": {
+          "bold": "太字",
+          "italic": "斜体",
+          "heading": "見出し",
+          "code": "コード",
+          "quote": "引用文",
+          "bullet": "リスト項目",
+          "todo": "やること",
+          "wikilink": "ページ名",
+          "tableHeader": "見出し {index}",
+          "tableCell": "内容 {index}"
+        }
       },
       "concepts": {
         "discard": "破棄",
@@ -21290,7 +21366,9 @@
       "cacheRadarCachedTokens": "再利用されたキャッシュ Tokens",
       "cacheRadarFreshInput": "新規入力 Tokens",
       "cacheRadarTotalPrompt": "プロンプト Tokens 合計",
-      "dailyToolCallsTooltip": "{date}：ツール呼び出し {count} 回"
+      "dailyToolCallsTooltip": "{date}：ツール呼び出し {count} 回",
+      "weekdayToolCallsTooltip": "{day}：ツール呼び出し {count} 回",
+      "daysCount": "{count} 日"
     },
     "workingState": {
       "title": "作業状態",
@@ -21377,7 +21455,13 @@
       "digestWindowModeUnknown": "最近のウィンドウ",
       "digestWindow": "集計ウィンドウ: {range}",
       "digestRuns": "実行回数",
-      "digestManualRuns": "手動回数"
+      "digestManualRuns": "手動回数",
+      "dimension": {
+        "freshness": "鮮度",
+        "coverage": "カバレッジ",
+        "retention_health": "保持の健全性",
+        "coherence": "一貫性"
+      }
     },
     "memoryBackup": {
       "title": "メモリバックアップ",
@@ -21732,7 +21816,8 @@
         "experienceWizardButton": "経験ウィザード",
         "pluginStateTitle": "プラグイン拡張の状態",
         "protectedSpan": "保護されたスパン",
-        "retryAttempt": "試行：{attempt} 回目（プロバイダーのバックオフ / 再試行済み）"
+        "retryAttempt": "試行：{attempt} 回目（プロバイダーのバックオフ / 再試行済み）",
+        "toolSpanLabel": "ツール"
       },
       "contextDoctor": {
         "title": "コンテキスト健康診断 (Token ホットスポットとコスト監査)",
@@ -22863,7 +22948,11 @@
     "noChanges": "変更なし"
   },
   "riskGate": {
-    "regionLabel": "段階別リスク確認"
+    "regionLabel": "段階別リスク確認",
+    "dryRunImpact": "dry_run=true で {tool} の実行をシミュレーションしました",
+    "dryRunDefaultTarget": "対象エンティティ",
+    "dryRunParamsVerified": "パラメーターの検証に成功しました（{count} 項目）",
+    "dryRunNoPersistentChanges": "ファイルシステムやデータベースへの永続的な変更はありません"
   },
   "commerceReceipt": {
     "statusCommitted": "支払い済み・検証済み",

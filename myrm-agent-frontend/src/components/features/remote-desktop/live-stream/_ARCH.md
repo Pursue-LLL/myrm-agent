@@ -1,7 +1,7 @@
 # Live Remote Desktop Streaming & Ephemeral Shareable Canvas Suite (`remote-desktop/live-stream`)
 
 ## 1. 架构定位与业务痛点
-针对长程复杂 GUI 与自动化网页浏览（CUA / Web Browsing）任务执行期间，用户只能面对纯文本旋转加载圈（Spinner）或干瘪日志，对沙箱内部到底是在正常操作还是卡死/死循环完全黑盒，产生极强不信任感的痛点，本模块对标火山方舟 Agent Plan 专属 Harness 工具「Agent 云电脑」，提供内嵌沙箱远程桌面实时视窗、解耦断网续看、免密时效安全分享链接与双向人工接管套件。
+针对长程复杂 GUI 与自动化网页浏览（CUA / Web Browsing）任务执行期间，用户只能面对纯文本旋转加载圈（Spinner）或干瘪日志，对沙箱内部到底是在正常操作还是卡死/死循环完全黑盒，产生极强不信任感的痛点，本模块提供内嵌沙箱远程桌面实时视窗、解耦断网续看、免密时效安全分享链接与双向人工接管套件。
 
 ## 2. 模块拓扑与职责划分
 - **`remoteDesktopTypes.ts`**：强类型契约定义连接状态 `StreamConnectionState`、控制模式 `ControlMode`、流媒体质量遥测指标 `StreamQualityMetrics`（FPS、延迟 RTT、码率、分辨率）、桌面动作日志 `DesktopActionTelemetry` 与时效凭据 `EphemeralShareTicket`；

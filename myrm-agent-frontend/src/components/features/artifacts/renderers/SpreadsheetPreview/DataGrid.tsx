@@ -8,6 +8,7 @@ import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
 import { SpreadsheetSelectionToolbar } from './SpreadsheetSelectionToolbar';
+import { columnLabel } from './columnLabel';
 import { computeColumnWidths } from './columnWidths';
 import { activateOnKey } from '@/lib/utils/a11y';
 
@@ -24,16 +25,6 @@ interface DataGridProps {
 type SortDir = 'asc' | 'desc' | null;
 
 const ROW_HEIGHT = 32;
-
-function columnLabel(index: number): string {
-  let label = '';
-  let n = index;
-  do {
-    label = String.fromCharCode(65 + (n % 26)) + label;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return label;
-}
 
 function isNumeric(value: string): boolean {
   if (value === '') {
@@ -164,11 +155,10 @@ const DataGrid: React.FC<DataGridProps> = memo(
         state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length
           ? state.openTabs[state.activeTabIndex]
           : null;
-      const artifactName = activeTab?.artifact?.filename || '表格工件';
+      const artifactName = activeTab?.artifact?.filename || t('artifactFallbackName');
       const rowSnippet = headers.map((h, i) => `${h || columnLabel(i)}: ${row[i] ?? ''}`).join(', ');
-      const computedScopeLabel = sheetName
-        ? `${sheetName}!${t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`}`
-        : t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`;
+      const rowLabel = t('rowScopeLabel', { row: selectedRow + 1 });
+      const computedScopeLabel = sheetName ? `${sheetName}!${rowLabel}` : rowLabel;
       const targetArtifactId = activeTab?.artifact?.id || artifactId || 'current';
 
       useScopedArtifactStore.getState().setTarget({
