@@ -2,22 +2,26 @@
 
 [INPUT]
 - typing::Any (POS: Python 类型标注标准库)
+- .responses_stream::ResponsesStreamState (POS: per-stream function-call and reasoning bookkeeping)
 
 [OUTPUT]
 - responses_dict_to_chat_completion: completed payload → chat.completion dict
-- responses_event_to_completion_chunk: SSE event → chat.completion.chunk or None
+- responses_event_to_completion_chunk: SSE event (+ the stream's state) → chat.completion.chunk or None
 - extract_responses_stream_error / assert_responses_payload_not_failed: failure surfacing
 - extract_responses_reasoning_items: encrypted reasoning items for later replay
 
 [POS]
 Inbound leg of the LLM adapter wire layer. Converts vendor Responses shapes into the
 chat-completions contract TransportChatModel already consumes, so upstream code stays vendor
-agnostic. Streaming tool-call arguments are emitted as deltas; assembled by the caller.
+agnostic. Streaming tool-call arguments are emitted as deltas, once per call; assembled by the caller.
+Usage keeps the cache-hit, cache-write and reasoning token counters in the ``*_details`` objects.
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+from .responses_stream import ResponsesStreamState, ToolCallDelta
 
 
 class ResponsesStreamError(Exception):
@@ -77,8 +81,9 @@ def assert_responses_payload_not_failed(response: dict[str, Any]) -> None:
 
 
 def _extract_output_text(response: dict[str, Any]) -> str:
-    if isinstance(response.get("output_text"), str):
-        return response["output_text"]
+    output_text = response.get("output_text")
+    if isinstance(output_text, str):
+        return output_text
     parts: list[str] = []
     for item in response.get("output") or []:
         if not isinstance(item, dict):
@@ -155,17 +160,36 @@ def _extract_tool_calls(response: dict[str, Any]) -> list[dict[str, Any]]:
     return tool_calls
 
 
-def _map_usage(usage: dict[str, Any] | None) -> dict[str, int] | None:
+def _usage_details(raw: object, keys: tuple[str, ...]) -> dict[str, int]:
+    """The non-zero token counters among ``keys`` of a usage ``*_details`` object."""
+    if not isinstance(raw, dict):
+        return {}
+    return {key: count for key in keys if isinstance(count := raw.get(key), int) and count > 0}
+
+
+def _map_usage(usage: dict[str, Any] | None) -> dict[str, Any] | None:
     if not usage:
         return None
     input_tokens = int(usage.get("input_tokens") or usage.get("prompt_tokens") or 0)
     output_tokens = int(usage.get("output_tokens") or usage.get("completion_tokens") or 0)
     total = int(usage.get("total_tokens") or (input_tokens + output_tokens))
-    return {
+    mapped: dict[str, Any] = {
         "prompt_tokens": input_tokens,
         "completion_tokens": output_tokens,
         "total_tokens": total,
     }
+    # Cache hits and reasoning tokens ride in the details objects; cost and cache accounting read them there.
+    prompt_details = _usage_details(
+        usage.get("input_tokens_details") or usage.get("prompt_tokens_details"), ("cached_tokens", "cache_write_tokens")
+    )
+    if prompt_details:
+        mapped["prompt_tokens_details"] = prompt_details
+    completion_details = _usage_details(
+        usage.get("output_tokens_details") or usage.get("completion_tokens_details"), ("reasoning_tokens",)
+    )
+    if completion_details:
+        mapped["completion_tokens_details"] = completion_details
+    return mapped
 
 
 def responses_dict_to_chat_completion(response: dict[str, Any]) -> dict[str, Any]:
@@ -194,26 +218,62 @@ def responses_dict_to_chat_completion(response: dict[str, Any]) -> dict[str, Any
     }
 
 
-def _function_call_delta_chunk(
-    *,
-    call_id: str,
-    name: str | None = None,
-    arguments_delta: str | None = None,
-    index: int = 0,
-) -> dict[str, Any]:
-    fn_payload: dict[str, Any] = {}
-    if name is not None:
-        fn_payload["name"] = name
-    if arguments_delta is not None:
-        fn_payload["arguments"] = arguments_delta
-    tool_call: dict[str, Any] = {"index": index, "id": call_id, "type": "function", "function": fn_payload}
-    return {"choices": [{"index": 0, "delta": {"tool_calls": [tool_call]}, "finish_reason": None}]}
+_REASONING_DELTA_EVENTS = (
+    "reasoning.delta",
+    "reasoning_summary.delta",
+    "reasoning_summary_text.delta",
+    "reasoning_text.delta",
+)
 
 
-def responses_event_to_completion_chunk(event: dict[str, Any]) -> dict[str, Any] | None:
-    """Map a Responses stream event to a chat completion stream chunk dict."""
-    event_type = str(event.get("type") or "")
-    normalized_type = event_type.lower()
+def _is_terminal_event(normalized_type: str) -> bool:
+    return (
+        "response.completed" in normalized_type
+        or "response.incomplete" in normalized_type
+        or normalized_type.endswith(("response_completed", "response_incomplete"))
+    )
+
+
+def _tool_calls_chunk(tool_calls: list[ToolCallDelta]) -> dict[str, Any] | None:
+    if not tool_calls:
+        return None
+    return {"choices": [{"index": 0, "delta": {"tool_calls": tool_calls}, "finish_reason": None}]}
+
+
+def _completed_chunk(response: dict[str, Any], state: ResponsesStreamState) -> dict[str, Any]:
+    """Closing chunk: finish reason, usage and the parts of the final output that were not streamed."""
+    output = response.get("output")
+    tool_calls = state.on_completed(output if isinstance(output, list) else [])
+    finish_reason = "tool_calls" if tool_calls or state.has_calls else "stop"
+    if response.get("status") == "incomplete":
+        finish_reason = "length"
+    delta: dict[str, Any] = {}
+    if tool_calls:
+        delta["tool_calls"] = tool_calls
+    reasoning_summary = _extract_reasoning_summary(response)
+    if reasoning_summary and not state.reasoning_streamed:
+        delta["reasoning_content"] = reasoning_summary
+    reasoning_items = extract_responses_reasoning_items(response)
+    if reasoning_items:
+        delta["responses_reasoning_items"] = reasoning_items
+    chunk: dict[str, Any] = {"choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}]}
+    usage = _map_usage(response.get("usage") if isinstance(response.get("usage"), dict) else None)
+    if usage:
+        chunk["usage"] = usage
+    return chunk
+
+
+def responses_event_to_completion_chunk(
+    event: dict[str, Any], state: ResponsesStreamState | None = None
+) -> dict[str, Any] | None:
+    """Map a Responses stream event to a chat completion stream chunk dict.
+
+    ``state`` must be shared by every event of one stream: a function call spans several events and the
+    closing event repeats what was streamed. Without it the event is mapped as if it were the whole stream.
+    """
+    if state is None:
+        state = ResponsesStreamState()
+    normalized_type = str(event.get("type") or "").lower()
     delta = event.get("delta")
 
     if (
@@ -225,68 +285,27 @@ def responses_event_to_completion_chunk(event: dict[str, Any]) -> dict[str, Any]
             "choices": [{"index": 0, "delta": {"content": delta}, "finish_reason": None}],
         }
 
-    if (
-        "reasoning.delta" in normalized_type
-        or "reasoning_summary.delta" in normalized_type
-        or "reasoning_text.delta" in normalized_type
-    ):
+    if any(name in normalized_type for name in _REASONING_DELTA_EVENTS):
         text_delta = delta if isinstance(delta, str) else ""
         if not text_delta and isinstance(delta, dict):
             text_delta = str(delta.get("text") or "")
         if text_delta:
+            state.reasoning_streamed = True
             return {
                 "choices": [{"index": 0, "delta": {"reasoning_content": text_delta}, "finish_reason": None}],
             }
 
     item = event.get("item")
     if isinstance(item, dict) and item.get("type") == "function_call":
-        mapped = _tool_call_from_function_item(item)
-        if mapped is not None:
-            fn = mapped["function"]
-            return _function_call_delta_chunk(
-                call_id=str(mapped["id"]),
-                name=str(fn["name"]),
-                arguments_delta=str(fn.get("arguments") or ""),
-            )
+        done = normalized_type.endswith(("output_item.done", "output_item_done"))
+        return _tool_calls_chunk(state.on_item(event, item, done=done))
 
-    if "function_call_arguments.delta" in normalized_type or normalized_type.endswith("function_call_arguments_delta"):
-        call_id = event.get("call_id") or event.get("item_id")
-        if isinstance(call_id, str) and isinstance(delta, str) and delta:
-            return _function_call_delta_chunk(call_id=call_id, arguments_delta=delta)
+    if "function_call_arguments" in normalized_type:
+        final = normalized_type.endswith(("arguments.done", "arguments_done"))
+        return _tool_calls_chunk(state.on_arguments(event, final=final))
 
-    if "response.completed" in normalized_type or normalized_type.endswith("response_completed"):
+    if _is_terminal_event(normalized_type):
         response = event.get("response")
         if isinstance(response, dict):
-            tool_calls = _extract_tool_calls(response)
-            finish_reason = "tool_calls" if tool_calls else "stop"
-            if response.get("status") == "incomplete":
-                finish_reason = "length"
-            usage = _map_usage(response.get("usage") if isinstance(response.get("usage"), dict) else None)
-            chunk: dict[str, Any] = {
-                "choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason}],
-            }
-            delta: dict[str, Any] = {}
-            if tool_calls:
-                delta["tool_calls"] = [
-                    {
-                        "index": idx,
-                        "id": tc["id"],
-                        "type": "function",
-                        # Arguments are streamed via function_call_arguments.delta;
-                        # re-emitting them on completed duplicates aggregator state.
-                        "function": {"name": str(tc["function"]["name"])},
-                    }
-                    for idx, tc in enumerate(tool_calls)
-                ]
-            reasoning_summary = _extract_reasoning_summary(response)
-            if reasoning_summary:
-                delta["reasoning_content"] = reasoning_summary
-            reasoning_items = extract_responses_reasoning_items(response)
-            if reasoning_items:
-                delta["responses_reasoning_items"] = reasoning_items
-            if delta:
-                chunk["choices"][0]["delta"] = delta
-            if usage:
-                chunk["usage"] = usage
-            return chunk
+            return _completed_chunk(response, state)
     return None

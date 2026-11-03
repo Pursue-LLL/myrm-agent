@@ -10,6 +10,8 @@
   (POS: Responses wire 响应归一化层)
 - toolkits.llms.adapters.wire.params::build_responses_kwargs
   (POS: Responses wire 请求装配层)
+- toolkits.llms.adapters.wire.responses_stream::ResponsesStreamState
+  (POS: 单次流内 function call / reasoning 的跨事件状态)
 
 [OUTPUT]
 - strip_reasoning_replay: message dicts without the Responses-only reasoning replay items
@@ -37,6 +39,7 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import (
     responses_event_to_completion_chunk,
 )
 from myrm_agent_harness.toolkits.llms.adapters.wire.params import build_responses_kwargs
+from myrm_agent_harness.toolkits.llms.adapters.wire.responses_stream import ResponsesStreamState
 
 logger = logging.getLogger(__name__)
 
@@ -222,12 +225,13 @@ async def stream_responses_async(
     message_dicts: list[dict[str, Any]],
     params: dict[str, Any],
 ) -> AsyncIterator[dict[str, Any]]:
+    state = ResponsesStreamState()
     async for event in _aiter_responses_stream(client, message_dicts, params):
         event_dict = _event_to_dict(event)
         error_message = extract_responses_stream_error(event_dict)
         if error_message:
             raise ResponsesStreamError(error_message)
-        chunk = responses_event_to_completion_chunk(event_dict)
+        chunk = responses_event_to_completion_chunk(event_dict, state)
         if chunk is not None:
             yield chunk
 
@@ -237,11 +241,12 @@ def stream_responses_sync(
     message_dicts: list[dict[str, Any]],
     params: dict[str, Any],
 ) -> Iterator[dict[str, Any]]:
+    state = ResponsesStreamState()
     for event in _iter_responses_stream(client, message_dicts, params):
         event_dict = _event_to_dict(event)
         error_message = extract_responses_stream_error(event_dict)
         if error_message:
             raise ResponsesStreamError(error_message)
-        chunk = responses_event_to_completion_chunk(event_dict)
+        chunk = responses_event_to_completion_chunk(event_dict, state)
         if chunk is not None:
             yield chunk

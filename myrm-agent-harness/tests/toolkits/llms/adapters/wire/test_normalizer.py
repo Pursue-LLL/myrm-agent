@@ -11,6 +11,7 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.normalizer import (
     responses_dict_to_chat_completion,
     responses_event_to_completion_chunk,
 )
+from myrm_agent_harness.toolkits.llms.adapters.wire.responses_stream import ResponsesStreamState
 
 
 def test_completed_response_maps_tool_calls() -> None:
@@ -110,12 +111,14 @@ def test_response_completed_with_tool_calls() -> None:
 def test_delta_then_completed_does_not_duplicate_arguments() -> None:
     from myrm_agent_harness.toolkits.llms.adapters.streaming import aggregate_tool_call_chunk
 
+    state = ResponsesStreamState()
     delta_chunk = responses_event_to_completion_chunk(
         {
             "type": "response.function_call_arguments.delta",
             "call_id": "call_abc",
             "delta": '{"q":"ai"}',
-        }
+        },
+        state,
     )
     completed_chunk = responses_event_to_completion_chunk(
         {
@@ -130,7 +133,8 @@ def test_delta_then_completed_does_not_duplicate_arguments() -> None:
                     }
                 ],
             },
-        }
+        },
+        state,
     )
     assert delta_chunk is not None
     assert completed_chunk is not None
