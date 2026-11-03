@@ -2,7 +2,6 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
-## 2026-11-03 · 首轮系统提示词里的几处自相矛盾与残留：GPT / Codex / Grok 的族纪律让模型用 shell 取当前时间，而每轮注入的 `<current_datetime>` 才是唯一的「现在」；公式示例带着写给 `.format` 的双花括号；回复规则对所有渠道一律要求结构化 Markdown 与表格，渠道提示却声明不支持表格，web_chat / teams 的提示又以 "Use rich formatting" 收尾；Agent 与搜索共用一套回复规则，里面混着只适合搜索综合的语气行；identity 把同一个目标写两遍
 
 | 字段 | 内容 |
 | --- | --- |
@@ -15,7 +14,6 @@
 | **仍然存在** | ① 默认语气与篇幅的变化、弱模型对「以渠道声明为准」的遵循，没有用任何模型验证（评测门禁与预算尚未做）。② 族纪律块（GPT 503、Gemini 163、Claude 119、DeepSeek/Qwen/GLM 106 token）是否必要没有评测依据，本次只删了与时间标签矛盾的两行，其余没动。③ 门禁只覆盖 web_chat 渠道；其余渠道的静态首轮体积没有逐渠道上限；environment 行、canary 与运行时挂载的 CLI 工具段不在门禁里。④ 公开文档与官网里引用的首轮 token 数字没有同步，单独处理。 |
 | **代码位置** | harness：`src/myrm_agent_harness/agent/streaming/{model_discipline.py,channel_output_hints.py}` · `src/myrm_agent_harness/agent/tool_management/{DEFAULT_AGENT_TOKEN_INVENTORY.md,TOOL_DESIGN_STRATEGY.md}` · `tests/agent/streaming/{test_datetime_injection.py,test_channel_output_hints.py}` · `tests/architecture/test_prompt_token_budget_gate.py` · server：`app/ai_agents/prompts/{shared_rules.py,general_agent_prompt.py,fast_search_agent_prompt.py,__init__.py,_ARCH.md}` · `tests/ai_agents/{test_prompt_integrity.py,test_prompt_response_contract.py}` · `tests/architecture/{test_first_turn_static_prompt_budget.py,_ARCH.md}` |
 ## 2026-11-03 · `t(key, { defaultValue / defaultMessage })` 的兜底文案从不显示，却在 174 处调用里充当「文案」，测试还用 mock 替它撑场面；另有星期名、到期说明、Markdown 工具栏占位词、子智能体模型名、记忆维度名、JSON 编辑器报错等写死在代码里、只有中文或英文，几处界面文案与注释里还写着竞品名
-
 | 字段 | 内容 |
 | --- | --- |
 | **状态** | **FIXED**（提交可用 `git log -S"liveStateSummary"` 找回）。「仍然存在」里的项未处理。 |
@@ -28,7 +26,6 @@
 | **代码位置** | frontend：`src/components/{agent/{DualLayerMemoryCard,WatermarkBar}.tsx,chat/group/GroupChatRoomLayout.tsx,approval/PolymorphicApprovalCard.tsx}`、`src/components/features/{artifacts/{portal/{DocumentSelectionToolbar,SelectionToolbar}.tsx,renderers/SpreadsheetPreview/{DataGrid,SpreadsheetSelectionToolbar}.tsx,renderers/SpreadsheetPreview/columnLabel.ts,ArtifactsCenter.tsx},chat-window/{SessionExportModal,SessionExportButton,QueuedMessagesList,ContextFootprintInspector}.tsx,chat-window/agent-config-panel/SubagentCard.tsx,chat-window/goals/TaskDeliverableBundle.tsx,risk-approval/TieredRiskGateContainer.tsx,runtime/{RuntimeConsoleDrawer,AttemptWaterfallInspector}.tsx,settings/JsonEditor.tsx,settings/sections/{ai-core/CloneAgentDialog.tsx,knowledge/{FollowUpsPanel.tsx,followUpDueWindow.ts,MemoryGuardianCard.tsx,wiki/{WikiMarkdownEditor.tsx,markdownToolbarEdit.ts}},system/{TraceGanttWaterfall,UsageDistributionCharts,UsageStatisticsSection,ExecutionTraceTimeline}.tsx},skills/{EvolutionRejectionDashboard,SkillPermissionApprovalDialog}.tsx,memory/command-center/{BudgetGreedyPackingStudioCard,PrivateNotebookCard}.tsx}`、`src/lib/utils/weekdayLabels.ts`、`src/hooks/{shell/useComputerUseEscapeAbort,ui/useDividerSelfLimiting}.ts` 及对应 `__tests__`、`_ARCH.md`；`locales/*.json`；`scripts/{i18n-shell-allowlist.json,ci/hardcoded_copy_baseline.json}`。 |
 
 ## 2026-11-03 · 分级审批与破坏性操作确认、会话上下文足迹、项目边界徽标、引用来源、渠道与凭证输入框、时区选择器、六步经验向导及其导出的证据包、定位器自愈通知等组件里的界面文案是写死的，其余语言的用户看到的是中文或英文原文
-
 | 字段 | 内容 |
 | --- | --- |
 | **状态** | **FIXED**（提交可用 `git log -S"escalationReasons"` 找回）。「仍然存在」里的项未处理。 |
