@@ -45,7 +45,6 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _LOCALE_FILE = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales" / "de.json"
-_SEEDED_WORKSPACE = Path(__file__).resolve().parents[2]
 _LOCALE_COOKIE = "NEXT_LOCALE"
 # Both pickers remember applied folders here; bound-state setup must not leave one behind.
 _RECENT_DIRS_KEY = "myrm.workspaceDirPicker.recent"
@@ -168,7 +167,8 @@ def _german_locale(client: ChromeMcpClient, page: McpPage) -> Iterator[None]:
 
 
 def _measure_both_states(client: ChromeMcpClient, page: McpPage, find_trigger: str) -> list[dict[str, object]]:
-    """Bound first: the sequence then ends unbound, leaving the page as the next test expects it."""
+    """Bound first, unbound last: an opened chat starts bound and the server refuses to bind it again to the
+    browse root, while the empty-chat card starts unbound and so ends the way it began."""
     return [
         wait_for_state(client, page, _measure_js(bound=bound, find_trigger=find_trigger), timeout_sec=90.0)
         for bound in (True, False)
@@ -231,10 +231,11 @@ _ATTACH_CHAT_JS = """(() => {{
 
 
 def _seed_chat(api_url: str) -> str:
-    """One finished exchange bound to an ordinary project folder.
+    """One finished exchange, so the chat view (and its message input toolbar) renders without any model turn.
 
-    The chat view (and its message input toolbar) renders without any model turn, and the picker starts bound by
-    construction: the server refuses broad folders such as the home directory, so the test cannot bind one itself.
+    Opening a chat binds it to its own sandbox folder (`resolve_effective_chat_workspace` falls back to it), so
+    the picker starts bound. The unbound state is reached with the clear button: the server refuses broad folders
+    such as the home directory, which is what the picker would offer when binding again.
     """
     chat_id = f"e2ewsph{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC).replace(microsecond=0)
@@ -256,7 +257,6 @@ def _seed_chat(api_url: str) -> str:
             "title": "E2E workspace path placeholder",
             "action_mode": "agent",
             "is_incognito": False,
-            "workspace_dir": str(_SEEDED_WORKSPACE),
             "messages": messages,
         },
     )
