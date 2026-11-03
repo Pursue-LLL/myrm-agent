@@ -69,9 +69,9 @@ describe('SessionMapGraph component', () => {
   it('handles zoom controls smoothly', () => {
     render(<SessionMapGraph {...defaultProps} />);
 
-    const zoomInBtn = screen.getByRole('button', { name: 'Zoom in' });
-    const zoomOutBtn = screen.getByRole('button', { name: 'Zoom out' });
-    const resetBtn = screen.getByRole('button', { name: 'Reset zoom' });
+    const zoomInBtn = screen.getByRole('button', { name: 'zoomIn' });
+    const zoomOutBtn = screen.getByRole('button', { name: 'zoomOut' });
+    const resetBtn = screen.getByRole('button', { name: 'zoomReset' });
 
     fireEvent.click(zoomInBtn);
     expect(screen.getByText('115%')).toBeDefined();
@@ -103,9 +103,7 @@ describe('SessionMapGraph component', () => {
     expect(screen.queryByText(/Idle Worker/)).toBeNull();
 
     // Rerender with idle filter
-    rerender(
-      <SessionMapGraph {...defaultProps} clusters={[multiSessionCluster]} stateFilter="idle" />,
-    );
+    rerender(<SessionMapGraph {...defaultProps} clusters={[multiSessionCluster]} stateFilter="idle" />);
     expect(screen.getByText(/Idle Worker/)).toBeDefined();
     expect(screen.queryByText(/Authentication/)).toBeNull();
   });

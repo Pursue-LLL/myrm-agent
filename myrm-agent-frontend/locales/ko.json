@@ -3471,6 +3471,16 @@
       "ephemeralHint": "임시: 컨텍스트 압축 시 제거됩니다",
       "persistentHint": "영구: 압축 요약 이후에도 유지됩니다",
       "details": "상세 정보"
+    },
+    "toolDiagnostics": {
+      "trigger": "도구 상태",
+      "title": "에이전트 도구 진단",
+      "loading": "진단 데이터를 불러오는 중...",
+      "empty": "이 에이전트의 도구 실행 데이터가 아직 없습니다.",
+      "calls": "호출 {count}회",
+      "successRate": "성공률",
+      "errors": "오류 수",
+      "avgTime": "평균 소요 시간"
     }
   },
   "mode": {
@@ -6202,7 +6212,13 @@
       "copyButton": "복사",
       "copiedButton": "복사됨",
       "downloadZip": "ZIP 다운로드"
-    }
+    },
+    "contextGlobalTitle": "전역 사용자 프로필",
+    "contextGlobalSubtitle": "에이전트 간에 공유되는 안정적인 신원",
+    "contextGlobalEmpty": "아직 전역 프로필 데이터가 없습니다.",
+    "contextPeerTitle": "우리의 관계와 당신의 페르소나",
+    "contextPeerSubtitle": "이 에이전트와의 고유한 상호작용",
+    "contextPeerEmpty": "아직 이 에이전트 전용 프로필 데이터가 없습니다."
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
@@ -7809,7 +7825,14 @@
     "preflightUpdated": "사전 점검 프로브를 업데이트했습니다",
     "preflightTemplateInserted": "템플릿을 삽입했습니다",
     "preflightInsertTemplate": "템플릿 삽입",
-    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다. 스크립트가 오류로 종료되거나 시간 초과되면 건너뛰지 않고 실행이 실패로 기록됩니다."
+    "preflightDesc": "작업 실행 전에 샌드박스에서 Python 스크립트를 실행합니다. <skip></skip> 또는 <action></action>을 출력하면 실행을 중단하고 토큰을 절약합니다. 그 외 출력은 컨텍스트로 주입됩니다. 스크립트가 오류로 종료되거나 시간 초과되면 건너뛰지 않고 실행이 실패로 기록됩니다.",
+    "roiTitle": "자동화 생산성 효과",
+    "roiSubtitle": "자동화 작업의 기준 공수와 실제 실행량으로 산출",
+    "hoursSavedTotal": "누적 절감 시간",
+    "hoursUnit": "시간",
+    "productivityValue": "예상 생산성 가치",
+    "tokenCostLine": "토큰 비용 ${amount}",
+    "columnHoursSaved": "예상 절감 시간"
   },
   "heartbeat": {
     "title": "에이전트 자동 점검",
@@ -9302,7 +9325,10 @@
     "imessageDeployGuideLocal": "로컬 / 데스크톱: Mac에서 실행 중인 BlueBubbles 서비스에 직접 연결합니다(예: http://localhost:1234).",
     "imessageDeployGuideCloud": "클라우드: Cloudflare Tunnel, Tailscale 또는 Ngrok을 통해 Mac의 BlueBubbles 서버에 안전하게 연결합니다.",
     "whatsappQrAlt": "WhatsApp 로그인 QR 코드",
-    "wechatQrAlt": "WeChat 로그인 QR 코드"
+    "wechatQrAlt": "WeChat 로그인 QR 코드",
+    "usageResetTooltip": "매일 00:00 UTC(베이징 시간 08:00)에 자동 갱신",
+    "todayUsageDisplay": "오늘 사용량: {used} / {quota}건",
+    "quotaExceeded": "한도 초과"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -12647,7 +12673,11 @@
         "trust": "신뢰하고 연결",
         "mcpServers": "로컬 MCP 서버",
         "plugins": "로컬 플러그인"
-      }
+      },
+      "adoptProjectName": "프로젝트 이름",
+      "adoptCancel": "취소",
+      "adoptSubmitting": "가져오는 중...",
+      "adoptSubmit": "지금 프로젝트 가져오기"
     },
     "workspaceTrust": {
       "trusted": "작업 공간을 신뢰합니다. 모든 확장 기능과 도구가 활성화되었습니다.",
@@ -13842,7 +13872,10 @@
     "activeTaskLabel": "활성 작업 목표",
     "lastActiveLabel": "마지막 활동",
     "cancelAction": "닫기",
-    "jumpInAction": "바로 이동"
+    "jumpInAction": "바로 이동",
+    "zoomIn": "확대",
+    "zoomOut": "축소",
+    "zoomReset": "확대/축소 초기화"
   },
   "workbench": {
     "workbenchAriaLabel": "보조 워크벤치",
@@ -17159,7 +17192,9 @@
       "xaiOauthCodeHint": "브라우저에서 이 코드를 입력하여 인증을 완료하세요...",
       "xaiOauthReopen": "인증 페이지 다시 열기",
       "xaiOauthWaiting": "인증 대기 중...",
-      "xaiOauthConnectBtn": "SuperGrok 인증"
+      "xaiOauthConnectBtn": "SuperGrok 인증",
+      "oauthExpiredNotice": "이 인증이 더 이상 유효하지 않습니다(플랫폼에서 해지되었거나 만료되었을 수 있습니다). \"지금 복구\"를 눌러 다시 인증하면 서비스가 복구됩니다.",
+      "oauthFixNow": "지금 복구"
     },
     "skillQuality": {
       "title": "스킬 품질 관리",
@@ -21558,7 +21593,19 @@
         "searchPlaceholder": "프롬프트 또는 제목으로 추적 검색...",
         "exportZip": "추적 내보내기 (ZIP)",
         "exportZipTooltip": "세션 원본 이벤트 로그 및 아티팩트 ZIP 팩 내보내기",
-        "exportZipFailed": "세션 팩 내보내기 실패"
+        "exportZipFailed": "세션 팩 내보내기 실패",
+        "llmUnknownModel": "알 수 없는 모델",
+        "llmRetry": "재시도 ×{count}",
+        "llmTokens": "토큰 {count}개",
+        "llmNetworkWaitTitle": "네트워크 대기 (TTFT): {ms}ms",
+        "llmGenerationTitle": "토큰 생성: {ms}ms",
+        "llmTtft": "첫 토큰(TTFT): {ms}ms",
+        "llmGeneration": "생성: {ms}ms",
+        "llmPrompt": "프롬프트: {count}",
+        "llmCompletion": "완성: {count}",
+        "llmMessages": "메시지: {count}",
+        "llmViewportInspect": "모델 뷰포트(확인)",
+        "llmViewportHide": "모델 뷰포트(숨기기)"
       },
       "contextDoctor": {
         "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",

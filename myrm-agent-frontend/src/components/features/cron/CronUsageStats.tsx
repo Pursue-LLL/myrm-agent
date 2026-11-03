@@ -100,19 +100,20 @@ export default function CronUsageStats() {
             </div>
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                <span>自动化生产力收益</span>
+                <span>{t('roiTitle')}</span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
                   ROI {summary.roi_multiple ?? 0}x
                 </span>
               </h3>
-              <p className="text-xs text-muted-foreground">基于自动化任务基线工时与实际执行量量化</p>
+              <p className="text-xs text-muted-foreground">{t('roiSubtitle')}</p>
             </div>
           </div>
           <div className="text-left sm:text-right">
-            <div className="text-xs text-muted-foreground">累计节省工时</div>
+            <div className="text-xs text-muted-foreground">{t('hoursSavedTotal')}</div>
             <div className="text-xl font-bold tabular-nums text-primary">
-              {summary.estimated_hours_saved ?? 0} <span className="text-xs font-normal text-muted-foreground">小时</span>
+              {summary.estimated_hours_saved ?? 0}{' '}
+              <span className="text-xs font-normal text-muted-foreground">{t('hoursUnit')}</span>
             </div>
           </div>
         </div>
@@ -126,9 +127,9 @@ export default function CronUsageStats() {
             sub={`${t('statInput')} ${formatTokens(summary.total_input_tokens)} / ${t('statOutput')} ${formatTokens(summary.total_output_tokens)}`}
           />
           <Metric
-            label="预估生产力价值"
-            value={`$${(((summary.estimated_value_saved_cents ?? 0) / 100)).toFixed(1)}`}
-            sub={`Token成本 $${(((summary.estimated_cost_cents ?? 0) / 100)).toFixed(2)}`}
+            label={t('productivityValue')}
+            value={`$${((summary.estimated_value_saved_cents ?? 0) / 100).toFixed(1)}`}
+            sub={t('tokenCostLine', { amount: ((summary.estimated_cost_cents ?? 0) / 100).toFixed(2) })}
           />
         </div>
       </div>
@@ -142,7 +143,7 @@ export default function CronUsageStats() {
                 <TableHead className="text-right">{t('columnRuns')}</TableHead>
                 <TableHead className="text-right">Tokens</TableHead>
                 <TableHead className="text-right">{t('columnPct')}</TableHead>
-                <TableHead className="text-right">预估省时</TableHead>
+                <TableHead className="text-right">{t('columnHoursSaved')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

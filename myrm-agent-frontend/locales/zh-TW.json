@@ -3471,6 +3471,16 @@
       "ephemeralHint": "暫時：壓縮上下文時會被清理",
       "persistentHint": "持久：壓縮摘要後仍會保留",
       "details": "詳情"
+    },
+    "toolDiagnostics": {
+      "trigger": "工具健康度",
+      "title": "智慧體工具診斷",
+      "loading": "正在載入診斷資料...",
+      "empty": "此智慧體暫無工具執行資料。",
+      "calls": "{count} 次呼叫",
+      "successRate": "成功率",
+      "errors": "錯誤數",
+      "avgTime": "平均耗時"
     }
   },
   "mode": {
@@ -6202,7 +6212,13 @@
       "copyButton": "複製",
       "copiedButton": "已複製",
       "downloadZip": "下載 ZIP"
-    }
+    },
+    "contextGlobalTitle": "全域使用者畫像",
+    "contextGlobalSubtitle": "跨智慧體共享的穩定身分",
+    "contextGlobalEmpty": "暫無全域畫像資料。",
+    "contextPeerTitle": "我們的關係與你的人設",
+    "contextPeerSubtitle": "此智慧體專屬的互動",
+    "contextPeerEmpty": "暫無此智慧體專屬的畫像資料。"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -7809,7 +7825,14 @@
     "preflightUpdated": "預檢探針已更新",
     "preflightTemplateInserted": "已插入範本",
     "preflightInsertTemplate": "插入範本",
-    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。"
+    "preflightDesc": "任務執行前先在沙箱中執行一段 Python 腳本。輸出 <skip></skip> 或 <action></action> 可中止本次執行並節省 token，其他輸出會作為上下文注入。腳本出錯或逾時時，本次執行會記為失敗，而不是跳過。",
+    "roiTitle": "自動化生產力收益",
+    "roiSubtitle": "基於自動化任務基線工時與實際執行量量化",
+    "hoursSavedTotal": "累計節省工時",
+    "hoursUnit": "小時",
+    "productivityValue": "預估生產力價值",
+    "tokenCostLine": "Token 成本 ${amount}",
+    "columnHoursSaved": "預估省時"
   },
   "heartbeat": {
     "title": "Agent 自動巡檢",
@@ -9302,7 +9325,10 @@
     "imessageDeployGuideLocal": "本地 / 桌面端：直接連線 Mac 本機常開的 BlueBubbles 服務（如 http://localhost:1234）。",
     "imessageDeployGuideCloud": "雲端部署：透過 Cloudflare Tunnel、Tailscale 或 Ngrok 安全連線自建的 Mac iMessage 閘道器。",
     "whatsappQrAlt": "WhatsApp 登入 QR Code",
-    "wechatQrAlt": "微信登入 QR Code"
+    "wechatQrAlt": "微信登入 QR Code",
+    "usageResetTooltip": "每日 00:00 UTC（北京時間 08:00）自動重新整理",
+    "todayUsageDisplay": "今日用量：{used} / {quota} 次",
+    "quotaExceeded": "已超額"
   },
   "voice": {
     "sectionTitle": "語音設定",
@@ -12647,7 +12673,11 @@
         "trust": "信任並關聯",
         "mcpServers": "本機 MCP 服務",
         "plugins": "本機外掛"
-      }
+      },
+      "adoptProjectName": "專案名稱",
+      "adoptCancel": "取消",
+      "adoptSubmitting": "正在接納...",
+      "adoptSubmit": "立即接納專案"
     },
     "workspaceTrust": {
       "trusted": "已信任此工作區，擴充功能與工具已完全啟用。",
@@ -13842,7 +13872,10 @@
     "activeTaskLabel": "當前正在推進的任務",
     "lastActiveLabel": "最後活躍時間",
     "cancelAction": "關閉",
-    "jumpInAction": "跳入會話現場"
+    "jumpInAction": "跳入會話現場",
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "zoomReset": "重設縮放"
   },
   "workbench": {
     "workbenchAriaLabel": "輔助工作臺",
@@ -17159,7 +17192,9 @@
       "xaiOauthCodeHint": "請在瀏覽器中輸入此驗證碼完成授權...",
       "xaiOauthReopen": "重新打開授權頁面",
       "xaiOauthWaiting": "等待授權...",
-      "xaiOauthConnectBtn": "授權 SuperGrok"
+      "xaiOauthConnectBtn": "授權 SuperGrok",
+      "oauthExpiredNotice": "目前憑證已失效（可能在第三方平台被撤銷或到期）。請點擊一鍵修復重新授權，以恢復該服務。",
+      "oauthFixNow": "一鍵修復"
     },
     "skillQuality": {
       "title": "技能質量管理",
@@ -21558,7 +21593,19 @@
         "searchPlaceholder": "依任務內容或標題搜尋 Trace...",
         "exportZip": "匯出軌跡 (ZIP)",
         "exportZipTooltip": "匯出工作階段原始事件記錄與產物 ZIP 封存包",
-        "exportZipFailed": "匯出工作階段封存包失敗"
+        "exportZipFailed": "匯出工作階段封存包失敗",
+        "llmUnknownModel": "未知模型",
+        "llmRetry": "重試 ×{count}",
+        "llmTokens": "{count} 個 token",
+        "llmNetworkWaitTitle": "網路等待 (TTFT)：{ms}ms",
+        "llmGenerationTitle": "Token 生成：{ms}ms",
+        "llmTtft": "TTFT：{ms}ms",
+        "llmGeneration": "生成：{ms}ms",
+        "llmPrompt": "提示詞：{count}",
+        "llmCompletion": "補全：{count}",
+        "llmMessages": "訊息：{count}",
+        "llmViewportInspect": "模型視口（檢視）",
+        "llmViewportHide": "模型視口（收合）"
       },
       "contextDoctor": {
         "title": "上下文健檢（Token 熱點與成本審計）",

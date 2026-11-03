@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-03 · 工具诊断弹窗、定时任务生产力收益卡、记忆画像面板、会话地图缩放按钮、项目接纳对话框、审计详情、渠道配对用量、OAuth 失效提示、LLM 调用卡里的界面文案是写死的，其余语言的用户看到的是中文或英文原文
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S"chat.toolDiagnostics"` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码] 门禁（`bun scripts/check-hardcoded-copy.mjs`）基线里这 9 个文件共 45 处：`AgentToolDiagnostics.tsx`（Tool Health、标题、加载、空态、成功率、平均耗时、「N calls」）、`CronUsageStats.tsx`（自动化生产力收益卡的中文标题/副标题/工时/价值/省时列）、`MemoryContextPanel.tsx`（全局画像与专属画像卡的标题、副标题、空态）、`SessionMapGraph.tsx`（放大/缩小/重置缩放的标题与无障碍标签）、`ProjectWorkspaceAdoptDialog.tsx`（项目名称、取消、立即接纳、正在接纳）、`AuditLogTable.tsx`（详情弹窗里 Exit Code、Standard Output、Standard Error、Error Message 只有英文）、`PairingItem.tsx`（今日用量、超额徽标、刷新提示都是中文）、`CredentialsOAuthPanel.tsx`（凭证失效提示与「一键修复」按钮按 `locale === 'zh'` 二选一，其余语言一律英文）、`TraceLLMCallItem.tsx`（Unknown Model、Retry x、tokens、TTFT/Gen、Prompt/Completion/Messages、Model Viewport）。 |
+| **根因** | [代码] 这些组件没有接 `useTranslations`，或用 `locale === 'zh' ? 中文 : 英文` 只覆盖两种语言；审计页整页用 `localizeReactNode` 的「English / 中文」双语字面量机制，详情弹窗里有几处只写了一侧。 |
+| **修复** | `locales/*.json`（6 种语言）新增 `chat.toolDiagnostics.*`、`cron` 的 7 个 `roi*` 等键、`memory.context*`、`sessionMap.zoom*`、`project.workspaceMount.adopt*`、`channels.{usageResetTooltip,todayUsageDisplay,quotaExceeded}`、`settings.credentials.oauth*`、`settings.sessionAnalytics.trace.llm*`，共 45 个键；组件改读这些键（`CredentialsOAuthPanel` 不再按 `locale` 二选一）；审计详情的标签补成「English: / 中文:」双语，冒号与竖线分隔符在两种语言下都保留；基线收紧 617 → 572（113 个文件）。 |
+| **回归证据** | [1] 新增 `AgentToolDiagnostics`、`MemoryContextPanel`、`ProjectWorkspaceAdoptDialog`、`TraceLLMCallItem`、`AuditLogTable` 5 个测试文件，更新 `CronUsageStats`、`SessionMapGraph`、`PairingItem`、`CredentialsOAuthPanel` 4 个测试；把这 9 个测试文件放到干净的 `972ce3aa97` 上，9 个文件全红、16 例失败。[2] 修复后相关目录（`chat-window`、`memory/insights`、`project-workspace`、`cron`、`session-map`、`settings/sections/integration`、`app/audit`、`TraceLLMCallItem`）共 65 个文件 499 例全过。[3] `bun run lint`（7 个门禁）、`bunx tsc --noEmit`、`bun run verify:i18n`、`check_typescript_strict`、`check_fractal_docs --no-stub`、`check_barrel_exports`、`check_module_resolution`、孤儿门禁全部通过。 |
+| **仍然存在** | ① 审计页（`app/audit/*`）整页仍是 en/zh 双语机制，日语、韩语、德语用户看到英文侧，没有改成 `useTranslations`。② 门禁看不到单个英文单词和对象/数组常量里的文案；`CronUsageStats` 表头的 `Tokens`、`ROI` 按术语保留。③ 6 种语言的译文由机器撰写，没有母语者审阅，也没有在浏览器里逐语言目检。④ 可达文件里还剩 572 处，其中 422 处在 `memory/command-center/`（受 `NEXT_PUBLIC_MEMORY_LABS` 控制）。 |
+| **代码位置** | frontend：`src/components/features/{chat-window/AgentToolDiagnostics,cron/CronUsageStats,memory/insights/MemoryContextPanel,session-map/SessionMapGraph,project-workspace/ProjectWorkspaceAdoptDialog,settings/sections/integration/channels/PairingItem,settings/sections/integration/credentials/CredentialsOAuthPanel,settings/sections/system/TraceLLMCallItem}.tsx`、`src/app/audit/components/AuditLogTable.tsx` 及对应 `__tests__`、`_ARCH.md`；`locales/*.json`；`scripts/ci/hardcoded_copy_baseline.json`。 |
+
 ## 2026-11-03 · 知识库「五层资产看板」、审阅单弹窗、记忆监控卡、共享规则对话框、架构图预览的界面文案是写死的英文，另 5 种语言的用户看到的也是英文
 
 | 字段 | 内容 |

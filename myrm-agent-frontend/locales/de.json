@@ -3471,6 +3471,16 @@
       "ephemeralHint": "Temporär: wird bei der Kompaktierung entfernt",
       "persistentHint": "Dauerhaft: bleibt über Kompaktierungs-Zusammenfassungen hinweg erhalten",
       "details": "Einzelheiten"
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool-Zustand",
+      "title": "Agent-Tool-Diagnose",
+      "loading": "Diagnosedaten werden geladen ...",
+      "empty": "Für diesen Agent liegen noch keine Tool-Ausführungsdaten vor.",
+      "calls": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
+      "successRate": "Erfolgsquote",
+      "errors": "Fehler",
+      "avgTime": "Durchschn. Zeit"
     }
   },
   "mode": {
@@ -6202,7 +6212,13 @@
       "copyButton": "Kopieren",
       "copiedButton": "Kopiert!",
       "downloadZip": "ZIP herunterladen"
-    }
+    },
+    "contextGlobalTitle": "Globales Nutzerprofil",
+    "contextGlobalSubtitle": "Stabile Identität über Agenten hinweg",
+    "contextGlobalEmpty": "Noch keine globalen Profildaten.",
+    "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
+    "contextPeerSubtitle": "Agentenspezifische Interaktionen",
+    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten."
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",
@@ -7809,7 +7825,14 @@
     "preflightUpdated": "Vorabprüfung aktualisiert",
     "preflightTemplateInserted": "Vorlage eingefügt",
     "preflightInsertTemplate": "Vorlage einfügen",
-    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen."
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen.",
+    "roiTitle": "Produktivitätsgewinn durch Automatisierung",
+    "roiSubtitle": "Geschätzt aus der Basisarbeitszeit je automatisierter Aufgabe und dem tatsächlichen Ausführungsvolumen",
+    "hoursSavedTotal": "Eingesparte Stunden gesamt",
+    "hoursUnit": "Std.",
+    "productivityValue": "Geschätzter Produktivitätswert",
+    "tokenCostLine": "Token-Kosten ${amount}",
+    "columnHoursSaved": "Geschätzte Zeitersparnis"
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -9302,7 +9325,10 @@
     "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden.",
     "whatsappQrAlt": "WhatsApp-Anmelde-QR-Code",
-    "wechatQrAlt": "WeChat-Anmelde-QR-Code"
+    "wechatQrAlt": "WeChat-Anmelde-QR-Code",
+    "usageResetTooltip": "Wird täglich um 00:00 UTC (08:00 Peking-Zeit) automatisch zurückgesetzt",
+    "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
+    "quotaExceeded": "Kontingent überschritten"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -12647,7 +12673,11 @@
         "trust": "Vertrauen und verknüpfen",
         "mcpServers": "Lokale MCP-Server",
         "plugins": "Lokale Plugins"
-      }
+      },
+      "adoptProjectName": "Projektname",
+      "adoptCancel": "Abbrechen",
+      "adoptSubmitting": "Wird übernommen ...",
+      "adoptSubmit": "Projekt jetzt übernehmen"
     },
     "workspaceTrust": {
       "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
@@ -13842,7 +13872,10 @@
     "activeTaskLabel": "Ziel der aktiven Aufgabe",
     "lastActiveLabel": "Zuletzt aktiv",
     "cancelAction": "Schließen",
-    "jumpInAction": "Einsteigen"
+    "jumpInAction": "Einsteigen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Zoom zurücksetzen"
   },
   "workbench": {
     "workbenchAriaLabel": "Zusatz-Workbench",
@@ -17159,7 +17192,9 @@
       "xaiOauthCodeHint": "Geben Sie diesen Code im Browser ein, um die Autorisierung abzuschließen...",
       "xaiOauthReopen": "Autorisierungsseite erneut öffnen",
       "xaiOauthWaiting": "Warten auf Autorisierung...",
-      "xaiOauthConnectBtn": "SuperGrok autorisieren"
+      "xaiOauthConnectBtn": "SuperGrok autorisieren",
+      "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
+      "oauthFixNow": "Jetzt beheben"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -21558,7 +21593,19 @@
         "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen...",
         "exportZip": "Trace exportieren (ZIP)",
         "exportZipTooltip": "Rohe Sitzungsereignisprotokolle und Artefakte als ZIP-Paket exportieren",
-        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets"
+        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets",
+        "llmUnknownModel": "Unbekanntes Modell",
+        "llmRetry": "Wiederholung ×{count}",
+        "llmTokens": "{count} Token",
+        "llmNetworkWaitTitle": "Netzwerkwartezeit (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token-Generierung: {ms}ms",
+        "llmTtft": "Erstes Token (TTFT): {ms}ms",
+        "llmGeneration": "Generierung: {ms}ms",
+        "llmPrompt": "Eingabe: {count}",
+        "llmCompletion": "Ausgabe: {count}",
+        "llmMessages": "Nachrichten: {count}",
+        "llmViewportInspect": "Modell-Viewport (Ansehen)",
+        "llmViewportHide": "Modell-Viewport (Ausblenden)"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",

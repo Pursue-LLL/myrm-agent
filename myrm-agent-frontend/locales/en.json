@@ -3471,6 +3471,16 @@
       "ephemeralHint": "Ephemeral: will be pruned during compaction",
       "persistentHint": "Persistent: retained across compaction summaries",
       "details": "Details"
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool Health",
+      "title": "Agent Tool Diagnostics",
+      "loading": "Loading diagnostics...",
+      "empty": "No tool execution data for this agent yet.",
+      "calls": "{count, plural, one {# call} other {# calls}}",
+      "successRate": "Success Rate",
+      "errors": "Errors",
+      "avgTime": "Avg Time"
     }
   },
   "mode": {
@@ -6202,7 +6212,13 @@
       "copyButton": "Copy",
       "copiedButton": "Copied!",
       "downloadZip": "Download ZIP"
-    }
+    },
+    "contextGlobalTitle": "Global user profile",
+    "contextGlobalSubtitle": "Stable identity shared across agents",
+    "contextGlobalEmpty": "No global profile data yet.",
+    "contextPeerTitle": "Our relationship & your persona",
+    "contextPeerSubtitle": "Interactions specific to this agent",
+    "contextPeerEmpty": "No agent-specific profile data yet."
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",
@@ -7809,7 +7825,14 @@
     "preflightUpdated": "Pre-flight probe updated",
     "preflightTemplateInserted": "Template inserted",
     "preflightInsertTemplate": "Insert Template",
-    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped."
+    "preflightDesc": "Run a sandboxed Python script before the job runs. Print <skip></skip> or <action></action> to abort the run and save tokens. Any other output is injected as context. If the script errors out or times out, the run is recorded as failed instead of skipped.",
+    "roiTitle": "Automation productivity gains",
+    "roiSubtitle": "Estimated from baseline hours per automated task and actual run volume",
+    "hoursSavedTotal": "Total hours saved",
+    "hoursUnit": "hrs",
+    "productivityValue": "Estimated productivity value",
+    "tokenCostLine": "Token cost ${amount}",
+    "columnHoursSaved": "Est. time saved"
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -9302,7 +9325,10 @@
     "imessageDeployGuideLocal": "Local / Tauri: Connect directly to BlueBubbles running on your Mac (e.g. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Connect to your Mac's BlueBubbles server via Cloudflare Tunnel, Tailscale, or Ngrok.",
     "whatsappQrAlt": "WhatsApp login QR code",
-    "wechatQrAlt": "WeChat login QR code"
+    "wechatQrAlt": "WeChat login QR code",
+    "usageResetTooltip": "Refreshes automatically daily at 00:00 UTC (08:00 Beijing time)",
+    "todayUsageDisplay": "Today's usage: {used} / {quota} msgs",
+    "quotaExceeded": "Over quota"
   },
   "voice": {
     "sectionTitle": "Voice Settings",
@@ -12647,7 +12673,11 @@
         "trust": "Trust and link",
         "mcpServers": "Local MCP servers",
         "plugins": "Local plugins"
-      }
+      },
+      "adoptProjectName": "Project name",
+      "adoptCancel": "Cancel",
+      "adoptSubmitting": "Adopting...",
+      "adoptSubmit": "Adopt project now"
     },
     "workspaceTrust": {
       "trusted": "Workspace trusted. Full extensions and tools are now enabled.",
@@ -13842,7 +13872,10 @@
     "activeTaskLabel": "Active Task Objective",
     "lastActiveLabel": "Last Active",
     "cancelAction": "Close",
-    "jumpInAction": "Jump In"
+    "jumpInAction": "Jump In",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Reset zoom"
   },
   "workbench": {
     "workbenchAriaLabel": "Auxiliary Workbench",
@@ -17159,7 +17192,9 @@
       "xaiOauthCodeHint": "Enter this code in the browser to complete authorization...",
       "xaiOauthReopen": "Open authorization page again",
       "xaiOauthWaiting": "Waiting...",
-      "xaiOauthConnectBtn": "Authorize SuperGrok"
+      "xaiOauthConnectBtn": "Authorize SuperGrok",
+      "oauthExpiredNotice": "This authorization is no longer valid (revoked or expired on the platform). Click Fix Now to re-authorize and restore the service.",
+      "oauthFixNow": "Fix Now"
     },
     "skillQuality": {
       "title": "Skill Quality Management",
@@ -21558,7 +21593,19 @@
         "searchPlaceholder": "Search traces by prompt or title...",
         "exportZip": "Export Trace (ZIP)",
         "exportZipTooltip": "Export raw session event logs and artifacts ZIP pack",
-        "exportZipFailed": "Failed to export session pack"
+        "exportZipFailed": "Failed to export session pack",
+        "llmUnknownModel": "Unknown model",
+        "llmRetry": "Retry ×{count}",
+        "llmTokens": "{count} tokens",
+        "llmNetworkWaitTitle": "Network wait (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token generation: {ms}ms",
+        "llmTtft": "TTFT: {ms}ms",
+        "llmGeneration": "Generation: {ms}ms",
+        "llmPrompt": "Prompt: {count}",
+        "llmCompletion": "Completion: {count}",
+        "llmMessages": "Messages: {count}",
+        "llmViewportInspect": "Model Viewport (Inspect)",
+        "llmViewportHide": "Model Viewport (Hide)"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",

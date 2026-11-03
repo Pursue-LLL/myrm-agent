@@ -3471,6 +3471,16 @@
       "ephemeralHint": "一時：コンテキスト圧縮時に削除されます",
       "persistentHint": "永続：圧縮サマリー後も保持されます",
       "details": "詳細"
+    },
+    "toolDiagnostics": {
+      "trigger": "ツールの状態",
+      "title": "エージェントのツール診断",
+      "loading": "診断データを読み込み中...",
+      "empty": "このエージェントのツール実行データはまだありません。",
+      "calls": "{count} 回の呼び出し",
+      "successRate": "成功率",
+      "errors": "エラー数",
+      "avgTime": "平均所要時間"
     }
   },
   "mode": {
@@ -6202,7 +6212,13 @@
       "copyButton": "コピー",
       "copiedButton": "コピーしました",
       "downloadZip": "ZIP をダウンロード"
-    }
+    },
+    "contextGlobalTitle": "グローバルユーザープロファイル",
+    "contextGlobalSubtitle": "エージェント間で共有される安定した ID",
+    "contextGlobalEmpty": "グローバルプロファイルのデータはまだありません。",
+    "contextPeerTitle": "私たちの関係とあなたのペルソナ",
+    "contextPeerSubtitle": "このエージェント固有のやり取り",
+    "contextPeerEmpty": "このエージェント固有のプロファイルデータはまだありません。"
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",
@@ -7809,7 +7825,14 @@
     "preflightUpdated": "事前チェックプローブを更新しました",
     "preflightTemplateInserted": "テンプレートを挿入しました",
     "preflightInsertTemplate": "テンプレートを挿入",
-    "preflightDesc": "ジョブの実行前にサンドボックスで Python スクリプトを実行します。<skip></skip> または <action></action> を出力すると実行を中止してトークンを節約できます。それ以外の出力はコンテキストとして挿入されます。スクリプトがエラーで終了またはタイムアウトした場合、実行はスキップではなく失敗として記録されます。"
+    "preflightDesc": "ジョブの実行前にサンドボックスで Python スクリプトを実行します。<skip></skip> または <action></action> を出力すると実行を中止してトークンを節約できます。それ以外の出力はコンテキストとして挿入されます。スクリプトがエラーで終了またはタイムアウトした場合、実行はスキップではなく失敗として記録されます。",
+    "roiTitle": "自動化による生産性向上",
+    "roiSubtitle": "自動化タスクの基準工数と実際の実行量から算出",
+    "hoursSavedTotal": "累計削減時間",
+    "hoursUnit": "時間",
+    "productivityValue": "推定生産性価値",
+    "tokenCostLine": "トークンコスト ${amount}",
+    "columnHoursSaved": "推定削減時間"
   },
   "heartbeat": {
     "title": "エージェント自動チェック",
@@ -9302,7 +9325,10 @@
     "imessageDeployGuideLocal": "ローカル / デスクトップ: Mac で実行中の BlueBubbles サービスに直接接続します（例: http://localhost:1234）。",
     "imessageDeployGuideCloud": "クラウド: Cloudflare Tunnel、Tailscale、または Ngrok 経由で Mac の BlueBubbles サーバーに安全に接続します。",
     "whatsappQrAlt": "WhatsApp ログイン用 QR コード",
-    "wechatQrAlt": "WeChat ログイン用 QR コード"
+    "wechatQrAlt": "WeChat ログイン用 QR コード",
+    "usageResetTooltip": "毎日 00:00 UTC（北京時間 08:00）に自動更新",
+    "todayUsageDisplay": "本日の使用量：{used} / {quota} 件",
+    "quotaExceeded": "上限超過"
   },
   "voice": {
     "sectionTitle": "音声設定",
@@ -12647,7 +12673,11 @@
         "trust": "信頼して関連付け",
         "mcpServers": "ローカル MCP サーバー",
         "plugins": "ローカルプラグイン"
-      }
+      },
+      "adoptProjectName": "プロジェクト名",
+      "adoptCancel": "キャンセル",
+      "adoptSubmitting": "導入中...",
+      "adoptSubmit": "今すぐプロジェクトを導入"
     },
     "workspaceTrust": {
       "trusted": "ワークスペースを信頼しました。拡張機能とツールがすべて有効になりました。",
@@ -13842,7 +13872,10 @@
     "activeTaskLabel": "アクティブなタスクの目的",
     "lastActiveLabel": "最終アクティブ",
     "cancelAction": "閉じる",
-    "jumpInAction": "ジャンプイン"
+    "jumpInAction": "ジャンプイン",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "zoomReset": "ズームをリセット"
   },
   "workbench": {
     "workbenchAriaLabel": "補助ワークベンチ",
@@ -17159,7 +17192,9 @@
       "xaiOauthCodeHint": "ブラウザでこのコードを入力して認証を完了してください...",
       "xaiOauthReopen": "認証ページをもう一度開く",
       "xaiOauthWaiting": "認証を待機中...",
-      "xaiOauthConnectBtn": "SuperGrok を認証"
+      "xaiOauthConnectBtn": "SuperGrok を認証",
+      "oauthExpiredNotice": "この認証は無効になっています（プラットフォーム側で失効または期限切れの可能性があります）。「今すぐ修復」をクリックして再認証し、サービスを復旧してください。",
+      "oauthFixNow": "今すぐ修復"
     },
     "skillQuality": {
       "title": "スキル品質管理",
@@ -21558,7 +21593,19 @@
         "searchPlaceholder": "プロンプトまたはタイトルでトレースを検索...",
         "exportZip": "トレースをエクスポート (ZIP)",
         "exportZipTooltip": "セッションの生イベントログと成果物をZIP形式でエクスポート",
-        "exportZipFailed": "セッションパックのエクスポートに失敗しました"
+        "exportZipFailed": "セッションパックのエクスポートに失敗しました",
+        "llmUnknownModel": "不明なモデル",
+        "llmRetry": "リトライ ×{count}",
+        "llmTokens": "{count} トークン",
+        "llmNetworkWaitTitle": "ネットワーク待機 (TTFT)：{ms}ms",
+        "llmGenerationTitle": "トークン生成：{ms}ms",
+        "llmTtft": "TTFT：{ms}ms",
+        "llmGeneration": "生成：{ms}ms",
+        "llmPrompt": "プロンプト：{count}",
+        "llmCompletion": "補完：{count}",
+        "llmMessages": "メッセージ：{count}",
+        "llmViewportInspect": "モデルビューポート（確認）",
+        "llmViewportHide": "モデルビューポート（閉じる）"
       },
       "contextDoctor": {
         "title": "コンテキスト健康診断 (Token ホットスポットとコスト監査)",
