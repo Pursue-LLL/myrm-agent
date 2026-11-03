@@ -164,8 +164,7 @@ class ResponsesStreamState:
             if not call_id or not name:
                 continue
             call, _ = self._resolve(item, {"output_index": position}, create=True)
-            if call is None:
-                continue
+            assert call is not None, "an output position always names a call: one is found or created"
             if call.arguments is _Arguments.NONE:
                 call.arguments = _Arguments.COMPLETE
                 # An empty string is a call without parameters; consumers parse the final string as JSON.
