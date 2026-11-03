@@ -6190,7 +6190,18 @@
       "selectAtLeastOne": "少なくとも 1 つのルールを選択してください",
       "exported": "{count} 件のルールをエクスポートしました",
       "exportFailed": "エクスポートに失敗しました",
-      "copied": "{count} 件のルールをクリップボードにコピーしました"
+      "copied": "{count} 件のルールをクリップボードにコピーしました",
+      "title": "ルールを安全に共有",
+      "privacyBadge": "プライバシー保護済み",
+      "description": "AI が学習したルールを、パスの匿名化と認証情報のマスキングを自動で行ってエクスポートします。公開やチームでの共有も安心です。",
+      "selectAll": "すべて選択",
+      "deselectAll": "すべて選択解除",
+      "selectedCount": "{selected}/{total} 件を選択",
+      "empty": "手順ルールが見つかりません。ルールは会話から自動的に学習されます。",
+      "previewSanitized": "サニタイズ後の内容をプレビュー",
+      "copyButton": "コピー",
+      "copiedButton": "コピーしました",
+      "downloadZip": "ZIP をダウンロード"
     }
   },
   "sharedContextTargetBinding": {
@@ -6795,7 +6806,25 @@
       "viewportNotFound": "ビューポート要素が見つかりません",
       "exportSuccess": "エクスポートしました",
       "svgExported": "アーキテクチャ図を単体の SVG としてエクスポートしました",
-      "pngExported": "アーキテクチャ図を高解像度 PNG としてエクスポートしました"
+      "pngExported": "アーキテクチャ図を高解像度 PNG としてエクスポートしました",
+      "invalidSchema": "アーキテクチャ JSON のスキーマが無効か、解析に失敗しました。",
+      "defaultTitle": "システムアーキテクチャマップ",
+      "evolutionDiffActive": "進化差分を表示中",
+      "searchNodes": "ノードを検索...",
+      "liveView": "ライブビュー",
+      "diffView": "差分ビュー",
+      "copied": "コピーしました",
+      "diffNodesAdded": "+{count} ノード",
+      "diffNodesDeleted": "-{count} ノード",
+      "diffNodesModified": "~{count} 件変更",
+      "diffEdgesAdded": "+{count} エッジ",
+      "diffEdgesDeleted": "-{count} エッジ",
+      "shortestPath": "最短パス：",
+      "hops": "（{count} ホップ）",
+      "noDirectedPath": "（有向パスなし）",
+      "tracingFor": "依存関係ツリーをたどっています：",
+      "clickToTrace": "（別のノードをクリックすると経路をたどれます）",
+      "clear": "クリア"
     },
     "vaultCard": {
       "loading": "ファイルを読み込み中...",
@@ -15021,7 +15050,21 @@
         "profilingStartNetworkError": "プロファイリング開始中にネットワークエラーが発生しました",
         "profilingStopped": "ヒーププロファイリングを停止しました。結果を確認できます。",
         "profilingStopFailed": "プロファイリングの停止に失敗しました",
-        "profilingStopNetworkError": "プロファイリング停止中にネットワークエラーが発生しました"
+        "profilingStopNetworkError": "プロファイリング停止中にネットワークエラーが発生しました",
+        "title": "メモリとプロファイリング",
+        "stopProfiling": "プロファイリングを停止",
+        "startProfiling": "ヒーププロファイリングを開始",
+        "loadingHistory": "メモリ履歴を読み込み中...",
+        "noHistory": "利用できるメモリ履歴がありません。",
+        "profilingActiveTitle": "ヒーププロファイリング実行中",
+        "profilingActiveBody": "システムはすべての Python メモリ割り当てを追跡中です。10〜20% の性能オーバーヘッドが発生する場合があります。結果を見るには「プロファイリングを停止」をクリックしてください。",
+        "topAllocations": "メモリ割り当て上位",
+        "colFile": "ファイル",
+        "colLine": "行",
+        "colSizeKb": "サイズ (KB)",
+        "colCount": "回数",
+        "seriesRss": "合計 RSS (MB)",
+        "seriesNative": "ネイティブ推定 (MB)"
       }
     },
     "commands": {
@@ -18198,7 +18241,88 @@
       "reviewSlip": {
         "fetchFailed": "レビュー一覧の取得に失敗しました",
         "applied": "選択的な書き戻しが完了しました：{committed} 件を反映、{discarded} 件をスキップ",
-        "applyFailed": "選択的な書き戻しの適用に失敗しました"
+        "applyFailed": "選択的な書き戻しの適用に失敗しました",
+        "engineLabel": "成果物ナレッジ蓄積エンジン",
+        "title": "作成者レビューシート",
+        "description": "成果物から抽出した価値の高い知見を確認します。すべてを書き戻すとナレッジベースが汚れるため、各項目の所属層は作成者が決めます。",
+        "exclusionTitle": "ネガティブルールが有効：一時的なノイズ {count} 件をブロックしました",
+        "exclusionBody": "使い捨てのテスト IP、ダミー設定、デモの書き起こし、一時的なデバッグログを自動的に除外し、ナレッジベースの中核となる真実の純度を守ります。",
+        "extracting": "価値の高い知見を抽出し、フィルタールールを評価中...",
+        "noQuestions": "このタスクには書き戻すべき汎用的な知見がなく、内容はすべて成果物に安全に残っています。",
+        "pendingLayer": "所属層は未定",
+        "recommended": "おすすめ",
+        "footerNote": "送信すると各層に書き込まれ、Draft タグが付きます。公開は後で手動で行います。",
+        "later": "あとで",
+        "confirm": "確認して安全に書き戻す"
+      },
+      "ledger": {
+        "title": "5層ナレッジ資産の全体像",
+        "architectureBadge": "WorkBuddy アーキテクチャ",
+        "description": "事実と仮説を物理的に層分けして隔離し、タスク台帳の監査と、作成者レビューシートによる選択的な書き戻しを提供します。",
+        "refreshStats": "統計を更新",
+        "openReviewSlip": "作成者レビューシートを開く",
+        "viewLayerItems": "{title} のエントリー一覧を表示",
+        "archivedItems": "アーカイブ済みエントリー",
+        "drawerTitle": "{title} · アーカイブ済みエントリー一覧",
+        "itemCount": "{count} 件",
+        "closeDrawer": "エントリー一覧を閉じる",
+        "loadingItems": "この層のドキュメント一覧を読み込み中...",
+        "emptyItems": "この層にはまだアーカイブ済みの Markdown エントリーがありません。長時間タスクの完了後、レビューシートからの書き戻しで作成できます。",
+        "previewItem": "エントリー {title} をプレビュー",
+        "noSnippet": "本文の要約はまだありません",
+        "justNow": "たった今",
+        "quickPreview": "クイックプレビュー",
+        "blockNoticeLead": "有効: ",
+        "blockNoticeRule": "ネガティブ書き戻しのハードブロック",
+        "blockNoticeTail": "：デモ環境、特定の IP、使い捨てのテストデータ、一時的なスクリプトを自動的に除外します。",
+        "reviewSlipGuide": "レビューシートの規約",
+        "layers": {
+          "l1": {
+            "title": "原始入力と候補プール",
+            "subtext": "生データと受信トレイ",
+            "badge": "原始エビデンス",
+            "description": "未処理のウェブスナップショット、会議の録音、一時的な下書き。長期検索には一切使われません。"
+          },
+          "l2": {
+            "title": "ソース証明カード",
+            "subtext": "Sources (ID カード)",
+            "badge": "証拠の出典",
+            "description": "権威度と SHA256 署名を持つソースの ID カード。すべての事実知識を遡れるようにする土台です。"
+          },
+          "l3": {
+            "title": "コアナレッジ体系",
+            "subtext": "概念と手法",
+            "badge": "高信頼の真実",
+            "description": "客観的な事実、原子的な概念、エンジニアリング手法。Draft-to-Live の厳格なゲートを通過します。"
+          },
+          "l4": {
+            "title": "見解と主張",
+            "subtext": "Claims (検証待ち)",
+            "badge": "主観的な推論",
+            "description": "確信度と議論の記録を持つ仮説。客観的な事実とは強制的に隔離し、真実の層を汚さないようにします。"
+          },
+          "l5": {
+            "title": "成果物と利用台帳",
+            "subtext": "成果物と台帳",
+            "badge": "納品台帳",
+            "description": "タスクの最終成果物。知識の引用、派生、不採用を台帳に完全に記録します。"
+          }
+        },
+        "preview": {
+          "ariaLabel": "エントリー文書のプレビュー",
+          "jsonLedgerBadge": "JSON 台帳",
+          "taskBadge": "タスク #{id}",
+          "updatedAt": "更新日時：{value}",
+          "storageLayer": "保存レイヤー：{value}",
+          "fileType": "ファイル種別：{value}",
+          "fileTypeJson": "構造化された監査台帳 (JSON)",
+          "fileTypeMarkdown": "Markdown ナレッジ資産",
+          "sourceTask": "元のタスク：{value}",
+          "pathCopied": "パスをコピーしました",
+          "copyPath": "相対パスをコピー",
+          "openInEditor": "Wiki エディターで開く",
+          "close": "プレビューを閉じる"
+        }
       }
     },
     "skills": {

@@ -36,21 +36,23 @@ describe('MemoryMonitorCard profiling controls', () => {
     apiRequestMock.mockResolvedValue({ status: 'started' });
     render(<MemoryMonitorCard />);
 
-    await userEvent.click(screen.getByText('Start Heap Profiling'));
+    await userEvent.click(screen.getByText('startProfiling'));
 
     expect(apiRequestMock).toHaveBeenCalledWith('/health/memory/profile/start', { method: 'POST', silent: true });
     expect(toastMock.success).toHaveBeenCalledWith('profilingStarted');
-    expect(await screen.findByText('Stop Profiling')).toBeInTheDocument();
+    expect(await screen.findByText('stopProfiling')).toBeInTheDocument();
+    expect(screen.getByText('profilingActiveTitle')).toBeInTheDocument();
+    expect(screen.getByText('profilingActiveBody')).toBeInTheDocument();
   });
 
   it('shows the server detail when starting is rejected and stays stopped', async () => {
     apiRequestMock.mockRejectedValue(new ApiError('Profiling is already running', 400));
     render(<MemoryMonitorCard />);
 
-    await userEvent.click(screen.getByText('Start Heap Profiling'));
+    await userEvent.click(screen.getByText('startProfiling'));
 
     expect(toastMock.error).toHaveBeenCalledWith('Profiling is already running');
-    expect(screen.getByText('Start Heap Profiling')).toBeInTheDocument();
+    expect(screen.getByText('startProfiling')).toBeInTheDocument();
   });
 
   it('reports a transport failure with the localized network message', async () => {
@@ -58,7 +60,7 @@ describe('MemoryMonitorCard profiling controls', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(<MemoryMonitorCard />);
 
-    await userEvent.click(screen.getByText('Start Heap Profiling'));
+    await userEvent.click(screen.getByText('startProfiling'));
 
     expect(toastMock.error).toHaveBeenCalledWith('profilingStartNetworkError');
   });
@@ -70,12 +72,26 @@ describe('MemoryMonitorCard profiling controls', () => {
     });
     render(<MemoryMonitorCard />);
 
-    await userEvent.click(screen.getByText('Start Heap Profiling'));
-    await userEvent.click(await screen.findByText('Stop Profiling'));
+    await userEvent.click(screen.getByText('startProfiling'));
+    await userEvent.click(await screen.findByText('stopProfiling'));
 
     expect(apiRequestMock).toHaveBeenLastCalledWith('/health/memory/profile/stop', { method: 'POST', silent: true });
     expect(toastMock.success).toHaveBeenLastCalledWith('profilingStopped');
-    expect(await screen.findByText('Start Heap Profiling')).toBeInTheDocument();
+    expect(await screen.findByText('startProfiling')).toBeInTheDocument();
     expect(screen.getByText('a.py')).toBeInTheDocument();
+    expect(screen.getByText('topAllocations')).toBeInTheDocument();
+    for (const header of ['colFile', 'colLine', 'colSizeKb', 'colCount']) {
+      expect(screen.getByText(header)).toBeInTheDocument();
+    }
+  });
+});
+
+describe('MemoryMonitorCard localized copy', () => {
+  it('renders the title and the empty-history message from translations', async () => {
+    render(<MemoryMonitorCard />);
+
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(await screen.findByText('noHistory')).toBeInTheDocument();
+    expect(screen.queryByText('loadingHistory')).not.toBeInTheDocument();
   });
 });

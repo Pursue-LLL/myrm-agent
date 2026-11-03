@@ -134,12 +134,10 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
         <DialogHeader className="p-6 pb-3 border-b border-border/40">
           <div className="flex items-center gap-2 text-primary font-medium text-xs">
             <Sparkles className="w-4 h-4" />
-            <span>交付物知识沉淀引擎</span>
+            <span>{t('engineLabel')}</span>
           </div>
-          <DialogTitle className="text-xl font-bold mt-1">作者审阅单 (Review Slip)</DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-            审查交付成果中萃取出的高价值洞察。杜绝全量回写污染知识库，由作者确认归属层级。
-          </DialogDescription>
+          <DialogTitle className="text-xl font-bold mt-1">{t('title')}</DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground mt-0.5">{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -148,21 +146,17 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
               <ShieldAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                  负向规则已生效：已硬拦截 {batch.excluded_matches_count} 项瞬态杂质
+                  {t('exclusionTitle', { count: batch.excluded_matches_count })}
                 </span>
-                <p className="text-muted-foreground mt-0.5 leading-relaxed">
-                  系统已自动排除一次性测试 IP、虚拟配置、演示逐字稿与临时调试日志，保护知识库核心真理纯净度。
-                </p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">{t('exclusionBody')}</p>
               </div>
             </div>
           )}
 
           {loading ? (
-            <div className="py-12 text-center text-xs text-muted-foreground">正在萃取高价值洞察并评估过滤规则...</div>
+            <div className="py-12 text-center text-xs text-muted-foreground">{t('extracting')}</div>
           ) : !batch || batch.questions.length === 0 ? (
-            <div className="py-12 text-center text-xs text-muted-foreground">
-              当前任务未产生需要回写的通用经验，全部内容已安全保留在交付物中。
-            </div>
+            <div className="py-12 text-center text-xs text-muted-foreground">{t('noQuestions')}</div>
           ) : (
             batch.questions.map((q, idx) => {
               const currentChoice = userDecisions[q.question_id];
@@ -179,7 +173,7 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
                       <h4 className="text-sm font-semibold text-foreground">{q.topic}</h4>
                     </div>
                     <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                      待定层级
+                      {t('pendingLayer')}
                     </Badge>
                   </div>
 
@@ -227,7 +221,7 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
                                 variant="secondary"
                                 className="text-[9px] px-1 py-0 bg-primary/15 text-primary border-primary/20"
                               >
-                                推荐
+                                {t('recommended')}
                               </Badge>
                             )}
                           </button>
@@ -242,10 +236,10 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
         </div>
 
         <DialogFooter className="p-4 border-t border-border/40 bg-secondary/10 flex items-center justify-between sm:justify-between">
-          <span className="text-xs text-muted-foreground">提交后将写入对应层并打上 Draft 标签，由人工后续发布</span>
+          <span className="text-xs text-muted-foreground">{t('footerNote')}</span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
-              稍后再说
+              {t('later')}
             </Button>
             <Button
               variant="default"
@@ -255,7 +249,7 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
               className="gap-1.5 shadow-sm"
             >
               <CheckCircle2 className="w-4 h-4" />
-              确认并安全回写
+              {t('confirm')}
             </Button>
           </div>
         </DialogFooter>

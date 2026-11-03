@@ -6190,7 +6190,18 @@
       "selectAtLeastOne": "請至少選擇一條規則",
       "exported": "已成功匯出 {count} 條規則",
       "exportFailed": "匯出失敗",
-      "copied": "已複製 {count} 條規則到剪貼簿"
+      "copied": "已複製 {count} 條規則到剪貼簿",
+      "title": "安全分享規則",
+      "privacyBadge": "隱私已保護",
+      "description": "匯出 AI 學到的規則，自動匿名化路徑並清除憑證，可放心公開分享或與團隊共享。",
+      "selectAll": "全選",
+      "deselectAll": "取消全選",
+      "selectedCount": "已選 {selected}/{total}",
+      "empty": "未找到流程規則。規則會從你的對話中自動學習。",
+      "previewSanitized": "預覽脫敏後的內容",
+      "copyButton": "複製",
+      "copiedButton": "已複製",
+      "downloadZip": "下載 ZIP"
     }
   },
   "sharedContextTargetBinding": {
@@ -6795,7 +6806,25 @@
       "viewportNotFound": "找不到畫布視口元素",
       "exportSuccess": "匯出成功",
       "svgExported": "架構圖已匯出為獨立 SVG",
-      "pngExported": "架構圖已匯出為高解析度 PNG"
+      "pngExported": "架構圖已匯出為高解析度 PNG",
+      "invalidSchema": "架構 JSON 結構無效或解析失敗。",
+      "defaultTitle": "系統架構圖",
+      "evolutionDiffActive": "演進對比已開啟",
+      "searchNodes": "搜尋節點...",
+      "liveView": "即時檢視",
+      "diffView": "對比檢視",
+      "copied": "已複製",
+      "diffNodesAdded": "+{count} 個節點",
+      "diffNodesDeleted": "-{count} 個節點",
+      "diffNodesModified": "~{count} 個已修改",
+      "diffEdgesAdded": "+{count} 條連線",
+      "diffEdgesDeleted": "-{count} 條連線",
+      "shortestPath": "最短路徑：",
+      "hops": "（{count} 跳）",
+      "noDirectedPath": "（無有向路徑）",
+      "tracingFor": "正在追蹤依賴樹：",
+      "clickToTrace": "（點擊另一個節點可追蹤路徑）",
+      "clear": "清除"
     },
     "vaultCard": {
       "loading": "正在讀取檔案...",
@@ -15021,7 +15050,21 @@
         "profilingStartNetworkError": "啟動記憶體剖析時網路出錯",
         "profilingStopped": "記憶體剖析已停止，結果已就緒。",
         "profilingStopFailed": "停止記憶體剖析失敗",
-        "profilingStopNetworkError": "停止記憶體剖析時網路出錯"
+        "profilingStopNetworkError": "停止記憶體剖析時網路出錯",
+        "title": "記憶體與效能分析",
+        "stopProfiling": "停止分析",
+        "startProfiling": "開始堆積記憶體分析",
+        "loadingHistory": "正在載入記憶體歷史...",
+        "noHistory": "暫無記憶體歷史資料。",
+        "profilingActiveTitle": "堆積記憶體分析進行中",
+        "profilingActiveBody": "系統正在追蹤所有 Python 記憶體配置，可能帶來 10%–20% 的效能開銷。點擊「停止分析」檢視結果。",
+        "topAllocations": "記憶體配置排行",
+        "colFile": "檔案",
+        "colLine": "行",
+        "colSizeKb": "大小 (KB)",
+        "colCount": "次數",
+        "seriesRss": "總 RSS (MB)",
+        "seriesNative": "原生記憶體估算 (MB)"
       }
     },
     "commands": {
@@ -18198,7 +18241,88 @@
       "reviewSlip": {
         "fetchFailed": "取得審閱單失敗",
         "applied": "選擇性回寫完成：已沉澱 {committed} 項，略過 {discarded} 項",
-        "applyFailed": "套用選擇性回寫失敗"
+        "applyFailed": "套用選擇性回寫失敗",
+        "engineLabel": "交付物知識沉澱引擎",
+        "title": "作者審閱單 (Review Slip)",
+        "description": "審查交付成果中萃取出的高價值洞察。杜絕全量回寫汙染知識庫，由作者確認歸屬層級。",
+        "exclusionTitle": "負向規則已生效：已硬攔截 {count} 項暫態雜質",
+        "exclusionBody": "系統已自動排除一次性測試 IP、虛擬設定、示範逐字稿與暫時偵錯日誌，保護知識庫核心真理的純淨度。",
+        "extracting": "正在萃取高價值洞察並評估過濾規則...",
+        "noQuestions": "目前任務未產生需要回寫的通用經驗，全部內容已安全保留在交付物中。",
+        "pendingLayer": "待定層級",
+        "recommended": "推薦",
+        "footerNote": "提交後將寫入對應層並標上 Draft 標籤，由人工後續發布",
+        "later": "稍後再說",
+        "confirm": "確認並安全回寫"
+      },
+      "ledger": {
+        "title": "五層知識資產全域態勢",
+        "architectureBadge": "WorkBuddy 架構",
+        "description": "以實體分層隔離事實與假說，提供任務台帳稽核與作者審閱單選擇性回寫機制。",
+        "refreshStats": "重新整理統計",
+        "openReviewSlip": "開啟作者審閱單",
+        "viewLayerItems": "檢視 {title} 詞條清單",
+        "archivedItems": "已封存條目",
+        "drawerTitle": "{title} · 封存詞條清單",
+        "itemCount": "{count} 篇",
+        "closeDrawer": "關閉詞條清單",
+        "loadingItems": "正在載入該層文件清單...",
+        "emptyItems": "目前這一層尚無已封存的 Markdown 詞條，完成長程任務後可透過審閱單回寫產生。",
+        "previewItem": "預覽詞條 {title}",
+        "noSnippet": "暫無內文摘要",
+        "justNow": "剛剛",
+        "quickPreview": "快速預覽",
+        "blockNoticeLead": "已啟用",
+        "blockNoticeRule": "負向不回寫硬攔截",
+        "blockNoticeTail": "：自動屏蔽示範環境、特定 IP、一次性測試資料與暫時腳本。",
+        "reviewSlipGuide": "審閱單規範",
+        "layers": {
+          "l1": {
+            "title": "原始輸入與候選池",
+            "subtext": "原始資料與收件匣",
+            "badge": "原始存證",
+            "description": "未處理的網頁快照、會議錄音與暫態草稿，嚴格不參與長期檢索。"
+          },
+          "l2": {
+            "title": "來源憑證卡",
+            "subtext": "Sources (身分證)",
+            "badge": "證據來源",
+            "description": "帶有權威度與 SHA256 簽章的來源身分卡，是所有事實知識的追溯基石。"
+          },
+          "l3": {
+            "title": "核心知識體系",
+            "subtext": "概念與方法",
+            "badge": "高可信真理",
+            "description": "客觀事實、原子概念與工程方法論，通過 Draft-to-Live 嚴格門禁。"
+          },
+          "l4": {
+            "title": "觀點與主張",
+            "subtext": "Claims (待驗證)",
+            "badge": "主觀推斷",
+            "description": "帶有信心度與辯論紀錄的假說，與客觀事實強制隔離，避免汙染真理。"
+          },
+          "l5": {
+            "title": "交付物與使用台帳",
+            "subtext": "交付物與台帳",
+            "badge": "交付台帳",
+            "description": "任務最終產出的交付物，完整記錄知識引用、衍生與未採納台帳。"
+          }
+        },
+        "preview": {
+          "ariaLabel": "詞條文件預覽",
+          "jsonLedgerBadge": "JSON 台帳",
+          "taskBadge": "任務 #{id}",
+          "updatedAt": "更新時間：{value}",
+          "storageLayer": "儲存分層：{value}",
+          "fileType": "檔案類型：{value}",
+          "fileTypeJson": "結構化稽核台帳 (JSON)",
+          "fileTypeMarkdown": "Markdown 知識資產",
+          "sourceTask": "來源任務：{value}",
+          "pathCopied": "已複製路徑",
+          "copyPath": "複製相對路徑",
+          "openInEditor": "在 Wiki 編輯器中開啟",
+          "close": "關閉預覽"
+        }
       }
     },
     "skills": {

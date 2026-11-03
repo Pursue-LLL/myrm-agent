@@ -6190,7 +6190,18 @@
       "selectAtLeastOne": "Please select at least one rule",
       "exported": "{count, plural, one {Exported # rule successfully} other {Exported # rules successfully}}",
       "exportFailed": "Export failed",
-      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}"
+      "copied": "{count, plural, one {Copied # rule to clipboard} other {Copied # rules to clipboard}}",
+      "title": "Share Rules Safely",
+      "privacyBadge": "Privacy Protected",
+      "description": "Export your AI-learned rules with automatic path anonymization and credential redaction. Safe to share publicly or with your team.",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "selectedCount": "{selected}/{total} selected",
+      "empty": "No procedural rules found. Rules are automatically learned from your conversations.",
+      "previewSanitized": "Preview sanitized content",
+      "copyButton": "Copy",
+      "copiedButton": "Copied!",
+      "downloadZip": "Download ZIP"
     }
   },
   "sharedContextTargetBinding": {
@@ -6795,7 +6806,25 @@
       "viewportNotFound": "Viewport element not found",
       "exportSuccess": "Export Successful",
       "svgExported": "Architecture diagram exported as standalone SVG",
-      "pngExported": "Architecture diagram exported as high-res PNG"
+      "pngExported": "Architecture diagram exported as high-res PNG",
+      "invalidSchema": "Invalid architecture JSON schema or failed to parse.",
+      "defaultTitle": "System Architecture Map",
+      "evolutionDiffActive": "Evolution Diff Active",
+      "searchNodes": "Search nodes...",
+      "liveView": "Live View",
+      "diffView": "Diff View",
+      "copied": "Copied",
+      "diffNodesAdded": "+{count} Nodes",
+      "diffNodesDeleted": "-{count} Nodes",
+      "diffNodesModified": "~{count} Modified",
+      "diffEdgesAdded": "+{count} Edges",
+      "diffEdgesDeleted": "-{count} Edges",
+      "shortestPath": "Shortest Path:",
+      "hops": "({count, plural, one {# hop} other {# hops}})",
+      "noDirectedPath": "(no directed path)",
+      "tracingFor": "Tracing dependency tree for:",
+      "clickToTrace": "(Click another node to trace route)",
+      "clear": "Clear"
     },
     "vaultCard": {
       "loading": "Loading the file...",
@@ -15021,7 +15050,21 @@
         "profilingStartNetworkError": "Network error starting profiling",
         "profilingStopped": "Heap profiling stopped. Results ready.",
         "profilingStopFailed": "Failed to stop profiling",
-        "profilingStopNetworkError": "Network error stopping profiling"
+        "profilingStopNetworkError": "Network error stopping profiling",
+        "title": "Memory & Profiling",
+        "stopProfiling": "Stop Profiling",
+        "startProfiling": "Start Heap Profiling",
+        "loadingHistory": "Loading memory history...",
+        "noHistory": "No memory history available.",
+        "profilingActiveTitle": "Heap Profiling is Active",
+        "profilingActiveBody": "The system is currently tracking all Python memory allocations. This may cause a 10-20% performance overhead. Click Stop Profiling to view the results.",
+        "topAllocations": "Top Memory Allocations",
+        "colFile": "File",
+        "colLine": "Line",
+        "colSizeKb": "Size (KB)",
+        "colCount": "Count",
+        "seriesRss": "Total RSS (MB)",
+        "seriesNative": "Native Estimate (MB)"
       }
     },
     "commands": {
@@ -18198,7 +18241,88 @@
       "reviewSlip": {
         "fetchFailed": "Failed to load the review slip",
         "applied": "Selective write-back complete: {committed} saved, {discarded} skipped",
-        "applyFailed": "Failed to apply selective write-back"
+        "applyFailed": "Failed to apply selective write-back",
+        "engineLabel": "Deliverable knowledge capture engine",
+        "title": "Author review slip",
+        "description": "Review the high-value insights extracted from the deliverable. Writing everything back would pollute the knowledge base, so the author confirms the target layer for each one.",
+        "exclusionTitle": "Negative rules applied: {count} transient items blocked",
+        "exclusionBody": "One-off test IPs, dummy configs, demo transcripts and temporary debug logs were excluded automatically to keep the core truth of the knowledge base clean.",
+        "extracting": "Extracting high-value insights and evaluating filter rules...",
+        "noQuestions": "This task produced no general lessons worth writing back; everything stays safely in the deliverable.",
+        "pendingLayer": "Layer to be decided",
+        "recommended": "Recommended",
+        "footerNote": "After submitting, items are written to their layers and tagged Draft, to be published manually later.",
+        "later": "Not now",
+        "confirm": "Confirm and write back safely"
+      },
+      "ledger": {
+        "title": "Five-layer knowledge asset overview",
+        "architectureBadge": "WorkBuddy architecture",
+        "description": "Facts and hypotheses are kept in physically separate layers, with task-ledger auditing and selective write-back through the author review slip.",
+        "refreshStats": "Refresh stats",
+        "openReviewSlip": "Open author review slip",
+        "viewLayerItems": "View the entry list of {title}",
+        "archivedItems": "Archived entries",
+        "drawerTitle": "{title} · archived entries",
+        "itemCount": "{count} docs",
+        "closeDrawer": "Close entry list",
+        "loadingItems": "Loading the document list for this layer...",
+        "emptyItems": "No archived Markdown entries in this layer yet. Complete a long-running task and write back through the review slip to create some.",
+        "previewItem": "Preview entry {title}",
+        "noSnippet": "No summary yet",
+        "justNow": "Just now",
+        "quickPreview": "Quick preview",
+        "blockNoticeLead": "Active: ",
+        "blockNoticeRule": "negative write-back hard block",
+        "blockNoticeTail": " — demo environments, specific IPs, one-off test data and temporary scripts are screened out automatically.",
+        "reviewSlipGuide": "Review slip guide",
+        "layers": {
+          "l1": {
+            "title": "Raw inputs & candidate pool",
+            "subtext": "Raw & Inbox",
+            "badge": "Raw evidence",
+            "description": "Unprocessed web snapshots, meeting recordings and transient drafts; strictly excluded from long-term retrieval."
+          },
+          "l2": {
+            "title": "Source credential cards",
+            "subtext": "Sources (ID cards)",
+            "badge": "Evidence source",
+            "description": "Source ID cards with authority ratings and SHA256 signatures — the traceability foundation for all factual knowledge."
+          },
+          "l3": {
+            "title": "Core knowledge base",
+            "subtext": "Concepts & Methods",
+            "badge": "High-trust truth",
+            "description": "Objective facts, atomic concepts and engineering methods that pass the strict Draft-to-Live gate."
+          },
+          "l4": {
+            "title": "Opinions & claims",
+            "subtext": "Claims (to be verified)",
+            "badge": "Subjective inference",
+            "description": "Hypotheses with confidence levels and debate records, kept strictly apart from objective facts so they cannot contaminate the truth layer."
+          },
+          "l5": {
+            "title": "Deliverables & usage ledgers",
+            "subtext": "Deliverables & Ledgers",
+            "badge": "Delivery ledger",
+            "description": "Final task outputs, with a full ledger of knowledge cited, derived and not adopted."
+          }
+        },
+        "preview": {
+          "ariaLabel": "Entry document preview",
+          "jsonLedgerBadge": "JSON ledger",
+          "taskBadge": "Task #{id}",
+          "updatedAt": "Updated: {value}",
+          "storageLayer": "Storage layer: {value}",
+          "fileType": "File type: {value}",
+          "fileTypeJson": "Structured audit ledger (JSON)",
+          "fileTypeMarkdown": "Markdown knowledge asset",
+          "sourceTask": "Source task: {value}",
+          "pathCopied": "Path copied",
+          "copyPath": "Copy relative path",
+          "openInEditor": "Open in Wiki editor",
+          "close": "Close preview"
+        }
       }
     },
     "skills": {

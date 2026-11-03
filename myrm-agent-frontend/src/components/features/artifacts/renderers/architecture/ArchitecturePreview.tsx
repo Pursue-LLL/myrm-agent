@@ -358,7 +358,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
       }
       return (
         <div className="flex h-full w-full items-center justify-center p-6 text-muted-foreground text-sm">
-          Invalid architecture JSON schema or failed to parse.
+          {t('invalidSchema')}
         </div>
       );
     }
@@ -369,7 +369,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         <div className="z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2 text-xs">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground text-sm truncate max-w-[200px] sm:max-w-xs">
-              {activeIR.title || 'System Architecture Map'}
+              {activeIR.title || t('defaultTitle')}
             </h3>
             {activeIR.type && (
               <Badge variant="outline" className="text-[10px] uppercase font-mono">
@@ -377,24 +377,34 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
               </Badge>
             )}
             {isDiffMode && (
-              <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px]">Evolution Diff Active</Badge>
+              <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px]">
+                {t('evolutionDiffActive')}
+              </Badge>
             )}
             {diffSummary && (
               <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-background border shadow-2xs">
                 {diffSummary.addedNodes > 0 && (
-                  <span className="text-emerald-600 dark:text-emerald-400">+{diffSummary.addedNodes} Nodes</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {t('diffNodesAdded', { count: diffSummary.addedNodes })}
+                  </span>
                 )}
                 {diffSummary.deletedNodes > 0 && (
-                  <span className="text-rose-600 dark:text-rose-400">-{diffSummary.deletedNodes} Nodes</span>
+                  <span className="text-rose-600 dark:text-rose-400">
+                    {t('diffNodesDeleted', { count: diffSummary.deletedNodes })}
+                  </span>
                 )}
                 {diffSummary.modifiedNodes > 0 && (
-                  <span className="text-amber-600 dark:text-amber-400">~{diffSummary.modifiedNodes} Modified</span>
+                  <span className="text-amber-600 dark:text-amber-400">
+                    {t('diffNodesModified', { count: diffSummary.modifiedNodes })}
+                  </span>
                 )}
                 {diffSummary.addedEdges > 0 && (
-                  <span className="text-cyan-600 dark:text-cyan-400">+{diffSummary.addedEdges} Edges</span>
+                  <span className="text-cyan-600 dark:text-cyan-400">
+                    {t('diffEdgesAdded', { count: diffSummary.addedEdges })}
+                  </span>
                 )}
                 {diffSummary.deletedEdges > 0 && (
-                  <span className="text-rose-500">-{diffSummary.deletedEdges} Edges</span>
+                  <span className="text-rose-500">{t('diffEdgesDeleted', { count: diffSummary.deletedEdges })}</span>
                 )}
               </div>
             )}
@@ -405,7 +415,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
             <div className="relative w-36 sm:w-48">
               <Search className="absolute left-2 top-2 text-muted-foreground" size={13} />
               <Input
-                placeholder="Search nodes..."
+                placeholder={t('searchNodes')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-7 pl-7 text-xs bg-background"
@@ -421,14 +431,14 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
                 onClick={() => setIsDiffMode(!isDiffMode)}
               >
                 <GitCompare size={12} />
-                {isDiffMode ? 'Live View' : 'Diff View'}
+                {isDiffMode ? t('liveView') : t('diffView')}
               </Button>
             )}
 
             {/* Copy JSON Button */}
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleCopyJson}>
               {isCopied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-              {isCopied ? 'Copied' : 'JSON'}
+              {isCopied ? t('copied') : 'JSON'}
             </Button>
 
             {/* Export SVG Button */}
@@ -477,14 +487,14 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
                 <>
                   <Route size={13} className="text-cyan-500" />
                   <span>
-                    Shortest Path: <strong>{selectedNodeId}</strong> → <strong>{targetNodeId}</strong>
+                    {t('shortestPath')} <strong>{selectedNodeId}</strong> → <strong>{targetNodeId}</strong>
                     {shortestPathResult?.found && (
                       <span className="ml-1 text-muted-foreground font-mono text-[10px]">
-                        ({shortestPathResult.nodeIds.length - 1} hops)
+                        {t('hops', { count: shortestPathResult.nodeIds.length - 1 })}
                       </span>
                     )}
                     {!shortestPathResult?.found && (
-                      <span className="ml-1 text-rose-500 font-medium text-[10px]">(no directed path)</span>
+                      <span className="ml-1 text-rose-500 font-medium text-[10px]">{t('noDirectedPath')}</span>
                     )}
                   </span>
                 </>
@@ -492,10 +502,8 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
                 <>
                   <Eye size={13} className="text-primary" />
                   <span>
-                    Tracing dependency tree for: <strong>{selectedNodeId}</strong>
-                    <span className="ml-1 text-muted-foreground text-[10px] hidden sm:inline">
-                      (Click another node to trace route)
-                    </span>
+                    {t('tracingFor')} <strong>{selectedNodeId}</strong>
+                    <span className="ml-1 text-muted-foreground text-[10px] hidden sm:inline">{t('clickToTrace')}</span>
                   </span>
                 </>
               )}
@@ -507,7 +515,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
                 }}
                 className="ml-2 text-muted-foreground hover:text-foreground text-[10px] underline"
               >
-                Clear
+                {t('clear')}
               </button>
             </div>
           )}

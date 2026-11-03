@@ -4,9 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { WikiLayersLedgerPanel } from '../WikiLayersLedgerPanel';
 import { writebackService } from '@/services/wikiService';
 
+const stableT = (key: string, values?: Record<string, string | number>) =>
+  values ? `${key}:${Object.values(values).join('|')}` : key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
+
 vi.mock('@/services/wikiService', () => ({
   writebackService: {
     getLayersStats: vi.fn(),
+    getLayerItems: vi.fn(),
     generateReviewSlips: vi.fn(),
     applyWritebackDecisions: vi.fn(),
   },
@@ -40,19 +48,19 @@ describe('WikiLayersLedgerPanel', () => {
 
     render(<WikiLayersLedgerPanel />);
 
-    // 验证标题与 WorkBuddy 架构徽章
-    expect(screen.getByText('五层知识资产全局态势')).toBeInTheDocument();
-    expect(screen.getByText('WorkBuddy 架构')).toBeInTheDocument();
+    // 标题与架构徽章走翻译
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('architectureBadge')).toBeInTheDocument();
 
-    // 验证五大物理分层
-    expect(screen.getByText('原始输入与候选池')).toBeInTheDocument();
-    expect(screen.getByText('来源凭证卡')).toBeInTheDocument();
-    expect(screen.getByText('核心知识体系')).toBeInTheDocument();
-    expect(screen.getByText('观点与主张')).toBeInTheDocument();
-    expect(screen.getByText('交付物与使用台账')).toBeInTheDocument();
+    // 五大物理分层的标题、副标题、徽标、说明都走翻译
+    for (const layer of ['l1', 'l2', 'l3', 'l4', 'l5']) {
+      for (const field of ['title', 'subtext', 'badge', 'description']) {
+        expect(screen.getByText(`layers.${layer}.${field}`)).toBeInTheDocument();
+      }
+    }
 
-    // 验证负向硬拦截提示
-    expect(screen.getByText(/负向不回写硬拦截/)).toBeInTheDocument();
+    // 负向硬拦截提示
+    expect(screen.getByText('blockNoticeRule')).toBeInTheDocument();
 
     // 等待异步统计数据加载并校验计数
     await waitFor(() => {
@@ -94,12 +102,63 @@ describe('WikiLayersLedgerPanel', () => {
     render(<WikiLayersLedgerPanel />);
     const user = userEvent.setup();
 
-    const openBtn = screen.getByRole('button', { name: /打开作者审阅单/ });
+    const openBtn = screen.getByRole('button', { name: 'openReviewSlip' });
     await user.click(openBtn);
 
-    // 验证审阅单浮窗标题弹出
+    // 审阅单浮窗弹出，且已被拦截的杂质数量带进翻译
     await waitFor(() => {
-      expect(screen.getByText('作者审阅单 (Review Slip)')).toBeInTheDocument();
+      expect(screen.getByText('engineLabel')).toBeInTheDocument();
     });
+    expect(screen.getByText('exclusionTitle:1')).toBeInTheDocument();
+    expect(screen.getByText('noQuestions')).toBeInTheDocument();
+  });
+
+  it('drills into a layer and previews an entry with translated labels', async () => {
+    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
+      agent_id: 'test_scope_agent',
+      raw_files_count: 0,
+      sources_count: 0,
+      concepts_count: 1,
+      claims_count: 0,
+      methods_count: 0,
+      templates_count: 0,
+      deliverables_count: 0,
+      inbox_count: 0,
+    });
+    vi.mocked(writebackService.getLayerItems).mockResolvedValueOnce([
+      {
+        slug: 'retry-policy',
+        title: 'Retry policy',
+        relative_path: 'concepts/retry-policy.md',
+        file_type: 'markdown',
+        publish_status: 'draft',
+        content_snippet: '',
+        updated_at: '',
+        source_task_id: 'task-abcdef123456',
+      },
+    ]);
+
+    render(<WikiLayersLedgerPanel />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getAllByRole('button', { name: /^viewLayerItems:/ })[0]);
+
+    // 列表头、数量、空摘要与时间的兜底都走翻译
+    await waitFor(() => {
+      expect(screen.getByText('drawerTitle:layers.l1.title')).toBeInTheDocument();
+    });
+    expect(screen.getByText('itemCount:1')).toBeInTheDocument();
+    expect(screen.getByText('noSnippet')).toBeInTheDocument();
+    expect(screen.getByText('justNow')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'previewItem:Retry policy' }));
+
+    const preview = screen.getByRole('dialog', { name: 'ariaLabel' });
+    expect(preview).toHaveTextContent('taskBadge:123456');
+    expect(preview).toHaveTextContent('updatedAt:justNow');
+    expect(preview).toHaveTextContent('storageLayer:layers.l1.title');
+    expect(preview).toHaveTextContent('fileType:fileTypeMarkdown');
+    expect(preview).toHaveTextContent('sourceTask:task-abcdef123456');
+    expect(screen.getByRole('button', { name: 'copyPath' })).toBeInTheDocument();
   });
 });

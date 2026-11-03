@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Layers,
   ShieldCheck,
@@ -42,6 +43,7 @@ interface WikiLayersLedgerPanelProps {
 }
 
 export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelProps = {}) {
+  const t = useTranslations('settings.wiki.ledger');
   const { agentScopeId } = useWikiAgentScope();
 
   const [stats, setStats] = useState<WikiLayersStats | null>(null);
@@ -101,61 +103,61 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
       id: 'l1',
       targetKey: 'raw',
       layerNumber: 'L1',
-      title: '原始输入与候选池',
-      subtext: 'Raw & Inbox',
+      title: t('layers.l1.title'),
+      subtext: t('layers.l1.subtext'),
       icon: FolderGit2,
       count: (stats?.raw_files_count ?? 0) + (stats?.inbox_count ?? 0),
-      badge: '原始存证',
+      badge: t('layers.l1.badge'),
       color: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5',
-      description: '未处理的网页快照、会议录音与瞬态草稿，严格不参与长期检索。',
+      description: t('layers.l1.description'),
     },
     {
       id: 'l2',
       targetKey: 'sources',
       layerNumber: 'L2',
-      title: '来源凭证卡',
-      subtext: 'Sources (身份证)',
+      title: t('layers.l2.title'),
+      subtext: t('layers.l2.subtext'),
       icon: ShieldCheck,
       count: stats?.sources_count ?? 0,
-      badge: '证据来源',
+      badge: t('layers.l2.badge'),
       color: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5',
-      description: '带有权威度与 SHA256 签名的来源身份卡，所有事实知识的追溯基石。',
+      description: t('layers.l2.description'),
     },
     {
       id: 'l3',
       targetKey: 'methods',
       layerNumber: 'L3',
-      title: '核心知识体系',
-      subtext: 'Concepts & Methods',
+      title: t('layers.l3.title'),
+      subtext: t('layers.l3.subtext'),
       icon: BrainCircuit,
       count: (stats?.concepts_count ?? 0) + (stats?.methods_count ?? 0),
-      badge: '高可信真理',
+      badge: t('layers.l3.badge'),
       color: 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5',
-      description: '客观事实、原子概念与工程方法论，通过 Draft-to-Live 严格门禁。',
+      description: t('layers.l3.description'),
     },
     {
       id: 'l4',
       targetKey: 'claims',
       layerNumber: 'L4',
-      title: '观点与主张',
-      subtext: 'Claims (待验证)',
+      title: t('layers.l4.title'),
+      subtext: t('layers.l4.subtext'),
       icon: Compass,
       count: stats?.claims_count ?? 0,
-      badge: '主观推断',
+      badge: t('layers.l4.badge'),
       color: 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5',
-      description: '带置信度与辩论记录的假说，与客观事实强行隔离，避免污染真理。',
+      description: t('layers.l4.description'),
     },
     {
       id: 'l5',
       targetKey: 'deliverables',
       layerNumber: 'L5',
-      title: '交付物与使用台账',
-      subtext: 'Deliverables & Ledgers',
+      title: t('layers.l5.title'),
+      subtext: t('layers.l5.subtext'),
       icon: FileCheck2,
       count: stats?.deliverables_count ?? 0,
-      badge: '交付台账',
+      badge: t('layers.l5.badge'),
       color: 'border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5',
-      description: '任务最终产出的交付物，完整记录知识引用、衍生与未采纳台账。',
+      description: t('layers.l5.description'),
     },
   ];
 
@@ -169,14 +171,12 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
             </div>
             <div>
               <CardTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                五层知识资产全局态势
+                {t('title')}
                 <Badge variant="outline" className="text-xs font-normal border-primary/30 text-primary">
-                  WorkBuddy 架构
+                  {t('architectureBadge')}
                 </Badge>
               </CardTitle>
-              <CardDescription className="text-sm text-muted-foreground mt-0.5">
-                物理分层隔离事实与假说，提供任务台账审计与作者审阅单选择性回写机制。
-              </CardDescription>
+              <CardDescription className="text-sm text-muted-foreground mt-0.5">{t('description')}</CardDescription>
             </div>
           </div>
 
@@ -189,7 +189,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               className="gap-1.5 h-8 text-xs border-border/60"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              刷新统计
+              {t('refreshStats')}
             </Button>
             <Button
               variant="default"
@@ -198,7 +198,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               className="gap-1.5 h-8 text-xs shadow-sm"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              打开作者审阅单
+              {t('openReviewSlip')}
             </Button>
           </div>
         </div>
@@ -214,7 +214,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               <button
                 type="button"
                 key={layer.id}
-                aria-label={`查看 ${layer.title} 词条清单`}
+                aria-label={t('viewLayerItems', { title: layer.title })}
                 onClick={() => void handleSelectLayer(layer.id, layer.targetKey, layer.title)}
                 className={`text-left relative p-3.5 rounded-xl border ${layer.color} transition-all duration-200 cursor-pointer flex flex-col justify-between select-none ${
                   isSelected ? 'ring-2 ring-primary shadow-md scale-[1.01]' : 'hover:shadow-md hover:border-primary/40'
@@ -241,7 +241,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
 
                 <div className="mt-4 pt-2.5 border-t border-border/30 flex items-baseline justify-between">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    已归档条目
+                    {t('archivedItems')}
                     {isSelected && <ChevronDown className="w-3 h-3 text-primary animate-bounce" />}
                   </span>
                   <span className="text-lg font-bold font-mono text-foreground">{loading ? '...' : layer.count}</span>
@@ -257,15 +257,18 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                <h4 className="text-sm font-semibold text-foreground">{selectedLayerTitle} · 归档词条清单</h4>
+                <h4 className="text-sm font-semibold text-foreground">
+                  {t('drawerTitle', { title: selectedLayerTitle })}
+                </h4>
                 <Badge variant="secondary" className="text-xs font-mono">
-                  {layerItems.length} 篇
+                  {t('itemCount', { count: layerItems.length })}
                 </Badge>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setSelectedLayerId(null)}
+                aria-label={t('closeDrawer')}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-4 h-4" />
@@ -275,19 +278,17 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
             {itemsLoading ? (
               <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
-                正在加载该层文档清单...
+                {t('loadingItems')}
               </div>
             ) : layerItems.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                当前层级暂无已归档的 Markdown 词条，完成长程任务后可通过审阅单回写生成。
-              </div>
+              <div className="py-8 text-center text-xs text-muted-foreground">{t('emptyItems')}</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {layerItems.map((item) => (
                   <button
                     type="button"
                     key={item.relative_path}
-                    aria-label={`预览词条 ${item.title}`}
+                    aria-label={t('previewItem', { title: item.title })}
                     onClick={() => setPreviewItem(item)}
                     className="text-left group p-3 rounded-lg border border-border/50 bg-secondary/15 hover:bg-secondary/30 hover:border-primary/40 transition-all cursor-pointer flex flex-col justify-between select-none"
                   >
@@ -313,21 +314,21 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
                         </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
-                        {item.content_snippet || '暂无正文摘要'}
+                        {item.content_snippet || t('noSnippet')}
                       </p>
                     </div>
 
                     <div className="w-full mt-2.5 pt-2 border-t border-border/30 flex items-center justify-between text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1 font-mono truncate max-w-[160px]">
                         <Clock className="w-3 h-3 shrink-0" />
-                        {item.updated_at ? item.updated_at.split('T')[0] : '刚刚'}
+                        {item.updated_at ? item.updated_at.split('T')[0] : t('justNow')}
                         {item.source_task_id && (
                           <span className="text-[9px] text-primary/80 truncate">#{item.source_task_id.slice(-4)}</span>
                         )}
                       </span>
                       <span className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                         <Eye className="w-3 h-3" />
-                        快速预览
+                        {t('quickPreview')}
                       </span>
                     </div>
                   </button>
@@ -341,12 +342,14 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
             <span>
-              已激活<strong>负向不回写硬拦截</strong>：自动屏蔽演示环境、特定IP、一次性测试数据与临时脚本。
+              {t('blockNoticeLead')}
+              <strong>{t('blockNoticeRule')}</strong>
+              {t('blockNoticeTail')}
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0 text-primary hover:underline cursor-pointer">
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>审阅单规范</span>
+            <span>{t('reviewSlipGuide')}</span>
           </div>
         </div>
       </CardContent>
