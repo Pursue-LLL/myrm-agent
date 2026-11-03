@@ -5,6 +5,7 @@
  * - @/store/useChatStore (POS: Global chat store for workspaceDir, sandboxMode, actionMode)
  * - @/services/chat::mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir
  * - @/lib/tauri::isTauriEnvironment
+ * - @/lib/workspacePathIssue::workspacePathIssueMessageKey (POS: Shared reading of a backend workspace-folder refusal)
  * - ./WorkModeTabs::WorkModeTabs, NewTaskMode (POS: Presentational three-mode segmented control)
  * - next-intl::useTranslations
  *
