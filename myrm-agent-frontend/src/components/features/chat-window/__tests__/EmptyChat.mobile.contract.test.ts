@@ -46,13 +46,11 @@ describe('empty chat phone first-screen contract', () => {
     expect(read('../WorkModeTabs.tsx').match(/'flex min-w-0 flex-col [^']*max-\[375px\]:px-1[^']*'/g)).toHaveLength(1);
   });
 
-  it('keeps the cloud and chat description rows from squeezing their dot and icons or splitting the storage badge', () => {
+  it('wraps the cloud description row instead of squeezing its dot or storage badge, and keeps the chat icon at full size', () => {
     const source = read('../NewTaskWorkContextCard.tsx');
 
-    expect(source).toContain('flex flex-wrap items-center justify-between gap-x-3');
+    expect(source).toContain('flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5');
     expect(source).toContain('size-2 shrink-0 rounded-full');
-    expect(source).toContain('flex shrink-0 items-center gap-1 whitespace-nowrap');
-    expect(source).toContain('<Layers className="h-3 w-3 shrink-0" />');
     expect(source).toContain('<Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />');
   });
 

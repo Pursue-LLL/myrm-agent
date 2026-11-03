@@ -453,12 +453,12 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
 
       {currentMode === 'cloud' && (
         <div className="pt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex items-center gap-2">
             <div className="size-2 shrink-0 rounded-full bg-blue-500 animate-pulse" />
             <span>{t('modeCloudDesc')}</span>
           </div>
-          <div className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-primary/80 font-medium">
-            <Layers className="h-3 w-3 shrink-0" />
+          <div className="flex items-center gap-1 text-[11px] text-primary/80 font-medium">
+            <Layers className="h-3 w-3" />
             <span>{t('modeCloudBadge')}</span>
           </div>
         </div>
