@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Every block on the empty chat competes for first-screen height; the stack once grew to 7,628px before it
- * was collapsed. This contract keeps new cards from landing there unreviewed: a component imported by
- * EmptyChat.tsx must be listed here together with the reason it earns first-screen space.
+ * Every block on the empty chat competes for first-screen height. This contract keeps new cards from
+ * landing there unreviewed: a component imported by EmptyChat.tsx must be listed here together with the
+ * reason it earns first-screen space.
  */
 const FIRST_SCREEN_COMPONENTS: Record<string, string> = {
   MessageInput: 'the composer, the primary action',
