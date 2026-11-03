@@ -49,6 +49,16 @@ class TestParts:
     def test_bare_strings_are_text_and_empty_ones_vanish(self) -> None:
         assert _user_parts(["one", "", {"type": "text", "text": "two"}]) == [{"text": "one"}, {"text": "two"}]
 
+    def test_stray_values_and_an_image_without_a_url_vanish_quietly(self) -> None:
+        stray = [None, 7, {"type": "image_url", "image_url": {"url": ""}}, {"type": "image_url"}]
+
+        assert _user_parts([*stray, "kept"]) == [{"text": "kept"}]
+
+    def test_a_message_of_a_role_the_api_does_not_know_is_ignored(self) -> None:
+        contents = _contents([{"role": "user", "content": "hi"}, {"role": "function", "name": "f", "content": "old"}])
+
+        assert contents == [{"role": "user", "parts": [{"text": "hi"}]}]
+
     def test_a_blank_text_part_is_dropped_quietly_but_an_unsupported_type_is_named(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -96,6 +106,11 @@ class TestSchema:
         )
 
         assert schema["properties"] == {"id": {"anyOf": [{"type": "string"}, {"type": "integer"}], "nullable": True}}
+
+    def test_a_union_of_nothing_but_null_is_an_unconstrained_nullable_value(self) -> None:
+        schema = to_gemini_schema({"type": "object", "properties": {"gone": {"anyOf": [{"type": "null"}]}}})
+
+        assert schema["properties"] == {"gone": {"nullable": True}}
 
     def test_a_property_that_is_not_a_schema_object_becomes_an_unconstrained_one(self) -> None:
         schema = to_gemini_schema({"type": "object", "properties": {"anything": True}})

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.toolkits.web_search.providers.search_adapters import ADAPTERS, SearchRequest
 
 
@@ -57,6 +59,14 @@ class TestDataForSeo:
         adapter = ADAPTERS["dataforseo"]
 
         assert adapter.parse(self._answer(40501), _request("dataforseo")) == []
+
+    @pytest.mark.parametrize(
+        "tasks",
+        [[], [{"status_code": 20000, "result": None}], [{"status_code": 20000, "result": []}]],
+        ids=["no-task", "no-result", "empty-result"],
+    )
+    def test_an_answer_that_carries_no_result_yields_no_rows(self, tasks: list[dict[str, object]]) -> None:
+        assert ADAPTERS["dataforseo"].parse({"tasks": tasks}, _request("dataforseo")) == []
 
     def test_a_task_that_succeeded_yields_its_organic_rows(self) -> None:
         adapter = ADAPTERS["dataforseo"]

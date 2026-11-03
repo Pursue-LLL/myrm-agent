@@ -39,11 +39,26 @@ class TestGenerationConfig:
         assert _body(stop=["a", 3, "b"])["generationConfig"] == {"stopSequences": ["a", "b"]}
         assert "generationConfig" not in _body(stop=[])
 
+    @pytest.mark.parametrize(
+        "response_format",
+        [{"type": "json_object"}, {"type": "json_schema", "json_schema": {"name": "r"}}],
+        ids=["json-object", "schema-less"],
+    )
+    def test_json_output_without_a_schema_sets_only_the_media_type(self, response_format: Body) -> None:
+        assert _body(response_format=response_format)["generationConfig"] == {"responseMimeType": "application/json"}
+
     def test_a_route_without_an_endpoint_is_refused_with_a_reason(self) -> None:
         route = replace(resolve_route(_MODEL, api_key="k"), base_url=None)
 
         with pytest.raises(UnsupportedProviderError, match="needs an api_base"):
             gemini_generate.prepare(route, [{"role": "user", "content": "hi"}], {})
+
+    def test_a_route_without_a_key_sends_no_credentials(self) -> None:
+        route = replace(resolve_route(_MODEL, api_key="k"), api_key=None)
+
+        request = gemini_generate.prepare(route, [{"role": "user", "content": "hi"}], {})
+
+        assert request.headers == {}
 
 
 class TestTools:
@@ -90,6 +105,18 @@ class TestTools:
 
         assert "tools" not in body
         assert "toolConfig" not in body
+
+
+class TestAnswerParts:
+    def test_a_part_that_is_neither_a_call_nor_text_is_left_out_of_the_message(self) -> None:
+        parts = [{"inlineData": {"mimeType": "image/png", "data": "QUJD"}}, {"text": 5}, {"text": "hello"}]
+        payload = {"candidates": [{"content": {"parts": parts}, "finishReason": "STOP"}]}
+
+        answer = gemini_generate.parse(resolve_route(_MODEL, api_key="k"), payload)
+
+        choices = answer["choices"]
+        assert isinstance(choices, list)
+        assert choices[0]["message"] == {"role": "assistant", "content": "hello"}
 
 
 class TestStreamFrames:

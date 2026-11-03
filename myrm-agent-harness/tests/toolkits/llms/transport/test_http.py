@@ -40,6 +40,18 @@ class _JsonLineDecoder:
         return []
 
 
+class _NamedEventDecoder(_JsonLineDecoder):
+    """Also records the event name each framed event arrived under."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.names: list[str | None] = []
+
+    def feed(self, event: str | None, data: str) -> list[Chunk]:
+        self.names.append(event)
+        return super().feed(event, data)
+
+
 @pytest.fixture
 def network(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Handler], list[httpx.Request]]]:
     """Route every request through a handler; ``arm(handler)`` returns the list the requests land in."""
@@ -133,6 +145,26 @@ class TestSendJson:
         network(lambda request: httpx.Response(200, json={"ok": 1}))
         assert await asend_json(_request()) == {"ok": 1}
 
+    async def test_async_twin_tries_a_connection_that_never_opened_once_more(
+        self, network: Callable[[Handler], list[httpx.Request]], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pauses: list[float] = []
+
+        async def apause(seconds: float) -> None:
+            pauses.append(seconds)
+
+        def refuse_once(request: httpx.Request) -> httpx.Response:
+            if len(seen) == 1:
+                raise httpx.ConnectError("refused")
+            return httpx.Response(200, json={"ok": 1})
+
+        monkeypatch.setattr(http, "_apause", apause)
+        seen = network(refuse_once)
+
+        assert await asend_json(_request()) == {"ok": 1}
+        assert len(seen) == 2
+        assert len(pauses) == 1
+
 
 class TestStreaming:
     def test_sse_events_are_framed_comments_dropped_and_the_stream_stops_at_done(
@@ -147,6 +179,16 @@ class TestStreaming:
         body = 'data: {"a":\ndata: 1}\n\n: ping\n\ndata: [DONE]\n\n'
         network(lambda request: httpx.Response(200, content=body.encode()))
         assert list(open_stream(_request(stream=True), _JsonLineDecoder())) == [{"a": 1}]
+
+    def test_event_fields_other_than_data_and_event_are_not_taken_for_an_event_name(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        body = 'id: 7\nretry: 3000\ndata: {"n": 1}\n\nid: 8\nevent: custom\ndata: {"n": 2}\n\n'
+        network(lambda request: httpx.Response(200, content=body.encode()))
+        decoder = _NamedEventDecoder()
+
+        assert list(open_stream(_request(stream=True), decoder)) == [{"n": 1}, {"n": 2}]
+        assert decoder.names == [None, "custom"]
 
     def test_a_final_event_without_a_trailing_blank_line_is_still_delivered(
         self, network: Callable[[Handler], list[httpx.Request]]

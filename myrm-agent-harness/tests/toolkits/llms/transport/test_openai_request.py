@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from myrm_agent_harness.toolkits.llms.catalog import register_model, store
@@ -76,3 +78,14 @@ class TestTokenLimitOnReasoningModels:
         body = _chat("gpt-4o", max_tokens=300)
         assert body["max_tokens"] == 300
         assert "max_completion_tokens" not in body
+
+
+class TestAzureCredentials:
+    def test_a_route_without_a_key_sends_no_credential_header(self) -> None:
+        route = resolve_route("azure/my-deployment", api_base="https://res.openai.azure.com", api_key="k")
+
+        request = openai_chat.prepare(replace(route, api_key=None), [{"role": "user", "content": "hi"}], {})
+
+        assert request.url.startswith("https://res.openai.azure.com/openai/deployments/my-deployment/")
+        assert "api-key" not in request.headers
+        assert "Authorization" not in request.headers

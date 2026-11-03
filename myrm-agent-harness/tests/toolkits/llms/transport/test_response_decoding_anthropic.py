@@ -382,3 +382,13 @@ class TestAnthropicStream:
     def test_a_delta_that_is_not_an_object_is_skipped(self) -> None:
         stray = {"type": "content_block_delta", "index": 0, "delta": "stray"}
         assert feed_events(self._decoder(), [("content_block_delta", stray)]) == []
+
+    def test_a_start_without_a_message_and_a_delta_without_a_stop_reason_leave_the_stream_unfinished(self) -> None:
+        chunks = feed_events(
+            self._decoder(),
+            [
+                ("message_start", {"type": "message_start"}),
+                ("message_delta", {"type": "message_delta", "delta": {}, "usage": {"output_tokens": 3}}),
+            ],
+        )
+        assert [first_delta(c) for c in chunks] == [{"role": "assistant", "content": ""}]

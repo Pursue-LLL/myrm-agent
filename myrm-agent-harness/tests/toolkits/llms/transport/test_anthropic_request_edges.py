@@ -119,6 +119,43 @@ class TestHistory:
         assert isinstance(messages, list)
         assert messages[-1] == {"role": "assistant", "content": [{"type": "text", "text": "Answer:"}]}
 
+    def test_a_closing_assistant_message_that_ends_in_a_tool_call_is_sent_untouched(self) -> None:
+        call = {"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}
+        body = _body(
+            [{"role": "user", "content": "x"}, {"role": "assistant", "content": "Let me look ", "tool_calls": [call]}]
+        )
+
+        messages = body["messages"]
+        assert isinstance(messages, list)
+        assert messages[-1]["content"] == [
+            {"type": "text", "text": "Let me look "},
+            {"type": "tool_use", "id": "c1", "name": "f", "input": {}},
+        ]
+
+    @pytest.mark.parametrize(
+        "content",
+        [None, [], [{"type": "image_url", "image_url": {"url": ""}}]],
+        ids=["no-content", "empty-list", "only-unusable-parts"],
+    )
+    def test_a_tool_result_with_nothing_to_show_is_sent_without_content(self, content: object) -> None:
+        call = {"id": "c1", "type": "function", "function": {"name": "f", "arguments": "{}"}}
+        body = _body(
+            [
+                {"role": "user", "content": "x"},
+                {"role": "assistant", "content": "", "tool_calls": [call]},
+                {"role": "tool", "tool_call_id": "c1", "content": content},
+            ]
+        )
+
+        messages = body["messages"]
+        assert isinstance(messages, list)
+        assert messages[2] == {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "c1"}]}
+
+    def test_a_message_of_a_role_the_api_does_not_know_is_ignored(self) -> None:
+        body = _body([{"role": "user", "content": "hi"}, {"role": "function", "name": "f", "content": "legacy"}])
+
+        assert body["messages"] == [{"role": "user", "content": [{"type": "text", "text": "hi"}]}]
+
 
 class TestToolDeclarations:
     def test_a_server_tool_passes_through_next_to_the_callers_functions(self) -> None:
@@ -171,11 +208,25 @@ class TestRequestOptions:
         flags = request.headers["Anthropic-Beta"].split(",")
         assert flags == ["prompt-caching-2024-07-31", "structured-outputs-2025-11-13"]
 
+    def test_a_json_schema_format_that_carries_no_schema_asks_for_no_structured_output(self) -> None:
+        request = _prepare([{"role": "user", "content": "hi"}], response_format={"type": "json_schema"})
+
+        assert request.body is not None
+        assert "output_format" not in request.body
+        assert not any(name.lower() == "anthropic-beta" for name in request.headers), "no beta flag without the feature"
+
     def test_a_route_without_an_endpoint_is_refused_with_a_reason(self) -> None:
         route = replace(resolve_route(f"anthropic/{MODEL}", api_key="k"), base_url=None)
 
         with pytest.raises(UnsupportedProviderError, match="needs an api_base"):
             anthropic_messages.prepare(route, [{"role": "user", "content": "hi"}], {})
+
+    def test_a_route_without_a_key_sends_no_credentials(self) -> None:
+        route = replace(resolve_route(f"anthropic/{MODEL}", api_key="k"), api_key=None)
+
+        request = anthropic_messages.prepare(route, [{"role": "user", "content": "hi"}], {})
+
+        assert {name.lower() for name in request.headers} == {"anthropic-version"}
 
 
 class TestEffortClamp:

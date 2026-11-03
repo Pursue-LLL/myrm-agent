@@ -53,6 +53,21 @@ class TestRequest:
         assert _sent_messages(body) == [{"role": "user", "content": "look"}]
         assert "remote image" in caplog.text
 
+    def test_a_part_ollama_has_no_slot_for_is_dropped_with_a_warning_naming_its_type(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        parts = [{"type": "text", "text": "hi"}, {"type": "input_audio", "input_audio": {}}, 42]
+        with caplog.at_level(logging.WARNING):
+            body = _body([{"role": "user", "content": parts}])
+
+        assert _sent_messages(body) == [{"role": "user", "content": "hi"}]
+        assert "input_audio" in caplog.text
+
+    def test_a_tool_result_whose_call_is_unknown_is_sent_without_a_tool_name(self) -> None:
+        body = _body([{"role": "user", "content": "x"}, {"role": "tool", "tool_call_id": "nope", "content": "42"}])
+
+        assert _sent_messages(body)[1] == {"role": "tool", "content": "42"}
+
     def test_replayed_calls_carry_decoded_arguments_and_the_tool_name_reaches_its_result(self) -> None:
         calls = [
             {"id": "c0", "type": "function"},

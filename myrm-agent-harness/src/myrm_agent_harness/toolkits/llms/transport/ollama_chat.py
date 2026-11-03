@@ -66,6 +66,8 @@ def _text_and_images(content: object) -> tuple[str, list[str]]:
                 images.append(match["data"])
             else:
                 logger.warning("Dropping a remote image URL: Ollama accepts base64 image data only")
+        elif isinstance(part, Mapping):
+            logger.warning("Dropping content part of unsupported type %r for the Ollama API", part.get("type"))
     return "".join(texts), images
 
 
