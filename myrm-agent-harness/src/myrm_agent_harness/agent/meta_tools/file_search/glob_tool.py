@@ -8,7 +8,8 @@
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - toolkits.storage.base::StorageProvider (POS: 存储协议/接口)
-- fallback_discovery::collect_candidate_files, VCS_EXCLUDE_GLOB (POS: 候选文件发现策略：Python 档发现 + 两档共用的版本控制目录排除)
+- fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
+- rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档选出同一批文件)
 - glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 
@@ -40,14 +41,14 @@ from myrm_agent_harness.utils.errors import ToolError
 from myrm_agent_harness.utils.locale import is_chinese
 
 from ._rg_runner import run_rg
-from .fallback_discovery import VCS_EXCLUDE_GLOB, collect_candidate_files
+from .fallback_discovery import collect_candidate_files
 from .glob_match import compile_glob
 from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
+from .rg_traversal import rg_traversal_args
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
 if TYPE_CHECKING:
-    import re
-
+    import regex
     from langchain_core.tools import BaseTool
 
 
@@ -56,7 +57,7 @@ logger = logging.getLogger(__name__)
 
 async def _list_files_with_ripgrep(
     search_root: Path,
-    pattern: re.Pattern[str],
+    pattern: regex.Pattern[str],
     *,
     include_ignored: bool,
     limit: int,
@@ -71,14 +72,9 @@ async def _list_files_with_ripgrep(
         "rg",
         "--files",
         "--color=never",
-        "--hidden",
-        "--no-require-git",
         "--no-messages",
-        "--glob",
-        VCS_EXCLUDE_GLOB,
+        *rg_traversal_args(search_root, include_ignored=include_ignored),
     ]
-    if include_ignored:
-        cmd.append("--no-ignore")
     cmd.extend(["--", "."])
 
     files: list[Path] = []
@@ -290,7 +286,6 @@ def create_glob_tool(
                     search_root=search_path_obj,
                     file_pattern=pattern,
                     max_files=io_cfg.max_search_results,
-                    include_hidden=True,
                     include_ignored=include_ignored,
                 )
 

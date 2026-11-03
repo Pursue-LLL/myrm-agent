@@ -21,7 +21,8 @@ from myrm_agent_harness.agent.meta_tools.file_search._rg_runner import RgRunResu
 
 # 600 KB written in one go: the child has already produced everything by the time the reader stops, so
 # the unread output exceeds asyncio's stream buffer while the child is gone. Stopping without draining
-# leaves the stream paused and ``Process.wait()`` pending (reproduced on macOS).
+# leaves the stream paused and ``Process.wait()`` pending. This reproduces on macOS only: on Linux (Ubuntu 24.04,
+# Python 3.13) the same run returns in milliseconds without the drain, even when the child enlarges its pipe to 1 MiB.
 _BURST_SCRIPT = "import sys\nsys.stdout.write(('x' * 99 + '\\n') * 6000)\n"
 # A producer that keeps writing roughly 8 MB until it is terminated.
 _FLOOD_SCRIPT = "import sys\nfor i in range(300000):\n    sys.stdout.write(f'line-{i:07d}-padding-padding\\n')\n"

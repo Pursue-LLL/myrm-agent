@@ -2,18 +2,22 @@
 
 [INPUT]
 - glob::translate (POS: stdlib glob → regular-expression compiler, ``**`` aware)
+- regex (POS: third-party regular-expression engine; matches stacked wildcards without catastrophic backtracking)
 
 [OUTPUT]
 - compile_glob: Validate a user-supplied glob and compile it into a regular expression
 - glob_matches: Test one root-relative POSIX path against a glob
 - is_match_all: Whether a glob selects every file (so no filter is needed)
+- normalize_glob: The spelling both ripgrep's ``--glob`` and the matcher read the same way
 
 [POS]
 Single definition of what a ``pattern`` / ``file_pattern`` means for ``glob_tool`` and ``grep_tool``,
 shared by the ripgrep tier and the Python tier so both return the same files. The dialect matches
 ripgrep's ``--glob`` for file paths: a pattern without ``/`` matches at any depth, a pattern containing
 ``/`` is anchored at the search root, ``**`` crosses directories, ``{a,b}`` expands, and ``*`` matches
-dot-files (hidden-file policy is applied by the caller, never by the pattern).
+dot-files (hidden-file policy is applied by the caller, never by the pattern). Matching runs on the server's
+event loop, so the compiled expression uses the ``regex`` engine: with the standard library's ``re``,
+``**/a/**/a/**/a/**/a/**/b`` against a 127-level path takes seconds, here it takes about a millisecond.
 """
 
 from __future__ import annotations
@@ -21,6 +25,8 @@ from __future__ import annotations
 import glob
 import re
 from functools import lru_cache
+
+import regex
 
 # ``{a,b}{c,d}...`` multiplies; bound the expansion so a hostile pattern cannot blow up compilation.
 _MAX_BRACE_ALTERNATIVES = 128
@@ -62,8 +68,17 @@ def _alternative_to_regex(alternative: str) -> str:
     return glob.translate(body, recursive=True, include_hidden=True, seps="/")
 
 
+def normalize_glob(pattern: str) -> str:
+    """Spell ``pattern`` the way ripgrep's ``--glob`` and :func:`compile_glob` both read it.
+
+    Surrounding blanks and a leading ``./`` carry no meaning for either, but ripgrep would take ``./src/*.py``
+    literally and match nothing.
+    """
+    return pattern.strip().removeprefix("./")
+
+
 @lru_cache(maxsize=256)
-def compile_glob(pattern: str) -> re.Pattern[str]:
+def compile_glob(pattern: str) -> regex.Pattern[str]:
     """Compile ``pattern`` for :func:`glob_matches`.
 
     Raises:
@@ -71,11 +86,11 @@ def compile_glob(pattern: str) -> re.Pattern[str]:
     """
     if "\x00" in pattern:
         raise ValueError("NUL byte is not allowed in glob patterns")
-    normalized = pattern.strip().removeprefix("./")
+    normalized = normalize_glob(pattern)
     if not normalized:
         raise ValueError("empty pattern")
     regexes = [_alternative_to_regex(alternative) for alternative in _expand_braces(normalized)]
-    return re.compile("|".join(f"(?:{regex})" for regex in regexes))
+    return regex.compile("|".join(f"(?:{translated})" for translated in regexes))
 
 
 def glob_matches(relative_posix_path: str, pattern: str) -> bool:
@@ -85,4 +100,4 @@ def glob_matches(relative_posix_path: str, pattern: str) -> bool:
 
 def is_match_all(pattern: str) -> bool:
     """Return whether ``pattern`` selects every file, so callers can skip filtering entirely."""
-    return pattern.strip().removeprefix("./") in _MATCH_ALL_PATTERNS
+    return normalize_glob(pattern) in _MATCH_ALL_PATTERNS
