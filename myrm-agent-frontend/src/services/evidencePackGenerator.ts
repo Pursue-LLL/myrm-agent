@@ -2,7 +2,7 @@
  * [INPUT]
  * - services/statistics::ExecutionTrace, TraceToolCall, TraceError (POS: 运行轨迹元数据契约)
  * - lib/utils/fileUtils::sanitizeFilename, triggerDownload (POS: 安全下载工具)
- * - EvidencePackTranslator: 调用方传入 `evidencePack` 命名空间的 next-intl 翻译函数，本模块不依赖 React
+ * - next-intl::Translator (POS: 国际化翻译函数；调用方传入绑定 `evidencePack` 命名空间的实例，本模块不依赖 React)
  *
  * [OUTPUT]
  * - SixStepEvidencePack: 六步项目经验证据包数据契约

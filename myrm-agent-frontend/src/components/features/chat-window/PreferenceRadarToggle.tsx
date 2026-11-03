@@ -5,6 +5,7 @@
  * @/services/memory/preferences::getPreferenceRadarState, tunePreferenceRadar, RadarDimensionValues, RADAR_PRESETS
  * @/components/chat/DynamicPreferenceRadarDrawer::DynamicPreferenceRadarDrawer
  * @/lib/utils/classnameUtils::cn
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * PreferenceRadarToggle: Floating satellite toggle button and docked radar drawer for chat window.

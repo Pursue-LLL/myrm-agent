@@ -7,7 +7,7 @@
  * @/lib/cron/cronCreateAuditGate::{resumeJobAfterAuditConfirm, needsSettingsAuditGate} (POS: Settings audit resume gate)
  *
  * [OUTPUT]
- * CronJobAuditPanel: Hermes-style six-field cron create audit with confirm gate.
+ * CronJobAuditPanel: six-field cron create audit with confirm gate.
  *
  * [POS]
  * Shared cron audit surface for chat cards, create dialog, and Settings job detail.

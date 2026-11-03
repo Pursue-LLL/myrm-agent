@@ -1,13 +1,14 @@
 /**
  * [INPUT]
  * @/services/presentation::SlideData, SlideLayoutType (POS: Slide structure contract)
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - PresentationSlideCard: High-fidelity 16:9 slide renderer component
  *
  * [POS]
  * Presentation Slide Renderer (Item 16).
- * Single file < 260 lines. Zero `any` types.
+ * Single file < 400 lines. Zero `any` types.
  */
 
 import React from 'react';

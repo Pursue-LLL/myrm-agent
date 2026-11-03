@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Cron 相关纯函数：Hermes 六字段审计快照、Settings 创建 pause/confirm/resume 门禁策略。
+Cron 相关纯函数：六字段审计快照、Settings 创建 pause/confirm/resume 门禁策略。
 
 ## 文件清单
 

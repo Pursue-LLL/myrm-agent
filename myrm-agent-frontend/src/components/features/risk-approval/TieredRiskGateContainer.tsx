@@ -1,7 +1,7 @@
 /**
  * Global Container for Tiered Risk Gate & HITL Confirmation.
  *
- * [INPUT] useRiskGateStore
+ * [INPUT] useRiskGateStore, next-intl::useTranslations (POS: Internationalization hook)
  * [OUTPUT] TieredRiskGateContainer Component
  * [POS] Item 29 host-level dynamic brake container. Strictly under 160 lines. Zero `any`.
  */

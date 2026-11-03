@@ -37,7 +37,7 @@ const baseJob: CronJob = {
 };
 
 describe('buildCronAuditFields', () => {
-  it('returns six Hermes-style audit fields', () => {
+  it('returns the six audit fields', () => {
     const fields = buildCronAuditFields(baseJob);
     expect(fields).toHaveLength(6);
     expect(fields.map((f) => f.id)).toEqual([

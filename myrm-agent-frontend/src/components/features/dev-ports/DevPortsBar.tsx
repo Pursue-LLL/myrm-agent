@@ -3,7 +3,7 @@
  * @/services/devPorts::DevPortInfo, listDevPorts, closeDevPort
  * @/components/features/dev-ports/DevPortPreviewModal::DevPortPreviewModal
  * @/components/features/icons/PremiumIcons (IconServer, IconGlobe, IconExternalLink, IconTrash, IconX)
- * react-i18next::useTranslation
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - DevPortsBar: HUD floating pill bar displaying active listening dev ports with quick preview & process management
