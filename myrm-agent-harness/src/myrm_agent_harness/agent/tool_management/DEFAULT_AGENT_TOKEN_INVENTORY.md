@@ -3,10 +3,10 @@
 > **术语**：下文 **「工具」= LLM 工具**（Action Tool）。§4.18 所列编排信号**不是** LLM 工具，不计入 LLM 工具总数（见文末 `TOOL_COUNT` 自动生成块）。
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
-> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）
+> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-03 按提示词精简后的源码重测
 > 测量宿主：macOS 25.5.0 / arm64 / bash（OS hint、env 行、toolchain 探测行随宿主变化，见 §一、§二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
-> 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 §二–§四 逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限
+> 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 §二–§四 逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言锁定静态首轮 system 消息
 >
 > **三 tier 计量**：① UI 上下文环 = 上一轮 API `prompt_tokens`；② compress / summarize / emergency prune 预算 = messages + bind-tools overhead（本表）+ 可选 max(API)；③ 非 OpenAI 模型 client 估算存在偏差，账单以 provider usage 为准。
 
@@ -15,40 +15,40 @@
 ## 一、System Prompt 层（`messages[0]` 拼装 + `messages[1]` 安全边界）
 
 > **口径**：tiktoken `o200k_base` 实测（`utils/text_utils.PLANNING_ENCODING`），宿主 macOS。
-> `messages[0]` 由框架层 `agent/base_agent.py:178-183` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 6 段；安全边界是 `messages[1]` 的**独立 SystemMessage**，不计入 `messages[0]`。
+> `messages[0]` 由框架层 `agent/base_agent.py:169-177` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 6 段；安全边界是 `messages[1]` 的**独立 SystemMessage**，不计入 `messages[0]`。
 
 | # | 组件 | Token (o200k_base) | 来源文件 | 说明 |
 |---|------|-------------------:|----------|------|
-| 1 | CORE_SYSTEM_PROMPT | **662** (EN) / **1,021** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agents.py:132`）。开启 answer_tool 时为 738 / 1,103。组成 = identity + ABSOLUTE_OBEDIENCE + RESPONSE + TASK_INTEGRITY（来自 `shared_rules.py`） |
+| 1 | CORE_SYSTEM_PROMPT | **662** (EN) / **858** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 738 / 940。组成 = identity + ABSOLUTE_OBEDIENCE + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
 | 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:61` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
 | 3 | AGENT_CORE_RULES + TOOL_ENFORCEMENT | **477**（303 + 174） | `harness/agent/streaming/model_discipline.py:51/82` | L1 核心规则**无条件注入**；L2 工具执行约束按 `_ENFORCEMENT_FAMILIES`（gpt/codex/gemini/gemma/grok/glm/qwen/deepseek/claude/anthropic）命中注入，未命中族减 174 |
-| 4 | 模型族纪律（L3/L3.5） | **530** GPT/Codex/Grok · 119 Claude · **+178** Opus 补充 · 163 Gemini · 106 DeepSeek/Qwen/GLM | 同上 | 按 model name 命中，**互斥**（`_FAMILY_DISCIPLINE`），只有 Opus 额外叠加 178 |
-| 5 | resolve_escalation_contract（L4） | 189（模板 184 + 模型名占位） | `model_discipline.py:280` | 仅当配置 escalation 模型且与主模型**不同名**时注入，否则 0（`resolve_escalation_contract` 早返） |
-| 6 | channel output hint | 56（web_chat / slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:176` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
-| 7 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:149` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
+| 4 | 模型族纪律（L3/L3.5） | **503** GPT/Codex/Grok · 119 Claude · **+178** Opus 补充 · 163 Gemini · 106 DeepSeek/Qwen/GLM | 同上 | 按 model name 命中，**互斥**（`_FAMILY_DISCIPLINE`），只有 Opus 额外叠加 178 |
+| 5 | resolve_escalation_contract（L4） | 189（模板 184 + 模型名占位） | `model_discipline.py:297` | 仅当配置 escalation 模型且与主模型**不同名**时注入，否则 0（`resolve_escalation_contract` 早返） |
+| 6 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
+| 7 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
 | 8 | canary 指令 | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57，**非字节恒定**但差异可忽略 |
-| 9 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:391`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
+| 9 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:421`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
 
 **`messages[0]` 合计（实测，含上表 1~8，不含运行时条件追加）**：
 
 | 模型族 | full-ZH | full-EN | lean-ZH | lean-EN |
 |--------|--------:|--------:|--------:|--------:|
-| GPT-5 / Codex / Grok | **2,269** | 1,910 | 1,614 | 1,533 |
-| Claude Sonnet / Haiku | 1,858 | 1,499 | 1,203 | 1,122 |
-| Claude Opus | 2,036 | 1,677 | 1,381 | 1,300 |
-| Gemini | 1,902 | 1,543 | 1,247 | 1,166 |
-| DeepSeek / Qwen / GLM | 1,845 | 1,486 | 1,190 | 1,109 |
+| GPT-5 / Codex / Grok | **2,070** | 1,874 | 1,510 | 1,469 |
+| Claude Sonnet / Haiku | 1,686 | 1,490 | 1,126 | 1,085 |
+| Claude Opus | 1,864 | 1,668 | 1,304 | 1,263 |
+| Gemini | 1,730 | 1,534 | 1,170 | 1,129 |
+| DeepSeek / Qwen / GLM | 1,673 | 1,477 | 1,113 | 1,072 |
 
-> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + (AGENT_CORE_RULES 303 + TOOL_ENFORCEMENT 174) + 模型族纪律 + channel hint 56(web_chat) + env 行 43(macOS) + canary 均值 53。
+> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + (AGENT_CORE_RULES 303 + TOOL_ENFORCEMENT 174) + 模型族纪律 + channel hint 47(web_chat) + env 行 43(macOS) + canary 均值 53，各分量分别计数后相加。
 > 上表按 `_ENFORCEMENT_FAMILIES` 全覆盖口径：GPT/Codex/Grok · Claude/Anthropic · Gemini/Gemma · DeepSeek/Qwen/GLM 均计入 TOOL_ENFORCEMENT；仅 Opus 额外叠加 178。若模型名不含上述族关键词，则再减 174。
 > canary 为随机 hex，实测 50~57 tok（均值 53），故上表存在 **±4** 抖动；其余分量在参数组合内字节恒定。
 >
-> 默认组合（GPT-5 族 + 中文用户 + full）：`messages[0]` 2,269 + `messages[1]` 299 = **2,568 tokens**。
+> 默认组合（GPT-5 族 + 中文用户 + full）：`messages[0]` 2,070 + `messages[1]` 299 = **2,369 tokens**。
 >
 > **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory.py` 的 `system_prompt +=` 分支）：
 > `DESKTOP_CONTROL_RULES` 424 EN / 517 ZH（`:535`，`mount_desktop_prompt`）· `SEARCH_DEEP_SUFFIX`（`:507`，search 深研模式）· unattended 声明 ~55（`:510`）· `get_worker_lifecycle_guidance()`（`:527`，kanban worker 模式）· `get_cli_tools_context()`（`:545`，`mount_cli_context`）· `CHANNEL_NOTIFY_SYSTEM_APPENDIX`（`:554`，通知工具挂载）· `[Mounted Workspace Directories]` 清单（`:568`，session roots）· `user_instructions`（`stream_lane_factory.py:484`）。
 
-**`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，lean 模式 EN +76 / ZH +82，naked / search 模式**无差异**。server 默认 `False`（`server/ai_agents/agents.py:132`），上表已按 False 计量。
+**`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，lean 模式 EN +76 / ZH +82，naked / search 模式**无差异**。server 默认 `False`（`server/ai_agents/agent_params.py:147`），上表已按 False 计量。
 
 **缓存特性**：`messages[0]` 与 `messages[1]` 除 canary 随机 hex（±4 tok 抖动）外均为参数组合内字节恒定，跨用户共享缓存。
 
@@ -287,7 +287,7 @@ Token 明细（历史 tiktoken 计量保留）：
 
 | 分类 | Token (tiktoken) | 明细 |
 |------|------------------:|------|
-| System Prompt 层 | **2,568** | `messages[0]` 2,269（GPT-5 族 · ZH · full）+ `messages[1]` 299，固定，跨用户缓存 |
+| System Prompt 层 | **2,369** | `messages[0]` 2,070（GPT-5 族 · ZH · full）+ `messages[1]` 299，固定，跨用户缓存 |
 | CORE 工具层 | **2,655** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
 | HIGH_PRIORITY 工具层 | **2,717** | web_search + memory×3 + skill_select |
 | EXTENDED 工具层 | **0** | 默认 profile 无附加（opt-in 按需挂载） |
@@ -295,31 +295,31 @@ Token 明细（历史 tiktoken 计量保留）：
 | 动态注入 | ~1,200 | user_instructions + memory_context + inline_skills |
 | 消息格式 | ~500 | role tags, boundaries 等 |
 | 用户消息 | ~32 | 短消息 + datetime 标签 |
-| **tiktoken 小计** | **~10,519** | |
+| **tiktoken 小计** | **~10,320** | |
 
 ### 最小 Turn 1 场景（仅 CORE 8 工具，无 HIGH_PRIORITY/EXTENDED）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
-| System Prompt 层 | **2,568** |
+| System Prompt 层 | **2,369** |
 | CORE 工具层 | **2,655** |
 | schema wrapper 包装 | **520** (8 工具 × 65) |
 | 用户消息 | ~32 |
 | 消息格式 | ~300 |
-| **tiktoken 小计** | **~6,075** |
+| **tiktoken 小计** | **~5,876** |
 
 ### 满载场景（所有可选功能全开：浏览器+Cron+Wiki+子Agent+渲染UI+看板+日历+计算机+IM）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
-| System Prompt 层 | **2,568** |
+| System Prompt 层 | **2,369** |
 | CORE 工具层 | **2,655** |
 | HIGH_PRIORITY 工具层 | ~2,692 |
 | EXTENDED + EXTERNAL（42 + 7 = 49 工具） | ~7,400（**粗估，未逐项实测**；EXTENDED 装配依赖各 backend，无法在离线脚本中全量构建） |
 | schema wrapper 包装 | ~3,185 (49 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~20,072（粗估）** |
+| **tiktoken 小计** | **~19,873（粗估）** |
 
 > 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind；EXTENDED/EXTERNAL 描述 token 未逐项实测，仅作量级参考。
 
@@ -337,7 +337,7 @@ Token 明细（历史 tiktoken 计量保留）：
 [EXTENDED: 可选工具 (~0~7,411 tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
-[System Prompt: messages[0] 2,269 (GPT-5·ZH·full) + messages[1] 299]
+[System Prompt: messages[0] 2,070 (GPT-5·ZH·full) + messages[1] 299]
   ↑ 冻结，跨用户共享缓存
 
 [Dynamic: user_instructions(~200) + memory_context(~500) + skills(~500)]
@@ -352,9 +352,10 @@ Token 明细（历史 tiktoken 计量保留）：
 
 | 仓 | 门禁文件 | 锁定项 |
 |----|----------|--------|
-| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **6,160**，余量 340：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 350 / `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
+| harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **6,160**，余量 340：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
-| server | `tests/ai_agents/test_prompt_integrity.py:187-224`（`cl100k_base`） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
+| server | `tests/ai_agents/test_prompt_integrity.py:193-230`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
+| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE full + 时间规则 + 模型族纪律 + web_chat 提示）按 GPT-5 / Claude Sonnet / Claude Opus / Gemini / DeepSeek × zh-CN / en 逐格封顶，上限 = 实测 +5%（GPT-5：zh **2,068** / en **1,862**；Claude Sonnet：1,665 / 1,459；Claude Opus：1,851 / 1,645；Gemini：1,711 / 1,505；DeepSeek：1,651 / 1,445）；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行与 canary，故低于上表 `messages[0]` |
 
 
 ---

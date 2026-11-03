@@ -341,19 +341,19 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算，2026-09-16 实测口径）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；工具层按 2026-09-16 实测，System Prompt 层按 2026-11-03 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~6,075 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~10,429 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 61 个 | ~20,072（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 未逐项实测 |
+| 最小场景 | 8 个 | ~5,876 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~10,320 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 61 个 | ~19,873（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 未逐项实测 |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
-| System Prompt 层 | ~2,568 | `messages[0]` 2,269 + `messages[1]` 299，跨用户共享缓存 |
+| System Prompt 层 | ~2,369 | `messages[0]` 2,070 + `messages[1]` 299，跨用户共享缓存 |
 | CORE 工具层 | ~2,655 | 始终缓存 |
 | HIGH_PRIORITY 工具层 | ~2,717 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
