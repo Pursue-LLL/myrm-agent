@@ -1,4 +1,4 @@
-"""Explicit skill invocation: the ``[use a,b] text`` tag grammar and what its references point at.
+"""Skill references: the ``[use a,b] text`` tag grammar and the resolver every by-name entry point shares.
 
 [INPUT]
 - backends.skills.types::SkillMetadata (POS: skill metadata)
@@ -6,16 +6,18 @@
 [OUTPUT]
 - parse_use_tag(): the leading ``[use ...]`` tag of a user text, or None
 - UseTag: the tag's skill references, its literal text and the user text behind it
-- resolve_skill_reference(): the skill a reference points at, or None
+- resolve_skill_reference(): the skill a reference points at, or None; used by the ``[use]`` preload,
+  skill_select_tool and the session rehydrate
 
 [POS]
 SSOT of the explicit-invocation wire format shared by the agent and by hosts that decorate user text.
 The tag only counts at the very start of the text, so a host that prefixes anything (a delivery banner,
 a timestamp) must put it behind the tag (``UseTag.tag``, ``UseTag.text``) or the invocation goes unnoticed.
 
-Users type the catalog name (``my-skill``) while a backend may expose the same skill under a
-runtime name (``my_skill_skill``). Matching tolerates that spelling difference but never guesses
-between two skills.
+People, models and stored sessions name a skill in slightly different spellings: a user types the catalog
+name (``my-skill``), a model may append the ``_skill`` suffix, an older session recorded the runtime name a
+backend once exposed (``my_skill_skill``). Every entry point that takes a skill name resolves it here, so
+they agree; matching tolerates the spelling difference but never guesses between two skills.
 """
 
 from __future__ import annotations

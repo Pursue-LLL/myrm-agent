@@ -284,15 +284,10 @@ async def _load_user_skill_backend(
     from app.core.skills.store.service import skills_service
 
     try:
-        skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids)
-        if not skills:
-            logger.warning(f"No skills found for user {user_id} with IDs {skill_ids}")
-            return None
+        skills = await skills_service.get_skills_by_ids(skill_ids=skill_ids, skill_type=SkillType.LOCAL)
 
         metadata_list: list[SkillMetadata] = []
         for skill in skills:
-            if skill.type != SkillType.LOCAL:
-                continue
             try:
                 metadata_list.append(skill_to_runtime_metadata(skill))
             except ValueError as e:

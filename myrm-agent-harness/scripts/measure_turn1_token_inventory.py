@@ -85,9 +85,7 @@ async def _build_default_turn1_tools() -> list[BaseTool]:
         enable_answer_tool=False,
     )
 
-    search_cfg = SearchServiceConfig(
-        search_service="tavily", api_key="measurement-placeholder"
-    )
+    search_cfg = SearchServiceConfig(search_service="tavily", api_key="measurement-placeholder")
     web_tools = [
         create_web_search_tool(search_cfg),
         create_web_fetch_tool(),
@@ -147,7 +145,7 @@ async def measure_turn1_inventory() -> dict[str, object]:
         layer_totals[layer_key] += tokens
 
     tool_count = len(tools)
-    description_total = sum(int(row["tokens"]) for row in per_tool)
+    description_total = sum(layer_totals.values())
     schema_wrappers = tool_count * SCHEMA_WRAPPER_TOKENS_PER_TOOL
     tools_subtotal = estimate_tool_descriptions_tokens(tools)
 
@@ -168,7 +166,9 @@ def _print_table(report: dict[str, object]) -> None:
     print()
     print(f"{'Tool':<32} {'Layer':<10} {'Tokens':>8}")
     print("-" * 54)
-    for row in report["per_tool"]:
+    per_tool = report["per_tool"]
+    assert isinstance(per_tool, list)
+    for row in per_tool:
         assert isinstance(row, dict)
         print(f"{row['name']:<32} {row['layer']:<10} {row['tokens']:>8}")
     print("-" * 54)
@@ -183,12 +183,8 @@ def _print_table(report: dict[str, object]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Measure default Turn-1 tool token inventory"
-    )
-    parser.add_argument(
-        "--json", action="store_true", help="Emit JSON instead of a table"
-    )
+    parser = argparse.ArgumentParser(description="Measure default Turn-1 tool token inventory")
+    parser.add_argument("--json", action="store_true", help="Emit JSON instead of a table")
     args = parser.parse_args()
 
     report = asyncio.run(measure_turn1_inventory())

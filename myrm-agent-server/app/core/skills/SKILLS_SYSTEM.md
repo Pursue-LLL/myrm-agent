@@ -49,7 +49,7 @@ SkillBackend.load_skills(skill_ids)
 
 SkillBackend.get_skill_content(列表里的名称或 storage_skill_id)
     → CompositeSkillBackend 按列表优先级逐后端询问，由持有该技能的后端返回 SKILL.md
-    → /user/ 只承载绑定的 LOCAL 技能，直接读其磁盘目录；/prebuilt/ 只读用户已启用的 prebuilt（绑定的 prebuilt 技能也只走这一路由）
+    → /user/ 只承载绑定的 LOCAL 技能（装配时只查 LOCAL 目录），直接读其磁盘目录；/prebuilt/ 只读用户已启用的 prebuilt（绑定的 prebuilt 技能也只走这一路由）
 ```
 
 列出的技能都能读到内容（SOP、hooks、资源），且每个技能只列出一次：运行时按 `[use <名称>]` 激活 LOCAL 技能时，名称既可以是 Catalog 名称（`hookprobe-1a2b`），也可以是运行时名称（`hookprobe_1a2b_skill`）或 `storage_skill_id`；prebuilt 技能只有 SKILL.md 里的名称一个名字。

@@ -180,7 +180,7 @@ _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "memory_manage_tool": 359,
     "memory_save_tool": 720,
     "memory_search_tool": 156,
-    "skill_select_tool": 311,
+    "skill_select_tool": 308,
     "web_fetch_tool": 148,
     "web_search_tool": 1174,
 }
@@ -233,10 +233,13 @@ async def test_measure_turn1_inventory_matches_documented_token_baseline() -> No
     assert isinstance(schema_wrapper_tokens, int)
     # CORE is host-dependent solely through the bash tool; HIGH_PRIORITY contributes the remaining default tools.
     assert (
-        layer_totals["CORE"] + layer_totals["HIGH_PRIORITY"] + layer_totals.get("EXTENDED", 0) + layer_totals.get("EXTERNAL", 0)
+        layer_totals["CORE"]
+        + layer_totals["HIGH_PRIORITY"]
+        + layer_totals.get("EXTENDED", 0)
+        + layer_totals.get("EXTERNAL", 0)
         == description_tokens
     )
-    assert layer_totals["HIGH_PRIORITY"] == 2720
+    assert layer_totals["HIGH_PRIORITY"] == 2717
     assert layer_totals.get("EXTENDED", 0) == 0
     assert layer_totals.get("EXTERNAL", 0) == 0
     # Holds on any host: both sides derive from the same per-host descriptions.
