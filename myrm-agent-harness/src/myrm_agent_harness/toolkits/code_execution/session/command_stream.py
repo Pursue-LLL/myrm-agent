@@ -43,10 +43,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 CANCELLED_EXIT_CODE = 130
-CANCELLED_WHILE_RUNNING = (
-    "Cancelled: the run was stopped while this command was running. The command was terminated and may have been "
-    "only partially applied; the shell was restarted, so its working directory and exported variables are reset."
+_COMMAND_STOPPED_NOTICE = (
+    "The command was terminated and may have been only partially applied; the shell was restarted, "
+    "so its working directory and exported variables are reset."
 )
+CANCELLED_WHILE_RUNNING = f"Cancelled: the run was stopped while this command was running. {_COMMAND_STOPPED_NOTICE}"
 CANCELLED_BEFORE_START = "Cancelled: the run was stopped before this command started, so it did not run."
 
 
@@ -179,7 +180,7 @@ class CommandStreamMixin:
             return SessionExecutionResult(
                 False,
                 stream_buf.get_final_output(),
-                f"Timeout after {timeout}s",
+                f"Timeout after {timeout}s. {_COMMAND_STOPPED_NOTICE}",
                 124,
                 error="Timeout",
                 is_armored=is_armored,
@@ -308,7 +309,7 @@ class CommandStreamMixin:
                     yield (
                         f"\n[ERROR] {CANCELLED_WHILE_RUNNING}\n"
                         if cut.by_cancel
-                        else f"\n[ERROR] Timeout After {timeout}s\n"
+                        else f"\n[ERROR] Timeout After {timeout}s. {_COMMAND_STOPPED_NOTICE}\n"
                     )
                 except asyncio.CancelledError:
                     await self._discard_shell()

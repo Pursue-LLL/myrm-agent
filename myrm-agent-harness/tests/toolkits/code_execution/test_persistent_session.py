@@ -85,6 +85,7 @@ class TestSessionWedgeRecovery:
             result = await session.execute("sleep 30", timeout=1)
             assert not result.success
             assert result.error == "Timeout"
+            assert "shell was restarted" in result.stderr
             assert session.state == SessionState.TERMINATED
             assert session.is_alive is False
 
@@ -521,6 +522,7 @@ class TestCoverageEdgeCases:
 
             output = "".join(chunks)
             assert "[ERROR] Timeout After 1s" in output
+            assert "shell was restarted" in output
         finally:
             await session.close()
 
