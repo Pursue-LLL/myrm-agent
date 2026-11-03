@@ -185,6 +185,16 @@ describe('NewTaskWorkContextCard', () => {
     expect(screen.getAllByText(description)).toHaveLength(1);
   });
 
+  // The hint sizes to its text in every locale and only ellipsizes when the row itself runs out of width;
+  // a fixed max width would cut the longer translations (en, de, ja, ko) on a default desktop first screen.
+  it('sizes the local mode hint to its text without a fixed max width', () => {
+    render(<NewTaskWorkContextCard />);
+
+    const hint = screen.getByText('Bind a local folder');
+    expect(hint.className).toContain('truncate');
+    expect(hint.className).not.toMatch(/\bmax-w-/);
+  });
+
   it('reports success without creating anything when every standard folder already exists', async () => {
     mockState.workspaceDir = '/home/user/my-project';
     mockWorkspaceFolders([...STANDARD_FOLDERS, 'notes']);
