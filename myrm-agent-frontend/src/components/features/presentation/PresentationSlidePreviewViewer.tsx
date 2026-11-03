@@ -2,14 +2,14 @@
  * [INPUT]
  * @/services/presentation::PresentationArtifactResponse, getPresentationDownloadUrl (POS: Presentation artifact and download URL)
  * @/components/features/presentation/PresentationSlideCard (POS: High-fidelity slide card renderer)
- * react-i18next::useTranslation (POS: Internationalization hook)
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - PresentationSlidePreviewViewer: Slide deck viewer with navigation, slideshow mode, speaker notes, and download
  *
  * [POS]
  * Presentation Viewer Component (Item 16).
- * Single file < 280 lines. Zero `any` types.
+ * Single file < 400 lines. Zero `any` types.
  */
 
 'use client';

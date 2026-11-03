@@ -5,6 +5,7 @@
  * - @/store/useChatStore (POS: current chatId & chatHistoryItems to resolve assigned projectId)
  * - @/store/useProjectStore (POS: project list & activeFilter fallback)
  * - lucide-react::FolderLock (POS: secure boundary indicator icon)
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - ProjectBoundaryBadge: Subtle indicator displaying current project isolation status

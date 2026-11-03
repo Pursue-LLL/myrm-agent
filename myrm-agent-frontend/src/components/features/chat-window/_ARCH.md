@@ -7,8 +7,6 @@
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
-| | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 指令直达与一键启闭闲置 MCP 服务 | ✅ |
-| | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 
 |                                                         | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 胶囊标签渲染与防膨胀提示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | ✅  |
 | ------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
@@ -87,7 +85,10 @@
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip；消费 useLivenessState 五态） | ✅ |
 | `QuoteCard.tsx` | 组件 | 引用消息预览卡片（回复/转发上下文） | ✅ |
 | `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器 | ✅ |
-| `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务 | ✅ |
+| `ProjectBoundaryBadge.tsx` | 组件 | 输入框上方的项目隔离徽标：当前会话属于某个项目时显示沙箱边界与记忆隔离状态，悬浮提示给出工作区或沙箱路径；文案取自 `chat.projectBoundary`（`__tests__/ProjectBoundaryBadge.test.tsx`） | ✅ |
+| `ScopedArtifactChip.tsx` | 组件 | 输入框上方的限定目标芯片：显示被选中的工件、表格行或文档片段（名称、范围标签与截断预览），可一键清除；文案取自 `chat`（`__tests__/ScopedArtifactChip.test.tsx`） | ✅ |
+| `PreferenceRadarToggle.tsx` | 组件 | 聊天窗口的卫星浮钮：打开停靠的偏好雷达抽屉，实时查看并微调记忆偏好的五个维度，可锁定；标题与无障碍标签取自 `chat.preferenceRadar`（`__tests__/PreferenceRadarToggle.test.tsx`） | ✅ |
+| `ContextFootprintInspector.tsx` | 组件 | 会话初始上下文底噪透视面板与闲置 MCP 快速裁决器：清晰透视 System Prompt、Persona、Workspace Rules、MCP Tools 与 Skills 五层底层初始 Token 占用，支持 `/context` 指令直达与一键启闭闲置 MCP 服务；三档底噪基线说明取自 `chat.contextFootprint` | ✅ |
 | `__tests__/ContextFootprintInspector.test.tsx` | 测试 | 上下文底噪透视组件单元测试套件：覆盖 5 层底噪 breakdown 渲染、formatTokenNumber 紧凑格式化、空服务状态、MCP 实时切换回调与关闭事件触发 | ✅ |
 | `__tests__/ReferenceMentionPopover.dedup.test.tsx` | 测试 | 引用建议气泡去重指示单元测试套件：覆盖会话隔离账本下已注入文件的 `[已在上下文]` 胶囊标签渲染与防膨胀提示 | ✅ |
 | `SamplePrompts.tsx` | 组件 | 空会话情境感知操作算子与示例 prompt 列表：时段智能感知（晨间/午后/晚间/深夜四时段自动自适应与微胶囊切换）+ 模式与等级加权过滤；手机上胶囊为单行横滑、示例卡片为吸附横滑（出血到屏幕边缘），≥`sm` 胶囊换行居中、卡片成 2/4 列网格 | ✅ |
@@ -189,6 +190,7 @@
 | `ModelPricingPopover.tsx`                    | 组件 | 模型四维单价矩阵与 Prompt Cache 经济学透视浮层：展示当前模型与主流标杆的 $/1M 单价与节省率                                                                                          | ✅    |
 | `__tests__/ModelPricingPopover.test.tsx`     | 测试 | 模型单价浮层单元测试：加载态与单价矩阵、对比列表经翻译键渲染覆盖                                                                                                                    | ✅    |
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：初始就绪态、低阈值普通态、高阈值绿色高亮与节省额度渲染覆盖                                                                                                   | ✅    |
+| `__tests__/InputHistoryPopup.test.tsx`       | 测试 | 输入历史弹窗单元测试：listbox 的无障碍名称取自翻译键                                                                                                                              | ✅    |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
 | `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                                          | ✅    |

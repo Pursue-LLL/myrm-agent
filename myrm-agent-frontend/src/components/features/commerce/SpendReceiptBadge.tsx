@@ -4,6 +4,7 @@
  * [INPUT]
  * lucide-react::CreditCard, ShieldCheck, Clock, AlertCircle
  * @/lib/utils/classnameUtils::cn
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * SpendReceiptBadge: 精致的微扣款收据小芯片，展示自主支付记录与防篡改验证标识

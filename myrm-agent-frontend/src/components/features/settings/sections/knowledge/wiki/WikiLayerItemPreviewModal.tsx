@@ -3,6 +3,7 @@
  * - @/services/wikiService::WikiLayerItem (POS: Wiki 分层词条摘要类型)
  * - @/components/primitives/button::Button (POS: 统一按钮原语)
  * - @/components/primitives/badge::Badge (POS: 统一徽标原语)
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - WikiLayerItemPreviewModal: 只读词条 Markdown 与凭据元数据预览弹窗

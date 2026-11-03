@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - InputHistoryPopupState from useInputHistory
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - InputHistoryPopup: 输入框上方的历史条目弹窗。

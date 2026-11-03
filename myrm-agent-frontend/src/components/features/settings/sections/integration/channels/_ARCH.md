@@ -25,6 +25,8 @@
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota；`useChannelConfig` 的连接测试失败时，服务端 `reason` 在 `channels.testReasons` 有文案就显示它，否则显示服务端消息）                                                                                     |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
+| `WeChatAccountCard.tsx`                                                       | 微信单账号卡片：登录 / 重扫二维码、连接状态、行内改名与删除确认；翻译函数由父级传入，Bot ID 标签与状态文案均取自 `channels` |
+| `ChannelPolicyOverride.tsx`                                                   | 单个渠道对全局 DM 策略与群组策略的覆盖（可选择继承全局），只读展示当前全局群触发方式并提供「编辑全局」入口，内嵌该渠道的配对管理；摘要区与入口的标签取自翻译键 |
 | `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                                                     |
 | `WeChatTroubleshootGuide.tsx`                                                 | 个人微信装死/无响应 Art146 结构化排查面板（4 步自查诊断、状态刷新、重扫登录、诊断报告一键脱敏复制）                                                        |
 | `FeishuQrRegisterDialog.tsx`                                                  | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫）                                                             |
@@ -40,6 +42,7 @@
 - `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
 - `__tests__/ChannelConfigCards.placeholders.test.tsx` — Matrix 代理与 OneBot 令牌输入框的占位提示走 `channels` 本地化文案
+- `__tests__/ChannelPolicyOverride.test.tsx` — 群触发摘要区与「编辑全局」入口的无障碍标签走本地化文案
 - `__tests__/WeChatConfigCard.test.tsx` — 微信卡片已连接账号的 Bot ID 标签走本地化文案；删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
 - `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转
 - `__tests__/WeChatTroubleshootGuide.test.tsx` — Art146 假死排障指南展开、4步清单、状态刷新、重扫登录与诊断报告复制

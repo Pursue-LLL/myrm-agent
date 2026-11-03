@@ -4,6 +4,7 @@
  * [INPUT]
  * - ProjectCluster, SessionNode, AgentState from @/services/sessionMap
  * - User interaction events (click, zoom, filter)
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - SessionMapGraph: 2D topological SVG canvas rendering project containers and agent pulse nodes
