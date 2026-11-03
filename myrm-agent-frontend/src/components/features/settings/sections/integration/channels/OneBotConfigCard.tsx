@@ -127,7 +127,7 @@ export function OneBotConfigCard() {
           <Input
             id="onebot-token"
             type={showToken ? 'text' : 'password'}
-            placeholder="Your secret token"
+            placeholder={t('onebotTokenPlaceholder')}
             value={creds.accessToken}
             onChange={(e) => handleChange('accessToken', e.target.value)}
             className="pr-10"

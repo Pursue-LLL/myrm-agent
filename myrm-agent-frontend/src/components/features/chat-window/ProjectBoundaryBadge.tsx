@@ -15,6 +15,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { FolderLock } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -25,6 +26,7 @@ interface ProjectBoundaryBadgeProps {
 }
 
 export default function ProjectBoundaryBadge({ className = '' }: ProjectBoundaryBadgeProps) {
+  const t = useTranslations('chat.projectBoundary');
   const chatId = useChatStore((state) => state.chatId);
   const chatHistoryItems = useChatStore((state) => state.chatHistoryItems);
   const projects = useProjectStore((state) => state.projects);
@@ -57,8 +59,8 @@ export default function ProjectBoundaryBadge({ className = '' }: ProjectBoundary
   }
 
   const tooltipText = matchedProject.workspacePath
-    ? `项目隔离工作区: ${matchedProject.workspacePath}`
-    : '项目沙箱与专属记忆隔离已激活';
+    ? t('workspaceTooltip', { path: matchedProject.workspacePath })
+    : t('sandboxTooltip');
 
   return (
     <div
@@ -69,7 +71,7 @@ export default function ProjectBoundaryBadge({ className = '' }: ProjectBoundary
       <FolderLock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
       <span className="font-medium truncate max-w-[180px] sm:max-w-[240px]">{matchedProject.name}</span>
       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 font-semibold tracking-wide">
-        隔离保护
+        {t('isolated')}
       </span>
     </div>
   );

@@ -212,7 +212,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
           <div className="flex items-center justify-between">
             <span className="font-semibold text-foreground flex items-center gap-1">
               <IconClock className="h-3.5 w-3.5 text-primary" />
-              {privacyMode ? 'Protected Span' : selectedSpan.label}
+              {privacyMode ? t('protectedSpan') : selectedSpan.label}
             </span>
             <span className="font-mono text-muted-foreground">{Math.round(selectedSpan.duration_ms)} ms</span>
           </div>
@@ -224,7 +224,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
           {((selectedSpan.attempt && selectedSpan.attempt > 1) ||
             (selectedSpan.retry_count && selectedSpan.retry_count > 0)) && (
             <div className="text-amber-600 dark:text-amber-400 font-medium text-[11px]">
-              Attempt: {selectedAttempt} (Provider backoff / retried)
+              {t('retryAttempt', { attempt: selectedAttempt })}
             </div>
           )}
           {selectedSpan.error && <div className="text-rose-500 text-[11px] break-words">{selectedSpan.error}</div>}

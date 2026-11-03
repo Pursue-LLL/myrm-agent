@@ -99,7 +99,9 @@ export function DestructiveUndoCard({
           </span>
         </div>
         <p className="text-muted-foreground leading-relaxed">{t('description')}</p>
-        <div className="text-[11px] font-mono text-muted-foreground">快照指针: {snapshotId.slice(0, 16)}</div>
+        <div className="text-[11px] font-mono text-muted-foreground">
+          {t('snapshotPointer', { id: snapshotId.slice(0, 16) })}
+        </div>
       </div>
 
       <div className="shrink-0 pt-1 sm:pt-0">

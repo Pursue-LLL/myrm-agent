@@ -57,14 +57,10 @@ describe('SessionContextJumpModal component', () => {
   });
 
   it('does not render when isOpen is false or session is null', () => {
-    const { container: c1 } = render(
-      <SessionContextJumpModal {...defaultProps} isOpen={false} />,
-    );
+    const { container: c1 } = render(<SessionContextJumpModal {...defaultProps} isOpen={false} />);
     expect(c1.firstChild).toBeNull();
 
-    const { container: c2 } = render(
-      <SessionContextJumpModal {...defaultProps} session={null} />,
-    );
+    const { container: c2 } = render(<SessionContextJumpModal {...defaultProps} session={null} />);
     expect(c2.firstChild).toBeNull();
   });
 
@@ -100,5 +96,11 @@ describe('SessionContextJumpModal component', () => {
     const cancelBtn = screen.getByRole('button', { name: 'cancelAction' });
     fireEvent.click(cancelBtn);
     expect(defaultProps.onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('labels sessions without a project with the localized default project name', () => {
+    render(<SessionContextJumpModal {...defaultProps} project={null} />);
+
+    expect(screen.getByText('defaultProject')).toBeInTheDocument();
   });
 });

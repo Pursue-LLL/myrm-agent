@@ -371,7 +371,7 @@ export default function ReportTab({
                             title={t('report.canaryLeak')}
                           >
                             <ShieldAlert className="w-2.5 h-2.5" />
-                            Canary Leak
+                            {t('report.canaryLeak')}
                           </span>
                         )}
                         {c.contamination_audit?.cheat_detected && (

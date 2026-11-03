@@ -22,27 +22,28 @@ interface ProjectExperienceWizardModalProps {
 
 export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModalProps> = memo(
   ({ trace, isOpen, onClose }) => {
-    const t = useTranslations('common');
+    const t = useTranslations('evidencePack');
+    const tCommon = useTranslations('common');
     const [activeStepIndex, setActiveStepIndex] = useState(0);
     const [copied, setCopied] = useState(false);
 
-    const pack = useMemo(() => generateEvidencePackFromTrace(trace), [trace]);
+    const pack = useMemo(() => generateEvidencePackFromTrace(trace, t), [trace, t]);
     const currentStep = pack.steps[activeStepIndex] as EvidencePackStep | undefined;
 
     const handleCopyMarkdown = useCallback(async () => {
-      const md = exportEvidencePackToMarkdown(pack);
+      const md = exportEvidencePackToMarkdown(pack, t);
       await writeToClipboard(md);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }, [pack]);
+    }, [pack, t]);
 
     const handleDownloadMd = useCallback(() => {
-      downloadEvidencePack(pack, 'markdown');
-    }, [pack]);
+      downloadEvidencePack(pack, 'markdown', t);
+    }, [pack, t]);
 
     const handleDownloadJson = useCallback(() => {
-      downloadEvidencePack(pack, 'json');
-    }, [pack]);
+      downloadEvidencePack(pack, 'json', t);
+    }, [pack, t]);
 
     if (!isOpen) {
       return null;
@@ -56,7 +57,7 @@ export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModal
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
               <div>
-                <h2 className="text-base font-semibold text-foreground">项目实战六步经验向导 (Evidence Pack Wizard)</h2>
+                <h2 className="text-base font-semibold text-foreground">{t('modalTitle')}</h2>
                 <p className="text-xs text-muted-foreground truncate max-w-md">
                   {pack.taskTitle} · {pack.sessionId.slice(0, 12)}
                 </p>
@@ -66,30 +67,30 @@ export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModal
               <button
                 onClick={handleCopyMarkdown}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors text-foreground"
-                title="复制 Markdown"
+                title={t('copyMarkdownTitle')}
               >
                 {copied ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
-                {copied ? '已复制' : '复制 MD'}
+                {copied ? t('copied') : t('copyShort')}
               </button>
               <button
                 onClick={handleDownloadMd}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                title="下载 Markdown"
+                title={t('downloadMarkdownTitle')}
               >
                 <Download className="w-3.5 h-3.5" />
-                导出 Markdown
+                {t('exportMarkdown')}
               </button>
               <button
                 onClick={handleDownloadJson}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors text-muted-foreground"
-                title="下载 JSON"
+                title={t('downloadJsonTitle')}
               >
                 JSON
               </button>
               <button
                 onClick={onClose}
                 className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors ml-2"
-                aria-label={t('close')}
+                aria-label={tCommon('close')}
               >
                 <IconX className="w-4 h-4" />
               </button>
@@ -119,7 +120,7 @@ export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModal
                   >
                     {step.stepIndex}
                   </span>
-                  <span>{step.title.split(' ')[0]}</span>
+                  <span>{step.shortTitle}</span>
                 </button>
               );
             })}
@@ -138,7 +139,7 @@ export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModal
                 </div>
 
                 <div className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-2">
-                  <h4 className="text-xs font-medium text-foreground">关键事实与实证记录:</h4>
+                  <h4 className="text-xs font-medium text-foreground">{t('facts')}</h4>
                   <ul className="space-y-1.5">
                     {currentStep.details.map((detail, dIdx) => (
                       <li key={dIdx} className="text-xs text-foreground/90 flex items-start gap-2">
@@ -173,17 +174,17 @@ export const ProjectExperienceWizardModal: React.FC<ProjectExperienceWizardModal
               disabled={activeStepIndex === 0}
               className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              上一步
+              {t('previous')}
             </button>
             <span className="text-xs text-muted-foreground">
-              步骤 {activeStepIndex + 1} / {pack.steps.length}
+              {t('stepCounter', { current: activeStepIndex + 1, total: pack.steps.length })}
             </span>
             <button
               onClick={() => setActiveStepIndex((prev) => Math.min(pack.steps.length - 1, prev + 1))}
               disabled={activeStepIndex === pack.steps.length - 1}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              下一步
+              {t('next')}
             </button>
           </div>
         </div>

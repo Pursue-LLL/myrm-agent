@@ -596,7 +596,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 p-3 space-y-2">
                           <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                             <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span>检测到敏感能力边界申请</span>
+                            <span>{t('escalationTitle')}</span>
                           </div>
                           <div className="space-y-1.5 pl-6">
                             {(
@@ -608,27 +608,16 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                               }>
                             ).map((esc, escIdx) => {
                               const reasonKey = esc.reason || '';
-                              const labelMap: Record<string, string> = {
-                                symlink_creation: '创建符号链接 (Symlink)',
-                                network_egress: '外部网络连接 (Network Egress)',
-                                privilege_escalation: '系统提权操作 (Privilege Escalation)',
-                                permission_alteration: '修改文件权限 (Permission Change)',
-                                process_termination: '终止系统进程 (Process Termination)',
-                                system_administration: '系统管理与服务操作 (System Admin)',
-                                filesystem_destruction: '高危文件系统格式化 (Filesystem Modification)',
-                                raw_disk_write: '裸磁盘底层写入 (Raw Disk Write)',
-                                system_file_write: '系统敏感文件写入 (System File Write)',
-                                git_destructive_action: 'Git 仓库破坏性重置/清理 (Git Destructive Action)',
-                                git_remote_sync: 'Git 远程分支同步/推送 (Git Remote Push)',
-                              };
+                              const reasonLabel =
+                                reasonKey && t.has(`escalationReasons.${reasonKey}`)
+                                  ? t(`escalationReasons.${reasonKey}`)
+                                  : reasonKey || t('escalationFallbackReason');
                               return (
                                 <div
                                   key={escIdx}
                                   className="flex flex-wrap items-center gap-2 text-xs text-foreground/90"
                                 >
-                                  <span className="font-medium text-amber-800 dark:text-amber-300">
-                                    {labelMap[reasonKey] || reasonKey || '能力越界'}:
-                                  </span>
+                                  <span className="font-medium text-amber-800 dark:text-amber-300">{reasonLabel}:</span>
                                   <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] border border-border/40 break-all max-w-full">
                                     {esc.command || esc.base_cmd}
                                   </code>

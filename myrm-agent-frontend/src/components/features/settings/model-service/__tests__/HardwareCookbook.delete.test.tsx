@@ -86,4 +86,10 @@ describe('HardwareCookbook model removal', () => {
     expect(deleteCalls(fetchMock)).toHaveLength(0);
     expect(screen.getByTitle('delete')).toBeEnabled();
   });
+
+  it('labels the fit score of each recommendation', async () => {
+    render(<HardwareCookbook onApplyModel={vi.fn()} />);
+
+    expect(await screen.findByText('fitScore')).toBeInTheDocument();
+  });
 });

@@ -63,7 +63,7 @@ export default function WorkUnitBalanceBar({ className, compact = false }: WorkU
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side="bottom" align="end" className="flex flex-col gap-1.5 p-2.5">
           <div className="flex items-center justify-between gap-6">
-            <span className="text-muted-foreground">Base Allowance</span>
+            <span className="text-muted-foreground">{t('baseAllowance')}</span>
             <span className="font-medium">{baseAvailable.toLocaleString()}</span>
           </div>
           {rollover > 0 && (

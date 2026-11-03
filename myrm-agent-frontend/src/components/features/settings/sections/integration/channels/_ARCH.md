@@ -39,7 +39,8 @@
 - `__tests__/issueMessages.test.ts` — 诊断消息到本地化键的映射：Telegram 的错误、令牌被拒与 Bot API 不可达（及其修复提示）、轮询降级、HTTPS 与 webhook 配置失败消息各得其键，webhook 配置失败不被通用降级抢先，前缀型模式保留后半段，未知消息原样返回，表内每个键在 `channels.issues` 有文案
 - `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
-- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
+- `__tests__/ChannelConfigCards.placeholders.test.tsx` — Matrix 代理与 OneBot 令牌输入框的占位提示走 `channels` 本地化文案
+- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片已连接账号的 Bot ID 标签走本地化文案；删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
 - `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转
 - `__tests__/WeChatTroubleshootGuide.test.tsx` — Art146 假死排障指南展开、4步清单、状态刷新、重扫登录与诊断报告复制
 - 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）

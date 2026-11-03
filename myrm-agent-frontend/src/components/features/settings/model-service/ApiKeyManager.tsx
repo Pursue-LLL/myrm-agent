@@ -479,7 +479,7 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
                 type="text"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
-                placeholder="sk-... or op://vault/item/field or bw://item"
+                placeholder={t('apiKeyInputPlaceholder')}
                 className="w-full px-4 py-3 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 autoComplete="new-password"
               />

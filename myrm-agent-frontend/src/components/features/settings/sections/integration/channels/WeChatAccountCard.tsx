@@ -292,7 +292,7 @@ export function WeChatAccountCard({
 
       {cardStatus?.bot_id && (
         <p className="text-[10px] text-muted-foreground">
-          <span className="font-medium">Bot ID:</span> {cardStatus.bot_id}
+          <span className="font-medium">{t('wechatBotIdLabel')}</span> {cardStatus.bot_id}
         </p>
       )}
 
