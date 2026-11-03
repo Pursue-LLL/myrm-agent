@@ -67,10 +67,8 @@ from mail_client.transport import (
 )
 
 
-def _date_criteria(since: str | None) -> str:
+def _date_criteria(since: str) -> str:
     """Convert relative date string (e.g. '7d', '30d', '2h') to IMAP SINCE date."""
-    if not since:
-        return ""
     since = since.strip().lower()
     now = datetime.now()
     try:
@@ -158,9 +156,7 @@ def cmd_search(args: argparse.Namespace) -> None:
         if args.to:
             criteria_parts.append(f"TO {imap_quote(args.to)}")
         if args.since:
-            date_crit = _date_criteria(args.since)
-            if date_crit:
-                criteria_parts.append(date_crit)
+            criteria_parts.append(_date_criteria(args.since))
         if args.keyword:
             criteria_parts.append(f"BODY {imap_quote(args.keyword)}")
 
