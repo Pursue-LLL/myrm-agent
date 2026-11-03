@@ -4,9 +4,7 @@
  * Skill Permission Approval Dialog
  *
  * 当用户安装/启用Skill时，显示Skill声明的required_permissions，
- * 用户批准后才能继续。
- *
- * 借鉴Manus Skills Marketplace的权限审批设计。
+ * 用户批准（或套用权限模板）后才能继续，拒绝则技能保持关闭、不记授权。
  */
 
 import { useTranslations } from 'next-intl';
