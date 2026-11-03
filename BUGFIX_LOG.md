@@ -1290,7 +1290,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（`myrm-agent` 本地提交）。 |
+| **状态** | **FIXED**。 |
 | **症状** | 预置种子的 SKILL.md 声明了 `required_permissions` 时，目录快照里是 `[]`，运行时元数据是声明值；启用技能的授权门读快照，永远看不到种子声明的权限。此前没有别的预置种子声明过它，所以没暴露。 |
 | **根因** | `prebuilt_sync._build_skill_from_seed` 只接收 `requires`、OAuth 与 MCP 服务，没有 `required_permissions` 参数。 |
 | **修复** | `_build_skill_from_seed` 增加 `required_permissions`，`sync_prebuilt_seeds` 传入种子 frontmatter 的值。 |
