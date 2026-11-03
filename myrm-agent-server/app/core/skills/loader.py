@@ -27,7 +27,9 @@ create_skill_backend: assemble the SkillBackend of one agent from prebuilt, user
 [POS]
 Business-layer skill backend factory. The framework layer only accepts the SkillBackend interface; permission
 filtering, path mapping and the prebuilt / user / workspace composition are decided here, then wrapped with
-version routing (snapshot / A/B) and the integration-OAuth availability gate.
+version routing (snapshot / A/B) and the integration-OAuth availability gate. Every skill is served by exactly
+one route: `/prebuilt/` lists the enabled prebuilt skills under their SKILL.md names, `/user/` the LOCAL skills
+bound to the agent, `/workspace/` the project skill directories.
 """
 
 import asyncio
@@ -72,70 +74,44 @@ def _list_local_resources(skill_dir: Path) -> list[str]:
 
 
 class _UserSkillBackend:
-    """用户技能后端（内部实现）
+    """绑定到 Agent 的 LOCAL 技能后端（内部实现）
 
-    技能以运行时名称列出；调用方可用该名称或元数据上的 storage_skill_id 取回内容。
-    存储类技能（prebuilt）经 StorageProvider 按 storage_path 读取；LOCAL 技能位于
-    StorageProvider 根之外的本机目录，直接从该目录读取。
+    LOCAL 技能位于 StorageProvider 根之外的本机目录，直接从该目录读取。技能以运行时名称列出；
+    调用方可用该名称或元数据上的 storage_skill_id 取回内容。prebuilt 技能由 `/prebuilt/` 路由按
+    SKILL.md 名称提供，不经此后端：同一技能只在一个路由下出现一次，模型看到的名称与目录一致。
     """
 
-    def __init__(
-        self,
-        storage: StorageProvider,
-        skills: list[SkillMetadata],
-        local_skill_ids: frozenset[str] = frozenset(),
-    ):
-        self._storage = storage
+    def __init__(self, skills: list[SkillMetadata]):
         self._skills = skills
-        self._local_skill_ids = local_skill_ids
         self._by_key = {key: skill for skill in skills for key in (skill.name, skill.storage_skill_id) if key}
 
-    def _locate(self, skill_key: str) -> tuple[SkillMetadata, str]:
+    def _skill_root(self, skill_key: str) -> str:
         skill = self._by_key.get(skill_key)
         if not skill or not skill.storage_path:
             raise FileNotFoundError(f"User skill not found: {skill_key}")
-        return skill, skill.storage_path
-
-    def _is_local(self, skill: SkillMetadata) -> bool:
-        return skill.storage_skill_id in self._local_skill_ids
+        return skill.storage_path
 
     async def list_skills(self) -> list[SkillMetadata]:
         return list(self._skills)
 
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         id_set = set(skill_ids)
-        matched = [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
-        if len(matched) < len(id_set):
-            missing = id_set - {s.name for s in matched} - {s.storage_skill_id for s in matched if s.storage_skill_id}
-            if missing:
-                logger.warning(
-                    "User skill load skipped unavailable ids (archived/disabled/not found): %s",
-                    sorted(missing),
-                )
-        return matched
+        return [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
 
     async def get_skill_content(self, skill_name: str) -> str:
-        skill, root = self._locate(skill_name)
-        if self._is_local(skill):
-            return await asyncio.to_thread((Path(root) / "SKILL.md").read_text, encoding="utf-8")
-        return str(await self._storage.read_text(f"{root}/SKILL.md"))
+        root = self._skill_root(skill_name)
+        return await asyncio.to_thread((Path(root) / "SKILL.md").read_text, encoding="utf-8")
 
     async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
-        skill, root = self._locate(skill_name)
-        if self._is_local(skill):
-            return await asyncio.to_thread(safe_join_path(root, path).read_bytes)
-        return bytes(await self._storage.read(f"{root}/{path}"))
+        root = self._skill_root(skill_name)
+        return await asyncio.to_thread(safe_join_path(root, path).read_bytes)
 
     async def list_skill_resources(self, skill_name: str) -> list[str]:
         try:
-            skill, root = self._locate(skill_name)
+            root = self._skill_root(skill_name)
         except FileNotFoundError:
             return []
-        if self._is_local(skill):
-            return await asyncio.to_thread(_list_local_resources, Path(root))
-        prefix = f"{root}/"
-        files = await self._storage.list(prefix=prefix)
-        return [f[len(prefix) :] for f in files if not f.endswith("/SKILL.md")]
+        return await asyncio.to_thread(_list_local_resources, Path(root))
 
 
 class _EnabledPrebuiltBackend(InMemorySkillBackend):
@@ -204,10 +180,10 @@ async def create_skill_backend(
     routes: dict[str, SkillBackend] = {}
 
     if skill_ids and user_id:
-        user_backend = await _load_user_skill_backend(storage, skill_ids, user_id)
+        user_backend = await _load_user_skill_backend(skill_ids, user_id)
         if user_backend is not None:
             routes["/user/"] = user_backend
-            logger.warning("📦 已加载 %d 个用户技能", len(skill_ids))
+            logger.info("Loaded %d local skill(s) bound to the agent", len(await user_backend.list_skills()))
 
     if allowed_prebuilt_ids is not None and len(allowed_prebuilt_ids) > 0:
         all_prebuilt = await prebuilt_backend.list_skills()
@@ -299,11 +275,10 @@ def _load_workspace_skill_backend(
 
 
 async def _load_user_skill_backend(
-    storage: StorageProvider,
     skill_ids: list[str],
     user_id: str,
 ) -> _UserSkillBackend | None:
-    """加载用户技能后端（内部）"""
+    """加载绑定到 Agent 的 LOCAL 技能后端（内部）；绑定的 prebuilt 技能留给 `/prebuilt/` 路由。"""
     from app.core.skills.models import SkillType
     from app.core.skills.runtime_metadata import skill_to_runtime_metadata
     from app.core.skills.store.service import skills_service
@@ -316,6 +291,8 @@ async def _load_user_skill_backend(
 
         metadata_list: list[SkillMetadata] = []
         for skill in skills:
+            if skill.type != SkillType.LOCAL:
+                continue
             try:
                 metadata_list.append(skill_to_runtime_metadata(skill))
             except ValueError as e:
@@ -324,8 +301,7 @@ async def _load_user_skill_backend(
         if not metadata_list:
             return None
 
-        local_skill_ids = frozenset(skill.id for skill in skills if skill.type == SkillType.LOCAL)
-        return _UserSkillBackend(storage=storage, skills=metadata_list, local_skill_ids=local_skill_ids)
+        return _UserSkillBackend(skills=metadata_list)
 
     except Exception as e:
         logger.error(f"Failed to load user skills for {user_id}: {e}")

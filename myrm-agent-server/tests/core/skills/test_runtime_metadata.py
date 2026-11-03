@@ -196,7 +196,7 @@ async def test_user_route_serves_runtime_complete_metadata() -> None:
     broken = _skill(name="   ")
 
     with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", AsyncMock(return_value=[skill, broken])):
-        backend = await _load_user_skill_backend(storage=AsyncMock(), skill_ids=[skill.id, broken.id], user_id="u")
+        backend = await _load_user_skill_backend(skill_ids=[skill.id, broken.id], user_id="u")
 
     assert backend is not None
     listed: list[SkillMetadata] = await backend.list_skills()
@@ -207,3 +207,25 @@ async def test_user_route_serves_runtime_complete_metadata() -> None:
     assert meta.allowed_tools == skill.allowed_tools
     assert (meta.always, meta.model_invocable, meta.user_invocable) == (True, False, False)
     assert meta.primary_env == "PROBE_KEY"
+
+
+@pytest.mark.asyncio
+async def test_user_route_leaves_prebuilt_skills_to_the_prebuilt_route() -> None:
+    local = _skill(id="local::0123456789abcdef", name="my-local-skill")
+    prebuilt = _skill(id="deep-research", name="deep-research", type=SkillType.PREBUILT)
+
+    with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", AsyncMock(return_value=[prebuilt, local])):
+        backend = await _load_user_skill_backend(skill_ids=[prebuilt.id, local.id], user_id="u")
+
+    assert backend is not None
+    assert [m.name for m in await backend.list_skills()] == ["my_local_skill"]
+
+
+@pytest.mark.asyncio
+async def test_user_route_is_absent_when_only_prebuilt_skills_are_bound() -> None:
+    prebuilt = _skill(id="deep-research", name="deep-research", type=SkillType.PREBUILT)
+
+    with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", AsyncMock(return_value=[prebuilt])):
+        backend = await _load_user_skill_backend(skill_ids=[prebuilt.id], user_id="u")
+
+    assert backend is None
