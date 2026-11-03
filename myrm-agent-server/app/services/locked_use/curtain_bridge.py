@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 EXCLUDED_CAPTURE_TITLES: tuple[str, ...] = ("Privacy Curtain",)
 
 # 与 Tauri python_backend 注入的壳进程 PID 环境变量的跨进程契约（勿单侧改名）。
-# release 的 sidecar 是 PyInstaller --onefile：getppid 指向引导进程而非壳，必须显式注入。
+# 壳崩溃后 server 会被 init 收养，getppid 不再指向壳，所以壳身份必须由壳显式注入。
 SHELL_PID_ENV = "MYRM_SHELL_PID"
 
 # 与 Tauri desktop_runtime_state 的跨进程契约（勿单侧改名）。
