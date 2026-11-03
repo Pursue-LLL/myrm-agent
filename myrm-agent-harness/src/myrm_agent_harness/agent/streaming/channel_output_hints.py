@@ -39,8 +39,7 @@ CHANNEL_OUTPUT_HINTS: dict[str, str] = {
     "web_chat": (
         "\n\n[Output Format] You are in a browser-based chat UI. "
         "Full Markdown is supported — headings, bold, italic, code blocks, "
-        "tables, LaTeX math ($$...$$), and Mermaid diagrams all render natively. "
-        "Use rich formatting to maximize clarity and readability."
+        "tables, LaTeX math ($$...$$), and Mermaid diagrams all render natively."
     ),
     "telegram": (
         "\n\n[Output Format] You are on Telegram. "
@@ -85,7 +84,7 @@ CHANNEL_OUTPUT_HINTS: dict[str, str] = {
     "teams": (
         "\n\n[Output Format] You are in Microsoft Teams. "
         "Markdown is supported — bold, italic, code blocks, links, "
-        "tables, and lists all render correctly. Use rich formatting."
+        "tables, and lists all render correctly."
     ),
     "matrix": (
         "\n\n[Output Format] You are in a Matrix room. "
