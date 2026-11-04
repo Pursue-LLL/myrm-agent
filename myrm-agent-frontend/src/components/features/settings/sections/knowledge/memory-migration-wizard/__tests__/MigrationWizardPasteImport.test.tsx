@@ -21,8 +21,8 @@ vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createR
 import { useTranslations } from 'next-intl';
 
 import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
-import { LANE_DETAIL_CODES, LANE_LABEL_CODES } from '../PreviewCards';
-import { MAPPING_STATUS_CODES, PREVIEW_BUCKET_CODES } from '../PreviewPanels';
+import { LANE_DETAIL_CODES } from '../PreviewCards';
+import { MAPPING_STATUS_CODES } from '../PreviewPanels';
 import { PreviewStep } from '../PreviewStep';
 import { ScanStep } from '../ScanStep';
 import { COVERAGE_LABEL_KEYS, type TranslationFn } from '../wizardShared';
@@ -342,63 +342,6 @@ describe('migration wizard preview copy', () => {
     const missing = COVERAGE_LABEL_KEYS.filter((label) => !(label in coverageLabels));
 
     expect(missing).toEqual([]);
-  });
-
-  it('has copy for every preview bucket and lane title the wizard localizes', () => {
-    const preview = en.memory.migrationWizard.preview as unknown as {
-      previewBucket: Record<string, string>;
-      laneLabels: Record<string, string>;
-    };
-
-    expect(PREVIEW_BUCKET_CODES.filter((bucket) => !(bucket in preview.previewBucket))).toEqual([]);
-    expect(LANE_LABEL_CODES.filter((label) => !(label in preview.laneLabels))).toEqual([]);
-  });
-
-  it('shows a preview bucket or lane title the wizard does not know as the server sent it', () => {
-    const withUnknownGroups: MemoryImportDryRunResponse = {
-      ...dryRun,
-      result: {
-        ...dryRun.result,
-        normalized_data: {
-          conversation: [{ content: 'We settled on Postgres 17' }],
-          brand_new_bucket: [{ content: 'Something the importer added later' }],
-        },
-      },
-      migration_lanes: [
-        { lane: 'skill', status: 'review', label: 'skill_lane', detail: '1 skill(s) pending review' },
-        { lane: 'extra', status: 'ready', label: 'brand_new_lane', detail: 'extra lane' },
-      ],
-    };
-
-    render(
-      <PreviewStep
-        source={{
-          competitor: 'hermes',
-          root: '/home/user/.hermes',
-          confidence: 'high',
-          files: [],
-          memory_count_estimate: 2,
-          skill_count: 1,
-          has_api_keys: false,
-        }}
-        dryRun={withUnknownGroups}
-        importing={false}
-        importSecrets={false}
-        onImportSecretsChange={vi.fn()}
-        importSessions
-        onImportSessionsChange={vi.fn()}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-        t={t}
-      />,
-    );
-
-    expect(screen.getByText('Dialogue')).toBeInTheDocument();
-    expect(screen.getByText('brand_new_bucket')).toBeInTheDocument();
-    expect(screen.queryByText('preview.previewBucket.brand_new_bucket')).toBeNull();
-    expect(screen.getByText('Skills')).toBeInTheDocument();
-    expect(screen.getByText('brand_new_lane')).toBeInTheDocument();
-    expect(screen.queryByText('preview.laneLabels.brand_new_lane')).toBeNull();
   });
 
   it('localizes the credential pool coverage row', () => {

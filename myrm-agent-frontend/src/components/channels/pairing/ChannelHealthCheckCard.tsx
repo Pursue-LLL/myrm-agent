@@ -7,20 +7,9 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Activity,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  Send,
-  ShieldCheck,
-} from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, Clock, Loader2, Send, ShieldCheck } from 'lucide-react';
 
-import type {
-  ChannelPingResponse,
-  ChannelPlatform,
-} from './channelPairingTypes';
+import type { ChannelPingResponse, ChannelPlatform } from './channelPairingTypes';
 import { ChannelPairingService } from './channelPairingService';
 
 export interface ChannelHealthCheckCardProps {
@@ -36,25 +25,10 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
   onVerified,
   className = '',
 }) => {
-  let t: (key: string, fallback?: string) => string;
-  try {
-    const intlT = useTranslations('channelPairing.healthCheck');
-    t = (key: string, fallback?: string) => {
-      try {
-        const val = intlT(key);
-        return val || (fallback ?? key);
-      } catch {
-        return fallback ?? key;
-      }
-    };
-  } catch {
-    t = (_key: string, fallback?: string) => fallback ?? _key;
-  }
+  const t = useTranslations('channelPairing.healthCheck');
 
   const [recipient, setRecipient] = useState<string>(defaultRecipient);
-  const [testMessage, setTestMessage] = useState<string>(
-    '[Myrm Ping] Model-agnostic channel verification.'
-  );
+  const [testMessage, setTestMessage] = useState<string>('[Myrm Ping] Model-agnostic channel verification.');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [pingResult, setPingResult] = useState<ChannelPingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,27 +64,20 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
       <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-semibold text-slate-800 dark:text-slate-100">
-            {t('title', '连通性自测与时延探测')}
-          </h3>
+          <h3 className="font-semibold text-slate-800 dark:text-slate-100">{t('title')}</h3>
         </div>
         <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
           <ShieldCheck className="h-3.5 w-3.5" />
-          {t('modelAgnostic', '确定性传输')}
+          {t('modelAgnostic')}
         </span>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-        {t(
-          'description',
-          '通过系统级直连向目标通道发送探测消息，毫秒级验证推送通路与回执状态。'
-        )}
-      </p>
+      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('description')}</p>
 
       <div className="mt-4 space-y-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
-            {t('targetLabel', '接收者/会话标识（可选）')}
+            {t('targetLabel')}
           </label>
           <input
             type="text"
@@ -118,17 +85,14 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
             onChange={(e) => {
               setRecipient(e.target.value);
             }}
-            placeholder={t(
-              'targetPlaceholder',
-              '留空使用配对默认用户'
-            )}
+            placeholder={t('targetPlaceholder')}
             className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 transition focus:border-blue-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">
-            {t('messageLabel', '测试探测内容')}
+            {t('messageLabel')}
           </label>
           <input
             type="text"
@@ -149,22 +113,15 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
           data-testid="send-ping-button"
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
         >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-          {t('sendPing', '发送测试消息')}
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {t('sendPing')}
         </button>
 
         {pingResult && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <Clock className="h-3.5 w-3.5 text-blue-500" />
             <span>
-              {t('latency', '往返延迟:')}{' '}
-              <strong className="text-slate-700 dark:text-slate-200">
-                {pingResult.latency_ms} ms
-              </strong>
+              {t('latency')} <strong className="text-slate-700 dark:text-slate-200">{pingResult.latency_ms} ms</strong>
             </span>
           </div>
         )}
@@ -177,11 +134,9 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
         >
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <div className="flex-1">
-            <div className="font-semibold">
-              {t('successTitle', '连通性验证成功')}
-            </div>
+            <div className="font-semibold">{t('successTitle')}</div>
             <div className="mt-0.5 opacity-90">
-              {t('receiptLabel', '回执单号:')}{' '}
+              {t('receiptLabel')}{' '}
               <code className="rounded bg-emerald-100/80 px-1 py-0.5 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
                 {pingResult.receipt_id}
               </code>
@@ -197,9 +152,7 @@ export const ChannelHealthCheckCard: React.FC<ChannelHealthCheckCardProps> = ({
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
           <div className="flex-1">
-            <div className="font-semibold">
-              {t('errorTitle', '连通性测试未通过')}
-            </div>
+            <div className="font-semibold">{t('errorTitle')}</div>
             <div className="mt-0.5">{error}</div>
           </div>
         </div>

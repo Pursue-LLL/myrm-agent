@@ -18,5 +18,5 @@ Decouples channel setup completely from LLM chat loops, offering dynamic QR code
 ## Dependencies
 
 - Lucide React icons
-- `react-i18next` for localization
+- `next-intl`: `useTranslations('channelPairing')` for the wizard copy and `useTranslations('common')` for the shared cancel/back buttons; every key lives in `locales/*.json`, no inline fallback strings
 - Backend API at `/api/channels/pairing`

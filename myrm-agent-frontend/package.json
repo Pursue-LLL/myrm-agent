@@ -40,6 +40,7 @@
     "verify:reduced-motion": "bun scripts/check-reduced-motion.mjs",
     "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
     "verify:icu-syntax": "bun scripts/check-icu-syntax.mjs",
+    "verify:intl-options": "bun scripts/check-ignored-intl-options.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
     "pretest": "bun run i18n:split && bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },
