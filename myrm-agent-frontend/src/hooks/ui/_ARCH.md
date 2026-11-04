@@ -9,6 +9,7 @@
 | `useDividerSelfLimiting.ts`                         | 弹性布局 Divider 测量协商自限 Hook（3 次迭代自限 + 像素级几何收敛阻尼，杜绝 React #185 无限递归崩溃）           |
 | `useScrollLock.ts` / `useScrollPositionRestore.ts` | 滚动锁与 AutoScrollFollowPersistenceMirror 滚动跟随持久化镜像总线（L1内存+L2存储双模镜像，支持原生与虚拟滚动） |
 | `useVisibilityThrottling.ts`                       | 页面 hidden 时节流                                                                                             |
+| `useScrollEdgeFade.ts`                             | 横向滚动区（不显示滚动条）的边缘渐隐提示：`useScrollEdgeFade()` 回调 ref 跟踪滚动、自身与子节点尺寸、子节点增减，把确有内容被裁的一侧写成 `data-fade-start` / `data-fade-end`，配合 `globals.css` 的 `.scroll-fade-x` 只渐隐那一侧，放得下时不加遮罩（`__tests__/useScrollEdgeFade.test.tsx`） |
 | `useDragDrop.ts`                                   | 拖拽                                                                                                           |
 | `useDndAccessibility.ts`                           | @dnd-kit 拖拽站点共享的屏幕阅读器无障碍层：`useDndAccessibility(labelOf)` 产出 DndContext 的 `accessibility`（本地化的键盘操作说明 + 用标题 / 列名而非内部 id 的实时播报；拾起后 dnd-kit 立刻派发的起点悬停事件不播报，保住「已拾起」），`useDndItemLabels()` 提供拖拽项的 `aria-roledescription` 与手柄 `aria-label`；文案在 `common.dnd`；五个拖拽站点（看板、服务商列表、排队消息、目标队列、置顶会话）已接入，`dndAccessibilityCoverage` 测试静态扫描，新增站点漏接会失败 |
 | `useDirtyGuard.ts`                                 | 未保存离开守卫                                                                                                 |

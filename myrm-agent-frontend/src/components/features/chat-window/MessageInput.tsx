@@ -57,6 +57,7 @@ import {
   resolveDualChannelAction,
 } from '@/hooks/message-input/messageInputKeyRouter';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
+import { useScrollEdgeFade } from '@/hooks/ui/useScrollEdgeFade';
 import { reportUserActivity } from '@/services/memory';
 
 let lastTypingReportTime = 0;
@@ -313,6 +314,9 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   } = useReferenceMention(inputMessage, cursorPosition);
 
   const dropDisabled = loading || actionMode === 'fast';
+
+  // 桌面工具栏被裁切的一侧渐隐，提示还有控件可滚动到
+  const toolbarFadeRef = useScrollEdgeFade<HTMLDivElement>();
 
   // 拖拽上传
   const { isDragging: isFileDragging, dragHandlers: fileDragHandlers } = useDragDrop({
@@ -614,7 +618,10 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                     </div>
                     {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
-                    <div className="hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+                    <div
+                      ref={toolbarFadeRef}
+                      className="scroll-fade-x hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
+                    >
                       <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                       <DeepSearchToggle />
                       <WorkflowModeToggle />

@@ -63,3 +63,17 @@ describe('empty chat first-screen contract', () => {
     expect(source).not.toMatch(/min-h-(?:screen|dvh|svh|lvh|\[)/);
   });
 });
+
+/**
+ * The desktop composer toolbar scrolls sideways with its scrollbar hidden, so a clipped edge would end mid-control
+ * with nothing hinting at the rest. jsdom has no layout, so the wiring is pinned at the source; the fade rule itself
+ * is pinned by app/__tests__/scroll-fade-css.test.ts.
+ */
+describe('empty chat composer toolbar scroll hint', () => {
+  it('wires the desktop toolbar scroller to the edge fade', () => {
+    const composer = readFileSync(resolve(__dirname, '../MessageInput.tsx'), 'utf8');
+
+    expect(composer).toContain('ref={toolbarFadeRef}');
+    expect(composer).toMatch(/className="scroll-fade-x hidden sm:flex[^"]*overflow-x-auto/);
+  });
+});

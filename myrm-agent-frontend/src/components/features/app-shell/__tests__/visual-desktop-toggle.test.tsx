@@ -103,6 +103,56 @@ describe('VisualDesktopToggle', () => {
     expect(screen.queryByText('loadFailed')).not.toBeInTheDocument();
   });
 
+  describe('floating launcher', () => {
+    const launcher = () => screen.queryByRole('button', { name: 'toggleTitle' });
+
+    beforeEach(() => {
+      mocks.fetchSandboxVncUrl.mockResolvedValue({
+        vnc_url: 'wss://vnc.example/sb-1',
+        token: 'tok',
+        sandbox_id: 'sb-1',
+      });
+    });
+
+    it('is shown by default', () => {
+      render(<VisualDesktopToggle />);
+
+      expect(launcher()).toBeInTheDocument();
+    });
+
+    it('is dropped while hidden and nothing needs it', () => {
+      render(<VisualDesktopToggle hideLauncher />);
+
+      expect(launcher()).not.toBeInTheDocument();
+    });
+
+    it('still opens the panel from the open event, and brings the launcher along so it can be closed', async () => {
+      render(<VisualDesktopToggle hideLauncher />);
+
+      act(() => openVisualDesktop());
+
+      expect(await screen.findByTestId('visual-desktop')).toBeInTheDocument();
+      expect(launcher()).toBeInTheDocument();
+    });
+
+    it('is shown from the first render while the agent waits on a managed takeover', async () => {
+      useBrowserTakeoverStore.getState().requestTakeover({ reason: 'Solve the CAPTCHA', ui_mode: 'managed' });
+
+      render(<VisualDesktopToggle hideLauncher />);
+
+      expect(launcher()).toBeInTheDocument();
+      await screen.findByTestId('visual-desktop');
+    });
+
+    it('is shown while the person holds control', async () => {
+      await useUserControlStore.getState().acquire('Solve the CAPTCHA');
+
+      render(<VisualDesktopToggle hideLauncher />);
+
+      expect(launcher()).toBeInTheDocument();
+    });
+  });
+
   describe('taking and handing back control', () => {
     beforeEach(() => {
       mocks.fetchSandboxVncUrl.mockResolvedValue({

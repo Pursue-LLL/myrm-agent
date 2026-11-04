@@ -109,6 +109,25 @@ describe('FeaturedExpertChips & ExpertSummonPopover', () => {
     expect(mockPush).toHaveBeenCalledWith('/chat?agentId=agent-new-123');
   });
 
+  it('keeps the strip a single swipeable row on phones: icon-only title, bounded names, edge fade', async () => {
+    mockGetTemplates.mockResolvedValue([
+      { id: 'team-arch', name: 'Architecture Squad', agent_type: 'team', use_cases: [] },
+    ]);
+
+    await act(async () => {
+      render(<FeaturedExpertChips />);
+    });
+
+    // The title stays in the DOM for assistive tech and only leaves the visual layout on phones.
+    expect(screen.getByText('featuredTitle')).toHaveClass('max-sm:sr-only');
+    expect(screen.getByText('Architecture Squad')).toHaveClass('truncate', 'max-w-[8rem]', 'sm:max-w-[14rem]');
+
+    const strip = screen.getByTestId('featured-expert-chips').querySelector('.scroll-fade-x');
+    expectNonNull(strip, 'strip');
+    expect(strip).toHaveClass('overflow-x-auto', 'sm:flex-wrap', 'sm:overflow-visible');
+    expect(strip).toHaveAttribute('data-fade-end');
+  });
+
   it('opens expert summon popover and searches templates', async () => {
     mockGetTemplates.mockResolvedValue([
       {
