@@ -114,9 +114,9 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         className,
       )}
     >
-      {/* One swipeable row on phones so the strip stays a single line, fading the edge that hides more chips; it wraps
-          from the sm breakpoint up. The title collapses to its icon on phones so the first chip is fully visible
-          instead of a few letters. */}
+      {/* One swipeable row on phones keeps the strip a single line, and the faded edge shows that more chips sit out of
+          view; it wraps from the sm breakpoint up. The title collapses to its icon on phones so the chips get the row's
+          width. */}
       <div
         ref={stripFadeRef}
         className="scroll-fade-x flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible"
