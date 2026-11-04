@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-04-184 · 保存成 `.py` 文件、用 `python file.py` 启动的脚本里 `from skills.<技能名> import <函数>` 必报 `No module named 'skills'`，报错文字还让模型去装包
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`2429c1bd1c`；报错文字部分是 `9b002ea324`、`43cedc77f1`） |
+| **发现时间** | 2026-11-04（复盘 MiniMax 在 k8s100 任务 A 上的空答案离群运行：事件日志里 6 次 `No module named 'skills'`，模型把脚本存成文件再用 `python file.py` 启动） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P3：报错后模型可以改回内联 Python，不丢数据；但白费轮次，且旧的报错文字把模型指向「装包」，永远装不好。 |
+| **关联产品** | harness MCP 技能执行（`agent/skills/mcp/executor.py`、`ipc_proxy.py`、`ipc_request_policy.py`）、`bash_code_execute_tool` 的准备阶段（`agent/meta_tools/bash/_executor/prepare_mixin.py`）、保存脚本识别（`toolkits/code_execution/saved_script.py`）。 |
+| **症状** | [实测] 用 `temp-docs/temp-task-context/harness-ptc-bench/repro_failure_paths.py` 的脚本化模型（真实 Myrm 智能体 + 假 OpenAI 兼容端点）：先 `file_write_tool` 写一个导入技能的 `probe_skills.py`，再 `cd /workspace && python3 probe_skills.py`。改前（`HEAD` 导出）`module_not_found: true, skill_import_ok: false`；改后 `module_not_found: false, skill_import_ok: true`。同一份脚本带参数启动（`python3 probe_skills.py --verbose`）改后仍失败，这是有意保留的边界。[实测，bench 日志] 整套 bench 604 次运行里 5 次遇到该错误（MiniMax 4/42、DeepSeek 1/152、Gemini 0/170）。 |
+| **根因** | [代码] `skills` 是虚拟命名空间，只对宿主自己读到的代码启用：`python_extractor` 认出的内联 Python 才会在 `prepare_mixin._prepare_execution` 里起这次执行专属的 IPC 服务端并前置导入钩子。`python file.py` 在子 shell 里跑，没有钩子也没有 IPC 通道，所以导入必败；而旧的恢复提示按普通的 `ModuleNotFoundError` 给「安装这个包」的建议。 |
+| **修复** | ① 报错文字（两条路径 `error_recovery` 与 `terminal_hints`）改为说明 `skills` 不是可安装的包、应怎样调用。② 新增 `saved_script.py`：只识别 `[cd <工作区根> &&] python[3] <file>.py` 这一种启动形态（无参数、管道、环境变量前缀；文件须是工作区内、符号链接解析后仍在根内、不超过 256 KiB 的 UTF-8 普通文件），由宿主读入源码；若脚本经 AST 导入了宿主能服务的 MCP 技能，就和内联代码走同一套技能运行时（宿主读到的源码经启动器在同一进程内按 `__main__` 执行，`sys.argv` / `sys.path[0]` / `__file__` 与 `python file.py` 一致，回溯里是真实文件名与行号）。③ 这类执行的 IPC 服务端范围带 `CallerScope.script_file`：审批只覆盖命令、不覆盖文件里的代码，所以只放行声明 `readOnlyHint` 的工具与内置工具，写类工具必须在内联 Python 里调用（那里按调用走命令级审批）；拒绝文字会说明这一点。④ IPC 闸门收成有序元组 `REQUEST_GATES`；`/workspace` 对 shell 的含义（执行器绑定的根，未绑定才用会话目录）抽成 `_execution_workspace_root`，执行上下文与保存脚本解析共用。 |
+| **反复次数** | 第 1 次（先改文字，再补能力）。 |
+| **踩坑** | ① 保存脚本的解析根必须与 shell 的 `/workspace` 是同一个目录：测试夹具里执行器绑定的目录与会话工作区目录不同，第一版按会话目录解析，读到的不是 shell 会运行的那个文件。② `detect_ptc_imports` 把任何以 `_skill` 结尾的模块名、任何 `tools.*` 导入都当技能调用，内联代码里可以接受，但对保存脚本会把项目自己的 `data_skill.py` / `tools/` 包改写成技能调用；所以保存脚本只认「已注册并带 MCP 配置」的技能，内置工具导入不走这条路径。③ 内联路径对解析不了的代码回退到正则；保存脚本若照搬，语法错误的脚本会被判成技能调用并在运行期才报错，所以保存脚本只用 AST，解析不了的交给 Python 自己报。 |
+| **回归** | [实测] ① 新增/扩展测试：`test_saved_script.py` 57 例（命令形态矩阵、符号链接越界、大小与编码、启动器语义含 `__main__` / `__file__` / `sys.argv` / `sys.path[0]` / `from __future__` / 回溯 / 退出码）、`test_ipc_transport_security.py` 6 例（保存脚本只读、请求不能自己解除、未知工具按写类处理、内联不受限）、`test_executor_prepare.py`（仅 AST、只认已服务技能、启动器装配）、`test_mcp_marker_full_stack.py`（真实 `bash_code_execute_tool` → `BashExecutor` → `LocalExecutor` 子进程，仅 MCP 服务端替换：带 `asyncio.run` 的保存脚本跑通并产生来源、`cd /workspace && …` 形态、写类工具被拒且从未到达 MCP 服务端而内联可调、失败时回溯含文件名与已调用次数、无技能导入的脚本不起 IPC 服务端、带参数/`-u`/管道的启动形态仍交给 shell、项目自己的 `tools/` 与 `*_skill.py` 不被劫持）。② 10 个变异体全被捕获：去掉符号链接包含检查、允许尾随参数、关掉 `script_file` 闸门、不标记 `script_file`、去掉「已服务技能」检查、解析根改回会话目录、未知工具放行、内联也标 `script_file`、闸门顺序调换、解析不了的脚本回退正则。③ `tests/agent/{skills,meta_tools/bash,resilience,security,middlewares/approval}` + `tests/toolkits/code_execution`：10340 通过、275 跳过、0 失败；`tests/architecture`：7129 通过、11 跳过；`ruff` / `mypy`（改动的源码与测试）无告警。 |
+| **仍然存在** | ① 真实模型上的效果未测：MiniMax 基线 4/42，n=5 的复测分辨不出变化；模型为什么存脚本、为什么在 `stop` 之后继续，未查明。② 其他启动形态（带参数、管道、环境变量前缀、`-u`）、只导入内置工具的脚本、非 UTF-8 或超过 256 KiB 的脚本仍交给 shell，没有 `skills` 命名空间；报错文字会告知这一点。③ 导入已服务技能的保存脚本里，工作区自己的 `tools` 包会被钩子接管（同一进程里 `tools.*` 导入归钩子）。④ 另一个既有缺陷，未修：`BashExecutor._detect_skill_from_code` 作用在拼好的执行代码上，匹配到生成客户端里的注释 `from skills.xxx import yyy`，把所有内联 MCP 执行的技能名认成 `xxx`（[实测] 对 `prepare_for_execution` 的输出调用得 `xxx`），于是 `active_skills`、`allowed_credential_issuers`、技能环境变量都按错误的名字取；改它会改变 OAuth issuer 的注入范围，需要单独决定。⑤ 服务端把执行器绑到 `declared_allowed_roots[0]`（`myrm-agent-server/app/ai_agents/general_agent/factory.py:278`），IPC 路径策略却用会话工作区目录；两者不同时的行为未核实。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/code_execution/saved_script.py`、`agent/skills/mcp/{executor,ipc_proxy,ipc_request_policy}.py`、`agent/meta_tools/bash/_executor/{prepare_mixin,context_mixin}.py`、`toolkits/code_execution/python_extractor.py`（`SKILLS_NAMESPACE_ADVICE`）、`tests/toolkits/code_execution/test_saved_script.py`、`tests/agent/meta_tools/bash/test_mcp_marker_full_stack.py`、复现脚本 `temp-docs/temp-task-context/harness-ptc-bench/repro_failure_paths.py` |
+
 ### BUG-HARNESS-2026-11-04-183 · 配了重排服务时，`CloudReranker.rerank_pairs` 按命中到达的顺序给文档填分、不看命中自带的 `index`：记忆重排闸门永远保持融合顺序，Web 重排管线把每篇文档的分数给成了排在它那个名次上的文档的分数
 
 | 字段 | 内容 |
