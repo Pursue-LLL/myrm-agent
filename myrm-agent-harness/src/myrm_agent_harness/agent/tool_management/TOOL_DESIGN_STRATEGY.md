@@ -385,7 +385,7 @@ Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表�
 | 浏览器工具 | 启用浏览器 | 8 | ~762 |
 | 定时任务工具 | 启用 Cron | 1 | ~827 |
 | Wiki 工具 | 有 Wiki 目录 | 4 | ~250 |
-| 子 Agent 工具 | 有子 Agent 配置 | 4 | ~660 + 运行期名册 |
+| 子 Agent 工具 | 有子 Agent 配置 | 3 | ~379 + 运行期名册 |
 | 看板工具 | 启用看板 | 12 | worker ~406 / orchestrator ~774 |
 
 ### 7.3 按需加载 (On-Demand Load)
