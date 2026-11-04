@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role, jsx-a11y/no-noninteractive-element-interactions */
 
 /**
  * LiveTakeoverDrawer Component.
@@ -95,11 +94,11 @@ export const LiveTakeoverDrawer: React.FC<LiveTakeoverDrawerProps> = ({
   const isHumanTakingOver = controlState === 'human_takeover';
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-labelledby="live-takeover-title"
-      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm m-0 h-full max-h-none w-full max-w-none border-0 p-0 text-inherit"
     >
       <div className="relative w-full max-w-2xl h-full bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
         {/* Header */}
@@ -147,16 +146,15 @@ export const LiveTakeoverDrawer: React.FC<LiveTakeoverDrawerProps> = ({
 
         {/* Simulated Remote Screen Viewport */}
         <div className="flex-1 p-6 flex flex-col justify-between overflow-y-auto bg-slate-950/40">
-          <div
-            role="region"
+          <section
             aria-label="Remote Screen Viewport"
-            onMouseMove={handleScreenMouseMove}
             className={`relative w-full aspect-video rounded-2xl bg-slate-950 border-2 transition-all flex items-center justify-center overflow-hidden select-none ${
               isHumanTakingOver
                 ? 'border-amber-500 shadow-2xl shadow-amber-500/20 ring-2 ring-amber-500/30'
                 : 'border-slate-800'
             }`}
           >
+            <div role="presentation" onMouseMove={handleScreenMouseMove} className="absolute inset-0" />
             {/* Screen Content Representation */}
             <div className="absolute inset-0 p-4 font-mono text-xs text-slate-600 flex flex-col justify-between pointer-events-none">
               <div className="flex items-center justify-between text-[11px] text-slate-500 border-b border-slate-900 pb-2">
@@ -195,7 +193,7 @@ export const LiveTakeoverDrawer: React.FC<LiveTakeoverDrawerProps> = ({
                 <MousePointer className="w-4 h-4 fill-amber-400" />
               </div>
             )}
-          </div>
+          </section>
 
           {/* Floating Takeover Controller Bar */}
           <div className="mt-6 p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-4 shadow-xl">
@@ -241,6 +239,6 @@ export const LiveTakeoverDrawer: React.FC<LiveTakeoverDrawerProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

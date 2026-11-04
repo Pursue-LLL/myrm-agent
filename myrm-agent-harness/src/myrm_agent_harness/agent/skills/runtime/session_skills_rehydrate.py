@@ -4,6 +4,7 @@
 - langchain_core.messages::AIMessage, BaseMessage, ToolMessage (POS: LangChain message types)
 - backends.skills.types::SkillMetadata (POS: Skill metadata)
 - utils.chat_utils::ChatHistoryReq (POS: Raw chat history entries)
+- agent.skill_agent.skill_reference::resolve_skill_reference (POS: Recorded skill name to bound skill, never guesses)
 
 [OUTPUT]
 - SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY: Context key for chat-level loaded-skill SSOT
@@ -12,6 +13,8 @@
 
 [POS]
 Session skill contract: merge chat history tool-call evidence with server-persisted skill names at run() start.
+A recorded name may be spelled differently from the listed one (an older catalog, the `_skill` suffix, casing);
+it resolves through resolve_skill_reference, and the turn-end write-back then stores the listed name.
 """
 
 from __future__ import annotations
@@ -270,15 +273,18 @@ def rehydrate_loaded_skills_from_history(
     if not merged_names:
         return []
 
-    by_name = {s.name: s for s in available_skills}
-    rehydrated: list[SkillMetadata] = []
-    for skill_name in merged_names:
-        skill_meta = by_name.get(skill_name)
-        if skill_meta is not None:
-            rehydrated.append(skill_meta)
-        else:
-            logger.debug("Skipping rehydrate for unknown skill '%s'", skill_name)
+    from myrm_agent_harness.agent.skill_agent.skill_reference import resolve_skill_reference
 
+    # Keyed by the listed name: one skill recorded under two spellings (history vs SSOT) is restored once.
+    restored: dict[str, SkillMetadata] = {}
+    for skill_name in merged_names:
+        skill_meta = resolve_skill_reference(skill_name, available_skills)
+        if skill_meta is None:
+            logger.debug("Skipping rehydrate for unknown skill '%s'", skill_name)
+        else:
+            restored.setdefault(skill_meta.name, skill_meta)
+
+    rehydrated = list(restored.values())
     if rehydrated:
         logger.info(
             "Rehydrated %d loaded skill(s) (history=%d, ssot=%d): %s",

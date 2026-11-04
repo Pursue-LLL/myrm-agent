@@ -165,4 +165,23 @@ describe('ReportTab trajectory disclosure', () => {
     expect(screen.getByText('evalLab.report.contaminationViolation')).toBeInTheDocument();
     expect(screen.getByText('[bash] Agent attempted to probe /hidden_tests/secret.py')).toBeInTheDocument();
   });
+
+  it('labels a leaked canary with the localized text', () => {
+    render(
+      <ReportTab
+        {...baseProps({
+          cases: [
+            {
+              passed: false,
+              actual_output: '',
+              canary_verified: false,
+              case: { message: 'probe' },
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('evalLab.report.canaryLeak')).toBeInTheDocument();
+  });
 });

@@ -5,10 +5,12 @@
 - runtime.paths.execution_paths::get_persistent_root (POS: persistent root in effect)
 - toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection)
 - toolkits.code_execution.env_probe::get_environment_probe_line (POS: Python toolchain probe)
+- toolkits.storage::storage_config (POS: Absolute storage root that skill storage keys resolve against)
 
 [OUTPUT]
 - BashInput: Pydantic args schema for bash_code_execute_tool
 - get_os_hint, track_context_access_in_command
+- resolve_skill_storage_paths: Absolute host directories of the skills the tool may stage
 
 [POS]
 Non-factory helpers consumed by bash_code_execute_tool and tests via aggregate re-exports.
@@ -18,8 +20,13 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,20 @@ async def track_context_access_in_command(command: str, session_id: str) -> None
                 await tracker.record_access(path, session_id=session_id)
     except Exception:
         pass
+
+
+def resolve_skill_storage_paths(skills: Sequence[SkillMetadata]) -> list[str]:
+    """Absolute host directories of the skills the bash tool may stage into a workspace.
+
+    Storage-backed skills carry a storage key relative to the storage root (``skills/prebuilt/<id>``);
+    the stager copies from the host filesystem, so a key must be resolved against that root first, or
+    the copy only works when the process happens to run from it. Local skills already carry an
+    absolute directory, which ``/`` leaves unchanged.
+    """
+    from myrm_agent_harness.toolkits.storage import storage_config
+
+    base_path = storage_config.get_base_path()
+    return [str(base_path / skill.storage_path) for skill in skills if skill.storage_path]
 
 
 def get_os_hint(locale: str | None = None) -> str:

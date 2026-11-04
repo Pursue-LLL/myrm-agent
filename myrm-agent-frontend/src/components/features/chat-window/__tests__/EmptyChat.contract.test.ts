@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Every block on the empty chat competes for first-screen height; the stack once grew to 7,628px before it
- * was collapsed. This contract keeps new cards from landing there unreviewed: a component imported by
- * EmptyChat.tsx must be listed here together with the reason it earns first-screen space.
+ * Every block on the empty chat competes for first-screen height. This contract keeps new cards from
+ * landing there unreviewed: a component imported by EmptyChat.tsx must be listed here together with the
+ * reason it earns first-screen space.
  */
 const FIRST_SCREEN_COMPONENTS: Record<string, string> = {
   MessageInput: 'the composer, the primary action',
@@ -32,7 +32,15 @@ function importedComponents(source: string): string[] {
     if (!isLocalModule) {
       continue;
     }
-    const names = [defaultImport, ...namedImports.split(',').map((name) => name.trim().split(/\s+as\s+/).pop())];
+    const names = [
+      defaultImport,
+      ...namedImports.split(',').map((name) =>
+        name
+          .trim()
+          .split(/\s+as\s+/)
+          .pop(),
+      ),
+    ];
     components.push(...names.filter((name): name is string => !!name && /^[A-Z]/.test(name)));
   }
   return components;
@@ -61,5 +69,19 @@ describe('empty chat first-screen contract', () => {
 
   it('leaves viewport filling to AppLayout, so the wrapper padding cannot turn a clean screen into a scrollbar', () => {
     expect(source).not.toMatch(/min-h-(?:screen|dvh|svh|lvh|\[)/);
+  });
+});
+
+/**
+ * The desktop composer toolbar scrolls sideways with its scrollbar hidden, so a clipped edge would end mid-control
+ * with nothing hinting at the rest. jsdom has no layout, so the wiring is pinned at the source; the fade rule itself
+ * is pinned by app/__tests__/scroll-fade-css.test.ts.
+ */
+describe('empty chat composer toolbar scroll hint', () => {
+  it('wires the desktop toolbar scroller to the edge fade', () => {
+    const composer = readFileSync(resolve(__dirname, '../MessageInput.tsx'), 'utf8');
+
+    expect(composer).toContain('ref={toolbarFadeRef}');
+    expect(composer).toMatch(/className="scroll-fade-x hidden sm:flex[^"]*overflow-x-auto/);
   });
 });

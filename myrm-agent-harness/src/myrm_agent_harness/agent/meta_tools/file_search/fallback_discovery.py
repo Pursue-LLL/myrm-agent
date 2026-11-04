@@ -1,42 +1,54 @@
-"""Fallback candidate discovery for file search tools.
+"""Candidate discovery policy and Python-tier discovery for file search tools.
 
 [INPUT]
-- subprocess (POS: git capability probe and git-aware file listing)
+- core.security.safe_git::hardened_git_argv (POS: git argv that runs no program the repository chose)
+- subprocess (POS: git capability probe, git-aware file listing and ignore check)
 - os.walk (POS: bounded filesystem traversal fallback)
-- pathlib::Path (POS: path normalization and pattern matching)
+- pathspec (POS: gitignore pattern matching for the ignore files at the root of a plain folder or of a nested repository git cannot list)
+- pathlib::Path (POS: path normalization)
+- glob_match::glob_matches (POS: shared glob semantics for the ripgrep and Python tiers)
 
 [OUTPUT]
 - collect_candidate_files: Consistent fallback candidate list for `glob_tool` and `grep_tool`
-- is_hidden_path: Hidden-path policy helper
+- VCS_DIR_NAMES, VCS_EXCLUDE_GLOB: Version-control internals that no listing includes, and the ripgrep ``--glob`` for them
+- DEFAULT_PRUNED_DIR_NAMES: Dependency, build and cache directories skipped in plain folders
 
 [POS]
-Shared fallback discovery layer for file-search tools. Keeps no-ripgrep behavior
-bounded and predictable with git-aware ignore handling where available and
-root-level ignore files in non-git directories.
+Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control
+directories are never listed; ignore files apply unless the caller opts out; hidden files are searched;
+symbolic links are never followed) and implements it for the Python tier: git-aware listing where
+available (a repository nested in the checkout is listed by git in turn, and walked under the ignore files at its
+root only when git cannot read it; a search root that git itself ignores is walked like a plain folder),
+root-level ignore files and default directory pruning in non-git directories, bounded traversal.
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
+from .glob_match import glob_matches, is_match_all
+
 if TYPE_CHECKING:
     from pathspec import PathSpec
     from pathspec.pattern import Pattern
 
-# Directories skipped while assembling search candidates. A skip here costs
-# search recall only, so this list may be broader than a security sweep's.
-# ``core.security.path.pattern.PRUNED_DIR_NAMES`` is deliberately separate:
-# skipping a directory there would leave protected files uncovered.
-_DEFAULT_PRUNED_DIR_NAMES = frozenset(
+# Version-control internals hold no searchable project content, so no listing includes them,
+# not even when the caller asks for ignored files.
+VCS_DIR_NAMES = frozenset({".git", ".hg", ".svn", ".bzr", ".jj", ".sl"})
+VCS_EXCLUDE_GLOB = "!{" + ",".join(sorted(VCS_DIR_NAMES)) + "}"
+
+# Directories skipped while assembling search candidates in a folder that is not a git checkout (inside one,
+# git's ignore rules decide). A skip here costs search recall only, so this list may be broader than a
+# security sweep's. ``core.security.path.pattern.PRUNED_DIR_NAMES`` is deliberately separate: skipping a
+# directory there would leave protected files uncovered.
+DEFAULT_PRUNED_DIR_NAMES = VCS_DIR_NAMES | frozenset(
     {
-        ".git",
-        ".hg",
-        ".svn",
         "node_modules",
         ".next",
         "dist",
@@ -47,32 +59,68 @@ _DEFAULT_PRUNED_DIR_NAMES = frozenset(
         ".ruff_cache",
         ".turbo",
         ".cache",
+        ".venv",
+        "venv",
     }
 )
-_ROOT_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".fdignore", ".rgignore")
+_ROOT_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".rgignore")
+# What a git invocation can fail with: not installed, unreadable, hardened git refusing a repository, too slow.
+_GIT_FAILURES = (subprocess.TimeoutExpired, OSError)
 
 
 def _pattern_matches(path: Path, root: Path, file_pattern: str) -> bool:
-    if file_pattern == "**/*":
+    if is_match_all(file_pattern):
         return True
     try:
         rel_path = path.relative_to(root)
     except ValueError:
         rel_path = path
-    return rel_path.match(file_pattern) or path.match(file_pattern)
+    return glob_matches(rel_path.as_posix(), file_pattern)
 
 
-def is_hidden_path(path: Path, root: Path) -> bool:
-    """Return True when any path component under root starts with '.'."""
-    try:
-        rel_path = path.relative_to(root)
-    except ValueError:
-        rel_path = path
-    return any(part.startswith(".") for part in rel_path.parts if part not in {".", ".."})
+def _is_git_ignored(repo_root: Path, pathspec: str, timeout_seconds: float) -> bool:
+    """Whether git ignores ``pathspec`` itself (``check-ignore`` exits 0)."""
+    check = subprocess.run(
+        hardened_git_argv(("check-ignore", "-q", "--", pathspec), repo_dir=repo_root),
+        capture_output=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+    return check.returncode == 0
 
 
-def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> list[Path] | None:
-    """Return non-ignored files using git index rules, or None when unavailable."""
+def _git_listing(repo_root: Path, pathspec: str, timeout_seconds: float) -> list[Path] | None:
+    """Return what git lists under ``pathspec`` in ``repo_root`` using its index and ignore rules, or None.
+
+    An entry is a file, or a directory for a nested repository or submodule (git names those by their root, not
+    by their files). None means git failed, or ``pathspec`` is itself ignored: git lists nothing below an ignored
+    directory, so only the path's own status tells it from an empty one.
+    """
+    ls_files = subprocess.run(
+        hardened_git_argv(
+            ("ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", pathspec),
+            repo_dir=repo_root,
+        ),
+        capture_output=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+    if ls_files.returncode != 0:
+        return None
+
+    entries = [
+        repo_root / rel_path for rel_path in ls_files.stdout.decode("utf-8", errors="replace").split("\x00") if rel_path
+    ]
+    if not entries and _is_git_ignored(repo_root, pathspec, timeout_seconds):
+        return None
+    return entries
+
+
+def _list_git_entries(search_root: Path, timeout_seconds: float = 5.0) -> list[Path] | None:
+    """Return what git lists below ``search_root``, or None when it cannot decide.
+
+    None means git is unavailable, ``search_root`` lies outside a repository, or ``search_root`` is itself ignored.
+    """
     try:
         rev_parse = subprocess.run(
             ["git", "-C", str(search_root), "rev-parse", "--show-toplevel"],
@@ -91,30 +139,78 @@ def _list_git_visible_files(search_root: Path, timeout_seconds: float = 5.0) -> 
         except ValueError:
             return None
         pathspec = "." if str(relative_root) in {"", "."} else relative_root.as_posix()
-
-        ls_files = subprocess.run(
-            hardened_git_argv(
-                ("ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", pathspec),
-                repo_dir=repo_root,
-            ),
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-        if ls_files.returncode != 0:
-            return None
-
-        results: list[Path] = []
-        for rel_path in ls_files.stdout.decode("utf-8", errors="replace").split("\x00"):
-            if not rel_path:
-                continue
-            candidate = repo_root / rel_path
-            if not candidate.is_file():
-                continue
-            results.append(candidate)
-        return results
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return _git_listing(repo_root, pathspec, timeout_seconds)
+    except _GIT_FAILURES:
         return None
+
+
+def _list_nested_repository(repo_dir: Path, timeout_seconds: float = 5.0) -> list[Path] | None:
+    """Return what git lists for the repository checked out in ``repo_dir``, or None when git cannot.
+
+    None means ``repo_dir`` holds no checkout (a submodule that was never initialised is an empty directory), or git
+    refuses its configuration or layout.
+    """
+    if not (repo_dir / ".git").exists():
+        return None
+    try:
+        return _git_listing(repo_dir, ".", timeout_seconds)
+    except _GIT_FAILURES:
+        return None
+
+
+def _walk_files(root: Path, *, pruned: frozenset[str], spec: PathSpec[Pattern] | None) -> Iterator[Path]:
+    """Yield the regular files below ``root``, skipping ``pruned`` directory names and what ``spec`` ignores.
+
+    Version-control markers (the ``.git`` file of a submodule included) and symbolic links are never yielded.
+    """
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        current_dir = Path(dirpath)
+        kept_dirs: list[str] = []
+        for dirname in dirnames:
+            if dirname in pruned:
+                continue
+            if spec is not None:
+                rel_dir = (current_dir / dirname).relative_to(root).as_posix()
+                if spec.match_file(rel_dir) or spec.match_file(f"{rel_dir}/"):
+                    continue
+            kept_dirs.append(dirname)
+        dirnames[:] = kept_dirs
+
+        for filename in filenames:
+            if filename in VCS_DIR_NAMES:
+                continue
+            file_path = current_dir / filename
+            if file_path.is_symlink() or not file_path.is_file():
+                continue
+            if spec is not None and spec.match_file(file_path.relative_to(root).as_posix()):
+                continue
+            yield file_path
+
+
+def _expand_git_entries(entries: Iterable[Path]) -> Iterator[Path]:
+    """Yield the files behind the entries git listed.
+
+    A directory entry is a repository or submodule nested in the checkout, and git lists it in turn under the
+    ignore files of its own tree, as ripgrep reads them. Only when git cannot list it is it walked under the
+    ignore files at its root: dependency and build directories are not skipped there, since inside a git
+    checkout the ignore rules decide.
+    """
+    pending = [iter(entries)]
+    while pending:
+        entry = next(pending[-1], None)
+        if entry is None:
+            pending.pop()
+            continue
+        if entry.is_symlink():
+            continue
+        if entry.is_file():
+            yield entry
+        elif entry.is_dir():
+            nested = _list_nested_repository(entry)
+            if nested is None:
+                yield from _walk_files(entry, pruned=VCS_DIR_NAMES, spec=_load_root_ignore_spec(entry))
+            else:
+                pending.append(iter(nested))
 
 
 def _load_root_ignore_spec(search_root: Path) -> PathSpec[Pattern] | None:
@@ -152,7 +248,6 @@ def collect_candidate_files(
     search_root: Path,
     file_pattern: str,
     max_files: int,
-    include_hidden: bool,
     include_ignored: bool,
 ) -> list[Path]:
     """Collect candidate files for fallback engines with bounded cost."""
@@ -160,63 +255,25 @@ def collect_candidate_files(
         return []
 
     if search_root.is_file():
-        # Explicit file targets should remain searchable even when hidden.
+        # Explicit file targets stay searchable even when hidden or ignored.
         return [search_root] if _pattern_matches(search_root, search_root.parent, file_pattern) else []
 
-    candidates: list[Path] = []
-
+    files: Iterable[Path] | None = None
     if not include_ignored:
-        git_files = _list_git_visible_files(search_root)
-        if git_files is not None:
-            for file_path in git_files:
-                if not include_hidden and is_hidden_path(file_path, search_root):
-                    continue
-                if not _pattern_matches(file_path, search_root, file_pattern):
-                    continue
-                candidates.append(file_path)
-                if len(candidates) >= max_files:
-                    break
-            return candidates
-    root_ignore_spec = _load_root_ignore_spec(search_root) if not include_ignored else None
-
-    for dirpath, dirnames, filenames in os.walk(search_root, topdown=True):
-        current_dir = Path(dirpath)
-
-        if include_hidden:
-            hidden_filtered_dirs = dirnames
-        else:
-            hidden_filtered_dirs = [d for d in dirnames if not d.startswith(".")]
-
+        entries = _list_git_entries(search_root)
+        if entries is not None:
+            files = _expand_git_entries(entries)
+    if files is None:
         if include_ignored:
-            dirnames[:] = hidden_filtered_dirs
+            files = _walk_files(search_root, pruned=VCS_DIR_NAMES, spec=None)
         else:
-            visible_dirs = [d for d in hidden_filtered_dirs if d not in _DEFAULT_PRUNED_DIR_NAMES]
-            if root_ignore_spec is not None:
-                keep_dirs: list[str] = []
-                for dirname in visible_dirs:
-                    rel_dir = (current_dir / dirname).relative_to(search_root).as_posix()
-                    if root_ignore_spec.match_file(rel_dir) or root_ignore_spec.match_file(f"{rel_dir}/"):
-                        continue
-                    keep_dirs.append(dirname)
-                visible_dirs = keep_dirs
-            dirnames[:] = visible_dirs
+            files = _walk_files(search_root, pruned=DEFAULT_PRUNED_DIR_NAMES, spec=_load_root_ignore_spec(search_root))
 
-        for filename in filenames:
-            if not include_hidden and filename.startswith("."):
-                continue
-
-            file_path = current_dir / filename
-            if not file_path.is_file():
-                continue
-            if root_ignore_spec is not None:
-                rel_file = file_path.relative_to(search_root).as_posix()
-                if root_ignore_spec.match_file(rel_file):
-                    continue
-            if not _pattern_matches(file_path, search_root, file_pattern):
-                continue
-
-            candidates.append(file_path)
-            if len(candidates) >= max_files:
-                return candidates
-
+    candidates: list[Path] = []
+    for file_path in files:
+        if not _pattern_matches(file_path, search_root, file_pattern):
+            continue
+        candidates.append(file_path)
+        if len(candidates) >= max_files:
+            break
     return candidates

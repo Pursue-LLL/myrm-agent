@@ -263,8 +263,9 @@ const AuditLogTable = () => {
             <DialogHeader>
               <DialogTitle>Command Execution Details / 命令执行详情</DialogTitle>
               <DialogDescription>
-                Sequence: {selectedLog?.sequence} | Time:{' '}
-                {selectedLog && format(new Date(selectedLog.timestamp * 1000), 'yyyy-MM-dd HH:mm:ss')}
+                Sequence: / 序号: {selectedLog?.sequence}
+                {' | '}
+                Time: / 时间: {selectedLog && format(new Date(selectedLog.timestamp * 1000), 'yyyy-MM-dd HH:mm:ss')}
               </DialogDescription>
             </DialogHeader>
             {selectedLog && (
@@ -290,13 +291,15 @@ const AuditLogTable = () => {
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Exit Code: {selectedLog.exit_code} | Duration: {selectedLog.duration_ms}ms
+                    Exit Code: / 退出码: {selectedLog.exit_code}
+                    {' | '}
+                    Duration: / 耗时: {selectedLog.duration_ms}ms
                   </div>
                 </div>
 
                 {selectedLog.stdout && (
                   <div>
-                    <span className="text-sm font-semibold">Standard Output:</span>
+                    <span className="text-sm font-semibold">Standard Output: / 标准输出:</span>
                     <pre className="mt-2 bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto max-h-60">
                       {selectedLog.stdout}
                     </pre>
@@ -305,7 +308,7 @@ const AuditLogTable = () => {
 
                 {selectedLog.stderr && (
                   <div>
-                    <span className="text-sm font-semibold text-destructive">Standard Error:</span>
+                    <span className="text-sm font-semibold text-destructive">Standard Error: / 标准错误:</span>
                     <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto max-h-60">
                       {selectedLog.stderr}
                     </pre>
@@ -314,7 +317,7 @@ const AuditLogTable = () => {
 
                 {selectedLog.error_message && (
                   <div>
-                    <span className="text-sm font-semibold text-destructive">Error Message:</span>
+                    <span className="text-sm font-semibold text-destructive">Error Message: / 错误信息:</span>
                     <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto">
                       {selectedLog.error_message}
                     </pre>

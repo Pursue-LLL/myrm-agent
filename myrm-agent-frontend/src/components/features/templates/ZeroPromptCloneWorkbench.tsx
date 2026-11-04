@@ -16,18 +16,7 @@
 
 import React, { useState, useEffect, memo } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  X,
-  Zap,
-  Users,
-  Bot,
-  FolderTree,
-  Wrench,
-  BookOpen,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-} from 'lucide-react';
+import { X, Zap, Users, Bot, FolderTree, Wrench, BookOpen, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTemplateMarketplaceStore } from './useTemplateMarketplaceStore';
 
 interface ZeroPromptCloneWorkbenchProps {
@@ -62,8 +51,7 @@ export const ZeroPromptCloneWorkbench = memo<ZeroPromptCloneWorkbenchProps>(({ o
   const isTeam = template.agent_type === 'team';
   const toolsCount = template.settings_preview?.enabled_builtin_tools.length ?? 0;
   const skillsCount =
-    (template.settings_preview?.skill_ids.length ?? 0) +
-    (template.settings_preview?.prebuilt_skill_ids.length ?? 0);
+    (template.settings_preview?.skill_ids.length ?? 0) + (template.settings_preview?.prebuilt_skill_ids.length ?? 0);
 
   const handleClone = async () => {
     const res = await instantiateTemplate({
@@ -141,11 +129,15 @@ export const ZeroPromptCloneWorkbench = memo<ZeroPromptCloneWorkbenchProps>(({ o
             <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
               <div className="flex items-center gap-1.5">
                 <Wrench className="h-3 w-3 text-zinc-400" />
-                <span>{toolsCount} {t('card.builtinTools')}</span>
+                <span>
+                  {toolsCount} {t('card.builtinTools')}
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <BookOpen className="h-3 w-3 text-zinc-400" />
-                <span>{skillsCount} {t('card.skills')}</span>
+                <span>
+                  {skillsCount} {t('card.skills')}
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 {isTeam ? <Users className="h-3 w-3 text-indigo-400" /> : <Bot className="h-3 w-3 text-sky-400" />}
@@ -153,7 +145,7 @@ export const ZeroPromptCloneWorkbench = memo<ZeroPromptCloneWorkbenchProps>(({ o
               </div>
               <div className="flex items-center gap-1.5">
                 <Zap className="h-3 w-3 text-amber-400" />
-                <span>Sandbox Ready</span>
+                <span>{t('sandboxReady')}</span>
               </div>
             </div>
           </div>
@@ -196,7 +188,9 @@ export const ZeroPromptCloneWorkbench = memo<ZeroPromptCloneWorkbenchProps>(({ o
             <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3.5 dark:border-zinc-800 dark:bg-zinc-800/40">
               <div className="flex items-center gap-2 font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                 <Users className="h-3.5 w-3.5 text-indigo-500" />
-                <span>{t('workbench.teamMembers')} ({template.members.length})</span>
+                <span>
+                  {t('workbench.teamMembers')} ({template.members.length})
+                </span>
               </div>
               <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
                 {template.members.map((m, idx) => (
@@ -220,7 +214,9 @@ export const ZeroPromptCloneWorkbench = memo<ZeroPromptCloneWorkbenchProps>(({ o
           {successInfo && (
             <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <span>{t('workbench.success')} ({successInfo.name})</span>
+              <span>
+                {t('workbench.success')} ({successInfo.name})
+              </span>
             </div>
           )}
         </div>

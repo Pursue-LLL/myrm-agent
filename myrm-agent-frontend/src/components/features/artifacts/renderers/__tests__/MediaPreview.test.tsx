@@ -20,7 +20,7 @@ const UNSAFE_URLS = [
 
 function renderWidget(): HTMLIFrameElement {
   render(<HtmlPreview content="<a href='https://example.com'>link</a>" />);
-  return screen.getByTitle('HTML Preview') as HTMLIFrameElement;
+  return screen.getByTitle('htmlPreviewTitle') as HTMLIFrameElement;
 }
 
 /** Delivers a message to the host window, tagged with the sender window like the browser does. */

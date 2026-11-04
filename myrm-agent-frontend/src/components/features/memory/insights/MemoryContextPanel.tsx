@@ -38,7 +38,7 @@ const MemoryContextPanel = memo(() => {
     return (
       <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-xl border border-border/40 bg-accent/20">
         <IconLoader className="h-6 w-6 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">{t('loading') || 'Loading...'}</p>
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }
@@ -59,14 +59,14 @@ const MemoryContextPanel = memo(() => {
               <User className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Global User Profile</h3>
-              <p className="text-xs text-muted-foreground">Cross-agent stable identity</p>
+              <h3 className="text-sm font-semibold text-foreground">{t('contextGlobalTitle')}</h3>
+              <p className="text-xs text-muted-foreground">{t('contextGlobalSubtitle')}</p>
             </div>
           </div>
           <div className="flex-1 p-4">
             {globalProfileEntries.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No global profile data yet.
+                {t('contextGlobalEmpty')}
               </div>
             ) : (
               <div className="space-y-3">
@@ -88,14 +88,14 @@ const MemoryContextPanel = memo(() => {
               <Brain className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Our Relationship & Your Persona</h3>
-              <p className="text-xs text-muted-foreground">Agent-specific interactions</p>
+              <h3 className="text-sm font-semibold text-foreground">{t('contextPeerTitle')}</h3>
+              <p className="text-xs text-muted-foreground">{t('contextPeerSubtitle')}</p>
             </div>
           </div>
           <div className="flex-1 p-4">
             {peerProfileEntries.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                No agent-specific profile data yet.
+                {t('contextPeerEmpty')}
               </div>
             ) : (
               <div className="space-y-3">

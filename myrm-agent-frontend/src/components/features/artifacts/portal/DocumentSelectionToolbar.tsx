@@ -287,18 +287,19 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
     {
       type: 'quote',
       icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
-      label: t('quote') || '引用到输入框',
+      label: t('quote'),
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
-        const artifactName = activeTab?.artifact?.filename || '文档工件';
+        const artifactName = activeTab?.artifact?.filename || t('artifactFallbackName');
         const targetArtifactId = artifactId || activeTab?.artifact?.id || 'current';
+        const selectedParagraphLabel = t('selectedParagraph');
 
         // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
         useScopedArtifactStore.getState().setTarget({
           artifactId: targetArtifactId,
           artifactName,
           kind: 'document',
-          scopeLabel: '所选段落',
+          scopeLabel: selectedParagraphLabel,
           selectedSnippet: selectedText,
         });
 
@@ -307,7 +308,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
           type: 'artifact_range',
           label: artifactName,
           artifactId: targetArtifactId,
-          range: '所选段落',
+          range: selectedParagraphLabel,
           source: 'generated',
           size: selectedText.length,
           content: selectedText,
@@ -331,7 +332,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
     <div
       ref={toolbarRef}
       role="toolbar"
-      aria-label="Selection toolbar"
+      aria-label={t('toolbarLabel')}
       tabIndex={-1}
       className={cn('absolute z-50 animate-in fade-in-0 zoom-in-95 duration-150', 'flex flex-col gap-1')}
       style={{

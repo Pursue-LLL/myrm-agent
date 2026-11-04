@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,6 +13,7 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
 from myrm_agent_harness.agent.meta_tools.bash._executor.executor import BashExecutor
+from myrm_agent_harness.toolkits.code_execution import MCPConfigItem
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
 
@@ -20,9 +23,7 @@ def _mock_code_executor() -> MagicMock:
     executor.config.network.allow_network = True
     executor.config.network.get_effective_allowed_hosts.return_value = []
     executor.config.local.max_execution_time = 120
-    executor.config.mcp_proxy.socket_path = "/tmp/mcp.sock"
     executor.get_executor_name.return_value = "mock"
-    executor.get_mcp_communication_config.return_value = None
     executor.execute_bash = AsyncMock()
     executor.execute = AsyncMock()
     return executor
@@ -70,7 +71,6 @@ async def test_execute_bash_success_returns_eviction_fields() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
             AsyncMock(return_value=MagicMock(text="evicted-text", evicted_ref="vault://x")),
@@ -119,7 +119,6 @@ async def test_execute_symmetrically_evicts_stderr() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
             AsyncMock(side_effect=_fake_evict),
@@ -162,7 +161,6 @@ async def test_execute_empty_stderr_passes_through_eviction() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
             AsyncMock(return_value=MagicMock(text="out", evicted_ref=None)),
@@ -196,7 +194,6 @@ async def test_execute_raises_bash_execution_error_on_failure() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(bash_exec, "_log_bash_command_execution", AsyncMock()),
         pytest.raises(BashExecutionError),
     ):
@@ -250,7 +247,6 @@ async def test_execute_failure_evicts_stderr_into_message() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(bash_exec, "_log_bash_command_execution", AsyncMock()) as mock_log,
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
@@ -304,7 +300,6 @@ async def test_execute_failure_small_stderr_visible_in_message() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(bash_exec, "_log_bash_command_execution", AsyncMock()),
         pytest.raises(BashExecutionError) as exc_info,
     ):
@@ -336,7 +331,6 @@ async def test_execute_failure_small_stdout_visible_in_message() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(bash_exec, "_log_bash_command_execution", AsyncMock()),
         pytest.raises(BashExecutionError) as exc_info,
     ):
@@ -453,27 +447,6 @@ async def test_log_bash_command_execution_delegates() -> None:
     mock_log.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_ensure_mcp_proxy_starts_ipc_server() -> None:
-    executor = _mock_code_executor()
-    bash_exec = BashExecutor(executor, enable_skill_execution=False)
-
-    with (
-        patch(
-            "myrm_agent_harness.agent.skills.mcp.get_mcp_ipc_server",
-            return_value=None,
-        ),
-        patch(
-            "myrm_agent_harness.agent.skills.mcp.start_mcp_ipc_server",
-            AsyncMock(),
-        ) as mock_start,
-    ):
-        await bash_exec._ensure_mcp_proxy_started()
-
-    assert bash_exec._mcp_proxy_started is True
-    mock_start.assert_awaited_once()
-
-
 def test_rewrite_skill_paths_and_container_paths() -> None:
     bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
     workspace = MagicMock()
@@ -510,7 +483,6 @@ async def test_execute_strips_markdown_fence_and_clears_invalidated_cache() -> N
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
         patch.object(bash_exec._skill_manager, "clear_workspace_cache") as mock_clear,
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
             AsyncMock(return_value=MagicMock(text="ok", evicted_ref=None)),
@@ -547,7 +519,6 @@ async def test_execute_with_skill_paths_stages_detected_skill() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(
             bash_exec._skill_manager,
             "ensure_skills_in_workspace",
@@ -610,7 +581,6 @@ async def test_execute_import_mode_keeps_detected_skill() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch.object(
             bash_exec._skill_manager,
             "ensure_skills_in_workspace",
@@ -660,8 +630,7 @@ async def test_execute_python_path_and_generated_files() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
-        patch.object(bash_exec, "_prepare_execution", return_value=(True, "print(1)", None)),
+        patch.object(bash_exec, "_prepare_execution", AsyncMock(return_value=(True, "print(1)", None, None))),
         patch.object(bash_exec, "_register_generated_files") as mock_register,
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
@@ -694,7 +663,6 @@ async def test_execute_nonzero_exit_without_error_logs_warning() -> None:
         ),
         patch.object(bash_exec._workspace_manager, "get_workspace_path", return_value="/ws"),
         patch.object(bash_exec._workspace_manager, "update_workspace_timestamp", AsyncMock()),
-        patch.object(bash_exec, "_ensure_mcp_proxy_started", AsyncMock()),
         patch(
             "myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction.maybe_evict_large_output",
             AsyncMock(return_value=MagicMock(text="", evicted_ref=None)),
@@ -793,68 +761,78 @@ def test_build_execution_context_skill_env_only() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ensure_mcp_proxy_skips_when_executor_uses_direct_callback() -> None:
-    executor = _mock_code_executor()
-    executor.get_mcp_communication_config.return_value = MagicMock(skip_local_proxy=True)
-    bash_exec = BashExecutor(executor, enable_skill_execution=False)
-
-    with patch(
-        "myrm_agent_harness.agent.skills.mcp.start_mcp_ipc_server",
-        AsyncMock(),
-    ) as mock_start:
-        await bash_exec._ensure_mcp_proxy_started()
-
-    mock_start.assert_not_called()
-    assert bash_exec._mcp_proxy_started is True
-
-
-@pytest.mark.asyncio
-async def test_ensure_mcp_proxy_start_failure_raises_runtime_error() -> None:
-    executor = _mock_code_executor()
-    bash_exec = BashExecutor(executor, enable_skill_execution=False)
-
-    with (
-        patch(
-            "myrm_agent_harness.agent.skills.mcp.get_mcp_ipc_server",
-            return_value=None,
-        ),
-        patch(
-            "myrm_agent_harness.agent.skills.mcp.start_mcp_ipc_server",
-            AsyncMock(side_effect=OSError("boom")),
-        ),
-        pytest.raises(RuntimeError, match="Failed to start MCP IPC server"),
-    ):
-        await bash_exec._ensure_mcp_proxy_started()
-
-
-def test_prepare_execution_skill_path_when_enabled() -> None:
+async def test_prepare_execution_skill_path_serves_the_caller_scope() -> None:
+    """A skill command gets its own IPC server for the run's scope, and it stops with the execution."""
     from myrm_agent_harness.agent.middlewares._session_context import set_agent_id
+    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, IPCEndpoint
 
-    executor = _mock_code_executor()
+    endpoint = IPCEndpoint(socket_path="/tmp/e.sock", tcp_port=0, auth_token="tok", trace_nonce="nonce-1")
+    events: list[object] = []
+
+    @asynccontextmanager
+    async def fake_endpoint(scope: CallerScope) -> AsyncIterator[IPCEndpoint]:
+        events.append(scope)
+        yield endpoint
+        events.append("stopped")
+
     skill_executor = MagicMock()
     skill_executor.detect_skill_in_command.return_value = (True, "demo")
     skill_executor.prepare_for_execution.return_value = MagicMock(
-        prepared_code="print('skill')",
-        mcp_config=[MagicMock()],
+        prepared_code="print('skill')", mcp_config=[MagicMock()]
     )
-    bash_exec = BashExecutor(executor, enable_skill_execution=True)
+    bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=True)
     bash_exec._skill_executor = skill_executor
 
     set_agent_id("agent-42")
     try:
-        use_py, code, mcp_items = bash_exec._prepare_execution("run skill", session_id="s1", workspace_root="/ws")
+        with patch("myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.mcp_ipc_endpoint", fake_endpoint):
+            async with AsyncExitStack() as stack:
+                prepared = await bash_exec._prepare_execution("run skill", bash_exec._caller_scope("s1", "/ws"), stack)
+                assert events == [CallerScope(session_id="s1", agent_id="agent-42", workspace_root="/ws")]
     finally:
         set_agent_id("")
 
-    assert use_py is True
-    assert code == "print('skill')"
-    assert mcp_items is not None
-    assert skill_executor.prepare_for_execution.call_args.kwargs["agent_id"] == "agent-42"
+    assert prepared.use_python_execution is True
+    assert prepared.code == "print('skill')"
+    assert prepared.mcp_config_items is not None
+    assert prepared.trace_nonce == "nonce-1"
+    skill_executor.prepare_for_execution.assert_called_once_with(command="run skill", endpoint=endpoint)
+    assert events[-1] == "stopped", "the server ends with the stack that owns it"
 
 
-def test_prepare_execution_python_c_sets_transform_hint() -> None:
+def test_caller_scope_carries_the_runs_read_only_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The IPC server enforces the scope it is given, so a read-only run must hand it a read-only scope."""
     bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
-    bash_exec._prepare_execution('python3 -c "print(1)"', session_id="s1")
+
+    assert bash_exec._caller_scope("s1", "/ws").readonly_workspace is False
+
+    monkeypatch.setattr("myrm_agent_harness.core.security.ocap.guard.check_capability_access", lambda *_, **__: False)
+    scope = bash_exec._caller_scope("s1", "/ws")
+
+    assert scope.readonly_workspace is True
+    assert (scope.session_id, scope.workspace_root) == ("s1", "/ws")
+
+
+@pytest.mark.asyncio
+async def test_prepare_execution_without_a_skill_starts_no_ipc_server() -> None:
+    bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
+
+    with patch(
+        "myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.mcp_ipc_endpoint",
+        side_effect=AssertionError("a command that calls no skill needs no IPC server"),
+    ):
+        async with AsyncExitStack() as stack:
+            prepared = await bash_exec._prepare_execution("ls -la", bash_exec._caller_scope("s1", None), stack)
+
+    assert prepared.use_python_execution is False
+    assert prepared.trace_nonce is None
+
+
+@pytest.mark.asyncio
+async def test_prepare_execution_python_c_sets_transform_hint() -> None:
+    bash_exec = BashExecutor(_mock_code_executor(), enable_skill_execution=False)
+    async with AsyncExitStack() as stack:
+        await bash_exec._prepare_execution('python3 -c "print(1)"', bash_exec._caller_scope("s1", None), stack)
     assert bash_exec.consume_python_c_transform_hint() is not None
 
 
@@ -870,19 +848,6 @@ def test_inject_resilience_script_prepends_when_present() -> None:
     result = bash_exec._inject_resilience_script("echo hi")
     assert "Resilience Init Script" in result
     assert result.rstrip().endswith("echo hi")
-
-
-def test_prepare_mixin_uses_executor_socket_path_and_skips_started_proxy() -> None:
-    executor = _mock_code_executor()
-    executor.get_mcp_communication_config.return_value = MagicMock(socket_path="/tmp/executor.sock")
-    bash_exec = BashExecutor(executor, enable_skill_execution=False)
-    bash_exec._mcp_proxy_started = True
-
-    assert bash_exec._get_ipc_socket_path() == "/tmp/executor.sock"
-    # Already started: returns without touching the executor or starting a server.
-    import asyncio
-
-    asyncio.run(bash_exec._ensure_mcp_proxy_started())
 
 
 def test_detect_skill_from_import_statement() -> None:
@@ -914,7 +879,8 @@ def test_maybe_extend_timeout_for_mcp() -> None:
         MCP_MIN_TIMEOUT,
     )
 
-    assert bash_exec._maybe_extend_timeout_for_mcp([MagicMock()], 5) == MCP_MIN_TIMEOUT
+    short_limit_server = MCPConfigItem(name="demo", execute_timeout=10.0)
+    assert bash_exec._maybe_extend_timeout_for_mcp([short_limit_server], 5) == MCP_MIN_TIMEOUT
     assert bash_exec._maybe_extend_timeout_for_mcp(None, 30) == 30
 
 

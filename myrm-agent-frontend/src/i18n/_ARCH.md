@@ -16,6 +16,7 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 | `__tests__/locale-shell.test.ts`        | shell/deferred 分割与 merge 单测                                                                  |
 | `__tests__/ClientIntlProvider.test.tsx` | deferred fetch retry / fail-closed 单测                                                           |
 | `__tests__/get-locale.test.ts`          | cookie 为受支持值 / 非法值（如 `zh-CN`）/ 缺失时的 locale 解析单测                                |
+| `__tests__/dynamic-key-families.test.ts` | 运行时才算出的 key 族（权限 id、产物类型、上下文天气档位、桌面 Locked Use 诊断徽标）的每个取值在 6 个语言文件里都有文案 |
 | `ClientIntlProvider.tsx`                | mount 后 fetch `/api/i18n/deferred?lang=&v=`（按语言 + 翻译内容版本分 HTTP 缓存键）并 merge messages；失败 fail-closed + 指数 retry              |
 | `deferred-locale-context.tsx`           | Settings 路由等待 deferred settings 加载后再渲染                                                  |
 | `index.ts`                              | `getLocale`（cookie 读取，非受支持值回退 `defaultLocale`）/ `setLocale`（cookie 写入）            |
@@ -38,7 +39,8 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 - UI 文案禁止硬编码；使用 `useTranslations` + `locales/`
 - 新文案只写入 `locales/{lang}.json` 六个文件；`locales/namespaces/` 是 `i18n:split` 的生成物，禁止手写，也禁止另建 `src/locales/` 之类的并行文案目录（运行时只读 `locales/namespaces/`，并行目录永不会被加载）
 - `locales/{lang}.json` 必须是合法 JSON；`pretest` / `build` 首步 `i18n:split` 会对 SSOT 执行 `JSON.parse`
-- Security Profile 委派权限 UI 文案键（6 语言 parity 由 `verify:i18n` 强制）：`settings.securityPolicy.permissionTypes`、`settings.securityPolicy.delegationPermissionsGuide`（含 `bindingHint` 子智能体绑定导航）
+- Security Profile 委派权限 UI 文案键（语言间 parity 由 `verify:i18n` 强制）：`settings.securityPolicy.permissionTypes`（`securityPolicyUtils.KNOWN_PERMISSIONS` 的每个 id 都要有标签）、`settings.securityPolicy.delegationPermissionsGuide`（含 `bindingHint` 子智能体绑定导航）
+- 静态门禁（`verify:i18n`、`verify-i18n-references`）只看得见写成字面量的 key；`t(变量)` 或模板字符串拼出来的 key，取到的值没人检查，缺了就在界面上露出原始 key 路径。这样的 key 族必须把「取值集合」导出为常量（如 `ARTIFACT_TYPES`、`WEATHER_LABEL_KEYS`）或纯函数，并登记到 `__tests__/dynamic-key-families.test.ts`
 
 ## 首屏体积（prod `next start`，2026-07-13 实测）
 

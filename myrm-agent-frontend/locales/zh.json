@@ -237,7 +237,8 @@
     "subgoalAddFailed": "添加子目标失败",
     "subgoalAddNetworkError": "网络错误：添加子目标失败",
     "subgoalRemoveFailed": "移除子目标失败",
-    "subgoalRemoveNetworkError": "网络错误：移除子目标失败"
+    "subgoalRemoveNetworkError": "网络错误：移除子目标失败",
+    "bundleSelectItem": "选择要导出的条目"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "预估 Turn1 schema（约 {tokens} tokens）超出直接绑定预算（{budget}）。请减少已选 endpoint，否则 Agent 无法使用这些 API 工具。",
       "turn1BudgetServiceWarning": "该服务已选 endpoint 可能超出 Turn1 绑定预算。请减少选择，避免 Agent 启动失败。",
       "atLeastOneEndpoint": "必须至少保留一个端点。",
-      "presetAdded": "已添加 {name} 连接器"
+      "presetAdded": "已添加 {name} 连接器",
+      "presetsLoading": "正在加载预设...",
+      "presetsEmpty": "暂无可用预设。",
+      "presetEnable": "启用"
     },
     "sharedContexts": {
       "targetLabel": "智能体",
@@ -1337,7 +1341,7 @@
       "addMore": "添加更多",
       "actionSpaceRadar": {
         "title": "大模型决策准确度预测",
-        "loadMeterLabel": "核心技能 Token 负载",
+        "loadMeterLabel": "动作空间复杂度",
         "evaluating": "计算中...",
         "evaluatingHint": "正在连接底层引擎进行动作空间解析...",
         "statusCritical": "准确率暴跌风险：工具过度泛滥！模型面临极严重的幻觉风险，请清理。",
@@ -1347,10 +1351,10 @@
         "smartPrune": "一键净化释放动作空间",
         "smartPruneRunning": "正在清理动作空间…",
         "turn1CatalogTitle": "Turn 1 技能目录",
-        "turn1CatalogSummary": "{inline} 内联 · {hidden} 隐藏 · search {searchState}",
+        "turn1CatalogSummary": "{inline} 内联 · {hidden} 按需 · search {searchState} · 约 {tokens, number} token",
         "turn1CatalogSearchOn": "开启",
         "turn1CatalogSearchOff": "关闭",
-        "turn1CatalogOverCapHint": "对话开始时 Turn 1 最多内联 {cap} 个 Core 技能（按名称排序）。将少用技能改为 Peripheral 可关闭 search，每轮约省 203 token。"
+        "turn1CatalogOverCapHint": "核心技能超出内联预算：前 {inline} 个（按名称排序）完整内联，其余 {overflow} 个仅在目录中列出名称，需要时按名称加载。将少用的核心技能改为外围，可为其余技能腾出内联位置。"
       },
       "skillsZone": {
         "coreTitle": "核心常驻技能",
@@ -1451,7 +1455,11 @@
         "userName": "用户名"
       },
       "modelOverride": "模型覆盖",
-      "subagentCostSaving": "子智能体降本"
+      "subagentCostSaving": "子智能体降本",
+      "subagentModelInherit": "跟随主智能体（默认）",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash（推荐·极致低成本）",
+      "subagentModelGpt4oMini": "GPT-4o Mini（快速审查）",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku（高吞吐审计）"
     },
     "preview": "预览",
     "avatarColor": "头像颜色",
@@ -1759,7 +1767,8 @@
         "exportRedacted": "导出脱敏版 (安全)",
         "export": "导出"
       }
-    }
+    },
+    "cloneCopySuffix": "副本"
   },
   "common": {
     "dnd": {
@@ -1781,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "必须是 JSON 对象",
-      "invalidJson": "JSON 格式无效"
+      "invalidJson": "JSON 格式无效",
+      "cannotFormat": "无法格式化 JSON",
+      "invalidJsonCannotFormat": "JSON 格式无效，无法格式化"
     },
     "schemaForm": {
       "resetDefaults": "重置为默认值",
@@ -2382,6 +2393,7 @@
     "researchBegins": "您想了解什么？",
     "noProviderBanner": "尚未配置 AI 模型，请先配置模型提供商以开始对话",
     "noProviderAction": "去配置",
+    "ollamaQuickConnect": "使用 Ollama：{model}",
     "subscriptionQuickConnect": "已有订阅？一键接入",
     "subscriptionModalTitle": "一键接入官方付费订阅",
     "subscriptionModalDesc": "通过官方设备码安全直连，无需购买和配置 API Key，凭据本地安全加密存储。",
@@ -2499,13 +2511,14 @@
       "modeLocalDesc": "绑定本地文件夹，AI 在该目录内执行分析与读写",
       "modeCloud": "云端沙箱",
       "modeCloudDesc": "隔离沙箱环境，安全执行代码，不污染本机",
+      "modeCloudBadge": "专属沙箱存储",
       "modeChat": "极速对话",
       "modeChatDesc": "通用智能对话与快速问答，无须工作区",
       "bindWorkspace": "选择工作目录",
       "currentWorkspace": "当前目录",
       "noWorkspaceSelected": "未选择工作目录 (点击绑定)",
       "scaffoldBtn": "一键初始化办公目录",
-      "scaffoldTooltip": "在当前工作区生成标准化结构：00_原始资料、01_参考、02_生成结果、03_历史版本",
+      "scaffoldTooltip": "在当前工作区生成标准化结构：{folders}",
       "scaffoldSuccess": "标准化办公目录已就绪",
       "scaffoldFailed": "初始化办公目录失败",
       "clearWorkspace": "解绑目录",
@@ -2682,7 +2695,11 @@
       "copiedReasoning": "已复制思考过程",
       "deltaNegative": "较上轮 {tokens} tokens (已压缩)",
       "deltaZero": "与上轮持平",
-      "growthTrend": "近12轮增长轨迹"
+      "growthTrend": "近12轮增长轨迹",
+      "weatherClear": "清朗 (<25%)",
+      "weatherCloudy": "多云 (25–75%)",
+      "weatherWarning": "预警 (75–90%)",
+      "weatherCritical": "即将压缩 (≥90%)"
     },
     "compactedSummary": {
       "foldLabel": "上下文已压缩 — 查看归档",
@@ -2794,7 +2811,8 @@
       "agentsCategory": "智能体",
       "contextCategory": "上下文",
       "dedupNotice": "该文件已在上下文中，将跳过重复内容直读",
-      "alreadyInContext": "已在上下文"
+      "alreadyInContext": "已在上下文",
+      "externalSource": "外部"
     },
     "message": {
       "edit": "编辑",
@@ -2817,7 +2835,13 @@
       "cancelled": "本次回复已停止生成，部分内容已保留在上下文中。"
     },
     "toolImage": {
-      "screenshotLabel": "远程桌面截屏"
+      "screenshotLabel": "远程桌面截屏",
+      "lightboxLabel": "截图预览",
+      "lightboxClose": "关闭预览",
+      "lightboxPrevious": "上一张图片",
+      "lightboxNext": "下一张图片",
+      "lightboxAlt": "{tool} 截图（原尺寸）",
+      "thumbnailAlt": "{tool} 截图 {index}"
     },
     "sessionRecording": {
       "label": "会话录制"
@@ -2841,7 +2865,10 @@
       "waitingHint": "当 Agent 使用浏览器时，实时视图将自动显示",
       "instructionPlaceholder": "描述你想在这个页面上做什么...",
       "instructionWithElement": "Agent 应该对这个元素做什么？",
-      "send": "发送指令"
+      "send": "发送指令",
+      "livePeekAlt": "浏览器实时画面",
+      "selectElementLabel": "选择元素 {refId}（{role}：{name}）",
+      "clearSelection": "清除选择"
     },
     "browserRecording": {
       "title": "浏览器录制",
@@ -2930,7 +2957,8 @@
         "denyReasonPlaceholder": "拒绝原因（选填）",
         "targetChangedNotice": "目标自上次批准后发生变化，请重新确认。",
         "deniedNotice": "已拒绝，该请求在本会话内不再询问。"
-      }
+      },
+      "clearSelection": "清除选择"
     },
     "clarification": {
       "formTitle": "澄清表单",
@@ -3164,60 +3192,6 @@
       "sandbox_ro": "文件系统为只读",
       "healthy": "环境正常"
     },
-    "localModelDetected": {
-      "title": "检测到本地 AI 模型",
-      "description": "发现本地运行的 {provider}，共 {count} 个模型可用。无需配置，即可开始对话。",
-      "useModel": "使用 {model}",
-      "configureManually": "手动配置",
-      "detecting": "正在检测本地 AI 模型...",
-      "noModels": "未检测到本地 AI 模型",
-      "activated": "已就绪！",
-      "activatedDesc": "{model} 已连接成功。试试你的第一个任务：",
-      "tryDemo": "帮我总结今天的科技新闻",
-      "tryDemoLabel": "立即体验"
-    },
-    "localCapabilities": {
-      "detecting": "正在检测本地 AI 与搜索服务...",
-      "searchTitle": "可免费启用联网搜索",
-      "searchDescription": "启用本地 SearXNG（无需 API Key）。",
-      "enableSearxng": "启用 SearXNG",
-      "enablingSearxng": "正在启用 SearXNG…",
-      "searxngDockerHint": "搜索为可选项；需要本地免费搜索时可一键启动 SearXNG（需本机 Docker）",
-      "startSearxngDocker": "启动 SearXNG（Docker）",
-      "startingSearxng": "正在启动 SearXNG…",
-      "startSearxngFailed": "SearXNG 启动失败，请确认已安装 Docker",
-      "usePaidSearchSettings": "改用付费搜索服务",
-      "configureSearch": "配置搜索",
-      "chipLabel": "启用搜索",
-      "searchEnabled": "已启用 {service} 搜索",
-      "searchEnableFailed": "启用搜索失败",
-      "modelActivateFailed": "启用本地模型失败",
-      "customEndpointTitle": "OpenAI 兼容本地端点",
-      "customEndpointDescription": "粘贴本地端点地址，自动探测模型并一步完成配置。",
-      "customApiUrlLabel": "API 地址",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API Key（本地/局域网分机可选）",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "localhost 或信任分机端点可留空 API Key；云端公网端点仍需提供 Key。",
-      "customSplitStackHint": "已识别局域网 / Tailscale 分机端点，支持留空 API Key 免密直连。",
-      "customNoAuthDetected": "已识别免鉴权模式，将不会强制附加或存储 API Key。",
-      "customDetectModels": "检测模型",
-      "customUseModel": "使用 {model}",
-      "customErrorApiUrlRequired": "请输入 API 地址",
-      "customErrorDetectFailed": "该端点模型探测失败",
-      "customErrorNoModels": "端点可达，但未返回任何模型",
-      "customErrorProbeFailed": "端点探测失败",
-      "customErrorDetectFirst": "请先执行模型探测",
-      "customErrorReachabilityFailed": "端点连通但模型健康检查失败",
-      "customDetectSuccess": "已检测到 {count} 个模型",
-      "checklistTitle": "工具调用推荐标杆",
-      "checklistSubtitle": "已验证支持复杂任务",
-      "recommendedBadge": "推荐",
-      "verifiedBadge": "已验证支持工具调用：{model}",
-      "verifiedDescription": "该模型经 Myrm 兼容性测试，可稳定执行函数调用、文件读写与联网搜索。",
-      "unverifiedWarningTitle": "未验证模型提示：{model}",
-      "unverifiedWarningDescription": "该模型尚未经官方工具调用兼容性验证，执行复杂技能时可能出现格式异常。建议优先选用推荐标杆模型。"
-    },
     "migrationDiscovery": {
       "title": "检测到 {competitor} 数据",
       "description": "发现 {memoryCount} 条记忆和 {skillCount} 个技能，可预览后导入",
@@ -3248,19 +3222,6 @@
       "success": "已成功沉淀为评测用例",
       "successDesc": "已将该对话轨迹安全清洗并写入评测基准数据集",
       "error": "沉淀评测用例失败"
-    },
-    "callGraph": {
-      "title": "代码调用图分析",
-      "callers": "调用方",
-      "reachingTests": "关联测试",
-      "physicalCallChain": "物理调用链路",
-      "noCallers": "未检测到外部调用点（可能为根入口或私有符号）",
-      "params": "参数列表",
-      "testImpact": "测试影响面与爆炸半径",
-      "noTests": "未检测到直接或间接到达该符号的测试",
-      "depth": "深度",
-      "level": "层",
-      "runAffectedTests": "运行 {count} 个受影响测试套件"
     },
     "modelPlaybook": {
       "cannotApplyMissingModels": "无法应用配方：部分所需模型尚未配置。",
@@ -3391,7 +3352,10 @@
       "subtitle": "会话开始前底层预加载的基线 Token 占用与工具治理",
       "skillsTools": "业务技能与内置工具",
       "disabled": "已关闭",
-      "totalBaseline": "初始基线底噪总计"
+      "totalBaseline": "初始基线底噪总计",
+      "baselineFeatherlight": "极轻量",
+      "baselineModerate": "中等",
+      "baselineHeavy": "高基线"
     },
     "modelPricing": {
       "title": "算力单价与 Prompt Cache 透视",
@@ -3456,20 +3420,6 @@
       "stopped": "已停止 {name}，半成品草稿已安全保留",
       "stopFailed": "叫停任务失败"
     },
-    "routeAgentDiscoverChip": {
-      "title": "把任务交给专家智能体",
-      "guardrailBadge": "护栏已启用",
-      "subtitle": "编码、评审、研究、架构与安全审计智能体随时可以接手。",
-      "action": "查看专家",
-      "dismiss": "关闭",
-      "specialists": {
-        "coder": "编码",
-        "reviewer": "评审",
-        "researcher": "研究",
-        "architect": "架构",
-        "auditor": "审计"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "会话",
       "panesCount": "个窗格",
@@ -3509,18 +3459,6 @@
         }
       }
     },
-    "topologyPruning": {
-      "tier1Badge": "第 1 档 · 前沿推理",
-      "tier2Badge": "第 2 档 · 强基础模型",
-      "tier3Badge": "第 3 档 · 快速轻量",
-      "hybridFolded": "混合折叠",
-      "directFolded": "折叠为直接执行",
-      "savedTurnsTokens": "预计节省约 {turns} 轮、{tokens} 个 Token",
-      "fanoutMode": "多智能体扇出",
-      "strategyAuto": "自动",
-      "strategyDirect": "仅直接执行",
-      "strategyMultiAgent": "始终多智能体"
-    },
     "pdfScannedPages": "[PDF] {fileName}：第 {pages} 页无文本层，已按图片发送",
     "pdfScannedPagesWithheld": "[PDF] {fileName}：第 {pages} 页无文本层，且超出单次投递上限，未能发送",
     "reasoningSteps": " · {count} 步",
@@ -3531,7 +3469,40 @@
     "collapseReasoning": "收起思考过程",
     "reasoningLoading": "正在思考",
     "reasoningTokens": "{count} 个推理 Token",
-    "reasoningTokensEstimated": "≈ {count} 个推理 Token"
+    "reasoningTokensEstimated": "≈ {count} 个推理 Token",
+    "thinkingProcess": "思考过程",
+    "customMessage": {
+      "ephemeral": "临时",
+      "persistent": "持久",
+      "ephemeralHint": "临时：压缩上下文时会被清理",
+      "persistentHint": "持久：压缩摘要后仍会保留",
+      "details": "详情"
+    },
+    "toolDiagnostics": {
+      "trigger": "工具健康度",
+      "title": "智能体工具诊断",
+      "loading": "正在加载诊断数据...",
+      "empty": "该智能体暂无工具执行数据。",
+      "calls": "{count} 次调用",
+      "successRate": "成功率",
+      "errors": "错误数",
+      "avgTime": "平均耗时"
+    },
+    "costHud": {
+      "popoverTitle": "点击查看模型四维单价矩阵与 Prompt Cache 经济学效益",
+      "savedAmount": "(省 {amount})",
+      "idleLabel": "算力透视 HUD"
+    },
+    "scopedArtifactRemove": "移除限定目标",
+    "messageListLoading": "正在加载消息",
+    "inputHistoryLabel": "输入历史",
+    "projectBoundary": {
+      "isolated": "隔离保护",
+      "workspaceTooltip": "项目隔离工作区：{path}",
+      "sandboxTooltip": "项目沙箱与专属记忆隔离已激活"
+    },
+    "systemPromptDeveloperMode": "系统提示词（开发者模式）",
+    "mcpAppRenderFailed": "MCP 应用渲染失败"
   },
   "mode": {
     "fast": "快速搜索",
@@ -4362,7 +4333,8 @@
       "copyRaw": "复制原始 JSON",
       "copied": "已复制",
       "close": "关闭"
-    }
+    },
+    "smartFallbackBadge": "智能降级"
   },
   "memory": {
     "mesh": {
@@ -5826,7 +5798,6 @@
           "description": "可选：连接本地文件夹，让助手就地读写你的文件。Wiki 导入会把笔记复制到独立知识库——若要用真实 vault 或同步目录，请在此绑定。",
           "chooseFolder": "选择文件夹",
           "preparing": "准备中…",
-          "skip": "暂时跳过",
           "linkedSuccess": "文件夹已链接，下一条对话将使用该工作区。",
           "defaultProjectName": "我的文件",
           "candidateGeneric": "已从先前助手配置检测到文件夹。",
@@ -6250,7 +6221,65 @@
       "selectAtLeastOne": "请至少选择一条规则",
       "exported": "已成功导出 {count} 条规则",
       "exportFailed": "导出失败",
-      "copied": "已复制 {count} 条规则到剪贴板"
+      "copied": "已复制 {count} 条规则到剪贴板",
+      "title": "安全分享规则",
+      "privacyBadge": "隐私已保护",
+      "description": "导出 AI 学到的规则，自动匿名化路径并清除凭据，可放心公开分享或与团队共享。",
+      "selectAll": "全选",
+      "deselectAll": "取消全选",
+      "selectedCount": "已选 {selected}/{total}",
+      "empty": "未找到流程规则。规则会从你的对话中自动学习。",
+      "previewSanitized": "预览脱敏后的内容",
+      "copyButton": "复制",
+      "copiedButton": "已复制",
+      "downloadZip": "下载 ZIP"
+    },
+    "contextGlobalTitle": "全局用户画像",
+    "contextGlobalSubtitle": "跨智能体共享的稳定身份",
+    "contextGlobalEmpty": "暂无全局画像数据。",
+    "contextPeerTitle": "我们的关系与你的人设",
+    "contextPeerSubtitle": "该智能体专属的互动",
+    "contextPeerEmpty": "暂无该智能体专属的画像数据。",
+    "rankedHubSidebarLabel": "枢纽排行侧栏",
+    "shareRulesTitle": "分享规则（隐私安全）",
+    "shareRulesTooltip": "在保护隐私的前提下分享规则",
+    "dualLayer": {
+      "title": "双层画像与智能体笔记看板",
+      "description": "显式分层与容量水位：USER 最多 {userMax, number} 字符（长期偏好），MEMORY 最多 {memoryMax, number} 字符（领域笔记）",
+      "refresh": "刷新",
+      "save": "保存记忆",
+      "budget": "≤ {max, number} 字符",
+      "capacity": "容量水位：{current, number} / {max, number} 字符（{percent}%）",
+      "level": {
+        "safe": "正常",
+        "warning": "预警",
+        "critical": "临界",
+        "overflow": "超限"
+      },
+      "userProfile": {
+        "title": "用户长期偏好",
+        "hint": "跨智能体共享：母语、编码习惯、缩进排版、核心禁忌与沟通偏好。",
+        "placeholder": "例如：母语为中文，偏好 Python PEP8 规范，严禁使用 Any 类型，交付代码单文件不超过 400 行..."
+      },
+      "agentNotes": {
+        "title": "智能体专属笔记",
+        "hint": "当前智能体专属：项目架构规范、高频专业术语、边界要求与工程排障要领。",
+        "placeholder": "例如：本项目遵循 Clean Architecture，harness 框架层与 server 业务层严禁反向依赖..."
+      },
+      "intakeProbe": {
+        "title": "短期垃圾记忆准入试算探针",
+        "placeholder": "输入候选记忆（如：'Phase 2 completed'、'PR #882'、'Traceback...' 或 '偏好 PEP8'）",
+        "check": "检测准入",
+        "accepted": "准入放行：路由至 {layer} 层",
+        "rejected": "准入拒绝：判定为短期瞬态垃圾 [{category}]",
+        "longTerm": "长期"
+      },
+      "intakeCheckFailed": "网络或服务器错误，准入检测失败。",
+      "feedback": {
+        "loadFailed": "加载双层记忆失败，请检查网络或后端状态。",
+        "saved": "双层记忆已成功同步保存。",
+        "saveFailed": "保存双层记忆失败，容量可能超限或内容不合规。"
+      }
     }
   },
   "sharedContextTargetBinding": {
@@ -6474,7 +6503,14 @@
       "binary": "文件",
       "spreadsheet": "电子表格",
       "presentation": "演示文稿",
-      "word_document": "Word 文档"
+      "word_document": "Word 文档",
+      "video": "视频",
+      "audio": "音频",
+      "architecture": "架构图",
+      "canvas": "画布",
+      "wechat_article": "公众号文章",
+      "prototype": "原型",
+      "dashboard": "仪表盘"
     },
     "spreadsheet": {
       "search": "搜索...",
@@ -6498,7 +6534,9 @@
       "quote": "引用到输入框",
       "quoteRow": "引用第 {row} 行",
       "quoteRowTooltip": "引用选中行到对话输入框进行针对性提问或局部编辑",
-      "rowScopeLabel": "第 {row} 行"
+      "rowScopeLabel": "第 {row} 行",
+      "clearSelection": "清除选择",
+      "artifactFallbackName": "表格工件"
     },
     "saving": "保存中...",
     "saved": "已保存",
@@ -6764,7 +6802,10 @@
       "quote": "引用到输入框",
       "copy": "复制",
       "modifyPlaceholder": "描述你想要的修改...",
-      "queued": "操作已排队，当前任务完成后自动执行"
+      "queued": "操作已排队，当前任务完成后自动执行",
+      "artifactFallbackName": "代码工件",
+      "selectedCode": "选中代码",
+      "selectionLines": "选区（{count} 行）"
     },
     "documentSelection": {
       "modify": "AI 修改",
@@ -6774,7 +6815,10 @@
       "copy": "复制",
       "modifyPlaceholder": "描述你想对选中内容做的修改...",
       "annotate": "批注",
-      "annotatePlaceholder": "描述问题以供审阅..."
+      "annotatePlaceholder": "描述问题以供审阅...",
+      "toolbarLabel": "选区工具栏",
+      "artifactFallbackName": "文档工件",
+      "selectedParagraph": "所选段落"
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -6848,7 +6892,25 @@
       "viewportNotFound": "未找到画布视口元素",
       "exportSuccess": "导出成功",
       "svgExported": "架构图已导出为独立 SVG",
-      "pngExported": "架构图已导出为高清 PNG"
+      "pngExported": "架构图已导出为高清 PNG",
+      "invalidSchema": "架构 JSON 结构无效或解析失败。",
+      "defaultTitle": "系统架构图",
+      "evolutionDiffActive": "演进对比已开启",
+      "searchNodes": "搜索节点...",
+      "liveView": "实时视图",
+      "diffView": "对比视图",
+      "copied": "已复制",
+      "diffNodesAdded": "+{count} 个节点",
+      "diffNodesDeleted": "-{count} 个节点",
+      "diffNodesModified": "~{count} 个已修改",
+      "diffEdgesAdded": "+{count} 条连线",
+      "diffEdgesDeleted": "-{count} 条连线",
+      "shortestPath": "最短路径：",
+      "hops": "（{count} 跳）",
+      "noDirectedPath": "（无有向路径）",
+      "tracingFor": "正在追踪依赖树：",
+      "clickToTrace": "（点击另一个节点可追踪路径）",
+      "clear": "清除"
     },
     "vaultCard": {
       "loading": "正在读取文件...",
@@ -6856,7 +6918,16 @@
       "unavailable": "无法加载该文件",
       "downloadFull": "下载完整文件"
     },
-    "resizePanel": "调整面板大小"
+    "resizePanel": "调整面板大小",
+    "closePreview": "关闭预览",
+    "errorBoundary": {
+      "title": "渲染出错",
+      "defaultMessage": "无法渲染该内容，请尝试刷新或下载查看",
+      "retry": "重试"
+    },
+    "annotationPanelLabel": "工件批注",
+    "htmlPreviewTitle": "HTML 预览",
+    "portalDescription": "正在预览文件 {filename}，类型为 {type}，大小 {size}。按 Esc 键关闭。"
   },
   "MessageSources": {
     "untitled": "未命名",
@@ -6892,7 +6963,8 @@
     "conversation_deleted": "会话已删除",
     "operation_failed": "操作失败",
     "copyAll": "复制全部",
-    "copyAllSuccess": "来源已复制到剪贴板"
+    "copyAllSuccess": "来源已复制到剪贴板",
+    "mcpSkillFallback": "MCP 技能"
   },
   "auth": {
     "setup": {
@@ -7832,7 +7904,14 @@
     "preflightUpdated": "预检探针已更新",
     "preflightTemplateInserted": "已插入模板",
     "preflightInsertTemplate": "插入模板",
-    "preflightDesc": "任务运行前先在沙箱中执行一段 Python 脚本。输出 <skip></skip> 或 <action></action> 可中止本次运行并节省 token，其他输出会作为上下文注入。脚本报错或超时时，本次运行会记为失败，而不是跳过。"
+    "preflightDesc": "任务运行前先在沙箱中执行一段 Python 脚本。输出 <skip></skip> 或 <action></action> 可中止本次运行并节省 token，其他输出会作为上下文注入。脚本报错或超时时，本次运行会记为失败，而不是跳过。",
+    "roiTitle": "自动化生产力收益",
+    "roiSubtitle": "基于自动化任务基线工时与实际执行量量化",
+    "hoursSavedTotal": "累计节省工时",
+    "hoursUnit": "小时",
+    "productivityValue": "预估生产力价值",
+    "tokenCostLine": "Token 成本 ${amount}",
+    "columnHoursSaved": "预估省时"
   },
   "heartbeat": {
     "title": "Agent 自动巡检",
@@ -7978,6 +8057,11 @@
     "replanRationaleRequired": "必须填写规划修订原因",
     "replanChangesList": "变更明细 Diff",
     "replanNoChanges": "没有提议的任务修改",
+    "replanActionAdd": "新增",
+    "replanActionUpdate": "更新",
+    "replanActionRemove": "移除",
+    "replanUntitled": "未命名",
+    "replanDependsOn": "依赖：{ids}",
     "replanInvariantGuaranteed": "已完成与审核中的任务处于严格只读保护状态，不会被篡改。提交时保证 DAG 无环。",
     "replanApply": "应用规划修订",
     "replanAppliedSuccess": "规划修订已成功原子应用",
@@ -9320,7 +9404,15 @@
     "imessageDeployGuideLocal": "本地 / 桌面端：直接连接 Mac 本机常开的 BlueBubbles 服务（如 http://localhost:1234）。",
     "imessageDeployGuideCloud": "云端部署：通过 Cloudflare Tunnel、Tailscale 或 Ngrok 安全连接自建的 Mac iMessage 网关。",
     "whatsappQrAlt": "WhatsApp 登录二维码",
-    "wechatQrAlt": "微信登录二维码"
+    "wechatQrAlt": "微信登录二维码",
+    "usageResetTooltip": "每日 00:00 UTC (北京时间 08:00) 自动刷新",
+    "todayUsageDisplay": "今日用量：{used} / {quota} 次",
+    "quotaExceeded": "已超额",
+    "groupTriggerRegionLabel": "当前群聊触发配置",
+    "editGlobalAria": "编辑全局配置",
+    "matrixProxyPlaceholder": "http://proxy:8080 或 socks5://proxy:1080",
+    "onebotTokenPlaceholder": "输入访问令牌",
+    "wechatBotIdLabel": "机器人 ID："
   },
   "voice": {
     "sectionTitle": "语音设置",
@@ -9792,14 +9884,17 @@
       "snapshotNone": "非 Git 仓库，无版本快照保护，操作不可撤销",
       "confirmPrompt": "请输入 CONFIRM 确认执行破坏性操作",
       "confirmButton": "确认执行破坏性操作",
-      "slideConfirm": "滑动以二次确认执行"
+      "slideConfirm": "滑动以二次确认执行",
+      "affectedTargets": "目标路径 / 影响对象：",
+      "confirmedReady": "已就绪"
     },
     "destructiveUndo": {
       "title": "破坏性操作已执行",
       "description": "工作区已发生重大变更。已为您创建安全影子快照，支持限时无损回滚。",
       "rollbackButton": "一键撤销并回滚快照",
       "rollbackSuccess": "工作区已成功回滚至破坏前状态",
-      "rollbackFailed": "回滚快照失败，请检查工作区状态"
+      "rollbackFailed": "回滚快照失败，请检查工作区状态",
+      "snapshotPointer": "快照指针：{id}"
     },
     "batchCostTitle": "批量任务费用确认",
     "batchCostDescription": "智能体即将派发多个子任务。请确认预估费用后再继续。",
@@ -9892,6 +9987,21 @@
       "droppedOnEdit": "因为命令已被修改，密码或密钥已移除。如仍需要，请重新填写。",
       "errorRejected": "请检查变量名和值后重试。",
       "errorUnavailable": "请稍后重试。"
+    },
+    "escalationTitle": "检测到敏感能力边界申请",
+    "escalationFallbackReason": "能力越界",
+    "escalationReasons": {
+      "symlink_creation": "创建符号链接 (Symlink)",
+      "network_egress": "外部网络连接 (Network Egress)",
+      "privilege_escalation": "系统提权操作 (Privilege Escalation)",
+      "permission_alteration": "修改文件权限 (Permission Change)",
+      "process_termination": "终止系统进程 (Process Termination)",
+      "system_administration": "系统管理与服务操作 (System Admin)",
+      "filesystem_destruction": "高危文件系统格式化 (Filesystem Modification)",
+      "raw_disk_write": "裸磁盘底层写入 (Raw Disk Write)",
+      "system_file_write": "系统敏感文件写入 (System File Write)",
+      "git_destructive_action": "Git 仓库破坏性重置/清理 (Git Destructive Action)",
+      "git_remote_sync": "Git 远程分支同步/推送 (Git Remote Push)"
     }
   },
   "notifications": {
@@ -9987,7 +10097,11 @@
     "budgetRemaining": "{dimension} — 剩余 ${remaining}",
     "subagentStaleDescription": "已 {minutes} 分钟无进展 · {tokens, number} tokens",
     "subagentStaleStats": "{minutes} 分钟 · {tokens, number} tokens",
-    "agentProfileRollbackSuccess": "已成功回滚智能体配置。"
+    "agentProfileRollbackSuccess": "已成功回滚智能体配置。",
+    "locatorHealedTitle": "自愈已触发",
+    "locatorHealedDescription": "智能体通过空间位置匹配自动修复了失效的定位器。",
+    "locatorHealedTarget": "目标",
+    "locatorHealedUnknownName": "未知"
   },
   "configConflict": {
     "title": "配置冲突检测",
@@ -10333,7 +10447,9 @@
         "wait0": "需要你",
         "wait1": "等你确认",
         "wait2": "轮到你了"
-      }
+      },
+      "voiceInterrupt": "打断语音",
+      "voiceInteraction": "语音交互"
     },
     "palette": {
       "title": "宠物面板",
@@ -10717,7 +10833,8 @@
       "confirmLabel": "输入保留的智能体名称以确认",
       "mergeSource": "归档（来源）",
       "planBindings": "将迁移的绑定",
-      "done": "完成"
+      "done": "完成",
+      "regionLabel": "智能体治理"
     },
     "readiness": {
       "dimensions": {
@@ -10795,7 +10912,12 @@
         "approved": "已批准",
         "rejected": "已拒绝",
         "applyFailed": "应用失败"
-      }
+      },
+      "forceRetryStarted": "已强制重试",
+      "forceRetryFailed": "强制重试失败",
+      "loadFailed": "加载进化拒绝审计日志失败",
+      "loadStatsFailed": "加载进化拒绝统计失败",
+      "retrying": "重试中…"
     }
   },
   "quarantineDialog": {
@@ -10844,7 +10966,15 @@
     "openReviewPanelAria": "打开审查面板",
     "reviewChanges": "审查变更",
     "closeReviewOverlayAria": "关闭审查",
-    "closeReviewPanelAria": "关闭审查面板"
+    "closeReviewPanelAria": "关闭审查面板",
+    "tooLargeBadge": "过大",
+    "tooLargeNotice": "文件过大，无法内联预览。请在工作区中打开后查看。",
+    "noTextChanges": "没有文本更改。",
+    "refreshDiffs": "刷新差异",
+    "searchFiles": "搜索文件",
+    "filterByStatus": "按状态筛选",
+    "filterAll": "全部",
+    "noFilesMatch": "没有文件匹配搜索条件。"
   },
   "growthDashboard": {
     "title": "成长仪表盘",
@@ -11349,7 +11479,8 @@
     "insightsSpawned": "已启动 {count} 个",
     "insightsAvgDuration": "平均耗时",
     "insightsTotalTokens": "Token 总量",
-    "insightsTotalCost": "总成本"
+    "insightsTotalCost": "总成本",
+    "waitingOnStage": "（等待 {stage}）"
   },
   "trajectoryDiff": {
     "title": "跨会话执行轨迹对比 (Cross-Session Trajectory Diff)",
@@ -11951,7 +12082,10 @@
       "captureTraceTruncatedNotice": "录制达到容量上限，已丢弃较早的 {count} 步交互。生成的技能可能缺少开头的步骤。",
       "captureUnavailableTitle": "采集不可用",
       "publishConflictNotice": "已存在名为「{name}」的技能。可用本次录制覆盖它，或取消后返回第一步换个名称。",
-      "replaceSkill": "覆盖技能"
+      "replaceSkill": "覆盖技能",
+      "workflowNamePlaceholder": "例如：月度报税流程",
+      "intentHintPlaceholder": "例如：读取 Excel 并同步到报税平台",
+      "deleteStep": "删除步骤"
     }
   },
   "followUps": {
@@ -11990,6 +12124,14 @@
       "deadline_check": "截止日期",
       "care_check_in": "关怀",
       "open_loop": "待跟进"
+    },
+    "dueWindow": {
+      "overdueHours": "逾期{count}小时",
+      "overdueDays": "逾期{count}天",
+      "underOneHour": "不到1小时",
+      "inHours": "{count}小时后",
+      "inDays": "{count}天后",
+      "overdueUnderOneHour": "逾期不到1小时"
     }
   },
   "Catchup": {
@@ -12143,40 +12285,13 @@
       "ready": "准备就绪"
     },
     "skipHint": "点击或按 ESC 跳过",
-    "backendSetupHint": "后端未启动。请在项目根目录运行 ./myrm setup，然后刷新页面。",
     "onboarding": {
-      "migrationTitle": "发现历史数据",
-      "migrationDescription": "我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？",
       "migrationCloudTitle": "从其他助手导入",
       "migrationCloudDescription": "上传导出包，将记忆与工作区偏好迁移到你的云端沙箱。",
       "instantStartTitle": "开箱即用体验",
       "instantStartDescription": "已为您预置通用助手、办公文档助手与代码智能体，零配置立即开启对话。",
       "instantStartButton": "即刻开启体验",
-      "customSetupButton": "高级配置向导",
       "skipStep": "跳过此步",
-      "capabilitiesTitle": "配置 AI 引擎",
-      "capabilitiesDescription": "连接本地大模型与联网搜索，实现开箱即用的 AI 体验。外部工具集成请前往设置 → 智能体 API 配置 Agent API。",
-      "syncFolder": {
-        "pageTitle": "关联笔记文件夹",
-        "pageDescription": "可选：将助手指向 Obsidian、Typora 或任意同步文档目录。",
-        "hint": "文件始终留在你的设备上，助手直接原地编辑，无需导入专用数据库。",
-        "chooseFolder": "选择文件夹",
-        "preparing": "准备中…",
-        "skip": "暂时跳过",
-        "defaultProjectName": "我的文件"
-      },
-      "noLocalModel": "未检测到本地大模型，您可以稍后在设置中手动配置 API Key。",
-      "configureLater": "稍后配置",
-      "searchReady": "已就绪",
-      "enterWorkspace": "进入工作区",
-      "cloudQuickStart": "云端模型快速开始",
-      "cloudQuickStartHint": "没有本地 GPU？还可以使用云端 AI 服务",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "含免费方案",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "国内友好，注册送额度",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "免费开源模型",
       "routing": {
         "pageTitle": "节省 API 费用",
         "pageDescription": "自动将简单任务交给轻量模型处理，质量不变，账单更低。",
@@ -12201,43 +12316,6 @@
         "skip": "跳过",
         "enable": "启用智能守卫"
       },
-      "telegramAssistant": {
-        "pageTitle": "连接 Telegram 助手",
-        "pageDescription": "通过向导一步完成个人 Telegram 助手初始化。",
-        "title": "Telegram 个人助手",
-        "description": "填写 Bot Token、设置助手档案后，即可在手机端直接开始对话。",
-        "safetyHint": "内置连通性校验与失败回滚保护",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "显示 Token",
-        "hideToken": "隐藏 Token",
-        "tokenRequired": "请先输入 Telegram Bot Token。",
-        "webhookLabel": "Webhook 地址（可选）",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "留空将使用轮询模式；如填写 webhook，必须使用 HTTPS。",
-        "webhookHttpsRequired": "Webhook 地址必须以 https:// 开头",
-        "assistantNameLabel": "助手名称",
-        "assistantDescriptionLabel": "助手描述（可选）",
-        "assistantDescriptionPlaceholder": "例如：你的日程管家与执行协作助手",
-        "defaultAssistantName": "Telegram 个人助手",
-        "setupButton": "完成 Telegram 助手配置",
-        "retryButton": "重试连接检测",
-        "continueButton": "先继续进入产品",
-        "skipButton": "暂时跳过",
-        "pendingTitle": "Telegram 已保存配置，连接仍在建立中",
-        "pendingDescription": "{botUsername} 可能还需要几秒钟才能可用。你可以先继续，或再次检测连接状态。",
-        "pendingToast": "配置已保存，Telegram 连接正在初始化。",
-        "retryingToast": "检测到配置正在处理中，正在自动重试...",
-        "inProgressFriendlyError": "配置仍在处理中，请稍后再试。",
-        "tokenRejectedError": "Telegram 不接受这个机器人令牌，请从 @BotFather 重新复制完整的令牌。",
-        "telegramUnreachableError": "当前设备无法连接 Telegram。请检查网络，或在下方填写代理后重试，也可以先跳过。",
-        "telegramUnreachableViaProxyError": "通过代理仍无法连接 Telegram。请确认代理已启动，或在下方改填其他代理地址后重试，也可以先跳过。",
-        "telegramUnreachableSandboxError": "暂时无法连接 Telegram。请稍后重试，或先跳过。",
-        "proxyRejectedError": "该代理地址无法使用。请填写本机或局域网内代理的地址，例如 socks5://127.0.0.1:1080。",
-        "setupFailed": "Telegram 助手配置失败。",
-        "setupFailedToast": "配置失败，请检查凭据后重试。",
-        "successToast": "Telegram 助手已就绪：{agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "连接你的日常工具",
         "pageDescription": "让助手直接访问你每天使用的服务，随时可在设置中添加更多。",
@@ -12252,31 +12330,9 @@
         "continueButton": "继续",
         "skipButton": "保持默认"
       },
-      "deploymentTitle": "你的助手运行在哪里？",
-      "deploymentDescription": "使用本机、连接远端服务器，或使用云托管，随时可以在设置中更改。",
       "doctorTitle": "快速自检",
       "doctorDescription": "我们检查了最常挡住首次使用的三件事，标红的可一键修复，也可稍后处理。",
       "doctorContinueButton": "继续",
-      "powerStack": {
-        "title": "已经在为别的 AI 工具付费？",
-        "description": "留着它们。在各自擅长处使用，让 Myrm 负责编排其余工作。价格以定价页为准，这里不猜。",
-        "pricingLink": "查看真实价格",
-        "columns": {
-          "external": {
-            "title": "编码工具照常用",
-            "description": "日常编码继续用 Cursor、Devin 或 Claude Code，编排、定时与跨渠道工作交给 Myrm。"
-          },
-          "orchestrator": {
-            "title": "Myrm 负责编排",
-            "description": "一个智能体配置驱动对话、定时任务与各渠道，记忆共享，不用反复交代背景。"
-          },
-          "local": {
-            "title": "免费本地档",
-            "description": "草稿与分流用免费本地模型跑，重活再上云。"
-          }
-        },
-        "setupGuideLink": "安装指南"
-      },
       "doctor": {
         "fix": "去修复",
         "allClear": "三项检查全部通过，可以开始了。",
@@ -12300,9 +12356,7 @@
             "failHint": "额度已用完。",
             "pendingHint": "正在检查额度…"
           }
-        },
-        "contextRemote": "你选择了远端服务器，在设置中完成连接后，这些检查将面向它。",
-        "contextCloud": "你选择了云托管，在设置中完成连接后，这些检查将面向你的沙箱。"
+        }
       }
     }
   },
@@ -12365,7 +12419,8 @@
     "inlineRouteTemplateNoResults": "未找到匹配的专家模板",
     "inlineRouteTemplateEmpty": "暂无可用专家模板",
     "inlineRouteTemplateApplyFailed": "召唤专家模板失败",
-    "appshotAlt": "已捕获的应用截图"
+    "appshotAlt": "已捕获的应用截图",
+    "captureAlt": "屏幕截图"
   },
   "billing": {
     "wuBalance": "工作单元",
@@ -12506,7 +12561,8 @@
           "feature2": "8C 沙箱 + 更长活跃时间"
         }
       }
-    }
+    },
+    "baseAllowance": "基础额度"
   },
   "connectWizard": {
     "title": "连接外部智能体",
@@ -12745,7 +12801,11 @@
         "trust": "信任并关联",
         "mcpServers": "本地 MCP 服务",
         "plugins": "本地插件"
-      }
+      },
+      "adoptProjectName": "项目名称",
+      "adoptCancel": "取消",
+      "adoptSubmitting": "正在接纳...",
+      "adoptSubmit": "立即接纳项目"
     },
     "workspaceTrust": {
       "trusted": "已信任此工作区，扩展与工具已完全启用。",
@@ -13409,7 +13469,14 @@
     "consoleDrawerTitle": "控制台与服务日志",
     "consoleDrawerEmpty": "暂无更多服务输出",
     "sniffTrigger": "自动嗅探服务",
-    "sniffSuccess": "已成功捕获并注册服务端口"
+    "sniffSuccess": "已成功捕获并注册服务端口",
+    "previewTitle": "{name} 实时预览",
+    "consoleStarted": "[{time}] 服务已在端口 {port} 启动 ({protocol})",
+    "consoleReady": "> 就绪：{url}",
+    "consoleProcess": "> 进程 PID：{pid} | 进程：{name}",
+    "previewPort": "预览端口 {port}",
+    "barPortsCount": "{count} 个端口",
+    "barLabel": "开发端口"
   },
   "toolPicker": {
     "menuLabel": "工具选择",
@@ -13463,7 +13530,17 @@
     "nextSlide": "下一页",
     "slideCounter": "第 {current} / {total} 页",
     "speakerNotes": "演讲者备注",
-    "noSpeakerNotes": "暂无备注"
+    "noSpeakerNotes": "暂无备注",
+    "newPresentation": "+ 新建演示文稿",
+    "enterpriseBadge": "P0 · 企业级 PPTX",
+    "illustrationsHint": "多模态视觉概念与版式",
+    "slideVisualConcept": "视觉概念",
+    "slideVisualPlaceholder": "多模态架构图",
+    "slideConfidentialFooter": "机密 · 企业演示稿",
+    "slidePage": "第 {page} 页",
+    "slideAriaLabel": "幻灯片 {number}：{title}",
+    "slideThumbnails": "幻灯片缩略图",
+    "goToSlide": "跳转到第 {number} 页：{title}"
   },
   "spreadsheet": {
     "viewerTitle": "出版级高颜值电子表格看板",
@@ -13559,15 +13636,6 @@
     "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。",
     "briefLearnedInPrefix": "本回复的记忆前缀已包含学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。"
   },
-  "memoryRecallDegraded": {
-    "title": "语义召回不可用",
-    "description": "向量检索已降级，回复可能遗漏相关记忆，请检查 embedding 配置。",
-    "actionDoctor": "打开 Memory Doctor",
-    "actionSettings": "记忆设置",
-    "unavailable": "无法检查记忆召回健康状态",
-    "retry": "重试",
-    "dismiss": "本会话不再提示"
-  },
   "e2ee": {
     "secured": "端到端加密",
     "handshakeFailed": "加密建立失败",
@@ -13580,7 +13648,14 @@
     "switchToTable": "切换为表格视图",
     "switchToCard": "切换为卡片视图",
     "tableView": "表格",
-    "cardView": "卡片"
+    "cardView": "卡片",
+    "expandLightbox": "展开全景表格",
+    "expandLightboxShort": "全景",
+    "lightboxLabel": "全景表格预览",
+    "lightboxTitle": "全景表格视图",
+    "columnCount": "{count} 列",
+    "closePreview": "关闭预览",
+    "closePreviewBackdrop": "关闭预览背景"
   },
   "messageBox": {
     "consensusActive": "等待其余模型…",
@@ -13942,7 +14017,11 @@
     "activeTaskLabel": "当前正在推进的任务",
     "lastActiveLabel": "最后活跃时间",
     "cancelAction": "关闭",
-    "jumpInAction": "跳入会话现场"
+    "jumpInAction": "跳入会话现场",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "zoomReset": "重置缩放",
+    "defaultProject": "默认项目"
   },
   "workbench": {
     "workbenchAriaLabel": "辅助工作台",
@@ -14000,14 +14079,16 @@
       "emptyMessages": "此记忆结晶未保留原始消息快照",
       "originalRoleUser": "用户提问",
       "originalRoleAssistant": "Agent 执行",
-      "originalRoleTool": "工具调用"
+      "originalRoleTool": "工具调用",
+      "ariaLabel": "只读对话记录回溯"
     },
     "branchSummary": {
       "inheritedBadge": "跨分支经验飞线",
       "sourceBranchLabel": "继承自分支",
       "keyTakeawaysTitle": "衍生核心认知与探索经验",
       "warpToSource": "穿梭回源分支",
-      "forkIndicator": "从节点分叉"
+      "forkIndicator": "从节点分叉",
+      "ariaLabel": "跨分支经验卡片"
     },
     "anchors": {
       "title": "已验证锚点",
@@ -14400,7 +14481,11 @@
       "commerce": "电商运营",
       "team": "多智能体小队",
       "general": "通用助手"
-    }
+    },
+    "refresh": "刷新模板",
+    "membersCount": "{count} 位成员",
+    "zeroPromptReady": "零提示词就绪",
+    "sandboxReady": "沙箱已就绪"
   },
   "commandMatrix": {
     "allCategories": "全部分类",
@@ -14531,37 +14616,6 @@
     "collapseStep": "收起步骤",
     "expandStep": "展开步骤"
   },
-  "quadGraph": {
-    "closeDrawer": "关闭节点详情",
-    "completedCount": "{count} 个已完成",
-    "dependenciesCount": "依赖数",
-    "drawerAriaLabel": "节点检查面板",
-    "duration": "耗时",
-    "edgesCount": "{count} 条连线",
-    "inputSnapshot": "输入快照",
-    "layerType": "层级",
-    "liveSteerCockpit": "实时引导",
-    "noInputSnapshot": "未记录输入",
-    "noNodesInLayer": "此层级没有节点",
-    "noOutputSnapshot": "未记录输出",
-    "nodesCount": "{count} 个节点",
-    "outputReceipt": "输出回执",
-    "pauseNode": "暂停节点",
-    "resetZoom": "重置缩放",
-    "resumeNode": "恢复节点",
-    "retryNode": "重试节点",
-    "role": "角色",
-    "runningCount": "{count} 个运行中",
-    "steerPlaceholder": "向该节点发送引导指令",
-    "submitSteer": "发送引导指令",
-    "viewportSwitcherAria": "切换图视口",
-    "zoomIn": "放大",
-    "zoomOut": "缩小",
-    "layerTask": "任务全景 (Task)",
-    "layerWorkflow": "算子流道 (Workflow)",
-    "layerTeam": "专家团队 (Team)",
-    "layerCommunication": "即时通信 (Comm)"
-  },
   "externalLinkConfirm": {
     "title": "要在浏览器中打开这个链接吗？",
     "descriptionNamed": "「{source}」想在浏览器中打开下面的地址。只有在你信任它时才继续。",
@@ -14597,8 +14651,8 @@
     "wizard": {
       "title": "外部渠道可视化配对向导",
       "modelAgnosticBadge": "模型无关解耦 · 零命令确定性配对",
-      "antiWorkbuddyNote": "扫码即可连通，无需手敲命令",
-      "antiWorkbuddyDesc": "无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。",
+      "noCommandNote": "扫码即可连通，无需手敲命令",
+      "noCommandDesc": "无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。",
       "waitingScan": "请使用对应客户端扫描上方动态二维码...",
       "sessionExpiry": "凭证有效时长: 300 秒",
       "bindingSuccess": "渠道鉴权与 Token 绑定成功！",
@@ -14710,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot Mode 多 Agent 协同群聊工作区",
-    "hermesParity": "支持智能体机器人模式与点对点私信",
+    "botModeSummary": "支持智能体机器人模式与点对点私信",
     "roomsTitle": "协同工作频道",
     "createRoom": "创建新房间",
     "roomNamePlaceholder": "房间名称 (如: 架构战情室)",
@@ -14784,33 +14838,6 @@
     "close": "完成",
     "emptyCluster": "暂未接入任何自托管节点，点击右上角按钮快速接入您的第一台机器"
   },
-  "memoryRecall": {
-    "drawerTitle": "记忆与经验召回模拟沙盒",
-    "drawerSubtitle": "对标 EvoX 召回测试与治理中心，透明化验证任意 Prompt 的多路命中与现场二次治理",
-    "queryInputPlaceholder": "输入测试提示词或任务指令 (例如: 排查 Linux 内核死锁、React 频繁重绘)...",
-    "simulateBtn": "模拟召回",
-    "simulatingBtn": "检索中...",
-    "totalMatched": "命中记忆数",
-    "latency": "检索延迟",
-    "rrfScore": "RRF 融合分",
-    "bm25Score": "BM25 词法",
-    "vectorSim": "向量语义",
-    "causalAffinity": "因果基因",
-    "confidenceWeight": "置信度权重",
-    "mustAvoidTrap": "强负向避坑基因",
-    "normalGene": "普通正向经验",
-    "statusActive": "已激活",
-    "statusDisabled": "已禁用",
-    "statusLocked": "已锁定",
-    "lockBtn": "锁定",
-    "unlockBtn": "解锁",
-    "disableBtn": "禁用",
-    "enableBtn": "启用",
-    "mergeDuplicateBtn": "合并相似项",
-    "mergePrompt": "请输入要合并的目标记忆 ID",
-    "emptyResults": "未检索到匹配的记忆或经验基因，请尝试其他查询",
-    "close": "关闭"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "语音暂存审查",
@@ -14861,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "运行时控制台与多端状态投影中枢",
-    "mateclawParity": "实时呈现运行状态与事件",
+    "liveStateSummary": "实时呈现运行状态与事件",
     "surfaces": {
       "chat": "Chat 对话视图",
       "runtimeConsole": "Runtime Console 控制台",
@@ -15016,7 +15043,19 @@
       "setupGuideTitle": "快速上手（桌面客户端）",
       "setupGuideStep1": "在上方授予「输入控制」与「屏幕捕获」，并点击「含屏幕捕获的重新检测」。",
       "screenLockGuardLocked": "已锁定",
-      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。"
+      "setupGuideStep3": "在智能体配置中启用「桌面控制」，并在对话中完成首次应用审批。",
+      "lockedUseDoctorBadgeLoading": "检测中…",
+      "lockedUseDoctorUnavailable": "未检测",
+      "lockedUseDoctorWarn": "需注意",
+      "lockedUseDoctorFail": "不可用",
+      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面应用",
+      "lockedUseDoctorBadgeAwayOn": "离席模式已开启",
+      "lockedUseDoctorBadgeBridgeReady": "壳已连接",
+      "lockedUseDoctorDetailNotMac": "离席模式与防窥帷幕需在 macOS 上使用 Myrm 桌面应用。",
+      "lockedUseDoctorDetailAwayOff": "桌面壳已就绪。需要无人值守时在上方开启 Locked Use，Agent 会在帷幕下代解锁。",
+      "lockedUseDoctorDetailBridgeMissing": "请在本机启动 Myrm 桌面应用，以便离席模式与桌面壳协同。",
+      "lockedUseDoctorDetailShellUnavailable": "请重启 Myrm 桌面应用，并在设置中检查离席模式与防窥帷幕。",
+      "lockedUseDoctorDetailGeneric": "离席模式或防窥帷幕尚未就绪，请打开系统设置或重启桌面应用。"
     },
     "rate_limits": {
       "title": "速率限制监控",
@@ -15108,7 +15147,9 @@
         "integration": "通信与集成",
         "system": "系统与安全"
       },
-      "brand-studio": "品牌风格"
+      "brand-studio": "品牌风格",
+      "clearSearch": "清除搜索",
+      "matchedLabel": "匹配："
     },
     "workbench": {
       "badge": "资产留存 & 平台中立",
@@ -15196,7 +15237,21 @@
         "profilingStartNetworkError": "启动内存剖析时网络出错",
         "profilingStopped": "内存剖析已停止，结果已就绪。",
         "profilingStopFailed": "停止内存剖析失败",
-        "profilingStopNetworkError": "停止内存剖析时网络出错"
+        "profilingStopNetworkError": "停止内存剖析时网络出错",
+        "title": "内存与性能分析",
+        "stopProfiling": "停止分析",
+        "startProfiling": "开始堆内存分析",
+        "loadingHistory": "正在加载内存历史...",
+        "noHistory": "暂无内存历史数据。",
+        "profilingActiveTitle": "堆内存分析进行中",
+        "profilingActiveBody": "系统正在跟踪所有 Python 内存分配，可能带来 10%–20% 的性能开销。点击「停止分析」查看结果。",
+        "topAllocations": "内存分配排行",
+        "colFile": "文件",
+        "colLine": "行",
+        "colSizeKb": "大小 (KB)",
+        "colCount": "次数",
+        "seriesRss": "总 RSS (MB)",
+        "seriesNative": "原生内存估算 (MB)"
       }
     },
     "commands": {
@@ -16355,7 +16410,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "内部子智能体",
-        "invoke_external_agent": "外部 CLI 智能体"
+        "invoke_external_agent": "外部 CLI 智能体",
+        "web_search_tool": "搜索引擎",
+        "net_fetch": "读取网页",
+        "shell_exec": "运行中的进程",
+        "file_read": "读取文件",
+        "file_write": "写入文件",
+        "mcp_invoke": "外部工具",
+        "code_interpreter": "命令与代码",
+        "browser_navigate": "浏览器导航",
+        "browser_fill": "浏览器填写表单",
+        "browser_upload": "浏览器上传",
+        "browser_download": "浏览器下载",
+        "browser_session": "浏览器会话",
+        "knowledge_read": "读取知识库",
+        "knowledge_write": "写入知识库"
       },
       "leastPrivilege": {
         "antiPatternTitle": "为何拒绝「完全访问」",
@@ -16390,7 +16459,12 @@
       "permittedSummary": "放行 {permitted} 次",
       "recentAuditTrail": "近期执行审计日志",
       "loadingEntries": "正在加载审计条目...",
-      "noEntriesYet": "暂无审计记录"
+      "noEntriesYet": "暂无审计记录",
+      "viewDetails": "查看条目详情",
+      "detailRule": "规则：",
+      "detailSessionId": "会话 ID：",
+      "detailReason": "错误/原因：",
+      "detailArgs": "脱敏参数："
     },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
@@ -16808,7 +16882,8 @@
         "agenticTooltip": "自动生成的 64K 上下文 modelfile，满足生产级工具调用与长期记忆需求",
         "keepAliveTipTitle": "全天候常驻与显存释放指南",
         "keepAliveTipDesc": "将模型保留在显存中以支持全天候后台机器人，或在重负载任务时释放显存。",
-        "downloadFailed": "下载失败"
+        "downloadFailed": "下载失败",
+        "fitScore": "适配得分："
       },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",
@@ -16852,7 +16927,10 @@
           "disconnected": "已断开 SuperGrok 订阅登录",
           "disconnectFailed": "断开失败"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... 或 op://vault/item/field 或 bw://item",
+      "poolStatsCollapse": "收起",
+      "poolStatsExpand": "展开"
     },
     "defaultModel": {
       "localModelWarning": "本地轻量模型在处理复杂 Agent 工具链时极易产生幻觉或陷入死循环。执行长任务建议使用 30B 以上规模模型或云端高阶模型（如 Claude 3.5 Sonnet）。",
@@ -17277,7 +17355,11 @@
       "xaiOauthCodeHint": "请在浏览器中输入此验证码完成授权...",
       "xaiOauthReopen": "重新打开授权页面",
       "xaiOauthWaiting": "等待授权...",
-      "xaiOauthConnectBtn": "授权 SuperGrok"
+      "xaiOauthConnectBtn": "授权 SuperGrok",
+      "oauthExpiredNotice": "当前凭证已失效（可能在三方平台被吊销或到期）。请点击一键修复重新授权，以恢复该服务。",
+      "oauthFixNow": "一键修复",
+      "fileInputLabel": "凭证文件输入",
+      "clearSyncedMemory": "同时清除已同步的记忆数据（{count} 个数据源）"
     },
     "skillQuality": {
       "title": "技能质量管理",
@@ -18024,7 +18106,19 @@
       },
       "editor": {
         "edit": "编辑",
-        "preview": "预览"
+        "preview": "预览",
+        "snippets": {
+          "bold": "粗体文本",
+          "italic": "斜体文本",
+          "heading": "二级标题",
+          "code": "代码",
+          "quote": "引用文本",
+          "bullet": "列表项",
+          "todo": "待办任务",
+          "wikilink": "页面名称",
+          "tableHeader": "标题 {index}",
+          "tableCell": "内容 {index}"
+        }
       },
       "concepts": {
         "discard": "放弃",
@@ -18356,10 +18450,77 @@
         "empty": "请输入复盘内容",
         "error": "提交失败，请稍后重试"
       },
-      "reviewSlip": {
-        "fetchFailed": "获取审阅单失败",
-        "applied": "选择性回写完成：已沉淀 {committed} 项，跳过 {discarded} 项",
-        "applyFailed": "应用选择性回写失败"
+      "ledger": {
+        "title": "五层知识资产全局态势",
+        "description": "物理分层隔离事实与假说。",
+        "refreshStats": "刷新统计",
+        "viewLayerItems": "查看 {title} 词条清单",
+        "archivedItems": "已归档条目",
+        "drawerTitle": "{title} · 归档词条清单",
+        "itemCount": "{count} 篇",
+        "closeDrawer": "关闭词条清单",
+        "loadingItems": "正在加载该层文档清单...",
+        "emptyItems": "当前层级暂无已归档的 Markdown 词条。",
+        "previewItem": "预览词条 {title}",
+        "noSnippet": "暂无正文摘要",
+        "justNow": "刚刚",
+        "quickPreview": "快速预览",
+        "layers": {
+          "l1": {
+            "title": "原始输入与候选池",
+            "subtext": "原始资料与收件箱",
+            "badge": "原始存证",
+            "description": "未处理的网页快照、会议录音与瞬态草稿，严格不参与长期检索。"
+          },
+          "l2": {
+            "title": "来源凭证卡",
+            "subtext": "Sources (身份证)",
+            "badge": "证据来源",
+            "description": "带有权威度与 SHA256 签名的来源身份卡，所有事实知识的追溯基石。"
+          },
+          "l3": {
+            "title": "核心知识体系",
+            "subtext": "概念与方法",
+            "badge": "高可信真理",
+            "description": "客观事实、原子概念与工程方法论，通过 Draft-to-Live 严格门禁。"
+          },
+          "l4": {
+            "title": "观点与主张",
+            "subtext": "Claims (待验证)",
+            "badge": "主观推断",
+            "description": "带置信度与辩论记录的假说，与客观事实强行隔离，避免污染真理。"
+          },
+          "l5": {
+            "title": "交付物",
+            "subtext": "交付物",
+            "badge": "最终产出",
+            "description": "任务最终产出的交付物。"
+          }
+        },
+        "preview": {
+          "ariaLabel": "词条文档预览",
+          "updatedAt": "更新时间：{value}",
+          "storageLayer": "存储分层：{value}",
+          "pathCopied": "已复制路径",
+          "copyPath": "复制相对路径",
+          "openInEditor": "在 Wiki 编辑器中打开",
+          "close": "关闭预览"
+        }
+      },
+      "toolbar": {
+        "label": "Wiki Markdown 工具栏",
+        "bold": "加粗",
+        "italic": "斜体",
+        "h2": "二级标题",
+        "code": "代码块",
+        "quote": "引用",
+        "bullet": "无序列表",
+        "todo": "待办任务",
+        "wikilink": "Wiki 双链",
+        "table": "插入表格"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "时间戳快速导航"
       }
     },
     "skills": {
@@ -18691,7 +18852,8 @@
         "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。之后可在技能详情页撤销此次更新。",
         "confirmAction": "继续",
         "cancelAction": "取消",
-        "export": "导出"
+        "export": "导出",
+        "apiKeyLabel": "API 密钥"
       },
       "curator": {
         "safetyPromise": "技能绝不会被自动删除。最坏情况仅为归档，您可以随时一键恢复。",
@@ -20645,7 +20807,8 @@
           "e2eeAlgorithm": "算法",
           "e2eeFingerprint": "指纹"
         },
-        "copied": "已复制到剪贴板"
+        "copied": "已复制到剪贴板",
+        "refreshTailscaleStatus": "刷新 Tailscale 状态"
       },
       "push": {
         "deniedHint": "通知已被阻止。请在浏览器设置中启用。",
@@ -20755,7 +20918,10 @@
         "guideTitle": "离席用电脑 · 快速设置",
         "statusOn": "已开启",
         "statusOptional": "可选"
-      }
+      },
+      "timezoneNoResults": "无结果",
+      "timezoneSearchPlaceholder": "搜索时区...",
+      "timezonePopular": "常用"
     },
     "push": {
       "title": "通知",
@@ -21170,7 +21336,10 @@
       "cacheRadarSavings": "累计节约美金:",
       "cacheRadarCachedTokens": "缓存复用 Tokens",
       "cacheRadarFreshInput": "冷启动 Tokens",
-      "cacheRadarTotalPrompt": "总 Prompt Tokens"
+      "cacheRadarTotalPrompt": "总 Prompt Tokens",
+      "dailyToolCallsTooltip": "{date}：{count} 次工具调用",
+      "weekdayToolCallsTooltip": "{day}：{count} 次工具调用",
+      "daysCount": "{count} 天"
     },
     "workingState": {
       "title": "工作状态",
@@ -21257,7 +21426,13 @@
       "digestWindowModeUnknown": "最近窗口",
       "digestWindow": "摘要窗口：{range}",
       "digestRuns": "运行次数",
-      "digestManualRuns": "手动次数"
+      "digestManualRuns": "手动次数",
+      "dimension": {
+        "freshness": "新鲜度",
+        "coverage": "覆盖度",
+        "retention_health": "留存健康度",
+        "coherence": "一致性"
+      }
     },
     "memoryBackup": {
       "title": "记忆备份",
@@ -21595,7 +21770,25 @@
         "searchPlaceholder": "按任务内容或标题搜索 Trace...",
         "exportZip": "导出轨迹 (ZIP)",
         "exportZipTooltip": "导出会话原始事件日志与工件 ZIP 归档包",
-        "exportZipFailed": "导出会话包失败"
+        "exportZipFailed": "导出会话包失败",
+        "llmUnknownModel": "未知模型",
+        "llmRetry": "重试 ×{count}",
+        "llmTokens": "{count} 个 token",
+        "llmNetworkWaitTitle": "网络等待 (TTFT)：{ms}ms",
+        "llmGenerationTitle": "Token 生成：{ms}ms",
+        "llmTtft": "TTFT：{ms}ms",
+        "llmGeneration": "生成：{ms}ms",
+        "llmPrompt": "提示词：{count}",
+        "llmCompletion": "补全：{count}",
+        "llmMessages": "消息：{count}",
+        "llmViewportInspect": "模型视口（查看）",
+        "llmViewportHide": "模型视口（收起）",
+        "experienceWizardTitle": "生成项目经验六步证据包向导",
+        "experienceWizardButton": "经验向导",
+        "pluginStateTitle": "插件扩展状态",
+        "protectedSpan": "受保护的跨度",
+        "retryAttempt": "第 {attempt} 次尝试（服务商退避 / 已重试）",
+        "toolSpanLabel": "工具"
       },
       "contextDoctor": {
         "title": "上下文体检（Token 热点与成本审计）",
@@ -21756,7 +21949,10 @@
       "amount": "金额",
       "status": "状态",
       "time": "时间",
-      "verifiedReceipt": "HMAC 防篡改签名已验证"
+      "verifiedReceipt": "HMAC 防篡改签名已验证",
+      "entryHashLabel": "条目哈希：",
+      "entryHashPending": "待生成 / 不适用",
+      "idempotencyKeyLabel": "幂等键："
     },
     "channelBudget": {
       "title": "频道预算配额",
@@ -22289,7 +22485,9 @@
           "trustRiskHint": "不可信的恶意扩展可能包含提示注入指令，诱导智能体在后台越权调用工具窃取敏感配置或执行恶意脚本。请务必确认包文件来源安全可信。",
           "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装",
           "skillsNotSupported": "当前环境不支持自定义技能 — 已自动跳过",
-          "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过"
+          "stdioNotAllowed": "当前环境无法运行本地进程类 MCP 服务器 — 已自动跳过",
+          "sourceCloudSandbox": "云端沙箱",
+          "sourceLocalOs": "本机系统权限"
         },
         "diagnostics": {
           "scope": {
@@ -22517,7 +22715,8 @@
       "tierProd": "生产环境",
       "tierStaging": "预发环境",
       "tierDev": "开发环境",
-      "probeFailed": "探测 {host} 失败：{message}"
+      "probeFailed": "探测 {host} 失败：{message}",
+      "breakGlassCommandPlaceholder": "例如：systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "屏幕审批高亮 — 在真实显示器上对点击目标显示红框（macOS 与 Windows）",
@@ -22673,5 +22872,141 @@
     "pinTooltip": "固定到工作台 Dashboard",
     "pinned": "已固定",
     "pin": "固定"
+  },
+  "taskHud": {
+    "panelLabel": "抗压缩会话任务执行状态悬浮看板",
+    "allDone": "所有任务已完成",
+    "badge": "抗压缩",
+    "collapseAria": "收起任务清单",
+    "collapse": "收起清单",
+    "expand": "展开任务清单",
+    "toggleTask": "切换任务 {title} 状态"
+  },
+  "stagedArtifacts": {
+    "summary": "已自动暂存 {count} 个未落盘工件草案至工作区",
+    "lineCount": "{count} 行",
+    "footnote": "这些文件已保全在沙箱环境，您可随时在左侧文件树中查看或重命名采纳。"
+  },
+  "leaseCapsule": {
+    "quota": "免打扰配额: {used}/{max} 步",
+    "extend": "+{steps} 步续期",
+    "limitReached": "已达上限",
+    "pauseTitle": "紧急暂停免打扰包络",
+    "pause": "暂停"
+  },
+  "embeds": {
+    "load": "加载 {label}",
+    "moreOptions": "更多选项",
+    "alwaysAllow": "始终允许 {label}",
+    "loadFailed": "{label} 嵌入内容加载失败"
+  },
+  "skeleton": {
+    "loadingList": "正在加载列表",
+    "loadingCards": "正在加载卡片",
+    "loadingTable": "正在加载表格",
+    "loadingForm": "正在加载表单",
+    "loadingWorkspace": "正在加载工作区",
+    "loadingMetrics": "正在加载指标",
+    "loadingTimeline": "正在加载时间线"
+  },
+  "diffViewer": {
+    "unknownFile": "未知文件",
+    "splitView": "分栏视图",
+    "unifiedView": "统一视图",
+    "copyDiff": "复制差异",
+    "close": "关闭",
+    "binaryChanged": "二进制文件已更改",
+    "noChanges": "无更改"
+  },
+  "riskGate": {
+    "regionLabel": "分级风险确认",
+    "dryRunImpact": "以 dry_run=true 模拟执行 {tool}",
+    "dryRunDefaultTarget": "目标对象",
+    "dryRunParamsVerified": "参数校验通过（{count} 个字段）",
+    "dryRunNoPersistentChanges": "未对文件系统或数据库做任何持久化修改"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "已支付并核验",
+    "statusReserved": "已预留",
+    "statusRefunded": "已退款",
+    "statusRejected": "已拦截",
+    "hashVerified": "账本哈希已通过 HMAC 校验"
+  },
+  "evidencePack": {
+    "modalTitle": "项目实战六步经验向导",
+    "copyMarkdownTitle": "复制 Markdown",
+    "copied": "已复制",
+    "copyShort": "复制 MD",
+    "downloadMarkdownTitle": "下载 Markdown",
+    "exportMarkdown": "导出 Markdown",
+    "downloadJsonTitle": "下载 JSON",
+    "facts": "关键事实与实证记录：",
+    "previous": "上一步",
+    "next": "下一步",
+    "stepCounter": "步骤 {current} / {total}",
+    "untitledTask": "未命名项目任务",
+    "noTextInput": "无显式文本输入",
+    "planningDetected": "识别到 {count} 次架构与规划决策阶段调度",
+    "planningNodeFallback": "规划节点",
+    "directExecution": "遵循端到端直连执行与敏捷响应模式",
+    "firstWrite": "首次物料落地动作：[{tool}]（序列 #{sequence}）",
+    "targetFile": "目标文件：{path}",
+    "noFileChanges": "未检测到静态文件修改或为纯会话交互任务",
+    "executionSummary": "总工具调用 {total} 次，其中异常拦截/修复 {failed} 次",
+    "errorRecord": "[异常记录] {type}: {message}",
+    "selfHealPoint": "[自愈点] {tool} 失败后触发重试或策略自适应",
+    "verificationSummary": "执行了 {count} 次验证/测试动作，通过率 {rate}%",
+    "verificationRun": "[实证执行] {tool}: {result}",
+    "resultPassed": "通过",
+    "resultFailed": "失败",
+    "verificationInferred": "完成基于语义一致性与任务结束门禁的推导验证",
+    "takeawayClosedLoop": "任务完整闭环，各阶段决策与实证对齐良好",
+    "takeawayExtractSkill": "建议将本次沉淀的稳定 SOP 提取为专用技能或自动化模板",
+    "takeawayNotSuccess": "任务状态为 {outcome}，需重点关注中断或首个不可逆错误",
+    "takeawayFirstFatal": "首个致命异常位于步骤索引 #{index}",
+    "metricTotalCalls": "总调用",
+    "metricFailures": "异常数",
+    "steps": {
+      "requirements": {
+        "title": "原始需求输入",
+        "shortTitle": "原始需求",
+        "summary": "原始任务目标、业务背景与约束输入"
+      },
+      "architecture": {
+        "title": "架构与方案决策",
+        "shortTitle": "架构决策",
+        "summary": "技术路径选型、计划分解与依赖关系"
+      },
+      "initial_impl": {
+        "title": "v0 首稿实现快照",
+        "shortTitle": "v0 首稿",
+        "summary": "首次代码/物料产出与初始方案形态"
+      },
+      "execution_correction": {
+        "title": "执行演进与自愈纠错",
+        "shortTitle": "执行纠错",
+        "summary": "工具调用流水、报错排查与纠偏证据"
+      },
+      "verification": {
+        "title": "客观验证与测试实证",
+        "shortTitle": "验证实证",
+        "summary": "测试用例、静态检查与环境实测数据"
+      },
+      "takeaways": {
+        "title": "经验沉淀与防退化要点",
+        "shortTitle": "经验沉淀",
+        "summary": "复盘总结、最佳实践与沉淀建议"
+      }
+    },
+    "markdownHeading": "项目实战六步经验证据包：{title}",
+    "markdownSessionId": "会话 ID",
+    "markdownOutcome": "执行结果",
+    "markdownDuration": "耗时",
+    "markdownTokens": "Token 消耗",
+    "markdownToolCalls": "工具调用",
+    "markdownGeneratedAt": "生成时间",
+    "markdownStepHeading": "步骤 {index}：{title}",
+    "markdownMetrics": "关键度量",
+    "markdownFooter": "由项目经验六步向导自动聚合生成"
   }
 }

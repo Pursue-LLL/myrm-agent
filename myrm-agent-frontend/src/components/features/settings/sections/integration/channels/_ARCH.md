@@ -20,11 +20,13 @@
 | `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                                                             |
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx`                             | 连接状态、Ingress 提示                                                                                                                                     |
 | `PairingManager.tsx`                                                          | 外部渠道配对审批管理容器（数据获取、状态更新、角色切换与配额管理回调编排）                                                                                 |
-| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除）                                                                   |
+| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除；今日用量、超额徽标与刷新提示取自 `channels.todayUsageDisplay` 等键）                                                                   |
 | `PairingForm.tsx`                                                             | 新增配对表单（Channel/Sender ID 输入、角色选择与每日调用上限配置）                                                                                         |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota；`useChannelConfig` 的连接测试失败时，服务端 `reason` 在 `channels.testReasons` 有文案就显示它，否则显示服务端消息）                                                                                     |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
+| `WeChatAccountCard.tsx`                                                       | 微信单账号卡片：登录 / 重扫二维码、连接状态、行内改名与删除确认；翻译函数由父级传入，Bot ID 标签与状态文案均取自 `channels` |
+| `ChannelPolicyOverride.tsx`                                                   | 单个渠道对全局 DM 策略与群组策略的覆盖（可选择继承全局），只读展示当前全局群触发方式并提供「编辑全局」入口，内嵌该渠道的配对管理；摘要区与入口的标签取自翻译键 |
 | `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                                                     |
 | `WeChatTroubleshootGuide.tsx`                                                 | 个人微信装死/无响应 Art146 结构化排查面板（4 步自查诊断、状态刷新、重扫登录、诊断报告一键脱敏复制）                                                        |
 | `FeishuQrRegisterDialog.tsx`                                                  | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫）                                                             |
@@ -39,13 +41,15 @@
 - `__tests__/issueMessages.test.ts` — 诊断消息到本地化键的映射：Telegram 的错误、令牌被拒与 Bot API 不可达（及其修复提示）、轮询降级、HTTPS 与 webhook 配置失败消息各得其键，webhook 配置失败不被通用降级抢先，前缀型模式保留后半段，未知消息原样返回，表内每个键在 `channels.issues` 有文案
 - `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文（如德语）不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
-- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
+- `__tests__/ChannelConfigCards.placeholders.test.tsx` — Matrix 代理与 OneBot 令牌输入框的占位提示走 `channels` 本地化文案
+- `__tests__/ChannelPolicyOverride.test.tsx` — 群触发摘要区与「编辑全局」入口的无障碍标签走本地化文案
+- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片已连接账号的 Bot ID 标签走本地化文案；删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
 - `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转
 - `__tests__/WeChatTroubleshootGuide.test.tsx` — Art146 假死排障指南展开、4步清单、状态刷新、重扫登录与诊断报告复制
 - 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
-- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
+- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互、今日用量与超额文案断言）
 - `__tests__/GitHubConfigCard.test.tsx` — GitHub 卡片仅出站：只要求访问令牌一个输入，不出现 Webhook 密钥/地址
 - `__tests__/TelegramConfigCard.test.tsx` — Telegram 卡片的转发代理：回显已保存的代理并用它做连接检查，改过的代理随连接测试与保存带出，地址缺协议时给出提示并禁用保存与连接测试，沙箱模式不显示该输入；失败的连接检查（含保存后的检查）按 `reason` 显示本地化提示，未知 `reason` 回退到服务端消息
 

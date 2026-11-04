@@ -45,7 +45,7 @@ export const RankedHubSidebar = memo<RankedHubSidebarProps>(
 
     return (
       <aside
-        aria-label="Ranked hub sidebar"
+        aria-label={t('rankedHubSidebarLabel')}
         className={cn(
           'flex flex-col border-l border-border/50 bg-background/95 backdrop-blur-sm select-none',
           className,

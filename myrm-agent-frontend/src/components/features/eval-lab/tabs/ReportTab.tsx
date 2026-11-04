@@ -339,7 +339,7 @@ export default function ReportTab({
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                   : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                               }`}
-                              title={t('report.retrievalSpanRecallTitle') || 'Retrieval Span Recall'}
+                              title={t('report.retrievalSpanRecallTitle')}
                             >
                               {`Span ${Math.round(scores.span_recall * 100)}%`}
                               {scores.distinct_sources !== undefined &&
@@ -371,7 +371,7 @@ export default function ReportTab({
                             title={t('report.canaryLeak')}
                           >
                             <ShieldAlert className="w-2.5 h-2.5" />
-                            Canary Leak
+                            {t('report.canaryLeak')}
                           </span>
                         )}
                         {c.contamination_audit?.cheat_detected && (

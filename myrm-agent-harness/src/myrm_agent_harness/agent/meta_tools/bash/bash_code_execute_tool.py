@@ -5,7 +5,7 @@
 - ._security.preflight_checks (POS: Security preflight checks)
 - ._executor.executor::BashExecutor (POS: Bash executor aggregate root. MRO: Execute → Background → Prepare → Context)
 - ._executor.error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
-- ._tool.helpers (POS: BashInput, OS hint, context tracking)
+- ._tool.helpers (POS: BashInput, OS hint, context tracking, skill storage path resolution)
 - ._tool.formatting (POS: Output formatting and truncation)
 - ._tool.background_listeners (POS: Background ptc_notify listeners)
 - ._tool.multimodal (POS: Vision ContentBlock return path)
@@ -72,6 +72,7 @@ from myrm_agent_harness.agent.meta_tools.bash._tool.helpers import (
     CONTEXT_PATH_PATTERNS,
     BashInput,
     get_os_hint,
+    resolve_skill_storage_paths,
     track_context_access_in_command,
 )
 from myrm_agent_harness.agent.meta_tools.bash._tool.multimodal import (
@@ -118,7 +119,7 @@ def create_bash_code_execute_tool(
 ) -> BaseTool:
     """Create the bash code execution LangChain tool."""
 
-    skill_paths = [s.storage_path for s in (skills or []) if s.storage_path]
+    skill_paths = resolve_skill_storage_paths(skills or [])
     skill_oauth_issuers = {s.name: s.oauth_issuer for s in (skills or []) if s.oauth_issuer and s.name}
 
     description = resolve_bash_code_execute_tool_description(locale) + get_os_hint(locale=locale)

@@ -84,7 +84,7 @@ class SkillBackend(Protocol):
         This is called when the agent selects a skill to use.
 
         Args:
-            skill_name: Name of the skill (must end with _skill)
+            skill_name: Name of the skill as this backend lists it
 
         Returns:
             SKILL.md content (without YAML frontmatter)

@@ -8,7 +8,7 @@
 [OUTPUT]
 - SkillRegistry: Skill registry class (manages registration, lookup, updates)
 - skill_registry: Global skill registry singleton
-- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; hidden_skill_count drives dynamic listed/select vs search rules)
+- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; the hidden skill names drive the dynamic listed/select vs search rules and the ``<hidden_skill_names>`` line)
 
 [POS]
 Skill registry. Manages runtime caches and lookups, primarily for MCP-based skills.
@@ -18,6 +18,7 @@ Skill registry. Manages runtime caches and lookups, primarily for MCP-based skil
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import lru_cache
 from xml.sax.saxutils import escape, quoteattr
 
@@ -28,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 L1_CATALOG_MAX_TOKENS = 2_000
 """L1 catalog token ceiling; wrapper/rules reserve lives in catalog_display."""
+L1_HIDDEN_NAMES_MAX_TOKENS = 1_500
+"""Ceiling of the ``<hidden_skill_names>`` line, counted apart from the inline entries' L1_CATALOG_MAX_TOKENS.
+
+The line rides in every turn's prompt, so a very large library must not grow it without bound.
+"""
 MAX_SKILL_FILE_BYTES = 128 * 1024  # 128 KB per skill file
 _CONTRACT_TEXT_LIMIT = 160
 
@@ -82,7 +88,7 @@ class SkillRegistry:
     Storage-backed skills are loaded via SkillBackendProtocol, not registered here.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._skills: dict[str, SkillMetadata] = {}
         self._ipc_mcp_skill_cache: dict[str, SkillMetadata] = {}
 
@@ -182,36 +188,66 @@ def estimate_skill_entry_tokens(skill: SkillMetadata) -> int:
     return _entry_token_cost("\n".join(_render_skill_entry(skill)))
 
 
+@lru_cache(maxsize=4096)
+def _hidden_name_token_cost(name: str) -> int:
+    return get_token_count(f"{name}, ")
+
+
+def _fit_hidden_names(names: Sequence[str]) -> tuple[list[str], int]:
+    """Longest prefix of ``names`` within ``L1_HIDDEN_NAMES_MAX_TOKENS`` and how many names fell off."""
+    remaining = L1_HIDDEN_NAMES_MAX_TOKENS
+    listed: list[str] = []
+    for name in names:
+        cost = _hidden_name_token_cost(name)
+        if cost > remaining:
+            break
+        listed.append(name)
+        remaining -= cost
+    return listed, len(names) - len(listed)
+
+
+def _render_hidden_names(names: Sequence[str]) -> list[str]:
+    """One line naming the skills that have no inline entry, so the model can load them by name."""
+    if not names:
+        return []
+    listed, overflow = _fit_hidden_names(names)
+    parts = [escape(name) for name in listed]
+    if overflow:
+        parts.append(f"and {overflow} more not listed (use skill_search_tool)")
+    return [f" <hidden_skill_names>{', '.join(parts)}</hidden_skill_names>"]
+
+
 def get_metadata_summary(
     skills: list[SkillMetadata],
     *,
-    hidden_skill_count: int = 0,
+    hidden_skill_names: Sequence[str] = (),
 ) -> str:
     """Generate the XML skill catalog body for HumanMessage catalog blocks.
 
-    The caller owns selection. ``catalog_display`` fills this list within
-    ``L1_CATALOG_MAX_TOKENS``; skills left out are represented only by
-    ``hidden_skill_count`` and are recoverable through ``skill_select_tool``
-    (known name) or ``skill_search_tool`` (unknown capability).
+    The caller owns selection. ``catalog_display`` fills ``skills`` with full entries within
+    ``L1_CATALOG_MAX_TOKENS``; every other model-visible skill arrives as ``hidden_skill_names``
+    and is rendered as one name line (alphabetical, within ``L1_HIDDEN_NAMES_MAX_TOKENS``), so
+    a known name goes straight to ``skill_select_tool`` and an unknown capability goes to
+    ``skill_search_tool``.
 
     Cache impact: stable catalog bytes keep tool schema bytes stable; catalog
     size still counts toward the cached conversation prefix when present.
     """
-    if not skills:
-        if hidden_skill_count > 0:
-            lines = ["<skills>", *_routing_rules(hidden_skill_count), "</skills>"]
-            return "\n".join(lines)
+    names = sorted(set(hidden_skill_names))
+    if not skills and not names:
         return "<skills>No skills available.</skills>"
 
-    lines = ["<skills>", *_routing_rules(hidden_skill_count)]
+    lines = ["<skills>", *_routing_rules(len(names))]
     for skill in skills:
         lines.extend(_render_skill_entry(skill))
+    lines.extend(_render_hidden_names(names))
     lines.append("</skills>")
     return "\n".join(lines)
 
 
 __all__ = [
     "L1_CATALOG_MAX_TOKENS",
+    "L1_HIDDEN_NAMES_MAX_TOKENS",
     "MAX_SKILL_FILE_BYTES",
     "SkillRegistry",
     "estimate_skill_entry_tokens",

@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DestructiveUndoCard } from '../DestructiveUndoCard';
 
-const stableT = (key: string) => {
+const stableT = (key: string, values?: Record<string, string>) => {
+  if (key === 'snapshotPointer') {
+    return `snapshotPointer:${values?.id}`;
+  }
   const dict: Record<string, string> = {
     title: '破坏性操作已执行',
     description: '工作区已发生重大变更。已为您创建安全影子快照，支持限时无损回滚。',
@@ -51,7 +54,7 @@ describe('DestructiveUndoCard', () => {
     );
 
     expect(screen.getByText('破坏性操作已执行')).toBeDefined();
-    expect(screen.getByText(/快照指针: snap123456789/)).toBeDefined();
+    expect(screen.getByText('snapshotPointer:snap123456789abc')).toBeDefined();
     expect(screen.getByText('一键撤销并回滚快照')).toBeDefined();
 
     const rollbackBtn = screen.getByText('一键撤销并回滚快照');

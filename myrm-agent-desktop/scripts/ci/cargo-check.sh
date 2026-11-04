@@ -23,6 +23,8 @@ cargo check --locked
 #   runtime::product_origin            product page origin and URL building
 #   runtime::sidecar_path              sidecar entry-point lookup in the bundled resource folder
 #   runtime::node_runtime              bundled Node.js lookup next to the app executable
+#   utils::process_tree                the force-kill takes every descendant of the target with it
+#                                      (real process tree on POSIX, process-table parsing)
 #   app::chain                         shipped tauri.conf.json is accepted by every plugin (in-process
 #                                      boot with the real context) and the shell-open link scope
 #   ipc_security::acl_tests            window x origin x command ACL contract (in-process, real
@@ -32,7 +34,7 @@ cargo check --locked
 #   app::setup                         which windows the app-level window policy governs
 cargo test --locked -- config::tests commands::privacy_curtain commands::visual_approval_overlay \
   commands::pet_surface commands::session_window utils::protocol_page runtime::product_origin \
-  runtime::sidecar_path runtime::node_runtime app::chain ipc_security::acl_tests \
+  runtime::sidecar_path runtime::node_runtime utils::process_tree app::chain ipc_security::acl_tests \
   ipc_security::tests::build_manifest_commands_are_covered_by_policy \
   ipc_security::tests::command_registry app::setup --nocapture
 

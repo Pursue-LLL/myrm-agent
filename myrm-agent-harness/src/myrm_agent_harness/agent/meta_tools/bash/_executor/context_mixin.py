@@ -31,9 +31,7 @@ if TYPE_CHECKING:
         CodeExecutor,
         ExecutionResult,
     )
-    from myrm_agent_harness.toolkits.code_execution.executors.models import (
-        MCPConfigItem,
-    )
+    from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
 
 logger = logging.getLogger(__name__)
 

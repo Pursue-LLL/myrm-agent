@@ -12,6 +12,7 @@ Requires: Real vector store (Qdrant embedded) + real embedding model.
 from __future__ import annotations
 
 import tempfile
+import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,7 +45,9 @@ async def memory_manager():
             """Mock embedding that generates deterministic vectors."""
 
             async def embed(self, text: str) -> list[float]:
-                return [float(hash(text) % 1000) / 1000.0] * 768
+                # crc32, not ``hash()``: str hashes are salted per process, and a text that hashed to a multiple of
+                # 1000 became the zero vector, which matches nothing. The scale is never zero.
+                return [(zlib.crc32(text.encode()) % 999 + 1) / 1000.0] * 768
 
             async def embed_batch(self, texts: list[str]) -> list[list[float]]:
                 return [await self.embed(t) for t in texts]

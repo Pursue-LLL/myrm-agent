@@ -2,42 +2,31 @@
 
 ## 架构概述
 
-首次启动向导：欢迎屏 → 去向选择（本机/远端/云，非沙箱） → 可选外部助手迁移（含极客三栏） → 本地能力配置 → **工具连接发现（Tools Connect）** → **首检 Doctor（三信号聚合）** → **可选同步目录绑定（Local）** → Smart Routing → Smart Guard → Telegram Assistant → **工作区主题选择**。
+云沙箱首次启动向导：欢迎屏 → 外部助手迁移（首屏，含「从备份恢复」与「立即开始」） → **工具连接发现（Tools Connect）** → **首检 Doctor（模型/后端/配额）** → Smart Routing（启用 ≥2 个模型且未开启路由时）→ Smart Guard（有启用模型且未开启自动审查时）→ **工作区主题选择**。
 
-无 GPU 用户在本地能力配置阶段可通过**云端快速开始卡片**直接跳转至 `/settings/models` 配置 Gemini / SiliconFlow / OpenRouter 等含免费方案的云端 Provider，避免因无本地模型而流失。
-
-即使用户跳过 Onboarding，`EmptyChat` 页面的 `NoProviderBanner` 也会检测到无可用 Provider 并展示引导横幅。
+向导只在沙箱出现（`PageLayout` 以 `isSandbox()` 门控）：本地与桌面安装直接进入首页，未配置 Provider 时由 `EmptyChat` 的 `NoProviderBanner` 提示，模型、搜索、Telegram 等在 Settings 对应页配置。
 
 ## 文件清单
 
 | 文件                                     | 职责                                                                                                                                                                                                                                                                                         |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnboardingWizard.tsx`                   | 步骤编排与完成回调（含去向步/自检步，去向前置迁移步）；用户的首屏卡片下方挂「从备份恢复」入口（非沙箱在去向步，沙箱无去向步故在迁移步，只出现一次）                                                                                                                                                                      |
-| `DeployChoiceStep.tsx`                   | 去向选择步：复用 RemoteFirstRunChooser，去向意图写入 onboarding-deploy-choice SSOT                                                                                                                                                                                                           |
-| `PowerStackLane.tsx`                     | 极客三栏 honest lane（纯展示+深链既有页，零价格数字）                                                                                                                                                                                                                                        |
-| `FirstRunDoctorCard.tsx`                 | 首检 Doctor 聚合卡：模型/后端/配额只读探针 + 一键修深链（配额仅沙箱）                                                                                                                                                                                                                        |
+| `OnboardingWizard.tsx`                   | 沙箱向导的步骤编排与完成回调；欢迎屏停留至少 2.5 秒且 Provider store 已初始化；首屏（迁移步）下方挂「从备份恢复」入口，只出现一次 |
+| `FirstRunDoctorCard.tsx`                 | 首检 Doctor 聚合卡：模型/后端/配额只读探针 + 一键修深链（无登录凭证时配额行视为通过） |
 | `ThemeOnboardingStep.tsx`                | 末步：3 款内置 preset 选肤（复用 ThemePresetGrid + ConfigSync）                                                                                                                                                                                                                              |
 | `__tests__/ThemeOnboardingStep.test.tsx` | 选肤步持久化与 Skip 行为单测                                                                                                                                                                                                                                                                 |
 | `onboarding-theme-presets.ts`            | 首装精选 preset id 列表                                                                                                                                                                                                                                                                      |
-| `LocalCapabilitiesSetup.tsx`             | 本地 Ollama/LM Studio 探测、**OpenAI-compatible Paste-URL 一步接入**（服务端 discover-models 探测 + 激活前 reachability 轻量探测校验 + 原子写入 provider/default model）、SearXNG、**HardwareCookbook**（无 provider 时展示硬件推荐）、**ToolCallingModelChecklist**（实测工具调用推荐清单） |
-| `CloudQuickStartCard.tsx`                | 本地无可用 Provider 时展示的云端快速开始卡片（引导直达 Gemini / SiliconFlow / OpenRouter 等云端配置）                                                                                                                                                                                        |
-| `tool-calling/`（子包）                  | 工具调用模型推荐与校验子域：`ToolCallingModelChecklist.tsx` UI 组件与 `verifiedToolModels.ts` 权威模型白名单匹配算法，防止用户配置无工具调用能力模型导致 Agent 静默失败                                                                                                                      |
 | `ToolsConnectOnboardingStep.tsx`         | 工具连接发现步骤：从 Catalog API 拉取精选服务（GitHub/Notion/Microsoft To Do/Slack/Linear），复用 IntegrationConnectDialog 完成连接，连接状态与目录卡片共用 `catalog-connection` / `CatalogConnectionStatus`（进入本步骤前就已连接的服务同样显示已连接并可继续；已停用不计为已连接），失败时静默跳过 |
 | `SmartRoutingStep.tsx`                   | Smart Routing 引导步骤：复用 `isReasoningModelByName` 权威 SSOT 与来源拓扑感知，自动检测已配置模型并分类为 lite/standard/reasoning 三档，展示预估节省比例，一键启用或跳过                                                                                                                    |
 | `__tests__/SmartRoutingStep.test.tsx`    | Smart Routing 引导步骤单测：覆盖 `deepseek-reasoner`、Gemini 思考模型分类与开闭源混合协同启发式推荐                                                                                                                                                                                          |
 | `SmartGuardStep.tsx`                     | Smart Intent Guard 引导步骤：默认启用 + 轻量模型智能预选（优先 mini/flash/haiku 等低成本模型），通过 ConfigSyncManager 写入 securityConfig                                                                                                                                                   |
-| `TelegramAssistantOnboardingStep.tsx`    | Telegram 助手一键接入步骤；令牌校验失败按服务端 `TELEGRAM_TOKEN_REJECTED`（令牌被拒）/ `TELEGRAM_UNREACHABLE`（网络不通）码映射为各自的本地化提示，行内提示与 toast 同文案，不直接展示服务端文本；「网络不通」之后（非沙箱）才出现可选的代理输入，复用 `channels.telegramProxy*` 文案，地址形状由 `lib/proxy-url.ts` 行内校验并在格式错误时禁用提交，重试时随请求带出；「网络不通」的详情带 `viaProxy`（本次校验是否经由代理，含已保存而向导不展示的代理）：经由代理时提示检查代理（`telegramUnreachableViaProxyError`），否则提示可填代理；服务端拒绝代理地址（`TELEGRAM_PROXY_REJECTED`）另有本地化提示；沙箱模式不提供代理设置，「网络不通」另用不指向代理的文案                                                                                                                      |
-| `SyncFolderOnboardingStep.tsx`           | Local 可选步骤：复用 `MigrationVaultBindPanel`；消费 migration workspace bind 候选预填；bind 后 handoff projectId                                                                                                                                                                            |
 
 ## 依赖
 
-- `@/components/features/settings/model-service/HardwareCookbook` — 硬件模型推荐（Settings 与 Onboarding 共用）
 - `@/components/features/settings/default-model/EnabledModelSelect` — 模型选择器（Settings 与 Onboarding 共用）
 - `@/components/features/settings/sections/integration/integrations/IntegrationConnectDialog` — 集成连接对话框（Settings 与 Onboarding 共用）
 - `@/components/features/settings/sections/integration/integrations/catalog-connection` / `catalog-locale` / `CatalogConnectionStatus` — 目录连接状态、文案语言与状态标签（Settings 目录与 Onboarding 共用）
 - `@/components/features/settings/sections/integration/integrations/service-icons` — 服务品牌图标
 - `@/services/config` — ConfigSyncManager 持久化配置
 - `@/services/onboarding` — readiness 状态
-- `@/services/channels` — Telegram 凭据配置探测（判断是否展示 Telegram onboarding step）
 - `@/components/features/chat-window/NoProviderBanner` — EmptyChat 未配置 Provider 引导横幅
 - `@/components/features/instance-archive/RestoreEntry` — 首屏「从备份恢复」入口（部署形态不支持备份时自行隐藏）

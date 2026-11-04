@@ -12,6 +12,7 @@
 - PUT  /guardian/policy: Update guardian schedule policy
 - GET  /guardian/pattern-discoveries: Recent pattern discovery results
 - POST /guardian/trigger-pattern-discovery: Manually trigger pattern discovery
+- POST /guardian/cognitive-clock/activity: Record foreground typing so background maintenance backs off
 
 [POS]
 记忆守护者 API。通过 overview 暴露记忆系统健康分数、调度器状态、策略与晨间摘要，提供 `safe/force` 手动维护触发、
@@ -27,7 +28,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel
-from sqlalchemy import desc, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_db_session
@@ -70,7 +71,7 @@ def _server_local_timezone_offset_minutes() -> int:
     return max(-720, min(840, minutes))
 
 
-async def _resolve_guardian_policy(request: Request) -> MemoryGuardianPolicy:
+async def resolve_guardian_policy(request: Request) -> MemoryGuardianPolicy:
     offset = _parse_client_timezone_offset_minutes(request.headers.get("x-client-timezone-offset-minutes"))
     if offset is None:
         offset = _parse_client_timezone_offset_minutes(request.headers.get("x-timezone-offset-minutes"))
@@ -126,7 +127,7 @@ async def _build_guardian_health_payload(
 
     from app.lifecycle.memory_guardian import get_memory_guardian_status
 
-    policy = await _resolve_guardian_policy(request)
+    policy = await resolve_guardian_policy(request)
     alerts = {"guard_unavailable": _default_guard_alert_snapshot(frequency_tier=policy.frequency_tier)}
     try:
         alerts["guard_unavailable"] = await MemoryOperationLedgerService(db).guardian_guard_alert_snapshot(
@@ -136,7 +137,7 @@ async def _build_guardian_health_payload(
     except Exception as exc:
         logger.warning("Guardian alert snapshot query failed: %s", exc)
 
-    payload = {
+    payload: dict[str, object] = {
         "health": health.to_dict(),
         "guardian": get_memory_guardian_status(policy=policy),
         "policy": policy.model_dump(),
@@ -208,7 +209,7 @@ async def get_pattern_discoveries(
     result = await db.execute(
         select(MemoryOperationEventModel)
         .where(MemoryOperationEventModel.source == "pattern_discovery")
-        .order_by(desc(MemoryOperationEventModel.occurred_at))
+        .order_by(MemoryOperationEventModel.occurred_at.desc())
         .limit(limit)
     )
     rows = result.scalars().all()
@@ -248,20 +249,6 @@ class CognitiveClockActivityRequest(BaseModel):
     reason: str = "typing"
 
 
-class CognitiveClockT1TriggerRequest(BaseModel):
-    session_id: str
-
-
-@router.get("/cognitive-clock/status")
-async def get_cognitive_clock_status(request: Request) -> dict[str, object]:
-    """Return nested multi-frequency cognitive clock status."""
-    from app.lifecycle.cognitive_clock import get_clock_coordinator
-
-    policy = await _resolve_guardian_policy(request)
-    coordinator = get_clock_coordinator()
-    return await coordinator.get_status(policy=policy)
-
-
 @router.post("/cognitive-clock/activity")
 async def record_user_activity(body: CognitiveClockActivityRequest) -> dict[str, object]:
     """Record foreground user activity to trigger cooperative backoff."""
@@ -270,12 +257,3 @@ async def record_user_activity(body: CognitiveClockActivityRequest) -> dict[str,
     sensor = get_activity_sensor()
     sensor.record_activity(session_id=body.session_id, reason=body.reason)
     return {"status": "ok", "recorded": True, "reason": body.reason}
-
-
-@router.post("/cognitive-clock/trigger-t1")
-async def trigger_t1_session_debounce(body: CognitiveClockT1TriggerRequest) -> dict[str, object]:
-    """Manually trigger T1 meso-session consolidation for a session."""
-    from app.lifecycle.cognitive_clock.executors import execute_t1_session_debounce
-
-    success = await execute_t1_session_debounce(session_id=body.session_id)
-    return {"status": "ok" if success else "failed", "session_id": body.session_id}

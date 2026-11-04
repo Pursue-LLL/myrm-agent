@@ -214,4 +214,13 @@ describe('WeChatConfigCard', () => {
 
     document.body.removeChild(mockWeComBtn);
   });
+
+  it('labels the connected bot id', async () => {
+    render(<WeChatConfigCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('wechatBotIdLabel')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/wxid_demo/)).toBeInTheDocument();
+  });
 });

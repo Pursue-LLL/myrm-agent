@@ -2,57 +2,62 @@
 
 import { memo } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
-export const WeekDistributionChart = memo<{ data: Record<string, number>; locale?: string }>(({ data, locale = 'en' }) => {
-  const isZh = locale.startsWith('zh');
-  const enWeekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const zhWeekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  const weekDays = isZh ? zhWeekDays : enWeekDays;
-  const values = [0, 1, 2, 3, 4, 5, 6].map((idx) => data[idx.toString()] || data[idx] || 0);
-  const maxValue = Math.max(...values, 1);
+import { weekdayLabels } from '@/lib/utils/weekdayLabels';
 
-  return (
-    <div className="flex gap-2">
-      <div className="flex flex-col justify-between shrink-0 w-10 text-[9px] tabular-nums text-muted-foreground/50 text-right h-40">
-        <span>{maxValue}</span>
-        <span>{Math.floor(maxValue / 2)}</span>
-        <span>0</span>
-      </div>
+export const WeekDistributionChart = memo<{ data: Record<string, number>; locale?: string }>(
+  ({ data, locale = 'en' }) => {
+    const t = useTranslations('settings.usageStatistics');
+    const weekDays = weekdayLabels(locale);
+    const values = [0, 1, 2, 3, 4, 5, 6].map((idx) => data[idx.toString()] || data[idx] || 0);
+    const maxValue = Math.max(...values, 1);
 
-      <div className="flex-1 min-w-0">
-        <div className="relative h-40 rounded-lg overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-background/40 to-background/80" />
-          <div className="relative h-full flex items-end gap-2 px-2">
-            {values.map((val, idx) => {
-              const heightPercent = (val / maxValue) * 100;
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${heightPercent}%` }}
-                    transition={{ duration: 0.5, delay: idx * 0.05 }}
-                    className="w-full rounded-t bg-primary/85 hover:bg-primary transition-colors"
-                    title={`${weekDays[idx]}: ${val} ${isZh ? '次调用' : 'tool calls'}`}
-                  />
-                </div>
-              );
-            })}
+    return (
+      <div className="flex gap-2">
+        <div className="flex flex-col justify-between shrink-0 w-10 text-[9px] tabular-nums text-muted-foreground/50 text-right h-40">
+          <span>{maxValue}</span>
+          <span>{Math.floor(maxValue / 2)}</span>
+          <span>0</span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="relative h-40 rounded-lg overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-background/40 to-background/80" />
+            <div className="relative h-full flex items-end gap-2 px-2">
+              {values.map((val, idx) => {
+                const heightPercent = (val / maxValue) * 100;
+                return (
+                  <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${heightPercent}%` }}
+                      transition={{ duration: 0.5, delay: idx * 0.05 }}
+                      className="w-full rounded-t bg-primary/85 hover:bg-primary transition-colors"
+                      title={t('weekdayToolCallsTooltip', { day: weekDays[idx], count: val })}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex gap-2 px-2 mt-2">
+            {weekDays.map((day, idx) => (
+              <div key={idx} className="flex-1 text-center text-[10px] text-muted-foreground font-medium">
+                {day}
+              </div>
+            ))}
           </div>
         </div>
-        <div className="flex gap-2 px-2 mt-2">
-          {weekDays.map((day, idx) => (
-            <div key={idx} className="flex-1 text-center text-[10px] text-muted-foreground font-medium">
-              {day}
-            </div>
-          ))}
-        </div>
       </div>
-    </div>
-  );
-});
+    );
+  },
+);
 WeekDistributionChart.displayName = 'WeekDistributionChart';
 
 export const ActivityDailyChart = memo<{ data: Array<{ date: string; tool_calls: number }> }>(({ data }) => {
+  const t = useTranslations('settings.usageStatistics');
+
   if (!data || data.length === 0) {
     return null;
   }
@@ -84,7 +89,7 @@ export const ActivityDailyChart = memo<{ data: Array<{ date: string; tool_calls:
                     animate={{ height: `${heightPercent}%` }}
                     transition={{ duration: 0.5, delay: idx * 0.03 }}
                     className="w-full rounded-t bg-primary/85 hover:bg-primary transition-colors"
-                    title={`${item.date}: ${item.tool_calls} tool calls`}
+                    title={t('dailyToolCallsTooltip', { date: item.date, count: item.tool_calls })}
                   />
                 </div>
               );

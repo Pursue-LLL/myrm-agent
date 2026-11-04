@@ -3,7 +3,7 @@
  */
 
 import { apiRequest } from '@/lib/api';
-import { invalidateLocalCapabilitiesProbeCache, probeLocalCapabilities } from '@/services/localCapabilitiesProbe';
+import { invalidateSearxngProbeCache, probeSearxng } from '@/services/searxngProbe';
 
 export interface StartSearxngResponse {
   docker_invoked: boolean;
@@ -22,7 +22,7 @@ export async function startLocalSearxng(): Promise<StartSearxngResponse> {
 /** Start Docker SearXNG, refresh probe cache, return latest probe payload. */
 export async function startLocalSearxngAndRefreshProbe() {
   const startResult = await startLocalSearxng();
-  invalidateLocalCapabilitiesProbeCache();
-  const probe = await probeLocalCapabilities(true);
+  invalidateSearxngProbeCache();
+  const probe = await probeSearxng(true);
   return { startResult, probe };
 }

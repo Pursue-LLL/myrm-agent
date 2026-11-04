@@ -141,4 +141,26 @@ describe('ContextFootprintInspector', () => {
       expect(screen.getByText('No MCP services configured')).toBeDefined();
     });
   });
+
+  describe('baseline weight badge', () => {
+    it('labels a small footprint as featherlight', () => {
+      mockMcpConfigs = [];
+      render(<ContextFootprintInspector open={true} onClose={vi.fn()} />);
+
+      expect(screen.getByText('baselineFeatherlight')).toBeDefined();
+    });
+
+    it('labels a mid-sized footprint as moderate', () => {
+      render(<ContextFootprintInspector open={true} onClose={vi.fn()} />);
+
+      expect(screen.getByText('baselineModerate')).toBeDefined();
+    });
+
+    it('labels an oversized footprint as a heavy baseline', () => {
+      mockSystemInstructions = 'instruction '.repeat(12000);
+      render(<ContextFootprintInspector open={true} onClose={vi.fn()} />);
+
+      expect(screen.getByText('baselineHeavy')).toBeDefined();
+    });
+  });
 });

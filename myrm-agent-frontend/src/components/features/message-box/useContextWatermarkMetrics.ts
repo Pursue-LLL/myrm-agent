@@ -6,6 +6,7 @@
  * - useContextWatermarkMetrics: hook extracting turn-by-turn token history, delta vs previous turn,
  *   and 4-tier dual-theme weather semantics (<25% clear, 25-75% cloudy, 75-90% warning, >=90% critical).
  * - calculateContextWatermarkMetrics: pure calculation helper for unit testing and non-reactive paths.
+ * - WEATHER_LABEL_KEYS: the `chat.contextUsage` key each tier's badge reads.
  *
  * [POS]
  * Metrics derivation layer for ContextWatermarkUsageGauge and TurnGrowthSparkline.
@@ -35,7 +36,7 @@ const WEATHER_CLASSES: Record<ContextWeatherTier, string> = {
   critical: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25',
 };
 
-const WEATHER_LABEL_KEYS: Record<ContextWeatherTier, ContextWatermarkMetrics['weatherLabelKey']> = {
+export const WEATHER_LABEL_KEYS: Record<ContextWeatherTier, ContextWatermarkMetrics['weatherLabelKey']> = {
   clear: 'weatherClear',
   cloudy: 'weatherCloudy',
   warning: 'weatherWarning',
@@ -108,8 +109,5 @@ export function useContextWatermarkMetrics(
   messages: readonly Message[],
   maxTurns: number = 12,
 ): ContextWatermarkMetrics {
-  return useMemo(
-    () => calculateContextWatermarkMetrics(messages, maxTurns),
-    [messages, maxTurns],
-  );
+  return useMemo(() => calculateContextWatermarkMetrics(messages, maxTurns), [messages, maxTurns]);
 }

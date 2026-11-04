@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import cast
-from unittest.mock import MagicMock
 
 import pytest
+from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import MemoryType
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.memory.diagnostics.diagnostics import MemoryDiagnosticsService
+from app.services.memory.diagnostics.diagnostic.diagnostic_live_probes import (
+    run_retrieval_pipeline_probe,
+    run_sparse_cjk_recall_probe,
+)
 
 
 class _RecordingManager:
@@ -30,15 +32,15 @@ class _RecordingManager:
         return []
 
 
-def _service(manager: _RecordingManager) -> MemoryDiagnosticsService:
-    return MemoryDiagnosticsService(cast(AsyncSession, MagicMock()), cast(MagicMock, manager), ledger=MagicMock())
+def _as_manager(manager: _RecordingManager) -> MemoryManager:
+    return cast(MemoryManager, manager)
 
 
 @pytest.mark.asyncio
 async def test_retrieval_pipeline_probe_does_not_track_access() -> None:
     manager = _RecordingManager()
 
-    await _service(manager)._run_retrieval_pipeline_probe()
+    await run_retrieval_pipeline_probe(_as_manager(manager))
 
     assert [kwargs["track_access"] for kwargs in manager.search_kwargs] == [False]
 
@@ -47,7 +49,7 @@ async def test_retrieval_pipeline_probe_does_not_track_access() -> None:
 async def test_sparse_cjk_recall_probe_does_not_track_access() -> None:
     manager = _RecordingManager()
 
-    probe = await _service(manager)._run_sparse_cjk_recall_probe()
+    probe = await run_sparse_cjk_recall_probe(_as_manager(manager))
 
     assert probe.status == "ready"
     assert [kwargs["track_access"] for kwargs in manager.search_kwargs] == [False]

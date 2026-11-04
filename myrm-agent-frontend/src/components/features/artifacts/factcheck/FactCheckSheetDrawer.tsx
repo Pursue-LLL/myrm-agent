@@ -1,29 +1,15 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * FactCheckSheetDrawer Component.
  * Right-side drawer for placeholder data management and verified facts auditing.
- * Adheres to WorkBuddy fact verification paradigm with zero emojis.
+ * Uses no emojis.
  */
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertCircle,
-  Check,
-  CheckCircle2,
-  ExternalLink,
-  ListChecks,
-  ShieldCheck,
-  Sparkles,
-  X,
-} from 'lucide-react';
-import {
-  FactCheckDrawerTab,
-  PlaceholderItem,
-  VerifiedFactItem,
-} from './factCheckTypes';
+import { AlertCircle, Check, CheckCircle2, ExternalLink, ListChecks, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { FactCheckDrawerTab, PlaceholderItem, VerifiedFactItem } from './factCheckTypes';
 
 interface FactCheckSheetDrawerProps {
   isOpen: boolean;
@@ -53,8 +39,7 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
 
   try {
     const translation = useTranslations('factCheck');
-    t = (key: string, values?: Record<string, string | number>): string =>
-      translation(key, values);
+    t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
   } catch {
     // Fallback in test suites
   }
@@ -91,11 +76,11 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
   }
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-labelledby="fact-check-drawer-title"
-      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm m-0 h-full max-h-none w-full max-w-none border-0 p-0 text-inherit"
     >
       <div className="relative w-full max-w-lg h-full bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
         {/* Header */}
@@ -185,8 +170,8 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
                         isTarget
                           ? 'bg-indigo-950/20 border-indigo-500/60 ring-1 ring-indigo-500/30'
                           : isPending
-                          ? 'bg-slate-950/40 border-slate-800'
-                          : 'bg-emerald-950/10 border-emerald-900/30'
+                            ? 'bg-slate-950/40 border-slate-800'
+                            : 'bg-emerald-950/10 border-emerald-900/30'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -195,9 +180,7 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
                         </span>
                         <span
                           className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            isPending
-                              ? 'bg-amber-500/20 text-amber-300'
-                              : 'bg-emerald-500/20 text-emerald-300'
+                            isPending ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
                           }`}
                         >
                           {isPending ? t('placeholderTag') : t('applied')}
@@ -206,9 +189,7 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
 
                       {/* Snippet Context */}
                       <p className="text-xs text-slate-400 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80 font-mono text-[11px] leading-relaxed mb-3">
-                        <span className="text-slate-500 block mb-0.5">
-                          {t('contextLabel')}:
-                        </span>
+                        <span className="text-slate-500 block mb-0.5">{t('contextLabel')}:</span>
                         {item.contextSnippet}
                       </p>
 
@@ -262,18 +243,14 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
                     className="p-4 rounded-xl bg-slate-950/40 border border-slate-800 space-y-2 text-xs"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="font-medium text-slate-200 leading-snug">
-                        {fact.factStatement}
-                      </span>
+                      <span className="font-medium text-slate-200 leading-snug">{fact.factStatement}</span>
                       <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-medium">
                         {t('verifiedTag')}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
-                      <span className="font-mono text-emerald-400">
-                        核实值: {fact.verifiedValue}
-                      </span>
+                      <span className="font-mono text-emerald-400">核实值: {fact.verifiedValue}</span>
                       {fact.sourceUrl ? (
                         <a
                           href={fact.sourceUrl}
@@ -298,9 +275,7 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
         {/* Footer */}
         {activeTab === 'placeholders' && pendingCount > 0 && (
           <div className="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
-              剩余 {pendingCount} 处待替换
-            </span>
+            <span className="text-xs text-slate-400">剩余 {pendingCount} 处待替换</span>
             <button
               type="button"
               onClick={handleApplyAll}
@@ -312,6 +287,6 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 };

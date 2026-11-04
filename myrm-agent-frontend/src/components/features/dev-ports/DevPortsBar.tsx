@@ -3,7 +3,7 @@
  * @/services/devPorts::DevPortInfo, listDevPorts, closeDevPort
  * @/components/features/dev-ports/DevPortPreviewModal::DevPortPreviewModal
  * @/components/features/icons/PremiumIcons (IconServer, IconGlobe, IconExternalLink, IconTrash, IconX)
- * react-i18next::useTranslation
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - DevPortsBar: HUD floating pill bar displaying active listening dev ports with quick preview & process management
@@ -20,12 +20,7 @@ import { useTranslations } from 'next-intl';
 import type { DevPortInfo } from '@/services/devPorts';
 import { listDevPorts, closeDevPort } from '@/services/devPorts';
 import { DevPortPreviewModal } from './DevPortPreviewModal';
-import {
-  IconServer,
-  IconExternalLink,
-  IconTrash,
-  IconX,
-} from '@/components/features/icons/PremiumIcons';
+import { IconServer, IconExternalLink, IconTrash, IconX } from '@/components/features/icons/PremiumIcons';
 
 export const DevPortsBar: React.FC = () => {
   const t = useTranslations('devPorts');
@@ -122,15 +117,13 @@ export const DevPortsBar: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <span
               className={`w-2 h-2 rounded-full ${
-                ports.length > 0
-                  ? 'bg-emerald-500 animate-pulse'
-                  : 'bg-zinc-400 dark:bg-zinc-600'
+                ports.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-400 dark:bg-zinc-600'
               }`}
             />
             <IconServer className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-400" />
           </div>
           <span className="text-xs font-mono font-medium text-zinc-700 dark:text-zinc-300">
-            {ports.length > 0 ? `${ports.length} Ports` : 'Dev Ports'}
+            {ports.length > 0 ? t('barPortsCount', { count: ports.length }) : t('barLabel')}
           </span>
         </button>
 
@@ -143,9 +136,7 @@ export const DevPortsBar: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800/80">
               <div className="flex items-center gap-1.5">
                 <IconServer className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                  {t('modalTitle')}
-                </span>
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{t('modalTitle')}</span>
               </div>
               <button
                 type="button"
@@ -173,7 +164,7 @@ export const DevPortsBar: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenPreview(port)}
-                      aria-label={`Preview port ${port.port}`}
+                      aria-label={t('previewPort', { port: port.port })}
                       className="flex items-center gap-2 overflow-hidden text-left flex-1 hover:opacity-80 transition-opacity cursor-pointer"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />

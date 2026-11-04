@@ -2,7 +2,7 @@
 
 ## Overview
 
-Agent middleware system exports. Provides the complete middleware stack (context management, debug logging, tool interception, filesystem search).
+Agent middleware system exports. Provides the complete middleware stack (context management, debug logging, tool interception).
 
 Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 
@@ -18,7 +18,6 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `clarification_guard_middleware.py` | Core | Enforces single `ask_question_tool` call per turn; answers coexisting or duplicate tool calls with synthetic error ToolMessages (the calls stay in the AI message, so the model reads why they did not run). | ✅ |
 
 | `debug_logger_middleware.py` | Core | Full message list debug logging. | ✅ |
-| `filesystem_search_middleware.py` | Core | Inject glob/grep workspace search tools. | ✅ |
 | `plan_confirm_middleware.py` | Core | Plan-phase HITL: intercept first plan and major re-plans via `interrupt()` with 3+ items for user review. | ✅ |
 | `progress_middleware.py` | Core | Append-Only active todo focus injection into current HumanMessage (SystemMessages behind it, such as the boundary rules, are skipped) with KV cache preservation; only for an agent that holds `todo_write`. | ✅ |
 | `goal_focus_middleware.py` | Core | ACTIVE goal objective injection into last HumanMessage. | ✅ |

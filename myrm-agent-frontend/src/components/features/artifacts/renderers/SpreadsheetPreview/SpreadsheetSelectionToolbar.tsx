@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import { columnLabel } from './columnLabel';
 
 export interface SpreadsheetSelectionToolbarProps {
   selectedRowIndex: number | null;
@@ -26,6 +27,8 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   onClearSelection,
 }) => {
   const t = useTranslations('artifacts.spreadsheet');
+  const rowLabel = selectedRowIndex === null ? '' : t('rowScopeLabel', { row: selectedRowIndex + 1 });
+  const scopeLabel = sheetName ? `${sheetName}!${rowLabel}` : rowLabel;
 
   const handleQuote = useCallback(() => {
     if (selectedRowIndex === null || !rowData) {
@@ -33,16 +36,11 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
     }
 
     const activeTab = useArtifactPortalStore.getState().getActiveTab();
-    const artifactName = filename || activeTab?.artifact.filename || '表格工件';
+    const artifactName = filename || activeTab?.artifact.filename || t('artifactFallbackName');
     const artifactId = activeTab?.artifact.id || 'current';
-    const rowNum = selectedRowIndex + 1;
-    const scopeLabel = sheetName ? `${sheetName}!Row ${rowNum}` : `Row ${rowNum}`;
 
     const selectedSnippet = headers
-      .map((header, idx) => {
-        const val = rowData[idx] ?? '';
-        return `${header || `Col ${idx + 1}`}: ${val}`;
-      })
+      .map((header, idx) => `${header || columnLabel(idx)}: ${rowData[idx] ?? ''}`)
       .join(', ');
 
     useScopedArtifactStore.getState().setTarget({
@@ -55,7 +53,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
 
     const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
     chatInput?.focus();
-  }, [selectedRowIndex, rowData, filename, sheetName, headers]);
+  }, [selectedRowIndex, rowData, filename, scopeLabel, headers, t]);
 
   const handleCopy = useCallback(async () => {
     if (selectedRowIndex === null || !rowData) {
@@ -70,9 +68,6 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
     return null;
   }
 
-  const rowNum = selectedRowIndex + 1;
-  const label = sheetName ? `${sheetName}!Row ${rowNum}` : `Row ${rowNum}`;
-
   return (
     <div
       data-testid="spreadsheet-selection-toolbar"
@@ -85,7 +80,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
       onMouseDown={(e) => e.preventDefault()}
       role="presentation"
     >
-      <span className="text-xs font-medium text-foreground px-1 select-none">{label}</span>
+      <span className="text-xs font-medium text-foreground px-1 select-none">{scopeLabel}</span>
       <div className="h-3.5 w-px bg-border mx-0.5" />
       <button
         type="button"
@@ -94,10 +89,10 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
           'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
           'text-popover-foreground/80 hover:text-popover-foreground hover:bg-accent transition-colors',
         )}
-        title={t('quote') || '引用到输入框'}
+        title={t('quote')}
       >
         <MessageAdd01Icon className="w-3.5 h-3.5 text-primary" />
-        <span>{t('quote') || '引用到输入框'}</span>
+        <span>{t('quote')}</span>
       </button>
       <button
         type="button"
@@ -106,16 +101,16 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
           'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
           'text-popover-foreground/80 hover:text-popover-foreground hover:bg-accent transition-colors',
         )}
-        title={t('copy') || '复制行'}
+        title={t('copy')}
       >
         <Copy01Icon className="w-3.5 h-3.5" />
-        <span>{t('copy') || '复制'}</span>
+        <span>{t('copy')}</span>
       </button>
       <button
         type="button"
         onClick={onClearSelection}
         className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        aria-label="Clear selection"
+        aria-label={t('clearSelection')}
       >
         <Cancel01Icon className="w-3.5 h-3.5" />
       </button>

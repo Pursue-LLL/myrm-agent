@@ -1,17 +1,19 @@
 /**
  * Global Container for Tiered Risk Gate & HITL Confirmation.
  *
- * [INPUT] useRiskGateStore
+ * [INPUT] useRiskGateStore, next-intl::useTranslations (POS: Internationalization hook)
  * [OUTPUT] TieredRiskGateContainer Component
  * [POS] Item 29 host-level dynamic brake container. Strictly under 160 lines. Zero `any`.
  */
 
 import React, { useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRiskGateStore } from '@/store/useRiskGateStore';
 import { RiskConfirmationCard } from './RiskConfirmationCard';
 import type { TieredRiskEvaluation, RiskConfirmPayload, DryRunSimulationResult } from './riskApprovalTypes';
 
 export const TieredRiskGateContainer: React.FC = () => {
+  const t = useTranslations('riskGate');
   const activeEvaluation = useRiskGateStore((state) => state.activeEvaluation);
   const setActiveEvaluation = useRiskGateStore((state) => state.setActiveEvaluation);
   const confirmEvaluation = useRiskGateStore((state) => state.confirmEvaluation);
@@ -36,14 +38,14 @@ export const TieredRiskGateContainer: React.FC = () => {
     async (payload: RiskConfirmPayload) => {
       await confirmEvaluation(payload);
     },
-    [confirmEvaluation]
+    [confirmEvaluation],
   );
 
   const handleReject = useCallback(
     async (reason?: string) => {
       await rejectEvaluation(reason);
     },
-    [rejectEvaluation]
+    [rejectEvaluation],
   );
 
   const handleSimulateDryRun = useCallback(
@@ -51,15 +53,15 @@ export const TieredRiskGateContainer: React.FC = () => {
       return {
         simulated: true,
         tool_name: toolName,
-        simulated_impact: `Simulated execution of ${toolName} with dry_run=true`,
-        affected_target: String(params.path || params.target || 'target_entity'),
+        simulated_impact: t('dryRunImpact', { tool: toolName }),
+        affected_target: String(params.path || params.target || t('dryRunDefaultTarget')),
         predicted_changes: [
-          `Parameter verification passed (${Object.keys(params).length} fields)`,
-          'No persistent changes applied to filesystem or database',
+          t('dryRunParamsVerified', { count: Object.keys(params).length }),
+          t('dryRunNoPersistentChanges'),
         ],
       };
     },
-    []
+    [t],
   );
 
   if (!activeEvaluation) {
@@ -68,7 +70,7 @@ export const TieredRiskGateContainer: React.FC = () => {
 
   return (
     <section
-      aria-label="Tiered Risk HITL Brake Surface"
+      aria-label={t('regionLabel')}
       className="fixed bottom-6 right-6 z-50 w-full max-w-lg shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200"
     >
       <RiskConfirmationCard

@@ -1,6 +1,6 @@
 /**
  * [OUTPUT]
- * ArtifactType, ArtifactVersion, Artifact.
+ * ARTIFACT_TYPES, ArtifactType, ArtifactVersion, Artifact.
  *
  * [POS]
  * 聊天工件（代码/文档/媒体）契约。
@@ -9,25 +9,29 @@
 import type { ArtifactPublication } from '@/services/hosting';
 
 export type { ArtifactPublication } from '@/services/hosting';
-export type ArtifactType =
-  | 'code'
-  | 'document'
-  | 'html'
-  | 'pdf'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'svg'
-  | 'mermaid'
-  | 'spreadsheet'
-  | 'presentation'
-  | 'word_document'
-  | 'binary'
-  | 'architecture'
-  | 'canvas'
-  | 'wechat_article'
-  | 'prototype'
-  | 'dashboard';
+/** Every artifact kind; each one needs an `artifacts.types.<kind>` label in the locale files. */
+export const ARTIFACT_TYPES = [
+  'code',
+  'document',
+  'html',
+  'pdf',
+  'image',
+  'video',
+  'audio',
+  'svg',
+  'mermaid',
+  'spreadsheet',
+  'presentation',
+  'word_document',
+  'binary',
+  'architecture',
+  'canvas',
+  'wechat_article',
+  'prototype',
+  'dashboard',
+] as const;
+
+export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 
 // 工件版本数据
 export interface ArtifactVersion {

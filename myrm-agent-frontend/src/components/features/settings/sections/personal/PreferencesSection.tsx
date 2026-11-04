@@ -167,7 +167,7 @@ const PreferencesSection = memo(() => {
         </div>
       </SettingsSection>
 
-      <SettingsSection title={t('linkEmbeds') || 'Link Embeds'}>
+      <SettingsSection title={t('linkEmbeds')}>
         <div className="flex flex-col space-y-4">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
@@ -175,27 +175,25 @@ const PreferencesSection = memo(() => {
             </div>
             <div className="min-w-0 flex-1 space-y-2">
               <div>
-                <p className="text-sm font-medium text-foreground">{t('linkEmbedsMode') || 'Inline Embeds'}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t('linkEmbedsDesc') || 'Show rich previews for YouTube, X, Spotify and other links in conversations'}
-                </p>
+                <p className="text-sm font-medium text-foreground">{t('linkEmbedsMode')}</p>
+                <p className="text-xs text-muted-foreground">{t('linkEmbedsDesc')}</p>
               </div>
               <select
                 value={embedMode}
                 onChange={(e) => setEmbedMode(e.target.value as EmbedMode)}
                 className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm"
               >
-                <option value="ask">{t('linkEmbedsAsk') || 'Ask before loading (recommended)'}</option>
-                <option value="always">{t('linkEmbedsAlways') || 'Always load embeds'}</option>
-                <option value="off">{t('linkEmbedsOff') || 'Never load embeds (plain links)'}</option>
+                <option value="ask">{t('linkEmbedsAsk')}</option>
+                <option value="always">{t('linkEmbedsAlways')}</option>
+                <option value="off">{t('linkEmbedsOff')}</option>
               </select>
               {allowedProviders.length > 0 && (
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-muted-foreground">
-                    {t('linkEmbedsAllowed') || 'Allowed providers'}: {allowedProviders.join(', ')}
+                    {t('linkEmbedsAllowed')}: {allowedProviders.join(', ')}
                   </p>
                   <button onClick={clearAllowed} className="text-xs text-destructive hover:underline">
-                    {t('linkEmbedsClear') || 'Clear all'}
+                    {t('linkEmbedsClear')}
                   </button>
                 </div>
               )}

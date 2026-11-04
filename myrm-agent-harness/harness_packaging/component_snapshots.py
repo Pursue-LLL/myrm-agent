@@ -53,7 +53,6 @@ def export_middleware_stack_snapshot() -> list[dict[str, Any]]:
     middleware_symbols = [
         "debug_logger_middleware",
         "tool_interceptor_middleware",
-        "FilesystemFileSearchMiddleware",
         "create_context_pipeline_middleware",
         "create_concurrency_limiter",
         "ToolConflictGateMiddleware",

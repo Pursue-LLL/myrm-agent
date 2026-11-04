@@ -47,6 +47,11 @@ vi.mock('@/lib/backend-health', () => ({
   ensureLocalBackendReady: vi.fn(() => Promise.resolve(true)),
 }));
 
+vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deploy-mode')>()),
+  isSandbox: vi.fn(() => false),
+}));
+
 vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => false),
 }));
@@ -66,8 +71,21 @@ vi.mock('../../features/app-shell/boot-screen', () => ({
   ),
 }));
 
+vi.mock('../../features/onboarding/OnboardingWizard', () => ({
+  __esModule: true,
+  default: ({ onComplete }: { onComplete: () => void }) => (
+    <div data-testid="onboarding-wizard-mock">
+      <button type="button" onClick={onComplete}>
+        complete-onboarding
+      </button>
+    </div>
+  ),
+}));
+
 import PageLayout from '../PageLayout';
 import { shouldShowBootScreen } from '../../features/app-shell/boot-screen-gate';
+import { isSandbox } from '@/lib/deploy-mode';
+import { getReadinessStatus } from '@/services/onboarding';
 
 const mockShouldShowBootScreen = vi.mocked(shouldShowBootScreen);
 
@@ -75,6 +93,7 @@ describe('PageLayout', () => {
   beforeEach(() => {
     mockPathname = '/';
     vi.clearAllMocks();
+    vi.mocked(isSandbox).mockReturnValue(false);
   });
 
   it('enters AppLayout on first render without waiting for readiness', () => {
@@ -168,6 +187,69 @@ describe('PageLayout', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('app-layout')).toHaveAttribute('data-readiness-degraded', '1');
+    });
+  });
+
+  describe('first-run onboarding', () => {
+    const unfinished = {
+      onboarding_completed: false,
+      degraded: false,
+      provider: { is_ready: false, missing_items: [], suggestions: [] },
+      search: { is_ready: false },
+    };
+
+    it('runs the wizard for a hosted sandbox that has not finished onboarding', async () => {
+      vi.mocked(isSandbox).mockReturnValue(true);
+      vi.mocked(getReadinessStatus).mockResolvedValueOnce(unfinished);
+      mockShouldShowBootScreen.mockReturnValue(true);
+      render(
+        <PageLayout>
+          <span>child</span>
+        </PageLayout>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('onboarding-wizard-mock')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('boot-screen-mock')).not.toBeInTheDocument();
+
+      act(() => {
+        screen.getByRole('button', { name: 'complete-onboarding' }).click();
+      });
+      await waitFor(() => {
+        expect(screen.queryByTestId('onboarding-wizard-mock')).not.toBeInTheDocument();
+      });
+    });
+
+    it('lets a local install straight in even though onboarding was never completed', async () => {
+      vi.mocked(getReadinessStatus).mockResolvedValueOnce(unfinished);
+      mockShouldShowBootScreen.mockReturnValue(false);
+      render(
+        <PageLayout>
+          <span>child</span>
+        </PageLayout>,
+      );
+
+      await waitFor(() => {
+        expect(getReadinessStatus).toHaveBeenCalled();
+      });
+      expect(screen.getByTestId('app-layout')).toBeInTheDocument();
+      expect(screen.queryByTestId('onboarding-wizard-mock')).not.toBeInTheDocument();
+    });
+
+    it('still plays the cold-start boot screen for a local install that never finished onboarding', async () => {
+      vi.mocked(getReadinessStatus).mockResolvedValueOnce(unfinished);
+      mockShouldShowBootScreen.mockReturnValue(true);
+      render(
+        <PageLayout>
+          <span>child</span>
+        </PageLayout>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('boot-screen-mock')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('onboarding-wizard-mock')).not.toBeInTheDocument();
     });
   });
 

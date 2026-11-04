@@ -1,7 +1,7 @@
 # Agent Growth Journey Star Map Suite (`growth/star-map`)
 
 ## 1. 架构定位与业务痛点
-针对此前 `/journey` 页面仅有平铺列表、技能演化与记忆碎片分裂呈现，用户无法一眼看清 AI 长期自学习轨迹与知识资产全貌的体验短板，本模块对标 NousResearch Hermes v0.21.0 `/journey` 与 Desktop Memory Graph / Star Map 优秀设计，构建技能实体与记忆统一学习星图视图、径向时间布局、分桶回放拖动条、星图图片导出与节点就地溯源套件。
+让用户一眼看清 AI 长期自学习轨迹与知识资产全貌：技能实体与记忆统一学习星图视图、径向时间布局、分桶回放拖动条、星图图片导出与节点就地溯源套件。
 
 ## 2. 模块拓扑与职责划分
 - **`starMapTypes.ts`**：强类型定义星图节点 `StarMapNode`（金星为技能实体，蓝钻为记忆单元）、溯源连线 `StarMapLink`、分桶直方图 `TimeBucket`、多维过滤器 `StarMapFilter`（支持脱敏模式）与回放状态机 `StarMapPlaybackState`；

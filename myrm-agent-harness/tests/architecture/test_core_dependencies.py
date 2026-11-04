@@ -128,10 +128,10 @@ def test_optional_only_packages_live_in_expected_extras_or_dev() -> None:
 
 @pytest.mark.architecture
 def test_core_dependency_count_is_stable() -> None:
-    """Lock core footprint: 23 runtime packages in [project].dependencies."""
+    """Lock core footprint: 24 runtime packages in [project].dependencies."""
     data = _load_pyproject()
     core = _core_dependency_names(data)
-    assert len(core) == 23
+    assert len(core) == 24
 
 
 def _imports_litellm(source: str) -> bool:
@@ -232,7 +232,7 @@ def _lock_entry(registry: str, file_host: str) -> dict[str, object]:
 @pytest.mark.architecture
 def test_lock_provenance_check_distinguishes_pypi_from_mirror() -> None:
     """Positive and negative control for the check behind ``test_uv_lock_resolves_from_pypi``."""
-    project = {"name": _PROJECT_NAME, "source": {"editable": "."}}
+    project: dict[str, object] = {"name": _PROJECT_NAME, "source": {"editable": "."}}
     pypi = _lock_entry(_PYPI_INDEX, _PYPI_FILE_HOST)
     mirror = _lock_entry("https://pypi.tuna.tsinghua.edu.cn/simple", "pypi.tuna.tsinghua.edu.cn")
 

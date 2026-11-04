@@ -110,6 +110,7 @@
     "Myrm",
     "Myrm Memory Archive",
     "MyrmAgent",
+    "Normal",
     "OA ID",
     "OAuth Client ID",
     "OAuth Client Secret",
@@ -148,6 +149,7 @@
     "Telegram Bot Token",
     "Tenant ID",
     "Token URL",
+    "Tool",
     "Top-P",
     "Twilio",
     "User ID",
@@ -249,6 +251,9 @@
     "workbench.terminal.headerTitle",
     "templateMarketplace.card.team",
     "memoryInsight.namespaceAgent",
-    "voice.voiceModeAudioOnly"
+    "voice.voiceModeAudioOnly",
+    "artifacts.types.audio",
+    "artifacts.types.dashboard",
+    "artifacts.types.video"
   ]
 }

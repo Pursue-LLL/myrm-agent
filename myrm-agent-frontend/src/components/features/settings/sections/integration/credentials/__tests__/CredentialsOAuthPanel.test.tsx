@@ -93,7 +93,8 @@ describe('CredentialsOAuthPanel connection health', () => {
     const card = within(cardOf('Google Workspace'));
 
     expect(card.getByText('expired')).toBeTruthy();
-    expect(card.getByText('Fix Now')).toBeTruthy();
+    expect(card.getByText('oauthFixNow')).toBeTruthy();
+    expect(card.getByText('oauthExpiredNotice')).toBeTruthy();
     expect(card.queryByText('connected')).toBeNull();
   });
 });

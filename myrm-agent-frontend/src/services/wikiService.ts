@@ -10,4 +10,4 @@ export * from './wiki/sectionLabels';
 export * from './wiki/evidenceContextCore';
 export * from './wiki/evidenceMetrics';
 export * from './wiki/evidenceQuerySuccessPendingCore';
-export * from './wiki/writeback';
+export * from './wiki/layers';

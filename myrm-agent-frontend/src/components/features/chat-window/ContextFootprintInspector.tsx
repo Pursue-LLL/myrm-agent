@@ -11,7 +11,7 @@
  * - ContextFootprintInspector: initial baseline context token footprint inspector & idle MCP switcher modal.
  *
  * [POS]
- * Claude Code /context command parity inspector. Reveals pre-conversation baseline token footprint
+ * Inspector for the pre-conversation baseline token footprint, shown
  * across System Prompt, Persona, Workspace Rules, and MCP Tool Schemas with an instant idle MCP switcher.
  */
 
@@ -36,11 +36,7 @@ export function formatTokenNumber(tokens: number): string {
   return tokens.toString();
 }
 
-export default function ContextFootprintInspector({
-  open,
-  onClose,
-  className = '',
-}: ContextFootprintInspectorProps) {
+export default function ContextFootprintInspector({ open, onClose, className = '' }: ContextFootprintInspectorProps) {
   const t = useTranslations('chat.contextFootprint');
   const mcpConfigs = useConfigStore((s) => s.mcpConfigs);
   const toggleMCPConfig = useConfigStore((s) => s.toggleMCPConfig);
@@ -125,7 +121,7 @@ export default function ContextFootprintInspector({
                   : 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/25'
             }`}
           >
-            {isLightBaseline ? 'Featherlight' : isHeavyBaseline ? 'Heavy Baseline' : 'Moderate'}
+            {isLightBaseline ? t('baselineFeatherlight') : isHeavyBaseline ? t('baselineHeavy') : t('baselineModerate')}
           </span>
         </div>
 
@@ -136,7 +132,9 @@ export default function ContextFootprintInspector({
               <Layers className="w-3.5 h-3.5 text-indigo-500" />
               {t('systemPrompt')}
             </span>
-            <span className="font-mono text-foreground">~{formatTokenNumber(baselineBreakdown.systemPromptTokens)} t</span>
+            <span className="font-mono text-foreground">
+              ~{formatTokenNumber(baselineBreakdown.systemPromptTokens)} t
+            </span>
           </div>
           <div className="flex items-center justify-between py-1 border-b border-border/30 text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -150,7 +148,9 @@ export default function ContextFootprintInspector({
               <Settings2 className="w-3.5 h-3.5 text-cyan-500" />
               {t('workspaceRules')}
             </span>
-            <span className="font-mono text-foreground">~{formatTokenNumber(baselineBreakdown.workspaceRulesTokens)} t</span>
+            <span className="font-mono text-foreground">
+              ~{formatTokenNumber(baselineBreakdown.workspaceRulesTokens)} t
+            </span>
           </div>
           <div className="flex items-center justify-between py-1 border-b border-border/30 text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -166,7 +166,9 @@ export default function ContextFootprintInspector({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               {t('skillsTools')}
             </span>
-            <span className="font-mono text-foreground">~{formatTokenNumber(baselineBreakdown.skillsToolsTokens)} t</span>
+            <span className="font-mono text-foreground">
+              ~{formatTokenNumber(baselineBreakdown.skillsToolsTokens)} t
+            </span>
           </div>
         </div>
 
@@ -197,7 +199,9 @@ export default function ContextFootprintInspector({
                   >
                     <div className="flex flex-col min-w-0 pr-2">
                       <span className="text-xs font-medium text-foreground truncate">{cfg.name}</span>
-                      <span className="text-[10px] text-muted-foreground truncate">{cfg.url || cfg.command || cfg.type}</span>
+                      <span className="text-[10px] text-muted-foreground truncate">
+                        {cfg.url || cfg.command || cfg.type}
+                      </span>
                     </div>
                     <button
                       type="button"

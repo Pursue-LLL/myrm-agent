@@ -76,7 +76,7 @@ export const CredentialPoolStatsPanel = memo<CredentialPoolStatsPanelProps>(({ p
           <Activity className="w-3.5 h-3.5 text-primary" />
           <span>{t('poolStatsTitle')}</span>
           <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded-full bg-muted border border-border/40">
-            {isOpen ? '收起' : '展开'}
+            {isOpen ? t('poolStatsCollapse') : t('poolStatsExpand')}
           </span>
         </button>
 

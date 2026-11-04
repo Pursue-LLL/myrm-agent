@@ -59,8 +59,7 @@ export const AgentTemplateCard = memo<AgentTemplateCardProps>(({ template }) => 
   const isTeam = template.agent_type === 'team';
   const toolsCount = template.settings_preview?.enabled_builtin_tools.length ?? 0;
   const skillsCount =
-    (template.settings_preview?.skill_ids.length ?? 0) +
-    (template.settings_preview?.prebuilt_skill_ids.length ?? 0);
+    (template.settings_preview?.skill_ids.length ?? 0) + (template.settings_preview?.prebuilt_skill_ids.length ?? 0);
 
   return (
     <article
@@ -72,11 +71,7 @@ export const AgentTemplateCard = memo<AgentTemplateCardProps>(({ template }) => 
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
-              {isTeam ? (
-                <Users className="h-5 w-5 text-indigo-500" />
-              ) : (
-                <Bot className="h-5 w-5 text-sky-500" />
-              )}
+              {isTeam ? <Users className="h-5 w-5 text-indigo-500" /> : <Bot className="h-5 w-5 text-sky-500" />}
             </div>
             <div>
               <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-base leading-snug line-clamp-1">
@@ -127,8 +122,7 @@ export const AgentTemplateCard = memo<AgentTemplateCardProps>(({ template }) => 
           </span>
           {typeof template.cost_reduction_ratio === 'number' && (
             <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-              <Sparkles className="h-3 w-3" />
-              -{(template.cost_reduction_ratio * 100).toFixed(0)}%
+              <Sparkles className="h-3 w-3" />-{(template.cost_reduction_ratio * 100).toFixed(0)}%
             </span>
           )}
         </div>
@@ -151,7 +145,7 @@ export const AgentTemplateCard = memo<AgentTemplateCardProps>(({ template }) => 
       {/* Action footer */}
       <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
         <span className="text-[11px] text-zinc-400">
-          {isTeam && template.members ? `${template.members.length} members` : 'Zero-Prompt Ready'}
+          {isTeam && template.members ? t('membersCount', { count: template.members.length }) : t('zeroPromptReady')}
         </span>
         <button
           type="button"

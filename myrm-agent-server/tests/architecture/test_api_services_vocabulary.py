@@ -113,7 +113,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "background",
         "bitable_copilot",
         "chat",
-        "code_graph",
         "compliance",
         "copilot",
         "event",

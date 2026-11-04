@@ -3443,12 +3443,12 @@ async def finalize_live_meeting(
 
 from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
+from app.api.wiki.layers_routes import router as wiki_layers_router  # noqa: E402
 from app.api.wiki.maintain_routes import router as wiki_maintain_router  # noqa: E402
 from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
 from app.api.wiki.routes.ima import router as wiki_ima_router  # noqa: E402
 from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402
-from app.api.wiki.writeback_routes import router as wiki_writeback_router  # noqa: E402
 
 register_ingest_stream_routes(router)
 router.include_router(wiki_clip_router)
@@ -3457,4 +3457,4 @@ router.include_router(wiki_sources_router)
 router.include_router(wiki_ima_router)
 router.include_router(wiki_obsidian_binding_router)
 router.include_router(wiki_governance_router)
-router.include_router(wiki_writeback_router)
+router.include_router(wiki_layers_router)

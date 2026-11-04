@@ -4,8 +4,7 @@ git CLI (POS: Repository-aware file listing source)
 os.walk (POS: Filesystem fallback enumerator)
 
 [OUTPUT]
-WorkspacePathIndexer: lists workspace files as root-relative paths with a short TTL cache, and tells whether a listing
-reached the enumeration cap and may therefore be incomplete.
+WorkspacePathIndexer: lists workspace files as root-relative paths with a short TTL cache.
 
 [POS]
 Local workspace file enumerator. Produces bounded relative file lists for higher-level suggestion and indexing features.
@@ -65,7 +64,7 @@ class WorkspacePathIndexer:
 
     @classmethod
     def list_files(cls, root: str | Path) -> list[str]:
-        """Return cached relevant file paths under ``root``; enumeration stops at a fixed maximum (see ``is_truncated``)."""
+        """Return cached relevant file paths under ``root``; enumeration stops at a fixed maximum."""
 
         root_path = Path(root).expanduser().resolve()
         cache_key = str(root_path)
@@ -92,12 +91,6 @@ class WorkspacePathIndexer:
                 _file_cache.clear()
                 return
             _file_cache.pop(str(Path(root).expanduser().resolve()), None)
-
-    @staticmethod
-    def is_truncated(files: list[str]) -> bool:
-        """True when ``files`` reached the enumeration cap, so the workspace may hold more files than were listed."""
-
-        return len(files) >= _MAX_LISTED_FILES
 
     @staticmethod
     def _git_files(root: Path) -> list[str]:

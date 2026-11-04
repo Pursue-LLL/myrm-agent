@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronUp, BrainCircuit } from 'lucide-react';
 
 interface ThinkBoxProps {
@@ -8,6 +9,7 @@ interface ThinkBoxProps {
 }
 
 const ThinkBox = ({ content }: ThinkBoxProps) => {
+  const t = useTranslations('chat');
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -18,7 +20,7 @@ const ThinkBox = ({ content }: ThinkBoxProps) => {
       >
         <div className="flex items-center space-x-2">
           <BrainCircuit size={20} className="text-[#9C27B0] dark:text-[#CE93D8]" />
-          <p className="font-medium text-sm">Thinking Process</p>
+          <p className="font-medium text-sm">{t('thinkingProcess')}</p>
         </div>
         {isExpanded ? (
           <ChevronUp size={18} className="text-black/70 dark:text-white/70" />

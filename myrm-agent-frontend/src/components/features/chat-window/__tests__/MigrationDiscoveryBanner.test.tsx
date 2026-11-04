@@ -84,6 +84,15 @@ describe('MigrationDiscoveryBanner', () => {
     expect(mockPush).toHaveBeenCalledWith('/settings/memory?sub=migration&source=hermes');
   });
 
+  it('lets the actions wrap onto a second line instead of running past the screen edge', async () => {
+    mockDiscover.mockResolvedValue(response([source]));
+
+    render(<MigrationDiscoveryBanner />);
+
+    const importButton = await screen.findByRole('button', { name: /importButton/ });
+    expect(importButton.parentElement).toHaveClass('flex-wrap');
+  });
+
   it('stays hidden after dismissal for the rest of the browser session', async () => {
     mockDiscover.mockResolvedValue(response([source]));
     const { container, unmount } = render(<MigrationDiscoveryBanner />);

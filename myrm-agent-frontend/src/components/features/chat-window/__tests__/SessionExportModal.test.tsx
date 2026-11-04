@@ -22,16 +22,7 @@ const {
   copyAsMarkdownMock: vi.fn(),
 }));
 
-const stableT = (key: string, values?: Record<string, string | number | undefined>): string => {
-  if (values?.defaultMessage) {
-    return String(values.defaultMessage);
-  }
-  return key;
-};
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh'));
 
 vi.mock('next-themes', () => ({
   useTheme: () => ({ resolvedTheme: 'light' }),
@@ -106,7 +97,7 @@ describe('SessionExportModal', () => {
     expect(screen.getByText('包含模型思考过程 (Thinking)')).toBeInTheDocument();
     expect(screen.getByText('包含工具调用与耗时分析')).toBeInTheDocument();
 
-    expect(screen.getByText('复制 Markdown')).toBeInTheDocument();
+    expect(screen.getByText('复制为 Markdown')).toBeInTheDocument();
     expect(screen.getByText('下载所选格式')).toBeInTheDocument();
   });
 
@@ -124,7 +115,9 @@ describe('SessionExportModal', () => {
         includeToolCalls: true,
       });
       expect(onOpenChange).toHaveBeenCalledWith(false);
-      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '已安全脱敏导出', variant: 'default' }));
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: '导出成功（已自动脱敏敏感凭据）', variant: 'default' }),
+      );
     });
   });
 
@@ -179,7 +172,7 @@ describe('SessionExportModal', () => {
         includeSubagents: true,
       });
       expect(onOpenChange).toHaveBeenCalledWith(false);
-      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '导出会话成功', variant: 'default' }));
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '导出成功', variant: 'default' }));
     });
   });
 
@@ -187,7 +180,7 @@ describe('SessionExportModal', () => {
     const onOpenChange = vi.fn();
     render(<SessionExportModal open onOpenChange={onOpenChange} chatId="c123" chatTitle="Test Session" />);
 
-    const copyBtn = screen.getByText('复制 Markdown');
+    const copyBtn = screen.getByText('复制为 Markdown');
     fireEvent.click(copyBtn);
 
     await waitFor(() => {
@@ -197,7 +190,7 @@ describe('SessionExportModal', () => {
         includeToolCalls: true,
       });
       expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '已复制脱敏 Markdown', variant: 'default' }),
+        expect.objectContaining({ title: '已复制到剪贴板（已自动脱敏敏感凭据）', variant: 'default' }),
       );
     });
   });
@@ -210,7 +203,7 @@ describe('SessionExportModal', () => {
     fireEvent.click(screen.getByText('下载所选格式'));
 
     await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '没有可导出的消息' }));
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '无消息可导出' }));
       expect(downloadAsHtmlMock).not.toHaveBeenCalled();
       expect(onOpenChange).not.toHaveBeenCalled();
     });

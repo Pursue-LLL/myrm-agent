@@ -5,7 +5,8 @@ import { DevPortsBar } from '../DevPortsBar';
 import type { DevPortInfo } from '@/services/devPorts';
 import * as devPortsService from '@/services/devPorts';
 
-const stableT = (key: string) => key;
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -50,16 +51,12 @@ describe('DevPortsBar component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     if (!HTMLDialogElement.prototype.showModal) {
-      HTMLDialogElement.prototype.showModal = function showModalMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.showModal = function showModalMock(this: HTMLDialogElement) {
         this.open = true;
       };
     }
     if (!HTMLDialogElement.prototype.close) {
-      HTMLDialogElement.prototype.close = function closeMock(
-        this: HTMLDialogElement,
-      ) {
+      HTMLDialogElement.prototype.close = function closeMock(this: HTMLDialogElement) {
         this.open = false;
       };
     }
@@ -70,7 +67,7 @@ describe('DevPortsBar component', () => {
     render(<DevPortsBar />);
 
     await waitFor(() => {
-      expect(screen.getByText('2 Ports')).toBeDefined();
+      expect(screen.getByText('barPortsCount:2')).toBeDefined();
     });
   });
 
@@ -90,7 +87,7 @@ describe('DevPortsBar component', () => {
   it('toggles popover on Cmd+Shift+P shortcut', async () => {
     render(<DevPortsBar />);
 
-    await screen.findByText('2 Ports');
+    await screen.findByText('barPortsCount:2');
 
     fireEvent.keyDown(window, {
       key: 'p',
@@ -122,7 +119,7 @@ describe('DevPortsBar component', () => {
     fireEvent.click(portCard);
 
     // Modal should now be open
-    expect(screen.getByTitle('Preview port 3000')).toBeDefined();
+    expect(screen.getByTitle('previewPort:3000')).toBeDefined();
   });
 
   it('terminates port when clicking trash button in card', async () => {

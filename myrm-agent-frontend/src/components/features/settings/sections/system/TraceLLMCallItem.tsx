@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { IconClock, IconChevronDown, IconChevronRight } from '@/components/features/icons/PremiumIcons';
 import type { TraceLLMCall } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -18,6 +19,7 @@ interface TraceLLMCallItemProps {
  * users can tell "network wait" from "token generation" at a glance.
  */
 const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }) => {
+  const t = useTranslations('settings.sessionAnalytics.trace');
   const [viewportExpanded, setViewportExpanded] = useState(false);
   const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens, attempt, retry_count } =
     llmCall;
@@ -59,15 +61,15 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <IconClock className="w-3.5 h-3.5 text-blue-500" />
-          <span className="text-sm font-medium text-foreground">{model_name || 'Unknown Model'}</span>
+          <span className="text-sm font-medium text-foreground">{model_name || t('llmUnknownModel')}</span>
           {((attempt && attempt > 1) || (retry_count && retry_count > 0)) && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-              Retry x{retryBadge}
+              {t('llmRetry', { count: retryBadge })}
             </span>
           )}
         </div>
         <div className="text-xs text-muted-foreground flex gap-3">
-          <span>{total_tokens.toLocaleString()} tokens</span>
+          <span>{t('llmTokens', { count: total_tokens.toLocaleString() })}</span>
           <span className="font-mono">{durationText}</span>
         </div>
       </div>
@@ -78,23 +80,23 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
             <div
               className="h-full bg-amber-400 dark:bg-amber-500/80 transition-all"
               style={{ width: `${ttftRatio}%` }}
-              title={`Network Wait (TTFT): ${Math.round(ttft_ms)}ms`}
+              title={t('llmNetworkWaitTitle', { ms: Math.round(ttft_ms) })}
             />
             <div
               className="h-full bg-emerald-400 dark:bg-emerald-500/80 transition-all"
               style={{ width: `${genRatio}%` }}
-              title={`Token Generation: ${Math.round(duration_ms - ttft_ms)}ms`}
+              title={t('llmGenerationTitle', { ms: Math.round(duration_ms - ttft_ms) })}
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500/80" />
-              TTFT: {Math.round(ttft_ms)}ms
+              {t('llmTtft', { ms: Math.round(ttft_ms) })}
             </span>
             <span className="flex items-center gap-3">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500/80" />
-                Gen: {Math.round(duration_ms - ttft_ms)}ms
+                {t('llmGeneration', { ms: Math.round(duration_ms - ttft_ms) })}
               </span>
               {tps > 0 && (
                 <span className="font-mono text-emerald-600 dark:text-emerald-400">{tps.toFixed(1)} tps</span>
@@ -105,9 +107,9 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
       )}
 
       <div className="flex gap-4 mt-2 text-[10px] text-muted-foreground/70">
-        <span>Prompt: {prompt_tokens}</span>
-        <span>Completion: {completion_tokens}</span>
-        {llmCall.message_count != null && <span>Messages: {llmCall.message_count}</span>}
+        <span>{t('llmPrompt', { count: prompt_tokens })}</span>
+        <span>{t('llmCompletion', { count: completion_tokens })}</span>
+        {llmCall.message_count != null && <span>{t('llmMessages', { count: llmCall.message_count })}</span>}
       </div>
 
       {llmCall.prompt_preview && (
@@ -118,7 +120,7 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
             className="flex items-center gap-1.5 text-[11px] font-medium text-primary/80 hover:text-primary transition-colors mb-1"
           >
             {viewportExpanded ? <IconChevronDown className="h-3 w-3" /> : <IconChevronRight className="h-3 w-3" />}
-            <span>Model Viewport ({viewportExpanded ? 'Hide' : 'Inspect'})</span>
+            <span>{viewportExpanded ? t('llmViewportHide') : t('llmViewportInspect')}</span>
           </button>
           {viewportExpanded ? (
             <ModelViewportView promptPreview={llmCall.prompt_preview} compact className="mt-1" />

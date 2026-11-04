@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { LocalSkillPathScanPreviewBeforeAdoptDialog } from '../LocalSkillPathScanPreviewBeforeAdoptDialog';
 import type { LocalSkillPathPreviewResponse } from '@/store/skill/types';
 import en from '../../../../../locales/en.json';
@@ -361,6 +361,73 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     // Click to hide
     fireEvent.click(toggleFindingsBtn);
     expect(screen.queryByTestId('findings-inspection-panel')).not.toBeInTheDocument();
+  });
+
+  it('toggles a skill from anywhere on its card while the findings button keeps its own action', () => {
+    const previewWithCard: LocalSkillPathPreviewResponse = {
+      resolved_path: '/Users/developer/card-skills',
+      exists: true,
+      is_directory: true,
+      total_discovered: 1,
+      skills: [
+        {
+          name: 'card-skill',
+          description: 'Skill whose whole card is the click target',
+          author: null,
+          version: '1.0.0',
+          category: 'ops',
+          tags: [],
+          required_tools: [],
+          relative_path: 'nested/card-dir',
+          skill_id: 'local::card123',
+          is_conflicted: false,
+          conflict_reason: null,
+          is_safe: true,
+          threat_summary: null,
+          security_score: 95,
+          security: {
+            score: 95,
+            trust_recommendation: 'safe',
+            total_findings: 1,
+            finding_counts: { command_injection: 1 },
+            findings: [
+              {
+                threat_type: 'command_injection',
+                severity: 'low',
+                description: 'Detected raw shell execution via os.system',
+                line_number: 3,
+              },
+            ],
+          },
+        },
+      ],
+      warning_message: null,
+    };
+
+    render(
+      <LocalSkillPathScanPreviewBeforeAdoptDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        previewData={previewWithCard}
+        isAdopting={false}
+        onConfirmAdopt={onConfirmAdopt}
+      />,
+    );
+
+    const card = screen.getByTestId('preview-skill-card-card-skill');
+    const checkbox = screen.getByTestId('preview-skill-checkbox-card-skill');
+    expect(checkbox).toBeChecked();
+    expect(checkbox).toHaveAccessibleName('card-skill');
+
+    fireEvent.click(within(card).getByText('card-skill'));
+    expect(checkbox).not.toBeChecked();
+    fireEvent.click(within(card).getByText('Skill whose whole card is the click target'));
+    expect(checkbox).toBeChecked();
+
+    // The findings button expands the drawer and leaves the selection alone.
+    fireEvent.click(screen.getByTestId('toggle-findings-btn'));
+    expect(screen.getByTestId('findings-inspection-panel')).toBeInTheDocument();
+    expect(checkbox).toBeChecked();
   });
 
   it('supports controlled override for blocked skills and passes allowUntrusted to onConfirmAdopt', () => {

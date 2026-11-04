@@ -6,6 +6,7 @@ myrm_agent_harness.toolkits.retriever.embedding.factory::get_embedding_service (
 
 [OUTPUT]
 SharedContextMemoryHealthResult: Shared Context memory dependency health result
+EMBEDDING_NOT_CONFIGURED_REASON: the `reason` reported when no embedding model was ever configured (keyword recall)
 check_shared_context_memory_health: validates embedding configuration and optional live probe
 
 [POS]
@@ -25,6 +26,8 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embeddin
 from app.services.agent.platform_config import require_platform_embedding_config
 
 SharedContextMemoryHealthStatus = Literal["ready", "not_configured", "unreachable"]
+
+EMBEDDING_NOT_CONFIGURED_REASON = "embedding_not_configured"
 
 _PLACEHOLDER_API_KEYS = {
     "",
@@ -111,7 +114,7 @@ async def check_shared_context_memory_health(*, probe: bool) -> SharedContextMem
             api_base_configured=False,
             api_key_configured=False,
             probed=False,
-            reason="embedding_not_configured",
+            reason=EMBEDDING_NOT_CONFIGURED_REASON,
             retryable=False,
             checked_at=checked_at,
         )

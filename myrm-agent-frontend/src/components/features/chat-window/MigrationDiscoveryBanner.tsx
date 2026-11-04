@@ -119,7 +119,7 @@ export default function MigrationDiscoveryBanner() {
             {hasApiKeys && <span className="text-xs text-amber-600 dark:text-amber-400">{t('apiKeysHint')}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2 overflow-visible py-1 sm:shrink-0">
+        <div className="flex flex-wrap items-center gap-2 overflow-visible py-1 sm:shrink-0">
           <Button className="btn-brand-elevation h-8 shrink-0 px-3 text-sm" onClick={handleNavigate}>
             <IconArrowRight className="mr-1.5 h-3.5 w-3.5" />
             {t('importButton')}

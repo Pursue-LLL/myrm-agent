@@ -41,7 +41,7 @@ class SkillMetadata:
 
     # --- Core identity ---
     name: str
-    """Skill name (standardized to end with _skill)"""
+    """Skill name as its backend lists it: the name the catalog shows and the model selects by"""
 
     description: str
     """Brief description of what the skill does"""

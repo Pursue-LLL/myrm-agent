@@ -55,18 +55,10 @@ describe('PresentationGeneratorModal component', () => {
   });
 
   it('triggers generatePresentation and switches to previewer on success', async () => {
-    const generateSpy = vi
-      .spyOn(presentationService, 'generatePresentation')
-      .mockResolvedValueOnce(mockResponse);
+    const generateSpy = vi.spyOn(presentationService, 'generatePresentation').mockResolvedValueOnce(mockResponse);
 
     const handleClose = vi.fn();
-    render(
-      <PresentationGeneratorModal
-        isOpen={true}
-        onClose={handleClose}
-        defaultTopic="Next Gen Multi-Agent"
-      />,
-    );
+    render(<PresentationGeneratorModal isOpen={true} onClose={handleClose} defaultTopic="Next Gen Multi-Agent" />);
 
     const generateBtn = screen.getByText('generateButton');
     fireEvent.click(generateBtn);
@@ -84,7 +76,7 @@ describe('PresentationGeneratorModal component', () => {
 
     // Check that previewer loaded
     await waitFor(() => {
-      expect(screen.getByText('+ New Presentation')).toBeInTheDocument();
+      expect(screen.getByText('newPresentation')).toBeInTheDocument();
       expect(screen.getByText('cloud_agent.pptx')).toBeInTheDocument();
     });
   });
@@ -95,13 +87,7 @@ describe('PresentationGeneratorModal component', () => {
     );
 
     const handleClose = vi.fn();
-    render(
-      <PresentationGeneratorModal
-        isOpen={true}
-        onClose={handleClose}
-        defaultTopic="Fault Tolerance"
-      />,
-    );
+    render(<PresentationGeneratorModal isOpen={true} onClose={handleClose} defaultTopic="Fault Tolerance" />);
 
     const generateBtn = screen.getByText('generateButton');
     fireEvent.click(generateBtn);

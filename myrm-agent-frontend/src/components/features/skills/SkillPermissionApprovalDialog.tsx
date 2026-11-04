@@ -4,9 +4,7 @@
  * Skill Permission Approval Dialog
  *
  * 当用户安装/启用Skill时，显示Skill声明的required_permissions，
- * 用户批准后才能继续。
- *
- * 借鉴Manus Skills Marketplace的权限审批设计。
+ * 用户批准（或套用权限模板）后才能继续，拒绝则技能保持关闭、不记授权。
  */
 
 import { useTranslations } from 'next-intl';
@@ -126,34 +124,32 @@ export function SkillPermissionApprovalDialog({
   // 权限标签映射
   const permissionLabels: Record<SkillPermissionType, { label: string; description: string }> = {
     file_read: {
-      label: t('types.fileRead.label', { defaultValue: '读取文件' }),
-      description: t('types.fileRead.description', { defaultValue: '从工作区读取文件内容' }),
+      label: t('types.fileRead.label'),
+      description: t('types.fileRead.description'),
     },
     file_write: {
-      label: t('types.fileWrite.label', { defaultValue: '写入文件' }),
-      description: t('types.fileWrite.description', { defaultValue: '在工作区创建或修改文件' }),
+      label: t('types.fileWrite.label'),
+      description: t('types.fileWrite.description'),
     },
     file_delete: {
-      label: t('types.fileDelete.label', { defaultValue: '删除文件' }),
-      description: t('types.fileDelete.description', { defaultValue: '从工作区删除文件' }),
+      label: t('types.fileDelete.label'),
+      description: t('types.fileDelete.description'),
     },
     shell_exec: {
-      label: t('types.shellExec.label', { defaultValue: '执行Shell命令' }),
-      description: t('types.shellExec.description', { defaultValue: '在系统中执行shell命令' }),
+      label: t('types.shellExec.label'),
+      description: t('types.shellExec.description'),
     },
     code_interpreter: {
-      label: t('types.codeInterpreter.label', { defaultValue: '执行代码' }),
-      description: t('types.codeInterpreter.description', {
-        defaultValue: '执行Python、Node.js等代码',
-      }),
+      label: t('types.codeInterpreter.label'),
+      description: t('types.codeInterpreter.description'),
     },
     network_access: {
-      label: t('types.networkAccess.label', { defaultValue: '网络访问' }),
-      description: t('types.networkAccess.description', { defaultValue: '发起HTTP/HTTPS请求' }),
+      label: t('types.networkAccess.label'),
+      description: t('types.networkAccess.description'),
     },
     env_var_access: {
-      label: t('types.envVarAccess.label', { defaultValue: '环境变量访问' }),
-      description: t('types.envVarAccess.description', { defaultValue: '读取或修改环境变量' }),
+      label: t('types.envVarAccess.label'),
+      description: t('types.envVarAccess.description'),
     },
   };
 
@@ -171,12 +167,8 @@ export function SkillPermissionApprovalDialog({
               {hasDangerousPermissions ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
             </div>
             <div>
-              <DialogTitle>{t('approvalTitle', { defaultValue: 'Skill 权限审批' })}</DialogTitle>
-              <DialogDescription className="mt-1">
-                {t('approvalDescription', {
-                  defaultValue: '此Skill需要以下权限才能正常工作',
-                })}
-              </DialogDescription>
+              <DialogTitle>{t('approvalTitle')}</DialogTitle>
+              <DialogDescription className="mt-1">{t('approvalDescription')}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -184,48 +176,34 @@ export function SkillPermissionApprovalDialog({
         <div className="space-y-4 py-4">
           {/* Skill 信息 */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              {t('skillName', { defaultValue: 'Skill名称' })}
-            </label>
+            <label className="text-sm font-medium text-muted-foreground">{t('skillName')}</label>
             <div className="mt-1 text-sm font-semibold">{request.skillName}</div>
             {request.description && <div className="mt-1 text-sm text-muted-foreground">{request.description}</div>}
           </div>
 
           {/* 权限模板选择器 */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              {t('template.label', { defaultValue: '使用权限模板' })}
-            </label>
+            <label className="text-sm font-medium text-muted-foreground">{t('template.label')}</label>
             <Select value={selectedTemplate} onValueChange={handleTemplateSelect}>
               <SelectTrigger className="mt-2">
-                <SelectValue placeholder={t('template.placeholder', { defaultValue: '选择标准模板快速授权' })} />
+                <SelectValue placeholder={t('template.placeholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('template.none', { defaultValue: '不使用模板' })}</SelectItem>
-                <SelectItem value="readonly">
-                  {t('template.readonly', { defaultValue: '只读模式' })} (file_read)
-                </SelectItem>
+                <SelectItem value="">{t('template.none')}</SelectItem>
+                <SelectItem value="readonly">{t('template.readonly')} (file_read)</SelectItem>
                 <SelectItem value="data_analysis">
-                  {t('template.dataAnalysis', { defaultValue: '数据分析' })} (file_read, code_interpreter)
+                  {t('template.dataAnalysis')} (file_read, code_interpreter)
                 </SelectItem>
                 <SelectItem value="web_automation">
-                  {t('template.webAutomation', { defaultValue: '网络自动化' })} (network_access, file_write)
+                  {t('template.webAutomation')} (network_access, file_write)
                 </SelectItem>
                 <SelectItem value="developer_tools">
-                  {t('template.developerTools', { defaultValue: '开发工具' })} (file_read, file_write, shell_exec)
+                  {t('template.developerTools')} (file_read, file_write, shell_exec)
                 </SelectItem>
-                <SelectItem value="system_admin">
-                  {t('template.systemAdmin', { defaultValue: '系统管理员（危险）' })} (ALL)
-                </SelectItem>
+                <SelectItem value="system_admin">{t('template.systemAdmin')} (ALL)</SelectItem>
               </SelectContent>
             </Select>
-            {selectedTemplate && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t('template.hint', {
-                  defaultValue: '批准时将自动授予模板对应的权限',
-                })}
-              </p>
-            )}
+            {selectedTemplate && <p className="mt-2 text-xs text-muted-foreground">{t('template.hint')}</p>}
           </div>
 
           {/* 权限列表（分组显示） */}
@@ -235,7 +213,7 @@ export function SkillPermissionApprovalDialog({
               <div>
                 <label className="text-sm font-medium text-destructive flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
-                  {t('dangerousPermissions', { defaultValue: '危险权限' })}
+                  {t('dangerousPermissions')}
                 </label>
                 <div className="mt-2 space-y-2">
                   {dangerousPermissions.map((permission) => {
@@ -252,7 +230,7 @@ export function SkillPermissionApprovalDialog({
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{info.label}</span>
                             <Badge variant="destructive" className="h-5 text-xs">
-                              {t('dangerous', { defaultValue: '危险' })}
+                              {t('dangerous')}
                             </Badge>
                           </div>
                           <div className="mt-0.5 text-xs text-muted-foreground">{info.description}</div>
@@ -267,9 +245,7 @@ export function SkillPermissionApprovalDialog({
             {/* 普通权限组 */}
             {safePermissions.length > 0 && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  {t('normalPermissions', { defaultValue: '普通权限' })}
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">{t('normalPermissions')}</label>
                 <div className="mt-2 space-y-2">
                   {safePermissions.map((permission) => {
                     const Icon = getPermissionIcon(permission);
@@ -297,17 +273,13 @@ export function SkillPermissionApprovalDialog({
             {/* 网络访问权限 (DLP) */}
             {request.allowedDomains && request.allowedDomains.length > 0 && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  {t('networkAccess', { defaultValue: '网络访问白名单' })}
-                </label>
+                <label className="text-sm font-medium text-muted-foreground">{t('networkAccess')}</label>
                 <div className="mt-2 space-y-2">
                   <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-3">
                     <Globe className="mt-0.5 h-4 w-4 text-muted-foreground" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {t('allowedDomains', { defaultValue: '允许访问的域名' })}
-                        </span>
+                        <span className="text-sm font-medium">{t('allowedDomains')}</span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {request.allowedDomains.map((domain) => (
@@ -316,11 +288,7 @@ export function SkillPermissionApprovalDialog({
                           </Badge>
                         ))}
                       </div>
-                      <div className="mt-1.5 text-xs text-muted-foreground">
-                        {t('allowedDomainsDesc', {
-                          defaultValue: '此 Skill 仅被允许向以上域名发起网络请求，防止数据外泄。',
-                        })}
-                      </div>
+                      <div className="mt-1.5 text-xs text-muted-foreground">{t('allowedDomainsDesc')}</div>
                     </div>
                   </div>
                 </div>
@@ -332,11 +300,7 @@ export function SkillPermissionApprovalDialog({
           {hasDangerousPermissions && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                {t('dangerousWarning', {
-                  defaultValue: '此Skill请求了危险权限，请确认Skill来源可信后再批准。',
-                })}
-              </AlertDescription>
+              <AlertDescription className="text-sm">{t('dangerousWarning')}</AlertDescription>
             </Alert>
           )}
         </div>
@@ -344,7 +308,7 @@ export function SkillPermissionApprovalDialog({
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onDeny} disabled={isLoading}>
             <XCircle className="mr-2 h-4 w-4" />
-            {t('deny', { defaultValue: '拒绝' })}
+            {t('deny')}
           </Button>
           <Button
             variant={hasDangerousPermissions ? 'destructive' : 'default'}
@@ -352,9 +316,7 @@ export function SkillPermissionApprovalDialog({
             disabled={isLoading}
           >
             <CheckCircle className="mr-2 h-4 w-4" />
-            {hasDangerousPermissions
-              ? t('approveAnyway', { defaultValue: '仍然批准' })
-              : t('approve', { defaultValue: '批准' })}
+            {hasDangerousPermissions ? t('approveAnyway') : t('approve')}
           </Button>
         </DialogFooter>
       </DialogContent>

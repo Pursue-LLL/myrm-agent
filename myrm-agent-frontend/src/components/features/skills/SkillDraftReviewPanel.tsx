@@ -276,9 +276,7 @@ const SkillDraftReviewPanel = memo(({ className }: SkillDraftReviewPanelProps) =
                 )}
                 {draft.content && draft.draft_type === 'skill_patch' && (
                   <div className="pt-2 border-t border-border/50">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {t('draft.patchContent') || 'Patch Changes'}
-                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('draft.patchContent')}</p>
                     <pre className="text-[10px] font-mono mt-0.5 whitespace-pre-wrap bg-background/50 p-2 rounded border border-border/50 max-h-60 overflow-y-auto">
                       {draft.content}
                     </pre>

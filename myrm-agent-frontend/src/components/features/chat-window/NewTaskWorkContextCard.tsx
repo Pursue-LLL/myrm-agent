@@ -5,11 +5,12 @@
  * - @/store/useChatStore (POS: Global chat store for workspaceDir, sandboxMode, actionMode)
  * - @/services/chat::mkdirInWorkspace, browseDirectories, updateChatWorkspaceDir
  * - @/lib/tauri::isTauriEnvironment
+ * - @/lib/workspacePathIssue::workspacePathIssueMessageKey (POS: Shared reading of a backend workspace-folder refusal)
  * - ./WorkModeTabs::WorkModeTabs, NewTaskMode (POS: Presentational three-mode segmented control)
  * - next-intl::useTranslations
  *
  * [OUTPUT]
- * - NewTaskWorkContextCard (UnifiedWorkContextCard): Unified onboarding card in EmptyChat
+ * - NewTaskWorkContextCard: Unified onboarding card in EmptyChat
  *   for mode selection (Local Workspace / Cloud Sandbox / Quick Chat) and office directory scaffolding.
  *
  * [POS]
@@ -72,6 +73,10 @@ function addRecentDir(dir: string): void {
 }
 
 const STANDARD_OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
+// The scaffold button's tooltip names exactly the folders it creates.
+const STANDARD_OFFICE_FOLDERS_LABEL = STANDARD_OFFICE_FOLDERS.join(', ');
+// Unbound, the trigger shows a localized sentence: it wraps instead of being clipped or capped, whatever the locale.
+const UNBOUND_TRIGGER_CLASS = 'border-border text-muted-foreground h-auto min-h-8 whitespace-normal py-1.5 text-left';
 
 interface NewTaskWorkContextCardProps {
   className?: string;
@@ -226,7 +231,8 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     }
   }, [handleTauriPicker]);
 
-  // One-click standard office scaffolding creation
+  // One-click standard office scaffolding. Only the folders the workspace lacks are created (the server rejects an
+  // existing path), so running it on an already initialized workspace reports success.
   const handleCreateScaffold = useCallback(async () => {
     if (!workspaceDir) {
       toast({ title: t('noWorkspaceSelected'), variant: 'destructive' });
@@ -234,14 +240,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
     }
     setIsScaffolding(true);
     try {
-      const results = await Promise.allSettled(
-        STANDARD_OFFICE_FOLDERS.map((folder) => mkdirInWorkspace(workspaceDir, folder)),
-      );
-      const failures = results.filter((r) => r.status === 'rejected');
-      if (failures.length === 0 || failures.length < STANDARD_OFFICE_FOLDERS.length) {
-        toast({ title: t('scaffoldSuccess') });
-      } else {
+      const { entries: existing } = await browseDirectories(workspaceDir);
+      const existingNames = new Set(existing.map((entry) => entry.name));
+      const missing = STANDARD_OFFICE_FOLDERS.filter((folder) => !existingNames.has(folder));
+      const results = await Promise.allSettled(missing.map((folder) => mkdirInWorkspace(workspaceDir, folder)));
+      if (results.some((result) => result.status === 'rejected')) {
         toast({ title: t('scaffoldFailed'), variant: 'destructive' });
+      } else {
+        toast({ title: t('scaffoldSuccess') });
       }
     } catch {
       toast({ title: t('scaffoldFailed'), variant: 'destructive' });
@@ -273,19 +279,19 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border/40">
         <WorkModeTabs value={currentMode} onChange={handleModeChange} />
 
-        {/* Mode description hint */}
-        <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate max-w-[280px]">
-          {currentMode === 'local' && t('modeLocalDesc')}
-          {currentMode === 'cloud' && t('modeCloudDesc')}
-          {currentMode === 'chat' && t('modeChatDesc')}
-        </span>
+        {/* Only the local panel (the folder picker) has no description row of its own; cloud and chat state theirs below. */}
+        {currentMode === 'local' && (
+          <span className="hidden md:inline-block text-[11px] text-muted-foreground truncate">
+            {t('modeLocalDesc')}
+          </span>
+        )}
       </div>
 
       {/* Context Action Area */}
       {currentMode === 'local' && (
         <div className="pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
           {/* Workspace Path Display & Picker */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1 w-full">
             <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -294,16 +300,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
                   data-testid="workspace-picker-trigger"
                   onClick={handleOpenPicker}
                   className={cn(
-                    'h-8 px-2.5 text-xs font-normal gap-1.5 max-w-full justify-start rounded-lg border-dashed',
-                    workspaceDir
-                      ? 'border-primary/40 bg-primary/5 text-foreground'
-                      : 'border-border text-muted-foreground',
+                    'h-8 px-2.5 text-xs font-normal gap-1.5 min-w-0 max-w-full justify-start rounded-lg border-dashed',
+                    workspaceDir ? 'border-primary/40 bg-primary/5 text-foreground' : UNBOUND_TRIGGER_CLASS,
                   )}
                 >
                   <FolderOpen
                     className={cn('h-3.5 w-3.5 shrink-0', workspaceDir ? 'text-primary' : 'text-muted-foreground')}
                   />
-                  <span className="truncate max-w-[220px] sm:max-w-[320px]">
+                  <span className={workspaceDir ? 'truncate max-w-[220px] sm:max-w-[320px]' : undefined}>
                     {workspaceDir ? shortenPath(workspaceDir) : t('noWorkspaceSelected')}
                   </span>
                 </Button>
@@ -439,7 +443,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
               data-testid="scaffold-btn"
               onClick={handleCreateScaffold}
               className="h-8 px-2.5 text-xs font-medium gap-1.5 shrink-0 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
-              title={t('scaffoldTooltip')}
+              title={t('scaffoldTooltip', { folders: STANDARD_OFFICE_FOLDERS_LABEL })}
             >
               <FolderPlus className="h-3.5 w-3.5" />
               <span>{t('scaffoldBtn')}</span>
@@ -449,14 +453,14 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       )}
 
       {currentMode === 'cloud' && (
-        <div className="pt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="pt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <div className="size-2 rounded-full bg-blue-500 animate-pulse" />
+            <div className="size-2 shrink-0 rounded-full bg-blue-500 animate-pulse" />
             <span>{t('modeCloudDesc')}</span>
           </div>
           <div className="flex items-center gap-1 text-[11px] text-primary/80 font-medium">
             <Layers className="h-3 w-3" />
-            <span>Dedicated Sandbox Volume</span>
+            <span>{t('modeCloudBadge')}</span>
           </div>
         </div>
       )}
@@ -464,7 +468,7 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       {currentMode === 'chat' && (
         <div className="pt-3 flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <span>{t('modeChatDesc')}</span>
           </div>
         </div>
@@ -474,7 +478,5 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
 });
 
 NewTaskWorkContextCard.displayName = 'NewTaskWorkContextCard';
-
-export const UnifiedWorkContextCard = NewTaskWorkContextCard;
 
 export default NewTaskWorkContextCard;

@@ -15,13 +15,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Boxes,
-  PackageCheck,
-  Coins,
-  AlertCircle,
-  Sparkles,
-} from 'lucide-react';
+import { Boxes, PackageCheck, Coins, AlertCircle, Sparkles } from 'lucide-react';
 import {
   getDefaultBudget,
   packRecallCandidates,
@@ -32,11 +26,7 @@ import {
 import { BudgetPackingHudBar } from './BudgetPackingHudBar';
 import { MarginalValuePackingView } from './MarginalValuePackingView';
 import { TokenAccountingInspectorView } from './TokenAccountingInspectorView';
-import {
-  FALLBACK_BUDGET,
-  FALLBACK_CANDIDATES,
-  FALLBACK_PACKED_RESULT,
-} from './budgetPackingFallbacks';
+import { FALLBACK_BUDGET, FALLBACK_CANDIDATES, FALLBACK_PACKED_RESULT } from './budgetPackingFallbacks';
 
 type ActiveTab = 'packing' | 'accounting';
 
@@ -44,9 +34,7 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('packing');
   const [candidates] = useState<PackingCandidateDTO[]>(FALLBACK_CANDIDATES);
   const [budgetConfig, setBudgetConfig] = useState<BilledTokenBudgetDTO>(FALLBACK_BUDGET);
-  const [packedResult, setPackedResult] = useState<PackedRecallResultDTO>(
-    FALLBACK_PACKED_RESULT,
-  );
+  const [packedResult, setPackedResult] = useState<PackedRecallResultDTO>(FALLBACK_PACKED_RESULT);
   const [loading, setLoading] = useState<boolean>(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
@@ -88,7 +76,9 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
       });
       if (res && res.packed_items.length > 0) {
         setPackedResult(res);
-        setBannerMessage(`贪心装箱重算完成：入选 ${res.packed_items.length} 条，预算填满率 ${res.accounting.budget_utilization_pct}%`);
+        setBannerMessage(
+          `贪心装箱重算完成：入选 ${res.packed_items.length} 条，预算填满率 ${res.accounting.budget_utilization_pct}%`,
+        );
       } else {
         setPackedResult(FALLBACK_PACKED_RESULT);
         setBannerMessage('已使用基线数据完成装箱重排');
@@ -112,7 +102,9 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
       });
       if (res && res.packed_items.length > 0) {
         setPackedResult(res);
-        setBannerMessage(`装箱参数已生效：计费消费 ${res.accounting.billed_tokens_spent}/${customBudget.max_billed_tokens}t，节省存储 ${res.accounting.storage_tokens_saved}t`);
+        setBannerMessage(
+          `装箱参数已生效：计费消费 ${res.accounting.billed_tokens_spent}/${customBudget.max_billed_tokens}t，节省存储 ${res.accounting.storage_tokens_saved}t`,
+        );
       } else {
         setBannerMessage('装箱模拟演练已完成');
       }
@@ -144,14 +136,12 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-foreground tracking-tight">
-                预算贪心边际价值召回装箱中枢
-              </h2>
+              <h2 className="text-base font-semibold text-foreground tracking-tight">预算贪心边际价值召回装箱中枢</h2>
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
                 Item 122 · P2
               </span>
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                对标 Mnemosyne · 贪心背包算法
+                贪心背包算法
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -161,10 +151,7 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
         </div>
 
         {/* 顶部 Tab 导航 */}
-        <nav
-          aria-label="装箱视图选项卡"
-          className="flex items-center gap-1 bg-muted p-1 rounded-lg text-xs"
-        >
+        <nav aria-label="装箱视图选项卡" className="flex items-center gap-1 bg-muted p-1 rounded-lg text-xs">
           <button
             type="button"
             aria-label="切换至边际价值装箱看板"
@@ -212,11 +199,7 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
 
       {/* 选项卡视图内容分发 */}
       {activeTab === 'packing' && (
-        <MarginalValuePackingView
-          packedResult={packedResult}
-          onRepack={handleRepack}
-          repacking={loading}
-        />
+        <MarginalValuePackingView packedResult={packedResult} onRepack={handleRepack} repacking={loading} />
       )}
 
       {activeTab === 'accounting' && (

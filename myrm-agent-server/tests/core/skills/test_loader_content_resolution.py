@@ -1,10 +1,12 @@
 """The assembled skill backend must serve the SKILL.md of every skill it lists.
 
 `create_skill_backend` composes three sources under route prefixes that skill names never carry:
-enabled prebuilt skills, the skills bound to the agent (prebuilt picks and LOCAL folders) and the
-workspace skill directories. Everything downstream (`skill_select_tool`, the explicit `[use ...]`
-preload, skill hooks) asks that backend for content by the name or `storage_skill_id` found on the
-listed metadata, so each listed skill has to resolve through the whole stack.
+enabled prebuilt skills, the LOCAL skill folders bound to the agent and the workspace skill
+directories. A skill is served by exactly one of them. Everything downstream (`skill_select_tool`,
+the explicit `[use ...]` preload, skill hooks) asks that backend for content by the name or
+`storage_skill_id` found on the listed metadata, so each listed skill has to resolve through the
+whole stack. Each route reads only the catalog it serves: the `/user/` route asks the catalog for
+LOCAL skills and never lists the prebuilt one.
 
 The backend outlives the call that built it and consults the version-routing stores on every load, so it
 must not keep a database session open in between: a held session would pin a pooled connection and keep
@@ -13,10 +15,11 @@ serving the read snapshot it opened with, hiding a version that was activated af
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator, Iterator
 from contextlib import ExitStack
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -31,8 +34,10 @@ from sqlalchemy.pool import QueuePool
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.core.skills import prebuilt_sync
 from app.core.skills.loader import create_skill_backend
+from app.core.skills.models import Skill
 from app.core.skills.providers.local import LocalSkillsProvider
 from app.core.skills.store.service import SkillsService
+from app.core.storage.types import SkillType
 from app.database.factory import create_session_factory, register_sqlite_transaction_events, set_sqlite_pragma
 from app.database.models import Base
 
@@ -99,15 +104,16 @@ async def _assemble(
     workspace_path: str | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> SkillBackend:
-    allowed = frozenset((await service.user_config.get_config()).enabled_prebuilt_ids)
+    config = await service.user_config.get_config()
+    allowed = frozenset(config.enabled_prebuilt_ids)
+    # The scan roots of a real install belong to the machine; the test installs only the folder it wrote, enabled like a user would.
     local_skills = LocalSkillsProvider([str(local_root)]).scan_all() if local_root else []
-
-    async def _by_ids(skill_ids: list[str]) -> list[object]:
-        return [skill for skill in local_skills if skill.id in skill_ids]
+    config.enabled_local_skill_ids = [skill.id for skill in local_skills]
+    await service.user_config.save_config(config)
 
     with ExitStack() as patches:
         patches.enter_context(patch("app.core.skills.store.service.skills_service", service))
-        patches.enter_context(patch.object(service, "get_skills_by_ids", _by_ids))
+        patches.enter_context(patch("app.core.skills.store.reader.list_local_skills", AsyncMock(return_value=local_skills)))
         if session_factory is not None:
             patches.enter_context(patch("app.platform_utils.get_session_factory", return_value=session_factory))
         return await create_skill_backend(
@@ -145,6 +151,133 @@ async def test_prebuilt_skill_the_user_did_not_enable_stays_unreachable(
     assert "systematic-debugging" not in listed_names
     with pytest.raises(FileNotFoundError):
         await backend.get_skill_content("systematic-debugging")
+
+
+async def _enabled_prebuilt(service: SkillsService, count: int) -> list[str]:
+    ids = sorted((await service.user_config.get_config()).enabled_prebuilt_ids)
+    assert len(ids) >= count, "the curated default prebuilt skills must cover the picks of this test"
+    return ids[:count]
+
+
+@pytest.mark.asyncio
+async def test_bound_prebuilt_skill_is_listed_once_under_its_skill_md_name(
+    storage: LocalStorageBackend, service: SkillsService
+) -> None:
+    bound = await _enabled_prebuilt(service, 3)
+    backend = await _assemble(storage, service, skill_ids=bound)
+
+    loaded = await backend.load_skills(bound)
+
+    assert sorted(skill.name for skill in loaded) == bound
+    for skill in loaded:
+        assert skill.storage_skill_id == skill.name
+        document = await get_skill_document(skill, backend)
+        assert "Error: failed to load skill document" not in document
+
+
+@pytest.mark.asyncio
+async def test_prebuilt_and_local_picks_each_appear_once_in_one_backend(
+    tmp_path: Path, storage: LocalStorageBackend, service: SkillsService
+) -> None:
+    local_root = tmp_path / "local-skills"
+    _write_skill(local_root, "probe-local", _LOCAL_SKILL_MD)
+    local_id = LocalSkillsProvider([str(local_root)]).scan_all()[0].id
+    prebuilt = await _enabled_prebuilt(service, 2)
+
+    backend = await _assemble(storage, service, skill_ids=[*prebuilt, local_id], local_root=local_root)
+    loaded = await backend.load_skills([*prebuilt, local_id])
+
+    assert sorted(skill.name for skill in loaded) == sorted([*prebuilt, "probe_local_skill"])
+
+
+@pytest.mark.asyncio
+async def test_bound_prebuilt_skill_the_user_did_not_enable_stays_unloadable(
+    storage: LocalStorageBackend, service: SkillsService
+) -> None:
+    enabled = await _enabled_prebuilt(service, 1)
+    assert "systematic-debugging" not in enabled
+    bound = [*enabled, "systematic-debugging"]
+    backend = await _assemble(storage, service, skill_ids=bound)
+
+    loaded = await backend.load_skills(bound)
+
+    assert [skill.name for skill in loaded] == enabled
+    with pytest.raises(FileNotFoundError):
+        await backend.get_skill_content("systematic-debugging")
+
+
+def _spy_on_listings(service: SkillsService, monkeypatch: pytest.MonkeyPatch) -> list[SkillType | None]:
+    """Record the catalog type of every ``list_skills`` call the service receives."""
+    asked: list[SkillType | None] = []
+    listing = service.list_skills
+
+    async def spy(skill_type: SkillType | None = None) -> list[Skill]:
+        asked.append(skill_type)
+        return await listing(skill_type=skill_type)
+
+    monkeypatch.setattr(service, "list_skills", spy)
+    return asked
+
+
+async def _local_skill(service: SkillsService, tmp_path: Path) -> Skill:
+    """One scanned LOCAL skill, enabled like a user would."""
+    local_root = tmp_path / "local-skills"
+    _write_skill(local_root, "probe-local", _LOCAL_SKILL_MD)
+    skill = LocalSkillsProvider([str(local_root)]).scan_all()[0]
+    config = await service.user_config.get_config()
+    config.enabled_local_skill_ids = [skill.id]
+    await service.user_config.save_config(config)
+    return skill
+
+
+@pytest.mark.asyncio
+async def test_lookup_by_ids_reads_only_the_catalog_it_is_asked_for(
+    tmp_path: Path, service: SkillsService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    local = await _local_skill(service, tmp_path)
+    prebuilt = await _enabled_prebuilt(service, 2)
+    asked = _spy_on_listings(service, monkeypatch)
+    local_listing = AsyncMock(return_value=[local])
+
+    with patch("app.core.skills.store.reader.list_local_skills", local_listing):
+        local_only = await service.get_skills_by_ids([*prebuilt, local.id], skill_type=SkillType.LOCAL)
+        assert [skill.id for skill in local_only] == [local.id]
+        assert asked == []
+
+        prebuilt_only = await service.get_skills_by_ids([*prebuilt, local.id], skill_type=SkillType.PREBUILT)
+        assert sorted(skill.id for skill in prebuilt_only) == prebuilt
+        assert local_listing.await_count == 1
+
+        both = await service.get_skills_by_ids([*prebuilt, local.id])
+        assert sorted(skill.id for skill in both) == sorted([*prebuilt, local.id])
+
+
+@pytest.mark.asyncio
+async def test_building_the_backend_never_lists_the_prebuilt_catalog_for_the_user_route(
+    tmp_path: Path, storage: LocalStorageBackend, service: SkillsService, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    local = await _local_skill(service, tmp_path)
+    prebuilt = await _enabled_prebuilt(service, 2)
+    asked = _spy_on_listings(service, monkeypatch)
+
+    backend = await _assemble(storage, service, skill_ids=[*prebuilt, local.id], local_root=tmp_path / "local-skills")
+
+    assert SkillType.PREBUILT not in asked
+    assert sorted(skill.name for skill in await backend.load_skills([*prebuilt, local.id])) == sorted(
+        [*prebuilt, "probe_local_skill"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_agent_bound_to_prebuilt_skills_only_builds_without_a_warning(
+    storage: LocalStorageBackend, service: SkillsService, caplog: pytest.LogCaptureFixture
+) -> None:
+    bound = await _enabled_prebuilt(service, 3)
+    caplog.set_level(logging.WARNING, logger="app.core.skills.loader")
+
+    await _assemble(storage, service, skill_ids=bound)
+
+    assert [record for record in caplog.records if record.name == "app.core.skills.loader"] == []
 
 
 @pytest.mark.asyncio

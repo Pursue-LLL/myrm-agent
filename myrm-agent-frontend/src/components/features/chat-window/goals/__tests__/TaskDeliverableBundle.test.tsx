@@ -4,34 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { GoalState } from '../goalStatusTypes';
 
-const stableT = (key: string, params?: { count?: number; defaultMessage?: string }) => {
-  const map: Record<string, string> = {
-    deliverableBundle: 'Task Deliverables',
-    bundleDownloadAll: 'Download All',
-    bundleDownloading: 'Downloading…',
-    bundleDownloadFailed: 'Failed to download deliverables',
-    bundleCategoryAll: 'All',
-    bundleCategoryStrategy: 'Strategy & Overview',
-    bundleCategoryCopywriting: 'Copywriting & Content',
-    bundleCategoryVisual: 'Visual & Media',
-    bundleCategoryDataSheet: 'Data & Sheets',
-    bundleCategoryFactCheck: 'Fact Check & Audit',
-    bundleCategorySchedule: 'Schedule & Plans',
-    bundleCategoryCode: 'Code & Scripts',
-    bundleCategoryOther: 'Other Assets',
-  };
-  if (map[key]) {
-    return map[key];
-  }
-  if (params?.defaultMessage) {
-    return params.defaultMessage;
-  }
-  return key;
-};
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
@@ -85,6 +58,7 @@ describe('TaskDeliverableBundle', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
     expect(screen.getByText('Task Deliverables')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getAllByTitle('Select item for export').length).toBe(5);
 
     // Verify all files rendered
     expect(screen.getByText('campaign_strategy.md')).toBeInTheDocument();
@@ -118,7 +92,7 @@ describe('TaskDeliverableBundle', () => {
     fireEvent.click(checkboxes[1]);
 
     // Button for selected export appears
-    const exportSelectedBtn = screen.getByText(/导出选中 \(2\)/);
+    const exportSelectedBtn = screen.getByText(/Export Selected \(2\)/);
     expect(exportSelectedBtn).toBeInTheDocument();
 
     fireEvent.click(exportSelectedBtn);

@@ -19,8 +19,8 @@ held back until the next read shows whether the value continues.
 
 Limits: a value shorter than ``MIN_MASKED_LENGTH`` is left alone (it would mangle ordinary output and protects
 little); a value of 4 to 7 characters is hidden wherever it appears, inside longer words too (``root`` in ``rooted``);
-a value the command re-encodes any other way (base64, ``+`` for a space, lower-case hex digits, HTML entities) is not
-recognised; a stream that ends in the middle of a value releases that fragment.
+a value the command re-encodes any other way (base64, lower-case hex digits, HTML entities) is not recognised; a
+stream that ends in the middle of a value releases that fragment.
 """
 
 from __future__ import annotations
@@ -28,19 +28,26 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable
-from urllib.parse import quote
+from urllib.parse import quote, quote_plus
 
 MASK = "***"
 MIN_MASKED_LENGTH = 4
+
+# What ``encodeURIComponent`` leaves unescaped; most other encoders escape it.
+_BARE_PUNCTUATION = "!'()*"
+# A value reaches the shell as raw bytes, so it may hold a lone surrogate; its form must not break the command.
+_ENCODE_ERRORS = "surrogatepass"
 
 
 def printed_forms(values: Iterable[str]) -> list[str]:
     """The values to hide for these credentials: each one, and the forms a client prints it in.
 
-    A client that puts a credential in a URL writes it percent-encoded (most encoders also escape ``!'()*``, and
-    JavaScript's ``encodeURIComponent`` does not); one that echoes a request body writes it as a JSON string. A form
-    is added only where it differs from the value, so a plain token costs nothing extra. A value under
-    ``MIN_MASKED_LENGTH`` has no forms: it is left alone, and so is anything derived from it.
+    A client that puts a credential in a URL writes it percent-encoded: with ``%20`` for a space (curl, Python
+    ``quote``) or ``+`` (Python ``urlencode``, Go ``QueryEscape``), and with ``!'()*`` escaped or left bare
+    (``encodeURIComponent``). One that echoes a request body writes it as a JSON string, with non-ASCII characters
+    kept (JavaScript) or escaped as ``\\uXXXX`` (Python's default). A form is added only where it differs from the
+    value, so a plain token costs nothing extra. A value under ``MIN_MASKED_LENGTH`` has no forms: it is left alone,
+    and so is anything derived from it.
     """
     forms: set[str] = set()
     for value in values:
@@ -48,9 +55,11 @@ def printed_forms(values: Iterable[str]) -> list[str]:
             forms.update(
                 (
                     value,
-                    quote(value, safe=""),
-                    quote(value, safe="!'()*"),
+                    quote(value, safe="", errors=_ENCODE_ERRORS),
+                    quote(value, safe=_BARE_PUNCTUATION, errors=_ENCODE_ERRORS),
+                    quote_plus(value, safe="", errors=_ENCODE_ERRORS),
                     json.dumps(value, ensure_ascii=False)[1:-1],
+                    json.dumps(value)[1:-1],
                 )
             )
     return sorted(forms)

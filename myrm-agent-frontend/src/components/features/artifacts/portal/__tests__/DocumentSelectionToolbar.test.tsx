@@ -165,6 +165,23 @@ describe('DocumentSelectionToolbar', () => {
     expect(toolbarDivs.length).toBe(0);
   });
 
+  it('labels the toolbar from translations', () => {
+    const { containerRef, mockSelection, setupContainer } = createContainerWithSelection('test text');
+
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection as unknown as Selection);
+
+    render(
+      <div>
+        <div ref={setupContainer}>some content</div>
+        <DocumentSelectionToolbar containerRef={containerRef} artifactId="art-1" />
+      </div>,
+    );
+
+    triggerSelectionChange();
+
+    expect(screen.getByRole('toolbar', { name: 'toolbarLabel' })).toBeInTheDocument();
+  });
+
   it('hides on mobile viewport', () => {
     Object.defineProperty(window, 'innerWidth', { value: 400, writable: true });
 
@@ -262,8 +279,8 @@ describe('DocumentSelectionToolbar - useSelectionAction integration', () => {
     const explainBtn = screen.queryByText('explain');
     if (explainBtn) {
       const explainButton = explainBtn.closest('button');
-    expectNonNull(explainButton, 'explain button');
-    fireEvent.click(explainButton);
+      expectNonNull(explainButton, 'explain button');
+      fireEvent.click(explainButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalledTimes(1);

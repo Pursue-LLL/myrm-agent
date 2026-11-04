@@ -563,7 +563,10 @@ class AppSettings(BaseSettings):
     memory_labs_enabled: bool = Field(
         default=False,
         validation_alias="MYRM_MEMORY_LABS",
-        description="[O] Mount /memory/command-center* routes and other lab-only memory APIs",
+        description=(
+            "[O] Mount the /memory/command-center* routes (except graph and evidence/playback, which are always mounted) "
+            "and every other memory route that only the Labs panels call (see app/api/memory/router.py)"
+        ),
     )
 
     # --- [O] Browser extension bridge ---

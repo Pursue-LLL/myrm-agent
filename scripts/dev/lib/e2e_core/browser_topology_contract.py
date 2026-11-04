@@ -62,23 +62,6 @@ _PROFILE_OPTION_IDS: tuple[str, ...] = (
 )
 
 
-def _extract_browser_mcp_snippet(profile_text: str) -> str:
-    lines = profile_text.splitlines()
-    block: list[str] = []
-    in_block = False
-    for line in lines:
-        if line.startswith("  browser-mcp: |"):
-            in_block = True
-            continue
-        if in_block:
-            if line.startswith("  ") and not line.startswith("    "):
-                break
-            if line.strip() and not line.startswith("    "):
-                break
-            block.append(line)
-    return "\n".join(block).strip()
-
-
 @dataclass(frozen=True, slots=True)
 class ScanTarget:
     label: str
@@ -105,6 +88,7 @@ def scan_targets(root: Path | None = None) -> tuple[ScanTarget, ...]:
             base / "myrm-agent/scripts/dev/cursor-mcp-isolation-doctor.sh",
         ),
         ScanTarget("ifm-profile", base / "ifm/profile.yaml"),
+        ScanTarget("browser-mcp", base / ".cursor/commands/brower_mcp_parallel.md"),
     )
 
 
@@ -157,19 +141,8 @@ def validate_cross_file_contract(root: Path | None = None) -> list[str]:
         text = target.path.read_text(encoding="utf-8")
 
         if target.label == "ifm-profile":
-            profile_text = text
-            browser_mcp = _extract_browser_mcp_snippet(profile_text)
-            if browser_mcp:
-                rel = f"{target.path}:browser-mcp"
-                for line_no, line in enumerate(browser_mcp.splitlines(), start=1):
-                    for pattern in FORBIDDEN_AGENT_RECOMMEND_PATTERNS:
-                        if _line_recommends_forbidden_agent_pattern(line, pattern):
-                            violations.append(
-                                f"{rel}:{line_no}: recommends forbidden Agent pattern "
-                                f"{pattern!r}: {line.strip()}"
-                            )
             for option_id in _PROFILE_OPTION_IDS:
-                block = _extract_profile_option_block(profile_text, option_id)
+                block = _extract_profile_option_block(text, option_id)
                 rel = f"{target.path}:{option_id}"
                 if option_id == "继续测" and "mux MCP" in block:
                     violations.append(

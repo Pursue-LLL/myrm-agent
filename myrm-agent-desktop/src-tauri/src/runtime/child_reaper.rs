@@ -19,7 +19,7 @@ use std::process::Command;
 
 use tauri::{AppHandle, Manager};
 
-use crate::utils::process_tree::kill_process_tree;
+use crate::utils::process_tree::{kill_process_tree, ps_binary};
 
 const RECORD_FILE: &str = "child-processes.txt";
 
@@ -41,16 +41,6 @@ fn process_start_time(pid: u32) -> Option<String> {
     } else {
         Some(text)
     }
-}
-
-#[cfg(target_os = "macos")]
-fn ps_binary() -> &'static str {
-    "/bin/ps"
-}
-
-#[cfg(not(target_os = "macos"))]
-fn ps_binary() -> &'static str {
-    "ps"
 }
 
 /// 记录一个由本应用拉起的子进程。

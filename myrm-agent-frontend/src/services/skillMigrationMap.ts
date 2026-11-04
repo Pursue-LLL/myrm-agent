@@ -76,9 +76,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     wbScenario: '代码质量把控、潜在 Bug 挖掘、规范门禁与重构建议',
     myrmSkillId: 'code-review-pipeline',
     matchQuality: 'superset',
-    enhancementsZh: '结合 AST 语法树与调用图拓扑分析，聚焦安全漏洞、内存泄漏与性能瓶颈',
-    enhancementsEn:
-      'Integrates AST & repo call graph with automated security diff scan and performance bottleneck audits.',
+    enhancementsZh: '多智能体流水线：并行安全审计与逻辑审查，修复后逐项验证',
+    enhancementsEn: 'Multi-agent pipeline: parallel security and logic review passes, then fix and verification.',
   },
   {
     wbSkillId: 'wb-data-analysis-bi',

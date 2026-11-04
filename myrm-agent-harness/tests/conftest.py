@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import atexit
+import faulthandler
 import inspect
 import logging
 import os
 import shutil
+import signal
 import sys
 import tempfile
 from collections.abc import AsyncIterator, Iterator
@@ -16,6 +18,8 @@ import pytest
 from blockbuster import BlockBuster
 
 logger = logging.getLogger(__name__)
+
+pytest_plugins = ["tests.support.run_guard_isolation"]
 
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")
@@ -59,6 +63,19 @@ def _cleanup_browser_child_processes() -> None:
 atexit.register(_cleanup_browser_child_processes)
 
 
+def pytest_configure() -> None:
+    """Let ``scripts/ci_stall_guard.py`` read every thread's stack from a silent pytest process.
+
+    Runs in the pytest master and in every xdist worker. The dump goes to a duplicate of the real stderr
+    taken here, while capture is suspended: fd capture points fd 2 at a temporary file for the length of
+    each test, and a dump written there would be discarded with the test's output.
+    """
+    # A closed stderr only costs the dump; it must not fail the run.
+    with suppress(OSError):
+        if hasattr(signal, "SIGUSR1"):
+            faulthandler.register(signal.SIGUSR1, file=os.dup(2), all_threads=True)
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     _cleanup_browser_child_processes()
     with suppress(Exception):
@@ -67,23 +84,24 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         reset_subagent_checkpointer()
 
 
-def _reset_subagent_checkpointer_if_loaded() -> None:
-    module = sys.modules.get("myrm_agent_harness.agent.sub_agents.checkpointer")
+def _drop_domain_metrics_manager() -> None:
+    module = sys.modules.get("myrm_agent_harness.toolkits.web_fetch.router.domain_metrics")
     if module is not None:
-        module.reset_subagent_checkpointer()
+        module.__dict__["_global_domain_metrics_manager"] = None
 
 
 @pytest.fixture(autouse=True)
-def _isolate_subagent_checkpointer() -> Iterator[None]:
-    """Give every test its own sub-agent checkpointer.
+def _isolate_domain_metrics() -> Iterator[None]:
+    """Start every test with an empty process-wide domain metrics manager.
 
-    The process-wide sqlite saver binds an ``asyncio.Lock`` and an aiosqlite worker thread to the event
-    loop of the test that first used it. Each test runs on a fresh loop, so a survivor makes later tests
-    fail with "bound to a different event loop" or an unhandled "Event loop is closed" thread error.
+    Wait-strategy learning is kept per ``host:port`` for the life of the process, and loopback test
+    servers draw their ports from the OS ephemeral range. Without this, a test can land on a port an
+    earlier one already taught the manager about and silently take another wait path. A module that was
+    never imported holds no manager, so nothing is imported here.
     """
-    _reset_subagent_checkpointer_if_loaded()
+    _drop_domain_metrics_manager()
     yield
-    _reset_subagent_checkpointer_if_loaded()
+    _drop_domain_metrics_manager()
 
 
 @pytest.fixture(autouse=True)

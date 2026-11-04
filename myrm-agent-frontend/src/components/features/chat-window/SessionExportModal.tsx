@@ -80,7 +80,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
           includeSubagents: true,
         });
         toast({
-          title: t('exportChat.success', { defaultMessage: '导出会话成功' }),
+          title: t('exportChat.success'),
           variant: 'default',
         });
         onOpenChange(false);
@@ -90,7 +90,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       const exportData = await exportChat(chatId, { redactSecrets });
       if (!exportData || exportData.messages.length === 0) {
         toast({
-          title: t('exportChat.noMessages', { defaultMessage: '没有可导出的消息' }),
+          title: t('exportChat.noMessages'),
           variant: 'default',
         });
         return;
@@ -117,16 +117,14 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       }
 
       toast({
-        title: redactSecrets
-          ? t('exportChat.successRedacted', { defaultMessage: '已安全脱敏导出' })
-          : t('exportChat.success', { defaultMessage: '导出会话成功' }),
+        title: redactSecrets ? t('exportChat.successRedacted') : t('exportChat.success'),
         variant: 'default',
       });
       onOpenChange(false);
     } catch (err) {
       console.error('[SessionExportModal] Export failed:', err);
       toast({
-        title: t('exportChat.error', { defaultMessage: '导出失败' }),
+        title: t('exportChat.error'),
         description: err instanceof Error ? err.message : tCommon('unknownError'),
         variant: 'destructive',
       });
@@ -156,7 +154,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       const exportData = await exportChat(chatId, { redactSecrets });
       if (!exportData || exportData.messages.length === 0) {
         toast({
-          title: t('exportChat.noMessages', { defaultMessage: '没有可导出的消息' }),
+          title: t('exportChat.noMessages'),
           variant: 'default',
         });
         return;
@@ -175,15 +173,13 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
       }, 2000);
 
       toast({
-        title: redactSecrets
-          ? t('exportChat.copySuccessRedacted', { defaultMessage: '已复制脱敏 Markdown' })
-          : t('exportChat.copySuccess', { defaultMessage: '已复制 Markdown 到剪贴板' }),
+        title: redactSecrets ? t('exportChat.copySuccessRedacted') : t('exportChat.copySuccess'),
         variant: 'default',
       });
     } catch (err) {
       console.error('[SessionExportModal] Copy markdown failed:', err);
       toast({
-        title: t('exportChat.error', { defaultMessage: '复制失败' }),
+        title: t('exportChat.error'),
         description: err instanceof Error ? err.message : tCommon('unknownError'),
         variant: 'destructive',
       });
@@ -202,26 +198,26 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
     {
       id: 'html',
       title: 'HTML',
-      description: t('exportChat.htmlDesc', { defaultMessage: '自包含单文件，内置暗色模式、公式与高亮' }),
+      description: t('exportChat.htmlDesc'),
       icon: FileCode2,
-      badge: t('exportChat.recommended', { defaultMessage: '推荐' }),
+      badge: t('exportChat.recommended'),
     },
     {
       id: 'markdown',
       title: 'Markdown',
-      description: t('exportChat.markdownDesc', { defaultMessage: '标准文档，易于知识库与文档管理系统沉淀' }),
+      description: t('exportChat.markdownDesc'),
       icon: FileText,
     },
     {
       id: 'json',
       title: 'JSON',
-      description: t('exportChat.jsonDesc', { defaultMessage: '机器可读完整数据包，便于二次解析与加工' }),
+      description: t('exportChat.jsonDesc'),
       icon: FileJson,
     },
     {
       id: 'zip',
       title: 'ZIP Pack',
-      description: t('exportChat.zipDesc', { defaultMessage: '包含会话原始事件日志、子代理轨迹与所有工件' }),
+      description: t('exportChat.zipDesc'),
       icon: Archive,
     },
   ];
@@ -232,7 +228,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <Download className="h-4 w-4 text-primary" />
-            <span>{t('exportChat.modalTitle', { defaultMessage: '导出会话与知识分享' })}</span>
+            <span>{t('exportChat.modalTitle')}</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground truncate">
             {chatTitle || chatId}
@@ -241,9 +237,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
 
         {/* 格式选择 */}
         <div className="space-y-2 py-1">
-          <Label className="text-xs font-medium text-muted-foreground">
-            {t('exportChat.selectFormat', { defaultMessage: '选择导出格式' })}
-          </Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('exportChat.selectFormat')}</Label>
           <div className="grid grid-cols-2 gap-2">
             {formats.map((fmt) => {
               const Icon = fmt.icon;
@@ -281,9 +275,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
 
         {/* 选项配置 */}
         <div className="space-y-3 pt-2 pb-1 border-t border-border/50">
-          <Label className="text-xs font-medium text-muted-foreground">
-            {t('exportChat.options', { defaultMessage: '导出选项' })}
-          </Label>
+          <Label className="text-xs font-medium text-muted-foreground">{t('exportChat.options')}</Label>
 
           <div className="space-y-2">
             <div className="flex items-start gap-2.5">
@@ -299,13 +291,9 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
                   className="text-xs font-medium cursor-pointer flex items-center gap-1 text-foreground"
                 >
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>{t('exportChat.redactSecretsLabel', { defaultMessage: '自动脱敏敏感凭据' })}</span>
+                  <span>{t('exportChat.redactSecretsLabel')}</span>
                 </label>
-                <p className="text-[11px] text-muted-foreground">
-                  {t('exportChat.redactSecretsHint', {
-                    defaultMessage: '自动屏蔽 API Key、Token、私钥与密码等安全机密',
-                  })}
-                </p>
+                <p className="text-[11px] text-muted-foreground">{t('exportChat.redactSecretsHint')}</p>
               </div>
             </div>
 
@@ -324,15 +312,9 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
                       className="text-xs font-medium cursor-pointer flex items-center gap-1 text-foreground"
                     >
                       <Brain className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>
-                        {t('exportChat.includeReasoningLabel', { defaultMessage: '包含模型思考过程 (Thinking)' })}
-                      </span>
+                      <span>{t('exportChat.includeReasoningLabel')}</span>
                     </label>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('exportChat.includeReasoningHint', {
-                        defaultMessage: '保留大模型的深度推理链折叠卡片',
-                      })}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t('exportChat.includeReasoningHint')}</p>
                   </div>
                 </div>
 
@@ -349,13 +331,9 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
                       className="text-xs font-medium cursor-pointer flex items-center gap-1 text-foreground"
                     >
                       <Wrench className="h-3.5 w-3.5 text-amber-500" />
-                      <span>{t('exportChat.includeToolCallsLabel', { defaultMessage: '包含工具调用与耗时分析' })}</span>
+                      <span>{t('exportChat.includeToolCallsLabel')}</span>
                     </label>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t('exportChat.includeToolCallsHint', {
-                        defaultMessage: '记录工具调用入参摘要、执行耗时与成功状态',
-                      })}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t('exportChat.includeToolCallsHint')}</p>
                   </div>
                 </div>
               </>
@@ -373,15 +351,11 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, init
             className="gap-1.5 text-xs"
           >
             {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-            <span>
-              {isCopied
-                ? t('exportChat.copied', { defaultMessage: '已复制' })
-                : t('exportChat.copyMarkdown', { defaultMessage: '复制 Markdown' })}
-            </span>
+            <span>{isCopied ? t('exportChat.copied') : t('exportChat.copyMarkdown')}</span>
           </Button>
           <Button type="button" size="sm" onClick={handleExport} disabled={isExporting} className="gap-1.5 text-xs">
             {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            <span>{t('exportChat.downloadAction', { defaultMessage: '下载所选格式' })}</span>
+            <span>{t('exportChat.downloadAction')}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,33 +1,22 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * AttemptWaterfallInspector Component.
  * Visual waterfall timeline and throughput inspector for individual execution attempts.
- * Implements MateClaw Attempt telemetry and fault diagnostics with zero emojis.
+ * Attempt telemetry and fault diagnostics with zero emojis.
  */
 
 import React, { useState } from 'react';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  FileCode,
-  RotateCw,
-  XCircle,
-  Zap,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FileCode, RotateCw, XCircle, Zap } from 'lucide-react';
 import { AttemptRecord } from './runtimeProjectionTypes';
 
 interface AttemptWaterfallInspectorProps {
   attempts: AttemptRecord[];
 }
 
-export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps> = ({
-  attempts,
-}) => {
+export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps> = ({ attempts }) => {
   const [expandedAttemptId, setExpandedAttemptId] = useState<string | null>(
-    attempts.find((a) => a.status === 'failed')?.attempt_id || null
+    attempts.find((a) => a.status === 'failed')?.attempt_id || null,
   );
 
   if (attempts.length === 0) {
@@ -57,20 +46,15 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
             }`}
           >
             {/* Header / Summary Bar */}
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
+              aria-expanded={isExpanded}
               onClick={() => {
                 setExpandedAttemptId(isExpanded ? null : att.attempt_id);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setExpandedAttemptId(isExpanded ? null : att.attempt_id);
-                }
-              }}
-              className="flex items-center justify-between p-3.5 cursor-pointer select-none"
+              className="flex w-full items-center justify-between p-3.5 text-start cursor-pointer select-none"
             >
-              <div className="flex items-center gap-2.5">
+              <span className="flex items-center gap-2.5">
                 {isCompleted ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                 ) : isFailed ? (
@@ -78,9 +62,7 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                 ) : (
                   <RotateCw className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
                 )}
-                <span className="text-xs font-semibold text-slate-200">
-                  Attempt #{att.attempt_number}
-                </span>
+                <span className="text-xs font-semibold text-slate-200">Attempt #{att.attempt_number}</span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-mono uppercase tracking-wider ${
                     isCompleted
@@ -92,29 +74,27 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                 >
                   {att.status}
                 </span>
-              </div>
+              </span>
 
               {/* Watermark Telemetry */}
-              <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+              <span className="flex items-center gap-4 text-xs font-mono text-slate-400">
                 {att.duration_ms ? (
-                  <div className="flex items-center gap-1">
+                  <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3 text-slate-400" />
                     <span>{(att.duration_ms / 1000).toFixed(1)}s</span>
-                  </div>
+                  </span>
                 ) : null}
 
                 {att.tokens_per_sec > 0 ? (
-                  <div className="flex items-center gap-1 text-indigo-400">
+                  <span className="flex items-center gap-1 text-indigo-400">
                     <Zap className="h-3 w-3" />
                     <span>{att.tokens_per_sec.toFixed(1)} tok/s</span>
-                  </div>
+                  </span>
                 ) : null}
 
-                <div className="text-[11px] text-slate-400">
-                  {att.tokens_in + att.tokens_out} tokens
-                </div>
-              </div>
-            </div>
+                <span className="text-[11px] text-slate-400">{att.tokens_in + att.tokens_out} tokens</span>
+              </span>
+            </button>
 
             {/* Diagnostic Details Accordion */}
             {isExpanded ? (
@@ -126,9 +106,7 @@ export const AttemptWaterfallInspector: React.FC<AttemptWaterfallInspectorProps>
                       <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
                       <span>Fault Diagnostic Reason:</span>
                     </div>
-                    <p className="font-mono text-[11px] leading-relaxed break-all">
-                      {att.error_reason}
-                    </p>
+                    <p className="font-mono text-[11px] leading-relaxed break-all">{att.error_reason}</p>
                   </div>
                 ) : null}
 

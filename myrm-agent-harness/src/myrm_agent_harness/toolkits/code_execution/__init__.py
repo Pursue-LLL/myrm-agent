@@ -18,10 +18,10 @@ Core components:
 - code_execution.workspace (POS: session workspace management)
 
 [OUTPUT]
-- ExecutionConfig, ExecutionMode, LocalExecutionConfig, MCPIPCConfig, get_execution_config: config types
+- ExecutionConfig, ExecutionMode, LocalExecutionConfig, get_execution_config: config types
 - CodeExecutor, CodeExecutorMiddleware, LocalExecutor: executor classes
 - ExecutionContext, ExecutionResult, ExecutionMetrics: execution I/O models
-- MCPCommunicationConfig, MCPConfigItem: MCP communication types
+- MCPConfigItem: MCP server limits an executor reads
 - classify_execution_error, get_executor, require_executor, set_executor: executor utilities
 - create_executor: executor factory function
 - Workspace, WorkspaceService, WorkspaceStatus, create_workspace_service: workspace management
@@ -35,7 +35,6 @@ from myrm_agent_harness.toolkits.code_execution.config import (
     ExecutionConfig,
     ExecutionMode,
     LocalExecutionConfig,
-    MCPIPCConfig,
     get_execution_config,
 )
 from myrm_agent_harness.toolkits.code_execution.executors import (
@@ -45,7 +44,6 @@ from myrm_agent_harness.toolkits.code_execution.executors import (
     ExecutionMetrics,
     ExecutionResult,
     LocalExecutor,
-    MCPCommunicationConfig,
     MCPConfigItem,
     classify_execution_error,
     get_executor,
@@ -84,9 +82,7 @@ __all__ = [
     "ExecutionResult",
     "LocalExecutionConfig",
     "LocalExecutor",
-    "MCPCommunicationConfig",
     "MCPConfigItem",
-    "MCPIPCConfig",
     # Workspace
     "Workspace",
     "WorkspaceService",

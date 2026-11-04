@@ -182,7 +182,7 @@ describe('TailscaleAccessCard', () => {
       expect(mockGetStatus).toHaveBeenCalledTimes(1);
     });
 
-    const refreshBtn = screen.getByTitle('Refresh Tailscale status');
+    const refreshBtn = screen.getByTitle('refreshTailscaleStatus');
     fireEvent.click(refreshBtn);
 
     await waitFor(() => {

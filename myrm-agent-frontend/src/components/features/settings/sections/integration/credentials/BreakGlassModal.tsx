@@ -89,7 +89,9 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
   };
 
   const handleCopyToken = async () => {
-    if (!issuedResult?.token) {return;}
+    if (!issuedResult?.token) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(issuedResult.token);
       setCopied(true);
@@ -141,7 +143,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
               <Label htmlFor="bg-command">{t('breakGlassCommand')}</Label>
               <Input
                 id="bg-command"
-                placeholder="e.g. systemctl restart nginx"
+                placeholder={t('breakGlassCommandPlaceholder')}
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 required

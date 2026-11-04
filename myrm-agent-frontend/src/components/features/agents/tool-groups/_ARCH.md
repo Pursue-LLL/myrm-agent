@@ -2,7 +2,7 @@
 
 ## 1. 业务目标与降维价值
 彻底破除极客 Agent 工具权限配置全靠在终端编写生涩 JSON5/YAML 配置文件导致普通办公用户望而却步被劝退的严重易用性硬伤。
-对标 OpenClaw 2.0 tool group 概念，将数十个底层工具抽离降维为 6 大直观业务语义组：
+将数十个底层工具抽离降维为 6 大直观业务语义组：
 1. **沙箱代码执行 (Runtime)**：`exec_command`, `python_interpreter`, `bash_session`, `kill_process`；
 2. **本地工作区读写 (Filesystem)**：`read_file`, `list_directory`, `write_file`, `replace_file_content`；
 3. **长效记忆沉淀 (Memory)**：`store_fact`, `recall_context`, `delete_profile`；

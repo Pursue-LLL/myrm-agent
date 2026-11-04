@@ -11,7 +11,7 @@ describe('composeLearnSlashMessage', () => {
     expect(composeLearnSlashMessage({ directory: '  ', url: '', text: '\n' })).toBeNull();
   });
 
-  it('composes Hermes-style segments into raw /learn', () => {
+  it('composes directory, URL and text segments into raw /learn', () => {
     expect(
       composeLearnSlashMessage({
         directory: '~/projects/acme-sdk',

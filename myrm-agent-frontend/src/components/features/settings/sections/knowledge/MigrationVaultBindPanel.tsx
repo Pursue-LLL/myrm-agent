@@ -4,13 +4,13 @@
  * [INPUT]
  * - @/services/projects::{getProjects, createProject}
  * - @/components/features/project-workspace/ProjectWorkspaceMount
- * - @/lib/migrationChatHandoff::{queueMigrationBoundProjectId, clearMigrationWorkspaceBindCandidates}
+ * - @/lib/migrationChatHandoff::{queueMigrationBoundProjectId, applyMigrationBoundProjectToChat}
  *
  * [OUTPUT]
  * - MigrationVaultBindPanel: post-migration workspace bind with optional candidate pre-fill
  *
  * [POS]
- * Shared by Settings migration result (Settings path) and onboarding sync_folder step.
+ * Rendered on the migration result step of the Settings wizard (local installs only).
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -19,7 +19,6 @@ import { Button } from '@/components/primitives/button';
 import { createProject, getProjects, type Project } from '@/services/projects';
 import ProjectWorkspaceMount from '@/components/features/project-workspace/ProjectWorkspaceMount';
 import {
-  clearMigrationWorkspaceBindCandidates,
   queueMigrationBoundProjectId,
   applyMigrationBoundProjectToChat,
   type MigrationWorkspaceBindCandidate,
@@ -29,25 +28,12 @@ import { cn } from '@/lib/utils/classnameUtils';
 
 export interface MigrationVaultBindPanelProps {
   candidates: MigrationWorkspaceBindCandidate[];
-  onBound?: () => void;
-  onSkip?: () => void;
-  showSkip?: boolean;
-  defaultProjectNameKey?: 'migrationWizard' | 'syncFolder';
   className?: string;
 }
 
-export default function MigrationVaultBindPanel({
-  candidates,
-  onBound,
-  onSkip,
-  showSkip = false,
-  defaultProjectNameKey = 'migrationWizard',
-  className,
-}: MigrationVaultBindPanelProps) {
+export default function MigrationVaultBindPanel({ candidates, className }: MigrationVaultBindPanelProps) {
   const tWizard = useTranslations('memory.migrationWizard.result.vaultBind');
-  const tSync = useTranslations('boot.onboarding.syncFolder');
-  const defaultProjectName =
-    defaultProjectNameKey === 'syncFolder' ? tSync('defaultProjectName') : tWizard('defaultProjectName');
+  const defaultProjectName = tWizard('defaultProjectName');
 
   const [project, setProject] = useState<Project | null>(null);
   const [mountOpen, setMountOpen] = useState(false);
@@ -110,10 +96,8 @@ export default function MigrationVaultBindPanel({
           void applyMigrationBoundProjectToChat(activeChatId);
         }
       }
-      clearMigrationWorkspaceBindCandidates();
-      onBound?.();
     },
-    [onBound, project?.id],
+    [project?.id],
   );
 
   if (boundPath) {
@@ -151,11 +135,6 @@ export default function MigrationVaultBindPanel({
         >
           {preparing ? tWizard('preparing') : tWizard('chooseFolder')}
         </Button>
-        {showSkip && onSkip && (
-          <Button size="sm" variant="ghost" onClick={onSkip}>
-            {tWizard('skip')}
-          </Button>
-        )}
       </div>
       {project && mountOpen && (
         <ProjectWorkspaceMount

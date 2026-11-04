@@ -11,7 +11,7 @@
 
 [POS]
 Server business layer for Context Bundle volume management. Workspace search uses
-agentic grep/glob via FilesystemFileSearchMiddleware; no vector index service.
+agentic grep/glob (harness meta tools `grep_tool` / `glob_tool`); no vector index service.
 
 ## File Index
 

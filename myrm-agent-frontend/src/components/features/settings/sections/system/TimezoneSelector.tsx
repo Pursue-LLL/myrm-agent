@@ -1,6 +1,7 @@
 'use client';
 
 import { memo, useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { IconSearch, IconGlobe, IconCheck, IconChevronDown } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -68,6 +69,7 @@ const POPULAR_TIMEZONES = new Set([
 ]);
 
 const TimezoneSelector = memo<{ value: string; onChange: (tz: string) => void }>(({ value, onChange }) => {
+  const t = useTranslations('settings.system');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -161,7 +163,7 @@ const TimezoneSelector = memo<{ value: string; onChange: (tz: string) => void }>
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search..."
+                placeholder={t('timezoneSearchPlaceholder')}
                 className="w-full pl-8 pr-3 py-1.5 text-sm bg-transparent outline-none placeholder:text-muted-foreground/50"
               />
             </div>
@@ -170,7 +172,7 @@ const TimezoneSelector = memo<{ value: string; onChange: (tz: string) => void }>
             {filtered.popular.length > 0 && (
               <>
                 <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  Popular
+                  {t('timezonePopular')}
                 </p>
                 {filtered.popular.map(renderItem)}
                 {filtered.rest.length > 0 && <div className="my-1 border-t border-border/30" />}
@@ -178,7 +180,7 @@ const TimezoneSelector = memo<{ value: string; onChange: (tz: string) => void }>
             )}
             {filtered.rest.map(renderItem)}
             {filtered.popular.length === 0 && filtered.rest.length === 0 && (
-              <p className="px-3 py-4 text-sm text-center text-muted-foreground">No results</p>
+              <p className="px-3 py-4 text-sm text-center text-muted-foreground">{t('timezoneNoResults')}</p>
             )}
           </div>
         </div>

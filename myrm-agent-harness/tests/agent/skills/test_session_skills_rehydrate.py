@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
 from myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate import (
     collect_loaded_skill_names_from_messages,
@@ -10,6 +10,7 @@ from myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate import (
     rehydrate_loaded_skills_from_history,
 )
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
+from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
 
 def _skill(name: str) -> SkillMetadata:
@@ -99,7 +100,7 @@ def test_rehydrate_from_base_message_history() -> None:
 
 def test_rehydrate_from_agent_history_chat_req() -> None:
     available = [_skill("gamma_skill")]
-    history = [
+    history: ChatHistoryReq = [
         [
             "assistant",
             (
@@ -134,7 +135,7 @@ def test_rehydrate_from_ssot_only_when_history_empty() -> None:
 def test_rehydrate_ssot_fills_gap_after_compaction() -> None:
     """Simulates post-compaction: history lost skill_select, SSOT still has names."""
     available = [_skill("alpha_skill"), _skill("beta_skill")]
-    history = [
+    history: list[BaseMessage] = [
         AIMessage(content="Summary of prior work without tool calls."),
     ]
     rehydrated = rehydrate_loaded_skills_from_history(
@@ -281,3 +282,83 @@ def test_collect_loaded_skill_names_with_reordered_entry_tags() -> None:
 
     loaded = collect_loaded_skill_names_from_messages(messages)
     assert loaded == ["second_skill"]
+
+
+_OLDER_SPELLING = "data_analysis_skill"
+
+
+def _select_call(*names: str) -> list[AIMessage]:
+    return [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "skill_select_tool",
+                    "args": {"skill_names": list(names), "reason": "earlier turn"},
+                    "id": "tc_older",
+                    "type": "tool_call",
+                }
+            ],
+        )
+    ]
+
+
+def test_rehydrate_restores_a_skill_recorded_under_an_older_spelling_in_messages() -> None:
+    skill = _skill("data-analysis")
+    history = [
+        *_select_call(_OLDER_SPELLING),
+        ToolMessage(
+            content=(
+                "<skills_sop>\n"
+                f'<skill_entry name="{_OLDER_SPELLING}" status="ready">\n'
+                f"{_OLDER_SPELLING}：# SOP\n"
+                "</skill_entry>\n"
+                "</skills_sop>"
+            ),
+            tool_call_id="tc_older",
+            name="skill_select_tool",
+        ),
+    ]
+
+    assert rehydrate_loaded_skills_from_history(history, [skill, _skill("deep-research")]) == [skill]
+
+
+def test_rehydrate_restores_an_older_spelling_from_the_server_persisted_history() -> None:
+    skill = _skill("data-analysis")
+    history: ChatHistoryReq = [
+        [
+            "assistant",
+            (
+                '{"__agent_history": true, "content": "done", '
+                '"tool_calls": [{"name": "skill_select_tool", '
+                f'"args": {{"skill_names": ["{_OLDER_SPELLING}"], "reason": "prior turn"}}}}]}}'
+            ),
+        ]
+    ]
+
+    assert rehydrate_loaded_skills_from_history(history, [skill]) == [skill]
+
+
+def test_rehydrate_restores_an_older_spelling_from_the_session_ssot() -> None:
+    skill = _skill("data-analysis")
+
+    assert rehydrate_loaded_skills_from_history(None, [skill], [_OLDER_SPELLING]) == [skill]
+
+
+def test_two_spellings_of_one_skill_restore_it_once() -> None:
+    skill = _skill("data-analysis")
+    other = _skill("deep-research")
+    history = [
+        *_select_call(_OLDER_SPELLING),
+        ToolMessage(content="Skill executed successfully.", tool_call_id="tc_older", name="skill_select_tool"),
+    ]
+
+    restored = rehydrate_loaded_skills_from_history(history, [skill, other], ["data-analysis", "deep-research"])
+
+    assert restored == [skill, other]
+
+
+def test_an_ambiguous_older_spelling_restores_nothing() -> None:
+    available = [_skill("foo-bar"), _skill("foo_bar_skill")]
+
+    assert rehydrate_loaded_skills_from_history(None, available, ["foo_bar"]) == []

@@ -20,6 +20,7 @@ vi.mock('next-intl', () => ({
 vi.mock('lucide-react', () => ({
   AlertCircle: (props: Record<string, unknown>) => <svg data-testid="alert-icon" {...props} />,
   Zap: (props: Record<string, unknown>) => <svg data-testid="zap-icon" {...props} />,
+  Cpu: (props: Record<string, unknown>) => <svg data-testid="cpu-icon" {...props} />,
   ExternalLink: (props: Record<string, unknown>) => <svg data-testid="external-link-icon" {...props} />,
   Copy: (props: Record<string, unknown>) => <svg data-testid="copy-icon" {...props} />,
   Check: (props: Record<string, unknown>) => <svg data-testid="check-icon" {...props} />,
@@ -41,14 +42,21 @@ vi.mock('@/store/useProviderStore', () => ({
   default: (selector: (s: unknown) => unknown) => mockUseProviderStore(selector),
 }));
 
-const { mockStartXaiOAuth, mockPollXaiOAuth, mockConnectProviderSubscription, mockWriteToClipboard } = vi.hoisted(
-  () => ({
-    mockStartXaiOAuth: vi.fn(),
-    mockPollXaiOAuth: vi.fn(),
-    mockConnectProviderSubscription: vi.fn(),
-    mockWriteToClipboard: vi.fn(),
-  }),
-);
+const {
+  mockStartXaiOAuth,
+  mockPollXaiOAuth,
+  mockConnectProviderSubscription,
+  mockWriteToClipboard,
+  mockUseOllamaQuickConnect,
+} = vi.hoisted(() => ({
+  mockStartXaiOAuth: vi.fn(),
+  mockPollXaiOAuth: vi.fn(),
+  mockConnectProviderSubscription: vi.fn(),
+  mockWriteToClipboard: vi.fn(),
+  mockUseOllamaQuickConnect: vi.fn(),
+}));
+
+vi.mock('@/hooks/shared/useOllamaQuickConnect', () => ({ useOllamaQuickConnect: mockUseOllamaQuickConnect }));
 
 vi.mock('@/lib/utils/clipboardUtils', () => ({ writeToClipboard: mockWriteToClipboard }));
 
@@ -66,6 +74,7 @@ import NoProviderBanner from '../NoProviderBanner';
 describe('NoProviderBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseOllamaQuickConnect.mockReturnValue(null);
   });
 
   it('renders nothing when store is not initialized', () => {
@@ -219,6 +228,64 @@ describe('NoProviderBanner', () => {
   });
 });
 
+describe('NoProviderBanner Ollama quick connect', () => {
+  const connect = vi.fn();
+
+  function mockStore(providers: Array<Record<string, unknown>> = []) {
+    mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) =>
+      selector({ isInitialized: true, providers }),
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseOllamaQuickConnect.mockReturnValue(null);
+  });
+
+  it('offers the Ollama model next to the other ways to connect', () => {
+    mockStore();
+    mockUseOllamaQuickConnect.mockReturnValue({ model: 'qwen3:8b', connect });
+
+    render(<NoProviderBanner />);
+
+    expect(screen.getByText('ollamaQuickConnect')).toBeInTheDocument();
+    expect(screen.getByText('subscriptionQuickConnect')).toBeInTheDocument();
+    expect(screen.getByText('noProviderAction')).toBeInTheDocument();
+  });
+
+  it('connects on click without opening the subscription dialog or leaving the page', () => {
+    mockStore();
+    mockUseOllamaQuickConnect.mockReturnValue({ model: 'qwen3:8b', connect });
+
+    render(<NoProviderBanner />);
+    fireEvent.click(screen.getByText('ollamaQuickConnect'));
+
+    expect(connect).toHaveBeenCalledOnce();
+    expect(screen.queryByText('subscriptionModalTitle')).not.toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('shows no Ollama button when there is nothing to offer', () => {
+    mockStore();
+
+    render(<NoProviderBanner />);
+
+    expect(screen.queryByText('ollamaQuickConnect')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cpu-icon')).not.toBeInTheDocument();
+  });
+
+  it('asks for the offer only while the strip is showing', () => {
+    mockStore();
+    const { unmount } = render(<NoProviderBanner />);
+    expect(mockUseOllamaQuickConnect).toHaveBeenLastCalledWith(true);
+    unmount();
+
+    mockStore([{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-xxx' }] }]);
+    render(<NoProviderBanner />);
+    expect(mockUseOllamaQuickConnect).toHaveBeenLastCalledWith(false);
+  });
+});
+
 const AUTHORIZATION = {
   user_code: 'ABCD-1234',
   verification_uri: 'https://x.ai/device',
@@ -251,6 +318,7 @@ describe('NoProviderBanner xAI subscription flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockUseOllamaQuickConnect.mockReturnValue(null);
     mockStartXaiOAuth.mockResolvedValue(AUTHORIZATION);
     mockPollXaiOAuth.mockResolvedValue({ status: 'pending' });
     mockConnectProviderSubscription.mockResolvedValue(undefined);

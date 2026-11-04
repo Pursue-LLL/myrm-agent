@@ -9,8 +9,8 @@ const stableT = (key: string) => {
   const table: Record<string, string> = {
     'wizard.title': '外部渠道可视化配对向导',
     'wizard.modelAgnosticBadge': '模型无关解耦 · 零命令确定性配对',
-    'wizard.antiWorkbuddyNote': '彻底告别手敲 acquire_token',
-    'wizard.antiWorkbuddyDesc': '无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。',
+    'wizard.noCommandNote': '扫码即可连通，无需手敲命令',
+    'wizard.noCommandDesc': '无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。',
     'wizard.waitingScan': '请使用对应客户端扫描上方动态二维码...',
     'wizard.sessionExpiry': '凭证有效时长: 300 秒',
     'wizard.bindingSuccess': '渠道鉴权与 Token 绑定成功！',

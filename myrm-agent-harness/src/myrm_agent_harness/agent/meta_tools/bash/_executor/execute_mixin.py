@@ -16,6 +16,7 @@ Primary synchronous bash/python/skill execution orchestration for BashExecutor.
 from __future__ import annotations
 
 import logging
+from contextlib import AsyncExitStack
 from pathlib import Path
 
 from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids_in_text
@@ -71,86 +72,85 @@ class BashExecutorExecuteMixin:
         if invalidated_workspace_id:
             self._skill_manager.clear_workspace_cache(invalidated_workspace_id)
 
-        await self._ensure_mcp_proxy_started()
-
         workspace_root_str = self._workspace_manager.get_workspace_path(workspace)
 
-        use_python_execution, prepared_code, mcp_config_items = self._prepare_execution(
-            command,
-            session_id=session_id,
-            workspace_root=workspace_root_str,
-            readonly_workspace=self._is_read_only_scope(),
-        )
-
-        if not use_python_execution:
-            from myrm_agent_harness.toolkits.code_execution.security.archive_sanitizer import (
-                sanitize_archive_command,
+        # A skill command gets its own MCP IPC server; it stops with this block, however the script ends.
+        async with AsyncExitStack() as ipc_servers:
+            use_python_execution, prepared_code, mcp_config_items, trace_nonce = await self._prepare_execution(
+                command,
+                self._caller_scope(session_id, workspace_root_str),
+                ipc_servers,
             )
 
-            prepared_code = sanitize_archive_command(prepared_code)
-            prepared_code = self._inject_resilience_script(prepared_code)
-
-        detected_skill_name = self._detect_skill_from_code(prepared_code)
-
-        workspace_skill_paths: list[str] = []
-        used_skill_paths: list[str] = []
-
-        if workspace and skill_paths and detected_skill_name:
-            for skill_path in skill_paths:
-                if Path(skill_path).name == detected_skill_name:
-                    used_skill_paths.append(skill_path)
-                    break
-
-            if used_skill_paths:
-                workspace_skill_paths = await self._skill_manager.ensure_skills_in_workspace(
-                    workspace, used_skill_paths
+            if not use_python_execution:
+                from myrm_agent_harness.toolkits.code_execution.security.archive_sanitizer import (
+                    sanitize_archive_command,
                 )
-                logger.info(f" Copying detected skill only: {detected_skill_name}")
 
-        if workspace_skill_paths:
-            prepared_code, rewritten_skill = self._rewrite_skill_paths(prepared_code)
-            if rewritten_skill:
-                detected_skill_name = rewritten_skill
+                prepared_code = sanitize_archive_command(prepared_code)
+                prepared_code = self._inject_resilience_script(prepared_code)
 
-        skill_names: list[str] = [detected_skill_name] if detected_skill_name else []
+            detected_skill_name = self._detect_skill_from_code(prepared_code)
 
-        env_paths: list[str] = []
-        working_dir: str | None = None
+            workspace_skill_paths: list[str] = []
+            used_skill_paths: list[str] = []
 
-        if workspace_skill_paths and workspace:
-            env_paths = self._convert_to_container_paths(workspace_skill_paths, workspace)
-            if detected_skill_name:
-                working_dir = f"/workspace/.claude/skills/{detected_skill_name}"
+            if workspace and skill_paths and detected_skill_name:
+                for skill_path in skill_paths:
+                    if Path(skill_path).name == detected_skill_name:
+                        used_skill_paths.append(skill_path)
+                        break
 
-        resolved_skill_env: dict[str, str] | None = None
-        if detected_skill_name and self._skill_env_map:
-            resolved_skill_env = self._skill_env_map.get(detected_skill_name)
+                if used_skill_paths:
+                    workspace_skill_paths = await self._skill_manager.ensure_skills_in_workspace(
+                        workspace, used_skill_paths
+                    )
+                    logger.info(f" Copying detected skill only: {detected_skill_name}")
 
-        timeout = self._maybe_extend_timeout_for_mcp(mcp_config_items, timeout)
+            if workspace_skill_paths:
+                prepared_code, rewritten_skill = self._rewrite_skill_paths(prepared_code)
+                if rewritten_skill:
+                    detected_skill_name = rewritten_skill
 
-        from myrm_agent_harness.agent.meta_tools.file_ops.validators.office_bash_audit import (
-            OfficeBashAudit,
-        )
+            skill_names: list[str] = [detected_skill_name] if detected_skill_name else []
 
-        office_snapshots = OfficeBashAudit.prepare_snapshots(workspace_root_str, command)
+            env_paths: list[str] = []
+            working_dir: str | None = None
 
-        context = self._build_execution_context(
-            prepared_code=prepared_code,
-            original_code=command,
-            mcp_config_items=mcp_config_items,
-            session_id=session_id,
-            workspace=workspace,
-            env_paths=env_paths,
-            working_dir=working_dir,
-            skill_names=skill_names if skill_names else None,
-            skill_env=resolved_skill_env,
-            timeout=timeout,
-        )
+            if workspace_skill_paths and workspace:
+                env_paths = self._convert_to_container_paths(workspace_skill_paths, workspace)
+                if detected_skill_name:
+                    working_dir = f"/workspace/.claude/skills/{detected_skill_name}"
 
-        if use_python_execution:
-            result = await executor.execute(context)
-        else:
-            result = await executor.execute_bash(context)
+            resolved_skill_env: dict[str, str] | None = None
+            if detected_skill_name and self._skill_env_map:
+                resolved_skill_env = self._skill_env_map.get(detected_skill_name)
+
+            timeout = self._maybe_extend_timeout_for_mcp(mcp_config_items, timeout)
+
+            from myrm_agent_harness.agent.meta_tools.file_ops.validators.office_bash_audit import (
+                OfficeBashAudit,
+            )
+
+            office_snapshots = OfficeBashAudit.prepare_snapshots(workspace_root_str, command)
+
+            context = self._build_execution_context(
+                prepared_code=prepared_code,
+                original_code=command,
+                mcp_config_items=mcp_config_items,
+                session_id=session_id,
+                workspace=workspace,
+                env_paths=env_paths,
+                working_dir=working_dir,
+                skill_names=skill_names if skill_names else None,
+                skill_env=resolved_skill_env,
+                timeout=timeout,
+            )
+
+            if use_python_execution:
+                result = await executor.execute(context)
+            else:
+                result = await executor.execute_bash(context)
 
         await self._workspace_manager.update_workspace_timestamp(workspace)
 
@@ -163,7 +163,9 @@ class BashExecutorExecuteMixin:
             # MCP call markers are bookkeeping for the host: the model must not read them
             # (or the nonce that authenticates them) in an error, but it does need to know
             # which calls already ran before the script failed.
-            failed_stdout, completed_calls = self._metadata_extractor.extract_completed_calls(result.stdout or "")
+            failed_stdout, completed_calls = self._metadata_extractor.extract_completed_calls(
+                result.stdout or "", trace_nonce
+            )
             stdout_eviction = await maybe_evict_large_output(failed_stdout, self._executor)
             stderr_eviction = await maybe_evict_large_output(result.stderr or "", self._executor)
             message = self._build_error_details(result)
@@ -214,7 +216,7 @@ class BashExecutorExecuteMixin:
             list(result.generated_files or []),
         )
 
-        clean_stdout, mcp_metadata = self._metadata_extractor.extract_metadata(result.stdout)
+        clean_stdout, mcp_metadata = self._metadata_extractor.extract_metadata(result.stdout, trace_nonce)
 
         eviction_result = await maybe_evict_large_output(clean_stdout, self._executor)
         # stderr gets the same eviction treatment as stdout: a large warning/error

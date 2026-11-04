@@ -195,9 +195,15 @@ def _awaits_approval(events: Sequence[Mapping[str, object]]) -> bool:
     return any(event.get("type") in _APPROVAL_EVENT_TYPES for event in events)
 
 
-def turn_request(query: str, chat_id: str, model_selection: dict[str, object] | None = None) -> dict[str, object]:
-    """The request the UI sends for a question: a message id of its own and no resume."""
-    return {
+def turn_request(
+    query: str, chat_id: str, model_selection: dict[str, object] | None = None, agent_id: str | None = None
+) -> dict[str, object]:
+    """The request the UI sends for a question: a message id of its own and no resume.
+
+    Without *agent_id* the turn runs on the built-in default agent, which has no skills; a skill reaches the agent only through
+    the skills of the agent profile the request names.
+    """
+    request: dict[str, object] = {
         "messageId": f"gast-msg-{uuid.uuid4().hex[:12]}",
         "chatId": chat_id,
         "query": query,
@@ -206,6 +212,9 @@ def turn_request(query: str, chat_id: str, model_selection: dict[str, object] | 
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
+    if agent_id is not None:
+        request["agentId"] = agent_id
+    return request
 
 
 def resume_request(stopped: Mapping[str, object]) -> dict[str, object]:
@@ -218,6 +227,7 @@ def perform_agent_stream(
     query: str,
     chat_id: str,
     model_selection: dict[str, object] | None = None,
+    agent_id: str | None = None,
 ) -> tuple[str, list[dict[str, object]], int]:
     """Run a turn to its end: a model that goes for a gated tool stops the turn at an approval, and each approval is approved once.
 
@@ -225,7 +235,7 @@ def perform_agent_stream(
     A resume goes out under the id of the turn it continues, as the UI sends it, and its stream carries the continuation. The server
     refuses a second resume of one approval with 409 once the turn behind the first has ended.
     """
-    request_data = turn_request(query, chat_id, model_selection)
+    request_data = turn_request(query, chat_id, model_selection, agent_id)
 
     latest = stream_turn(client, request_data)
     collected = list(latest)

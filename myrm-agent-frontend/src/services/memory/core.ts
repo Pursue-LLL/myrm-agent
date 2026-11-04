@@ -179,13 +179,17 @@ export const createMemory = async (body: CreateMemoryRequest): Promise<Memory> =
   });
 };
 
-export const getPendingMemories = async (userId?: string): Promise<PendingMemoryListResponse> => {
+/** `silent` keeps a failed request from raising the global error toast, for callers that render their own error state. */
+export const getPendingMemories = async ({
+  userId,
+  silent,
+}: { userId?: string; silent?: boolean } = {}): Promise<PendingMemoryListResponse> => {
   const params = new URLSearchParams();
   if (userId) {
     params.append('user_id', userId);
   }
   const qs = params.toString();
-  return apiRequest<PendingMemoryListResponse>(`/memory/pending${qs ? `?${qs}` : ''}`);
+  return apiRequest<PendingMemoryListResponse>(`/memory/pending${qs ? `?${qs}` : ''}`, { silent });
 };
 
 export const approveMemory = async (memoryId: string, editedContent?: string): Promise<void> => {
@@ -465,8 +469,9 @@ export interface WorkingStateResponse {
   expired: boolean;
 }
 
-export const getWorkingState = async (): Promise<WorkingStateResponse> => {
-  return apiRequest<WorkingStateResponse>('/memory/working-state');
+/** `silent` keeps a failed request from raising the global error toast, for callers that only decorate. */
+export const getWorkingState = async ({ silent }: { silent?: boolean } = {}): Promise<WorkingStateResponse> => {
+  return apiRequest<WorkingStateResponse>('/memory/working-state', { silent });
 };
 
 export const updateWorkingState = async (content: string): Promise<WorkingStateResponse> => {

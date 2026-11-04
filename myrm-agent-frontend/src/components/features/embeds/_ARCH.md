@@ -25,5 +25,5 @@
 ## 约束
 
 - 新平台适配器放 `providers/<name>.ts` 并注册到 `providers/index.ts` MATCHERS
-- 用户可见文案走 i18n；iframe consent UI 不含开发者注释
-- 测试：单元 `providers/__tests__/detectEmbed.test.ts`；Chrome E2E 三模式 `myrm-agent-server/tests/e2e/test_link_embed_consent_chrome_e2e.py`（READ+SHPOIB，seed `POST .../seed-embed-fixture`）
+- 用户可见文案走 i18n（`embeds` 命名空间：`EmbedFacade` 的加载与「始终允许」按钮、`EmbedFail` 的失败提示）；iframe consent UI 不含开发者注释
+- 测试：单元 `providers/__tests__/detectEmbed.test.ts`、`__tests__/EmbedFacade.test.tsx`（按钮与失败提示的文案走翻译）；Chrome E2E 三模式 `myrm-agent-server/tests/e2e/test_link_embed_consent_chrome_e2e.py`（READ+SHPOIB，seed `POST .../seed-embed-fixture`）

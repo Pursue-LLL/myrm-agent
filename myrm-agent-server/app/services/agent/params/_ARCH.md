@@ -36,7 +36,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - 前端 `@codebase` 经 `MentionReferenceRequest(type="codebase")` 进入 `mention.py::_codebase_overview_part`。
 - Server 侧 **轻量 os.walk 扫描**（无 SQLite/FTS/向量索引），输出文件数与扩展名分布，并提示 Agent 使用 `grep_tool` / `glob_tool` 探索代码。
 - 注入 XML 类型为 `codebase-overview`；扫描上限 10,000 文件，排除 `.git`、`node_modules`、`.myrm` 等目录。
-- 工作区代码探索 SSOT 仍为 harness `FilesystemFileSearchMiddleware`（grep/glob），见 `app/services/context/_ARCH.md`。
+- 工作区代码探索 SSOT 为 harness meta tools `grep_tool` / `glob_tool`（随运行的文件访问模式挂载），见 `app/services/context/_ARCH.md`。
 
 ## prior_chat (@chat:) Mention
 

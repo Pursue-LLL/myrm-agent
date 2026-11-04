@@ -3,7 +3,7 @@
  * — (pure function, no runtime deps)
  *
  * [OUTPUT]
- * composeLearnSlashMessage: Hermes-style three-field → raw `/learn …` string.
+ * composeLearnSlashMessage: directory / URL / free-text form fields → raw `/learn …` string.
  * parseLearnSlashInput / buildLearnSlashMessageFromInput: slash palette helpers.
  *
  * [POS]
@@ -16,7 +16,7 @@ export interface LearnFormInput {
   text?: string;
 }
 
-/** Compose raw `/learn …` for server SSOT rewrite (Hermes dashboard pattern). */
+/** Compose raw `/learn …` for the server's SSOT rewrite. */
 export function composeLearnSlashMessage(input: LearnFormInput): string | null {
   const segs: string[] = [];
   const dir = input.directory?.trim() ?? '';

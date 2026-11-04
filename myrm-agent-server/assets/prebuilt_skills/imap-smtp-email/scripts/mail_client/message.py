@@ -1,4 +1,4 @@
-"""Message decoding helpers for the imap-smtp-email skill script: MIME headers, dates, summaries, bodies.
+"""Message helpers for the imap-smtp-email skill script: MIME headers, dates, summaries, bodies, outgoing envelopes.
 
 [INPUT]
 - email.message.Message objects parsed by the email_manager.py facade
@@ -21,11 +21,14 @@
 - reply_recipients: where a reply goes, every Reply-To address or, when Reply-To holds none, every From address, comma
   separated; empty when neither holds one
 - extract_body: plain-text body, falling back to HTML, never an attachment; a charset Python does not know is read as UTF-8
+- stamp_envelope: gives an outgoing message its Date and a Message-ID on the sender's domain (the SMTP host when the sender
+  names none) and returns the id; the standard library would take the domain from this machine's host name, which every
+  recipient reads
 
 [POS]
-Pure message-parsing half of the email_manager.py facade; no network or process I/O. A message from the mailbox is
-untrusted, so one that declares a charset Python does not know, carries a malformed encoded word or holds raw 8-bit
-bytes in a header is still readable.
+Pure message half of the email_manager.py facade, for the messages it reads and the ones it writes; no network or
+process I/O. A message from the mailbox is untrusted, so one that declares a charset Python does not know, carries a
+malformed encoded word or holds raw 8-bit bytes in a header is still readable.
 """
 
 from __future__ import annotations
@@ -236,3 +239,13 @@ def extract_body(msg: email.message.Message) -> str:
             html_body = decoded
 
     return text_body or html_body
+
+
+def stamp_envelope(msg: email.message.Message, from_addr: str, smtp_host: str) -> str:
+    """Give *msg* its ``Date`` and a ``Message-ID`` on the sender's domain, and return the id."""
+    msg["Date"] = email.utils.formatdate(localtime=True)
+    address = email.utils.parseaddr(from_addr)[1]
+    domain = address.rpartition("@")[2] if "@" in address else ""
+    msg_id = email.utils.make_msgid(domain=domain or smtp_host)
+    msg["Message-ID"] = msg_id
+    return msg_id

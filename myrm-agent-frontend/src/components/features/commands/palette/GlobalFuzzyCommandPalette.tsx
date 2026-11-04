@@ -1,5 +1,4 @@
 'use client';
-/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 /**
  * GlobalFuzzyCommandPalette Component.
@@ -209,11 +208,11 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
   };
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-label="Global Fuzzy Command Palette"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-slate-950/70 backdrop-blur-md p-4 animate-in fade-in duration-150 m-0 h-full max-h-none w-full max-w-none border-0 text-inherit"
     >
       <div className="w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900/95 shadow-2xl overflow-hidden flex flex-col max-h-[75vh]">
         {/* Search Input Bar */}
@@ -254,8 +253,7 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
                     <button
                       key={act.id}
                       type="button"
-                      role="option"
-                      aria-selected={isSelected}
+                      aria-current={isSelected ? 'true' : undefined}
                       onClick={() => {
                         onSelectAction?.(act.id);
                         onClose();
@@ -301,8 +299,7 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
                     <button
                       key={hist.chat_id}
                       type="button"
-                      role="option"
-                      aria-selected={isSelected}
+                      aria-current={isSelected ? 'true' : undefined}
                       onClick={() => {
                         onSelectChat?.(hist.chat_id);
                         onClose();
@@ -349,6 +346,6 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
           <div>Hermes Cmd+K Palette</div>
         </footer>
       </div>
-    </div>
+    </dialog>
   );
 };

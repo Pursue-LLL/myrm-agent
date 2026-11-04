@@ -103,7 +103,7 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | session_fork/ | Pi Harness v2 确定性子会话派生与安全重放重接原语（对标 pi harness-v2.md §17，基于 f(parentSessionId, toolCallId) 纯确定性派生 childSessionId，崩溃/重放 Safe Replay 时自动 reattach 现有 child 杜绝 twin 孪生子会话污染；支持 repo.fork(scope=branch|tree) 仅复制历史节点且保持新子会话初始 IDLE 纯净状态）。 |
 | token_budget_governance/ | 单模型多 Agent 共享上下文 Token 预算治理与路由开销可视化引擎（对标 BkashJosi 与 RepoAvcisi 多 Agent 路由实践，提供共享模型配额管控、扇出前预检 fail-closed 拦截、Routing Overhead 与 Execution Payload 精准归因核算、以及重复 handoff 烧 Token 的 Doctor Nudge 智能预警防线）。 |
 | pipeline_integrity/ | 开源可 inspect 工作流 · Handoff/Approval/Delivery 断点 Lint 与 Doctor 告警诊断包（对标 simplydt 与 BkashJosi 多 Agent 流水线断点治理，提供交接元数据缺失、无审批门禁直通 Delivery、交付产物缺失与无验证步骤四大断点规则 Lint 审计、可审查决策链提取与一键 Auto-Heal 自动补全自愈）。 |
-| specialist_summoning/ | 对话流自然语言/@召唤子专家协同与上下文结构化汇聚包（对标豆包与 WorkBuddy 垂直专家随时唤醒协同，支持输入框 @ 显式召唤与自然语言意图感知、轻量独立沙箱子会话执行避免主会长上下文污染、以及结构化产物工件卡回流主对话流）。 |
+| specialist_summoning/ | 对话流自然语言/@召唤子专家协同与上下文结构化汇聚包（垂直专家随时唤醒协同，支持输入框 @ 显式召唤与自然语言意图感知、轻量独立沙箱子会话执行避免主会长上下文污染、以及结构化产物工件卡回流主对话流）。 |
 | swarm_mesh/ | SwarmForge 动态 Agent 集群拓扑编排器与多智能体网格通信拓扑（支持声明式 Star/Hierarchical Tree/Peer Mesh/Pipeline/Ring 五大拓扑编排、平滑无损运行时拓扑切换、弹性扩缩容、单节点带状态热迁移、P2P 单播/组播/广播消息总线、以及共享黑板乐观版本自增治理）。 |
 | workspace_inheritance/ | 子智能体工作区根规则与项目上下文自动继承体系（对标 Hermes Agent，在构建子智能体系统提示词时自动继承父级已解析的工作区绝对路径，严格遵循 .rules > AGENTS.md > README.md 优先级链条动态抽取架构红线与安全规范，实施 2K Token 上限控制与差分摘要裁剪，杜绝子 Agent 违背架构规范与越界违规）。 |
 | `replay_dedup/` | 多智能体历史工具调用回放合并与状态机同步增强机制（对标 jiuwenclaw PR #5274，提供连续等幂/只读工具调用紧凑批处理聚合与 Token 节省率核算、写操作绝对隔离保护、单调递增子智能体状态机流转、以及心跳租约看门狗防假死自愈）。 |
@@ -120,7 +120,7 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | `dag_orchestrator/` | 多智能体 DAG 可视化编排器与带状态断点冷恢复和双向反馈闭环引擎（对标 dsh-agent-teams 插件规范，提供自然语言一句话建队与 DAG 依赖图解析、Kahn 算法拓扑排序与无环保障、Checkpoint 节点工件持久化与零重复冷恢复、以及下游审查失败向指定上游节点发起双向驳回并联动重置下游依赖分支的有界动态纠偏闭环）。 |
 | `kanban_queue/` | 多智能体持久任务看板队列与 12 路大规模并行 Dogfooding 运行器套件（对标 Hermes Kanban 与 batch_runner 规范，提供 5 态流转状态机、编排者与 Worker 九大协同工具链、4 小时僵死心跳自动回收、Swarm 四阶段拓扑与 `[swarm:blackboard]` 结构化共享黑板、自动 Triage 细化与 Fan-out DAG 分解、Git Worktree 独立工作区隔离与防失控热熔断、Goal-Mode 验收标准循环、12 路多进程并行调度与 `--resume` 检查点恢复、以及 HuggingFace 兼容标准 JSONL 轨迹沉淀）。 |
 | `diamond_graph/` | 图工程钻石拓扑模式并行调度与盲审对抗式交叉审计套件（对标 Graph Engineering 工业级图工程规范，提供 Fan-out -> Reduce -> Synthesize 钻石三段式执行引擎、静态分析剔除伪因果箭头的假依赖修剪器、Dead-Node Census 容灾哨兵 N 派发 N 回收保障、CoT 绝对物理剥离的独立上下文盲审对抗团多数表决机制、以及 Exit Code 0 / SHA-256 哈希匹配客观不可篡改真实事实锚点校验门禁）。 |
-| `coauthoring_ledger/` | 人机多方围绕单一动态文档协同编辑的状态机账本与冲突仲裁中枢（对标 WorkBuddy 第三阶段办公协同逻辑，提供人类用户与绑定 AI Agent 的三层协作关系模型、细粒度文档块生命周期与租约锁、携带意图原因的不可变增量账本状态机、作者贡献度透视追溯、以及人类优先/时间戳/隔离暂存提议的多策略冲突仲裁引擎）。 |
+| `coauthoring_ledger/` | 人机多方围绕单一动态文档协同编辑的状态机账本与冲突仲裁中枢（提供人类用户与绑定 AI Agent 的三层协作关系模型、细粒度文档块生命周期与租约锁、携带意图原因的不可变增量账本状态机、作者贡献度透视追溯、以及人类优先/时间戳/隔离暂存提议的多策略冲突仲裁引擎）。 |
 | `socket_mesh/` | 基于 Unix Socket / 命名管道的极简去中心化同机多 Agent 协同网格与原子信封协议（对标 Pi coms.ts & coms-net.ts，提供基于本地文件系统的零 Broker 注册自发现、跨平台 IPC 端点、标准原子信封通信协议、Hops 严格防环路熔断机制、In-flight Pending Reply 异步 Future 追踪与 coms_list/send/await/ping 内置协同工具链）。 |
 | `bot_forge/` | 对话式智能体与团队工厂、确定性创建流水线与建造者权限安全边界套件（对标 Pi specs/pi-pi.md 与 Hermes Bot Forge 出货形态，提供 Anti-recursion 防递归繁衍守卫、Permission Attenuation 权限收敛边界门禁、名称唯一性与语义职责重叠分析、Zero-model 干跑就绪核验、以及原子化 Transactional Rollback 状态机事务回滚中枢）。 |
 | `external_bundle/` | 异构外部第三方 Agent 容器化收编与子代理 Profile Bundle 调度桥接器（对标 DeepSeek Harness RC.8 subagent-claude-code 与 subagent-codex 调度层，提供 Claude Code/Codex/Gemini CLI 规范封装、工作区沙箱目录继承与防越权校验、破除单一 backend 锁的无锁高并发多实例多路复用调度器、终端 ANSI 格式清洗与结构化工件统一重塑）。 |

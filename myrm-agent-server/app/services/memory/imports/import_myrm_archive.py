@@ -58,7 +58,7 @@ def dry_run_myrm_archive(payload: dict[str, object]) -> MemoryImportDryRunResult
                 status="unsupported",
                 item_count=item_count,
                 unmapped_count=item_count,
-                reason="Archive section is restorable through /memory/archive/restore; this memory import path only writes native memory buckets.",
+                reason="Archive section is restorable through /memory/archive/restore (Memory Labs, MYRM_MEMORY_LABS=1); this memory import path only writes native memory buckets.",
             )
         )
 

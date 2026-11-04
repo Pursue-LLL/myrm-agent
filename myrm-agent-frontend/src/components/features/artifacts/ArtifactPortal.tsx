@@ -440,7 +440,11 @@ const ArtifactPortal: React.FC = () => {
       >
         {/* 无障碍描述 */}
         <span id="artifact-portal-description" className="sr-only">
-          {`正在预览文件 ${currentArtifact.filename}，类型为 ${currentArtifact.type}，大小 ${formatBytes(currentArtifact.size)}。按 ESC 键关闭。`}
+          {t('portalDescription', {
+            filename: currentArtifact.filename,
+            type: currentArtifact.type,
+            size: formatBytes(currentArtifact.size),
+          })}
         </span>
 
         {/* 移动端拖拽指示条 */}

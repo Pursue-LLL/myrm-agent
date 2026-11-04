@@ -24,7 +24,7 @@ export const StageTaskCountStrip: React.FC<StageTaskCountStripProps> = ({ summar
     >
       <div className="flex items-center gap-1 font-medium text-muted-foreground text-[11px] shrink-0">
         <Clock className="w-3.5 h-3.5 text-primary/70" />
-        <span>{t('stagesProgress') || 'Workflow Stages'}:</span>
+        <span>{t('stagesProgress')}:</span>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -64,7 +64,7 @@ export const StageTaskCountStrip: React.FC<StageTaskCountStripProps> = ({ summar
 
               {stage.waitingOnStage && (
                 <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal ml-0.5 opacity-90">
-                  (waiting on {stage.waitingOnStage})
+                  {t('waitingOnStage', { stage: stage.waitingOnStage })}
                 </span>
               )}
             </div>

@@ -594,7 +594,7 @@ export function SkillDetailSheetContent({
               {skill.primary_env && (
                 <div>
                   <label className="text-xs font-mono text-muted-foreground mb-1 block">
-                    API Key
+                    {t('card.apiKeyLabel')}
                     <span className="ml-1 text-[10px] opacity-60">→ {skill.primary_env}</span>
                   </label>
                   <Input
@@ -656,7 +656,7 @@ export function SkillDetailSheetContent({
               )}
             >
               <Eye size={13} />
-              {t('detail.previewTab') || 'Preview'}
+              {t('detail.previewTab')}
             </button>
             <button
               type="button"
@@ -669,7 +669,7 @@ export function SkillDetailSheetContent({
               )}
             >
               <Code size={13} />
-              {t('detail.sourceTab') || 'Source'}
+              {t('detail.sourceTab')}
             </button>
           </div>
 
@@ -687,7 +687,7 @@ export function SkillDetailSheetContent({
                 ) : (
                   <Save className="mr-1" size={12} />
                 )}
-                {t('detail.saveSource') || 'Save SKILL.md'}
+                {t('detail.saveSource')}
               </Button>
             )}
           </div>

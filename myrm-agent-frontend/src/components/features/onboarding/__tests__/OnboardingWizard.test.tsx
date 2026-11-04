@@ -2,63 +2,15 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const mockCompleteOnboarding = vi.fn(() => Promise.resolve({ success: true, message: 'ok' }));
-const mockDiscoverMigrationSources = vi.fn<
-  (force?: boolean) => Promise<{ sources: Array<{ type: string; path: string }> }>
->(() => Promise.resolve({ sources: [] }));
-const mockProbeLocalCapabilities = vi.fn<
-  (force?: boolean) => Promise<{
-    results: never[];
-    search: never[];
-    has_available: boolean;
-    recommended_model: string | null;
-  }>
->(() => Promise.resolve({ results: [], search: [], has_available: false, recommended_model: null }));
-const mockGetTelegramCredentials = vi.fn<() => Promise<{ botToken: string; botPolicy: string } | null>>(() =>
-  Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
-);
-const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
-const mockIsSandbox = vi.hoisted(() => ({ value: false }));
 
 const stableT = (key: string) => key;
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}));
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
-  isLocalMode: () => mockIsLocalMode.value,
-  isTauriRuntime: () => false,
-  getApiBaseUrl: () => '/api/v1',
-  getBackendBaseUrl: () => 'http://localhost:8080',
-  getDeployMode: () => 'local',
-  isSandbox: () => mockIsSandbox.value,
-  isSandboxAuthBuild: () => false,
-  shouldRedirectToLoginOnAuthFailure: () => false,
-  getLocalUserId: () => 'test-user',
-  resolveE2eApiBase: () => null,
-  normalizeConfiguredBaseUrl: (v: string | null, f: string) => v || f,
-  getDocsUrl: (p: string) => `https://docs.example.com${p}`,
-}));
-
-vi.mock('@/services/migrationDiscovery', () => ({
-  discoverMigrationSources: (force?: boolean) => mockDiscoverMigrationSources(force),
-}));
-
-vi.mock('@/services/localCapabilitiesProbe', () => ({
-  probeLocalCapabilities: (force?: boolean) => mockProbeLocalCapabilities(force),
-  invalidateLocalCapabilitiesProbeCache: vi.fn(),
-}));
-
 vi.mock('@/services/onboarding', () => ({
   completeOnboarding: () => mockCompleteOnboarding(),
-}));
-
-vi.mock('@/services/channels', () => ({
-  getTelegramCredentials: () => mockGetTelegramCredentials(),
 }));
 
 vi.mock('@/components/features/app-shell/BrandLogo', () => ({
@@ -87,110 +39,44 @@ vi.mock('@/components/features/instance-archive/RestoreEntry', () => ({
   RestoreEntry: () => <div data-testid="restore-entry" />,
 }));
 
-vi.mock('../LocalCapabilitiesSetup', () => ({
-  default: ({ onComplete }: { onComplete: () => void }) => (
-    <div data-testid="local-capabilities">
-      <button data-testid="capabilities-done" onClick={onComplete}>
-        Done
-      </button>
-    </div>
-  ),
+vi.mock('../FirstRunDoctorCard', () => ({
+  default: () => <div data-testid="doctor-card" />,
 }));
 
-vi.mock('../SyncFolderOnboardingStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="sync-folder-step">
-      <button data-testid="sync-folder-done" onClick={onComplete}>
-        Done
-      </button>
-      <button data-testid="sync-folder-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
+function stepMock(testId: string, completeId: string, skipId: string) {
+  return {
+    default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
+      <div data-testid={testId}>
+        <button data-testid={completeId} onClick={onComplete}>
+          Done
+        </button>
+        <button data-testid={skipId} onClick={onSkip}>
+          Skip
+        </button>
+      </div>
+    ),
+  };
+}
 
-vi.mock('../SmartRoutingStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="smart-routing-step">
-      <button data-testid="routing-enable" onClick={onComplete}>
-        Enable
-      </button>
-      <button data-testid="routing-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../SmartGuardStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="smart-guard-step">
-      <button data-testid="guard-enable" onClick={onComplete}>
-        Enable
-      </button>
-      <button data-testid="guard-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../TelegramAssistantOnboardingStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="telegram-onboarding-step">
-      <button data-testid="telegram-setup-done" onClick={onComplete}>
-        Done
-      </button>
-      <button data-testid="telegram-setup-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../ToolsConnectOnboardingStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="tools-connect-step">
-      <button data-testid="tools-connect-done" onClick={onComplete}>
-        Done
-      </button>
-      <button data-testid="tools-connect-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
-
-vi.mock('../ThemeOnboardingStep', () => ({
-  default: ({ onComplete, onSkip }: { onComplete: () => void; onSkip: () => void }) => (
-    <div data-testid="theme-onboarding-step">
-      <button data-testid="theme-continue" onClick={onComplete}>
-        Continue
-      </button>
-      <button data-testid="theme-skip" onClick={onSkip}>
-        Skip
-      </button>
-    </div>
-  ),
-}));
+vi.mock('../ToolsConnectOnboardingStep', () =>
+  stepMock('tools-connect-step', 'tools-connect-done', 'tools-connect-skip'),
+);
+vi.mock('../SmartRoutingStep', () => stepMock('smart-routing-step', 'routing-enable', 'routing-skip'));
+vi.mock('../SmartGuardStep', () => stepMock('smart-guard-step', 'guard-enable', 'guard-skip'));
+vi.mock('../ThemeOnboardingStep', () => stepMock('theme-onboarding-step', 'theme-continue', 'theme-skip'));
 
 vi.mock('@/lib/utils/classnameUtils', () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
 }));
 
-const mockHasEnabledProvider = vi.hoisted(() => ({ value: false }));
 const mockIsInitialized = vi.hoisted(() => ({ value: true }));
-const mockSearchConfigured = vi.hoisted(() => ({ value: false }));
 const mockEnabledModels = vi.hoisted(() => ({ value: [] as Array<{ providerId: string; model: string }> }));
 const mockRoutingEnabled = vi.hoisted(() => ({ value: false }));
+const mockSecurityConfig = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
 
 vi.mock('@/store/useProviderStore', () => ({
   default: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      providers: mockHasEnabledProvider.value
-        ? [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-x' }] }]
-        : [],
       isInitialized: mockIsInitialized.value,
       defaultModelConfig: {
         baseModel: { primary: null },
@@ -200,22 +86,6 @@ vi.mock('@/store/useProviderStore', () => ({
     }),
 }));
 
-vi.mock('@/store/useConfigStore', () => ({
-  default: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      searchServiceConfigs: mockSearchConfigured.value ? [{ isActive: true }] : [],
-      updatePersonalSettings: mockUpdatePersonalSettings,
-    }),
-}));
-
-vi.mock('@/store/config/searchService', () => ({
-  getActiveSearchServiceConfig: (configs: unknown[]) =>
-    Array.isArray(configs) && configs.length > 0 ? configs[0] : null,
-}));
-
-const mockSecurityConfig = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
-const mockUpdatePersonalSettings = vi.hoisted(() => vi.fn(() => Promise.resolve()));
-
 vi.mock('@/services/config', () => ({
   getConfigSyncManager: () => ({
     get: (key: string) => (key === 'securityConfig' ? mockSecurityConfig.value : null),
@@ -224,55 +94,45 @@ vi.mock('@/services/config', () => ({
 
 vi.mock('@/services/config/types', () => ({}));
 
-async function completeToolsConnectStep() {
-  await waitFor(() => {
-    expect(screen.getByTestId('tools-connect-step')).toBeInTheDocument();
+import OnboardingWizard from '../OnboardingWizard';
+
+const TWO_MODELS = [
+  { providerId: 'openai', model: 'gpt-4o-mini' },
+  { providerId: 'openai', model: 'gpt-4o' },
+];
+
+async function renderPastWelcome(onComplete: () => void = vi.fn()) {
+  render(<OnboardingWizard onComplete={onComplete} />);
+  await act(async () => {
+    vi.advanceTimersByTime(3000);
   });
-  fireEvent.click(screen.getByTestId('tools-connect-skip'));
 }
 
-async function completeDeploymentStep() {
+async function clickWhenShown(testId: string) {
   await waitFor(() => {
-    expect(screen.getByText('optLocal')).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
-  fireEvent.click(screen.getByText('optLocal'));
+  fireEvent.click(screen.getByTestId(testId));
 }
 
-async function completeHealthStep() {
+/** Walks migration -> tools connect -> health; the next screen is whatever the store state selects. */
+async function passMigrationToolsAndHealth() {
+  await clickWhenShown('migration-done');
+  await clickWhenShown('tools-connect-skip');
   await waitFor(() => {
     expect(screen.getByText('onboarding.doctorContinueButton')).toBeInTheDocument();
   });
   fireEvent.click(screen.getByText('onboarding.doctorContinueButton'));
 }
 
-async function completeThemePickStep() {
-  await waitFor(() => {
-    expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
-  });
-  fireEvent.click(screen.getByTestId('theme-skip'));
-}
-
-import OnboardingWizard from '../OnboardingWizard';
-
 describe('OnboardingWizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    mockHasEnabledProvider.value = false;
     mockIsInitialized.value = true;
-    mockSearchConfigured.value = false;
     mockEnabledModels.value = [];
     mockRoutingEnabled.value = false;
     mockSecurityConfig.value = null;
-    mockDiscoverMigrationSources.mockImplementation(() => Promise.resolve({ sources: [] }));
-    mockProbeLocalCapabilities.mockImplementation(() =>
-      Promise.resolve({ results: [], search: [], has_available: false, recommended_model: null }),
-    );
-    mockGetTelegramCredentials.mockImplementation(() =>
-      Promise.resolve({ botToken: 'configured-token', botPolicy: 'mention_only' }),
-    );
-    mockIsLocalMode.value = true;
-    mockIsSandbox.value = false;
   });
 
   afterEach(() => {
@@ -280,429 +140,14 @@ describe('OnboardingWizard', () => {
   });
 
   describe('welcome phase', () => {
-    it('shows welcome screen with brand logo on mount', () => {
+    it('shows the brand welcome screen on mount', () => {
       render(<OnboardingWizard onComplete={vi.fn()} />);
       expect(screen.getByTestId('brand-logo')).toBeInTheDocument();
       expect(screen.getByText('title')).toBeInTheDocument();
       expect(screen.getByText('step.initServices')).toBeInTheDocument();
     });
 
-    it('runs migration discovery and local probe in parallel on mount', () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-      expect(mockDiscoverMigrationSources).toHaveBeenCalledWith(false);
-      expect(mockProbeLocalCapabilities).toHaveBeenCalledWith(false);
-    });
-  });
-
-  describe('step routing', () => {
-    it('routes to migration when sources exist', async () => {
-      mockDiscoverMigrationSources.mockImplementation(() =>
-        Promise.resolve({ sources: [{ type: 'chatgpt', path: '/tmp' }] }),
-      );
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
-      });
-    });
-
-    it('routes to capabilities when no migration and no provider', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-    });
-
-    it('routes to migration in cloud mode even without local discovery', async () => {
-      mockIsLocalMode.value = false;
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
-      });
-      expect(mockDiscoverMigrationSources).not.toHaveBeenCalled();
-      expect(mockProbeLocalCapabilities).not.toHaveBeenCalled();
-    });
-
-    it('auto-finishes when provider and search are already ready', async () => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-    });
-
-    it('routes to telegram onboarding when prerequisites are ready but telegram is not configured', async () => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('restore from a backup', () => {
-    it('is offered on the deployment step, before anything is set up', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('optLocal')).toBeInTheDocument();
-      });
-      expect(screen.getByTestId('restore-entry')).toBeInTheDocument();
-    });
-
-    it('is offered on the migration step of a sandbox, whose first screen it is', async () => {
-      mockIsLocalMode.value = false;
-      mockIsSandbox.value = true;
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
-      });
-      expect(screen.queryByText('optLocal')).not.toBeInTheDocument();
-      expect(screen.getByTestId('restore-entry')).toBeInTheDocument();
-    });
-
-    it('is not offered a second time on the migration step that follows the deployment step', async () => {
-      mockIsLocalMode.value = false;
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('restore-entry')).not.toBeInTheDocument();
-    });
-
-    it('is not repeated on the setup steps that follow', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('restore-entry')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('step transitions', () => {
-    it('transitions from migration to capabilities', async () => {
-      mockDiscoverMigrationSources.mockImplementation(() =>
-        Promise.resolve({ sources: [{ type: 'chatgpt', path: '/tmp' }] }),
-      );
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('migration-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('error resilience', () => {
-    it('handles migration discovery failure gracefully', async () => {
-      mockDiscoverMigrationSources.mockImplementation(() => Promise.reject(new Error('fail')));
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('smart routing step', () => {
-    it('shows routing step after capabilities when ≥2 models and routing not enabled', async () => {
-      mockEnabledModels.value = [
-        { providerId: 'openai', model: 'gpt-4o-mini' },
-        { providerId: 'openai', model: 'gpt-4o' },
-      ];
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('capabilities-done'));
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
-      });
-    });
-
-    it('skips routing step when routing already enabled', async () => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-      mockEnabledModels.value = [
-        { providerId: 'openai', model: 'gpt-4o-mini' },
-        { providerId: 'openai', model: 'gpt-4o' },
-      ];
-      mockRoutingEnabled.value = true;
-      mockSecurityConfig.value = { autoReviewEnabled: true };
-
-      const onComplete = vi.fn();
-      render(<OnboardingWizard onComplete={onComplete} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-
-      expect(screen.queryByTestId('smart-routing-step')).not.toBeInTheDocument();
-    });
-
-    it('skips routing step when less than 2 models', async () => {
-      mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
-      mockSecurityConfig.value = { autoReviewEnabled: true };
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('capabilities-done'));
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-
-      expect(screen.queryByTestId('smart-routing-step')).not.toBeInTheDocument();
-    });
-
-    it('finishes after routing enable click', async () => {
-      mockEnabledModels.value = [
-        { providerId: 'openai', model: 'gpt-4o-mini' },
-        { providerId: 'openai', model: 'gpt-4o' },
-      ];
-      mockSecurityConfig.value = { autoReviewEnabled: true };
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('capabilities-done'));
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('routing-enable'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-    });
-
-    it('finishes after routing skip click', async () => {
-      mockEnabledModels.value = [
-        { providerId: 'openai', model: 'gpt-4o-mini' },
-        { providerId: 'openai', model: 'gpt-4o' },
-      ];
-      mockSecurityConfig.value = { autoReviewEnabled: true };
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('capabilities-done'));
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('routing-skip'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('timing', () => {
-    it('respects minimum 2500ms welcome duration', async () => {
+    it('holds the welcome screen for the minimum duration', async () => {
       render(<OnboardingWizard onComplete={vi.fn()} />);
 
       await act(async () => {
@@ -710,73 +155,103 @@ describe('OnboardingWizard', () => {
       });
 
       expect(screen.getByText('title')).toBeInTheDocument();
-      expect(screen.queryByTestId('local-capabilities')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('migration-wizard')).not.toBeInTheDocument();
+    });
+
+    it('keeps waiting after the minimum duration until the provider store is initialized', async () => {
+      mockIsInitialized.value = false;
+      const { rerender } = render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.queryByTestId('migration-wizard')).not.toBeInTheDocument();
+
+      mockIsInitialized.value = true;
+      rerender(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
+      });
     });
   });
 
-  describe('telegram onboarding step', () => {
-    it('finishes after telegram setup complete click', async () => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
+  describe('migration step', () => {
+    it('opens on the migration step and offers restore from a backup there', async () => {
+      await renderPastWelcome();
 
       await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
       });
+      expect(screen.getByTestId('restore-entry')).toBeInTheDocument();
+      expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();
+    });
 
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
+    it('moves on to tools connect when the migration finishes', async () => {
+      await renderPastWelcome();
+      await clickWhenShown('migration-done');
       await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+        expect(screen.getByTestId('tools-connect-step')).toBeInTheDocument();
       });
+      expect(screen.queryByTestId('restore-entry')).not.toBeInTheDocument();
+    });
 
-      fireEvent.click(screen.getByTestId('telegram-setup-done'));
-
-      await completeThemePickStep();
-
+    it('moves on to tools connect from the skip button', async () => {
+      await renderPastWelcome();
       await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
+        expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('onboarding.skipStep'));
+      await waitFor(() => {
+        expect(screen.getByTestId('tools-connect-step')).toBeInTheDocument();
       });
     });
 
-    it('shows theme pick step after telegram skip', async () => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
+    it('finishes straight away from the instant start button', async () => {
+      const onComplete = vi.fn();
+      await renderPastWelcome(onComplete);
 
-      render(<OnboardingWizard onComplete={vi.fn()} />);
+      await waitFor(() => {
+        expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('onboarding.instantStartButton'));
+
+      await waitFor(() => {
+        expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('still lets the user in when saving the completion fails', async () => {
+      mockCompleteOnboarding.mockRejectedValueOnce(new Error('offline'));
+      const onComplete = vi.fn();
+      await renderPastWelcome(onComplete);
+
+      await waitFor(() => {
+        expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('onboarding.instantStartButton'));
 
       await act(async () => {
-        vi.advanceTimersByTime(3000);
+        await vi.advanceTimersByTimeAsync(500);
       });
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+  });
 
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
+  describe('health step', () => {
+    it('shows the doctor card and can be skipped', async () => {
+      await renderPastWelcome();
+      await clickWhenShown('migration-done');
+      await clickWhenShown('tools-connect-skip');
 
       await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+        expect(screen.getByTestId('doctor-card')).toBeInTheDocument();
       });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('telegram-setup-skip'));
+      fireEvent.click(screen.getByText('onboarding.skipStep'));
 
       await waitFor(() => {
         expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
@@ -784,265 +259,137 @@ describe('OnboardingWizard', () => {
     });
   });
 
-  describe('Smart Guard step', () => {
-    beforeEach(() => {
-      mockHasEnabledProvider.value = true;
-      mockSearchConfigured.value = true;
-      mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
-      mockRoutingEnabled.value = true;
-      mockSecurityConfig.value = null;
-      mockGetTelegramCredentials.mockImplementation(() => Promise.resolve(null));
-    });
-
-    it('shows smart_guard step when autoReviewEnabled is falsy', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
-      });
-    });
-
-    it('skips smart_guard step when autoReviewEnabled is true', async () => {
-      mockSecurityConfig.value = { autoReviewEnabled: true };
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
-      });
-    });
-
-    it('skips smart_guard step when no enabled models', async () => {
-      mockEnabledModels.value = [];
-      mockHasEnabledProvider.value = false;
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
-      });
-    });
-
-    it('navigates from routing to smart_guard when enabled', async () => {
-      mockRoutingEnabled.value = false;
-      mockEnabledModels.value = [
-        { providerId: 'openai', model: 'gpt-4o' },
-        { providerId: 'openai', model: 'gpt-4o-mini' },
-      ];
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
+  describe('smart routing step', () => {
+    it('is offered with two or more enabled models while routing is off', async () => {
+      mockEnabledModels.value = TWO_MODELS;
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
       });
+    });
 
-      fireEvent.click(screen.getByTestId('routing-enable'));
+    it('is skipped when routing is already enabled', async () => {
+      mockEnabledModels.value = TWO_MODELS;
+      mockRoutingEnabled.value = true;
+      mockSecurityConfig.value = { autoReviewEnabled: true };
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('smart-routing-step')).not.toBeInTheDocument();
+    });
+
+    it('is skipped with fewer than two enabled models', async () => {
+      mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
+      mockSecurityConfig.value = { autoReviewEnabled: true };
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('smart-routing-step')).not.toBeInTheDocument();
+    });
+
+    it.each([['routing-enable'], ['routing-skip']])('leads to the next step after %s', async (buttonId) => {
+      mockEnabledModels.value = TWO_MODELS;
+      mockSecurityConfig.value = { autoReviewEnabled: true };
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
+
+      await clickWhenShown(buttonId);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('smart guard step', () => {
+    beforeEach(() => {
+      mockEnabledModels.value = [{ providerId: 'openai', model: 'gpt-4o' }];
+      mockRoutingEnabled.value = true;
+    });
+
+    it('is offered while auto review is off', async () => {
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
       });
     });
 
-    it('navigates through routing with deepseek-reasoner and local hybrid models', async () => {
+    it('is skipped when auto review is already on', async () => {
+      mockSecurityConfig.value = { autoReviewEnabled: true };
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('smart-guard-step')).not.toBeInTheDocument();
+    });
+
+    it('is skipped when no model is enabled', async () => {
+      mockEnabledModels.value = [];
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('smart-guard-step')).not.toBeInTheDocument();
+    });
+
+    it('follows smart routing when both apply', async () => {
       mockRoutingEnabled.value = false;
       mockEnabledModels.value = [
         { providerId: 'deepseek', model: 'deepseek-chat' },
         { providerId: 'deepseek', model: 'deepseek-reasoner' },
       ];
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
 
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('routing-enable'));
+      await clickWhenShown('routing-enable');
 
       await waitFor(() => {
         expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
       });
     });
 
-    it('navigates from smart_guard enable to telegram step', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
+    it.each([['guard-enable'], ['guard-skip']])('leads to the theme step after %s', async (buttonId) => {
+      await renderPastWelcome();
+      await passMigrationToolsAndHealth();
 
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
+      await clickWhenShown(buttonId);
 
       await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('guard-enable'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
+        expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
       });
     });
+  });
 
-    it('navigates from smart_guard skip to telegram step', async () => {
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('guard-skip'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('telegram-onboarding-step')).toBeInTheDocument();
-      });
-    });
-
-    it('finishes directly from smart_guard when telegram is configured', async () => {
-      mockGetTelegramCredentials.mockImplementation(() =>
-        Promise.resolve({ botToken: 'token', botPolicy: 'mention_only' }),
-      );
-
-      render(<OnboardingWizard onComplete={vi.fn()} />);
-
-      await act(async () => {
-        vi.advanceTimersByTime(3000);
-      });
-
-      await completeDeploymentStep();
-
-      await completeToolsConnectStep();
-      await completeHealthStep();
-
-      await waitFor(() => {
-        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('sync-folder-done'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByTestId('guard-enable'));
-
-      await completeThemePickStep();
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-      });
-    });
-
-    it('allows cloud users to trigger Instant Squad start from migration step', async () => {
-      mockIsLocalMode.value = false;
+  describe('theme step and completion', () => {
+    it.each([['theme-continue'], ['theme-skip']])('completes onboarding after %s', async (buttonId) => {
+      mockSecurityConfig.value = { autoReviewEnabled: true };
       const onComplete = vi.fn();
-      render(<OnboardingWizard onComplete={onComplete} />);
+      await renderPastWelcome(onComplete);
+      await passMigrationToolsAndHealth();
 
+      await clickWhenShown(buttonId);
+
+      await waitFor(() => {
+        expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
+      });
       await act(async () => {
-        vi.advanceTimersByTime(3000);
+        await vi.advanceTimersByTimeAsync(500);
       });
-
-      await completeDeploymentStep();
-
-      await waitFor(() => {
-        expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByText('onboarding.instantStartButton'));
-
-      await waitFor(() => {
-        expect(mockCompleteOnboarding).toHaveBeenCalled();
-        expect(onComplete).toHaveBeenCalled();
-      });
+      expect(onComplete).toHaveBeenCalledTimes(1);
     });
   });
 });

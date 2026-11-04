@@ -9,9 +9,11 @@ IPC Server 内部使用此服务处理子进程的 MCP 工具调用请求。
 
 [INPUT]
 - agent.skills.mcp.cache_policy::CacheBuckets, resolve_cache_ttl (POS: PTC result-cache TTL policy)
+- agent.skills.mcp.call_backstop::call_within_backstop (POS: outer time bound for one script tool call)
 - backends.skills.types::SkillMetadata (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - toolkits.mcp::MCPConfig (POS: MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling, configuration, and security validation for unified MCP protocol support.)
 - toolkits.mcp.client::MCPServerConfigProtocol (POS: MCP client management layer. Handles MCP server connection setup, transport config conversion, and multi-server client initialization with optional auth injection.)
+- toolkits.mcp.errors::MCPToolFailure (POS: MCP-specific error types; the marked ``str`` a failed call is rendered as)
 
 [OUTPUT]
 - MCPSkillProxyService: MCP skill invoke with LRU cache (canonical tool-name keys), required-arg probe validation
@@ -36,9 +38,11 @@ from myrm_agent_harness.agent.skills.mcp.cache_policy import (
     make_cache_key,
     resolve_cache_ttl,
 )
+from myrm_agent_harness.agent.skills.mcp.call_backstop import call_within_backstop
 from myrm_agent_harness.core.security.detection.content_boundary import (
     extract_wrapped_payload,
 )
+from myrm_agent_harness.toolkits.mcp.errors import MCPToolFailure
 from myrm_agent_harness.toolkits.mcp.schema import prepare_mcp_call_arguments
 
 if TYPE_CHECKING:
@@ -275,7 +279,10 @@ class MCPSkillProxyService:
         Server- and tool-name variant resolution is handled by the connection.
 
         Raises:
-            RuntimeError: if the target server or tool cannot be found.
+            RuntimeError: if the server or tool cannot be found, or the call
+                failed. A failure is raised, not returned: a script would take
+                the text for data and the read cache would keep it.
+            TimeoutError: if the session never answered within its limit.
         """
         from typing import cast
 
@@ -289,7 +296,13 @@ class MCPSkillProxyService:
         config_as_protocol = cast("list[MCPServerConfigProtocol]", mcp_config)
         conn = await manager.get_connection(config_as_protocol)
 
-        raw_result = await conn.call(mcp_server, tool_name, params)
+        raw_result = await call_within_backstop(
+            conn.call(mcp_server, tool_name, params),
+            execute_timeouts=[cfg.execute_timeout for cfg in mcp_config],
+            label=f"{mcp_server}.{tool_name}",
+        )
+        if isinstance(raw_result, MCPToolFailure):
+            raise RuntimeError(str(raw_result))
         return self.parse_mcp_result(raw_result)
 
     # =========================================================================

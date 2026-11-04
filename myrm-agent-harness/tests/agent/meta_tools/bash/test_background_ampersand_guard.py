@@ -26,9 +26,7 @@ def _mock_executor() -> MagicMock:
     executor.config.network.allow_network = True
     executor.config.network.get_effective_allowed_hosts.return_value = []
     executor.config.local.max_execution_time = 120
-    executor.config.mcp_proxy.socket_path = "/tmp/mcp.sock"
     executor.get_executor_name.return_value = "mock"
-    executor.get_mcp_communication_config.return_value = None
     return executor
 
 

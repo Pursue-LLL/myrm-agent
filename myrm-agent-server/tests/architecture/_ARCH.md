@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名与规划条目编号、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、蓝图填充响应的服务端与前端字段不一致。
+Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名与规划条目编号、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、蓝图填充响应的服务端与前端字段不一致、首轮静态 system 提示的体积超出基线上限。
 
 ## 文件清单
 
@@ -89,6 +89,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
+| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 模型族执行纪律 + web_chat 渠道提示，按 GPT / Claude Sonnet / Claude Opus / Gemini / DeepSeek × 中英文逐格设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound、inbound_message、inbound_poll 三个 mixin 不得定义同名方法（源码里 `TYPE_CHECKING` 下给类型检查器的声明不算）；MRO 中话题 mixin 先于 hooks mixin；`collect_issues` 必须来自诊断 mixin，而不是 `BaseChannel` 的默认实现 |

@@ -44,7 +44,7 @@ export function useCredentialsStorage() {
     } catch (error) {
       console.error('Failed to load credentials:', error);
       toast({
-        title: t('loadError', { defaultValue: 'Failed to load credentials' }),
+        title: t('loadError'),
         variant: 'destructive',
       });
     } finally {
@@ -151,13 +151,13 @@ export function useCredentialsStorage() {
           setIsUploading(true);
           await uploadCredential(file, targetFilename);
           toast({
-            title: t('uploadSuccess', { defaultValue: 'Credential uploaded successfully' }),
+            title: t('uploadSuccess'),
           });
           await loadCredentials();
         } catch (error) {
           console.error('Failed to upload credential:', error);
           toast({
-            title: t('uploadError', { defaultValue: 'Failed to upload credential' }),
+            title: t('uploadError'),
             variant: 'destructive',
           });
         } finally {
@@ -180,13 +180,13 @@ export function useCredentialsStorage() {
     try {
       await deleteCredential(deleteTarget);
       toast({
-        title: t('deleteSuccess', { defaultValue: 'Credential deleted' }),
+        title: t('deleteSuccess'),
       });
       await loadCredentials();
     } catch (error) {
       console.error('Failed to delete credential:', error);
       toast({
-        title: t('deleteError', { defaultValue: 'Failed to delete credential' }),
+        title: t('deleteError'),
         variant: 'destructive',
       });
       throw error;

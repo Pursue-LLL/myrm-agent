@@ -12,7 +12,7 @@
  * Mobile PWA native shell connectivity perception layer at the top safe-area boundary.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconActivity,
@@ -22,6 +22,22 @@ import {
   IconShieldCheck,
   IconZap,
 } from '@/components/features/icons/PremiumIcons';
+
+function subscribeOnline(notify: () => void): () => void {
+  window.addEventListener('online', notify);
+  window.addEventListener('offline', notify);
+  return () => {
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+  };
+}
+
+// Only an explicit `false` counts as offline, so an environment that reports nothing is treated as connected.
+const readOnline = (): boolean => navigator.onLine !== false;
+
+// Node's `navigator` has no `onLine`, so the server must not derive the state from it: it renders the
+// online state and the client reads the real value right after hydration.
+const readOnlineOnServer = (): boolean => true;
 
 export interface MobileShellStatusBarProps {
   isConnecting?: boolean;
@@ -39,26 +55,8 @@ export function MobileShellStatusBar({
   isStandalone = false,
 }: MobileShellStatusBarProps) {
   const t = useTranslations('mobileShell');
-  const [isOnline, setIsOnline] = useState<boolean>(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const isOnline = useSyncExternalStore(subscribeOnline, readOnline, readOnlineOnServer);
   const [detailsExpanded, setDetailsExpanded] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const isDisconnected = !isOnline || hasError;
 
@@ -72,9 +70,7 @@ export function MobileShellStatusBar({
         <div className="flex items-center justify-between border-b border-rose-500/30 bg-rose-950/90 px-4 py-2 text-xs text-rose-200 backdrop-blur-md shadow-sm">
           <div className="flex items-center gap-2">
             <IconAlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
-            <span className="font-medium">
-              {!isOnline ? t('offlineNotice') : t('connectionErrorNotice')}
-            </span>
+            <span className="font-medium">{!isOnline ? t('offlineNotice') : t('connectionErrorNotice')}</span>
           </div>
           {onRetry && (
             <button
@@ -107,9 +103,7 @@ export function MobileShellStatusBar({
             </span>
             <span>{hostName ? `${t('connectedTo')} ${hostName}` : t('connectedReady')}</span>
             {isStandalone && (
-              <span className="ml-1 rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">
-                PWA
-              </span>
+              <span className="ml-1 rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">PWA</span>
             )}
           </button>
         </div>

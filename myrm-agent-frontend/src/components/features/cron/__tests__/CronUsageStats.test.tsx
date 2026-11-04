@@ -102,14 +102,17 @@ describe('CronUsageStats - Productivity & ROI Visualizer', () => {
 
     await waitFor(() => {
       // 检查自动化生产力收益看板
-      expect(screen.getByText('自动化生产力收益')).toBeInTheDocument();
+      expect(screen.getByText('roiTitle')).toBeInTheDocument();
       expect(screen.getByText(/ROI 250x/)).toBeInTheDocument();
       expect(screen.getByText('3.3')).toBeInTheDocument();
-      expect(screen.getByText('累计节省工时')).toBeInTheDocument();
-      expect(screen.getByText('预估生产力价值')).toBeInTheDocument();
+      expect(screen.getByText('hoursSavedTotal')).toBeInTheDocument();
+      expect(screen.getByText('productivityValue')).toBeInTheDocument();
       expect(screen.getByText('$100.0')).toBeInTheDocument();
 
-      // 检查任务列表及预估省时列
+      // 任务列表及预估省时列
+      expect(screen.getByText('columnHoursSaved')).toBeInTheDocument();
+      expect(screen.getByText('roiSubtitle')).toBeInTheDocument();
+      expect(screen.getByText('hoursUnit')).toBeInTheDocument();
       expect(screen.getByText('Daily Article Digest')).toBeInTheDocument();
       expect(screen.getByText('2h')).toBeInTheDocument();
       expect(screen.getByText('GitHub PR Monitor')).toBeInTheDocument();

@@ -4,25 +4,7 @@ import React from 'react';
 import { SpreadsheetSelectionToolbar } from '../SpreadsheetSelectionToolbar';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 
-const stableT = (key: string, values?: Record<string, unknown>) => {
-  const map: Record<string, string> = {
-    search: 'Search...',
-    rows: 'rows',
-    of: 'of',
-    copy: 'Copy',
-    export: 'Export',
-    copyAll: 'Copy all to clipboard',
-    exportCsv: 'Export as CSV',
-    quoteRow: `Quote row ${values?.row ?? ''}`,
-    quoteRowTooltip: 'Quote selected row to composer for targeted inquiry or partial edit',
-    quote: 'Quote to Composer',
-  };
-  return map[key] ?? key;
-};
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
+vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
 describe('SpreadsheetSelectionToolbar', () => {
   beforeEach(() => {
@@ -81,5 +63,36 @@ describe('SpreadsheetSelectionToolbar', () => {
     const clearBtn = screen.getByLabelText('Clear selection');
     fireEvent.click(clearBtn);
     expect(onClear).toHaveBeenCalled();
+  });
+
+  it('names a blank header cell by its column letter in the quoted row', () => {
+    render(
+      <SpreadsheetSelectionToolbar
+        selectedRowIndex={0}
+        headers={['Item', '']}
+        rowData={['Apple', '$3']}
+        filename="market.xlsx"
+        onClearSelection={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTitle('Quote to Composer'));
+
+    expect(useScopedArtifactStore.getState().target?.selectedSnippet).toContain('B: $3');
+  });
+
+  it('falls back to the localized artifact name when the file has no name', () => {
+    render(
+      <SpreadsheetSelectionToolbar
+        selectedRowIndex={0}
+        headers={['Item']}
+        rowData={['Apple']}
+        onClearSelection={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTitle('Quote to Composer'));
+
+    expect(useScopedArtifactStore.getState().target?.artifactName).toBe('Spreadsheet artifact');
   });
 });

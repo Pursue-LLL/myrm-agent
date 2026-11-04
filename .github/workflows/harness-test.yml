@@ -32,7 +32,7 @@ jobs:
   unit:
     name: Unit tests (memory-safe profile)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -41,6 +41,11 @@ jobs:
       # The safe_git suite drives a real git-lfs (tests/core/security/safe_git/test_git_lfs_programs.py); without it those cases skip.
       - name: Ensure git-lfs
         run: command -v git-lfs >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends git-lfs; }
+
+      # The file_search suite compares the ripgrep tier with the Python tier on real trees; under CI a missing rg
+      # fails those tests (tests/agent/meta_tools/file_search/conftest.py) instead of skipping them.
+      - name: Ensure ripgrep
+        run: command -v rg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ripgrep; }
 
       - name: Install uv
         uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
@@ -54,17 +59,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --python 3.13 --locked --extra all --group dev
 
-      # The suite takes about 13 minutes. A stalled run would reach the 30-minute job limit, which cancels
-      # every later step and leaves no trace of what hung. The step limit fails it first so the reporting
-      # steps below still run. Per-test progress goes to a log they can read, and a test that outlives
-      # faulthandler_timeout dumps every thread's stack into it before pytest-timeout fires.
+      # The suite takes 13 to 26 minutes, depending on the runner. 600 s without output is twice what
+      # pytest-timeout (300 s) lets one test run, so pytest hung outside its own supervision. Left alone,
+      # the job limit would cancel it without a trace, so the guard ends the step itself after writing the
+      # thread states and every thread's stack of the pytest master and workers into /tmp/unit.log.
       - name: Run unit tests
         shell: bash
-        timeout-minutes: 25
         run: >-
+          python3 scripts/ci_stall_guard.py --log /tmp/unit.log --
           uv run --no-sync pytest -n 2 --dist=loadscope -v --tb=short tests/
-          --junitxml=/tmp/unit.xml -o faulthandler_timeout=240
-          2>&1 | tee /tmp/unit.log
+          --junitxml=/tmp/unit.xml
 
       # Surface which tests failed without downloading the whole job log: the summary is
       # written to the step summary, which is readable from the run page and the API.
@@ -108,9 +112,10 @@ jobs:
           sys.exit(0)
           EOF
 
-      # A stalled run is killed before pytest writes the junit report, so the progress log is the only
-      # trace: the newest finished test of each worker (the stalled test is the next one in that module)
-      # and, when a test outlived faulthandler_timeout, the thread dump it left behind.
+      # A stalled run ends before pytest writes the junit report, so the log is the only trace: the newest
+      # finished test of each worker (the stalled test is the next one in that module), then what the stall
+      # guard recorded when it ended the run: process and thread states, the stack of every Python process,
+      # and the load / memory / pressure samples leading up to the stall.
       - name: Report where a stalled run stopped
         if: failure() || cancelled()
         run: |
@@ -136,19 +141,33 @@ jobs:
                   newest[match.group(1)] = line[:160]
           annotate("stalled-run-newest-finished-per-worker", list(newest.values()) or ["no test finished"])
 
-          # The dump header shares a line with the id of the test that was running.
-          stalls = [i for i, line in enumerate(lines) if re.search(r"Timeout \(\d+:\d\d:\d\d\)!", line)]
-          if stalls:
-              annotate("stalled-tests", [lines[i][:160] for i in stalls[:20]])
-              dump, frames_left = [], 0
-              for line in lines[stalls[0] : stalls[0] + 150]:
-                  if line.startswith(("Thread 0x", "Current thread")):
-                      dump.append(line)
-                      frames_left = 4
-                  elif frames_left and line.startswith("  File "):
-                      dump.append(line[-140:])
-                      frames_left -= 1
-              annotate("stalled-test-thread-dump", dump)
+          # Each process's dump follows its "stacks of pid" line and ends at the next guard line.
+          stacks, current, guard_lines = {}, None, []
+          for line in lines:
+              header = re.match(r"\[ci-stall\] stacks of pid=(\d+)", line)
+              if header:
+                  current = stacks.setdefault(header.group(1), [])
+              elif line.startswith("[ci-stall]"):
+                  current = None
+              elif current is not None:
+                  current.append(line)
+              if line.startswith(("[ci-stall]", "    tid=")) and not header:
+                  guard_lines.append(line[:200])
+          if guard_lines:
+              annotate("ci-stall-processes", guard_lines[:60])
+          for pid, rows in list(stacks.items())[:5]:
+              kept, frames = [], 0
+              for row in rows:
+                  if row.startswith(("Thread 0x", "Current thread")):
+                      kept.append(row[:160])
+                      frames = 0
+                  elif row.startswith("  File ") and frames < 12:
+                      kept.append(row[-170:])
+                      frames += 1
+              annotate(f"ci-stall-stacks-pid-{pid}", kept or ["no stack was written"])
+          samples = [line[:200] for line in lines if line.startswith("[ci-sample]")]
+          if samples:
+              annotate("ci-sample-tail", samples[-8:])
           EOF
 
   windows-computer-use:

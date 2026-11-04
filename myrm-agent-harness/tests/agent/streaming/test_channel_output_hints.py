@@ -177,3 +177,18 @@ class TestKVCacheSafety:
     def test_result_is_string(self) -> None:
         assert isinstance(resolve_channel_output_hint("telegram"), str)
         assert isinstance(resolve_channel_output_hint(None), str)
+
+
+class TestHintsDeclareCapabilityOnly:
+    """A hint states what the channel renders; how much to format is decided by the response rules."""
+
+    def test_no_hint_pushes_rich_formatting(self) -> None:
+        for channel, hint in CHANNEL_OUTPUT_HINTS.items():
+            assert "rich formatting" not in hint.lower(), channel
+
+    @pytest.mark.parametrize("channel", ["web_chat", "teams"])
+    def test_markdown_channels_still_declare_what_renders(self, channel: str) -> None:
+        hint = resolve_channel_output_hint(channel)
+        assert "[Output Format]" in hint
+        assert "Markdown is supported" in hint
+        assert "tables" in hint

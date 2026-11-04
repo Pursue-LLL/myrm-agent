@@ -91,4 +91,16 @@ describe('ApiKeyManager External Secret Source Support', () => {
     );
     expect(screen.queryByText('validateExternalKey')).toBeNull();
   });
+
+  it('offers a localized example for a new key or secret reference', () => {
+    render(
+      <TooltipProvider>
+        <ApiKeyManager apiKeys={[]} onChange={vi.fn()} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.click(screen.getByText('addKey'));
+
+    expect(screen.getByPlaceholderText('apiKeyInputPlaceholder')).toBeInTheDocument();
+  });
 });

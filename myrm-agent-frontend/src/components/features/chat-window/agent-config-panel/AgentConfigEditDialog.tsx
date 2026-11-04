@@ -324,6 +324,8 @@ const AgentConfigEditDialog = ({
               preview &&
               typeof preview.inline_count === 'number' &&
               typeof preview.hidden_count === 'number' &&
+              typeof preview.overflow_count === 'number' &&
+              typeof preview.catalog_tokens === 'number' &&
               typeof preview.search_mounted === 'boolean'
             ) {
               setCatalogPreview(preview as Turn1CatalogPreview);
@@ -513,8 +515,8 @@ const AgentConfigEditDialog = ({
               isNoiseHigh,
               isNoiseCritical,
               noiseLevel,
-              coreSkillsTokenCost: actionSpaceScore,
-              maxCoreTokens: maxSafeScore,
+              actionSpaceScore,
+              maxSafeScore,
             }}
             staleCoreSkills={staleCoreSkills}
             isSmartPruning={isSmartPruning}

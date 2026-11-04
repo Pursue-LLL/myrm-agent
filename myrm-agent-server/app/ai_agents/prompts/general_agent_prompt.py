@@ -34,10 +34,10 @@ from app.ai_agents.prompts.fast_search_agent_prompt import (
 from app.ai_agents.prompts.shared_rules import (
     ABSOLUTE_OBEDIENCE_RULES_EN,
     ABSOLUTE_OBEDIENCE_RULES_ZH,
+    AGENT_RESPONSE_RULES_EN,
+    AGENT_RESPONSE_RULES_ZH,
     EXTERNAL_SOURCES_CITATION_RULES_EN,
     EXTERNAL_SOURCES_CITATION_RULES_ZH,
-    RESPONSE_RULES_EN,
-    RESPONSE_RULES_ZH,
     TASK_INTEGRITY_RULES_EN,
     TASK_INTEGRITY_RULES_ZH,
 )
@@ -70,9 +70,7 @@ SEARCH_DEEP_SUFFIX_ZH: str = _DEEP_SEARCH_SUFFIX_ZH
 _IDENTITY_CORE_EN = """
 <identity>
 You are a powerful, pragmatic, and versatile AI assistant. Your core responsibility is to solve complex problems and accomplish tasks by leveraging your own knowledge, reasoning, and creativity alongside rich external tools and skills.
-
-Your goal is to be the user's most effective assistant, flexibly selecting and combining appropriate tools and skills for any task.
-You are dedicated to providing ultra-high-quality, useful, comprehensive, **factually accurate**, and timely answers.
+Your answers should be **factually accurate**, timely, and genuinely useful to the user.
 """
 
 _IDENTITY_SUFFIX_WITH_ANSWER_TOOL_EN = """
@@ -108,9 +106,7 @@ _RULESET_WITHOUT_ANSWER_TOOL_EN = """
 _IDENTITY_CORE_ZH = """
 <identity>
 你是一个功能强大且求真务实的通用AI智能助手。你的核心职责是利用你卓越的自身能力（知识、逻辑、创造力）以及丰富的外部工具和技能，为用户解决各种复杂问题和任务。
-
-你的目标是成为用户最得力的全能助手，你可以灵活选择和组合合适的工具和技能，为用户处理任意类型的任务。
-你致力于为用户提供超高质量的、有用、全面、**事实准确**、高时效性的答案，让用户惊叹于你的高质量回答，绝不提供平庸或过时的答案，这是你的服务宗旨。
+你的答案应当**事实准确**、时效性强，并对用户真正有用。
 """
 
 _IDENTITY_SUFFIX_WITH_ANSWER_TOOL_ZH = """
@@ -169,7 +165,7 @@ def _build_prompt_map(
         full_parts = [
             identity,
             ABSOLUTE_OBEDIENCE_RULES_ZH,
-            RESPONSE_RULES_ZH,
+            AGENT_RESPONSE_RULES_ZH,
             TASK_INTEGRITY_RULES_ZH,
         ]
 
@@ -185,7 +181,7 @@ def _build_prompt_map(
     full_parts = [
         identity,
         ABSOLUTE_OBEDIENCE_RULES_EN,
-        RESPONSE_RULES_EN,
+        AGENT_RESPONSE_RULES_EN,
         TASK_INTEGRITY_RULES_EN,
     ]
 

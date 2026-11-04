@@ -219,21 +219,24 @@ class ToolLayer(IntEnum):
 
 | 条件 | 行为 |
 |---|---|
-| 提供 `skill_configs` | 只把 `is_core=true` 的技能放入候选，再按 token 预算选择 |
-| 无 `skill_configs` | `always=True` 优先，其余按名字排序，再按 token 预算选择 |
-| 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能只计 `hidden_count` |
+| 提供非空 `skill_configs` | 候选 = 显式 `is_core=true` 的技能，加上未显式配置且 `always=True` 的技能；显式 `is_core=false` 永远优先于 `always` |
+| 无 `skill_configs`（`None` 与 `{}` 是同一种状态） | 全部可见技能都是候选 |
+| 排序与预算 | `always` 在前，其后按名字，按 token 预算选择完整条目 |
+| 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能计入 `hidden_count`，名字列在 `<hidden_skill_names>`；被预算挤掉的候选另计 `overflow_count` |
 
 **不再按个数截断**：`SKILL_INLINE_THRESHOLD` / `SKILL_SELECT_INLINE_MAX` 已删除。L1 选择由
 `estimate_skill_entry_tokens` + `L1_CATALOG_MAX_TOKENS` 决定；完整 `name + description` 放不下时
-不再塞半截描述，也不列 `<hidden_skills>` 名字列表。
+不再塞半截描述；没有完整条目的技能以 `<hidden_skill_names>` 一行列出名字，该行有独立上限 `L1_HIDDEN_NAMES_MAX_TOKENS`（1,500，约 260 个名字），超出时写 `and N more not listed`。
 
 **预算外技能如何到达**：
-- 用户明确点名 → 直接 `skill_select_tool`（即使不在 L1）；
+- 名字在 `<hidden_skill_names>` 里，或用户明确点名 → 直接 `skill_select_tool`；
 - 只知道能力、不知道名字 → `skill_search_tool` → `skill_select_tool`；
 - `skill_select_tool` 白名单、`skill_search_tool` 索引都取自全量 `filtered_skills`。
 
-**不变量**：`hidden_count` 只表示未展示，不表示不可选。评估目录改动时必须同时看
-`filtered_skills`（供给侧）和 `display_skills + hidden_count`（接收侧）。
+**不变量**：`hidden_count` 只表示没有完整条目，不表示不可选。评估目录改动时必须同时看
+`filtered_skills`（供给侧）和 `display_skills + hidden_skills`（接收侧）。
+
+**实测依据**：真实模型会话对照（两个小模型，全部外围技能）显示，加上名字清单后每个会话的检索次数显著减少，通过率没有显著差别；代价是首次提示多出名字行的 token（130 个技能约 780）。
 
 ### 3.4 成本计算公式
 
@@ -352,7 +355,7 @@ const staleCoreSkills = useMemo(() => {
 |------|------:|---------|
 | System Prompt 层 | ~2,568 | `messages[0]` 2,269 + `messages[1]` 299，跨用户共享缓存 |
 | CORE 工具层 | ~2,655 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,720 | 默认缓存 |
+| HIGH_PRIORITY 工具层 | ~2,717 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -365,13 +368,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,194）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,191）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
 | CORE | 8 | 2,655 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,720 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,375** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,220**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| HIGH_PRIORITY | 5 | 2,717 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **5,372** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,217**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 
@@ -380,7 +383,6 @@ Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表�
 | 记忆工具 | 启用记忆系统 | 3 | 1,202 |
 | 技能工具 | 有技能后端 | 5 | ~612-944 |
 | 本地文件索引工具 | 用户配置本地索引目录（Discoverable） | 2 | - |
-| 文件搜索中间件 | 显式启用 FilesystemFileSearchMiddleware | 2 | - |
 | 浏览器工具 | 启用浏览器 | 7 | ~535 |
 | 定时任务工具 | 启用 Cron | 1 | ~827 |
 | Wiki 工具 | 有 Wiki 目录 | 4 | ~250 |

@@ -150,7 +150,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getImageSrc(img)}
-                alt={`${img.toolName} screenshot ${idx + 1}`}
+                alt={t('toolImage.thumbnailAlt', { tool: img.toolName, index: idx + 1 })}
                 className="w-full h-auto object-contain"
                 loading="lazy"
               />
@@ -179,7 +179,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
           onClick={closeLightbox}
           role="dialog"
           aria-modal="true"
-          aria-label="Screenshot preview"
+          aria-label={t('toolImage.lightboxLabel')}
         >
           {/* Top toolbar */}
           <div
@@ -196,10 +196,20 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
             >
               <Pencil className="w-5 h-5" />
             </button>
-            <button type="button" onClick={handleDownload} className={LIGHTBOX_BTN_CLASS} aria-label="Download">
+            <button
+              type="button"
+              onClick={handleDownload}
+              className={LIGHTBOX_BTN_CLASS}
+              aria-label={t('attachment_download')}
+            >
               <Download className="w-5 h-5" />
             </button>
-            <button type="button" onClick={closeLightbox} className={LIGHTBOX_BTN_CLASS} aria-label="Close preview">
+            <button
+              type="button"
+              onClick={closeLightbox}
+              className={LIGHTBOX_BTN_CLASS}
+              aria-label={t('toolImage.lightboxClose')}
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -213,7 +223,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
                 goToPrev();
               }}
               className={cn(LIGHTBOX_BTN_CLASS, 'absolute left-4')}
-              aria-label="Previous image"
+              aria-label={t('toolImage.lightboxPrevious')}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -222,7 +232,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
           {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- propagation barrier only; the image is not interactive */}
           <img
             src={getImageSrc(images[lightboxIndex])}
-            alt={`${images[lightboxIndex].toolName} screenshot full`}
+            alt={t('toolImage.lightboxAlt', { tool: images[lightboxIndex].toolName })}
             className="max-w-[95vw] max-h-[85vh] sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
@@ -236,7 +246,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
                 goToNext();
               }}
               className={cn(LIGHTBOX_BTN_CLASS, 'absolute right-4')}
-              aria-label="Next image"
+              aria-label={t('toolImage.lightboxNext')}
             >
               <ChevronRight className="w-6 h-6" />
             </button>

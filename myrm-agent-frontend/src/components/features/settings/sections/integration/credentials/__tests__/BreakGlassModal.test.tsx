@@ -128,4 +128,10 @@ describe('BreakGlassModal', () => {
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('shows the localized example for the change command', () => {
+    render(<BreakGlassModal isOpen={true} onClose={onClose} hostAlias="prod-db-master" />);
+
+    expect(screen.getByPlaceholderText('breakGlassCommandPlaceholder')).toBeInTheDocument();
+  });
 });

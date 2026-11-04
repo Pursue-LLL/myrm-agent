@@ -73,7 +73,6 @@ class BashExecutor(
         self._executor = executor
         self._enable_skill_execution = enable_skill_execution
         self._skill_executor = None
-        self._mcp_proxy_started = False
 
         self._workspace_manager = WorkspaceManager()
         self._skill_manager = SkillWorkspaceManager()

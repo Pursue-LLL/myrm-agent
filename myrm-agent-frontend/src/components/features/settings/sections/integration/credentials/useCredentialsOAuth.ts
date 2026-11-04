@@ -94,7 +94,7 @@ export function useCredentialsOAuth() {
       return;
     }
     if (!tokenInput.trim()) {
-      toast({ title: t('tokenRequired', { defaultValue: 'Token is required' }), variant: 'destructive' });
+      toast({ title: t('tokenRequired'), variant: 'destructive' });
       return;
     }
 

@@ -426,21 +426,13 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     <DropdownMenuItem
                       onClick={() => {
                         exportSessionZipPack(chat.id).catch((err: unknown) => {
-                          toast.error(
-                            err instanceof Error
-                              ? err.message
-                              : t('chat.exportChat.exportZipFailed', {
-                                  defaultMessage: '导出会话日志包失败',
-                                }),
-                          );
+                          toast.error(err instanceof Error ? err.message : t('chat.exportChat.exportZipFailed'));
                         });
                       }}
                       className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
                     >
                       <Archive size={isMobile ? 16 : 14} className="mr-2" />
-                      {t('chat.exportChat.exportZipPack', {
-                        defaultMessage: '导出会话日志包 (.zip)',
-                      })}
+                      {t('chat.exportChat.exportZipPack')}
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
@@ -494,7 +486,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
                   >
                     <FlaskConical size={isMobile ? 16 : 14} className="mr-2 text-primary" />
-                    {t('chat.captureEvalCase.action') || 'Capture as Eval Case'}
+                    {t('chat.captureEvalCase.action')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

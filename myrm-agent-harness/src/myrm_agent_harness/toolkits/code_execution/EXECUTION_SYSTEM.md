@@ -155,7 +155,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 - 环境变量注入使用 **ANSI-C quoting**（`$'…'`）:值内 `$`、反引号、双引号保持字面（不二次展开），`\n`/`\t` 等控制字符转义为单行序列，注入命令永不破坏初始化批次（曾出现过 `"` 转义成 `\\"` 导致引号错配、长驻 Shell 卡死等续行的故障）
 - **凭证按命令生效（command-scoped）**：长驻 Shell 的寿命远长于单条命令，而凭证的授权范围按命令决定（`allowed_credential_issuers`：`None`=全部、`[]`=无、列表=仅所列）、临时凭证一次性且绑定命令摘要。因此凭证不写进 Shell 启动环境，而是随每条命令传入 `CommandEnv`：`sticky`（技能/全局的非敏感变量）每条命令前重新导出并保留；`scoped`（用户 OAuth 凭证与临时凭证）只在该命令前导出、该命令结束标记之后 `unset`/`Remove-Item Env:`。效果：Shell 启动之后才到位或刷新的凭证立即对下一条命令可见；一条命令的凭证不会被带进后面的命令（包括声明了更窄 issuer 的技能命令）；一次性临时凭证只在摘要匹配时才被消费，摘要取自智能体发出并经人批准的命令原文（`ExecutionContext.original_code`，由共享的 `command_digest` 计算），而不是由它准备出的脚本（前置初始化脚本、`/workspace` 路径改写后的文本），所以批准的命令被改写或加前缀后仍能拿到凭证，用户在审批卡上改过的命令则拿不到。清理发生在结束标记之后，`exit N` 提前返回与退出码不受影响。命令自己把这些值打印出来时（`set -x`、`env`、冗长的客户端日志）按原值遮盖：`session/value_masker.py` 的 `ValueMasker` 由 `ExecutionStreamBuffer` 在解码后的输出上把 `scoped` 的值替换成 `***`，返回结果、实时流与 tee 文件都由这份文本派生，所以三处都不含原值，也不依赖变量名；一次读取只到值的开头时，该段文字等下一次读取再放出，结果与整段输出一次遮盖相同（以独立实现作对照的随机切分测试保证）；不足 4 个字符的值不遮盖（4 到 7 个字符的值在更长的词里也会被遮盖，如 `root` 之于 `rooted`）；每个值连同它的 URL 百分号编码（Python `quote`）与 JSON 字符串转义两种形态一起遮盖（`printed_forms`，仅在形态与原值不同时才多一项），所以放进连接串或请求体回显的口令同样看不到；百分号编码既认转义 `!'()*` 的写法也认不转义的写法（如 JavaScript 的 `encodeURIComponent`）；其他编码（base64、空格写成 `+`、小写十六进制、HTML 实体）认不出，流在值中间结束时该片段原样放出。开销（一次性脚本测得、未入库，26.8 MB 输出按 8 KiB 读取，5 次取最快，机器负载约 33）：无遮盖 1694 MB/s，1 个值 815 MB/s，3 个值 491 MB/s，值以常见字母开头 498 MB/s；输出里没有任何值时只做子串查找。只含字母数字与 `-_.` 的令牌没有额外形态，吞吐不变；含特殊字符的口令每个至多多出三种形态（同一脚本、另一次运行，口令含 `!'()*`：1 个这样的口令 1120 → 679 MB/s，3 个 688 → 322 MB/s；不含这些字符时每个多两种，1 个 1187 → 782 MB/s；输出为随机文本，真实命令的输出速度没有测量）。限制：命令执行期间同一 Shell 里的子进程可读取这些变量，这是命令本身所需；同一会话的命令共享一个 Shell，所以这一层限制的是交付范围，不隔离故意篡改 Shell 的命令：前面的命令埋下 `trap '…' DEBUG` 后，后面命令被授予的凭证会被它读到（实测复现：声明 `github` 的命令埋下 DEBUG trap，声明 `feishu` 的下一条命令的令牌被写进了文件），此类命令的防线是沙箱本身，不是这一层；`run_in_background` 启动的进程走独立的环境构造路径，不经此机制
 - PowerShell 的环境变量值一律写成带引号的字面量（`$env:K = '…'`），含 Unicode 弯引号时加倍转义，值不会被当作命令执行
-- **卡死自愈**：阻塞型命令（`sleep 9999`/`tail -f`）超时、或 stdin 吞噬型命令（`cat`/`ssh`/`python -c input()`）把 marker 回显导致边界损坏时，直接 kill 进程树并置 TERMINATED，下一次 execute/stream 透明重建会话，避免永久毒化
+- **卡死自愈**：阻塞型命令（`sleep 9999`/`tail -f`）超时、或 stdin 吞噬型命令（`cat`/`ssh`/`python -c input()`）把 marker 回显导致边界损坏时，直接 kill 进程树并置 TERMINATED，下一次 execute/stream 透明重建会话，避免永久毒化；超时与取消的结果都明确告知模型「命令可能只执行了一部分、Shell 已重启、工作目录与导出变量已重置」，模型不会在已被丢弃的 Shell 上继续依赖 `cd` 或 `export`
 - **停止即终止**：`ExecutionContext.cancel_token`（仅面向 Agent 的工具调用设置；目标验证、清理等内部调用不设置）被取消时，正在跑的命令与它启动的子进程一并终止，结果带已产生的部分输出与退出码 130，随后与超时一样丢弃该 Shell、下一条命令拿到全新的 Shell（cwd 与已导出变量重置，结果文案已如实告知）。取消复用超时的同一个截止点（`asyncio.timeout` + `cut_deadline_on_cancel`），两条路径走同一个出口；已被取消的请求不会再启动命令。`tool_executor` 对已取消的请求不重试（`TOOL_CANCELLED` 结果），退避等待也随取消立即结束；其工具闸门对在途调用同样生效：会响应取消的工具（Shell、委托 Agent、浏览器）在 5 秒宽限期内自行返回结果，其余只盯着自身超时的调用（远程 MCP、网页请求等）在宽限期结束时被取消，并告知模型结果未知、重复前先确认当前状态。Python 脚本子进程同样随取消终止
 - **进程树终止**：沙箱 Shell 与服务端共用进程组，不能按组终止；`process_tree.kill_process_tree` 先快照后代（psutil）并终止，再终止 Shell，宽限期后补 kill 幸存者（超时路径同样终止整棵进程树）。独占进程组的 Shell 同样先快照后代：整组信号之后，对已脱离进程组的后代（`setsid`）逐个终止并在宽限期后补 kill；Shell 已被回收（`returncode` 非空）时不按 PID 发信号，避免误杀复用该 PID 的无关进程组。已被重新挂到 init 的守护进程（如 `(cmd &)`）在快照里看不到：独占进程组的 Shell 上，留在组内的由整组信号覆盖；共用服务端进程组的沙箱 Shell 上的此类守护进程，以及独占进程组的 Shell 上既脱离进程组又被重新挂到 init 的进程，都不在终止范围内
 - 进程意外退出时自动重启并重试
@@ -228,7 +228,6 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 | `local.max_execution_time` | 60 | 单次执行超时（秒） |
 | `local.max_output_bytes` | 5 MiB | 输出缓冲上限，防止内存溢出 |
 | `local.max_memory_mb` | 2048 | 单次执行内存上限（0 = 禁用） |
-| `mcp_proxy.enabled` | `true` | MCP IPC 开关 |
 | `network` | `NetworkConfig()` | 网络访问配置 |
 
 ### NetworkConfig
@@ -238,7 +237,19 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 | `allow_network` | `false` | 是否允许网络访问（默认关闭） |
 | `allowed_hosts` | `None` | `allow_network=true` 时生效：`None` = 内置默认白名单；空集合 = 不限制；非空 = 仅这些域名 |
 
-配置参数：`ExecutionConfig.local.*`、`ExecutionConfig.mcp_proxy.*`、`ExecutionConfig.network.allow_network`、`ExecutionConfig.network.allowed_hosts`
+配置参数：`ExecutionConfig.local.*`、`ExecutionConfig.network.allow_network`、`ExecutionConfig.network.allowed_hosts`
+
+### MCP 脚本通道的期限分层
+
+脚本里调用 MCP 工具时，外层的期限必须晚于内层，带名字的错误才能先于外层的强杀到达脚本。`L` 是该 server 的 `MCPConfig.execute_timeout`（默认 120 秒，范围 1–600）。
+
+| 层 | 期限 | 位置 |
+|----|------|------|
+| 会话 actor | `L`；超时后以 `MCPToolFailure` 返回 | `toolkits/mcp/session_actor.py`、`tool_processing.wrap_tools_with_timeout` |
+| 调用后备 | `max(L) + 10 s`，只包 `conn.call`，不含连接阶段 | `agent/skills/mcp/call_backstop.py` |
+| 宿主终止脚本 | `max(MCP_MIN_TIMEOUT, ceil(max(L) + 30 s))` | `bash/_executor/prepare_mixin._maybe_extend_timeout_for_mcp`、`constants.py` |
+
+`max(L)` 取被检测到的 skill 的各 server（`MCPConfigItem.execute_timeout`）。IPC 服务端自己没有固定期限。IPC 服务端按脚本执行各起一个，随该次执行结束而停止（`agent/skills/mcp/ipc_endpoint.py`）；它替谁调用（会话、Agent、工作区、是否只读）由宿主在启动时定下，请求里重述这些字段会被忽略。失败对脚本是异常：`proxy_service` 对 `MCPToolFailure` 抛 `RuntimeError`，读缓存因此不会保存失败。
 
 ---
 

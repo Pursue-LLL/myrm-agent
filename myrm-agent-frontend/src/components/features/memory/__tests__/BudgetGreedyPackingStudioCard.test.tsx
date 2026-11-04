@@ -22,10 +22,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BudgetGreedyPackingStudioCard } from '../command-center/BudgetGreedyPackingStudioCard';
-import {
-  FALLBACK_BUDGET,
-  FALLBACK_PACKED_RESULT,
-} from '../command-center/budgetPackingFallbacks';
+import { FALLBACK_BUDGET, FALLBACK_PACKED_RESULT } from '../command-center/budgetPackingFallbacks';
 
 const { mockGetDefaultBudget, mockPackRecallCandidates } = vi.hoisted(() => ({
   mockGetDefaultBudget: vi.fn(),
@@ -47,13 +44,9 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
   it('renders default header, badges, and 4-dimension HUD telemetry bar', async () => {
     render(<BudgetGreedyPackingStudioCard />);
 
-    expect(
-      screen.getByText('预算贪心边际价值召回装箱中枢'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('预算贪心边际价值召回装箱中枢')).toBeInTheDocument();
     expect(screen.getByText('Item 122 · P2')).toBeInTheDocument();
-    expect(
-      screen.getByText('对标 Mnemosyne · 贪心背包算法'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('贪心背包算法')).toBeInTheDocument();
 
     // 验证 HUD 4 维指标
     expect(screen.getByText('预算填满率 (Billed Tokens)')).toBeInTheDocument();
@@ -67,9 +60,7 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
 
     // 默认展示装箱看板内容
     await waitFor(() => {
-      expect(
-        screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/)).toBeInTheDocument();
     });
     expect(screen.getByText(/入选装箱记忆片段/)).toBeInTheDocument();
     expect(screen.getByText(/淘汰与抑制片段/)).toBeInTheDocument();
@@ -79,9 +70,7 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
     render(<BudgetGreedyPackingStudioCard />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/)).toBeInTheDocument();
     });
 
     // 切换到双轨计量与调优台
@@ -90,15 +79,9 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
     });
     fireEvent.click(accountingTabBtn);
 
-    expect(
-      screen.getByText('双轨 Token 计量哲学：计费 Token ≠ 存储 Token'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('双轨 Token 成本与效益审计报告'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('贪心背包调优控制台'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('双轨 Token 计量哲学：计费 Token ≠ 存储 Token')).toBeInTheDocument();
+    expect(screen.getByText('双轨 Token 成本与效益审计报告')).toBeInTheDocument();
+    expect(screen.getByText('贪心背包调优控制台')).toBeInTheDocument();
 
     // 切回边际价值装箱看板
     const packingTabBtn = screen.getByRole('button', {
@@ -106,18 +89,14 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
     });
     fireEvent.click(packingTabBtn);
 
-    expect(
-      screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/)).toBeInTheDocument();
   });
 
   it('handles repack interaction and updates feedback banner', async () => {
     render(<BudgetGreedyPackingStudioCard />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/)).toBeInTheDocument();
     });
 
     const repackBtn = screen.getByRole('button', {
@@ -127,9 +106,7 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
 
     await waitFor(() => {
       expect(mockPackRecallCandidates).toHaveBeenCalledTimes(2); // 1 on mount, 1 on click
-      expect(
-        screen.getByText(/贪心装箱重算完成：入选 3 条，预算填满率 87.5%/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/贪心装箱重算完成：入选 3 条，预算填满率 87.5%/)).toBeInTheDocument();
     });
   });
 
@@ -137,15 +114,11 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
     render(<BudgetGreedyPackingStudioCard />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/贪心边际价值装箱（Marginal Value Density Knapsack）原理/)).toBeInTheDocument();
     });
 
     // 切换到调优台
-    fireEvent.click(
-      screen.getByRole('button', { name: '切换至双轨计量与调优台' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: '切换至双轨计量与调优台' }));
 
     const simulateBtn = screen.getByRole('button', {
       name: '执行双轨装箱模拟计算',
@@ -154,9 +127,7 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
 
     await waitFor(() => {
       expect(mockPackRecallCandidates).toHaveBeenCalled();
-      expect(
-        screen.getByText(/装箱参数已生效：计费消费/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/装箱参数已生效：计费消费/)).toBeInTheDocument();
     });
   });
 

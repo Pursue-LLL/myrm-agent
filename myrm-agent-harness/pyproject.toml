@@ -39,7 +39,7 @@ dependencies = [
   "Pillow>=12.3.0",       # 图片读写/resize/压缩 (image_reader + image_compressor + browser/diff + file_parsers + computer_use)
   # --- Token 计数 ---
   "tiktoken>=0.14.0", # OpenAI tokenizer (上下文窗口管理)
-  "regex>=2026.9.29", # 隐私自定义规则的正则引擎（Unicode 属性类 + 单次匹配超时保护；tiktoken 亦依赖）
+  "regex>=2026.9.29", # 隐私自定义规则的正则引擎（Unicode 属性类 + 单次匹配超时保护；tiktoken 亦依赖；file_search/glob_match.py 用它匹配叠加通配符而不回溯爆炸）
   # --- 系统监控 (健康诊断核心依赖) ---
   "psutil>=7.2.2", # 进程与系统监控 (CPU/Memory health probes)
   # --- 监控与可观测性 (仅保留轻量级 API，SDK 移至 optional) ---
@@ -52,6 +52,7 @@ dependencies = [
   # --- Agent 协议与基础设施 ---
   "mcp>=2.3.0",        # MCP 协议 SDK 2.x (2026-07-28 spec: stateless HTTP, Client API)
   "pdfplumber>=0.11.10", # PDF 文本+表格提取 (file_read_tool CORE; pypdfium2 由 pdfplumber 传递依赖)
+  "pathspec>=1.1.1", # 非 git 目录里根 .gitignore 的解析 (file_search/fallback_discovery.py)
 ]
 
 [project.urls]

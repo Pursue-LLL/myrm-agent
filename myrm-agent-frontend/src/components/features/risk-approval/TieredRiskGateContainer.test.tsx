@@ -49,6 +49,7 @@ describe('TieredRiskGateContainer', () => {
     expect(screen.getAllByText('users_v2').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Database schema destruction')).toBeInTheDocument();
     expect(screen.getByText('authorizeAndRun')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'regionLabel' })).toBeInTheDocument();
   });
 
   it('responds to global "myrm:tiered-risk-eval" custom event', () => {

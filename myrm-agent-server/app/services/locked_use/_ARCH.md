@@ -20,4 +20,4 @@ Computer Use 会话的屏幕解锁编排：在 macOS 上用 harness 原生探针
 - `myrm_agent_harness.toolkits.computer_use` — `ComputerSession.set_screen_unlock_callback`（Guardian 锁屏按需解锁注入点；harness 只回调不解锁，是否解锁、如何解锁由本模块决定）
 - macOS Keychain — CU 解锁凭据
 - `MYRM_CURTAIN_STATE_FILE` / `MYRM_DESKTOP_RUNTIME_FILE` — desktop 帷幕与离席授权 runtime 桥文件定位
-- `MYRM_SHELL_PID` 环境变量 — desktop 壳进程身份（Tauri `python_backend` 注入；release sidecar 为 PyInstaller `--onefile`，`getppid` 不指向壳）
+- `MYRM_SHELL_PID` 环境变量 — desktop 壳进程身份（Tauri `python_backend` 注入；壳崩溃后 server 被 init 收养，`getppid` 不再指向壳）

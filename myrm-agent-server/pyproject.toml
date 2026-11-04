@@ -49,12 +49,6 @@ dependencies = [
   "aioboto3>=15.5.0",                   # S3 异步客户端 (远程备份)；它锁 aiobotocore 2.25.1 → boto3<1.40.62
   "regex>=2026.4.4", # Risk-rule pattern engine: a per-match time budget that stdlib re lacks (services/risk/detection.py)
   "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
-  # --- 代码结构索引 ---
-  # JS/TS 语法树解析，原生扩展 (services/code_graph/js_ts_extractor.py)。0.26.0 读取 Point.row/.column 时少一次引用计数
-  # （py-tree-sitter#472、#500 的分析），遍历语法树读取 Point.row 时约三分之一的运行段错误（#505 的复现）；
-  # 上游称 master 已修复，尚无包含修复的发布版，所以固定在 0.25
-  "tree-sitter>=0.25.2,<0.26",
-  "tree-sitter-typescript>=0.23.2", # TypeScript 与 TSX 语法
 ]
 
 [project.optional-dependencies]

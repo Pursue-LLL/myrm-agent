@@ -41,11 +41,15 @@ Module structure:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ._impl import (
+    _elapsed_ms_since,
+    is_navigation_interrupt,
     wait_dom_stable_only,
     wait_hybrid,
     wait_networkidle_only,
@@ -69,6 +73,42 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+# A wait re-armed after a navigation needs room for at least one meaningful probe; below this the
+# page is reported as capped instead. The pause keeps a document that fails instantly from being
+# probed in a hot loop while the navigation is still committing.
+_REARM_MIN_BUDGET_MS = 100
+_REARM_PAUSE_S = 0.05
+
+
+async def _run_strategy(
+    page: Page,
+    strategy: WaitStrategy,
+    max_ms: int,
+    quiet_ms: int,
+    grace_period_ms: int,
+    domain: str | None,
+    domain_metrics_manager: DomainMetricsManager | None,
+) -> WaitMetrics:
+    """Run one attempt of ``strategy`` against the current document."""
+    start_time = time.perf_counter()
+    if strategy == WaitStrategy.NETWORKIDLE:
+        return await wait_networkidle_only(page, max_ms, start_time)
+    if strategy == WaitStrategy.DOM_STABLE:
+        return await wait_dom_stable_only(page, max_ms, quiet_ms, start_time)
+    if strategy == WaitStrategy.SPA_STABLE:
+        return await wait_spa_stable(page, max_ms, start_time)
+    if strategy == WaitStrategy.SMART:
+        return await wait_smart(
+            page,
+            max_ms,
+            quiet_ms,
+            grace_period_ms,
+            start_time,
+            domain,
+            domain_metrics_manager,
+        )
+    return await wait_hybrid(page, max_ms, quiet_ms, grace_period_ms, start_time)
 
 
 def _record_to_domain_metrics(metrics: WaitMetrics, domain: str, domain_metrics_manager: DomainMetricsManager) -> None:
@@ -118,6 +158,10 @@ async def wait_for_page_ready(
         domain: Domain used for per-domain learning (SMART strategy)
         domain_metrics_manager: Manager to read/write historical metrics
 
+    A navigation that destroys the probe's document (script redirect, late ``location`` assignment)
+    re-arms the wait on the new document with the remaining budget; a page that keeps navigating is
+    reported as capped at ``max_ms``.
+
     Returns:
         WaitMetrics: complete wait metrics
 
@@ -158,26 +202,36 @@ async def wait_for_page_ready(
         logger.warning(f"quiet_ms ({quiet_ms}ms) exceeds max_ms ({max_ms}ms), adjusting to {max_ms}ms")
         quiet_ms = max_ms
 
-    start_time = time.perf_counter()
+    started = time.perf_counter()
+    budget_ms = max_ms
+    interruptions = 0
+    while True:
+        try:
+            metrics = await _run_strategy(
+                page,
+                strategy,
+                budget_ms,
+                min(quiet_ms, budget_ms),
+                grace_period_ms,
+                domain,
+                domain_metrics_manager,
+            )
+            break
+        except Exception as exc:
+            if not is_navigation_interrupt(exc):
+                raise
+        # A navigation destroyed the document the probe was evaluating in. The page it leads to is the one
+        # to judge, with the budget that is left; a page that never stops navigating is given up on at max_ms.
+        interruptions += 1
+        await asyncio.sleep(_REARM_PAUSE_S)
+        budget_ms = max_ms - _elapsed_ms_since(started)
+        if budget_ms < _REARM_MIN_BUDGET_MS:
+            metrics = WaitMetrics(strategy=strategy, reason="capped", elapsed_ms=0)
+            break
+        logger.debug(f"Wait: navigation interrupted the probe, re-arming with {budget_ms}ms left")
 
-    if strategy == WaitStrategy.NETWORKIDLE:
-        metrics = await wait_networkidle_only(page, max_ms, start_time)
-    elif strategy == WaitStrategy.DOM_STABLE:
-        metrics = await wait_dom_stable_only(page, max_ms, quiet_ms, start_time)
-    elif strategy == WaitStrategy.SPA_STABLE:
-        metrics = await wait_spa_stable(page, max_ms, start_time)
-    elif strategy == WaitStrategy.SMART:
-        metrics = await wait_smart(
-            page,
-            max_ms,
-            quiet_ms,
-            grace_period_ms,
-            start_time,
-            domain,
-            domain_metrics_manager,
-        )
-    else:  # HYBRID
-        metrics = await wait_hybrid(page, max_ms, quiet_ms, grace_period_ms, start_time)
+    if interruptions:
+        metrics = replace(metrics, elapsed_ms=_elapsed_ms_since(started))
 
     _global_stats.record_call(metrics.strategy, metrics.reason, metrics.elapsed_ms)
 

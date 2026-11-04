@@ -6,7 +6,6 @@ import {
   hasActiveApiKey,
   hasUsableProviderAuth,
   isLocalOrTrustedSplitStackApiUrl,
-  isLoopbackApiUrl,
   isTrustedSplitStackHostname,
   LOCAL_NO_AUTH_API_KEY_MARKER,
   OAUTH_AUTH_API_KEY_MARKER,
@@ -150,9 +149,6 @@ describe('isTrustedSplitStackHostname and URL helpers', () => {
   });
 
   it('correctly evaluates full API URLs for local or split-stack hosting', () => {
-    expect(isLoopbackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
-    expect(isLoopbackApiUrl('http://192.168.1.50:11434/v1')).toBe(false);
-
     expect(isLocalOrTrustedSplitStackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('http://192.168.1.50:11434/v1')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('192.168.1.50:11434/v1')).toBe(true);

@@ -2,14 +2,14 @@
  * [INPUT]
  * @/services/devPorts::DevPortInfo, closeDevPort, createDevPortTunnel
  * @/components/features/icons/PremiumIcons (IconGlobe, IconExternalLink, IconRefresh, IconMonitor, IconCopy, IconCheck, IconTrash, IconX)
- * react-i18next::useTranslation
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - DevPortPreviewModal: Semantic dialog modal for sandbox web service live preview with viewport switching & tunneling
  *
  * [POS]
  * Feature component for DevPortsListeningBarAndServicePreviewHub.
- * Single file < 250 lines. Zero `any` types.
+ * Single file < 400 lines. Zero `any` types.
  */
 
 'use client';
@@ -257,7 +257,7 @@ export const DevPortPreviewModal: React.FC<DevPortPreviewModalProps> = ({
             key={iframeKey}
             ref={iframeRef}
             src={activeUrl}
-            title={`Preview port ${portInfo.port}`}
+            title={t('previewPort', { port: portInfo.port })}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             className="w-full h-full border-none"
           />

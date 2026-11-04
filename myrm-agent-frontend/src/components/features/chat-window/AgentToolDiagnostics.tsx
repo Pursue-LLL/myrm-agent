@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { fetchWithTimeout } from '@/lib/api';
 import { Button } from '@/components/primitives/button';
 import { Activity, AlertTriangle, CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -15,6 +18,7 @@ interface ToolHealth {
 }
 
 export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
+  const t = useTranslations('chat.toolDiagnostics');
   const [data, setData] = useState<ToolHealth[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -55,24 +59,24 @@ export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground">
           <Activity className="w-3.5 h-3.5 mr-1" />
-          Tool Health
+          {t('trigger')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            Agent Tool Diagnostics
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           {loading ? (
-            <div className="flex items-center justify-center p-8 text-muted-foreground">Loading diagnostics...</div>
+            <div className="flex items-center justify-center p-8 text-muted-foreground">{t('loading')}</div>
           ) : sortedData.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/30 rounded-lg border border-dashed">
               <CheckCircle2 className="w-8 h-8 text-muted-foreground/50 mb-2" />
-              <p className="text-sm text-muted-foreground">No tool execution data for this agent yet.</p>
+              <p className="text-sm text-muted-foreground">{t('empty')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -107,12 +111,12 @@ export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
                           {tool.tool_name}
                         </span>
                       </div>
-                      <div className="text-xs text-muted-foreground">{tool.total_calls} calls</div>
+                      <div className="text-xs text-muted-foreground">{t('calls', { count: tool.total_calls })}</div>
                     </div>
 
                     <div className="flex flex-col gap-1.5 mt-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Success Rate</span>
+                        <span className="text-muted-foreground">{t('successRate')}</span>
                         <span className={`font-medium ${isCritical ? 'text-red-600 dark:text-red-400' : ''}`}>
                           {((1 - errorRate) * 100).toFixed(1)}%
                         </span>
@@ -126,12 +130,12 @@ export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
 
                     <div className="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-border/50 text-xs">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-muted-foreground">Errors</span>
+                        <span className="text-muted-foreground">{t('errors')}</span>
                         <span className="font-medium text-foreground">{tool.error_count}</span>
                       </div>
                       <div className="flex flex-col gap-0.5">
                         <span className="text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Avg Time
+                          <Clock className="w-3 h-3" /> {t('avgTime')}
                         </span>
                         <span className="font-medium text-foreground">{tool.avg_duration.toFixed(2)}s</span>
                       </div>

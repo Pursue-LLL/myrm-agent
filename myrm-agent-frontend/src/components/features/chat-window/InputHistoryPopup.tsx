@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - InputHistoryPopupState from useInputHistory
+ * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * - InputHistoryPopup: 输入框上方的历史条目弹窗。
@@ -12,6 +13,7 @@
  */
 
 import { memo, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import type { InputHistoryPopupState } from '@/hooks/message-input/useInputHistory';
 
 const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }) : null;
@@ -51,6 +53,7 @@ interface InputHistoryPopupProps {
 }
 
 const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHover, onClose }) => {
+  const t = useTranslations('chat');
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,7 +86,7 @@ const InputHistoryPopup = memo<InputHistoryPopupProps>(({ popup, onSelect, onHov
     <div
       ref={rootRef}
       role="listbox"
-      aria-label="输入历史"
+      aria-label={t('inputHistoryLabel')}
       className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
     >
       {popup.entries.map((entry, index) => (

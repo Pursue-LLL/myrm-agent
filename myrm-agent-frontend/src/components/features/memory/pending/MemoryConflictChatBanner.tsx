@@ -70,11 +70,7 @@ const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, 
         role="status"
         data-testid="memory-conflict-chat-banner-error"
       >
-        <p className="text-muted-foreground leading-snug">
-          {t('conflict.fetchRefreshFailed', {
-            defaultMessage: 'Could not refresh conflict status. Check your connection and try again.',
-          })}
-        </p>
+        <p className="text-muted-foreground leading-snug">{t('conflict.fetchRefreshFailed')}</p>
         <button
           type="button"
           onClick={() => void fetchConflicts()}
@@ -100,33 +96,23 @@ const MemoryConflictChatBanner = memo<MemoryConflictChatBannerProps>(({ chatId, 
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-medium text-foreground leading-snug">
-          {t('conflict.chatBannerTitle', {
-            count: conflictCount,
-            defaultMessage:
-              conflictCount === 1
-                ? 'One memory conflict needs your review'
-                : '{count} memory conflicts need your review',
-          })}
+          {t('conflict.chatBannerTitle', { count: conflictCount })}
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {t('conflict.lowRiskPolicyHint', {
-            hours: conflictAutoResolveHours,
-            defaultMessage:
-              'Lower-importance conflicts keep the previous memory if you do not choose within about {hours} hours.',
-          })}
+          {t('conflict.lowRiskPolicyHint', { hours: conflictAutoResolveHours })}
         </p>
         <Link
           href="/settings/memory?tab=pending"
           className="inline-flex text-xs font-medium text-primary hover:underline"
         >
-          {t('conflict.chatBannerAction', { defaultMessage: 'Review in Memory settings' })}
+          {t('conflict.chatBannerAction')}
         </Link>
       </div>
       <button
         type="button"
         onClick={handleDismiss}
         className="rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        aria-label={t('conflict.chatBannerDismiss', { defaultMessage: 'Dismiss for this chat session' })}
+        aria-label={t('conflict.chatBannerDismiss')}
       >
         <X className="h-4 w-4" />
       </button>

@@ -11,6 +11,7 @@
 |------|------|------|-------|
 | `riskApprovalTypes.ts` | 协议 | 三级风险级别（READ/WRITE/HIGH_RISK）、确认载荷与预演数据契约 | ✅ |
 | `RiskConfirmationCard.tsx` | 组件 | 交互式高辨识度风险卡片：目标对象呈现、风险告警列表、参数 Diff/内联修改、Dry-Run 预演预览与确认/打回三态操作 | ✅ |
+| `TieredRiskGateContainer.tsx` | 容器 | 全局三级风险门禁挂载点：监听 `myrm:tiered-risk-eval` 事件，把当前评估交给 `RiskConfirmationCard` 呈现，确认 / 打回经 `useRiskGateStore` 回传；区域标签取自 `riskGate` | ✅ |
 | `index.ts` | 门面 | 统一导出组件与类型接口 | ✅ |
 | `RiskConfirmationCard.test.tsx` | 测试 | 风险级别自适应渲染、参数就地编辑、Dry-Run 触发与确认/打回回调测试套件 | ✅ |
 

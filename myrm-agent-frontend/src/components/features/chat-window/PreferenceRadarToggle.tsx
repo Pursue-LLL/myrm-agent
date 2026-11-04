@@ -5,6 +5,7 @@
  * @/services/memory/preferences::getPreferenceRadarState, tunePreferenceRadar, RadarDimensionValues, RADAR_PRESETS
  * @/components/chat/DynamicPreferenceRadarDrawer::DynamicPreferenceRadarDrawer
  * @/lib/utils/classnameUtils::cn
+ * next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
  * PreferenceRadarToggle: Floating satellite toggle button and docked radar drawer for chat window.
@@ -15,6 +16,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   DynamicPreferenceRadarDrawer,
   RadarDimensionValues,
@@ -37,6 +39,7 @@ export interface PreferenceRadarToggleProps {
 }
 
 export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ chatId, className = '' }) => {
+  const t = useTranslations('chat.preferenceRadar');
   const [isOpen, setIsOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [values, setValues] = useState<RadarDimensionValues>(DEFAULT_DIMENSIONS);
@@ -135,8 +138,8 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ ch
               ? 'bg-primary text-primary-foreground scale-105 ring-2 ring-primary/30'
               : 'bg-secondary/90 hover:bg-secondary text-secondary-foreground hover:scale-105',
           )}
-          title="记忆偏好动态拟合雷达"
-          aria-label="偏好雷达"
+          title={t('title')}
+          aria-label={t('ariaLabel')}
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>

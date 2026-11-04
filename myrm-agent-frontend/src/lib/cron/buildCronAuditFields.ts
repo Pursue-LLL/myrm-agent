@@ -6,7 +6,7 @@
  * buildCronAuditFields / isCronAuditConfirmed / markCronAuditConfirmed
  *
  * [POS]
- * Pure helpers for Hermes-style six-field cron create audit snapshots and confirm gate storage.
+ * Pure helpers for six-field cron create audit snapshots and confirm gate storage.
  */
 
 import type { CronJob, CronSchedule } from '@/services/cron.types';
@@ -110,7 +110,7 @@ function summarizeFailureTrail(job: CronJob): string {
   return parts.join(' · ');
 }
 
-/** Build the six Hermes-style cron audit fields from a full CronJob snapshot. */
+/** Build the six cron audit fields from a full CronJob snapshot. */
 export function buildCronAuditFields(job: CronJob): CronAuditField[] {
   return [
     { id: 'taskName', value: job.name },

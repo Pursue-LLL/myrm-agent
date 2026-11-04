@@ -210,14 +210,6 @@ async def build_general_agent(
 
     await agent_wrapper._setup_artifact_publish_tool(tools)
 
-    try:
-        from app.services.code_graph.agent_tool import append_code_graph_tool
-
-        if append_code_graph_tool(tools, enabled_prebuilt_ids=allowed_prebuilt, workspace_root=workspace_root):
-            logger.info("Loaded code_graph_tool [conditional, repo-call-graph skill enabled]")
-    except Exception as e:
-        logger.warning("code_graph_tool load failed (degraded): %s", e)
-
     from app.ai_agents.general_agent.external_agents import (
         needs_runtime_pool,
         should_mount_invoke_acp_agent_tool,
@@ -381,7 +373,6 @@ async def build_general_agent(
 
     # 6. Create middlewares
     from myrm_agent_harness.agent.middlewares import (
-        FilesystemFileSearchMiddleware,
         PlanConfirmMiddleware,
         RateLimitMiddleware,
     )
@@ -479,9 +470,6 @@ async def build_general_agent(
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
-
-    if workspace_root:
-        middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
 
     # Human-tail blocks run after context pipeline so compression cannot strip them; the knowledge pack goes
     # first so explicit session deltas stay closest to the end of the user turn.

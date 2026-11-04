@@ -1,7 +1,7 @@
 """MCP call markers through the production path, tool call to tool result.
 
-Each hop here is the real one: ``bash_code_execute_tool`` -> ``BashExecutor`` (starts the IPC
-server, injects the generated client) -> a ``LocalExecutor`` subprocess -> ``ExecutionResult``
+Each hop here is the real one: ``bash_code_execute_tool`` -> ``BashExecutor`` (starts the execution's
+IPC server, injects the generated client) -> a ``LocalExecutor`` subprocess -> ``ExecutionResult``
 (output scrubbing) -> ``MCPMetadataExtractor``. Only the MCP server behind the connection is
 replaced. The marker tests in this directory feed hand-built stdout straight to the extractor,
 which is how a scrubber that truncated every real marker went unnoticed: the result of a
@@ -12,8 +12,10 @@ printed nothing returned none of its tool results.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -21,7 +23,8 @@ import pytest
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
-from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_trace_nonce, stop_mcp_ipc_server
+from myrm_agent_harness.agent.skills.mcp.ipc_endpoint import mcp_ipc_endpoint
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, IPCEndpoint
 from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -46,8 +49,20 @@ async def _fake_mcp_call(server: str, tool: str, params: dict[str, object]) -> t
     return {"type": "text", "text": json.dumps({"api_key": SECRET})}, None
 
 
+_ENDPOINTS: list[IPCEndpoint] = []
+"""The IPC server of every execution the tool has run, oldest first (each is gone once its run ends)."""
+
+
+@asynccontextmanager
+async def _recording_endpoint(scope: CallerScope) -> AsyncIterator[IPCEndpoint]:
+    async with mcp_ipc_endpoint(scope) as endpoint:
+        _ENDPOINTS.append(endpoint)
+        yield endpoint
+
+
 @pytest.fixture
 async def tool(tmp_path: Path) -> AsyncIterator[BaseTool]:
+    _ENDPOINTS.clear()
     skill_registry.clear()
     skill_registry.register(
         SkillMetadata(
@@ -82,9 +97,9 @@ async def tool(tmp_path: Path) -> AsyncIterator[BaseTool]:
             "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
             AsyncMock(return_value=manager),
         ),
+        patch("myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin.mcp_ipc_endpoint", _recording_endpoint),
     ):
         yield create_bash_code_execute_tool()
-    await stop_mcp_ipc_server()
     reset_executor(token)
     skill_registry.clear()
 
@@ -135,8 +150,7 @@ async def test_a_printing_script_returns_its_output_and_its_calls_become_sources
     content = str(out["content"])
     assert "pods: 40" in content
     assert "__MCP_DATA__" not in content
-    nonce = get_mcp_trace_nonce()
-    assert nonce is not None
+    nonce = _ENDPOINTS[-1].trace_nonce
     assert nonce not in str(out), "the marker nonce must never reach the model"
     source = _sources(out)[0]
     assert source["skill_name"] == "mcp_demo_skill"
@@ -178,6 +192,18 @@ async def test_a_failing_script_says_which_calls_already_ran_and_hides_the_marke
     assert "mcp_demo_skill.list_pods x2" in message
     assert "re-running them repeats their effects" in message
     assert "__MCP_DATA__" not in message
-    nonce = get_mcp_trace_nonce()
-    assert nonce is not None
+    nonce = _ENDPOINTS[-1].trace_nonce
     assert nonce not in message
+
+
+@pytest.mark.asyncio
+async def test_each_run_has_its_own_server_and_it_ends_with_the_run(tool: BaseTool, tmp_path: Path) -> None:
+    await _run(tool, tmp_path, "    await list_pods()")
+    with pytest.raises(ToolError):
+        await _run(tool, tmp_path, "    await list_pods()\n    raise RuntimeError('boom')")
+
+    first, second = _ENDPOINTS
+    assert first.socket_path != second.socket_path
+    assert first.trace_nonce != second.trace_nonce
+    assert not os.path.exists(first.socket_path), "a finished run leaves no server behind"
+    assert not os.path.exists(second.socket_path), "nor does a failed one"

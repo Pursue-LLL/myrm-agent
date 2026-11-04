@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Puzzle, ChevronDown, ChevronRight, Clock, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -13,10 +14,14 @@ export interface CustomMessageCardProps {
 }
 
 const formatTimestamp = (raw?: string | number | Date): string | null => {
-  if (!raw) {return null;}
+  if (!raw) {
+    return null;
+  }
   try {
     const date = raw instanceof Date ? raw : new Date(raw);
-    if (Number.isNaN(date.getTime())) {return null;}
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
     return null;
@@ -32,6 +37,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
   timestamp,
   className,
 }) => {
+  const t = useTranslations('chat');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const formattedTime = formatTimestamp(timestamp);
 
@@ -67,21 +73,17 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
                 ? 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400'
                 : 'bg-muted text-muted-foreground',
             )}
-            title={
-              isEphemeral
-                ? 'Ephemeral: will be pruned during compaction'
-                : 'Persistent: retained across compaction summaries'
-            }
+            title={isEphemeral ? t('customMessage.ephemeralHint') : t('customMessage.persistentHint')}
           >
             {isEphemeral ? (
               <>
                 <Clock className="h-2.5 w-2.5" />
-                <span>Ephemeral</span>
+                <span>{t('customMessage.ephemeral')}</span>
               </>
             ) : (
               <>
                 <Layers className="h-2.5 w-2.5" />
-                <span>Persistent</span>
+                <span>{t('customMessage.persistent')}</span>
               </>
             )}
           </span>
@@ -99,7 +101,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
               aria-controls="custom-message-details"
               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
             >
-              <span>Details</span>
+              <span>{t('customMessage.details')}</span>
               {detailsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             </button>
           )}

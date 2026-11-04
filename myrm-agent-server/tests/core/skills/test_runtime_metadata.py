@@ -7,6 +7,7 @@ so the adapter's coverage of ``Skill`` is pinned field by field.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import fields
 from unittest.mock import AsyncMock, patch
 
@@ -196,7 +197,7 @@ async def test_user_route_serves_runtime_complete_metadata() -> None:
     broken = _skill(name="   ")
 
     with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", AsyncMock(return_value=[skill, broken])):
-        backend = await _load_user_skill_backend(storage=AsyncMock(), skill_ids=[skill.id, broken.id], user_id="u")
+        backend = await _load_user_skill_backend(skill_ids=[skill.id, broken.id], user_id="u")
 
     assert backend is not None
     listed: list[SkillMetadata] = await backend.list_skills()
@@ -207,3 +208,28 @@ async def test_user_route_serves_runtime_complete_metadata() -> None:
     assert meta.allowed_tools == skill.allowed_tools
     assert (meta.always, meta.model_invocable, meta.user_invocable) == (True, False, False)
     assert meta.primary_env == "PROBE_KEY"
+
+
+@pytest.mark.asyncio
+async def test_user_route_asks_the_catalog_for_local_skills_only() -> None:
+    local = _skill(id="local::0123456789abcdef", name="my-local-skill")
+    lookup = AsyncMock(return_value=[local])
+
+    with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", lookup):
+        backend = await _load_user_skill_backend(skill_ids=["deep-research", local.id], user_id="u")
+
+    lookup.assert_awaited_once_with(skill_ids=["deep-research", local.id], skill_type=SkillType.LOCAL)
+    assert backend is not None
+    assert [m.name for m in await backend.list_skills()] == ["my_local_skill"]
+
+
+@pytest.mark.asyncio
+async def test_user_route_is_absent_and_quiet_when_no_bound_skill_is_local(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING, logger="app.core.skills.loader")
+
+    with patch("app.core.skills.store.service.skills_service.get_skills_by_ids", AsyncMock(return_value=[])):
+        backend = await _load_user_skill_backend(skill_ids=["deep-research"], user_id="u")
+
+    assert backend is None
+    # An agent bound to prebuilt skills only is the normal case; the prebuilt route serves them without a warning per run.
+    assert [record for record in caplog.records if record.name == "app.core.skills.loader"] == []

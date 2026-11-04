@@ -300,7 +300,7 @@ export function useGlobalEvents(): void {
         showMemoryOperationToasts(payload.data, { t, router });
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'locator_healed') {
-        showLocatorHealedToast(payload.data);
+        showLocatorHealedToast(payload.data, { t });
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'mcp_auth_required') {
         showMcpAuthRequiredToast(payload.data, { t, router, toast: pushToast, notifyIfLeader });

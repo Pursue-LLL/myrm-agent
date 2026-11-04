@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { KanbanBoard } from '@/services/kanban';
+import type { BoardSummary, KanbanBoard } from '@/services/kanban';
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
@@ -36,14 +36,22 @@ const board = {
   settings: { max_concurrent_tasks: 3, default_workdir: null },
 } as unknown as KanbanBoard;
 
+const emptySummary: BoardSummary = {
+  board,
+  task_counts: {},
+  total_tasks: 0,
+  dispatcher_active: false,
+  by_agent: [],
+  oldest_ready_age_seconds: null,
+  stale_running_count: 0,
+};
+
 describe('KanbanSection board row', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(listBoards).mockResolvedValue({ items: [board], total: 1 } as Awaited<ReturnType<typeof listBoards>>);
-    vi.mocked(getBoardSummary).mockResolvedValue({ total_tasks: 0, task_counts: {} } as Awaited<
-      ReturnType<typeof getBoardSummary>
-    >);
+    vi.mocked(getBoardSummary).mockResolvedValue(emptySummary);
   });
 
   it('opens the board when its name is chosen', async () => {

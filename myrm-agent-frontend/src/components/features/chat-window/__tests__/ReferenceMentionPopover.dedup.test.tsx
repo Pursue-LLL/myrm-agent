@@ -91,13 +91,7 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
 
   it('renders without [In context] badge when files have not been injected yet', () => {
     render(
-      <ReferenceMentionPopover
-        open={true}
-        results={sampleSuggestions}
-        selectedIndex={0}
-        query=""
-        onSelect={vi.fn()}
-      />,
+      <ReferenceMentionPopover open={true} results={sampleSuggestions} selectedIndex={0} query="" onSelect={vi.fn()} />,
     );
 
     expect(screen.getAllByText('src/main.ts').length).toBeGreaterThan(0);
@@ -110,21 +104,13 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
     inSessionMentionDeduplicator.markInjected(mockChatId, ['src/main.ts'], 1);
 
     render(
-      <ReferenceMentionPopover
-        open={true}
-        results={sampleSuggestions}
-        selectedIndex={0}
-        query=""
-        onSelect={vi.fn()}
-      />,
+      <ReferenceMentionPopover open={true} results={sampleSuggestions} selectedIndex={0} query="" onSelect={vi.fn()} />,
     );
 
     const dedupBadges = screen.getAllByTestId('mention-already-in-context');
     expect(dedupBadges.length).toBe(1);
     expect(dedupBadges[0].textContent).toContain('In context');
-    expect(dedupBadges[0].getAttribute('title')).toBe(
-      'This file is already injected in this session context',
-    );
+    expect(dedupBadges[0].getAttribute('title')).toBe('This file is already injected in this session context');
   });
 
   it('calls onSelect when clicking a suggestion item', () => {
@@ -143,5 +129,19 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
     // First suggestion item is the button for src/main.ts
     fireEvent.click(items[0]);
     expect(handleSelect).toHaveBeenCalledWith(sampleSuggestions[0]);
+  });
+
+  it('badges references from other tools, translating only the generic label', () => {
+    const external: ReferenceSuggestion[] = (['external:codex', 'external:other'] as const).map((source, index) => ({
+      ...sampleSuggestions[0],
+      source,
+      label: `ref-${index}`,
+      basename: `ref-${index}`,
+      relative_path: `ref-${index}`,
+    }));
+    render(<ReferenceMentionPopover open={true} results={external} selectedIndex={0} query="" onSelect={vi.fn()} />);
+
+    expect(screen.getByText('Codex')).toBeInTheDocument();
+    expect(screen.getByText('externalSource')).toBeInTheDocument();
   });
 });

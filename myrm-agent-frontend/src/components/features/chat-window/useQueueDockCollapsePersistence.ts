@@ -6,7 +6,7 @@
  * useQueueDockCollapsePersistence: Hook managing per-chat queue dock collapse state with localStorage persistence.
  *
  * [POS]
- * UI persistence layer for Composer Queue Dock. Aligns with Traycer PR #2441 / Hermes Composer Queue UI.
+ * UI persistence layer for Composer Queue Dock.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -57,9 +57,7 @@ export function writeQueueDockCollapsed(chatId: string | null | undefined, colla
 }
 
 export function useQueueDockCollapsePersistence(chatId: string | null | undefined, initialDefault = false) {
-  const [isCollapsed, setIsCollapsedState] = useState<boolean>(() =>
-    readQueueDockCollapsed(chatId, initialDefault),
-  );
+  const [isCollapsed, setIsCollapsedState] = useState<boolean>(() => readQueueDockCollapsed(chatId, initialDefault));
 
   useEffect(() => {
     setIsCollapsedState(readQueueDockCollapsed(chatId, initialDefault));

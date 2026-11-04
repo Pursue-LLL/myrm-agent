@@ -107,13 +107,9 @@ export const AgentTemplateMarketplace = memo<AgentTemplateMarketplaceProps>(({ o
         <div>
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-amber-500" />
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-              {t('title')}
-            </h2>
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t('title')}</h2>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            {t('subtitle')}
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{t('subtitle')}</p>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -123,7 +119,7 @@ export const AgentTemplateMarketplace = memo<AgentTemplateMarketplaceProps>(({ o
             type="button"
             onClick={() => void fetchTemplates()}
             disabled={isLoading}
-            aria-label="Refresh templates"
+            aria-label={t('refresh')}
             className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ml-1"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -190,12 +186,8 @@ export const AgentTemplateMarketplace = memo<AgentTemplateMarketplaceProps>(({ o
       ) : filteredTemplates.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 py-16 text-center dark:border-zinc-800 dark:bg-zinc-900/20">
           <Layers className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-600 mb-2" />
-          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-            {t('empty.title')}
-          </h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
-            {t('empty.description')}
-          </p>
+          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{t('empty.title')}</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">{t('empty.description')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

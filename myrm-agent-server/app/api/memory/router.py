@@ -28,15 +28,19 @@ from app.api.memory.operations import (
     archive_restore,
     backup,
     backup_remote,
+    cognitive_clock_console,
     command_center,
     command_center_consolidation,
     command_center_diagnostics,
     conflicts,
     crud,
     domain_mesh,
+    evidence_playback,
     external_transcripts,
     guardian,
     head_probe,
+    import_rollback_preview,
+    memory_graph,
     pending,
     radar,
     reindex,
@@ -52,9 +56,6 @@ from app.api.memory.private_notebook_router import (
     router as private_notebook_router,
 )
 from app.api.memory.profile_notes_router import router as profile_notes_router
-from app.api.memory.recall_simulator_router import (
-    router as recall_simulator_router,
-)
 from app.api.memory.score_honesty_router import (
     router as score_honesty_router,
 )
@@ -73,8 +74,11 @@ if settings.memory_labs_enabled:
     router.include_router(command_center.router, tags=["memory-command-center"])
     router.include_router(command_center_consolidation.router, tags=["memory-command-center"])
     router.include_router(command_center_diagnostics.router, tags=["memory-command-center"])
-    router.include_router(recall_simulator_router, tags=["memory-simulate-recall"])
 
+# The Journey graph tab and the memory card evidence drawer call these two under the command-center prefix,
+# so they are not Labs-only.
+router.include_router(memory_graph.router, tags=["memory-graph"])
+router.include_router(evidence_playback.router, tags=["memory-evidence"])
 router.include_router(pending.router, tags=["memory-pending"])
 router.include_router(conflicts.router, tags=["memory-conflicts"])
 router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
@@ -87,43 +91,27 @@ router.include_router(head_probe.router, tags=["memory-head"])
 router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
-router.include_router(archive_restore.router, tags=["memory-archive-restore"])
-router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
-router.include_router(profile_notes_router, tags=["memory-profile-notes"])
-
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 if is_local_mode():
     router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
     router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
-router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
-router.include_router(
-    private_notebook_router,
-    tags=["memory-private-notebook"],
-)
-router.include_router(
-    ephemeral_delta_router,
-    tags=["memory-ephemeral-delta"],
-)
-router.include_router(
-    two_layer_dialectic_router,
-    tags=["memory-two-layer-dialectic"],
-)
-router.include_router(
-    budget_packing_router,
-    tags=["memory-budget-packing"],
-)
-router.include_router(
-    mem_cube_router,
-    tags=["memory-cubes"],
-)
-router.include_router(
-    markdown_chunker_router,
-    tags=["memory-chunker"],
-)
-router.include_router(
-    score_honesty_router,
-    tags=["memory-score-honesty"],
-)
+# Only the Labs panels call these (engine consoles, archive restore, tool guidance, profile notes, first-encounter
+# onboarding, ephemeral delta, cognitive clock status and T1 trigger, import rollback preview); nothing in the default
+# UI does.
+if settings.memory_labs_enabled:
+    router.include_router(archive_restore.router, tags=["memory-archive-restore"])
+    router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
+    router.include_router(profile_notes_router, tags=["memory-profile-notes"])
+    router.include_router(onboarding.router, tags=["memory-onboarding-insight"])
+    router.include_router(ephemeral_delta_router, tags=["memory-ephemeral-delta"])
+    router.include_router(cognitive_clock_console.router, tags=["memory-guardian"])
+    router.include_router(import_rollback_preview.router, tags=["memory-crud"])
+    router.include_router(private_notebook_router, tags=["memory-private-notebook"])
+    router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
+    router.include_router(budget_packing_router, tags=["memory-budget-packing"])
+    router.include_router(mem_cube_router, tags=["memory-cubes"])
+    router.include_router(markdown_chunker_router, tags=["memory-chunker"])
+    router.include_router(score_honesty_router, tags=["memory-score-honesty"])

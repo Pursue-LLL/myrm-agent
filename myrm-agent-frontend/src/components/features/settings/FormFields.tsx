@@ -1,5 +1,6 @@
 import { IconEye, IconEyeOff, IconHelpCircle, IconLoader, IconCheck } from '@/components/features/icons/PremiumIcons';
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import Tooltip from './Tooltip';
 
@@ -128,6 +129,7 @@ export const TextareaField = ({
   showConfirmButton = false,
   ...restProps
 }: TextareaFieldProps) => {
+  const tCommon = useTranslations('common');
   const [value, setValue] = useState((restProps.value as string) || '');
   const [initialValue, setInitialValue] = useState((restProps.value as string) || '');
   const [hasChanges, setHasChanges] = useState(false);
@@ -225,7 +227,7 @@ export const TextareaField = ({
                 ) : (
                   <>
                     <IconCheck className="w-3.5 h-3.5" />
-                    <span>确认</span>
+                    <span>{tCommon('confirm')}</span>
                   </>
                 )}
               </button>

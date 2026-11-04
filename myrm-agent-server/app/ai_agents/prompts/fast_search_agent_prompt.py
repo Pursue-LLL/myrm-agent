@@ -23,8 +23,8 @@ from app.ai_agents.prompts.shared_rules import (
     ABSOLUTE_OBEDIENCE_RULES_ZH,
     EXTERNAL_SOURCES_CITATION_RULES_EN,
     EXTERNAL_SOURCES_CITATION_RULES_ZH,
-    RESPONSE_RULES_EN,
-    RESPONSE_RULES_ZH,
+    SEARCH_RESPONSE_RULES_EN,
+    SEARCH_RESPONSE_RULES_ZH,
 )
 
 # =============================================================================
@@ -106,12 +106,12 @@ def _build_search_base(is_zh: bool) -> str:
     if is_zh:
         return f"""{_IDENTITY_AND_RULES_ZH}
 {ABSOLUTE_OBEDIENCE_RULES_ZH}
-{RESPONSE_RULES_ZH}
+{SEARCH_RESPONSE_RULES_ZH}
 {EXTERNAL_SOURCES_CITATION_RULES_ZH}
 """
     return f"""{_IDENTITY_AND_RULES_EN}
 {ABSOLUTE_OBEDIENCE_RULES_EN}
-{RESPONSE_RULES_EN}
+{SEARCH_RESPONSE_RULES_EN}
 {EXTERNAL_SOURCES_CITATION_RULES_EN}
 """
 

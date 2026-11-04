@@ -1,7 +1,7 @@
 # Browser Annotation Module
 
 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统前端交互模块。
-对标 Hermes Desktop Preview Browser Comment Mode 与现代产品设计审查工作流。提供点选与拉框圈选、带编号交互式 Pin 标记、DOM/CSS 结构化特征采集与脱敏、按 DOM 子树分支自动聚合分组与一键注入输入框全链路闭环。
+面向产品设计审查工作流：提供点选与拉框圈选、带编号交互式 Pin 标记、DOM/CSS 结构化特征采集与脱敏、按 DOM 子树分支自动聚合分组与一键注入输入框全链路闭环。
 
 ## Files
 

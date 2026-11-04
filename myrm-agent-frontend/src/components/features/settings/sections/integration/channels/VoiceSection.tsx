@@ -95,6 +95,11 @@ const TTS_PROVIDERS = [
 
 const REALTIME_VOICES = ['alloy', 'ash', 'ballad', 'cedar', 'coral', 'echo', 'marin', 'sage', 'shimmer', 'verse'];
 
+const GEMINI_LIVE_MODELS = [
+  { value: 'gemini-2.5-flash-preview-native-audio-dialog', label: 'Gemini 2.5 Flash (Native Audio)' },
+  { value: 'gemini-2.0-flash-live-001', label: 'Gemini 2.0 Flash Live' },
+];
+
 async function loadVoiceConfig(): Promise<VoiceFormState> {
   try {
     const record = await apiRequest<{ value: VoiceFormState }>('/config/voice');
@@ -477,12 +482,9 @@ const VoiceSection = memo(() => {
       )}
 
       {/* Voice Session Mode */}
-      <SettingsSection
-        title={t('voiceSessionModeTitle') ?? 'Voice Session Mode'}
-        description={t('voiceSessionModeDesc') ?? 'Choose how voice conversations are processed'}
-      >
+      <SettingsSection title={t('voiceSessionModeTitle')} description={t('voiceSessionModeDesc')}>
         <div className="space-y-4">
-          <FieldRow label={t('voiceMode') ?? 'Mode'}>
+          <FieldRow label={t('voiceMode')}>
             <Select
               value={voiceMode}
               onValueChange={(v) => {
@@ -495,22 +497,16 @@ const VoiceSection = memo(() => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="audio_only">{t('voiceModeAudioOnly') ?? 'Standard (STT → Agent → TTS)'}</SelectItem>
-                <SelectItem value="agent_bridge">
-                  {t('voiceModeAgentBridge') ?? 'Agent Bridge (Server-side)'}
-                </SelectItem>
-                <SelectItem value="openai_realtime">
-                  {t('voiceModeRealtime') ?? 'Realtime (OpenAI WebRTC, ~200ms)'}
-                </SelectItem>
-                <SelectItem value="gemini_live">
-                  {t('voiceModeGeminiLive') ?? 'Gemini Live (WebSocket, ~200ms, Video)'}
-                </SelectItem>
+                <SelectItem value="audio_only">{t('voiceModeAudioOnly')}</SelectItem>
+                <SelectItem value="agent_bridge">{t('voiceModeAgentBridge')}</SelectItem>
+                <SelectItem value="openai_realtime">{t('voiceModeRealtime')}</SelectItem>
+                <SelectItem value="gemini_live">{t('voiceModeGeminiLive')}</SelectItem>
               </SelectContent>
             </Select>
           </FieldRow>
 
           {voiceMode === 'openai_realtime' && (
-            <FieldRow label={t('realtimeVoice') ?? 'Realtime Voice'}>
+            <FieldRow label={t('realtimeVoice')}>
               <Select value={form.ttsVoice || 'alloy'} onValueChange={(v) => update({ ttsVoice: v })}>
                 <SelectTrigger>
                   <SelectValue />
@@ -527,19 +523,20 @@ const VoiceSection = memo(() => {
           )}
 
           {voiceMode === 'gemini_live' && (
-            <FieldRow label={t('geminiLiveModel') ?? 'Gemini Live Model'}>
+            <FieldRow label={t('geminiLiveModel')}>
               <Select
-                value={form.geminiLiveModel || 'gemini-2.5-flash-preview-native-audio-dialog'}
+                value={form.geminiLiveModel || DEFAULT_STATE.geminiLiveModel}
                 onValueChange={(v) => update({ geminiLiveModel: v })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gemini-2.5-flash-preview-native-audio-dialog">
-                    Gemini 2.5 Flash (Native Audio)
-                  </SelectItem>
-                  <SelectItem value="gemini-2.0-flash-live-001">Gemini 2.0 Flash Live</SelectItem>
+                  {GEMINI_LIVE_MODELS.map((model) => (
+                    <SelectItem key={model.value} value={model.value}>
+                      {model.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FieldRow>

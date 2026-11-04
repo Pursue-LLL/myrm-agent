@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_db_session
+from app.api.memory.operations import cognitive_clock_console
 from app.api.memory.operations import guardian as guardian_operation
 
 
@@ -16,6 +17,7 @@ from app.api.memory.operations import guardian as guardian_operation
 def client() -> TestClient:
     app = FastAPI()
     app.include_router(guardian_operation.router, prefix="/api/v1/memory")
+    app.include_router(cognitive_clock_console.router, prefix="/api/v1/memory")
 
     async def _fake_db():
         yield AsyncMock()

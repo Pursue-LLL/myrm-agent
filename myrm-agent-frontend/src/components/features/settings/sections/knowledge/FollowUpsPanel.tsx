@@ -9,6 +9,7 @@ import { IconHeart } from '@/components/features/icons/PremiumIcons';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import SettingsSection from '../SettingsSection';
+import { formatDueWindow } from './followUpDueWindow';
 import { dismissFollowUp, fetchFollowUps, snoozeFollowUp, type FollowUp } from '@/services/followUps';
 
 const KIND_ICON: Record<string, React.ReactNode> = {
@@ -32,48 +33,11 @@ const STATUS_STYLES: Record<string, string> = {
   expired: 'bg-muted text-muted-foreground line-through',
 };
 
-function formatDueWindowEn(earliestMs: number): string {
-  const now = Date.now();
-  const diffMs = earliestMs - now;
-  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-
-  if (diffMs < 0) {
-    const overdue = Math.abs(diffHours);
-    return overdue < 24 ? `${overdue}h overdue` : `${Math.round(overdue / 24)}d overdue`;
-  }
-  if (diffHours < 1) {
-    return '<1h';
-  }
-  if (diffHours < 24) {
-    return `${diffHours}h`;
-  }
-  return `${Math.round(diffHours / 24)}d`;
-}
-
-function formatDueWindowZh(earliestMs: number): string {
-  const now = Date.now();
-  const diffMs = earliestMs - now;
-  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-
-  if (diffMs < 0) {
-    const overdue = Math.abs(diffHours);
-    return overdue < 24 ? `逾期${overdue}小时` : `逾期${Math.round(overdue / 24)}天`;
-  }
-  if (diffHours < 1) {
-    return '不到1小时';
-  }
-  if (diffHours < 24) {
-    return `${diffHours}小时后`;
-  }
-  return `${Math.round(diffHours / 24)}天后`;
-}
-
 type StatusFilter = 'all' | 'pending' | 'sent' | 'dismissed' | 'expired';
 
 const FollowUpsPanel = memo(function FollowUpsPanel() {
   const t = useTranslations('followUps');
   const locale = useLocale();
-  const isZh = locale.startsWith('zh');
   const [items, setItems] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
@@ -190,14 +154,7 @@ const FollowUpsPanel = memo(function FollowUpsPanel() {
         ) : (
           <div className="space-y-2">
             {items.map((item) => (
-              <FollowUpCard
-                key={item.id}
-                item={item}
-                isZh={isZh}
-                t={t}
-                onDismiss={handleDismiss}
-                onSnooze={handleSnooze}
-              />
+              <FollowUpCard key={item.id} item={item} t={t} onDismiss={handleDismiss} onSnooze={handleSnooze} />
             ))}
           </div>
         )}
@@ -208,15 +165,14 @@ const FollowUpsPanel = memo(function FollowUpsPanel() {
 
 interface FollowUpCardProps {
   item: FollowUp;
-  isZh: boolean;
-  t: ReturnType<typeof useTranslations>;
+  t: ReturnType<typeof useTranslations<'followUps'>>;
   onDismiss: (id: string) => void;
   onSnooze: (id: string) => void;
 }
 
-const FollowUpCard = memo<FollowUpCardProps>(function FollowUpCard({ item, isZh, t, onDismiss, onSnooze }) {
+const FollowUpCard = memo<FollowUpCardProps>(function FollowUpCard({ item, t, onDismiss, onSnooze }) {
   const isActive = item.status === 'pending' || item.status === 'snoozed';
-  const dueText = isZh ? formatDueWindowZh(item.due_earliest_ms) : formatDueWindowEn(item.due_earliest_ms);
+  const dueText = formatDueWindow(item.due_earliest_ms, Date.now(), t);
 
   return (
     <div

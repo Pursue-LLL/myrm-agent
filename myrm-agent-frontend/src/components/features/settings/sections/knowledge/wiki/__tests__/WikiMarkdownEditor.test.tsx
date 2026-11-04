@@ -18,6 +18,17 @@ const { getMountedEditor, setMountedEditor, getMountedMonaco, setMountedMonaco }
   };
 });
 
+// Real zh messages for the editor's own snippets; the toolbar and tabs keep the identity translator.
+vi.mock('next-intl', async () => {
+  const real = await (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'zh');
+  const identity = Object.assign((key: string) => key, { has: (key: string) => key.trim().length > 0 });
+  return {
+    useLocale: real.useLocale,
+    useTranslations: (namespace?: string) =>
+      namespace === 'settings.wiki.editor' ? real.useTranslations(namespace) : identity,
+  };
+});
+
 vi.mock('@/components/features/app-shell/lazy-monaco-editor', () => ({
   LazyMonacoEditor: (props: {
     value: string;
@@ -152,8 +163,8 @@ describe('WikiMarkdownEditor Component Suite', () => {
     render(<WikiMarkdownEditor value="mobile content" onChange={vi.fn()} />);
 
     // Mobile tabs present
-    const editTab = screen.getByRole('button', { name: /edit/i });
-    const previewTab = screen.getByRole('button', { name: /preview/i });
+    const editTab = screen.getByRole('button', { name: '编辑' });
+    const previewTab = screen.getByRole('button', { name: '预览' });
     expect(editTab).toBeDefined();
     expect(previewTab).toBeDefined();
 
@@ -172,7 +183,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
     const editor = getMountedEditor() as MockEditorShape | null;
 
     // Bold action
-    const boldBtn = screen.getByRole('button', { name: /加粗/ });
+    const boldBtn = screen.getByRole('button', { name: 'bold' });
     fireEvent.click(boldBtn);
     expect(editor?.executeEdits).toHaveBeenCalledWith(
       'toolbar-action',
@@ -180,7 +191,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
     );
 
     // Italic action
-    const italicBtn = screen.getByRole('button', { name: /斜体/ });
+    const italicBtn = screen.getByRole('button', { name: 'italic' });
     fireEvent.click(italicBtn);
     expect(editor?.executeEdits).toHaveBeenCalledWith(
       'toolbar-action',
@@ -188,7 +199,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
     );
 
     // Wiki 双链 action
-    const wikilinkBtn = screen.getByRole('button', { name: /Wiki 双链/ });
+    const wikilinkBtn = screen.getByRole('button', { name: 'wikilink' });
     fireEvent.click(wikilinkBtn);
     expect(editor?.executeEdits).toHaveBeenCalledWith(
       'toolbar-action',
@@ -196,7 +207,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
     );
 
     // Codeblock action
-    const codeBtn = screen.getByRole('button', { name: /代码块/ });
+    const codeBtn = screen.getByRole('button', { name: 'code' });
     fireEvent.click(codeBtn);
     expect(editor?.executeEdits).toHaveBeenCalledWith(
       'toolbar-action',
@@ -204,7 +215,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
     );
 
     // Table action
-    const tableBtn = screen.getByRole('button', { name: /插入表格/ });
+    const tableBtn = screen.getByRole('button', { name: 'table' });
     fireEvent.click(tableBtn);
     expect(editor?.executeEdits).toHaveBeenCalledWith(
       'toolbar-action',

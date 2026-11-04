@@ -92,37 +92,41 @@ export default function UpdateNudgeBanner() {
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-2xl p-4 transition-colors',
+        'flex w-full flex-col gap-3 rounded-2xl p-4 transition-colors sm:flex-row sm:items-center',
         isSecurity
           ? 'border border-amber-500/30 bg-amber-500/5 text-amber-400'
           : 'border border-primary/25 bg-primary/5',
       )}
     >
-      {isSecurity ? (
-        <IconShield className="w-5 h-5 shrink-0 text-amber-400" />
-      ) : (
-        <IconDownload className="w-5 h-5 shrink-0 text-primary" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">
-          {isSecurity ? t('securityTitle', { version: version ?? '' }) : t('title', { version: version ?? '' })}
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          {isSecurity ? t('securityDescription') : t('description')}
-        </p>
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+        {isSecurity ? (
+          <IconShield className="w-5 h-5 shrink-0 text-amber-400" />
+        ) : (
+          <IconDownload className="w-5 h-5 shrink-0 text-primary" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            {isSecurity ? t('securityTitle', { version: version ?? '' }) : t('title', { version: version ?? '' })}
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {isSecurity ? t('securityDescription') : t('description')}
+          </p>
+        </div>
       </div>
-      <Button size="sm" onClick={handleOpen} className="gap-1 shrink-0">
-        {t('open')}
-        <IconArrowRight className="w-3.5 h-3.5" />
-      </Button>
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label={t('dismiss')}
-        className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {t('dismiss')}
-      </button>
+      <div className="flex shrink-0 items-center gap-3">
+        <Button size="sm" onClick={handleOpen} className="gap-1 shrink-0">
+          {t('open')}
+          <IconArrowRight className="w-3.5 h-3.5" />
+        </Button>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label={t('dismiss')}
+          className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {t('dismiss')}
+        </button>
+      </div>
     </div>
   );
 }

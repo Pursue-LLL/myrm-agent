@@ -3,12 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ChannelPairing } from '@/services/channels/manage';
 
-const stableT = (key: string, values?: Record<string, unknown>) => {
-  if (values && 'quota' in values) {
-    return `${key}:${values.quota}`;
-  }
-  return key;
-};
+const stableT = (key: string, values?: Record<string, unknown>) =>
+  values ? `${key}:${Object.values(values).join('/')}` : key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -156,8 +152,8 @@ describe('PairingItem', () => {
       />,
     );
 
-    expect(screen.getByText('今日用量：10 / 20 次')).toBeTruthy();
-    expect(screen.getByTitle('每日 00:00 UTC (北京时间 08:00) 自动刷新')).toBeTruthy();
+    expect(screen.getByText('todayUsageDisplay:10/20')).toBeTruthy();
+    expect(screen.getByTitle('usageResetTooltip')).toBeTruthy();
     const progress = screen.getByRole('progressbar');
     expect(progress.getAttribute('aria-valuenow')).toBe('50');
   });
@@ -183,7 +179,7 @@ describe('PairingItem', () => {
       />,
     );
 
-    expect(screen.getByText('今日用量：25 / 20 次')).toBeTruthy();
-    expect(screen.getByText('已超额')).toBeTruthy();
+    expect(screen.getByText('todayUsageDisplay:25/20')).toBeTruthy();
+    expect(screen.getByText('quotaExceeded')).toBeTruthy();
   });
 });

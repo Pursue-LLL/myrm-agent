@@ -237,7 +237,8 @@
     "subgoalAddFailed": "Teilziel konnte nicht hinzugefügt werden",
     "subgoalAddNetworkError": "Netzwerkfehler: Teilziel konnte nicht hinzugefügt werden",
     "subgoalRemoveFailed": "Teilziel konnte nicht entfernt werden",
-    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden"
+    "subgoalRemoveNetworkError": "Netzwerkfehler: Teilziel konnte nicht entfernt werden",
+    "bundleSelectItem": "Element für den Export auswählen"
   },
   "commands": {
     "palette": {
@@ -1025,7 +1026,10 @@
       "turn1BudgetWarning": "Das geschätzte Turn1-Schema (~{tokens} Token) übersteigt das Direktbindungsbudget ({budget}). Reduzieren Sie ausgewählte Endpunkte, sonst kann der Agent diese API-Tools nicht verwenden.",
       "turn1BudgetServiceWarning": "Die ausgewählten Endpunkte dieses Dienstes können das Turn1-Bind-Budget überschreiten. Reduzieren Sie die Auswahl, um Startfehler des Agenten zu vermeiden.",
       "atLeastOneEndpoint": "Mindestens ein Endpunkt muss ausgewählt bleiben.",
-      "presetAdded": "{name}-Konnektor hinzugefügt"
+      "presetAdded": "{name}-Konnektor hinzugefügt",
+      "presetsLoading": "Voreinstellungen werden geladen ...",
+      "presetsEmpty": "Keine Voreinstellungen verfügbar.",
+      "presetEnable": "Aktivieren"
     },
     "sharedContexts": {
       "targetLabel": "Agent",
@@ -1337,7 +1341,7 @@
       "addMore": "Weitere hinzufügen",
       "actionSpaceRadar": {
         "title": "Entscheidungsgenauigkeit-Prognose",
-        "loadMeterLabel": "Token-Last der Kern-Skills",
+        "loadMeterLabel": "Komplexität des Aktionsraums",
         "evaluating": "Wird berechnet...",
         "evaluatingHint": "Verbindung zur Engine für Aktionsraum-Analyse...",
         "statusCritical": "Genauigkeitsrisiko: Zu viele Tools! Erhebliches Halluzinationsrisiko — jetzt aufräumen.",
@@ -1347,10 +1351,10 @@
         "smartPrune": "Inaktive Skills bereinigen und Aktionsraum freigeben",
         "smartPruneRunning": "Aktionsraum wird bereinigt…",
         "turn1CatalogTitle": "Skill-Katalog Runde 1",
-        "turn1CatalogSummary": "{inline} inline · {hidden} ausgeblendet · Suche {searchState}",
-        "turn1CatalogSearchOn": "ON",
-        "turn1CatalogSearchOff": "OFF",
-        "turn1CatalogOverCapHint": "Nur die ersten {cap} Kernkompetenzen (alphabetisch) werden zu Beginn der Konversation inline angezeigt. Verschieben Sie selten verwendete Fertigkeiten in den Bereich „Peripherie“, um die Suche zu deaktivieren und etwa 203 Token pro Spielzug zu sparen."
+        "turn1CatalogSummary": "{inline} inline · {hidden} bei Bedarf · Suche {searchState} · ca. {tokens, number} Token",
+        "turn1CatalogSearchOn": "an",
+        "turn1CatalogSearchOff": "aus",
+        "turn1CatalogOverCapHint": "Die Kernfähigkeiten überschreiten das Inline-Budget: Die ersten {inline} (alphabetisch) erscheinen vollständig inline, die übrigen {overflow} werden nur mit Namen aufgelistet und bei Bedarf geladen. Verschieben Sie selten genutzte Kernfähigkeiten in den Bereich „Periphere Fähigkeiten“, um Platz zu schaffen."
       },
       "skillsZone": {
         "coreTitle": "Kernfähigkeiten",
@@ -1451,7 +1455,11 @@
         "userName": "Benutzername"
       },
       "modelOverride": "Modellüberschreibung",
-      "subagentCostSaving": "Kostensenkung für Subagenten"
+      "subagentCostSaving": "Kostensenkung für Subagenten",
+      "subagentModelInherit": "Wie Hauptagent (Standard)",
+      "subagentModelDeepseek": "DeepSeek-V3 / Flash (empfohlen, niedrigste Kosten)",
+      "subagentModelGpt4oMini": "GPT-4o Mini (schnelle Prüfung)",
+      "subagentModelClaudeHaiku": "Claude 3.5 Haiku (Audit mit hohem Durchsatz)"
     },
     "preview": "Vorschau",
     "avatarColor": "Avatar-Farbe",
@@ -1759,7 +1767,8 @@
         "exportRedacted": "Geschwärzt exportieren (sicher)",
         "export": "Exportieren"
       }
-    }
+    },
+    "cloneCopySuffix": "Kopie"
   },
   "common": {
     "dnd": {
@@ -1781,7 +1790,9 @@
     },
     "jsonEditor": {
       "mustBeObject": "Muss ein JSON-Objekt sein",
-      "invalidJson": "Ungültiges JSON-Format"
+      "invalidJson": "Ungültiges JSON-Format",
+      "cannotFormat": "JSON kann nicht formatiert werden",
+      "invalidJsonCannotFormat": "Ungültiges JSON-Format; Formatieren nicht möglich"
     },
     "schemaForm": {
       "resetDefaults": "Auf Standardeinstellungen zurücksetzen",
@@ -2373,6 +2384,7 @@
     "researchBegins": "Was möchten Sie wissen?",
     "noProviderBanner": "Kein KI-Modell konfiguriert. Bitte richten Sie einen Modellanbieter ein, um zu chatten.",
     "noProviderAction": "Konfigurieren",
+    "ollamaQuickConnect": "Ollama verwenden: {model}",
     "subscriptionQuickConnect": "Abonnement vorhanden? 1-Klick-Verbindung",
     "subscriptionModalTitle": "Offizielle Abonnements verbinden",
     "subscriptionModalDesc": "Sichere direkte Verbindung über offizielle Gerätecodes ohne API-Schlüsselkauf. Anmeldedaten werden lokal verschlüsselt gespeichert.",
@@ -2469,7 +2481,7 @@
     "searchNotConfiguredTooltip": "Suchdienst nicht konfiguriert – zum Einrichten klicken",
     "workspaceDir": {
       "label": "Arbeitsverzeichnis",
-      "placeholder": "Select a directory...",
+      "placeholder": "Pfad eingeben oder wählen...",
       "tooltip": "Arbeitsverzeichnis für diesen Chat festlegen. Der Agent arbeitet in diesem Ordner.",
       "change": "Ändern",
       "clear": "Leeren",
@@ -2490,13 +2502,14 @@
       "modeLocalDesc": "Lokalen Ordner binden, in dem die KI Dateien liest und erstellt",
       "modeCloud": "Cloud-Sandbox",
       "modeCloudDesc": "Isolierte Sandbox-Umgebung für sichere Code-Ausführung ohne Host-Verschmutzung",
+      "modeCloudBadge": "Dedizierter Sandbox-Speicher",
       "modeChat": "Schnellchat",
       "modeChatDesc": "Allgemeine KI-Konversation und schnelle Antworten ohne Arbeitsbereich",
       "bindWorkspace": "Arbeitsbereich auswählen",
       "currentWorkspace": "Aktueller Arbeitsbereich",
-      "noWorkspaceSelected": "Kein Verzeichnis gewählt (Klicken zum Binden)",
+      "noWorkspaceSelected": "Kein Ordner gewählt (Klicken zum Binden)",
       "scaffoldBtn": "Standardordner initialisieren",
-      "scaffoldTooltip": "Erstellt Standardordner: 00_Rohdaten, 01_Referenz, 02_Ergebnisse, 03_Archiv",
+      "scaffoldTooltip": "Erstellt Standardordner: {folders}",
       "scaffoldSuccess": "Standard-Ordnerstruktur initialisiert",
       "scaffoldFailed": "Initialisierung fehlgeschlagen",
       "clearWorkspace": "Freigeben",
@@ -2673,7 +2686,11 @@
       "copiedReasoning": "Denkprozess kopiert",
       "deltaNegative": "{tokens} Tokens gegenüber der letzten Runde (komprimiert)",
       "deltaZero": "Wie in der letzten Runde",
-      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)"
+      "growthTrend": "Wachstumsverlauf (letzte 12 Runden)",
+      "weatherClear": "Klar (<25 %)",
+      "weatherCloudy": "Wolkig (25–75 %)",
+      "weatherWarning": "Warnung (75–90 %)",
+      "weatherCritical": "Bald komprimiert (≥90 %)"
     },
     "compactedSummary": {
       "foldLabel": "Kontext komprimiert – Archiv ansehen",
@@ -2785,7 +2802,8 @@
       "agentsCategory": "Agenten",
       "contextCategory": "Kontext",
       "dedupNotice": "Datei ist bereits im Kontext; doppelter Inhalt wird übersprungen",
-      "alreadyInContext": "Im Kontext"
+      "alreadyInContext": "Im Kontext",
+      "externalSource": "Extern"
     },
     "message": {
       "edit": "Bearbeiten",
@@ -2808,7 +2826,13 @@
       "cancelled": "Generierung gestoppt. Teilweise Antwort im Kontext beibehalten."
     },
     "toolImage": {
-      "screenshotLabel": "Remote-Desktop-Screenshot"
+      "screenshotLabel": "Remote-Desktop-Screenshot",
+      "lightboxLabel": "Screenshot-Vorschau",
+      "lightboxClose": "Vorschau schließen",
+      "lightboxPrevious": "Vorheriges Bild",
+      "lightboxNext": "Nächstes Bild",
+      "lightboxAlt": "{tool}-Screenshot (Originalgröße)",
+      "thumbnailAlt": "{tool}-Screenshot {index}"
     },
     "sessionRecording": {
       "label": "Sitzungsaufzeichnung"
@@ -2832,7 +2856,10 @@
       "waitingHint": "Die Live-Ansicht erscheint, wenn der Agent den Browser verwendet",
       "instructionPlaceholder": "Beschreiben Sie, was Sie auf dieser Seite tun möchten...",
       "instructionWithElement": "Was soll der Agent mit diesem Element tun?",
-      "send": "Anweisung senden"
+      "send": "Anweisung senden",
+      "livePeekAlt": "Live-Ansicht des Browsers",
+      "selectElementLabel": "Element {refId} auswählen ({role}: {name})",
+      "clearSelection": "Auswahl aufheben"
     },
     "browserRecording": {
       "title": "Browser-Aufzeichnung",
@@ -2921,7 +2948,8 @@
         "denyReasonPlaceholder": "Grund für die Ablehnung (optional)",
         "targetChangedNotice": "Das Ziel hat sich seit Ihrer letzten Genehmigung geändert. Bitte überprüfen Sie es erneut.",
         "deniedNotice": "Abgelehnt. Diese Anfrage wird in dieser Sitzung nicht mehr gestellt."
-      }
+      },
+      "clearSelection": "Auswahl aufheben"
     },
     "clarification": {
       "formTitle": "Klärungsformular",
@@ -3155,60 +3183,6 @@
       "sandbox_ro": "Dateisystem ist schreibgeschützt",
       "healthy": "Umgebung gesund"
     },
-    "localModelDetected": {
-      "title": "Lokales KI-Modell erkannt",
-      "description": "Es wurde festgestellt, dass {provider} lokal läuft und {count} Modelle verfügbar sind. Beginnen Sie mit dem Chatten ohne Konfiguration.",
-      "useModel": "Verwenden Sie {model}",
-      "configureManually": "Manuell konfigurieren",
-      "detecting": "Lokale KI-Modelle erkennen...",
-      "noModels": "Keine lokalen KI-Modelle erkannt",
-      "activated": "Bereit!",
-      "activatedDesc": "{model} ist jetzt verbunden. Probieren Sie Ihre erste Aufgabe aus:",
-      "tryDemo": "Fassen Sie die heutigen Tech-News zusammen",
-      "tryDemoLabel": "Jetzt ausprobieren"
-    },
-    "localCapabilities": {
-      "detecting": "Lokale KI und Suchdienste werden erkannt...",
-      "searchTitle": "Kostenlose Websuche verfügbar",
-      "searchDescription": "Lokales SearXNG aktivieren (kein API-Schlüssel).",
-      "enableSearxng": "SearXNG aktivieren",
-      "enablingSearxng": "SearXNG wird aktiviert…",
-      "searxngDockerHint": "Suche ist optional. Starten Sie lokale kostenlose Suche über SearXNG bei Bedarf (Docker erforderlich).",
-      "startSearxngDocker": "SearXNG starten (Docker)",
-      "startingSearxng": "SearXNG wird gestartet…",
-      "startSearxngFailed": "SearXNG konnte nicht gestartet werden. Ist Docker installiert?",
-      "usePaidSearchSettings": "Stattdessen kostenpflichtigen Suchanbieter verwenden",
-      "configureSearch": "Suche konfigurieren",
-      "chipLabel": "Suche aktivieren",
-      "searchEnabled": "{service}-Suche aktiviert",
-      "searchEnableFailed": "Aktivieren der Suche fehlgeschlagen",
-      "modelActivateFailed": "Aktivieren des lokalen Modells fehlgeschlagen",
-      "customEndpointTitle": "OpenAI-kompatibler lokaler Endpunkt",
-      "customEndpointDescription": "Fügen Sie Ihren lokalen Endpunkt ein, um Modelle automatisch zu erkennen und die Einrichtung in einem Schritt abzuschließen.",
-      "customApiUrlLabel": "API URL",
-      "customApiUrlPlaceholder": "http://127.0.0.1:8899/v1",
-      "customApiKeyLabel": "API-Schlüssel (optional für lokale/LAN-Endpunkte)",
-      "customApiKeyPlaceholder": "sk-...",
-      "customNoAuthHint": "Localhost- und Split-Stack-Endpunkte können den API-Schlüssel leer lassen.",
-      "customSplitStackHint": "LAN / Tailscale Split-Stack-Endpunkt erkannt; API-Schlüssel kann leer gelassen werden.",
-      "customNoAuthDetected": "No-Auth-Modus erkannt. Es wird kein API-Schlüssel erzwungen oder gespeichert.",
-      "customDetectModels": "Modelle erkennen",
-      "customUseModel": "Verwenden Sie {model}",
-      "customErrorApiUrlRequired": "Bitte API-URL eingeben",
-      "customErrorDetectFailed": "Erkennen der Modelle von diesem Endpunkt fehlgeschlagen",
-      "customErrorNoModels": "Endpunkt ist erreichbar, hat aber keine Modelle zurückgegeben",
-      "customErrorProbeFailed": "Sondieren des Endpunkts fehlgeschlagen",
-      "customErrorDetectFirst": "Bitte zuerst Modelle erkennen",
-      "customErrorReachabilityFailed": "Endpunkt verbunden, aber Modell-Gesundheitsprüfung fehlgeschlagen",
-      "customDetectSuccess": "Erkannte {count}-Modelle",
-      "checklistTitle": "Empfohlene Tool-Calling-Benchmarks",
-      "checklistSubtitle": "Für komplexe Aufgaben verifiziert",
-      "recommendedBadge": "Empfohlen",
-      "verifiedBadge": "Tool-Calling verifiziert: {model}",
-      "verifiedDescription": "Dieses Modell wurde auf Myrm-Kompatibilität getestet und führt Funktionsaufrufe, Dateioperationen und Websuchen zuverlässig aus.",
-      "unverifiedWarningTitle": "Hinweis zu unbestätigtem Modell: {model}",
-      "unverifiedWarningDescription": "Dieses Modell ist nicht offiziell für Tool-Calling verifiziert. Bei der Ausführung komplexer Werkzeuge können Formatierungsfehler auftreten."
-    },
     "migrationDiscovery": {
       "title": "{competitor}-Daten erkannt",
       "description": "{memoryCount} Erinnerungen und {skillCount} Fähigkeiten gefunden – vor dem Import ansehen",
@@ -3239,19 +3213,6 @@
       "success": "Als Eval-Fall erfasst",
       "successDesc": "Chat-Verlauf erfolgreich als Benchmark-Datensatz extrahiert",
       "error": "Fehler beim Erfassen des Eval-Falls"
-    },
-    "callGraph": {
-      "title": "Aufrufgrafik-Analyse",
-      "callers": "Aufrufer",
-      "reachingTests": "Zugehörige Tests",
-      "physicalCallChain": "Physische Aufrufkette",
-      "noCallers": "Keine externen Aufrufstellen gefunden",
-      "params": "Parameter",
-      "testImpact": "Testauswirkungen & Explosionsradius",
-      "noTests": "Keine Tests gefunden, die diese Logik abdecken",
-      "depth": "Tiefe",
-      "level": "Ebene",
-      "runAffectedTests": "{count} betroffene Test-Suites ausführen"
     },
     "modelPlaybook": {
       "cannotApplyMissingModels": "Rezept kann nicht angewendet werden: Erforderliche Modelle fehlen.",
@@ -3382,7 +3343,10 @@
       "subtitle": "Basis-Token-Verbrauch vor Gesprächsbeginn und Tool-Verwaltung",
       "skillsTools": "Skills und integrierte Tools",
       "disabled": "Deaktiviert",
-      "totalBaseline": "Basisverbrauch gesamt"
+      "totalBaseline": "Basisverbrauch gesamt",
+      "baselineFeatherlight": "Federleicht",
+      "baselineModerate": "Moderat",
+      "baselineHeavy": "Hohe Grundlast"
     },
     "turnLoadedSkills": {
       "triggerLabel": "{count} Arbeits-Skills referenziert",
@@ -3456,20 +3420,6 @@
       "stopped": "{name} gestoppt; der Teilentwurf wurde gesichert",
       "stopFailed": "Aufgabe konnte nicht gestoppt werden"
     },
-    "routeAgentDiscoverChip": {
-      "title": "Diese Aufgabe an einen Spezialisten-Agenten übergeben",
-      "guardrailBadge": "Leitplanken aktiv",
-      "subtitle": "Agenten für Code, Review, Recherche, Architektur und Sicherheitsaudit übernehmen sofort.",
-      "action": "Spezialisten ansehen",
-      "dismiss": "Schließen",
-      "specialists": {
-        "coder": "Entwickler",
-        "reviewer": "Code-Reviewer",
-        "researcher": "Rechercheur",
-        "architect": "Architekt",
-        "auditor": "Prüfer"
-      }
-    },
     "multiplexer": {
       "sessionListTitle": "Sitzungen",
       "panesCount": "Bereiche",
@@ -3509,18 +3459,6 @@
         }
       }
     },
-    "topologyPruning": {
-      "tier1Badge": "Stufe 1 · Spitzen-Reasoning",
-      "tier2Badge": "Stufe 2 · Starke Basis",
-      "tier3Badge": "Stufe 3 · Schnell und leicht",
-      "hybridFolded": "Hybrid zusammengefaltet",
-      "directFolded": "Zu direkter Ausführung zusammengefaltet",
-      "savedTurnsTokens": "spart etwa {turns} Runden und {tokens} Token",
-      "fanoutMode": "Multi-Agent-Auffächerung",
-      "strategyAuto": "Automatisch",
-      "strategyDirect": "Nur direkt",
-      "strategyMultiAgent": "Immer Multi-Agent"
-    },
     "pdfScannedPages": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und wurden als Bilder gesendet",
     "pdfScannedPagesWithheld": "[PDF] {fileName}: Die Seiten {pages} haben keine Textebene und konnten nicht gesendet werden (über dem Übermittlungslimit)",
     "reasoningSteps": " · {count} Schritte",
@@ -3531,7 +3469,40 @@
     "collapseReasoning": "Denkprozess einklappen",
     "reasoningLoading": "Denkt nach",
     "reasoningTokens": "{count} Tokens",
-    "reasoningTokensEstimated": "≈ {count} Tokens"
+    "reasoningTokensEstimated": "≈ {count} Tokens",
+    "thinkingProcess": "Denkprozess",
+    "customMessage": {
+      "ephemeral": "Temporär",
+      "persistent": "Dauerhaft",
+      "ephemeralHint": "Temporär: wird bei der Kompaktierung entfernt",
+      "persistentHint": "Dauerhaft: bleibt über Kompaktierungs-Zusammenfassungen hinweg erhalten",
+      "details": "Einzelheiten"
+    },
+    "toolDiagnostics": {
+      "trigger": "Tool-Zustand",
+      "title": "Agent-Tool-Diagnose",
+      "loading": "Diagnosedaten werden geladen ...",
+      "empty": "Für diesen Agent liegen noch keine Tool-Ausführungsdaten vor.",
+      "calls": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
+      "successRate": "Erfolgsquote",
+      "errors": "Fehler",
+      "avgTime": "Durchschn. Zeit"
+    },
+    "costHud": {
+      "popoverTitle": "Klicken, um die vierdimensionale Preismatrix des Modells und die Prompt-Cache-Ersparnis anzuzeigen",
+      "savedAmount": "({amount} gespart)",
+      "idleLabel": "Rechen-HUD"
+    },
+    "scopedArtifactRemove": "Eingegrenztes Ziel entfernen",
+    "messageListLoading": "Nachrichten werden geladen",
+    "inputHistoryLabel": "Eingabeverlauf",
+    "projectBoundary": {
+      "isolated": "Isolationsschutz",
+      "workspaceTooltip": "Isolierter Projekt-Arbeitsbereich: {path}",
+      "sandboxTooltip": "Projekt-Sandbox und dedizierte Gedächtnis-Isolation sind aktiv"
+    },
+    "systemPromptDeveloperMode": "System-Prompt (Entwicklermodus)",
+    "mcpAppRenderFailed": "MCP-App konnte nicht dargestellt werden"
   },
   "mode": {
     "fast": "Schnellsuche",
@@ -4362,7 +4333,8 @@
     "skillManageRollbackSuperseded": "Ein Skill in diesem Batch wurde danach erneut geändert. Machen Sie zuerst die neuere Änderung rückgängig oder stellen Sie unter Skill-Einstellungen → Verlauf eine Version wieder her.",
     "skillManageRollbackSkillMissing": "Ein Skill in diesem Batch wurde inzwischen gelöscht, daher lässt sich der Batch nicht mehr rückgängig machen.",
     "skillManageUndoHintBody": "Der Assistent hat in dieser Antwort Skills aktualisiert. Öffnen Sie unten „Task“, um die Änderungen rückgängig zu machen.",
-    "skillManageUndoHintAction": "Task öffnen"
+    "skillManageUndoHintAction": "Task öffnen",
+    "smartFallbackBadge": "Intelligenter Fallback"
   },
   "memory": {
     "mesh": {
@@ -5826,7 +5798,6 @@
           "description": "Optional: Verbinden Sie einen lokalen Ordner, damit der Assistent Ihre Dateien direkt vor Ort liest und bearbeitet. Der Wiki-Import kopiert Notizen in eine separate Bibliothek – nutzen Sie dies für Ihren aktiven Vault oder synchronisierten Ordner.",
           "chooseFolder": "Ordner auswählen",
           "preparing": "Wird vorbereitet…",
-          "skip": "Überspringen Sie es vorerst",
           "linkedSuccess": "Ordner verlinkt. Ihr nächster Chat wird diesen Arbeitsbereich verwenden.",
           "defaultProjectName": "Meine Dateien",
           "candidateGeneric": "Ordner, der von Ihrem vorherigen Assistenten-Setup erkannt wurde.",
@@ -6250,7 +6221,65 @@
       "selectAtLeastOne": "Bitte wählen Sie mindestens eine Regel aus",
       "exported": "{count, plural, one {# Regel erfolgreich exportiert} other {# Regeln erfolgreich exportiert}}",
       "exportFailed": "Export fehlgeschlagen",
-      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}"
+      "copied": "{count, plural, one {# Regel in die Zwischenablage kopiert} other {# Regeln in die Zwischenablage kopiert}}",
+      "title": "Regeln sicher teilen",
+      "privacyBadge": "Datenschutz gewährleistet",
+      "description": "Exportiere die von der KI gelernten Regeln mit automatischer Pfad-Anonymisierung und Entfernung von Zugangsdaten. Sicher zum Teilen – öffentlich oder im Team.",
+      "selectAll": "Alle auswählen",
+      "deselectAll": "Alle abwählen",
+      "selectedCount": "{selected}/{total} ausgewählt",
+      "empty": "Keine Verfahrensregeln gefunden. Regeln werden automatisch aus deinen Gesprächen gelernt.",
+      "previewSanitized": "Bereinigten Inhalt ansehen",
+      "copyButton": "Kopieren",
+      "copiedButton": "Kopiert!",
+      "downloadZip": "ZIP herunterladen"
+    },
+    "contextGlobalTitle": "Globales Nutzerprofil",
+    "contextGlobalSubtitle": "Stabile Identität über Agenten hinweg",
+    "contextGlobalEmpty": "Noch keine globalen Profildaten.",
+    "contextPeerTitle": "Unsere Beziehung und Ihre Persona",
+    "contextPeerSubtitle": "Agentenspezifische Interaktionen",
+    "contextPeerEmpty": "Noch keine agentenspezifischen Profildaten.",
+    "rankedHubSidebarLabel": "Seitenleiste mit Hub-Rangliste",
+    "shareRulesTitle": "Regeln teilen (datenschutzsicher)",
+    "shareRulesTooltip": "Regeln unter Wahrung der Privatsphäre teilen",
+    "dualLayer": {
+      "title": "Benutzerprofil und Agent-Notizen (zweischichtiger Speicher)",
+      "description": "Zwei explizite Ebenen mit Kapazitätsanzeige: USER bis zu {userMax, number} Zeichen (langfristige Präferenzen), MEMORY bis zu {memoryMax, number} Zeichen (Fachnotizen)",
+      "refresh": "Aktualisieren",
+      "save": "Speicher sichern",
+      "budget": "≤ {max, number} Zeichen",
+      "capacity": "Auslastung: {current, number} / {max, number} Zeichen ({percent} %)",
+      "level": {
+        "safe": "Normal",
+        "warning": "Warnung",
+        "critical": "Kritisch",
+        "overflow": "Limit überschritten"
+      },
+      "userProfile": {
+        "title": "Benutzerprofil",
+        "hint": "Agentenübergreifend: Muttersprache, Programmiergewohnheiten, Formatierung, harte Tabus und Kommunikationspräferenzen.",
+        "placeholder": "z. B. Muttersprache ist Chinesisch; Python PEP8 befolgen; den Typ Any nie verwenden; gelieferte Dateien unter 400 Zeilen halten..."
+      },
+      "agentNotes": {
+        "title": "Agent-Notizen",
+        "hint": "Nur für diesen Agenten: Architekturregeln, häufige Fachbegriffe, Grenzen und Tipps zur Fehlersuche.",
+        "placeholder": "z. B. Dieses Projekt folgt Clean Architecture; die Harness-Schicht darf nie von der Server-Schicht abhängen..."
+      },
+      "intakeProbe": {
+        "title": "Test für die Aufnahme kurzlebigen Rauschens",
+        "placeholder": "Kandidaten-Erinnerung eingeben (z. B. 'Phase 2 completed', 'PR #882', 'Traceback...' oder 'bevorzugt PEP8')",
+        "check": "Aufnahme prüfen",
+        "accepted": "Aufgenommen: an die Ebene {layer} weitergeleitet",
+        "rejected": "Abgelehnt: als kurzlebiges, flüchtiges Rauschen eingestuft [{category}]",
+        "longTerm": "LANGFRISTIG"
+      },
+      "intakeCheckFailed": "Netzwerk- oder Serverfehler; die Aufnahmeprüfung ist fehlgeschlagen.",
+      "feedback": {
+        "loadFailed": "Der zweischichtige Speicher konnte nicht geladen werden. Prüfe das Netzwerk oder den Backend-Status.",
+        "saved": "Zweischichtiger Speicher gespeichert.",
+        "saveFailed": "Der zweischichtige Speicher konnte nicht gespeichert werden. Möglicherweise ist die Kapazität überschritten oder der Inhalt nicht zulässig."
+      }
     }
   },
   "sharedContextTargetBinding": {
@@ -6474,7 +6503,14 @@
       "binary": "Datei",
       "spreadsheet": "Kalkulationstabelle",
       "presentation": "Präsentation",
-      "word_document": "Word-Dokument"
+      "word_document": "Word-Dokument",
+      "video": "Video",
+      "audio": "Audio",
+      "architecture": "Architekturdiagramm",
+      "canvas": "Leinwand",
+      "wechat_article": "WeChat-Artikel",
+      "prototype": "Prototyp",
+      "dashboard": "Dashboard"
     },
     "spreadsheet": {
       "search": "Suchen...",
@@ -6498,7 +6534,9 @@
       "quote": "In Eingabefeld zitieren",
       "quoteRow": "Zeile {row} zitieren",
       "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten",
-      "rowScopeLabel": "Zeile {row}"
+      "rowScopeLabel": "Zeile {row}",
+      "clearSelection": "Auswahl aufheben",
+      "artifactFallbackName": "Tabellen-Artefakt"
     },
     "saving": "Speichern...",
     "saved": "Gespeichert",
@@ -6764,7 +6802,10 @@
       "quote": "In Eingabe zitieren",
       "copy": "Kopie",
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
-      "queued": "Aktion in der Warteschlange, wird ausgeführt, wenn die aktuelle Aufgabe abgeschlossen ist"
+      "queued": "Aktion in der Warteschlange, wird ausgeführt, wenn die aktuelle Aufgabe abgeschlossen ist",
+      "artifactFallbackName": "Code-Artefakt",
+      "selectedCode": "Ausgewählter Code",
+      "selectionLines": "Auswahl ({count, plural, one {# Zeile} other {# Zeilen}})"
     },
     "documentSelection": {
       "modify": "KI-Änderung",
@@ -6774,7 +6815,10 @@
       "copy": "Kopie",
       "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
       "annotate": "Kommentieren",
-      "annotatePlaceholder": "Problem für Review beschreiben..."
+      "annotatePlaceholder": "Problem für Review beschreiben...",
+      "toolbarLabel": "Werkzeugleiste für die Auswahl",
+      "artifactFallbackName": "Dokument-Artefakt",
+      "selectedParagraph": "Ausgewählter Absatz"
     },
     "skillActions": {
       "moreActions": "Weitere Aktionen",
@@ -6848,7 +6892,25 @@
       "viewportNotFound": "Viewport-Element nicht gefunden",
       "exportSuccess": "Export erfolgreich",
       "svgExported": "Architekturdiagramm als eigenständige SVG exportiert",
-      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert"
+      "pngExported": "Architekturdiagramm als hochauflösendes PNG exportiert",
+      "invalidSchema": "Ungültiges Architektur-JSON-Schema oder Parsing fehlgeschlagen.",
+      "defaultTitle": "Systemarchitektur-Karte",
+      "evolutionDiffActive": "Evolutions-Diff aktiv",
+      "searchNodes": "Knoten suchen ...",
+      "liveView": "Live-Ansicht",
+      "diffView": "Diff-Ansicht",
+      "copied": "Kopiert",
+      "diffNodesAdded": "+{count} Knoten",
+      "diffNodesDeleted": "-{count} Knoten",
+      "diffNodesModified": "~{count} geändert",
+      "diffEdgesAdded": "+{count} Kanten",
+      "diffEdgesDeleted": "-{count} Kanten",
+      "shortestPath": "Kürzester Pfad:",
+      "hops": "({count, plural, one {# Hop} other {# Hops}})",
+      "noDirectedPath": "(kein gerichteter Pfad)",
+      "tracingFor": "Abhängigkeitsbaum wird verfolgt für:",
+      "clickToTrace": "(Auf einen anderen Knoten klicken, um die Route zu verfolgen)",
+      "clear": "Zurücksetzen"
     },
     "vaultCard": {
       "loading": "Datei wird geladen...",
@@ -6856,7 +6918,16 @@
       "unavailable": "Diese Datei kann nicht geladen werden",
       "downloadFull": "Vollständige Datei herunterladen"
     },
-    "resizePanel": "Panelgröße ändern"
+    "resizePanel": "Panelgröße ändern",
+    "closePreview": "Vorschau schließen",
+    "errorBoundary": {
+      "title": "Darstellungsfehler",
+      "defaultMessage": "Dieser Inhalt kann nicht dargestellt werden. Aktualisieren Sie die Seite oder laden Sie ihn zum Ansehen herunter.",
+      "retry": "Erneut versuchen"
+    },
+    "annotationPanelLabel": "Artefakt-Anmerkungen",
+    "htmlPreviewTitle": "HTML-Vorschau",
+    "portalDescription": "Vorschau der Datei {filename}, Typ {type}, Größe {size}. Mit Esc schließen."
   },
   "MessageSources": {
     "untitled": "Ohne Titel",
@@ -6892,7 +6963,8 @@
     "conversation_deleted": "Konversation gelöscht",
     "operation_failed": "Der Vorgang ist fehlgeschlagen",
     "copyAll": "Alle kopieren",
-    "copyAllSuccess": "Quellen in die Zwischenablage kopiert"
+    "copyAllSuccess": "Quellen in die Zwischenablage kopiert",
+    "mcpSkillFallback": "MCP-Skill"
   },
   "auth": {
     "setup": {
@@ -7832,7 +7904,14 @@
     "preflightUpdated": "Vorabprüfung aktualisiert",
     "preflightTemplateInserted": "Vorlage eingefügt",
     "preflightInsertTemplate": "Vorlage einfügen",
-    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen."
+    "preflightDesc": "Führt vor dem Job ein Python-Skript in der Sandbox aus. Geben Sie <skip></skip> oder <action></action> aus, um den Lauf abzubrechen und Tokens zu sparen. Jede andere Ausgabe wird als Kontext eingefügt. Endet das Skript mit einem Fehler oder läuft es in eine Zeitüberschreitung, wird der Lauf als fehlgeschlagen erfasst und nicht übersprungen.",
+    "roiTitle": "Produktivitätsgewinn durch Automatisierung",
+    "roiSubtitle": "Geschätzt aus der Basisarbeitszeit je automatisierter Aufgabe und dem tatsächlichen Ausführungsvolumen",
+    "hoursSavedTotal": "Eingesparte Stunden gesamt",
+    "hoursUnit": "Std.",
+    "productivityValue": "Geschätzter Produktivitätswert",
+    "tokenCostLine": "Token-Kosten ${amount}",
+    "columnHoursSaved": "Geschätzte Zeitersparnis"
   },
   "heartbeat": {
     "title": "Automatische Agentenprüfung",
@@ -7978,6 +8057,11 @@
     "replanRationaleRequired": "Begründung für die Planüberarbeitung ist erforderlich",
     "replanChangesList": "Detaillierte Diff-Änderungen",
     "replanNoChanges": "Keine Aufgabenänderungen vorgeschlagen",
+    "replanActionAdd": "Hinzufügen",
+    "replanActionUpdate": "Aktualisieren",
+    "replanActionRemove": "Entfernen",
+    "replanUntitled": "Ohne Titel",
+    "replanDependsOn": "Abhängig von: {ids}",
     "replanInvariantGuaranteed": "Abgeschlossene und in Überprüfung befindliche Aufgaben sind streng geschützt und werden nicht geändert. DAG-Zyklenfreiheit wird bei der Übernahme validiert.",
     "replanApply": "Planüberarbeitung anwenden",
     "replanAppliedSuccess": "Planüberarbeitung erfolgreich angewendet",
@@ -9320,7 +9404,15 @@
     "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
     "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden.",
     "whatsappQrAlt": "WhatsApp-Anmelde-QR-Code",
-    "wechatQrAlt": "WeChat-Anmelde-QR-Code"
+    "wechatQrAlt": "WeChat-Anmelde-QR-Code",
+    "usageResetTooltip": "Wird täglich um 00:00 UTC (08:00 Peking-Zeit) automatisch zurückgesetzt",
+    "todayUsageDisplay": "Heutige Nutzung: {used} / {quota} Msgs",
+    "quotaExceeded": "Kontingent überschritten",
+    "groupTriggerRegionLabel": "Aktuelle Gruppentrigger-Konfiguration",
+    "editGlobalAria": "Globale Konfiguration bearbeiten",
+    "matrixProxyPlaceholder": "http://proxy:8080 oder socks5://proxy:1080",
+    "onebotTokenPlaceholder": "Geheimes Token eingeben",
+    "wechatBotIdLabel": "Bot-ID:"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -9792,14 +9884,17 @@
       "snapshotNone": "Kein Git-Repository: Kein automatischer Snapshot verfuegbar, Aktion kann nicht rueckgaengig gemacht werden",
       "confirmPrompt": "Geben Sie CONFIRM ein, um die zerstoererische Operation zu bestaetigen",
       "confirmButton": "Zerstoererische Operation autorisieren",
-      "slideConfirm": "Wischen, um die Ausfuehrung zu bestaetigen"
+      "slideConfirm": "Wischen, um die Ausfuehrung zu bestaetigen",
+      "affectedTargets": "Zielpfade / betroffene Objekte:",
+      "confirmedReady": "Bereit"
     },
     "destructiveUndo": {
       "title": "Zerstoererische Aktion ausgefuehrt",
       "description": "Wesentliche Aenderungen wurden am Arbeitsbereich vorgenommen. Ein sicherer Schatten-Snapshot ist fuer ein Rueckgaengigmachen verfuegbar.",
       "rollbackButton": "Rueckgaengig machen & Snapshot wiederherstellen",
       "rollbackSuccess": "Arbeitsbereich erfolgreich auf den Zustand vor der Zerstoerung zurueckgesetzt",
-      "rollbackFailed": "Snapshot-Rollback fehlgeschlagen, bitte Arbeitsbereich pruefen"
+      "rollbackFailed": "Snapshot-Rollback fehlgeschlagen, bitte Arbeitsbereich pruefen",
+      "snapshotPointer": "Snapshot-Zeiger: {id}"
     },
     "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
     "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
@@ -9892,6 +9987,21 @@
       "droppedOnEdit": "Passwort bzw. Schlüssel wurden entfernt, weil der Befehl geändert wurde. Geben Sie sie bei Bedarf erneut ein.",
       "errorRejected": "Bitte prüfen Sie Variablenname und Wert und versuchen Sie es erneut.",
       "errorUnavailable": "Bitte versuchen Sie es gleich noch einmal."
+    },
+    "escalationTitle": "Anfrage zur Überschreitung einer sensiblen Fähigkeitsgrenze erkannt",
+    "escalationFallbackReason": "Fähigkeitsüberschreitung",
+    "escalationReasons": {
+      "symlink_creation": "Symbolischen Link erstellen (Symlink)",
+      "network_egress": "Ausgehende Netzwerkverbindung (Network Egress)",
+      "privilege_escalation": "Rechteausweitung im System (Privilege Escalation)",
+      "permission_alteration": "Dateiberechtigungen ändern (Permission Change)",
+      "process_termination": "Systemprozess beenden (Process Termination)",
+      "system_administration": "Systemverwaltung und Dienstoperationen (System Admin)",
+      "filesystem_destruction": "Riskantes Formatieren des Dateisystems (Filesystem Modification)",
+      "raw_disk_write": "Direktes Low-Level-Schreiben auf die Festplatte (Raw Disk Write)",
+      "system_file_write": "Schreiben in sensible Systemdateien (System File Write)",
+      "git_destructive_action": "Destruktives Git-Reset/-Clean (Git Destructive Action)",
+      "git_remote_sync": "Git-Remote-Synchronisierung/-Push (Git Remote Push)"
     }
   },
   "notifications": {
@@ -9987,7 +10097,11 @@
     "budgetRemaining": "{dimension} — ${remaining} verbleibend",
     "subagentStaleDescription": "Seit {minutes} Min. kein Fortschritt · {tokens, number} Tokens",
     "subagentStaleStats": "{minutes} Min. · {tokens, number} Tokens",
-    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt."
+    "agentProfileRollbackSuccess": "Agent-Profil erfolgreich zurückgesetzt.",
+    "locatorHealedTitle": "Selbstheilung aktiviert",
+    "locatorHealedDescription": "Der Agent hat einen defekten Locator automatisch per räumlichem Abgleich wiederhergestellt.",
+    "locatorHealedTarget": "Ziel",
+    "locatorHealedUnknownName": "Unbekannt"
   },
   "configConflict": {
     "title": "Konfigurationskonflikt erkannt",
@@ -10333,7 +10447,9 @@
         "wait0": "Brauche dich",
         "wait1": "Ich warte auf dich",
         "wait2": "Sie sind dran"
-      }
+      },
+      "voiceInterrupt": "Sprachausgabe unterbrechen",
+      "voiceInteraction": "Sprachinteraktion"
     },
     "palette": {
       "title": "Haustierpalette",
@@ -10717,7 +10833,8 @@
       "confirmLabel": "Namen des behaltenen Assistenten zur Bestätigung eingeben",
       "mergeSource": "Archivieren (Quelle)",
       "planBindings": "Bindungen im Umzug",
-      "done": "Fertig"
+      "done": "Fertig",
+      "regionLabel": "Agent-Governance"
     },
     "readiness": {
       "dimensions": {
@@ -10795,7 +10912,12 @@
         "approved": "Genehmigt",
         "rejected": "Abgelehnt",
         "applyFailed": "Anwenden fehlgeschlagen"
-      }
+      },
+      "forceRetryStarted": "Erzwungene Wiederholung gestartet",
+      "forceRetryFailed": "Erzwungene Wiederholung fehlgeschlagen",
+      "loadFailed": "Die Evolutionsablehnungs-Audit-Protokolle konnten nicht geladen werden",
+      "loadStatsFailed": "Die Statistiken zu Evolutionsablehnungen konnten nicht geladen werden",
+      "retrying": "Wiederhole…"
     }
   },
   "quarantineDialog": {
@@ -10844,7 +10966,15 @@
     "openReviewPanelAria": "Überprüfungsbereich öffnen",
     "reviewChanges": "Änderungen überprüfen",
     "closeReviewOverlayAria": "Überprüfung schließen",
-    "closeReviewPanelAria": "Überprüfungsbereich schließen"
+    "closeReviewPanelAria": "Überprüfungsbereich schließen",
+    "tooLargeBadge": "Zu groß",
+    "tooLargeNotice": "Die Datei ist zu groß für die Inline-Vorschau. Öffne sie zur Prüfung im Arbeitsbereich.",
+    "noTextChanges": "Keine Textänderungen.",
+    "refreshDiffs": "Diffs aktualisieren",
+    "searchFiles": "Dateien durchsuchen",
+    "filterByStatus": "Nach Status filtern",
+    "filterAll": "Alle",
+    "noFilesMatch": "Keine Dateien entsprechen der Suche."
   },
   "growthDashboard": {
     "title": "Wachstums-Dashboard",
@@ -11349,7 +11479,8 @@
     "insightsSpawned": "{count} gestartet",
     "insightsAvgDuration": "Ø Dauer",
     "insightsTotalTokens": "Token gesamt",
-    "insightsTotalCost": "Gesamtkosten"
+    "insightsTotalCost": "Gesamtkosten",
+    "waitingOnStage": "(wartet auf {stage})"
   },
   "trajectoryDiff": {
     "title": "Sitzungsübergreifender Trajektorien-Diff",
@@ -11951,7 +12082,10 @@
       "captureTraceTruncatedNotice": "{count} frühere Interaktionen wurden verworfen, weil die Aufzeichnung ihr Größenlimit erreicht hat. Dem erstellten Skill könnten die ersten Schritte fehlen.",
       "captureUnavailableTitle": "Aufzeichnung nicht verfügbar",
       "publishConflictNotice": "Ein Skill mit dem Namen „{name}“ existiert bereits. Ersetzen Sie ihn durch diese Aufnahme oder brechen Sie ab und wählen Sie im ersten Schritt einen anderen Namen.",
-      "replaceSkill": "Skill ersetzen"
+      "replaceSkill": "Skill ersetzen",
+      "workflowNamePlaceholder": "z. B. Monatliche Steuererklärungs-Pipeline",
+      "intentHintPlaceholder": "z. B. Excel lesen und mit dem Steuerportal synchronisieren",
+      "deleteStep": "Schritt löschen"
     }
   },
   "followUps": {
@@ -11990,6 +12124,14 @@
       "deadline_check": "Frist",
       "care_check_in": "Pflege",
       "open_loop": "Nachverfolgen"
+    },
+    "dueWindow": {
+      "overdueHours": "{count, plural, one {# Stunde} other {# Stunden}} überfällig",
+      "overdueDays": "{count, plural, one {# Tag} other {# Tage}} überfällig",
+      "underOneHour": "Weniger als 1 Stunde",
+      "inHours": "In {count, plural, one {# Stunde} other {# Stunden}}",
+      "inDays": "In {count, plural, one {# Tag} other {# Tagen}}",
+      "overdueUnderOneHour": "Weniger als 1 Stunde überfällig"
     }
   },
   "Catchup": {
@@ -12143,40 +12285,13 @@
       "ready": "Bereit"
     },
     "skipHint": "Klicken Sie auf oder drücken Sie ESC, um zu überspringen",
-    "backendSetupHint": "Backend läuft nicht. Führen Sie ./myrm setup im Projektstammverzeichnis aus und aktualisieren Sie es anschließend.",
     "onboarding": {
-      "migrationTitle": "Verlaufsdaten erkannt",
-      "migrationDescription": "Wir haben Ihre Daten von anderen KI-Assistenten gefunden. Nahtlos importieren?",
       "migrationCloudTitle": "Von einem anderen Assistenten importieren",
       "migrationCloudDescription": "Laden Sie ein Exportpaket hoch, um Erinnerungen und Arbeitsbereichseinstellungen in Ihre Cloud-Sandbox zu migrieren.",
       "instantStartTitle": "Sofortiges Squad-Erlebnis",
       "instantStartDescription": "Vorab mit universellem Assistenten, Dokumentenspezialisten und Programmier-Agenten ausgestattet. Sofort ohne Konfiguration starten.",
       "instantStartButton": "Sofort-Squad starten",
-      "customSetupButton": "Erweitertes Setup",
       "skipStep": "Überspringen",
-      "capabilitiesTitle": "AI Engine konfigurieren",
-      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",
-      "syncFolder": {
-        "pageTitle": "Verknüpfen Sie Ihren Notizenordner",
-        "pageDescription": "Optional: Richten Sie den Assistenten auf Obsidian, Typora oder einen beliebigen Ordner mit synchronisierten Dokumenten.",
-        "hint": "Dateien bleiben auf Ihrem Gerät. Der Assistent bearbeitet sie direkt vor Ort – kein Import in eine separate Datenbank.",
-        "chooseFolder": "Ordner auswählen",
-        "preparing": "Wird vorbereitet…",
-        "skip": "Überspringen Sie es vorerst",
-        "defaultProjectName": "Meine Dateien"
-      },
-      "noLocalModel": "Keine lokalen Modelle erkannt. Sie können einen API-Schlüssel später manuell in den Einstellungen konfigurieren.",
-      "configureLater": "Später konfigurieren",
-      "searchReady": "Bereit",
-      "enterWorkspace": "Betreten Sie den Arbeitsbereich",
-      "cloudQuickStart": "Cloud-Modelle Schnellstart",
-      "cloudQuickStartHint": "Keine lokale GPU? Nutzen Sie stattdessen Cloud-KI-Dienste",
-      "cloudProviderGemini": "Google Gemini",
-      "cloudProviderGeminiHint": "Kostenloser Plan verfügbar",
-      "cloudProviderSiliconFlow": "SiliconFlow",
-      "cloudProviderSiliconFlowHint": "China-freundlich, kostenloses Guthaben bei Registrierung",
-      "cloudProviderOpenRouter": "OpenRouter",
-      "cloudProviderOpenRouterHint": "Kostenlose Open-Source-Modelle",
       "routing": {
         "pageTitle": "API-Kosten sparen",
         "pageDescription": "Einfache Aufgaben automatisch an leichtere Modelle weiterleiten — gleiche Qualität, niedrigere Kosten.",
@@ -12201,43 +12316,6 @@
         "skip": "Überspringen",
         "enable": "Aktivieren Sie Smart Guard"
       },
-      "telegramAssistant": {
-        "pageTitle": "Verbinden Sie den Telegram-Assistenten",
-        "pageDescription": "Richten Sie Ihren persönlichen Telegram-Assistenten in einem geführten Schritt ein.",
-        "title": "Telegram Persönlicher Assistent",
-        "description": "Verbinden Sie Ihren Bot-Token, richten Sie ein Assistentenprofil ein und beginnen Sie ohne zusätzliche Einrichtung von Ihrem Telefon aus mit dem Chatten.",
-        "safetyHint": "Beinhaltet Verbindungsvalidierung und Rollback-Schutz",
-        "tokenLabel": "Telegram Bot Token",
-        "tokenPlaceholder": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-        "showToken": "Token anzeigen",
-        "hideToken": "Token ausblenden",
-        "tokenRequired": "Telegram Bot-Token ist erforderlich.",
-        "webhookLabel": "Webhook-URL (optional)",
-        "webhookPlaceholder": "https://your-domain.com/channels/telegram/webhook",
-        "webhookHint": "Lassen Sie das Feld leer, um den Abfragemodus zu verwenden. Verwenden Sie HTTPS, wenn Sie einen Webhook URL bereitstellen.",
-        "webhookHttpsRequired": "Webhook URL must start with https://",
-        "assistantNameLabel": "Name des Assistenten",
-        "assistantDescriptionLabel": "Beschreibung des Assistenten (optional)",
-        "assistantDescriptionPlaceholder": "z.B. Ihr Tagesplaner und Ausführungs-Copilot",
-        "defaultAssistantName": "Persönlicher Telegram-Assistent",
-        "setupButton": "Richten Sie den Telegram-Assistenten ein",
-        "retryButton": "Verbindung erneut versuchen",
-        "continueButton": "Fahren Sie vorerst fort",
-        "skipButton": "Überspringen Sie es vorerst",
-        "pendingTitle": "Telegram ist konfiguriert, die Verbindung wird noch aufgewärmt",
-        "pendingDescription": "Es kann einige Sekunden dauern, bis {botUsername} erreichbar ist. Sie können jetzt fortfahren oder die Verbindungsprüfung erneut versuchen.",
-        "pendingToast": "Konfiguration gespeichert. Die Telegram-Verbindung wird noch initialisiert.",
-        "retryingToast": "Eine weitere Einrichtungsanfrage wird beendet. Versuche es jetzt noch einmal...",
-        "inProgressFriendlyError": "Die Einrichtung ist noch im Gange. Bitte warten Sie ein paar Sekunden und versuchen Sie es erneut.",
-        "tokenRejectedError": "Telegram hat diesen Bot-Token nicht akzeptiert. Kopieren Sie den vollständigen Token erneut von @BotFather.",
-        "telegramUnreachableError": "Telegram ist von diesem Gerät aus nicht erreichbar. Prüfen Sie Ihr Netzwerk oder tragen Sie unten einen Proxy ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
-        "telegramUnreachableViaProxyError": "Telegram ist auch über den Proxy nicht erreichbar. Prüfen Sie, ob der Proxy läuft, oder tragen Sie unten eine andere Proxy-Adresse ein und versuchen Sie es erneut. Sie können den Schritt auch überspringen.",
-        "telegramUnreachableSandboxError": "Telegram ist derzeit nicht erreichbar. Versuchen Sie es gleich noch einmal oder überspringen Sie den Schritt.",
-        "proxyRejectedError": "Diese Proxy-Adresse kann nicht verwendet werden. Geben Sie die Adresse eines Proxys auf diesem Computer oder in Ihrem lokalen Netzwerk an, zum Beispiel socks5://127.0.0.1:1080.",
-        "setupFailed": "Der Telegram-Assistent konnte nicht eingerichtet werden.",
-        "setupFailedToast": "Die Einrichtung von Telegram ist fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten und versuchen Sie es erneut.",
-        "successToast": "Telegram-Assistent ist bereit: {agentName}"
-      },
       "toolsConnect": {
         "pageTitle": "Verbinden Sie Ihre Alltagswerkzeuge",
         "pageDescription": "Lassen Sie Ihren Assistenten auf die Dienste zugreifen, die Sie täglich nutzen. Sie können später jederzeit in den Einstellungen weitere hinzufügen.",
@@ -12252,31 +12330,9 @@
         "continueButton": "Weitermachen",
         "skipButton": "Behalten Sie die Standardeinstellung bei"
       },
-      "deploymentTitle": "Wo läuft Ihr Assistent?",
-      "deploymentDescription": "Dieser Computer, ein Remote-Server oder Cloud-Hosting. Jederzeit in den Einstellungen änderbar.",
       "doctorTitle": "Kurzer Gesundheitscheck",
       "doctorDescription": "Wir haben die drei häufigsten Hürden der ersten Nutzung geprüft. Rote Punkte lassen sich mit einem Klick beheben oder später nachholen.",
       "doctorContinueButton": "Weiter",
-      "powerStack": {
-        "title": "Zahlen Sie bereits für andere KI-Tools?",
-        "description": "Behalten Sie sie. Nutzen Sie jedes Tool dort, wo es stark ist, den Rest orchestriert Myrm. Preise stehen auf der Preisseite.",
-        "pricingLink": "Echte Preise ansehen",
-        "columns": {
-          "external": {
-            "title": "Coding-Tools bleiben",
-            "description": "Alltägliches Coding bleibt bei Cursor, Devin oder Claude Code. Orchestrierung, Pläne und Kanäle übernimmt Myrm."
-          },
-          "orchestrator": {
-            "title": "Myrm orchestriert",
-            "description": "Ein Assistentenprofil steuert Chat, geplante Aufgaben und Kanäle mit geteiltem Gedächtnis. Kein ständiges Wiederholen des Kontexts."
-          },
-          "local": {
-            "title": "Kostenloser lokaler Slot",
-            "description": "Entwürfe und Triage laufen lokal kostenlos, nur schwere Last geht in die Cloud."
-          }
-        },
-        "setupGuideLink": "Setup-Anleitung"
-      },
       "doctor": {
         "fix": "Beheben",
         "allClear": "Alle drei Prüfungen bestanden. Es kann losgehen.",
@@ -12300,9 +12356,7 @@
             "failHint": "Das Kontingent ist leer.",
             "pendingHint": "Kontingent wird geprüft…"
           }
-        },
-        "contextRemote": "Sie haben einen Remote-Server gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen dagegen.",
-        "contextCloud": "Sie haben Cloud-Hosting gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen gegen Ihre Sandbox."
+        }
       }
     }
   },
@@ -12365,7 +12419,8 @@
     "inlineRouteTemplateNoResults": "Keine passenden Expertenvorlagen",
     "inlineRouteTemplateEmpty": "Keine Expertenvorlagen verfügbar",
     "inlineRouteTemplateApplyFailed": "Expertenvorlage konnte nicht beschworen werden",
-    "appshotAlt": "Erfasster App-Screenshot"
+    "appshotAlt": "Erfasster App-Screenshot",
+    "captureAlt": "Bildschirmaufnahme"
   },
   "billing": {
     "wuBalance": "Arbeitseinheiten",
@@ -12506,7 +12561,8 @@
           "feature2": "8C Sandbox + verlängerte Aktivzeit"
         }
       }
-    }
+    },
+    "baseAllowance": "Basiskontingent"
   },
   "connectWizard": {
     "title": "Externen Agenten anschließen",
@@ -12745,7 +12801,11 @@
         "trust": "Vertrauen und verknüpfen",
         "mcpServers": "Lokale MCP-Server",
         "plugins": "Lokale Plugins"
-      }
+      },
+      "adoptProjectName": "Projektname",
+      "adoptCancel": "Abbrechen",
+      "adoptSubmitting": "Wird übernommen ...",
+      "adoptSubmit": "Projekt jetzt übernehmen"
     },
     "workspaceTrust": {
       "trusted": "Arbeitsbereich vertraut. Alle Erweiterungen und Tools sind jetzt aktiviert.",
@@ -13409,7 +13469,14 @@
     "consoleDrawerTitle": "Konsole und Dienstprotokolle",
     "consoleDrawerEmpty": "Keine aktuellen Protokolle erfasst",
     "sniffTrigger": "Entwicklungsdienst erkennen",
-    "sniffSuccess": "Dienstport erkannt und registriert"
+    "sniffSuccess": "Dienstport erkannt und registriert",
+    "previewTitle": "{name} Live-Vorschau",
+    "consoleStarted": "[{time}] Dienst auf Port {port} gestartet ({protocol})",
+    "consoleReady": "> Bereit: {url}",
+    "consoleProcess": "> Prozess-PID: {pid} | Prozess: {name}",
+    "previewPort": "Port {port} in der Vorschau öffnen",
+    "barPortsCount": "{count} aktive Ports",
+    "barLabel": "Dev-Ports"
   },
   "toolPicker": {
     "menuLabel": "Werkzeugauswahl",
@@ -13463,7 +13530,17 @@
     "nextSlide": "Nächste Folie",
     "slideCounter": "Folie {current} von {total}",
     "speakerNotes": "Sprechernotizen",
-    "noSpeakerNotes": "Keine Notizen für diese Folie"
+    "noSpeakerNotes": "Keine Notizen für diese Folie",
+    "newPresentation": "+ Neue Präsentation",
+    "enterpriseBadge": "P0 · Enterprise-PPTX",
+    "illustrationsHint": "Multimodale visuelle Konzepte und Layouts",
+    "slideVisualConcept": "Visuelles Konzept",
+    "slideVisualPlaceholder": "Multimodales Architekturdiagramm",
+    "slideConfidentialFooter": "VERTRAULICH · ENTERPRISE-DECK",
+    "slidePage": "SEITE {page}",
+    "slideAriaLabel": "Folie {number}: {title}",
+    "slideThumbnails": "Folienminiaturen",
+    "goToSlide": "Zu Folie {number} springen: {title}"
   },
   "spreadsheet": {
     "viewerTitle": "Tabellen-Hub im Publikationsstil",
@@ -13559,15 +13636,6 @@
     "sessionMemoryUpdatedHint": "Ihre Präferenzen wurden gespeichert und gelten für die nächsten Antworten in diesem Chat.",
     "briefLearnedInPrefix": "Gelernter Kontext wurde in das Speicherpräfix dieser Antwort aufgenommen: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturen."
   },
-  "memoryRecallDegraded": {
-    "title": "Semantischer Rückruf nicht verfügbar",
-    "description": "Die Vektorsuche ist beeinträchtigt. Bei Antworten fehlen möglicherweise verwandte Erinnerungen, bis die Einbettung wiederhergestellt ist.",
-    "actionDoctor": "Öffnen Sie Memory Doctor",
-    "actionSettings": "Speichereinstellungen",
-    "unavailable": "Der Zustand des Speicherabrufs konnte nicht überprüft werden",
-    "retry": "Wiederholen",
-    "dismiss": "Für diesen Chat ablehnen"
-  },
   "e2ee": {
     "secured": "E2EE",
     "handshakeFailed": "E2EE ist fehlgeschlagen",
@@ -13579,8 +13647,15 @@
   "MarkdownTable": {
     "switchToTable": "Wechseln Sie zur Tabellenansicht",
     "switchToCard": "Wechseln Sie zur Kartenansicht",
-    "tableView": "Tisch",
-    "cardView": "Karte"
+    "tableView": "Tabelle",
+    "cardView": "Karte",
+    "expandLightbox": "Ganze Tabelle aufklappen",
+    "expandLightboxShort": "Vollansicht",
+    "lightboxLabel": "Vollansicht der Tabelle",
+    "lightboxTitle": "Tabelle in Vollansicht",
+    "columnCount": "{count} Spalten",
+    "closePreview": "Vorschau schließen",
+    "closePreviewBackdrop": "Vorschau-Hintergrund schließen"
   },
   "messageBox": {
     "consensusActive": "Warten auf die restlichen Modelle…",
@@ -13942,7 +14017,11 @@
     "activeTaskLabel": "Ziel der aktiven Aufgabe",
     "lastActiveLabel": "Zuletzt aktiv",
     "cancelAction": "Schließen",
-    "jumpInAction": "Einsteigen"
+    "jumpInAction": "Einsteigen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Zoom zurücksetzen",
+    "defaultProject": "Standardprojekt"
   },
   "workbench": {
     "workbenchAriaLabel": "Zusatz-Workbench",
@@ -14000,14 +14079,16 @@
       "emptyMessages": "In diesem Meilenstein wurden keine Roh-Nachrichten-Snapshots aufbewahrt",
       "originalRoleUser": "Nutzer-Prompt",
       "originalRoleAssistant": "Agent-Antwort",
-      "originalRoleTool": "Tool-Ausführung"
+      "originalRoleTool": "Tool-Ausführung",
+      "ariaLabel": "Schreibgeschützte Verlaufsrückschau"
     },
     "branchSummary": {
       "inheritedBadge": "Zweigübergreifende Erfahrungsflugbahn",
       "sourceBranchLabel": "Geerbt von Zweig",
       "keyTakeawaysTitle": "Abgeleitete Kernerkenntnisse und Entdeckungen",
       "warpToSource": "Zum Quellzweig springen",
-      "forkIndicator": "Abgezweigt von"
+      "forkIndicator": "Abgezweigt von",
+      "ariaLabel": "Branchübergreifende Erfahrungskarte"
     },
     "anchors": {
       "title": "Verifizierte Anker",
@@ -14400,7 +14481,11 @@
       "commerce": "E-Commerce-Betrieb",
       "team": "Multi-Agent-Teams",
       "general": "Allgemeine Assistenten"
-    }
+    },
+    "refresh": "Vorlagen aktualisieren",
+    "membersCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
+    "zeroPromptReady": "Zero-Prompt bereit",
+    "sandboxReady": "Sandbox bereit"
   },
   "commandMatrix": {
     "allCategories": "Alle Kategorien",
@@ -14531,37 +14616,6 @@
     "collapseStep": "Schritt einklappen",
     "expandStep": "Schritt ausklappen"
   },
-  "quadGraph": {
-    "closeDrawer": "Knotendetails schließen",
-    "completedCount": "{count} abgeschlossen",
-    "dependenciesCount": "Abhängigkeiten",
-    "drawerAriaLabel": "Knoten-Inspektionsbereich",
-    "duration": "Dauer",
-    "edgesCount": "{count} Kanten",
-    "inputSnapshot": "Eingabe-Snapshot",
-    "layerType": "Ebene",
-    "liveSteerCockpit": "Live-Steuerung",
-    "noInputSnapshot": "Keine Eingabe aufgezeichnet",
-    "noNodesInLayer": "Keine Knoten in dieser Ebene",
-    "noOutputSnapshot": "Keine Ausgabe aufgezeichnet",
-    "nodesCount": "{count} Knoten",
-    "outputReceipt": "Ausgabebeleg",
-    "pauseNode": "Knoten pausieren",
-    "resetZoom": "Zoom zurücksetzen",
-    "resumeNode": "Knoten fortsetzen",
-    "retryNode": "Knoten wiederholen",
-    "role": "Rolle",
-    "runningCount": "{count} laufend",
-    "steerPlaceholder": "Steuerungsanweisung an diesen Knoten senden",
-    "submitSteer": "Steuerungsanweisung senden",
-    "viewportSwitcherAria": "Graph-Ansicht wechseln",
-    "zoomIn": "Vergrößern",
-    "zoomOut": "Verkleinern",
-    "layerTask": "Aufgabengraph",
-    "layerWorkflow": "Workflow-Graph",
-    "layerTeam": "Teamgraph",
-    "layerCommunication": "Kommunikationsgraph"
-  },
   "externalLinkConfirm": {
     "title": "Diesen Link im Browser öffnen?",
     "descriptionNamed": "{source} möchte die folgende Adresse im Browser öffnen. Fahren Sie nur fort, wenn Sie der Quelle vertrauen.",
@@ -14597,8 +14651,8 @@
     "wizard": {
       "title": "Visueller Kanal-Kopplungsassistent",
       "modelAgnosticBadge": "Modellunabhängige Engine · Deterministischer Ablauf ohne CLI",
-      "antiWorkbuddyNote": "Mit einem Scan verbinden, ohne Befehle einzutippen",
-      "antiWorkbuddyDesc": "Sie müssen weder auf teure Modelle wechseln noch technische Einrichtungsbefehle im Chat eingeben. Klicken Sie auf einen Kanal, um einen dynamischen QR-Code zu erzeugen und sofort zu koppeln.",
+      "noCommandNote": "Mit einem Scan verbinden, ohne Befehle einzutippen",
+      "noCommandDesc": "Sie müssen weder auf teure Modelle wechseln noch technische Einrichtungsbefehle im Chat eingeben. Klicken Sie auf einen Kanal, um einen dynamischen QR-Code zu erzeugen und sofort zu koppeln.",
       "waitingScan": "Bitte scannen Sie den obigen dynamischen QR-Code mit dem Client...",
       "sessionExpiry": "Gültigkeit: 300 Sekunden",
       "bindingSuccess": "Kanal erfolgreich authentifiziert und Token gebunden!",
@@ -14710,7 +14764,7 @@
   },
   "groupChat": {
     "title": "Bot-Modus: Multi-Agent-Gruppenchat-Arbeitsbereich",
-    "hermesParity": "Bot-Modus und Peer-to-Peer-Nachrichten",
+    "botModeSummary": "Bot-Modus und Peer-to-Peer-Nachrichten",
     "roomsTitle": "Kollaborationskanäle",
     "createRoom": "Neuen Raum erstellen",
     "roomNamePlaceholder": "Raumname (z. B. Architektur-War-Room)",
@@ -14784,33 +14838,6 @@
     "close": "Fertig",
     "emptyCluster": "Noch keine selbst gehosteten Maschinen verbunden. Klicken Sie oben auf die Schaltfläche, um Ihre erste Maschine einzubinden"
   },
-  "memoryRecall": {
-    "drawerTitle": "Simulator für Speicher- & Erfahrungsabruf",
-    "drawerSubtitle": "Benchmarking des EvoX-Abruftests und Governance-Centers: prüft Mehrkanal-Kandidatentreffer und direkte Zweitgovernance",
-    "queryInputPlaceholder": "Test-Prompt oder Aufgabenbefehl eingeben (z. B. Linux-Kernel-Deadlock debuggen, React-Rerenders optimieren)...",
-    "simulateBtn": "Abruf simulieren",
-    "simulatingBtn": "Suche läuft...",
-    "totalMatched": "Treffer",
-    "latency": "Latenz",
-    "rrfScore": "RRF-Wert",
-    "bm25Score": "BM25 lexikalisch",
-    "vectorSim": "Vektor-Semantik",
-    "causalAffinity": "Kausal-Gen",
-    "confidenceWeight": "Konfidenzgewicht",
-    "mustAvoidTrap": "Unbedingt zu vermeidende Falle",
-    "normalGene": "Positive Erfahrung",
-    "statusActive": "Aktiv",
-    "statusDisabled": "Deaktiviert",
-    "statusLocked": "Gesperrt",
-    "lockBtn": "Sperren",
-    "unlockBtn": "Entsperren",
-    "disableBtn": "Deaktivieren",
-    "enableBtn": "Aktivieren",
-    "mergeDuplicateBtn": "Duplikat zusammenführen",
-    "mergePrompt": "Ziel-Speicher-ID zum Zusammenführen eingeben",
-    "emptyResults": "Keine passenden Speichereinträge oder Erfahrungs-Gene gefunden. Bitte versuchen Sie eine andere Abfrage.",
-    "close": "Schließen"
-  },
   "mobileCockpit": {
     "voiceStagedInput": {
       "title": "Sprachaufnahme prüfen",
@@ -14861,7 +14888,7 @@
   },
   "runtimeConsole": {
     "title": "Laufzeitkonsole & Multi-Surface-Projektionszentrum",
-    "mateclawParity": "Live-Ansicht von Laufzustand und Ereignissen",
+    "liveStateSummary": "Live-Ansicht von Laufzustand und Ereignissen",
     "surfaces": {
       "chat": "Chat-Ansicht",
       "runtimeConsole": "Laufzeitkonsole",
@@ -15016,7 +15043,19 @@
       "setupGuideTitle": "Schnellstart (Desktop-App)",
       "setupGuideStep1": "Oben Eingabesteuerung und Bildschirmaufnahme erlauben, dann „Mit Bildschirmaufnahme prüfen“.",
       "screenLockGuardLocked": "Gesperrt",
-      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen."
+      "setupGuideStep3": "In der Agentenkonfiguration Desktop-Steuerung aktivieren und die erste App-Freigabe im Chat abschließen.",
+      "lockedUseDoctorBadgeLoading": "Prüfe…",
+      "lockedUseDoctorUnavailable": "Unbekannt",
+      "lockedUseDoctorWarn": "Achtung",
+      "lockedUseDoctorFail": "Blockiert",
+      "lockedUseDoctorBadgeNotMac": "macOS-Desktop-App",
+      "lockedUseDoctorBadgeAwayOn": "Abwesenheitsmodus an",
+      "lockedUseDoctorBadgeBridgeReady": "Shell verbunden",
+      "lockedUseDoctorDetailNotMac": "Abwesenheitsmodus und Privatsphäre-Vorhang erfordern die Myrm-Desktop-App unter macOS.",
+      "lockedUseDoctorDetailAwayOff": "Desktop-Shell ist bereit. Aktivieren Sie oben Locked Use für unbeaufsichtigte Läufe — der Agent entsperrt hinter dem Vorhang.",
+      "lockedUseDoctorDetailBridgeMissing": "Starten Sie die Myrm-Desktop-App auf diesem Mac, damit der Abwesenheitsmodus mit der Shell koordinieren kann.",
+      "lockedUseDoctorDetailShellUnavailable": "Starten Sie die Myrm-Desktop-App neu und prüfen Sie Abwesenheitsmodus und Vorhang in den Einstellungen.",
+      "lockedUseDoctorDetailGeneric": "Abwesenheitsmodus oder Vorhang ist nicht bereit. Öffnen Sie die Systemeinstellungen oder starten Sie die Desktop-App neu."
     },
     "rate_limits": {
       "title": "Rate-Limit-Überwachung",
@@ -15108,7 +15147,9 @@
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
       },
-      "brand-studio": "Markenstil"
+      "brand-studio": "Markenstil",
+      "clearSearch": "Suche löschen",
+      "matchedLabel": "Treffer:"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
@@ -15196,7 +15237,21 @@
         "profilingStartNetworkError": "Netzwerkfehler beim Starten des Profilings",
         "profilingStopped": "Heap-Profiling gestoppt. Ergebnisse liegen vor.",
         "profilingStopFailed": "Profiling konnte nicht gestoppt werden",
-        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings"
+        "profilingStopNetworkError": "Netzwerkfehler beim Stoppen des Profilings",
+        "title": "Speicher und Profiling",
+        "stopProfiling": "Profiling stoppen",
+        "startProfiling": "Heap-Profiling starten",
+        "loadingHistory": "Speicherverlauf wird geladen ...",
+        "noHistory": "Kein Speicherverlauf verfügbar.",
+        "profilingActiveTitle": "Heap-Profiling läuft",
+        "profilingActiveBody": "Das System verfolgt derzeit alle Python-Speicherzuweisungen. Das kann 10–20 % Leistungs-Overhead verursachen. Klicke auf „Profiling stoppen“, um die Ergebnisse anzuzeigen.",
+        "topAllocations": "Größte Speicherzuweisungen",
+        "colFile": "Datei",
+        "colLine": "Zeile",
+        "colSizeKb": "Größe (KB)",
+        "colCount": "Anzahl",
+        "seriesRss": "RSS gesamt (MB)",
+        "seriesNative": "Native-Schätzung (MB)"
       }
     },
     "commands": {
@@ -16355,7 +16410,21 @@
       },
       "permissionTypes": {
         "spawn_subagent": "Interner Sub-Agent",
-        "invoke_external_agent": "Externer CLI-Agent"
+        "invoke_external_agent": "Externer CLI-Agent",
+        "web_search_tool": "Suchmaschine",
+        "net_fetch": "Webseite lesen",
+        "shell_exec": "Laufende Prozesse",
+        "file_read": "Dateien lesen",
+        "file_write": "Dateien schreiben",
+        "mcp_invoke": "Externe Tools",
+        "code_interpreter": "Befehle & Code",
+        "browser_navigate": "Browser-Navigation",
+        "browser_fill": "Browser-Ausfüllformular",
+        "browser_upload": "Browser-Upload",
+        "browser_download": "Browser-Download",
+        "browser_session": "Browsersitzung",
+        "knowledge_read": "Wissensbasis lesen",
+        "knowledge_write": "Wissensbasis schreiben"
       },
       "leastPrivilege": {
         "antiPatternTitle": "Warum „Vollzugriff“ abgelehnt wird",
@@ -16390,7 +16459,12 @@
       "permittedSummary": "Zugelassen {permitted}",
       "recentAuditTrail": "Aktuelles Ausführungs-Audit-Protokoll",
       "loadingEntries": "Audit-Einträge werden geladen...",
-      "noEntriesYet": "Bisher keine Audit-Einträge erfasst"
+      "noEntriesYet": "Bisher keine Audit-Einträge erfasst",
+      "viewDetails": "Eintragsdetails anzeigen",
+      "detailRule": "Regel:",
+      "detailSessionId": "Sitzungs-ID:",
+      "detailReason": "Fehler/Grund:",
+      "detailArgs": "Bereinigte Argumente:"
     },
     "retrieval": {
       "embeddingConfig": "Embedding-Modellkonfiguration",
@@ -16808,7 +16882,8 @@
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
         "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben.",
-        "downloadFailed": "Download fehlgeschlagen"
+        "downloadFailed": "Download fehlgeschlagen",
+        "fitScore": "Eignungswert:"
       },
       "importFromModelsDev": "Von models.dev importieren",
       "getModels": "Modelle abrufen",
@@ -16852,7 +16927,10 @@
           "disconnected": "SuperGrok-Abonnement getrennt",
           "disconnectFailed": "Trennen fehlgeschlagen"
         }
-      }
+      },
+      "apiKeyInputPlaceholder": "sk-... oder op://vault/item/field oder bw://item",
+      "poolStatsCollapse": "Einklappen",
+      "poolStatsExpand": "Ausklappen"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",
@@ -17277,7 +17355,11 @@
       "xaiOauthCodeHint": "Geben Sie diesen Code im Browser ein, um die Autorisierung abzuschließen...",
       "xaiOauthReopen": "Autorisierungsseite erneut öffnen",
       "xaiOauthWaiting": "Warten auf Autorisierung...",
-      "xaiOauthConnectBtn": "SuperGrok autorisieren"
+      "xaiOauthConnectBtn": "SuperGrok autorisieren",
+      "oauthExpiredNotice": "Diese Autorisierung ist nicht mehr gültig (auf der Plattform widerrufen oder abgelaufen). Klicke auf „Jetzt beheben“, um sie erneut zu autorisieren und den Dienst wiederherzustellen.",
+      "oauthFixNow": "Jetzt beheben",
+      "fileInputLabel": "Eingabe der Anmeldedaten-Datei",
+      "clearSyncedMemory": "Auch synchronisierte Speicherdaten entfernen ({count, plural, one {# Quelle} other {# Quellen}})"
     },
     "skillQuality": {
       "title": "Fähigkeitsqualitätsverwaltung",
@@ -18024,7 +18106,19 @@
       },
       "editor": {
         "edit": "Bearbeiten",
-        "preview": "Vorschau"
+        "preview": "Vorschau",
+        "snippets": {
+          "bold": "fetter Text",
+          "italic": "kursiver Text",
+          "heading": "Überschrift",
+          "code": "Code",
+          "quote": "Zitat",
+          "bullet": "Listenpunkt",
+          "todo": "Aufgabe",
+          "wikilink": "Seitenname",
+          "tableHeader": "Kopfzeile {index}",
+          "tableCell": "Inhalt {index}"
+        }
       },
       "concepts": {
         "discard": "Verwerfen",
@@ -18356,10 +18450,77 @@
         "empty": "Bitte zuerst Ihren Rückblick eingeben",
         "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"
       },
-      "reviewSlip": {
-        "fetchFailed": "Prüfliste konnte nicht geladen werden",
-        "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
-        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen"
+      "ledger": {
+        "title": "Übersicht der fünf Wissensschichten",
+        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten.",
+        "refreshStats": "Statistik aktualisieren",
+        "viewLayerItems": "Eintragsliste von {title} anzeigen",
+        "archivedItems": "Archivierte Einträge",
+        "drawerTitle": "{title} · archivierte Einträge",
+        "itemCount": "{count} Dokumente",
+        "closeDrawer": "Eintragsliste schließen",
+        "loadingItems": "Dokumentliste dieser Schicht wird geladen ...",
+        "emptyItems": "In dieser Schicht gibt es noch keine archivierten Markdown-Einträge.",
+        "previewItem": "Eintrag {title} in der Vorschau ansehen",
+        "noSnippet": "Noch keine Zusammenfassung",
+        "justNow": "Gerade eben",
+        "quickPreview": "Schnellvorschau",
+        "layers": {
+          "l1": {
+            "title": "Rohdaten und Kandidatenpool",
+            "subtext": "Rohdaten & Posteingang",
+            "badge": "Rohbeleg",
+            "description": "Unverarbeitete Web-Snapshots, Besprechungsaufnahmen und flüchtige Entwürfe; nehmen strikt nicht an der Langzeitsuche teil."
+          },
+          "l2": {
+            "title": "Quellen-Nachweiskarten",
+            "subtext": "Sources (Ausweiskarten)",
+            "badge": "Beweisquelle",
+            "description": "Quellen-Ausweiskarten mit Autoritätsstufe und SHA256-Signatur – die Grundlage für die Rückverfolgbarkeit allen Faktenwissens."
+          },
+          "l3": {
+            "title": "Kernwissensbasis",
+            "subtext": "Konzepte & Methoden",
+            "badge": "Hochvertrauenswürdig",
+            "description": "Objektive Fakten, atomare Konzepte und Engineering-Methoden, die das strenge Draft-to-Live-Gate passieren."
+          },
+          "l4": {
+            "title": "Meinungen und Behauptungen",
+            "subtext": "Claims (noch zu prüfen)",
+            "badge": "Subjektive Annahme",
+            "description": "Hypothesen mit Konfidenz und Diskussionsverlauf, strikt von objektiven Fakten getrennt, damit sie die Wahrheitsschicht nicht verunreinigen."
+          },
+          "l5": {
+            "title": "Ergebnisse",
+            "subtext": "Ergebnisse",
+            "badge": "Endergebnis",
+            "description": "Endergebnisse einer Aufgabe."
+          }
+        },
+        "preview": {
+          "ariaLabel": "Dokumentvorschau des Eintrags",
+          "updatedAt": "Aktualisiert: {value}",
+          "storageLayer": "Speicherschicht: {value}",
+          "pathCopied": "Pfad kopiert",
+          "copyPath": "Relativen Pfad kopieren",
+          "openInEditor": "Im Wiki-Editor öffnen",
+          "close": "Vorschau schließen"
+        }
+      },
+      "toolbar": {
+        "label": "Wiki-Markdown-Werkzeugleiste",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "h2": "Überschrift 2",
+        "code": "Codeblock",
+        "quote": "Zitat",
+        "bullet": "Aufzählung",
+        "todo": "Aufgabenliste",
+        "wikilink": "Wiki-Link",
+        "table": "Tabelle einfügen"
+      },
+      "videoPlayer": {
+        "chapterNavigation": "Zu Zeitstempel springen"
       }
     },
     "skills": {
@@ -18691,7 +18852,8 @@
         "undoLastReplace": "Letztes Update rückgängig",
         "undoLastReplaceHint": "Stellt die automatisch gespeicherte Version vor dem letzten Update wieder her.",
         "undoLastReplaceSuccess": "Vorherige Version wiederhergestellt",
-        "undoLastReplaceFailed": "Letztes Update konnte nicht rückgängig gemacht werden"
+        "undoLastReplaceFailed": "Letztes Update konnte nicht rückgängig gemacht werden",
+        "apiKeyLabel": "API-Schlüssel"
       },
       "curator": {
         "safetyPromise": "Fähigkeiten werden nie gelöscht. Im schlimmsten Fall werden sie archiviert, und Sie können sie jederzeit wiederherstellen.",
@@ -20645,7 +20807,8 @@
           "e2eeAlgorithm": "Algorithmus",
           "e2eeFingerprint": "Fingerabdruck"
         },
-        "copied": "In die Zwischenablage kopiert"
+        "copied": "In die Zwischenablage kopiert",
+        "refreshTailscaleStatus": "Tailscale-Status aktualisieren"
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",
@@ -20755,7 +20918,10 @@
         "guideTitle": "Computer-Nutzung bei Abwesenheit · Schnelleinrichtung",
         "statusOn": "An",
         "statusOptional": "Wahlweise"
-      }
+      },
+      "timezoneNoResults": "Keine Ergebnisse",
+      "timezoneSearchPlaceholder": "Zeitzonen suchen ...",
+      "timezonePopular": "Beliebt"
     },
     "push": {
       "title": "Benachrichtigungen",
@@ -21170,7 +21336,10 @@
       "cacheRadarSavings": "Geschätzte Gesamteinsparung:",
       "cacheRadarCachedTokens": "Wiederverwendete Cache-Tokens",
       "cacheRadarFreshInput": "Neue Eingabe-Tokens",
-      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt"
+      "cacheRadarTotalPrompt": "Prompt-Tokens gesamt",
+      "dailyToolCallsTooltip": "{date}: {count} Tool-Aufrufe",
+      "weekdayToolCallsTooltip": "{day}: {count, plural, one {# Tool-Aufruf} other {# Tool-Aufrufe}}",
+      "daysCount": "{count, plural, one {# Tag} other {# Tage}}"
     },
     "workingState": {
       "title": "Arbeitsstatus",
@@ -21257,7 +21426,13 @@
       "digestWindowModeUnknown": "Aktuelles Fenster",
       "digestWindow": "Digest-Fenster: {range}",
       "digestRuns": "Läufe",
-      "digestManualRuns": "Manuelle Läufe"
+      "digestManualRuns": "Manuelle Läufe",
+      "dimension": {
+        "freshness": "Aktualität",
+        "coverage": "Abdeckung",
+        "retention_health": "Aufbewahrungszustand",
+        "coherence": "Kohärenz"
+      }
     },
     "memoryBackup": {
       "title": "Speichersicherung",
@@ -21595,7 +21770,25 @@
         "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen...",
         "exportZip": "Trace exportieren (ZIP)",
         "exportZipTooltip": "Rohe Sitzungsereignisprotokolle und Artefakte als ZIP-Paket exportieren",
-        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets"
+        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets",
+        "llmUnknownModel": "Unbekanntes Modell",
+        "llmRetry": "Wiederholung ×{count}",
+        "llmTokens": "{count} Token",
+        "llmNetworkWaitTitle": "Netzwerkwartezeit (TTFT): {ms}ms",
+        "llmGenerationTitle": "Token-Generierung: {ms}ms",
+        "llmTtft": "Erstes Token (TTFT): {ms}ms",
+        "llmGeneration": "Generierung: {ms}ms",
+        "llmPrompt": "Eingabe: {count}",
+        "llmCompletion": "Ausgabe: {count}",
+        "llmMessages": "Nachrichten: {count}",
+        "llmViewportInspect": "Modell-Viewport (Ansehen)",
+        "llmViewportHide": "Modell-Viewport (Ausblenden)",
+        "experienceWizardTitle": "Assistent für das sechsstufige Projekterfahrungs-Nachweispaket erstellen",
+        "experienceWizardButton": "Erfahrungs-Assistent",
+        "pluginStateTitle": "Plugin-Erweiterungsstatus",
+        "protectedSpan": "Geschützter Span",
+        "retryAttempt": "Versuch: {attempt} (Anbieter-Backoff / wiederholt)",
+        "toolSpanLabel": "Tool"
       },
       "contextDoctor": {
         "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
@@ -21756,7 +21949,10 @@
       "amount": "Betrag",
       "status": "Statuszustand",
       "time": "Zeit",
-      "verifiedReceipt": "HMAC-Signatur verifiziert"
+      "verifiedReceipt": "HMAC-Signatur verifiziert",
+      "entryHashLabel": "Eintrags-Hash:",
+      "entryHashPending": "Ausstehend / entfällt",
+      "idempotencyKeyLabel": "Idempotenzschlüssel:"
     },
     "channelBudget": {
       "title": "Kanal-Budgetlimits",
@@ -22289,7 +22485,9 @@
           "trustRiskHint": "Nicht vertrauenswürdige Erweiterungen können Prompt-Injections enthalten. Stellen Sie sicher, dass Pakete aus vertrauenswürdigen Quellen stammen.",
           "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu",
           "skillsNotSupported": "Diese Umgebung erlaubt keine eigenen Fähigkeiten - automatisch übersprungen",
-          "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen"
+          "stdioNotAllowed": "Lokale MCP-Server-Prozesse können in dieser Umgebung nicht laufen - automatisch übersprungen",
+          "sourceCloudSandbox": "Cloud-Sandbox",
+          "sourceLocalOs": "Lokale Betriebssystemrechte"
         },
         "diagnostics": {
           "scope": {
@@ -22517,7 +22715,8 @@
       "tierProd": "Produktion",
       "tierStaging": "Staging-Umgebung",
       "tierDev": "Entwicklung",
-      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}"
+      "probeFailed": "Prüfung von {host} fehlgeschlagen: {message}",
+      "breakGlassCommandPlaceholder": "z. B. systemctl restart nginx"
     },
     "desktopShellFeatures": {
       "bulletOsHighlight": "Bildschirmhervorhebung bei Freigaben — roter Rahmen auf dem echten Display am Klickziel (macOS und Windows)",
@@ -22673,5 +22872,141 @@
     "pinTooltip": "An das Dashboard des Arbeitsbereichs anheften",
     "pinned": "Angeheftet",
     "pin": "Anheften"
+  },
+  "taskHud": {
+    "panelLabel": "Aufgabenfortschritt-Panel, das die Kontextkomprimierung übersteht",
+    "allDone": "Alle Aufgaben abgeschlossen",
+    "badge": "Kompaktierungsfest",
+    "collapseAria": "Aufgabenliste einklappen",
+    "collapse": "Liste einklappen",
+    "expand": "Aufgabenliste ausklappen",
+    "toggleTask": "Status der Aufgabe {title} umschalten"
+  },
+  "stagedArtifacts": {
+    "summary": "{count, plural, one {# nicht gespeicherter Artefakt-Entwurf wurde} other {# nicht gespeicherte Artefakt-Entwürfe wurden}} automatisch im Workspace abgelegt",
+    "lineCount": "{count, plural, one {# Zeile} other {# Zeilen}}",
+    "footnote": "Diese Dateien sind in der Sandbox gesichert. Sie können sie jederzeit im Dateibaum links ansehen oder umbenennen und übernehmen."
+  },
+  "leaseCapsule": {
+    "quota": "Auto-Freigabe-Kontingent: {used}/{max} Schritte",
+    "extend": "+{steps} Schritte verlängern",
+    "limitReached": "Limit erreicht",
+    "pauseTitle": "Auto-Freigabe-Hülle sofort pausieren",
+    "pause": "Pausieren"
+  },
+  "embeds": {
+    "load": "{label} laden",
+    "moreOptions": "Weitere Optionen",
+    "alwaysAllow": "{label} immer zulassen",
+    "loadFailed": "{label}-Einbettung konnte nicht geladen werden"
+  },
+  "skeleton": {
+    "loadingList": "Liste wird geladen",
+    "loadingCards": "Karten werden geladen",
+    "loadingTable": "Tabelle wird geladen",
+    "loadingForm": "Formular wird geladen",
+    "loadingWorkspace": "Arbeitsbereich wird geladen",
+    "loadingMetrics": "Metriken werden geladen",
+    "loadingTimeline": "Zeitachse wird geladen"
+  },
+  "diffViewer": {
+    "unknownFile": "Unbekannte Datei",
+    "splitView": "Geteilte Ansicht",
+    "unifiedView": "Einheitliche Ansicht",
+    "copyDiff": "Diff kopieren",
+    "close": "Schließen",
+    "binaryChanged": "Binärdatei geändert",
+    "noChanges": "Keine Änderungen"
+  },
+  "riskGate": {
+    "regionLabel": "Gestufte Risikobestätigung",
+    "dryRunImpact": "Simulierte Ausführung von {tool} mit dry_run=true",
+    "dryRunDefaultTarget": "Zielobjekt",
+    "dryRunParamsVerified": "Parameterprüfung bestanden ({count, plural, one {# Feld} other {# Felder}})",
+    "dryRunNoPersistentChanges": "Keine dauerhaften Änderungen an Dateisystem oder Datenbank vorgenommen"
+  },
+  "commerceReceipt": {
+    "statusCommitted": "Bezahlt und geprüft",
+    "statusReserved": "Reserviert",
+    "statusRefunded": "Erstattet",
+    "statusRejected": "Blockiert",
+    "hashVerified": "Ledger-Hash per HMAC geprüft"
+  },
+  "evidencePack": {
+    "modalTitle": "Projekterfahrung in sechs Schritten",
+    "copyMarkdownTitle": "Markdown kopieren",
+    "copied": "Kopiert",
+    "copyShort": "MD kopieren",
+    "downloadMarkdownTitle": "Markdown herunterladen",
+    "exportMarkdown": "Markdown exportieren",
+    "downloadJsonTitle": "JSON herunterladen",
+    "facts": "Wichtige Fakten und Belege:",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "stepCounter": "Schritt {current} / {total}",
+    "untitledTask": "Unbenannte Projektaufgabe",
+    "noTextInput": "Keine explizite Texteingabe",
+    "planningDetected": "{count} Dispatch-Phasen für Architektur- und Planungsentscheidungen erkannt",
+    "planningNodeFallback": "Planungsknoten",
+    "directExecution": "Ende-zu-Ende-Direktausführung im agilen Reaktionsmodus",
+    "firstWrite": "Erste Artefaktänderung: [{tool}] (Sequenz #{sequence})",
+    "targetFile": "Zieldatei: {path}",
+    "noFileChanges": "Keine statischen Dateiänderungen erkannt oder reine Konversationsaufgabe",
+    "executionSummary": "Insgesamt {total} Tool-Aufrufe, davon {failed} nach Fehlern abgefangen oder repariert",
+    "errorRecord": "[Fehlerprotokoll] {type}: {message}",
+    "selfHealPoint": "[Selbstheilungspunkt] Nach dem Fehlschlag von {tool} wurde eine Wiederholung oder Strategieanpassung ausgelöst",
+    "verificationSummary": "{count} Verifikations-/Testaktionen ausgeführt, Erfolgsquote {rate} %",
+    "verificationRun": "[Nachweislauf] {tool}: {result}",
+    "resultPassed": "Bestanden",
+    "resultFailed": "Fehlgeschlagen",
+    "verificationInferred": "Abgeleitete Verifikation anhand semantischer Konsistenz und des Aufgabenabschluss-Gates abgeschlossen",
+    "takeawayClosedLoop": "Aufgabe vollständig abgeschlossen; Entscheidungen und Belege der Phasen stimmen gut überein",
+    "takeawayExtractSkill": "Empfehlung: den stabilen SOP aus diesem Lauf als eigenen Skill oder Automatisierungsvorlage extrahieren",
+    "takeawayNotSuccess": "Aufgabenstatus: {outcome}; Unterbrechung oder erster nicht behebbarer Fehler beachten",
+    "takeawayFirstFatal": "Erster schwerwiegender Fehler bei Schrittindex #{index}",
+    "metricTotalCalls": "Aufrufe gesamt",
+    "metricFailures": "Fehler",
+    "steps": {
+      "requirements": {
+        "title": "Ursprüngliche Anforderungen",
+        "shortTitle": "Anforderungen",
+        "summary": "Ursprüngliches Aufgabenziel, fachlicher Hintergrund und Randbedingungen"
+      },
+      "architecture": {
+        "title": "Architektur und Entscheidungen",
+        "shortTitle": "Architektur",
+        "summary": "Auswahl des technischen Wegs, Planzerlegung und Abhängigkeiten"
+      },
+      "initial_impl": {
+        "title": "Snapshot der v0-Implementierung",
+        "shortTitle": "v0-Entwurf",
+        "summary": "Erste Code-/Artefakt-Ausgabe und Ausgangsform der Lösung"
+      },
+      "execution_correction": {
+        "title": "Ausführung und selbstheilende Korrekturen",
+        "shortTitle": "Ausführung",
+        "summary": "Tool-Aufrufprotokoll, Fehleranalyse und Korrekturbelege"
+      },
+      "verification": {
+        "title": "Objektive Verifikation und Testnachweise",
+        "shortTitle": "Verifikation",
+        "summary": "Testfälle, statische Prüfungen und gemessene Umgebungsdaten"
+      },
+      "takeaways": {
+        "title": "Erkenntnisse und Regressionsschutz",
+        "shortTitle": "Erkenntnisse",
+        "summary": "Rückblick, Best Practices und Empfehlungen zur Verankerung"
+      }
+    },
+    "markdownHeading": "Projekterfahrungs-Nachweispaket (sechs Schritte): {title}",
+    "markdownSessionId": "Sitzungs-ID",
+    "markdownOutcome": "Ergebnis",
+    "markdownDuration": "Dauer",
+    "markdownTokens": "Token-Verbrauch",
+    "markdownToolCalls": "Tool-Aufrufe",
+    "markdownGeneratedAt": "Erstellt am",
+    "markdownStepHeading": "Schritt {index}: {title}",
+    "markdownMetrics": "Wichtige Kennzahlen",
+    "markdownFooter": "Automatisch vom Sechs-Schritte-Assistenten für Projekterfahrung erstellt"
   }
 }

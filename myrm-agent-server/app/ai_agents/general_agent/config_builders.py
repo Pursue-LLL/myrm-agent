@@ -71,7 +71,6 @@ def build_execution_config(code_execution_allow_network: bool | None) -> "Execut
     return ExecutionConfig(
         mode=base.mode,
         local=base.local,
-        mcp_proxy=base.mcp_proxy,
         network=NetworkConfig(
             allow_network=code_execution_allow_network,
             allowed_hosts=base.network.allowed_hosts,

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 import time
 from collections import deque
 from collections.abc import Callable
@@ -197,6 +198,11 @@ async def consume_background_entry(
     except Exception as exc:  # pragma: no cover — defensive
         logger.warning("background reader for pid=%s crashed: %s", entry.info.pid, exc)
     finally:
+        # A coroutine closed unfinished (an abandoned task collected by the garbage collector) has no loop left to
+        # await on, and the registry lock may be held by the very thread that triggered the collection: finishing
+        # would wait on it forever.
+        if isinstance(sys.exc_info()[1], GeneratorExit):
+            raise
         # Trailing flush: deliver un-emitted tail progress trapped by the 10Hz throttle before finish.
         tail_progress = entry.info.last_progress
         tail_updated_at = tail_progress.get("updated_at") if tail_progress is not None else None

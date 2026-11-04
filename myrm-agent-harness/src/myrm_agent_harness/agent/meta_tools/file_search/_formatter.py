@@ -2,13 +2,13 @@
 
 [OUTPUT]
 - compact_match_line: Truncates long match lines preserving match context
-- format_grep_results: Formats search results into LLM-friendly output
+- format_grep_results: Formats search results into LLM-friendly output, stating how many files were searched
+  (when known) and when a file cap cut the scan short
 
 [POS]
 Grep output formatter. Transforms raw search matches into LLM-friendly output
 with intelligent truncation, non-code file capping, and path-grouped
-densification (eliminates repeated path strings when >= 5 matches,
-saving 18-39% tokens in typical scenarios).
+densification (eliminates repeated path strings when >= 5 matches).
 """
 
 from __future__ import annotations
@@ -81,19 +81,36 @@ def _is_non_code_file(file_path: str) -> bool:
 def format_grep_results(
     results: list[dict[str, str | int]],
     pattern: str,
-    files_searched: int,
+    files_searched: int | None,
     max_results: int,
     is_regex: bool = True,
+    *,
+    scan_limit: int | None = None,
 ) -> str:
     """Format grep results with non-code truncation and path-grouped densification.
 
     When total matches >= _DENSIFY_MIN_MATCHES, groups consecutive matches under
-    a single path header to eliminate repeated path strings (saves 18-39% tokens).
+    a single path header to eliminate repeated path strings.
     Falls back to flat ``path:line: content`` format for small result sets where
     densification adds no benefit.
+
+    ``files_searched`` is None when the caller cannot state the count (the ripgrep tier cannot), and the
+    count is then left out. ``scan_limit`` is the file cap that cut the scan short, when one did.
     """
+    scan_note = (
+        f"... (scan limited to the first {scan_limit} files; narrow path or file_pattern to cover the rest)"
+        if scan_limit is not None
+        else None
+    )
+    searched = f" (searched {files_searched} file(s))" if files_searched is not None else ""
+
     if not results:
-        return f"No matches found for: {pattern}\n(Searched {files_searched} file(s))"
+        footer = [f"No matches found for: {pattern}"]
+        if files_searched is not None:
+            footer.append(f"(Searched {files_searched} file(s))")
+        if scan_note:
+            footer.append(scan_note)
+        return "\n".join(footer)
 
     files_order: list[str] = []
     matches_by_file: dict[str, list[dict[str, str | int]]] = {}
@@ -107,7 +124,7 @@ def format_grep_results(
     total_matches = sum(1 for r in results if r.get("type", "match") == "match")
     densify = total_matches >= _DENSIFY_MIN_MATCHES
 
-    lines: list[str] = [f"Found {total_matches} match(es) for '{pattern}' (searched {files_searched} file(s)):\n"]
+    lines: list[str] = [f"Found {total_matches} match(es) for '{pattern}'{searched}:\n"]
 
     for fp in files_order:
         file_matches = matches_by_file[fp]
@@ -150,5 +167,7 @@ def format_grep_results(
 
     if total_matches >= max_results:
         lines.append(f"\n... (limited to first {max_results} results)")
+    if scan_note:
+        lines.append(f"\n{scan_note}")
 
     return "\n".join(lines)

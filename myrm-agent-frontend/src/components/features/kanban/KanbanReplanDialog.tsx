@@ -100,12 +100,9 @@ export default function KanbanReplanDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <GitCompare className="w-5 h-5 text-primary" />
-            {t('replanTitle') || 'DAG Plan Revision Review'}
+            {t('replanTitle')}
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            {t('replanDescription') ||
-              'Review proposed modifications to the task graph. All changes will be validated for acyclicity and applied atomically.'}
-          </DialogDescription>
+          <DialogDescription className="text-xs text-muted-foreground">{t('replanDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
@@ -114,33 +111,31 @@ export default function KanbanReplanDialog({
             <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
               <Plus className="w-4 h-4" />
               <div className="text-xs">
-                <span className="font-semibold">{addedTasks.length}</span> {t('replanAdded') || 'Tasks to Add'}
+                <span className="font-semibold">{addedTasks.length}</span> {t('replanAdded')}
               </div>
             </div>
             <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400">
               <RefreshCw className="w-4 h-4" />
               <div className="text-xs">
-                <span className="font-semibold">{updatedTasks.length}</span> {t('replanUpdated') || 'Tasks to Update'}
+                <span className="font-semibold">{updatedTasks.length}</span> {t('replanUpdated')}
               </div>
             </div>
             <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400">
               <Trash2 className="w-4 h-4" />
               <div className="text-xs">
-                <span className="font-semibold">{removedTasks.length}</span> {t('replanRemoved') || 'Tasks to Remove'}
+                <span className="font-semibold">{removedTasks.length}</span> {t('replanRemoved')}
               </div>
             </div>
           </div>
 
           {/* Rationale Input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">
-              {t('replanRationaleLabel') || 'Revision Rationale / Trigger Reason'}
-            </label>
+            <label className="text-xs font-medium text-foreground">{t('replanRationaleLabel')}</label>
             <input
               type="text"
               value={rationale}
               onChange={(e) => setRationale(e.target.value)}
-              placeholder={t('replanRationalePlaceholder') || 'e.g. Discovered missing API schema dependencies'}
+              placeholder={t('replanRationalePlaceholder')}
               className="w-full px-3 py-1.5 text-xs rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -148,39 +143,37 @@ export default function KanbanReplanDialog({
           {/* Detailed Task Changes Diff */}
           <div className="space-y-2">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t('replanChangesList') || 'Detailed Diff Changes'}
+              {t('replanChangesList')}
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2 bg-muted/20">
               {proposedChanges.length === 0 ? (
-                <div className="text-xs text-muted-foreground text-center py-4">
-                  {t('replanNoChanges') || 'No task modifications proposed'}
-                </div>
+                <div className="text-xs text-muted-foreground text-center py-4">{t('replanNoChanges')}</div>
               ) : (
                 proposedChanges.map((change, idx) => (
                   <div key={idx} className="flex items-start gap-2 p-2 rounded border bg-background text-xs">
                     {change.action === 'add' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                        ADD
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        {t('replanActionAdd')}
                       </span>
                     )}
                     {change.action === 'update' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
-                        UPDATE
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                        {t('replanActionUpdate')}
                       </span>
                     )}
                     {change.action === 'remove' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-rose-500/20 text-rose-600 dark:text-rose-400">
-                        REMOVE
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase rounded bg-rose-500/20 text-rose-600 dark:text-rose-400">
+                        {t('replanActionRemove')}
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{change.title || change.task_id || 'Untitled'}</div>
+                      <div className="font-medium truncate">{change.title || change.task_id || t('replanUntitled')}</div>
                       {change.description && (
                         <div className="text-[11px] text-muted-foreground truncate">{change.description}</div>
                       )}
                       {change.depends_on && change.depends_on.length > 0 && (
                         <div className="text-[10px] text-muted-foreground mt-0.5">
-                          Depends on: {change.depends_on.join(', ')}
+                          {t('replanDependsOn', { ids: change.depends_on.join(', ') })}
                         </div>
                       )}
                     </div>
@@ -193,10 +186,7 @@ export default function KanbanReplanDialog({
           {/* Invariant Assurance Banner */}
           <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs">
             <ShieldCheck className="w-4 h-4 shrink-0" />
-            <div>
-              {t('replanInvariantGuaranteed') ||
-                'Completed and In-Review tasks are strictly locked and will not be altered. DAG acyclicity will be validated on commit.'}
-            </div>
+            <div>{t('replanInvariantGuaranteed')}</div>
           </div>
         </div>
 
@@ -207,7 +197,7 @@ export default function KanbanReplanDialog({
             disabled={applying}
             className="px-3 py-1.5 text-xs font-medium rounded-md border hover:bg-muted transition-colors disabled:opacity-50"
           >
-            {t('cancel') || 'Cancel'}
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -216,7 +206,7 @@ export default function KanbanReplanDialog({
             className="px-4 py-1.5 text-xs font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
           >
             {applying && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-            {t('replanApply') || 'Apply Plan Revision'}
+            {t('replanApply')}
           </button>
         </DialogFooter>
       </DialogContent>

@@ -9,12 +9,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Bot, Hash, Send, Shield, Sparkles, User } from 'lucide-react';
-import {
-  GroupMessage,
-  GroupParticipant,
-  GroupRoom,
-  PeerSessionArchive,
-} from './groupChatTypes';
+import { GroupMessage, GroupParticipant, GroupRoom, PeerSessionArchive } from './groupChatTypes';
 import { groupChatService } from './groupChatService';
 import { ComposerMentionDropdown } from './ComposerMentionDropdown';
 import { GroupRoomSidebar } from './GroupRoomSidebar';
@@ -23,9 +18,7 @@ interface GroupChatRoomLayoutProps {
   initialRoomId?: string;
 }
 
-export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
-  initialRoomId,
-}) => {
+export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({ initialRoomId }) => {
   // Safe translation fallback
   let t = (key: string): string => key;
   try {
@@ -58,9 +51,7 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
 
   const loadRoomData = useCallback(async () => {
     const rooms = await groupChatService.listRooms();
-    const activeRoom = initialRoomId
-      ? rooms.find((r) => r.room_id === initialRoomId) || rooms[0]
-      : rooms[0];
+    const activeRoom = initialRoomId ? rooms.find((r) => r.room_id === initialRoomId) || rooms[0] : rooms[0];
 
     if (activeRoom) {
       setRoom(activeRoom);
@@ -186,15 +177,12 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span>Hermes Parity</span>
+            <span>{t('botModeSummary')}</span>
           </div>
         </header>
 
         {/* Messages Timeline */}
-        <section
-          aria-label="Room message timeline"
-          className="flex-1 overflow-y-auto p-6 space-y-4"
-        >
+        <section aria-label="Room message timeline" className="flex-1 overflow-y-auto p-6 space-y-4">
           {room.messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 text-xs">
               <Bot className="h-8 w-8 text-slate-400 mb-2" />
@@ -203,9 +191,7 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
           ) : (
             room.messages.map((msg: GroupMessage) => {
               const isHuman = msg.sender_role === 'human';
-              const sender = room.participants.find(
-                (p) => p.participant_id === msg.sender_id
-              );
+              const sender = room.participants.find((p) => p.participant_id === msg.sender_id);
               const avatarColor = sender?.avatar_color || (isHuman ? '#0f172a' : '#6366f1');
 
               return (
@@ -218,16 +204,12 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-xs font-semibold text-slate-200">
-                        {msg.sender_name}
-                      </span>
+                      <span className="text-xs font-semibold text-slate-200">{msg.sender_name}</span>
                       <span className="text-[10px] text-slate-400 font-mono">
                         {new Date(msg.timestamp_epoch_ms).toLocaleTimeString()}
                       </span>
                       {isHuman ? (
-                        <span className="text-[9px] px-1 bg-slate-800 text-slate-400 rounded">
-                          Human
-                        </span>
+                        <span className="text-[9px] px-1 bg-slate-800 text-slate-400 rounded">Human</span>
                       ) : (
                         <span className="text-[9px] px-1 bg-indigo-950 text-indigo-300 border border-indigo-800 rounded">
                           Bot
@@ -256,11 +238,7 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
               setIsMentionOpen(false);
             }}
           />
-          <form
-            data-testid="group-chat-composer-form"
-            onSubmit={handleSendMessage}
-            className="flex items-center gap-2"
-          >
+          <form data-testid="group-chat-composer-form" onSubmit={handleSendMessage} className="flex items-center gap-2">
             <input
               ref={inputRef}
               type="text"
@@ -282,10 +260,7 @@ export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({
       </main>
 
       {/* Right Sidebar */}
-      <GroupRoomSidebar
-        participants={room.participants}
-        peerArchives={peerArchives}
-      />
+      <GroupRoomSidebar participants={room.participants} peerArchives={peerArchives} />
     </div>
   );
 };

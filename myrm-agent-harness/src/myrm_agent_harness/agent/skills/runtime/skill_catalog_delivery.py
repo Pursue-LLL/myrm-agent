@@ -93,16 +93,13 @@ class RenderedCatalog:
         cls,
         display_skills: list[SkillMetadata],
         *,
-        hidden_skill_count: int = 0,
+        hidden_skill_names: Sequence[str] = (),
     ) -> RenderedCatalog:
-        xml = get_metadata_summary(
-            display_skills,
-            hidden_skill_count=hidden_skill_count,
-        )
+        xml = get_metadata_summary(display_skills, hidden_skill_names=hidden_skill_names)
         return cls(
             xml=xml,
-            hash=compute_catalog_hash(f"{xml}\n#hidden_count={hidden_skill_count}"),
-            hidden_skill_count=hidden_skill_count,
+            hash=compute_catalog_hash(xml),
+            hidden_skill_count=len(set(hidden_skill_names)),
         )
 
 
@@ -126,7 +123,7 @@ def render_bound_skills_catalog(
         return None
     return RenderedCatalog.from_display(
         resolution.display_skills,
-        hidden_skill_count=resolution.hidden_skill_count,
+        hidden_skill_names=[skill.name for skill in resolution.hidden_skills],
     )
 
 
@@ -151,15 +148,10 @@ def _baseline_block(rendered: RenderedCatalog) -> str:
 def build_bound_skills_block(
     display_skills: list[SkillMetadata],
     *,
-    hidden_skill_count: int = 0,
+    hidden_skill_names: Sequence[str] = (),
 ) -> str:
     """Render the full ``<bound_skills>`` block for HumanMessage prepend."""
-    return _baseline_block(
-        RenderedCatalog.from_display(
-            display_skills,
-            hidden_skill_count=hidden_skill_count,
-        )
-    )
+    return _baseline_block(RenderedCatalog.from_display(display_skills, hidden_skill_names=hidden_skill_names))
 
 
 def build_bound_skills_update_block(rendered: RenderedCatalog | None) -> str:

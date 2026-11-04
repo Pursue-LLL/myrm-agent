@@ -11,18 +11,14 @@ from myrm_agent_harness.toolkits.mcp import MCPConfig
 
 from .core_generator import MCPSkillGenerator
 from .executor import SkillExecutionContext, SkillExecutor, skill_executor
-from .ipc_proxy import (
-    IPCCallContext,
-    MCPIPCServer,
-    get_ipc_call_context,
-    get_mcp_ipc_server,
-    start_mcp_ipc_server,
-    stop_mcp_ipc_server,
-)
+from .ipc_endpoint import mcp_ipc_endpoint
+from .ipc_proxy import CallerScope, IPCCallContext, IPCEndpoint, MCPIPCServer, get_ipc_call_context
 from .proxy_service import MCPInvokeResult, MCPSkillProxyService, get_mcp_skill_proxy_service, handle_mcp_invoke
 
 __all__ = [
+    "CallerScope",
     "IPCCallContext",
+    "IPCEndpoint",
     "MCPConfig",
     "MCPIPCServer",
     "MCPInvokeResult",
@@ -31,10 +27,8 @@ __all__ = [
     "SkillExecutionContext",
     "SkillExecutor",
     "get_ipc_call_context",
-    "get_mcp_ipc_server",
     "get_mcp_skill_proxy_service",
     "handle_mcp_invoke",
+    "mcp_ipc_endpoint",
     "skill_executor",
-    "start_mcp_ipc_server",
-    "stop_mcp_ipc_server",
 ]

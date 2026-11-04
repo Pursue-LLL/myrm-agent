@@ -4,7 +4,7 @@
 （无运行时外部模块依赖；纯常量）
 
 [OUTPUT]
-跨 Agent 共享规则常量（ABSOLUTE_OBEDIENCE_RULES_*, TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
+跨 Agent 共享规则常量（ABSOLUTE_OBEDIENCE_RULES_*, TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, AGENT_RESPONSE_RULES_*, SEARCH_RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
 
 [POS]
 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供服从、任务完整性、桌面控制等核心护栏。桌面控制运行时注入英文单例（factory）。
@@ -14,7 +14,8 @@
 - ABSOLUTE_OBEDIENCE_RULES: 绝对服从规则（_EN / _ZH）
 - TASK_INTEGRITY_RULES: 任务完整性护栏（_EN / _ZH）
 - DESKTOP_CONTROL_RULES: 桌面控制规则（_EN / _ZH）
-- RESPONSE_RULES: 回复规则（含 quality_and_tone、formatting）（_EN / _ZH）
+- AGENT_RESPONSE_RULES: Agent 回复规则（篇幅随问题复杂度，Markdown / 表格以渠道声明为准）（_EN / _ZH）
+- SEARCH_RESPONSE_RULES: 搜索综合回复规则（全面详细的综合答案）（_EN / _ZH）；与 Agent 共用 _LATEX_RULES_* 公式契约
 - EXTERNAL_SOURCES_CITATION_RULES: 外部来源引用规则（_EN / _ZH）
 
 注：数据边界与安全规则（data_boundary_rules）由 Harness 框架层 SecurityBoundaryMiddleware
@@ -114,7 +115,28 @@ DESKTOP_CONTROL_RULES_ZH = """
 # 回复规则（quality_and_tone + formatting 组合）
 # =============================================================================
 
-RESPONSE_RULES_EN = """
+# Agent 与 Search 的回复规则各自维护；公式格式契约只有一份，两边共用。
+_LATEX_RULES_EN = """  - **Strict LaTeX math**:
+      - All mathematical formulas and symbols must use LaTeX format.
+      - Inline formulas: Must be enclosed in double dollar signs `$$...$$` (e.g. `$$E=mc^2$$`, `$$\\frac{a}{b}$$`, `$$x_i$$`, `$$\\%$$`).
+      - Block formulas: Use newline-wrapped double dollar signs `$$\\n...\\n$$` to center on a separate line.
+      - Never use single `$` for formulas (reserved only for USD currency). Never wrap non-math text or numbers (e.g. prices, dates) in `$$`.
+"""
+
+_LATEX_RULES_ZH = """  - **严格的公式格式**:
+      - **必须格式化**: 所有数学和科学公式、符号都必须使用 LaTeX 格式。
+      - **行内公式**: 必须使用**两个美元符号 `$$` 包围**，`$$`...`$$`。
+        示例：`$$E=mc^2$$`, `$$\\frac{a}{b}$$`, `$$x_i$$`, `$$\\%$$`。
+      - **块级公式**: 使用换行的两个美元符号 `$$\\n`...`\\n$$` 包围，使其独立成行并居中。
+          - 示例：
+              $$\n
+              ax^2 + bx + c = 0\n
+              $$
+      - **禁止误用**: `$$` 或 `$$\\n...\\n$$` **绝对不能** 用于包裹非公式的普通文本或数字（如价格、日期、ID）。价格应直接写作 `$5.00 美元` 或 `$5.00`。
+      - **严禁使用单个 `$` 包裹公式**: 单个 `$` 仅用于表示美元货币，绝不能用于包裹公式。
+"""  # noqa: E501
+
+SEARCH_RESPONSE_RULES_EN = f"""
 <response_rules>
   <quality_and_tone_rules>
   - **Language consistency**: Always respond in the same language as the user's query.
@@ -127,16 +149,11 @@ RESPONSE_RULES_EN = """
   <formatting_rules>
   - **Markdown readability**: Format your response with structured Markdown headers, bold emphasis, and bullet points.
   - **Tables**: Prefer Markdown tables for structured data comparisons.
-  - **Strict LaTeX math**:
-      - All mathematical formulas and symbols must use LaTeX format.
-      - Inline formulas: Must be enclosed in double dollar signs `$$...$$` (e.g. `$$E=mc^2$$`, `$$\\frac{{a}}{{b}}$$`, `$$x_i$$`, `$$\\%$$`).
-      - Block formulas: Use newline-wrapped double dollar signs `$$\\n...\\n$$` to center on a separate line.
-      - Never use single `$` for formulas (reserved only for USD currency). Never wrap non-math text or numbers (e.g. prices, dates) in `$$`.
-  </formatting_rules>
+{_LATEX_RULES_EN}  </formatting_rules>
 </response_rules>
 """
 
-RESPONSE_RULES_ZH = """
+SEARCH_RESPONSE_RULES_ZH = f"""
 <response_rules>
   <quality_and_tone_rules>
   - **语言一致性**: 始终使用与用户查询相同的语言进行回复。
@@ -152,18 +169,37 @@ RESPONSE_RULES_ZH = """
       - **重点**: 使用粗体 (`**text**`) 来强调关键词或短语。
       - **列表**: 使用项目符号 (`-` 或 `*`) 来呈现要点。
   - **表格**: 优先使用Markdown表格呈现数据而非列表，表格更直观。
-  - **严格的公式格式**:
-      - **必须格式化**: 所有数学和科学公式、符号都必须使用 LaTeX 格式。
-      - **行内公式**: 必须使用**两个美元符号 `$$` 包围**，`$$`...`$$`。
-        示例：`$$E=mc^2$$`, `$$\\frac{{a}}{{b}}$$`, `$$x_i$$`, `$$\\%$$`。
-      - **块级公式**: 使用换行的两个美元符号 `$$\\n`...`\\n$$` 包围，使其独立成行并居中。
-          - 示例：
-              $$\n
-              ax^2 + bx + c = 0\n
-              $$
-      - **禁止误用**: `$$` 或 `$$\\n...\\n$$` **绝对不能** 用于包裹非公式的普通文本或数字（如价格、日期、ID）。价格应直接写作 `$5.00 美元` 或 `$5.00`。
-      - **严禁使用单个 `$` 包裹公式**: 单个 `$` 仅用于表示美元货币，绝不能用于包裹公式。
-  </formatting_rules>
+{_LATEX_RULES_ZH}  </formatting_rules>
+</response_rules>
+"""  # noqa: E501
+
+AGENT_RESPONSE_RULES_EN = f"""
+<response_rules>
+  <quality_and_tone_rules>
+  - **Language consistency**: Always respond in the same language as the user's query.
+  - **Tone**: Professional, clear, naturally warm, never sycophantic. Offer follow-up help when appropriate.
+  - **Length and structure**: Match length to the complexity of the question. Answer simple questions directly and briefly. For complex ones, be thorough: lead with the conclusion, then expand point by point, and close with a next-step suggestion when useful.
+  </quality_and_tone_rules>
+
+  <formatting_rules>
+  - **Markdown**: Follow the channel's [Output Format] declaration if present; otherwise assume Markdown is supported. Use headers, bold, and lists only for content with several parallel parts.
+  - **Tables**: Prefer Markdown tables for comparisons and structured data, unless the channel's [Output Format] says tables are unsupported or not allowed.
+{_LATEX_RULES_EN}  </formatting_rules>
+</response_rules>
+"""
+
+AGENT_RESPONSE_RULES_ZH = f"""
+<response_rules>
+  <quality_and_tone_rules>
+  - **语言一致性**: 始终使用与用户查询相同的语言进行回复。
+  - **语气**: 专业、清晰、自然偏暖，不谄媚；回答结束后可主动提供延伸帮助。
+  - **篇幅与结构**: 篇幅与问题复杂度匹配。简单问题直接简短作答；复杂问题要充分展开：先给结论，再分点说明，必要时以下一步建议收尾。
+  </quality_and_tone_rules>
+
+  <formatting_rules>
+  - **Markdown**: 有 [Output Format] 渠道提示时以其声明为准，否则默认支持 Markdown；仅在内容有多个并列部分时使用标题、粗体、列表，避免过度格式化。
+  - **表格**: 对比类、结构化数据优先使用 Markdown 表格，但渠道 [Output Format] 不支持或不允许表格时除外。
+{_LATEX_RULES_ZH}  </formatting_rules>
 </response_rules>
 """  # noqa: E501
 
@@ -244,5 +280,4 @@ EXTERNAL_SOURCES_CITATION_RULES_ZH = """
 ABSOLUTE_OBEDIENCE_RULES = ABSOLUTE_OBEDIENCE_RULES_EN
 TASK_INTEGRITY_RULES = TASK_INTEGRITY_RULES_EN
 DESKTOP_CONTROL_RULES = DESKTOP_CONTROL_RULES_EN
-RESPONSE_RULES = RESPONSE_RULES_EN
 EXTERNAL_SOURCES_CITATION_RULES = EXTERNAL_SOURCES_CITATION_RULES_EN

@@ -26,7 +26,6 @@ interface CustomRulesListEditorProps {
 export const CustomRulesListEditor = memo<CustomRulesListEditorProps>(
   ({ rules, onAddRule, onRemoveRule, onRuleChange }) => {
     const t = useTranslations('settings.securityPolicy');
-    const tCap = useTranslations('cron.capability');
     const tPerm = useTranslations('settings.securityPolicy.permissionTypes');
 
     return (
@@ -84,7 +83,7 @@ export const CustomRulesListEditor = memo<CustomRulesListEditorProps>(
                   <SelectContent>
                     {KNOWN_PERMISSIONS.map((perm) => (
                       <SelectItem key={perm} value={perm}>
-                        {tPerm(perm, { default: tCap(perm, { default: perm }) })}
+                        {tPerm(perm)}
                       </SelectItem>
                     ))}
                   </SelectContent>

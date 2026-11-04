@@ -7,6 +7,10 @@
 [OUTPUT]
 - Aggregate facade re-exporting every public name of the ``diagnostic``
   subpackage, consumed by the ``diagnostics.py`` orchestrator facade:
+  - diagnostic_live_probes: run_embedding_live_probe / run_retrieval_pipeline_probe /
+    run_sparse_cjk_recall_probe
+  - diagnostic_migration_integrity: inspect_migration_integrity /
+    run_migration_integrity_probe
   - diagnostic_probe_results: probe rollup/status helpers + critical/missing probe
   - diagnostic_quality_governance: run_memory_quality_probe
   - diagnostic_recall_benchmark: run_golden_recall_benchmark
@@ -20,9 +24,18 @@
 [POS]
 Server business layer. Single Memory Doctor diagnostic domain: every
 ``diagnostic_*`` module is orchestrated by ``diagnostics.py`` and shares probe
-primitives, so the seven modules stay co-located under one facade.
+primitives, so the nine modules stay co-located under one facade.
 """
 
+from app.services.memory.diagnostics.diagnostic.diagnostic_live_probes import (
+    run_embedding_live_probe,
+    run_retrieval_pipeline_probe,
+    run_sparse_cjk_recall_probe,
+)
+from app.services.memory.diagnostics.diagnostic.diagnostic_migration_integrity import (
+    inspect_migration_integrity,
+    run_migration_integrity_probe,
+)
 from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import (
     critical_probe,
     doctor_check_to_probe,
@@ -64,6 +77,7 @@ __all__ = [
     "build_repair_plans",
     "critical_probe",
     "doctor_check_to_probe",
+    "inspect_migration_integrity",
     "missing_probe",
     "operation_status",
     "probe_context_bundle_manifest",
@@ -76,8 +90,12 @@ __all__ = [
     "probe_relational_store",
     "probe_vector_index",
     "rollup_status",
+    "run_embedding_live_probe",
     "run_golden_recall_benchmark",
     "run_memory_quality_probe",
+    "run_migration_integrity_probe",
+    "run_retrieval_pipeline_probe",
+    "run_sparse_cjk_recall_probe",
     "run_summary",
     "with_check_repair_plans",
     "with_probe_repair_plans",

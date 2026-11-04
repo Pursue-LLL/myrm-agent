@@ -46,6 +46,22 @@ describe('empty chat phone first-screen contract', () => {
     expect(read('../WorkModeTabs.tsx').match(/'flex min-w-0 flex-col [^']*max-\[375px\]:px-1[^']*'/g)).toHaveLength(1);
   });
 
+  it('wraps the cloud description row instead of squeezing its dot or storage badge, and keeps the chat icon at full size', () => {
+    const source = read('../NewTaskWorkContextCard.tsx');
+
+    expect(source).toContain('flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5');
+    expect(source).toContain('size-2 shrink-0 rounded-full');
+    expect(source).toContain('<Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />');
+  });
+
+  it('keeps the workspace trigger and its clear button inside the card on phones: the unbound sentence wraps, a bound path shrinks into an ellipsis', () => {
+    const source = read('../NewTaskWorkContextCard.tsx');
+
+    expect(source).toContain("'border-border text-muted-foreground h-auto min-h-8 whitespace-normal py-1.5 text-left'");
+    expect(source).toContain('flex items-center gap-2 min-w-0 flex-1 w-full');
+    expect(source).toContain('gap-1.5 min-w-0 max-w-full justify-start');
+  });
+
   it('renders the composer text at 16px on phones so iOS Safari does not zoom the page on focus', () => {
     const textarea = read('../MessageInput.tsx').match(/<TextareaAutosize[\s\S]*?\/>/)?.[0] ?? '';
 
@@ -62,7 +78,7 @@ describe('empty chat phone first-screen contract', () => {
       /<div className="max-lg:pl-12">[\s\S]*<\/div>\s*<div className="flex h-full w-full">/,
     );
 
-    expect(bannerStack?.[0]).toContain('<MemoryRecallDegradedBanner');
+    expect(bannerStack?.[0]).toContain('<EStopBanner');
     expect(bannerStack?.[0]).toContain('<YoloModeBanner');
   });
 });

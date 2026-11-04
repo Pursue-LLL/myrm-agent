@@ -34,7 +34,7 @@ describe('PluginTrustedSourceDisclosure', () => {
 
     expect(screen.getByText('Trusted Source & System Permissions Security Disclosure')).toBeInTheDocument();
     expect(screen.getByText('Running in Local/Desktop mode. Full host OS permissions.')).toBeInTheDocument();
-    expect(screen.getByText('Local OS Permissions')).toBeInTheDocument();
+    expect(screen.getByText('sourceLocalOs')).toBeInTheDocument();
     expect(screen.getByText('Untrusted extensions may contain prompt injection.')).toBeInTheDocument();
   });
 
@@ -42,7 +42,7 @@ describe('PluginTrustedSourceDisclosure', () => {
     mockIsSandbox.mockReturnValue(true);
     render(<PluginTrustedSourceDisclosure trusted={false} onTrustChange={vi.fn()} />);
 
-    expect(screen.getByText('Cloud Sandbox')).toBeInTheDocument();
+    expect(screen.getByText('sourceCloudSandbox')).toBeInTheDocument();
     expect(screen.getByText('Running in Cloud Sandbox mode. Dedicated isolated volume.')).toBeInTheDocument();
   });
 

@@ -7,12 +7,13 @@ module-level functions.
 
 [INPUT]
 - config::sanitize_mcp_name_component, should_register_mcp_tool (POS: MCP configuration, name sanitization, tool name parsing, and per-server tool filter function)
+- errors::MCPToolFailure (POS: MCP-specific error types; the marked ``str`` a failed call is rendered as)
 - schema::FlattenMeta, canonicalize_schema_for_cache, flatten_deep_schema, flatten_json_schema, has_dot_keys, nest_flat_arguments, coerce_arguments_by_schema, prepare_mcp_call_arguments (POS: MCP inbound tool schema normalization)
 - core.security.tool_registry::MCPAnnotations, SafetyMetadata, register_ptc_safety_metadata (POS: Tool metadata and permission mapping)
 
 [OUTPUT]
 - apply_tool_filter, enforce_description_limits, sanitize_tools, register_tool_annotations, prefix_tool_names
-- wrap_tools_with_timeout (with auth-error detection + MCPAuthExpiredEvent notification)
+- wrap_tools_with_timeout (with auth-error detection + MCPAuthExpiredEvent notification; failures it renders as text are ``MCPToolFailure``)
 
 [POS]
 MCP tool post-processing. Applies config-time least-privilege filtering, caps
@@ -44,6 +45,7 @@ from .config import (
     sanitize_mcp_name_component,
     should_register_mcp_tool,
 )
+from .errors import MCPToolFailure
 from .result_processing import (
     OversizedResultHandler,
     emit_mcp_app_event,
@@ -287,6 +289,10 @@ def wrap_tools_with_timeout(
     content (e.g. into ArtifactVault).  If the handler returns a summary
     string it replaces the truncated output; if it returns ``None`` or
     raises, the existing head-truncation logic is used as fallback.
+
+    Timeouts, unsupported content and lost authorization come back as
+    ``MCPToolFailure`` text: identical to a plain string for the model, and
+    recognizable to a script caller that needs an error rather than a result.
     """
     from myrm_agent_harness.core.security.detection.content_boundary import (
         wrap_untrusted,
@@ -334,18 +340,18 @@ def wrap_tools_with_timeout(
             except TimeoutError:
                 error_msg = f"MCP tool '{_name}' timed out after {_timeout}s. Server may be slow or unresponsive."
                 logger.error(error_msg)
-                return error_msg
+                return MCPToolFailure(error_msg)
             except (NotImplementedError, ValueError, TypeError) as exc:
                 error_msg = f"MCP tool '{_name}' returned unsupported content: {exc}"
                 logger.warning(error_msg)
-                return redact_sensitive_text(error_msg)
+                return MCPToolFailure(redact_sensitive_text(error_msg))
             except Exception as exc:
                 if _is_mcp_auth_error(exc):
                     server = parse_mcp_tool_name(_name)
                     srv_label = server[0] if server else _name
                     logger.warning("MCP tool '%s' failed with auth error (401)", _name)
                     _emit_auth_expired_for_tool(srv_label, str(exc))
-                    return (
+                    return MCPToolFailure(
                         f"MCP server '{srv_label}' requires re-authorization. "
                         f"Ask the user to re-authorize the connection, then ask me to retry."
                     )
