@@ -17,7 +17,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons';
-import { QueuedRestartNotice } from '@/components/features/instance-archive/QueuedRestartNotice';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 import {
@@ -32,15 +31,9 @@ import {
   type QuietHours,
 } from '@/lib/update-prefs';
 
-interface SnapshotItem {
-  snapshot_id: string;
-  label: string;
-  size_bytes: number;
-  created_at: string;
-  from_version?: string | null;
-  to_version?: string | null;
-}
 import { cn } from '@/lib/utils/classnameUtils';
+import StackUpdateChangelog from './StackUpdateChangelog';
+import StackUpdateSnapshots, { type StackSnapshotItem } from './StackUpdateSnapshots';
 
 interface ChangelogGroups {
   fixed: string[];
@@ -79,7 +72,7 @@ export default function StackUpdatePanel() {
   const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
   const [autoBackupEnabled, setAutoBackupState] = useState(true);
-  const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
+  const [snapshots, setSnapshots] = useState<StackSnapshotItem[]>([]);
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupError, setBackupError] = useState(false);
   const [restoredId, setRestoredId] = useState<string | null>(null);
@@ -119,7 +112,7 @@ export default function StackUpdatePanel() {
       if (!response.ok) {
         return;
       }
-      const payload = (await response.json()) as { snapshots?: SnapshotItem[] };
+      const payload = (await response.json()) as { snapshots?: StackSnapshotItem[] };
       if (Array.isArray(payload.snapshots)) {
         setSnapshots(payload.snapshots);
       }
@@ -165,8 +158,6 @@ export default function StackUpdatePanel() {
   const quietNow = isQuietNow(quiet);
   const fixed = status?.changelog?.fixed ?? [];
   const other = status?.changelog?.other ?? [];
-  const visibleFixed = expanded ? fixed : fixed.slice(0, 5);
-  const visibleOther = expanded ? other : other.slice(0, 5);
   const downloadProgress =
     totalBytes && totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : null;
 
@@ -398,45 +389,12 @@ export default function StackUpdatePanel() {
           )}
         </div>
 
-        {(fixed.length > 0 || other.length > 0) && (
-          <div className="space-y-3">
-            {fixed.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-foreground mb-1">{t('changelogFixed')}</p>
-                <ul className="space-y-1">
-                  {visibleFixed.map((item, index) => (
-                    <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <span className="text-emerald-400 mt-0.5">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {other.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-foreground mb-1">{t('changelogOther')}</p>
-                <ul className="space-y-1">
-                  {visibleOther.map((item, index) => (
-                    <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {(fixed.length > 5 || other.length > 5) && (
-              <button
-                type="button"
-                onClick={() => setExpanded((value) => !value)}
-                className="text-xs font-bold text-primary hover:underline"
-              >
-                {expanded ? t('showLess') : t('showMore')}
-              </button>
-            )}
-          </div>
-        )}
+        <StackUpdateChangelog
+          fixed={fixed}
+          other={other}
+          expanded={expanded}
+          onToggleExpanded={() => setExpanded((value) => !value)}
+        />
 
         <div className="flex flex-wrap gap-2">
           {latestVersion && !deferred && !isSecurity && (
@@ -469,79 +427,17 @@ export default function StackUpdatePanel() {
           {doctorResult === 'fail' && <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>}
         </div>
 
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('backupTitle')}</p>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={autoBackupEnabled}
-              onClick={handleAutoBackupToggle}
-              className={cn(
-                'px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors',
-                autoBackupEnabled
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                  : 'border-white/10 text-muted-foreground hover:bg-white/5',
-              )}
-            >
-              {t('backupAuto')}
-            </button>
-            <button
-              type="button"
-              onClick={handleBackupNow}
-              disabled={backupBusy}
-              className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
-            >
-              {t('backupNow')}
-            </button>
-          </div>
-          {backupError && (
-            <div className="space-y-1">
-              <p className="text-xs text-destructive/90">{t('backupFailed')}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{t('backupManualGuide')}</p>
-            </div>
-          )}
-          {restoredId && (
-            <div className="space-y-2">
-              <p className="text-xs text-emerald-400">
-                {t('restoreDone')} {t('restartRequired')}
-              </p>
-              <QueuedRestartNotice />
-            </div>
-          )}
-          {snapshots.length === 0 && <p className="text-xs text-muted-foreground">{t('snapshotEmpty')}</p>}
-          {snapshots.length > 0 && (
-            <ul className="space-y-1">
-              {snapshots.slice(0, 5).map((snapshot) => (
-                <li
-                  key={snapshot.snapshot_id}
-                  className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
-                >
-                  <span className="font-medium text-foreground">{snapshot.label}</span>
-                  <span>
-                    {(snapshot.size_bytes / 1024).toFixed(0)} KB · {snapshot.created_at.slice(0, 10)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void handleRestore(snapshot.snapshot_id)}
-                    disabled={backupBusy}
-                    className="px-2 py-1 rounded-lg border border-white/10 font-bold hover:bg-white/5 transition-colors disabled:opacity-50"
-                  >
-                    {t('snapshotRestore')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteSnapshot(snapshot.snapshot_id)}
-                    disabled={backupBusy}
-                    className="px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5 transition-colors disabled:opacity-50"
-                  >
-                    {t('snapshotDelete')}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <StackUpdateSnapshots
+          snapshots={snapshots}
+          autoBackupEnabled={autoBackupEnabled}
+          backupBusy={backupBusy}
+          backupError={backupError}
+          restoredId={restoredId}
+          onToggleAutoBackup={handleAutoBackupToggle}
+          onBackupNow={() => void handleBackupNow()}
+          onRestore={(snapshotId) => void handleRestore(snapshotId)}
+          onDelete={(snapshotId) => void handleDeleteSnapshot(snapshotId)}
+        />
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>{t('quietTitle')}</span>
