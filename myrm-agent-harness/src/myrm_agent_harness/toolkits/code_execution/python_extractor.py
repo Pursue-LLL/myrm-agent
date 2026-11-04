@@ -13,6 +13,7 @@ Quote-aware parsing prevents greedy-regex extraction errors.
 - validate_python_syntax: Pre-check extracted Python via ast.parse.
 - SKILL_IMPORT_RE: Compiled pattern for ``from skills.xxx_skill import`` detection.
 - TOOLS_IMPORT_RE: Compiled pattern for ``from tools.xxx import`` detection.
+- SKILLS_NAMESPACE_ADVICE: Guidance for a failed ``No module named 'skills'`` import.
 
 [POS]
 Centralised Python extraction with quote-aware parsing, heredoc support, and
@@ -168,6 +169,17 @@ as raw shell input was never recognized as Python and never reached PTC.
 _SKILL_MODULE_MARKER = "_skill"
 _TOOLS_MODULE = "tools"
 _SKILLS_PACKAGE = "skills"
+
+SKILLS_NAMESPACE_ADVICE = (
+    "Do not install anything: `skills` is the virtual namespace of MCP skills, not a package. "
+    "Call a skill from the inline Python of `bash_code_execute_tool` with "
+    "`from skills.<skill_name> import <function>` (names from the skill SOP); "
+    "a bare `import skills` or a saved `.py` file run with `python file.py` does not get that namespace."
+)
+"""What to tell a model whose code failed with ``No module named 'skills'``.
+
+The namespace is armed only for code the extractor recognises as a skill call (see ``SKILL_IMPORT_RE``).
+"""
 
 
 def detect_ptc_imports(code: str) -> tuple[bool, str | None] | None:

@@ -7,6 +7,7 @@ from myrm_agent_harness.agent.meta_tools.bash._tool.terminal_hints import (
     annotate_failure,
     annotate_masked_success,
 )
+from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 
 
 def test_annotate_failure_zero_exit_code() -> None:
@@ -34,6 +35,19 @@ def test_annotate_failure_module_not_found() -> None:
     assert hint is not None
     assert "pydantic_settings" in hint
     assert "virtual environment" in hint or "uv / pip" in hint
+
+
+def test_annotate_failure_skills_namespace_is_not_a_package_to_install() -> None:
+    hint = annotate_failure(
+        "cd /workspace && python3 probe_skills.py",
+        1,
+        'Traceback (most recent call last):\n  File "probe_skills.py", line 1, in <module>\n'
+        "    from skills.mcp_kubernetes_skill import list_namespaces\n"
+        "ModuleNotFoundError: No module named 'skills'",
+    )
+    assert hint is not None
+    assert SKILLS_NAMESPACE_ADVICE in hint
+    assert "uv / pip" not in hint
 
 
 def test_annotate_failure_port_in_use() -> None:

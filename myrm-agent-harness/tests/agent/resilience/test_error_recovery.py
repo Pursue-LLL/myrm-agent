@@ -6,6 +6,7 @@ from myrm_agent_harness.agent.resilience.error_recovery import (
     ErrorSelfCorrectionGovernor,
 )
 from myrm_agent_harness.agent.resilience.types import RecoveryActionType
+from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 
 
 def test_generate_hypotheses_missing_module():
@@ -69,8 +70,7 @@ def test_bare_skills_import_is_not_diagnosed_as_missing_dependency():
         error_message="Traceback (most recent call last):\nModuleNotFoundError: No module named 'skills'",
     )
     assert outcome.action_taken == RecoveryActionType.SANITIZE_INPUT
-    assert "Do not install anything" in outcome.diagnostic_details
-    assert "from skills.<skill_name> import <function>" in outcome.diagnostic_details
+    assert SKILLS_NAMESPACE_ADVICE in outcome.diagnostic_details
 
 
 @pytest.mark.parametrize("module", ["skills_extra", "skills.k8s_skill", "my_skills", "httpx"])
