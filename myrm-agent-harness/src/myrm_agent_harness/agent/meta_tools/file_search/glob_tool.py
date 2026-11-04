@@ -5,10 +5,15 @@
 - pydantic::BaseModel, Field (POS: 参数验证)
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
+- utils.errors::ToolError (POS: Framework-level error handling: ToolError with the format_for_llm protocol, and ModelOutputValidator)
+- utils.locale::is_chinese (POS: Shared locale utilities, single source of truth for locale string handling)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
+- grep_tool::_has_ripgrep (POS: Content search tool, Claude Code compatible)
+- path_hint::format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]
 - GlobInput: Glob 工具输入参数模型
@@ -259,6 +264,8 @@ def create_glob_tool(
                     user_hint=f"The glob pattern '{pattern}' is invalid. Use patterns like '*.py', '**/*.js', etc.",
                 ) from e
 
+            # Keep this lookup at call time: replacing grep_tool._has_ripgrep then switches both tools at once,
+            # which is how the test suite selects the tier (the engine fixture in conftest.py).
             from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import _has_ripgrep
 
             files: list[Path] = []

@@ -30,7 +30,7 @@ is listed under Tier Differences.
 
 ## Key Dependencies
 
-- `toolkits.code_execution` (executor for path resolution)
+- `agent.meta_tools._context_recovery` (`ensure_executor`: the executor that resolves the search path, recovered from the session stash when the ContextVar is lost)
 - `utils` (ToolError, is_chinese)
 - `core.security.safe_git` (hardened git invocation for the Python tier's git-aware listing)
 - `core.security.path` (`is_sensitive_file`: the sensitive file patterns that a directory search withholds)

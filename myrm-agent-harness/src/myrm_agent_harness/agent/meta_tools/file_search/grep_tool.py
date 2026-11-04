@@ -6,6 +6,8 @@
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏，防止凭证泄露到 LLM 上下文)
 - core.security.path::is_sensitive_file (POS: 敏感文件模式的唯一来源)
+- utils.errors::ToolError (POS: Framework-level error handling: ToolError with the format_for_llm protocol, and ModelOutputValidator)
+- utils.locale::is_chinese (POS: Shared locale utilities, single source of truth for locale string handling)
 - _redaction::redact_matches (POS: 逐文件按类型脱敏匹配行，源码里含 token 的类型名/变量名不被误遮)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
@@ -16,6 +18,8 @@
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
+- path_hint::format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]
 - GrepInput: Grep 工具输入参数模型
