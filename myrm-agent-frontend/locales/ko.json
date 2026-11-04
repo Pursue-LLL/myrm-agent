@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "5계층 지식 자산 전체 현황",
-        "architectureBadge": "WorkBuddy 아키텍처",
         "description": "사실과 가설을 물리적 계층으로 분리합니다.",
         "refreshStats": "통계 새로고침",
         "viewLayerItems": "{title} 항목 목록 보기",

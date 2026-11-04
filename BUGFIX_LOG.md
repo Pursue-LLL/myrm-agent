@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-04 · 知识库概览页五层看板的标题旁挂着「WorkBuddy 架构」徽章，把第三方产品名写在自家界面上，且不对应任何功能，已删除
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S"architectureBadge"` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码，读代码得出，没有在浏览器里点过] `WikiLayersLedgerPanel.tsx` 在卡片标题后渲染一个 `Badge`，文案取 `settings.wiki.ledger.architectureBadge`，6 种语言分别是「WorkBuddy architecture」「WorkBuddy 架构」「WorkBuddy 架構」「WorkBuddy アーキテクチャ」「WorkBuddy 아키텍처」「WorkBuddy-Architektur」，用户在概览页的五层看板上会直接看到别家产品的名字。 |
+| **根因** | [代码] 这个徽章是纯展示元素：没有点击、链接或条件分支依赖它，`architectureBadge` 这个键只被面板和面板测试引用（`rg architectureBadge`，排除语言包）。2026-11-03 的界面文案修复在「仍然存在」② 里把它记为「第三方产品名，保持原样」，当时只处理了文案是否走翻译，没有判断这个标签该不该出现在界面上。 |
+| **修复** | 删除徽章元素、6 种语言的 `ledger.architectureBadge` 键与面板测试里对它的断言；标题只剩 `t('title')`。 |
+| **行为变化** | 概览页五层看板标题旁不再有徽章，其余界面不变。 |
+| **回归证据** | [实测，scratch 工作树，基于 `3f55a99d0b`] `verify:i18n`、`bun run lint`（7 个门禁）、`tsc --noEmit`、`check_typescript_strict`、`check_fractal_docs --no-stub`、`check_barrel_exports`、`check_module_resolution`、字形 `--check`、孤儿门禁全部通过，硬编码文案基线仍是 432；frontend `settings` + `services` 304 个测试文件、2481 例全部通过。没有为「某个标签不出现」单独加测试：元素已经不在代码里，面板测试原先断言它存在的那一行同时删除。 |
+| **仍然存在** | ① [代码，抽查] 全仓库在去掉这个徽章之后，`rg -i workbuddy`（排除 `BUGFIX_LOG.md`）仍有 58 个文件、235 行。按文件名与抽查内容看，大头是以该产品为对象的功能与它们的测试：技能迁移映射（server `app/services/migration`、`app/core/skills/marketplace`、`assets/migration_maps`、两个预置技能、`SkillDiscoverTab.tsx` 里的「WorkBuddy Top 20」）和 Eval Lab 的 WorkBuddy Bench（`app/core/eval` 与 `wb_bench`）；另有只在注释、键名或测试数据里出现的：`artifacts/factcheck/*` 文件头注释、`SandboxLeastPrivilegeCard.tsx:100` 注释、`ChannelPairingWizardModal.tsx` 的 `antiWorkbuddy*` 键名、harness 测试数据 `src_workbuddy_guide`。这些没有处理，是否清理需要单独决定。② 没有在浏览器里实际打开概览页确认，结论来自代码与组件测试。 |
+| **代码位置** | frontend：`src/components/features/settings/sections/knowledge/wiki/WikiLayersLedgerPanel.tsx`、`src/components/features/settings/sections/knowledge/wiki/__tests__/WikiLayersLedgerPanel.test.tsx`、6 个 `locales/*.json`。 |
+
 ## 2026-11-04 · 知识库概览页的「审阅单」按钮每次都用代码里写死的三条虚构洞察生成审阅单，用户确认后会把虚构内容当草稿写进自己的知识库；全仓库没有任何代码产出真实的候选洞察，整个审阅单功能已删除，并连带删掉了同样没有调用方的使用台账
 
 | 字段 | 内容 |

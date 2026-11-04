@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "Übersicht der fünf Wissensschichten",
-        "architectureBadge": "WorkBuddy-Architektur",
         "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten.",
         "refreshStats": "Statistik aktualisieren",
         "viewLayerItems": "Eintragsliste von {title} anzeigen",

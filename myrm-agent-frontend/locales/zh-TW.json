@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "五層知識資產全域態勢",
-        "architectureBadge": "WorkBuddy 架構",
         "description": "以實體分層隔離事實與假說。",
         "refreshStats": "重新整理統計",
         "viewLayerItems": "檢視 {title} 詞條清單",

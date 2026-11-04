@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "Five-layer knowledge asset overview",
-        "architectureBadge": "WorkBuddy architecture",
         "description": "Facts and hypotheses are kept in physically separate layers.",
         "refreshStats": "Refresh stats",
         "viewLayerItems": "View the entry list of {title}",

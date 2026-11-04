@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "五层知识资产全局态势",
-        "architectureBadge": "WorkBuddy 架构",
         "description": "物理分层隔离事实与假说。",
         "refreshStats": "刷新统计",
         "viewLayerItems": "查看 {title} 词条清单",

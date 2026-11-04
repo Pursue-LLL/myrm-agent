@@ -166,12 +166,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <CardTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                {t('title')}
-                <Badge variant="outline" className="text-xs font-normal border-primary/30 text-primary">
-                  {t('architectureBadge')}
-                </Badge>
-              </CardTitle>
+              <CardTitle className="text-lg font-semibold tracking-tight">{t('title')}</CardTitle>
               <CardDescription className="text-sm text-muted-foreground mt-0.5">{t('description')}</CardDescription>
             </div>
           </div>

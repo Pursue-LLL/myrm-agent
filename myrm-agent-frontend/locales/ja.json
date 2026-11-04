@@ -18452,7 +18452,6 @@
       },
       "ledger": {
         "title": "5層ナレッジ資産の全体像",
-        "architectureBadge": "WorkBuddy アーキテクチャ",
         "description": "事実と仮説を物理的に層分けして隔離します。",
         "refreshStats": "統計を更新",
         "viewLayerItems": "{title} のエントリー一覧を表示",
