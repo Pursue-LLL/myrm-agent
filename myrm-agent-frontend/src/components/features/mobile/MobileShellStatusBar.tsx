@@ -12,7 +12,7 @@
  * Mobile PWA native shell connectivity perception layer at the top safe-area boundary.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconActivity,
@@ -22,6 +22,22 @@ import {
   IconShieldCheck,
   IconZap,
 } from '@/components/features/icons/PremiumIcons';
+
+function subscribeOnline(notify: () => void): () => void {
+  window.addEventListener('online', notify);
+  window.addEventListener('offline', notify);
+  return () => {
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+  };
+}
+
+// Only an explicit `false` counts as offline, so an environment that reports nothing is treated as connected.
+const readOnline = (): boolean => navigator.onLine !== false;
+
+// Node's `navigator` has no `onLine`, so the server must not derive the state from it: it renders the
+// online state and the client reads the real value right after hydration.
+const readOnlineOnServer = (): boolean => true;
 
 export interface MobileShellStatusBarProps {
   isConnecting?: boolean;
@@ -39,26 +55,8 @@ export function MobileShellStatusBar({
   isStandalone = false,
 }: MobileShellStatusBarProps) {
   const t = useTranslations('mobileShell');
-  const [isOnline, setIsOnline] = useState<boolean>(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const isOnline = useSyncExternalStore(subscribeOnline, readOnline, readOnlineOnServer);
   const [detailsExpanded, setDetailsExpanded] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const isDisconnected = !isOnline || hasError;
 

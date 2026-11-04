@@ -1,7 +1,14 @@
 /** @vitest-environment jsdom */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { hydrateRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileShellStatusBar } from '../MobileShellStatusBar';
+
+// `undefined` models Node >= 21, which exposes a `navigator` object without `onLine`.
+function setOnLine(value: boolean | undefined) {
+  Object.defineProperty(navigator, 'onLine', { writable: true, configurable: true, value });
+}
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
     if (params && 'hostName' in params) {
@@ -17,11 +24,7 @@ vi.mock('next-intl', () => ({
 describe('MobileShellStatusBar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Object.defineProperty(navigator, 'onLine', {
-      writable: true,
-      configurable: true,
-      value: true,
-    });
+    setOnLine(true);
   });
 
   it('renders online ready status by default with host name', () => {
@@ -63,5 +66,78 @@ describe('MobileShellStatusBar', () => {
     fireEvent.click(retryBtn);
 
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows the browser going offline and back online', () => {
+    render(<MobileShellStatusBar />);
+    expect(screen.queryByText('offlineNotice')).not.toBeInTheDocument();
+
+    act(() => {
+      setOnLine(false);
+      window.dispatchEvent(new Event('offline'));
+    });
+    expect(screen.getByText('offlineNotice')).toBeInTheDocument();
+
+    act(() => {
+      setOnLine(true);
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(screen.queryByText('offlineNotice')).not.toBeInTheDocument();
+  });
+
+  it('shows the offline notice when the page opens without a connection', () => {
+    setOnLine(false);
+    render(<MobileShellStatusBar />);
+
+    expect(screen.getByText('offlineNotice')).toBeInTheDocument();
+  });
+
+  it('stops listening to connectivity events once unmounted', () => {
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = render(<MobileShellStatusBar />);
+    unmount();
+
+    const removed = removeSpy.mock.calls.map(([type]) => type);
+    expect(removed).toEqual(expect.arrayContaining(['online', 'offline']));
+    removeSpy.mockRestore();
+  });
+
+  describe('server rendering', () => {
+    it('renders the connected state although Node reports no navigator.onLine', () => {
+      setOnLine(undefined);
+
+      const html = renderToString(<MobileShellStatusBar />);
+
+      expect(html).not.toContain('offlineNotice');
+      expect(html).toContain('connectedReady');
+    });
+
+    it('hydrates the server markup without a mismatch and then adopts the real connectivity', async () => {
+      setOnLine(undefined);
+      const serverHtml = renderToString(<MobileShellStatusBar />);
+      const container = document.createElement('div');
+      container.innerHTML = serverHtml;
+      document.body.appendChild(container);
+
+      const onRecoverableError = vi.fn();
+      setOnLine(true);
+      let root: Root | undefined;
+      await act(async () => {
+        root = hydrateRoot(container, <MobileShellStatusBar />, { onRecoverableError });
+      });
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(container.textContent).toContain('connectedReady');
+
+      await act(async () => {
+        setOnLine(false);
+        window.dispatchEvent(new Event('offline'));
+      });
+      expect(container.textContent).toContain('offlineNotice');
+
+      await act(async () => {
+        root?.unmount();
+      });
+      container.remove();
+    });
   });
 });
