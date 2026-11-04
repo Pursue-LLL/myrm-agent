@@ -147,21 +147,33 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
     _REQUIRED_CONTEXT_TOKENS = 64000
     # 只看前几个模型：一次 doctor 检查不值得为几十个模型逐个发请求。
     _MAX_CONTEXT_PROBES = 5
+    # 并行探测也要有总预算：Ollama 卡住时 doctor 不能被拖住十几秒。
+    _PROBE_BUDGET_S = 3.0
 
     async def _models_with_long_context(self, client: "httpx.AsyncClient", base_url: str, models: list[str]) -> list[str]:
-        """Ask `/api/show` for each candidate's `num_ctx` and keep the ones at or above the threshold."""
-        ready: list[str] = []
-        for name in models[: self._MAX_CONTEXT_PROBES]:
-            try:
-                response = await client.post(f"{base_url}/api/show", json={"model": name})
-                if response.status_code != 200:
-                    continue
-                parameters = response.json().get("parameters")
-            except Exception:
-                continue
-            if isinstance(parameters, str) and self._num_ctx(parameters) >= self._REQUIRED_CONTEXT_TOKENS:
-                ready.append(name)
-        return ready
+        """Ask `/api/show` for the candidates' `num_ctx` and keep the ones at or above the threshold.
+
+        The probes run together under one budget: a hung daemon answers nothing, and the doctor
+        then reports the same warning it would for a model without a pinned context.
+        """
+        candidates = models[: self._MAX_CONTEXT_PROBES]
+        try:
+            async with asyncio.timeout(self._PROBE_BUDGET_S):
+                contexts = await asyncio.gather(*(self._num_ctx_of(client, base_url, name) for name in candidates))
+        except TimeoutError:
+            return []
+        return [name for name, ctx in zip(candidates, contexts, strict=True) if ctx >= self._REQUIRED_CONTEXT_TOKENS]
+
+    async def _num_ctx_of(self, client: "httpx.AsyncClient", base_url: str, name: str) -> int:
+        """The `num_ctx` a model reports through `/api/show`; 0 when it reports none."""
+        try:
+            response = await client.post(f"{base_url}/api/show", json={"model": name})
+            if response.status_code != 200:
+                return 0
+            parameters = response.json().get("parameters")
+        except Exception:
+            return 0
+        return self._num_ctx(parameters) if isinstance(parameters, str) else 0
 
     @staticmethod
     def _num_ctx(parameters: str) -> int:

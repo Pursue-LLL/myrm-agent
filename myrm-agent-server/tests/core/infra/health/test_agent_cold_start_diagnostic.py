@@ -372,6 +372,39 @@ async def test_ollama_model_context_diagnostic() -> None:
 
 
 @pytest.mark.asyncio
+async def test_ollama_context_probe_stops_at_its_budget() -> None:
+    """A daemon that never answers `/api/show` must not hold the doctor probe open."""
+    import asyncio
+    import time
+
+    from app.config.deploy_mode import DeployMode
+    from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
+
+    diagnostic = OllamaModelContextDiagnostic()
+    diagnostic._PROBE_BUDGET_S = 0.05
+
+    async def never_answers(*_args: object, **_kwargs: object) -> None:
+        await asyncio.sleep(30)
+
+    tags_resp = MagicMock()
+    tags_resp.status_code = 200
+    tags_resp.json.return_value = {"models": [{"name": "qwen2.5:14b"}]}
+
+    with (
+        patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL),
+        patch("httpx.AsyncClient.get", return_value=tags_resp),
+        patch("httpx.AsyncClient.post", side_effect=never_answers),
+    ):
+        started = time.monotonic()
+        report = await diagnostic.check_health()
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 1.0
+    assert report.status == "warn"
+    assert report.code == "WARN_OLLAMA_NO_LONG_CONTEXT"
+
+
+@pytest.mark.asyncio
 async def test_agent_step_budget_diagnostic() -> None:
     """Test AgentStepBudgetDiagnostic probe for normal and low-budget agents."""
     from app.core.infra.health.server_diagnostics import AgentStepBudgetDiagnostic
