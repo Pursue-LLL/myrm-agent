@@ -5,7 +5,7 @@ Multiple middlewares can be composed into a policy chain.
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Abstract executor the middleware wraps and delegates to)
-- toolkits.code_execution.executors.models::ExecutionContext, ExecutionMetrics, ExecutionResult, MCPCommunicationConfig (POS: Executor value objects)
+- toolkits.code_execution.executors.models::ExecutionContext, ExecutionMetrics, ExecutionResult (POS: Executor value objects)
 
 [OUTPUT]
 - CodeExecutorMiddleware: Executor that forwards every operation to an inner executor; subclasses override the operations they police.
@@ -21,7 +21,6 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import (
     ExecutionContext,
     ExecutionMetrics,
     ExecutionResult,
-    MCPCommunicationConfig,
 )
 
 __all__ = ["CodeExecutorMiddleware"]
@@ -107,9 +106,6 @@ class CodeExecutorMiddleware(CodeExecutor):
 
     def get_executor_name(self) -> str:
         return self.inner.get_executor_name()
-
-    def get_mcp_communication_config(self) -> MCPCommunicationConfig | None:
-        return self.inner.get_mcp_communication_config()
 
     async def save_workspace(self, session_id: str, storage_path: str) -> bool:
         return await self.inner.save_workspace(session_id, storage_path)

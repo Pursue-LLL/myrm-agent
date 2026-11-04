@@ -9,6 +9,7 @@
 4. 返回预处理后的代码供 executor 执行
 
 [INPUT]
+- agent.skills.mcp.ipc_proxy::IPCEndpoint (POS: what the generated client needs to reach one IPC server)
 - toolkits.code_execution::MCPConfigItem (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
 
 [OUTPUT]
@@ -23,6 +24,7 @@ import logging
 import re
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import IPCEndpoint
 from myrm_agent_harness.toolkits.code_execution import MCPConfigItem
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     SKILL_IMPORT_RE as SKILL_NAME_PATTERN,
@@ -84,27 +86,18 @@ class SkillExecutor:
     def prepare_for_execution(
         self,
         command: str,
-        ipc_socket_path: str,
-        session_id: str | None = None,
-        agent_id: str | None = None,
-        workspace_root: str | None = None,
-        readonly_workspace: bool = False,
+        endpoint: IPCEndpoint,
     ) -> SkillExecutionContext:
         """准备代码执行
 
         检测命令中是否包含技能调用，如果是则：
         1. 提取 Python 代码
-        2. 注入 MCP IPC 客户端代码（携带 session_id / workspace_root 以支持
-           notify 等需要会话上下文的 builtin 工具）
+        2. 注入 MCP IPC 客户端代码（指向这次执行专属的服务端）
         3. 返回预处理后的代码
 
         Args:
             command: Bash 命令（如 python -c "..."）
-            ipc_socket_path: IPC Unix Socket 路径
-            session_id: 当前会话 ID（用于 builtin 会话上下文）
-            agent_id: 当前 Agent ID（用于 MCP scope-gate 策略匹配）
-            workspace_root: 沙箱挂载的工作目录（host 视角的绝对路径）
-            readonly_workspace: 调用方是否处于只读沙箱；IPC 服务端据此拒绝写类 MCP 工具
+            endpoint: 这次执行专属的 IPC 服务端；会话、工作区、只读状态属于它，不由脚本上报
 
         Returns:
             SkillExecutionContext 包含预处理后的代码
@@ -132,14 +125,7 @@ class SkillExecutor:
             logger.info(f"Detected MCP skill: {identifier}")
 
         python_code = self._rewrite_skill_imports(python_code)
-        ipc_client_code = self._generate_mcp_client_code(
-            ipc_socket_path,
-            session_id=session_id,
-            agent_id=agent_id,
-            workspace_root=workspace_root,
-            read_only_tools=self._collect_read_only_tools(identifier),
-            readonly_workspace=readonly_workspace,
-        )
+        ipc_client_code = self._generate_mcp_client_code(endpoint, self._collect_read_only_tools(identifier))
         prepared_code = f"{ipc_client_code}\n\n# === User Code ===\n{python_code}"
 
         return SkillExecutionContext(
@@ -271,26 +257,15 @@ class SkillExecutor:
 
         return extract_python_from_bash(command)
 
-    def _generate_mcp_client_code(
-        self,
-        ipc_socket_path: str,
-        session_id: str | None = None,
-        agent_id: str | None = None,
-        workspace_root: str | None = None,
-        read_only_tools: frozenset[str] | None = None,
-        readonly_workspace: bool = False,
-    ) -> str:
+    @staticmethod
+    def _generate_mcp_client_code(endpoint: IPCEndpoint, read_only_tools: frozenset[str]) -> str:
         """生成 MCP IPC 客户端代码
 
         通过 Unix Socket 与 Agent 主进程通信。
 
         Args:
-            ipc_socket_path: IPC Unix Socket 路径
-            session_id: 当前会话 ID
-            agent_id: 当前 Agent ID（用于 MCP scope-gate 策略匹配）
-            workspace_root: 沙箱挂载的工作目录
+            endpoint: 这次执行专属的 IPC 服务端
             read_only_tools: 允许断连重试的 `skill.tool` 集合（仅 readOnlyHint）
-            readonly_workspace: 调用方是否处于只读沙箱
 
         Returns:
             MCP 客户端代码字符串
@@ -298,48 +273,12 @@ class SkillExecutor:
         from myrm_agent_harness.agent.skills.mcp.client_templates import generate_ipc_client_code
 
         return generate_ipc_client_code(
-            ipc_socket_path,
-            session_id=session_id,
-            agent_id=agent_id,
-            workspace_root=workspace_root,
+            endpoint.socket_path,
+            auth_token=endpoint.auth_token,
+            trace_nonce=endpoint.trace_nonce,
             read_only_tools=read_only_tools,
-            auth_token=self._resolve_ipc_auth_token(),
-            readonly_workspace=readonly_workspace,
-            trace_nonce=self._resolve_trace_nonce(),
-            tcp_port=self._resolve_tcp_port(),
+            tcp_port=endpoint.tcp_port,
         )
-
-    @staticmethod
-    def _resolve_tcp_port() -> int:
-        """Loopback TCP port when the host IPC server uses the non-POSIX transport."""
-        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_ipc_server
-
-        server = get_mcp_ipc_server()
-        return server.tcp_port if server is not None else 0
-
-    @staticmethod
-    def _resolve_trace_nonce() -> str | None:
-        """Read the marker nonce from the running IPC server.
-
-        Returns ``None`` when no server is up. The client then omits call markers, so a
-        run without a live token source produces no citation metadata instead of
-        metadata the host cannot authenticate.
-        """
-        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_trace_nonce
-
-        return get_mcp_trace_nonce()
-
-    @staticmethod
-    def _resolve_ipc_auth_token() -> str | None:
-        """Read the bearer token from the running IPC server.
-
-        Returns ``None`` when no server is up: the generated client then sends no
-        token and the server rejects the call, which is the safe failure mode.
-        """
-        from myrm_agent_harness.agent.skills.mcp.ipc_proxy import get_mcp_ipc_server
-
-        server = get_mcp_ipc_server()
-        return server.auth_token if server is not None else None
 
     @staticmethod
     def _collect_read_only_tools(skill_name: str) -> frozenset[str]:

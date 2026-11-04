@@ -1,15 +1,13 @@
 """Data models for code execution.
 
-Defines execution context, results, MCP communication configuration,
-and execution metrics.
+Defines execution context, results and execution metrics.
 
 [INPUT]
+- executors.mcp_config::MCPConfigItem (POS: MCP server entry a script run can call; type only)
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation flag; type only)
 
 [OUTPUT]
 - AsyncProcessProtocol: Subprocess handle exposed by CodeExecutor (stdio MCP and ...
-- MCPConfigItem: MCP tool configuration item.
-- MCPCommunicationConfig: MCP IPC communication config provided by CodeExecutor.
 - ExecutionContext: Execution context (framework layer).
 - ExecutionResult: Execution result.
 
@@ -28,6 +26,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 
@@ -49,56 +48,6 @@ class AsyncProcessProtocol(Protocol):
     def terminate(self) -> None: ...
 
     def kill(self) -> None: ...
-
-
-@dataclass
-class MCPConfigItem:
-    """MCP tool configuration item."""
-
-    name: str
-    type: str = "stdio"
-    command: str | None = None
-    args: list[str] | None = None
-    env: dict[str, str] | None = None
-    url: str | None = None
-    description: str = ""
-
-    @classmethod
-    def from_dict(cls, data: dict[str, object]) -> MCPConfigItem:
-        """Create MCPConfigItem from a dictionary."""
-        args_raw = data.get("args")
-        args_list: list[str] | None = None
-        if args_raw and isinstance(args_raw, list):
-            args_list = [str(arg) for arg in args_raw]
-
-        env_raw = data.get("env")
-        env_dict: dict[str, str] | None = None
-        if env_raw and isinstance(env_raw, dict):
-            env_dict = {str(key): str(value) for key, value in env_raw.items()}
-
-        return cls(
-            name=str(data.get("name", "")),
-            type=str(data.get("type", "stdio")),
-            command=str(data.get("command")) if data.get("command") else None,
-            args=args_list,
-            env=env_dict,
-            url=str(data.get("url")) if data.get("url") else None,
-            description=str(data.get("description", "")),
-        )
-
-    @classmethod
-    def from_dict_list(cls, data_list: list[dict[str, object]]) -> list[MCPConfigItem]:
-        """Create a list of MCPConfigItem from dictionaries."""
-        return [cls.from_dict(data) for data in data_list]
-
-
-@dataclass
-class MCPCommunicationConfig:
-    """MCP IPC communication config provided by CodeExecutor."""
-
-    socket_path: str | None = None
-    skip_local_proxy: bool = False
-    servers: list[MCPConfigItem] = field(default_factory=list)
 
 
 @dataclass
