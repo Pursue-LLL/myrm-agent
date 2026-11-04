@@ -13,11 +13,7 @@ import type {
   RoutingConfig,
   SingleModelSelection,
 } from './providerTypes';
-import {
-  getInitialDefaultModelConfig,
-  PROVIDER_TO_ROUTE_PREFIX,
-  resolveCustomProviderTypeInfo,
-} from './providerTypes';
+import { getInitialDefaultModelConfig, PROVIDER_TO_ROUTE_PREFIX, resolveCustomProviderTypeInfo } from './providerTypes';
 import type { ProvidersConfigValue } from '@/services/config/types';
 import type { PersonalSettingsConfigValue, VideoGenerationConfig } from '@/services/config/types';
 

@@ -6,8 +6,8 @@ import pytest
 
 from myrm_agent_harness.agent.config.provider_routing import (
     known_route_segments_ordered,
-    route_prefix_for_effective,
     normalize_env_model_selection_string,
+    route_prefix_for_effective,
 )
 
 
@@ -128,4 +128,3 @@ class TestOpenCodeSessionAffinity:
         params: dict[str, object] = {}
         llm._inject_prompt_routing_key(params)
         assert "extra_headers" not in params
-
