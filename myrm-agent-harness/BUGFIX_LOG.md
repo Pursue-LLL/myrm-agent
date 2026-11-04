@@ -2,6 +2,24 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-04-182 · 配了重排服务时，`CloudReranker.rerank_pairs` 按命中到达的顺序给文档填分、不看命中自带的 `index`：记忆重排闸门永远保持融合顺序，Web 重排管线把每篇文档的分数给成了排在它那个名次上的文档的分数
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`49e2f51cf7`） |
+| **发现时间** | 2026-11-04（审计检索与重排时，逐行读 `rerank_pairs`，再用按相关度排序、给每个命中标 `index` 的假 `/rerank` 端点复现） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P2：配了重排服务的用户拿到的不是重排后的顺序，没有报错；记忆闸门形同虚设，Web 管线的分数与文档错位。 |
+| **关联产品** | harness 检索（`toolkits/retriever/reranker/cloud_reranker.py`）；调用方：记忆重排闸门、Web 重排管线（`hybrid_search/reranking_pipeline.py`）。 |
+| **症状** | [实测，改前代码] 提供方按相关度降序返回命中，每个命中带 `index`。① 三对 `(query, 文档)` 的相关度依次是 0.1、0.9、0.5：`rerank_pairs` 改前返回 `[0.9, 0.5, 0.1]`，改后 `[0.1, 0.9, 0.5]`。② 记忆闸门，融合顺序 a、b、c、d，相关度 0.1、0.9、0.05、0.5：改前输出 `a, b, c, d`（融合顺序原样保留），改后 `b, d, a, c`。③ Web 管线，a1、a2、a3 的相关度 0.2、0.8、0.5：改前 a1 得 0.8、输入顺序原样保留，改后 a2 得 0.8、a3 得 0.5、a1 得 0.2。 |
+| **根因** | [代码] `rerank_pairs` 把提供方返回的命中（按相关度降序到达）与「对」的位置逐个 `zip`，不读命中的 `index`；提供方一旦不按输入顺序返回，分数就落到别的文档上。自初始导入 `746c24e5c1`（2026-06-02）起如此。闸门与管线的测试都替换了 `rerank_pairs` 本身，`CloudReranker` 没有自己的测试，这个回填从没被执行过。 |
+| **修复** | `rerank_pairs` 按 query 分组，每个 query 一次提供方调用（各组并发），按命中的 `index` 把分数填回该文档在输入里的位置；提供方没有返回的文档记 0.0；`index` 为负或超出该次发出的文档数时抛 `ValueError`（负数以前会绕到列表尾部）；`aclose()` 补返回注解。新增 `tests/support/rerank_provider.py`（按相关度排序、给每个命中标 `index` 的假 `/rerank`，真实 `CloudReranker` 打到它）与两个测试文件。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 假上游只要按输入顺序返回命中，这个缺陷就看不见：真实提供方按相关度排序，测试替身也必须这样；闸门测试替换 `rerank_pairs` 之后，回填那一步根本不在被测路径上。 |
+| **回归** | [实测] ① 新增 9 个用例（`test_cloud_reranker_pairs.py`、`test_rerank_gate_cloud_reranker.py`），对改前的 `CloudReranker`（`49e2f51cf7^` 的源码，在导入时装进去）运行：8 个失败、1 个通过；改后全绿。② 4 个变异体全被捕获：回到按位置回填 8 例失败，去掉越界校验 2 例，去掉负下标校验 1 例，把命中的 `index` 当成整张对照表里的位置而不是该 query 自己那组文档里的位置 4 例。③ `tests/toolkits/{retriever,memory,web_search,web_fetch}` 4960 通过、6 跳过（2026-11-04，改后的树）。 |
+| **仍然存在** | ① 非 `openai/` 前缀、走 LiteLLM `arerank` 的那一支没有单独的测试，被假端点覆盖的只有 OpenAI 兼容的 HTTP 那一支。② 重排对检索质量的实际影响没有评测。③ 已配重排服务的用户升级后排序会变：以前记忆闸门等于没重排。④ 设置页校验重排与嵌入配置的端点缺失是另一个问题，记在产品仓台账。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/retriever/reranker/cloud_reranker.py`（`rerank_pairs`）、`tests/support/rerank_provider.py`、`tests/toolkits/retriever/test_cloud_reranker_pairs.py`、`tests/toolkits/memory/test_rerank_gate_cloud_reranker.py` |
+
 ### BUG-HARNESS-2026-11-04-181 · 压缩历史后，`web_fetch_tool` 与 `skill_select_tool` 调用的占位符里没有网址和技能名，只剩 `tool_call_<id>`：压缩规则读单数的 `url` / `skill_name`，两个工具真正的参数是复数列表 `urls` / `skill_names`
 
 | 字段 | 内容 |
