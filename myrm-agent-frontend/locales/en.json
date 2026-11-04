@@ -797,7 +797,6 @@
       "assetSubagents": "Subagents ({count})",
       "disciplineTitle": "{family} Execution Discipline",
       "recommendedPromptMode": "Recommended: {mode}",
-      "disciplineClaude": "Auto-activated structured tool contracts and minimal disclaimers for enhanced execution precision.",
       "disciplineDeepSeek": "Auto-activated anti-narration and direct tool enforcement to streamline task output.",
       "disciplineGpt": "Auto-activated tool persistence and action-first protocols for complex multi-step tasks.",
       "disciplineGemini": "Auto-activated absolute path constraints and parallel execution standards for multi-tool tasks.",

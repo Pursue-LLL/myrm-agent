@@ -797,7 +797,6 @@
       "assetSubagents": "Subagenten ({count})",
       "disciplineTitle": "{family}-Ausführungsdisziplin",
       "recommendedPromptMode": "Empfohlen: {mode}",
-      "disciplineClaude": "Strukturierte Tool-Verträge und minimale Haftungsausschlüsse automatisch aktiviert.",
       "disciplineDeepSeek": "Anti-Narration und direkte Tool-Ausführung automatisch aktiviert.",
       "disciplineGpt": "Tool-Persistenz und Action-First-Protokolle automatisch aktiviert.",
       "disciplineGemini": "Absolute Pfadbeschränkungen und parallele Ausführungsstandards aktiviert.",

@@ -797,7 +797,6 @@
       "assetSubagents": "하위 에이전트 ({count})",
       "disciplineTitle": "{family} 실행 규율",
       "recommendedPromptMode": "권장 Prompt: {mode}",
-      "disciplineClaude": "구조화된 도구 호출 계약과 최소 면책 조항 프로토콜이 자동 활성화되었습니다.",
       "disciplineDeepSeek": "과도한 설명 억제 및 직접 도구 강제 실행 규율이 자동 활성화되었습니다.",
       "disciplineGpt": "도구 지속성 및 행동 우선 프로토콜이 자동 활성화되었습니다.",
       "disciplineGemini": "절대 경로 제약 및 병렬 도구 실행 표준이 자동 활성화되었습니다.",

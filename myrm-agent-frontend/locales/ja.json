@@ -797,7 +797,6 @@
       "assetSubagents": "サブエージェント ({count})",
       "disciplineTitle": "{family} 実行規範",
       "recommendedPromptMode": "推奨 Prompt: {mode}",
-      "disciplineClaude": "構造化ツール呼び出し契約と最小免責事項プロトコルを自動有効化しました。",
       "disciplineDeepSeek": "過度な説明の抑制と直接ツール強制実行規範を自動有効化しました。",
       "disciplineGpt": "ツールの永続性とアクション優先プロトコルを自動有効化しました。",
       "disciplineGemini": "絶対パス制約と並列ツール実行標準を自動有効化しました。",

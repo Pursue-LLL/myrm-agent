@@ -797,7 +797,6 @@
       "assetSubagents": "子智慧體 ({count})",
       "disciplineTitle": "{family} 模型專屬行為紀律",
       "recommendedPromptMode": "推薦 Prompt: {mode}",
-      "disciplineClaude": "已自動啟用結構化工具呼叫合約與免責宣告極簡協議，提升程式碼與工具執行嚴謹度。",
       "disciplineDeepSeek": "已自動啟用反囉嗦與工具呼叫強制執行紀律，減少過度解釋，直奔最終產物。",
       "disciplineGpt": "已自動啟用工具主動持久度與行動優先協議，保障長鏈路複雜任務穩步推進。",
       "disciplineGemini": "已自動啟用絕對路徑約束與並行工具呼叫規範，優化多工具協同執行效率。",
