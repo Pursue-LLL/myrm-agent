@@ -2,7 +2,9 @@
 - app.services.agent.params.models::AgentRequest (POS: Agent API request DTO)
 - app.services.agent.params.profile_apply::ProfileContext (POS: capability envelope of the turn)
 - app.services.agent.params.sources::ConfigSources (POS: search / retrieval / MCP sources)
+- app.services.agent.profile.profile_resolver::resolve_builtin_tool_flags (POS: builtin tool flag mapping)
 - app.services.agent.tool_mount (POS: entry-surface meta tool mount policy)
+- app.core.channel_bridge.config_loader::load_user_configs (POS: decrypted user config loader)
 
 [OUTPUT]
 - ToolSurface: builtin tool flags, prompt mode, search depth for this entry surface

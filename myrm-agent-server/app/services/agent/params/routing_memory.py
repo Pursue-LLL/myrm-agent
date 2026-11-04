@@ -1,4 +1,4 @@
-"""Per-chat routing memory for the Smart Routing block of the parameter converter.
+"""Per-chat routing memory for the Smart Routing stage of the parameter conversion.
 
 [INPUT]
 - app.database.repositories.chat_repo::ChatRepository.get_recent_routing_tiers / get_last_turn_routing_tier
@@ -18,8 +18,7 @@
 Routing context that survives across requests of one chat. `routingTier` is persisted as either a complexity tier or a
 specialty slot hit, so history parsing partitions it by enum. The tier recorded by the answer turn being retried is
 the baseline a retry climbs from; rows the system appended to that turn (background-job notices, auto-continue) are not
-answers and are skipped, and a turn that records no complexity tier (fast mode, pinned model, deep research without
-escalation) ran the main model. Resume requests (tool approval, plan confirmation) carry
+answers and are skipped, and a turn that records no complexity tier (fast mode, pinned model) ran the main model. Resume requests (tool approval, plan confirmation) carry
 only the main model selection, so without this memory they would be re-routed and silently continue the interrupted
 turn on a different model with a cold prompt cache. The memory is process-local, like the in-process HITL timeout
 scheduler it complements; losing it (restart, LRU eviction) degrades to re-routing the resume request.

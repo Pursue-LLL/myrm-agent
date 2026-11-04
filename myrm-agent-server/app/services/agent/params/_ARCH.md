@@ -19,11 +19,11 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 | `query_enrichment.py` | 核心 | 用户消息侧的上下文装配：archive restore 注入、@mention 引用、上传文件同步、@agent 委派指令、/learn 重写、超长提示词 ContextBomb 溢出落盘；全部注入 user message，不改 system prompt / tool schema（prompt cache 安全） | ✅ |
 | `tool_surface.py` | 核心 | 入口面工具挂载：`action_mode='fast'` 走 `resolve_agent_mount(WEB_FAST)` 并覆盖 profile 为 answer_tool-only（清空 skills / MCP / subagent / 媒体 / 记忆策略），其余走 `resolve_agent_mount(WEB_CHAT)`；产出 `ToolSurface`（tool flags、prompt_mode、search_depth） | ✅ |
 | `profile_output_suffixes.py` | 核心 | `apply_profile_output_suffixes()` — personality + harness `build_response_locale_suffix` 注入 instructions 尾（Web/Channel/Cron/Kanban/Eval/Voice×3/Subagent/Goal stream SSOT）。 | ✅ |
-| `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, …），含 `use_workflow`、`workflow_template_id`、`workflow_template_args`（pinned DW rerun）、前端记忆开关、`search_depth`、`reasoning_display_mode`、`active_moa_preset_id`、GUI @ 结构化引用、archive restore、`kanban_default_board_id`、`tool_gateway_config`、`turn_capability_telemetry`、`security_preset`。 | — |
+| `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, …），含 `use_workflow`、`workflow_template_id`、`workflow_template_args`（pinned DW rerun）、首轮一次性 `workspace_dir` 绑定、前端记忆开关、`search_depth`、`reasoning_display_mode`、`active_moa_preset_id`、GUI @ 结构化引用、archive restore、`kanban_default_board_id`、`tool_gateway_config`、`turn_capability_telemetry`、`security_preset`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
 | `routing_memory.py` | 核心 | Smart Routing 的跨请求记忆：`load_recent_routing()` 把持久化的 `routingTier` 历史按 `RoutingTier` / `TaskSpecialty` 分流为 complexity 动量与 specialty 动量输入；`load_retry_baseline()` 读出被重试回合自己持久化的档位（该回合最新一条记了档位的回答，回合末尾系统自己追加的行——后台任务完成通知、auto-continue——不算回答；没有记档位的回答即跑的是主模型），`complaint_floor()` 以它为基线（缺省按 STANDARD），给出重试的档位下限及其是否换了模型配置；`remember_turn_routing()` / `resolve_turn_routing()` 记住用户回合的路由结果（以不含密钥的 `ModelSelection` 保存，resume 时重新解析凭据），HITL resume 沿用被中断回合的模型而非重新路由空 query | ✅ |
 | `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |
-| `mcp_selection.py` | 核心 | Per-agent MCP server+tool 过滤。`apply_agent_mcp_selection()` 按 `mcp_ids` 过滤服务器、按 `mcp_tool_selections` 注入 `tool_include`；`coerce_tool_selections()` 规范化原始元数据。被 converter/executor/agent_bridge/eval/custom_agent_factory 五个入口统一调用 | ✅ |
+| `mcp_selection.py` | 核心 | Per-agent MCP server+tool 过滤。`apply_agent_mcp_selection()` 按 `mcp_ids` 过滤服务器、按 `mcp_tool_selections` 注入 `tool_include`；`coerce_tool_selections()` 规范化原始元数据。被 converter（经 profile_apply）/executor/agent_bridge/eval/custom_agent_factory 五个入口统一调用 | ✅ |
 | `helpers.py` | 辅助 | 文本提取等辅助函数；`_requested_privacy_params` 提取请求自带的隐私字段（converter 再与已保存设置合并：请求写明的优先，没说的跟随设置）；`_declared_capabilities` 合并多份安全配置里声明的能力名 | — |
 | `media.py` | 辅助 | 多模态媒体参数处理 | — |
 | `mention.py` | 辅助 | 上下文富引用预处理器。支持 workspace 文件/目录、上传/生成文件、@staged、@diff、@codebase、@folder:path、@url:、@wiki:、**prior_chat (@chat:)**，进行安全校验后注入用户查询 | ✅ |
@@ -76,15 +76,12 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 ## Search/Fast（Web `action_mode=fast`）
 
-- **唯一无 file/bash 的入口**：`tool_surface.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。
+- **唯一无 file/bash 的入口**：`tool_surface.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`，并把 profile 覆盖为 answer_tool-only：skills / MCP / subagents 置空，`max_iterations` 30（deep 50）、`engine_params.max_tool_calls` 8（deep 20），记忆写入策略固定为 CONVERSATION。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。媒体生成、外部 Agent、embedding/reranker 由 `converter.py` 在装配阶段按 fast 置空。
+- **搜索开关**：`enable_web_search` 取解析结果 `search_cfg is not None`；没有搜索配置时记 warning 并按未启用处理，不会凭空打开搜索。
+- **Normal vs Deep**：共用同一 builtin 开关集，`search_depth=deep` 只追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig 与更高的 `max_tool_calls` / `max_iterations`。
+- **Turn1 工具**：`web_search_tool`、`web_fetch_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。历史会话搜索不单独 bind 工具：`memoryEnableConversationSearch=true` 时在 `memory_search_tool` 上启用 `corpus=sessions` ACL。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
+- Browser 开启时，`browser-automation` peripheral skill 在 `AgentFactory.create_general_agent` 合并（非 `tool_surface.py`），保证 Cron/Channel/Kanban 与 Web 一致；`prompt_mode="search"` 跳过绑定。
 - Quick Search / Deep Search 预置 Agent（`builtin_specs/search.py`）供 Web UI 选用；非 fast Web 聊天仍加载 General CORE，仅 prompt/skills 走 search 语义。
-
-## Fast Search（`action_mode='fast'`）
-
-- `tool_surface.py` 覆盖 Agent profile 的 `enabled_builtin_tools` 为 `["answer_tool"]`，并强制 `enable_web_search=True`；skills / MCP / subagents / 媒体生成置空。
-- Normal 与 Deep 共享同一 builtin 开关集；`search_depth=deep` 仅追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig，以及更高的 `max_tool_calls` / `max_iterations`。
-- Turn1：`web_search_tool`、`web_fetch_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。历史会话搜索不单独 bind 工具：`memoryEnableConversationSearch=true` 时在 `memory_search_tool` 上启用 `corpus=sessions` ACL。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
-- Browser 开启时，`browser-automation` peripheral skill 在 `AgentFactory.create_general_agent` 合并（非 converter），保证 Cron/Channel/Kanban 与 Web 一致；`prompt_mode="search"` 跳过绑定。
 - SSOT：`myrm-agent-server/app/services/agent/builtin_specs/builtin_tool_ids.py`（全局默认 4 项开关）；Fast 模式运行时覆盖见 `tool_surface.py`。
 
 ## 隐身会话（incognito）

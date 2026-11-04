@@ -3,6 +3,8 @@
 - app.services.agent.profile.profile_resolver::ResolvedAgentProfile (POS: saved Agent profile)
 - app.services.agent.params.mcp_selection (POS: per-agent MCP server/tool filtering)
 - app.services.agent.params.profile_output_suffixes (POS: personality + response-locale suffix injection)
+- app.ai_agents.team_protocol::build_leader_protocol_prompt (POS: team leader protocol prompt)
+- app.platform_utils.sandbox.tool_gateway::merge_tool_gateway_config (POS: tool gateway config merge)
 - app.core.types::MCPServerConfig (POS: MCP server config DTO)
 
 [OUTPUT]

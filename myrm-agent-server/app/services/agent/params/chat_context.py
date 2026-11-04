@@ -2,6 +2,8 @@
 - app.services.agent.params.models::AgentRequest (POS: Agent API request DTO)
 - app.services.chat.chat_service::ChatService (POS: chat metadata loader)
 - app.services.chat.effective_workspace (POS: project/chat workspace resolution)
+- app.services.agent.session_access_service (POS: session access root bootstrap)
+- app.services.agent.params.workspace_resolve (POS: default chat workspace resolution)
 - app.services.memory.shared_context.shared_context (POS: shared knowledge-base contexts)
 
 [OUTPUT]
