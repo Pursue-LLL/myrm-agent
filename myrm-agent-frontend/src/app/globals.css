@@ -596,6 +596,29 @@ a[href] {
   display: none;
 }
 
+/* 横向滚动区的边缘渐隐：隐藏滚动条后用它提示还有控件在视野外。
+   只渐隐确有内容被裁的一侧（useScrollEdgeFade 写入 data-fade-start / data-fade-end），放得下时不加任何遮罩。 */
+.scroll-fade-x[data-fade-start='true'],
+.scroll-fade-x[data-fade-end='true'] {
+  --scroll-fade-start: 0px;
+  --scroll-fade-end: 0px;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--scroll-fade-start),
+    #000 calc(100% - var(--scroll-fade-end)),
+    transparent
+  );
+}
+
+.scroll-fade-x[data-fade-start='true'] {
+  --scroll-fade-start: 1.5rem;
+}
+
+.scroll-fade-x[data-fade-end='true'] {
+  --scroll-fade-end: 1.5rem;
+}
+
 /* 全局滚动条样式 - 支持亮色和暗色主题 */
 /* Firefox */
 * {

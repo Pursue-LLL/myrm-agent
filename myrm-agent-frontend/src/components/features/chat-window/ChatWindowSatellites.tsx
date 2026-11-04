@@ -199,7 +199,8 @@ export default function ChatWindowSatellites({
     <>
       <DesktopControlApprovalOverlay />
       <ExtensionTakeoverBanner />
-      <VisualDesktopToggle />
+      {/* An empty chat keeps its first screen free of floating launchers: they sit over the content there. */}
+      <VisualDesktopToggle hideLauncher={!hasMessages} />
       <BrowserInspectorToggle />
       <BrowserLiveView onSendInstruction={onInspectorInstruction} />
       <BrowserRecordingToggle />
@@ -207,7 +208,7 @@ export default function ChatWindowSatellites({
       <DesktopInspectorToggle />
       <DesktopLiveView onSendInstruction={onDesktopInspectorInstruction} />
       <FileSnapshotPanel />
-      <PreferenceRadarToggle chatId={chatId} />
+      {hasMessages ? <PreferenceRadarToggle chatId={chatId} /> : null}
       {chatId ? (
         <div className="fixed bottom-24 right-[4.5rem] z-50 max-sm:bottom-20 max-sm:right-16 bg-secondary rounded-full shadow-lg">
           <SessionRevertButton sessionId={chatId} />

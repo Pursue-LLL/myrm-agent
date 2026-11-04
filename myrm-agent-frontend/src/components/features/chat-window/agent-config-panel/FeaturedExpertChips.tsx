@@ -19,6 +19,7 @@ import { Bot, Sparkles, Users, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useScrollEdgeFade } from '@/hooks/ui/useScrollEdgeFade';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
@@ -40,6 +41,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
   const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
   const setInputMessage = useChatStore((state) => state.setInputMessage);
+  const stripFadeRef = useScrollEdgeFade<HTMLDivElement>();
 
   useEffect(() => {
     let active = true;
@@ -112,11 +114,16 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         className,
       )}
     >
-      {/* One swipeable row on phones so the strip stays a single line; it wraps from the sm breakpoint up. */}
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible">
+      {/* One swipeable row on phones so the strip stays a single line, fading the edge that hides more chips; it wraps
+          from the sm breakpoint up. The title collapses to its icon on phones so the first chip is fully visible
+          instead of a few letters. */}
+      <div
+        ref={stripFadeRef}
+        className="scroll-fade-x flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible"
+      >
         <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0 mr-1">
           <Sparkles size={13} className="text-primary animate-pulse" />
-          {t('featuredTitle')}
+          <span className="max-sm:sr-only">{t('featuredTitle')}</span>
         </span>
 
         {featuredTemplates.map((template) => {
@@ -142,7 +149,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
               ) : (
                 <Bot size={12} className="text-emerald-500" />
               )}
-              <span className="max-w-[120px] truncate">{template.name}</span>
+              <span className="max-w-[8rem] truncate sm:max-w-[14rem]">{template.name}</span>
               <span className="rounded-xs bg-muted/80 px-1 py-0.2 text-[10px] text-muted-foreground">
                 {isTeam ? t('teamBadge') : t('expertBadge')}
               </span>

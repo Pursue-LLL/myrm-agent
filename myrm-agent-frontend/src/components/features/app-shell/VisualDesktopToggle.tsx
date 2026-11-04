@@ -6,7 +6,7 @@
  * - VisualDesktop (POS: VNC/noVNC 实时桌面嵌入视图)
  *
  * [OUTPUT]
- * VisualDesktopToggle: managed 模式 VNC 浮动面板、接管/交还控制条与 HITL takeover 条
+ * VisualDesktopToggle: managed 模式 VNC 浮动面板、接管/交还控制条与 HITL takeover 条；`hideLauncher` 让空会话不显示浮动入口（打开事件、已打开的面板与接管提示照常生效）
  *
  * [POS]
  * 沙箱/本地 VNC 桌面入口。面板默认仅查看；接管后才能点击/输入，期间 Agent 的浏览器与桌面工具暂停，交还后继续。
@@ -33,7 +33,12 @@ const VisualDesktop = dynamic(() => import('./VisualDesktop').then((module) => (
   ssr: false,
 });
 
-export const VisualDesktopToggle = () => {
+export interface VisualDesktopToggleProps {
+  /** Drops the floating launcher while nothing needs it (an empty chat); the open event and takeover prompts stay live. */
+  hideLauncher?: boolean;
+}
+
+export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggleProps) => {
   const t = useTranslations('billing.vnc');
   const [isOpen, setIsOpen] = useState(false);
   const [wsUrl, setWsUrl] = useState('');
@@ -174,17 +179,20 @@ export const VisualDesktopToggle = () => {
   }
 
   const effectiveWsUrl = sandboxMode ? wsUrl : 'ws://localhost:6080';
+  const showLauncher = !hideLauncher || isOpen || held || managedTakeoverPending;
 
   return (
     <>
-      <button
-        onClick={() => (isOpen ? void closePanel() : setIsOpen(true))}
-        className={`fixed bottom-24 right-6 p-3 rounded-full shadow-lg transition-colors z-50 flex items-center justify-center max-sm:bottom-20 max-sm:right-4 ${managedTakeoverPending ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
-        title={managedTakeoverPending ? takeoverReason : t('toggleTitle')}
-        aria-label={t('toggleTitle')}
-      >
-        <MonitorPlay size={24} />
-      </button>
+      {showLauncher ? (
+        <button
+          onClick={() => (isOpen ? void closePanel() : setIsOpen(true))}
+          className={`fixed bottom-24 right-6 p-3 rounded-full shadow-lg transition-colors z-50 flex items-center justify-center max-sm:bottom-20 max-sm:right-4 ${managedTakeoverPending ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+          title={managedTakeoverPending ? takeoverReason : t('toggleTitle')}
+          aria-label={t('toggleTitle')}
+        >
+          <MonitorPlay size={24} />
+        </button>
+      ) : null}
 
       {isOpen && (
         <div className="fixed bottom-36 right-6 w-[min(800px,calc(100vw-2rem))] h-[min(600px,calc(100vh-8rem))] bg-background rounded-xl shadow-2xl overflow-hidden z-50 border border-border flex flex-col max-sm:bottom-32 max-sm:right-4 max-sm:left-4">

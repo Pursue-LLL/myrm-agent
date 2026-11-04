@@ -125,6 +125,25 @@ describe('UpdateNudgeBanner', () => {
     expect(sessionStorage.getItem('update_nudge_dismissed')).toBe('true');
   });
 
+  it('stacks the copy above the actions on phones so the text keeps a readable column', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        stale: true,
+        latest: { version: 'v0.2.0' },
+      }),
+    } as Response);
+
+    const { container } = render(<UpdateNudgeBanner />);
+
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
+
+    expect(container.firstElementChild).toHaveClass('w-full', 'flex-col', 'sm:flex-row');
+    expect(screen.getByText('open').closest('div')).toHaveClass('shrink-0');
+  });
+
   it('navigates to settings on click open button', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
