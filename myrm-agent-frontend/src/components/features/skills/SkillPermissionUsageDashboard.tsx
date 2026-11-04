@@ -25,6 +25,7 @@ import {
   FileText,
 } from 'lucide-react';
 
+import { translateOrRaw } from '@/lib/i18n/translateOrRaw';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Card } from '@/components/primitives/card';
 import { Badge } from '@/components/primitives/badge';
@@ -94,7 +95,7 @@ function PermissionStatsCard({ stat }: { stat: PermissionUsageStats }) {
             <Icon className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h4 className="font-semibold">{t(`permLabels.${stat.permission}`, { defaultValue: stat.permission })}</h4>
+            <h4 className="font-semibold">{translateOrRaw(t, `permLabels.${stat.permission}`, stat.permission)}</h4>
             <p className="text-xs text-muted-foreground">
               {stat.total_count} {t('totalOps')}
             </p>

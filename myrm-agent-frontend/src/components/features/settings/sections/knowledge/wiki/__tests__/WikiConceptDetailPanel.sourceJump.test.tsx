@@ -1,7 +1,9 @@
 import { act, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const stableT = (key: string) => key;
+// next-intl's `t.has` tells known keys from keys the language pack lacks; only the provenance key below exists here.
+const KNOWN_KEYS = new Set(['provenance.chat-compound']);
+const stableT = Object.assign((key: string) => key, { has: (key: string) => KNOWN_KEYS.has(key) });
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -265,6 +267,23 @@ describe('WikiConceptDetailPanel links shortcut', () => {
     });
 
     expect(scrolledIds).toEqual(['wiki-concept-links']);
+  });
+});
+
+describe('WikiConceptDetailPanel provenance badge', () => {
+  it('translates a provenance the language pack knows', () => {
+    const concept: Concept = { name: 'Alpha', content: '# Alpha', provenance: 'chat-compound' };
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    expect(screen.getByText('provenance.chat-compound')).toBeInTheDocument();
+  });
+
+  it('shows an unknown provenance as the server sent it, not as a key path', () => {
+    const concept: Concept = { name: 'Alpha', content: '# Alpha', provenance: 'brand_new_origin' };
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    expect(screen.getByText('brand_new_origin')).toBeInTheDocument();
+    expect(screen.queryByText('provenance.brand_new_origin')).toBeNull();
   });
 });
 

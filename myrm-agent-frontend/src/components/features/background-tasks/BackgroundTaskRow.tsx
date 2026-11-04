@@ -2,6 +2,7 @@
 
 import { Navigation, FileText, Terminal } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { translateOrRaw } from '@/lib/i18n/translateOrRaw';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
@@ -59,7 +60,7 @@ export function BackgroundTaskRow({
   onViewVaultLog,
 }: BackgroundTaskRowProps) {
   const t = useTranslations('backgroundTasks');
-  const tChat = useTranslations('chat');
+  const tErrorCategory = useTranslations('progressSteps.errorCategories');
   const locale = useLocale();
   const config = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.running;
   // `?? null` folds the optional `undefined` into `null` so `!== null` narrows.
@@ -133,7 +134,7 @@ export function BackgroundTaskRow({
 
           {task.error_category && (
             <p className="mt-1 text-xs text-destructive/90">
-              {tChat(`errorCategories.${task.error_category}`, { defaultValue: task.error_category })}
+              {translateOrRaw(tErrorCategory, task.error_category, task.error_category)}
             </p>
           )}
 

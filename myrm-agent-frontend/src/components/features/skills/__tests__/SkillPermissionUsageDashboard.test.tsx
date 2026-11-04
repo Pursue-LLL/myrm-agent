@@ -26,17 +26,21 @@ const TRANSLATIONS: Record<string, string> = {
   highDenialRate: 'highDenialRate',
   recentOps: 'recentOps',
   total: 'total',
+  'permLabels.shell_exec': 'Execute Shell',
 };
 
-const stableT = (key: string, values?: Record<string, string | number>): string => {
-  let text = TRANSLATIONS[key] ?? key;
-  if (values) {
-    for (const [k, v] of Object.entries(values)) {
-      text = text.replaceAll(`{${k}}`, String(v));
+const stableT = Object.assign(
+  (key: string, values?: Record<string, string | number>): string => {
+    let text = TRANSLATIONS[key] ?? key;
+    if (values) {
+      for (const [k, v] of Object.entries(values)) {
+        text = text.replaceAll(`{${k}}`, String(v));
+      }
     }
-  }
-  return text;
-};
+    return text;
+  },
+  { has: (key: string) => key in TRANSLATIONS },
+);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -102,6 +106,34 @@ describe('SkillPermissionUsageDashboard', () => {
     // Recent operation with deny reason
     expect(screen.getByText('rm -rf /tmp/x')).toBeInTheDocument();
     expect(screen.getByText('skill_boundary.violation')).toBeInTheDocument();
+
+    // A permission the language pack knows is translated; one it lacks is shown as the server sent it
+    expect(screen.getByRole('heading', { name: 'Execute Shell' })).toBeInTheDocument();
+  });
+
+  it('shows a permission the language pack has no label for as the server sent it', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        skill_id: 's1',
+        skill_name: 'Demo',
+        stats: [
+          {
+            permission: 'brand_new_permission',
+            total_count: 1,
+            allowed_count: 1,
+            denied_count: 0,
+            recent_operations: [],
+          },
+        ],
+        total_operations: 1,
+      }),
+    });
+
+    render(<SkillPermissionUsageDashboard skillId="s1" />);
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'brand_new_permission' })).toBeInTheDocument());
+    expect(screen.queryByText('permLabels.brand_new_permission')).toBeNull();
   });
 
   it('does not crash when recent_operations is present', async () => {
