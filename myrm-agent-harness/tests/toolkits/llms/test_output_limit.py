@@ -83,6 +83,12 @@ MODEL_CAP_WORDINGS = [
         id="groq",
     ),
     pytest.param(
+        "400 undefined: The maximum tokens you requested exceeds the model limit of 8192. Try again with a maximum "
+        "tokens value that is",
+        8192,
+        id="bedrock-converse",
+    ),
+    pytest.param(
         "Unable to submit request because it has a maxOutputTokens value of 65536 but the supported range is from 1 "
         "(inclusive) to 65536 (exclusive). Update the value and try again.",
         65535,

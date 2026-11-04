@@ -4,7 +4,7 @@
 - golden_capture (POS: scenario matrix recorder)
 - golden_baseline.json (POS: requests recorded from the previous client library)
 - golden_catalog.json (POS: the model facts the baseline was recorded with, pinned so a catalog refresh cannot move them)
-- golden_allowed (POS: registry of intentional differences)
+- golden_allowed / golden_bedrock_allowed (POS: registries of intentional differences)
 
 [OUTPUT]
 - tests that fail on any unregistered difference and on any registry rule that matches nothing
@@ -25,9 +25,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.catalog import store
 
-from .golden_allowed import RULES
 from .golden_capture import capture_all, install_recorder
-from .golden_diff import diff_case, explain
+from .golden_diff import CHAT_RULES, diff_case, explain
 
 _BASELINE = Path(__file__).parent / "golden_baseline.json"
 _CATALOG = Path(__file__).parent / "golden_catalog.json"
@@ -39,6 +38,8 @@ def comparison(monkeypatch_module: pytest.MonkeyPatch) -> tuple[dict[str, list[s
     baseline.pop("_meta")
     pinned = json.loads(_CATALOG.read_text(encoding="utf-8"))
     monkeypatch_module.setattr(store, "_snapshot", lambda: pinned)
+    for region in ("AWS_REGION_NAME", "AWS_REGION", "AWS_DEFAULT_REGION"):  # the default endpoint's region
+        monkeypatch_module.delenv(region, raising=False)
     store._snapshot_by_lowercase.cache_clear()  # derived from the snapshot: must not keep the pinned subset
     current = capture_all(install_recorder(monkeypatch_module))
     assert set(current) == set(baseline), "the scenario matrix changed: re-record the baseline"
@@ -67,5 +68,5 @@ def test_every_difference_is_registered(comparison: tuple[dict[str, list[str]], 
 
 def test_registry_has_no_stale_rules(comparison: tuple[dict[str, list[str]], Counter[str]]) -> None:
     _, used = comparison
-    stale = [rule.id for rule in RULES if rule.id not in used]
+    stale = [rule.id for rule in CHAT_RULES if rule.id not in used]
     assert not stale, f"registered differences that no longer occur: {stale}"

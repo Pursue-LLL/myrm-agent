@@ -211,10 +211,19 @@ class TestCreateChatModel:
         assert "extra_body" not in call_kwargs
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
-    def test_claude_on_another_provider_keeps_the_extra_body(self, mock_cls: MagicMock) -> None:
-        create_chat_model("bedrock/anthropic.claude-sonnet-4-20250514-v1:0", reasoning_effort="high", top_p=0.5)
+    def test_claude_behind_an_openai_shaped_gateway_keeps_the_extra_body(self, mock_cls: MagicMock) -> None:
+        create_chat_model("vercel_ai_gateway/anthropic/claude-sonnet-4", reasoning_effort="high", top_p=0.5)
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["extra_body"] == {"reasoning_effort": "high", "top_p": 0.5}
+
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
+    def test_bedrock_gets_typed_parameters_because_a_converse_body_takes_no_extra_fields(
+        self, mock_cls: MagicMock
+    ) -> None:
+        create_chat_model("bedrock/anthropic.claude-sonnet-4-20250514-v1:0", reasoning_effort="high", top_p=0.5)
+        call_kwargs = mock_cls.call_args[1]
+        assert (call_kwargs["reasoning_effort"], call_kwargs["top_p"]) == ("high", 0.5)
+        assert "extra_body" not in call_kwargs
 
     @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_caller_extra_body_is_never_mutated(self, mock_cls: MagicMock) -> None:

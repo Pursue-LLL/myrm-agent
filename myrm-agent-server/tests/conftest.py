@@ -40,6 +40,9 @@ def _isolate_test_data_dir() -> None:
 
 
 _isolate_test_data_dir()
+# The provider answer cache is on in production. A test must reach its fake provider every time, so the suite starts
+# with it off; a test that exercises the cache switches it on and restores it.
+os.environ["MYRM_LLM_ANSWER_CACHE"] = "0"
 
 # Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
 # top-level conftest only; the referenced modules define explicit-request fixtures

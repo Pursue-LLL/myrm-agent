@@ -117,6 +117,9 @@ _OVERFLOW_EXACT_RE = re.compile(
             r"context size has been exceeded",
             r"available context size",
             r"input tokens exceed",
+            # Bedrock Converse wordings (Claude, Llama and Mistral say the first, Nova the second)
+            r"input is too long for requested model",
+            r"too many input tokens",
         ]
     ),
     re.IGNORECASE,

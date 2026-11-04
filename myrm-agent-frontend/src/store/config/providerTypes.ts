@@ -103,6 +103,7 @@ export const BUILT_IN_PROVIDERS = [
   'spark',
   'perplexity',
   'jina_ai',
+  'bedrock',
   'xiaomi_mimo',
   'nvidia',
   'ai302',
@@ -283,6 +284,12 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
     name: 'Jina AI',
     isBuiltIn: true,
     defaultApiUrl: 'https://api.jina.ai',
+  },
+  bedrock: {
+    id: 'bedrock',
+    name: 'AWS Bedrock',
+    isBuiltIn: true,
+    defaultApiUrl: 'https://bedrock-runtime.{region}.amazonaws.com',
   },
   xiaomi_mimo: {
     id: 'xiaomi_mimo',

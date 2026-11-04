@@ -4,7 +4,8 @@
 - transport.profile (POS: resolve_route — provider, endpoint and credential of a call)
 - transport.http (POS: request execution and stream iterators)
 - transport.chat_shape (POS: the chat.completion shape the adapter reads, applied to every chat answer)
-- transport.openai_chat / openai_responses / anthropic_messages / anthropic_response / gemini_generate / ollama_chat (POS: the wires)
+- transport.answer_cache (POS: replays the answer of a request that was already answered)
+- transport.openai_chat / openai_responses / anthropic_messages / anthropic_response / bedrock_converse / bedrock_response / gemini_generate / ollama_chat (POS: the wires)
 
 [OUTPUT]
 - LLMTransport: ``completion`` / ``acompletion`` (chat) and ``responses`` / ``aresponses`` (Responses wire)
@@ -13,9 +14,10 @@
 [POS]
 Facade over the wires: resolve the route, let the wire build the provider request, execute it, and return the answer
 in the OpenAI chat shape (dict, or an iterator of chunk dicts when streaming); ``chat_shape`` guarantees that shape
-whichever wire or gateway produced the answer. It holds no state, so one instance
-serves every model and thread; connection pools live in ``http``. It exposes the same four calls and keyword
-arguments the chat adapter has always issued, which keeps the adapter's retry, failover and recovery logic untouched.
+whichever wire or gateway produced the answer. A request that was already answered is answered from ``answer_cache``
+instead of the provider. The facade keeps no state of its own, so one instance serves every model and thread;
+connection pools live in ``http``. It exposes the same four calls and keyword arguments the chat adapter has always
+issued, which keeps the adapter's retry, failover and recovery logic untouched.
 """
 
 from __future__ import annotations
@@ -28,10 +30,22 @@ from typing import Final
 from myrm_agent_harness.toolkits.llms.transport import (
     anthropic_messages,
     anthropic_response,
+    bedrock_converse,
+    bedrock_response,
     gemini_generate,
     ollama_chat,
     openai_chat,
     openai_responses,
+)
+from myrm_agent_harness.toolkits.llms.transport.answer_cache import (
+    CHAT,
+    RESPONSES,
+    AsyncReplayStream,
+    ReplayStream,
+    acached_answer,
+    acached_stream,
+    cached_answer,
+    cached_stream,
 )
 from myrm_agent_harness.toolkits.llms.transport.chat_shape import ShapedDecoder, shape_completion
 from myrm_agent_harness.toolkits.llms.transport.http import (
@@ -65,6 +79,7 @@ _CHAT_WIRES: Final[dict[str, ChatWire]] = {
     "anthropic": ChatWire(anthropic_messages.prepare, anthropic_response.parse, anthropic_response.decoder),
     "gemini": ChatWire(gemini_generate.prepare, gemini_generate.parse, gemini_generate.decoder),
     "ollama": ChatWire(ollama_chat.prepare, ollama_chat.parse, ollama_chat.decoder),
+    "bedrock": ChatWire(bedrock_converse.prepare, bedrock_response.parse, bedrock_response.decoder),
 }
 
 
@@ -82,37 +97,49 @@ def _route(params: Mapping[str, object]) -> Route:
 
 
 class LLMTransport:
-    """Stateless provider transport; see the module docstring."""
+    """Provider transport without state of its own; see the module docstring."""
 
-    def completion(self, *, messages: Messages, **params: object) -> dict[str, object] | ProviderStream:
+    def completion(self, *, messages: Messages, **params: object) -> dict[str, object] | ProviderStream | ReplayStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
         request = wire.prepare(route, messages, params)
         if request.stream:
-            return open_stream(request, ShapedDecoder(wire.decoder(route)))
-        return shape_completion(route.profile.id, wire.parse(route, send_json(request)))
+            return cached_stream(open_stream, request, ShapedDecoder(wire.decoder(route)), CHAT)
+        return cached_answer(
+            request, lambda: shape_completion(route.profile.id, wire.parse(route, send_json(request))), keep=CHAT.answer
+        )
 
-    async def acompletion(self, *, messages: Messages, **params: object) -> dict[str, object] | AsyncProviderStream:
+    async def acompletion(
+        self, *, messages: Messages, **params: object
+    ) -> dict[str, object] | AsyncProviderStream | AsyncReplayStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
         request = wire.prepare(route, messages, params)
         if request.stream:
-            return await aopen_stream(request, ShapedDecoder(wire.decoder(route)))
-        return shape_completion(route.profile.id, wire.parse(route, await asend_json(request)))
+            return await acached_stream(aopen_stream, request, ShapedDecoder(wire.decoder(route)), CHAT)
 
-    def responses(self, **params: object) -> dict[str, object] | ProviderStream:
+        async def answer() -> dict[str, object]:
+            return shape_completion(route.profile.id, wire.parse(route, await asend_json(request)))
+
+        return await acached_answer(request, answer, keep=CHAT.answer)
+
+    def responses(self, **params: object) -> dict[str, object] | ProviderStream | ReplayStream:
         route = _route(params)
         request = openai_responses.prepare(route, params)
         if request.stream:
-            return open_stream(request, openai_responses.decoder(route))
-        return openai_responses.parse(route, send_json(request))
+            return cached_stream(open_stream, request, openai_responses.decoder(route), RESPONSES)
+        return cached_answer(request, lambda: openai_responses.parse(route, send_json(request)), keep=RESPONSES.answer)
 
-    async def aresponses(self, **params: object) -> dict[str, object] | AsyncProviderStream:
+    async def aresponses(self, **params: object) -> dict[str, object] | AsyncProviderStream | AsyncReplayStream:
         route = _route(params)
         request = openai_responses.prepare(route, params)
         if request.stream:
-            return await aopen_stream(request, openai_responses.decoder(route))
-        return openai_responses.parse(route, await asend_json(request))
+            return await acached_stream(aopen_stream, request, openai_responses.decoder(route), RESPONSES)
+
+        async def answer() -> dict[str, object]:
+            return openai_responses.parse(route, await asend_json(request))
+
+        return await acached_answer(request, answer, keep=RESPONSES.answer)
 
 
 @lru_cache(maxsize=1)

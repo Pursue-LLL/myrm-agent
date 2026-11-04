@@ -13,10 +13,10 @@
 - Route / UnsupportedProviderError / resolve_route / speaks_openai_body / PROFILES: provider resolution
 
 [POS]
-Five wires (OpenAI chat, OpenAI Responses, Anthropic Messages, Gemini generateContent, Ollama chat) cover every
-provider; a provider that speaks the OpenAI protocol is a data row in ``profile.PROFILES``. Imports stay light: no
-provider SDK is loaded, and the names resolve on first use, so reading an error class or a provider route (the
-failure classifier, the HTTP server's import path) does not load the wires.
+Six wires (OpenAI chat, OpenAI Responses, Anthropic Messages, Gemini generateContent, Ollama chat, AWS Bedrock
+Converse) cover every provider; a provider that speaks the OpenAI protocol is a data row in ``profile.PROFILES``.
+Imports stay light: no provider SDK is loaded, and the names resolve on first use, so reading an error class or a
+provider route (the failure classifier, the HTTP server's import path) does not load the wires.
 """
 
 from importlib import import_module

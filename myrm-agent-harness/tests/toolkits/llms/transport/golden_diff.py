@@ -1,10 +1,11 @@
 """Structural diff of two request captures and the registry check that explains every difference.
 
 [INPUT]
-- golden_allowed (POS: the registry of intentional differences)
+- golden_allowed / golden_bedrock_allowed (POS: the registries of intentional differences)
 
 [OUTPUT]
 - Diff / diff_request / diff_case: the differences between a baseline and a current request
+- CHAT_RULES: every registered difference of the chat requests
 - explain: split differences into registered ones and unexplained ones
 
 [POS]
@@ -19,7 +20,9 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
 from .golden_allowed import HIDDEN_FETCHES, RULES, AllowedDiff
+from .golden_bedrock_allowed import BEDROCK_RULES
 
+CHAT_RULES: tuple[AllowedDiff, ...] = (*RULES, *BEDROCK_RULES)
 _VOLATILE_HEADERS = frozenset({"user-agent", "content-type"})
 
 
@@ -132,7 +135,9 @@ def _matches(rule: AllowedDiff, provider: str, scenario: str, diff: Diff) -> boo
     )
 
 
-def explain(case: str, diffs: list[Diff], rules: tuple[AllowedDiff, ...] = RULES) -> tuple[dict[str, int], list[Diff]]:
+def explain(
+    case: str, diffs: list[Diff], rules: tuple[AllowedDiff, ...] = CHAT_RULES
+) -> tuple[dict[str, int], list[Diff]]:
     """({rule id: matched count}, differences no rule explains) for the case ``provider|base|scenario``."""
     provider, _, scenario = case.split("|")
     used: dict[str, int] = {}

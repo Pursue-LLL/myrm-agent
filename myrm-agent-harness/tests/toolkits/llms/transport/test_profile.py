@@ -35,10 +35,13 @@ class TestProviderTable:
 
     def test_non_openai_protocols_are_exactly_the_ones_with_their_own_wire(self) -> None:
         own_wire = {pid for pid, p in PROFILES.items() if p.wire not in {"openai_chat", "azure_openai"}}
-        assert own_wire == {"anthropic", "gemini", "ollama"}
+        assert own_wire == {"anthropic", "bedrock", "gemini", "ollama"}
 
-    def test_removed_providers_are_not_in_the_table(self) -> None:
-        assert "bedrock" not in PROFILES
+    def test_bedrock_has_no_fixed_endpoint_because_the_region_names_it(self) -> None:
+        assert PROFILES["bedrock"].base_url is None
+        assert PROFILES["bedrock"].api_key_env == ("AWS_BEARER_TOKEN_BEDROCK",)
+
+    def test_a_provider_without_a_wire_is_not_in_the_table(self) -> None:
         assert "replicate" not in PROFILES
 
 
@@ -82,10 +85,21 @@ class TestResolveRoute:
         assert route.profile.wire == "openai_chat"
         assert (route.model, route.base_url) == ("mystery/model-1", "https://gw.example/v1")
 
-    @pytest.mark.parametrize("model", ["bedrock/anthropic.claude-3", "replicate/meta/llama"])
-    def test_removed_providers_fail_with_a_clear_error_even_with_an_endpoint(self, model: str) -> None:
+    def test_a_provider_without_a_wire_fails_with_a_clear_error_even_with_an_endpoint(self) -> None:
         with pytest.raises(UnsupportedProviderError, match="not supported"):
-            resolve_route(model, api_base="https://gw.example/v1")
+            resolve_route("replicate/meta/llama", api_base="https://gw.example/v1")
+
+    def test_bedrock_resolves_to_its_own_wire_with_the_bearer_key_from_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "bedrock-key")
+        route = resolve_route("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0")
+        assert (route.profile.wire, route.model, route.api_key) == (
+            "bedrock",
+            "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            "bedrock-key",
+        )
+        assert route.base_url is None
 
     def test_custom_llm_provider_overrides_the_segment(self) -> None:
         route = resolve_route("deepseek/deepseek-chat", custom_llm_provider="deepseek")
@@ -124,6 +138,13 @@ class TestNormalizeBaseUrl:
             ("ollama", "http://host:11434/v1", "http://host:11434"),
             ("gemini", "https://generativelanguage.googleapis.com", "https://generativelanguage.googleapis.com/v1beta"),
             ("gemini", "https://gw.example/v1beta", "https://gw.example/v1beta"),
+            (
+                "bedrock",
+                "https://bedrock-runtime.eu-west-1.amazonaws.com",
+                "https://bedrock-runtime.eu-west-1.amazonaws.com",
+            ),
+            ("bedrock", "https://gw.example/model/amazon.nova-pro-v1%3A0/converse", "https://gw.example"),
+            ("bedrock", "https://gw.example/model/m/converse-stream/", "https://gw.example"),
         ],
     )
     def test_a_full_endpoint_or_a_root_reduces_to_the_root_the_wire_extends(
@@ -141,7 +162,10 @@ class TestSpeaksOpenAIBody:
     def test_openai_shaped_providers(self, model: str) -> None:
         assert speaks_openai_body(model)
 
-    @pytest.mark.parametrize("model", ["anthropic/claude-sonnet-4-5", "gemini/gemini-2.5-pro", "ollama/llama3"])
+    @pytest.mark.parametrize(
+        "model",
+        ["anthropic/claude-sonnet-4-5", "gemini/gemini-2.5-pro", "ollama/llama3", "bedrock/amazon.nova-pro-v1:0"],
+    )
     def test_providers_with_their_own_protocol(self, model: str) -> None:
         assert not speaks_openai_body(model)
 

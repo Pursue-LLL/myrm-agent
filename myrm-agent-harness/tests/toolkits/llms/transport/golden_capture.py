@@ -33,6 +33,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
+from .event_stream_bodies import CONTENT_TYPE as EVENT_STREAM
+from .event_stream_bodies import converse_answer, text_stream
 from .golden_recorder import Case, Record, install_request_recorder
 
 _CHAT_JSON = {
@@ -170,6 +172,27 @@ VARIANTS: dict[str, tuple[str, dict[str, object]]] = {
     "openai_gpt52": ("openai/gpt-5.2", {}),
 }
 PROVIDERS.update(VARIANTS)
+# One model of each Bedrock family that builds its request differently: whether it takes tools and a tool choice,
+# how it reasons, whether it has a native structured-output format, which sampling fields it reads. They share the
+# ``bedrock`` provider's endpoint and run ``BEDROCK_SCENARIOS``.
+BEDROCK_VARIANTS: dict[str, tuple[str, dict[str, object]]] = {
+    "bedrock_claude35": ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", {}),
+    "bedrock_claude37": ("bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0", {}),
+    "bedrock_claude45": ("bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0", {}),
+    "bedrock_haiku45": ("bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0", {}),
+    "bedrock_opus45": ("bedrock/us.anthropic.claude-opus-4-5-20251101-v1:0", {}),
+    "bedrock_sonnet46": ("bedrock/us.anthropic.claude-sonnet-4-6", {}),
+    "bedrock_opus47": ("bedrock/us.anthropic.claude-opus-4-7", {}),
+    "bedrock_nova": ("bedrock/amazon.nova-pro-v1:0", {}),
+    "bedrock_nova2": ("bedrock/us.amazon.nova-2-lite-v1:0", {}),
+    "bedrock_gptoss": ("bedrock/openai.gpt-oss-120b-1:0", {}),
+    "bedrock_llama33": ("bedrock/us.meta.llama3-3-70b-instruct-v1:0", {}),
+    "bedrock_llama3": ("bedrock/meta.llama3-70b-instruct-v1:0", {}),
+    "bedrock_mistral": ("bedrock/mistral.mistral-large-2407-v1:0", {}),
+    "bedrock_deepseek": ("bedrock/us.deepseek.r1-v1:0", {}),
+    "bedrock_arn": ("bedrock/arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123", {}),
+}
+PROVIDERS.update(BEDROCK_VARIANTS)
 # Reasoning efforts other than the base matrix's ``high``: how each maps to a budget, a level or a switch-off differs
 # by model, so every variant and one model of each other reasoning family run them.
 EFFORT_SCENARIOS = ("reasoning_minimal", "reasoning_medium", "reasoning_none")
@@ -177,10 +200,13 @@ EFFORT_PROVIDERS = frozenset({"anthropic", "gemini", "openai_gpt5", "openai_o3",
 _EFFORT_OF_SCENARIO = {
     "reasoning_high": "high",
     "reasoning_tools": "high",
+    "reasoning_required": "high",
     "reasoning_xhigh": "xhigh",
     "reasoning_minimal": "minimal",
     "reasoning_medium": "medium",
     "reasoning_none": "none",
+    "json_schema_reasoning": "high",
+    "tools_json_reasoning": "high",
 }
 VARIANT_SCENARIOS = (
     "basic",
@@ -195,6 +221,20 @@ VARIANT_SCENARIOS = (
     "tool_history_unbound",
     "tool_history_foreign_ids",
     "reasoning_tools",
+)
+# What a Bedrock family changes: the tool choice (stated, forced, named), a forced choice beside reasoning, the
+# structured answer alone and beside tools with and without reasoning, the caller's extra fields and cache marks.
+BEDROCK_SCENARIOS = (
+    *VARIANT_SCENARIOS,
+    "tools_required",
+    "tools_named",
+    "reasoning_required",
+    "json_schema",
+    "tools_json_output",
+    "json_schema_reasoning",
+    "tools_json_reasoning",
+    "extra_body",
+    "cache_control",
 )
 BASE_SCENARIOS = (
     "basic",
@@ -229,8 +269,15 @@ RESPONSES_PROVIDERS = frozenset({"openai", "openai_gpt5", "openai_like", "xai", 
 RESPONSES_SCENARIOS = ("responses", "responses_stream", "responses_tools")
 ANTHROPIC_WIRE_PROVIDERS = frozenset({"openai_like"})
 ANTHROPIC_WIRE_SCENARIOS = ("anthropic_wire", "anthropic_wire_stream", "anthropic_wire_tools")
+# Scenarios that state a tool choice other than ``auto`` on a fresh conversation (no replayed tool call).
+_CHOICE_OF_SCENARIO: dict[str, str | dict[str, object]] = {
+    "tools_required": "required",
+    "tools_named": {"type": "function", "function": {"name": "get_weather"}},
+    "reasoning_required": "required",
+}
 _TOOL_SCENARIOS = frozenset(
     {
+        *_CHOICE_OF_SCENARIO,
         "tools",
         "tool_history",
         "tool_history_foreign_ids",
@@ -242,10 +289,13 @@ _TOOL_SCENARIOS = frozenset(
         "history_empty_tool_result",
         "history_tool_image",
         "tools_json_output",
+        "tools_json_reasoning",
     }
 )
 # The history replays a tool call and its result; ``tool_history_unbound`` sends it without any tool definition.
-_HISTORY_SCENARIOS = _TOOL_SCENARIOS - {"tools"} | {"tool_history_unbound"}
+_HISTORY_SCENARIOS = _TOOL_SCENARIOS - {"tools", "tools_json_reasoning", *_CHOICE_OF_SCENARIO} | {
+    "tool_history_unbound"
+}
 # Tool-call ids another provider minted (Kimi style: dots and a colon), replayed into this provider.
 _FOREIGN_CALL_ID = "functions.get_weather:0"
 
@@ -279,6 +329,11 @@ def _canned(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200, content=_OLLAMA_CHAT_NDJSON, headers={"content-type": "application/x-ndjson"}, request=request
         )
+    if path.endswith("/converse"):
+        return httpx.Response(200, json=converse_answer({"text": "ok"}), request=request)
+    if path.endswith("/converse-stream"):
+        content = b"".join(text_stream("ok"))
+        return httpx.Response(200, content=content, headers={"content-type": EVENT_STREAM}, request=request)
     return answer(_CHAT_SSE, _CHAT_JSON)
 
 
@@ -395,10 +450,11 @@ async def _run_case(
         )
         runnable = llm
         if scenario in _TOOL_SCENARIOS:
-            runnable = llm.bind_tools(_TOOLS, tool_choice="auto", parallel_tool_calls=True)
-            if scenario == "tools_json_output":
+            choice = _CHOICE_OF_SCENARIO.get(scenario, "auto")
+            runnable = llm.bind_tools(_TOOLS, tool_choice=choice, parallel_tool_calls=True)
+            if scenario in ("tools_json_output", "tools_json_reasoning"):
                 runnable = runnable.bind(response_format=_JSON_SCHEMA)
-        elif scenario == "json_schema":
+        elif scenario in ("json_schema", "json_schema_reasoning"):
             runnable = llm.bind(response_format=_JSON_SCHEMA)
         if scenario.endswith("stream"):
             async for _ in runnable.astream(_messages(scenario)):
@@ -415,6 +471,9 @@ def case_keys(only: frozenset[str] | None = None) -> list[tuple[str, bool, str]]
     keys: list[tuple[str, bool, str]] = []
     for provider in PROVIDERS:
         if only is not None and provider not in only:
+            continue
+        if provider in BEDROCK_VARIANTS:
+            keys.extend((provider, False, scenario) for scenario in BEDROCK_SCENARIOS)
             continue
         if provider in VARIANTS:
             keys.extend((provider, False, scenario) for scenario in VARIANT_SCENARIOS)

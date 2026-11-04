@@ -3,6 +3,7 @@ and _runtime.stream_executor._emergency_compact."""
 
 from typing import Any, ClassVar
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
@@ -17,6 +18,7 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
     is_quota_exhausted,
 )
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError
 
 # ============================================================================
 # classify_error — context overflow
@@ -43,6 +45,8 @@ from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
         "llama.cpp error: Context size has been exceeded.",
         "llama-server: available context size exceeded",
         "input tokens exceed maximum context length",
+        "Input is too long for requested model.",
+        "Too many input tokens. Max input tokens: 300000, request input token count: 310000",
     ],
 )
 def test_classify_context_overflow(msg: str) -> None:
@@ -219,6 +223,8 @@ class TestIsContextOverflowPositive:
             "tokens in request more than max tokens allowed",
             "total message size 5943865 exceeds limit 2097152",
             "Error code: 400 - {'error': {'code': '1261', 'message': 'Prompt exceeds max length'}}",
+            "Input is too long for requested model.",
+            "Too many input tokens. Max input tokens: 300000, request input token count: 310000",
         ],
     )
     def test_exact_patterns(self, msg: str) -> None:
@@ -266,6 +272,7 @@ class TestIsContextOverflowNegative:
             "random unrelated error",
             "connection timeout",
             "internal server error",
+            "Too many tokens, please wait before trying again.",  # Bedrock's throttle wording, not an overflow
         ],
     )
     def test_excluded_or_unrelated(self, msg: str) -> None:
@@ -274,6 +281,15 @@ class TestIsContextOverflowNegative:
     def test_rate_limit_with_context_keyword(self) -> None:
         """Rate-limit errors mentioning 'context' should still be excluded."""
         assert is_context_overflow(Exception("rate limit: too many tokens per minute in context")) is False
+
+
+def test_a_failing_upstream_model_fails_over_like_an_overload() -> None:
+    """Bedrock answers 424 when the model itself fails (ModelErrorException, ModelStreamErrorException)."""
+    request = httpx.Request("POST", "https://bedrock-runtime.us-west-2.amazonaws.com/model/m/converse")
+    response = httpx.Response(424, json={"message": "The model returned an error"}, request=request)
+    error = LLMHTTPError("bedrock", 424, response.text, response)
+    assert classify_error(error) == ErrorKind.OVERLOADED
+    assert classify_error(error).is_failoverable
 
 
 # ============================================================================

@@ -3,6 +3,7 @@
 [INPUT]
 - transport.service_routes (POS: service_route — provider, endpoint and credential)
 - transport.http (POS: PreparedRequest, asend_json)
+- transport.answer_cache (POS: replays the ranking of a query that was already ranked)
 
 [OUTPUT]
 - arerank: (document index, relevance score) pairs, best first
@@ -17,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Final
 
+from myrm_agent_harness.toolkits.llms.transport.answer_cache import acached_answer
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest, asend_json
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
@@ -40,6 +42,11 @@ def _pair(entry: object, document_count: int) -> tuple[int, float]:
     return index, float(score)
 
 
+async def _scored(request: PreparedRequest, provider: str, document_count: int) -> list[tuple[int, float]]:
+    payload = await asend_json(request)
+    return [_pair(entry, document_count) for entry in _entries(payload, provider)]
+
+
 async def arerank(
     model: str,
     query: str,
@@ -60,5 +67,5 @@ async def arerank(
     request = PreparedRequest(
         provider=provider, url=f"{route.base_url}/rerank", headers=headers, body=body, timeout=_TIMEOUT_SECONDS
     )
-    payload = await asend_json(request)
-    return [_pair(entry, len(documents)) for entry in _entries(payload, provider)]
+    pairs = await acached_answer(request, lambda: _scored(request, provider, len(documents)))
+    return [(int(index), float(score)) for index, score in pairs]  # a stored ranking comes back as JSON lists

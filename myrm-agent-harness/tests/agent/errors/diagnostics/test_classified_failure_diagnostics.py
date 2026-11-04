@@ -186,14 +186,14 @@ def test_a_payload_nested_beyond_the_recursion_limit_is_still_diagnosed() -> Non
 
 
 def test_a_model_id_the_transport_cannot_route_is_a_rejected_request_not_an_unknown_failure() -> None:
-    exc = UnsupportedProviderError("Provider 'bedrock' is not supported by the model transport")
+    exc = UnsupportedProviderError("Provider 'replicate' is not supported by the model transport")
     assert classify_error(exc) is ErrorKind.FORMAT_ERROR
 
     result = LLMErrorDiagnostic.diagnose(exc, _CONTEXT, locale="en")
 
     assert result.error_type == "format_error"
     assert _MODEL in result.user_message
-    assert "bedrock" not in result.user_message
+    assert "replicate" not in result.user_message
 
 
 def test_a_provider_policy_block_answered_with_a_status_is_not_read_as_a_rejected_key() -> None:

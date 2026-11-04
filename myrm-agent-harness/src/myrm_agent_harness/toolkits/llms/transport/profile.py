@@ -25,7 +25,7 @@ from types import MappingProxyType
 from typing import Final, Literal
 from urllib.parse import urlsplit, urlunsplit
 
-Wire = Literal["openai_chat", "azure_openai", "anthropic", "gemini", "ollama"]
+Wire = Literal["openai_chat", "azure_openai", "anthropic", "gemini", "ollama", "bedrock"]
 TextFlattening = Literal["never", "text_only", "always"]
 # Whether the provider's chat endpoint accepts ``cache_control`` marks on messages and tools: never (they are
 # stripped), always, or only when the call goes to a custom endpoint (a gateway that may front a caching model).
@@ -119,6 +119,8 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
             wire="gemini",
         ),
         _profile("ollama", "http://localhost:11434", "OLLAMA_API_KEY", wire="ollama"),
+        # No fixed endpoint: Bedrock is reached per region, which the wire reads from the model ARN or the AWS variables.
+        _profile("bedrock", None, "AWS_BEARER_TOKEN_BEDROCK", wire="bedrock"),
         _profile("deepseek", "https://api.deepseek.com", "DEEPSEEK_API_KEY", flatten_text="always"),
         _profile(
             "openrouter",
@@ -169,7 +171,7 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
     )
 }
 
-_UNSUPPORTED: Final = frozenset({"replicate", "bedrock"})
+_UNSUPPORTED: Final = frozenset({"replicate"})
 
 # A model id without a provider segment: the family prefix names the first-party provider.
 _BARE_MODEL_PROVIDER: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
@@ -227,6 +229,8 @@ def normalize_base_url(profile: ProviderProfile, base_url: str | None) -> str | 
         for suffix in ("/v1/chat/completions", "/api/chat", "/api/generate", "/api", "/v1"):
             if url.endswith(suffix):
                 return url[: -len(suffix)]
+    elif profile.wire == "bedrock":  # a pasted operation URL (``.../model/{id}/converse``) is cut back to the root
+        return url.partition("/model/")[0]
     elif profile.wire == "gemini":
         parts = urlsplit(url)
         if not parts.path:  # a bare Google host has no API version; the default endpoint carries v1beta

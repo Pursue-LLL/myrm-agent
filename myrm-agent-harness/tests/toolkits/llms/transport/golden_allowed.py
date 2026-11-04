@@ -537,12 +537,4 @@ RULES: tuple[AllowedDiff, ...] = (
         providers=("deepseek",),
         scenarios=("responses", "responses_stream", "responses_tools"),
     ),
-    # --- removed providers ----------------------------------------------------------------------------------------
-    AllowedDiff(
-        "bedrock-removed",
-        "Bedrock is not reachable through the transport (it signs requests with AWS credentials); no request is made.",
-        "count",
-        r"",
-        providers=("bedrock",),
-    ),
 )

@@ -18,7 +18,7 @@ Toolkits Llms module.
 | Submodule | Description |
 |-----------|-------------|
 | probe/ | Lightweight provider balance probe contracts and normalized data models. |
-| transport/ | Typed protocol wires over `httpx` for every provider (OpenAI chat/Responses, Anthropic Messages, Gemini, Ollama), embeddings, rerank and image calls. See [transport/_ARCH.md](transport/_ARCH.md). |
+| transport/ | Typed protocol wires over `httpx` for every provider (OpenAI chat/Responses, Anthropic Messages, Gemini, Ollama, AWS Bedrock Converse), embeddings, rerank and image calls. See [transport/_ARCH.md](transport/_ARCH.md). |
 | catalog/ | Model facts (context windows, output ceilings, prices, capability flags): bundled snapshot plus runtime registrations. See [catalog/_ARCH.md](catalog/_ARCH.md). |
 | consensus/ | Multi-model consensus (MoA) inference — parallel reference queries + aggregator synthesis (arXiv:2406.04692). |
 | _media_shared/ | Shared across video/ and image/ modules. Keeps media-specific logic |

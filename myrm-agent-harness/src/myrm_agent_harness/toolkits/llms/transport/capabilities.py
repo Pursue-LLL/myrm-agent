@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - ClaudeTraits / claude_traits: what the Anthropic Messages API accepts from one Claude model
+- claude_version: the (major, minor) generation a Claude model id names, for rules that start at one generation
 - keeps_temperature_without_reasoning: whether an OpenAI reasoning model takes a temperature while it does not reason
 - gemini_from_3 / gemini_thinks_by_level / gemini_thinking_level: which Gemini generation a model id belongs to and how
   it takes thinking
@@ -75,6 +76,12 @@ def _by_name(model: str) -> ClaudeTraits:
         xhigh_effort=adaptive and (named or version >= _XHIGH_FROM),
         max_effort=adaptive,
     )
+
+
+def claude_version(model: str) -> tuple[int, int] | None:
+    """``(major, minor)`` of a Claude id that states them after the family (``claude-sonnet-4-5``); else ``None``."""
+    match = _CLAUDE_VERSION.search(model)
+    return (int(match[2]), int(match[3] or 0)) if match else None
 
 
 def _ceiling(info: Mapping[str, object]) -> int | None:

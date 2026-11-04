@@ -316,7 +316,9 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if normalized.status_code == 429:
         return FailoverReason.RATE_LIMIT
 
-    if normalized.status_code in (500, 502, 503, 504, 529):
+    # 424 is the upstream model failing on its own (Bedrock's ModelErrorException / ModelStreamErrorException):
+    # another model or a later attempt can succeed, so it fails over like a 5xx instead of ending the run.
+    if normalized.status_code in (424, 500, 502, 503, 504, 529):
         return FailoverReason.OVERLOADED
 
     return FailoverReason.UNKNOWN

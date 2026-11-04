@@ -30,6 +30,22 @@ describe('providerTypes defaults', () => {
     expect(getRoutedModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
   });
 
+  it('offers AWS Bedrock with its regional runtime endpoint and routes every model id through the bedrock route', () => {
+    expect(BUILT_IN_PROVIDER_INFO.bedrock).toMatchObject({
+      name: 'AWS Bedrock',
+      isBuiltIn: true,
+      defaultApiUrl: 'https://bedrock-runtime.{region}.amazonaws.com',
+    });
+    expect(getRoutedModelName('bedrock', 'us.anthropic.claude-sonnet-4-5-20250929-v1:0')).toBe(
+      'bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+    );
+    expect(getRoutedModelName('bedrock', 'bedrock/amazon.nova-pro-v1:0')).toBe('bedrock/amazon.nova-pro-v1:0');
+    expect(
+      getRoutedModelName('bedrock', 'arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123'),
+    ).toBe('bedrock/arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123');
+    expect(getInitialProviders().some((provider) => provider.id === 'bedrock')).toBe(true);
+  });
+
   it('seeds initial Xiaomi provider config with the same endpoint', () => {
     const xiaomiProvider = getInitialProviders().find((provider) => provider.id === 'xiaomi_mimo');
 

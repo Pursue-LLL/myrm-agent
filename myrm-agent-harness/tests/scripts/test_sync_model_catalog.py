@@ -40,6 +40,8 @@ class TestTrim:
             "supports_sampling_params": False,
             "supports_adaptive_thinking": True,
             "supports_output_config": True,
+            "supports_native_structured_output": True,
+            "supports_parallel_tool_use_config": True,
             "supports_none_reasoning_effort": True,
             "supports_xhigh_reasoning_effort": True,
             "supports_max_reasoning_effort": False,

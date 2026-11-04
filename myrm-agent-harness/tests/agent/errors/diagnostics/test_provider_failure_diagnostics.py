@@ -181,7 +181,7 @@ def test_a_plain_text_provider_body_is_still_shown() -> None:
 
 
 _CLIENT_SIDE_FAILURES: dict[str, Exception] = {
-    "dropped provider": UnsupportedProviderError("Provider 'bedrock' is not supported by the model transport"),
+    "dropped provider": UnsupportedProviderError("Provider 'replicate' is not supported by the model transport"),
     "no provider prefix": UnsupportedProviderError(
         "Cannot resolve a provider for model 'foo': use a 'provider/model' id from ['anthropic', 'openai'] "
         "or set an api_base for an OpenAI-compatible endpoint"

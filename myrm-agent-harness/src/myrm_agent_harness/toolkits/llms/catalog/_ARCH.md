@@ -3,7 +3,8 @@
 ## Overview
 
 Model catalog: context windows, output ceilings, per-token prices and capability flags per model, including the flags that
-shape a request (sampling parameters, adaptive thinking, `none`/`xhigh`/`max` reasoning effort). The data is a trimmed
+shape a request (sampling parameters, adaptive thinking, `none`/`xhigh`/`max` reasoning effort, native structured output and
+`disable_parallel_tool_use` on Bedrock). The data is a trimmed
 snapshot of the community-maintained model price table, bundled with the package and loaded once on first use;
 `scripts/sync_model_catalog.py` merges upstream into it (a union by key: a model upstream stops listing stays, because
 providers keep serving it). Runtime registrations (user-defined models, corrected prices) overlay the snapshot entry the

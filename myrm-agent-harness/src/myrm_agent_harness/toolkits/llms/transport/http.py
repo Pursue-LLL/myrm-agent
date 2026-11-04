@@ -1,16 +1,18 @@
-"""HTTP execution for the model transport: shared clients, one request/stream round trip, SSE framing.
+"""HTTP execution for the model transport: shared clients, one request/stream round trip, stream iterators.
 
 [INPUT]
 - httpx (POS: the HTTP client; proxy and TLS behavior come from it and from infra.tls_compat)
 - transport.errors (POS: LLMHTTPError for failed statuses)
 - transport.retry (POS: which failures are retried and how long to wait)
+- transport.stream_events (POS: the events of a streamed body, whatever its framing)
 
 [OUTPUT]
 - PreparedRequest: one fully built provider request (what a wire module produces)
-- StreamDecoder: the contract a wire module implements to turn SSE events / NDJSON lines into chat chunks
+- StreamDecoder: the contract a wire module implements to turn stream events into chat chunks
 - send_json / asend_json: one non-streaming round trip (JSON or multipart form body), parsed
 - open_stream / aopen_stream: one streaming round trip, as a chunk iterator
 - ProviderStream / AsyncProviderStream: chunk iterators that remember the finish reason the provider reported
+- finish_reason_of: the finish reason one chat chunk carries, if any
 - aclose_clients: closes and forgets every shared client, so the next request builds its client under the TLS and
   proxy settings then in force
 
@@ -29,7 +31,7 @@ import json
 import logging
 import threading
 import time
-from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator, Mapping
+from collections.abc import AsyncGenerator, Generator, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Final, Protocol
 
@@ -37,6 +39,7 @@ import httpx
 
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMResponseError, araise_for_status, raise_for_status
 from myrm_agent_harness.toolkits.llms.transport.retry import answer_wait, error_wait
+from myrm_agent_harness.toolkits.llms.transport.stream_events import aiter_stream_events, iter_stream_events
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +66,7 @@ class PreparedRequest:
     proxy: str | None = None
     stream: bool = False
     query: Mapping[str, str] = field(default_factory=dict)
-    framing: str = "sse"  # "sse" or "ndjson"
+    framing: str = "sse"  # "sse", "ndjson" or "eventstream" (see transport.stream_events)
     # A multipart request carries text fields in ``form`` and uploads in ``files`` instead of a JSON ``body``.
     form: Mapping[str, str] | None = None
     files: Mapping[str, FilePart] | None = None
@@ -80,7 +83,7 @@ class StreamDecoder(Protocol):
         ...
 
     def feed(self, event: str | None, data: str) -> list[Chunk]:
-        """Chunks carried by one SSE event / NDJSON line (may be empty)."""
+        """Chunks carried by one stream event (an SSE event, an NDJSON line or an event-stream message); may be empty."""
         ...
 
     def finish(self) -> list[Chunk]:
@@ -245,66 +248,10 @@ async def asend_json(req: PreparedRequest) -> dict[str, object]:
         await response.aclose()
 
 
-# --- stream framing ------------------------------------------------------------------------------------------
+# --- streams -------------------------------------------------------------------------------------------------
 
 
-class _SseParser:
-    """Line-by-line SSE state machine: ``push`` returns an event when a blank line closes one."""
-
-    __slots__ = ("_data", "_event")
-
-    def __init__(self) -> None:
-        self._event: str | None = None
-        self._data: list[str] = []
-
-    def push(self, line: str) -> tuple[str | None, str] | None:
-        if not line:
-            return self.flush()
-        if line.startswith(":"):
-            return None
-        name, _, value = line.partition(":")
-        value = value[1:] if value.startswith(" ") else value
-        if name == "data":
-            self._data.append(value)
-        elif name == "event":
-            self._event = value
-        return None
-
-    def flush(self) -> tuple[str | None, str] | None:
-        event, data = self._event, self._data
-        self._event, self._data = None, []
-        return (event, "\n".join(data)) if data else None
-
-
-def _iter_events(lines: Iterator[str], framing: str) -> Iterator[tuple[str | None, str]]:
-    if framing == "ndjson":
-        for line in lines:
-            if line.strip():
-                yield None, line
-        return
-    parser = _SseParser()
-    for line in lines:
-        if (event := parser.push(line)) is not None:
-            yield event
-    if (event := parser.flush()) is not None:
-        yield event
-
-
-async def _aiter_events(lines: AsyncIterator[str], framing: str) -> AsyncIterator[tuple[str | None, str]]:
-    if framing == "ndjson":
-        async for line in lines:
-            if line.strip():
-                yield None, line
-        return
-    parser = _SseParser()
-    async for line in lines:
-        if (event := parser.push(line)) is not None:
-            yield event
-    if (event := parser.flush()) is not None:
-        yield event
-
-
-def _finish_reason(chunk: Chunk) -> str | None:
+def finish_reason_of(chunk: Chunk) -> str | None:
     choices = chunk.get("choices")
     if isinstance(choices, list) and choices and isinstance(choices[0], dict):
         reason = choices[0].get("finish_reason")
@@ -315,9 +262,9 @@ def _finish_reason(chunk: Chunk) -> str | None:
 class ProviderStream:
     """Sync chunk iterator; ``received_finish_reason`` is what the provider itself reported, never a guess."""
 
-    def __init__(self, response: httpx.Response, decoder: StreamDecoder, framing: str) -> None:
+    def __init__(self, response: httpx.Response, decoder: StreamDecoder, req: PreparedRequest) -> None:
         self.received_finish_reason: str | None = None
-        self._chunks = self._generate(response, decoder, framing)
+        self._chunks = self._generate(response, decoder, req)
 
     def __iter__(self) -> ProviderStream:
         return self
@@ -328,16 +275,16 @@ class ProviderStream:
     def close(self) -> None:
         self._chunks.close()
 
-    def _generate(self, response: httpx.Response, decoder: StreamDecoder, framing: str) -> Generator[Chunk]:
+    def _generate(self, response: httpx.Response, decoder: StreamDecoder, req: PreparedRequest) -> Generator[Chunk]:
         try:
-            for event, data in _iter_events(response.iter_lines(), framing):
+            for event, data in iter_stream_events(response, req.framing, req.provider):
                 for chunk in decoder.feed(event, data):
-                    self.received_finish_reason = _finish_reason(chunk) or self.received_finish_reason
+                    self.received_finish_reason = finish_reason_of(chunk) or self.received_finish_reason
                     yield chunk
                 if decoder.done:
                     break
             for chunk in decoder.finish():
-                self.received_finish_reason = _finish_reason(chunk) or self.received_finish_reason
+                self.received_finish_reason = finish_reason_of(chunk) or self.received_finish_reason
                 yield chunk
         finally:
             response.close()
@@ -346,9 +293,9 @@ class ProviderStream:
 class AsyncProviderStream:
     """Async twin of :class:`ProviderStream`."""
 
-    def __init__(self, response: httpx.Response, decoder: StreamDecoder, framing: str) -> None:
+    def __init__(self, response: httpx.Response, decoder: StreamDecoder, req: PreparedRequest) -> None:
         self.received_finish_reason: str | None = None
-        self._chunks = self._generate(response, decoder, framing)
+        self._chunks = self._generate(response, decoder, req)
 
     def __aiter__(self) -> AsyncProviderStream:
         return self
@@ -359,16 +306,18 @@ class AsyncProviderStream:
     async def aclose(self) -> None:
         await self._chunks.aclose()
 
-    async def _generate(self, response: httpx.Response, decoder: StreamDecoder, framing: str) -> AsyncGenerator[Chunk]:
+    async def _generate(
+        self, response: httpx.Response, decoder: StreamDecoder, req: PreparedRequest
+    ) -> AsyncGenerator[Chunk]:
         try:
-            async for event, data in _aiter_events(response.aiter_lines(), framing):
+            async for event, data in aiter_stream_events(response, req.framing, req.provider):
                 for chunk in decoder.feed(event, data):
-                    self.received_finish_reason = _finish_reason(chunk) or self.received_finish_reason
+                    self.received_finish_reason = finish_reason_of(chunk) or self.received_finish_reason
                     yield chunk
                 if decoder.done:
                     break
             for chunk in decoder.finish():
-                self.received_finish_reason = _finish_reason(chunk) or self.received_finish_reason
+                self.received_finish_reason = finish_reason_of(chunk) or self.received_finish_reason
                 yield chunk
         finally:
             await response.aclose()
@@ -383,7 +332,7 @@ def open_stream(req: PreparedRequest, decoder: StreamDecoder) -> ProviderStream:
     except BaseException:
         response.close()
         raise
-    return ProviderStream(response, decoder, req.framing)
+    return ProviderStream(response, decoder, req)
 
 
 async def aopen_stream(req: PreparedRequest, decoder: StreamDecoder) -> AsyncProviderStream:
@@ -395,4 +344,4 @@ async def aopen_stream(req: PreparedRequest, decoder: StreamDecoder) -> AsyncPro
     except BaseException:
         await response.aclose()
         raise
-    return AsyncProviderStream(response, decoder, req.framing)
+    return AsyncProviderStream(response, decoder, req)
