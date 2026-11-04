@@ -29,7 +29,6 @@ const WITH_VALUES: ReadonlyArray<readonly [string, Values]> = [
   ['settings.sshVault.probeFailed', { host: 'host-x', message: 'message-x' }],
   ['settings.securityPolicy.profile.activated', { name: 'profile-x' }],
   ['settings.securityPolicy.privacy.routing.testSuccessLatency', { latency: 42 }],
-  ['settings.wiki.reviewSlip.applied', { committed: 4, discarded: 6 }],
   ['settings.skills.detail.securityReviewNote', { recommendation: 'recommendation-x' }],
   ['settings.skills.growth.approveFailedStaleBase', { name: 'skill-x' }],
   ['settings.skills.growth.approveFailedUnloadable', { name: 'skill-x' }],

@@ -1,14 +1,9 @@
-"""Unit tests for Five-Layer Wiki structure, SourceCardContract, NegativeExclusionPolicy, and RadarRationaleContract."""
+"""Unit tests for Five-Layer Wiki structure, SourceCardContract, and RadarRationaleContract."""
 
 import tempfile
 
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WikiPageType,
-)
-from myrm_agent_harness.toolkits.wiki.core.negative_exclusion_policy import (
-    NegativeExclusionCategory,
-    evaluate_exclusion_policy,
-    is_safe_for_writeback,
 )
 from myrm_agent_harness.toolkits.wiki.core.radar_rationale_contract import (
     ZeroYieldRationaleReport,
@@ -56,8 +51,6 @@ def test_frontmatter_page_types_extended():
     assert WikiPageType.METHOD == "method"
     assert WikiPageType.TEMPLATE == "template"
     assert WikiPageType.DELIVERABLE == "deliverable"
-    assert WikiPageType.USAGE_LEDGER == "usage_ledger"
-    assert WikiPageType.REVIEW_SLIP == "review_slip"
 
 
 def test_source_card_serialization_and_parsing():
@@ -69,7 +62,7 @@ def test_source_card_serialization_and_parsing():
         url_or_path="https://mp.weixin.qq.com/s/sample",
         provenance_class="author_claim",
         risk_level="medium",
-        covered_concepts=["five_layer_wiki", "usage_ledger"],
+        covered_concepts=["five_layer_wiki", "claim_separation"],
         verification_notes="详细验证了事实与主张分离对减少幻觉的关键作用",
     )
 
@@ -84,40 +77,6 @@ def test_source_card_serialization_and_parsing():
     assert parsed.provenance_class == "author_claim"
     assert "five_layer_wiki" in parsed.covered_concepts
     assert "这是正文中的备注内容" in parsed.verification_notes
-
-
-def test_negative_exclusion_policy_catches_all_five_categories():
-    # 1. 讲师主持逐字稿
-    m1 = evaluate_exclusion_policy("大家好欢迎来到直播间，下面我宣读开场白主持词")
-    assert len(m1) > 0
-    assert m1[0].category == NegativeExclusionCategory.LECTURER_SCRIPT_FULL
-    assert not is_safe_for_writeback("开场白与演讲脚本")
-
-    # 2. 内网测试IP与VPC
-    m2 = evaluate_exclusion_policy("在测试节点部署命令：curl http://192.168.1.105:8080/api")
-    assert len(m2) > 0
-    assert m2[0].category == NegativeExclusionCategory.DEMO_ENVIRONMENT_SPECIFIC
-    assert not is_safe_for_writeback("测试环境 10.0.1.20")
-
-    # 3. 模拟测试数据表
-    m3 = evaluate_exclusion_policy("插入测试数据表：mock_user_123 对应身份证测试号码")
-    assert len(m3) > 0
-    assert m3[0].category == NegativeExclusionCategory.MOCK_SAMPLE_DATASET
-
-    # 4. 单次崩溃堆栈
-    m4 = evaluate_exclusion_policy("执行失败：Traceback (most recent call last): 文件错误")
-    assert len(m4) > 0
-    assert m4[0].category == NegativeExclusionCategory.SINGLE_SESSION_INTERNAL_LOG
-
-    # 5. 特定客户专属报价
-    m5 = evaluate_exclusion_policy("附件包含针对ABC公司的特批价格与专属报价单")
-    assert len(m5) > 0
-    assert m5[0].category == NegativeExclusionCategory.ONE_OFF_CLIENT_SPECIFICS
-
-    # 6. 安全的通用方法论
-    safe_text = "在分布式系统中，通过 Raft 算法维护日志一致性能有效避免脑裂。"
-    assert is_safe_for_writeback(safe_text, title="分布式高可用共识")
-    assert len(evaluate_exclusion_policy(safe_text)) == 0
 
 
 def test_radar_zero_yield_report():

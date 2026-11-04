@@ -18449,44 +18449,22 @@
         "empty": "먼저 회고를 입력해 주세요",
         "error": "제출에 실패했습니다. 나중에 다시 시도해 주세요"
       },
-      "reviewSlip": {
-        "fetchFailed": "검토 목록을 불러오지 못했습니다",
-        "applied": "선택적 다시 쓰기 완료: {committed}개 반영, {discarded}개 건너뜀",
-        "applyFailed": "선택적 다시 쓰기를 적용하지 못했습니다",
-        "engineLabel": "산출물 지식 축적 엔진",
-        "title": "작성자 검토서",
-        "description": "산출물에서 추출한 고가치 인사이트를 검토합니다. 전부 쓰기 반영하면 지식 베이스가 오염되므로, 각 항목의 소속 계층은 작성자가 확정합니다.",
-        "exclusionTitle": "부정 규칙 적용됨: 일시적 잡음 {count}건을 차단했습니다",
-        "exclusionBody": "일회성 테스트 IP, 더미 설정, 데모 녹취록, 임시 디버그 로그를 자동으로 제외해 지식 베이스 핵심의 순도를 지킵니다.",
-        "extracting": "고가치 인사이트를 추출하고 필터 규칙을 평가하는 중...",
-        "noQuestions": "이 작업에서는 쓰기 반영할 일반 경험이 나오지 않았으며, 모든 내용은 산출물에 안전하게 남아 있습니다.",
-        "pendingLayer": "계층 미정",
-        "recommended": "추천",
-        "footerNote": "제출하면 해당 계층에 기록되고 Draft 태그가 붙으며, 이후 사람이 직접 게시합니다.",
-        "later": "나중에",
-        "confirm": "확인하고 안전하게 쓰기 반영"
-      },
       "ledger": {
         "title": "5계층 지식 자산 전체 현황",
         "architectureBadge": "WorkBuddy 아키텍처",
-        "description": "사실과 가설을 물리적 계층으로 분리하고, 작업 원장 감사와 작성자 검토서를 통한 선택적 쓰기 반영을 제공합니다.",
+        "description": "사실과 가설을 물리적 계층으로 분리합니다.",
         "refreshStats": "통계 새로고침",
-        "openReviewSlip": "작성자 검토서 열기",
         "viewLayerItems": "{title} 항목 목록 보기",
         "archivedItems": "보관된 항목",
         "drawerTitle": "{title} · 보관된 항목 목록",
         "itemCount": "{count}건",
         "closeDrawer": "항목 목록 닫기",
         "loadingItems": "이 계층의 문서 목록을 불러오는 중...",
-        "emptyItems": "이 계층에는 아직 보관된 Markdown 항목이 없습니다. 장기 작업을 마친 뒤 검토서로 쓰기 반영하면 생성됩니다.",
+        "emptyItems": "이 계층에는 아직 보관된 Markdown 항목이 없습니다.",
         "previewItem": "항목 {title} 미리보기",
         "noSnippet": "본문 요약이 아직 없습니다",
         "justNow": "방금",
         "quickPreview": "빠른 미리보기",
-        "blockNoticeLead": "활성화됨: ",
-        "blockNoticeRule": "부정 쓰기 반영 하드 차단",
-        "blockNoticeTail": ": 데모 환경, 특정 IP, 일회성 테스트 데이터, 임시 스크립트를 자동으로 걸러냅니다.",
-        "reviewSlipGuide": "검토서 규정",
         "layers": {
           "l1": {
             "title": "원본 입력 및 후보 풀",
@@ -18513,22 +18491,16 @@
             "description": "신뢰도와 논쟁 기록이 있는 가설로, 객관적 사실과 강제로 분리해 진실 계층이 오염되지 않게 합니다."
           },
           "l5": {
-            "title": "산출물 및 사용 원장",
-            "subtext": "산출물 및 원장",
-            "badge": "납품 원장",
-            "description": "작업의 최종 산출물로, 지식의 인용, 파생, 미채택 내역을 원장에 모두 기록합니다."
+            "title": "산출물",
+            "subtext": "산출물",
+            "badge": "최종 결과",
+            "description": "작업의 최종 산출물."
           }
         },
         "preview": {
           "ariaLabel": "항목 문서 미리보기",
-          "jsonLedgerBadge": "JSON 원장",
-          "taskBadge": "작업 #{id}",
           "updatedAt": "업데이트: {value}",
           "storageLayer": "저장 계층: {value}",
-          "fileType": "파일 유형: {value}",
-          "fileTypeJson": "구조화된 감사 원장 (JSON)",
-          "fileTypeMarkdown": "Markdown 지식 자산",
-          "sourceTask": "원본 작업: {value}",
           "pathCopied": "경로를 복사했습니다",
           "copyPath": "상대 경로 복사",
           "openInEditor": "Wiki 편집기에서 열기",

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WikiLayersLedgerPanel } from '../WikiLayersLedgerPanel';
-import { writebackService } from '@/services/wikiService';
+import { layersService } from '@/services/wikiService';
 
 const stableT = (key: string, values?: Record<string, string | number>) =>
   values ? `${key}:${Object.values(values).join('|')}` : key;
@@ -12,11 +12,9 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/services/wikiService', () => ({
-  writebackService: {
+  layersService: {
     getLayersStats: vi.fn(),
     getLayerItems: vi.fn(),
-    generateReviewSlips: vi.fn(),
-    applyWritebackDecisions: vi.fn(),
   },
 }));
 
@@ -34,7 +32,7 @@ describe('WikiLayersLedgerPanel', () => {
   });
 
   it('renders 5-layer topology and loads stats correctly', async () => {
-    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
+    vi.mocked(layersService.getLayersStats).mockResolvedValueOnce({
       agent_id: 'test_scope_agent',
       raw_files_count: 8,
       sources_count: 14,
@@ -59,12 +57,9 @@ describe('WikiLayersLedgerPanel', () => {
       }
     }
 
-    // 负向硬拦截提示
-    expect(screen.getByText('blockNoticeRule')).toBeInTheDocument();
-
     // 等待异步统计数据加载并校验计数
     await waitFor(() => {
-      expect(writebackService.getLayersStats).toHaveBeenCalledWith('test_scope_agent');
+      expect(layersService.getLayersStats).toHaveBeenCalledWith('test_scope_agent');
       // L1: raw (8) + inbox (2) = 10
       expect(screen.getByText('10')).toBeInTheDocument();
       // L2: sources (14)
@@ -78,43 +73,8 @@ describe('WikiLayersLedgerPanel', () => {
     });
   });
 
-  it('opens review slip modal on button click', async () => {
-    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
-      agent_id: 'test_scope_agent',
-      raw_files_count: 0,
-      sources_count: 0,
-      concepts_count: 0,
-      claims_count: 0,
-      methods_count: 0,
-      templates_count: 0,
-      deliverables_count: 0,
-      inbox_count: 0,
-    });
-
-    vi.mocked(writebackService.generateReviewSlips).mockResolvedValueOnce({
-      task_id: 'task_modal_01',
-      title: '经验萃取',
-      generated_at: '2026-09-23T10:00:00Z',
-      questions: [],
-      excluded_matches_count: 1,
-    });
-
-    render(<WikiLayersLedgerPanel />);
-    const user = userEvent.setup();
-
-    const openBtn = screen.getByRole('button', { name: 'openReviewSlip' });
-    await user.click(openBtn);
-
-    // 审阅单浮窗弹出，且已被拦截的杂质数量带进翻译
-    await waitFor(() => {
-      expect(screen.getByText('engineLabel')).toBeInTheDocument();
-    });
-    expect(screen.getByText('exclusionTitle:1')).toBeInTheDocument();
-    expect(screen.getByText('noQuestions')).toBeInTheDocument();
-  });
-
   it('drills into a layer and previews an entry with translated labels', async () => {
-    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
+    vi.mocked(layersService.getLayersStats).mockResolvedValueOnce({
       agent_id: 'test_scope_agent',
       raw_files_count: 0,
       sources_count: 0,
@@ -125,16 +85,14 @@ describe('WikiLayersLedgerPanel', () => {
       deliverables_count: 0,
       inbox_count: 0,
     });
-    vi.mocked(writebackService.getLayerItems).mockResolvedValueOnce([
+    vi.mocked(layersService.getLayerItems).mockResolvedValueOnce([
       {
         slug: 'retry-policy',
         title: 'Retry policy',
         relative_path: 'concepts/retry-policy.md',
-        file_type: 'markdown',
         publish_status: 'draft',
         content_snippet: '',
         updated_at: '',
-        source_task_id: 'task-abcdef123456',
       },
     ]);
 
@@ -154,11 +112,8 @@ describe('WikiLayersLedgerPanel', () => {
     await user.click(screen.getByRole('button', { name: 'previewItem:Retry policy' }));
 
     const preview = screen.getByRole('dialog', { name: 'ariaLabel' });
-    expect(preview).toHaveTextContent('taskBadge:123456');
     expect(preview).toHaveTextContent('updatedAt:justNow');
     expect(preview).toHaveTextContent('storageLayer:layers.l1.title');
-    expect(preview).toHaveTextContent('fileType:fileTypeMarkdown');
-    expect(preview).toHaveTextContent('sourceTask:task-abcdef123456');
     expect(screen.getByRole('button', { name: 'copyPath' })).toBeInTheDocument();
   });
 });

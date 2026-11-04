@@ -18449,44 +18449,22 @@
         "empty": "Bitte zuerst Ihren Rückblick eingeben",
         "error": "Übermittlung fehlgeschlagen; bitte später erneut versuchen"
       },
-      "reviewSlip": {
-        "fetchFailed": "Prüfliste konnte nicht geladen werden",
-        "applied": "Selektives Zurückschreiben abgeschlossen: {committed} gespeichert, {discarded} übersprungen",
-        "applyFailed": "Selektives Zurückschreiben fehlgeschlagen",
-        "engineLabel": "Engine zur Wissenssicherung aus Ergebnissen",
-        "title": "Autoren-Prüfliste",
-        "description": "Prüfe die wertvollen Erkenntnisse, die aus dem Ergebnis extrahiert wurden. Alles zurückzuschreiben würde die Wissensbasis verunreinigen, deshalb bestätigt der Autor die Zielschicht jedes Eintrags.",
-        "exclusionTitle": "Negativregeln aktiv: {count} flüchtige Störeinträge blockiert",
-        "exclusionBody": "Einmalige Test-IPs, Dummy-Konfigurationen, Demo-Mitschriften und temporäre Debug-Logs wurden automatisch ausgeschlossen, damit der Kern der Wissensbasis sauber bleibt.",
-        "extracting": "Wertvolle Erkenntnisse werden extrahiert und Filterregeln bewertet ...",
-        "noQuestions": "Diese Aufgabe hat keine allgemeinen Erfahrungen zum Zurückschreiben ergeben; alles bleibt sicher im Ergebnis erhalten.",
-        "pendingLayer": "Schicht offen",
-        "recommended": "Empfohlen",
-        "footerNote": "Nach dem Absenden werden die Einträge in ihre Schichten geschrieben und als Draft markiert; die Veröffentlichung erfolgt später manuell.",
-        "later": "Später",
-        "confirm": "Bestätigen und sicher zurückschreiben"
-      },
       "ledger": {
         "title": "Übersicht der fünf Wissensschichten",
         "architectureBadge": "WorkBuddy-Architektur",
-        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten; dazu gibt es Aufgabenprotokoll-Audits und selektives Zurückschreiben über die Autoren-Prüfliste.",
+        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten.",
         "refreshStats": "Statistik aktualisieren",
-        "openReviewSlip": "Autoren-Prüfliste öffnen",
         "viewLayerItems": "Eintragsliste von {title} anzeigen",
         "archivedItems": "Archivierte Einträge",
         "drawerTitle": "{title} · archivierte Einträge",
         "itemCount": "{count} Dokumente",
         "closeDrawer": "Eintragsliste schließen",
         "loadingItems": "Dokumentliste dieser Schicht wird geladen ...",
-        "emptyItems": "In dieser Schicht gibt es noch keine archivierten Markdown-Einträge. Sie entstehen, wenn nach einer langen Aufgabe über die Prüfliste zurückgeschrieben wird.",
+        "emptyItems": "In dieser Schicht gibt es noch keine archivierten Markdown-Einträge.",
         "previewItem": "Eintrag {title} in der Vorschau ansehen",
         "noSnippet": "Noch keine Zusammenfassung",
         "justNow": "Gerade eben",
         "quickPreview": "Schnellvorschau",
-        "blockNoticeLead": "Aktiv: ",
-        "blockNoticeRule": "Hartes Sperren negativer Rückschreibungen",
-        "blockNoticeTail": ": Demo-Umgebungen, bestimmte IPs, einmalige Testdaten und temporäre Skripte werden automatisch ausgeschlossen.",
-        "reviewSlipGuide": "Regeln zur Prüfliste",
         "layers": {
           "l1": {
             "title": "Rohdaten und Kandidatenpool",
@@ -18513,22 +18491,16 @@
             "description": "Hypothesen mit Konfidenz und Diskussionsverlauf, strikt von objektiven Fakten getrennt, damit sie die Wahrheitsschicht nicht verunreinigen."
           },
           "l5": {
-            "title": "Ergebnisse und Nutzungsprotokolle",
-            "subtext": "Ergebnisse & Verzeichnisse",
-            "badge": "Lieferprotokoll",
-            "description": "Endergebnisse einer Aufgabe, mit vollständigem Protokoll über zitiertes, abgeleitetes und nicht übernommenes Wissen."
+            "title": "Ergebnisse",
+            "subtext": "Ergebnisse",
+            "badge": "Endergebnis",
+            "description": "Endergebnisse einer Aufgabe."
           }
         },
         "preview": {
           "ariaLabel": "Dokumentvorschau des Eintrags",
-          "jsonLedgerBadge": "JSON-Protokoll",
-          "taskBadge": "Aufgabe #{id}",
           "updatedAt": "Aktualisiert: {value}",
           "storageLayer": "Speicherschicht: {value}",
-          "fileType": "Dateityp: {value}",
-          "fileTypeJson": "Strukturiertes Audit-Protokoll (JSON)",
-          "fileTypeMarkdown": "Markdown-Wissensasset",
-          "sourceTask": "Quellaufgabe: {value}",
           "pathCopied": "Pfad kopiert",
           "copyPath": "Relativen Pfad kopieren",
           "openInEditor": "Im Wiki-Editor öffnen",

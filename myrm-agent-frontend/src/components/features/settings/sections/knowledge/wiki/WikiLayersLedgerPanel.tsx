@@ -1,16 +1,15 @@
 /**
  * [INPUT]
- * - @/services/wikiService::writebackService (POS: 五层资产统计与分层词条查询服务)
- * - ./WikiReviewSlipModal (POS: 作者审阅单批量回写确认对话框)
+ * - @/services/wikiService::layersService (POS: 五层资产统计与分层词条查询服务)
  * - ./WikiLayerItemPreviewModal (POS: 词条 Markdown 只读预览模态框)
  * - ../WikiAgentScopeContext::useWikiAgentScope (POS: Agent Wiki 作用域上下文)
  * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
- * - WikiLayersLedgerPanel: 五层知识资产全局态势总览、分层下钻浏览与审阅单工作台面板
+ * - WikiLayersLedgerPanel: 五层知识资产全局态势总览与分层下钻浏览面板
  *
  * [POS]
- * - 知识库全局资产态势展示与微观下钻层。展示 L1-L5 资产分布，提供下钻词条抽屉与审阅单回写入口。
+ * - 知识库全局资产态势展示与微观下钻层。展示 L1-L5 资产分布，提供下钻词条抽屉。
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -22,9 +21,7 @@ import {
   Compass,
   FileCheck2,
   FolderGit2,
-  Sparkles,
   RefreshCw,
-  HelpCircle,
   FileText,
   Clock,
   X,
@@ -34,9 +31,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import { writebackService, type WikiLayersStats, type WikiLayerItem } from '@/services/wikiService';
+import { layersService, type WikiLayersStats, type WikiLayerItem } from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
-import { WikiReviewSlipModal } from './WikiReviewSlipModal';
 import { WikiLayerItemPreviewModal } from './WikiLayerItemPreviewModal';
 
 interface WikiLayersLedgerPanelProps {
@@ -49,7 +45,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
 
   const [stats, setStats] = useState<WikiLayersStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   // Micro-level layer item inspection state
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
@@ -62,7 +57,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
   const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await writebackService.getLayersStats(agentScopeId);
+      const data = await layersService.getLayersStats(agentScopeId);
       setStats(data);
     } catch (err) {
       console.error('Failed to load wiki layer stats:', err);
@@ -83,7 +78,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
       setSelectedLayerTitle(layerTitle);
       setItemsLoading(true);
       try {
-        const items = await writebackService.getLayerItems(layerKey, agentScopeId);
+        const items = await layersService.getLayerItems(layerKey, agentScopeId);
         setLayerItems(items);
       } catch (err) {
         console.error('Failed to load layer items:', err);
@@ -192,15 +187,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               {t('refreshStats')}
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setReviewModalOpen(true)}
-              className="gap-1.5 h-8 text-xs shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {t('openReviewSlip')}
-            </Button>
           </div>
         </div>
       </CardHeader>
@@ -299,11 +285,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
                           {item.title}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
-                          {item.file_type === 'json' && (
-                            <Badge variant="default" className="text-[9px] px-1 py-0">
-                              JSON
-                            </Badge>
-                          )}
                           <Badge
                             variant={item.publish_status === 'draft' ? 'outline' : 'secondary'}
                             className={`text-[10px] ${
@@ -323,9 +304,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
                       <span className="flex items-center gap-1 font-mono truncate max-w-[160px]">
                         <Clock className="w-3 h-3 shrink-0" />
                         {item.updated_at ? item.updated_at.split('T')[0] : t('justNow')}
-                        {item.source_task_id && (
-                          <span className="text-[9px] text-primary/80 truncate">#{item.source_task_id.slice(-4)}</span>
-                        )}
                       </span>
                       <span className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                         <Eye className="w-3 h-3" />
@@ -338,33 +316,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
             )}
           </div>
         )}
-
-        <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>
-              {t('blockNoticeLead')}
-              <strong>{t('blockNoticeRule')}</strong>
-              {t('blockNoticeTail')}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0 text-primary hover:underline cursor-pointer">
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>{t('reviewSlipGuide')}</span>
-          </div>
-        </div>
       </CardContent>
-
-      <WikiReviewSlipModal
-        open={reviewModalOpen}
-        onOpenChange={setReviewModalOpen}
-        onApplied={() => {
-          void fetchStats();
-          if (selectedLayerId) {
-            void handleSelectLayer(selectedLayerId, selectedLayerKey, selectedLayerTitle);
-          }
-        }}
-      />
 
       <WikiLayerItemPreviewModal
         item={previewItem}

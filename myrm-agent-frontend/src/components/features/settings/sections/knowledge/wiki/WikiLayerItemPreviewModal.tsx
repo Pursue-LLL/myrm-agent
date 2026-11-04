@@ -6,15 +6,15 @@
  * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
- * - WikiLayerItemPreviewModal: 只读词条 Markdown 与凭据元数据预览弹窗
+ * - WikiLayerItemPreviewModal: 只读词条 Markdown 摘要与元数据预览弹窗
  *
  * [POS]
- * - Wiki 知识库分层资产只读预览层。提供纯净只读的词条内容与溯源元数据查看，严格隔离写操作。
+ * - Wiki 知识库分层资产只读预览层。提供纯净只读的词条内容与元数据查看，严格隔离写操作。
  */
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileText, X, Copy, Check, ExternalLink, Database } from 'lucide-react';
+import { FileText, X, Copy, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { WikiLayerItem } from '@/services/wikiService';
@@ -57,8 +57,6 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
     }
   };
 
-  const isJson = item.file_type === 'json' || item.relative_path.endsWith('.json');
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-50">
       <dialog
@@ -69,24 +67,19 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
         <div className="p-4 border-b border-border/60 flex items-center justify-between bg-secondary/20">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
-              {isJson ? <Database className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              <FileText className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <h3 className="text-base font-semibold text-foreground tracking-tight flex items-center gap-2 truncate">
                 <span className="truncate">{item.title}</span>
                 <Badge
-                  variant={isJson ? 'default' : item.publish_status === 'draft' ? 'outline' : 'secondary'}
+                  variant={item.publish_status === 'draft' ? 'outline' : 'secondary'}
                   className={`text-[10px] shrink-0 ${
                     item.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
                   }`}
                 >
-                  {isJson ? t('jsonLedgerBadge') : item.publish_status === 'draft' ? 'Draft' : 'Live'}
+                  {item.publish_status === 'draft' ? 'Draft' : 'Live'}
                 </Badge>
-                {item.source_task_id && (
-                  <Badge variant="outline" className="text-[10px] shrink-0 border-primary/30 text-primary">
-                    {t('taskBadge', { id: item.source_task_id.slice(-6) })}
-                  </Badge>
-                )}
               </h3>
               <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{item.relative_path}</p>
             </div>
@@ -106,8 +99,6 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
           <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 font-mono text-[11px] text-muted-foreground flex flex-col gap-1">
             <div>{t('updatedAt', { value: item.updated_at || tLedger('justNow') })}</div>
             <div>{t('storageLayer', { value: layerTitle })}</div>
-            <div>{t('fileType', { value: isJson ? t('fileTypeJson') : t('fileTypeMarkdown') })}</div>
-            {item.source_task_id && <div>{t('sourceTask', { value: item.source_task_id })}</div>}
           </div>
 
           <div className="p-4 rounded-xl border border-border/50 bg-background/60 font-sans whitespace-pre-wrap leading-relaxed">
@@ -127,7 +118,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
           </Button>
 
           <div className="flex items-center gap-2">
-            {!isJson && onOpenInEditor && (
+            {onOpenInEditor && (
               <Button
                 variant="outline"
                 size="sm"

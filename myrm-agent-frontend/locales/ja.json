@@ -18449,44 +18449,22 @@
         "empty": "まず振り返りを入力してください",
         "error": "送信に失敗しました。後でもう一度お試しください"
       },
-      "reviewSlip": {
-        "fetchFailed": "レビュー一覧の取得に失敗しました",
-        "applied": "選択的な書き戻しが完了しました：{committed} 件を反映、{discarded} 件をスキップ",
-        "applyFailed": "選択的な書き戻しの適用に失敗しました",
-        "engineLabel": "成果物ナレッジ蓄積エンジン",
-        "title": "作成者レビューシート",
-        "description": "成果物から抽出した価値の高い知見を確認します。すべてを書き戻すとナレッジベースが汚れるため、各項目の所属層は作成者が決めます。",
-        "exclusionTitle": "ネガティブルールが有効：一時的なノイズ {count} 件をブロックしました",
-        "exclusionBody": "使い捨てのテスト IP、ダミー設定、デモの書き起こし、一時的なデバッグログを自動的に除外し、ナレッジベースの中核となる真実の純度を守ります。",
-        "extracting": "価値の高い知見を抽出し、フィルタールールを評価中...",
-        "noQuestions": "このタスクには書き戻すべき汎用的な知見がなく、内容はすべて成果物に安全に残っています。",
-        "pendingLayer": "所属層は未定",
-        "recommended": "おすすめ",
-        "footerNote": "送信すると各層に書き込まれ、Draft タグが付きます。公開は後で手動で行います。",
-        "later": "あとで",
-        "confirm": "確認して安全に書き戻す"
-      },
       "ledger": {
         "title": "5層ナレッジ資産の全体像",
         "architectureBadge": "WorkBuddy アーキテクチャ",
-        "description": "事実と仮説を物理的に層分けして隔離し、タスク台帳の監査と、作成者レビューシートによる選択的な書き戻しを提供します。",
+        "description": "事実と仮説を物理的に層分けして隔離します。",
         "refreshStats": "統計を更新",
-        "openReviewSlip": "作成者レビューシートを開く",
         "viewLayerItems": "{title} のエントリー一覧を表示",
         "archivedItems": "アーカイブ済みエントリー",
         "drawerTitle": "{title} · アーカイブ済みエントリー一覧",
         "itemCount": "{count} 件",
         "closeDrawer": "エントリー一覧を閉じる",
         "loadingItems": "この層のドキュメント一覧を読み込み中...",
-        "emptyItems": "この層にはまだアーカイブ済みの Markdown エントリーがありません。長時間タスクの完了後、レビューシートからの書き戻しで作成できます。",
+        "emptyItems": "この層にはまだアーカイブ済みの Markdown エントリーがありません。",
         "previewItem": "エントリー {title} をプレビュー",
         "noSnippet": "本文の要約はまだありません",
         "justNow": "たった今",
         "quickPreview": "クイックプレビュー",
-        "blockNoticeLead": "有効: ",
-        "blockNoticeRule": "ネガティブ書き戻しのハードブロック",
-        "blockNoticeTail": "：デモ環境、特定の IP、使い捨てのテストデータ、一時的なスクリプトを自動的に除外します。",
-        "reviewSlipGuide": "レビューシートの規約",
         "layers": {
           "l1": {
             "title": "原始入力と候補プール",
@@ -18513,22 +18491,16 @@
             "description": "確信度と議論の記録を持つ仮説。客観的な事実とは強制的に隔離し、真実の層を汚さないようにします。"
           },
           "l5": {
-            "title": "成果物と利用台帳",
-            "subtext": "成果物と台帳",
-            "badge": "納品台帳",
-            "description": "タスクの最終成果物。知識の引用、派生、不採用を台帳に完全に記録します。"
+            "title": "成果物",
+            "subtext": "成果物",
+            "badge": "最終成果",
+            "description": "タスクの最終成果物。"
           }
         },
         "preview": {
           "ariaLabel": "エントリー文書のプレビュー",
-          "jsonLedgerBadge": "JSON 台帳",
-          "taskBadge": "タスク #{id}",
           "updatedAt": "更新日時：{value}",
           "storageLayer": "保存レイヤー：{value}",
-          "fileType": "ファイル種別：{value}",
-          "fileTypeJson": "構造化された監査台帳 (JSON)",
-          "fileTypeMarkdown": "Markdown ナレッジ資産",
-          "sourceTask": "元のタスク：{value}",
           "pathCopied": "パスをコピーしました",
           "copyPath": "相対パスをコピー",
           "openInEditor": "Wiki エディターで開く",

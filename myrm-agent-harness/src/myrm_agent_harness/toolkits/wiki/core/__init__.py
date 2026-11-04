@@ -17,12 +17,6 @@ from myrm_agent_harness.toolkits.wiki.core.config import (
     WikiConfig,
     WikiQueryConfig,
 )
-from myrm_agent_harness.toolkits.wiki.core.negative_exclusion_policy import (
-    ExclusionMatch,
-    NegativeExclusionCategory,
-    evaluate_exclusion_policy,
-    is_safe_for_writeback,
-)
 from myrm_agent_harness.toolkits.wiki.core.radar_rationale_contract import (
     ZeroYieldRationaleReport,
     format_zero_yield_report,
@@ -44,8 +38,6 @@ from myrm_agent_harness.toolkits.wiki.core.types import (
 __all__ = [
     "CompileResult",
     "ConceptInfo",
-    "ExclusionMatch",
-    "NegativeExclusionCategory",
     "QueryResult",
     "SourceCardContract",
     "WikiArticle",
@@ -54,9 +46,7 @@ __all__ = [
     "WikiQueryConfig",
     "WikiStructure",
     "ZeroYieldRationaleReport",
-    "evaluate_exclusion_policy",
     "format_zero_yield_report",
-    "is_safe_for_writeback",
     "parse_source_card",
     "parse_zero_yield_report",
     "serialize_source_card",

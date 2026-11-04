@@ -18449,44 +18449,22 @@
         "empty": "請輸入復盤內容",
         "error": "提交失敗，請稍後重試"
       },
-      "reviewSlip": {
-        "fetchFailed": "取得審閱單失敗",
-        "applied": "選擇性回寫完成：已沉澱 {committed} 項，略過 {discarded} 項",
-        "applyFailed": "套用選擇性回寫失敗",
-        "engineLabel": "交付物知識沉澱引擎",
-        "title": "作者審閱單 (Review Slip)",
-        "description": "審查交付成果中萃取出的高價值洞察。杜絕全量回寫汙染知識庫，由作者確認歸屬層級。",
-        "exclusionTitle": "負向規則已生效：已硬攔截 {count} 項暫態雜質",
-        "exclusionBody": "系統已自動排除一次性測試 IP、虛擬設定、示範逐字稿與暫時偵錯日誌，保護知識庫核心真理的純淨度。",
-        "extracting": "正在萃取高價值洞察並評估過濾規則...",
-        "noQuestions": "目前任務未產生需要回寫的通用經驗，全部內容已安全保留在交付物中。",
-        "pendingLayer": "待定層級",
-        "recommended": "推薦",
-        "footerNote": "提交後將寫入對應層並標上 Draft 標籤，由人工後續發布",
-        "later": "稍後再說",
-        "confirm": "確認並安全回寫"
-      },
       "ledger": {
         "title": "五層知識資產全域態勢",
         "architectureBadge": "WorkBuddy 架構",
-        "description": "以實體分層隔離事實與假說，提供任務台帳稽核與作者審閱單選擇性回寫機制。",
+        "description": "以實體分層隔離事實與假說。",
         "refreshStats": "重新整理統計",
-        "openReviewSlip": "開啟作者審閱單",
         "viewLayerItems": "檢視 {title} 詞條清單",
         "archivedItems": "已封存條目",
         "drawerTitle": "{title} · 封存詞條清單",
         "itemCount": "{count} 篇",
         "closeDrawer": "關閉詞條清單",
         "loadingItems": "正在載入該層文件清單...",
-        "emptyItems": "目前這一層尚無已封存的 Markdown 詞條，完成長程任務後可透過審閱單回寫產生。",
+        "emptyItems": "目前這一層尚無已封存的 Markdown 詞條。",
         "previewItem": "預覽詞條 {title}",
         "noSnippet": "暫無內文摘要",
         "justNow": "剛剛",
         "quickPreview": "快速預覽",
-        "blockNoticeLead": "已啟用",
-        "blockNoticeRule": "負向不回寫硬攔截",
-        "blockNoticeTail": "：自動屏蔽示範環境、特定 IP、一次性測試資料與暫時腳本。",
-        "reviewSlipGuide": "審閱單規範",
         "layers": {
           "l1": {
             "title": "原始輸入與候選池",
@@ -18513,22 +18491,16 @@
             "description": "帶有信心度與辯論紀錄的假說，與客觀事實強制隔離，避免汙染真理。"
           },
           "l5": {
-            "title": "交付物與使用台帳",
-            "subtext": "交付物與台帳",
-            "badge": "交付台帳",
-            "description": "任務最終產出的交付物，完整記錄知識引用、衍生與未採納台帳。"
+            "title": "交付物",
+            "subtext": "交付物",
+            "badge": "最終產出",
+            "description": "任務最終產出的交付物。"
           }
         },
         "preview": {
           "ariaLabel": "詞條文件預覽",
-          "jsonLedgerBadge": "JSON 台帳",
-          "taskBadge": "任務 #{id}",
           "updatedAt": "更新時間：{value}",
           "storageLayer": "儲存分層：{value}",
-          "fileType": "檔案類型：{value}",
-          "fileTypeJson": "結構化稽核台帳 (JSON)",
-          "fileTypeMarkdown": "Markdown 知識資產",
-          "sourceTask": "來源任務：{value}",
           "pathCopied": "已複製路徑",
           "copyPath": "複製相對路徑",
           "openInEditor": "在 Wiki 編輯器中開啟",
