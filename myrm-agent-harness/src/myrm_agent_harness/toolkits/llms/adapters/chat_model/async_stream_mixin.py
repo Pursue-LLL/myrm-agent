@@ -187,7 +187,7 @@ class TransportChatModelAsyncStreamMixin:
                             messages=self._chat_messages(message_dicts), **call_params
                         )
 
-                    agg = StreamAggregator(AIMessageChunk)
+                    agg = StreamAggregator(AIMessageChunk, messages)
                     xml_content_buffer = XmlStreamBuffer()
                     xml_reasoning_buffer = XmlStreamBuffer()
 

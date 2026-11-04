@@ -81,7 +81,7 @@ class TestSyncNonStreamUsage:
         assert tracker is not None
         assert tracker.last_finish_reason == "stop"
 
-    def test_generate_skips_record_when_usage_missing(self) -> None:
+    def test_generate_counts_the_call_at_zero_tokens_when_usage_missing(self) -> None:
         model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.completion.return_value = _make_response(include_usage=False)
@@ -89,7 +89,11 @@ class TestSyncNonStreamUsage:
         result = model._generate([HumanMessage(content="hi")])
 
         assert len(result.generations) == 1
-        assert get_pending_token_events() == []
+        events = get_pending_token_events()
+        assert [cast(dict[str, object], e["usage"])["total_tokens"] for e in events] == [0]
+        tracker = get_token_tracker()
+        assert tracker is not None
+        assert (tracker.call_count, tracker.last_finish_reason) == (1, "stop")
 
     def test_generate_skips_record_on_empty_choices(self, monkeypatch: pytest.MonkeyPatch) -> None:
         model = TransportChatModel(model="openai/test-model")
@@ -124,7 +128,7 @@ class TestAsyncNonStreamUsage:
         assert tracker.last_finish_reason == "stop"
 
     @pytest.mark.asyncio
-    async def test_agenerate_skips_record_when_usage_missing(self) -> None:
+    async def test_agenerate_counts_the_call_at_zero_tokens_when_usage_missing(self) -> None:
         model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.client.acompletion = AsyncMock(return_value=_make_response(include_usage=False))
@@ -132,7 +136,11 @@ class TestAsyncNonStreamUsage:
         result = await model._agenerate([HumanMessage(content="hi")])
 
         assert len(result.generations) == 1
-        assert get_pending_token_events() == []
+        events = get_pending_token_events()
+        assert [cast(dict[str, object], e["usage"])["total_tokens"] for e in events] == [0]
+        tracker = get_token_tracker()
+        assert tracker is not None
+        assert (tracker.call_count, tracker.last_finish_reason) == (1, "stop")
 
     @pytest.mark.asyncio
     async def test_agenerate_skips_record_on_empty_choices(self, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -323,7 +323,7 @@ class TransportChatModelSyncMixin:
         for attempt in range(max_attempts):
             agg: StreamAggregator | None = None
             try:
-                agg = StreamAggregator(AIMessageChunk)
+                agg = StreamAggregator(AIMessageChunk, messages)
                 xml_content_buffer = XmlStreamBuffer()
                 xml_reasoning_buffer = XmlStreamBuffer()
 

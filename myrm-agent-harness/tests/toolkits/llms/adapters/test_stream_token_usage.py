@@ -223,8 +223,8 @@ class TestSyncStreamSentinel:
         assert usage["prompt_tokens"] == 20
         assert usage["total_tokens"] == 30
 
-    def test_no_usage_when_provider_omits_usage(self):
-        """Gracefully handles providers that don't return usage data."""
+    def test_usage_is_counted_locally_when_provider_omits_it(self):
+        """A provider that streams without usage still has its call accounted, from a local count."""
         model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
@@ -232,13 +232,16 @@ class TestSyncStreamSentinel:
 
         results = list(model._stream([HumanMessage(content="hi")]))
 
-        # Sentinel is still yielded
+        # Sentinel is still yielded, and carries no usage: the provider reported none.
         last = results[-1]
         assert last.message.content == ""
+        assert all(not getattr(r.message, "usage_metadata", None) for r in results)
 
-        # But no token events (usage was None)
         events = get_pending_token_events()
-        assert len(events) == 0
+        assert len(events) == 1
+        usage = events[0]["usage"]
+        assert usage["prompt_tokens"] > 0
+        assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]
 
 
 class TestAsyncStreamSentinel:
@@ -285,8 +288,8 @@ class TestAsyncStreamSentinel:
         assert usage["total_tokens"] == 15
 
     @pytest.mark.asyncio
-    async def test_no_usage_when_provider_omits_usage(self):
-        """Gracefully handles providers that don't return usage data (async)."""
+    async def test_usage_is_counted_locally_when_provider_omits_it(self):
+        """A provider that streams without usage still has its call accounted, from a local count (async)."""
         from unittest.mock import AsyncMock
 
         model = TransportChatModel(model="openai/test-model")
@@ -300,5 +303,9 @@ class TestAsyncStreamSentinel:
 
         last = results[-1]
         assert last.message.content == ""
+        assert all(not getattr(r.message, "usage_metadata", None) for r in results)
         events = get_pending_token_events()
-        assert len(events) == 0
+        assert len(events) == 1
+        usage = events[0]["usage"]
+        assert usage["prompt_tokens"] > 0
+        assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]

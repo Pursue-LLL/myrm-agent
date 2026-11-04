@@ -93,9 +93,9 @@ class TestNonStreamingAnswers:
             ({"input_tokens": "11", "output_tokens": "7"}, (11, 7, 18)),
             ({"input_tokens": 11.0, "output_tokens": 7.9}, (11, 7, 18)),
             ({"prompt_tokens": 11, "completion_tokens": 7}, (11, 7, 18)),
-            # An answer that reports no usage is an answer that leaves no usage event.
-            (None, None),
-            ({}, None),
+            # An answer that reports no usage still has its call counted, at zero tokens.
+            (None, (0, 0, 0)),
+            ({}, (0, 0, 0)),
             # Counts that are not numbers are zero, and the answer is still read.
             ({"input_tokens": "n/a", "output_tokens": []}, (0, 0, 0)),
             ({"input_tokens": None, "output_tokens": None}, (0, 0, 0)),
@@ -104,7 +104,7 @@ class TestNonStreamingAnswers:
         ids=["plain", "strings", "floats", "chat-names", "null", "empty", "junk", "null-counts", "negative"],
     )
     async def test_usage_is_read_whatever_way_the_provider_wrote_it(
-        self, usage: Body | None, recorded: tuple[int, int, int] | None, serve_answer: Serve, tracker: TokenTracker
+        self, usage: Body | None, recorded: tuple[int, int, int], serve_answer: Serve, tracker: TokenTracker
     ) -> None:
         message = await _invoke(serve_answer, _response(usage=usage))
 
@@ -115,7 +115,7 @@ class TestNonStreamingAnswers:
         message = await _invoke(serve_answer, _response())
 
         assert message.content == "hello"
-        assert _usage(tracker) is None
+        assert _usage(tracker) == (0, 0, 0)
 
     async def test_an_incomplete_answer_ended_by_the_output_cap_says_so(
         self, serve_answer: Serve, tracker: TokenTracker
@@ -177,13 +177,14 @@ class TestStreamedAnswers:
         [
             (_USAGE, (11, 7, 18)),
             ({"input_tokens": "11", "output_tokens": "7"}, (11, 7, 18)),
-            (None, None),
+            # Usage a stream leaves out is counted locally: "hi" is 8 prompt tokens with the reply priming, "hello" one.
+            (None, (8, 1, 9)),
             ({"input_tokens": "n/a", "output_tokens": []}, (0, 0, 0)),
         ],
         ids=["plain", "strings", "null", "junk"],
     )
     async def test_usage_is_read_from_the_closing_event(
-        self, usage: Body | None, recorded: tuple[int, int, int] | None, serve_answer: Serve, tracker: TokenTracker
+        self, usage: Body | None, recorded: tuple[int, int, int], serve_answer: Serve, tracker: TokenTracker
     ) -> None:
         message = await _stream_all(serve_answer, _delta("hello"), _done(usage=usage))
 

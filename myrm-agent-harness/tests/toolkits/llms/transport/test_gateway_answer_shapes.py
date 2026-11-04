@@ -63,16 +63,16 @@ class TestNonStreamingAnswers:
             # A missing total is the sum of the two counts.
             (answer(usage={"prompt_tokens": 11, "completion_tokens": 7}), (11, 7, 18)),
             (answer(usage={**USAGE, "prompt_tokens_details": None, "completion_tokens_details": None}), (11, 7, 18)),
-            # A gateway that reports no usage leaves no usage event, and the call still answers.
-            (answer(usage=None), None),
-            (answer(usage={}), None),
-            (answer(usage={"prompt_tokens": None, "completion_tokens": None, "total_tokens": None}), None),
-            ({k: v for k, v in answer().items() if k != "usage"}, None),
+            # A gateway that reports no usage still has its call counted, at zero tokens, and the call answers.
+            (answer(usage=None), (0, 0, 0)),
+            (answer(usage={}), (0, 0, 0)),
+            (answer(usage={"prompt_tokens": None, "completion_tokens": None, "total_tokens": None}), (0, 0, 0)),
+            ({k: v for k, v in answer().items() if k != "usage"}, (0, 0, 0)),
         ],
         ids=["plain", "strings", "floats", "no-total", "null-details", "null", "empty", "null-counts", "missing"],
     )
     async def test_usage_is_read_whatever_way_the_gateway_wrote_it(
-        self, body: Body, usage: tuple[int, int, int] | None, serve_answer: Serve, tracker: TokenTracker
+        self, body: Body, usage: tuple[int, int, int], serve_answer: Serve, tracker: TokenTracker
     ) -> None:
         message = await _invoke(serve_answer, body)
 
@@ -221,12 +221,13 @@ class TestStreamedAnswers:
             ([chunk({}, "stop"), {"id": "c1", "usage": dict(USAGE)}], (11, 7, 18)),
             ([chunk({}, "stop"), usage_only(STRING_USAGE)], (11, 7, 18)),
             ([chunk({}, "stop"), usage_only({**USAGE, "prompt_tokens_details": None})], (11, 7, 18)),
-            ([chunk({}, "stop"), usage_only(None, error=None)], None),
+            # Usage a stream leaves out is counted locally: "hi" is 8 prompt tokens with the reply priming, "hello" one.
+            ([chunk({}, "stop"), usage_only(None, error=None)], (8, 1, 9)),
         ],
         ids=["on-the-finish-chunk", "own-chunk", "null-choices", "no-choices-key", "strings", "null-details", "null"],
     )
     async def test_usage_is_read_from_whichever_chunk_carries_it(
-        self, tail: list[Body], usage: tuple[int, int, int] | None, serve_answer: Serve, tracker: TokenTracker
+        self, tail: list[Body], usage: tuple[int, int, int], serve_answer: Serve, tracker: TokenTracker
     ) -> None:
         message = await _stream_all(serve_answer, chunk({"content": "hello"}), *tail)
 

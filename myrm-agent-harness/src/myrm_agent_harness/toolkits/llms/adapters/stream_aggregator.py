@@ -7,12 +7,13 @@
 - adapters.safety_termination_detector (POS: Safety termination detector for truncated tool call suppression)
 - utils.cost_engine::compute_cost_by_tokens (POS: token-count-based cost calculation for streaming mode)
 - utils.token_tracker (POS: Token tracking API)
+- adapters.usage_estimate::estimate_stream_usage (POS: local token count for a stream the provider reported no usage for)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: finish_reason sentinel for streams closed without a final chunk)
 
 [OUTPUT]
 - StreamAggregator: Mutable accumulator for stream chunks (content, tool calls, reasoning, timing)
 - XmlStreamBuffer: State machine buffer for intercepting DSML tags across streaming chunks.
-- finalize_stream(): Build aggregated response, record usage, yield final tool chunk
+- finalize_stream(): Build aggregated response, record usage (counted locally when the provider sent none), yield final tool chunk
 - attach_responses_reasoning_items_to_final_chunk(): Export Responses wire reasoning blobs on final stream chunk
 
 [POS]
@@ -25,10 +26,10 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, TypeVar
 
-from langchain_core.messages import BaseMessageChunk
+from langchain_core.messages import BaseMessage, BaseMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
 from myrm_agent_harness.toolkits.llms.adapters.model_capability import ModelCapabilityDetector
@@ -167,14 +168,18 @@ class StreamAggregator:
         "first_token_time",
         "last_model",
         "last_usage",
+        "prompt_messages",
         "reasoning",
         "responses_reasoning_items",
         "stream_start",
         "tool_calls",
     )
 
-    def __init__(self, default_chunk_class: type[BaseMessageChunk]) -> None:
+    def __init__(
+        self, default_chunk_class: type[BaseMessageChunk], prompt_messages: Sequence[BaseMessage] = ()
+    ) -> None:
         self._source: object | None = None
+        self.prompt_messages = prompt_messages
         self.content: list[str] = []
         self.tool_calls: list[dict[str, Any]] = []
         self.reasoning: list[str] = []
@@ -349,8 +354,16 @@ def finalize_stream(
 
     resolved_model = agg.last_model or model_name
 
+    usage = agg.last_usage
+    if not usage:
+        # The provider ended the stream without a usage chunk: the call is still accounted, from a local count.
+        from myrm_agent_harness.toolkits.llms.adapters.usage_estimate import estimate_stream_usage
+
+        usage = estimate_stream_usage(
+            agg.prompt_messages, text="".join([*agg.content, *agg.reasoning]), tool_calls=agg.tool_calls
+        )
     record_usage_fn(
-        agg.last_usage,
+        usage,
         model_name=resolved_model,
         duration_ms=agg.duration_ms,
         ttft_ms=agg.ttft_ms,

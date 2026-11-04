@@ -47,7 +47,8 @@ def record_usage(
 
     Args:
         owner: the model instance the request ran on (pricing falls back to it).
-        usage: usage object from the response / final stream chunk.
+        usage: usage object from the response / final stream chunk; ``None`` when the provider reported none, which
+            still records the call (zero tokens) so its count, latency and finish reason are not lost.
         model_name: Model identifier for per-model attribution.
         duration_ms: Total call duration (request start to completion).
         ttft_ms: Time to first token (streaming only).
@@ -62,9 +63,6 @@ def record_usage(
         record_token_usage,
     )
     from myrm_agent_harness.utils.token_economics.usage_fields import extract_cost_tokens
-
-    if not usage:
-        return
 
     usage_dict = normalize_usage(usage)
     resolved_model = model_name or None

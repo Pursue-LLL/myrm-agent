@@ -56,12 +56,12 @@ class TestWholeAnswers:
 
         assert usage_of(tracker) == (11, 7, 18)
 
-    def test_a_gateway_that_reports_no_usage_leaves_no_usage_event_and_the_call_still_answers(
+    def test_a_gateway_that_reports_no_usage_still_has_its_call_counted_and_the_call_answers(
         self, serve_answer: Serve, tracker: TokenTracker
     ) -> None:
         assert _invoke(serve_answer, answer(usage=None)).content == "hello"
 
-        assert usage_of(tracker) is None
+        assert usage_of(tracker) == (0, 0, 0)
 
     @pytest.mark.parametrize(
         ("word", "finish"),
@@ -118,6 +118,28 @@ class TestStreams:
         assert message.content == "hello"
         assert usage_of(tracker) == (11, 7, 18)
         assert tracker.last_finish_reason == "stop"
+
+    def test_a_stream_without_usage_is_counted_from_the_prompt_and_what_was_written(
+        self, serve_answer: Serve, tracker: TokenTracker
+    ) -> None:
+        message = _stream_all(
+            serve_answer, chunk({"role": "assistant", "content": "hel"}), chunk({"content": "lo"}), chunk({}, "stop")
+        )
+
+        assert message.content == "hello"
+        assert message.usage_metadata is None  # the local count feeds accounting only; the provider reported nothing
+        assert (usage_of(tracker), tracker.call_count) == ((8, 1, 9), 1)
+
+    def test_a_tool_call_a_stream_wrote_is_counted_with_its_envelope(
+        self, serve_answer: Serve, tracker: TokenTracker
+    ) -> None:
+        _stream_all(
+            serve_answer,
+            chunk({"role": "assistant", "tool_calls": [{"index": 0, **CALL}]}),
+            chunk({}, "tool_calls"),
+        )
+
+        assert usage_of(tracker) == (8, 29, 37)
 
     def test_tool_calls_survive_a_finish_word_of_another_vendor(
         self, serve_answer: Serve, tracker: TokenTracker
