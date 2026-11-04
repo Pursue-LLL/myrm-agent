@@ -11,11 +11,11 @@ function setOnLine(value: boolean | undefined) {
 }
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-    if (params && 'hostName' in params) {
-      return `${key}:${String(params.hostName)}`;
-    }
-    return key;
-  };
+  if (params && 'hostName' in params) {
+    return `${key}:${String(params.hostName)}`;
+  }
+  return key;
+};
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -90,6 +90,14 @@ describe('MobileShellStatusBar', () => {
     render(<MobileShellStatusBar />);
 
     expect(screen.getByText('offlineNotice')).toBeInTheDocument();
+  });
+
+  it('treats an environment that reports no connectivity as connected', () => {
+    setOnLine(undefined);
+    render(<MobileShellStatusBar />);
+
+    expect(screen.queryByText('offlineNotice')).not.toBeInTheDocument();
+    expect(screen.getByText('connectedReady')).toBeInTheDocument();
   });
 
   it('stops listening to connectivity events once unmounted', () => {
