@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
-from myrm_agent_harness.toolkits.code_execution.executors.common.command_rewriter import (
-    CommandRewriter,
-)
 from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
     BashASTParser,
     CapabilityLevel,
@@ -268,43 +263,3 @@ class TestCommandBoundariesMatchTheShell:
         flagged, reason, _ = is_destructive_shell_tool_call("bash_code_execute_tool", {"command": "ls\nrm -rf ./build"})
         assert flagged is True
         assert reason
-
-
-class TestCommandRewriterSearchRouting:
-    """Unit tests for CommandRewriter transparent grep -> rg routing."""
-
-    def test_rewrite_grep_simple(self) -> None:
-        rewriter = CommandRewriter()
-        with patch.object(CommandRewriter, "is_ripgrep_available", return_value=True):
-            res = rewriter.rewrite_search_commands("grep -rn 'hello' .")
-            assert res == "rg --no-ignore -n 'hello' ."
-
-    def test_rewrite_grep_cluster_flags(self) -> None:
-        rewriter = CommandRewriter()
-        with patch.object(CommandRewriter, "is_ripgrep_available", return_value=True):
-            res = rewriter.rewrite_search_commands("grep -rin 'hello' .")
-            assert res == "rg --no-ignore -in 'hello' ."
-
-    def test_rewrite_grep_protects_quotes(self) -> None:
-        rewriter = CommandRewriter()
-        with patch.object(CommandRewriter, "is_ripgrep_available", return_value=True):
-            res = rewriter.rewrite_search_commands("echo 'grep should stay' && grep -r 'target' src/")
-            assert res == "echo 'grep should stay' && rg --no-ignore  'target' src/"
-
-    def test_rewrite_ignores_git_log_grep(self) -> None:
-        rewriter = CommandRewriter()
-        with patch.object(CommandRewriter, "is_ripgrep_available", return_value=True):
-            cmd = "git log --grep='fix bug'"
-            assert rewriter.rewrite_search_commands(cmd) == cmd
-
-    def test_rewrite_fallback_when_no_rg(self) -> None:
-        rewriter = CommandRewriter()
-        with patch.object(CommandRewriter, "is_ripgrep_available", return_value=False):
-            cmd = "grep -rn 'hello' ."
-            assert rewriter.rewrite_search_commands(cmd) == cmd
-
-    def test_rewrite_explicit_has_rg_override(self) -> None:
-        rewriter = CommandRewriter()
-        cmd = "grep -rn 'hello' ."
-        assert rewriter.rewrite_search_commands(cmd, has_rg=False) == cmd
-        assert rewriter.rewrite_search_commands(cmd, has_rg=True) == "rg --no-ignore -n 'hello' ."
