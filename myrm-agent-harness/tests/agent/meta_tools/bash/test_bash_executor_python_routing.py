@@ -1,10 +1,12 @@
 """Integration tests: BashExecutor._prepare_execution routes via toolkits code_detector."""
 
 from contextlib import AsyncExitStack
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
+from myrm_agent_harness.agent.meta_tools.bash._executor.context_mixin import BashExecutorContextMixin
 from myrm_agent_harness.agent.meta_tools.bash._executor.executor import (
     BashExecutionError,
     BashExecutor,
@@ -77,3 +79,22 @@ class TestPrepareExecutionPythonRouting:
         short_limit_server = MCPConfigItem(name="demo", execute_timeout=10.0)
         assert bash_executor._maybe_extend_timeout_for_mcp([short_limit_server], 30) == MCP_MIN_TIMEOUT
         assert bash_executor._maybe_extend_timeout_for_mcp(None, 600) == 600
+
+
+class TestExecutionWorkspaceRoot:
+    """``/workspace`` is the executor's bound root; the session's own directory is the fallback."""
+
+    @staticmethod
+    def _root(executor: object, session_root: str | None) -> str | None:
+        owner = SimpleNamespace(_executor=executor)
+        return BashExecutorContextMixin._execution_workspace_root(owner, session_root)  # type: ignore[arg-type]
+
+    def test_a_bound_executor_wins(self) -> None:
+        assert self._root(SimpleNamespace(workspace_path="/bound"), "/session") == "/bound"
+
+    def test_an_executor_without_a_workspace_falls_back_to_the_session_root(self) -> None:
+        assert self._root(SimpleNamespace(), "/session") == "/session"
+        assert self._root(SimpleNamespace(workspace_path=""), "/session") == "/session"
+
+    def test_no_root_anywhere_is_none(self) -> None:
+        assert self._root(SimpleNamespace(), None) is None

@@ -7,7 +7,7 @@
 - utils.runtime.cancellation::get_cancel_token (POS: request-level cancellation token; the command stops when it is cancelled)
 
 [OUTPUT]
-- BashExecutorContextMixin: _build_execution_context, logging, artifact registration
+- BashExecutorContextMixin: _execution_workspace_root, _build_execution_context, logging, artifact registration
 
 [POS]
 ExecutionContext assembly, OAuth issuer scoping, and post-run logging for BashExecutor.
@@ -65,6 +65,14 @@ class BashExecutorContextMixin:
                 issuers.append(issuer)
         return issuers
 
+    def _execution_workspace_root(self, session_root: str | None) -> str | None:
+        """The directory ``/workspace`` is for the shell and the interpreter.
+
+        That is the root the executor is bound to; the session's own workspace directory only when it is bound to none.
+        """
+        executor_workspace = getattr(self._executor, "workspace_path", None)
+        return str(executor_workspace) if executor_workspace else session_root
+
     def _build_execution_context(
         self,
         prepared_code: str,
@@ -81,10 +89,7 @@ class BashExecutorContextMixin:
         """Build ExecutionContext from prepared code, workspace, and skill config."""
         network_config = self.config.network
 
-        executor_workspace = getattr(self._executor, "workspace_path", None)
-        workspace_root = (
-            str(executor_workspace) if executor_workspace else self._workspace_manager.get_workspace_path(workspace)
-        )
+        workspace_root = self._execution_workspace_root(self._workspace_manager.get_workspace_path(workspace))
 
         work_dir = working_dir if working_dir else "/workspace"
 
