@@ -1,7 +1,7 @@
 """skill_select_tool maps the name a model writes onto the one bound skill it means.
 
 The catalog lists a skill under one name (``data-analysis``). A model may write it with the ``_skill``
-suffix, other casing or underscores, and a continued conversation carries names from older catalogs.
+suffix, other casing or underscores, and a continued conversation carries the spelling it stored.
 The resolver behind ``[use <name>]`` maps those spellings onto the listed skill and never guesses
 between two; the tool's own text must not promise a spelling the catalog does not use. A skill named
 more than once in one call, under any of those spellings, loads its SOP once.

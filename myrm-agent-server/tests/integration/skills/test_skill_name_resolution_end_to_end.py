@@ -12,7 +12,7 @@
 
 [POS]
 LOCAL skills are listed under ``xxx_skill`` runtime names while prebuilt skills keep their SKILL.md name, so a name the
-model writes, or an older catalog left in a chat, may not be the name the catalog lists. The pieces' own tests stub their
+model writes, or one a chat has stored, may not be the name the catalog lists. The pieces' own tests stub their
 neighbours; the crossing between harness and server is what this file runs for real. Only the model is scripted.
 """
 
@@ -208,7 +208,7 @@ async def catalog(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> _Catalog:
     skills = await backend.load_skills(skill_ids)
     listed = {skill.name for skill in skills}
     assert {_PREBUILT, _TWIN_PREBUILT, _TWIN_LOCAL, _LOCAL_ONLY} <= listed, (
-        "the catalog no longer lists these names; the spellings below encode that naming, update them with it"
+        "the spellings in this file assume prebuilt skills listed by SKILL.md name and LOCAL skills by xxx_skill runtime name"
     )
     return _Catalog(
         backend=backend,
@@ -279,7 +279,7 @@ async def test_a_continued_conversation_restores_the_skill_its_history_selected_
 
 async def test_the_names_a_session_recorded_restore_the_skills_the_catalog_lists_under_them(runner: _Runner) -> None:
     listed_for_recorded: dict[str, list[str]] = {
-        "deep_research_skill": [_PREBUILT],  # an older catalog's runtime name
+        "deep_research_skill": [_PREBUILT],  # the _skill-suffixed runtime spelling of a prebuilt skill
         _PREBUILT: [_PREBUILT],
         "my-local-tool": [_LOCAL_ONLY],
         _LOCAL_ONLY: [_LOCAL_ONLY],
