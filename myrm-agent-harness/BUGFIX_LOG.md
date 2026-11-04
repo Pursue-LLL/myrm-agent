@@ -2,7 +2,7 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
-### BUG-HARNESS-2026-11-04-182 · 配了重排服务时，`CloudReranker.rerank_pairs` 按命中到达的顺序给文档填分、不看命中自带的 `index`：记忆重排闸门永远保持融合顺序，Web 重排管线把每篇文档的分数给成了排在它那个名次上的文档的分数
+### BUG-HARNESS-2026-11-04-183 · 配了重排服务时，`CloudReranker.rerank_pairs` 按命中到达的顺序给文档填分、不看命中自带的 `index`：记忆重排闸门永远保持融合顺序，Web 重排管线把每篇文档的分数给成了排在它那个名次上的文档的分数
 
 | 字段 | 内容 |
 | --- | --- |
