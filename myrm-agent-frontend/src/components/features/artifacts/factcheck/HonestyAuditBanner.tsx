@@ -3,17 +3,12 @@
 /**
  * HonestyAuditBanner Component.
  * Top interaction banner warning users of unverified placeholder numbers.
- * Adheres to WorkBuddy controlled fabrication paradigm with zero emojis.
+ * Uses no emojis.
  */
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ListChecks,
-  Sparkles,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ListChecks, Sparkles } from 'lucide-react';
 
 interface HonestyAuditBannerProps {
   pendingCount: number;
@@ -39,8 +34,7 @@ export const HonestyAuditBanner: React.FC<HonestyAuditBannerProps> = ({
 
   try {
     const translation = useTranslations('factCheck');
-    t = (key: string, values?: Record<string, string | number>): string =>
-      translation(key, values);
+    t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
   } catch {
     // Fallback in test suites
   }
@@ -63,25 +57,15 @@ export const HonestyAuditBanner: React.FC<HonestyAuditBannerProps> = ({
       <div className="flex items-center gap-2.5">
         <div
           className={`p-1.5 rounded-lg shrink-0 ${
-            hasPending
-              ? 'bg-amber-500/15 text-amber-400'
-              : 'bg-emerald-500/15 text-emerald-400'
+            hasPending ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
           }`}
         >
-          {hasPending ? (
-            <AlertTriangle className="w-4 h-4" />
-          ) : (
-            <CheckCircle2 className="w-4 h-4" />
-          )}
+          {hasPending ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
         </div>
         <div className="text-xs">
-          <span className="font-semibold block sm:inline mr-2">
-            {t('bannerTitle')}:
-          </span>
+          <span className="font-semibold block sm:inline mr-2">{t('bannerTitle')}:</span>
           <span className={hasPending ? 'text-amber-300/90' : 'text-emerald-300/90'}>
-            {hasPending
-              ? t('bannerWarning', { count: pendingCount })
-              : t('bannerSuccess')}
+            {hasPending ? t('bannerWarning', { count: pendingCount }) : t('bannerSuccess')}
           </span>
         </div>
       </div>

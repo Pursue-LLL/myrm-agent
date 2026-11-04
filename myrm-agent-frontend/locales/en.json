@@ -14651,8 +14651,8 @@
     "wizard": {
       "title": "Channel Visual Pairing Wizard",
       "modelAgnosticBadge": "Model-Agnostic Engine · Zero-CLI Deterministic Flow",
-      "antiWorkbuddyNote": "Connect in one scan, no commands to type",
-      "antiWorkbuddyDesc": "No need to switch to expensive models or type technical setup commands in chat. Click a channel to generate a dynamic QR code for instant pairing.",
+      "noCommandNote": "Connect in one scan, no commands to type",
+      "noCommandDesc": "No need to switch to expensive models or type technical setup commands in chat. Click a channel to generate a dynamic QR code for instant pairing.",
       "waitingScan": "Please scan the dynamic QR code above with the client...",
       "sessionExpiry": "Valid for 300 seconds",
       "bindingSuccess": "Channel Authenticated and Token Bound Successfully!",

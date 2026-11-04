@@ -14651,8 +14651,8 @@
     "wizard": {
       "title": "Visueller Kanal-Kopplungsassistent",
       "modelAgnosticBadge": "Modellunabhängige Engine · Deterministischer Ablauf ohne CLI",
-      "antiWorkbuddyNote": "Mit einem Scan verbinden, ohne Befehle einzutippen",
-      "antiWorkbuddyDesc": "Sie müssen weder auf teure Modelle wechseln noch technische Einrichtungsbefehle im Chat eingeben. Klicken Sie auf einen Kanal, um einen dynamischen QR-Code zu erzeugen und sofort zu koppeln.",
+      "noCommandNote": "Mit einem Scan verbinden, ohne Befehle einzutippen",
+      "noCommandDesc": "Sie müssen weder auf teure Modelle wechseln noch technische Einrichtungsbefehle im Chat eingeben. Klicken Sie auf einen Kanal, um einen dynamischen QR-Code zu erzeugen und sofort zu koppeln.",
       "waitingScan": "Bitte scannen Sie den obigen dynamischen QR-Code mit dem Client...",
       "sessionExpiry": "Gültigkeit: 300 Sekunden",
       "bindingSuccess": "Kanal erfolgreich authentifiziert und Token gebunden!",

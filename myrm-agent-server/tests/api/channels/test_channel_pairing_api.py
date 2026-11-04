@@ -138,7 +138,7 @@ async def test_model_agnostic_decoupled_execution_e2e() -> None:
 
     Simulates scenario where the active model is a zero-parameter mock or lightweight
     offline model: Channel pairing and verification succeed completely without triggering
-    any LLM completions or natural language command interactions (like WorkBuddy's acquire_token).
+    any LLM completions or natural language command interactions.
     """
     service = ChannelHandshakeService()
 
