@@ -80,7 +80,7 @@ async def _html_to_markdown(html: str, *, base_url: str) -> str:
 
     def convert() -> str:
         generator = MarkdownGenerator(content_filter=ContentPruningFilter())
-        return (generator.generate_markdown(html, base_url=base_url, citations=False).raw_markdown or "").strip()
+        return (generator.generate_markdown(html, base_url=base_url).raw_markdown or "").strip()
 
     return await asyncio.to_thread(convert)
 

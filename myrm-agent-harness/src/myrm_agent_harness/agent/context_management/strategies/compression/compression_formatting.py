@@ -30,6 +30,8 @@ _SHRINK_TAIL = 50
 _SHRINK_MIN_LEN = 500
 
 _IDENTIFIER_PRIORITY = ("url", "path", "query", "command", "goal", "glob_pattern", "selector", "action", "name")
+_IDENTIFIER_MAX_CHARS = 200
+_IDENTIFIER_MAX_ITEMS = 3
 
 
 def _try_extract_from_args(args: dict[str, object], key: str) -> str | None:
@@ -37,8 +39,8 @@ def _try_extract_from_args(args: dict[str, object], key: str) -> str | None:
     if not val:
         return None
     if isinstance(val, list):
-        return ", ".join(str(item) for item in val[:3])
-    return str(val)[:200]
+        return ", ".join(str(item)[:_IDENTIFIER_MAX_CHARS] for item in val[:_IDENTIFIER_MAX_ITEMS])
+    return str(val)[:_IDENTIFIER_MAX_CHARS]
 
 
 def extract_identifier(tool_msg: ToolMessage, ai_msg: AIMessage | None, identifier_arg: str) -> str:

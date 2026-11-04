@@ -94,6 +94,7 @@ export default function KanbanTaskCard({
   const t = useTranslations('kanban');
   const agentName = useAgentName(task.agent_id);
   const decisionFrame = useMemo(() => deriveTaskDecisionFrame(task), [task]);
+  const recommendedAction = t(decisionFrame.recommendedActionKey);
   const [specifyOpen, setSpecifyOpen] = useState(false);
   const [decomposeOpen, setDecomposeOpen] = useState(false);
   const details = useKanbanTaskCardDetails({ task, allTasks, onRefresh });
@@ -201,13 +202,9 @@ export default function KanbanTaskCard({
               'text-[10px] mt-1 truncate font-medium',
               decisionFrame.hasAttention ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
             )}
-            title={t(decisionFrame.recommendedActionKey, {
-              defaultValue: decisionFrame.recommendedActionFallback,
-            })}
+            title={recommendedAction}
           >
-            {t(decisionFrame.recommendedActionKey, {
-              defaultValue: decisionFrame.recommendedActionFallback,
-            })}
+            {recommendedAction}
           </p>
 
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">

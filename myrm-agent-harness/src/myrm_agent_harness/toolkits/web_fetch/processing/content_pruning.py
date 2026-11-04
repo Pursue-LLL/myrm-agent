@@ -264,7 +264,7 @@ class ContentPruningFilter:
 
         body = soup.body
         if not body:
-            return []
+            return [], False
 
         for el in list(body.find_all(True)):
             if not hasattr(el, "name") or el.name is None or el.name in _SKIP_TAGS:
@@ -327,7 +327,7 @@ class ContentPruningFilter:
 
             body = soup.find("body")
             if not body:
-                return []
+                return [], False
 
             self._prune_tree(body)
 

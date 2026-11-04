@@ -11,9 +11,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { WEATHER_LABEL_KEYS } from '@/components/features/message-box/useContextWatermarkMetrics';
+import { INTENSITY_OPTIONS } from '@/components/features/message-input-actions/ThinkingIntensityButton';
+import { LANE_LABEL_CODES } from '@/components/features/settings/sections/knowledge/memory-migration-wizard/PreviewCards';
+import { PREVIEW_BUCKET_CODES } from '@/components/features/settings/sections/knowledge/memory-migration-wizard/PreviewPanels';
 import { KNOWN_PERMISSIONS } from '@/components/features/settings/sections/system/securityPolicyUtils';
 import { locales } from '@/i18n/config';
 import { resolveLockedUseDoctorBadgeKey, resolveLockedUseDoctorDetailKey } from '@/lib/desktop/desktopLockedUseDoctor';
+import { deriveTaskDecisionFrame } from '@/lib/kanban/kanbanDecisionFrame';
+import type { KanbanTask } from '@/services/kanban';
 import type { HealthReport } from '@/services/runtime-health';
 import { ARTIFACT_TYPES } from '@/store/chat/types/artifacts';
 
@@ -90,6 +95,49 @@ describe('dynamic translation key families', () => {
     // Seven badge keys and five detail keys: a branch this matrix does not reach would go unchecked.
     expect(keys.size).toBe(12);
     expect(missingTexts('settings.desktopPermissions', keys)).toEqual([]);
+  });
+
+  it('kanban card: every recommended action the decision frame can pick has a text', () => {
+    const taskIn = (status: string, overrides: Partial<KanbanTask> = {}): KanbanTask =>
+      ({ status, metadata: {}, ...overrides }) as KanbanTask;
+    const tasks = [
+      taskIn('in_review'),
+      taskIn('blocked', { block_kind: 'human' }),
+      taskIn('blocked'),
+      taskIn('failed'),
+      taskIn('triage'),
+      taskIn('running', { metadata: { completion_intent: true } }),
+      taskIn('running'),
+      taskIn('ready'),
+      taskIn('backlog'),
+      taskIn('completed'),
+    ];
+    const keys = new Set(tasks.map((task) => deriveTaskDecisionFrame(task).recommendedActionKey));
+
+    // Ten statuses reach ten distinct actions: a branch this list does not reach would go unchecked.
+    expect(keys.size).toBe(10);
+    expect(missingTexts('kanban', keys)).toEqual([]);
+  });
+
+  it('thinking intensity picker (desktop popover and mobile sheet): every level has a label', () => {
+    expect(
+      missingTexts(
+        'thinkingIntensity',
+        INTENSITY_OPTIONS.map((option) => option.labelKey),
+      ),
+    ).toEqual([]);
+  });
+
+  it('background task row: every exit category the server classifies a shell task with has a label', () => {
+    // The shell exit vocabulary of classify_background_exit (harness bash/_tool/background_listeners.py).
+    expect(
+      missingTexts('progressSteps.errorCategories', ['oom_killed', 'segfault', 'signal_terminated', 'nonzero_exit']),
+    ).toEqual([]);
+  });
+
+  it('memory migration wizard: every preview bucket and lane title it localizes has a text', () => {
+    expect(missingTexts('memory.migrationWizard.preview.previewBucket', PREVIEW_BUCKET_CODES)).toEqual([]);
+    expect(missingTexts('memory.migrationWizard.preview.laneLabels', LANE_LABEL_CODES)).toEqual([]);
   });
 
   it('flags a key a locale does not hold, so the checks above can fail', () => {

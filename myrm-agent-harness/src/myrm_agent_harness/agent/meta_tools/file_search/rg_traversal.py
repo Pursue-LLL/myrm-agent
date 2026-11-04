@@ -5,11 +5,11 @@
 
 [OUTPUT]
 - has_git_ancestor: Whether a directory lies inside a git checkout
-- rg_traversal_args: ripgrep flags that make its walk select the files the Python tier would
+- rg_traversal_args: ripgrep flags that apply the Python tier's file-selection policy to its walk
 
 [POS]
-Single place that decides which files ripgrep walks, so the ripgrep tier and the Python tier
-(``fallback_discovery``) search the same files: user configuration never applies, hidden files are walked,
+Single place that decides which files ripgrep walks, so the ripgrep tier follows the file-selection policy of the
+Python tier (``fallback_discovery``): user configuration never applies, hidden files are walked,
 version-control internals are never listed, and in a plain folder (no ``.git`` above it) dependency and build
 directories are skipped and neither the ignore files of parent directories nor the user's global ignore file are
 honoured. Inside a git checkout the decision stays with git's own ignore rules.

@@ -62,13 +62,6 @@ export function ModelSwapContinuityCard({ editor, effectiveModelSlug }: ModelSwa
 
   const modelFamilyDiscipline = useMemo(() => {
     const slug = effectiveModelSlug.toLowerCase();
-    if (slug.includes('claude') || slug.includes('anthropic')) {
-      return {
-        family: 'Claude',
-        discipline: t('disciplineClaude'),
-        promptMode: 'Full',
-      };
-    }
     if (slug.includes('deepseek')) {
       return {
         family: 'DeepSeek',

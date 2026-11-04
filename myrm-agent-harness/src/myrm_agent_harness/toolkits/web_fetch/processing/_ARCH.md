@@ -1,7 +1,7 @@
 # processing/
 
 ## Overview
-Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL normalization, spill, anti-bot, binary routing.
+Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL normalization, full-content delivery (one shared budget, complete text saved), anti-bot, binary routing.
 
 ## File Index
 
@@ -14,10 +14,11 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 | html_to_markdown.py | Util | HTML to Markdown conversion | ✅ |
 | markdown_generator.py | Util | Markdown document generation | ✅ |
 | url_normalizer.py | Util | URL normalization for dedup | ✅ |
-| spill.py | Util | UECD spill for large pages | ✅ |
+| full_content_delivery.py | Core | Delivery plan for full-content reads: one shared character budget split max-min fairly across pages, a truncation window per cut page, the exact saved-file line range of every omitted section, newline-normalized and soft-wrapped saved text, failed-URL listing | ✅ |
+| spill.py | Util | Saves the complete text through the injected evicted-content callbacks, builds the read guide and announces the saved file to the GUI | ✅ |
 | antibot_detector.py | Util | Anti-bot detection heuristics | ✅ |
 | binary_router.py | Util | Binary content type routing | ✅ |
 
 ## Dependencies
 
-- `fetchers.protocols`, `utils.text_cleaner`
+- `fetchers.protocols`, `utils.text_cleaner`, `utils.truncation_window`, `utils.context_format`, `core.security.detection.content_boundary`

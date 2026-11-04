@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import itertools
+import subprocess
+import types
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.agent.meta_tools.file_search import glob_tool, grep_tool
+from myrm_agent_harness.agent.meta_tools.file_search import fallback_search, glob_tool, grep_tool
 
 SearchRunner = Callable[..., Awaitable[str]]
 
@@ -21,6 +24,43 @@ def write_tree(root: Path, files: dict[str, str]) -> None:
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
+
+
+def git(root: Path, *arguments: str, check: bool = True) -> str:
+    """Run git in ``root`` under a fixed identity and return its stdout.
+
+    ``check=False`` tolerates a failing exit status, such as a merge that stops on a conflict.
+    """
+    result = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "protocol.file.allow=always",
+            *arguments,
+        ],
+        check=check,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def end_time_budget_after(monkeypatch: pytest.MonkeyPatch, batches: int) -> None:
+    """Make the Python tier's time budget run out once ``batches`` batches of files have been searched.
+
+    The tier reads the clock once to start the budget and once before each batch.
+    """
+    reads = itertools.count()
+    clock = types.SimpleNamespace(monotonic=lambda: 0.0 if next(reads) <= batches else 100.0)
+    monkeypatch.setattr(fallback_search, "time", clock)
 
 
 def bind_executor(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:

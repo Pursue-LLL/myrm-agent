@@ -89,15 +89,15 @@ describe('ModelSwapContinuityCard', () => {
     expect(screen.getByText('assetSubagents:count=1')).toBeInTheDocument();
   });
 
-  it('toggles expansion and shows model family discipline for Claude', async () => {
+  it('toggles expansion and shows the universal discipline for Claude, which has no family block', async () => {
     render(<ModelSwapContinuityCard editor={mockEditor} effectiveModelSlug="claude-3-5-sonnet" />);
 
     const toggleBtn = screen.getByRole('button', { name: /expandDetails/i });
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByText('disciplineTitle:family=Claude')).toBeInTheDocument();
+    expect(screen.getByText('disciplineTitle:family=Universal')).toBeInTheDocument();
     expect(screen.getByText('recommendedPromptMode:mode=Full')).toBeInTheDocument();
-    expect(screen.getByText('disciplineClaude')).toBeInTheDocument();
+    expect(screen.getByText('disciplineUniversal')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('visionNative')).toBeInTheDocument();

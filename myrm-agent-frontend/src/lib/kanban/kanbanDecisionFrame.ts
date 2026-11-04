@@ -3,7 +3,7 @@
  * @/services/kanban::KanbanTask (POS: 看板任务数据模型)
  *
  * [OUTPUT]
- * - DecisionFrame: 决策帧结构化模型 (waitingEntity, recommendedActionKey, recommendedActionFallback, safetyTier, responsibility)
+ * - DecisionFrame: 决策帧结构化模型 (waitingEntity, recommendedActionKey, safetyTier, responsibility)
  * - deriveTaskDecisionFrame: 纯函数，根据任务状态与元数据推导首屏决策帧
  * - filterTasksByResponsibility: 根据责任矩阵 (All / Needs Human / Autonomous) 过滤任务
  *
@@ -21,7 +21,6 @@ export type ResponsibilityFilter = 'all' | 'needs_action' | 'autonomous';
 export interface DecisionFrame {
   waitingEntity: WaitingEntity;
   recommendedActionKey: string;
-  recommendedActionFallback: string;
   safetyTier: SafetyTier;
   responsibility: ResponsibilityFilter;
   hasAttention: boolean;
@@ -47,7 +46,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'human',
       recommendedActionKey: 'decisionFrame.actionReview',
-      recommendedActionFallback: 'Review verification & approve completion',
       safetyTier: 'hitl_guarded',
       responsibility: 'needs_action',
       hasAttention: true,
@@ -60,9 +58,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: isHumanBlock ? 'human' : 'system',
       recommendedActionKey: isHumanBlock ? 'decisionFrame.actionUnblockHuman' : 'decisionFrame.actionCheckBlock',
-      recommendedActionFallback: isHumanBlock
-        ? 'Resolve blocker / grant approval'
-        : 'Waiting for dependency or schedule',
       safetyTier: isHumanBlock ? 'hitl_guarded' : 'neutral',
       responsibility: isHumanBlock ? 'needs_action' : 'autonomous',
       hasAttention: isHumanBlock,
@@ -74,7 +69,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'human',
       recommendedActionKey: 'decisionFrame.actionRetryOrDiagnose',
-      recommendedActionFallback: 'Retry task or inspect failure diagnostic',
       safetyTier: 'hitl_guarded',
       responsibility: 'needs_action',
       hasAttention: true,
@@ -86,7 +80,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'human',
       recommendedActionKey: 'decisionFrame.actionSpecify',
-      recommendedActionFallback: 'Specify criteria & move to ready',
       safetyTier: 'neutral',
       responsibility: 'needs_action',
       hasAttention: false,
@@ -99,7 +92,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
       return {
         waitingEntity: 'agent',
         recommendedActionKey: 'decisionFrame.actionVerifying',
-        recommendedActionFallback: 'Agent verifying acceptance criteria',
         safetyTier: 'safe_auto',
         responsibility: 'autonomous',
         hasAttention: false,
@@ -108,7 +100,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'agent',
       recommendedActionKey: 'decisionFrame.actionRunning',
-      recommendedActionFallback: task.progress_note || 'Agent executing autonomous plan',
       safetyTier: requiresApproval ? 'hitl_guarded' : 'safe_auto',
       responsibility: 'autonomous',
       hasAttention: false,
@@ -120,7 +111,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'agent',
       recommendedActionKey: 'decisionFrame.actionDispatching',
-      recommendedActionFallback: 'Queued for next available agent runner',
       safetyTier: requiresApproval ? 'hitl_guarded' : 'safe_auto',
       responsibility: 'autonomous',
       hasAttention: false,
@@ -132,7 +122,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
     return {
       waitingEntity: 'none',
       recommendedActionKey: 'decisionFrame.actionBacklog',
-      recommendedActionFallback: 'Prioritize or schedule for execution',
       safetyTier: 'neutral',
       responsibility: 'autonomous',
       hasAttention: false,
@@ -143,7 +132,6 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
   return {
     waitingEntity: 'none',
     recommendedActionKey: 'decisionFrame.actionDone',
-    recommendedActionFallback: 'Task completed successfully',
     safetyTier: 'safe_auto',
     responsibility: 'autonomous',
     hasAttention: false,

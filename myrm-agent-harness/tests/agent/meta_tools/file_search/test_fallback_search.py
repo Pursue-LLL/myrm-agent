@@ -5,6 +5,7 @@ Covers:
 - Lines that are not UTF-8 are skipped and the scan ends at the match cap
 - The slow read path (a file mmap cannot scan) gives the same rows, and a regex timeout keeps the earlier rows
 - ``search_files`` counts only matches toward the result cap, never context rows
+- ``search_files`` reports the files of the batches it finished, and whether the time budget cut the search short
 """
 
 from __future__ import annotations
@@ -16,9 +17,15 @@ import pytest
 
 from myrm_agent_harness.agent.config import FileIOConfig
 from myrm_agent_harness.agent.meta_tools.file_search import fallback_search
-from myrm_agent_harness.agent.meta_tools.file_search.fallback_search import mmap_search_file, scan_lines, search_files
+from myrm_agent_harness.agent.meta_tools.file_search.fallback_search import (
+    SearchOutcome,
+    mmap_search_file,
+    scan_lines,
+    search_files,
+)
 from myrm_agent_harness.agent.meta_tools.file_search.regex_validator import RegexValidator
 from myrm_agent_harness.utils.errors import ToolError
+from tests.agent.meta_tools.file_search.search_probe import end_time_budget_after
 
 
 def _scan(data: bytes, pattern: str, *, max_matches: int = 100, context_lines: int = 0) -> list[tuple[int, str, str]]:
@@ -69,12 +76,15 @@ def _validator() -> RegexValidator:
     return RegexValidator(FileIOConfig())
 
 
-async def _search(files: list[Path], root: Path, pattern: str, **kwargs: int) -> list[dict[str, str | int]]:
+async def _run(files: list[Path], root: Path, pattern: str, **kwargs: int) -> SearchOutcome:
     options = {"max_results": 100, "context_lines": 0} | kwargs
-    results, _ = await search_files(
+    return await search_files(
         files, re.compile(pattern), root, regex_validator=_validator(), timeout_seconds=10.0, **options
     )
-    return results
+
+
+async def _search(files: list[Path], root: Path, pattern: str, **kwargs: int) -> list[dict[str, str | int]]:
+    return (await _run(files, root, pattern, **kwargs)).rows
 
 
 class TestSlowReadPath:
@@ -111,7 +121,7 @@ class TestSlowReadPath:
             return real_search(regex, text, timeout)
 
         monkeypatch.setattr(validator, "safe_search", safe_search)
-        results, _ = await search_files(
+        outcome = await search_files(
             [target],
             re.compile("needle"),
             tmp_path,
@@ -120,7 +130,7 @@ class TestSlowReadPath:
             timeout_seconds=10.0,
         )
 
-        assert [row["line"] for row in results] == [1]
+        assert [row["line"] for row in outcome.rows] == [1]
 
 
 class TestResultCap:
@@ -133,3 +143,51 @@ class TestResultCap:
         rows = await _search([crowded, other], tmp_path, "needle", max_results=2, context_lines=2)
 
         assert {str(row["file"]) for row in rows if row["type"] == "match"} == {"a.txt", "b.txt"}
+
+
+def _write_files(root: Path, count: int, content: str) -> list[Path]:
+    files = [root / f"f{index:02d}.txt" for index in range(count)]
+    for file in files:
+        file.write_text(content, encoding="utf-8")
+    return files
+
+
+class TestFilesSearched:
+    # More files than one batch holds.
+    FILE_COUNT = 45
+
+    async def test_counts_every_file_of_a_search_that_finishes(self, tmp_path: Path) -> None:
+        files = _write_files(tmp_path, self.FILE_COUNT, "nothing\n")
+
+        outcome = await _run(files, tmp_path, "needle")
+
+        assert (outcome.files_searched, outcome.timed_out) == (self.FILE_COUNT, False)
+
+    async def test_counts_the_files_of_the_batches_finished_when_time_runs_out(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        files = _write_files(tmp_path, self.FILE_COUNT, "needle\n")
+        end_time_budget_after(monkeypatch, batches=1)
+
+        outcome = await _run(files, tmp_path, "needle")
+
+        assert outcome.timed_out
+        assert outcome.files_searched == len(outcome.rows) < self.FILE_COUNT
+
+    async def test_counts_nothing_when_time_runs_out_before_the_first_batch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        files = _write_files(tmp_path, self.FILE_COUNT, "needle\n")
+        end_time_budget_after(monkeypatch, batches=0)
+
+        outcome = await _run(files, tmp_path, "needle")
+
+        assert (outcome.rows, outcome.files_searched, outcome.timed_out) == ([], 0, True)
+
+    async def test_reaching_the_result_cap_is_not_a_timeout(self, tmp_path: Path) -> None:
+        files = _write_files(tmp_path, self.FILE_COUNT, "needle\n")
+
+        outcome = await _run(files, tmp_path, "needle", max_results=3)
+
+        assert not outcome.timed_out
+        assert 0 < outcome.files_searched < self.FILE_COUNT

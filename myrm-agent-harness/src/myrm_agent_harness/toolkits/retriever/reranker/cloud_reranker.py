@@ -59,34 +59,56 @@ class CloudReranker(RerankerService):
         self._api_base = api_base
         logger.info("Cloud reranker initialized: %s", model)
 
-    async def rerank_pairs(self, pairs: list[tuple[str, str]]) -> list[float]:
-        """Score (query, document) pairs; pairs of one query share a single API call, queries run concurrently."""
+    async def rerank_pairs(
+        self,
+        pairs: list[tuple[str, str]],
+    ) -> list[float]:
+        """Score each (query, document) pair, one provider call per distinct query.
+
+        Pairs are grouped by query and the groups are reranked concurrently. A provider answers with hits ranked by
+        relevance, each labelled with the index of the document it scored, so a hit's score goes to the pair that
+        document came from, not to the pair at the hit's position in the answer. A document the provider leaves out
+        of its answer scores 0.0.
+
+        Args:
+            pairs: (query, document) pairs.
+
+        Returns:
+            One relevance score per pair, in the order of ``pairs``.
+
+        Raises:
+            ValueError: A hit is labelled with an index outside the documents sent for its query.
+        """
         if not pairs:
             return []
 
-        start_time = time.monotonic()
-        documents_by_query: dict[str, list[tuple[int, str]]] = {}
-        for index, (query, document) in enumerate(pairs):
-            documents_by_query.setdefault(query, []).append((index, document))
-
-        logger.debug(
-            "Batch rerank: %d pairs, %d queries (model: %s, api_base: %s)",
-            len(pairs),
-            len(documents_by_query),
-            self._model,
-            self._api_base or "default",
-        )
-
-        async def rerank_query(query: str, indexed: list[tuple[int, str]]) -> list[tuple[int, float]]:
-            results = await self.rerank(query, [document for _, document in indexed], top_k=len(indexed))
-            return [(indexed[result.index][0], result.score) for result in results]
+        start_time = time.perf_counter()
+        positions_by_query: dict[str, list[int]] = {}
+        for position, (query, _) in enumerate(pairs):
+            positions_by_query.setdefault(query, []).append(position)
 
         scores = [0.0] * len(pairs)
-        for query_results in await asyncio.gather(*(rerank_query(q, d) for q, d in documents_by_query.items())):
-            for pair_index, score in query_results:
-                scores[pair_index] = score
 
-        logger.debug("Batch rerank done in %.2fs", time.monotonic() - start_time)
+        async def score_query(query: str, positions: list[int]) -> None:
+            documents = [pairs[position][1] for position in positions]
+            hits = await self.rerank(query, documents, top_k=len(documents))
+            for hit in hits:
+                if not 0 <= hit.index < len(documents):
+                    raise ValueError(
+                        f"Reranker labelled a hit with index {hit.index}, "
+                        f"outside the {len(documents)} documents sent for the query"
+                    )
+                scores[positions[hit.index]] = hit.score
+
+        await asyncio.gather(*(score_query(query, positions) for query, positions in positions_by_query.items()))
+
+        logger.info(
+            "Reranked %d pairs across %d queries in %.2fs (model: %s)",
+            len(pairs),
+            len(positions_by_query),
+            time.perf_counter() - start_time,
+            self._model,
+        )
         return scores
 
     async def rerank(self, query: str, documents: list[str], top_k: int | None = None) -> list[RerankResult]:

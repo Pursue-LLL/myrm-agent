@@ -300,3 +300,27 @@ class TestFooters:
 
     def test_no_scan_limit_note_by_default(self) -> None:
         assert "scan limited" not in format_grep_results(self._MATCH, "x", 3, 100)
+
+    def test_time_limit_note_closes_a_result_with_matches(self) -> None:
+        output = format_grep_results(self._MATCH, "x", 3, 100, timed_out=True)
+        assert output.endswith(
+            "\n... (search stopped at the time limit; narrow path or file_pattern to cover the rest)"
+        )
+
+    def test_time_limit_note_closes_a_result_without_matches(self) -> None:
+        output = format_grep_results([], "x", 3, 100, timed_out=True)
+        assert output.splitlines() == [
+            "No matches found for: x",
+            "(Searched 3 file(s))",
+            "... (search stopped at the time limit; narrow path or file_pattern to cover the rest)",
+        ]
+
+    def test_both_limit_notes_are_shown_when_both_cut_the_scan_short(self) -> None:
+        output = format_grep_results(self._MATCH, "x", 3, 100, scan_limit=3, timed_out=True)
+        assert output.splitlines()[-2:] == [
+            "... (scan limited to the first 3 files; narrow path or file_pattern to cover the rest)",
+            "... (search stopped at the time limit; narrow path or file_pattern to cover the rest)",
+        ]
+
+    def test_no_time_limit_note_by_default(self) -> None:
+        assert "time limit" not in format_grep_results(self._MATCH, "x", 3, 100)

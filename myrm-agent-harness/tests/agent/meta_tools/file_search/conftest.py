@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import NoReturn
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.runnables import RunnableConfig
@@ -43,18 +46,64 @@ def plain_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture
+def workspace(tmp_path: Path) -> Path:
+    """A temporary workspace with the files the grep_tool tests search; a module that needs another tree overrides it."""
+    (tmp_path / "hello.py").write_text("def hello():\n    return 42\n\ndef world():\n    pass\n")
+    (tmp_path / "config.json").write_text('{"key": "value", "count": 1}\n')
+    (tmp_path / "empty.txt").write_text("")
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "nested.py").write_text("import os\nimport sys\n")
+    return tmp_path
+
+
+@pytest.fixture
+def mock_executor(workspace: Path) -> MagicMock:
+    """Create a mock executor with resolve_path returning workspace paths."""
+    executor = AsyncMock()
+
+    async def _resolve_path(p: str) -> str:
+        if p == ".":
+            return str(workspace)
+        return str(workspace / p)
+
+    executor.resolve_path = _resolve_path
+    return executor
+
+
+@pytest.fixture
+def runnable_config() -> RunnableConfig:
+    return RunnableConfig(configurable={})
+
+
 @pytest.fixture(params=["ripgrep", "python"])
-def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> str:
+def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """Select the search tier by controlling ripgrep detection.
 
     A test that only makes sense on one tier narrows it with
     ``@pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)``.
+
+    On the python tier ripgrep is also refused: a tool that stopped following the detection would otherwise search
+    with ripgrep and its test would still pass, so the test fails when either tool tried to start it.
     """
     use_ripgrep = request.param == "ripgrep"
     if use_ripgrep:
         request.getfixturevalue("require_ripgrep")
     monkeypatch.setattr(grep_tool, "_has_ripgrep", lambda: use_ripgrep)
-    return str(request.param)
+
+    refused: list[list[str]] = []
+
+    async def refuse_ripgrep(cmd: Sequence[str], **_kwargs: object) -> NoReturn:
+        # Recorded as well as raised: on a ripgrep error both tools fall back to the Python tier and would hide it.
+        refused.append(list(cmd))
+        raise OSError("the python tier must not start ripgrep")
+
+    if not use_ripgrep:
+        monkeypatch.setattr(grep_tool, "run_rg", refuse_ripgrep)
+        monkeypatch.setattr(glob_tool, "run_rg", refuse_ripgrep)
+    yield str(request.param)
+    assert not refused, f"ripgrep was started while the python tier was selected: {refused}"
 
 
 @pytest.fixture

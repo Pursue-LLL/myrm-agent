@@ -12,12 +12,11 @@ Covers:
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
 
-from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_files, listed, write_tree
+from tests.agent.meta_tools.file_search.search_probe import SearchRunner, git, hit_files, listed, write_tree
 
 PARENT_FILES = {".gitignore": "*.log\n", "app.py": "needle\n", "debug.log": "needle\n"}
 # ``build/`` is not ignored by the nested repository, so it is searched there like in any checkout.
@@ -25,35 +24,12 @@ NESTED_FILES = {".gitignore": "*.tmp\n", "main.py": "needle\n", "skip.tmp": "nee
 NESTED_VISIBLE = {".gitignore", "main.py", "build/out.js"}
 
 
-def _git(root: Path, *arguments: str) -> str:
-    result = subprocess.run(
-        [
-            "git",
-            "-C",
-            str(root),
-            "-c",
-            "user.name=t",
-            "-c",
-            "user.email=t@t",
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "protocol.file.allow=always",
-            *arguments,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout.strip()
-
-
 def _repository(root: Path, files: dict[str, str], *, committed: bool = False) -> Path:
     write_tree(root, files)
-    _git(root, "init", "-q")
+    git(root, "init", "-q")
     if committed:
-        _git(root, "add", "-A")
-        _git(root, "commit", "-qm", "initial")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "initial")
     return root
 
 
@@ -108,7 +84,7 @@ class TestSubmodules:
         self, parent: Path, tmp_path: Path, run_glob: SearchRunner
     ) -> None:
         source = _repository(tmp_path / "source", NESTED_FILES, committed=True)
-        _git(parent, "submodule", "add", "-q", str(source), "libs/dep")
+        git(parent, "submodule", "add", "-q", str(source), "libs/dep")
 
         files = listed(await run_glob(parent, "libs/**/*"))
 
@@ -116,7 +92,7 @@ class TestSubmodules:
 
     async def test_a_recorded_gitlink_is_searched(self, parent: Path, run_glob: SearchRunner) -> None:
         dep = _repository(parent / "libs" / "dep", NESTED_FILES, committed=True)
-        _git(parent, "update-index", "--add", "--cacheinfo", f"160000,{_git(dep, 'rev-parse', 'HEAD')},libs/dep")
+        git(parent, "update-index", "--add", "--cacheinfo", f"160000,{git(dep, 'rev-parse', 'HEAD')},libs/dep")
 
         files = listed(await run_glob(parent, "libs/**/*"))
 
@@ -126,7 +102,7 @@ class TestSubmodules:
         self, parent: Path, tmp_path: Path, run_glob: SearchRunner
     ) -> None:
         source = _repository(tmp_path / "source", NESTED_FILES, committed=True)
-        _git(parent, "update-index", "--add", "--cacheinfo", f"160000,{_git(source, 'rev-parse', 'HEAD')},libs/dep")
+        git(parent, "update-index", "--add", "--cacheinfo", f"160000,{git(source, 'rev-parse', 'HEAD')},libs/dep")
         (parent / "libs" / "dep").mkdir(parents=True)
 
         assert listed(await run_glob(parent, "libs/**/*")) == set()

@@ -13,7 +13,7 @@
 
 [POS]
 Session skill contract: merge chat history tool-call evidence with server-persisted skill names at run() start.
-A recorded name may be spelled differently from the listed one (an older catalog, the `_skill` suffix, casing);
+A recorded name may be spelled differently from the listed one (another catalog's spelling, the `_skill` suffix, casing);
 it resolves through resolve_skill_reference, and the turn-end write-back then stores the listed name.
 """
 

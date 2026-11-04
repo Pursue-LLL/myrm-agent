@@ -6,7 +6,7 @@
 - runtime.cancellation::CancellationToken (POS: 取消令牌，支持异步任务取消)
 - runtime.steering::SteeringToken (POS: Steering 令牌，允许运行时注入消息中断工具链)
 - document_utils::parse_front_matter, extract_original_content (POS: 文档解析工具)
-- context_format::format_documents_with_metadata, format_crawl_results, wrap_with_* (POS: 上下文格式化工具)
+- context_format::format_documents_with_metadata, wrap_with_* (POS: 上下文格式化工具)
 - rwlock::RWLock (POS: 异步读写锁，支持多读单写)
 
 [OUTPUT]
@@ -14,7 +14,7 @@
 - SteeringToken: Steering 令牌
 - RWLock: 异步读写锁
 - parse_front_matter, extract_original_content: 文档解析函数
-- format_documents_with_metadata, format_crawl_results: 上下文格式化函数
+- format_documents_with_metadata: 上下文格式化函数
 - wrap_with_external_sources_tag, wrap_with_tool_output_tag: 安全边界包装函数（5 层防护）
 
 [POS]
@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.chat_utils import extract_answer_text, extract_completion_text
     from myrm_agent_harness.utils.context_format import (
         TruncationStats,
-        format_crawl_results,
         format_documents_with_metadata,
         wrap_with_external_sources_tag,
         wrap_with_tool_output_tag,
@@ -70,10 +69,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "format_documents_with_metadata": (
         "myrm_agent_harness.utils.context_format",
         "format_documents_with_metadata",
-    ),
-    "format_crawl_results": (
-        "myrm_agent_harness.utils.context_format",
-        "format_crawl_results",
     ),
     "wrap_with_external_sources_tag": (
         "myrm_agent_harness.utils.context_format",
@@ -137,7 +132,6 @@ __all__ = [
     "extract_file_id_from_url",
     "extract_completion_text",
     "extract_original_content",
-    "format_crawl_results",
     # Context formatting
     "format_documents_with_metadata",
     # Device fingerprint utilities (legacy)

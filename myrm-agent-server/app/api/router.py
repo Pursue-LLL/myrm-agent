@@ -225,7 +225,6 @@ if is_local_mode():
         router as channels_instances_credentials_router,
     )
     from app.api.channels.login import router as channels_login_router
-    from app.api.channels.pairing_router import pairing_router as channels_pairing_router
     from app.api.channels.router import router as channels_manage_router
     from app.api.channels.test_connections import router as channels_test_router
     from app.api.channels.topics import router as channels_topics_router
@@ -234,7 +233,6 @@ if is_local_mode():
         router as channels_wechat_official_router,
     )
 
-    api_router.include_router(channels_pairing_router, prefix="/channels/pairing", tags=["channels"])
     api_router.include_router(channels_login_router, prefix="/channels", tags=["channels"])
     api_router.include_router(channels_manage_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(channels_test_router, prefix="/channels/manage", tags=["channels"])

@@ -62,6 +62,15 @@ class TestTryExtractFromArgs:
         assert result is not None
         assert len(result) == 200
 
+    def test_list_items_are_capped_individually(self) -> None:
+        """A model-supplied list element must not defeat compaction by being arbitrarily long."""
+        urls = ["https://example.com/" + "a" * 500, "https://example.org/short"]
+        result = _try_extract_from_args({"urls": urls}, "urls")
+        assert result is not None
+        first, second = result.split(", ")
+        assert len(first) == 200
+        assert second == "https://example.org/short"
+
 
 # --- extract_identifier ---
 

@@ -30,7 +30,8 @@
 │  └────────────────────────────────────────────────────────┘  │
 │                                                               │
 │  LLM 工具集:                                                  │
-│  ├── delegate_task_tool (mode=single|batch|parallel)          │
+│  ├── delegate_task_tool                                       │
+│  │   (mode=single|batch|parallel|council|alternatives)        │
 │  ├── subagent_control_tool (action=list|cancel|steer|wait)    │
 │  └── send_teammate_message_tool (orchestrator P2P)            │
 └──────────────────────────────────────────────────────────────┘
@@ -331,7 +332,7 @@ Level 4: parent LLM (继承父 agent 的 LLM，兜底)
 
 ### 11. 超时策略 (Timeout Policy)
 
-`timeout_seconds` 默认为 `None`（无 wall-clock 超时）。`SubagentConfig.__post_init__` 对输入值进行归一化：`≤ 0` 转为 `None`（等同于 Hermes `child_timeout_seconds: 0` 语义），正值下限强制为 `_MIN_TIMEOUT_SECONDS`（30s），防止配置错误导致无意义超时。子代理通过四层安全网自然结束：
+`timeout_seconds` 默认为 `None`（无 wall-clock 超时）。`SubagentConfig.__post_init__` 对输入值进行归一化：`≤ 0` 转为 `None`，正值下限强制为 `_MIN_TIMEOUT_SECONDS`（30s），防止配置错误导致无意义超时。子代理通过四层安全网自然结束：
 
 1. **max_turns**（默认 25）：最大迭代次数。子代理的 `recursion_limit` 由 `max_turns * 2` 独立决定（`builder.build_child_agent`，按「每轮 2 步」表述的轮数预算；运行时按该子代理中间件链的实际节点数折算 LangGraph 步数上限，`max_turns` 轮即允许 `max_turns` 次工具调用），**不继承父 agent 的迭代上限**——与 `build_standalone_agent`（编排器路径）语义一致，避免父上限偏低时子代理被提前截断、`max_turns` 配置失效。
 2. **staleness detection**（`stale_after_seconds=300`）：无进度时警告或取消
@@ -538,7 +539,7 @@ config = SubagentConfig(
 5. **cancel / steer 单任务**：直接查 `ACTIVE_SUBAGENTS[task_id]`（无需 gateway；已完成任务已移出，返回 404 属预期）
 6. **checkpoint 恢复**：框架层不提供按检查点续跑的入口；中断任务以「重新发起」呈现（前端用保存的 `task_description` 重跑任务），`/checkpoint/resume` 与 subagents resume 端点不提供
 
-**与 OpenClaw 对齐点**：类似 `subagent-registry` + `killSubagentRunAdmin`——registry 独立于 parent turn 生命周期。
+**registry 独立于 parent turn 生命周期**：父 gateway stream 结束后，Server 仍可通过 registry 观测、取消、steer 子 Agent。
 
 **Prompt Cache**：纯 Server/Harness 控制面，零 LLM prompt 影响。
 
@@ -550,4 +551,4 @@ config = SubagentConfig(
 
 ### 动态并发裂变 (Swarm Fission) 与结果自动落盘 (Auto-Vaulting)
 - **运行时动态并发裂变 (Swarm Fission)**：通过 `delegate_task_tool(mode=parallel)`，Agent 可以在运行时触发并行 Map-Reduce。工具通过 `langgraph.types.interrupt` 挂起当前 Agent（`SubAgentStatus.YIELDED`），Server 侧 `stream_with_swarm_fission_resume` 调用 Harness `execute_swarm_fission`（与 batch 同源 spawn）执行 `TaskRequest[]`，完成后以 `Command(resume=ParallelTaskResults)` 恢复父 Agent 汇总结果。
-- **Auto-Vaulting (自动落盘)**：当子 Agent 最终结果超过 `SubagentConfig.auto_vault_threshold`（默认 8000 字符，YAML 可配）时，`_auto_vault_or_truncate` 将其写入 `ArtifactVault`（子 Agent 与父共用同一工作区，父 Agent/GUI 可直接读取）并替换为摘要 + `vault://` 指针及 `file_read_tool(paths=["vault://…"])` 恢复提示；若当前 `ArtifactContext` 活跃，同时 `push_inline_artifact` 推送前端 SSE 卡片。父 Agent 用 `file_read_tool` 读 `vault://` URI 恢复全文，**不提供** LLM 侧 vault_put/get/extract 元工具（与 Hermes/deer-flow 行业做法一致）。
+- **Auto-Vaulting (自动落盘)**：当子 Agent 最终结果超过 `SubagentConfig.auto_vault_threshold`（默认 8000 字符，YAML 可配）时，`_auto_vault_or_truncate` 将其写入 `ArtifactVault`（子 Agent 与父共用同一工作区，父 Agent/GUI 可直接读取）并替换为摘要 + `vault://` 指针及 `file_read_tool(paths=["vault://…"])` 恢复提示；若当前 `ArtifactContext` 活跃，同时 `push_inline_artifact` 推送前端 SSE 卡片。父 Agent 用 `file_read_tool` 读 `vault://` URI 恢复全文，**不提供** LLM 侧 vault_put/get/extract 元工具。

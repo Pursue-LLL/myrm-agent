@@ -6,17 +6,20 @@
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.security.redact::redact_sensitive_text (POS: 工具输出脱敏，防止凭证泄露到 LLM 上下文)
 - core.security.path::is_sensitive_file (POS: 敏感文件模式的唯一来源)
+- utils.errors::ToolError (POS: Framework-level error handling: ToolError with the format_for_llm protocol, and ModelOutputValidator)
+- utils.locale::is_chinese (POS: Shared locale utilities, single source of truth for locale string handling)
 - _redaction::redact_matches (POS: 逐文件按类型脱敏匹配行，源码里含 token 的类型名/变量名不被误遮)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
-- utils.lru_cache::LRUCache (POS: LRU 缓存)
-- _formatter (POS: Grep flat path:line output formatter with line truncation)
+- _formatter::format_grep_results (POS: Grep output formatter: path-grouped output from 5 matches on, line truncation, non-code file capping)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
-- fallback_search::search_files (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
+- fallback_search::search_files, SearchOutcome (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
 - rg_matches::RgMatches (POS: ripgrep --json 事件流收集为匹配行；目录级搜索不返回敏感文件内容)
-- rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档选出同一批文件)
+- rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
+- path_hint::format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]
 - GrepInput: Grep 工具输入参数模型
@@ -24,8 +27,8 @@
 
 [POS]
 Content search tool (Claude Code compatible). Searches file contents for matching text patterns
-with regex and literal (--fixed-strings) modes, flat path:line output and intelligent line truncation.
-Two search tiers choose the same files (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
+with regex and literal (--fixed-strings) modes, path-grouped output from 5 matches on and intelligent line truncation.
+Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
 without producing a result. A search over a directory withholds the lines of sensitive files on both tiers.
 
@@ -318,6 +321,7 @@ def create_grep_tool(
             # Only the Python tier knows how many files it searched; ripgrep's own count is wrong before version 15.
             files_searched: int | None = None
             scan_limit: int | None = None
+            timed_out = False
             if found is not None:
                 results = found.rows
             else:
@@ -334,7 +338,7 @@ def create_grep_tool(
                 files = candidates[: io_cfg.max_search_files]
                 if search_path_obj.is_dir():
                     files = [candidate for candidate in files if not is_sensitive_file(str(candidate))]
-                results, files_searched = await search_files(
+                outcome = await search_files(
                     files,
                     regex,
                     search_root,
@@ -343,6 +347,9 @@ def create_grep_tool(
                     timeout_seconds=io_cfg.search_timeout_seconds,
                     context_lines=context_lines,
                 )
+                results = outcome.rows
+                files_searched = outcome.files_searched
+                timed_out = outcome.timed_out
 
             # --- Format phase ---
             if disabled_roots and results:
@@ -361,6 +368,7 @@ def create_grep_tool(
                 io_cfg.max_search_results,
                 is_regex=not literal,
                 scan_limit=scan_limit,
+                timed_out=timed_out,
             )
 
         except ToolError:

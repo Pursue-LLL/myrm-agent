@@ -65,7 +65,14 @@ async def test_compress_tool_message_async_with_offload_large_output() -> None:
     large_content = _generate_large_varied_content(OFFLOAD_THRESHOLD_TOKENS + 1000)
     tool = ToolMessage(content=large_content, tool_call_id="tc1", name="web_fetch_tool")
     ai = AIMessage(
-        content="", tool_calls=[{"id": "tc1", "name": "web_fetch_tool", "args": {"url": "https://example.com"}}]
+        content="",
+        tool_calls=[
+            {
+                "id": "tc1",
+                "name": "web_fetch_tool",
+                "args": {"urls": ["https://example.com/a", "https://example.com/b"], "reason": "read docs"},
+            }
+        ],
     )
 
     saved = await compress_tool_message_async(tool, ai, on_offload=offload, chat_id="session123", user_id="u1")
@@ -74,6 +81,7 @@ async def test_compress_tool_message_async_with_offload_large_output() -> None:
     assert written[0][0] == "web_fetch_tool"
     body = str(tool.content)
     assert "COMPACTED: web_fetch_tool" in body
+    assert "URL: https://example.com/a, https://example.com/b" in body
     assert "archived_path: .context/session123/compacted_web_fetch_tool.txt" in body
     assert "restore_tool: file_read_tool" in body
 

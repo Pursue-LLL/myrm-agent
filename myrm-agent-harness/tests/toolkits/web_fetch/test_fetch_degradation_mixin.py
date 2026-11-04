@@ -30,6 +30,13 @@ def _http_result(html: str, status: int = 200) -> FetchResult:
     return FetchResult(html=html, url="http://example.com/page", status_code=status)
 
 
+def _mock_pipeline() -> MagicMock:
+    """Pipeline double whose ``aprocess`` is awaitable, like the real conversion entry point."""
+    pipeline = MagicMock()
+    pipeline.aprocess = AsyncMock()
+    return pipeline
+
+
 def _stub_fetchers(engine: FetchEngine) -> tuple[AsyncMock, AsyncMock, AsyncMock]:
     http = AsyncMock()
     browser = AsyncMock()
@@ -39,7 +46,7 @@ def _stub_fetchers(engine: FetchEngine) -> tuple[AsyncMock, AsyncMock, AsyncMock
     engine._http_fetcher = http  # type: ignore[assignment]
     engine._browser_fetcher = browser  # type: ignore[assignment]
     engine._stealth_fetcher = stealth  # type: ignore[assignment]
-    engine._pipeline = MagicMock()  # type: ignore[assignment]
+    engine._pipeline = _mock_pipeline()  # type: ignore[assignment]
     engine._router = SimpleNamespace(
         select=lambda url: SimpleNamespace(fetcher_type=FetcherType.HTTP),
         report_result=lambda *a, **k: None,
@@ -217,7 +224,7 @@ class TestTryFetchAndProcess:
             http.fetch.return_value = _http_result(RICH_HTML)
             truncated = _doc("truncated content")
             truncated.metadata["was_truncated"] = True
-            engine._pipeline.process.return_value = truncated
+            engine._pipeline.aprocess.return_value = truncated
             with patch(
                 "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
                 new=AsyncMock(return_value=None),
@@ -266,7 +273,7 @@ class TestCrawlWithDegradation:
                 shutdown=lambda: None,
             )
             stealth.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline.aprocess.return_value = _doc()
 
             doc, result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -287,7 +294,7 @@ class TestCrawlWithDegradation:
             )
             stealth.fetch.return_value = None
             browser.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline.aprocess.return_value = _doc()
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -337,7 +344,7 @@ class TestCrawlWithDegradation:
                 shutdown=lambda: None,
             )
             browser.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline.aprocess.return_value = _doc()
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -350,7 +357,7 @@ class TestCrawlWithDegradation:
             engine = _make_engine(tmp)
             http, _, _ = _stub_fetchers(engine)
             http.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline.aprocess.return_value = _doc()
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -410,8 +417,8 @@ class TestEscalationMixin:
     async def test_escalation_provider_failure_then_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             engine = _make_engine(tmp)
-            engine._pipeline = MagicMock()  # type: ignore[assignment]
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline = _mock_pipeline()  # type: ignore[assignment]
+            engine._pipeline.aprocess.return_value = _doc()
             good = SimpleNamespace(
                 provider_id="reader2",
                 fetch_url=AsyncMock(
@@ -458,8 +465,8 @@ class TestEscalationMixin:
     async def test_escalation_html_content_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             engine = _make_engine(tmp)
-            engine._pipeline = MagicMock()  # type: ignore[assignment]
-            engine._pipeline.process.return_value = _doc("html doc")
+            engine._pipeline = _mock_pipeline()  # type: ignore[assignment]
+            engine._pipeline.aprocess.return_value = _doc("html doc")
             provider = SimpleNamespace(
                 provider_id="reader4",
                 fetch_url=AsyncMock(
@@ -571,8 +578,8 @@ class TestEscalationMixin:
                     ),
                 )
             ]
-            engine._pipeline = MagicMock()  # type: ignore[assignment]
-            engine._pipeline.process.return_value = None
+            engine._pipeline = _mock_pipeline()  # type: ignore[assignment]
+            engine._pipeline.aprocess.return_value = None
 
             doc, result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -593,7 +600,7 @@ class TestFetchMixinRemaining:
             engine = _make_engine(tmp)
             http, _, _ = _stub_fetchers(engine)
             http.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc("generic")
+            engine._pipeline.aprocess.return_value = _doc("generic")
             with (
                 patch(
                     "myrm_agent_harness.toolkits.web_fetch.extractors.weixin_extractor.parse_weixin_article_html",
@@ -622,7 +629,7 @@ class TestFetchMixinRemaining:
             engine = _make_engine(tmp)
             http, _, _ = _stub_fetchers(engine)
             http.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc()
+            engine._pipeline.aprocess.return_value = _doc()
 
             doc, _, _, cpu, mem, _ = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
@@ -663,7 +670,7 @@ class TestFetchMixinRemaining:
             )
             browser.fetch.return_value = None
             stealth.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc("stealth")
+            engine._pipeline.aprocess.return_value = _doc("stealth")
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -679,7 +686,7 @@ class TestFetchMixinRemaining:
             http.fetch.return_value = None
             browser.fetch.return_value = None
             stealth.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc("stealth final")
+            engine._pipeline.aprocess.return_value = _doc("stealth final")
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -764,7 +771,7 @@ class TestLadderRemainingBranches:
             http, browser, _stealth = _stub_fetchers(engine)
             http.fetch.return_value = None
             browser.fetch.return_value = _http_result(RICH_HTML)
-            engine._pipeline.process.return_value = _doc("browser final")
+            engine._pipeline.aprocess.return_value = _doc("browser final")
 
             doc, _result = await engine._crawl_with_degradation("http://example.com/page")
 
@@ -831,7 +838,7 @@ class TestLadderRemainingBranches:
             http.fetch.return_value = None
             browser.fetch.return_value = None
             stealth.fetch.return_value = None
-            engine._pipeline.process.side_effect = [None, _doc("html escaped")]
+            engine._pipeline.aprocess.side_effect = [None, _doc("html escaped")]
             engine._escalation_providers = [
                 SimpleNamespace(
                     provider_id="p1",

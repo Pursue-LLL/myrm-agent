@@ -263,12 +263,15 @@ class LocalBashMixin:
             yield chunk
 
     async def _prepare_bash_command(self: _BashHost, command: str) -> str:
-        """Rewrite workspace paths, search commands, and pip commands for the local environment."""
+        """Rewrite workspace paths and pip commands for the local environment.
+
+        A search command such as grep runs as typed: approval and validation judged exactly that program, and a
+        different one in its place is not covered by them (ripgrep's ``--pre`` runs a command).
+        """
         command = self._command_rewriter.rewrite_workspace_paths(
             command,
             self._current_workspace,
         )
-        command = self._command_rewriter.rewrite_search_commands(command)
         return await self._venv_manager.rewrite_pip_command(command)
 
     def _build_bash_env(self: _BashHost, user_env: dict[str, str] | None) -> dict[str, str]:

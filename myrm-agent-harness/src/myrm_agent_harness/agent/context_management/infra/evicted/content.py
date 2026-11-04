@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -131,6 +132,7 @@ def build_delivery_footer(
     storage_truncated: bool = False,
     original_chars: int | None = None,
     stored_chars: int | None = None,
+    read_ranges: Sequence[tuple[str, int, int]] | None = None,
 ) -> str:
     """Actionable footer telling the model how to read omitted content.
 
@@ -139,20 +141,34 @@ def build_delivery_footer(
     the footer falls back to a plain full-file read so the model is never
     pointed at a misleading offset.
 
+    ``read_ranges`` — ``(label, first_line, last_line)`` per omitted section of
+    the saved file, closed and 1-indexed — replaces that estimate with one
+    exact read per section, for output whose omitted parts are not a single
+    trailing run (several pages cut in the middle).
+
     When ``storage_truncated`` is true, warns the model that the on-disk copy
     is capped (``MAX_STORED_CHARS``) so it does not assume the file holds the
     full original output.
     """
-    start_line = _footer_start_line(head_text)
     path_hint = rel_path if rel_path else f".context/.../evicted/{evicted_basename}"
-    if start_line is not None:
-        read_cmd = f'file_read_tool(paths=["{path_hint}:{start_line}-"])'
+    if read_ranges:
+        sections = "; ".join(f"{label} lines {first}-{last}" for label, first, last in read_ranges)
+        refs = ", ".join(f'"{path_hint}:{first}-{last}"' for _label, first, last in read_ranges)
+        footer = (
+            f"\n\nFull content saved to sandbox storage: {path_hint}\n"
+            f"Omitted sections (saved-file lines): {sections}.\n"
+            f"Use file_read_tool(paths=[{refs}]) to read them. GUI users can open View full output."
+        )
     else:
-        read_cmd = f'file_read_tool(paths=["{path_hint}"])'
-    footer = (
-        f"\n\nFull content saved to sandbox storage: {path_hint}\n"
-        f"Use {read_cmd} to read omitted sections. GUI users can open View full output."
-    )
+        start_line = _footer_start_line(head_text)
+        if start_line is not None:
+            read_cmd = f'file_read_tool(paths=["{path_hint}:{start_line}-"])'
+        else:
+            read_cmd = f'file_read_tool(paths=["{path_hint}"])'
+        footer = (
+            f"\n\nFull content saved to sandbox storage: {path_hint}\n"
+            f"Use {read_cmd} to read omitted sections. GUI users can open View full output."
+        )
     if storage_truncated:
         stored = stored_chars if stored_chars is not None else MAX_STORED_CHARS
         original = original_chars if original_chars is not None else stored

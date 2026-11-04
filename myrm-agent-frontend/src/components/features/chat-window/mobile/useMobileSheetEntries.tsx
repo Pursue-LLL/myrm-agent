@@ -23,13 +23,12 @@ import { useShallow } from 'zustand/react/shallow';
 import { resolveActiveModelSelection } from '@/lib/model-binding';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import {
+  INTENSITY_OPTIONS,
   type IntensityLevel,
   setGlobalIntensity,
   useGlobalIntensity,
 } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import type { MobileActionSheetEntry, MobileActionSheetOption } from './MobileActionSheet';
-
-const INTENSITY_LEVELS: IntensityLevel[] = ['off', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 interface UseMobileSheetEntriesOptions {
   onClose: () => void;
@@ -142,10 +141,10 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
 
   const intensityOptions: MobileActionSheetOption[] = useMemo(
     () =>
-      INTENSITY_LEVELS.map((level) => ({
-        key: level,
-        label: thinkT(level, { defaultMessage: level }),
-        active: currentEffort === (level === 'off' ? undefined : level),
+      INTENSITY_OPTIONS.map(({ value, labelKey }) => ({
+        key: value,
+        label: thinkT(labelKey),
+        active: currentEffort === (value === 'off' ? undefined : value),
       })),
     [thinkT, currentEffort],
   );

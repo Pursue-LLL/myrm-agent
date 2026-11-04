@@ -74,7 +74,7 @@ class ToolLayer(IntEnum):
 
 - **特征**: 通用 Agent 基线，Turn1 eager；前端无开关，不可关闭（Fast 模式由 converter 关闭 file/bash）
 - **工具数量**: **8**（`tool_layers.py:64-71`）
-- **Token 消耗**: ~4,180 tokens（2026-07-03 实测 + bash_process ~120，见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
+- **Token 消耗**: 描述合计 2,673 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
 
 | 工具名 | 常驻理由 |
 |--------|----------|
@@ -102,24 +102,24 @@ class ToolLayer(IntEnum):
 #### 2.2.3 EXTENDED 层 (Layer 3) - 扩展层
 - **特征**: harness 可选能力，默认关闭，按需 Turn1 或 RUNTIME_ONLY 绑定；组内统一按字母序稳定排序
 - **缓存**: harness 三层末尾；变化不影响 CORE/HIGH_PRIORITY 前缀
-- **工具数量**: 登记 **40** EXTENDED（harness 静态；见 TOOL_COUNT 块）
-- **Token 消耗**: 典型 ~2,246 tokens，满载 ~7,290+ tokens
+- **工具数量**: 登记 **38** EXTENDED（harness 静态；见 TOOL_COUNT 块）
+- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,075（粗估，不含 `delegate_task_tool` 的运行期名册）
 
 **子分类**:
 
 | 子类 | 加载条件 | 典型工具 | Token 消耗 |
 |------|---------|---------|----------:|
-| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 263（条件绑定；tiktoken measured woven desc） |
-| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~200 |
-| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；无额外 Turn1 schema） | 含于 memory×3 ~2,060 |
-| 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~535 |
-| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~827 |
-| Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool (Turn1)；wiki_compile/maintain 仅 REST/admin | ~95 |
-| 统一知识检索 | wiki + memory 双开 | memory_search_tool (1个) | ~55 |
-| 子 Agent 工具 | SubagentManagementExtension + entitlements | delegate_task_tool, subagent_control_tool, send_teammate_message_tool (orchestrator) | TBD |
-| 答案自审工具 | `enabled_builtin_tools: answer_tool` | request_answer_user_tool | ~120 |
-| Goal / planning 工具 | active Goal / `planning` opt-in | complete_goal_tool, todo_write | ~270 |
-| 看板工具 | `enabled_builtin_tools: kanban` | orchestrator 3 + worker 6；board CRUD 走 REST/GUI | -
+| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 277（条件绑定；未挂载 `skill_market_tool` 时 289） |
+| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~551 |
+| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 描述 +66（156 → 222） |
+| 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
+| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,160 |
+| Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool, wiki_apply_tool；wiki_compile/maintain 仅 REST/admin | ~344 |
+| 统一知识检索 | wiki + memory 双开 | memory_search_tool 的 wiki corpus 说明、memory_save_tool 的 wiki 边界段 | 增加 ~71（memory_search +14，memory_save +57） |
+| 子 Agent 工具 | SubagentManagementExtension + entitlements | delegate_task_tool, subagent_control_tool, send_teammate_message_tool (orchestrator) | ~379 + 运行期名册 |
+| 答案自审工具 | `enabled_builtin_tools: answer_tool` | request_answer_user_tool | 327（EN）/ 512（ZH） |
+| Goal / planning 工具 | active Goal / `planning` opt-in | complete_goal_tool, todo_write | ~298 |
+| 看板工具 | `enabled_builtin_tools: kanban` | orchestrator 6 + worker 6（按角色互斥挂载）；board CRUD 走 REST/GUI | worker ~406 / orchestrator ~774 |
 | Server vendor 工具 | 见 EXTERNAL 层 | x_search/image/video/tts/artifact_publish/channel_notify 等 | 按凭证 |
 
 #### 2.2.4 EXTERNAL 层 (Layer 4) - 外部业务层
@@ -159,7 +159,7 @@ class ToolLayer(IntEnum):
 
 | 层 | 准入条件 | 反例（CI 失败） |
 |----|----------|----------------|
-| **CORE** | Agent baseline，无 GUI 开关，固定 7 工具 | 把 `browser_*` 登记进 CORE |
+| **CORE** | Agent baseline，无 GUI 开关，固定 8 工具 | 把 `browser_*` 登记进 CORE |
 | **HIGH_PRIORITY** | product_id ∈ `DEFAULT_ENABLED_BUILTIN_TOOLS` 且非 HITL 重工具 | `todo_write`（product=`planning`，opt-in） |
 | **EXTENDED** | opt-in / 多工具簇 / HITL / harness 可选能力 | 把 `web_search_tool` 登记进 EXTENDED 且 product 默认开 |
 | **EXTERNAL** | server vendor / MCP / OpenAPI / 未登记动态工具 | 把 harness 静态工具登记进 EXTERNAL |
@@ -224,9 +224,8 @@ class ToolLayer(IntEnum):
 | 排序与预算 | `always` 在前，其后按名字，按 token 预算选择完整条目 |
 | 候选总 token > `L1_CATALOG_MAX_TOKENS` (2,000) | 预算满即停止；未展示技能计入 `hidden_count`，名字列在 `<hidden_skill_names>`；被预算挤掉的候选另计 `overflow_count` |
 
-**不再按个数截断**：`SKILL_INLINE_THRESHOLD` / `SKILL_SELECT_INLINE_MAX` 已删除。L1 选择由
-`estimate_skill_entry_tokens` + `L1_CATALOG_MAX_TOKENS` 决定；完整 `name + description` 放不下时
-不再塞半截描述；没有完整条目的技能以 `<hidden_skill_names>` 一行列出名字，该行有独立上限 `L1_HIDDEN_NAMES_MAX_TOKENS`（1,500，约 260 个名字），超出时写 `and N more not listed`。
+**不按个数截断**：L1 选择由 `estimate_skill_entry_tokens` + `L1_CATALOG_MAX_TOKENS` 决定；
+完整 `name + description` 放不下时不放半截描述；没有完整条目的技能以 `<hidden_skill_names>` 一行列出名字，该行有独立上限 `L1_HIDDEN_NAMES_MAX_TOKENS`（1,500，约 260 个名字），超出时写 `and N more not listed`。
 
 **预算外技能如何到达**：
 - 名字在 `<hidden_skill_names>` 里，或用户明确点名 → 直接 `skill_select_tool`；
@@ -341,21 +340,21 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算，2026-09-16 实测口径）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE / HIGH_PRIORITY 层按 2026-11-04 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-03 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~6,075 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~10,429 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 61 个 | ~20,072（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 未逐项实测 |
+| 最小场景 | 8 个 | ~5,894 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~10,300 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~19,660（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
-| System Prompt 层 | ~2,568 | `messages[0]` 2,269 + `messages[1]` 299，跨用户共享缓存 |
-| CORE 工具层 | ~2,655 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,717 | 默认缓存 |
+| System Prompt 层 | ~2,369 | `messages[0]` 2,070 + `messages[1]` 299，跨用户共享缓存 |
+| CORE 工具层 | ~2,673 | 始终缓存 |
+| HIGH_PRIORITY 工具层 | ~2,677 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -368,26 +367,26 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,191）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,647、合计 6,169）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
-| CORE | 8 | 2,655 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,717 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,372** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,217**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| CORE | 8 | 2,673 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
+| HIGH_PRIORITY | 5 | 2,677 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **5,350** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,195**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 
 | 工具类型 | 加载条件 | 数量 | Token |
 |---------|---------|-----:|------:|
-| 记忆工具 | 启用记忆系统 | 3 | 1,202 |
-| 技能工具 | 有技能后端 | 5 | ~612-944 |
+| 记忆工具 | 启用记忆系统 | 3 | 1,235（仅 memory corpus；wiki + sessions 全开 1,372） |
+| 技能工具 | 有技能后端 | 4 | ~1,136（含条件绑定的 `skill_search_tool` 277） |
 | 本地文件索引工具 | 用户配置本地索引目录（Discoverable） | 2 | - |
-| 浏览器工具 | 启用浏览器 | 7 | ~535 |
-| 定时任务工具 | 启用 Cron | 1 | ~827 |
-| Wiki 工具 | 有 Wiki 目录 | 4 | ~250 |
-| 子 Agent 工具 | 有子 Agent 配置 | 8 | ~411 |
-| 看板工具 | 启用看板 | 15 | - |
+| 浏览器工具 | 启用浏览器 | 8 | ~762 |
+| 定时任务工具 | 启用 Cron | 1 | ~1,160 |
+| Wiki 工具 | 有 Wiki 目录 | 3 | ~344 |
+| 子 Agent 工具 | 有子 Agent 配置 | 3 | ~379 + 运行期名册 |
+| 看板工具 | 启用看板 | 12 | worker ~406 / orchestrator ~774 |
 
 ### 7.3 按需加载 (On-Demand Load)
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.toolkits.web_search._web_search_tool_description import (
     DEFAULT_WEB_SEARCH_TOOL_DESCRIPTION_LOCALE,
-    WEB_SEARCH_TOOL_DESCRIPTION,
-    WEB_SEARCH_TOOL_DESCRIPTION_EN,
-    WEB_SEARCH_TOOL_DESCRIPTION_ZH,
     resolve_web_search_tool_description,
 )
 from myrm_agent_harness.toolkits.web_search.engine import SearchServiceConfig
@@ -15,14 +14,18 @@ from myrm_agent_harness.toolkits.web_search.web_search_agent_tools import (
 )
 
 
+def _search_cfg() -> SearchServiceConfig:
+    return SearchServiceConfig(search_service="tavily", api_key="test-key")
+
+
 def test_default_locale_is_english() -> None:
     assert DEFAULT_WEB_SEARCH_TOOL_DESCRIPTION_LOCALE == "en"
-    assert WEB_SEARCH_TOOL_DESCRIPTION is WEB_SEARCH_TOOL_DESCRIPTION_EN
-    assert resolve_web_search_tool_description() == WEB_SEARCH_TOOL_DESCRIPTION_EN
+    assert resolve_web_search_tool_description() == resolve_web_search_tool_description("en")
+    assert resolve_web_search_tool_description(None) == resolve_web_search_tool_description("en")
 
 
 def test_web_search_tool_description_preserves_rewrite_guardrails_en() -> None:
-    desc = WEB_SEARCH_TOOL_DESCRIPTION_EN
+    desc = resolve_web_search_tool_description("en", fetch_and_extract_available=True)
     required_fragments = (
         "Each query must be understandable on its own, outside the conversation and other queries",
         "abbreviations, codes, or short names that appear alone without context",
@@ -46,7 +49,7 @@ def test_web_search_tool_description_preserves_rewrite_guardrails_en() -> None:
 
 
 def test_web_search_tool_description_preserves_rewrite_guardrails_zh() -> None:
-    desc = WEB_SEARCH_TOOL_DESCRIPTION_ZH
+    desc = resolve_web_search_tool_description("zh-CN", fetch_and_extract_available=True)
     required_fragments = (
         "每条 query 脱离会话和其他 query 后都必须可理解",
         "补全单独出现且没有上下文的缩写、代号或短名称",
@@ -68,17 +71,34 @@ def test_web_search_tool_description_preserves_rewrite_guardrails_zh() -> None:
         assert fragment not in desc, f"implementation detail leaked into prompt: {fragment!r}"
 
 
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
+def test_fetch_and_extract_hint_appears_only_when_that_operation_exists(locale: str) -> None:
+    """The hint is one line; without the operation nothing else in the description changes."""
+    with_hint = resolve_web_search_tool_description(locale, fetch_and_extract_available=True)
+    without_hint = resolve_web_search_tool_description(locale)
+
+    assert with_hint.count("fetch_and_extract") == 1
+    assert "fetch_and_extract" not in without_hint
+    assert "web_fetch_tool" not in without_hint
+    kept = [line for line in with_hint.split("\n") if "fetch_and_extract" not in line]
+    assert kept == without_hint.split("\n")
+
+
 def test_create_web_search_tool_default_english_description() -> None:
-    tool = create_web_search_tool(
-        search_service_cfg=SearchServiceConfig(search_service="tavily", api_key="test-key"),
-    )
-    assert tool.description == WEB_SEARCH_TOOL_DESCRIPTION_EN
+    tool = create_web_search_tool(search_service_cfg=_search_cfg())
+    assert tool.description == resolve_web_search_tool_description("en")
+
+
+def test_create_web_search_tool_recommends_extract_only_when_told_it_exists() -> None:
+    tool = create_web_search_tool(search_service_cfg=_search_cfg(), fetch_and_extract_available=True)
+    assert tool.description == resolve_web_search_tool_description("en", fetch_and_extract_available=True)
+    assert "fetch_and_extract" in tool.description
 
 
 def test_create_web_search_tool_chinese_locale() -> None:
     tool = create_web_search_tool(
-        search_service_cfg=SearchServiceConfig(search_service="tavily", api_key="test-key"),
+        search_service_cfg=_search_cfg(),
         description_locale="zh-CN",
     )
-    assert tool.description == WEB_SEARCH_TOOL_DESCRIPTION_ZH
+    assert tool.description == resolve_web_search_tool_description("zh-CN")
     assert tool.description.startswith("web_search_tool 用于检索")

@@ -9,7 +9,7 @@ Frontend helpers for kanban chat activation: localStorage SSOT for target board 
 | File                                    | Role | Description                                                                                                             |
 | --------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------- |
 | `kanbanChatBoard.ts`                    | Core | `KANBAN_LAST_BOARD_ID_KEY`, read/write, request board id, send guard (stale id clear + `resolveKanbanSendBlockReason*`), `buildKanbanBoardDeepLink` (board id plus optional source chat and status column) |
-| `kanbanDecisionFrame.ts`                | Core | 看板任务首屏决策帧要素推导纯函数与责任矩阵任务过滤 (`deriveTaskDecisionFrame`, `filterTasksByResponsibility`)           |
+| `kanbanDecisionFrame.ts`                | Core | 看板任务首屏决策帧要素推导纯函数与责任矩阵任务过滤 (`deriveTaskDecisionFrame`, `filterTasksByResponsibility`)；推荐动作只给 `kanban.decisionFrame.*` 的 i18n key，不带英文兜底串 |
 | `kanbanBlockedReason.ts`                | Core | 阻塞原因的界面语言文案 (`blockedReasonText`，整句取自 shared/config/kanban_blocked_reasons.json，文案 key 为 `blockedReason.<JSON key>`，未知原因原样返回) |
 | `__tests__/kanbanChatBoard.test.ts`     | Test | SSOT, picker visibility, send-block rules, deep link shapes                                                             |
 | `__tests__/kanbanBlockedReason.test.ts` | Test | 已知原因译成界面语言、未知原因原样、继承属性名不被当成已知原因                                                          |

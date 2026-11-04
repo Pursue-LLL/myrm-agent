@@ -4,6 +4,7 @@ Provides the Diagnose-Hypothesize-Repair loop for resilient long-running tasks.
 
 [INPUT]
 - .types: DiagnosticHypothesis, ErrorCorrectionOutcome, RecoveryActionType
+- toolkits.code_execution.python_extractor: SKILLS_NAMESPACE_ADVICE
 
 [OUTPUT]
 - ErrorSelfCorrectionGovernor: Autonomous diagnosis, hypothesis testing, and error recovery engine.
@@ -22,12 +23,23 @@ from myrm_agent_harness.agent.resilience.types import (
     ErrorCorrectionOutcome,
     RecoveryActionType,
 )
+from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 logger = get_agent_logger(__name__)
 
 # Common error patterns mapped to root cause heuristics
+#
+# Order matters: the first match becomes the primary hypothesis, so specific
+# signatures must precede the generic "missing dependency" one.
 _ERROR_PATTERNS: list[tuple[re.Pattern[str], RecoveryActionType, str, str]] = [
+    (
+        # ``skills`` is the virtual MCP-skill namespace, so installing a package cannot fix this.
+        re.compile(r"(?:ModuleNotFoundError|ImportError).*?No module named\s*['\"]?skills(?![\w.])", re.IGNORECASE),
+        RecoveryActionType.SANITIZE_INPUT,
+        "The virtual 'skills' namespace is not available to this code (not an installable package)",
+        SKILLS_NAMESPACE_ADVICE,
+    ),
     (
         re.compile(
             r"(?:ModuleNotFoundError|ImportError).*?(?:No module named|cannot import name)\s*['\"]?([a-zA-Z0-9_\-]+)['\"]?|ModuleNotFoundError",

@@ -94,6 +94,68 @@ def test_build_delivery_footer_storage_truncated_includes_cap_notice() -> None:
     assert "not on disk" in footer
 
 
+def test_build_delivery_footer_default_read_instruction_is_unchanged() -> None:
+    footer = build_delivery_footer(
+        evicted_basename="web_fetch_abcd1234.md",
+        head_text="line1\nline2\nline3",
+        rel_path=".context/chat1/evicted/web_fetch_abcd1234.md",
+    )
+    assert footer == (
+        "\n\nFull content saved to sandbox storage: .context/chat1/evicted/web_fetch_abcd1234.md\n"
+        'Use file_read_tool(paths=[".context/chat1/evicted/web_fetch_abcd1234.md:4-"]) '
+        "to read omitted sections. GUI users can open View full output."
+    )
+
+
+def test_build_delivery_footer_read_ranges_give_one_exact_read_per_section() -> None:
+    path = ".context/chat1/evicted/web_fetch_abcd1234.md"
+    footer = build_delivery_footer(
+        evicted_basename="web_fetch_abcd1234.md",
+        rel_path=path,
+        read_ranges=[("【1】", 40, 310), ("【3】", 512, 901)],
+    )
+    assert footer == (
+        f"\n\nFull content saved to sandbox storage: {path}\n"
+        "Omitted sections (saved-file lines): 【1】 lines 40-310; 【3】 lines 512-901.\n"
+        f'Use file_read_tool(paths=["{path}:40-310", "{path}:512-901"]) to read them. '
+        "GUI users can open View full output."
+    )
+
+
+def test_build_delivery_footer_read_ranges_replace_the_head_text_estimate() -> None:
+    footer = build_delivery_footer(
+        evicted_basename="web_fetch_abcd1234.md",
+        head_text="line1\nline2\nline3",
+        rel_path=".context/chat1/evicted/web_fetch_abcd1234.md",
+        read_ranges=[("【2】", 7, 9)],
+    )
+    assert ":7-9" in footer
+    assert ":4-" not in footer
+
+
+def test_build_delivery_footer_empty_read_ranges_fall_back_to_a_plain_read() -> None:
+    footer = build_delivery_footer(
+        evicted_basename="web_fetch_abcd1234.md",
+        rel_path=".context/chat1/evicted/web_fetch_abcd1234.md",
+        read_ranges=[],
+    )
+    assert 'paths=[".context/chat1/evicted/web_fetch_abcd1234.md"]' in footer
+    assert "Omitted sections" not in footer
+
+
+def test_build_delivery_footer_read_ranges_keep_the_storage_cap_notice() -> None:
+    footer = build_delivery_footer(
+        evicted_basename="web_fetch_abcd1234.md",
+        rel_path=".context/chat1/evicted/web_fetch_abcd1234.md",
+        storage_truncated=True,
+        original_chars=5_000_000,
+        stored_chars=2_000_000,
+        read_ranges=[("【1】", 3, 9)],
+    )
+    assert "【1】 lines 3-9" in footer
+    assert "Stored copy capped at 2,000,000 chars of 5,000,000 original chars" in footer
+
+
 def test_write_evicted_content_sync_records_original_chars_when_capped(
     tmp_path,
 ) -> None:
@@ -274,9 +336,7 @@ def test_write_evicted_content_sync_success(tmp_path) -> None:
         chat_id_var.reset(c_tok)
 
 
-def test_write_evicted_content_sync_oserror(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_write_evicted_content_sync_oserror(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         write_evicted_content_sync,
     )
@@ -302,9 +362,7 @@ async def test_persist_evicted_content_without_session_context() -> None:
 
 
 @pytest.mark.asyncio
-async def test_persist_evicted_content_oserror(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_persist_evicted_content_oserror(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     w_tok = workspace_root_var.set(str(tmp_path))
     c_tok = chat_id_var.set("chat_async_oserror")
     try:

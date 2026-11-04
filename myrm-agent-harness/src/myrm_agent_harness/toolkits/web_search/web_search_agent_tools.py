@@ -4,11 +4,12 @@
 [INPUT]
 - toolkits.web_search.providers.web_searcher::SearchServiceConfig (POS: search service configuration)
 - toolkits.retriever.sufficiency (POS: Retrieval Sufficiency Guard for quality evaluation)
+- toolkits.web_search._web_search_tool_description::resolve_web_search_tool_description (POS: Locale-aware prompt SSOT; recommends fetch_and_extract only when the agent has it)
 - langchain.tools::tool (POS: LangChain tool decorator)
 - pydantic::BaseModel, Field, field_validator (POS: parameter validation)
 
 [OUTPUT]
-- create_web_search_tool: factory function to create web search tool
+- create_web_search_tool: factory function to create web search tool (``fetch_and_extract_available`` tells it whether the agent's web_fetch_tool offers fetch_and_extract)
 
 [POS]
 Web search meta-tool. Integrates web search capability as a meta-tool (high frequency, 80%+ queries require search).
@@ -27,7 +28,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from langchain.tools import tool
+from langchain.tools import BaseTool, tool
 from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
@@ -47,9 +48,10 @@ def create_web_search_tool(
     sufficiency_llm_config: LLMConfig | None = None,
     *,
     description_locale: str | None = None,
+    fetch_and_extract_available: bool = False,
     blocked_terms: tuple[str, ...] | None = None,
     blocked_hostnames: tuple[str, ...] | None = None,
-):
+) -> BaseTool:
     """Create a web search meta-tool.
 
     Args:
@@ -57,6 +59,8 @@ def create_web_search_tool(
         sufficiency_config: RSG configuration (optional); enables retrieval quality evaluation
         sufficiency_llm_config: LLM config for the sufficiency evaluator (required if sufficiency_config.enabled)
         description_locale: BCP-47 locale for LLM-facing tool description (default English).
+        fetch_and_extract_available: True when the same agent mounts a web_fetch_tool that offers the
+            ``fetch_and_extract`` operation; the description then recommends it for snippets that lack detail.
         blocked_terms: Optional substring blocklist for search queries. When set, any query
             containing a blocked term (case-insensitive) is rejected before the search runs —
             a generic content policy hook callers can use for benchmark decontamination
@@ -69,7 +73,9 @@ def create_web_search_tool(
     Returns:
         web_search_tool tool function
     """
-    tool_description = resolve_web_search_tool_description(description_locale)
+    tool_description = resolve_web_search_tool_description(
+        description_locale, fetch_and_extract_available=fetch_and_extract_available
+    )
 
     class WebSearchInput(BaseModel):
         questions: list[str] = Field(
@@ -100,7 +106,7 @@ def create_web_search_tool(
         questions: list[str],
         reason: str = "",
         time_range: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Execute web search and return structured results.
 
         Returns: {"content": "...", "metadata": {...}}

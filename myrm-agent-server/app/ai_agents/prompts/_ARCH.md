@@ -15,20 +15,22 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `general_agent_prompt.py` | ✅ 核心 | 通用 Agent 系统提示词（四档预构建 + get_core_system_prompt API；`coerce_prompt_mode` 把库里存的自由字符串收窄为已知档位，未知值按 full） |
-| `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用） |
-| `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量 |
+| `fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（被 general_agent_prompt search 模式静态引用；回复规则取 `SEARCH_RESPONSE_RULES_*`） |
+| `shared_rules.py` | ✅ 辅助 | 跨 Agent 共享规则常量；回复规则分两套：`AGENT_RESPONSE_RULES_*` 供 full 档（篇幅随问题复杂度，Markdown 与表格以渠道 `[Output Format]` 声明为准），`SEARCH_RESPONSE_RULES_*` 供 search 档与快速搜索（全面详细的综合答案），公式契约 `_LATEX_RULES_*` 两套共用 |
 | `deliverable_discipline.py` | ✅ 辅助 | Deliverable-first SSOT（Knowledge Work / builtin-economy user_instructions；含 kanban 任务板引导 + 反幻觉写文件约束；不绑定具体工具名，工具由 schema 暴露） |
 
 ---
 
 ## Prompt Mode 四档设计
 
-| Mode | Token 量 | 注入内容 | 适用场景 |
+| Mode | Token 量（`o200k_base`，英 / 中，不含 answer 工具引导；开启后约各 +76 / +82） | 注入内容 | 适用场景 |
 |------|----------|----------|----------|
-| `full` | ~2500 chars | 身份+绝对服从+回复规则+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | 通用场景（默认） |
-| `lean` | ~1200 chars | 身份+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
-| `naked` | ~300 chars | 工具调用指引（安全边界由 SecurityBoundaryMiddleware 统一注入） | 完全用户控制与轻量测试 |
-| `search` | ~1200 chars | 搜索专用提示词（来自 fast_search_agent_prompt.py，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
+| `full` | 662 / 858 | 身份+绝对服从+回复规则（Agent 版）+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | 通用场景（默认） |
+| `lean` | 257 / 298 | 身份+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
+| `naked` | 40 / 40 | 工具调用指引（安全边界由 SecurityBoundaryMiddleware 统一注入） | 完全用户控制与轻量测试 |
+| `search` | 1,184 / 1,904 | 搜索专用提示词（来自 fast_search_agent_prompt.py，含搜索版回复规则，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
+
+体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、模型族执行纪律、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
 
 search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（deep）静态缓存，
 保证 Kv Cache 前缀稳定性。deep suffix 在 factory.py 中按 `search_depth` 动态追加。

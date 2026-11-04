@@ -3,6 +3,7 @@
 Covers:
 - Early stop returns promptly even when unread output far exceeds the stream buffer, on every platform
 - Output lines far longer than asyncio's default stream limit are delivered; beyond the limit the run fails cleanly
+- A line can end at a NUL byte instead of a line feed, with the same early stop and the same limit
 - Full consumption, exit codes and stderr capture
 - Timeout and cancellation both reap the child
 - stdin is closed and cwd is honored
@@ -14,6 +15,7 @@ import asyncio
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -37,10 +39,32 @@ _PID_THEN_LONG_LINE_THEN_SLEEP_SCRIPT = (
     "sys.stdout.flush()\n"
     "time.sleep(60)\n"
 )
+# A ``--null`` listing: every name ends with a NUL byte, and a name may hold a line break.
+_NUL_LINES_SCRIPT = "import sys\nsys.stdout.buffer.write(b'a\\nb\\0c\\0')\n"
+_UNTERMINATED_LAST_LINE_SCRIPT = "import sys\nsys.stdout.buffer.write(b'a\\0b')\n"
+_NUL_FLOOD_SCRIPT = "import sys\nfor i in range(300000):\n    sys.stdout.write(f'name-{i:07d}-padding-padding\\0')\n"
+_PID_THEN_LONG_NUL_LINE_THEN_SLEEP_SCRIPT = (
+    "import os, sys, time\n"
+    "sys.stdout.write(f'{os.getpid()}\\0')\n"
+    "sys.stdout.write('y' * 100000 + '\\0')\n"
+    "sys.stdout.flush()\n"
+    "time.sleep(60)\n"
+)
 
 
 def _python(script: str) -> list[str]:
     return [sys.executable, "-c", script]
+
+
+def _collect() -> tuple[list[bytes], Callable[[bytes], bool]]:
+    """A list and the ``on_line`` callback that appends every line to it and never stops the run."""
+    lines: list[bytes] = []
+
+    def on_line(line: bytes) -> bool:
+        lines.append(line)
+        return False
+
+    return lines, on_line
 
 
 def _is_alive(pid: int) -> bool:
@@ -172,6 +196,70 @@ class TestLongLines:
         with pytest.raises(ValueError):
             await run_rg(
                 _python(_PID_THEN_LONG_LINE_THEN_SLEEP_SCRIPT), cwd=tmp_path, timeout_seconds=10.0, on_line=on_line
+            )
+
+        assert await _wait_until_gone(pids[0])
+
+
+class TestLineTerminator:
+    """A name listed with ``--null`` can hold a line break, so the caller picks the byte that ends a line."""
+
+    async def test_a_line_ends_at_the_terminator_not_at_a_line_break(self, tmp_path: Path) -> None:
+        lines, on_line = _collect()
+
+        result = await run_rg(
+            _python(_NUL_LINES_SCRIPT), cwd=tmp_path, timeout_seconds=10.0, on_line=on_line, line_terminator=b"\0"
+        )
+
+        assert lines == [b"a\nb\0", b"c\0"]
+        assert result.failed is False
+
+    async def test_the_last_line_may_lack_its_terminator(self, tmp_path: Path) -> None:
+        lines, on_line = _collect()
+
+        await run_rg(
+            _python(_UNTERMINATED_LAST_LINE_SCRIPT),
+            cwd=tmp_path,
+            timeout_seconds=10.0,
+            on_line=on_line,
+            line_terminator=b"\0",
+        )
+
+        assert lines == [b"a\0", b"b"]
+
+    async def test_stops_early_between_terminated_lines(self, tmp_path: Path) -> None:
+        lines: list[bytes] = []
+
+        def on_line(line: bytes) -> bool:
+            lines.append(line)
+            return len(lines) >= 100
+
+        started = time.monotonic()
+        result = await run_rg(
+            _python(_NUL_FLOOD_SCRIPT), cwd=tmp_path, timeout_seconds=3.0, on_line=on_line, line_terminator=b"\0"
+        )
+
+        assert len(lines) == 100
+        assert result.stopped_early is True
+        assert time.monotonic() - started < 2.0
+
+    async def test_line_beyond_the_limit_raises_value_error_and_kills_the_child(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(_rg_runner, "_STREAM_LIMIT_BYTES", 4096)
+        pids: list[int] = []
+
+        def on_line(line: bytes) -> bool:
+            pids.append(int(line.removesuffix(b"\0")))
+            return False
+
+        with pytest.raises(ValueError):
+            await run_rg(
+                _python(_PID_THEN_LONG_NUL_LINE_THEN_SLEEP_SCRIPT),
+                cwd=tmp_path,
+                timeout_seconds=10.0,
+                on_line=on_line,
+                line_terminator=b"\0",
             )
 
         assert await _wait_until_gone(pids[0])

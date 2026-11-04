@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - RgRunResult: exit code, stderr text and early-stop flag of one ripgrep run
-- run_rg: Stream ripgrep stdout line by line with early stop, a bounded runtime and guaranteed reaping
+- run_rg: Stream ripgrep stdout lines (line feed or NUL ended) with early stop, bounded runtime and guaranteed reaping
 
 [POS]
 Owns the ripgrep process lifecycle for the file search tools. Both tools stop reading once they have
@@ -60,16 +60,32 @@ async def _reap(proc: asyncio.subprocess.Process) -> None:
         )
 
 
+async def _read_line(stream: asyncio.StreamReader, terminator: bytes) -> bytes:
+    """The next line with its terminator, empty at end of stream; the last line may lack one.
+
+    ``StreamReader.readline`` for any terminator: a line beyond the stream limit raises ``ValueError``.
+    """
+    try:
+        return await stream.readuntil(terminator)
+    except asyncio.IncompleteReadError as incomplete:
+        return incomplete.partial
+    except asyncio.LimitOverrunError as overrun:
+        raise ValueError(overrun.args[0]) from overrun
+
+
 async def run_rg(
     cmd: Sequence[str],
     *,
     cwd: Path,
     timeout_seconds: float,
     on_line: Callable[[bytes], bool],
+    line_terminator: bytes = b"\n",
 ) -> RgRunResult:
     """Run ripgrep and feed each stdout line to ``on_line`` until it returns True (stop early).
 
     ``cwd`` is the search root: ripgrep anchors ``--glob`` patterns and prints relative paths against it.
+    A line ends at ``line_terminator`` and is passed on with it; ``--null`` output needs the NUL byte because a
+    file name may itself hold a line feed.
 
     Raises:
         TimeoutError: ripgrep did not finish within ``timeout_seconds``; the process has been killed.
@@ -94,7 +110,7 @@ async def run_rg(
 
     async def _pump_stdout() -> None:
         nonlocal stopped_early
-        while line := await stdout.readline():
+        while line := await _read_line(stdout, line_terminator):
             if on_line(line):
                 stopped_early = True
                 with contextlib.suppress(ProcessLookupError):

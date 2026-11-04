@@ -14,14 +14,14 @@ import type { ActionMode, AgentConfig } from '@/store/chat/types';
 
 export type IntensityLevel = 'off' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-interface IntensityOption {
+export interface IntensityOption {
   value: IntensityLevel;
   labelKey: string;
   color: string;
   activeColor: string;
 }
 
-const INTENSITY_OPTIONS: IntensityOption[] = [
+export const INTENSITY_OPTIONS: IntensityOption[] = [
   { value: 'off', labelKey: 'off', color: 'bg-slate-400', activeColor: 'text-slate-500 dark:text-slate-400' },
   { value: 'low', labelKey: 'low', color: 'bg-sky-400', activeColor: 'text-sky-500 dark:text-sky-400' },
   { value: 'medium', labelKey: 'medium', color: 'bg-amber-400', activeColor: 'text-amber-500 dark:text-amber-400' },

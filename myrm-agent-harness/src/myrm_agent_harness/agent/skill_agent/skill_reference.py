@@ -15,9 +15,9 @@ The tag only counts at the very start of the text, so a host that prefixes anyth
 a timestamp) must put it behind the tag (``UseTag.tag``, ``UseTag.text``) or the invocation goes unnoticed.
 
 People, models and stored sessions name a skill in slightly different spellings: a user types the catalog
-name (``my-skill``), a model may append the ``_skill`` suffix, an older session recorded the runtime name a
-backend once exposed (``my_skill_skill``). Every entry point that takes a skill name resolves it here, so
-they agree; matching tolerates the spelling difference but never guesses between two skills.
+name (``my-skill``), a model may append the ``_skill`` suffix, a stored session may hold the runtime spelling
+(``my_skill_skill``) of a skill the catalog lists as ``my-skill``. Every entry point that takes a skill name
+resolves it here, so they agree; matching tolerates the spelling difference but never guesses between two skills.
 """
 
 from __future__ import annotations

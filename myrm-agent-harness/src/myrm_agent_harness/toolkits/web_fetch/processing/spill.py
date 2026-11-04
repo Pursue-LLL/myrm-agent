@@ -1,4 +1,4 @@
-"""Large web fetch output spill — head/tail preview + sandbox persistence.
+"""Sandbox persistence of web_fetch's full text, plus the guide that points at the omitted parts.
 
 Reuses UECD (Unified Evicted Content Delivery) so the product evicted-file API
 and GUI drawer work without new endpoints.
@@ -8,35 +8,56 @@ in agent.context_management.infra, so we accept them via callback injection
 (set by the middleware layer at session start) rather than a static import.
 
 [INPUT]
-- utils.text_utils::smart_truncate
+- processing.full_content_delivery::ReadRange, clamp_read_ranges (POS: Omitted-line ranges of the stored copy and their clamp to a capped copy)
 
 [OUTPUT]
-- WebFetchSpillResult, maybe_spill_web_fetch_content, emit_web_fetch_evicted_ref
+- StoredFullText, store_full_text, emit_web_fetch_evicted_ref
 - set_evicted_content_callbacks (injection point for agent layer)
 
 [POS]
-Toolkit-layer delivery helper for web_fetch_tool full-content mode only.
+Toolkit-layer persistence helper for web_fetch_tool full-content mode only.
 """
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
+from typing import Protocol
 
-from myrm_agent_harness.utils.text_utils import smart_truncate
+from myrm_agent_harness.toolkits.web_fetch.processing.full_content_delivery import ReadRange, clamp_read_ranges
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL_PREVIEW_CHARS = 12_000
+
+class PersistedFile(Protocol):
+    """What the agent layer reports after persisting text under the evicted directory."""
+
+    @property
+    def evicted_ref(self) -> str | None: ...
+
+    @property
+    def rel_path(self) -> str | None: ...
+
+    @property
+    def stored_chars(self) -> int: ...
+
+    @property
+    def total_lines(self) -> int: ...
+
+    @property
+    def storage_truncated(self) -> bool: ...
+
+    @property
+    def original_chars(self) -> int: ...
 
 
 @dataclass(frozen=True, slots=True)
 class _EvictedCallbacks:
     """Callback bundle injected by the agent layer."""
 
-    persist: Callable[..., Awaitable[object]]
+    persist: Callable[..., Awaitable[PersistedFile]]
     build_footer: Callable[..., str]
     emit_ref: Callable[..., Awaitable[None]]
 
@@ -46,7 +67,7 @@ _evicted_callbacks_var: ContextVar[_EvictedCallbacks | None] = ContextVar("web_f
 
 def set_evicted_content_callbacks(
     *,
-    persist_fn: Callable[..., Awaitable[object]],
+    persist_fn: Callable[..., Awaitable[PersistedFile]],
     build_footer_fn: Callable[..., str],
     emit_ref_fn: Callable[..., Awaitable[None]],
 ) -> None:
@@ -57,60 +78,48 @@ def set_evicted_content_callbacks(
 
 
 @dataclass(frozen=True, slots=True)
-class WebFetchSpillResult:
-    """Preview text returned to the model and optional GUI evicted ref."""
+class StoredFullText:
+    """The persisted copy, and the trusted text that tells the model which lines hold the omitted parts."""
 
-    preview: str
-    evicted_ref: str | None = None
-    spilled: bool = False
-    stored_chars: int | None = None
-    total_lines: int | None = None
-    storage_truncated: bool = False
+    evicted_ref: str
+    stored_chars: int
+    total_lines: int
+    storage_truncated: bool
+    read_guide: str
 
 
-async def maybe_spill_web_fetch_content(
-    content: str,
-    *,
-    preview_chars: int = DEFAULT_MODEL_PREVIEW_CHARS,
-) -> WebFetchSpillResult:
-    """Return head+tail preview; persist full text when over budget."""
-    if len(content) <= preview_chars:
-        return WebFetchSpillResult(preview=content, spilled=False)
+async def store_full_text(text: str, read_ranges: Sequence[ReadRange]) -> StoredFullText | None:
+    """Persist ``text`` and build the read guide; ``None`` when nothing could be persisted.
 
-    cbs = _evicted_callbacks_var.get()
-    if cbs is None:
-        preview = smart_truncate(content, preview_chars)
-        return WebFetchSpillResult(preview=preview, spilled=True)
+    The caller then delivers the cut text without any promise of a file to read. The persist callback only absorbs
+    ``OSError``; text the encoder rejects (a lone surrogate) or a path with a null byte raises ``ValueError``, which
+    must not fail the whole fetch.
+    """
+    callbacks = _evicted_callbacks_var.get()
+    if callbacks is None:
+        return None
+    try:
+        persisted = await callbacks.persist(text, "web_fetch", ext="md")
+    except (OSError, ValueError) as exc:
+        logger.warning("web_fetch full text was not persisted: %s", exc)
+        return None
+    if not persisted.evicted_ref or not persisted.rel_path:
+        return None
 
-    persist_result = await cbs.persist(content, "web_fetch", ext="md")
-    evicted_ref = persist_result.evicted_ref
-
-    preview = smart_truncate(content, preview_chars)
-    if evicted_ref and persist_result.rel_path:
-        head_part = preview.split("\n\n[Truncated:")[0] if "[Truncated:" in preview else preview
-        preview = f"{preview}{
-            cbs.build_footer(
-                evicted_basename=evicted_ref,
-                head_text=head_part,
-                rel_path=persist_result.rel_path,
-                storage_truncated=persist_result.storage_truncated,
-                original_chars=persist_result.original_chars,
-                stored_chars=persist_result.stored_chars,
-            )
-        }"
-    elif evicted_ref:
-        preview = (
-            f"{preview}\n\nFull page saved to sandbox storage. "
-            "Use file_read_tool on the evicted file to read omitted sections."
-        )
-
-    return WebFetchSpillResult(
-        preview=preview,
-        evicted_ref=evicted_ref,
-        spilled=True,
-        stored_chars=persist_result.stored_chars if evicted_ref else None,
-        total_lines=persist_result.total_lines if evicted_ref else None,
-        storage_truncated=persist_result.storage_truncated if evicted_ref else False,
+    guide = callbacks.build_footer(
+        evicted_basename=persisted.evicted_ref,
+        rel_path=persisted.rel_path,
+        storage_truncated=persisted.storage_truncated,
+        original_chars=persisted.original_chars,
+        stored_chars=persisted.stored_chars,
+        read_ranges=clamp_read_ranges(read_ranges, persisted.total_lines),
+    )
+    return StoredFullText(
+        evicted_ref=persisted.evicted_ref,
+        stored_chars=persisted.stored_chars,
+        total_lines=persisted.total_lines,
+        storage_truncated=persisted.storage_truncated,
+        read_guide=guide,
     )
 
 

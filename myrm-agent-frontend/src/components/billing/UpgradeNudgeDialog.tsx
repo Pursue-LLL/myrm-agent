@@ -17,6 +17,7 @@ import { useSubscription } from '@/hooks/billing/useSubscription';
 import { useBillingCatalog } from '@/hooks/billing/useBillingCatalog';
 import { useEntitlements } from '@/hooks/billing/useEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
+import { translateOrRaw } from '@/lib/i18n/translateOrRaw';
 import { type BillingCatalogPlan, type BillingPlanKey } from '@/lib/cp-billing';
 
 const PLAN_ORDER: readonly BillingPlanKey[] = ['free', 'companion', 'plus', 'pro', 'max'];
@@ -76,9 +77,7 @@ export default function UpgradeNudgeDialog() {
 
         {nextPlanCatalog && (
           <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3 space-y-2">
-            <p className="text-sm font-semibold text-foreground">
-              {t('recommendPlan', { plan: nextPlanLabel })}
-            </p>
+            <p className="text-sm font-semibold text-foreground">{t('recommendPlan', { plan: nextPlanLabel })}</p>
             <p className="text-xs text-muted-foreground">
               {t('planWu', { wu: nextPlanCatalog.monthly_wu.toLocaleString() })}
               {nextPlanCatalog.monthly_usd > 0 && ` · $${nextPlanCatalog.monthly_usd}/mo`}
@@ -88,7 +87,7 @@ export default function UpgradeNudgeDialog() {
                 {nextPlanCatalog.features.map((f) => (
                   <li key={f} className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <span className="text-emerald-500">✓</span>
-                    {t(`features.${f}` as Parameters<typeof t>[0], { defaultValue: f })}
+                    {translateOrRaw(t, `features.${f}`, f)}
                   </li>
                 ))}
               </ul>

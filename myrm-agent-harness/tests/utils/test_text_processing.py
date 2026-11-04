@@ -398,7 +398,7 @@ class TestGetTokenCount:
 
 
 # ---------------------------------------------------------------------------
-# smart_truncate + has_important_tail
+# smart_truncate
 # ---------------------------------------------------------------------------
 
 
@@ -430,28 +430,6 @@ class TestSmartTruncate:
         text = "data\n" * 500 + '{"key": "value"}\n'
         result = smart_truncate(text, 500)
         assert "Truncated" in result
-
-
-class TestHasImportantTail:
-    def test_error_pattern(self) -> None:
-        from myrm_agent_harness.utils.text_utils import has_important_tail
-
-        assert has_important_tail("blah blah\nERROR: failed") is True
-
-    def test_summary_pattern(self) -> None:
-        from myrm_agent_harness.utils.text_utils import has_important_tail
-
-        assert has_important_tail("blah\ntotal: 42 passed") is True
-
-    def test_structural_end(self) -> None:
-        from myrm_agent_harness.utils.text_utils import has_important_tail
-
-        assert has_important_tail("some data\n}") is True
-
-    def test_plain_text_no_tail(self) -> None:
-        from myrm_agent_harness.utils.text_utils import has_important_tail
-
-        assert has_important_tail("plain text") is False
 
 
 # ---------------------------------------------------------------------------

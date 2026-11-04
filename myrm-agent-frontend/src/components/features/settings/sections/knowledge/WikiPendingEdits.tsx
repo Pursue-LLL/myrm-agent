@@ -10,6 +10,7 @@ import { Badge } from '@/components/primitives/badge';
 import { IconCheckCircle, IconCheck, IconX, IconClock, IconEdit } from '@/components/features/icons/PremiumIcons';
 import { wikiService, PendingEdit } from '@/services/wikiService';
 import { ApiError } from '@/lib/api';
+import { translateOrRaw } from '@/lib/i18n/translateOrRaw';
 import { WikiScopeChip } from './WikiScopeChip';
 import { WikiMarkdownEditor } from './wiki/WikiMarkdownEditor';
 import { stripYamlFrontmatter } from '@/lib/utils/frontmatter';
@@ -251,7 +252,7 @@ export function WikiPendingEdits({
                       )}
                       {edit.provenance && !isSynthesisEdit(edit) && (
                         <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30">
-                          {t(`pendingEdits.provenance.${edit.provenance}`, { defaultValue: edit.provenance })}
+                          {translateOrRaw(t, `pendingEdits.provenance.${edit.provenance}`, edit.provenance)}
                         </Badge>
                       )}
                       {sourceChatId && (

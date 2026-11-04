@@ -4,6 +4,7 @@
 - command: str - command string executed
 - exit_code: int - process return code
 - output: str - combined execution output text
+- toolkits.code_execution.python_extractor: SKILLS_NAMESPACE_ADVICE
 
 [OUTPUT]
 - annotate_failure: Map (command, exit_code, output) to actionable recovery hint
@@ -18,6 +19,8 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
+
+from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 
 _SCAN_CHARS = 4000
 
@@ -98,6 +101,8 @@ def _hint_module_not_found(command: str, output: str) -> str | None:
     if not m:
         return None
     module_name = m.group(1)
+    if module_name == "skills":
+        return f"Python cannot import 'skills'. {SKILLS_NAMESPACE_ADVICE}"
     return (
         f"Python cannot import '{module_name}'. If using a virtual environment, activate it "
         "or execute directly via `.venv/bin/python`. If missing, install with uv / pip."

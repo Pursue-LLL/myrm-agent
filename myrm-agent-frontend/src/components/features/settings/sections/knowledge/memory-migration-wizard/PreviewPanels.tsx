@@ -22,6 +22,24 @@ function mappingStatusLabel(status: string, t: TranslationFn): string {
   return LOCALIZED_MAPPING_STATUSES.has(status) ? t(`preview.mappingStatus.${status}`) : status;
 }
 
+/** Memory buckets the importer groups preview items under; a bucket outside this list is rendered as sent. */
+export const PREVIEW_BUCKET_CODES = [
+  'profile',
+  'procedural',
+  'semantic',
+  'episodic',
+  'conversation',
+  'claim',
+  'task_digest',
+  'integration',
+] as const;
+
+const LOCALIZED_PREVIEW_BUCKETS = new Set<string>(PREVIEW_BUCKET_CODES);
+
+function previewBucketLabel(bucket: string, t: TranslationFn): string {
+  return LOCALIZED_PREVIEW_BUCKETS.has(bucket) ? t(`preview.previewBucket.${bucket}`) : bucket;
+}
+
 /**
  * Reference-only blocks of the review step. They are folded by default so the
  * counts, coverage matrix and confirm button stay above the fold, while every
@@ -73,7 +91,7 @@ export function PreviewItemsPanel({
         {buckets.map(([bucket, entries]) => (
           <div key={bucket} className="space-y-1.5">
             <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {t(`preview.previewBucket.${bucket}`, { defaultValue: bucket })}
+              {previewBucketLabel(bucket, t)}
             </div>
             <ul className="space-y-1">
               {entries.map((entry, index) => (

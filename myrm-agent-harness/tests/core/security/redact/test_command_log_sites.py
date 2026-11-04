@@ -110,11 +110,6 @@ class TestRewriters:
         CommandRewriter().rewrite_workspace_paths(f"cd /workspace && tool {_KEY}", Path("/tmp/ws"))
         _assert_line_masked(caplog, "Rewrote /workspace paths")
 
-    def test_a_search_routed_to_ripgrep(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.DEBUG)
-        CommandRewriter().rewrite_search_commands(f"grep -r foo . {_KEY}", has_rg=True)
-        _assert_line_masked(caplog, "Routed grep to rg")
-
     @pytest.mark.asyncio
     async def test_a_rewritten_pip_command(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture

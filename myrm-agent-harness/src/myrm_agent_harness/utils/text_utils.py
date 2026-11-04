@@ -5,6 +5,7 @@
 [INPUT]
 - re::re (POS: Python 正则表达式库)
 - utils.tiktoken_tables::get_encoding (POS: 随包分发的 tiktoken 词表，计数无需联网下载)
+- truncation_window::truncation_window, apply_truncation_window (POS: Head+Tail 截断的切点与拼接)
 
 [OUTPUT]
 - detect_language(): 检测文本的主要语言类型（chinese/english/mixed）
@@ -14,8 +15,7 @@
 - truncate_text_to_tokens(): 将文本截断到指定 token 数量（简单截断，不考虑句子边界）
 - find_sentence_boundary(): 查找最后的句子边界位置
 - truncate_by_tokens_with_boundary(): 基于 token 数智能截断（在句子边界处切割）
-- smart_truncate(): Head+Tail 智能截断，自动检测尾部诊断信息并调整比例
-- has_important_tail(): 检测文本尾部是否包含关键诊断信息
+- smart_truncate(): Head+Tail 智能截断，自动检测尾部诊断信息并调整比例（切点由 truncation_window 决定）
 - strip_internal_markers(): 剥离 LLM 输出中意外回显的内部安全边界标记
 - strip_ansi(): 剥离终端 ANSI 转义序列（ECMA-48 全规格）
 - sanitize_binary_output(): 检测并替换二进制输出（不可打印字符密度超 10%）
@@ -33,6 +33,7 @@ import re
 import time
 
 from myrm_agent_harness.utils.tiktoken_tables import get_encoding
+from myrm_agent_harness.utils.truncation_window import apply_truncation_window, truncation_window
 
 logger = logging.getLogger(__name__)
 
@@ -249,33 +250,6 @@ def _estimate_max_chars(text: str, max_tokens: int) -> int:
     return int(max_tokens * 4)
 
 
-_TAIL_DIAGNOSTIC_PATTERN = re.compile(
-    r"\b(error|exception|traceback|panic|failed|fatal|errno|exit.?code|return.?code)\b",
-    re.IGNORECASE,
-)
-_TAIL_STRUCTURAL_END = re.compile(r"[}\]]\s*$")
-_TAIL_SUMMARY_PATTERN = re.compile(
-    r"\b(total|summary|result|complete|finished|done|passed|rows)\b",
-    re.IGNORECASE,
-)
-_TAIL_CHECK_CHARS = 2000
-
-
-def has_important_tail(text: str) -> bool:
-    """Detect whether text tail contains critical diagnostic information.
-
-    Checks the last ~2000 chars for error patterns, structural closures
-    (JSON/array end), and summary lines that should be preserved during
-    truncation.
-    """
-    tail = text[-_TAIL_CHECK_CHARS:]
-    return bool(
-        _TAIL_DIAGNOSTIC_PATTERN.search(tail)
-        or _TAIL_STRUCTURAL_END.search(tail.rstrip())
-        or _TAIL_SUMMARY_PATTERN.search(tail)
-    )
-
-
 def smart_truncate(
     text: str,
     max_chars: int,
@@ -295,32 +269,8 @@ def smart_truncate(
         tail_ratio: Fraction of budget allocated to tail (default 30%).
         important_tail_ratio: Tail fraction when diagnostics detected (default 60%).
     """
-    if len(text) <= max_chars:
-        return text
-
-    total = len(text)
-    marker = f"\n\n[Truncated: {total} chars -> first {{head}} + last {{tail}}]\n\n"
-    marker_overhead = len(marker) + 20
-    budget = max(200, max_chars - marker_overhead)
-
-    ratio = max(tail_ratio, important_tail_ratio) if has_important_tail(text) else tail_ratio
-    tail_budget = int(budget * ratio)
-    head_budget = budget - tail_budget
-
-    head_cut = head_budget
-    nl = text.rfind("\n", 0, head_budget)
-    if nl > head_budget * 0.8:
-        head_cut = nl
-
-    tail_start = total - tail_budget
-    nl = text.find("\n", tail_start)
-    if nl != -1 and nl < tail_start + int(tail_budget * 0.2):
-        tail_start = nl + 1
-
-    head_part = text[:head_cut]
-    tail_part = text[tail_start:]
-    filled_marker = f"\n\n[Truncated: {total} chars -> first {len(head_part)} + last {len(tail_part)}]\n\n"
-    return head_part + filled_marker + tail_part
+    window = truncation_window(text, max_chars, tail_ratio=tail_ratio, important_tail_ratio=important_tail_ratio)
+    return text if window is None else apply_truncation_window(text, window)
 
 
 # ---------------------------------------------------------------------------
