@@ -27,7 +27,18 @@ from myrm_agent_harness.utils.logger_utils import get_agent_logger
 logger = get_agent_logger(__name__)
 
 # Common error patterns mapped to root cause heuristics
+#
+# Order matters: the first match becomes the primary hypothesis, so specific
+# signatures must precede the generic "missing dependency" one.
 _ERROR_PATTERNS: list[tuple[re.Pattern[str], RecoveryActionType, str, str]] = [
+    (
+        # Bare ``import skills``: ``skills`` is the virtual MCP-skill namespace, not a package.
+        re.compile(r"(?:ModuleNotFoundError|ImportError).*?No module named\s*['\"]?skills(?![\w.])", re.IGNORECASE),
+        RecoveryActionType.SANITIZE_INPUT,
+        "Bare import of the virtual 'skills' namespace (not an installable package)",
+        "Do not install anything. Import the function from a specific MCP skill with "
+        "`from skills.<skill_name> import <function>`, using the exact names from the skill SOP.",
+    ),
     (
         re.compile(
             r"(?:ModuleNotFoundError|ImportError).*?(?:No module named|cannot import name)\s*['\"]?([a-zA-Z0-9_\-]+)['\"]?|ModuleNotFoundError",
