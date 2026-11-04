@@ -106,7 +106,7 @@ class CloudEmbedding(EmbeddingService):
     Args:
         model: ``provider/model`` (e.g. "jina_ai/jina-embeddings-v3"), a bare OpenAI id ("text-embedding-3-small"),
             or any model id together with ``api_base`` (e.g. "BAAI/bge-m3").
-        api_key: Provider API key (optional if set via env).
+        api_key: Provider API key; never read from the environment, so a gateway that needs none may omit it.
         api_base: Custom API base URL (optional).
         cache: Embedding cache instance for hit-rate optimization (optional).
         max_retries: Max retry attempts for transient errors (connection faults, 408/409/429 and 5xx answers).

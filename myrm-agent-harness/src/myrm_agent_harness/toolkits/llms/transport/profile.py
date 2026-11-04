@@ -50,6 +50,14 @@ class ProviderProfile:
     wire: Wire = "openai_chat"
     base_url: str | None = None
     api_key_env: tuple[str, ...] = ()
+    # Variables that name the endpoint when the caller passes none, strongest first; each belongs to this provider
+    # alone, so one provider's setting never redirects another.
+    api_base_env: tuple[str, ...] = ()
+    # Variables that name the Azure API version when the caller passes none, strongest first.
+    api_version_env: tuple[str, ...] = ()
+    # The path the provider's API lives under: a custom endpoint that stops short of it (a bare host, a gateway prefix)
+    # gets it appended, so ``https://gw.example`` and ``https://gw.example/v1`` reach the same API.
+    api_path: str = ""
     # Providers whose API rejects ``content`` arrays of text parts get a plain string instead.
     flatten_text: TextFlattening = "never"
     # Body fields the provider needs on every chat call (merged under the caller's own).
@@ -67,6 +75,9 @@ def _profile(
     id: str,
     base_url: str | None,
     *env: str,
+    base_env: tuple[str, ...] = (),
+    version_env: tuple[str, ...] = (),
+    api_path: str = "",
     wire: Wire = "openai_chat",
     flatten_text: TextFlattening = "never",
     extra_body: Mapping[str, object] = _EMPTY,
@@ -80,6 +91,9 @@ def _profile(
         wire=wire,
         base_url=base_url,
         api_key_env=env,
+        api_base_env=base_env,
+        api_version_env=version_env,
+        api_path=api_path,
         flatten_text=flatten_text,
         extra_body=extra_body,
         reasoning_model=reasoning_model,
@@ -96,6 +110,7 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
             "openai",
             "https://api.openai.com/v1",
             "OPENAI_API_KEY",
+            base_env=("OPENAI_BASE_URL", "OPENAI_API_BASE"),
             reasoning_model=_OPENAI_REASONING_MODEL,
             cache_control="custom_base",
             responses=True,
@@ -105,42 +120,75 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
             None,
             "AZURE_API_KEY",
             "AZURE_OPENAI_API_KEY",
+            base_env=("AZURE_API_BASE", "AZURE_OPENAI_ENDPOINT"),
+            version_env=("AZURE_API_VERSION",),
             wire="azure_openai",
             reasoning_model=_OPENAI_REASONING_MODEL,
             cache_control="always",
             responses=True,
         ),
-        _profile("anthropic", "https://api.anthropic.com", "ANTHROPIC_API_KEY", wire="anthropic"),
+        _profile(
+            "anthropic",
+            "https://api.anthropic.com",
+            "ANTHROPIC_API_KEY",
+            base_env=("ANTHROPIC_API_BASE", "ANTHROPIC_BASE_URL"),
+            wire="anthropic",
+        ),
         _profile(
             "gemini",
             "https://generativelanguage.googleapis.com/v1beta",
             "GEMINI_API_KEY",
             "GOOGLE_API_KEY",
+            base_env=("GEMINI_API_BASE",),
             wire="gemini",
         ),
-        _profile("ollama", "http://localhost:11434", "OLLAMA_API_KEY", wire="ollama"),
+        _profile("ollama", "http://localhost:11434", "OLLAMA_API_KEY", base_env=("OLLAMA_API_BASE",), wire="ollama"),
         # No fixed endpoint: Bedrock is reached per region, which the wire reads from the model ARN or the AWS variables.
         _profile("bedrock", None, "AWS_BEARER_TOKEN_BEDROCK", wire="bedrock"),
-        _profile("deepseek", "https://api.deepseek.com", "DEEPSEEK_API_KEY", flatten_text="always"),
+        _profile(
+            "deepseek",
+            "https://api.deepseek.com",
+            "DEEPSEEK_API_KEY",
+            base_env=("DEEPSEEK_API_BASE",),
+            flatten_text="always",
+        ),
         _profile(
             "openrouter",
             "https://openrouter.ai/api/v1",
             "OPENROUTER_API_KEY",
+            "OR_API_KEY",
+            base_env=("OPENROUTER_API_BASE",),
             extra_body=MappingProxyType({"usage": {"include": True}}),
             cache_control="always",
             responses=True,
         ),
-        _profile("zai", "https://api.z.ai/api/paas/v4", "ZAI_API_KEY", cache_control="always"),
-        _profile("xai", "https://api.x.ai/v1", "XAI_API_KEY", responses=True),
-        _profile("moonshot", "https://api.moonshot.ai/v1", "MOONSHOT_API_KEY", flatten_text="text_only"),
-        _profile("lm_studio", "http://localhost:1234/v1", "LM_STUDIO_API_KEY"),
-        _profile("mistral", "https://api.mistral.ai/v1", "MISTRAL_API_KEY", flatten_text="text_only"),
-        _profile("together_ai", "https://api.together.xyz/v1", "TOGETHERAI_API_KEY", "TOGETHER_API_KEY"),
+        _profile(
+            "zai", "https://api.z.ai/api/paas/v4", "ZAI_API_KEY", base_env=("ZAI_API_BASE",), cache_control="always"
+        ),
+        _profile("xai", "https://api.x.ai/v1", "XAI_API_KEY", base_env=("XAI_API_BASE",), responses=True),
+        _profile(
+            "moonshot",
+            "https://api.moonshot.ai/v1",
+            "MOONSHOT_API_KEY",
+            base_env=("MOONSHOT_API_BASE",),
+            flatten_text="text_only",
+        ),
+        _profile("lm_studio", "http://localhost:1234/v1", "LM_STUDIO_API_KEY", base_env=("LM_STUDIO_API_BASE",)),
+        _profile("mistral", "https://api.mistral.ai/v1", "MISTRAL_API_KEY", api_path="/v1", flatten_text="text_only"),
+        _profile(
+            "together_ai",
+            "https://api.together.xyz/v1",
+            "TOGETHERAI_API_KEY",
+            "TOGETHER_API_KEY",
+            "TOGETHER_AI_API_KEY",
+            base_env=("TOGETHER_AI_API_BASE",),
+        ),
         _profile(
             "volcengine",
             "https://ark.cn-beijing.volces.com/api/v3",
             "VOLCENGINE_API_KEY",
             "ARK_API_KEY",
+            base_env=("VOLCENGINE_API_BASE",),
             responses=True,
         ),
         _profile(
@@ -148,18 +196,40 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
             "https://api.fireworks.ai/inference/v1",
             "FIREWORKS_API_KEY",
             "FIREWORKS_AI_API_KEY",
+            "FIREWORKSAI_API_KEY",
+            base_env=("FIREWORKS_API_BASE",),
         ),
-        _profile("minimax", "https://api.minimax.io/v1", "MINIMAX_API_KEY", cache_control="always"),
-        _profile("groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY"),
+        _profile(
+            "minimax",
+            "https://api.minimax.io/v1",
+            "MINIMAX_API_KEY",
+            base_env=("MINIMAX_API_BASE",),
+            api_path="/v1",
+            cache_control="always",
+        ),
+        _profile("groq", "https://api.groq.com/openai/v1", "GROQ_API_KEY", base_env=("GROQ_API_BASE",)),
         _profile(
             "dashscope",
             "https://dashscope.aliyuncs.com/compatible-mode/v1",
             "DASHSCOPE_API_KEY",
+            base_env=("DASHSCOPE_API_BASE",),
             cache_control="always",
         ),
-        _profile("perplexity", "https://api.perplexity.ai", "PERPLEXITYAI_API_KEY", "PERPLEXITY_API_KEY"),
-        _profile("cohere_chat", "https://api.cohere.ai/compatibility/v1", "COHERE_API_KEY"),
-        _profile("cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
+        _profile(
+            "perplexity",
+            "https://api.perplexity.ai",
+            "PERPLEXITYAI_API_KEY",
+            "PERPLEXITY_API_KEY",
+            base_env=("PERPLEXITY_API_BASE",),
+        ),
+        _profile(
+            "cohere_chat",
+            "https://api.cohere.ai/compatibility/v1",
+            "COHERE_API_KEY",
+            "CO_API_KEY",
+            base_env=("COHERE_API_BASE",),
+        ),
+        _profile("cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", base_env=("CEREBRAS_API_BASE",)),
         _profile("xiaomi_mimo", "https://api.xiaomimimo.com/v1", "XIAOMI_MIMO_API_KEY"),
         _profile(
             "yunshu",
@@ -181,6 +251,7 @@ _BARE_MODEL_PROVIDER: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
 )
 
 _CHAT_SUFFIXES: Final = ("/chat/completions", "/responses")
+GEMINI_OFFICIAL_HOST: Final = "generativelanguage.googleapis.com"
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,7 +291,9 @@ def normalize_base_url(profile: ProviderProfile, base_url: str | None) -> str | 
     if profile.wire in {"openai_chat", "azure_openai"}:
         for suffix in _CHAT_SUFFIXES:
             if url.endswith(suffix):
-                return url[: -len(suffix)]
+                url = url[: -len(suffix)]
+                break
+        return url if url.endswith(profile.api_path) else url + profile.api_path
     elif profile.wire == "anthropic":
         for suffix in ("/v1/messages", "/messages", "/v1"):
             if url.endswith(suffix):
@@ -233,7 +306,7 @@ def normalize_base_url(profile: ProviderProfile, base_url: str | None) -> str | 
         return url.partition("/model/")[0]
     elif profile.wire == "gemini":
         parts = urlsplit(url)
-        if not parts.path:  # a bare Google host has no API version; the default endpoint carries v1beta
+        if not parts.path and parts.hostname == GEMINI_OFFICIAL_HOST:  # Google's host named without its API version
             return urlunsplit((parts.scheme, parts.netloc, "/v1beta", "", ""))
     return url
 
@@ -254,8 +327,9 @@ def speaks_openai_body(model: str, *, custom_llm_provider: str | None = None, ap
     return route.profile.wire in _OPENAI_BODY_WIRES
 
 
-def _env_key(profile: ProviderProfile) -> str | None:
-    for name in profile.api_key_env:
+def first_env(names: tuple[str, ...]) -> str | None:
+    """The first non-empty environment variable among ``names``, strongest first."""
+    for name in names:
         value = os.environ.get(name)
         if value:
             return value
@@ -271,8 +345,10 @@ def resolve_route(
 ) -> Route:
     """Resolve ``model`` (``segment/id`` or a bare family id) to its profile, endpoint and credential.
 
-    A model whose segment is unknown is reached as an OpenAI-compatible endpoint when an ``api_base`` is
-    given (self-hosted gateways, new providers); without one there is nothing to call and the id is rejected.
+    An explicit ``api_base`` / ``api_key`` wins; without one the provider's own environment variables
+    (``api_base_env`` / ``api_key_env``) are read, then its default endpoint. A model whose segment is unknown is
+    reached as an OpenAI-compatible endpoint when an ``api_base`` is given (self-hosted gateways, new providers);
+    without one there is nothing to call and the id is rejected.
     """
     custom = (custom_llm_provider or "").strip().lower() or None
     segment, bare = _split_model(model, custom)
@@ -293,6 +369,6 @@ def resolve_route(
     return Route(
         profile=profile,
         model=bare,
-        base_url=normalize_base_url(profile, api_base) or profile.base_url,
-        api_key=api_key or _env_key(profile),
+        base_url=normalize_base_url(profile, api_base or first_env(profile.api_base_env)) or profile.base_url,
+        api_key=api_key or first_env(profile.api_key_env),
     )

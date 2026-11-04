@@ -19,7 +19,7 @@ from blockbuster import BlockBuster
 
 logger = logging.getLogger(__name__)
 
-pytest_plugins = ["tests.support.run_guard_isolation"]
+pytest_plugins = ["tests.support.run_guard_isolation", "tests.support.llm_endpoint_env"]
 
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")
@@ -337,22 +337,6 @@ def _reset_ptc_safety_registry() -> Iterator[None]:
     clear()
     yield
     clear()
-
-
-@pytest.fixture(autouse=True)
-def _drop_mcp_ipc_server_of_a_closed_loop() -> Iterator[None]:
-    """Never hand a test the MCP IPC server that an earlier test left running.
-
-    The server is a process-wide singleton bound to the event loop that started it. A test that leaves
-    it running has its loop closed when it ends; the bash executor then skips starting a server of its
-    own, so the next test on the worker runs its scripts against one that never answers and waits out
-    the tool timeout.
-    """
-    ipc_proxy = sys.modules.get("myrm_agent_harness.agent.skills.mcp.ipc_proxy")
-    leftover = ipc_proxy._ipc_server if ipc_proxy is not None else None
-    if leftover is not None and (leftover._server is None or leftover._server.get_loop().is_closed()):
-        ipc_proxy._ipc_server = None
-    yield
 
 
 @pytest.fixture(autouse=True)

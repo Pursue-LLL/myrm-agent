@@ -42,7 +42,7 @@ from myrm_agent_harness.toolkits.llms.transport.gemini_contents import SIGNATURE
 from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_schema
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
-from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.profile import GEMINI_OFFICIAL_HOST, Route, UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,6 @@ _FILTERED: Final = frozenset(
         "IMAGE_PROHIBITED_CONTENT",
     }
 )
-_OFFICIAL_HOST: Final = "generativelanguage.googleapis.com"
 
 
 # --- request ---------------------------------------------------------------------------------------------------
@@ -209,7 +208,7 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
     headers: dict[str, str] = {}
     if route.api_key:
         headers["x-goog-api-key"] = route.api_key
-        if urlsplit(route.base_url).hostname != _OFFICIAL_HOST:
+        if urlsplit(route.base_url).hostname != GEMINI_OFFICIAL_HOST:
             headers["Authorization"] = f"Bearer {route.api_key}"  # gateways that emulate the API read either header
     return PreparedRequest(
         provider=route.profile.id,

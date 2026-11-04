@@ -12,6 +12,8 @@ from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProvid
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
 
 Answer = dict[str, object]
+_ENTRY: list[dict[str, object]] = [{"index": 0, "relevance_score": 0.5}]
+_ONE_RANKED: Answer = {"results": _ENTRY, "data": _ENTRY}  # Voyage answers under "data", the others under "results"
 
 
 @pytest.fixture
@@ -73,7 +75,62 @@ class TestServiceRoute:
 
     def test_no_environment_credential_is_read(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "from-env")
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://env.example/v1")
         assert service_route("text-embedding-3-small", api_key=None, api_base=None).api_key is None
+
+
+class TestServiceEndpointFromEnvironment:
+    """A service call that names no endpoint reaches its provider's own endpoint variable, else the default."""
+
+    @pytest.mark.parametrize(
+        ("model", "variable"),
+        [
+            ("text-embedding-3-small", "OPENAI_BASE_URL"),
+            ("openai/text-embedding-3-small", "OPENAI_API_BASE"),
+            ("azure/text-embedding-3-small", "AZURE_API_BASE"),
+            ("azure/dall-e-3", "AZURE_OPENAI_ENDPOINT"),
+            ("gemini/text-embedding-004", "GEMINI_API_BASE"),
+            ("openrouter/openai/text-embedding-3-small", "OPENROUTER_API_BASE"),
+            ("together_ai/BAAI/bge-large-en-v1.5", "TOGETHER_AI_API_BASE"),
+            ("xai/grok-imagine-image", "XAI_API_BASE"),
+            ("cohere/rerank-v3.5", "COHERE_API_BASE"),
+            ("jina_ai/jina-reranker-v2-base-multilingual", "JINA_AI_API_BASE"),
+            ("voyage/voyage-3", "VOYAGE_API_BASE"),
+        ],
+    )
+    def test_the_providers_variable_replaces_its_default_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch, model: str, variable: str
+    ) -> None:
+        monkeypatch.setenv(variable, "https://env.example/v1/embeddings")
+        assert service_route(model, api_key="k", api_base=None).base_url == "https://env.example/v1"
+
+    def test_the_endpoint_of_the_call_wins_over_the_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://env.example/v1")
+        route = service_route("openai/text-embedding-3-small", api_key="k", api_base="https://gw.example/v1")
+        assert route.base_url == "https://gw.example/v1"
+
+    def test_a_variable_of_another_provider_is_not_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://env.example/v1")
+        monkeypatch.setenv("OPENAI_API_BASE", "https://env.example/v1")
+        assert (
+            service_route("jina_ai/jina-embeddings-v3", api_key="k", api_base=None).base_url == "https://api.jina.ai/v1"
+        )
+
+    def test_a_model_of_no_known_provider_still_needs_its_own_endpoint(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://env.example/v1")
+        with pytest.raises(UnsupportedProviderError):
+            service_route("BAAI/bge-m3", api_key="k", api_base=None)
+
+    async def test_azure_finds_its_resource_and_api_version_in_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        monkeypatch.setenv("AZURE_API_BASE", "https://res.openai.azure.com")
+        monkeypatch.setenv("AZURE_API_VERSION", "2031-01-01")
+        requests = sent({"data": [{"index": 0, "embedding": [1.0]}]})
+        await embeddings.aembed("azure/text-embedding-3-small", ["a"], api_key="k")
+        assert requests[0].url == "https://res.openai.azure.com/openai/deployments/text-embedding-3-small/embeddings"
+        assert dict(requests[0].query) == {"api-version": "2031-01-01"}
+        assert requests[0].headers["api-key"] == "k"
 
 
 class TestEmbed:
@@ -175,6 +232,51 @@ class TestRerank:
         )
         assert requests[0].url == "https://api.siliconflow.cn/v1/rerank"
         assert requests[0].body is not None and requests[0].body["model"] == "BAAI/bge-reranker-v2-m3"
+
+    @pytest.mark.parametrize(
+        ("model", "base", "url"),
+        [
+            ("cohere/rerank-v3.5", "https://gw", "https://gw/v2/rerank"),
+            ("cohere/rerank-v3.5", "https://gw/", "https://gw/v2/rerank"),
+            ("cohere/rerank-v3.5", "https://gw/cohere", "https://gw/cohere/v2/rerank"),
+            ("cohere/rerank-v3.5", "https://gw/v1", "https://gw/v1/rerank"),
+            ("cohere/rerank-v3.5", "https://gw/v2/rerank", "https://gw/v2/rerank"),
+            ("jina_ai/jina-reranker-v2-base-multilingual", "https://gw", "https://gw/v1/rerank"),
+            ("jina_ai/jina-reranker-v2-base-multilingual", "https://gw/jina", "https://gw/jina/v1/rerank"),
+            ("jina_ai/jina-reranker-v2-base-multilingual", "https://gw/jina/v1", "https://gw/jina/v1/rerank"),
+            ("voyage/rerank-2", "https://gw", "https://gw/v1/rerank"),
+            ("voyage/rerank-2", "https://gw/v1/rerank", "https://gw/v1/rerank"),
+            ("together_ai/Salesforce/Llama-Rank-V1", "https://gw/api", "https://gw/api/rerank"),
+            ("BAAI/bge-reranker-v2-m3", "https://gw", "https://gw/rerank"),
+        ],
+    )
+    async def test_a_custom_endpoint_is_completed_with_the_providers_version(
+        self, sent: Callable[[Answer], list[PreparedRequest]], model: str, base: str, url: str
+    ) -> None:
+        requests = sent(_ONE_RANKED)
+        await rerank.arerank(model, "q", ["d"], top_n=1, api_key="k", api_base=base)
+        assert requests[0].url == url
+
+    @pytest.mark.parametrize(
+        ("model", "variable", "url"),
+        [
+            ("cohere/rerank-v3.5", "COHERE_API_BASE", "https://env.example/v2/rerank"),
+            ("jina_ai/jina-reranker-v2-base-multilingual", "JINA_AI_API_BASE", "https://env.example/v1/rerank"),
+            ("voyage/rerank-2", "VOYAGE_API_BASE", "https://env.example/v1/rerank"),
+        ],
+    )
+    async def test_the_endpoint_variable_is_completed_the_same_way(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        sent: Callable[[Answer], list[PreparedRequest]],
+        model: str,
+        variable: str,
+        url: str,
+    ) -> None:
+        monkeypatch.setenv(variable, "https://env.example")
+        requests = sent(_ONE_RANKED)
+        await rerank.arerank(model, "q", ["d"], top_n=1, api_key="k")
+        assert requests[0].url == url
 
     async def test_voyage_uses_top_k_and_data(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent({"data": [{"index": 0, "relevance_score": 0.7}]})

@@ -8,6 +8,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.catalog import register_model, store
 from myrm_agent_harness.toolkits.llms.transport import openai_chat, openai_responses
+from myrm_agent_harness.toolkits.llms.transport.params import split_params
 from myrm_agent_harness.toolkits.llms.transport.profile import resolve_route
 
 # Ids the catalog does not list, registered per test: one that can stop reasoning (GPT-5.1 and later) and one that cannot.
@@ -89,3 +90,43 @@ class TestAzureCredentials:
         assert request.url.startswith("https://res.openai.azure.com/openai/deployments/my-deployment/")
         assert "api-key" not in request.headers
         assert "Authorization" not in request.headers
+
+
+class TestAzureApiVersion:
+    """The version comes from the call, then ``AZURE_API_VERSION``, then the default of the API in use."""
+
+    @staticmethod
+    def _query(path: str, **params: object) -> dict[str, str]:
+        route = resolve_route("azure/my-deployment", api_base="https://res.openai.azure.com", api_key="k")
+        _, query, _ = openai_chat.openai_endpoint(route, split_params(params), path)
+        return dict(query)
+
+    def test_a_call_without_a_version_gets_the_default_of_the_api_it_uses(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("AZURE_API_VERSION", raising=False)
+        assert self._query("/chat/completions") == {"api-version": "2024-10-21"}
+        assert self._query("/responses") == {"api-version": "preview"}
+
+    @pytest.mark.parametrize("path", ["/chat/completions", "/responses", "/embeddings"])
+    def test_the_environment_names_the_version_when_the_call_does_not(
+        self, monkeypatch: pytest.MonkeyPatch, path: str
+    ) -> None:
+        monkeypatch.setenv("AZURE_API_VERSION", "2031-01-01")
+        assert self._query(path) == {"api-version": "2031-01-01"}
+
+    def test_a_version_in_the_call_wins_over_the_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_API_VERSION", "2031-01-01")
+        assert self._query("/chat/completions", api_version="2032-02-02") == {"api-version": "2032-02-02"}
+
+    def test_an_empty_variable_is_no_version(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_API_VERSION", "")
+        assert self._query("/chat/completions") == {"api-version": "2024-10-21"}
+
+    def test_the_variable_never_reaches_a_provider_that_has_no_api_version(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AZURE_API_VERSION", "2031-01-01")
+        route = resolve_route("openai/gpt-4o", api_key="k")
+        _, query, _ = openai_chat.openai_endpoint(route, split_params({}), "/chat/completions")
+        assert not query

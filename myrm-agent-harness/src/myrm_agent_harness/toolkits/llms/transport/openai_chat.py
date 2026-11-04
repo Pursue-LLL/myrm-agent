@@ -36,7 +36,12 @@ from myrm_agent_harness.toolkits.llms.transport.errors import BASE_RESP_STATUS, 
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
-from myrm_agent_harness.toolkits.llms.transport.profile import ProviderProfile, Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.profile import (
+    ProviderProfile,
+    Route,
+    UnsupportedProviderError,
+    first_env,
+)
 from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
@@ -133,12 +138,13 @@ def openai_endpoint(route: Route, opts: CallOptions, path: str) -> tuple[str, di
     headers: dict[str, str] = dict(route.profile.headers)
     query: dict[str, str] = {}
     if route.profile.wire == "azure_openai":
+        version = opts.api_version or first_env(route.profile.api_version_env)
         if path == "/responses":  # the Responses API addresses the model in the body, not by deployment
             url = f"{base}/openai{path}"
-            query["api-version"] = opts.api_version or _DEFAULT_AZURE_RESPONSES_API_VERSION
+            query["api-version"] = version or _DEFAULT_AZURE_RESPONSES_API_VERSION
         else:
             url = f"{base}/openai/deployments/{route.model}{path}"
-            query["api-version"] = opts.api_version or _DEFAULT_AZURE_API_VERSION
+            query["api-version"] = version or _DEFAULT_AZURE_API_VERSION
         if route.api_key:
             headers["api-key"] = route.api_key
     else:

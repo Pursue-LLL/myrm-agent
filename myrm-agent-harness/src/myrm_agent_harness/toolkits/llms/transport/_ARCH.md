@@ -10,7 +10,8 @@ provider (OpenAI chat, Anthropic Messages, Gemini generateContent, Ollama chat, 
 Responses wire); a provider that speaks the OpenAI body is one data row in `profile.PROFILES`. A provider without a wire
 (Replicate) raises `UnsupportedProviderError`. The `provider/model` id is the persisted model format.
 
-Embeddings, rerank and image generation use the same HTTP layer and credential rules through `service_routes.py`.
+Embeddings, rerank and image generation use the same HTTP layer through `service_routes.py`, with one difference: they
+take a credential only from the caller, never from the environment.
 
 ## File Index
 
@@ -18,7 +19,7 @@ Embeddings, rerank and image generation use the same HTTP layer and credential r
 |------|------|-------------|-------|
 | `__init__.py` | Package | Exports `LLMTransport`, `get_transport`, `Route`, `resolve_route`, `PROFILES`, error types | — |
 | `client.py` | Core | `LLMTransport` facade: route -> wire `prepare` -> HTTP -> decoded answer, shaped once by `chat_shape` (chat completions and streams; the Responses wire is read by its adapter); a request already answered comes from `answer_cache`; sync/async | ✅ |
-| `profile.py` | Config | `ProviderProfile` data table, `resolve_route`, `normalize_base_url`, `speaks_openai_body`; providers without a wire raise `UnsupportedProviderError` | ✅ |
+| `profile.py` | Config | `ProviderProfile` data table (default endpoint, credential variables `api_key_env`, endpoint variables `api_base_env`, Azure's `api_version_env`), `resolve_route` (the call's endpoint and key, else the provider's own variables, else the default endpoint), `first_env`, `normalize_base_url`, `speaks_openai_body`; providers without a wire raise `UnsupportedProviderError` | ✅ |
 | `params.py` | Core | `split_params`: transport options (credential, timeout, proxy, headers, `extra_body`) versus body parameters; `merge_headers` | ✅ |
 | `http.py` | Core | Shared `httpx` clients per event loop (proxy- and TLS-policy aware, closed with `aclose_clients`), the retry loop of a request that allows one (`PreparedRequest.retries`), `ProviderStream` that remembers the provider's own finish reason (`finish_reason_of` reads it off a chunk) | ✅ |
 | `answer_cache.py` | Core | The process-wide answer cache: chat (plain and streamed), Responses, embedding and rerank answers are kept for an hour (200 entries, 1 MiB each, least recently used out first) under the identity of the request on the wire (endpoint, credentials, headers, body) and handed back as fresh copies; only an answer that finished normally and says something is kept, a stream is recorded by its decoder and filed when the provider ends it; `MYRM_LLM_ANSWER_CACHE=0` switches it off | ✅ |
@@ -43,9 +44,9 @@ Embeddings, rerank and image generation use the same HTTP layer and credential r
 | `bedrock_response.py` | Core | Converse answer and event-stream decoding into the chat shape (reasoning and signed thinking blocks, tool calls, cache counters folded into the prompt total, the synthetic tool's call returned as text); an exception event raises `LLMAnswerError` with the status it stands for | ✅ |
 | `ollama_chat.py` | Core | Native Ollama `/api/chat` wire (tools, structured output, thinking) with NDJSON decoding | ✅ |
 | `json_schema.py` | Core | `inline_refs`: local `$ref` inlining shared by the Anthropic and Gemini schema converters | ✅ |
-| `service_routes.py` | Config | Endpoint and credential resolution for embedding, rerank and image providers | ✅ |
+| `service_routes.py` | Config | Endpoint (the call's, else the provider's own variable, else its default) and credential (the call's only) resolution for embedding, rerank and image providers; `SERVICE_PROFILES` for the ones that serve no chat | ✅ |
 | `embeddings.py` | Core | OpenAI-compatible `/embeddings`, Cohere `/embed` and Gemini `:batchEmbedContents`; a custom `api_base` is a gateway that keeps the whole model id | ✅ |
-| `rerank.py` | Core | `/rerank` for Cohere, Jina, Together, SiliconFlow, Voyage and compatible gateways | ✅ |
+| `rerank.py` | Core | `/rerank` for Cohere, Jina, Together, SiliconFlow, Voyage and compatible gateways; an endpoint that stops short of a version segment gets the provider's (`/v2` Cohere, `/v1` Jina and Voyage) | ✅ |
 | `images.py` | Core | Image generation and editing: OpenAI-family, Gemini, Stability, MiniMax | ✅ |
 
 ## Key Dependencies
@@ -65,8 +66,10 @@ Embeddings, rerank and image generation use the same HTTP layer and credential r
 - A guess about what a model can do never withholds what the caller asked for: Bedrock models receive the tools and the
   tool choice the caller states, whether or not the catalog lists them, because a refusal from the API names the
   problem while a tool dropped silently makes an agent fail without a word.
-- A credential is read from the call's own arguments or the provider's environment variables only; nothing is written
-  to process-global state.
+- A chat call's endpoint, credential and (Azure) API version come from its own arguments, then the provider's own
+  environment variables, then the provider's default; one provider's variable never redirects or authenticates another
+  and nothing is written to process-global state. A service call (embedding, rerank, image) resolves its endpoint the
+  same way but reads no credential from the environment: the key a settings screen stores is the only one it sends.
 - A chat or Responses request retries what failed before the provider produced anything and never a stream that has begun;
   a provider silent for the whole request limit and a Retry-After beyond the 8 s backoff ceiling are passed up at once, so
   key rotation, failover and the agent's visible transient retry decide instead of the call blocking unseen; embeddings

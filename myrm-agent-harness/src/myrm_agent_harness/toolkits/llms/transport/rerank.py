@@ -11,10 +11,13 @@
 [POS]
 All rerank providers take ``{model, query, documents}`` and answer with ``index`` / ``relevance_score`` entries.
 Voyage names the limit ``top_k`` and wraps the entries in ``data`` instead of ``results``; everything else shares one path.
+Cohere, Jina and Voyage serve rerank under a version segment, so an endpoint that stops at a host or a gateway prefix
+(``COHERE_API_BASE=https://gateway``) is completed with it; an endpoint that already ends in one is used as given.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from typing import Final
 
@@ -24,6 +27,15 @@ from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProvid
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
 
 _TIMEOUT_SECONDS: Final = 60.0
+_API_PATH: Final = {"cohere": "/v2", "jina_ai": "/v1", "voyage": "/v1"}
+_VERSION_SEGMENT: Final = re.compile(r"/v\d+$")
+
+
+def _rerank_url(provider: str, base_url: str) -> str:
+    api_path = _API_PATH.get(provider, "")
+    if api_path and not _VERSION_SEGMENT.search(base_url):
+        base_url += api_path
+    return f"{base_url}/rerank"
 
 
 def _entries(payload: dict[str, object], provider: str) -> list[object]:
@@ -65,7 +77,11 @@ async def arerank(
     body["top_k" if provider == "voyage" else "top_n"] = top_n
     headers = {"Authorization": f"Bearer {route.api_key}"} if route.api_key else {}
     request = PreparedRequest(
-        provider=provider, url=f"{route.base_url}/rerank", headers=headers, body=body, timeout=_TIMEOUT_SECONDS
+        provider=provider,
+        url=_rerank_url(provider, route.base_url),
+        headers=headers,
+        body=body,
+        timeout=_TIMEOUT_SECONDS,
     )
     pairs = await acached_answer(request, lambda: _scored(request, provider, len(documents)))
     return [(int(index), float(score)) for index, score in pairs]  # a stored ranking comes back as JSON lists
