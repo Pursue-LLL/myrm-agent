@@ -9,12 +9,11 @@ Covers:
 - Sorted output
 - Nested directory search
 - Invalid pattern handling
+- Python-tier selection under git's ignore rules and under the root ignore files of a plain folder
 """
 
 from __future__ import annotations
 
-import shutil
-import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -27,6 +26,7 @@ from myrm_agent_harness.agent.meta_tools.file_search.glob_tool import (
     create_glob_tool,
 )
 from myrm_agent_harness.utils.errors import ToolError
+from tests.agent.meta_tools.file_search.search_probe import SearchRunner, git, write_tree
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -292,112 +292,64 @@ class TestCreateGlobTool:
             result = await tool_fn.ainvoke({"pattern": "*.json"}, config=runnable_config)
             assert "config.json" in result
 
+    @pytest.mark.parametrize("engine", ["python"], indirect=True)
     async def test_fallback_respects_gitignore_when_include_ignored_false(
-        self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
+        self, tmp_path: Path, run_glob: SearchRunner, require_git: None
     ) -> None:
-        if shutil.which("git") is None:
-            pytest.skip("git not installed")
-        subprocess.run(["git", "init"], cwd=workspace, check=True, capture_output=True)
-        (workspace / ".gitignore").write_text("ignored_dir/\nignored.txt\n")
-        (workspace / "ignored.txt").write_text("ignored\n")
-        (workspace / "visible.txt").write_text("visible\n")
-        ignored_dir = workspace / "ignored_dir"
-        ignored_dir.mkdir()
-        (ignored_dir / "nested.txt").write_text("ignored nested\n")
+        git(tmp_path, "init", "-q")
+        write_tree(
+            tmp_path,
+            {
+                ".gitignore": "ignored_dir/\nignored.txt\n",
+                "ignored.txt": "ignored\n",
+                "visible.txt": "visible\n",
+                "ignored_dir/nested.txt": "ignored nested\n",
+            },
+        )
 
-        tool_fn = create_glob_tool()
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.glob_tool.ensure_executor",
-                return_value=mock_executor,
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool._has_ripgrep",
-                return_value=False,
-            ),
-        ):
-            result = await tool_fn.ainvoke(
-                {"pattern": "**/*.txt", "include_ignored": False},
-                config=runnable_config,
-            )
-            assert "visible.txt" in result
-            assert "ignored.txt" not in result
-            assert "ignored_dir" not in result
+        result = await run_glob(tmp_path, "**/*.txt", include_ignored=False)
 
+        assert "visible.txt" in result
+        assert "ignored.txt" not in result
+        assert "ignored_dir" not in result
+
+    @pytest.mark.parametrize("engine", ["python"], indirect=True)
     async def test_fallback_includes_gitignored_when_include_ignored_true(
-        self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
+        self, tmp_path: Path, run_glob: SearchRunner, require_git: None
     ) -> None:
-        if shutil.which("git") is None:
-            pytest.skip("git not installed")
-        subprocess.run(["git", "init"], cwd=workspace, check=True, capture_output=True)
-        (workspace / ".gitignore").write_text("ignored_only.txt\n")
-        (workspace / "ignored_only.txt").write_text("ignored\n")
+        git(tmp_path, "init", "-q")
+        write_tree(tmp_path, {".gitignore": "ignored_only.txt\n", "ignored_only.txt": "ignored\n"})
 
-        tool_fn = create_glob_tool()
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.glob_tool.ensure_executor",
-                return_value=mock_executor,
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool._has_ripgrep",
-                return_value=False,
-            ),
-        ):
-            result = await tool_fn.ainvoke(
-                {"pattern": "**/*.txt", "include_ignored": True},
-                config=runnable_config,
-            )
-            assert "ignored_only.txt" in result
+        result = await run_glob(tmp_path, "**/*.txt", include_ignored=True)
 
+        assert "ignored_only.txt" in result
+
+    @pytest.mark.parametrize("engine", ["python"], indirect=True)
     async def test_fallback_respects_root_ignore_files_without_git_repo(
-        self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
+        self, plain_dir: Path, run_glob: SearchRunner
     ) -> None:
-        (workspace / ".gitignore").write_text("ignored_non_git.txt\nignored_non_git_dir/\n")
-        (workspace / "ignored_non_git.txt").write_text("ignored\n")
-        (workspace / "visible_non_git.txt").write_text("visible\n")
-        ignored_dir = workspace / "ignored_non_git_dir"
-        ignored_dir.mkdir()
-        (ignored_dir / "nested.txt").write_text("ignored nested\n")
+        write_tree(
+            plain_dir,
+            {
+                ".gitignore": "ignored_non_git.txt\nignored_non_git_dir/\n",
+                "ignored_non_git.txt": "ignored\n",
+                "visible_non_git.txt": "visible\n",
+                "ignored_non_git_dir/nested.txt": "ignored nested\n",
+            },
+        )
 
-        tool_fn = create_glob_tool()
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.glob_tool.ensure_executor",
-                return_value=mock_executor,
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool._has_ripgrep",
-                return_value=False,
-            ),
-        ):
-            result = await tool_fn.ainvoke(
-                {"pattern": "**/*.txt", "include_ignored": False},
-                config=runnable_config,
-            )
-            assert "visible_non_git.txt" in result
-            assert "ignored_non_git.txt" not in result
-            assert "ignored_non_git_dir" not in result
+        result = await run_glob(plain_dir, "**/*.txt", include_ignored=False)
 
+        assert "visible_non_git.txt" in result
+        assert "ignored_non_git.txt" not in result
+        assert "ignored_non_git_dir" not in result
+
+    @pytest.mark.parametrize("engine", ["python"], indirect=True)
     async def test_fallback_includes_root_ignored_files_when_enabled(
-        self, workspace: Path, mock_executor: MagicMock, runnable_config: RunnableConfig
+        self, plain_dir: Path, run_glob: SearchRunner
     ) -> None:
-        (workspace / ".gitignore").write_text("root_ignored.txt\n")
-        (workspace / "root_ignored.txt").write_text("ignored\n")
+        write_tree(plain_dir, {".gitignore": "root_ignored.txt\n", "root_ignored.txt": "ignored\n"})
 
-        tool_fn = create_glob_tool()
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.glob_tool.ensure_executor",
-                return_value=mock_executor,
-            ),
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_search.grep_tool._has_ripgrep",
-                return_value=False,
-            ),
-        ):
-            result = await tool_fn.ainvoke(
-                {"pattern": "**/*.txt", "include_ignored": True},
-                config=runnable_config,
-            )
-            assert "root_ignored.txt" in result
+        result = await run_glob(plain_dir, "**/*.txt", include_ignored=True)
+
+        assert "root_ignored.txt" in result
