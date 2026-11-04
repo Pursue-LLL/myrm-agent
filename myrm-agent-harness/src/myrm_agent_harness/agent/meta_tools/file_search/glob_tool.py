@@ -22,6 +22,7 @@
 [POS]
 File search tool (Claude Code compatible). Searches for files using glob patterns (* and **) with recursive search, exclusion patterns, resource limits, and audit logging.
 The ripgrep tier only enumerates files (ignore rules applied by ripgrep); matching uses the same glob semantics as the Python tier.
+A ripgrep run that fails without listing a file falls back to the Python tier.
 
 """
 
@@ -69,10 +70,16 @@ async def _list_files_with_ripgrep(
 
     ripgrep only enumerates (``--files``); the pattern is applied here so ``--glob``'s rule of overriding
     ignore and hidden filters cannot leak ignored directories into match-all patterns like ``*``.
+    Every name ends with a NUL byte (``--null``), so a name that holds a line break stays one entry.
+
+    Raises:
+        RuntimeError: ripgrep failed and listed no matching file. A failure after matches (an unreadable
+            directory) keeps them.
     """
     cmd = [
         "rg",
         "--files",
+        "--null",
         "--color=never",
         "--no-messages",
         *rg_traversal_args(search_root, include_ignored=include_ignored),
@@ -82,7 +89,7 @@ async def _list_files_with_ripgrep(
     files: list[Path] = []
 
     def _collect(raw_line: bytes) -> bool:
-        relative = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+        relative = raw_line.decode("utf-8", errors="replace").removesuffix("\0")
         if os.sep != "/":
             relative = relative.replace(os.sep, "/")
         relative = relative.removeprefix("./")
@@ -90,9 +97,14 @@ async def _list_files_with_ripgrep(
             files.append(search_root / relative)
         return len(files) >= limit
 
-    result = await run_rg(cmd, cwd=search_root, timeout_seconds=timeout_seconds, on_line=_collect)
+    result = await run_rg(
+        cmd, cwd=search_root, timeout_seconds=timeout_seconds, on_line=_collect, line_terminator=b"\0"
+    )
     if result.failed:
         logger.warning(f"ripgrep files search failed: {result.stderr}")
+        # Nothing to show: let the Python tier list the tree instead of reporting an empty one.
+        if not files:
+            raise RuntimeError("ripgrep failed")
     return files
 
 

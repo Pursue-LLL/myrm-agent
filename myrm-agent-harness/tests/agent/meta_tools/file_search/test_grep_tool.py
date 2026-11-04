@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
@@ -143,8 +144,8 @@ class TestRipgrepSearch:
 
     async def test_nonzero_returncode_raises_runtime_error_without_name_error(self, workspace: Path) -> None:
         class _FakeStdout:
-            async def readline(self) -> bytes:
-                return b""
+            async def readuntil(self, _separator: bytes) -> bytes:
+                raise asyncio.IncompleteReadError(b"", None)  # end of stream with nothing buffered
 
         class _FakeStderr:
             def __init__(self) -> None:

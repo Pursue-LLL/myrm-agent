@@ -5,8 +5,10 @@ Covers:
 - Dependency and build directories are skipped in plain folders, and only there
 - Hidden files and directories are searched
 - Symbolic links are never followed out of the workspace
+- A file name that holds a line break is one entry on both tiers
 - ripgrep ignores the user's own configuration
-- ripgrep failures: partial output survives, unparseable patterns and timeouts fall back to the Python tier
+- ripgrep failures: partial output survives; unparseable patterns, timeouts and a glob listing that fails without
+  naming a file fall back to the Python tier
 """
 
 from __future__ import annotations
@@ -14,11 +16,13 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_search import glob_tool, grep_tool
+from myrm_agent_harness.agent.meta_tools.file_search._rg_runner import RgRunResult
 from myrm_agent_harness.agent.meta_tools.file_search.rg_traversal import has_git_ancestor, rg_traversal_args
 from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_files, listed, write_tree
 
@@ -184,6 +188,20 @@ class TestSymbolicLinks:
         assert hit_files(await run_grep(workspace, "needle"), {"own.py", "linked.py", "secret.py"}) == {"own.py"}
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="a Windows file name cannot hold a line break")
+class TestUnusualFileNames:
+    async def test_a_name_holding_a_line_break_is_one_entry(self, workspace: Path, run_glob: SearchRunner) -> None:
+        # Cut at its line break, the last name would list /etc/hosts from outside the search root.
+        names = ["plain.txt", "two\nlines.txt", "ends-with-return\r", "dir\n/etc/hosts"]
+        write_tree(workspace, {name: "x\n" for name in names})
+
+        output = await run_glob(workspace, "**/*")
+
+        assert f"Found {len(names)} file(s)" in output
+        assert all(f" {name}\n" in output for name in names)
+        assert "\n /etc/hosts\n" not in output
+
+
 @pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)
 class TestRipgrepConfiguration:
     async def test_user_configuration_does_not_change_results(
@@ -254,3 +272,28 @@ class TestRipgrepFailures:
         write_tree(plain_dir, {"a.py": "needle\n"})
 
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
+
+    async def test_glob_falls_back_when_ripgrep_fails_without_listing_a_file(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
+    ) -> None:
+        async def fails(*_args: object, **_kwargs: object) -> RgRunResult:
+            return RgRunResult(returncode=2, stderr="permission denied", stopped_early=False)
+
+        monkeypatch.setattr(glob_tool, "run_rg", fails)
+        write_tree(plain_dir, {"a.py": "needle\n"})
+
+        assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
+
+    async def test_glob_keeps_the_files_ripgrep_listed_before_it_failed(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
+    ) -> None:
+        async def lists_one_then_fails(
+            _cmd: Sequence[str], *, on_line: Callable[[bytes], bool], **_kwargs: object
+        ) -> RgRunResult:
+            on_line(b"listed.py\0")
+            return RgRunResult(returncode=2, stderr="permission denied", stopped_early=False)
+
+        monkeypatch.setattr(glob_tool, "run_rg", lists_one_then_fails)
+        write_tree(plain_dir, {"listed.py": "", "unlisted.py": ""})
+
+        assert listed(await run_glob(plain_dir, "**/*.py")) == {"listed.py"}
