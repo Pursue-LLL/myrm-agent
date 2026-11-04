@@ -123,9 +123,10 @@ def create_select_skill_tool(
         )
 
         available_names = [s.name for s in skills]
-        loaded_names = {s.name for s in get_loaded_skills()}
         selected_skills_info = []
 
+        # Loaded-ness is read per name, not once before the loop: a skill named again in this call
+        # (under any spelling) already counts as loaded and gets the summary instead of a second SOP.
         for skill_name in skill_names:
             skill_meta = resolve_skill_reference(skill_name, skills)
             if not skill_meta:
@@ -142,7 +143,7 @@ def create_select_skill_tool(
                     selected_skills_info.append(
                         f"# {skill_name}\n\nError: file '{file_path}' not found or inaccessible"
                     )
-            elif skill_meta.name in loaded_names:
+            elif any(s.name == skill_meta.name for s in get_loaded_skills()):
                 selected_skills_info.append(await build_reload_summary_with_index(skill_meta, skill_backend))
             else:
                 instance = skill_instances.get(skill_meta.name) if skill_instances else None
