@@ -2,6 +2,78 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-04-181 · 压缩历史后，`web_fetch_tool` 与 `skill_select_tool` 调用的占位符里没有网址和技能名，只剩 `tool_call_<id>`：压缩规则读单数的 `url` / `skill_name`，两个工具真正的参数是复数列表 `urls` / `skill_names`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`2a2c37009b`） |
+| **发现时间** | 2026-11-04（审计 web_fetch 工具时，把压缩规则的参数名逐条对照工具的真实参数表） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P3：压缩后的历史里，模型看不到自己读过哪些网址、选过哪些技能，可能重复抓取；不报错。 |
+| **关联产品** | harness 上下文压缩（`agent/context_management/strategies/compactor/compact_rules.py`、`strategies/compression/compression_formatting.py`）。 |
+| **症状** | 同一次调用 `{"urls": ["https://a.test/x", "https://b.test/y"], "reason": "r"}`，压缩占位符里的标识符：改前 `tool_call_tc1`，改后 `https://a.test/x, https://b.test/y`；`skill_select_tool` 的 `{"skill_names": ["pdf-tools", "docx"]}`：改前 `tool_call_tc1`，改后 `pdf-tools, docx`（同一个 `extract_identifier`，分别用改前、改后规则里的参数名各调一次）。 |
+| **根因** | `COMPACT_RULES["web_fetch_tool"].identifier_arg` 是 `url`、`COMPACT_RULES["skill_select_tool"].identifier_arg` 是 `skill_name`，而工具的参数表里是 `urls`、`skill_names`；规则取不到值就回退到优先级列表（`url`、`path`、`query`……），列表里没有复数键，最后落到 `tool_call_<id>`。没有任何测试把规则里的参数名和工具真实的参数表放在一起比。 |
+| **修复** | 两条规则改用复数参数名；标识符提取对列表的每一项单独截到 200 字符（最多取 3 项），一项特别长不会让整条压缩失效；新增 `tests/agent/context_management/test_compact_rules_schema_alignment.py`：用默认第 1 轮工具集的真实参数表，要求每条规则的 `identifier_arg` 与 `keep_args` 都是参数表里存在的键。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 规则里的参数名是写死的字符串，工具参数表改了不会有任何报错；取不到时回退成 `tool_call_<id>`，占位符照常生成，没有任何一处失败，所以一直没人发现。 |
+| **回归** | [1] 上面的改前改后对照。[2] `test_compact_rules_schema_alignment.py` 1 个用例，以及 `test_compactor_offload.py`、`test_compression_formatting.py` 里新增的用例（多个网址都出现在占位符里；列表项逐项截断）通过。 |
+| **仍然存在** | 守卫测试只覆盖默认第 1 轮挂载的工具；不在默认工具集里的工具，规则里的参数名仍没有测试核对。 |
+| **代码位置** | `src/myrm_agent_harness/agent/context_management/strategies/compactor/compact_rules.py`（两条规则）、`strategies/compression/compression_formatting.py`（`_try_extract_from_args`）、`tests/agent/context_management/test_compact_rules_schema_alignment.py` |
+
+### BUG-HARNESS-2026-11-04-180 · 网页转换里两处二次方复杂度的代码在事件循环线程上同步运行：8 万字符的页面让整个事件循环停摆 7 到 15 秒
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`2a2c37009b`） |
+| **发现时间** | 2026-11-04（审计 web_fetch 工具时，对转换各步骤用构造输入逐个量耗时） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P2：一个构造好的页面（或恰好含大量 `[`、`![` 的页面）能让同一进程里所有会话在转换期间不响应，没有报错；`asyncio.timeout` 打断不了同步代码。 |
+| **关联产品** | harness `toolkits/web_fetch`（`processing/markdown_generator.py`、`processing/content_sanitize.py`、`processing/pipeline.py`、`engine/fetch_mixin.py`、`engine/escalation_mixin.py`）。 |
+| **症状** | 父提交（`2a2c37009b^`）的代码，机器负载 12–16 时测得：图片清理对 `"![" * (n/2)`——2 万字符 0.439 s、4 万 1.762 s、8 万 7.439 s（每翻一倍约 4 倍）；引用转换对 `"[" * n`——1 万字符 0.217 s、2 万 0.869 s、4 万 3.843 s、8 万 14.999 s。引用转换在 `self._pipeline.process(...)` 里、图片清理在 `_fetch_full_content` 里，都是同步调用，期间事件循环不处理任何事件。 |
+| **根因** | ① 引用转换用 `!?\[([^\]]+)\]\(…\)`，`[^\]]+` 对每个没有闭合 `]` 的 `[` 都扫到文本末尾，二次方；它产出的 `markdown_with_citations` 没有任何调用方使用。② 图片清理的 Markdown 图片正则 `!\[(?P<alt>[^\]]*)\]\(…` 有同样的结构。③ HTML 到 Markdown 的转换本身是同步函数，被 `fetch_mixin`、`escalation_mixin` 直接在事件循环线程上调用，任何一步变慢都会停摆整个循环。 |
+| **修复** | 删除没人使用的引用转换；图片清理改成先找 `data:image/` 锚点、再线性扫描的实现；`ContentPipeline.aprocess` 把转换放到一条专用的工作线程上（只有一条，转换保持串行，带上调用方的上下文变量），两个调用点改用它。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 只改正则不够：转换仍在循环线程上，别的慢步骤同样会停摆，所以同时把转换挪到工作线程；线程池只开一条，是为了保持改前的串行语义，并且让「等它的任务被取消、转换却还在跑」成为唯一可能的孤儿，排队中还没开始的转换直接丢弃。 |
+| **回归** | [1] 改后同样的输入：图片清理 8 万字符 0.04 ms、75 万字符 0.35 ms；75 万字符的四种「锚点密集」输入（`data:image/` 重复、`(data:image/png;base64,` 重复、`![a](data:image/png;base64,` 重复、每个锚点带 200 字符载荷）都在 25 ms 内，一张 70 万字符的内联图片载荷 0.85 ms；引用转换步骤已删除。[2] `tests/toolkits/web_fetch/test_pipeline_async.py` 9 个用例：转换不在事件循环线程上运行、转换进行时循环仍在滴答、转换串行、未开始就被取消的转换被丢弃、调用方的上下文传进工作线程、转换错误照常上抛；`test_content_sanitize.py` 23 个用例（含恶意输入）。 |
+| **仍然存在** | 转换超时仍然打断不了已经开始的转换：它会在工作线程上跑完，期间后面排队的转换要等。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/markdown_generator.py`、`processing/content_sanitize.py`、`processing/pipeline.py`（`aprocess`）、`engine/fetch_mixin.py`、`engine/escalation_mixin.py` |
+
+### BUG-HARNESS-2026-11-04-179 · 没有配重排与嵌入服务时，`web_search` 的描述仍让模型去用 `web_fetch` 的 `fetch_and_extract`，而这时 `web_fetch` 没有这个操作：调用只会报 disabled，参数表里还挂着用不了的 `operation` 与 `questions`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`d726cb7ec0`） |
+| **发现时间** | 2026-11-04（审计 web_fetch 工具时，对照 web_search 的描述与 web_fetch 的真实参数表） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P3：默认配置下，描述把模型引向一个必定报错的调用，多费一轮；不影响数据。 |
+| **关联产品** | harness `toolkits/web_search`（`_web_search_tool_description.py`、`web_search_agent_tools.py`）、`toolkits/web_fetch`（参数表与描述）；server `app/ai_agents/general_agent/tool_setup.py`。 |
+| **症状** | 默认配置（没有重排与嵌入服务）下，`web_search_tool` 的描述写着「联动 `web_fetch_tool` 的 `fetch_and_extract` 操作」（改前 `_web_search_tool_description.py:42`、`:106`），而这个配置下 `web_fetch_tool` 收到该操作只会抛 `fetch_and_extract is disabled (requires both reranker_config and embedding_config)`（改前 `web_fetch_agent_tools.py:170-174`）；参数表里还挂着这个配置下用不了的 `operation`、`questions`。 |
+| **根因** | 搜索描述是写死的文本，不知道抓取工具这一轮到底有没有这个操作；这个能力由 server 的同一份配置（高级检索开关加重排、嵌入配置）决定，但只有抓取工具那一侧读了它。 |
+| **修复** | `create_web_search_tool` 新增 `fetch_and_extract_available`（默认 `False`），描述只在它为 `True` 时带那段推荐；server `tool_setup.py` 用「`web_fetch` 已挂载、高级检索开启且重排与嵌入配置都在」传入，与抓取工具自己提供 `fetch_and_extract` 的条件一致。没有这两项服务时，`web_fetch_tool` 的参数表只剩 `urls`（最多 5 个）和 `reason`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 条件不能只看「配置在不在」：配置齐全但高级检索关着时，抓取工具同样没有这个操作（`reranker_cfg = … if self.enable_advanced_retrieval else None`），所以集成测试把六种组合都列了。 |
+| **回归** | [1] `tests/integration/test_web_search_fetch_hint_alignment.py`（经真实的 `ToolSetupMixin` 装配，6 种配置加 `web_fetch` 未挂载）：只有「高级检索开启且重排与嵌入配置齐全」时，`web_fetch_tool` 的参数表才有 `operation`、`web_search_tool` 的描述才出现 `fetch_and_extract`；其余 5 种配置两处都没有；`web_fetch` 未挂载时搜索描述不提 `web_fetch_tool`。[2] 描述词数（o200k_base）：`web_search_tool` 不带推荐 1,174 → 1,134（英文）、1,329 → 1,280（中文），带推荐的描述与改前逐字相同；`web_fetch_tool` 默认描述 148 → 166（英文）、165 → 189（中文），描述加参数表的整个工具 302 → 268（英文）、322 → 293（中文）。两处描述变了，其后的提示词缓存失效一次。 |
+| **仍然存在** | 默认配置下 `web_fetch_tool` 的描述多了 18（英文）/ 24（中文）个词：要说明长页会被缩短、被省略的部分怎么读（见 BUG-HARNESS-2026-11-04-178）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_search/_web_search_tool_description.py`、`toolkits/web_search/web_search_agent_tools.py`、`toolkits/web_fetch/web_fetch_agent_tools.py`、`toolkits/web_fetch/_web_fetch_tool_description.py`；server `app/ai_agents/general_agent/tool_setup.py`、`tests/integration/test_web_search_fetch_hint_alignment.py` |
+
+### BUG-HARNESS-2026-11-04-178 · `web_fetch` 一次读多个长网页时，模型拿到的是拼接结果的开头和结尾，排在中间的网页一行也看不到；落盘提示只写「从第 221 行读到末尾」，分不清哪一段属于哪个网页
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`d726cb7ec0`） |
+| **发现时间** | 2026-11-04（审计 web_fetch 工具时，用 5 个真实网页跑改前的流程复现） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P2：多网页调研时，模型据以回答的材料缺了整页，输出里没有说缺的是哪一页；不报错。 |
+| **关联产品** | harness `toolkits/web_fetch`（`web_fetch_agent_tools.py`、`processing/`）、落盘交付基础设施（`agent/context_management/infra/evicted/content.py`）、`utils/text_utils.py` 的头尾截断。 |
+| **症状** | ① 同样 5 个真实网页（Python 维基页、`example.com`、`asyncio-task`、`asyncio-queue`、`asyncio-eventloop`），全文落盘约 4,470 行，改前的流程交给模型 12,276 / 12,568 字符（两次运行）。只数「只在一个网页里出现的行」：第 1 次运行有 3 页（`example.com`、`asyncio-queue`、`asyncio-eventloop`）一行也没有，第 2 次有 1 页（`asyncio-eventloop`，1,073 行里 0 行）；拼接顺序是各网页抓完的先后，每次不同，所以消失的页不固定。② 截断标记只写 `[Truncated: 120000 chars -> first 8327 + last 3552]` 这类总字符数，不说省了哪几页；落盘提示是 `file_read_tool(paths=[".context/oldflow/evicted/web_fetch_055928aa.md:221-"])`，从第 221 行读到文件末尾，读完要分页读几十次，读到的行也不标属于哪个网页。③ 这段提示在 `<<<UNTRUSTED_DATA>>>` 围栏之内。 |
+| **根因** | 改前的流程把各页拼成一个字符串，再对整段做一次头尾截断（12,000 字符，头约 70%、尾约 30%）：预算按整段分，不按网页分，排在中间的网页整个落在被省略的部分里；落盘文本是拼接原样，省略部分的行号范围没有算过，提示只能写「第 N 行到末尾」。 |
+| **修复** | 所有网页共用一份字符预算 `max(12,000, 3,000 × min(网页数, 5))`，按最大最小公平分给各页：短于份额的页完整保留，长页在自己的份额里做头尾截断并留下被省略字数的标记；没有重排与嵌入服务时，参数表限定单次最多 5 个网址（有这两项服务时个数不限，预算仍按 5 页计）。有页被截断时，落盘全文与模型看到的版本用同一份版面：行结尾统一成 `\n`，超过 1,900 字符的行软换行（读取工具一行最多读 2,000 字符），所以每段被省略内容在落盘文件里的行号范围是精确的；提示写成 `Omitted sections (saved-file lines): 【2】 lines 112-1504; …` 加对应的 `file_read_tool(paths=[…])` 调用，放在不可信围栏之外（围栏里只有网页文字和失败网址）。所有网页合计不超预算时，输出与改前逐字节相同。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | [1] 统计「网页是否可见」时，第一版按「出现在可见文本里的行」判断：Python 文档页共用侧栏与页脚，几行共用文字就让整页看起来可见（改前的流程显示 5/5 页都在）；只数「只在一个网页里出现的行」才还原真实情况。[2] 落盘版面必须和读取工具的行为一致：`file_read_tool` 按 `\n` 编号、用通用换行读取（`\r`、`\r\n` 也算换行）、一行最多读 2,000 字符；落盘文本若带 `\r` 或超长行，提示里的行号会和读到的行号错开。靠真实 `file_read_tool` 读回才暴露，已写成回归测试，并有一条守卫测试要求软换行宽度小于读取工具的行长上限。[3] 跨页图片清理的差异（见回归 [3]）读代码读不出来，是逐字节对照改前、改后两条真实代码路径才发现的。 |
+| **回归** | [1] 同样 5 个真实网页，改前、改后各跑两次：改前 12,276 / 12,568 字符，改后 15,279 / 15,323 字符（预算 15,000，加围栏与提示）；按「只在一个网页里出现的行」统计，改后两次都是 5/5 页可见（长页各 23–49 行，`example.com` 1/1 行）；改前见症状 ①。[2] 同一次真实运行里照提示读回：4 个被省略区间 `112-1504`、`1597-3404`、`3478-3639`、`3735-4467`（共 4,096 行），经真实 `file_read_tool` 分页读取（7、10、1、17 次），读到的每一行与落盘文件逐行相同。[3] 预算内改前、改后输出逐字节对照（改前的代码取自 git HEAD）：网页正文不在内联图片中间结束的 4,000 个随机输入全部一致；允许正文在内联图片中间结束的随机输入里 22 个不同，都是改前对拼接后的整段只清理一次图片、把相邻两页被截断的图片数据合并造成的。[4] 新增测试：`test_full_content_delivery.py` 37 个、`test_web_fetch_full_content.py` 15 个（含 4 个经真实 `file_read_tool` 读回、并核对「每个源行要么在可见文本里要么能被提示读回」的参数化用例；去掉换行统一、把软换行放宽到读取上限以上这两种变异都会让它们变红）、`test_truncation_window.py` 26 个。[5] 受影响区域的全量测试：A 区（`tests/toolkits/web_fetch`、`web_search`、`utils`、`agent/context_management`、`agent/tool_management` 等）21,676 通过，B 区（`tests/agent/meta_tools`、`agent/middlewares`、`toolkits/memory`、`integration` 等）25,432 通过；服务端装配相关用例 137 个、架构门禁 655 个通过。 |
+| **仍然存在** | ① 结果里网页的先后与 `【n】` 编号是抓取完成的先后，不是传入的先后（改前相同）。② `fetch_and_extract`（重排加嵌入的提取模式）的检索链路没有改动。③ 其他工具（如 bash 输出）落盘后的超长行仍不软换行，用 `file_read_tool` 读时一行最多 2,000 字符。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/web_fetch_agent_tools.py`、`toolkits/web_fetch/processing/full_content_delivery.py`（新）、`processing/spill.py`、`utils/truncation_window.py`（新）、`utils/text_utils.py`、`agent/context_management/infra/evicted/content.py`（`build_delivery_footer(read_ranges=…)`）；`utils/context_format.py` 删除了 `format_crawl_results` |
+
 ### BUG-HARNESS-2026-11-02-176 · 记忆对话集成测试的假嵌入器用带进程盐的 `hash()`：有的进程里查询文本的哈希恰好是 1000 的倍数，得到零向量；`Unit` 作业里 `test_adaptive_quoted_phrase_forces_dual` 偶发红
 
 | 字段 | 内容 |

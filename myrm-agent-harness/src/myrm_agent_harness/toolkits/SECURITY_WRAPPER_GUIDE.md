@@ -147,6 +147,10 @@ from myrm_agent_harness.utils.context_format import wrap_with_tool_output_tag
 wrapped = wrap_with_tool_output_tag(content)
 ```
 
+### 工具自己的指引放在包装之外
+
+包装之内只放外部内容（网页正文、搜索结果、抓取失败的网址）；工具自己生成的可信指引接在包装之后，例如 `web_fetch` 在页面被缩短时给出的「完整内容的保存路径、被省略的行号范围、用 `file_read_tool` 读取」。指引放进包装，模型会把它当作不可信数据而不照做；外部内容落到包装之外，则绕过全部防护。指引里只能出现工具自己生成的标签、路径和数字，不能回显外部文本。
+
 ---
 
 ## 检查清单
@@ -157,12 +161,13 @@ wrapped = wrap_with_tool_output_tag(content)
 2. ✅ **风险评估**：数据是否可能包含恶意指令？
 3. ✅ **已有先例**：类似的工具是如何处理的？
 4. ✅ **测试验证**：是否有单元测试验证安全包装？
+5. ✅ **指引位置**：工具自己写的指引是否放在包装之外，外部内容是否都在包装之内？
 
 ---
 
 ## 参考资料
 
-- **核心实现**：`myrm_agent_harness/agent/security/detection/content_boundary.py`
+- **核心实现**：`myrm_agent_harness/core/security/detection/content_boundary.py`
 - **工具层接口**：`myrm_agent_harness/utils/context_format.py`
 - **MCP 框架层统一包装**：`toolkits/mcp/agent.py` (`_wrap_tools_with_timeout`)
 - **已有示例**：

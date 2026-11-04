@@ -74,7 +74,7 @@ class ToolLayer(IntEnum):
 
 - **特征**: 通用 Agent 基线，Turn1 eager；前端无开关，不可关闭（Fast 模式由 converter 关闭 file/bash）
 - **工具数量**: **8**（`tool_layers.py:64-71`）
-- **Token 消耗**: 描述合计 2,655 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
+- **Token 消耗**: 描述合计 2,673 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
 
 | 工具名 | 常驻理由 |
 |--------|----------|
@@ -340,21 +340,21 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE / HIGH_PRIORITY 层按 2026-09-16 实测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-03 重测）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE / HIGH_PRIORITY 层按 2026-11-04 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-03 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
-| 最小场景 | 8 个 | ~5,876 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~10,320 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~19,682（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 最小场景 | 8 个 | ~5,894 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
+| 典型场景 | 13 个 | ~10,300 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~19,660（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
 | 组件 | Token | 缓存特性 |
 |------|------:|---------|
 | System Prompt 层 | ~2,369 | `messages[0]` 2,070 + `messages[1]` 299，跨用户共享缓存 |
-| CORE 工具层 | ~2,655 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,717 | 默认缓存 |
+| CORE 工具层 | ~2,673 | 始终缓存 |
+| HIGH_PRIORITY 工具层 | ~2,677 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -367,13 +367,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,629、合计 6,191）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,647、合计 6,169）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
-| CORE | 8 | 2,655 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,717 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,372** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,217**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| CORE | 8 | 2,673 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
+| HIGH_PRIORITY | 5 | 2,677 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **5,350** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,195**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 
