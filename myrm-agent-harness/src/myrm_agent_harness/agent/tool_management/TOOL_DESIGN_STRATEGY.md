@@ -74,7 +74,7 @@ class ToolLayer(IntEnum):
 
 - **特征**: 通用 Agent 基线，Turn1 eager；前端无开关，不可关闭（Fast 模式由 converter 关闭 file/bash）
 - **工具数量**: **8**（`tool_layers.py:64-71`）
-- **Token 消耗**: ~4,180 tokens（2026-07-03 实测 + bash_process ~120，见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
+- **Token 消耗**: 描述合计 2,655 tokens（8 工具，macOS arm64 实测；见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §二）
 
 | 工具名 | 常驻理由 |
 |--------|----------|
@@ -103,22 +103,22 @@ class ToolLayer(IntEnum):
 - **特征**: harness 可选能力，默认关闭，按需 Turn1 或 RUNTIME_ONLY 绑定；组内统一按字母序稳定排序
 - **缓存**: harness 三层末尾；变化不影响 CORE/HIGH_PRIORITY 前缀
 - **工具数量**: 登记 **38** EXTENDED（harness 静态；见 TOOL_COUNT 块）
-- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 5,186（粗估，不含 `delegate_task_tool` 的运行期名册）
+- **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,075（粗估，不含 `delegate_task_tool` 的运行期名册）
 
 **子分类**:
 
 | 子类 | 加载条件 | 典型工具 | Token 消耗 |
 |------|---------|---------|----------:|
-| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 263（条件绑定；tiktoken measured woven desc） |
-| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~200 |
-| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；无额外 Turn1 schema） | 含于 memory×3 ~2,060 |
+| 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 277（条件绑定；未挂载 `skill_market_tool` 时 289） |
+| 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~551 |
+| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 描述 +66（156 → 222） |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
-| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~827 |
-| Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool (Turn1)；wiki_compile/maintain 仅 REST/admin | ~95 |
-| 统一知识检索 | wiki + memory 双开 | memory_search_tool (1个) | ~55 |
+| 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,160 |
+| Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool, wiki_apply_tool；wiki_compile/maintain 仅 REST/admin | ~344 |
+| 统一知识检索 | wiki + memory 双开 | memory_search_tool 的 wiki corpus 说明、memory_save_tool 的 wiki 边界段 | 增加 ~71（memory_search +14，memory_save +57） |
 | 子 Agent 工具 | SubagentManagementExtension + entitlements | delegate_task_tool, subagent_control_tool, send_teammate_message_tool (orchestrator) | ~379 + 运行期名册 |
 | 答案自审工具 | `enabled_builtin_tools: answer_tool` | request_answer_user_tool | 327（EN）/ 512（ZH） |
-| Goal / planning 工具 | active Goal / `planning` opt-in | complete_goal_tool, todo_write | ~270 |
+| Goal / planning 工具 | active Goal / `planning` opt-in | complete_goal_tool, todo_write | ~298 |
 | 看板工具 | `enabled_builtin_tools: kanban` | orchestrator 6 + worker 6（按角色互斥挂载）；board CRUD 走 REST/GUI | worker ~406 / orchestrator ~774 |
 | Server vendor 工具 | 见 EXTERNAL 层 | x_search/image/video/tts/artifact_publish/channel_notify 等 | 按凭证 |
 
@@ -340,13 +340,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；工具层按 2026-09-16 实测，System Prompt 层按 2026-11-03 重测）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE / HIGH_PRIORITY 层按 2026-09-16 实测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-03 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
 | 最小场景 | 8 个 | ~5,876 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
 | 典型场景 | 13 个 | ~10,320 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~19,190（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和，其中 §4.6、§4.7、§4.13 与 `request_answer_user_tool` 之外的行为记录值，未逐项重测 |
+| 满载场景 | 56 个 | ~19,682（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
@@ -379,12 +379,12 @@ Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表�
 
 | 工具类型 | 加载条件 | 数量 | Token |
 |---------|---------|-----:|------:|
-| 记忆工具 | 启用记忆系统 | 3 | 1,202 |
-| 技能工具 | 有技能后端 | 5 | ~612-944 |
+| 记忆工具 | 启用记忆系统 | 3 | 1,235（仅 memory corpus；wiki + sessions 全开 1,372） |
+| 技能工具 | 有技能后端 | 4 | ~1,136（含条件绑定的 `skill_search_tool` 277） |
 | 本地文件索引工具 | 用户配置本地索引目录（Discoverable） | 2 | - |
 | 浏览器工具 | 启用浏览器 | 8 | ~762 |
-| 定时任务工具 | 启用 Cron | 1 | ~827 |
-| Wiki 工具 | 有 Wiki 目录 | 4 | ~250 |
+| 定时任务工具 | 启用 Cron | 1 | ~1,160 |
+| Wiki 工具 | 有 Wiki 目录 | 3 | ~344 |
 | 子 Agent 工具 | 有子 Agent 配置 | 3 | ~379 + 运行期名册 |
 | 看板工具 | 启用看板 | 12 | worker ~406 / orchestrator ~774 |
 

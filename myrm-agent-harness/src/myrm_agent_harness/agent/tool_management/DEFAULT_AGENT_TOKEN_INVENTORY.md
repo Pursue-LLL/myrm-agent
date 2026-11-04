@@ -3,7 +3,7 @@
 > **术语**：下文 **「工具」= LLM 工具**（Action Tool）。§4.18 所列编排信号**不是** LLM 工具，不计入 LLM 工具总数（见文末 `TOOL_COUNT` 自动生成块）。
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
-> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-03 按当前源码重测；§4.6 子 Agent 委托、§4.7 浏览器、§4.13 看板各行与 `request_answer_user_tool` 于 2026-11-04 重测（`create_delegate_task_tool` / `create_subagent_control_tool` / `create_send_teammate_message_tool` / `create_invoke_acp_agent_tool` / `create_browser_tools` / `create_kanban_tools` / `create_answer_user_tool` 以 stub 后端构造，取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分），§四 其余各行为记录值，不由测试锁定
+> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-03 按当前源码重测；§四 的 38 个 EXTENDED 工具与 §4.24 的 5 个 server 工具于 2026-11-04 重测：各工具经 `create_*` 工厂构造（后端用 stub，`image_tool` / `video_tool` 用引擎默认配置），取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分；`image_tool` / `video_tool` 的描述含运行期模型名，数值随配置浮动；§4.18 编排信号不是 LLM 工具，沿用记录值；§四 各行都不由测试锁定
 > 测量宿主：macOS 25.5.0 / arm64 / bash（OS hint、env 行、toolchain 探测行随宿主变化，见 §一、§二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
 > 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 Turn-1 默认 13 个工具（§二、§三）的逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言锁定静态首轮 system 消息
@@ -84,8 +84,8 @@
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
 | 12 | **web_search_tool** | **1,174** | `harness/toolkits/web_search/_web_search_tool_description.py` | 网络搜索（EN/ZH LLM-facing query-rewrite SSOT；server 传 locale） | GUI 可关 |
-| 13 | **memory_search_tool** | **156** | `harness/toolkits/memory/_memory_agent_tool_descriptions.py` | 统一检索（corpus ACL 与 policy 一致；默认仅 memory corpus） | enable_memory |
-| 14 | **memory_save_tool** | **720** | `harness/toolkits/memory/_memory_agent_tool_descriptions.py` | 写入长期记忆（EN core；wiki/approval 动态段；保留原有关键 guardrail 短语） | enable_memory |
+| 13 | **memory_search_tool** | **156** | `harness/toolkits/memory/agent_surface/_memory_agent_tool_descriptions.py` | 统一检索（corpus ACL 与 policy 一致；默认仅 memory corpus） | enable_memory |
+| 14 | **memory_save_tool** | **720** | `harness/toolkits/memory/agent_surface/_memory_agent_tool_descriptions.py` | 写入长期记忆（EN core；wiki/approval 动态段；保留原有关键 guardrail 短语） | enable_memory |
 | 15 | **memory_manage_tool** | **359** (EN) / **422** (ZH) | 同上 | 更新/删除/纠正/评分；correct→knowledge only（preserves history）；update→措辞微调；instruction→category=rule；**user-locked rule 不可 update/delete** | enable_memory |
 | 16 | **skill_select_tool** | **308** (EN) / **357** (ZH) | `harness/agent/meta_tools/skills/select/skill_select_tool.py` | 字节稳定静态 rules，按 locale 选 EN/ZH 常量；bound catalog 在首条 HumanMessage `<bound_skills>`，漂移以 `<bound_skills_update>` 尾段下发 | skill_backend present |
 
@@ -107,15 +107,15 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 21 | skill_manage_tool | 251 | `harness/agent/meta_tools/skills/manage/skill_manage_tool.py` | 创建/修改/删除技能 |
-| 22 | skill_search_tool | 263 | `harness/agent/meta_tools/discover_capability/discover_capability_tool.py` | 统一能力发现；**条件绑定**（hidden_skill_count > 0；tiktoken measured woven desc） |
-| 23 | skill_market_tool | ~175 | `harness/agent/meta_tools/skills/market/skill_market_tool.py` | 从外部源安装/卸载技能；bound-library 提示经 dynamic_hints 条件注入 | Turn1 when market_backend present |
+| 21 | skill_manage_tool | 263 | `harness/agent/meta_tools/skills/manage/skill_manage_tool.py` | 创建/修改/删除技能 |
+| 22 | skill_search_tool | 277 | `harness/agent/meta_tools/discover_capability/discover_capability_tool.py` | 统一能力发现；**条件绑定**（hidden_skill_count > 0）；描述随 `skill_market_tool` 是否挂载而变：挂载 277，未挂载 289 |
+| 23 | skill_market_tool | 288 | `harness/agent/meta_tools/skills/market/skill_market_tool.py` | 从外部源安装/卸载技能（market_backend 存在时 Turn1 挂载）；`skill_search_tool` 的交叉提示经 dynamic_hints 按挂载情况注入：已挂载 288，未挂载 271 |
 
 ### 4.4 交互工具（harness 提供，按配置加载）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
-| 26 | ask_question_tool | 118 | `harness/agent/meta_tools/clarification/clarification_agent_tools.py` | 结构化澄清；`requires_confirmation` 驱动危险强调；middleware 强制单轮单次 | server mount policy (interactive web_chat) |
+| 26 | ask_question_tool | 316 | `harness/agent/meta_tools/clarification/clarification_agent_tools.py` | 结构化澄清；`requires_confirmation` 驱动危险强调；middleware 强制单轮单次 | server mount policy (interactive web_chat) |
 | 27 | **request_answer_user_tool** | **327** (EN) / **512** (ZH) | `harness/agent/meta_tools/answer_user_tool.py` | 搜索 Agent 终局自审门 | 默认关闭（`answer_tool` opt-in，EXTENDED 层） |
 
 ### 4.6 子 Agent 委托工具（有子 Agent 配置时加载；空 catalog 零 bind）
@@ -144,15 +144,15 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 47 | cron_manage_tool | 827 | `harness/toolkits/cron/cron_agent_tools.py` | 定时任务管理；蓝图目录经 `action=blueprints` 按需拉取，不占 Turn1 描述 |
+| 47 | cron_manage_tool | 1,160 | `harness/toolkits/cron/cron_agent_tools.py` | 定时任务管理；蓝图目录经 `action=blueprints` 按需拉取，不占 Turn1 描述 |
 
 ### 4.10 Wiki 知识库工具（有 Wiki 目录时加载）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 48 | wiki_query_tool | 33 | `harness/toolkits/wiki/wiki_agent_tools.py` | 查询 Wiki 知识库 |
-| 49 | wiki_ingest_tool | 62 | `harness/toolkits/wiki/wiki_agent_tools.py` | 导入内容到 Wiki |
-| 50 | wiki_apply_tool | 58 | `harness/toolkits/wiki/wiki_agent_tools.py` | 窄写更新 Wiki 词条（truth/timeline/metadata/create） |
+| 48 | wiki_query_tool | 79 | `harness/toolkits/wiki/wiki_agent_tools.py` | 查询 Wiki 知识库 |
+| 49 | wiki_ingest_tool | 114 | `harness/toolkits/wiki/wiki_agent_tools.py` | 导入内容到 Wiki |
+| 50 | wiki_apply_tool | 151 | `harness/toolkits/wiki/wiki_agent_tools.py` | 窄写更新 Wiki 词条（truth/timeline/metadata/create） |
 
 > Wiki 编译/维护由 Settings REST 的 `app/services/wiki/maintain` 承担，不暴露 LLM 工具。
 
@@ -160,8 +160,8 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
-| 56 | complete_goal_tool | 120 | `harness/agent/meta_tools/goals/goal_agent_tools.py` | 显式声明目标完成 | active Goal |
-| 57 | todo_write | ~150 | `harness/agent/meta_tools/progress/todo_write_tool.py` | 主 Agent 多步进度 | 默认关闭（`planning` / Goal） |
+| 56 | complete_goal_tool | 95 | `harness/agent/meta_tools/goals/goal_agent_tools.py` | 显式声明目标完成 | active Goal |
+| 57 | todo_write | 203 | `harness/agent/meta_tools/progress/todo_write_tool.py` | 主 Agent 多步进度 | 默认关闭（`planning` / Goal） |
 
 ### 4.13 看板工具（启用看板时加载，按角色分组）
 
@@ -221,11 +221,11 @@ Token 明细（tiktoken o200k_base）：
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
-| 88 | channel_notify_tool | 333 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 主动 IM 出站（白名单+频控+附件） | Agent 配置 `notify_targets` 时 [Turn1] |
-| 89 | image_tool | ~150 | `server/services/integrations/tools/image_generation.py` | 图像生成工具（DALL-E / SD / Flux） | enabled_builtin_tools: image_generation |
-| 90 | video_tool | ~180 | `server/services/integrations/tools/video_generation.py` | 视频生成工具 | enabled_builtin_tools: video_generation |
-| 91 | tts_generate | ~120 | `server/services/integrations/tools/tts.py` | 语音合成工具 | enabled_builtin_tools: tts |
-| 92 | artifact_publish | ~140 | `server/services/hosting/agent_publish_tool.py` | 工件/网页在线打包与托管发布 | server 凭证就绪 |
+| 88 | channel_notify_tool | 102 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 主动 IM 出站（白名单+频控+附件） | Agent 配置 `notify_targets` 时 [Turn1] |
+| 89 | image_tool | 144 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成工具（DALL-E / SD / Flux）；描述含运行期模型名，144 为引擎默认模型 dall-e-3 | enabled_builtin_tools: image_generation |
+| 90 | video_tool | 159 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述含运行期供应商与模型名，159 为引擎默认配置 openai/sora | enabled_builtin_tools: video_generation |
+| 91 | tts_generate | 43 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具 | enabled_builtin_tools: tts |
+| 92 | artifact_publish | 78 | `server/services/hosting/agent_publish_tool.py` | 工件/网页在线打包与托管发布 | server 凭证就绪 |
 
 > 注：`x-live-search` 采用 Prebuilt Skill + 沙箱标准脚本 PTC（Programmatic Tool Calling）范式，0 Action Tool 注册（Turn1 0 Token 开销，不污染 Action Space）。
 
@@ -242,7 +242,7 @@ Token 明细（tiktoken o200k_base）：
 
 | 组件 | Token (估算) | 来源 | 说明 |
 |------|------------:|------|------|
-| user_instructions | ~200 | `server/app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户自定义指令（SystemMessage，注入在 system prompt 之后） |
+| user_instructions | ~200 | `server/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户自定义指令（SystemMessage，注入在 system prompt 之后） |
 | Memory context | ~500 | `harness/agent/middlewares/memory_context/memory_context_middleware.py` | Stable：`<user_memory_context>` **SystemMessage**；Turn1 learned 为空（检索走 `memory_search_tool`）；Learned 历史形态经 `wrap_untrusted` → HumanMessage |
 | Inline skills 列表 | ~500 | 技能系统 | `<skills>` 块内联展示可用技能名+描述（取决于已安装技能数量） |
 
@@ -320,13 +320,13 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **2,369** |
 | CORE 工具层 | **2,655** |
 | HIGH_PRIORITY 工具层 | **2,717** |
-| EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,109（**粗估**：§四 各行描述值求和，EXTENDED 38 个 ~5,186 + EXTERNAL 5 个 ~923；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,601（**粗估**：§四 各行描述值求和，EXTENDED 38 个 ~6,075 + EXTERNAL 5 个 ~526；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,640** (56 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~19,190（粗估）** |
+| **tiktoken 小计** | **~19,682（粗估）** |
 
-> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入；§4.6、§4.7、§4.13 与 `request_answer_user_tool` 之外的各行为记录值，未逐项重测。
+> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入；`image_tool` / `video_tool` 的描述含运行期模型名，按引擎默认配置计。
 
 ---
 
@@ -339,7 +339,7 @@ Token 明细（tiktoken o200k_base）：
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,717 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~5,186+ tok)]
+[EXTENDED: 可选工具 (~0~6,075+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 2,070 (GPT-5·ZH·full) + messages[1] 299]
