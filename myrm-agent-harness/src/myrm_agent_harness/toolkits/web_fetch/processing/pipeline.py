@@ -12,6 +12,7 @@ utils.text_cleaner::clean_text (POS: Generic text cleaning utility)
 
 [OUTPUT]
 ContentPipeline: Transforms raw FetchResult HTML into cleaned, Markdown-formatted Documents
+(``process`` synchronously, ``aprocess`` on a dedicated conversion thread)
 
 [POS]
 Content processing pipeline. Sits between the fetcher layer and the consumer layer,
@@ -21,9 +22,14 @@ converting raw HTML into clean Markdown Documents with metadata.
 
 from __future__ import annotations
 
+import asyncio
+import atexit
+import contextvars
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from langchain_core.documents import Document
 
@@ -39,6 +45,11 @@ logger = logging.getLogger(__name__)
 
 _MIN_CONTENT_LENGTH = 50
 _FIT_MARKDOWN_THRESHOLD = 100
+
+# One worker on purpose: conversions stay serial (as they were on the event loop) and a conversion that keeps running
+# after its awaiting task was cancelled is the only orphan there can be; futures still queued are dropped unstarted.
+_CONVERSION_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="web-fetch-convert")
+atexit.register(_CONVERSION_EXECUTOR.shutdown, wait=False, cancel_futures=True)
 
 
 class ContentPipeline:
@@ -171,3 +182,14 @@ class ContentPipeline:
         }
 
         return Document(page_content=content, metadata=metadata)
+
+    async def aprocess(self, fetch_result: FetchResult, max_chars: int = 0) -> Document | None:
+        """Run :meth:`process` on the dedicated conversion thread.
+
+        Conversion is CPU-bound Python. On the event loop it would freeze every other request (streams, parallel
+        fetches) for as long as it runs, and the fetch timeout cannot interrupt it there.
+        """
+        context = contextvars.copy_context()
+        return await asyncio.get_running_loop().run_in_executor(
+            _CONVERSION_EXECUTOR, partial(context.run, self.process, fetch_result, max_chars)
+        )

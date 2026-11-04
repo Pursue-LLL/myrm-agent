@@ -538,5 +538,5 @@ async def _fetch_url_as_markdown(url: str) -> str:
         raise ValueError(f"Failed to fetch {url}: HTTP {response.status_code}")
 
     generator = MarkdownGenerator()
-    result = generator.generate_markdown(response.text, base_url=url, citations=False)
+    result = generator.generate_markdown(response.text, base_url=url)
     return result.raw_markdown or f"# {url}\n\n(empty page)"

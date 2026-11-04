@@ -62,6 +62,7 @@ class FetchEngineEscalationMixin:
             if escalation_result is None or not escalation_result.content.strip():
                 continue
 
+            doc: Document | None
             if escalation_result.is_markdown:
                 content = escalation_result.content
                 if max_chars > 0 and len(content) > max_chars:
@@ -80,7 +81,7 @@ class FetchEngineEscalationMixin:
                     url=escalation_result.url or url,
                     fetcher_type=FetcherType.HTTP,
                 )
-                doc = self._pipeline.process(remote_fetch, max_chars=max_chars)
+                doc = await self._pipeline.aprocess(remote_fetch, max_chars=max_chars)
                 if doc is None:
                     continue
                 doc.metadata["escalation_provider"] = provider.provider_id

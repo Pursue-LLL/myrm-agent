@@ -20,7 +20,30 @@ def test_markdown_result_dataclass():
 
     assert result.raw_markdown == "# Title"
     assert result.fit_markdown == "## Fit"
-    assert result.markdown_with_citations == ""
+    assert result.fit_html == ""
+    assert result.was_truncated is False
+
+
+def test_generate_markdown_keeps_links_inline_and_adds_no_reference_section():
+    """转换结果保留行内链接，且不再追加引用章节"""
+    html = '<html><body><p>See <a href="https://example.com/doc">the docs</a>.</p></body></html>'
+
+    result = MarkdownGenerator().generate_markdown(html, base_url="https://example.com")
+
+    assert "[the docs](https://example.com/doc)" in result.raw_markdown
+    assert "References" not in result.raw_markdown
+    assert result.fit_markdown == ""
+
+
+def test_generate_markdown_with_filter_fills_fit_variant():
+    """配置内容过滤器后产出 fit 变体及过滤后的 HTML"""
+    html = "<html><body><article><p>" + ("lorem ipsum " * 60) + "</p></article></body></html>"
+
+    result = MarkdownGenerator(content_filter=ContentPruningFilter()).generate_markdown(html)
+
+    assert "lorem ipsum" in result.raw_markdown
+    assert "lorem ipsum" in result.fit_markdown
+    assert result.fit_html.startswith("<div>")
 
 
 def test_html_deep_nesting_depth_limit_protection():

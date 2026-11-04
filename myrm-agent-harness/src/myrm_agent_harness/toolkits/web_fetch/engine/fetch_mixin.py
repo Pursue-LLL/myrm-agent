@@ -137,7 +137,7 @@ class FetchEngineFetchMixin:
             logger.warning(f"Anti-bot detected ({reason}): {url}")
             return None, True, latency_ms, cpu_percent, memory_mb, None
 
-        doc = self._pipeline.process(fetch_result, max_chars=max_chars)
+        doc = await self._pipeline.aprocess(fetch_result, max_chars=max_chars)
 
         if doc and doc.metadata.get("was_truncated"):
             try:

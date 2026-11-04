@@ -43,8 +43,8 @@ COMPACT_RULES: dict[str, CompactRule] = {
         stats_template="COMPACTED: web_search_tool\nQUERY: {identifier}\nRESULT: {lines} lines, {chars} chars",
     ),
     "web_fetch_tool": CompactRule(
-        keep_args=["url"],
-        identifier_arg="url",
+        keep_args=["urls"],
+        identifier_arg="urls",
         identifier_type="url",
         result_template="COMPACTED: web_fetch_tool\nURL: {identifier}",
         stats_template="COMPACTED: web_fetch_tool\nURL: {identifier}\nRESULT: {lines} lines, {chars} chars",
@@ -78,8 +78,8 @@ COMPACT_RULES: dict[str, CompactRule] = {
         stats_template="COMPACTED: file_edit_tool\nPATH: {identifier}\nRESULT: modified {chars} chars",
     ),
     "skill_select_tool": CompactRule(
-        keep_args=["skill_name"],
-        identifier_arg="skill_name",
+        keep_args=["skill_names"],
+        identifier_arg="skill_names",
         identifier_type="other",
         result_template="COMPACTED: skill_select_tool\nSKILL: {identifier}",
         stats_template="COMPACTED: skill_select_tool\nSKILL: {identifier}\nRESULT: {chars} chars",

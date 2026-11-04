@@ -85,7 +85,7 @@ def _html_to_markdown(html: str, *, base_url: str) -> str:
         return ""
     pruner = ContentPruningFilter()
     generator = MarkdownGenerator(content_filter=pruner)
-    result = generator.generate_markdown(html, base_url=base_url, citations=False)
+    result = generator.generate_markdown(html, base_url=base_url)
     return (result.raw_markdown or "").strip()
 
 
