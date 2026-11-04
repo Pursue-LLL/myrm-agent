@@ -10,8 +10,7 @@ Default locale is English; callers pass BCP-47 locale strings (e.g. ``zh-CN``).
 - utils.locale::is_chinese (POS: BCP-47 Chinese detection for description locale)
 
 [OUTPUT]
-- resolve_web_search_tool_description: Locale-aware description resolver
-- WEB_SEARCH_TOOL_DESCRIPTION_EN / _ZH: locale-specific SSOT constants
+- resolve_web_search_tool_description: Locale-aware description resolver; includes the fetch_and_extract hint only when that operation exists
 
 [POS]
 Prompt SSOT for web_search_tool. Imported by web_search_agent_tools.py and static tests.
@@ -23,7 +22,7 @@ from myrm_agent_harness.utils.locale import is_chinese
 
 DEFAULT_WEB_SEARCH_TOOL_DESCRIPTION_LOCALE = "en"
 
-WEB_SEARCH_TOOL_DESCRIPTION_EN = """
+_OVERVIEW_PARAMETERS_EN = """
 Use web_search_tool to retrieve real-time information from the internet, including news, academic material, and specific facts. Use when information is time-sensitive, the user requests an online search, or you cannot reliably verify facts. Do not call when you can answer reliably without going online.
 
 ## Parameters
@@ -32,15 +31,20 @@ Use web_search_tool to retrieve real-time information from the internet, includi
 - reason: One brief sentence stating the search purpose. Do not repeat the user's question.
 - time_range: Set only when the user explicitly gives a time range or relative time requirement (day/week/month/year or YYYY-MM-DD..YYYY-MM-DD).
 - When the user wants official or authoritative sources, use site: in the query to restrict domains (e.g. site:gov.cn, site:github.com). Do not rely on other parameters for this.
+""".strip()
 
+_COST_CONTROL_EN = """
 ## Optimal cost control
 
 - For most questions, generate 1-2 queries; for complex or multi-faceted questions only, generate 3-5 queries, at most 5.
 - Each query must include the entities, keywords, and constraints needed to retrieve the answer; avoid irrelevant words. One call should cover the core information dimensions of the user's question; unless key information is missing, do not repeat similar searches.
 - If results do not cover key aspects needed to answer, prefer rewriting for missing aspects or adding complementary queries.
 - When an information request spans multiple domains or you are uncertain whether a query is general or vertical, use a hybrid strategy: issue 1 general query and 1-2 domain-specific queries in parallel.
-- When search snippets provide insufficient detail or the user needs in-depth data from a retrieved webpage, combine with web_fetch_tool's fetch_and_extract operation to retrieve cleaned, targeted article sections without redundant searches.
+""".strip()
 
+_FETCH_AND_EXTRACT_HINT_EN = "- When search snippets provide insufficient detail or the user needs in-depth data from a retrieved webpage, combine with web_fetch_tool's fetch_and_extract operation to retrieve cleaned, targeted article sections without redundant searches."
+
+_QUERY_REWRITE_EN = """
 ## Query rewrite rules
 
 Generate queries in the following order:
@@ -87,7 +91,7 @@ Generate queries in the following order:
 - Bad example: `S15 schedule`, `S15 schedule arrangement`, `S15 timetable`, `S15 start time` — they all search the same time dimension.
 """.strip()
 
-WEB_SEARCH_TOOL_DESCRIPTION_ZH = """
+_OVERVIEW_PARAMETERS_ZH = """
 web_search_tool 用于检索互联网中的实时信息、新闻、学术资料和具体事实。当信息具有时效性、用户要求联网查询，或模型无法可靠确认事实时，应使用本工具。无需联网且能够可靠回答时不要调用。
 
 ## 参数
@@ -96,15 +100,20 @@ web_search_tool 用于检索互联网中的实时信息、新闻、学术资料�
 - reason：用一句简短的话说明搜索目的，不要复述用户问题。
 - time_range：仅当用户明确给出时间范围或相对时间要求时设置（day/week/month/year 或 YYYY-MM-DD..YYYY-MM-DD）。
 - 用户要求官方或权威来源时，在 query 中使用 site: 限定域名（如 site:gov.cn、site:github.com），不要依赖其他参数。
+""".strip()
 
+_COST_CONTROL_ZH = """
 ## 最优成本控制
 
 - 大多数问题生成 1-2 条 query；仅复杂或多方面问题生成 3-5 条，最多 5 条。
 - 每条 query 应包含检索答案所需的实体、关键词和约束，避免无关词语。一次调用尽量覆盖用户问题的核心信息维度；除非缺少关键信息，不要重复搜索相似内容。
 - 若结果没有覆盖回答所需的关键方面，优先改写缺失方面或增加互补 query。
 - 当信息诉求涉及多领域交叉或无法断定属于泛化还是垂直领域时，采用混合策略：并行发起 1 条通用 query 与 1-2 条垂直领域针对性 query。
-- 当搜索返回的片段（snippet）信息不足或用户需要页面深层细节时，联动 web_fetch_tool 的 fetch_and_extract 操作提取清洗后的正文段落，避免盲目重复搜索。
+""".strip()
 
+_FETCH_AND_EXTRACT_HINT_ZH = "- 当搜索返回的片段（snippet）信息不足或用户需要页面深层细节时，联动 web_fetch_tool 的 fetch_and_extract 操作提取清洗后的正文段落，避免盲目重复搜索。"
+
+_QUERY_REWRITE_ZH = """
 ## Query 改写规则
 
 按以下顺序生成 query：
@@ -151,21 +160,38 @@ web_search_tool 用于检索互联网中的实时信息、新闻、学术资料�
 - 错误示例：`S15 赛程`、`S15 赛程安排`、`S15 时间表`、`S15 何时开始` — 它们都在搜索同一时间维度。
 """.strip()
 
-WEB_SEARCH_TOOL_DESCRIPTION = WEB_SEARCH_TOOL_DESCRIPTION_EN
-
 
 def resolve_web_search_tool_description(
     locale: str | None = DEFAULT_WEB_SEARCH_TOOL_DESCRIPTION_LOCALE,
+    *,
+    fetch_and_extract_available: bool = False,
 ) -> str:
+    """Return the locale-aware tool description.
+
+    The cost-control hint that points at web_fetch_tool's ``fetch_and_extract`` operation is included only when
+    ``fetch_and_extract_available`` says that operation exists in the same agent, so the model is never sent to a
+    tool or operation it cannot call.
+    """
     if is_chinese(locale):
-        return WEB_SEARCH_TOOL_DESCRIPTION_ZH
-    return WEB_SEARCH_TOOL_DESCRIPTION_EN
+        overview, cost_control, hint, rewrite = (
+            _OVERVIEW_PARAMETERS_ZH,
+            _COST_CONTROL_ZH,
+            _FETCH_AND_EXTRACT_HINT_ZH,
+            _QUERY_REWRITE_ZH,
+        )
+    else:
+        overview, cost_control, hint, rewrite = (
+            _OVERVIEW_PARAMETERS_EN,
+            _COST_CONTROL_EN,
+            _FETCH_AND_EXTRACT_HINT_EN,
+            _QUERY_REWRITE_EN,
+        )
+    if fetch_and_extract_available:
+        cost_control = f"{cost_control}\n{hint}"
+    return "\n\n".join((overview, cost_control, rewrite))
 
 
 __all__ = [
     "DEFAULT_WEB_SEARCH_TOOL_DESCRIPTION_LOCALE",
-    "WEB_SEARCH_TOOL_DESCRIPTION",
-    "WEB_SEARCH_TOOL_DESCRIPTION_EN",
-    "WEB_SEARCH_TOOL_DESCRIPTION_ZH",
     "resolve_web_search_tool_description",
 ]

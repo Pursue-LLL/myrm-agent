@@ -6,7 +6,6 @@
 from langchain_core.documents import Document
 
 from myrm_agent_harness.utils.context_format import (
-    format_crawl_results,
     format_document_header,
     format_documents_with_metadata,
     wrap_with_external_sources_tag,
@@ -99,81 +98,6 @@ class TestExtractCleanContent:
         """测试空内容"""
         result = extract_clean_content_for_context("")
         assert result == ""
-
-
-class TestFormatCrawlResults:
-    """测试crawl results格式化"""
-
-    def test_empty_results(self):
-        """测试空结果"""
-        result = format_crawl_results([])
-        assert result == ""
-
-    def test_single_result(self):
-        """测试单个结果"""
-        doc = Document(
-            page_content="Test content",
-            metadata={"url": "https://test.com", "title": "Test"},
-        )
-        result = format_crawl_results([("https://test.com", doc)])
-
-        assert "【1】" in result
-        assert "https://test.com" in result
-        assert "Test content" in result
-
-    def test_multiple_results(self):
-        """测试多个结果"""
-        results = [
-            (
-                "https://test1.com",
-                Document(
-                    page_content="Content 1",
-                    metadata={"url": "https://test1.com", "title": "Title 1"},
-                ),
-            ),
-            (
-                "https://test2.com",
-                Document(
-                    page_content="Content 2",
-                    metadata={"url": "https://test2.com", "title": "Title 2"},
-                ),
-            ),
-        ]
-        result = format_crawl_results(results)
-
-        assert "【1】" in result and "【2】" in result
-        assert "Content 1" in result and "Content 2" in result
-
-    def test_without_title(self):
-        """测试不包含标题"""
-        doc = Document(
-            page_content="Content",
-            metadata={"url": "https://test.com", "title": "Title"},
-        )
-        result = format_crawl_results([("https://test.com", doc)], include_title=False)
-
-        assert "Title:" not in result
-
-    def test_with_date(self):
-        """测试包含日期"""
-        doc = Document(
-            page_content="Content",
-            metadata={"url": "https://test.com", "date": "2024-03-18"},
-        )
-        result = format_crawl_results([("https://test.com", doc)], include_date=True)
-
-        assert "Date: 2024-03-18" in result
-
-    def test_extract_clean_content(self):
-        """测试提取clean content"""
-        doc = Document(
-            page_content="---\nsection: Test\n---\n\nContent",
-            metadata={"url": "https://test.com"},
-        )
-        result = format_crawl_results([("https://test.com", doc)], extract_clean_content=True)
-
-        assert "section: Test" in result
-        assert "Content" in result
 
 
 class TestFormatDocumentsWithMetadata:
@@ -549,40 +473,6 @@ class TestEdgeCases:
         assert len(sources) == 50
         assert "【1】" in context
         assert "【50】" in context
-
-
-class TestFormatCrawlResultsComplete:
-    """测试format_crawl_results完整功能"""
-
-    def test_basic_crawl_format(self):
-        """测试基本crawl格式化"""
-        results = [
-            (
-                "https://test.com",
-                Document(
-                    page_content="Content",
-                    metadata={"url": "https://test.com", "title": "Test"},
-                ),
-            ),
-        ]
-        formatted = format_crawl_results(results)
-
-        assert "【1】" in formatted
-        assert "Content" in formatted
-
-    def test_crawl_vs_documents_consistency(self):
-        """测试crawl_results和documents格式化的一致性"""
-        doc = Document(page_content="Test", metadata={"url": "https://test.com", "title": "Title"})
-
-        # 使用format_crawl_results
-        crawl_result = format_crawl_results([("https://test.com", doc)])
-
-        # 使用format_documents_with_metadata
-        _, doc_result, _ = format_documents_with_metadata([doc])
-
-        # 应该有相似的结构
-        assert "【1】" in crawl_result and "【1】" in doc_result
-        assert "Test" in crawl_result and "Test" in doc_result
 
 
 class TestRealWorldScenarios:

@@ -261,7 +261,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
             channel=getattr(self, "channel_name", None),
         )
 
-        if getattr(self, "enable_web_fetch", True):
+        web_fetch_enabled = bool(getattr(self, "enable_web_fetch", True))
+        # web_fetch_tool offers fetch_and_extract only with both retrieval services; web_search recommends it only then.
+        fetch_and_extract_available = web_fetch_enabled and reranker_cfg is not None and embedding_cfg is not None
+
+        if web_fetch_enabled:
             tools.append(
                 create_web_fetch_tool(
                     reranker_config=reranker_cfg,
@@ -283,6 +287,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_config=sufficiency_cfg,
                     sufficiency_llm_config=sufficiency_llm,
                     description_locale=tool_description_locale,
+                    fetch_and_extract_available=fetch_and_extract_available,
                     blocked_terms=getattr(self, "benchmark_blocked_terms", ()) or None,
                     blocked_hostnames=getattr(self, "benchmark_blocked_hostnames", ()) or None,
                 )

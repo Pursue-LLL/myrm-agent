@@ -20,8 +20,8 @@ and the intent-aware search parameter optimizer.
 |------|------|-------------|-------|
 | __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, LiteLLMSearch, SearchServiceConfig | ✅ |
 | engine.py | Core | WebSearchTools wrapper: parallel per-question search, one shared merge (round-robin, dedup, domain diversity), first `top_k` returned | ✅ |
-| web_search_agent_tools.py | Core | LangChain `web_search_tool` factory | ✅ |
-| _web_search_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH) | ✅ |
+| web_search_agent_tools.py | Core | LangChain `web_search_tool` factory; `fetch_and_extract_available` tells it whether the agent's `web_fetch_tool` offers `fetch_and_extract` | ✅ |
+| _web_search_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH); recommends `fetch_and_extract` only when the agent's `web_fetch_tool` offers it | ✅ |
 
 ## Package Root Files (facade only)
 

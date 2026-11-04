@@ -10,7 +10,6 @@
 [OUTPUT]
 - format_document_header(): 格式化单个文档的头部信息
 - format_documents_with_metadata(): 格式化文档列表为字符串（带元数据），支持精确token控制
-- format_crawl_results(): 格式化抓取结果为上下文字符串
 - TruncationStats: 截断统计信息（原始tokens、最终tokens、截断数、保留率）
 - DocumentCollection: 文档集合的中间状态（URL映射、header、内容、元数据）
 - wrap_with_external_sources_tag(): 安全边界包装（UNTRUSTED_DATA）+ 持久 cite reminder
@@ -338,52 +337,6 @@ def format_document_header(
         header += f" | Date: {date}"
 
     return header
-
-
-def format_crawl_results(
-    success_results: list[tuple[str, Document]],
-    include_title: bool = True,
-    include_date: bool = False,
-    extract_clean_content: bool = False,
-) -> str:
-    """格式化抓取结果为上下文字符串
-
-    适用于简单场景：直接从抓取结果生成格式化文本，不需要去重和分组
-
-    Args:
-        success_results: 成功抓取的结果列表，格式为 [(url, document), ...]
-        include_title: 是否在头部包含标题
-        include_date: 是否在头部包含日期
-        extract_clean_content: 是否提取干净的内容（去除Front Matter但保留section）
-
-    Returns:
-        格式化的上下文字符串
-    """
-    if not success_results:
-        return ""
-
-    context_parts = []
-    for idx, (url, doc) in enumerate(success_results, start=1):
-        page_url = doc.metadata.get("url", url)
-        title = doc.metadata.get("title", "")
-        date = doc.metadata.get("date", "")
-
-        # 格式化头部
-        header = format_document_header(
-            index=idx,
-            url=page_url,
-            title=title,
-            date=date,
-            include_title=include_title,
-            include_date=include_date,
-        )
-
-        # 获取内容
-        content = extract_clean_content_for_context(doc.page_content) if extract_clean_content else doc.page_content
-
-        context_parts.append(f"{header}\n\n{content}\n\n")
-
-    return "".join(context_parts)
 
 
 def format_documents_with_metadata(

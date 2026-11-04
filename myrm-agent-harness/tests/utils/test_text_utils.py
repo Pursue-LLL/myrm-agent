@@ -8,7 +8,6 @@ from myrm_agent_harness.utils.text_utils import (
     estimate_tokens_fast,
     find_sentence_boundary,
     get_token_count,
-    has_important_tail,
     preheat_tiktoken,
     sanitize_binary_output,
     smart_truncate,
@@ -247,47 +246,6 @@ class TestTruncateTextToTokens:
         # 应该降级到字符估算模式
         assert len(result) < len(text)
         assert "..." in result
-
-
-class TestHasImportantTail:
-    """测试尾部诊断信息检测"""
-
-    def test_error_in_tail(self):
-        """测试尾部包含错误信息"""
-        text = "Some content\n" * 50 + "ERROR: File not found"
-        assert has_important_tail(text) is True
-
-    def test_exception_in_tail(self):
-        """测试尾部包含异常"""
-        text = "Normal output\n" * 50 + "Exception occurred at line 42"
-        assert has_important_tail(text) is True
-
-    def test_traceback_in_tail(self):
-        """测试尾部包含traceback"""
-        text = "Code output\n" * 50 + "Traceback (most recent call last):"
-        assert has_important_tail(text) is True
-
-    def test_json_closure(self):
-        """测试JSON结构结束"""
-        text = '{"data": "value"}\n' * 30 + "  }\n]"
-        assert has_important_tail(text) is True
-
-    def test_summary_in_tail(self):
-        """测试尾部包含总结"""
-        text = "Test results\n" * 50 + "Total: 100 tests passed"
-        assert has_important_tail(text) is True
-
-    def test_clean_tail(self):
-        """测试普通尾部（无诊断信息）"""
-        text = "This is normal text. " * 100
-        assert has_important_tail(text) is False
-
-    def test_short_text(self):
-        """测试短文本"""
-        text = "Short"
-        # 短文本也应该能检测
-        result = has_important_tail(text)
-        assert isinstance(result, bool)
 
 
 class TestSmartTruncate:

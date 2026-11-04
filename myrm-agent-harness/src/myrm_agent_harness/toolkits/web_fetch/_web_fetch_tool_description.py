@@ -10,8 +10,8 @@ Default locale is English; callers pass BCP-47 locale strings (e.g. ``zh-CN``).
 - utils.locale::is_chinese (POS: BCP-47 Chinese detection for description locale)
 
 [OUTPUT]
-- resolve_web_fetch_tool_description: Locale-aware description resolver
-- WEB_FETCH_TOOL_DESCRIPTION_EN / _ZH: locale-specific SSOT constants
+- resolve_web_fetch_tool_description: Locale-aware description resolver; documents fetch_and_extract only when the tool offers it
+- DEFAULT_WEB_FETCH_TOOL_DESCRIPTION_LOCALE: Locale used when the caller passes none
 
 [POS]
 Prompt SSOT for web_fetch_tool. Imported by web_fetch_agent_tools.py and static tests.
@@ -56,17 +56,17 @@ Get the **full content** of known webpages (single or multiple URLs).
 """
 
 _FULL_CONTENT_ONLY_EN = """
-Get full content from known webpage URLs (Markdown format). Supports single or multiple URLs.
+Get full content from known webpage URLs (Markdown format). Supports single or multiple URLs, up to 5 per call.
+Long pages come back shortened; if the full text was saved, the result says how to read the omitted parts.
 
 **Parameters:**
 - urls: Known and real target webpage URL list, no fabrication allowed
-- operation: "fetch_full_content"
 """
 
 _HEADER_EN = """web_fetch_tool extracts detailed content from specific webpage URLs.
 {sections}
 For read-only content retrieval (articles, docs, blog posts), always prefer this tool over browser_navigate — it's faster, cheaper, and handles JS rendering internally.
-WeChat Official Account article links (mp.weixin.qq.com/s/...) are supported via fetch_full_content; use the real article URL the user provided.
+WeChat Official Account article links (mp.weixin.qq.com/s/...) are supported{wechat_access}; use the real article URL the user provided.
 For JS-heavy or interactive pages (clicking, filling forms, scrolling), use browser tools. For many pages, call web_fetch with multiple URLs."""
 
 _EXTRACT_SECTION_ZH = """
@@ -102,17 +102,17 @@ _FULL_CONTENT_WITH_EXTRACT_ZH = """
 """
 
 _FULL_CONTENT_ONLY_ZH = """
-从已知网页 URL 获取完整内容（Markdown 格式）。支持单个或多个 URL。
+从已知网页 URL 获取完整内容（Markdown 格式）。支持单个或多个 URL，每次最多 5 个。
+过长的页面会被截短返回；若完整内容已保存，结果中会说明如何读取被省略的部分。
 
 **参数：**
 - urls：已知且真实的目标网页 URL 列表，禁止编造
-- operation："fetch_full_content"
 """
 
 _HEADER_ZH = """web_fetch_tool 从指定的网页 URL 提取详细内容。
 {sections}
 对于只读内容检索（文章、文档、博客），始终优先使用本工具而非 browser_navigate——更快、更省，内部处理 JS 渲染。
-微信公众号文章链接（mp.weixin.qq.com/s/...）可通过 fetch_full_content 获取；使用用户提供的真实文章 URL。
+微信公众号文章链接（mp.weixin.qq.com/s/...）{wechat_access}；使用用户提供的真实文章 URL。
 对于 JS 重或交互式页面（点击、填表、滚动），请使用浏览器工具。页面较多时，可在一次调用中传入多个 URL。"""
 
 
@@ -123,22 +123,25 @@ def resolve_web_fetch_tool_description(
 
     ``enable_extract`` mirrors the tool's runtime capability: when the reranker
     and embedding services are available, ``fetch_and_extract`` is offered and
-    the description documents both operations; otherwise only
-    ``fetch_full_content`` is described so the LLM never attempts a disabled
-    operation.
+    the description documents both operations; otherwise the tool has no
+    ``operation`` argument and the description only covers reading pages in full.
     """
     if is_chinese(locale):
         if enable_extract:
             sections = _EXTRACT_SECTION_ZH + _FULL_CONTENT_WITH_EXTRACT_ZH
+            wechat_access = "可通过 fetch_full_content 获取"
         else:
             sections = _FULL_CONTENT_ONLY_ZH
-        return _HEADER_ZH.format(sections=sections).strip()
+            wechat_access = "可直接获取"
+        return _HEADER_ZH.format(sections=sections, wechat_access=wechat_access).strip()
 
     if enable_extract:
         sections = _EXTRACT_SECTION_EN + _FULL_CONTENT_WITH_EXTRACT_EN
+        wechat_access = " via fetch_full_content"
     else:
         sections = _FULL_CONTENT_ONLY_EN
-    return _HEADER_EN.format(sections=sections).strip()
+        wechat_access = ""
+    return _HEADER_EN.format(sections=sections, wechat_access=wechat_access).strip()
 
 
 __all__ = [

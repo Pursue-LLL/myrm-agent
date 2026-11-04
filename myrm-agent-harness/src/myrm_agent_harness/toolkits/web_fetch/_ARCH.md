@@ -2,14 +2,14 @@
 
 ## Overview
 
-Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fallback, adaptive routing, optional L4 remote escalation, and UECD spill for large pages.
+Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fallback, adaptive routing, optional L4 remote escalation, and full-content delivery that shortens long pages to one shared budget while saving the complete text for `file_read_tool`.
 
 ## Submodule Index
 
 | Submodule | Role | Description |
 |-----------|------|-------------|
 | [engine/](engine/_ARCH.md) | Core | FetchEngine tiered fetcher pool |
-| [processing/](processing/_ARCH.md) | Core | Post-fetch pipeline, markdown, spill, anti-bot |
+| [processing/](processing/_ARCH.md) | Core | Post-fetch pipeline, markdown, full-content delivery, anti-bot |
 | [probe/](probe/_ARCH.md) | Util | HTTP/3 probe and charset detection |
 | [extractors/](extractors/_ARCH.md) | Core | WeChat / Bilibili / YouTube fast-paths |
 | [fetchers/](fetchers/_ARCH.md) | Core | L1/L2/L3 fetcher implementations |
@@ -21,7 +21,7 @@ Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fall
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports FetchEngine and result types | ✅ |
-| web_fetch_agent_tools.py | Core | LangChain web_fetch_tool factory; `fetch_and_extract` requires both embedding and reranker configs, otherwise only `fetch_full_content` is available | ✅ |
+| web_fetch_agent_tools.py | Core | LangChain web_fetch_tool factory; with both embedding and reranker configs the tool offers `fetch_and_extract` and `fetch_full_content`, otherwise it only reads pages in full (`urls`, up to 5, plus `reason`; all pages share one budget, the complete text is saved when any page is cut) | ✅ |
 | _web_fetch_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH) | ✅ |
 
 ## L4 Escalation (WFEL)

@@ -13,7 +13,6 @@ def test_lazy_resolve_public_exports() -> None:
         "parse_front_matter",
         "extract_original_content",
         "format_documents_with_metadata",
-        "format_crawl_results",
         "wrap_with_external_sources_tag",
         "wrap_with_tool_output_tag",
         "TruncationStats",
