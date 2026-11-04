@@ -11,7 +11,7 @@
 - router: `GET /chat-model`，为首页"使用本机 Ollama"一键连接挑出可用模型
 
 [POS]
-本机 Ollama 探测与一键连接端点。只读取用户已经装好的模型，不安装、不下载、不评估硬件。
+本机 Ollama 探测与一键连接端点。只读取用户已经装好的模型，不安装、不下载。
 """
 
 from collections.abc import Sequence

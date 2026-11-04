@@ -4,7 +4,7 @@
 
 [OUTPUT]
 - AgentColdStartDiagnostic: Agent 冷启动首轮预热就绪度与阶段延迟诊断探针。
-- OllamaModelContextDiagnostic: 本地 Ollama 模型 64K 上下文配置与 Agentic 衍生检测探针。
+- OllamaModelContextDiagnostic: 按 `/api/show` 的 `num_ctx` 检测本地 Ollama 模型是否具备 64K 上下文。
 - AgentStepBudgetDiagnostic: 活跃 Agent 单次执行步数预算充足度探针。
 - AgentPromptCacheAlignmentDiagnostic: Agent 系统提示词前缀对齐与 KV Cache 抖动审计探针。
 
