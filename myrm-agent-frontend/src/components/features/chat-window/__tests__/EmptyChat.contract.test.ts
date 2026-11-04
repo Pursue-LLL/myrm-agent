@@ -32,7 +32,15 @@ function importedComponents(source: string): string[] {
     if (!isLocalModule) {
       continue;
     }
-    const names = [defaultImport, ...namedImports.split(',').map((name) => name.trim().split(/\s+as\s+/).pop())];
+    const names = [
+      defaultImport,
+      ...namedImports.split(',').map((name) =>
+        name
+          .trim()
+          .split(/\s+as\s+/)
+          .pop(),
+      ),
+    ];
     components.push(...names.filter((name): name is string => !!name && /^[A-Z]/.test(name)));
   }
   return components;
