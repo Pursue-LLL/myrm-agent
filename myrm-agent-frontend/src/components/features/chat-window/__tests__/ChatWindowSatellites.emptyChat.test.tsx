@@ -56,11 +56,7 @@ const firstMessage: Message = {
 
 function renderSatellites() {
   return render(
-    <ChatWindowSatellites
-      chatId="chat-1"
-      onInspectorInstruction={() => {}}
-      onDesktopInspectorInstruction={() => {}}
-    />,
+    <ChatWindowSatellites chatId="chat-1" onInspectorInstruction={() => {}} onDesktopInspectorInstruction={() => {}} />,
   );
 }
 
