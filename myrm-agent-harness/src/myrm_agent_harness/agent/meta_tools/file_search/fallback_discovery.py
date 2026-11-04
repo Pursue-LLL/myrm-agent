@@ -109,6 +109,8 @@ def _git_listing(repo_root: Path, pathspec: str, timeout_seconds: float) -> list
         return None
 
     # A path that is unmerged (a conflicted merge) has one index entry per stage, so git names it up to three times.
+    # ``dict.fromkeys`` drops the repeats and keeps git's order, which decides the files that fall under ``max_files``
+    # and the order of the matches; a set would reorder them from one process to the next.
     rel_paths = dict.fromkeys(ls_files.stdout.decode("utf-8", errors="replace").split("\x00"))
     entries = [repo_root / rel_path for rel_path in rel_paths if rel_path]
     if not entries and _is_git_ignored(repo_root, pathspec, timeout_seconds):

@@ -1,9 +1,9 @@
-"""End-to-end tests: a repository stopped on a merge conflict lists each file once, once per search tier.
+"""A repository stopped on a merge conflict lists each file once, in git's order, on both search tiers.
 
 git's index holds three stages of an unmerged path, so ``git ls-files --cached`` names that path three times.
 
 Covers:
-- ``collect_candidate_files`` names an unmerged path once
+- ``collect_candidate_files`` names an unmerged path once and keeps git's order
 - glob_tool lists the file once and grep_tool finds its conflict markers once
 - The Python tier counts the file once among the files it searched
 """
@@ -45,6 +45,18 @@ class TestDiscovery:
         )
 
         assert sorted(path.name for path in files) == ["a.txt", "b.txt"]
+
+    def test_the_listing_keeps_gits_order(self, conflicted: Path) -> None:
+        # Eight tracked names: a listing in hash order matches git's order only by chance.
+        later = ["c.txt", "d.txt", "k.txt", "m.txt", "x.txt", "z.txt"]
+        write_tree(conflicted, dict.fromkeys(later, "later\n"))
+        git(conflicted, "add", *later)
+
+        files = collect_candidate_files(
+            search_root=conflicted, file_pattern="**/*", max_files=100, include_ignored=False
+        )
+
+        assert [path.name for path in files] == ["a.txt", "b.txt", *later]
 
 
 class TestTools:
