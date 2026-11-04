@@ -18453,7 +18453,7 @@
       "ledger": {
         "title": "五层知识资产全局态势",
         "architectureBadge": "WorkBuddy 架构",
-        "description": "物理分层隔离事实与假说，提供任务台账审计。",
+        "description": "物理分层隔离事实与假说。",
         "refreshStats": "刷新统计",
         "viewLayerItems": "查看 {title} 词条清单",
         "archivedItems": "已归档条目",
@@ -18492,22 +18492,16 @@
             "description": "带置信度与辩论记录的假说，与客观事实强行隔离，避免污染真理。"
           },
           "l5": {
-            "title": "交付物与使用台账",
-            "subtext": "交付物与台账",
-            "badge": "交付台账",
-            "description": "任务最终产出的交付物，完整记录知识引用、衍生与未采纳台账。"
+            "title": "交付物",
+            "subtext": "交付物",
+            "badge": "最终产出",
+            "description": "任务最终产出的交付物。"
           }
         },
         "preview": {
           "ariaLabel": "词条文档预览",
-          "jsonLedgerBadge": "JSON 台账",
-          "taskBadge": "任务 #{id}",
           "updatedAt": "更新时间：{value}",
           "storageLayer": "存储分层：{value}",
-          "fileType": "文件类型：{value}",
-          "fileTypeJson": "结构化审计台账 (JSON)",
-          "fileTypeMarkdown": "Markdown 知识资产",
-          "sourceTask": "来源任务：{value}",
           "pathCopied": "已复制路径",
           "copyPath": "复制相对路径",
           "openInEditor": "在 Wiki 编辑器中打开",

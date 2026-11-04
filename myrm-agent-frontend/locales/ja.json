@@ -18453,7 +18453,7 @@
       "ledger": {
         "title": "5層ナレッジ資産の全体像",
         "architectureBadge": "WorkBuddy アーキテクチャ",
-        "description": "事実と仮説を物理的に層分けして隔離し、タスク台帳の監査を提供します。",
+        "description": "事実と仮説を物理的に層分けして隔離します。",
         "refreshStats": "統計を更新",
         "viewLayerItems": "{title} のエントリー一覧を表示",
         "archivedItems": "アーカイブ済みエントリー",
@@ -18492,22 +18492,16 @@
             "description": "確信度と議論の記録を持つ仮説。客観的な事実とは強制的に隔離し、真実の層を汚さないようにします。"
           },
           "l5": {
-            "title": "成果物と利用台帳",
-            "subtext": "成果物と台帳",
-            "badge": "納品台帳",
-            "description": "タスクの最終成果物。知識の引用、派生、不採用を台帳に完全に記録します。"
+            "title": "成果物",
+            "subtext": "成果物",
+            "badge": "最終成果",
+            "description": "タスクの最終成果物。"
           }
         },
         "preview": {
           "ariaLabel": "エントリー文書のプレビュー",
-          "jsonLedgerBadge": "JSON 台帳",
-          "taskBadge": "タスク #{id}",
           "updatedAt": "更新日時：{value}",
           "storageLayer": "保存レイヤー：{value}",
-          "fileType": "ファイル種別：{value}",
-          "fileTypeJson": "構造化された監査台帳 (JSON)",
-          "fileTypeMarkdown": "Markdown ナレッジ資産",
-          "sourceTask": "元のタスク：{value}",
           "pathCopied": "パスをコピーしました",
           "copyPath": "相対パスをコピー",
           "openInEditor": "Wiki エディターで開く",

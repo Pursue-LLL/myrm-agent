@@ -18453,7 +18453,7 @@
       "ledger": {
         "title": "Übersicht der fünf Wissensschichten",
         "architectureBadge": "WorkBuddy-Architektur",
-        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten; dazu gibt es Aufgabenprotokoll-Audits.",
+        "description": "Fakten und Hypothesen werden physisch in getrennten Schichten gehalten.",
         "refreshStats": "Statistik aktualisieren",
         "viewLayerItems": "Eintragsliste von {title} anzeigen",
         "archivedItems": "Archivierte Einträge",
@@ -18492,22 +18492,16 @@
             "description": "Hypothesen mit Konfidenz und Diskussionsverlauf, strikt von objektiven Fakten getrennt, damit sie die Wahrheitsschicht nicht verunreinigen."
           },
           "l5": {
-            "title": "Ergebnisse und Nutzungsprotokolle",
-            "subtext": "Ergebnisse & Verzeichnisse",
-            "badge": "Lieferprotokoll",
-            "description": "Endergebnisse einer Aufgabe, mit vollständigem Protokoll über zitiertes, abgeleitetes und nicht übernommenes Wissen."
+            "title": "Ergebnisse",
+            "subtext": "Ergebnisse",
+            "badge": "Endergebnis",
+            "description": "Endergebnisse einer Aufgabe."
           }
         },
         "preview": {
           "ariaLabel": "Dokumentvorschau des Eintrags",
-          "jsonLedgerBadge": "JSON-Protokoll",
-          "taskBadge": "Aufgabe #{id}",
           "updatedAt": "Aktualisiert: {value}",
           "storageLayer": "Speicherschicht: {value}",
-          "fileType": "Dateityp: {value}",
-          "fileTypeJson": "Strukturiertes Audit-Protokoll (JSON)",
-          "fileTypeMarkdown": "Markdown-Wissensasset",
-          "sourceTask": "Quellaufgabe: {value}",
           "pathCopied": "Pfad kopiert",
           "copyPath": "Relativen Pfad kopieren",
           "openInEditor": "Im Wiki-Editor öffnen",

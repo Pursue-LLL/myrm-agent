@@ -1,22 +1,20 @@
-"""Wiki Writeback and 5-Layer structure REST routes.
+"""Wiki 5-Layer structure REST routes.
 
 [INPUT]
 - fastapi::APIRouter, Depends, Query
-- app.services.wiki.writeback
+- app.services.wiki.layers
 - app.services.wiki.vault::resolve_wiki_vault_path
 - myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure
 
 [OUTPUT]
-- router (Writeback sub-router)
+- router (Layers sub-router)
 
 [POS]
-REST API endpoints for task usage ledger recording and 5-layer structure
-stats and document inspection.
+REST API endpoints for 5-layer structure file counts and per-layer document listing.
 """
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
@@ -24,16 +22,10 @@ from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 from pydantic import BaseModel
 
 from app.api.dependencies import get_workspace_root
+from app.services.wiki.layers import WikiLayerItem, get_layers_service
 from app.services.wiki.vault import resolve_wiki_vault_path
-from app.services.wiki.writeback import (
-    UsageLedgerRecord,
-    WikiLayerItem,
-    get_writeback_service,
-)
 
-logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/writeback", tags=["wiki-writeback"])
+router = APIRouter(prefix="/layers", tags=["wiki-layers"])
 
 
 class WikiLayersStats(BaseModel):
@@ -48,19 +40,7 @@ class WikiLayersStats(BaseModel):
     inbox_count: int
 
 
-@router.post("/ledger", response_model=dict[str, str])
-async def record_task_ledger(
-    record: UsageLedgerRecord,
-    agent_id: str = Query("default", description="Target agent ID"),
-    workspace_root: Path = Depends(get_workspace_root),
-) -> dict[str, str]:
-    """Persist a task execution usage ledger."""
-    service = get_writeback_service(workspace_root=workspace_root)
-    path = service.record_usage_ledger(agent_id, record)
-    return {"status": "ok", "saved_path": str(path)}
-
-
-@router.get("/layers-stats", response_model=WikiLayersStats)
+@router.get("/stats", response_model=WikiLayersStats)
 async def get_wiki_layers_stats(
     agent_id: str = Query("default", description="Target agent ID"),
 ) -> WikiLayersStats:
@@ -87,7 +67,7 @@ async def get_wiki_layers_stats(
     )
 
 
-@router.get("/layer-items", response_model=list[WikiLayerItem])
+@router.get("/items", response_model=list[WikiLayerItem])
 async def get_wiki_layer_items(
     layer: str = Query(..., description="Target layer key, e.g. methods, claims, deliverables, sources, raw"),
     agent_id: str = Query("default", description="Target agent ID"),
@@ -95,5 +75,5 @@ async def get_wiki_layer_items(
     workspace_root: Path = Depends(get_workspace_root),
 ) -> list[WikiLayerItem]:
     """Retrieve list of documents inside a specific layer with metadata snippet."""
-    service = get_writeback_service(workspace_root=workspace_root)
+    service = get_layers_service(workspace_root=workspace_root)
     return service.list_layer_items(agent_id=agent_id, layer_key=layer, limit=limit)

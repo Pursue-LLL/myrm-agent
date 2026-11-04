@@ -18453,7 +18453,7 @@
       "ledger": {
         "title": "5계층 지식 자산 전체 현황",
         "architectureBadge": "WorkBuddy 아키텍처",
-        "description": "사실과 가설을 물리적 계층으로 분리하고, 작업 원장 감사를 제공합니다.",
+        "description": "사실과 가설을 물리적 계층으로 분리합니다.",
         "refreshStats": "통계 새로고침",
         "viewLayerItems": "{title} 항목 목록 보기",
         "archivedItems": "보관된 항목",
@@ -18492,22 +18492,16 @@
             "description": "신뢰도와 논쟁 기록이 있는 가설로, 객관적 사실과 강제로 분리해 진실 계층이 오염되지 않게 합니다."
           },
           "l5": {
-            "title": "산출물 및 사용 원장",
-            "subtext": "산출물 및 원장",
-            "badge": "납품 원장",
-            "description": "작업의 최종 산출물로, 지식의 인용, 파생, 미채택 내역을 원장에 모두 기록합니다."
+            "title": "산출물",
+            "subtext": "산출물",
+            "badge": "최종 결과",
+            "description": "작업의 최종 산출물."
           }
         },
         "preview": {
           "ariaLabel": "항목 문서 미리보기",
-          "jsonLedgerBadge": "JSON 원장",
-          "taskBadge": "작업 #{id}",
           "updatedAt": "업데이트: {value}",
           "storageLayer": "저장 계층: {value}",
-          "fileType": "파일 유형: {value}",
-          "fileTypeJson": "구조화된 감사 원장 (JSON)",
-          "fileTypeMarkdown": "Markdown 지식 자산",
-          "sourceTask": "원본 작업: {value}",
           "pathCopied": "경로를 복사했습니다",
           "copyPath": "상대 경로 복사",
           "openInEditor": "Wiki 편집기에서 열기",

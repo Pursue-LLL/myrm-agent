@@ -18453,7 +18453,7 @@
       "ledger": {
         "title": "五層知識資產全域態勢",
         "architectureBadge": "WorkBuddy 架構",
-        "description": "以實體分層隔離事實與假說，提供任務台帳稽核。",
+        "description": "以實體分層隔離事實與假說。",
         "refreshStats": "重新整理統計",
         "viewLayerItems": "檢視 {title} 詞條清單",
         "archivedItems": "已封存條目",
@@ -18492,22 +18492,16 @@
             "description": "帶有信心度與辯論紀錄的假說，與客觀事實強制隔離，避免汙染真理。"
           },
           "l5": {
-            "title": "交付物與使用台帳",
-            "subtext": "交付物與台帳",
-            "badge": "交付台帳",
-            "description": "任務最終產出的交付物，完整記錄知識引用、衍生與未採納台帳。"
+            "title": "交付物",
+            "subtext": "交付物",
+            "badge": "最終產出",
+            "description": "任務最終產出的交付物。"
           }
         },
         "preview": {
           "ariaLabel": "詞條文件預覽",
-          "jsonLedgerBadge": "JSON 台帳",
-          "taskBadge": "任務 #{id}",
           "updatedAt": "更新時間：{value}",
           "storageLayer": "儲存分層：{value}",
-          "fileType": "檔案類型：{value}",
-          "fileTypeJson": "結構化稽核台帳 (JSON)",
-          "fileTypeMarkdown": "Markdown 知識資產",
-          "sourceTask": "來源任務：{value}",
           "pathCopied": "已複製路徑",
           "copyPath": "複製相對路徑",
           "openInEditor": "在 Wiki 編輯器中開啟",

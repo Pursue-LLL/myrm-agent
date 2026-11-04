@@ -51,7 +51,6 @@ def test_frontmatter_page_types_extended():
     assert WikiPageType.METHOD == "method"
     assert WikiPageType.TEMPLATE == "template"
     assert WikiPageType.DELIVERABLE == "deliverable"
-    assert WikiPageType.USAGE_LEDGER == "usage_ledger"
 
 
 def test_source_card_serialization_and_parsing():
@@ -63,7 +62,7 @@ def test_source_card_serialization_and_parsing():
         url_or_path="https://mp.weixin.qq.com/s/sample",
         provenance_class="author_claim",
         risk_level="medium",
-        covered_concepts=["five_layer_wiki", "usage_ledger"],
+        covered_concepts=["five_layer_wiki", "claim_separation"],
         verification_notes="详细验证了事实与主张分离对减少幻觉的关键作用",
     )
 
