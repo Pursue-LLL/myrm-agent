@@ -20,6 +20,7 @@ import re
 import time
 from typing import Literal
 
+import httpx
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
     HealthReport,
@@ -141,7 +142,37 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
 
 
 class OllamaModelContextDiagnostic(DiagnosticProtocol):
-    """Probe Ollama local models to detect if active models have >=64k context."""
+    """Probe Ollama local models to detect if any reports a >=64k context window."""
+
+    _REQUIRED_CONTEXT_TOKENS = 64000
+    # 只看前几个模型：一次 doctor 检查不值得为几十个模型逐个发请求。
+    _MAX_CONTEXT_PROBES = 5
+
+    async def _models_with_long_context(self, client: "httpx.AsyncClient", base_url: str, models: list[str]) -> list[str]:
+        """Ask `/api/show` for each candidate's `num_ctx` and keep the ones at or above the threshold."""
+        ready: list[str] = []
+        for name in models[: self._MAX_CONTEXT_PROBES]:
+            try:
+                response = await client.post(f"{base_url}/api/show", json={"model": name})
+                if response.status_code != 200:
+                    continue
+                parameters = response.json().get("parameters")
+            except Exception:
+                continue
+            if isinstance(parameters, str) and self._num_ctx(parameters) >= self._REQUIRED_CONTEXT_TOKENS:
+                ready.append(name)
+        return ready
+
+    @staticmethod
+    def _num_ctx(parameters: str) -> int:
+        for line in parameters.splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[0] == "num_ctx":
+                try:
+                    return int(parts[1])
+                except ValueError:
+                    return 0
+        return 0
 
     async def check_health(self) -> HealthReport:
         from app.config.deploy_mode import DeployMode, get_deploy_mode
@@ -155,8 +186,6 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
             )
 
         try:
-            import httpx
-
             from app.services.config.onboarding import get_ollama_base_url
 
             base_url = get_ollama_base_url()
@@ -180,19 +209,19 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                         message="Ollama is active with 0 installed models.",
                     )
 
-                agentic_models = [m for m in models if "-agentic" in m]
-                if not agentic_models:
+                long_context_models = await self._models_with_long_context(client, base_url, models)
+                if not long_context_models:
                     return HealthReport(
                         component_name="OllamaContext",
                         status="warn",
-                        code="WARN_OLLAMA_NO_AGENTIC_MODELS",
-                        message=f"Ollama has {len(models)} installed models but none configured with 64K agentic Modelfile.",
+                        code="WARN_OLLAMA_NO_LONG_CONTEXT",
+                        message=f"Ollama has {len(models)} installed models but none reports a 64K context window.",
                         detail="Native Ollama models default to a small context. Raise it with a Modelfile parameter (num_ctx 64000) or OLLAMA_CONTEXT_LENGTH.",
                         fix_suggestion="Create a Modelfile with PARAMETER num_ctx 64000, or raise OLLAMA_CONTEXT_LENGTH.",
-                        meta_data={"total_models": len(models), "agentic_models": []},
+                        meta_data={"total_models": len(models), "long_context_models": []},
                         metrics={
                             "installed_models_count": float(len(models)),
-                            "agentic_models_count": 0.0,
+                            "long_context_models_count": 0.0,
                         },
                     )
 
@@ -200,15 +229,15 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                     component_name="OllamaContext",
                     status="pass",
                     code="OK_OLLAMA_CONTEXT_READY",
-                    message=f"Ollama local model ecosystem ready ({len(models)} models, {len(agentic_models)} agentic 64K).",
+                    message=f"Ollama local model ecosystem ready ({len(models)} models, {len(long_context_models)} with >=64K context).",
                     detail=f"Detected models: {', '.join(models[:5])}",
                     meta_data={
                         "total_models": len(models),
-                        "agentic_models": agentic_models,
+                        "long_context_models": long_context_models,
                     },
                     metrics={
                         "installed_models_count": float(len(models)),
-                        "agentic_models_count": float(len(agentic_models)),
+                        "long_context_models_count": float(len(long_context_models)),
                     },
                 )
         except Exception:
