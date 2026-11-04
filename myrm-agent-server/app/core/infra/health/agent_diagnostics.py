@@ -26,6 +26,8 @@ from myrm_agent_harness.observability.diagnostics.protocols import (
     HealthReport,
 )
 
+from app.core.infra.health.ollama_context_probe import probe_long_context_models
+
 logger = logging.getLogger(__name__)
 
 
@@ -144,48 +146,6 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
 class OllamaModelContextDiagnostic(DiagnosticProtocol):
     """Probe Ollama local models to detect if any reports a >=64k context window."""
 
-    _REQUIRED_CONTEXT_TOKENS = 64000
-    # 只看前几个模型：一次 doctor 检查不值得为几十个模型逐个发请求。
-    _MAX_CONTEXT_PROBES = 5
-    # 并行探测也要有总预算：Ollama 卡住时 doctor 不能被拖住十几秒。
-    _PROBE_BUDGET_S = 3.0
-
-    async def _models_with_long_context(self, client: "httpx.AsyncClient", base_url: str, models: list[str]) -> list[str]:
-        """Ask `/api/show` for the candidates' `num_ctx` and keep the ones at or above the threshold.
-
-        The probes run together under one budget: a hung daemon answers nothing, and the doctor
-        then reports the same warning it would for a model without a pinned context.
-        """
-        candidates = models[: self._MAX_CONTEXT_PROBES]
-        try:
-            async with asyncio.timeout(self._PROBE_BUDGET_S):
-                contexts = await asyncio.gather(*(self._num_ctx_of(client, base_url, name) for name in candidates))
-        except TimeoutError:
-            return []
-        return [name for name, ctx in zip(candidates, contexts, strict=True) if ctx >= self._REQUIRED_CONTEXT_TOKENS]
-
-    async def _num_ctx_of(self, client: "httpx.AsyncClient", base_url: str, name: str) -> int:
-        """The `num_ctx` a model reports through `/api/show`; 0 when it reports none."""
-        try:
-            response = await client.post(f"{base_url}/api/show", json={"model": name})
-            if response.status_code != 200:
-                return 0
-            parameters = response.json().get("parameters")
-        except Exception:
-            return 0
-        return self._num_ctx(parameters) if isinstance(parameters, str) else 0
-
-    @staticmethod
-    def _num_ctx(parameters: str) -> int:
-        for line in parameters.splitlines():
-            parts = line.split()
-            if len(parts) == 2 and parts[0] == "num_ctx":
-                try:
-                    return int(parts[1])
-                except ValueError:
-                    return 0
-        return 0
-
     async def check_health(self) -> HealthReport:
         from app.config.deploy_mode import DeployMode, get_deploy_mode
 
@@ -221,7 +181,7 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                         message="Ollama is active with 0 installed models.",
                     )
 
-                long_context_models = await self._models_with_long_context(client, base_url, models)
+                long_context_models = await probe_long_context_models(client, base_url, models)
                 if not long_context_models:
                     return HealthReport(
                         component_name="OllamaContext",

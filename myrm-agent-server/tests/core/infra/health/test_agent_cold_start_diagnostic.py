@@ -381,7 +381,6 @@ async def test_ollama_context_probe_stops_at_its_budget() -> None:
     from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
 
     diagnostic = OllamaModelContextDiagnostic()
-    diagnostic._PROBE_BUDGET_S = 0.05
 
     async def never_answers(*_args: object, **_kwargs: object) -> None:
         await asyncio.sleep(30)
@@ -394,6 +393,7 @@ async def test_ollama_context_probe_stops_at_its_budget() -> None:
         patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL),
         patch("httpx.AsyncClient.get", return_value=tags_resp),
         patch("httpx.AsyncClient.post", side_effect=never_answers),
+        patch("app.core.infra.health.ollama_context_probe.PROBE_BUDGET_S", 0.05),
     ):
         started = time.monotonic()
         report = await diagnostic.check_health()
