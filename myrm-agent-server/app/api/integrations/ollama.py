@@ -1,22 +1,32 @@
 """
 [INPUT]
 - httpx::AsyncClient (POS: 调用方提供的 HTTP 客户端，决定超时与传输)
+- app.services.config.onboarding::get_ollama_base_url (POS: 本机 Ollama 守护进程地址的唯一解析入口)
 
 [OUTPUT]
 - OLLAMA_PROBE_TIMEOUT_S: 单次探测请求的超时秒数
 - OllamaModel: `/api/tags` 中的一条已安装模型
 - list_ollama_models: 读取本机 Ollama 已安装模型，守护进程不可达时返回 None
 - find_chat_model: 在已安装模型中找出首个既能对话又支持工具调用的本机模型
+- router: `GET /chat-model`，为首页"使用本机 Ollama"一键连接挑出可用模型
 
 [POS]
-本机 Ollama 守护进程探测。Cookbook 的"是否已安装"判断与首页一键连接共用同一份 `/api/tags` 读取，
-一键连接再用 `/api/show` 的 capabilities 排除 embedding 模型、无工具调用能力的模型与云端转发模型。
+本机 Ollama 探测与一键连接端点。只读取用户已经装好的模型，不安装、不下载、不评估硬件。
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import httpx
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from app.core.utils.response_utils import success_response
+from app.schemas.responses import StandardSuccessResponse
+from app.services.config.onboarding import get_ollama_base_url
+
+router = APIRouter()
 
 OLLAMA_PROBE_TIMEOUT_S = 2.0
 
@@ -71,3 +81,26 @@ async def find_chat_model(client: httpx.AsyncClient, base_url: str, models: Sequ
         if isinstance(capabilities, list) and all(capability in capabilities for capability in _REQUIRED_CAPABILITIES):
             return model.name
     return None
+
+
+class OllamaChatModelResponse(BaseModel):
+    model: str | None = Field(default=None, description="能对话且支持工具调用的本机模型；没有合格模型时为空")
+    base_url: str = Field(..., description="探测所用的 Ollama 地址，连接时作为该 provider 的 API 地址")
+
+
+@router.get("/chat-model", response_model=StandardSuccessResponse)
+async def get_ollama_chat_model() -> JSONResponse:
+    """给首页一键连接挑出本机 Ollama 里首个能对话且支持工具调用的模型。
+
+    Ollama 未运行、没有合格模型、或守护进程版本过旧（不报告 capabilities）时 model 为空，前端据此不显示按钮。
+    """
+    from app.config.deploy_mode import DeployMode, get_deploy_mode
+
+    if get_deploy_mode() == DeployMode.SANDBOX:
+        raise HTTPException(status_code=403, detail="Not available in SaaS mode")
+
+    base_url = get_ollama_base_url()
+    async with httpx.AsyncClient(timeout=OLLAMA_PROBE_TIMEOUT_S) as client:
+        models = await list_ollama_models(client, base_url)
+        chat_model = await find_chat_model(client, base_url, models) if models else None
+    return success_response(data=OllamaChatModelResponse(model=chat_model, base_url=base_url).model_dump())

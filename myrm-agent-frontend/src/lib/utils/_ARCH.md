@@ -42,7 +42,6 @@
 - `cronEstimate.ts`：定时表达式估算 — cron/interval/once 三类调度月执行次数估算。
 - `diagnostic-export.ts`：诊断导出 — `formatDoctorReportAsMarkdown` GitHub Issue 友好格式化、`buildDiagnosticBundle` 诊断 JSON 组装（含客户端上下文）、复制与下载触发。
 - `domUtils.ts`：DOM 滚动检测 — `isNearBottom` 滚动接近底部判定（阈值可调）。
-- `hardwareSimulator.ts`：硬件阶梯估算 — HardwareRungInfo 阶梯信息与 64k 上下文 KV Cache 内存估算。
 - `messageUtils.ts`：消息处理工具 — 时间戳标签剥离、ui_action JSON 块剥离、用户消息展示清理、explicit skill wire（`[use s1,s2]`）解析与构建、skill chip 展示名、markdown 纯化、浏览器时区获取。
 - `spillover.ts`：超长粘贴文本的前端约定 — 两条线分开：折叠线（`PASTE_CARD_MIN_CHARS` 16,000 字符 / 词元压力 8,000，中日韩文本约 4,445 字）只决定气泡里是否折成卡片，模型仍收到全文；停车线（`SPILLOVER_MIN_CHARS` 64,000 字符 / 词元压力 16,000，中日韩文本约 8,900 字）与服务端 `USER_TEXT_LIMITS` 同值，由 `tests/architecture/test_spillover_limits_parity.py` 绑定。`isLongPaste`（是否折成卡片）、`isParkedPaste`（服务端是否把这段文本存成文件，两者都按长度与词元压力判定——`estimateTokenPressure` 按字符种类加权（小写字母与空白 0.25、大写 1、数字 0.75、其余 ASCII 0.4、非 ASCII 窄字符 0.5、宽字符 1.8，整数百分位求和），六个权重由契约测试与服务端 `estimate_token_pressure` 逐项绑定；宽字符类取 Unicode 主要块，与服务端估算器逐码点比对只在表情与未分配码位上有出入）、`normalizeSpillover`（服务端 `spillover` 元数据 → `MessageSpillover`）、`pastedTextOf`（用 `isLongPaste` 判定一条用户消息是否按「字数 + 开头预览」折叠显示；原文就在消息里的（刚发出的、或服务端没停车的历史消息）带着 `fullText` 可原地展开并保留复制与编辑，已停车的历史消息只剩预览与文件路径）、`userMessageDisplayText`（标题与轮次导轨列出消息所用的文本）；单测 `__tests__/spillover.test.ts`。
 - `modelFormatUtils.ts`：数值紧凑格式化 — token 数量 K/M 紧凑展示。

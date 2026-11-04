@@ -87,7 +87,6 @@ src/components/features/settings/SettingsLayout.tsx
 src/components/features/settings/SettingsMenu.tsx
 src/components/features/settings/mcp/MCPConfigEditor.tsx
 src/components/features/settings/model-service/ApiKeyManager.tsx
-src/components/features/settings/model-service/HardwareCookbook.tsx
 src/components/features/settings/model-service/ProviderConfig.tsx
 src/components/features/settings/retrieval/ProviderModelSelector.tsx
 src/components/features/settings/sections/ai-core/AgentEditPanel.tsx

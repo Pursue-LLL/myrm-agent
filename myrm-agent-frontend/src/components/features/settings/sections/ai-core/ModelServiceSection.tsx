@@ -17,7 +17,6 @@ import {
 } from '@/store/config/providerTypes';
 import ProviderList from '../../model-service/ProviderList';
 import ProviderConfig from '../../model-service/ProviderConfig';
-import HardwareCookbook from '../../model-service/HardwareCookbook';
 import AddProviderDialog from '../../model-service/AddProviderDialog';
 import { DeleteProviderDialog } from '../../model-service/DeleteProviderDialog';
 import SpeedTestDialog from '../../model-service/SpeedTestDialog';
@@ -243,61 +242,6 @@ const ModelServiceSection = memo(() => {
     return configs;
   }, [providers]);
 
-  const handleApplyRecommendedModel = useCallback(
-    (modelId: string) => {
-      // 提取纯模型名，例如 'ollama/qwen2.5:3b' -> 'qwen2.5:3b'
-      const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
-
-      // 查找是否已有 Ollama 提供商
-      const ollamaProvider = providers.find((p) => p.id === 'ollama');
-
-      if (!ollamaProvider) {
-        // 如果没有，自动添加一个（Ollama 是内置本地提供商）
-        const newId = 'ollama';
-        const newProvider: ProviderConfigType = {
-          id: newId,
-          name: 'Ollama Local',
-          isBuiltIn: true,
-          isEnabled: true,
-          apiKeys: [],
-          apiUrl: 'http://localhost:11434/v1',
-          enabledModels: [pureModelName],
-          availableModels: [pureModelName],
-          providerType: undefined,
-          routingProfile: 'ollama',
-        };
-        setProviders([...providers, newProvider]);
-        handleSelectProvider(newId);
-        return;
-      }
-
-      // 切换到 Ollama 提供商
-      handleSelectProvider(ollamaProvider.id);
-
-      // 将模型添加到 availableModels 列表中（如果不存在）
-      const currentCustomModels = ollamaProvider.availableModels || [];
-      if (!currentCustomModels.includes(pureModelName)) {
-        const updatedProvider = {
-          ...ollamaProvider,
-          availableModels: [...currentCustomModels, pureModelName],
-          // 自动将该模型加入已启用列表
-          enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName],
-        };
-        updateProvider(ollamaProvider.id, updatedProvider);
-      } else {
-        // 如果已在自定义列表中，确保它被启用
-        if (!(ollamaProvider.enabledModels || []).includes(pureModelName)) {
-          const updatedProvider = {
-            ...ollamaProvider,
-            enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName],
-          };
-          updateProvider(ollamaProvider.id, updatedProvider);
-        }
-      }
-    },
-    [providers, handleSelectProvider, setProviders, updateProvider],
-  );
-
   if (initError) {
     return <ConfigLoadError onRetry={retryInit} className="min-h-[400px]" />;
   }
@@ -364,8 +308,6 @@ const ModelServiceSection = memo(() => {
 
           {/* 右侧配置区域 */}
           <div className="flex-1 min-w-0 space-y-6">
-            <HardwareCookbook onApplyModel={handleApplyRecommendedModel} />
-
             {selectedProvider ? (
               <ProviderConfig
                 provider={selectedProvider}

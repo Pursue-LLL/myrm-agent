@@ -65,7 +65,6 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
 | `test_instance_archive_report_contract.py` | 整实例备份预览报告的计数键：服务端输出的键集 == 前端 `COUNT_KEYS`，且六种语言都有对应标签（前端缺标签或服务端改名都会失败） |
 | `test_offline_persistable_keys_parity.py` | 前端离线队列可明文落盘的键（`offlinePersistableKeys.ts`）== 前端全部配置键减去服务端 `SENSITIVE_CONFIG_KEYS`：被加密的键不会写进 `localStorage`，新增非敏感键也不会静默丢失离线持久化 |
-| `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_frontend_api_client_paths.py` | 前端 `src/**` 调用必须命中真实路由：apiRequest/apiClient 字面量（路径+方法，含 `/webui`）；任意形式写出的 `/api/v1/...` 字面量（raw fetch、展示给用户的 webhook URL、Next route handler 代理的后端目标 `http://${apiHost}:${apiPort}/api/v1/...`）须命中路由或路由基路径；`/api/<root>` 字面量的 root 须由 Next route handler、控制平面或渠道入口提供；已知缺失显式登记，路由出现后条目必须删除 |
 | `test_api_routers_are_imported.py` | `app/api/**` 里每个定义了模块级 `APIRouter` 的模块都要被另一个 `app` 模块导入（含相对导入与字面量 `import_module`）：没有导入方就没有地方挂载它，里面的路由全部 404。不依赖前端是否写出过路径，补上路径门禁看不到的那一类；已导入但没传给 `include_router` 的情形不在它的范围内；带类型注解的赋值也算路由定义，扫描不到任何路由模块时直接失败，三个 `tmp_path` 用例钉住这两条与「有导入方则不报」 |
 | `test_api_route_consumers.py` | 每个 API 路由都要有调用方：前端非测试源码里有路径字面量（任意调用形式，按路径而非方法匹配；`/webui/**` 额外按去掉挂载前缀匹配 `getWebuiUrl` 调用），或登记在 `data/route_external_consumers.txt`（每条写明调用方 file:line，被引用的行必须还写着这条路由，见 `test_route_evidence.py`）；存量无调用路由登记在 `data/route_consumer_baseline.txt`，只许缩小（路由已删除、已有调用方或已登记都会失败）；路由不得重复声明已挂载的 `/api/v1` 前缀。路由表、前端匹配与登记文件的读取在 `support/route_consumers.py`，风险闸门的用户文本入口扫描共用同一判定 |
@@ -81,7 +80,6 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |
 | `test_project_legacy_workspace_migration.py` | `CLEAR_LEGACY_PROJECT_WORKSPACE_PATHS_SQL` 须注册于 `MIGRATION_STATEMENTS` 尾部 |
 | `test_migration_source_closure.py` | Wizard 封闭源集合：probe 导出 ≡ manifest 本地扫描 id ≡ loader 注册 |
-| `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
 | `test_prebuilt_skill_bash_contract.py` | 引用 `bash_code_execute_tool` 的 prebuilt `SKILL.md` 必须含 `## Bash execution contract` |
 | `test_prebuilt_skill_evidence_discipline.py` | `evidence-discipline` skill 契约防漂移：六态机/证明义务/边界否定/归因/冲突/反剧场/安全契约 marker + 注入预算上限 |
 | `test_prebuilt_skill_browser_automation.py` | `browser-automation` skill 契约防漂移：三轨决策树/Write Probe/Clear & Replace/声明式 steps[]/verify_goal/HITL 护栏（单测覆盖） |
@@ -89,7 +87,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
-| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 模型族执行纪律 + web_chat 渠道提示，按 GPT / Claude Sonnet / Claude Opus / Gemini / DeepSeek × 中英文逐格设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
+| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 执行纪律（所有模型的核心规则，GPT / Codex 另加持续性提醒，Opus 5 及以上另加行为调优补充）+ web_chat 渠道提示，按 GPT / Claude Sonnet / Claude Opus 5 / Gemini / DeepSeek × 中英文逐格设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound、inbound_message、inbound_poll 三个 mixin 不得定义同名方法（源码里 `TYPE_CHECKING` 下给类型检查器的声明不算）；MRO 中话题 mixin 先于 hooks mixin；`collect_issues` 必须来自诊断 mixin，而不是 `BaseChannel` 的默认实现 |

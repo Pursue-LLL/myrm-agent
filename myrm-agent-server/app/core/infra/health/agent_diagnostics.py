@@ -18,6 +18,7 @@ import asyncio
 import logging
 import re
 import time
+from typing import Literal
 
 from myrm_agent_harness.observability.diagnostics.protocols import (
     DiagnosticProtocol,
@@ -100,6 +101,7 @@ class AgentColdStartDiagnostic(DiagnosticProtocol):
             phase_details["storage_error"] = str(exc)
             fix_suggestions.append("Check database connection and file lock permissions.")
 
+        status: Literal["pass", "warn"]
         if "model_ready" not in ready_phases:
             status, code = "warn", "WARN_AGENT_MODEL_UNCONFIGURED"
             message = "Agent model provider is not configured."
@@ -185,8 +187,8 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
                         status="warn",
                         code="WARN_OLLAMA_NO_AGENTIC_MODELS",
                         message=f"Ollama has {len(models)} installed models but none configured with 64K agentic Modelfile.",
-                        detail="Native Ollama models default to 2048 context. Use Settings -> Model Service (Hardware Cookbook) to derive 64K agentic models.",
-                        fix_suggestion="Pull models via Myrm UI or create Modelfile with PARAMETER num_ctx 64000.",
+                        detail="Native Ollama models default to a small context. Raise it with a Modelfile parameter (num_ctx 64000) or OLLAMA_CONTEXT_LENGTH.",
+                        fix_suggestion="Create a Modelfile with PARAMETER num_ctx 64000, or raise OLLAMA_CONTEXT_LENGTH.",
                         meta_data={"total_models": len(models), "agentic_models": []},
                         metrics={
                             "installed_models_count": float(len(models)),

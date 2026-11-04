@@ -11,11 +11,11 @@ from fastapi import APIRouter
 from app.api.integrations import (
     catalog,
     credential_pool,
-    hardware,
     integration_memory,
     llms,
     mcp,
     models_dev,
+    ollama,
     retrieval,
     search,
     web_fetch,
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Include sub-routers with appropriate prefixes
-router.include_router(hardware.router, prefix="/hardware", tags=["integrations-hardware"])
+router.include_router(ollama.router, prefix="/ollama", tags=["integrations-ollama"])
 router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
 router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
 router.include_router(models_dev.router, prefix="/models-dev", tags=["integrations-models-dev"])

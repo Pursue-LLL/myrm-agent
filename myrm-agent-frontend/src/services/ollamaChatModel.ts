@@ -28,7 +28,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
  */
 export async function fetchOllamaChatModel(): Promise<OllamaChatModel | null> {
   try {
-    const data = await apiRequest<OllamaChatModelResponse>('/integrations/hardware/ollama/chat-model', {
+    const data = await apiRequest<OllamaChatModelResponse>('/integrations/ollama/chat-model', {
       method: 'GET',
       silent: true,
       timeout: REQUEST_TIMEOUT_MS,

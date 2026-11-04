@@ -1,11 +1,11 @@
-"""GET /integrations/hardware/ollama/chat-model and the Ollama probe behind it.
+"""GET /integrations/ollama/chat-model and the Ollama probe behind it.
 
 [POS]
-tests/api/integrations/hardware/test_ollama_chat_model.py
+tests/api/integrations/test_ollama_chat_model.py
 
 [INPUT]
-- app.api.integrations.hardware.ollama_probe: the tags reader and the capability-aware model pick, driven through httpx.MockTransport
-- app.api.integrations.hardware.cookbook: the router, whose Ollama HTTP client is swapped for a mock transport
+- app.api.integrations.ollama: the tags reader, the capability-aware model pick, and the router, whose Ollama HTTP
+  client is swapped for a mock transport
 
 [OUTPUT]
 - Pins that only a local model able to chat and call tools is offered, that an unknown capability is never guessed,
@@ -21,11 +21,13 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.integrations.hardware.cookbook import router as hardware_router
-from app.api.integrations.hardware.ollama_probe import (
+from app.api.integrations.ollama import (
     OllamaModel,
     find_chat_model,
     list_ollama_models,
+)
+from app.api.integrations.ollama import (
+    router as ollama_router,
 )
 from app.config.deploy_mode import DeployMode
 
@@ -33,7 +35,7 @@ _BASE_URL = "http://ollama.test"
 _CHAT = ["completion", "tools"]
 
 app = FastAPI()
-app.include_router(hardware_router, prefix="/api/v1/integrations/hardware")
+app.include_router(ollama_router, prefix="/api/v1/integrations/ollama")
 
 
 def _tags(*entries: object) -> httpx.Response:
@@ -201,12 +203,12 @@ def _serve(handler: Callable[[httpx.Request], httpx.Response]) -> AbstractContex
     def factory(**kwargs: object) -> httpx.AsyncClient:
         return real_client(transport=httpx.MockTransport(handler), **kwargs)
 
-    return patch("app.api.integrations.hardware.cookbook.httpx.AsyncClient", side_effect=factory)
+    return patch("app.api.integrations.ollama.httpx.AsyncClient", side_effect=factory)
 
 
 async def _get_chat_model() -> httpx.Response:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        return await ac.get("/api/v1/integrations/hardware/ollama/chat-model")
+        return await ac.get("/api/v1/integrations/ollama/chat-model")
 
 
 class TestChatModelEndpoint:

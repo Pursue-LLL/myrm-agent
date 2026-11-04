@@ -26,7 +26,7 @@ describe('fetchOllamaChatModel', () => {
     await fetchOllamaChatModel();
 
     expect(mockApiRequest).toHaveBeenCalledExactlyOnceWith(
-      '/integrations/hardware/ollama/chat-model',
+      '/integrations/ollama/chat-model',
       expect.objectContaining({ method: 'GET', silent: true }),
     );
   });
