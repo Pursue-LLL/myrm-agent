@@ -14,7 +14,7 @@ SERVER_ROOT = Path(__file__).resolve().parents[4]
 
 PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
     {
-        "app/services/agent/params/converter.py",
+        "app/services/agent/params/profile_apply.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/instructions.py",
         "app/core/cron/adapters/agent_runner.py",
         "app/services/kanban/task_runner/runner.py",
@@ -43,9 +43,9 @@ def test_profile_output_suffix_applied_at_entry_points() -> None:
 
 def test_web_converter_forwards_resolved_personality_style() -> None:
     """Web 主对话路径必须把解析出的风格传进后缀注入（而不是丢弃风格）。"""
-    text = (SERVER_ROOT / "app/services/agent/params/converter.py").read_text(encoding="utf-8")
+    text = (SERVER_ROOT / "app/services/agent/params/profile_apply.py").read_text(encoding="utf-8")
     assert "personality_style=resolved.personality_style" in text, (
-        "converter.py 必须把 resolved.personality_style 传给 apply_profile_output_suffixes"
+        "profile_apply.py 必须把 resolved.personality_style 传给 apply_profile_output_suffixes"
     )
 
 

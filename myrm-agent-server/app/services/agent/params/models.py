@@ -220,6 +220,12 @@ class AgentRequest(BaseModel):
         max_length=255,
         description="One-shot post-migration project bind applied after chat persist, before workspace resolve.",
     )
+    workspace_dir: str | None = Field(
+        default=None,
+        max_length=1024,
+        description="One-shot workspace bind for the first turn of a chat that has no workspace yet. "
+        "Ignored when the chat belongs to a project or already owns a workspace.",
+    )
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None
     query: MultimodalQuery = ""
@@ -285,11 +291,6 @@ class AgentRequest(BaseModel):
     privacy_deep_scan: bool | None = None
     code_execution_allow_network: bool | None = None
     security_preset: Literal["hitl", "accept_edits", "explore"] | None = None
-    sandbox_mode: bool = Field(
-        default=False,
-        description="When True, agent operates in an isolated git worktree. "
-        "Changes are confined to a temporary branch until explicitly merged or discarded.",
-    )
     timestamp: float | None = None
     quote: str | None = None
 
