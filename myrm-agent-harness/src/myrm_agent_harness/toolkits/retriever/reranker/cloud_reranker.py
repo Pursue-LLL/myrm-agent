@@ -19,7 +19,9 @@ API calls with support for both LiteLLM-managed and OpenAI-compatible endpoints.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -96,67 +98,52 @@ class CloudReranker(RerankerService):
         self,
         pairs: list[tuple[str, str]],
     ) -> list[float]:
-        """批量重Sortoptimizedimplements
+        """Score each (query, document) pair, one provider call per distinct query.
 
-        optimizedStrategy:
-        1. 按Query分组文档，减少APICall
-        2. parallelExecuteAllQuery 重Sort
-
-        性能特性：
-        - Scenario：4个Query × 30个文档 = 120个pairs
-        - Strategy:按Query分组，4次parallelAPICall
-        - 实测：耗时 ~3秒（vs Serial 60+秒，95% 提升）
+        Pairs are grouped by query and the groups are reranked concurrently. A provider answers with hits ranked by
+        relevance, each labelled with the index of the document it scored, so a hit's score goes to the pair that
+        document came from, not to the pair at the hit's position in the answer. A document the provider leaves out
+        of its answer scores 0.0.
 
         Args:
-            pairs: (query, doc) 对List
+            pairs: (query, document) pairs.
 
         Returns:
-            Each pair  related性分数List
+            One relevance score per pair, in the order of ``pairs``.
+
+        Raises:
+            ValueError: A hit is labelled with an index outside the documents sent for its query.
         """
         if not pairs:
             return []
 
-        import asyncio
-        import time
+        start_time = time.perf_counter()
+        positions_by_query: dict[str, list[int]] = {}
+        for position, (query, _) in enumerate(pairs):
+            positions_by_query.setdefault(query, []).append(position)
 
-        start_time = time.time()
-
-        # 按Query分组文档
-        query_docs_map: dict[str, list[tuple[int, str]]] = {}
-        for idx, (query, doc) in enumerate(pairs):
-            if query not in query_docs_map:
-                query_docs_map[query] = []
-            query_docs_map[query].append((idx, doc))
-
-        logger.warning(
-            f" 批量重Sort: {len(pairs)} pairs → {len(query_docs_map)} Query "
-            f"(model: {self._model}, api_base: {self._api_base or 'default'})"
-        )
-
-        # parallel is AllQueryCallrerank
         scores = [0.0] * len(pairs)
 
-        async def rerank_query(query: str, doc_pairs: list[tuple[int, str]]):
-            """重SortsingleQuery 文档"""
-            indices, docs = zip(*doc_pairs, strict=False)
-            query_start = time.time()
-            results = await self.rerank(query, list(docs), top_k=len(docs))
-            query_duration = time.time() - query_start
-            logger.warning(f" ↳ Query '{query[:30]}...' 重Sort {len(docs)} 文档，耗时: {query_duration:.2f}s")
-            return list(zip(indices, results, strict=False))
+        async def score_query(query: str, positions: list[int]) -> None:
+            documents = [pairs[position][1] for position in positions]
+            hits = await self.rerank(query, documents, top_k=len(documents))
+            for hit in hits:
+                if not 0 <= hit.index < len(documents):
+                    raise ValueError(
+                        f"Reranker labelled a hit with index {hit.index}, "
+                        f"outside the {len(documents)} documents sent for the query"
+                    )
+                scores[positions[hit.index]] = hit.score
 
-        # parallelExecuteAllQuery 重Sort
-        tasks = [rerank_query(query, doc_pairs) for query, doc_pairs in query_docs_map.items()]
-        all_results = await asyncio.gather(*tasks)
+        await asyncio.gather(*(score_query(query, positions) for query, positions in positions_by_query.items()))
 
-        # MergeResult
-        for query_results in all_results:
-            for idx, result in query_results:
-                scores[idx] = result.score
-
-        total_duration = time.time() - start_time
-        logger.warning(f" 批量重SortComplete: 总耗时 {total_duration:.2f}s")
-
+        logger.info(
+            "Reranked %d pairs across %d queries in %.2fs (model: %s)",
+            len(pairs),
+            len(positions_by_query),
+            time.perf_counter() - start_time,
+            self._model,
+        )
         return scores
 
     async def rerank(
@@ -217,7 +204,7 @@ class CloudReranker(RerankerService):
             )
         return self._http_client
 
-    async def aclose(self):
+    async def aclose(self) -> None:
         """Close HTTP ClientConnection"""
         if self._http_client is not None:
             await self._http_client.aclose()
