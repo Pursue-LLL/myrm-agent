@@ -16,6 +16,7 @@ from app.api.integrations import (
     llms,
     mcp,
     models_dev,
+    retrieval,
     search,
     web_fetch,
 )
@@ -35,6 +36,7 @@ router.include_router(hardware.router, prefix="/hardware", tags=["integrations-h
 router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
 router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
 router.include_router(models_dev.router, prefix="/models-dev", tags=["integrations-models-dev"])
+router.include_router(retrieval.router, prefix="/retrieval", tags=["integrations-retrieval"])
 router.include_router(search.router, prefix="/search", tags=["integrations-search"])
 router.include_router(web_fetch.router, prefix="/web-fetch", tags=["integrations-web-fetch"])
 router.include_router(mcp.router, prefix="/mcp", tags=["integrations-mcp"])

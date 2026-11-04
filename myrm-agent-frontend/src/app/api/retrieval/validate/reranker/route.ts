@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
 
     const apiHost = process.env.API_HOST || '127.0.0.1';
     const apiPort = process.env.API_PORT || '25808';
-    const { status, text } = await postJsonHttp(`http://${apiHost}:${apiPort}/api/v1/retrieval/reranker`, body);
+    const { status, text } = await postJsonHttp(
+      `http://${apiHost}:${apiPort}/api/v1/integrations/retrieval/reranker`,
+      body,
+    );
     try {
       const data = text ? JSON.parse(text) : {};
       return NextResponse.json(data, { status });

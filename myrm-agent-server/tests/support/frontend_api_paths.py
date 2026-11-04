@@ -7,7 +7,8 @@
 - FRONTEND_SRC / PATH_CHARS: source root and the pattern of a literal API path
 - frontend_sources(): (relative name, source text) pairs
 - normalize_path() / segments(): `${...}` and `{param}` collapsed to `{}`, query-string templates dropped
-- frontend_path_literals(): every path-shaped string literal as PathLiteral(source, segments, prefixed)
+- literals_in(): the path-shaped string literals of one source text as PathLiteral(source, segments, prefixed)
+- frontend_path_literals(): literals_in() over every non-test frontend source
 
 [POS]
 架构测试共享的前端源码扫描；「前端调用必须命中路由」与「路由必须有前端调用」两个方向共用同一套路径归一化。
@@ -31,13 +32,11 @@ PATH_CHARS = r"(?:\$\{[^}`]*\}|[^'\"`?\s$])*"
 _TEMPLATE_RE = re.compile(r"\$\{(?P<expr>[^}`]*)\}")
 _PATH_CONST_RE = re.compile(r"const\s+(?P<name>\w+)\s*=\s*'(?P<value>/[^'\s]*)'")
 _PARAM_RE = re.compile(r"\{[^}]*\}")
-# `${API_BASE_URL}/x` and `${getBackendUrl()}/api/v1/x` templates lead with a base expression before the path.
+# A template may lead with a base before the path: `${API_BASE_URL}/x`, `${getBackendUrl()}/api/v1/x`, or the
+# `http://${apiHost}:${apiPort}/api/v1/x` a Next route handler proxies to.
+_BASE = r"(?:(?:https?://)?\$\{[A-Za-z_][\w.]*(?:\(\))?\}(?::\$\{[A-Za-z_][\w.]*\})?)?"
 _LITERAL_RE = re.compile(
-    r"['\"`](?:\$\{[A-Za-z_][\w.]*(?:\(\))?\})?(?P<prefix>"
-    + re.escape(API_PREFIX)
-    + r")?(?P<path>/[A-Za-z][\w-]*(?:/"
-    + PATH_CHARS
-    + r")?)(?![\w-])"
+    r"['\"`]" + _BASE + r"(?P<prefix>" + re.escape(API_PREFIX) + r")?(?P<path>/[A-Za-z][\w-]*(?:/" + PATH_CHARS + r")?)(?![\w-])"
 )
 
 
@@ -77,11 +76,15 @@ def frontend_sources() -> tuple[tuple[str, str], ...]:
     return tuple(sources)
 
 
-@cache
-def frontend_path_literals() -> tuple[PathLiteral, ...]:
-    """Every path-shaped literal of the non-test sources, in any call form (apiRequest, apiClient, fetch, ...)."""
+def literals_in(name: str, text: str) -> tuple[PathLiteral, ...]:
+    """Every path-shaped literal of one source text, in any call form (apiRequest, apiClient, fetch, proxy target, ...)."""
     return tuple(
         PathLiteral(name, segments(normalize_path(match.group("path"))), match.group("prefix") is not None)
-        for name, text in frontend_sources()
         for match in _LITERAL_RE.finditer(text)
     )
+
+
+@cache
+def frontend_path_literals() -> tuple[PathLiteral, ...]:
+    """Every path-shaped literal of the non-test frontend sources."""
+    return tuple(literal for name, text in frontend_sources() for literal in literals_in(name, text))
