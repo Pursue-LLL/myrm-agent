@@ -6,7 +6,7 @@
  * ./service::buildWikiApiPath
  *
  * [OUTPUT]
- * DTOs: UsageLedgerRecord, ReviewSlipBatch, WritebackApplyRequest, WritebackApplyResult, WikiLayersStats
+ * DTOs: UsageLedgerRecord, ReviewCandidateInsight, ReviewSlipTask, ReviewSlipBatch, WritebackApplyRequest, WritebackApplyResult, WikiLayersStats
  * Functions: recordUsageLedger, generateReviewSlips, applyWritebackDecisions, getWikiLayersStats
  */
 
@@ -25,6 +25,21 @@ export interface UsageLedgerRecord {
   executed_at: string;
   items: UsageLedgerItem[];
   deliverable_paths: string[];
+}
+
+/** One lesson learned from a finished task, offered to its author for filing into the wiki. */
+export interface ReviewCandidateInsight {
+  topic: string;
+  content: string;
+  rationale?: string;
+  recommended_layer?: string;
+}
+
+/** A finished task together with the lessons the caller extracted from it; the review slip only ever shows these. */
+export interface ReviewSlipTask {
+  taskId: string;
+  taskTitle: string;
+  candidateInsights: ReviewCandidateInsight[];
 }
 
 export interface ReviewSlipOption {
@@ -110,7 +125,7 @@ export const writebackService = {
     payload: {
       task_id: string;
       task_title: string;
-      candidate_insights: Array<{ topic: string; content: string; rationale?: string; recommended_layer?: string }>;
+      candidate_insights: ReviewCandidateInsight[];
     },
     agentId?: string | null,
   ): Promise<ReviewSlipBatch> {

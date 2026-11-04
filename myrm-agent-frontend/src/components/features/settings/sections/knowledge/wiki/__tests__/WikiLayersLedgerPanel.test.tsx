@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WikiLayersLedgerPanel } from '../WikiLayersLedgerPanel';
-import { writebackService } from '@/services/wikiService';
+import { writebackService, type ReviewSlipTask } from '@/services/wikiService';
 
 const stableT = (key: string, values?: Record<string, string | number>) =>
   values ? `${key}:${Object.values(values).join('|')}` : key;
@@ -27,6 +27,24 @@ vi.mock('../../WikiAgentScopeContext', () => ({
     scopeLabel: 'Test Agent',
   }),
 }));
+
+const REVIEW_TASK: ReviewSlipTask = {
+  taskId: 'task_modal_01',
+  taskTitle: 'Billing export rework',
+  candidateInsights: [{ topic: 'Chunked CSV export', content: 'Stream rows in 5k chunks.' }],
+};
+
+const EMPTY_STATS = {
+  agent_id: 'test_scope_agent',
+  raw_files_count: 0,
+  sources_count: 0,
+  concepts_count: 0,
+  claims_count: 0,
+  methods_count: 0,
+  templates_count: 0,
+  deliverables_count: 0,
+  inbox_count: 0,
+};
 
 describe('WikiLayersLedgerPanel', () => {
   beforeEach(() => {
@@ -78,6 +96,23 @@ describe('WikiLayersLedgerPanel', () => {
     });
   });
 
+  it.each([
+    ['no task is given', undefined],
+    ['the task has no lessons to file', { ...REVIEW_TASK, candidateInsights: [] }],
+  ])('offers no review slip when %s, and never asks the backend for one', async (_label, reviewTask) => {
+    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce(EMPTY_STATS);
+
+    render(<WikiLayersLedgerPanel reviewTask={reviewTask} />);
+    await waitFor(() => {
+      expect(writebackService.getLayersStats).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByRole('button', { name: 'openReviewSlip' })).not.toBeInTheDocument();
+    expect(screen.queryByText('reviewSlipGuide')).not.toBeInTheDocument();
+    expect(screen.queryByText('engineLabel')).not.toBeInTheDocument();
+    expect(writebackService.generateReviewSlips).not.toHaveBeenCalled();
+  });
+
   it('opens review slip modal on button click', async () => {
     vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
       agent_id: 'test_scope_agent',
@@ -99,7 +134,7 @@ describe('WikiLayersLedgerPanel', () => {
       excluded_matches_count: 1,
     });
 
-    render(<WikiLayersLedgerPanel />);
+    render(<WikiLayersLedgerPanel reviewTask={REVIEW_TASK} />);
     const user = userEvent.setup();
 
     const openBtn = screen.getByRole('button', { name: 'openReviewSlip' });

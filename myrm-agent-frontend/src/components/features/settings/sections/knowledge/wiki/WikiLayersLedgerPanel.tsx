@@ -7,10 +7,10 @@
  * - next-intl::useTranslations (POS: Internationalization hook)
  *
  * [OUTPUT]
- * - WikiLayersLedgerPanel: 五层知识资产全局态势总览、分层下钻浏览与审阅单工作台面板
+ * - WikiLayersLedgerPanel: 五层知识资产全局态势总览、分层下钻浏览与审阅单工作台面板（审阅单入口仅在调用方给出带经验的已完成任务时出现）
  *
  * [POS]
- * - 知识库全局资产态势展示与微观下钻层。展示 L1-L5 资产分布，提供下钻词条抽屉与审阅单回写入口。
+ * - 知识库全局资产态势展示与微观下钻层。展示 L1-L5 资产分布，提供下钻词条抽屉；有待回写的任务经验时才提供审阅单回写入口。
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -34,22 +34,30 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import { writebackService, type WikiLayersStats, type WikiLayerItem } from '@/services/wikiService';
+import {
+  writebackService,
+  type ReviewSlipTask,
+  type WikiLayersStats,
+  type WikiLayerItem,
+} from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
 import { WikiReviewSlipModal } from './WikiReviewSlipModal';
 import { WikiLayerItemPreviewModal } from './WikiLayerItemPreviewModal';
 
 interface WikiLayersLedgerPanelProps {
   onOpenConcept?: (relativePath: string) => void;
+  /** A finished task with lessons worth filing; the review slip entry exists only while there is one. */
+  reviewTask?: ReviewSlipTask;
 }
 
-export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelProps = {}) {
+export function WikiLayersLedgerPanel({ onOpenConcept, reviewTask }: WikiLayersLedgerPanelProps = {}) {
   const t = useTranslations('settings.wiki.ledger');
   const { agentScopeId } = useWikiAgentScope();
 
   const [stats, setStats] = useState<WikiLayersStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const reviewSlipTask = reviewTask && reviewTask.candidateInsights.length > 0 ? reviewTask : null;
 
   // Micro-level layer item inspection state
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
@@ -192,15 +200,17 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               {t('refreshStats')}
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setReviewModalOpen(true)}
-              className="gap-1.5 h-8 text-xs shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {t('openReviewSlip')}
-            </Button>
+            {reviewSlipTask && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setReviewModalOpen(true)}
+                className="gap-1.5 h-8 text-xs shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {t('openReviewSlip')}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -348,23 +358,28 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
               {t('blockNoticeTail')}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0 text-primary hover:underline cursor-pointer">
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>{t('reviewSlipGuide')}</span>
-          </div>
+          {reviewSlipTask && (
+            <div className="flex items-center gap-1.5 shrink-0 text-primary hover:underline cursor-pointer">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>{t('reviewSlipGuide')}</span>
+            </div>
+          )}
         </div>
       </CardContent>
 
-      <WikiReviewSlipModal
-        open={reviewModalOpen}
-        onOpenChange={setReviewModalOpen}
-        onApplied={() => {
-          void fetchStats();
-          if (selectedLayerId) {
-            void handleSelectLayer(selectedLayerId, selectedLayerKey, selectedLayerTitle);
-          }
-        }}
-      />
+      {reviewSlipTask && (
+        <WikiReviewSlipModal
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          task={reviewSlipTask}
+          onApplied={() => {
+            void fetchStats();
+            if (selectedLayerId) {
+              void handleSelectLayer(selectedLayerId, selectedLayerKey, selectedLayerTitle);
+            }
+          }}
+        />
+      )}
 
       <WikiLayerItemPreviewModal
         item={previewItem}

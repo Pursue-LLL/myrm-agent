@@ -14,16 +14,23 @@ import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { toast } from 'sonner';
 import { Sparkles, ShieldAlert, CheckCircle2, Info } from 'lucide-react';
-import { writebackService, type ReviewSlipBatch, type WritebackDecisionItem } from '@/services/wikiService';
+import {
+  writebackService,
+  type ReviewSlipBatch,
+  type ReviewSlipTask,
+  type WritebackDecisionItem,
+} from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
 
 interface WikiReviewSlipModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The finished task and the lessons extracted from it; keep the object stable, a new one re-requests the slip. */
+  task: ReviewSlipTask;
   onApplied?: () => void;
 }
 
-export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiReviewSlipModalProps) {
+export function WikiReviewSlipModal({ open, onOpenChange, task, onApplied }: WikiReviewSlipModalProps) {
   const t = useTranslations('settings.wiki.reviewSlip');
   const { agentScopeId } = useWikiAgentScope();
   const [loading, setLoading] = useState(false);
@@ -39,32 +46,11 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
     const loadCandidates = async () => {
       setLoading(true);
       try {
-        // 请求后端基于交付物洞察与负向规则合成审阅单
-        const mockInsights = [
-          {
-            topic: '双写平滑迁移四部曲',
-            content: '在不停机迁移过程中，按双写、校验、切换、断流四步推进，各步骤配置熔断指标。',
-            rationale: '在核心系统交付中验证的高可用标准步骤，适用于未来类似架构重构。',
-            recommended_layer: 'methods',
-          },
-          {
-            topic: '云原生网关吞吐上限假说',
-            content: '在单实例 4C8G 规格下，反向代理并发超过 15000 时出现内存抖动，需深入排查网卡驱动。',
-            rationale: '属于待进一步压测论证的现象假说，不能直接作为客观真理。',
-            recommended_layer: 'claims',
-          },
-          {
-            topic: '预生产环境测试地址与端口',
-            content: '测试节点内网地址为 192.168.10.15:9090，仅在本次压测中临时有效。',
-            rationale: '单次测试数据',
-          },
-        ];
-
         const res = await writebackService.generateReviewSlips(
           {
-            task_id: 'task_delivery_' + Date.now().toString(36),
-            task_title: '任务交付经验萃取',
-            candidate_insights: mockInsights,
+            task_id: task.taskId,
+            task_title: task.taskTitle,
+            candidate_insights: task.candidateInsights,
           },
           agentScopeId,
         );
@@ -87,7 +73,7 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
     };
 
     void loadCandidates();
-  }, [open, agentScopeId, t]);
+  }, [open, task, agentScopeId, t]);
 
   const handleApply = async () => {
     if (!batch || batch.questions.length === 0) {

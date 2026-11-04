@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-04 · 知识库概览页的「审阅单」按钮每次都用代码里写死的三条虚构洞察生成审阅单，用户确认后会把虚构内容当草稿写进自己的知识库
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S"reviewSlipTask"` 找回）。「仍然存在」里的项未处理。 |
+| **症状** | [代码，读代码得出，没有在浏览器里点过] ① `WikiSection.tsx` 概览页（默认标签）渲染 `WikiLayersLedgerPanel`，面板头部常显主按钮 `openReviewSlip`。② 点开后 `WikiReviewSlipModal.tsx:43-67` 把写死的三条「洞察」（「双写平滑迁移四部曲」「云原生网关吞吐上限假说」「预生产环境测试地址与端口」，内含 `192.168.10.15:9090`）连同 `task_id: 'task_delivery_' + Date.now().toString(36)`、`task_title: '任务交付经验萃取'` 发给 `POST /wiki/writeback/review-slips`。③ 用户点确认后 `applyWritebackDecisions`（`:112`）调 `POST /wiki/writeback/apply`；服务端 `service.py:194-203` 把选中项写成 `publish_status: draft` 的 Markdown，`source_deliverable` 缺省为 `deliverables/unknown.md`，`source_task_id` 是上面那个随机 id，落在 `methods`/`claims` 层。所以「任务交付经验萃取」从来不对应任何真实任务，点确认的用户得到的是三份没有来源的虚构词条。 |
+| **根因** | [代码] ① 审阅单前端是先搭好的壳：`candidate_insights` 由调用方提供（`writeback_routes.py:45`、`service.py:88`，服务端只做负向规则过滤和选项合成，并不从交付物里抽取），但前端没有真实来源，就在弹窗里写了样例数据占位，入口却一并上线。② 上一条 2026-11-03 的界面文案修复只把它当作「样例是中文」处理（见那条「仍然存在」②），没有发现它会被写入。③ [实测，`rg candidate_insights` 搜全仓库，排除本日志与 JSON] 命中的只有前端客户端与弹窗（连同测试）和服务端路由、服务与路由测试，没有任何代码从交付物或任务里产出候选洞察。 |
+| **修复** | ① `WikiReviewSlipModal` 删掉写死的洞察和随机任务 id，改为必传 `task: ReviewSlipTask`（`taskId`、`taskTitle`、`candidateInsights`），只把调用方给的内容发给后端。② `WikiLayersLedgerPanel` 新增可选 `reviewTask`：只有它存在且带至少一条洞察时，才渲染「审阅单」按钮、旁边的 `reviewSlipGuide` 说明和弹窗，否则三者都不挂载，也就不会请求后端。③ `services/wiki/writeback.ts` 新增 `ReviewCandidateInsight`、`ReviewSlipTask` 类型，`generateReviewSlips` 的入参改用前者。④ 同步更新 `wiki/_ARCH.md`、`services/wiki/_ARCH.md` 和面板头注释。 |
+| **行为变化** | 概览页不再显示「审阅单」按钮和那行说明；用户不会再通过它写入虚构词条。现在没有任何调用方给 `reviewTask`，所以这个入口在产品里暂时不可见，审阅单功能处于休眠状态，直到有真实产出任务经验的来源接进来。服务端接口和 6 种语言的文案键都没有改。 |
+| **回归证据** | [实测，scratch 工作树，基于 `675300a997`] [1] `WikiReviewSlipModal.test.tsx` 新增 3 例（请求只带调用方给的任务与经验；确认后按推荐选项、用该任务提交回写；关闭时不请求），`WikiLayersLedgerPanel.test.tsx` 新增 2 例（没有任务、任务没有经验时：无按钮、无说明、无弹窗、`generateReviewSlips` 零调用）并让原「打开审阅单」用例改为传入 `reviewTask`。[2] 把弹窗改回写死的洞察与随机 id、把面板入口改回常显后重跑这两个文件：3 例红（请求内容、两例无入口），恢复后全绿。[3] 同一工作树上：`verify:i18n`、`bun run lint`（7 个门禁）、`tsc --noEmit`、`check_typescript_strict`、`check_fractal_docs --no-stub`、`check_barrel_exports`、`check_module_resolution`、字形 `--check`、孤儿门禁全部通过；硬编码文案基线仍是 432（本条没有改动文案键）；`src/components/features/settings` 与 `src/services` 共 305 个测试文件、2497 例全部通过。 |
+| **仍然存在** | ① 全仓库仍没有真实的 `candidate_insights` 来源，审阅单功能是休眠的；是继续保留壳等来源接入，还是连同弹窗、前端客户端、服务端两个接口一起删除，需要单独决定。② 服务端 `apply_writeback` 对 `source_deliverable` 缺省写成 `deliverables/unknown.md`，真实调用方接入时应传入真实交付物路径，本条未改服务端。③ 没有在浏览器里实际点过概览页确认按钮已消失，结论来自代码与组件测试。 |
+| **代码位置** | frontend：`src/components/features/settings/sections/knowledge/wiki/{WikiReviewSlipModal,WikiLayersLedgerPanel}.tsx`、`src/services/wiki/writeback.ts`、对应两个测试文件与两份 `_ARCH.md`；server（只读核对，未改）：`app/api/wiki/writeback_routes.py`、`app/services/wiki/writeback/service.py`。 |
+
 ## 2026-11-03 · `t(key, { defaultValue / defaultMessage })` 的兜底文案从不显示，却在 174 处调用里充当「文案」，测试还用 mock 替它撑场面；另有星期名、到期说明、Markdown 工具栏占位词、子智能体模型名、记忆维度名、JSON 编辑器报错等写死在代码里、只有中文或英文，几处界面文案与注释里还写着竞品名
 
 | 字段 | 内容 |
