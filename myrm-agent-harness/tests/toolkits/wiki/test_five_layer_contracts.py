@@ -55,8 +55,8 @@ def test_frontmatter_page_types_extended():
 
 def test_source_card_serialization_and_parsing():
     card = SourceCardContract(
-        source_id="src_workbuddy_guide",
-        title="我是如何用WorkBuddy搭建AI培训知识库的",
+        source_id="src_five_layer_guide",
+        title="我是如何用五层结构搭建AI培训知识库的",
         author="智见AI",
         platform="wechat",
         url_or_path="https://mp.weixin.qq.com/s/sample",
@@ -67,12 +67,12 @@ def test_source_card_serialization_and_parsing():
     )
 
     content = serialize_source_card(card, body_markdown="这是正文中的备注内容")
-    assert "source_id: src_workbuddy_guide" in content
+    assert "source_id: src_five_layer_guide" in content
     assert "provenance_class: author_claim" in content
     assert "这是正文中的备注内容" in content
 
     parsed = parse_source_card(content)
-    assert parsed.source_id == "src_workbuddy_guide"
+    assert parsed.source_id == "src_five_layer_guide"
     assert parsed.author == "智见AI"
     assert parsed.provenance_class == "author_claim"
     assert "five_layer_wiki" in parsed.covered_concepts

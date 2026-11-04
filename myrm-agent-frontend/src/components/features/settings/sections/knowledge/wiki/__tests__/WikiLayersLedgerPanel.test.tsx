@@ -46,9 +46,8 @@ describe('WikiLayersLedgerPanel', () => {
 
     render(<WikiLayersLedgerPanel />);
 
-    // 标题与架构徽章走翻译
+    // 标题走翻译
     expect(screen.getByText('title')).toBeInTheDocument();
-    expect(screen.getByText('architectureBadge')).toBeInTheDocument();
 
     // 五大物理分层的标题、副标题、徽标、说明都走翻译
     for (const layer of ['l1', 'l2', 'l3', 'l4', 'l5']) {

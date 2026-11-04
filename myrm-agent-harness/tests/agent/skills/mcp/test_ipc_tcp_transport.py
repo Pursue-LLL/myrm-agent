@@ -20,7 +20,8 @@ import pytest
 
 from myrm_agent_harness.agent.skills.mcp import ipc_proxy
 from myrm_agent_harness.agent.skills.mcp.client_templates import generate_ipc_client_code
-from myrm_agent_harness.agent.skills.mcp.ipc_proxy import MCPIPCServer
+from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import CallBudget
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, MCPIPCServer
 
 
 def _tcp_request(port: int, token: str | None) -> dict[str, object]:
@@ -29,7 +30,6 @@ def _tcp_request(port: int, token: str | None) -> dict[str, object]:
         "tool_name": "notify",
         "params": {"message": "probe"},
         "trace_id": "t",
-        "session_id": "s",
     }
     if token is not None:
         payload["auth_token"] = token
@@ -56,7 +56,7 @@ class TestTcpTransport:
     async def tcp_server(self):
         """Run the server as if on a platform without AF_UNIX streams."""
         with patch.object(ipc_proxy.os_compat, "IS_WIN", True):
-            server = MCPIPCServer("/tmp/tcp_transport_never_used.sock")
+            server = MCPIPCServer("/tmp/tcp_transport_never_used.sock", CallerScope(session_id="s"), CallBudget())
             await server.start()
             try:
                 yield server
@@ -83,13 +83,13 @@ class TestTcpTransport:
 
 class TestGeneratedClientChoosesTransport:
     def test_tcp_port_switches_to_open_connection(self) -> None:
-        code = generate_ipc_client_code("/tmp/x.sock", auth_token="t", tcp_port=12345)
+        code = generate_ipc_client_code("/tmp/x.sock", auth_token="t", trace_nonce="n", tcp_port=12345)
         assert "_TCP_PORT = 12345" in code
         assert 'asyncio.open_connection("127.0.0.1", _TCP_PORT)' in code
         ast.parse(code)
 
     def test_zero_port_keeps_unix_transport(self) -> None:
-        code = generate_ipc_client_code("/tmp/x.sock", auth_token="t", tcp_port=0)
+        code = generate_ipc_client_code("/tmp/x.sock", auth_token="t", trace_nonce="n", tcp_port=0)
         assert "_TCP_PORT = 0" in code
         assert "open_unix_connection(_SOCKET_PATH)" in code
         ast.parse(code)

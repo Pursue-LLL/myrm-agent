@@ -27,10 +27,7 @@ import type {
   PairingWizardStep,
   PlatformMetadata,
 } from './channelPairingTypes';
-import {
-  ChannelPairingService,
-  SUPPORTED_PAIRING_PLATFORMS,
-} from './channelPairingService';
+import { ChannelPairingService, SUPPORTED_PAIRING_PLATFORMS } from './channelPairingService';
 import { ChannelHealthCheckCard } from './ChannelHealthCheckCard';
 
 export interface ChannelPairingWizardModalProps {
@@ -141,12 +138,7 @@ export const ChannelPairingWizardModal: React.FC<ChannelPairingWizardModalProps>
               </h2>
               <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                <span>
-                  {t(
-                    'wizard.modelAgnosticBadge',
-                    '模型无关解耦 · 零命令确定性配对'
-                  )}
-                </span>
+                <span>{t('wizard.modelAgnosticBadge', '模型无关解耦 · 零命令确定性配对')}</span>
               </div>
             </div>
           </div>
@@ -167,12 +159,12 @@ export const ChannelPairingWizardModal: React.FC<ChannelPairingWizardModalProps>
               <div className="rounded-lg bg-blue-50/70 p-3.5 text-xs text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
                 <div className="flex items-center gap-1.5 font-medium">
                   <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-                  {t('wizard.antiWorkbuddyNote', '彻底告别手敲 acquire_token')}
+                  {t('wizard.noCommandNote', '扫码即可连通，无需手敲命令')}
                 </div>
                 <p className="mt-1 opacity-90">
                   {t(
-                    'wizard.antiWorkbuddyDesc',
-                    '无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。'
+                    'wizard.noCommandDesc',
+                    '无需切换昂贵模型或在聊天框输入配置命令，点击渠道即可直接生成动态二维码一键连通。',
                   )}
                 </p>
               </div>
@@ -198,9 +190,7 @@ export const ChannelPairingWizardModal: React.FC<ChannelPairingWizardModalProps>
                         <span className="font-semibold text-slate-800 dark:text-slate-100">
                           {t(`platforms.${item.id}.name`, item.id.toUpperCase())}
                         </span>
-                        {isSelected && (
-                          <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        )}
+                        {isSelected && <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                       </div>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {t(`platforms.${item.id}.desc`, '即时扫码或 Webhook 鉴权')}
@@ -230,17 +220,11 @@ export const ChannelPairingWizardModal: React.FC<ChannelPairingWizardModalProps>
 
               <div className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
-                <span>
-                  {t(
-                    'wizard.waitingScan',
-                    '请使用对应客户端扫描上方动态二维码...'
-                  )}
-                </span>
+                <span>{t('wizard.waitingScan', '请使用对应客户端扫描上方动态二维码...')}</span>
               </div>
 
               <p className="mt-2 text-xs text-slate-400">
-                {t('wizard.sessionExpiry', '凭证有效时长: 300 秒')} ·{' '}
-                <code>{session.session_id}</code>
+                {t('wizard.sessionExpiry', '凭证有效时长: 300 秒')} · <code>{session.session_id}</code>
               </p>
 
               {pollError && (
@@ -262,10 +246,7 @@ export const ChannelPairingWizardModal: React.FC<ChannelPairingWizardModalProps>
                   {t('wizard.bindingSuccess', '渠道鉴权与 Token 绑定成功！')}
                 </h3>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {t(
-                    'wizard.bindingSuccessDesc',
-                    '凭证已安全加密写入本地沙箱，渠道已准备就绪。'
-                  )}
+                  {t('wizard.bindingSuccessDesc', '凭证已安全加密写入本地沙箱，渠道已准备就绪。')}
                 </p>
               </div>
 

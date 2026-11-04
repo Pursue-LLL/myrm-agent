@@ -13,6 +13,7 @@ Executors module for Agent-in-Sandbox mode.
 | gunzip.py | Core | `gunzip_bounded`: transparent `.gz` text reads decompress at most `MAX_GUNZIP_BYTES`, so one read cannot exhaust memory whatever the compression ratio. | ✅ |
 | middleware.py | Core | `CodeExecutorMiddleware`: decorator that forwards every executor operation to an inner executor; a new `CodeExecutor` operation must be forwarded here too. | ✅ |
 | execution_evidence.py | Core | Per-scope record that a process was actually launched; the verifier's PASS gate reads it. | ✅ |
+| mcp_config.py | Core | `MCPConfigItem` (one MCP server a script run can call, including its `execute_timeout`, which the host uses to size the script's time; unusable values fall back to the default `MCPConfig` applies, pinned by test). | ✅ |
 | models.py | Core | Data models for code execution (`ExecutionContext.cancel_token`: set only by agent-facing tool calls, so goal verification and housekeeping runs are not cut by a stop; `ExecutionResult` scrubs stdout/stderr, except that marker-shaped MCP call spans in stdout pass through verbatim, see `common/mcp_markers.py`). | ✅ |
 | shell_file_transfer.py | Core | Chunked byte-exact file read (hex via `dd` + `od`) and write (base64) for shell-only executors, immune to stdout truncation and scrubbing. | ✅ |
 | test_executor.py | Core | Subprocess-based test execution for skill evolution TDE. | ✅ |

@@ -17,10 +17,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.agent.skills.mcp.client_templates import generate_ipc_client_code
-from myrm_agent_harness.agent.skills.mcp.ipc_proxy import MCPIPCServer
+from myrm_agent_harness.agent.skills.mcp.ipc_endpoint import mcp_ipc_endpoint
+from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope
 from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
-from myrm_agent_harness.core.network.ipc_socket import default_ipc_socket_path
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Unix socket semantics")
 
@@ -59,11 +59,9 @@ async def _run_script(user_code: str) -> tuple[str, MagicMock]:
     connection.call = AsyncMock(return_value=({"type": "text", "text": "{}"}, None))
     manager = MagicMock()
     manager.get_connection = AsyncMock(return_value=connection)
-    server = MCPIPCServer(default_ipc_socket_path())
-    await server.start()
-    try:
+    async with mcp_ipc_endpoint(CallerScope(session_id="chat_1")) as endpoint:
         client = generate_ipc_client_code(
-            server.socket_path, session_id="chat_1", auth_token=server.auth_token, trace_nonce=server.trace_nonce
+            endpoint.socket_path, auth_token=endpoint.auth_token, trace_nonce=endpoint.trace_nonce
         )
         with patch(
             "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
@@ -77,10 +75,8 @@ async def _run_script(user_code: str) -> tuple[str, MagicMock]:
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await proc.communicate()
-        assert proc.returncode == 0, stderr.decode()
-        return stdout.decode(), connection
-    finally:
-        await server.stop()
+    assert proc.returncode == 0, stderr.decode()
+    return stdout.decode(), connection
 
 
 _CATCHING_SCRIPT = (

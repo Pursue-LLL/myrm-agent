@@ -403,17 +403,6 @@ def disable_commitment_extraction():
 
 
 @pytest.fixture(autouse=True)
-def reset_mcp_ipc_server():
-    """重置全局 MCP IPC Server 状态，防止测试间 stale socket 导致连接失败"""
-    yield
-    import myrm_agent_harness.agent.skills.mcp.ipc_proxy as ipc_mod
-
-    if ipc_mod._ipc_server is not None:
-        ipc_mod._ipc_server._running = False
-        ipc_mod._ipc_server = None
-
-
-@pytest.fixture(autouse=True)
 def setup_random_mcp_port():
     """为每个测试分配随机 MCP HTTP 端口，避免端口冲突"""
     os.environ["MCP_HTTP_PORT"] = str(random.randint(10000, 60000))

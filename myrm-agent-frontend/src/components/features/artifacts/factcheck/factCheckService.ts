@@ -1,13 +1,9 @@
 /**
  * Service orchestrating controlled fabrication detection, placeholder replacement, and fact verification.
- * Adheres to WorkBuddy fact verification paradigm with zero emojis.
+ * Uses no emojis.
  */
 
-import {
-  FactCheckAuditReport,
-  PlaceholderItem,
-  VerifiedFactItem,
-} from './factCheckTypes';
+import { FactCheckAuditReport, PlaceholderItem, VerifiedFactItem } from './factCheckTypes';
 
 export class FactCheckService {
   /**
@@ -58,7 +54,7 @@ export class FactCheckService {
     content: string,
     placeholderId: string,
     realValue: string,
-    placeholders: PlaceholderItem[]
+    placeholders: PlaceholderItem[],
   ): { updatedContent: string; updatedPlaceholders: PlaceholderItem[] } {
     const target = placeholders.find((p) => p.id === placeholderId);
     if (!target) {
@@ -88,7 +84,7 @@ export class FactCheckService {
   public static replaceAllPlaceholders(
     content: string,
     replacements: Record<string, string>,
-    placeholders: PlaceholderItem[]
+    placeholders: PlaceholderItem[],
   ): { updatedContent: string; updatedPlaceholders: PlaceholderItem[] } {
     let updatedContent = content;
     const updatedPlaceholders: PlaceholderItem[] = [];
@@ -113,9 +109,7 @@ export class FactCheckService {
   /**
    * Parse structured verified facts metadata or heuristic citation blocks.
    */
-  public static parseVerifiedFacts(
-    factsMetadata?: VerifiedFactItem[]
-  ): VerifiedFactItem[] {
+  public static parseVerifiedFacts(factsMetadata?: VerifiedFactItem[]): VerifiedFactItem[] {
     if (factsMetadata && factsMetadata.length > 0) {
       return factsMetadata;
     }
@@ -125,10 +119,7 @@ export class FactCheckService {
   /**
    * Build complete audit report from content and verified facts metadata.
    */
-  public static auditContent(
-    content: string,
-    verifiedFacts?: VerifiedFactItem[]
-  ): FactCheckAuditReport {
+  public static auditContent(content: string, verifiedFacts?: VerifiedFactItem[]): FactCheckAuditReport {
     const placeholders = this.parsePlaceholders(content);
     const facts = this.parseVerifiedFacts(verifiedFacts);
     const pendingCount = placeholders.filter((p) => p.status === 'pending').length;

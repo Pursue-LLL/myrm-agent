@@ -18,8 +18,8 @@ def _build_client(*, read_only: frozenset[str], attempts: list[str]) -> dict[str
     """Compile the generated client and stub its transport with a counter."""
     source = generate_ipc_client_code(
         "/tmp/does-not-matter.sock",
-        session_id="s1",
-        workspace_root="/w",
+        auth_token="t",
+        trace_nonce="n",
         read_only_tools=read_only,
     )
     namespace: dict[str, object] = {}

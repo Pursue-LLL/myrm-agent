@@ -14650,8 +14650,8 @@
     "wizard": {
       "title": "外部渠道視覺化配對嚮導",
       "modelAgnosticBadge": "模型無關解耦 · 零命令確定性配對",
-      "antiWorkbuddyNote": "掃碼即可連通，無需手敲命令",
-      "antiWorkbuddyDesc": "無需切換昂貴模型或在聊天框輸入配置命令，點選渠道即可直接生成動態二維碼一鍵連通。",
+      "noCommandNote": "掃碼即可連通，無需手敲命令",
+      "noCommandDesc": "無需切換昂貴模型或在聊天框輸入配置命令，點選渠道即可直接生成動態二維碼一鍵連通。",
       "waitingScan": "請使用對應客戶端掃描上方動態二維碼...",
       "sessionExpiry": "憑證有效時長: 300 秒",
       "bindingSuccess": "渠道鑑權與 Token 繫結成功！",
@@ -18451,7 +18451,6 @@
       },
       "ledger": {
         "title": "五層知識資產全域態勢",
-        "architectureBadge": "WorkBuddy 架構",
         "description": "以實體分層隔離事實與假說。",
         "refreshStats": "重新整理統計",
         "viewLayerItems": "檢視 {title} 詞條清單",

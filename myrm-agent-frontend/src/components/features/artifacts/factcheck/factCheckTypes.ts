@@ -1,6 +1,6 @@
 /**
  * Types and contracts for Fact Check & Controlled Fabrication Audit Suite.
- * Adheres to WorkBuddy fact verification paradigm with zero emojis.
+ * Uses no emojis.
  */
 
 export interface PlaceholderItem {
