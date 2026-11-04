@@ -31,6 +31,7 @@ import { VideoKnowledgePlayer, extractVideoNoteMeta } from './VideoKnowledgePlay
 import { WikiConceptClaimsSection } from './WikiConceptClaimsSection';
 import { WikiConceptLinksPanel } from './WikiConceptLinksPanel';
 import { Network } from 'lucide-react';
+import { translateOrRaw } from '@/lib/i18n/translateOrRaw';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
@@ -129,7 +130,7 @@ export function WikiConceptDetailPanel({
               <span className="font-semibold text-lg truncate max-w-full">{selectedConcept.name}</span>
               {selectedConcept.provenance && (
                 <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-500/30 shrink-0">
-                  {t(`provenance.${selectedConcept.provenance}`, { defaultValue: selectedConcept.provenance })}
+                  {translateOrRaw(t, `provenance.${selectedConcept.provenance}`, selectedConcept.provenance)}
                 </Badge>
               )}
               {selectedConcept.source_chat && (

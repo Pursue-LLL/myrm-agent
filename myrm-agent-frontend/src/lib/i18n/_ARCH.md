@@ -7,13 +7,14 @@
 | 路径                  | 职责                                             |
 | --------------------- | ------------------------------------------------ |
 | `src/i18n/`           | App Router locale 解析、cookie、`next-intl` 配置 |
-| `lib/i18n/`（本目录） | 纯函数：从 `#locales` JSON 解析通知文案等        |
+| `lib/i18n/`（本目录） | 纯函数：从 `#locales` JSON 解析通知文案、翻译器缺键兜底等 |
 
 ## 文件清单
 
 | 文件                        | 职责                                                                                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `streamNotificationCopy.ts` | `resolveStreamLocale`、`getClarificationNotificationTitle`、`preloadNotificationCopy`（idle 动态加载 notifications 切片） |
+| `translateOrRaw.ts`         | `translateOrRaw(t, key, raw)`：展示服务端开放词表时的统一兜底，语言包有该键就翻译，没有就原样显示 `raw`（next-intl 缺键返回键路径且不读 `defaultValue`，必须先 `t.has`）；`t` 取 `useTranslations` / `createTranslator` 的返回值 |
 | `connectDoctor.ts`          | 连接诊断文案解析 — 诊断 detail → i18n message key / `DoctorSeverity` / status key 映射（`resolveDoctorMessageKey` / `resolveDoctorSeverity` / `resolveDoctorStatusKey`） |
 
 ## 依赖

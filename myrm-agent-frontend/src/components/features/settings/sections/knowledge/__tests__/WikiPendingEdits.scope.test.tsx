@@ -7,7 +7,12 @@ const getPendingEditsMock = vi.fn();
 const approveEditMock = vi.fn();
 const rejectEditMock = vi.fn();
 
-const stableT = (key: string, values?: Record<string, string>) => (values?.scope ? `${key}:${values.scope}` : key);
+// next-intl's `t.has` tells known keys from keys the language pack lacks; only the provenance key below exists here.
+const KNOWN_KEYS = new Set(['pendingEdits.provenance.chat-compound']);
+const stableT = Object.assign(
+  (key: string, values?: Record<string, string>) => (values?.scope ? `${key}:${values.scope}` : key),
+  { has: (key: string) => KNOWN_KEYS.has(key) },
+);
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -126,6 +131,7 @@ describe('WikiPendingEdits agent scope reload', () => {
 
     const link = screen.getByText('pendingEdits.openSourceChat') as HTMLAnchorElement;
     expect(link.getAttribute('href')).toBe('/chat-123?highlight=msg-456');
+    expect(screen.getByText('pendingEdits.provenance.chat-compound')).toBeTruthy();
   });
 
   it('falls back to chat-level link when source_message is absent', async () => {
@@ -177,6 +183,9 @@ describe('WikiPendingEdits agent scope reload', () => {
     });
 
     expect(screen.queryByText('pendingEdits.openSourceChat')).toBeNull();
+    // A provenance the language pack has no copy for is shown as the server sent it, not as a key path.
+    expect(screen.getByText('extension')).toBeTruthy();
+    expect(screen.queryByText('pendingEdits.provenance.extension')).toBeNull();
   });
 
   it('loads the next page when drafts exist beyond the first page', async () => {
@@ -232,7 +241,10 @@ describe('WikiPendingEdits agent scope reload', () => {
       if (calls === 2) {
         // Mixed same-pending mutation: another device approved one draft while
         // cron staged a fresh one — pending stays 51, approved still moves.
-        return Promise.resolve({ stats: { pending: 51, approved: 1 }, pending_edits: [draft(2, 'Shifted-Page Draft')] });
+        return Promise.resolve({
+          stats: { pending: 51, approved: 1 },
+          pending_edits: [draft(2, 'Shifted-Page Draft')],
+        });
       }
       return Promise.resolve({ stats: { pending: 51, approved: 1 }, pending_edits: [draft(3, 'Fresh-Page Draft')] });
     });
@@ -339,7 +351,7 @@ describe('WikiPendingEdits agent scope reload', () => {
             updated_at: '2026-07-29T00:00:00.000Z',
           },
         ],
-      })
+      }),
     );
     const staleError = new ApiError('stale pending edit');
     (staleError as { businessCode?: string }).businessCode = 'stale_pending';

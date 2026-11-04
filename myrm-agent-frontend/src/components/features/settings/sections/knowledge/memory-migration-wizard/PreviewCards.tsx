@@ -37,7 +37,18 @@ export const LANE_DETAIL_CODES = [
   'session_skipped',
 ] as const;
 
+/** Lane titles the wizard localizes; a label outside this list is rendered as the server sent it. */
+export const LANE_LABEL_CODES = [
+  'instruction_lane',
+  'memory_lane',
+  'skill_lane',
+  'credential_lane',
+  'cron_lane',
+  'session_lane',
+] as const;
+
 const LOCALIZED_LANE_DETAIL_CODES = new Set<string>(LANE_DETAIL_CODES);
+const LOCALIZED_LANE_LABELS = new Set<string>(LANE_LABEL_CODES);
 const LOCALIZED_COVERAGE_LABELS = new Set<string>(COVERAGE_LABEL_KEYS);
 
 function laneDetailText(lane: MigrationLanePreviewItem, t: TranslationFn): string {
@@ -104,7 +115,9 @@ export function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewI
             key={lane.lane}
             className={cn('rounded-lg border px-3 py-2.5 text-xs', statusStyles[lane.status] ?? statusStyles.manual)}
           >
-            <div className="font-medium">{t(`preview.laneLabels.${lane.label}`, { defaultValue: lane.label })}</div>
+            <div className="font-medium">
+              {LOCALIZED_LANE_LABELS.has(lane.label) ? t(`preview.laneLabels.${lane.label}`) : lane.label}
+            </div>
             <div className="mt-1 text-muted-foreground">{laneDetailText(lane, t)}</div>
           </div>
         ))}

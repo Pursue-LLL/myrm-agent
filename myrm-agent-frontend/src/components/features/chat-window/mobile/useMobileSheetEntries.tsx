@@ -29,7 +29,7 @@ import {
 } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import type { MobileActionSheetEntry, MobileActionSheetOption } from './MobileActionSheet';
 
-const INTENSITY_LEVELS: IntensityLevel[] = ['off', 'low', 'medium', 'high', 'xhigh', 'max'];
+export const INTENSITY_LEVELS: IntensityLevel[] = ['off', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 interface UseMobileSheetEntriesOptions {
   onClose: () => void;
@@ -144,7 +144,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     () =>
       INTENSITY_LEVELS.map((level) => ({
         key: level,
-        label: thinkT(level, { defaultMessage: level }),
+        label: thinkT(level),
         active: currentEffort === (level === 'off' ? undefined : level),
       })),
     [thinkT, currentEffort],
