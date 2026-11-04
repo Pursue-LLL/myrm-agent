@@ -38,12 +38,19 @@ describe('empty chat phone first-screen contract', () => {
     expect(
       source.match(/'flex min-w-0 flex-col [^']*justify-start[^']*sm:flex-row[^']*sm:justify-center[^']*'/g),
     ).toHaveLength(1);
-    expect(source).toContain("MODE_LABEL_CLASS = 'max-w-full text-balance hyphens-auto break-words text-center");
+    expect(source).toMatch(/MODE_LABEL_CLASS =\s+'max-w-full text-balance hyphens-auto break-words text-center/);
     expect(source.match(/<span className=\{MODE_LABEL_CLASS\}>/g)).toHaveLength(1);
   });
 
   it('halves the workspace mode tab side padding below 375px so each label gets 8px more width', () => {
     expect(read('../WorkModeTabs.tsx').match(/'flex min-w-0 flex-col [^']*max-\[375px\]:px-1[^']*'/g)).toHaveLength(1);
+  });
+
+  it('narrows the workspace mode tabs once more below 340px (1px side padding, 11px labels) so "Workspace" and "작업" stay whole on 320px phones', () => {
+    const source = read('../WorkModeTabs.tsx');
+
+    expect(source.match(/'flex min-w-0 flex-col [^']*max-\[340px\]:px-px[^']*'/g)).toHaveLength(1);
+    expect(source).toMatch(/MODE_LABEL_CLASS =\s+'[^']*max-\[340px\]:text-\[11px\][^']*'/);
   });
 
   it('wraps the cloud description row instead of squeezing its dot or storage badge, and keeps the chat icon at full size', () => {

@@ -37,7 +37,9 @@ const MODE_TABS: readonly ModeTab[] = [
 // Below sm each mode is a narrow cell: the label wraps on word boundaries and, when one word is still wider than the
 // cell, hyphenates by the document language (`DocumentLang` syncs `<html lang>` to the active locale after hydration);
 // where the browser has no hyphenation rules for it, the word wraps inside (`break-words`) instead of being clipped.
-const MODE_LABEL_CLASS = 'max-w-full text-balance hyphens-auto break-words text-center leading-tight sm:text-left';
+// Below 340px the label drops from 12px to 11px (`max-[340px]:text-[11px]`, see the padding note below).
+const MODE_LABEL_CLASS =
+  'max-w-full text-balance hyphens-auto break-words text-center leading-tight max-[340px]:text-[11px] sm:text-left';
 
 interface WorkModeTabsProps {
   value: NewTaskMode;
@@ -47,7 +49,10 @@ interface WorkModeTabsProps {
 // Below sm the cells stack the icon above the label and top-align it (`justify-start`), so all three icons sit on one
 // line however many lines each label wraps to; the single-row layout from sm up centers its content. Below 375px the
 // side padding halves (`max-[375px]:px-1`), giving every label 8px more width so words such as "Lokaler" and "작업"
-// stay whole on 360px phones.
+// stay whole on 360px phones. Below 340px the padding drops to 1px (`max-[340px]:px-px`) and the label to 11px: on a
+// 320px phone the 12px label box is 62px wide while the semibold "Workspace" needs 66px, whereas with 1px padding and
+// 11px text the box is 68px and the word needs 60px. The 68px also keeps the box clear of the 61-66px range in which
+// Chromium's balanced wrapping hyphenates the German word "Lokaler" ("Loka-ler") although it fits.
 export const WorkModeTabs = memo(function WorkModeTabs({ value, onChange }: WorkModeTabsProps) {
   const t = useTranslations('chat.newTaskCard');
   // String-literal keys keep the labels visible to the i18n key gate, which only resolves literal `t()` arguments.
@@ -67,7 +72,7 @@ export const WorkModeTabs = memo(function WorkModeTabs({ value, onChange }: Work
           data-testid={`context-mode-${mode}`}
           onClick={() => onChange(mode)}
           className={cn(
-            'flex min-w-0 flex-col items-center justify-start gap-1 px-2 max-[375px]:px-1 py-2 sm:flex-row sm:justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
+            'flex min-w-0 flex-col items-center justify-start gap-1 px-2 max-[375px]:px-1 max-[340px]:px-px py-2 sm:flex-row sm:justify-center sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all',
             value === mode
               ? 'bg-background text-foreground shadow-xs font-semibold'
               : 'text-muted-foreground hover:text-foreground',
