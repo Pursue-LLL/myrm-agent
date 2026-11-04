@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WikiLayersLedgerPanel } from '../WikiLayersLedgerPanel';
-import { writebackService, type ReviewSlipTask } from '@/services/wikiService';
+import { writebackService } from '@/services/wikiService';
 
 const stableT = (key: string, values?: Record<string, string | number>) =>
   values ? `${key}:${Object.values(values).join('|')}` : key;
@@ -15,8 +15,6 @@ vi.mock('@/services/wikiService', () => ({
   writebackService: {
     getLayersStats: vi.fn(),
     getLayerItems: vi.fn(),
-    generateReviewSlips: vi.fn(),
-    applyWritebackDecisions: vi.fn(),
   },
 }));
 
@@ -27,24 +25,6 @@ vi.mock('../../WikiAgentScopeContext', () => ({
     scopeLabel: 'Test Agent',
   }),
 }));
-
-const REVIEW_TASK: ReviewSlipTask = {
-  taskId: 'task_modal_01',
-  taskTitle: 'Billing export rework',
-  candidateInsights: [{ topic: 'Chunked CSV export', content: 'Stream rows in 5k chunks.' }],
-};
-
-const EMPTY_STATS = {
-  agent_id: 'test_scope_agent',
-  raw_files_count: 0,
-  sources_count: 0,
-  concepts_count: 0,
-  claims_count: 0,
-  methods_count: 0,
-  templates_count: 0,
-  deliverables_count: 0,
-  inbox_count: 0,
-};
 
 describe('WikiLayersLedgerPanel', () => {
   beforeEach(() => {
@@ -77,9 +57,6 @@ describe('WikiLayersLedgerPanel', () => {
       }
     }
 
-    // 负向硬拦截提示
-    expect(screen.getByText('blockNoticeRule')).toBeInTheDocument();
-
     // 等待异步统计数据加载并校验计数
     await waitFor(() => {
       expect(writebackService.getLayersStats).toHaveBeenCalledWith('test_scope_agent');
@@ -94,58 +71,6 @@ describe('WikiLayersLedgerPanel', () => {
       // L5: deliverables (12)
       expect(screen.getByText('12')).toBeInTheDocument();
     });
-  });
-
-  it.each([
-    ['no task is given', undefined],
-    ['the task has no lessons to file', { ...REVIEW_TASK, candidateInsights: [] }],
-  ])('offers no review slip when %s, and never asks the backend for one', async (_label, reviewTask) => {
-    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce(EMPTY_STATS);
-
-    render(<WikiLayersLedgerPanel reviewTask={reviewTask} />);
-    await waitFor(() => {
-      expect(writebackService.getLayersStats).toHaveBeenCalled();
-    });
-
-    expect(screen.queryByRole('button', { name: 'openReviewSlip' })).not.toBeInTheDocument();
-    expect(screen.queryByText('reviewSlipGuide')).not.toBeInTheDocument();
-    expect(screen.queryByText('engineLabel')).not.toBeInTheDocument();
-    expect(writebackService.generateReviewSlips).not.toHaveBeenCalled();
-  });
-
-  it('opens review slip modal on button click', async () => {
-    vi.mocked(writebackService.getLayersStats).mockResolvedValueOnce({
-      agent_id: 'test_scope_agent',
-      raw_files_count: 0,
-      sources_count: 0,
-      concepts_count: 0,
-      claims_count: 0,
-      methods_count: 0,
-      templates_count: 0,
-      deliverables_count: 0,
-      inbox_count: 0,
-    });
-
-    vi.mocked(writebackService.generateReviewSlips).mockResolvedValueOnce({
-      task_id: 'task_modal_01',
-      title: '经验萃取',
-      generated_at: '2026-09-23T10:00:00Z',
-      questions: [],
-      excluded_matches_count: 1,
-    });
-
-    render(<WikiLayersLedgerPanel reviewTask={REVIEW_TASK} />);
-    const user = userEvent.setup();
-
-    const openBtn = screen.getByRole('button', { name: 'openReviewSlip' });
-    await user.click(openBtn);
-
-    // 审阅单浮窗弹出，且已被拦截的杂质数量带进翻译
-    await waitFor(() => {
-      expect(screen.getByText('engineLabel')).toBeInTheDocument();
-    });
-    expect(screen.getByText('exclusionTitle:1')).toBeInTheDocument();
-    expect(screen.getByText('noQuestions')).toBeInTheDocument();
   });
 
   it('drills into a layer and previews an entry with translated labels', async () => {

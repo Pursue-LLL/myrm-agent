@@ -47,7 +47,6 @@ class WikiPageType(StrEnum):
     TEMPLATE = "template"
     DELIVERABLE = "deliverable"
     USAGE_LEDGER = "usage_ledger"
-    REVIEW_SLIP = "review_slip"
     COMPARISON = "comparison"
     OVERVIEW = "overview"
     QUESTION = "question"

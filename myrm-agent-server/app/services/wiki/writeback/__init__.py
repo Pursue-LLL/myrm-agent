@@ -8,19 +8,13 @@
 - WikiWritebackService, get_writeback_service, schemas
 
 [POS]
-Entry point for usage ledger and selective review slip writeback subsystem.
+Entry point for the task usage ledger and wiki layer inspection subsystem.
 """
 
 from app.services.wiki.writeback.schemas import (
-    ReviewSlipBatch,
-    ReviewSlipOption,
-    ReviewSlipQuestion,
     UsageLedgerItem,
     UsageLedgerRecord,
     WikiLayerItem,
-    WritebackApplyRequest,
-    WritebackApplyResult,
-    WritebackDecisionItem,
 )
 from app.services.wiki.writeback.service import (
     WikiWritebackService,
@@ -28,15 +22,9 @@ from app.services.wiki.writeback.service import (
 )
 
 __all__ = [
-    "ReviewSlipBatch",
-    "ReviewSlipOption",
-    "ReviewSlipQuestion",
     "UsageLedgerItem",
     "UsageLedgerRecord",
     "WikiLayerItem",
     "WikiWritebackService",
-    "WritebackApplyRequest",
-    "WritebackApplyResult",
-    "WritebackDecisionItem",
     "get_writeback_service",
 ]

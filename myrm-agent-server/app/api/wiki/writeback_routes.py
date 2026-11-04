@@ -1,7 +1,7 @@
 """Wiki Writeback and 5-Layer structure REST routes.
 
 [INPUT]
-- fastapi::APIRouter, Depends, Query, HTTPException
+- fastapi::APIRouter, Depends, Query
 - app.services.wiki.writeback
 - app.services.wiki.vault::resolve_wiki_vault_path
 - myrm_agent_harness.toolkits.wiki.core.structure::WikiStructure
@@ -10,8 +10,8 @@
 - router (Writeback sub-router)
 
 [POS]
-REST API endpoints for task usage ledger recording, review slip generation,
-and 5-layer structure stats inspection.
+REST API endpoints for task usage ledger recording and 5-layer structure
+stats and document inspection.
 """
 
 from __future__ import annotations
@@ -21,28 +21,19 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.api.dependencies import get_workspace_root
 from app.services.wiki.vault import resolve_wiki_vault_path
 from app.services.wiki.writeback import (
-    ReviewSlipBatch,
     UsageLedgerRecord,
     WikiLayerItem,
-    WritebackApplyRequest,
-    WritebackApplyResult,
     get_writeback_service,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/writeback", tags=["wiki-writeback"])
-
-
-class GenerateReviewSlipRequest(BaseModel):
-    task_id: str
-    task_title: str
-    candidate_insights: list[dict[str, str]] = Field(default_factory=list)
 
 
 class WikiLayersStats(BaseModel):
@@ -67,33 +58,6 @@ async def record_task_ledger(
     service = get_writeback_service(workspace_root=workspace_root)
     path = service.record_usage_ledger(agent_id, record)
     return {"status": "ok", "saved_path": str(path)}
-
-
-@router.post("/review-slips", response_model=ReviewSlipBatch)
-async def generate_review_slips(
-    payload: GenerateReviewSlipRequest,
-    agent_id: str = Query("default", description="Target agent ID"),
-    workspace_root: Path = Depends(get_workspace_root),
-) -> ReviewSlipBatch:
-    """Generate 1-5 decision review questions for task author with negative rule filtering."""
-    service = get_writeback_service(workspace_root=workspace_root)
-    return service.generate_review_slip(
-        agent_id=agent_id,
-        task_id=payload.task_id,
-        task_title=payload.task_title,
-        candidate_insights=payload.candidate_insights,
-    )
-
-
-@router.post("/apply", response_model=WritebackApplyResult)
-async def apply_writeback_decisions(
-    request: WritebackApplyRequest,
-    agent_id: str = Query("default", description="Target agent ID"),
-    workspace_root: Path = Depends(get_workspace_root),
-) -> WritebackApplyResult:
-    """Commit user decisions from review slips into corresponding knowledge layers."""
-    service = get_writeback_service(workspace_root=workspace_root)
-    return service.apply_writeback(agent_id, request)
 
 
 @router.get("/layers-stats", response_model=WikiLayersStats)

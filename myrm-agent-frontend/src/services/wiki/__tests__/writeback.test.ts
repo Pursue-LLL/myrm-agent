@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { writebackService, type UsageLedgerRecord, type WritebackApplyRequest } from '../writeback';
+import { writebackService, type UsageLedgerRecord } from '../writeback';
 import * as api from '@/lib/api';
 
 vi.mock('@/lib/api', () => ({
@@ -37,68 +37,6 @@ describe('writebackService API client', () => {
       }),
     );
     expect(result.status).toBe('ok');
-  });
-
-  it('generates review slips via backend endpoint', async () => {
-    const mockBatch = {
-      task_id: 'task_002',
-      title: '测试任务',
-      generated_at: '2026-09-23T10:00:00Z',
-      questions: [],
-      excluded_matches_count: 3,
-    };
-
-    vi.mocked(api.apiRequest).mockResolvedValueOnce(mockBatch);
-
-    const result = await writebackService.generateReviewSlips(
-      {
-        task_id: 'task_002',
-        task_title: '测试任务',
-        candidate_insights: [
-          {
-            topic: '双写平滑迁移',
-            content: '四步法操作步骤',
-            rationale: '通用架构重构规范',
-          },
-        ],
-      },
-      'agent_dev',
-    );
-
-    expect(api.apiRequest).toHaveBeenCalledWith(
-      '/wiki/writeback/review-slips?agent_id=agent_dev',
-      expect.objectContaining({
-        method: 'POST',
-      }),
-    );
-    expect(result.excluded_matches_count).toBe(3);
-  });
-
-  it('applies writeback decisions safely', async () => {
-    const request: WritebackApplyRequest = {
-      task_id: 'task_003',
-      decisions: [
-        {
-          question_id: 'q_1',
-          selected_option_id: 'opt_method',
-          target_layer: 'methods',
-          candidate_title: '双写迁移经验',
-          candidate_content: '步骤...',
-        },
-      ],
-    };
-
-    vi.mocked(api.apiRequest).mockResolvedValueOnce({
-      task_id: 'task_003',
-      committed_count: 1,
-      discarded_count: 0,
-      created_paths: ['knowledge/methods/双写迁移经验.md'],
-      message: 'Committed 1 item',
-    });
-
-    const result = await writebackService.applyWritebackDecisions(request, 'agent_dev');
-    expect(result.committed_count).toBe(1);
-    expect(result.created_paths).toHaveLength(1);
   });
 
   it('fetches layers stats', async () => {
