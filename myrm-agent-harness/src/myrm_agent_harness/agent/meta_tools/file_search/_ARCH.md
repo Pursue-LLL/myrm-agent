@@ -31,7 +31,7 @@ is listed under Tier Differences.
 ## Key Dependencies
 
 - `toolkits.code_execution` (executor for path resolution)
-- `utils` (LRUCache, ToolError)
+- `utils` (ToolError, is_chinese)
 - `core.security.safe_git` (hardened git invocation for the Python tier's git-aware listing)
 - `core.security.path` (`is_sensitive_file`: the sensitive file patterns that a directory search withholds)
 - `regex` (glob matching without catastrophic backtracking), `pathspec` (the ignore files at the root of a plain folder, or of a nested repository that git cannot read)

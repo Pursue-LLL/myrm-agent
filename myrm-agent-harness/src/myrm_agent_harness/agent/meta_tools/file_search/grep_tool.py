@@ -9,8 +9,7 @@
 - _redaction::redact_matches (POS: 逐文件按类型脱敏匹配行，源码里含 token 的类型名/变量名不被误遮)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
 - regex_validator::RegexValidator (POS: 正则表达式验证器，防止 ReDoS)
-- utils.lru_cache::LRUCache (POS: LRU 缓存)
-- _formatter (POS: Grep flat path:line output formatter with line truncation)
+- _formatter::format_grep_results (POS: Grep output formatter: path-grouped output from 5 matches on, line truncation, non-code file capping)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
 - fallback_search::search_files, SearchOutcome (POS: Python 档内容搜索：按 ripgrep 的行语义匹配并带上下文行，mmap 扫描、分批并发、结果与时间上限)
 - rg_matches::RgMatches (POS: ripgrep --json 事件流收集为匹配行；目录级搜索不返回敏感文件内容)
@@ -24,7 +23,7 @@
 
 [POS]
 Content search tool (Claude Code compatible). Searches file contents for matching text patterns
-with regex and literal (--fixed-strings) modes, flat path:line output and intelligent line truncation.
+with regex and literal (--fixed-strings) modes, path-grouped output from 5 matches on and intelligent line truncation.
 Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
 without producing a result. A search over a directory withholds the lines of sensitive files on both tiers.

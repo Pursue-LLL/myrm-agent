@@ -1,13 +1,10 @@
 """文件搜索工具（Claude Code 兼容）
 
-1. 本文件的 INPUT/OUTPUT/POS 注释
-
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
 - pydantic::BaseModel, Field (POS: 参数验证)
 - agent.config.file_io::FileIOConfig (POS: I/O 配置)
 - agent.meta_tools._context_recovery::ensure_executor (POS: Executor ContextVar recovery)
-- toolkits.storage.base::StorageProvider (POS: 存储协议/接口)
 - fallback_discovery::collect_candidate_files (POS: 候选文件发现策略：Python 档发现)
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
