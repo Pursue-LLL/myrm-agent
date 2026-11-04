@@ -3,10 +3,10 @@
 > **术语**：下文 **「工具」= LLM 工具**（Action Tool）。§4.18 所列编排信号**不是** LLM 工具，不计入 LLM 工具总数（见文末 `TOOL_COUNT` 自动生成块）。
 
 > 测量方法：`tiktoken o200k_base` 规划 SSOT（`utils/text_utils.PLANNING_ENCODING`；与 GPT-5 / GPT-4o 族一致）
-> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-03 按提示词精简后的源码重测
+> 测量时间：2026-09-16（`scripts/measure_turn1_token_inventory.py`）；§一 的 `messages[0]` 各分量与合计、以及据此推出的各场景 System Prompt 层与小计，于 2026-11-03 按当前源码重测；§4.6 子 Agent 委托、§4.7 浏览器、§4.13 看板各行与 `request_answer_user_tool` 于 2026-11-04 重测（`create_delegate_task_tool` / `create_subagent_control_tool` / `create_send_teammate_message_tool` / `create_invoke_acp_agent_tool` / `create_browser_tools` / `create_kanban_tools` / `create_answer_user_tool` 以 stub 后端构造，取 `tool.description` 的 o200k_base token 数；`delegate_task_tool` 的描述含运行期 sub-agent 名册，只计固定部分），§四 其余各行为记录值，不由测试锁定
 > 测量宿主：macOS 25.5.0 / arm64 / bash（OS hint、env 行、toolchain 探测行随宿主变化，见 §一、§二 标注）
 > 测量对象：默认通用智能体，Turn 1 初始化时的完整 prompt 结构；`prompt_mode=full`、`enable_answer_tool=False`（server 默认）、locale EN（工具描述为主，prompt 主体见 §一 双列）
-> 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 §二–§四 逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言锁定静态首轮 system 消息
+> 漂移门禁：`tests/scripts/test_measure_turn1_token_inventory.py` 锁定 Turn-1 默认 13 个工具（§二、§三）的逐工具数值，`tests/architecture/test_prompt_token_budget_gate.py` 锁定预算上限；server 仓 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言锁定静态首轮 system 消息
 >
 > **三 tier 计量**：① UI 上下文环 = 上一轮 API `prompt_tokens`；② compress / summarize / emergency prune 预算 = messages + bind-tools overhead（本表）+ 可选 max(API)；③ 非 OpenAI 模型 client 估算存在偏差，账单以 provider usage 为准。
 
@@ -61,7 +61,7 @@
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
 | 4a | web_fetch_tool | 148 | `harness/toolkits/web_fetch/web_fetch_agent_tools.py` | HTTP 抓取/深读 | Turn1 基线 |
-| 6 | **bash_code_execute_tool** | **1,425** | `harness/agent/meta_tools/bash/_tool/tool_description.py` + `_tool/helpers.py:54` | Shell/Python。**宿主相关**：静态描述 1,368（宿主无关）+ OS hint（含 `os_release`/`arch`，见 `platform.py:116-122`；macOS arm64 58 / ubuntu-latest 32 / 各发行版实测 31–60）+ 可选 toolchain 探测行（干净环境为 0）。拼接处 BPE 合并使实测总数比两段之和少 1（1,368+58=1,426，实测 1,425） | 通用 Agent 基线 |
+| 6 | **bash_code_execute_tool** | **1,412** | `harness/agent/meta_tools/bash/_tool/tool_description.py` + `_tool/helpers.py:54` | Shell/Python。**宿主相关**：静态描述 1,355（宿主无关）+ OS hint（含 `os_release`/`arch`，见 `platform.py:116-122`；macOS arm64 58 / ubuntu-latest 32 / 各发行版实测 31–60）+ 可选 toolchain 探测行（干净环境为 0）。拼接处 BPE 合并使实测总数比两段之和少 1（1,355+58=1,413，实测 1,412） | 通用 Agent 基线 |
 | 6b | **bash_process_tool** | **107** | `harness/agent/meta_tools/bash/bash_process_tools.py` | 后台进程 list/output/kill（CORE；与 bash_code_execute 同挂） | enable_shell_tools |
 | 7 | file_edit_tool | 132 | `harness/agent/meta_tools/file_ops/file_edit_tool.py` | 批量 edits[] 原子编辑 | 通用 Agent 基线 |
 | 8 | file_read_tool | 332 | `harness/agent/meta_tools/file_ops/file_read_tool.py` | 读取文件 | 通用 Agent 基线 |
@@ -116,27 +116,29 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
 | 26 | ask_question_tool | 118 | `harness/agent/meta_tools/clarification/clarification_agent_tools.py` | 结构化澄清；`requires_confirmation` 驱动危险强调；middleware 强制单轮单次 | server mount policy (interactive web_chat) |
-| 27 | **request_answer_user_tool** | **1,024** | `harness/agent/meta_tools/answer_user_tool.py` | 搜索 Agent 终局自审门 | 默认关闭（`answer_tool` opt-in，EXTENDED 层） |
+| 27 | **request_answer_user_tool** | **327** (EN) / **512** (ZH) | `harness/agent/meta_tools/answer_user_tool.py` | 搜索 Agent 终局自审门 | 默认关闭（`answer_tool` opt-in，EXTENDED 层） |
 
 ### 4.6 子 Agent 委托工具（有子 Agent 配置时加载；空 catalog 零 bind）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 28 | delegate_task_tool | TBD | `harness/agent/meta_tools/spawn_subagent/delegate_task_tool.py` | 统一委派（mode=single\|batch\|parallel） |
-| 29 | subagent_control_tool | TBD | `harness/agent/meta_tools/spawn_subagent/agent_manage_tool.py` | 运行时控制（action=list\|cancel\|steer） |
-| 30 | send_teammate_message_tool | 40 | `harness/agent/meta_tools/spawn_subagent/send_teammate_tool.py` | Orchestrator 子 Agent P2P 通信 |
-| 31 | invoke_acp_agent_tool | 216 | `harness/toolkits/acp/acp_agent_tools.py` | ACP 协议 Agent 委托（有 ACP 配置时） |
+| 28 | delegate_task_tool | 292 + 名册 | `harness/agent/meta_tools/spawn_subagent/delegate_task_tool.py` | 统一委派（mode=single\|batch\|parallel\|council\|alternatives）；绑定时描述 = 固定部分（含 `DELEGATION_TOOL_GUIDANCE`，292）+ catalog 中可用 agent 类型的名册（每个类型一行，随 catalog 变化，不计入 292） |
+| 29 | subagent_control_tool | 55 | `harness/agent/meta_tools/spawn_subagent/agent_manage_tool.py` | 运行时控制（action=list\|cancel\|steer\|wait） |
+| 30 | send_teammate_message_tool | 32 | `harness/agent/meta_tools/spawn_subagent/send_teammate_tool.py` | Orchestrator 子 Agent P2P 通信 |
+| 31 | invoke_acp_agent_tool | 281 | `harness/toolkits/acp/acp_agent_tools.py` | ACP 协议 Agent 委托（有 ACP 配置时） |
 
 ### 4.7 浏览器工具（启用浏览器时加载）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 37 | browser_navigate_tool | 18 | `harness/toolkits/browser/tools/navigate.py` | 浏览器导航 |
-| 38 | browser_snapshot_tool | 115 | `harness/toolkits/browser/tools/snapshot.py` | 页面快照 |
-| 39 | browser_interact_tool | 66 | `harness/toolkits/browser/tools/interact.py` | 页面交互 |
-| 40 | browser_extract_tool | 95 | `harness/toolkits/browser/tools/extract.py` | 内容提取 |
-| 41 | browser_inspect_tool | 82 | `harness/toolkits/browser/tools/inspect.py` | 元素检查 |
-| 42 | browser_manage_tool | 171 | `harness/toolkits/browser/tools/manage.py` | 浏览器管理（含 web_vitals 性能洞察） |
+| 37 | browser_navigate_tool | 76 | `harness/toolkits/browser/tools/navigate.py` | 浏览器导航 |
+| 38 | browser_snapshot_tool | 111 | `harness/toolkits/browser/tools/snapshot.py` | 页面快照 |
+| 39 | browser_interact_tool | 157 | `harness/toolkits/browser/tools/interact.py` | 页面交互 |
+| 40 | browser_extract_tool | 111 | `harness/toolkits/browser/tools/extract.py` | 内容提取 |
+| 41 | browser_inspect_tool | 65 | `harness/toolkits/browser/tools/inspect.py` | 元素检查 |
+| 42 | browser_manage_tool | 131 | `harness/toolkits/browser/tools/manage.py` | 浏览器管理（含 web_vitals 性能洞察） |
+| 43 | browser_execute_script_tool | 15 | `harness/toolkits/browser/tools/execute_script.py` | 单轮内以异步 Python 脚本批量执行浏览器动作（Code-as-Action） |
+| 44 | browser_ask_human_tool | 96 | `harness/toolkits/browser/tools/takeover.py` | 请求用户临时接管浏览器（2FA/MFA、支付凭据、自动求解器无法处理的验证码等） |
 
 ### 4.8 定时任务工具（启用 Cron 时加载）
 
@@ -163,26 +165,29 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 ### 4.13 看板工具（启用看板时加载，按角色分组）
 
-**Server bind 策略**：Chat Agent + kanban → `orchestrator` 3 工具；`KanbanTaskRunner` → `worker` 6 工具。看板/任务 CRUD 走 REST/GUI。解析：`myrm-agent-server/app/ai_agents/general_agent/kanban_tool_mode.py`。
+**Server bind 策略**：Chat Agent + kanban → `orchestrator` 6 工具；`KanbanTaskRunner` → `worker` 6 工具（两组按角色互斥挂载）。看板/任务 CRUD 走 REST/GUI。解析：`myrm-agent-server/app/ai_agents/general_agent/kanban_tool_mode.py`。
 
 #### Worker 工具（6 个）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 58 | kanban_show | 75 | `harness/toolkits/kanban/kanban_agent_tools.py` | 查看当前任务详情（描述/依赖/历史） |
-| 59 | kanban_complete | 248 | `harness/toolkits/kanban/kanban_agent_tools.py` | 标记任务完成并提交结构化交接 |
-| 60 | kanban_block | 298 | `harness/toolkits/kanban/kanban_agent_tools.py` | 阻塞任务（支持定时自动解除） |
-| 61 | kanban_heartbeat | 100 | `harness/toolkits/kanban/kanban_agent_tools.py` | 报告运行中任务的进度（SSE） |
-| 62 | kanban_comment | 227 | `harness/toolkits/kanban/kanban_agent_tools.py` | 跨任务评论协调（不限所有权，Worker 可评论任意任务） |
-| 63 | kanban_attach | ~180 | `harness/toolkits/kanban/kanban_agent_tools.py` | 挂接沙箱文件或 HTTPS URL 到任务 |
+| 58 | kanban_show | 30 | `harness/toolkits/kanban/_worker_tools.py` | 查看当前任务详情（描述/依赖/历史） |
+| 59 | kanban_complete | 77 | `harness/toolkits/kanban/_worker_tools.py` | 标记任务完成并提交结构化交接 |
+| 60 | kanban_block | 104 | `harness/toolkits/kanban/_worker_tools.py` | 阻塞任务（支持定时自动解除） |
+| 61 | kanban_heartbeat | 46 | `harness/toolkits/kanban/_worker_tools.py` | 报告运行中任务的进度（SSE） |
+| 62 | kanban_comment | 75 | `harness/toolkits/kanban/_worker_tools.py` | 跨任务评论协调（不限所有权，Worker 可评论任意任务） |
+| 63 | kanban_attach | 74 | `harness/toolkits/kanban/_worker_tools.py` | 挂接沙箱文件或 HTTPS URL 到任务 |
 
-#### Orchestrator 工具（3 个）
+#### Orchestrator 工具（6 个）
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 |
 |---|--------|------------------:|----------|------|
-| 64 | kanban_add_task | 616 | `harness/toolkits/kanban/kanban_agent_tools.py` | 添加新任务（depends_on/优先级/技能/幂等） |
-| 65 | kanban_list_tasks | 119 | `harness/toolkits/kanban/kanban_agent_tools.py` | 列出任务；可选 `include_stats`；`task_id` 单查 |
-| 66 | kanban_unblock | ~90 | `harness/toolkits/kanban/kanban_agent_tools.py` | 解除 BLOCKED 任务 |
+| 64 | kanban_add_task | 250 | `harness/toolkits/kanban/_orchestrator_tools.py` | 添加新任务（depends_on/优先级/技能/幂等） |
+| 65 | kanban_list_tasks | 122 | `harness/toolkits/kanban/_orchestrator_tools.py` | 列出任务；可选 `include_stats`；`task_id` 单查 |
+| 66 | kanban_unblock | 111 | `harness/toolkits/kanban/_orchestrator_tools.py` | 解除 BLOCKED 任务 |
+| 67 | kanban_cancel_task | 75 | `harness/toolkits/kanban/_orchestrator_tools.py` | 取消任务（移入 ARCHIVED；运行中任务同时停止 worker） |
+| 68 | kanban_retry_task | 75 | `harness/toolkits/kanban/_orchestrator_tools.py` | 重试 FAILED 任务（重置为 READY 并清除失败计数；可选更新描述） |
+| 69 | kanban_revise_plan | 141 | `harness/toolkits/kanban/_orchestrator_tools.py` | 原子修订看板 DAG 计划（增/改/归档任务并调整依赖边） |
 
 ### 4.17 桌面语义控制工具（启用 Computer Use 时加载）
 
@@ -205,7 +210,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 
 PTC（`myrm_tools.spawn_subagent` / `notify`）等非 LLM 实现见 §4.25，零 Turn1 bind。
 
-Token 明细（历史 tiktoken 计量保留）：
+Token 明细（tiktoken o200k_base）：
 
 | # | 名称 | Token (tiktoken) | 来源 |
 |---|------|------------------:|------|
@@ -315,13 +320,13 @@ Token 明细（历史 tiktoken 计量保留）：
 | System Prompt 层 | **2,369** |
 | CORE 工具层 | **2,655** |
 | HIGH_PRIORITY 工具层 | **2,717** |
-| EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,960（**粗估，未逐项实测**：§四 已列 36 个工具的描述值求和，EXTENDED 31 个 ~6,037 + EXTERNAL 5 个 ~923；EXTENDED 装配依赖各 backend，无法在离线脚本中全量构建） |
+| EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,109（**粗估**：§四 各行描述值求和，EXTENDED 38 个 ~5,186 + EXTERNAL 5 个 ~923；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,640** (56 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~20,041（粗估）** |
+| **tiktoken 小计** | **~19,190（粗估）** |
 
-> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind；EXTENDED 工具中 `delegate_task_tool`、`subagent_control_tool`（§4.6 标 TBD）与 `browser_ask_human_tool`、`browser_execute_script_tool`、`kanban_cancel_task`、`kanban_retry_task`、`kanban_revise_plan`（未列入 §四）共 7 个没有描述 token 记录，未计入上表，仅作量级参考。
+> 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入；§4.6、§4.7、§4.13 与 `request_answer_user_tool` 之外的各行为记录值，未逐项重测。
 
 ---
 
@@ -334,7 +339,7 @@ Token 明细（历史 tiktoken 计量保留）：
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,717 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~6,037+ tok)]
+[EXTENDED: 可选工具 (~0~5,186+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 2,070 (GPT-5·ZH·full) + messages[1] 299]
