@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import NoReturn
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -76,17 +78,32 @@ def runnable_config() -> RunnableConfig:
 
 
 @pytest.fixture(params=["ripgrep", "python"])
-def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> str:
+def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """Select the search tier by controlling ripgrep detection.
 
     A test that only makes sense on one tier narrows it with
     ``@pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)``.
+
+    On the python tier ripgrep is also refused: a tool that stopped following the detection would otherwise search
+    with ripgrep and its test would still pass, so the test fails when either tool tried to start it.
     """
     use_ripgrep = request.param == "ripgrep"
     if use_ripgrep:
         request.getfixturevalue("require_ripgrep")
     monkeypatch.setattr(grep_tool, "_has_ripgrep", lambda: use_ripgrep)
-    return str(request.param)
+
+    refused: list[list[str]] = []
+
+    async def refuse_ripgrep(cmd: Sequence[str], **_kwargs: object) -> NoReturn:
+        # Recorded as well as raised: on a ripgrep error both tools fall back to the Python tier and would hide it.
+        refused.append(list(cmd))
+        raise OSError("the python tier must not start ripgrep")
+
+    if not use_ripgrep:
+        monkeypatch.setattr(grep_tool, "run_rg", refuse_ripgrep)
+        monkeypatch.setattr(glob_tool, "run_rg", refuse_ripgrep)
+    yield str(request.param)
+    assert not refused, f"ripgrep was started while the python tier was selected: {refused}"
 
 
 @pytest.fixture
