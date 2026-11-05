@@ -126,6 +126,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_execute_preamble_security_config.py` | 单元 | 回合安全配置组装：回合审批等待覆盖配置值且不改动入参、无配置时也生效、非正数/布尔/非数值被忽略、与 YOLO 状态并存 |
 | `channels/delegation/test_delegation_heartbeat.py` | 单元 | 委托运行心跳：长运行原地更新同一条消息并带任务编号与步数，短于一个间隔不发，任务时限内的次数上限，随运行结束、被 `/stop`、停在审批处而结束（交接期间不发） |
 | `core/channel_bridge/test_approval_card.py` | 单元 | 审批卡：句式、超时行、安全审查前缀与按钮取自渠道目录并按发送者语言出（工具名与理由原样），批量按钮、无理由不带悬空冒号、超时自动批准/拒绝措辞、长时限无千分位、时限缺失或不可读回退默认，无目录的语言读英文 |
+| `core/channel_bridge/test_config_parsers_retrieval.py` | 单元 | 设置页检索块转成嵌入与重排配置：按服务商给出路由模型 id（SiliconFlow 走 OpenAI 兼容并带自己的默认地址）、用户填的地址优先、未应用或缺密钥、缺模型、不是配置块的一半被略去且不影响另一半、没有设置得到两个空 |
 | `core/channel_bridge/test_executor_approval_card_locale.py` | 单元 | 真实 `ChannelAgentExecutor` 停在审批请求处：审批卡按发送者 locale 出并带 `expiry` |
 | `channels/routing/test_stop_ends_pending_approval_timer.py` | 集成 | 真实 `AgentRouter` 加真实审批超时调度器：`/stop` 与 `/new` 结束会话正在等待的审批及其超时计时（前台、委托交接两种，交接带或不带审批卡消息号；前台一例由真实 `_execute_prepared_context` 跑完一个停在审批请求处的回合，计时器由路由器按请求自带的等待时长布防），多话题时只有自己在等审批的话题才能结束该聊天的计时，没在等审批的回合被停时别的话题的计时不动 |
 | `channels/routing/test_pending_approvals.py` | 单元 | 路由器的待决审批登记簿 `PendingApprovals`（真实审批超时调度器）：到点只上报一次并关闭等待、按请求设定的决定上报批准或拒绝、应答结束等待与计时、无时限的请求把认领还给下一次应答、上报失败归还认领、计时器已认领后晚到的人工应答被拒、同一聊天的后一个请求接管唯一计时器、`clear` 结束全部；超时续跑消息沿用提问回合的发送者与身份且不带上一回合的会话态；`get` 只读不结束请求，请求记下提问时的智能体编号（与执行器给该回合用的编号一致） |
@@ -592,6 +593,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/security/test_workspace_trust_store.py` | 模块 | 文件夹信任条目记录用户在信任弹窗中看过的仓库声明命令前缀：信任时记录、受限时为空、撤销时清除、重载后保留，没有记录前缀的条目不披露任何前缀；预览清单只把信任之后新增的前缀列为待决；沙箱 agent 在信任之后写入的前缀在用户再次批准前不生效，没有记录前缀的已信任条目要求重新决定 |
 | `api/security/test_workspace_trust_api.py` | 模块 | 信任 REST：预览清单与干净目录自动信任、决定持久化、TRUSTED 决定缺少或带过期 `manifest_hash` 被 400 拒绝且不落库，RESTRICTED 不需要哈希、已信任列表 |
 | `api/security/test_workspace_trust_hostile_folder_api.py` | 模块 | 信任 REST 对含敌意文件目录的整条服务端路径（真实 router + 真实 store + 真实测试库 + 真实文件：FIFO `SKILL.md`、64 MiB 稀疏 `mcp.json` 与 `.myrm/config.toml`）：预览 10 s 内返回诚实文件的计数；两次预览哈希一致，用该哈希做 TRUSTED 决定被接受并落库；目录在预览后变化则旧哈希被 400 拒绝；目录名带空格、中文、组合与分解两种重音、`&=#%` 等 URL 特殊字符时，预览、TRUSTED 决定、列表、按同一路径删除都对应同一个目录（路径经 JSON 体与查询串往返）；经符号链接路径打开的目录按它指向的真实目录预览、决定、列出与撤销（只有一条记录，用真实路径再预览看到同一个级别）；`timeout(method="thread")` 使读取阻塞时以栈转储结束进程，而不是让测试客户端无限等待；仅 POSIX |
+| `api/security/test_generate_policy.py` | 模块 | 策略草拟 REST（模型的回答用固定文本，解析、校验、解释走真实实现）：默认模型起草并带上服务商的 Key 与地址、所选模型沿用默认服务商的凭证、模型不可达 502、回答不是策略 422、没有默认模型 400 且不问模型 |
 | `api/chats/test_workspace_path_policy_api.py` | 模块 | 项目 create/adopt/update、会话工作区 PATCH、转录导入各入口拒绝过宽目录（真实路由 + 真 DB）；已存储的家目录工作区读侧回退到会话沙箱并落库自愈 |
 | `services/workspace/test_file_watch_service.py` | 模块 | P1：watchdog emit / release / refcount → `WORKSPACE_FILE_CHANGED`；连续变更各自送达（载荷 `seq` 绕过总线的连续重复抑制） |
 | `api/files/test_browse_watch_api.py` | 模块 | P1：POST/DELETE `/files/browse/watch` 注册/释放 + 危险路径拒绝 |

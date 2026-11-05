@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from collections.abc import Callable, Iterator
 
 import httpx
@@ -308,3 +309,27 @@ class TestSharedClients:
         finally:
             other_loop.close()
             await foreign.aclose()
+
+
+class TestPauses:
+    """The wait between two attempts is a real sleep of the length the retry policy chose."""
+
+    def test_the_pause_sleeps_for_the_given_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        slept: list[float] = []
+        monkeypatch.setattr(time, "sleep", slept.append)
+
+        http._pause(1.5)
+
+        assert slept == [1.5]
+
+    async def test_the_async_pause_yields_to_the_loop_for_the_given_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        slept: list[float] = []
+
+        async def record(seconds: float) -> None:
+            slept.append(seconds)
+
+        monkeypatch.setattr(asyncio, "sleep", record)
+
+        await http._apause(2.0)
+
+        assert slept == [2.0]

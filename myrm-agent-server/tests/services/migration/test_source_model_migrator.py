@@ -9,12 +9,35 @@ import pytest
 
 from app.services.migration.source.source_model_migrator import (
     AuxiliaryMigrationResult,
+    _route_id_to_primary_selection,
     extract_hermes_auxiliary_config,
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
 
 MODULE = "app.services.migration.source.source_model_migrator"
+
+
+# ---------------------------------------------------------------------------
+# _route_id_to_primary_selection — pure function, no mock needed
+# ---------------------------------------------------------------------------
+
+
+class TestRouteIdToPrimarySelection:
+    def test_the_leading_segment_is_the_provider(self) -> None:
+        assert _route_id_to_primary_selection("anthropic/claude-opus-4-6") == {
+            "providerId": "anthropic",
+            "model": "claude-opus-4-6",
+        }
+
+    def test_only_the_first_slash_splits_provider_from_model(self) -> None:
+        assert _route_id_to_primary_selection("openrouter/meta-llama/llama-3.3-8b-instruct") == {
+            "providerId": "openrouter",
+            "model": "meta-llama/llama-3.3-8b-instruct",
+        }
+
+    def test_a_bare_model_id_is_attributed_to_openrouter(self) -> None:
+        assert _route_id_to_primary_selection("gpt-4o-mini") == {"providerId": "openrouter", "model": "gpt-4o-mini"}
 
 
 # ---------------------------------------------------------------------------

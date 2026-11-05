@@ -182,6 +182,12 @@ class TestClosingTheSchema:
         assert closed["$defs"]["D"]["additionalProperties"] is False  # type: ignore[index]
         assert closed["definitions"]["E"]["additionalProperties"] is False  # type: ignore[index]
 
+    def test_a_boolean_schema_is_left_as_it_is(self) -> None:
+        schema: Body = {"type": "object", "properties": {"anything": True, "nothing": False}}
+        closed = _schema_of(_body(response_format=_format(schema)))
+        assert closed["properties"] == {"anything": True, "nothing": False}
+        assert closed["additionalProperties"] is False
+
     @pytest.mark.parametrize("stated", [True, {"type": "string"}, False])
     def test_a_statement_the_caller_made_stays(self, stated: object) -> None:
         schema = {"type": "object", "properties": {}, "additionalProperties": stated}

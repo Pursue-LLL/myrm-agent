@@ -355,6 +355,10 @@ class TestStream:
         assert [_delta(c) for c in chunks[:-1]] == [{"content": '{"a": "x"}'}]
         assert chunks[-1]["choices"][0]["finish_reason"] == "stop"  # type: ignore[index]
 
+    def test_a_structured_answer_that_is_not_json_comes_through_as_the_model_wrote_it(self) -> None:
+        chunks = _play(_tool_start(0, "j", JSON_TOOL), _tool_input(0, '{"a": "x'), _stop(0))
+        assert [_delta(c) for c in chunks] == [{"content": '{"a": "x'}]
+
     def test_an_empty_structured_answer_is_no_chunk(self) -> None:
         assert _play(_tool_start(0, "j", JSON_TOOL), _stop(0)) == []
 
