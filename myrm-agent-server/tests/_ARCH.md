@@ -41,7 +41,6 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/policy_sqlite.py` | 辅助 | 跑着生产事务策略（deferred 读 + 写语句升级 IMMEDIATE）的文件库：`policy_database(path, monkeypatch)` 建全表并让 `get_session()` 指向它，`hold_write_lock` 开一个持写锁不提交的写者，`PolicyDb.read_issued` / `wait_until` 观察被测单元是否已开始读；普通 `sqlite+aiosqlite` 夹具没有这套策略，「读后写被并发提交打断」只在这里能复现 |
 | `support/real_schema_db.py` | 辅助 | 文件库上的完整真实 schema：`create_real_schema_engine`（ORM 全表 + `ensure_raw_sql_schema` 的 FTS 表/触发器/原生表，外键与生产一样开启）、`seed_row`（只写关心的列，其余必填列补唯一占位值）；断言「删除了什么」的测试用它，手写的小 schema 会认同拼错的表名 |
 | `support/artifact_upsert_fixture.py` | 辅助 | 制品 upsert 自动 mock 插件（autouse，`pytest_plugins` 全局注册）：把 `app.core.artifacts.listener.upsert_processor_artifact` 换成 `AsyncMock`；`core/artifacts` 与 `api/artifacts` 测试共用，对不碰制品管线的测试无副作用 |
-| `support/answer_cache_fixture.py` | 辅助 | 应答缓存夹具插件（经根 `conftest.py` 的 `pytest_plugins` 全局注册的显式请求夹具）：`answer_cache_on` 让传输层应答缓存在单个测试里开着且为空、测试结束后清空（整个套件默认关着它，见根 `conftest.py`）；断言缓存行为、或某次调用必须绕过缓存的测试用它 |
 | `support/oversized_paste.py` | 辅助 | `paste_over_the_limit`（刚过人写文本停车线 `USER_TEXT_LIMITS` 的重复文本）、`paste_between_the_limits`（过了 harness 默认线、没过人写文本线：渠道文档会被停车、人写的文本原样进提示）：测试按限额常量定样本大小，不写死字符数 |
 | `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
 | `support/bounded_wait.py` | 辅助 | `assert_bounded_wait(timeout, *, limit=60)`：断言传给连接的等待上限是正数且不超过上限（`None` 表示永不放弃，`0` 与布尔值也不是等待上限，都不通过）；渠道连接测试与邮件技能脚本测试共用 |

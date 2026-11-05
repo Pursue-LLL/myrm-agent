@@ -28,9 +28,6 @@ os.environ["MYRM_DATA_DIR"] = _temp_workspace
 os.environ.pop("MYRM_PERSISTENT_ROOT", None)
 os.environ["OTEL_METRICS_EXPORTER"] = "none"
 os.environ["OTEL_TRACES_EXPORTER"] = "none"
-# The provider answer cache is on in production. A test must reach its fake provider every time, so the suite starts
-# with it off; the tests of the cache itself switch it on and restore it.
-os.environ["MYRM_LLM_ANSWER_CACHE"] = "0"
 
 _env_test_candidates = (
     Path(__file__).resolve().parents[2] / "myrm-agent-server" / ".env.test",

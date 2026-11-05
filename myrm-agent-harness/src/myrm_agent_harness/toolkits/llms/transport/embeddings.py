@@ -4,7 +4,6 @@
 - transport.service_routes (POS: service_route — provider, endpoint and credential)
 - transport.openai_chat (POS: openai_endpoint — URL and auth headers of an OpenAI-family path)
 - transport.http (POS: PreparedRequest, asend_json)
-- transport.answer_cache (POS: replays the vectors of a batch that was already embedded)
 
 [OUTPUT]
 - aembed: vectors for a batch of texts, in input order
@@ -18,10 +17,9 @@ of a provider SDK. A custom ``api_base`` is an OpenAI-compatible gateway and kee
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import Final
 
-from myrm_agent_harness.toolkits.llms.transport.answer_cache import acached_answer
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest, asend_json
 from myrm_agent_harness.toolkits.llms.transport.openai_chat import openai_endpoint
 from myrm_agent_harness.toolkits.llms.transport.params import split_params
@@ -102,21 +100,13 @@ def _parse_gemini(payload: dict[str, object], expected: int) -> list[list[float]
     return [_vector(e.get("values") if isinstance(e, dict) else None) for e in embeddings]
 
 
-async def _embedded(
-    request: PreparedRequest, parse: Callable[[dict[str, object], int], list[list[float]]], expected: int
-) -> list[list[float]]:
-    return parse(await asend_json(request), expected)
-
-
 async def aembed(
     model: str, texts: Sequence[str], *, api_key: str | None = None, api_base: str | None = None
 ) -> list[list[float]]:
     """Vectors for ``texts`` in input order; raises LLMHTTPError on a refused call."""
     route = service_route(model, api_key=api_key, api_base=api_base, gateway_base=True)
     if route.profile.id == "cohere":
-        request, parse = _cohere_request(route, texts), _parse_cohere
-    elif route.profile.wire == "gemini":
-        request, parse = _gemini_request(route, texts), _parse_gemini
-    else:
-        request, parse = _openai_request(route, texts), _parse_openai
-    return await acached_answer(request, lambda: _embedded(request, parse, len(texts)))
+        return _parse_cohere(await asend_json(_cohere_request(route, texts)), len(texts))
+    if route.profile.wire == "gemini":
+        return _parse_gemini(await asend_json(_gemini_request(route, texts)), len(texts))
+    return _parse_openai(await asend_json(_openai_request(route, texts)), len(texts))

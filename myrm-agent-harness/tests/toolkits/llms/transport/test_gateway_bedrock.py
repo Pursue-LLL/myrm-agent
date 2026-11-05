@@ -364,9 +364,9 @@ class TestFailures:
 
 
 class TestRepeatedRequests:
-    pytestmark = pytest.mark.usefixtures("cache_on")
+    """A request Bedrock has already answered is put to Bedrock again: the transport keeps no answers."""
 
-    def test_an_identical_whole_answer_request_reaches_bedrock_once(self, provider: Provider) -> None:
+    def test_an_identical_whole_answer_request_reaches_bedrock_each_time(self, provider: Provider) -> None:
         provider.serves(
             httpx.Response(200, content=_converse({"text": "hello"}), headers={"content-type": "application/json"})
         )
@@ -374,9 +374,9 @@ class TestRepeatedRequests:
         first = _llm(streaming=False).invoke(HI)
         second = _llm(streaming=False).invoke(HI)
 
-        assert (first.content, second.content, len(provider.requests)) == ("hello", "hello", 1)
+        assert (first.content, second.content, len(provider.requests)) == ("hello", "hello", 2)
 
-    def test_an_identical_streamed_request_is_answered_from_the_cache_with_its_usage(
+    def test_an_identical_streamed_request_reaches_bedrock_each_time_and_counts_its_usage_each_time(
         self, provider: Provider, tracker: TokenTracker
     ) -> None:
         provider.serves(
@@ -386,30 +386,22 @@ class TestRepeatedRequests:
         first = _stream_all(_llm(streaming=True))
         second = _stream_all(_llm(streaming=True))
 
-        assert (first.content, second.content, len(provider.requests)) == ("hello", "hello", 1)
+        assert (first.content, second.content, len(provider.requests)) == ("hello", "hello", 2)
         assert tracker.call_count == 2
 
-    def test_a_request_that_differs_in_the_parallel_setting_asks_bedrock_again(self, provider: Provider) -> None:
-        provider.serves(
-            httpx.Response(200, content=_converse({"text": "hello"}), headers={"content-type": "application/json"})
-        )
-
-        _llm(streaming=False).bind_tools([WEATHER], parallel_tool_calls=False).invoke(HI)
-        _llm(streaming=False).bind_tools([WEATHER], parallel_tool_calls=True).invoke(HI)
-
-        assert len(provider.requests) == 2
-
-    def test_a_tool_call_answer_is_kept_and_a_stream_cut_by_an_exception_is_not(self, provider: Provider) -> None:
+    def test_a_streamed_tool_call_answer_is_asked_again(self, provider: Provider) -> None:
         provider.serves(httpx.Response(200, content=_tool_stream(), headers={"content-type": CONTENT_TYPE}))
+
         first = _stream_all(_llm(streaming=True).bind_tools([WEATHER]))
         second = _stream_all(_llm(streaming=True).bind_tools([WEATHER]))
+
         assert (first.tool_calls[0]["args"], second.tool_calls[0]["args"], len(provider.requests)) == (
             {"city": "Tokyo"},
             {"city": "Tokyo"},
-            1,
+            2,
         )
 
-        provider.requests.clear()
+    def test_a_stream_cut_by_an_exception_is_asked_again(self, provider: Provider) -> None:
         broken = httpx.Response(
             200,
             content=_frames(*text_stream("a")[:2], exception("modelStreamErrorException", "x")),

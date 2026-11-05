@@ -6,14 +6,13 @@
 [OUTPUT]
 - CallOptions: the transport-level options of a call and its remaining body parameters
 - split_params: separate credentials / timeout / proxy / headers / extra_body from the body parameters
-- wants_answer_cache: whether the caller left the call in the answer cache (``answer_cache=False`` opts out)
 - merge_headers: case-insensitive header overlay shared by every wire
 
 [POS]
 Every wire module starts from the same keyword arguments the adapter hands over (model, endpoint, credential,
-timeout, proxy, headers, ``extra_body``, the ``answer_cache`` switch and the OpenAI-shaped generation parameters).
-This module is the single place that decides which of them are transport concerns and which belong in the
-provider's request body, so no wire re-implements the split.
+timeout, proxy, headers, ``extra_body`` and the OpenAI-shaped generation parameters). This module is the single
+place that decides which of them are transport concerns and which belong in the provider's request body, so no
+wire re-implements the split.
 """
 
 from __future__ import annotations
@@ -21,8 +20,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Final
-
-ANSWER_CACHE: Final = "answer_cache"
 
 _TRANSPORT_KEYS: Final = frozenset(
     {
@@ -38,7 +35,6 @@ _TRANSPORT_KEYS: Final = frozenset(
         "extra_body",
         "api_version",
         "organization",
-        ANSWER_CACHE,
     }
 )
 
@@ -84,11 +80,6 @@ def split_params(params: Mapping[str, object]) -> CallOptions:
         stream=params.get("stream") is True,
         body={k: v for k, v in params.items() if k not in _TRANSPORT_KEYS and v is not None},
     )
-
-
-def wants_answer_cache(params: Mapping[str, object]) -> bool:
-    """Only an explicit ``answer_cache=False`` opts a call out; the call then neither reads nor files an answer."""
-    return params.get(ANSWER_CACHE) is not False
 
 
 def merge_headers(base: Mapping[str, str], extra: Mapping[str, str]) -> dict[str, str]:
