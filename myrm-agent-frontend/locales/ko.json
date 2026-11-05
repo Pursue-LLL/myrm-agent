@@ -396,6 +396,9 @@
   },
   "nav": {
     "tools": "도구",
+    "more": "더보기",
+    "moreMonitor": "모니터링",
+    "moreExtend": "확장",
     "chat": "채팅",
     "work": "작업",
     "projects": "프로젝트",

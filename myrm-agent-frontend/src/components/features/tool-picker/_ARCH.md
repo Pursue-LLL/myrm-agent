@@ -11,7 +11,7 @@
 | `ToolCategoryTabs.tsx`            | 分类标签栏组件：全部、系统与电脑控制、网络与浏览器、代码与数据、文档与表格分类点选与数量徽标     | `< 120` 行，零 `any`，Tailwind 响应式 |
 | `ToolPickerCard.tsx`              | 单个工具卡片组件：展示工具名、分类/来源 Badge（Builtin/Skill/MCP）、描述、Pin 置顶切换与启用开关 | `< 150` 行，零原生 emoji              |
 | `CategorizedToolPickerDrawer.tsx` | 语义化 `<dialog>` 原生模态抽屉：组合即时搜索栏、分类标签、常用置顶、最近使用与工具网格           | `< 280` 行，零 `any`                  |
-| `ToolPickerTrigger.tsx`           | 工具选择抽屉的快捷键（`⌘⇧T`）与打开事件宿主；入口是工具菜单，本组件只渲染抽屉                    | `< 120` 行                            |
+| `ToolPickerTrigger.tsx`           | 工具选择抽屉的快捷键（`⌘⇧T`）与打开事件宿主；入口是「更多」菜单的「工具」分组，本组件只渲染抽屉  | `< 120` 行                            |
 | `index.ts`                        | 门面导出文件：统一导出选择器抽屉、快捷键宿主与子卡片                                             | 统一入口                              |
 | `_ARCH.md`                        | 本模块架构说明与文件职责索引                                                                     | 遵循架构规范                          |
 

@@ -396,6 +396,9 @@
   },
   "nav": {
     "tools": "Werkzeuge",
+    "more": "Mehr",
+    "moreMonitor": "Überwachung",
+    "moreExtend": "Erweiterungen",
     "chat": "Chatten",
     "work": "Arbeiten",
     "projects": "Projekte",

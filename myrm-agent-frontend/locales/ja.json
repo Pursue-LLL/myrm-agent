@@ -396,6 +396,9 @@
   },
   "nav": {
     "tools": "ツール",
+    "more": "その他",
+    "moreMonitor": "モニタリング",
+    "moreExtend": "拡張",
     "chat": "チャット",
     "work": "作業",
     "projects": "プロジェクト",

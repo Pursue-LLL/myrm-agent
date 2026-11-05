@@ -396,6 +396,9 @@
   },
   "nav": {
     "tools": "工具",
+    "more": "更多",
+    "moreMonitor": "檢視",
+    "moreExtend": "擴充",
     "chat": "聊天",
     "work": "工作",
     "projects": "專案",
