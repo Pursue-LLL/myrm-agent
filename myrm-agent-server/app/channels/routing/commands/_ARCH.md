@@ -9,7 +9,10 @@ IM 渠道斜杠命令解析与执行域：统一命令解析入口与各功能�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出，保持 `router_commands` import 稳定 | [OK] |
-| `commands.py` | 模块 | 命令解析与斜杠命令执行统一入口 | [OK] |
+| `parsers.py` | 模块 | 斜杠命令参数解析（approval / yolo / personality / memory），纯函数 | [OK] |
+| `session.py` | 模块 | `/new` 与 `/compact` 会话级处理 | [OK] |
+| `topic.py` | 模块 | 话题命令解析与绑定/解绑/切换处理 | [OK] |
+| `turns.py` | 模块 | `/retry`、`/undo` 与文件回退提示 | [OK] |
 | `router_commands.py` | 模块 | `RouterCommandsMixin`：把各命令族 mixin（approval / stop / delegation / session / modes / goals / memory / draft / quota）组合成路由器使用的单一命令处理基类 | [OK] |
 | `router_commands_approval.py` | 模块 | 审批相关命令（approve/reject 等，含 reaction、按钮审批与决定恢复载荷）；`/deny <理由>` 的理由先过入站风险闸门，被拦时审批保持待决 | [OK] |
 | `router_commands_approval_end.py` | 模块 | 未决审批无人应答时的两种结局：到点后的续跑 `_resume_after_approval_timeout`（审批卡改写成结果，续跑作为路由器登记的普通回合）、同一智能体会话里开始新回合时的收口 `_retire_open_approval`（审批卡改写成「已取消」并结束计时）；两者经 `_show_on_approval_card` 改写审批卡，卡不可编辑或没有卡消息号时改发一条消息 | [OK] |

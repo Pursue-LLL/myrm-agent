@@ -32,7 +32,7 @@ from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
-from .commands import ApprovalDecision, DenyWithReason
+from .parsers import ApprovalDecision, DenyWithReason
 
 if TYPE_CHECKING:
     from app.channels.core.bus import MessageBus

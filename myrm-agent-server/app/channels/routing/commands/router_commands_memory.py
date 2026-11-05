@@ -28,7 +28,7 @@ from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage, OutboundMessage
 
-from .commands import parse_memory_args
+from .parsers import parse_memory_args
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager

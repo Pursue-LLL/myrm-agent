@@ -14,7 +14,7 @@ import pytest
 from app.channels.providers.feishu import FeishuChannel
 from app.channels.providers.feishu.api import FeishuClient, FeishuSendError
 from app.channels.providers.feishu.reactions import FEISHU_EMOJI_TO_UNICODE, UNICODE_TO_FEISHU_EMOJI
-from app.channels.routing.commands.commands import parse_approval_command
+from app.channels.routing.commands.parsers import parse_approval_command
 from app.channels.types import InboundMessage
 
 # Subset of the official list (open.feishu.cn: message-reaction/emojis-introduce) the vocabulary may use.
