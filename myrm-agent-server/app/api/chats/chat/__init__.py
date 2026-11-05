@@ -17,7 +17,6 @@ from .memory_extract import router as memory_extract_router
 from .messages import router as messages_router
 from .replay import router as replay_router
 from .rewind import router as rewind_router
-from .sandbox import router as sandbox_router
 from .session_access_roots import router as session_access_roots_router
 from .share import router as share_router
 from .thought_control import router as thought_control_router
@@ -45,7 +44,6 @@ router.include_router(copilot_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)
 router.include_router(import_session_router)
-router.include_router(sandbox_router)
 router.include_router(share_router)
 router.include_router(trajectory_router)
 router.include_router(replay_router)

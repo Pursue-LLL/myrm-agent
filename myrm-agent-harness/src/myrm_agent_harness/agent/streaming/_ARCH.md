@@ -9,16 +9,17 @@
 | 文件 | 地位 | 职责 |
 | --- | --- | --- |
 | `__init__.py` | 入口 | 包入口（不再导出符号，调用方按模块路径导入） |
+| `agent_core_rules.py` | 核心 | 核心行为规则（所有模型共用的反叙述、工具结果诚实、反幻觉规则，与模型名无关）与升级契约 |
 | `answer_draft.py` | 核心 | 流式回复文本累积器 `AnswerDraft` 与重启契约判定 `is_answer_restart`：恢复重放时只丢弃“最近一次 `tool_start` 之后”的在途段落（已完成的工具步骤由检查点保留，模型从其后续写，之前的文本不会重发）；所有从 `process_stream` 事件拼最终回复的消费者统一使用，禁止各自重写该规则 |
 | `artifact_events.py` | 核心 | 工件事件处理（文件工件、UI工件、内联图片工件与实时内容更新） |
 | `channel_output_hints.py` | 核心 | 交付渠道输出格式提示词生成（Channel-Aware Output Guidance）与前置提示保障 |
 | `citation_audit.py` | 核心 | 流式回复引用标记审计（【N】序号与信息源对照验证） |
 | `escalation_scrubber.py` | 核心 | 模型自主升级标记（`<<<NEEDS_PRO>>>`）流式拦截与重试恢复触发 |
-| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束。工具错误步骤的 `error` 经 `core.security.model_directed_notes.user_facing_text` 截到第一条给模型的备注之前（`[System: …]`、`[SECURITY_DENIAL_DIAGNOSTIC]`），界面只显示拒绝的原因，模型读到的 ToolMessage 原文不变；整段都是备注时回退为 `Unknown error` |
+| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束。真正的空回复（无 content、无推理文本、无工具调用）不进 `collected_messages`（没有可重发的内容），恢复处理器改读 `latest_reply.latest_model_reply` 记下的本轮最后一次回复。工具错误步骤的 `error` 经 `core.security.model_directed_notes.user_facing_text` 截到第一条给模型的备注之前（`[System: …]`、`[SECURITY_DENIAL_DIAGNOSTIC]`），界面只显示拒绝的原因，模型读到的 ToolMessage 原文不变；整段都是备注时回退为 `Unknown error` |
 | `interrupt_events.py` | 核心 | LangGraph `__interrupt__` 分片 → 流事件：每个中断一个事件，顶层带卡片 id `interruptId`（并行子 agent 各自挂起时，每张审批卡片可单独作答；resume 侧见 `_internals/resume_addressing.py`） |
 | `interrupt_identity.py` | 核心 | 卡片 id = `<LangGraph 中断 id>.<轮次>`：LangGraph 的中断 id 只标识挂起的任务，同一任务连续多次 `interrupt()`（委派在每一步前都要审批）共用一个 id，轮次 = 该任务已消费的答复数，使每次挂起各有各的卡片 id；`AddressedResume` 是携带各待决中断轮次的 resume 指令，由 resume 咽喉在运行开始前读检查点得出、经 `announced_rounds` 交给分发器盖章，运行中不读检查点 |
+| `latest_reply.py` | 核心 | `latest_model_reply(update)`：一次 `updates` 分片携带的最后一条 AIMessage，包括 `collected_messages` 不收的空回复；由 `StreamDispatcherMixin` 记为 `_latest_reply`，供截断/空回复恢复处理器判断「本轮最后一次回复」 |
 | `message_builder.py` | 核心 | 原始用户输入向 LangChain 消息结构转换与时间戳就地注入 |
-| `model_discipline.py` | 核心 | 模型执行纪律与模型家族行为调优提示词体系（层级化 Tool 引导与反幻觉） |
 | `reasoning_scrubber.py` | 核心 | 模型思考推理标签（`<think>`等）状态机清洗与独立事件重定向 |
 | `repetition_scrubber.py` | 核心 | 模型退化重复循环实时检测与流式熔断保护 |
 | `run_digest.py` | 核心 | 智能体实时执行快照 DTO 与步骤信息归纳聚合器 |
@@ -26,7 +27,7 @@
 | `step_builder.py` | 核心 | 智能体步骤执行数据格式化（面向 WebUI 的多类型工具状态渲染契约） |
 | `stream_buffer.py` | 核心 | 内存滑动窗口流式重放缓冲与 Last-Event-ID 重连恢复。一个缓冲只属于一次运行，结束后只重放、不再接收新事件；`GlobalStreamRegistry.get_or_create` 把某个 id 现有的缓冲交给重连的客户端，`start_run` 给新一次运行换一个新缓冲（审批通过后的续跑沿用被停下那一轮的 message id，若拿到它已结束的缓冲，客户端收到的是那一轮的重放而不是续跑），被换下的缓冲留给还在读它的人读完；`remove(run_id, buffer)` 带缓冲时只清掉仍登记的那一个，换下的缓冲排定的延时清理不会误结束新一次运行的流 |
 | `stream_compactor.py` | 核心 | 高频文本片段流式合并压实器（降低前端事件风暴与渲染开销） |
-| `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`） |
+| `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`；并把每个 `updates` 分片里的最后一条 AIMessage 记为 `_latest_reply`，见 `latest_reply.py`） |
 | `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截；被 Stop 打断的模型请求以 `OperationCancelledError` 早退，与循环内 Stop 同一收尾） |
 | `stream_fatal_error.py` | 核心 | 致命错误上报 Mixin：把一次运行的异常转成带诊断的 GUI 错误事件（故障归属、恢复建议、冷却剩余时间）、以脱敏文本记入运行统计（`AgentRunStatistics.record_error`，随 SESSION_END 钩子载荷离开进程）、写入事件日志并抛出 `MyrmLLMError`；`StreamExecutor` 经多继承使用 |
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |

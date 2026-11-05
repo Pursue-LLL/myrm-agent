@@ -1,8 +1,16 @@
-"""[OUTPUT]
-model_info endpoints.
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.catalog::model_facts, known_models, is_deprecated (POS: built-in model catalog)
+- fastapi / pydantic (POS: route + schema primitives)
+
+[OUTPUT]
+- get_model_info / get_model_info_batch: capability lookup for one model or a batch
+- ModelCapabilities / ModelCandidate / ModelInfoResponse / ModelInfoRequest / ModelInfoBatchRequest
+- _build_capabilities, _search_models_by_name
 
 [POS]
-Model capability lookup against the model catalog.
+Model metadata endpoints. The catalog lookup comes first (case-insensitive; a gateway name resolves to the model
+behind it), then a name search over the catalog, so the settings page shows real capabilities instead of a
+fabricated default.
 """
 
 from __future__ import annotations

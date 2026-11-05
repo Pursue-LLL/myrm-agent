@@ -1,8 +1,14 @@
-"""[OUTPUT]
-common endpoints.
+"""[INPUT]
+- fastapi::APIRouter (POS: route table carrier)
+
+[OUTPUT]
+- router / logger: the single APIRouter every endpoint module decorates
+- _LOCAL_NO_AUTH_KEY_MARKER / _apply_local_no_auth_marker_transport_overrides: the local
+  no-auth marker and its transport override, shared by discovery, verification and reachability
 
 [POS]
-The APIRouter every LLM integration endpoint module decorates, plus the local no-auth marker shared by discovery, verification and reachability.
+Shared primitives of the LLM probe endpoints. Kept deliberately small: it only holds what more than
+one endpoint module needs, so it cannot turn into a dumping ground.
 """
 
 from __future__ import annotations

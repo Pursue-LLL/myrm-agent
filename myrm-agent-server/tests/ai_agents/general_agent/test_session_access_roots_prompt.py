@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def _factory_source() -> str:
-    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "prompt.py"
     return factory_path.read_text(encoding="utf-8")
 
 

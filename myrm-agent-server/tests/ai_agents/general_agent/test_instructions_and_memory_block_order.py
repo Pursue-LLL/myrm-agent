@@ -36,7 +36,7 @@ from pydantic import Field
 
 from app.ai_agents.agent_middlewares.user_instructions_middleware import user_instructions_middleware
 
-FACTORY_PATH = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+FACTORY_PATH = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "middlewares.py"
 
 _IDENTITY = "<identity>You are the test agent.</identity>"
 _INSTRUCTIONS = "Always answer in French."

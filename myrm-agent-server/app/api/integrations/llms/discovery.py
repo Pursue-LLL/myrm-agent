@@ -1,8 +1,17 @@
-"""[OUTPUT]
-discovery endpoints.
+"""[INPUT]
+- myrm_agent_harness.core.security.http.secure_fetch::secure_request (POS: SSRF-guarded HTTP fetch)
+- myrm_agent_harness.infra.tls_compat::create_httpx_client (POS: TLS-compatible httpx client)
+- app.config.deploy_mode::is_local_mode (POS: local/desktop deploy mode)
+
+[OUTPUT]
+- discover_models: probe an OpenAI-compatible endpoint and return its model IDs
+- ModelDiscoveryRequest / ModelDiscoveryResult
+- _normalize_api_base, _build_models_candidates, _extract_model_ids, _is_loopback_host,
+  _is_trusted_split_stack_host
 
 [POS]
-Model discovery: probe an OpenAI-compatible endpoint and return its model IDs.
+Model discovery endpoint. Derives candidate endpoints from whatever URL the user pasted and decides
+which hosts local/desktop deployments may probe without a key, while blocking cloud metadata.
 """
 
 from __future__ import annotations

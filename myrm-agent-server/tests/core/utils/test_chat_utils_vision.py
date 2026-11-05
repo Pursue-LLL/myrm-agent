@@ -246,7 +246,7 @@ async def test_preprocess_inbound_multimodal_query_delegates_to_process_human_co
     processed = [{"type": "text", "text": "[Image Analysis]:\ndone"}]
 
     with patch(
-        "app.core.utils.chat_utils._process_human_content",
+        "app.core.utils.chat_utils.multimodal._process_human_content",
         new_callable=AsyncMock,
         return_value=processed,
     ) as mock_process:

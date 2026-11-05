@@ -1,8 +1,14 @@
-"""[OUTPUT]
-preflight endpoints.
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.catalog::model_facts (POS: built-in model catalog)
+
+[OUTPUT]
+- model_switch_preflight: context-window fit and compaction estimate for a model switch
+- ModelSwitchPreflightItem / ModelSwitchPreflightRequest / ModelSwitchPreflightResult
+- _resolve_target_max_input_tokens
 
 [POS]
-Model switch preflight: context-window fit and compaction estimate.
+Preflight endpoint for switching models mid-chat. Answers "will the current context fit, and when
+would compaction start" before the switch happens.
 """
 
 from __future__ import annotations

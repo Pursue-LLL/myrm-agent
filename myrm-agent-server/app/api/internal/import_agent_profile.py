@@ -7,10 +7,12 @@
 - database.repositories.uow::UnitOfWork (POS: Unit of Work 事务层)
 
 [OUTPUT]
-- POST /api/admin/import-agent-profile: Import or force-update Agent from marketplace package
+- POST /api/admin/import-agent-profile: Import or force-update Agent from a CP-signed package
 
 [POS]
-CP-to-sandbox internal endpoint for marketplace Agent installation and force-push updates.
+CP-to-sandbox internal endpoint for Agent package import and force-push updates.
+The Control Plane only calls it with `force=True` (force-push); the non-force import
+(the only path that creates the install binding force-push resolves) has no caller.
 Receives a serialized Agent package, enforces contract/integrity + optional CP transport
 signature verification, then creates/updates the Agent + dependencies locally.
 Bundled-skill packages are rejected when local skill writes are disabled (MYRM_ALLOW_LOCAL_SKILLS=0).
@@ -68,10 +70,10 @@ class ImportAgentProfileResponse(BaseModel):
 async def import_agent_profile_endpoint(
     body: ImportAgentProfileRequest,
 ):
-    """Import an Agent profile package from the marketplace.
+    """Import an Agent profile package pushed by the Control Plane.
 
-    Called by the Control Plane during marketplace install to push
-    Agent configuration into the user's sandbox.
+    The Control Plane calls this only for force-push, which needs an install
+    binding that only a non-force import creates.
 
     When ``force=True``, the endpoint snapshots the existing Agent before
     overwriting, enabling user rollback via the snapshot service.
