@@ -18,7 +18,6 @@ app/api/health/router.py
 app/api/integrations/llms.py
 app/api/kanban/schemas.py
 app/api/memory/operations/shared_context/shared_contexts.py
-app/api/skills/discovery/routes.py
 app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
@@ -31,7 +30,6 @@ app/api/voice/agent_bridge.py
 app/api/voice/realtime.py
 app/api/voice/ws_session.py
 app/api/webui/router.py
-app/api/wiki/routes/imports.py
 app/channels/core/base.py
 app/channels/core/gateway.py
 app/channels/implementations/fastapi/registrar.py
