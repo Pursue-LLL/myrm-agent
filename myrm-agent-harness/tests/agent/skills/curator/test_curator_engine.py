@@ -173,12 +173,10 @@ async def test_curator_consolidation_excludes_protected_skills(stats_collector: 
     )
     seen: list[tuple[list[str], frozenset[str]]] = []
 
-    async def fake_consolidation(
-        skills: list[SkillMetadata], *, dry_run: bool = True, reserved_names: frozenset[str] = frozenset()
-    ) -> None:
+    async def fake_consolidation(skills: list[SkillMetadata], *, reserved_names: frozenset[str] = frozenset()) -> None:
         seen.append(([s.name for s in skills], reserved_names))
 
-    curator._run_consolidation = fake_consolidation  # type: ignore[method-assign]
+    curator._propose_consolidation = fake_consolidation  # type: ignore[method-assign]
     bound = create_mock_skill("bound")
     free = create_mock_skill("free")
 
@@ -226,12 +224,10 @@ async def test_curator_consolidation_follows_installed_protection(
     )
     seen: list[tuple[list[str], frozenset[str]]] = []
 
-    async def fake_consolidation(
-        skills: list[SkillMetadata], *, dry_run: bool = True, reserved_names: frozenset[str] = frozenset()
-    ) -> None:
+    async def fake_consolidation(skills: list[SkillMetadata], *, reserved_names: frozenset[str] = frozenset()) -> None:
         seen.append(([s.name for s in skills], reserved_names))
 
-    curator._run_consolidation = fake_consolidation  # type: ignore[method-assign]
+    curator._propose_consolidation = fake_consolidation  # type: ignore[method-assign]
     installed = create_mock_skill("from-store")
     free = create_mock_skill("free")
 

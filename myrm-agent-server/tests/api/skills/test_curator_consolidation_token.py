@@ -1,4 +1,4 @@
-"""Consolidation execute only runs the plan the user previewed: the token comes from preview, works once, and is tied to that plan."""
+"""Consolidation execute applies the plan the user previewed: the token comes from preview, works once, and names that plan."""
 
 from __future__ import annotations
 
@@ -23,17 +23,17 @@ _EXECUTION_RESULT = {
 }
 
 
-def _merge_plan(target: str = "report_skill", *, failed_clusters: int = 0) -> ConsolidationPlan:
+def _merge_plan(target: str = "report_skill") -> ConsolidationPlan:
     merge = ConsolidationAction(
         action_type=ConsolidationActionType.MERGE,
         target_skill=target,
         source_skills=("report_a", "report_b"),
         reasoning="same job",
     )
-    return ConsolidationPlan(actions=[merge], total_skills_affected=2, estimated_reduction=1, failed_clusters=failed_clusters)
+    return ConsolidationPlan(actions=[merge], total_skills_affected=2, estimated_reduction=1)
 
 
-def _issue_token(client: TestClient, previewed_plan: ConsolidationPlan) -> str:
+def _preview(client: TestClient, previewed_plan: ConsolidationPlan) -> str:
     with patch(
         "app.core.skills.curator.consolidation.run_consolidation_preview",
         AsyncMock(return_value=previewed_plan),
@@ -43,62 +43,63 @@ def _issue_token(client: TestClient, previewed_plan: ConsolidationPlan) -> str:
     return str(response.json()["plan_token"])
 
 
-def _execute(client: TestClient, token: str, *, current_plan: ConsolidationPlan) -> tuple[int, AsyncMock]:
-    """Post an execute request (it previews the plan again itself); return its status and the patched execution."""
+def _execute(client: TestClient, token: str) -> tuple[int, AsyncMock, AsyncMock]:
+    """Post an execute request; return its status, the patched execution and the patched preview."""
     execution = AsyncMock(return_value=_EXECUTION_RESULT)
+    preview = AsyncMock(return_value=ConsolidationPlan())
     with (
-        patch(
-            "app.core.skills.curator.consolidation.run_consolidation_preview",
-            AsyncMock(return_value=current_plan),
-        ),
         patch("app.core.skills.curator.consolidation.run_consolidation_execute", execution),
+        patch("app.core.skills.curator.consolidation.run_consolidation_preview", preview),
     ):
         response = client.post(_EXECUTE_URL, json={"plan_token": token})
-    return response.status_code, execution
+    return response.status_code, execution, preview
 
 
-def test_execute_runs_for_the_token_the_preview_issued(client: TestClient) -> None:
-    plan = ConsolidationPlan()
-    token = _issue_token(client, plan)
+def test_execute_applies_the_plan_the_preview_returned(client: TestClient) -> None:
+    plan = _merge_plan()
+    token = _preview(client, plan)
 
-    status, execution = _execute(client, token, current_plan=plan)
+    status, execution, preview = _execute(client, token)
 
     assert status == 200
-    execution.assert_awaited_once()
+    execution.assert_awaited_once_with(plan)
+    preview.assert_not_awaited()
 
 
 def test_execute_rejects_a_token_the_preview_never_issued(client: TestClient) -> None:
-    status, execution = _execute(client, "forged-token", current_plan=ConsolidationPlan())
+    status, execution, _ = _execute(client, "forged-token")
 
     assert status == 409
     execution.assert_not_awaited()
 
 
 def test_a_token_executes_only_once(client: TestClient) -> None:
-    plan = ConsolidationPlan()
-    token = _issue_token(client, plan)
-    assert _execute(client, token, current_plan=plan)[0] == 200
+    token = _preview(client, _merge_plan())
+    assert _execute(client, token)[0] == 200
 
-    status, execution = _execute(client, token, current_plan=plan)
-
-    assert status == 409
-    execution.assert_not_awaited()
-
-
-def test_execute_rejects_a_token_when_the_plan_changed_after_the_preview(client: TestClient) -> None:
-    token = _issue_token(client, _merge_plan("report_skill"))
-
-    status, execution = _execute(client, token, current_plan=_merge_plan("invoice_skill"))
+    status, execution, _ = _execute(client, token)
 
     assert status == 409
     execution.assert_not_awaited()
 
 
-def test_execute_accepts_a_plan_that_differs_only_in_how_many_groups_could_not_be_evaluated(client: TestClient) -> None:
-    """The token binds the plan the user saw; a transient judge failure is not part of that plan."""
-    token = _issue_token(client, _merge_plan(failed_clusters=1))
+def test_every_preview_keeps_its_own_plan(client: TestClient) -> None:
+    """A second preview (another tab, a re-click) does not replace the plan the first token names."""
+    first, second = _merge_plan("report_skill"), _merge_plan("invoice_skill")
+    first_token = _preview(client, first)
+    _preview(client, second)
 
-    status, execution = _execute(client, token, current_plan=_merge_plan(failed_clusters=0))
+    status, execution, _ = _execute(client, first_token)
 
     assert status == 200
-    execution.assert_awaited_once()
+    execution.assert_awaited_once_with(first)
+
+
+def test_execute_rejects_an_expired_token(client: TestClient) -> None:
+    with patch("app.core.skills.curator.consolidation_plan_store._TTL_SECONDS", -1):
+        token = _preview(client, _merge_plan())
+
+    status, execution, _ = _execute(client, token)
+
+    assert status == 409
+    execution.assert_not_awaited()

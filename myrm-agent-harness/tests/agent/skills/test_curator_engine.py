@@ -277,7 +277,7 @@ class TestAsyncSweep:
         assert consolidation_result is None
 
     @pytest.mark.asyncio
-    async def test_run_async_with_consolidation_dry_run(self, collector: SkillStatsCollector) -> None:
+    async def test_run_async_with_consolidation_proposal(self, collector: SkillStatsCollector) -> None:
         from unittest.mock import AsyncMock, MagicMock, patch
 
         config = CuratorConfig(consolidation_enabled=True, stale_after_days=365)
@@ -291,7 +291,7 @@ class TestAsyncSweep:
             write_backend=mock_backend,
         )
         with patch(
-            "myrm_agent_harness.agent.skills.curator.engine.SkillCurator._run_consolidation",
+            "myrm_agent_harness.agent.skills.curator.engine.SkillCurator._propose_consolidation",
             new_callable=AsyncMock,
             return_value=None,
         ):
@@ -299,9 +299,9 @@ class TestAsyncSweep:
             assert lifecycle_result.skills_scanned == 5
 
     @pytest.mark.asyncio
-    async def test_run_consolidation_returns_none_when_unavailable(self, collector: SkillStatsCollector) -> None:
+    async def test_propose_consolidation_returns_none_when_unavailable(self, collector: SkillStatsCollector) -> None:
         curator = SkillCurator(collector)
-        result = await curator._run_consolidation([])
+        result = await curator._propose_consolidation([])
         assert result is None
 
 

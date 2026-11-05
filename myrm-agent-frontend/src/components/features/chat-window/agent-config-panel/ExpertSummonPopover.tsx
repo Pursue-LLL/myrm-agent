@@ -5,7 +5,7 @@
  * - @/services/agent::getTemplates, TemplateListItem (POS: 专家与团队模板 DTO)
  * - @/services/templateDiscovery::templateMatchesSearchQuery, resolveTemplateKind (POS: 模板搜索与类型判定)
  * - @/services/templateSummon::instantiateTemplateWithMetrics (POS: 专家召唤统一入口与漏斗埋点)
- * - @/store/useChatStore::useChatStore (POS: 状态与输入框草稿同步)
+ * - ./prefillComposerWithUseCase (POS: 召唤后预填输入框且不覆盖草稿)
  * - @/components/primitives/popover (POS: 门户渲染的浮层，避免被工具栏横向滚动容器裁切)
  *
  * [OUTPUT]
@@ -28,7 +28,7 @@ import { getTemplates, type TemplateListItem } from '@/services/agent';
 import { templateMatchesSearchQuery, resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
-import useChatStore from '@/store/useChatStore';
+import { prefillComposerWithUseCase } from './prefillComposerWithUseCase';
 
 export interface ExpertSummonPopoverProps {
   onSummoned?: (agentId: string) => void;
@@ -44,7 +44,6 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
   const [summoningId, setSummoningId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const setInputMessage = useChatStore((state) => state.setInputMessage);
 
   useEffect(() => {
     if (!open) {
@@ -104,11 +103,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
         });
 
         toast.success(t('summonSuccess', { name: template.name }));
-        if (useCase) {
-          setInputMessage(useCase);
-        } else if (template.use_cases && template.use_cases.length > 0) {
-          setInputMessage(template.use_cases[0]);
-        }
+        prefillComposerWithUseCase(useCase ?? template.use_cases?.[0]);
         setOpen(false);
         onSummoned?.(newAgent.id);
         router.push(`/chat?agentId=${newAgent.id}`);
@@ -118,7 +113,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
         setSummoningId(null);
       }
     },
-    [summoningId, searchQuery, t, setInputMessage, onSummoned, router],
+    [summoningId, searchQuery, t, onSummoned, router],
   );
 
   return (

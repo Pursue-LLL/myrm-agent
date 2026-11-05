@@ -7,14 +7,15 @@ content, demoting to support files, and inheriting usage statistics.
 - backends.skills.creation_protocols::SkillWriteBackend (POS: Skill write-backend protocol.)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Skill usage statistics collector.)
 - backends.skills.types::SkillMetadata, SkillUsageStats, SkillLifecycleStatus (POS: Skill types.)
-- .types::ConsolidationAction, ConsolidationResult, ConsolidationReport, occupied_names (POS: consolidation types.)
+- .types::ConsolidationAction, ConsolidationResult, ConsolidationReport, occupied_names, is_consolidation_eligible (POS: consolidation types.)
 
 [OUTPUT]
 - ConsolidationExecutor: Executes approved consolidation actions.
 
 [POS]
 Execution layer for skill consolidation. Performs MERGE/CREATE_UMBRELLA/DEMOTE operations. The side-effect
-boundary: it refuses a target the plan should not have named, and archives sources only after their content landed.
+boundary: it refuses a target the plan should not have named, leaves alone a source that stopped being eligible
+since the plan was made, and archives sources only after their content landed.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from .types import (
     ConsolidationActionType,
     ConsolidationReport,
     ConsolidationResult,
+    is_consolidation_eligible,
     occupied_names,
 )
 
@@ -53,8 +55,9 @@ class ConsolidationExecutor:
 
     The plan names the targets, so nothing in it is taken on trust: an umbrella never takes the name of an
     existing skill (``all_skills`` are the skills this run may modify, ``reserved_names`` the ones the host
-    keeps out of it), a merge or demote only writes into a skill this run may modify, and sources are
-    archived only once their content has landed.
+    keeps out of it), a merge or demote only writes into a skill this run may modify, a source that is gone or no
+    longer eligible (the plan may be older than this run) counts as absent, and sources are archived only once
+    their content has landed.
     """
 
     def __init__(
@@ -130,7 +133,7 @@ class ConsolidationExecutor:
 
     async def _execute_create_umbrella(self, action: ConsolidationAction) -> ConsolidationResult:
         """Create a new umbrella skill and archive source skills."""
-        source_skills = [self._skill_map[n] for n in action.source_skills if n in self._skill_map]
+        source_skills = self._live_sources(action)
         if not source_skills:
             return ConsolidationResult(action=action, success=False, error="No source skills found")
 
@@ -155,7 +158,7 @@ class ConsolidationExecutor:
                 error=f"Failed to save umbrella: {save_result.error}",
             )
 
-        archived = await self._archive_sources(action.source_skills, action.target_skill)
+        archived = await self._archive_sources(tuple(s.name for s in source_skills), action.target_skill)
 
         self._inherit_stats(source_skills, Path(save_result.saved_path))
 
@@ -172,7 +175,7 @@ class ConsolidationExecutor:
         if target_skill is None:
             return self._target_not_found(action)
 
-        source_skills = [self._skill_map[n] for n in action.source_skills if n in self._skill_map]
+        source_skills = self._live_sources(action)
         if not source_skills:
             return ConsolidationResult(action=action, success=False, error="No source skills found")
 
@@ -186,7 +189,7 @@ class ConsolidationExecutor:
                 if error:
                     return ConsolidationResult(action=action, success=False, error=error)
 
-        archived = await self._archive_sources(action.source_skills, action.target_skill)
+        archived = await self._archive_sources(tuple(s.name for s in source_skills), action.target_skill)
 
         target_path = Path(target_skill.storage_path) if target_skill.storage_path else None
         if target_path:
@@ -204,7 +207,7 @@ class ConsolidationExecutor:
         if action.target_skill not in self._skill_map:
             return self._target_not_found(action)
 
-        source_skills = [self._skill_map[n] for n in action.source_skills if n in self._skill_map]
+        source_skills = self._live_sources(action)
         if not source_skills:
             return ConsolidationResult(action=action, success=False, error="No source skills found")
 
@@ -217,7 +220,7 @@ class ConsolidationExecutor:
             if error:
                 return ConsolidationResult(action=action, success=False, error=error)
 
-        archived = await self._archive_sources(action.source_skills, action.target_skill)
+        archived = await self._archive_sources(tuple(s.name for s in source_skills), action.target_skill)
 
         return ConsolidationResult(
             action=action,
@@ -225,6 +228,11 @@ class ConsolidationExecutor:
             umbrella_skill_path="",
             archived_skills=archived,
         )
+
+    def _live_sources(self, action: ConsolidationAction) -> list[SkillMetadata]:
+        """The action's sources this run may still absorb: those present and still eligible."""
+        found = (self._skill_map.get(name) for name in action.source_skills)
+        return [skill for skill in found if skill is not None and is_consolidation_eligible(skill)]
 
     @staticmethod
     def _target_not_found(action: ConsolidationAction) -> ConsolidationResult:

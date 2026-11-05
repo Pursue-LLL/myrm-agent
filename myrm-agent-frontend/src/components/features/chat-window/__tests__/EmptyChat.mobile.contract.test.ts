@@ -12,11 +12,6 @@ const read = (relativePath: string) => readFileSync(resolve(__dirname, relativeP
 
 const SWIPEABLE_ROWS: Array<{ file: string; row: string; tokens: string[] }> = [
   {
-    file: '../agent-config-panel/FeaturedExpertChips.tsx',
-    row: 'featured experts strip',
-    tokens: ['overflow-x-auto', 'sm:flex-wrap', 'sm:overflow-visible'],
-  },
-  {
     file: '../SamplePrompts.tsx',
     row: 'time-slot pills and prompt cards',
     tokens: ['overflow-x-auto', 'sm:flex-wrap', 'snap-x', 'sm:grid', 'lg:grid-cols-4'],
@@ -28,6 +23,14 @@ describe('empty chat phone first-screen contract', () => {
     const source = read(file);
 
     expect(tokens.filter((token) => !source.includes(token))).toEqual([]);
+  });
+
+  it('keeps the featured experts strip on one swipeable row at every width, so its placeholder is the same box', () => {
+    const source = read('../agent-config-panel/FeaturedExpertChips.tsx');
+
+    expect(source).toContain('overflow-x-auto');
+    // A wrapping row would make the strip's height depend on the chip names.
+    expect(source).not.toContain('flex-wrap');
   });
 
   it('keeps the workspace row on one line: the path truncates instead of pushing the chevron out', () => {

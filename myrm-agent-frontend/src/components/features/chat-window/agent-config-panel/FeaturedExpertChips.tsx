@@ -2,32 +2,67 @@
 
 /**
  * [INPUT]
- * - @/services/agent::getTemplates, TemplateListItem (POS: 模板列表获取与结构)
+ * - @/services/featuredTemplates::loadFeaturedTemplates, peekFeaturedTemplates (POS: 精选模板（60 秒缓存 + 共享请求）)
  * - @/services/templateSummon::instantiateTemplateWithMetrics (POS: 专家召唤统一入口与漏斗埋点)
- * - @/store/useChatStore::useChatStore (POS: 聊天状态与输入框预填)
+ * - @/hooks/ui/useProactiveDismissal::useProactiveDismissed, isProactiveDismissed, dismissProactive (POS: 主动推荐卡片的关闭记忆)
+ * - @/store/useChatStore::useChatStore (POS: 会话是否为空)
+ * - ./prefillComposerWithUseCase (POS: 召唤后预填输入框且不覆盖草稿)
  *
  * [OUTPUT]
  * - FeaturedExpertChips: 输入框上方的精选专家小队与顾问快捷推荐条
  *
  * [POS]
- * MessageInput / FlowPad 输入框区域的专家团队发现与快捷召唤组件。
+ * MessageInput 输入框区域的专家团队发现与快捷召唤组件，只在空会话出现：已有对话的会话里它既不相关，
+ * 每次切换会话还会重新请求模板。任何宽度下都是单行（放不下时横向滑动并有渐隐），高度与芯片名称无关，
+ * 所以加载期的等高占位和成品是同一个盒子，数据到达时不挪动输入框；请求失败则整条不显示。
+ * 关闭（×）按设备永久记住，不会在下一个新会话里再冒出来，已关闭时连模板请求都不发。
  */
 
 import { memo, useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bot, Sparkles, Users, X, Loader2 } from 'lucide-react';
+import { Bot, Users, X, Loader2 } from 'lucide-react';
+import { UsersThree } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useScrollEdgeFade } from '@/hooks/ui/useScrollEdgeFade';
-import { getTemplates, type TemplateListItem } from '@/services/agent';
+import { dismissProactive, isProactiveDismissed, useProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
+import type { TemplateListItem } from '@/services/agent';
+import { loadFeaturedTemplates, peekFeaturedTemplates } from '@/services/featuredTemplates';
 import { resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics, extractSummonErrorMessage } from '@/services/templateSummon';
 import useChatStore from '@/store/useChatStore';
+import { prefillComposerWithUseCase } from './prefillComposerWithUseCase';
+
+const DISMISS_KEY = 'featured-experts';
+const STRIP_CLASS =
+  'mb-2 flex items-center gap-1.5 rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-1.5 backdrop-blur-xs';
+const SKELETON_CHIP_WIDTHS = ['w-24', 'w-28', 'w-20'] as const;
 
 export interface FeaturedExpertChipsProps {
   className?: string;
   onSummoned?: (agentId: string) => void;
+}
+
+type StripData = { status: 'loading' } | { status: 'ready'; templates: TemplateListItem[] } | { status: 'unavailable' };
+
+function initialStripData(): StripData {
+  const cached = peekFeaturedTemplates();
+  return cached ? { status: 'ready', templates: cached } : { status: 'loading' };
+}
+
+/** Same box as the loaded strip (chip row plus the close button), so the composer does not move when data arrives. */
+function StripSkeleton({ className }: { className?: string }) {
+  return (
+    <div data-testid="featured-expert-chips-skeleton" aria-hidden="true" className={cn(STRIP_CLASS, className)}>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+        {SKELETON_CHIP_WIDTHS.map((width) => (
+          <span key={width} className={cn('h-8 shrink-0 rounded-md bg-muted/70 sm:h-6', width)} />
+        ))}
+      </div>
+      <span className="size-8 shrink-0 sm:size-6" />
+    </div>
+  );
 }
 
 export const FeaturedExpertChips = memo(function FeaturedExpertChips({
@@ -35,41 +70,39 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
   onSummoned,
 }: FeaturedExpertChipsProps) {
   const t = useTranslations('expertSummon');
-  const [featuredTemplates, setFeaturedTemplates] = useState<TemplateListItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const isEmptyConversation = useChatStore((state) => state.messages.length === 0);
+  const dismissed = useProactiveDismissed(DISMISS_KEY);
+  const [data, setData] = useState<StripData>(initialStripData);
   const [summoningId, setSummoningId] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
-  const setInputMessage = useChatStore((state) => state.setInputMessage);
   const stripFadeRef = useScrollEdgeFade<HTMLDivElement>();
 
-  useEffect(() => {
-    let active = true;
-    const fetchFeatured = async () => {
-      setLoading(true);
-      try {
-        const templates = await getTemplates();
-        if (active) {
-          // 挑选最多 4 个精选团队或 Pareto 预设模板
-          const featured = templates.filter((tpl) => tpl.agent_type === 'team' || tpl.is_pareto_preset).slice(0, 4);
-          setFeaturedTemplates(featured);
-        }
-      } catch {
-        if (active) {
-          setFeaturedTemplates([]);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
+  const visible = isEmptyConversation && !dismissed;
+  const needsLoad = visible && data.status === 'loading';
 
-    void fetchFeatured();
+  useEffect(() => {
+    // The hydration pass renders "not dismissed" (the server cannot read storage), so ask the real memory before
+    // spending a request on a strip that is about to disappear.
+    if (!needsLoad || isProactiveDismissed(DISMISS_KEY)) {
+      return;
+    }
+    let active = true;
+    loadFeaturedTemplates().then(
+      (templates) => {
+        if (active) {
+          setData({ status: 'ready', templates });
+        }
+      },
+      () => {
+        if (active) {
+          setData({ status: 'unavailable' });
+        }
+      },
+    );
     return () => {
       active = false;
     };
-  }, []);
+  }, [needsLoad]);
 
   const handleSummon = useCallback(
     async (template: TemplateListItem) => {
@@ -88,9 +121,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         });
 
         toast.success(t('summonSuccess', { name: template.name }));
-        if (template.use_cases && template.use_cases.length > 0) {
-          setInputMessage(template.use_cases[0]);
-        }
+        prefillComposerWithUseCase(template.use_cases?.[0]);
         onSummoned?.(newAgent.id);
         router.push(`/chat?agentId=${newAgent.id}`);
       } catch (err) {
@@ -99,34 +130,35 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         setSummoningId(null);
       }
     },
-    [summoningId, t, setInputMessage, onSummoned, router],
+    [summoningId, t, onSummoned, router],
   );
 
-  if (dismissed || loading || featuredTemplates.length === 0) {
+  if (!visible || data.status === 'unavailable') {
+    return null;
+  }
+  if (data.status === 'loading') {
+    return <StripSkeleton className={className} />;
+  }
+  if (data.templates.length === 0) {
     return null;
   }
 
   return (
-    <div
-      data-testid="featured-expert-chips"
-      className={cn(
-        'mb-2 flex items-center gap-1.5 rounded-lg border border-border/50 bg-secondary/30 px-2.5 py-1.5 backdrop-blur-xs',
-        className,
-      )}
-    >
-      {/* One swipeable row on phones keeps the strip a single line, and the faded edge shows that more chips sit out of
-          view; it wraps from the sm breakpoint up. The title collapses to its icon on phones so the chips get the row's
-          width. */}
+    <div data-testid="featured-expert-chips" className={cn(STRIP_CLASS, className)}>
+      {/* A single swipeable row at every width: its height never depends on the chip names, so the placeholder above
+          is the same box and the composer cannot move when the chips arrive. A faded edge shows that more chips sit
+          out of view. The title is only the leading icon (its text stays for assistive tech and the tooltip) so the
+          chips get the row's width. */}
       <div
         ref={stripFadeRef}
-        className="scroll-fade-x flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible"
+        className="scroll-fade-x flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scrollbar-hide"
       >
-        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground shrink-0 mr-1">
-          <Sparkles size={13} className="text-primary animate-pulse" />
-          <span className="max-sm:sr-only">{t('featuredTitle')}</span>
+        <span className="mr-1 flex shrink-0 items-center text-primary" title={t('featuredTitle')}>
+          <UsersThree size={14} weight="duotone" aria-hidden="true" />
+          <span className="sr-only">{t('featuredTitle')}</span>
         </span>
 
-        {featuredTemplates.map((template) => {
+        {data.templates.map((template) => {
           const isTeam = template.agent_type === 'team';
           const isSummoning = summoningId === template.id;
 
@@ -149,7 +181,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
               ) : (
                 <Bot size={12} className="text-emerald-500" />
               )}
-              <span className="max-w-[8rem] truncate sm:max-w-[14rem]">{template.name}</span>
+              <span className="max-w-[8rem] truncate sm:max-w-[10rem]">{template.name}</span>
               <span className="rounded-xs bg-muted/80 px-1 py-0.2 text-[10px] text-muted-foreground">
                 {isTeam ? t('teamBadge') : t('expertBadge')}
               </span>
@@ -160,8 +192,8 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
 
       <button
         type="button"
-        onClick={() => setDismissed(true)}
-        className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground sm:size-5"
+        onClick={() => dismissProactive(DISMISS_KEY)}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground sm:size-6"
         aria-label={t('featuredDismiss')}
       >
         <X size={12} />

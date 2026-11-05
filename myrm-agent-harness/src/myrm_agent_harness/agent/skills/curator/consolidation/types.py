@@ -4,7 +4,7 @@ Defines structured outputs for the cluster detection, LLM judgment,
 and execution phases of skill consolidation.
 
 [INPUT]
-- backends.skills.types::SkillMetadata (POS: Skill types.)
+- backends.skills.types::SkillMetadata, SkillLifecycleStatus (POS: Skill types.)
 
 [OUTPUT]
 - ConsolidationActionType: Enum for consolidation actions (MERGE/CREATE_UMBRELLA/DEMOTE/KEEP).
@@ -13,6 +13,7 @@ and execution phases of skill consolidation.
 - ConsolidationPlan: Complete plan output from the ConsolidationJudge.
 - ConsolidationReport: Post-execution report of what was actually done.
 - occupied_names: The skill names a new umbrella must not take.
+- is_consolidation_eligible: Whether consolidation may absorb or archive a skill.
 
 [POS]
 Data types for the skill consolidation (umbrella merge) system.
@@ -25,6 +26,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -219,3 +222,17 @@ def occupied_names(skills: Iterable[SkillMetadata], reserved_names: Iterable[str
     one skill directory.
     """
     return frozenset(name.casefold() for name in (*(skill.name for skill in skills), *reserved_names))
+
+
+def is_consolidation_eligible(skill: SkillMetadata) -> bool:
+    """Whether consolidation may absorb or archive the skill.
+
+    A pinned skill and an evolution-locked one (user-created, protected from automation) are the user's to keep, an
+    archived skill is already out of use, and a skill without a storage path (an MCP skill) has nowhere to be written.
+    """
+    return (
+        not skill.usage_stats.pinned
+        and not skill.evolution_locked
+        and skill.usage_stats.lifecycle_status != SkillLifecycleStatus.ARCHIVED
+        and skill.storage_path is not None
+    )

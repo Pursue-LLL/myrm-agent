@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.agent.skills.curator::SkillCurator (POS: Stateless curator engine)
-- myrm_agent_harness.agent.skills.curator.consolidation::ConsolidationPlan/ConsolidationReport (POS: Plan/report types)
+- myrm_agent_harness.agent.skills.curator.consolidation::ConsolidationPlan (POS: Plan type)
 - app.core.skills.curator.service::_get_sweep_lock, get_curator_config, get_stats_collector (POS: Shared curator state)
 - app.core.skills.curator.bound_skills::bound_skill_names (POS: Skills bound by agent profiles, cron jobs and kanban tasks)
 - app.core.skills.curator.local_skills::scan_local_skills (POS: Scan of all skill roots with installed-skill marking)
@@ -10,7 +10,7 @@
 
 [OUTPUT]
 - run_consolidation_preview: Dry-run consolidation plan; an error when the judge could not evaluate groups and nothing else is proposed
-- run_consolidation_execute: Apply consolidation
+- run_consolidation_execute: Apply a previewed plan exactly as previewed, without another model call
 
 [POS]
 Curator consolidation business service. Shares the sweep lock and curator
@@ -57,7 +57,7 @@ async def _get_consolidation_deps() -> tuple[BaseChatModel, SkillWriteBackend]:
 
 
 async def run_consolidation_preview() -> ConsolidationPlan:
-    """Run consolidation in dry-run mode and return a ConsolidationPlan.
+    """Propose a consolidation plan without executing it.
 
     Raises HTTPException 502 when the plan is empty only because the judge could not evaluate some skill
     groups: an empty plan reads as "well-organized", which would not be true.
@@ -81,7 +81,6 @@ async def run_consolidation_preview() -> ConsolidationPlan:
         _, plan = await curator.run_async(
             scan.skills,
             force=True,
-            consolidation_dry_run=True,
             protected_names=protected_names,
             installed_names=scan.installed_names,
         )
@@ -97,12 +96,24 @@ async def run_consolidation_preview() -> ConsolidationPlan:
         return plan
 
 
-async def run_consolidation_execute() -> dict[str, int | str]:
-    """Run consolidation and apply changes. Returns structured response."""
+def _no_changes(summary: str) -> dict[str, int | str]:
+    return {
+        "success_count": 0,
+        "failure_count": 0,
+        "total_archived": 0,
+        "total_created": 0,
+        "net_reduction": 0,
+        "summary": summary,
+    }
+
+
+async def run_consolidation_execute(plan: ConsolidationPlan) -> dict[str, int | str]:
+    """Apply a previewed plan and return the structured response.
+
+    The model is not asked again: the plan is the one the user saw. It may be older than this call, so the curator
+    leaves alone every skill the plan names that has since been pinned, archived or bound.
+    """
     from myrm_agent_harness.agent.skills.curator import SkillCurator
-    from myrm_agent_harness.agent.skills.curator.consolidation import (
-        ConsolidationReport,
-    )
 
     async with _get_sweep_lock():
         llm, write_backend = await _get_consolidation_deps()
@@ -113,39 +124,24 @@ async def run_consolidation_execute() -> dict[str, int | str]:
 
         scan = await scan_local_skills()
         if not scan.skills:
-            return {
-                "success_count": 0,
-                "failure_count": 0,
-                "total_archived": 0,
-                "total_created": 0,
-                "net_reduction": 0,
-                "summary": "No skills available for consolidation.",
-            }
+            return _no_changes("No skills available for consolidation.")
 
         protected_names = await bound_skill_names(scan.skills)
-        _, result = await curator.run_async(
+        report = await curator.apply_consolidation_plan(
             scan.skills,
-            force=True,
-            consolidation_dry_run=False,
+            plan,
             protected_names=protected_names,
             installed_names=scan.installed_names,
         )
 
-        if result is None or not isinstance(result, ConsolidationReport):
-            return {
-                "success_count": 0,
-                "failure_count": 0,
-                "total_archived": 0,
-                "total_created": 0,
-                "net_reduction": 0,
-                "summary": "Consolidation not needed or unavailable.",
-            }
+    if report is None:
+        return _no_changes("Consolidation not needed or unavailable.")
 
     return {
-        "success_count": result.success_count,
-        "failure_count": result.failure_count,
-        "total_archived": result.total_archived,
-        "total_created": result.total_created,
-        "net_reduction": result.net_reduction,
-        "summary": result.to_summary(),
+        "success_count": report.success_count,
+        "failure_count": report.failure_count,
+        "total_archived": report.total_archived,
+        "total_created": report.total_created,
+        "net_reduction": report.net_reduction,
+        "summary": report.to_summary(),
     }

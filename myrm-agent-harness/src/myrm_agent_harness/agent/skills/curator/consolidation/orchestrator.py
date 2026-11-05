@@ -1,14 +1,14 @@
 """Skill consolidation orchestrator — coordinates the full pipeline.
 
-Wires together ClusterDetector → ConsolidationJudge → ConsolidationExecutor
-into a single cohesive consolidation run, with dry-run support.
+Wires together ClusterDetector → ConsolidationJudge → ConsolidationExecutor into two separate steps:
+``propose`` produces a plan and executes nothing, ``apply`` carries out a plan it is handed.
 
 [INPUT]
 - .cluster_detector::ClusterDetector (POS: Cluster detection layer.)
 - .judge::ConsolidationJudge (POS: LLM judge layer.)
 - .executor::ConsolidationExecutor (POS: Execution layer.)
-- .types::ConsolidationPlan, ConsolidationReport (POS: consolidation types.)
-- backends.skills.types::SkillMetadata, SkillLifecycleStatus (POS: Skill types.)
+- .types::ConsolidationPlan, ConsolidationReport, is_consolidation_eligible (POS: consolidation types.)
+- backends.skills.types::SkillMetadata (POS: Skill types.)
 - backends.skills.stats_collector::SkillStatsCollector (POS: Stats collector.)
 - backends.skills.creation_protocols::SkillWriteBackend (POS: Write backend.)
 - langchain_core.language_models::BaseChatModel (POS: LLM base class.)
@@ -17,7 +17,7 @@ into a single cohesive consolidation run, with dry-run support.
 - SkillConsolidator: Top-level orchestrator for the consolidation pipeline.
 
 [POS]
-Top-level orchestrator. Single entry point for skill consolidation (dry-run and execute).
+Top-level orchestrator. Single entry point for skill consolidation: propose a plan, then apply it when the host decides.
 """
 
 from __future__ import annotations
@@ -25,12 +25,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
-
 from .cluster_detector import ClusterDetector
 from .executor import ConsolidationExecutor
 from .judge import ConsolidationJudge
-from .types import ConsolidationPlan, ConsolidationReport
+from .types import ConsolidationPlan, ConsolidationReport, is_consolidation_eligible
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -48,15 +46,12 @@ _DEFAULT_MIN_CLUSTER_SIZE = 3
 class SkillConsolidator:
     """Top-level orchestrator for the skill consolidation pipeline.
 
-    Pipeline stages:
-    1. Filter: Select eligible skills (active, non-pinned, non-protected).
-    2. Detect: Group skills that share a name prefix into candidate clusters.
-    3. Judge: LLM evaluates each cluster and produces a ConsolidationPlan.
-    4. Execute: Apply approved actions (or return plan for dry-run preview).
-
-    Supports two modes:
-    - dry_run=True: Returns ConsolidationPlan without executing (for GUI preview).
-    - dry_run=False: Executes the plan and returns ConsolidationReport.
+    Two steps, so the host can show a plan before anything changes:
+    - ``propose``: filter the eligible skills (active, non-pinned, non-protected), group those that share a name
+      prefix into candidate clusters and let the LLM judge each one. The result is a ConsolidationPlan; nothing
+      is executed.
+    - ``apply``: carry out a ConsolidationPlan and return a ConsolidationReport. The LLM is not asked again, so
+      what runs is what was proposed.
     """
 
     def __init__(
@@ -74,23 +69,21 @@ class SkillConsolidator:
         self._stats_collector = stats_collector
         self._min_skills = min_skills_for_consolidation
 
-    async def run(
+    async def propose(
         self,
         skills: list[SkillMetadata],
         *,
-        dry_run: bool = True,
         reserved_names: frozenset[str] = frozenset(),
-    ) -> ConsolidationPlan | ConsolidationReport:
-        """Run the consolidation pipeline.
+    ) -> ConsolidationPlan:
+        """Plan the consolidation of ``skills``; nothing is executed.
 
         Args:
             skills: All skills from the skill backend.
-            dry_run: If True, return plan without execution. If False, execute.
             reserved_names: Skills the host keeps out of this run and so leaves out of ``skills``. No umbrella
                 may take their names.
 
         Returns:
-            ConsolidationPlan (dry_run=True) or ConsolidationReport (dry_run=False).
+            The plan; empty when there are too few eligible skills, no cluster or nothing the judge would act on.
         """
         eligible = self._filter_eligible(skills)
 
@@ -100,53 +93,53 @@ class SkillConsolidator:
                 len(eligible),
                 self._min_skills,
             )
-            return ConsolidationPlan() if dry_run else ConsolidationReport()
+            return ConsolidationPlan()
 
         clusters = self._detector.detect(eligible)
         if not clusters:
             logger.info("Consolidation: no clusters detected")
-            return ConsolidationPlan() if dry_run else ConsolidationReport()
+            return ConsolidationPlan()
 
         plan = await self._judge.judge_clusters(clusters, skills, reserved_names=reserved_names)
 
         if plan.is_empty:
             logger.info("Consolidation: judge proposed no actions")
-            return plan if dry_run else ConsolidationReport()
+        else:
+            logger.info(
+                "Consolidation plan: %d actions, %d skills affected, estimated reduction: %d",
+                len(plan.actions),
+                plan.total_skills_affected,
+                plan.estimated_reduction,
+            )
+        return plan
 
-        logger.info(
-            "Consolidation plan: %d actions, %d skills affected, estimated reduction: %d",
-            len(plan.actions),
-            plan.total_skills_affected,
-            plan.estimated_reduction,
-        )
+    async def apply(
+        self,
+        plan: ConsolidationPlan,
+        skills: list[SkillMetadata],
+        *,
+        reserved_names: frozenset[str] = frozenset(),
+    ) -> ConsolidationReport:
+        """Carry out ``plan`` as it is; the judge is not asked again.
 
-        if dry_run:
-            return plan
+        Args:
+            plan: A plan ``propose`` returned.
+            skills: The skills as they are now, not as they were when the plan was made: the executor leaves
+                alone every skill the plan names that has since stopped being eligible.
+            reserved_names: See ``propose``.
 
+        Returns:
+            What was done, action by action.
+        """
         executor = ConsolidationExecutor(
             self._write_backend,
             self._stats_collector,
             skills,
             reserved_names=reserved_names,
         )
-        report = await executor.execute(plan.actions)
-        return report
+        return await executor.execute(plan.actions)
 
     @staticmethod
     def _filter_eligible(skills: list[SkillMetadata]) -> list[SkillMetadata]:
-        """Filter skills eligible for consolidation analysis.
-
-        Excludes:
-        - Pinned skills
-        - Evolution-locked skills (user-created, protected from automation)
-        - Archived skills
-        - Skills without storage_path (MCP skills)
-        """
-        return [
-            s
-            for s in skills
-            if not s.usage_stats.pinned
-            and not s.evolution_locked
-            and s.usage_stats.lifecycle_status != SkillLifecycleStatus.ARCHIVED
-            and s.storage_path is not None
-        ]
+        """Filter skills eligible for consolidation analysis (see ``is_consolidation_eligible``)."""
+        return [s for s in skills if is_consolidation_eligible(s)]

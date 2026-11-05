@@ -291,33 +291,14 @@ class ConsolidationExecuteResponse(BaseModel):
     summary: str
 
 
-def _consolidation_plan_fingerprint_payload(plan: object) -> dict[str, object]:
-    from myrm_agent_harness.agent.skills.curator.consolidation import ConsolidationPlan
-
-    if not isinstance(plan, ConsolidationPlan):
-        raise TypeError("Expected ConsolidationPlan")
-    return {
-        "actions": [
-            {
-                "action_type": a.action_type.value,
-                "target_skill": a.target_skill,
-                "source_skills": list(a.source_skills),
-                "reasoning": a.reasoning,
-            }
-            for a in plan.actions
-        ],
-        "total_skills_affected": plan.total_skills_affected,
-        "estimated_reduction": plan.estimated_reduction,
-    }
-
-
 @router.post("/consolidation/preview", response_model=ConsolidationPreviewResponse)
 async def consolidation_preview() -> ConsolidationPreviewResponse:
     """Generate a consolidation plan (dry-run) without executing changes."""
     from app.core.skills.curator.consolidation import run_consolidation_preview
+    from app.core.skills.curator.consolidation_plan_store import store_plan
 
     plan = await run_consolidation_preview()
-    response = ConsolidationPreviewResponse(
+    return ConsolidationPreviewResponse(
         actions=[
             ConsolidationActionResponse(
                 action_type=a.action_type.value,
@@ -329,12 +310,8 @@ async def consolidation_preview() -> ConsolidationPreviewResponse:
         ],
         total_skills_affected=plan.total_skills_affected,
         estimated_reduction=plan.estimated_reduction,
-        plan_token="",
+        plan_token=store_plan(plan),
     )
-    from app.core.skills.curator.consolidation_plan_token import issue_plan_token
-
-    issued = issue_plan_token(_consolidation_plan_fingerprint_payload(plan))
-    return response.model_copy(update={"plan_token": issued.token})
 
 
 class ConsolidationExecuteRequest(BaseModel):
@@ -345,26 +322,17 @@ class ConsolidationExecuteRequest(BaseModel):
 async def consolidation_execute(
     body: ConsolidationExecuteRequest,
 ) -> ConsolidationExecuteResponse:
-    """Execute consolidation — merge fragmented skills into umbrellas."""
-    from app.core.skills.curator.consolidation import (
-        run_consolidation_execute,
-        run_consolidation_preview,
-    )
-    from app.core.skills.curator.consolidation_plan_token import (
-        revoke_plan_token,
-        validate_plan_token,
-    )
+    """Execute consolidation — apply the previewed plan, merging fragmented skills into umbrellas."""
+    from app.core.skills.curator.consolidation import run_consolidation_execute
+    from app.core.skills.curator.consolidation_plan_store import take_plan
 
-    plan = await run_consolidation_preview()
-    if not validate_plan_token(
-        body.plan_token, _consolidation_plan_fingerprint_payload(plan)
-    ):
+    plan = take_plan(body.plan_token)
+    if plan is None:
         raise HTTPException(
             status_code=409, detail="Consolidation plan token invalid or expired."
         )
 
-    revoke_plan_token(body.plan_token)
-    result = await run_consolidation_execute()
+    result = await run_consolidation_execute(plan)
     return ConsolidationExecuteResponse.model_validate(result)
 
 

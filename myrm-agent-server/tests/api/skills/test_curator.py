@@ -359,81 +359,54 @@ def test_consolidation_preview_with_actions(client: TestClient) -> None:
     assert set(data) == {"actions", "total_skills_affected", "estimated_reduction", "plan_token"}
 
 
+def _execute_previewed_plan(client: TestClient, result: dict[str, object]) -> dict[str, object]:
+    """Preview an empty plan, then execute its token with the service answering ``result``."""
+    from myrm_agent_harness.agent.skills.curator.consolidation.types import ConsolidationPlan
+
+    with patch(
+        "app.core.skills.curator.consolidation.run_consolidation_preview",
+        return_value=ConsolidationPlan(),
+    ):
+        token = client.post("/api/v1/skills/curator/consolidation/preview").json()["plan_token"]
+
+    with patch("app.core.skills.curator.consolidation.run_consolidation_execute", return_value=result):
+        response = client.post("/api/v1/skills/curator/consolidation/execute", json={"plan_token": token})
+    assert response.status_code == 200
+    body: dict[str, object] = response.json()
+    return body
+
+
 def test_consolidation_execute_empty(client: TestClient) -> None:
     """Execute should return empty result when nothing to consolidate."""
-    from myrm_agent_harness.agent.skills.curator.consolidation.types import (
-        ConsolidationPlan,
-    )
-
-    async def mock_execute() -> dict[str, object]:
-        return {
+    data = _execute_previewed_plan(
+        client,
+        {
             "success_count": 0,
             "failure_count": 0,
             "total_archived": 0,
             "total_created": 0,
             "net_reduction": 0,
             "summary": "No skills available for consolidation.",
-        }
+        },
+    )
 
-    with (
-        patch(
-            "app.core.skills.curator.consolidation_plan_token.validate_plan_token",
-            return_value=True,
-        ),
-        patch(
-            "app.core.skills.curator.consolidation.run_consolidation_execute",
-            side_effect=mock_execute,
-        ),
-        patch(
-            "app.core.skills.curator.consolidation.run_consolidation_preview",
-            return_value=ConsolidationPlan(),
-        ),
-    ):
-        response = client.post(
-            "/api/v1/skills/curator/consolidation/execute",
-            json={"plan_token": "test-token"},
-        )
-    assert response.status_code == 200
-    data = response.json()
     assert data["success_count"] == 0
 
 
 def test_consolidation_execute_with_results(client: TestClient) -> None:
     """Execute should return results when consolidation is performed."""
-    from myrm_agent_harness.agent.skills.curator.consolidation.types import (
-        ConsolidationPlan,
-    )
-
-    async def mock_execute() -> dict[str, object]:
-        return {
+    data = _execute_previewed_plan(
+        client,
+        {
             "success_count": 2,
             "failure_count": 0,
             "total_archived": 4,
             "total_created": 1,
             "net_reduction": 3,
             "summary": "Consolidated 4 skills into 2 umbrellas.",
-        }
+        },
+    )
 
-    with (
-        patch(
-            "app.core.skills.curator.consolidation_plan_token.validate_plan_token",
-            return_value=True,
-        ),
-        patch(
-            "app.core.skills.curator.consolidation.run_consolidation_execute",
-            side_effect=mock_execute,
-        ),
-        patch(
-            "app.core.skills.curator.consolidation.run_consolidation_preview",
-            return_value=ConsolidationPlan(),
-        ),
-    ):
-        response = client.post(
-            "/api/v1/skills/curator/consolidation/execute",
-            json={"plan_token": "test-token"},
-        )
-    assert response.status_code == 200
-    data = response.json()
     assert data["success_count"] == 2
     assert data["total_archived"] == 4
     assert data["net_reduction"] == 3

@@ -151,6 +151,16 @@ class TestOmittedLineRanges:
         for page in (1, 2):
             assert_ranges_are_exact(plan, page)
 
+    @pytest.mark.parametrize("title", ["Two\rlines", "Two\r\nlines"])
+    def test_carriage_returns_in_a_title_are_normalized_like_those_in_the_pages(self, title: str) -> None:
+        plan = plan_full_content(make_pages([numbered_body(i, 400) for i in (1, 2)], title=title))
+
+        assert plan.stored_text is not None
+        assert "\r" not in plan.stored_text
+        assert "\r" not in plan.visible_text
+        for page in (1, 2):
+            assert_ranges_are_exact(plan, page)
+
     def test_crlf_and_lone_cr_pages_are_normalized_so_line_numbers_match_the_reader(self) -> None:
         crlf = numbered_body(1, 400).replace("\n", "\r\n")
         lone_cr = numbered_body(2, 400).replace("\n", "\r")

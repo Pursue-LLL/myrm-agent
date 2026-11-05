@@ -11,7 +11,7 @@ Performs stateless sweeps: evaluates skills against CuratorConfig thresholds, ap
 | __init__.py | Package | Re-exports SkillCurator, CuratorRunResult, CuratorTransition. | — |
 | anti_sycophancy_adversarial_engine.py | Core | Detects sycophantic alignment traps and generates adversarial critique exemplars. | ✅ |
 | anti_sycophancy_types.py | Types | Types and models for anti sycophancy. | ✅ |
-| engine.py | Core | SkillCurator: stateless curator engine that orchestrates lifecycle sweeps + consolidation; skills named in `protected_names` are exempt from all of it. | ✅ |
+| engine.py | Core | SkillCurator: stateless curator engine that orchestrates lifecycle sweeps and consolidation. `run_async` sweeps and proposes a consolidation plan (executes nothing); `apply_consolidation_plan` carries a plan out later. Skills named in `protected_names` are exempt from all of it. | ✅ |
 | types.py | Core | CuratorTransition, CuratorRunResult data types. | ✅ |
 
 | Submodule | Description |
@@ -31,14 +31,14 @@ Performs stateless sweeps: evaluates skills against CuratorConfig thresholds, ap
 ## Pipeline Flow
 
 ```
-Skills → Filter (eligible) → ClusterDetector (shared name prefix)
-       → ConsolidationJudge (LLM) → ConsolidationPlan
-       → [dry_run?] → ConsolidationExecutor → ConsolidationReport
+run_async:                Skills → Filter (eligible) → ClusterDetector (shared name prefix)
+                                 → ConsolidationJudge (LLM) → ConsolidationPlan   (nothing executed)
+apply_consolidation_plan: ConsolidationPlan + current skills → ConsolidationExecutor → ConsolidationReport   (no LLM call)
 ```
 
 ## Protected skills
 
-`run` / `run_async` take `protected_names`: skills the host depends on (e.g. bound by a scheduled job or an agent profile). A protected skill is never staled, archived or consolidated, and consolidation never creates an umbrella under its name (the engine hands the exempt names to the consolidator as `reserved_names`). It is tallied in `CuratorRunResult.skipped_protected`; a pinned skill is tallied as `skipped_pinned` even when also protected. The harness stays ignorant of what binds a skill; the host decides.
+`run` / `run_async` / `apply_consolidation_plan` take `protected_names`: skills the host depends on (e.g. bound by a scheduled job or an agent profile). A protected skill is never staled, archived or consolidated, and consolidation never creates an umbrella under its name (the engine hands the exempt names to the consolidator as `reserved_names`). It is tallied in `CuratorRunResult.skipped_protected`; a pinned skill is tallied as `skipped_pinned` even when also protected. The harness stays ignorant of what binds a skill; the host decides.
 
 `installed_names` carries the same kind of host knowledge: skills the host knows were installed rather than authored (a registry install, another tool's skill folder). They are exempt exactly like `protected_names`, but only while `CuratorConfig.protect_installed_skills` is on; switching it off hands them back to the normal lifecycle. The engine never inspects `SkillMetadata.trust` for this: a local scan stamps every skill `TRUSTED`, so trust says nothing about provenance.
 
