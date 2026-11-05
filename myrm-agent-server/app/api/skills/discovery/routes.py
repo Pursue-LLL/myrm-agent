@@ -21,7 +21,6 @@ from typing import cast
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 
-from app.api.skills.discovery.install import router as install_router
 from app.api.skills.discovery.schemas import (
     ScanFindingResponse,
     SkillPreviewRequest,
@@ -39,8 +38,7 @@ from app.core.skills.marketplace.market_service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/discovery")
-router.include_router(install_router)
+router = APIRouter()
 
 
 def _discovery_framework(svc: SkillMarketService) -> BaseSkillMarketService:
@@ -216,9 +214,3 @@ async def check_skill_updates(
 # ---------------------------------------------------------------------------
 # Custom Source Management
 # ---------------------------------------------------------------------------
-
-from app.api.skills.discovery.index_admin import router as index_admin_router  # noqa: E402
-from app.api.skills.discovery.sources import router as sources_router  # noqa: E402
-
-router.include_router(sources_router)
-router.include_router(index_admin_router)
