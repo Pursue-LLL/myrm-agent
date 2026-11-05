@@ -21,7 +21,6 @@ describe('findActivePendingClarification', () => {
         createdAt: new Date(),
         clarification: {
           answered: false,
-          isResumeMode: true,
           form: {
             questions: [{ id: 'q1', prompt: 'Which one?' }],
           },
@@ -42,7 +41,6 @@ describe('findActivePendingClarification', () => {
         createdAt: new Date(),
         clarification: {
           answered: true,
-          isResumeMode: true,
         },
       },
     ];
@@ -60,7 +58,6 @@ describe('findActivePendingClarification', () => {
         createdAt: new Date('2025-06-01T10:00:00Z'),
         clarification: {
           answered: false,
-          isResumeMode: true,
           form: {
             questions: [{ id: 'q1', prompt: 'Which one?' }],
           },
@@ -80,23 +77,13 @@ describe('findActivePendingClarification', () => {
 });
 
 describe('normalizeHydratedClarification', () => {
-  it('defaults answered=false and isResumeMode from source', () => {
+  it('defaults answered=false and keeps the form', () => {
     const normalized = normalizeHydratedClarification({
       answered: undefined as unknown as false,
       form: { questions: [{ id: 'q1', prompt: 'Pick' }] },
-      source: 'deep_research',
     });
 
     expect(normalized.answered).toBe(false);
-    expect(normalized.isResumeMode).toBe(false);
-  });
-
-  it('defaults isResumeMode=true for general clarify without source', () => {
-    const normalized = normalizeHydratedClarification({
-      answered: false,
-      form: { questions: [{ id: 'q1', prompt: 'Pick' }] },
-    });
-
-    expect(normalized.isResumeMode).toBe(true);
+    expect(normalized.form?.questions[0]?.prompt).toBe('Pick');
   });
 });

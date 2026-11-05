@@ -29,8 +29,8 @@
 Content search tool (Claude Code compatible). Searches file contents for matching text patterns
 with regex and literal (--fixed-strings) modes, path-grouped output from 5 matches on and intelligent line truncation.
 Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
-Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
-without printing anything. A search over a directory withholds the lines of sensitive files on both tiers.
+Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or gives no answer
+(``RgRunResult.answered``). A search over a directory withholds the lines of sensitive files on both tiers.
 
 """
 
@@ -39,8 +39,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import subprocess
-from functools import lru_cache
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -73,15 +72,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-#  性能优化：ripgrep 检测（只检测一次）
-@lru_cache(maxsize=1)
 def _has_ripgrep() -> bool:
-    """检测系统是否有 ripgrep"""
-    try:
-        result = subprocess.run(["rg", "--version"], capture_output=True, timeout=1)
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+    """True while ``rg`` is on PATH, looked up on every call so one installed later is used at once.
+
+    A ripgrep that cannot start or answer fails inside ``run_rg``, and both tools hand the search to the Python tier.
+    """
+    return shutil.which("rg") is not None
 
 
 async def _ripgrep_search(
@@ -129,8 +125,8 @@ async def _ripgrep_search(
             logger.warning(f"ripgrep error: {outcome.stderr}")
             # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
             # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
-            # back-references) may still be able to search it.
-            if not outcome.lines_read:
+            # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
+            if not outcome.answered:
                 raise RuntimeError("ripgrep failed")
     except (TimeoutError, RuntimeError) as e:
         logger.warning(f"ripgrep search failed: {e}, falling back to Python")

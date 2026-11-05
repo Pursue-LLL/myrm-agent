@@ -9,7 +9,6 @@ import DailyJournal from '../DailyJournal';
 const modeKeys: Record<string, string> = {
   fast: 'Fast Search',
   agent: 'AI Agent',
-  deep_research: 'Deep Research',
 };
 
 vi.mock('next-intl', () => ({
@@ -92,7 +91,7 @@ describe('DailyJournal', () => {
           time: '2026-08-16T10:00:00',
           type: 'session',
           title: 'Morning research',
-          detail: { tokens: 1200, action_mode: 'deep_research' },
+          detail: { tokens: 1200, action_mode: 'agent' },
         },
       ],
     });
@@ -103,7 +102,7 @@ describe('DailyJournal', () => {
       expect(screen.getByText('Morning research')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Deep Research/)).toBeInTheDocument();
+    expect(screen.getByText(/AI Agent/)).toBeInTheDocument();
     expect(screen.getByText(/1,200/)).toBeInTheDocument();
     expect(screen.getByText(/1,200.*Tokens/)).toBeInTheDocument();
     expect(screen.getByText('Session')).toBeInTheDocument();

@@ -15749,7 +15749,6 @@
         "eraseConfirmAction": "清空会话",
         "erasing": "正在清空…",
         "eraseSuccess": "已清空 {count} 个会话",
-        "eraseKept": "{count} 个含未保存改动的工作区已保留在你的项目文件夹中",
         "eraseBusy": "有会话仍在运行。请先停止它或等它完成，然后重试。",
         "eraseFailed": "清空未能完成，请重试。"
       },

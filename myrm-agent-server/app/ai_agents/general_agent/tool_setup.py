@@ -592,7 +592,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
             from app.core.cron.adapters.setup import get_cron_manager
-            from app.core.cron.blueprint_job_spec import fill_job_spec
+            from app.core.cron.blueprints.job_spec import fill_job_spec
             from app.core.cron.blueprints import get_blueprints_for_tool_description
 
             agent_locale = getattr(self, "locale", None) or "en"

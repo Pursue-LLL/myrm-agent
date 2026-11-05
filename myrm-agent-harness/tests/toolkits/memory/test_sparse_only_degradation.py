@@ -189,43 +189,64 @@ class TestSparseOnlyAgentTools:
             hits = await manager.search("strict", limit=5)
             assert [h.memory.id for h in hits] == [memory_id]
 
-            rated = await tools["memory_manage_tool"].coroutine(
-                action="rate", memory_id=memory_id, category="knowledge", rating_score=5
-            )
+            rated = await tools["memory_manage_tool"].coroutine(action="rate", memory_id=memory_id, rating_score=5)
             assert rated.startswith("Memory rated")
 
             corrected = await tools["memory_manage_tool"].coroutine(
                 action="correct",
                 memory_id=memory_id,
-                category="knowledge",
                 new_content="用户偏好 TypeScript strict 模式与 Vitest",
             )
             assert corrected.startswith("Memory corrected")
             correction_id = corrected.split("new ID: ")[1].split(")")[0]
 
-            deleted = await tools["memory_manage_tool"].coroutine(
-                action="delete", memory_id=memory_id, category="knowledge"
-            )
+            deleted = await tools["memory_manage_tool"].coroutine(action="delete", memory_id=memory_id)
             assert deleted.startswith("Memory deleted")
             # The correction is a distinct memory and survives the original's deletion.
             assert [h.memory.id for h in await manager.search("strict", limit=5)] == [correction_id]
 
-            discarded = await tools["memory_manage_tool"].coroutine(
-                action="discard", memory_id=correction_id, category="knowledge"
-            )
-            assert discarded.startswith("Memory discarded")
+            deleted_correction = await tools["memory_manage_tool"].coroutine(action="delete", memory_id=correction_id)
+            assert deleted_correction.startswith("Memory deleted")
             assert await manager.search("strict", limit=5) == []
 
             rule = await manager.add_rule("提交代码前", "运行 lint")
-            discarded_rule = await tools["memory_manage_tool"].coroutine(
-                action="discard", memory_id=rule.id, category="rule"
-            )
-            assert discarded_rule.startswith("Rule discarded")
+            deleted_rule = await tools["memory_manage_tool"].coroutine(action="delete", memory_id=rule.id)
+            assert deleted_rule.startswith("Rule deleted")
 
             event = await tools["memory_save_tool"].coroutine(content="线上事故复盘：重试风暴", category="event")
             assert event.startswith("Event stored (ID:")
         finally:
             await manager.close()
+
+    @pytest.mark.asyncio
+    async def test_manage_cannot_reach_a_memory_outside_the_bound_namespaces(self, tmp_path: Path) -> None:
+        """An id resolves through the manager's namespaces: another scope's memory is "not found" and left intact."""
+        from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
+        from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
+
+        owner = await create_local_memory_manager(tmp_path / "mem", None, namespaces=["agent:owner"])
+        try:
+            fact = await owner.add_knowledge("用户偏好 TypeScript strict 模式")
+            rule = await owner.add_rule("提交代码前", "运行 lint")
+        finally:
+            await owner.close()
+
+        stranger = await create_local_memory_manager(tmp_path / "mem", None, namespaces=["agent:stranger"])
+        try:
+            manage = {tool.name: tool for tool in create_memory_tools(stranger)}["memory_manage_tool"]
+            for memory_id in (fact.id, rule.id):
+                for action, extra in (("delete", {}), ("update", {"new_content": "x"}), ("rate", {"rating_score": 5})):
+                    result = await manage.coroutine(action=action, memory_id=memory_id, **extra)
+                    assert result == f"Memory not found (ID: {memory_id})", (action, memory_id)
+        finally:
+            await stranger.close()
+
+        owner = await create_local_memory_manager(tmp_path / "mem", None, namespaces=["agent:owner"])
+        try:
+            assert (await owner.get_memory(fact.id)).content == "用户偏好 TypeScript strict 模式"
+            assert (await owner.get_memory(rule.id)).action == "运行 lint"
+        finally:
+            await owner.close()
 
 
 @pytest.mark.slow

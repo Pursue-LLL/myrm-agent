@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.agent.params.archive_restore import (
+from app.services.agent.params.enrichment.archive_restore import (
     ArchiveRestoreRequestError,
     build_archive_restore_action_context,
     build_archive_restore_action_context_with_results,

@@ -1,5 +1,4 @@
 import MessageInput from './MessageInput';
-import NewTaskWorkContextCard from './NewTaskWorkContextCard';
 import CompanionWidget from '../companion/CompanionWidget';
 import NoProviderBanner from './NoProviderBanner';
 import IncognitoNotice from './IncognitoNotice';
@@ -79,13 +78,11 @@ const EmptyChat = React.memo(() => {
         <div className="flex items-end gap-2 w-full">
           {isCompanionEnabled && <CompanionWidget />}
           <div className="flex-1 min-w-0">
-            <MessageInput loading={false} hideWorkspacePicker />
+            <MessageInput loading={false} />
           </div>
         </div>
 
         <IncognitoNotice />
-
-        <NewTaskWorkContextCard />
 
         <MigrationDiscoveryBanner />
 

@@ -12,7 +12,7 @@ import pytest
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.core.storage.service import FilesService
-from app.services.agent.params.upload_sync import (
+from app.services.agent.params.enrichment.upload_sync import (
     _SYNC_THRESHOLD_BYTES,
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,

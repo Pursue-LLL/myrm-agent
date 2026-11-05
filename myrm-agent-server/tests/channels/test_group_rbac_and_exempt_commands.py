@@ -392,7 +392,7 @@ class TestGroupRbacAndExemptCommands:
 
     def test_ascii_progress_and_countdown_functions(self) -> None:
         """Verify ASCII progress bar formatting and countdown calculation."""
-        from app.channels.routing.commands.router_commands_quota import (
+        from app.channels.routing.commands.router_commands.quota import (
             calculate_quota_countdown,
             render_ascii_progress,
         )

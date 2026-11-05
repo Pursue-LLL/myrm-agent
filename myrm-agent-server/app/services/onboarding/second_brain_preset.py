@@ -37,7 +37,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
 from app.core.cron.adapters.setup import get_cron_manager
-from app.core.cron.blueprint_job_spec import create_blueprint_job, to_job_spec
+from app.core.cron.blueprints.job_spec import create_blueprint_job, to_job_spec
 from app.core.cron.blueprints import fill_blueprint
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.agent_service import AgentService

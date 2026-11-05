@@ -94,7 +94,6 @@ export interface ChatState {
   pendingWorkflowTemplateDisplayName: string | null;
   pendingWorkflowTemplateArgs: Record<string, string> | null;
   incognitoMode: boolean;
-  sandboxMode: boolean;
   securityPreset: SecurityPreset;
   goalBudgetTokens: number | null;
   goalBudgetUsd: number | null;
@@ -220,7 +219,6 @@ export interface ChatState {
   setSessionSkillOverrides: (overrides: string[] | null) => void;
   setActiveKnowledgeBaseNames: (names: Record<string, string>) => void;
   removeActiveKnowledgeBase: (id: string) => void;
-  setSandboxMode: (sandboxMode: boolean) => void;
   setSecurityPreset: (preset: SecurityPreset) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
   setGoalBudgetUsd: (usd: number | null) => void;

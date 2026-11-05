@@ -32,7 +32,7 @@ async def _mention_stored_pdf(parsed: str | None) -> tuple[str, int]:
     ref = MentionReferenceRequest(type="uploaded_file", file_id="file_scan", label="scan.pdf")
     with (
         patch("app.core.storage.files_service", _stored_file_service()),
-        patch("app.services.agent.params.mention._parse_stored_document", AsyncMock(return_value=parsed)),
+        patch("app.services.agent.params.mention.references.stored_file._parse_stored_document", AsyncMock(return_value=parsed)),
     ):
         return await _stored_file_part(ref, 0)
 

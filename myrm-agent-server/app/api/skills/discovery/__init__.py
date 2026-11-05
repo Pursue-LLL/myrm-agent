@@ -6,16 +6,16 @@
 
 [OUTPUT]
 - Aggregate facade re-exporting every public name of the ``discovery`` subpackage:
-  - discovery: ``router`` (APIRouter prefix `/discovery`) + search/install/preview/update/source handlers
-  - discovery_schemas: request/response Pydantic models
+  - routes / install: ``router`` (APIRouter prefix `/discovery`) + read and write handlers
+  - schemas: request/response Pydantic models
 
 [POS]
 Server business layer (Skills API). The discovery endpoints and their schemas are always wired
 together and mounted via ``api.skills.router``, so they stay co-located under one facade.
 """
 
-from app.api.skills.discovery.discovery import router
-from app.api.skills.discovery.discovery_schemas import (
+from app.api.skills.discovery.routes import router
+from app.api.skills.discovery.schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
     CustomSourceRequest,

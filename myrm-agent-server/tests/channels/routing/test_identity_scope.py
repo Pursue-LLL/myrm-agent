@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.channels.routing.commands.commands import parse_topic_args
+from app.channels.routing.commands.topic import parse_topic_args
 from app.channels.routing.identity_scope import (
     default_identity_id,
     resolve_team_identity,

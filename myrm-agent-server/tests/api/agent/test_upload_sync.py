@@ -1,4 +1,4 @@
-"""Tests for app.services.agent.params.upload_sync.
+"""Tests for app.services.agent.params.enrichment.upload_sync.
 
 Verifies uploaded file workspace sync and query injection logic.
 """
@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.agent.params.upload_sync import (
+from app.services.agent.params.enrichment.upload_sync import (
     _MAX_SYNC_TOTAL_BYTES,
     _SYNC_THRESHOLD_BYTES,
     _sanitize_filename,

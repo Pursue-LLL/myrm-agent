@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/chat::submitPlanConfirmResponse (POS: Deep Research plan confirm REST API)
+ * @/services/chat::submitPlanConfirmResponse (POS: Dynamic Workflow plan confirm REST API)
  * @/services/chat::resumePlanConfirmStream (POS: General Agent plan confirm SSE resume)
  * @/store/chat/types::Message.planConfirmation (POS: plan confirmation state)
  * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: another client answered the plan first)
@@ -12,8 +12,8 @@
  * answered settles into a neutral handled state.
  *
  * [POS]
- * Plan-phase HITL gate. Supports both Deep Research (PhaseWaiter REST)
- * and General Agent (LangGraph interrupt SSE resume) confirmation paths.
+ * Plan-phase HITL gate. Supports Dynamic Workflow (PhaseWaiter REST) and
+ * General Agent (LangGraph interrupt SSE resume) confirmation paths.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -30,7 +30,7 @@ interface PlanConfirmationCardProps {
   status: 'waiting' | 'confirmed' | 'edited' | 'skipped' | 'handled';
   planItems?: Array<{ id: string; content: string; status?: string }>;
   goal?: string;
-  source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+  source?: 'general_agent' | 'dynamic_workflow';
   spawnCount?: number;
   estimatedCostUsd?: number;
   remainingBudgetUsd?: number;

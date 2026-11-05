@@ -21,7 +21,7 @@ from app.database import connection
 from app.database.models import Chat, Message
 from app.database.models.chat import BACKGROUND_JOB_NOTICE_KEY, VOICE_BACKGROUND_TASK_NOTICE_KEY
 from app.database.repositories.chat_repo import ChatRepository
-from app.services.agent.params.routing_memory import complaint_floor, load_retry_baseline
+from app.services.agent.params.routing import complaint_floor, load_retry_baseline
 
 pytestmark = pytest.mark.usefixtures("setup_test_database")
 

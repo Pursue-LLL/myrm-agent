@@ -7,7 +7,7 @@
  * Shared clarify state helpers for message hydrate and Composer takeover selection.
  */
 
-import { normalizeClarificationForm, resolveClarifyIsResumeMode } from './messageStream/streamHelpers';
+import { normalizeClarificationForm } from './messageStream/streamHelpers';
 import type { Message } from './types';
 
 export function normalizeHydratedClarification(
@@ -19,9 +19,6 @@ export function normalizeHydratedClarification(
   // The server persists the raw snake_case form; read it exactly like the live event does.
   if (clarification.form) {
     clarification.form = normalizeClarificationForm(clarification.form);
-  }
-  if (clarification.isResumeMode === undefined) {
-    clarification.isResumeMode = resolveClarifyIsResumeMode(clarification.source);
   }
   return clarification;
 }

@@ -17,5 +17,4 @@ Canvas 画布文件严格沙箱隔离与交互式脚本动态鉴权体系（Item
 | `canvasSecurityTypes.ts` | 类型 | 领域类型定义：CanvasSandboxPolicy, CanvasEgressRequest, CanvasPermissionStatus, CanvasSecurityAuditEvent | ✅ |
 | `useCanvasGatingStore.ts` | 状态 | Zustand 状态管理：白名单域名、挂起的外发请求队列、安全审计日志流转 | ✅ |
 | `CanvasSecurityBridge.ts` | 核心 | CSP 策略注入器、防穿透安全垫片编译器、iframe postMessage 双向鉴权通信桥 | ✅ |
-| `CanvasViewer.tsx` | 组件 | 严格沙箱化 Canvas 承载视窗、安全盾牌 HUD、交互式外发网络请求审批卡片 | ✅ |
-| `index.ts` | 门面 | 统一对外导出公共组件、Hook、常量与领域类型 | ✅ |
+| `CanvasViewer.tsx` | 组件 | 严格沙箱化 Canvas 承载视窗、安全盾牌 HUD、交互式外发网络请求审批卡片；由 `artifacts/ArtifactRenderer.tsx` 动态导入 | ✅ |

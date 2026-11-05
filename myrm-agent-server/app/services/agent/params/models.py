@@ -41,7 +41,7 @@ class ModelSelection(BaseModel):
     def _coerce_provider_id(cls, value: object) -> object:
         if not isinstance(value, str):
             return value
-        from app.services.agent.params.providers import normalize_storage_provider_id
+        from app.services.agent.params.model_config import normalize_storage_provider_id
 
         return normalize_storage_provider_id(value)
 
@@ -253,7 +253,6 @@ class AgentRequest(BaseModel):
 
     reasoning_model_selection: ModelSelection | None = None
     fallback_reasoning_model_selection: ModelSelection | None = None
-    research_model_selection: ModelSelection | None = None
 
     code_model_selection: ModelSelection | None = None
     fallback_code_model_selection: ModelSelection | None = None

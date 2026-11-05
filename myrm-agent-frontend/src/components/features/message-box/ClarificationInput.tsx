@@ -3,9 +3,8 @@
 /**
  * [INPUT]
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
- * @/services/chat::submitClarifyResponse (POS: clarification answer submission API)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
- * @/store/chat/clarificationCardAnswer::answerClarificationWithResume / settleClarificationCard (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/clarificationCardAnswer::answerClarificationWithResume (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
  * @/store/chat/clarificationCardDraft::loadClarificationDraft (POS: what the user had written when a refused resume brings the card back)
  * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: the timeout or another device already settled the card without this answer)
  * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
@@ -24,9 +23,8 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { answerClarificationWithResume, settleClarificationCard } from '@/store/chat/clarificationCardAnswer';
+import { answerClarificationWithResume } from '@/store/chat/clarificationCardAnswer';
 import { loadClarificationDraft } from '@/store/chat/clarificationCardDraft';
 import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
@@ -54,7 +52,6 @@ interface ClarificationInputProps {
   allowMultiple?: boolean;
   title?: string;
   form?: ClarificationForm;
-  isResumeMode?: boolean;
   answerRecord?: HitlAnswerRecord;
   variant?: 'inline' | 'composer';
 }
@@ -66,7 +63,6 @@ const ClarificationInput = ({
   allowMultiple,
   title,
   form,
-  isResumeMode,
   answerRecord,
   variant = 'inline',
 }: ClarificationInputProps) => {
@@ -120,21 +116,15 @@ const ClarificationInput = ({
     });
   };
 
-  // Resume mode closes the card at click because the request streams the whole resumed run; the legacy clarify API is
-  // a short call, so its card closes once the server accepted the answer.
-  const submitAnswer = async (resumeValue: ClarificationAnswer, legacyAnswer: ClarificationAnswer) => {
+  // The answer streams the whole resumed run, so the card closes at click and reopens if the resume is not delivered.
+  const submitAnswer = async (resumeValue: ClarificationAnswer) => {
     setSubmitting(true);
     try {
-      if (isResumeMode) {
-        await answerClarificationWithResume(
-          messageId,
-          { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
-          () => sendMessage('', messageId, undefined, resumeValue),
-        );
-      } else {
-        await submitClarifyResponse(messageId, legacyAnswer);
-        settleClarificationCard(messageId, { by: 'user', value: legacyAnswer });
-      }
+      await answerClarificationWithResume(
+        messageId,
+        { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
+        () => sendMessage('', messageId, undefined, resumeValue),
+      );
     } catch (err) {
       reportAnswerError(err);
     } finally {
@@ -152,14 +142,14 @@ const ClarificationInput = ({
     if (!finalAnswer) {
       return;
     }
-    await submitAnswer(finalAnswer, finalAnswer);
+    await submitAnswer(finalAnswer);
   };
 
   const handleSkip = async () => {
     if (submitting) {
       return;
     }
-    await submitAnswer({}, '');
+    await submitAnswer({});
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

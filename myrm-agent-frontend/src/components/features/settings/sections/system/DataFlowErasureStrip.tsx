@@ -93,11 +93,6 @@ export const DataFlowErasureStrip = memo(() => {
               <IconCheckCircle className="h-3.5 w-3.5 text-emerald-500" />
               {t('eraseSuccess', { count: outcome.purged_chats })}
             </span>
-            {outcome.kept_sandboxes > 0 && (
-              <span className="mt-1 block pl-5 font-normal text-muted-foreground">
-                {t('eraseKept', { count: outcome.kept_sandboxes })}
-              </span>
-            )}
           </>
         )}
       </output>

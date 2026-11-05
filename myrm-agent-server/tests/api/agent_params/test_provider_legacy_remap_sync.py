@@ -33,13 +33,13 @@ def test_server_provider_remap_matches_shared_json() -> None:
     shared_json = _repo_root() / "shared" / "config" / "provider_legacy_remap.json"
     expected = _load_json_remap(shared_json)
 
-    from app.services.agent.params.providers import LEGACY_STORAGE_PROVIDER_ID_REMAP
+    from app.services.agent.params.model_config import LEGACY_STORAGE_PROVIDER_ID_REMAP
 
     assert LEGACY_STORAGE_PROVIDER_ID_REMAP == expected
 
 
 def test_normalize_storage_provider_id_matches_shared_remap_variants() -> None:
-    from app.services.agent.params.providers import normalize_storage_provider_id
+    from app.services.agent.params.model_config import normalize_storage_provider_id
 
     assert normalize_storage_provider_id("Google") == "gemini"
     assert normalize_storage_provider_id("GOOGLE") == "gemini"

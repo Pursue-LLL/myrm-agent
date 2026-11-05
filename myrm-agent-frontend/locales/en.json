@@ -15749,7 +15749,6 @@
         "eraseConfirmAction": "Clear conversations",
         "erasing": "Clearing…",
         "eraseSuccess": "{count, plural, one {Cleared # conversation} other {Cleared # conversations}}",
-        "eraseKept": "{count, plural, one {# workspace with unsaved changes was kept in your project folder} other {# workspaces with unsaved changes were kept in your project folder}}",
         "eraseBusy": "A conversation is still running. Stop it or wait for it to finish, then try again.",
         "eraseFailed": "Could not finish clearing conversations. Try again."
       },

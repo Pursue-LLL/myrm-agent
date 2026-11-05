@@ -19,8 +19,12 @@ from myrm_agent_harness.toolkits.memory.agent_surface.wiki_memory_boundary impor
     WIKI_MEMORY_SAVE_MAX_CHARS,
 )
 from myrm_agent_harness.toolkits.memory.types import (
+    AnyMemory,
+    ClaimMemory,
+    EpisodicMemory,
     MemorySearchResult,
     MemoryType,
+    ProceduralMemory,
     SemanticMemory,
 )
 
@@ -113,7 +117,7 @@ class TestMemoryMCPServerInit:
         assert "memory_store" in tools_by_name["memory_manage"].description
         assert "memory_search_tool" not in tools_by_name["memory_manage"].description
         assert "memory_save_tool" not in tools_by_name["memory_manage"].description
-        assert "instruction saves" in tools_by_name["memory_manage"].description
+        assert "category" not in tools_by_name["memory_manage"].description
         assert "WIKI BOUNDARY" not in tools_by_name["memory_store"].description
         assert "wiki_ingest_tool" not in tools_by_name["memory_store"].description
         assert "demoted" not in tools_by_name["memory_manage"].description.lower()
@@ -639,65 +643,86 @@ class TestMemoryStoreTool:
         assert result == "Failed to store memory"
 
 
+def _resolve_to(manager: AsyncMock, memory: AnyMemory | None) -> None:
+    """Make the manager resolve every memory id to ``memory`` (``None`` = unknown id)."""
+    manager.get_memory = AsyncMock(return_value=memory)
+
+
 class TestMemoryManageTool:
     @pytest.mark.asyncio
+    async def test_manage_schema_is_addressed_by_id_alone(self, mcp_server):
+        tool = next(t for t in await mcp_server.mcp.list_tools() if t.name == "memory_manage")
+        assert set(tool.input_schema["properties"]) == {
+            "action",
+            "memory_id",
+            "new_content",
+            "new_importance",
+            "rating_score",
+        }
+
+    @pytest.mark.asyncio
     async def test_manage_rate(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="rate", memory_id="m1", category="knowledge", rating_score=5
-        )
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="m1", rating_score=5)
         assert "rated" in result
         mock_manager.rate_memory.assert_called_once_with("m1", 5)
 
     @pytest.mark.asyncio
     async def test_manage_rate_missing_score(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="m1", category="knowledge")
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="m1")
         assert "rating_score" in result
 
     @pytest.mark.asyncio
     async def test_manage_delete_knowledge(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1", category="knowledge")
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1")
         assert "deleted" in result
         mock_manager.delete_memory.assert_called_once_with("semantic", ["m1"], allow_protected=False)
 
     @pytest.mark.asyncio
+    async def test_manage_delete_event(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, EpisodicMemory(id="e1", content="incident"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="e1")
+        assert "deleted" in result
+        mock_manager.delete_memory.assert_called_once_with("episodic", ["e1"], allow_protected=False)
+
+    @pytest.mark.asyncio
     async def test_manage_delete_rule(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1", category="rule")
+        _resolve_to(mock_manager, ProceduralMemory(id="r1", trigger="before commit", action="run lint"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1")
         assert "deleted" in result
         mock_manager.delete_rule.assert_called_once_with("r1", allow_protected=False)
 
     @pytest.mark.asyncio
     async def test_manage_delete_rule_protected(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, ProceduralMemory(id="r1", trigger="before commit", action="run lint"))
         mock_manager.delete_rule.return_value = False
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1", category="rule")
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1")
         assert "Cannot delete rule" in result
         assert "user-protected" in result
 
     @pytest.mark.asyncio
     async def test_manage_update(self, mcp_server, mock_manager):
-        updated = SemanticMemory(id="m1", content="updated content")
-        mock_manager.update_memory.return_value = updated
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="old content"))
+        mock_manager.update_memory.return_value = SemanticMemory(id="m1", content="updated content")
         result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="update",
-            memory_id="m1",
-            category="knowledge",
-            new_content="updated content",
+            action="update", memory_id="m1", new_content="updated content"
         )
         assert "updated" in result
 
     @pytest.mark.asyncio
     async def test_manage_update_missing_content(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="update", memory_id="m1", category="knowledge")
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="update", memory_id="m1")
         assert "new_content" in result
 
     @pytest.mark.asyncio
     async def test_manage_correct(self, mcp_server, mock_manager):
-        correction = SemanticMemory(id="c1", content="corrected fact")
-        mock_manager.correct_memory.return_value = correction
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="wrong fact"))
+        mock_manager.correct_memory.return_value = SemanticMemory(id="c1", content="corrected fact")
         result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="correct",
-            memory_id="m1",
-            category="knowledge",
-            new_content="corrected fact",
+            action="correct", memory_id="m1", new_content="corrected fact"
         )
         assert "corrected" in result
         assert "c1" in result
@@ -705,90 +730,96 @@ class TestMemoryManageTool:
         assert "kept in history" in result.lower()
 
     @pytest.mark.asyncio
-    async def test_manage_invalid_action(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="invalid", memory_id="m1", category="knowledge")
+    async def test_manage_invalid_action(self, mcp_server):
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="invalid", memory_id="m1")
         assert "Error" in result
+        assert "update, delete, correct, rate" in result
 
     @pytest.mark.asyncio
-    async def test_manage_invalid_category(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1", category="invalid")
-        assert "Error" in result
+    async def test_manage_unknown_id(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, None)
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="missing")
+        assert result == "Memory not found (ID: missing)"
+        mock_manager.delete_memory.assert_not_called()
+        mock_manager.delete_rule.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_manage_legacy_category_argument_is_ignored(self, mcp_server, mock_manager):
+        """Clients written against the old schema still send ``category``; the id decides, not the label."""
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1", category="rule")
+        assert "deleted" in result
+        mock_manager.delete_memory.assert_called_once_with("semantic", ["m1"], allow_protected=False)
+        mock_manager.delete_rule.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_manage_claim_rejected(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="c1", category="claim")
-        assert "Error" in result
-        assert "claim" in result
-
-    @pytest.mark.asyncio
-    async def test_manage_delete_profile_rejected(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="p1", category="preference")
-        assert "cannot be deleted" in result
+        claim = ClaimMemory(id="c1", content="Claim: Auth", claim_key="auth", title="Auth", claim_text="Add JWT")
+        _resolve_to(mock_manager, claim)
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="c1")
+        assert result == "Delete action is not supported for claim memories."
 
     @pytest.mark.asyncio
     async def test_manage_rate_rule_rejected(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="rate", memory_id="r1", category="rule", rating_score=5
-        )
+        _resolve_to(mock_manager, ProceduralMemory(id="r1", trigger="before commit", action="run lint"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="r1", rating_score=5)
         assert "only supported for knowledge/event" in result
 
     @pytest.mark.asyncio
     async def test_manage_rate_vector_disabled(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
         mock_manager.has_vector = False
         mock_manager.get_enabled_types.return_value = []
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="rate", memory_id="m1", category="knowledge", rating_score=5
-        )
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="m1", rating_score=5)
         assert "not enabled" in result
 
     @pytest.mark.asyncio
-    async def test_manage_rate_not_found(self, mcp_server, mock_manager):
+    async def test_manage_rate_vanished_between_lookup_and_rate(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
         mock_manager.rate_memory.return_value = False
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="rate", memory_id="missing", category="knowledge", rating_score=5
-        )
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="rate", memory_id="m1", rating_score=5)
         assert "not found" in result
 
     @pytest.mark.asyncio
     async def test_manage_delete_vector_disabled(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
         mock_manager.has_vector = False
         mock_manager.get_enabled_types.return_value = []
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1", category="knowledge")
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="m1")
         assert "not enabled" in result
 
     @pytest.mark.asyncio
     async def test_manage_delete_rule_disabled(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, ProceduralMemory(id="r1", trigger="before commit", action="run lint"))
         mock_manager.has_relational = False
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1", category="rule")
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="delete", memory_id="r1")
         assert "not enabled" in result
 
     @pytest.mark.asyncio
     async def test_manage_correct_missing_content(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(action="correct", memory_id="m1", category="knowledge")
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="correct", memory_id="m1")
         assert "new_content" in result
 
     @pytest.mark.asyncio
     async def test_manage_correct_non_semantic(self, mcp_server, mock_manager):
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="correct", memory_id="r1", category="rule", new_content="fix"
-        )
+        _resolve_to(mock_manager, ProceduralMemory(id="r1", trigger="before commit", action="run lint"))
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="correct", memory_id="r1", new_content="fix")
         assert "only supported for knowledge" in result
 
     @pytest.mark.asyncio
     async def test_manage_correct_vector_disabled(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
         mock_manager.has_vector = False
         mock_manager.get_enabled_types.return_value = []
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="correct", memory_id="m1", category="knowledge", new_content="fix"
-        )
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="correct", memory_id="m1", new_content="fix")
         assert "not enabled" in result
 
     @pytest.mark.asyncio
     async def test_manage_exception_returns_failure(self, mcp_server, mock_manager):
+        _resolve_to(mock_manager, SemanticMemory(id="m1", content="fact"))
         mock_manager.update_memory = AsyncMock(side_effect=RuntimeError("boom"))
-        result = await _get_tool_fn(mcp_server, "memory_manage")(
-            action="update", memory_id="m1", category="knowledge", new_content="x"
-        )
+        result = await _get_tool_fn(mcp_server, "memory_manage")(action="update", memory_id="m1", new_content="x")
         assert result == "Failed to manage memory"
 
 

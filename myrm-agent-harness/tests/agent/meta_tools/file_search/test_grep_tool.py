@@ -2,7 +2,7 @@
 
 Covers:
 - GrepInput defaults and custom values
-- ripgrep detection
+- ripgrep detection: whether `rg` is on the PATH, looked up on every call
 - ripgrep search engine (tier 1)
 - mmap search engine (tier 2)
 """
@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -51,6 +52,13 @@ class TestRipgrepDetection:
     def test_has_ripgrep_returns_bool(self) -> None:
         result = _has_ripgrep()
         assert isinstance(result, bool)
+
+    def test_follows_the_path_on_every_call(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ripgrep installed or removed while the process runs changes the answer at once; no verdict is kept."""
+        found = iter([None, "/usr/bin/rg", None])
+        monkeypatch.setattr(shutil, "which", lambda _name: next(found))
+
+        assert [_has_ripgrep() for _ in range(3)] == [False, True, False]
 
 
 # ---------------------------------------------------------------------------

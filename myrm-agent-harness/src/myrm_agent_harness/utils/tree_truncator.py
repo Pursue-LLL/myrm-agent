@@ -9,7 +9,8 @@ import copy
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from bs4 import BeautifulSoup, NavigableString, Tag  # type: ignore[import-untyped]
+from bs4 import BeautifulSoup, Tag
+from bs4.element import NavigableString
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.snapshot.aria_types import EnhancedNode
@@ -41,7 +42,7 @@ def _truncate_html_leaf(node: Tag, remaining_budget: int) -> None:
         node.append(NavigableString(marker))
 
 
-def truncate_html_soup(soup: BeautifulSoup, max_chars: int) -> tuple[BeautifulSoup, bool]:
+def truncate_html_soup(soup: Tag, max_chars: int) -> tuple[BeautifulSoup, bool]:
     """
     Intelligently truncate an HTML DOM tree to fit within max_chars.
     Uses semantic weighting and iterative allocation to preserve important nodes

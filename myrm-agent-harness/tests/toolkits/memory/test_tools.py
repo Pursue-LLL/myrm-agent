@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     MemoryScope,
     MemorySearchResult,
     MemoryType,
+    ProceduralMemory,
     SemanticMemory,
 )
 
@@ -629,6 +630,8 @@ class TestMemorySaveTool:
 
 
 class TestMemoryManageTool:
+    """memory_manage_tool is addressed by memory id alone; the stored memory's type decides what applies."""
+
     def _make_manager(self, mock_vector_store, mock_embedding, memory_config, **kw):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -640,35 +643,37 @@ class TestMemoryManageTool:
             **kw,
         )
 
+    @staticmethod
+    def _resolves_to(memory):
+        """The manager resolves any id to ``memory``; ``None`` makes every id unknown."""
+        from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+        return patch.object(MemoryManager, "get_memory", AsyncMock(return_value=memory))
+
+    @staticmethod
+    def _manage_tool(manager):
+        return next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
+
     @pytest.mark.asyncio
     async def test_manage_update(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
         updated = SemanticMemory(content="new", id="mem-1")
-        with patch.object(MemoryManager, "update_memory", AsyncMock(return_value=updated)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "update",
-                    "memory_id": "mem-1",
-                    "category": "knowledge",
-                    "new_content": "new content",
-                }
+        with (
+            self._resolves_to(SemanticMemory(content="old", id="mem-1")),
+            patch.object(MemoryManager, "update_memory", AsyncMock(return_value=updated)),
+        ):
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "update", "memory_id": "mem-1", "new_content": "new content"}
             )
         assert "updated" in result.lower()
 
     @pytest.mark.asyncio
     async def test_manage_update_requires_content(self, mock_vector_store, mock_embedding, memory_config):
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "update",
-                "memory_id": "mem-1",
-                "category": "knowledge",
-            }
-        )
+        with self._resolves_to(SemanticMemory(content="old", id="mem-1")):
+            result = await self._manage_tool(manager).ainvoke({"action": "update", "memory_id": "mem-1"})
         assert "new_content" in result.lower()
 
     @pytest.mark.asyncio
@@ -676,32 +681,43 @@ class TestMemoryManageTool:
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        with patch.object(MemoryManager, "delete_memory", AsyncMock(return_value=1)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "delete",
-                    "memory_id": "mem-1",
-                    "category": "knowledge",
-                }
-            )
+        delete = AsyncMock(return_value=1)
+        with (
+            self._resolves_to(SemanticMemory(content="fact", id="mem-1")),
+            patch.object(MemoryManager, "delete_memory", delete),
+        ):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "mem-1"})
         assert "deleted" in result.lower()
+        delete.assert_awaited_once_with(memory_config.semantic_collection, ["mem-1"], allow_protected=False)
+
+    @pytest.mark.asyncio
+    async def test_manage_delete_event_reaches_the_episodic_collection(
+        self, mock_vector_store, mock_embedding, memory_config
+    ):
+        """The stored type, not a caller-supplied category, picks the collection."""
+        from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+
+        manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
+        delete = AsyncMock(return_value=1)
+        with (
+            self._resolves_to(EpisodicMemory(content="incident", id="ev-1")),
+            patch.object(MemoryManager, "delete_memory", delete),
+        ):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "ev-1"})
+        assert "deleted" in result.lower()
+        delete.assert_awaited_once_with(memory_config.episodic_collection, ["ev-1"], allow_protected=False)
 
     @pytest.mark.asyncio
     async def test_manage_delete_rule(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
-        with patch.object(MemoryManager, "delete_rule", AsyncMock(return_value=True)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "delete",
-                    "memory_id": "rule-1",
-                    "category": "rule",
-                }
-            )
+        delete_rule = AsyncMock(return_value=True)
+        rule = ProceduralMemory(id="rule-1", trigger="before commit", action="run lint")
+        with self._resolves_to(rule), patch.object(MemoryManager, "delete_rule", delete_rule):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "rule-1"})
         assert "deleted" in result.lower()
+        delete_rule.assert_awaited_once_with("rule-1", allow_protected=False)
 
     @pytest.mark.asyncio
     async def test_manage_correct(self, mock_vector_store, mock_embedding, memory_config):
@@ -709,15 +725,12 @@ class TestMemoryManageTool:
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
         correction = SemanticMemory(content="correct", id="cor-1")
-        with patch.object(MemoryManager, "correct_memory", AsyncMock(return_value=correction)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "correct",
-                    "memory_id": "mem-1",
-                    "category": "knowledge",
-                    "new_content": "correct fact",
-                }
+        with (
+            self._resolves_to(SemanticMemory(content="wrong", id="mem-1")),
+            patch.object(MemoryManager, "correct_memory", AsyncMock(return_value=correction)),
+        ):
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "correct", "memory_id": "mem-1", "new_content": "correct fact"}
             )
         assert "corrected" in result.lower()
         assert "demoted" not in result.lower()
@@ -726,28 +739,17 @@ class TestMemoryManageTool:
     @pytest.mark.asyncio
     async def test_manage_correct_requires_content(self, mock_vector_store, mock_embedding, memory_config):
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "correct",
-                "memory_id": "mem-1",
-                "category": "knowledge",
-            }
-        )
+        with self._resolves_to(SemanticMemory(content="wrong", id="mem-1")):
+            result = await self._manage_tool(manager).ainvoke({"action": "correct", "memory_id": "mem-1"})
         assert "new_content" in result.lower()
 
     @pytest.mark.asyncio
     async def test_manage_correct_only_knowledge(self, mock_vector_store, mock_embedding, memory_config):
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "correct",
-                "memory_id": "ev-1",
-                "category": "event",
-                "new_content": "fix",
-            }
-        )
+        with self._resolves_to(EpisodicMemory(content="incident", id="ev-1")):
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "correct", "memory_id": "ev-1", "new_content": "fix"}
+            )
         assert "only supported for knowledge" in result.lower()
 
     @pytest.mark.asyncio
@@ -755,119 +757,110 @@ class TestMemoryManageTool:
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        with patch.object(
-            MemoryManager,
-            "update_memory",
-            AsyncMock(side_effect=RuntimeError("db error")),
+        with (
+            self._resolves_to(SemanticMemory(content="old", id="mem-1")),
+            patch.object(MemoryManager, "update_memory", AsyncMock(side_effect=RuntimeError("db error"))),
         ):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "update",
-                    "memory_id": "mem-1",
-                    "category": "knowledge",
-                    "new_content": "new",
-                }
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "update", "memory_id": "mem-1", "new_content": "new"}
             )
         assert "failed" in result.lower()
 
     @pytest.mark.asyncio
-    async def test_manage_delete_not_found(self, mock_vector_store, mock_embedding, memory_config):
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            {"action": "update", "new_content": "x"},
+            {"action": "delete"},
+            {"action": "correct", "new_content": "x"},
+            {"action": "rate", "rating_score": 4},
+        ],
+    )
+    async def test_manage_unknown_id_is_reported_as_not_found(
+        self, arguments, mock_vector_store, mock_embedding, memory_config
+    ):
+        """An id outside the manager's scope (or a recalled preference line, which has none) is not manageable."""
+        manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
+        with self._resolves_to(None):
+            result = await self._manage_tool(manager).ainvoke({"memory_id": "unknown-1", **arguments})
+        assert result == "Memory not found (ID: unknown-1)"
+
+    @pytest.mark.asyncio
+    async def test_manage_delete_protected_vector_memory(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        with patch.object(MemoryManager, "delete_memory", AsyncMock(return_value=0)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "delete",
-                    "memory_id": "nonexistent",
-                    "category": "knowledge",
-                }
-            )
-        assert "not found" in result.lower()
+        with (
+            self._resolves_to(SemanticMemory(content="fact", id="mem-1", pinned=True)),
+            patch.object(MemoryManager, "delete_memory", AsyncMock(return_value=0)),
+        ):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "mem-1"})
+        assert "protected by the user" in result
 
     @pytest.mark.asyncio
-    async def test_manage_delete_rule_not_found(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_manage_delete_protected_rule(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
-        with patch.object(MemoryManager, "delete_rule", AsyncMock(return_value=False)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "delete",
-                    "memory_id": "nonexistent",
-                    "category": "rule",
-                }
-            )
-        assert "not found" in result.lower()
+        rule = ProceduralMemory(id="rule-1", trigger="before commit", action="run lint")
+        with self._resolves_to(rule), patch.object(MemoryManager, "delete_rule", AsyncMock(return_value=False)):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "rule-1"})
+        assert "user-protected" in result
 
     @pytest.mark.asyncio
-    async def test_manage_delete_profile_rejected(self, mock_vector_store, mock_embedding, memory_config):
-        manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "delete",
-                "memory_id": "p-1",
-                "category": "preference",
-            }
+    async def test_manage_delete_unsupported_type(self, mock_vector_store, mock_embedding, memory_config):
+        manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
+        claim = ClaimMemory(
+            id="claim-1",
+            content="Claim: Auth task",
+            claim_key="auth-task",
+            title="Auth task",
+            claim_text="Add JWT authentication",
         )
-        assert "cannot be deleted" in result.lower()
+        with self._resolves_to(claim):
+            result = await self._manage_tool(manager).ainvoke({"action": "delete", "memory_id": "claim-1"})
+        assert result == "Delete action is not supported for claim memories."
 
     @pytest.mark.asyncio
     async def test_manage_rate_memory(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        with patch.object(MemoryManager, "rate_memory", AsyncMock(return_value=True)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "rate",
-                    "memory_id": "mem-1",
-                    "category": "knowledge",
-                    "rating_score": 5,
-                }
+        with (
+            self._resolves_to(SemanticMemory(content="fact", id="mem-1")),
+            patch.object(MemoryManager, "rate_memory", AsyncMock(return_value=True)),
+        ):
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "rate", "memory_id": "mem-1", "rating_score": 5}
             )
         assert "rated" in result.lower()
 
     @pytest.mark.asyncio
     async def test_manage_rate_requires_score(self, mock_vector_store, mock_embedding, memory_config):
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke({"action": "rate", "memory_id": "mem-1", "category": "knowledge"})
+        with self._resolves_to(SemanticMemory(content="fact", id="mem-1")):
+            result = await self._manage_tool(manager).ainvoke({"action": "rate", "memory_id": "mem-1"})
         assert "rating_score" in result.lower()
 
     @pytest.mark.asyncio
     async def test_manage_rate_only_knowledge_event(self, mock_vector_store, mock_embedding, memory_config):
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config, relational=AsyncMock())
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "rate",
-                "memory_id": "r-1",
-                "category": "rule",
-                "rating_score": 3,
-            }
-        )
+        rule = ProceduralMemory(id="r-1", trigger="before commit", action="run lint")
+        with self._resolves_to(rule):
+            result = await self._manage_tool(manager).ainvoke({"action": "rate", "memory_id": "r-1", "rating_score": 3})
         assert "only supported" in result.lower()
 
     @pytest.mark.asyncio
-    async def test_manage_rate_not_found(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_manage_rate_vanished_memory(self, mock_vector_store, mock_embedding, memory_config):
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
-        with patch.object(MemoryManager, "rate_memory", AsyncMock(return_value=False)):
-            tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-            result = await tool.ainvoke(
-                {
-                    "action": "rate",
-                    "memory_id": "nonexist",
-                    "category": "knowledge",
-                    "rating_score": 4,
-                }
+        with (
+            self._resolves_to(SemanticMemory(content="fact", id="mem-1")),
+            patch.object(MemoryManager, "rate_memory", AsyncMock(return_value=False)),
+        ):
+            result = await self._manage_tool(manager).ainvoke(
+                {"action": "rate", "memory_id": "mem-1", "rating_score": 4}
             )
         assert "not found" in result.lower()
 
@@ -876,16 +869,16 @@ class TestMemoryManageTool:
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
         manager = MemoryManager(memory_config, user_id="test_user", relational=AsyncMock())
-        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_manage_tool")
-        result = await tool.ainvoke(
-            {
-                "action": "rate",
-                "memory_id": "m-1",
-                "category": "knowledge",
-                "rating_score": 5,
-            }
-        )
+        with self._resolves_to(SemanticMemory(content="fact", id="m-1")):
+            result = await self._manage_tool(manager).ainvoke({"action": "rate", "memory_id": "m-1", "rating_score": 5})
         assert "not enabled" in result.lower()
+
+    def test_manage_schema_is_addressed_by_id_alone(self, mock_vector_store, mock_embedding, memory_config):
+        """The memory's type is a property of the memory, so the schema offers no category to get wrong."""
+        manager = self._make_manager(mock_vector_store, mock_embedding, memory_config)
+        properties = self._manage_tool(manager).args_schema.model_json_schema()["properties"]
+        assert set(properties) == {"action", "memory_id", "new_content", "new_importance", "rating_score"}
+        assert properties["action"]["enum"] == ["update", "delete", "correct", "rate"]
 
 
 class TestParseStringList:

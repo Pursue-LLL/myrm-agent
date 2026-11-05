@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     PendingResolutionAction,
 )
 
-from app.channels.routing.commands.router_commands_memory import RouterCommandsMemoryMixin
+from app.channels.routing.commands.router_commands.memory import RouterCommandsMemoryMixin
 from app.channels.types.messages import InboundMessage
 from app.services.memory.operations.pending_review import PendingReviewSource
 

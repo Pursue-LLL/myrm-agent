@@ -726,13 +726,6 @@ export interface StreamRequestBody {
   resume_value?: unknown;
 }
 
-const getActionModeEndpoint = (actionMode: ActionMode): string => {
-  switch (actionMode) {
-    default:
-      return '/agents/agent-stream';
-  }
-};
-
 /**
  * 创建 AI 搜索流式请求（SSE）。
  * SSE 流式连接的生命周期由 AbortController 控制（用户取消），不设置超时。
@@ -744,7 +737,7 @@ export const createAISearchStream = async (
   const controller = abortController || new AbortController();
   requestManager.registerRequest(controller);
 
-  const endpoint = getActionModeEndpoint(requestBody.action_mode);
+  const endpoint = '/agents/agent-stream';
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -955,7 +948,7 @@ export const exportChat = async (chatId: string, options?: ExportChatOptions): P
 /**
  * 生成聊天标题
  *
- * 不再发送 API Key，后端从 UserConfig 表读取 filter model 配置。
+ * API Key 不经 HTTP 传输，后端从 UserConfig 表读取 filter model 配置。
  */
 export const generateChatTitle = async (messages: Message[], abortController?: AbortController): Promise<string> => {
   const controller = abortController || new AbortController();
@@ -1148,20 +1141,7 @@ export const rewindToMessage = async (
 };
 
 /**
- * Submit user's answer to a Deep Research clarification question.
- */
-export const submitClarifyResponse = async (
-  messageId: string,
-  answer: string | string[] | Record<string, string | string[]>,
-): Promise<void> => {
-  await apiRequest('/agents/clarify-response', {
-    method: 'POST',
-    body: JSON.stringify({ messageId, answer }),
-  });
-};
-
-/**
- * Submit user's response to a Deep Research plan confirmation gate.
+ * Submit the user's response to an orchestrator plan confirmation gate.
  * @param action - "confirm" (use as-is), "edit" (use modified plan), "skip" (skip gate)
  */
 export const submitPlanConfirmResponse = async (

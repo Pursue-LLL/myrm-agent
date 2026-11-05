@@ -10,7 +10,6 @@ vi.mock('next-intl', () => {
   const modeKeys: Record<string, string> = {
     fast: 'Fast Search',
     agent: 'AI Agent',
-    deep_research: 'Deep Research',
   };
   return {
     useTranslations: (namespace?: string) => {
@@ -145,11 +144,11 @@ describe('SessionAnalyticsDialog', () => {
   });
 
   it('localizes known action mode via mode namespace', async () => {
-    getSessionAnalyticsMock.mockResolvedValue({ ...BASE_ANALYTICS, action_mode: 'deep_research' });
+    getSessionAnalyticsMock.mockResolvedValue({ ...BASE_ANALYTICS, action_mode: 'agent' });
 
     render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(/Deep Research/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/AI Agent/)).toBeInTheDocument());
   });
 
   it('falls back to raw action mode value for unknown modes', async () => {

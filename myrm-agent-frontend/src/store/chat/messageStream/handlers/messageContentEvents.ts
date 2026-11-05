@@ -72,33 +72,6 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
       }
     });
 
-    const isClarify =
-      typeof data.metadata === 'object' &&
-      data.metadata !== null &&
-      (data.metadata as Record<string, unknown>).phase === 'clarify';
-
-    const clarifyMeta = isClarify ? (data.metadata as Record<string, unknown>) : undefined;
-    const clarificationForm = isClarify ? H.normalizeClarificationForm(clarifyMeta?.form) : undefined;
-    let clarifyOptions: string[] | undefined = undefined;
-    let clarifyAllowMultiple = false;
-    if (isClarify && clarifyMeta) {
-      if (Array.isArray(clarifyMeta.options)) {
-        clarifyOptions = clarifyMeta.options.filter((item): item is string => typeof item === 'string');
-      }
-      if (typeof clarifyMeta.allow_multiple === 'boolean') {
-        clarifyAllowMultiple = clarifyMeta.allow_multiple;
-      }
-      if (clarificationForm) {
-        const firstQuestion = clarificationForm.questions[0];
-        if (firstQuestion?.options && firstQuestion.options.length > 0) {
-          clarifyOptions = firstQuestion.options.map((option) => option.label);
-        }
-        if (typeof firstQuestion?.allowMultiple === 'boolean') {
-          clarifyAllowMultiple = firstQuestion.allowMultiple;
-        }
-      }
-    }
-
     if (data.data && data.data.length > 0) {
       ctx.recievedMessage += H.sanitizeStreamText(data.data as string);
 
@@ -111,24 +84,6 @@ export async function messageContentEvents(ctx: StreamCtx): Promise<StreamTurn |
           }
 
           updateState.messages[messageIndex].content = recievedMessage;
-
-          if (isClarify) {
-            const existing = updateState.messages[messageIndex].clarification;
-            updateState.messages[messageIndex].clarification = {
-              ...existing,
-              question: recievedMessage,
-              answered: false,
-              options: clarifyOptions ?? existing?.options,
-              allowMultiple: clarifyAllowMultiple || existing?.allowMultiple,
-              ...(clarificationForm
-                ? {
-                    title: clarificationForm.title ?? existing?.title ?? undefined,
-                    form: clarificationForm,
-                  }
-                : {}),
-              isResumeMode: existing?.isResumeMode ?? H.resolveClarifyIsResumeMode(existing?.source),
-            };
-          }
 
           if (!updateState.messageAppeared) {
             updateState.messageAppeared = true;

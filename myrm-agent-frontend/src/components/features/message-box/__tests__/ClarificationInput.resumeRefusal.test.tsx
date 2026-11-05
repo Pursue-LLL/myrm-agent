@@ -11,7 +11,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { submitClarifyResponse } from '@/services/chat';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, Message } from '@/store/chat/types';
@@ -28,10 +27,6 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock('@/services/chat', () => ({
-  submitClarifyResponse: vi.fn(),
-}));
-
 const MESSAGE_ID = 'msg-1';
 
 const form: ClarificationForm = {
@@ -45,13 +40,13 @@ const pendingClarification: Message = {
   createdAt: new Date(),
   content: '',
   role: 'assistant',
-  clarification: { answered: false, isResumeMode: true, form },
+  clarification: { answered: false, form },
 };
 
 const isAnswered = () => useChatStore.getState().messages[0]?.clarification?.answered;
 
-function skipClarification(isResumeMode = true): void {
-  render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} isResumeMode={isResumeMode} />);
+function skipClarification(): void {
+  render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} />);
   fireEvent.click(screen.getByRole('button', { name: 'skip' }));
 }
 
@@ -62,7 +57,6 @@ const secondForm: ClarificationForm = {
 
 beforeEach(() => {
   pipeline.sendMessage.mockReset();
-  vi.mocked(submitClarifyResponse).mockReset();
   vi.mocked(toast.error).mockClear();
   vi.mocked(toast.warning).mockClear();
   useChatStore.setState({ chatId: 'chat-1', messages: [structuredClone(pendingClarification)] });
@@ -100,7 +94,7 @@ describe('ClarificationInput resume', () => {
 
   describe('when the timeout or another client got there first', () => {
     const answerWithBlueGreen = () => {
-      render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} isResumeMode />);
+      render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} />);
       fireEvent.click(screen.getByRole('button', { name: /Blue green/ }));
       fireEvent.click(screen.getByRole('button', { name: 'submit' }));
     };
@@ -161,7 +155,7 @@ describe('ClarificationInput resume', () => {
   it('leaves a second clarification the resumed run raised on the same row open', async () => {
     pipeline.sendMessage.mockImplementation(async () => {
       useChatStore.setState((state) => {
-        state.messages[0].clarification = { answered: false, isResumeMode: true, form: secondForm };
+        state.messages[0].clarification = { answered: false, form: secondForm };
       });
       return true;
     });
@@ -175,7 +169,7 @@ describe('ClarificationInput resume', () => {
   it('does not reopen a card the resumed run already settled when the connection then drops', async () => {
     pipeline.sendMessage.mockImplementation(async () => {
       useChatStore.setState((state) => {
-        state.messages[0].clarification = { answered: true, isResumeMode: true, form: secondForm };
+        state.messages[0].clarification = { answered: true, form: secondForm };
       });
       throw new Error('stream dropped');
     });
@@ -184,19 +178,5 @@ describe('ClarificationInput resume', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('submitFailed'));
     expect(isAnswered()).toBe(true);
-  });
-
-  it('closes a legacy clarify answer only after the server accepted it', async () => {
-    const accepted = deferred<void>();
-    vi.mocked(submitClarifyResponse).mockReturnValue(accepted.promise);
-
-    skipClarification(false);
-
-    await waitFor(() => expect(submitClarifyResponse).toHaveBeenCalledWith(MESSAGE_ID, ''));
-    expect(isAnswered()).toBe(false);
-    accepted.resolve();
-
-    await waitFor(() => expect(isAnswered()).toBe(true));
-    expect(pipeline.sendMessage).not.toHaveBeenCalled();
   });
 });

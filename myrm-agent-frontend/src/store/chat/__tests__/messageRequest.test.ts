@@ -143,30 +143,8 @@ describe('messageRequest - agent id fallback', () => {
     expect(resolveEffectiveAgentId('fast', baseAgentConfig, 'deep')).toBe('builtin-fast-search');
   });
 
-  it('should default to builtin-general in deep_research mode', () => {
-    expect(resolveEffectiveAgentId('deep_research', baseAgentConfig)).toBe('builtin-general');
-  });
-
-  it('should remap hidden researcher agent to builtin-general in deep_research mode', () => {
-    expect(
-      resolveEffectiveAgentId('deep_research', {
-        ...baseAgentConfig,
-        agentId: 'builtin-researcher',
-      }),
-    ).toBe('builtin-general');
-  });
-
   it('should return builtin-fast-search in fast mode when depth is undefined', () => {
     expect(resolveEffectiveAgentId('fast', baseAgentConfig)).toBe('builtin-fast-search');
-  });
-
-  it('should preserve explicit custom agent id in deep_research mode', () => {
-    expect(
-      resolveEffectiveAgentId('deep_research', {
-        ...baseAgentConfig,
-        agentId: 'custom-agent',
-      }),
-    ).toBe('custom-agent');
   });
 
   it('should remap hidden builtin-researcher to builtin-general in agent mode', () => {
@@ -456,7 +434,6 @@ describe('messageRequest - memory settings contract', () => {
       newChatCreated: false,
       currentBuiltinTools: [],
       incognitoMode: false,
-      sandboxMode: false,
       searchDepth: 'normal' as const,
     } as unknown as ChatActionsState;
 
@@ -620,7 +597,6 @@ describe('messageRequest - goal payload construction', () => {
     newChatCreated: false,
     currentBuiltinTools: [],
     incognitoMode: false,
-    sandboxMode: false,
     searchDepth: 'normal' as const,
   };
 
@@ -905,7 +881,6 @@ describe('messageRequest - send preconditions', () => {
     hasMoreMessages: false,
     nextCursor: null,
     incognitoMode: false,
-    sandboxMode: false,
     notFound: false,
     loadError: false,
     newChatCreated: false,
@@ -1530,5 +1505,49 @@ describe('messageRequest - mention reference lifetime contract', () => {
       }),
     ]);
     expect((body2.mention_references as Array<{ content?: string }>)[0]?.content).toBeUndefined();
+  });
+});
+
+describe('messageRequest - first-turn workspace', () => {
+  it('sends the folder the viewer picked so the very first turn runs in it', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    const previous = useChatStore.getState().workspaceDir;
+    useChatStore.setState({ workspaceDir: '/work/reports' });
+
+    try {
+      await createMessageRequest(
+        'summarise the invoices',
+        'msg-workspace',
+        { ...useChatStore.getState(), chatId: 'chat-first-turn' } as unknown as ChatActionsState,
+        null,
+      );
+
+      const [requestBody] = createAISearchStreamMock.mock.calls.at(-1) ?? [];
+      expect(requestBody).toMatchObject({ workspace_dir: '/work/reports' });
+    } finally {
+      useChatStore.setState({ workspaceDir: previous });
+    }
+  });
+
+  it('omits the field when no folder is bound, so the server keeps resolving the session folder', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    const previous = useChatStore.getState().workspaceDir;
+    useChatStore.setState({ workspaceDir: null });
+
+    try {
+      await createMessageRequest(
+        'just a question',
+        'msg-no-workspace',
+        { ...useChatStore.getState(), chatId: 'chat-first-turn' } as unknown as ChatActionsState,
+        null,
+      );
+
+      const [requestBody] = createAISearchStreamMock.mock.calls.at(-1) ?? [];
+      expect(requestBody).not.toHaveProperty('workspace_dir');
+    } finally {
+      useChatStore.setState({ workspaceDir: previous });
+    }
   });
 });

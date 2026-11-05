@@ -46,7 +46,7 @@ describe('hasPendingClarificationFromMessages', () => {
           role: 'assistant',
           content: '',
           createdAt: new Date(),
-          clarification: { answered: false, isResumeMode: true },
+          clarification: { answered: false },
         },
       ]),
     ).toBe(true);

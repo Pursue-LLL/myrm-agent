@@ -11,9 +11,9 @@ from myrm_agent_harness.api import TaskSpecialty
 from myrm_agent_harness.toolkits.llms.routing.complexity_router import RoutingTier
 
 from app.core.types import ModelConfig
-from app.services.agent.params import routing_memory
 from app.services.agent.params.models import AgentRequest, ModelSelection
-from app.services.agent.params.routing_memory import (
+from app.services.agent.params.routing import routing_memory
+from app.services.agent.params.routing.routing_memory import (
     complaint_floor,
     load_retry_baseline,
     remember_turn_routing,

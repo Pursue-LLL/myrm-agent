@@ -25,37 +25,33 @@ stay co-located so every slash command has exactly one home. AgentRouter (router
 consumes this facade; tests import via this facade as well.
 """
 
-from app.channels.routing.commands.commands import (
+from app.channels.routing.commands.parsers import (
     ApprovalDecision,
     DenyWithReason,
     MemoryAction,
-    TopicCommand,
-    handle_compact,
-    handle_new_session,
-    handle_retry,
-    handle_topic_command,
-    handle_undo,
     is_explicit_approval_command,
     normalize_approval_emoji,
     parse_approval_command,
     parse_memory_args,
     parse_personality_args,
-    parse_topic_args,
     parse_yolo_args,
 )
-from app.channels.routing.commands.router_commands import RouterCommandsMixin
-from app.channels.routing.commands.router_commands_approval import RouterCommandsApprovalMixin
-from app.channels.routing.commands.router_commands_draft import (
+from app.channels.routing.commands.router_commands import (
     DraftAction,
+    RouterCommandsApprovalMixin,
     RouterCommandsDraftMixin,
+    RouterCommandsGoalsMixin,
+    RouterCommandsMemoryMixin,
+    RouterCommandsMixin,
+    RouterCommandsModesMixin,
+    RouterCommandsQuotaMixin,
+    RouterCommandsSessionMixin,
+    RouterCommandsStopMixin,
     parse_draft_args,
 )
-from app.channels.routing.commands.router_commands_goals import RouterCommandsGoalsMixin
-from app.channels.routing.commands.router_commands_memory import RouterCommandsMemoryMixin
-from app.channels.routing.commands.router_commands_modes import RouterCommandsModesMixin
-from app.channels.routing.commands.router_commands_quota import RouterCommandsQuotaMixin
-from app.channels.routing.commands.router_commands_session import RouterCommandsSessionMixin
-from app.channels.routing.commands.router_commands_stop import RouterCommandsStopMixin
+from app.channels.routing.commands.session import handle_compact, handle_new_session
+from app.channels.routing.commands.topic import TopicCommand, handle_topic_command, parse_topic_args
+from app.channels.routing.commands.turns import handle_retry, handle_undo
 
 __all__ = [
     "ApprovalDecision",

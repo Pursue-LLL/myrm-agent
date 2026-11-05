@@ -42,7 +42,6 @@ const chatStoreMock = vi.hoisted(() => ({
   agentConfig: null as AgentConfig | null,
   securityPreset: 'hitl' as const,
   setAgentConfig: vi.fn(),
-  setSandboxMode: vi.fn(),
   setContextBranches: vi.fn(),
   setContextPinnedFiles: vi.fn(),
   setContextPinnedFilesLoadError: vi.fn(),
@@ -133,7 +132,7 @@ describe('initializeChat navigation snapshot', () => {
     saveChatNavigationSnapshot('chat-a', {
       messages,
       agentConfig,
-      actionMode: 'deep_research',
+      actionMode: 'fast',
       selectedModels: { base: 'gpt-4', vision: null, reasoning: null },
       hasUserSelectedModel: true,
       isMessagesLoaded: true,
@@ -158,7 +157,7 @@ describe('initializeChat navigation snapshot', () => {
 
     expect(currentState.chatId).toBe('chat-a');
     expect(currentState.agentConfig).toEqual(agentConfig);
-    expect(currentState.actionMode).toBe('deep_research');
+    expect(currentState.actionMode).toBe('fast');
     expect(currentState.hasUserSelectedModel).toBe(true);
     expect(currentState.selectedModels).toEqual({ base: 'gpt-4', vision: null, reasoning: null });
     expect(currentState.isMessagesLoaded).toBe(false);
@@ -273,7 +272,7 @@ describe('initializeChat navigation snapshot', () => {
   it('preserves actionMode during silent background refresh after snapshot restore', async () => {
     saveChatNavigationSnapshot('chat-a', {
       messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
-      actionMode: 'deep_research',
+      actionMode: 'fast',
       isMessagesLoaded: true,
       loading: false,
     });
@@ -311,7 +310,7 @@ describe('initializeChat navigation snapshot', () => {
 
     initializeChat('chat-a', currentState, actions as unknown as Parameters<typeof initializeChat>[2]);
 
-    expect(currentState.actionMode).toBe('deep_research');
+    expect(currentState.actionMode).toBe('fast');
 
     // History loading is deferred; wait for the silent refresh and the DB-bound agent restore.
     await vi.waitFor(() => {
@@ -319,6 +318,6 @@ describe('initializeChat navigation snapshot', () => {
     });
 
     expect(observedActionModes.length).toBeGreaterThan(1);
-    expect(observedActionModes.every((mode) => mode === 'deep_research')).toBe(true);
+    expect(observedActionModes.every((mode) => mode === 'fast')).toBe(true);
   });
 });

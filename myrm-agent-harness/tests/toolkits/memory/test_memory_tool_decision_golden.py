@@ -49,11 +49,11 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
             "不要重复 save",
         ),
         manage_fragments_en=(
-            "correct → knowledge only",
+            "knowledge memories only",
             "use instead of memory_save_tool",
         ),
         manage_fragments_zh=(
-            "correct → 仅 knowledge",
+            "仅 knowledge 记忆",
             "优先于 memory_save_tool",
         ),
     ),
@@ -93,12 +93,12 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
         manage_fragments_en=(
             "rate:",
             "rating_score 1-5",
-            "rate → knowledge or event only",
+            "knowledge or event memories only",
         ),
         manage_fragments_zh=(
             "rate",
             "rating_score 1-5",
-            "rate → 仅 knowledge 或 event",
+            "仅 knowledge 或 event 记忆",
         ),
     ),
     MemoryDecisionScenario(
@@ -146,14 +146,14 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
     MemoryDecisionScenario(
         "correct_not_event",
         "memory_manage_tool",
-        manage_fragments_en=("correct → knowledge only",),
-        manage_fragments_zh=("correct → 仅 knowledge",),
+        manage_fragments_en=("knowledge memories only",),
+        manage_fragments_zh=("仅 knowledge 记忆",),
     ),
     MemoryDecisionScenario(
-        "instruction_manage_as_rule",
-        "memory_manage_tool",
-        manage_fragments_en=("instruction saves", "category=rule"),
-        manage_fragments_zh=("instruction 保存", "category=rule"),
+        "preference_changed_by_resave",
+        "memory_save_tool",
+        manage_fragments_en=("A [preference] result", "saving the same preference_key again"),
+        manage_fragments_zh=("[preference] 结果", "以相同的 preference_key 重新保存"),
     ),
 )
 

@@ -13,7 +13,10 @@ Parent index: [../_ARCH.md](../_ARCH.md). System design: [../MEMORY_SYSTEM.md](.
 | --- | --- | --- | --- |
 | `__init__.py` | Package | Agent-facing memory I/O package marker. | — |
 | `memory_agent_tools/` | Package | Agent tools: memory_search/save/manage (factory, one module per tool, shared category mapping). | ✅ |
-| `_memory_agent_tool_descriptions.py` | Core | LLM-visible tool description SSOT (EN/ZH). | ✅ |
+| `_memory_agent_tool_descriptions.py` | Core | LLM-visible tool description SSOT: policy-aware builders and agent/MCP surface-name mapping (EN/ZH). | ✅ |
+| `_memory_tool_texts_en.py` | Core | English static texts of the memory_save_tool core and memory_manage_tool description. | ✅ |
+| `_memory_tool_texts_zh.py` | Core | Chinese static texts, semantically aligned with the English ones. | ✅ |
+| `memory_manage_core.py` | Core | Update / delete / correct / rate addressed by memory id alone: the stored memory's type picks the store and the applicable actions; one implementation for the agent tool and the MCP adapter. | ✅ |
 | `memory_search_policy.py` | Core | Corpus ACL, write bounds, and optional wiki/sessions backends. | ✅ |
 | `memory_search_execution.py` | Core | memory/wiki/sessions search execution with domain-scoped pruning and heuristic fallback. | ✅ |
 | `memory_recall_formatting.py` | Core | Recall sanitize SSOT, save ack, source_error suffix. | ✅ |

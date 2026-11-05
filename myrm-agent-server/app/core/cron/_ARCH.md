@@ -37,14 +37,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
-| `blueprints.py` | 核心 | 蓝图注册表与填充/校验逻辑：按原顺序拼接四个目录模块，导出 21 个内置蓝图（en/zh 内联 + ja/de/ko 经 `blueprint_i18n_supplement.py` 合并；含 `seo_weekly_audit`、`wiki_maintain`、`wiki_vault_weekly_health` 与 commerce/marketing 系列等）。无人值守 job 被 Capability Fence 限定在所声明能力内，故每个蓝图声明的 `required_capabilities` 必须覆盖其 prompt 点名的工具；无人值守写文件只由 `file_write` 声明放行，保存文件的蓝图（`seo_weekly_audit`、`viral_quote_discovery`）须声明它（均由 `tests/core/cron/test_blueprint_capability_contract.py` 守护） | — |
-| `blueprints_types.py` | 核心 | 蓝图数据结构、能力常量、时间→cron 转换与 locale 合并纯函数 | — |
-| `blueprints_daily.py` | 数据 | 日常节奏蓝图 10 个（晨报、周复盘、提醒、资讯、晚间收尾、健康检查、竞品/习惯/学习/社媒） | — |
-| `blueprints_finance.py` | 数据 | 金融监控（简/进阶）与 SEO 站点健康周检蓝图 | — |
-| `blueprints_knowledge.py` | 数据 | 稍后读、wiki 增量/维护/vault 周检、日报复利、语料去重蓝图 | — |
-| `blueprints_marketing.py` | 数据 | 病毒式引语发现蓝图 | — |
-| `blueprint_job_spec.py` | 核心 | 蓝图填充结果到任务的唯一转换与创建点：`to_job_spec` 把 `BlueprintFillResult` 逐字段转为 harness 的 `BlueprintJobSpec`（15 个字段同名，空的预检脚本视为没有），`fill_job_spec` 是 Agent 工具的蓝图填充器，`create_blueprint_job` 按 spec 创建任务（调用方只补它自己的名称、调度、智能体、允许根和超时兜底）。Agent 工具、Second Brain 预设与稍后读清理三条路径都经它，蓝图声明的字段在每条路径上都到达存储的任务；`tests/core/cron/test_blueprint_job_creation.py` 对全部 21 个内置蓝图逐字段核对 Agent 工具与创建函数两条路径 |
-| `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
+| `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
 ---

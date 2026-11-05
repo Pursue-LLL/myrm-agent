@@ -1,10 +1,10 @@
 """HTML to Markdown converter built on BeautifulSoup.
 
 [INPUT]
-- (none)
+- web_fetch.processing.markdown_table::render_markdown_table (POS: Markdown table layout for converted HTML tables)
 
 [OUTPUT]
-- CustomHTML2Text: HTML-to-Markdown converter for fetched page content
+- CustomHTML2Text: HTML-to-Markdown converter for fetched page content; a table becomes one Markdown table that also lists the rows of its nested tables
 
 [POS]
 HTML to Markdown conversion utilities for the web fetch processing pipeline.
@@ -15,10 +15,14 @@ from __future__ import annotations
 import html
 import re
 import urllib.parse
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
-from bs4 import BeautifulSoup, Comment, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, Tag
+from bs4.element import NavigableString
+
+from .markdown_table import render_markdown_table
 
 
 @dataclass
@@ -117,10 +121,12 @@ _INLINE_TAGS: set[str] = {
 
 _HEADING_TAGS: set[str] = {"h1", "h2", "h3", "h4", "h5", "h6"}
 
-_MD_SPECIAL_RE: ClassVar[re.Pattern[str]] = re.compile(r"([\\`*_\[\]()#+\-!|>~{}])")
+_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\]()#+\-!|>~{}])")
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
-_TRAILING_SPACES_RE = re.compile(r" +\n")
+# The lookbehind pins a match to the start of a run of spaces. Without it every later space of a run that no newline
+# follows starts another scan to the end of the run: quadratic in the run length.
+_TRAILING_SPACES_RE = re.compile(r"(?<! ) +\n")
 
 
 def _escape_md(text: str) -> str:
@@ -133,6 +139,11 @@ def _resolve_url(base: str, url: str) -> str:
     if not base:
         return url
     return urllib.parse.urljoin(base, url)
+
+
+def _is_lifted_table_part(node: Tag) -> bool:
+    """Whether *node*, met inside a table cell, is a row or a table of rows that the enclosing table already lists."""
+    return node.name == "tr" or (node.name == "table" and node.find("tr") is not None)
 
 
 class HTML2Markdown:
@@ -148,13 +159,15 @@ class HTML2Markdown:
         self._baseurl = baseurl
         self._opts = ConvertOptions()
         self._current_depth: int = 0
+        # Number of table cells being converted: inside one, the rows of the enclosing table are already listed.
+        self._cell_depth: int = 0
         if kwargs:
             self.update_params(**kwargs)
 
     def update_params(self, **kwargs: object) -> None:
         for key, value in kwargs.items():
             if key == "preserve_tags":
-                self._opts.preserve_tags = set(value)  # type: ignore[arg-type]
+                self._opts.preserve_tags = set(cast("Iterable[str]", value))
             elif hasattr(self._opts, key):
                 setattr(self._opts, key, value)
 
@@ -199,6 +212,9 @@ class HTML2Markdown:
 
             if tag_name in self._opts.preserve_tags:
                 return str(node)
+
+            if self._cell_depth and _is_lifted_table_part(node):
+                return ""
 
             handler = _TAG_HANDLERS.get(tag_name)
             if handler:
@@ -255,7 +271,7 @@ class HTML2Markdown:
         code_tag = tag.find("code", recursive=False)
         if code_tag and isinstance(code_tag, Tag):
             lang = ""
-            classes = code_tag.get("class", [])
+            classes = code_tag.get("class")
             if isinstance(classes, list):
                 for cls in classes:
                     if isinstance(cls, str) and cls.startswith("language-"):
@@ -365,7 +381,7 @@ class HTML2Markdown:
 
     def _handle_ol(self, tag: Tag) -> str:
         items: list[str] = []
-        start = int(tag.get("start", 1) or 1)
+        start = int(str(tag.get("start") or 1))
         idx = start
         for child in tag.children:
             if isinstance(child, Tag) and child.name == "li":
@@ -380,44 +396,30 @@ class HTML2Markdown:
         return "\n\n" + "\n".join(items) + "\n\n"
 
     def _handle_table(self, tag: Tag) -> str:
+        # ``find_all`` reaches the rows of nested tables too, so they become rows of this table and a cell never
+        # renders a nested table itself (see ``_is_lifted_table_part``). Converting them inside the cell as well would
+        # repeat the nested rows once per nesting level: exponential in the depth.
         rows: list[list[str]] = []
         for tr in tag.find_all("tr"):
             if not isinstance(tr, Tag):
                 continue
-            cells: list[str] = []
-            for cell in tr.children:
-                if isinstance(cell, Tag) and cell.name in ("td", "th"):
-                    text = self._convert_children(cell).strip()
-                    text = text.replace("|", "\\|").replace("\n", " ")
-                    cells.append(text)
+            cells = [
+                self._convert_cell(cell) for cell in tr.children if isinstance(cell, Tag) and cell.name in ("td", "th")
+            ]
             if cells:
                 rows.append(cells)
 
         if not rows:
             return self._convert_children(tag)
+        return render_markdown_table(rows, has_header=tag.find("thead") is not None)
 
-        max_cols = max(len(r) for r in rows)
-        for row in rows:
-            while len(row) < max_cols:
-                row.append("")
-
-        has_header = tag.find("thead") is not None
-        lines: list[str] = []
-
-        if has_header and rows:
-            header = rows[0]
-            lines.append("| " + " | ".join(header) + " |")
-            lines.append("| " + " | ".join("---" for _ in header) + " |")
-            for row in rows[1:]:
-                lines.append("| " + " | ".join(row) + " |")
-        else:
-            if rows:
-                lines.append("| " + " | ".join("" for _ in rows[0]) + " |")
-                lines.append("| " + " | ".join("---" for _ in rows[0]) + " |")
-            for row in rows:
-                lines.append("| " + " | ".join(row) + " |")
-
-        return "\n\n" + "\n".join(lines) + "\n\n"
+    def _convert_cell(self, cell: Tag) -> str:
+        self._cell_depth += 1
+        try:
+            text = self._convert_children(cell).strip()
+        finally:
+            self._cell_depth -= 1
+        return text.replace("|", "\\|").replace("\n", " ")
 
     def _handle_li(self, tag: Tag) -> str:
         return self._convert_children(tag)
@@ -451,7 +453,7 @@ class HTML2Markdown:
         return f"\n\n{stripped}\n\n"
 
 
-_TAG_HANDLERS: dict[str, object] = {
+_TAG_HANDLERS: dict[str, Callable[[HTML2Markdown, Tag], str]] = {
     "h1": HTML2Markdown._handle_heading,
     "h2": HTML2Markdown._handle_heading,
     "h3": HTML2Markdown._handle_heading,

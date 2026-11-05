@@ -15749,7 +15749,6 @@
         "eraseConfirmAction": "대화 지우기",
         "erasing": "지우는 중…",
         "eraseSuccess": "대화 {count}개를 지웠습니다",
-        "eraseKept": "저장되지 않은 변경 사항이 있는 작업 공간 {count}개를 프로젝트 폴더에 남겨 두었습니다",
         "eraseBusy": "실행 중인 대화가 있습니다. 중지하거나 완료될 때까지 기다린 뒤 다시 시도하세요.",
         "eraseFailed": "지우기를 완료하지 못했습니다. 다시 시도하세요."
       },

@@ -6,7 +6,6 @@ import { loadMessages } from '@/store/chat/messageManagement';
 const getChatDetailMock = vi.hoisted(() => vi.fn());
 const getMessagesMock = vi.hoisted(() => vi.fn());
 const setAgentConfigMock = vi.hoisted(() => vi.fn());
-const setSandboxModeMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/chat', () => ({
   getChatDetail: (...args: unknown[]) => getChatDetailMock(...args),
@@ -38,7 +37,6 @@ vi.mock('@/store/useChatStore', () => ({
       chatId: 'chat-memory-brief',
       agentConfig: null,
       setAgentConfig: setAgentConfigMock,
-      setSandboxMode: setSandboxModeMock,
     }),
   },
 }));

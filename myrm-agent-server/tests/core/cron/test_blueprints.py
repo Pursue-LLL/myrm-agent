@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from myrm_agent_harness.core.security.tool_registry import BUILTIN_TOOL_NAMES, TOOL_PERMISSION_MAP
 
-from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
+from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
 from app.core.cron.blueprints import (
     BUILTIN_BLUEPRINTS,
     BlueprintFillError,

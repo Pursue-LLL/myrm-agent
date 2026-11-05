@@ -259,7 +259,7 @@ export async function executeStreamWithRetry(
       } // Fail-fast on 401/403 etc.
 
       if (error instanceof StreamInterruptedError) {
-        if (state.chatId && (state.actionMode === 'agent' || state.actionMode === 'deep_research')) {
+        if (state.chatId && state.actionMode === 'agent') {
           console.warn('Stream interrupted, attempting to attach to chat in background...');
           const { attachToChat } = await import('./messageRequest');
           const { default: useChatStore } = await import('../useChatStore');

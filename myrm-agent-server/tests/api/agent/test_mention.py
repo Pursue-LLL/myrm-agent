@@ -1,4 +1,4 @@
-"""Tests for agent_params/mention.py
+"""Tests for agent_params/mention/
 
 Tests _build_mentioned_file_context, _inject_mentioned_files_into_query,
 _parse_document, and _format_size with real file I/O.

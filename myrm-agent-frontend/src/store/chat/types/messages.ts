@@ -185,8 +185,6 @@ export type Message = {
     allowMultiple?: boolean;
     title?: string;
     form?: ClarificationForm;
-    isResumeMode?: boolean;
-    source?: string;
     answerRecord?: HitlAnswerRecord;
   };
   planConfirmation?: {
@@ -196,7 +194,7 @@ export type Message = {
     planItems?: Array<{ id: string; content: string; status?: string }>;
     totalItems?: number;
     goal?: string;
-    source?: 'deep_research' | 'general_agent' | 'dynamic_workflow';
+    source?: 'general_agent' | 'dynamic_workflow';
     spawnCount?: number;
     estimatedCostUsd?: number;
     remainingBudgetUsd?: number;

@@ -8,6 +8,7 @@ of blocking the agent turn indefinitely.
 from __future__ import annotations
 
 import asyncio
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -18,7 +19,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy impor
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig, RetrievalConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.metrics import SearchMetrics, get_search_metrics
-from myrm_agent_harness.toolkits.memory.types import MemoryType
+from myrm_agent_harness.toolkits.memory.types import MemoryType, ProceduralMemory, SemanticMemory
 
 
 @pytest.fixture
@@ -743,12 +744,18 @@ class TestMemorySaveManageBranches:
 
         assert text == "Unknown category: bogus"
 
+    @staticmethod
+    def _resolves_to(memory: object) -> object:
+        """The manager resolves any memory id to ``memory``."""
+        return patch.object(MemoryManager, "get_memory", AsyncMock(return_value=memory))
+
     @pytest.mark.asyncio
-    async def test_manage_unknown_category_and_action(self, fast_timeout_config) -> None:
+    async def test_manage_unknown_id_and_action(self, fast_timeout_config) -> None:
         manage = self._find(self._tools(fast_timeout_config), "memory_manage_tool")
 
-        assert await manage.coroutine(action="update", memory_id="m1", category="bogus") == "Unknown category: bogus"
-        assert await manage.coroutine(action="bogus", memory_id="m1", category="knowledge") == "Unknown action: bogus"
+        assert await manage.coroutine(action="delete", memory_id="m1") == "Memory not found (ID: m1)"
+        with self._resolves_to(SemanticMemory(content="fact", id="m1")):
+            assert await manage.coroutine(action="bogus", memory_id="m1") == "Unknown action: bogus"
 
     @pytest.mark.asyncio
     async def test_save_not_enabled_guards(self, fast_timeout_config) -> None:
@@ -763,17 +770,10 @@ class TestMemorySaveManageBranches:
     async def test_manage_not_enabled_guards(self, fast_timeout_config) -> None:
         manage = self._find(self._tools(fast_timeout_config), "memory_manage_tool")
 
-        assert "knowledge memory is not enabled." in (
-            await manage.coroutine(action="delete", memory_id="m1", category="knowledge")
-        )
-        assert "Procedural memory is not enabled." in (
-            await manage.coroutine(action="delete", memory_id="m1", category="rule")
-        )
-        assert "Knowledge memory is not enabled." in (
-            await manage.coroutine(
-                action="correct",
-                memory_id="m1",
-                category="knowledge",
-                new_content="c",
+        with self._resolves_to(SemanticMemory(content="fact", id="m1")):
+            assert "knowledge memory is not enabled." in (await manage.coroutine(action="delete", memory_id="m1"))
+            assert "Knowledge memory is not enabled." in (
+                await manage.coroutine(action="correct", memory_id="m1", new_content="c")
             )
-        )
+        with self._resolves_to(ProceduralMemory(id="r1", trigger="before commit", action="run lint")):
+            assert "Procedural memory is not enabled." in (await manage.coroutine(action="delete", memory_id="r1"))

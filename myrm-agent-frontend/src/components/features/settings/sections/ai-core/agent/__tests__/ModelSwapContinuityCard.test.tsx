@@ -89,14 +89,15 @@ describe('ModelSwapContinuityCard', () => {
     expect(screen.getByText('assetSubagents:count=1')).toBeInTheDocument();
   });
 
-  it('toggles expansion and shows the universal discipline for Claude, which has no family block', async () => {
+  it('toggles expansion and shows the execution discipline summary', async () => {
     render(<ModelSwapContinuityCard editor={mockEditor} effectiveModelSlug="claude-3-5-sonnet" />);
+
+    expect(screen.queryByText('disciplineTitle')).not.toBeInTheDocument();
 
     const toggleBtn = screen.getByRole('button', { name: /expandDetails/i });
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByText('disciplineTitle:family=Universal')).toBeInTheDocument();
-    expect(screen.getByText('recommendedPromptMode:mode=Full')).toBeInTheDocument();
+    expect(screen.getByText('disciplineTitle')).toBeInTheDocument();
     expect(screen.getByText('disciplineUniversal')).toBeInTheDocument();
 
     await waitFor(() => {
@@ -104,14 +105,14 @@ describe('ModelSwapContinuityCard', () => {
     });
   });
 
-  it('displays vision fallback indicator when model lacks vision support', async () => {
+  it('shows the same discipline summary for every model and flags a missing vision capability', async () => {
     render(<ModelSwapContinuityCard editor={mockEditor} effectiveModelSlug="deepseek-chat" />);
 
     const toggleBtn = screen.getByRole('button', { name: /expandDetails/i });
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByText('disciplineTitle:family=DeepSeek')).toBeInTheDocument();
-    expect(screen.getByText('recommendedPromptMode:mode=Lean / Full')).toBeInTheDocument();
+    expect(screen.getByText('disciplineTitle')).toBeInTheDocument();
+    expect(screen.getByText('disciplineUniversal')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('visionFallbackActive')).toBeInTheDocument();

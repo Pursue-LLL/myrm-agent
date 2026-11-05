@@ -67,7 +67,7 @@ function isLocalDevHost(): boolean {
 
 function prepareAutomationSend(): void {
   const { actionMode, setActionMode } = useChatStore.getState();
-  if (actionMode === 'fast' || actionMode === 'deep_research') {
+  if (actionMode === 'fast') {
     setActionMode('agent');
   }
 }
@@ -522,7 +522,7 @@ async function submitAndObserveTurn(
       return { ok: false, err: 'no-chat-id', mode: 'sendTurnNoChatId' };
     }
     const { actionMode: currentActionMode } = useChatStore.getState();
-    if (currentActionMode === 'fast' || currentActionMode === 'deep_research') {
+    if (currentActionMode === 'fast') {
       const configs = useConfigStore.getState().searchServiceConfigs;
       if (!guardSearchServiceConfigured(configs)) {
         return {

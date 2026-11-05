@@ -4,7 +4,8 @@ import logging
 
 from app.ai_agents import ImageGenerationParams, TTSParams, VideoGenerationParams
 
-from .providers import _find_provider_api_key, _parse_camel_dict, _resolve_image_api_key_provider
+from .model_config import _find_provider_api_key, _resolve_image_api_key_provider
+from .model_config.providers import _parse_camel_dict
 
 logger = logging.getLogger(__name__)
 

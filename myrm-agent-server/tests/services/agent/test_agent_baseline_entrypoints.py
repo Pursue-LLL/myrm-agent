@@ -14,7 +14,7 @@ _SERVER_ROOT = Path(__file__).resolve().parents[3]
 
 _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
     (
-        "app/services/agent/params/tool_surface.py",
+        "app/services/agent/params/conversion/tool_surface.py",
         "resolve_agent_mount",
         "ExecutionSurface.WEB_CHAT",
     ),

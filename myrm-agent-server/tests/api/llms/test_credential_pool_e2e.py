@@ -13,7 +13,7 @@ from myrm_agent_harness.toolkits.llms.core.credential_pool import CredentialPool
 from myrm_agent_harness.toolkits.llms.core.manager import LLMManager
 
 from app.services.agent.params.models import ModelSelection
-from app.services.agent.params.resolvers import _resolve_model_config
+from app.services.agent.params.model_config import _resolve_model_config
 
 
 @pytest.fixture(autouse=True)

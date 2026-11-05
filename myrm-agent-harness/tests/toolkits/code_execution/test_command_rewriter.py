@@ -1,9 +1,10 @@
 """Tests for the command workspace-path rewriter and the bash command preparation.
 
 Covers the container-convention ``/workspace`` substitution (only where a shell takes it as a path of its own), the
-guard that protects an already-resolved real workspace path (e.g. eval graders embedding ``{workspace}`` where the
-cache layout ends in ``/workspace``) from being re-expanded into a duplicated path, and that a search command such as
-grep reaches the shell as typed.
+limits of that lexical match as ``CommandRewriter.rewrite_workspace_paths`` documents them, the guard that protects an
+already-resolved real workspace path (e.g. eval graders embedding ``{workspace}`` where the cache layout ends in
+``/workspace``) from being re-expanded into a duplicated path, and that a search command such as grep reaches the
+shell as typed.
 """
 
 import os
@@ -64,6 +65,21 @@ _OTHER_PATHS_NAMED_WORKSPACE = [
     "ls /workspace.bak",
     "echo /workspace-old",
 ]
+# The match is lexical: these are not the shell's root (a glob, a substitution, the container side of a mapping) and
+# are replaced all the same.
+_LOOK_ALIKES_TAKEN_FOR_THE_ROOT = [
+    "ls */workspace",
+    "ls `pwd`/workspace",
+    'ls "$HOME"/workspace',
+    "docker run -v $(pwd):/workspace img",
+    "scp host:/workspace/x .",
+]
+# ... and these name the root, but a wildcard, a comma or a brace follows it, so they stay as typed.
+_ROOTS_THE_MATCH_DOES_NOT_SEE = [
+    "ls /workspace*",
+    "ls /workspace,/tmp",
+    "ls {/tmp,/workspace}",
+]
 # A real workspace may hold a directory that is itself called workspace.
 _REAL_WORKSPACE_SUBDIRECTORIES = [
     ("/tmp/ws", "ls /tmp/ws/workspace"),
@@ -122,6 +138,14 @@ class TestWorkspaceRootBoundaries:
 
     @pytest.mark.parametrize("command", _OTHER_PATHS_NAMED_WORKSPACE)
     def test_another_path_named_workspace_is_left_alone(self, command: str) -> None:
+        assert _rewrite(command, _WORKSPACE) == command
+
+    @pytest.mark.parametrize("command", _LOOK_ALIKES_TAKEN_FOR_THE_ROOT)
+    def test_a_look_alike_the_lexical_match_cannot_tell_apart_is_replaced(self, command: str) -> None:
+        assert _rewrite(command, _WORKSPACE) == command.replace("/workspace", _WORKSPACE)
+
+    @pytest.mark.parametrize("command", _ROOTS_THE_MATCH_DOES_NOT_SEE)
+    def test_a_root_followed_by_a_wildcard_comma_or_brace_is_left_alone(self, command: str) -> None:
         assert _rewrite(command, _WORKSPACE) == command
 
     @pytest.mark.parametrize(("workspace", "command"), _REAL_WORKSPACE_SUBDIRECTORIES)

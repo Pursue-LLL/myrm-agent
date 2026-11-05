@@ -42,7 +42,7 @@ def temp_vault():
 def test_layers_routes_e2e(client: TestClient, temp_vault: Path):
     service = WikiLayersService(workspace_root=temp_vault)
     with (
-        patch("app.api.wiki.layers_routes.resolve_wiki_vault_path", return_value=temp_vault),
+        patch("app.api.wiki.routes.layers.resolve_wiki_vault_path", return_value=temp_vault),
         patch("app.services.wiki.layers.service.resolve_wiki_vault_path", return_value=temp_vault),
     ):
         methods_dir = service._get_structure("default").methods_dir
