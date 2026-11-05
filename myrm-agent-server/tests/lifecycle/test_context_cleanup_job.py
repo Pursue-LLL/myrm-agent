@@ -63,7 +63,7 @@ async def test_cleanup_still_runs_by_modification_time_when_the_tracker_is_unava
         AsyncMock(side_effect=OSError("Read-only file system")),
     )
 
-    with caplog.at_level(logging.WARNING, logger=schedulers.logger.name):
+    with caplog.at_level(logging.WARNING, logger=schedulers.common.logger.name):
         await schedulers._context_cleanup_job()
 
     cleanup.assert_awaited_once_with(access_tracker=None)
@@ -93,7 +93,7 @@ async def test_a_failing_image_sweep_does_not_fail_the_job(
         "app.channels.media.image_enrichment.sweep_channel_image_cache", MagicMock(side_effect=OSError("Input/output error"))
     )
 
-    with caplog.at_level(logging.WARNING, logger=schedulers.logger.name):
+    with caplog.at_level(logging.WARNING, logger=schedulers.common.logger.name):
         await schedulers._context_cleanup_job()
 
     cleanup.assert_awaited_once()
