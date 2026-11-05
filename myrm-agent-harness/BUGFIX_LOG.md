@@ -2,6 +2,23 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-05-193 · 回复完全为空、或只有 `reasoning_content` 字段的回复，空回复恢复和推理耗尽重试都收不到：处理器判断的是 `collected_messages` 里更早一轮的回复，一轮静默无答案结束，推理被长度截断还被当成工具调用截断
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`f9933f8ec2`） |
+| **发现时间** | 2026-11-05（验证 BUG-HARNESS-2026-11-05-185 的修复时，拿新一轮与续跑轮的空回复做对照，发现同族缺口） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：模型在工具轮之后回复为空（或只推理就停）时，用户拿到一轮没有答案的结束，恢复一次都没发出；推理耗尽的截断发出的是「工具调用未执行」的提示，对不上实际故障。 |
+| **关联产品** | harness 流式层（`agent/streaming/`：`latest_reply.py`、`stream_dispatcher.py`、`stream_executor.py`、`recovery/stream_recovery_truncation.py`、`recovery/stream_recovery_turn_end.py`）。 |
+| **症状** | [实测] 台架（真实 Myrm 智能体 + LiteLLM 适配器 + 假 OpenAI 兼容端点，`repro_failure_paths.py` 新增 3 个用例），改前（`HEAD` 导出）→ 改后：`empty-fresh`（首条回复为空）`product_retried false, final_answer_streamed false` → `true / true`（提示是「回复完全为空」）；`empty-after-tool`（工具轮后回复为空）`false / false` → `true / true`；`reasoning-cut-after-tool`（工具轮后推理字段被 `length` 截断）改前发出的是「工具调用未执行」提示（`recovery_hints: ["tool_call"]`），改后是「思考耗尽预算」提示（`["thinking_budget"]`）。`truncated-fresh`、`truncated-resume` 对照改前改后都是 `true / true`。 |
+| **根因** | [代码] `event_handlers.py` 不把「没有内容、没有工具调用、没有被扣留调用」的 AIMessage 收进 `collected_messages`（它没有可重发的内容）；`_handle_length_truncation`、`_handle_empty_response` 却在 `collected_messages` 里倒序找「最后一条 AIMessage」当作本轮回复。工具轮之后的空回复被跳过，找到的是更早一轮带工具调用的那条，于是「有工具调用，不是空回复」；新一轮的首条回复为空时前面没有任何 AI 消息，处理器直接放弃。标签包进 `content` 的推理（MiniMax）不为空，收得到，掩盖了这个缺口。原有单测都直接把 `AIMessage(content="")` 放进 `collected_messages` 再调处理器，真实的流里这条消息从来不在那里，所以一直是绿的。 |
+| **修复** | ① 新增 `latest_reply.py::latest_model_reply`，`StreamDispatcherMixin._dispatch_updates` 把每个 `updates` 分片里的最后一条 AIMessage 记为 `_latest_reply`，`StreamExecutor` 每一遍开始时清空；两个处理器改判断它，`collected_messages` 只作为重试携带的内容；工具调用重试按身份排除失败的回复（原先取 `collected_messages[-1]`）。② `_handle_empty_response` 对「推理被输出上限截断」的回复让位给推理耗尽重试（`_cut_by_output_limit`）：重试放弃后再按基础预算追问两次只会再被截断，最后还抛错。③ 台架新增上述 3 个用例；单测改用 `recover_length_cut` / `recover_empty_reply` 辅助，把「最后一条助手消息」设为本轮回复。 |
+| **验证** | [实测] 新增 `tests/agent/streaming/recovery/test_final_reply_recovery.py`（11 个用例：真实 `create_agent` 循环，新一轮与审批续跑轮各一份）、`tests/agent/streaming/test_latest_reply.py`（4 个）、`test_stream_executor_empty_response.py` 加 2 个。改前 4 个端到端用例红（请求数 2 ≠ 3，或提示不对）。变异检查，4 项各被抓住：不在每一遍清空 `_latest_reply`（`test_a_reply_does_not_outlive_the_pass_that_produced_it` 红）、分发器不记录（端到端红）、空回复处理器不让位（`unscripted model call #6` 红）、失败回复留在重试输入里（`test_fresh_turn_reruns_with_its_messages_and_the_hint` 红）。`tests/agent/streaming` 877 通过 3 跳过；`tests/agent`（不含 streaming、goals、middlewares）15273 通过；`tests/agent/goals`、`tests/toolkits/llms`、`tests/agent/middlewares` 5719 通过；`tests/architecture` 7183 通过 11 跳过；ruff、mypy 通过。 |
+| **行为变化（须知）** | 回复为空（含只有推理字段且正常停止）不再静默结束：追问最多 2 次，仍为空则抛 `MyrmLLMError(FORMAT_ERROR)`。没有安全回退模型时，`content_filter` 一类安全拒绝（空回复）也走这条路：`_handle_safety_refusal_fallback` 的文档本来就写着它「落到空回复恢复」，改前这条路因为同一个缺口从没被走到。产品其他层本来就把空的最终答案当失败（`app/services/kanban/task_runner/stream.py:96` 返回 `agent returned empty response`），现在是先恢复再报。 |
+| **仍然存在** | ① 失败的空回复仍留在线程里（与一轮正常结束在这条回复上时相同），没有做 `RemoveMessage`：它在发给提供方的请求里是一条空的 assistant 消息，LiteLLM 的 Anthropic 线路会替换成占位符，OpenAI 兼容线路接受；MiniMax、Kimi 等提供方是否拒绝没有实测，真实 MiniMax 未重测。② 续跑轮里升级、溢出压缩、steering、goal 续跑、一次性恢复仍然直接放弃（同 BUG-HARNESS-2026-11-05-185）。③ 没有排查产品里是否有流程依赖「以空回复结束」（例如模型调完交付类工具后什么也不说）；这类流程现在会被追问，追问无果以错误结束。 |
+| **代码位置** | `agent/streaming/{latest_reply.py,stream_dispatcher.py,stream_executor.py,recovery/{stream_recovery_truncation.py,stream_recovery_turn_end.py}}`；测试 `tests/agent/streaming/{recovery/test_final_reply_recovery.py,test_latest_reply.py,scripted_agent.py}`；台架 `temp-docs/temp-task-context/harness-ptc-bench/repro_failure_paths.py`（根仓）。 |
+
 ### BUG-HARNESS-2026-11-05-192 · LLM 工具包默认安装的 LiteLLM 进程级响应缓存按模型与消息分键、不看 Key 与端点：故障转移健康检查等探测被上一次的成功答成成功，LiteLLM 1.106.0 上命中缓存还会抛 `ModuleNotFoundError: soundfile`；技能整并的「预览 → 执行」只靠这层缓存才对得上
 
 | 字段 | 内容 |
@@ -107,7 +124,7 @@
 | **反复次数** | 第 1 次。 |
 | **踩坑** | 平面表格必须逐字节不变：改动只允许落在有嵌套的表格上，所以用 3,000 个随机平面表格逐字节比对新旧转换器，再用 33 个整页真实页面核对。 |
 | **回归** | [实测] 平面表格逐字节不变（3,000 个随机表格）；33 个真实页面里 30 个不变，3 个只少了重复出现的文字，没有丢词；6 个新测试在旧转换器上失败；`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）；server 里用到同一转换器的邮件入站、Gmail 同步、IMA 内容、wiki 来源同步等 530 通过、1 跳过。 |
-| **仍然存在** | ① 嵌套表格的行现在并入最外层表格的行列表，内层表格不再在单元格里就地展开；真实页面里有 3/33 的输出因此少了重复出现的文字。② 这次只处理了嵌套与未闭合的表格行；`ul`/`ol` 里的非 `li` 子节点被丢、省略 `</li>`/`</dd>` 后条目被合并等其余宽松 HTML 缺口仍然存在（roadmap `topic_04` #113 ①②）。 |
+| **仍然存在** | ① 嵌套表格的行现在并入最外层表格的行列表，内层表格不再在单元格里就地展开；真实页面里有 3/33 的输出因此少了重复出现的文字。② 这次只处理了嵌套与未闭合的表格行；`ul`/`ol` 里的非 `li` 子节点被丢、省略 `</li>`/`</dd>` 后条目被合并等其余宽松 HTML 缺口仍然存在。 |
 | **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_to_markdown.py`、`processing/markdown_table.py`、`tests/toolkits/web_fetch/` 下的表格转换测试 |
 
 ### BUG-HARNESS-2026-11-05-186 · 一张 75 万字符的构造网页能让整个进程停摆几十秒：反垃圾检测、标题提取、行尾空格规则的正则对每个起始标记都重扫到页尾，剪枝评分对极深的嵌套也慢
@@ -138,11 +155,11 @@
 | **修复时间** | 2026-11-05 |
 | **严重程度** | P2：凡是先停在审批、批准后才续跑的一轮（越界路径、写文件、委派）遇到上述任一故障，用户看到的都是一轮没有答案的结束；故障本身与审批无关，只是续跑轮没有恢复手段。 |
 | **关联产品** | harness 流式恢复（`agent/streaming/recovery/`：`stream_recovery_truncation.py`、`stream_recovery_turn_end.py`、`stream_recovery_redrive.py`、`stream_recovery_continuation.py`）、`agent/middlewares/_message_origin.py`、`toolkits/llms/adapters/tool_recovery.py`。 |
-| **症状** | [实测] 脚本化的假 LLM（真实 Myrm 智能体 + 假 OpenAI 兼容端点，`temp-docs/temp-task-context/harness-ptc-bench/repro_failure_paths.py`）：先出一次需要审批的 glob，批准后同一轮里模型回复一个被截断的写文件调用。改前（`HEAD` 导出）`truncated-resume`：`product_retried: false, final_answer_streamed: false, tool_call_truncated_warning: true`；改后 `true / true / false`。同一故障放在无审批的新一轮（`truncated-fresh`）改前改后都是 `true / true / false`。同一台架的其余续跑场景，改前 → 改后：文本被长度截断 `len-resume` 未重试、无答案 → 带续写提示、有答案；标签包裹推理的空回复 `empty-resume` 未重试、无答案 → 带恢复提示、有答案；被扣下的调用在重试后再次请求审批 `tool-resume-reapprove`（审批 1 次、告警 → 审批 2 次、有答案）。 |
+| **症状** | [实测] 脚本化的假 LLM（真实 Myrm 智能体 + 假 OpenAI 兼容端点，复现脚本不在开源仓库里）：先出一次需要审批的 glob，批准后同一轮里模型回复一个被截断的写文件调用。改前（`HEAD` 导出）`truncated-resume`：`product_retried: false, final_answer_streamed: false, tool_call_truncated_warning: true`；改后 `true / true / false`。同一故障放在无审批的新一轮（`truncated-fresh`）改前改后都是 `true / true / false`。同一台架的其余续跑场景，改前 → 改后：文本被长度截断 `len-resume` 未重试、无答案 → 带续写提示、有答案；标签包裹推理的空回复 `empty-resume` 未重试、无答案 → 带恢复提示、有答案；被扣下的调用在重试后再次请求审批 `tool-resume-reapprove`（审批 1 次、告警 → 审批 2 次、有答案）。 |
 | **根因** | [代码] 续跑轮的 `agent_input` 是 `Command(resume=...)`，LangGraph 已经消费它；图跑到终点后再喂一次，不推进任何工作（实测零个流块）。三个恢复处理器（工具调用重试、文本续写、推理耗尽重试）和空回复恢复都靠「清空 `agent_input['messages']`、重填、追加一条提示」再跑一遍，对 `Command` 没有 `messages` 可改，所以各自带一个 `isinstance(agent_input, Command)` 分支直接放弃。这个限制被 5 个单测固化成了「有意的限制」，但 `Command` 只是上一次驱动的载体：线程（检查点）里已经有这一轮产生的全部消息，从线程续跑只需要一条提示。 |
 | **修复** | ① 新增 `stream_recovery_redrive.py::StreamRedriveMixin._redrive_with_hint(kept, hint)`，截断三处与空回复恢复都经它重跑：新一轮用收集到的消息加提示重建输入；续跑轮的输入是 `{"messages": [提示]}`，图从检查点接着跑，被扣下的调用由悬空调用中间件补一条「参数无效」结果，所以模型先读到失败，再读到提示；前缀不动，提示缓存不受影响。删掉 4 个 `Command` 分支。② 恢复提示和队友收件箱的注入消息改用 `runtime_human_message`（`is_system_synthetic`）：审批意图账本与用户输入守卫按用户原话读 HumanMessage，之前把「Your previous tool call was not executed…」当成了用户说的话。③ `describe_withheld_tool_calls`：被扣下的调用原始参数只在内存里，重试前以 WARNING 记一行（工具、解析策略、长度、脱敏后的头 80 字与尾 160 字），下次再发生时能从日志看出参数是怎么坏的。④ `stream_recovery.py` 785 行拆出 `stream_recovery_turn_end.py`（升级、迭代上限总结、空回复），行数基线条目删除。 |
 | **验证** | [实测] 新增 `tests/agent/streaming/recovery/test_redrive_from_thread.py`：真实 `create_agent` 循环加审批暂停，每个暂停用 `Command` 续跑；三个处理器各在新一轮与续跑轮下的重驱动输入、提示的作者、重试上限、描述日志。变异检查：把 `_redrive_with_hint` 的续跑分支改回放弃，12 个用例失败（含全部端到端用例）；把提示改回普通 HumanMessage，8 个用例失败。`tests/agent/streaming`、`tests/toolkits/llms/adapters` 1788 通过；`tests/agent`、`tests/toolkits/llms`、`tests/core` 全量（6 个并行进程）25480 通过，并行负载下有 2 到 18 个与本改动无关的计时或并发用例失败（线性时间检测、`safe_exec`、`permission_engine` 等），失败的用例单独重跑全部通过；`tests/architecture` 只剩两个清单失败，来自他人在途的 `url_args.py`、`search_input.py` 条目，`recovery/_ARCH.md` 与行数基线已通过。 |
-| **仍然存在** | ① **空回复与「只有推理字段」的截断回复收不到**：`event_handlers.py` 不把「没有内容、没有工具调用、没有被扣留调用」的 AIMessage 收进 `collected_messages`，所以处理器看到的「最后一条 AI 消息」是更早一轮带工具调用的那条。[实测] 新一轮里模型在工具轮之后回复完全为空、或只有 `reasoning_content` 且 `finish=stop`，一次恢复请求也没有发出，一轮无答案结束（`HEAD` 与改后相同）；推理耗尽的截断被误判成工具调用截断，发出「工具调用未执行」的提示。只有推理被标签包进 `content` 的回复（MiniMax）收得到。② 续跑轮里升级、溢出压缩、steering、goal 续跑、一次性恢复仍然直接放弃（`Command` 分支保留）；失败转移与瞬时重试在流中途触发，本来就能重放 `Command`（429、500、503 实测恢复）。③ 上游为什么发出无法解析的参数，仍然未查明；本修复保证的是新一轮与续跑轮恢复一致，不是不再发生。④ 真实 MiniMax 与前端对 `tool_call_retry` 事件序列的呈现没有重测（只测到流事件层）。 |
+| **仍然存在** | ① **（已在 BUG-HARNESS-2026-11-05-193 修复）空回复与「只有推理字段」的截断回复收不到**：`event_handlers.py` 不把「没有内容、没有工具调用、没有被扣留调用」的 AIMessage 收进 `collected_messages`，所以处理器看到的「最后一条 AI 消息」是更早一轮带工具调用的那条。[实测] 新一轮里模型在工具轮之后回复完全为空、或只有 `reasoning_content` 且 `finish=stop`，一次恢复请求也没有发出，一轮无答案结束（`HEAD` 与改后相同）；推理耗尽的截断被误判成工具调用截断，发出「工具调用未执行」的提示。只有推理被标签包进 `content` 的回复（MiniMax）收得到。② 续跑轮里升级、溢出压缩、steering、goal 续跑、一次性恢复仍然直接放弃（`Command` 分支保留）；失败转移与瞬时重试在流中途触发，本来就能重放 `Command`（429、500、503 实测恢复）。③ 上游为什么发出无法解析的参数，仍然未查明；本修复保证的是新一轮与续跑轮恢复一致，不是不再发生。④ 真实 MiniMax 与前端对 `tool_call_retry` 事件序列的呈现没有重测（只测到流事件层）。 |
 
 ### BUG-HARNESS-2026-11-04-184 · 保存成 `.py` 文件、用 `python file.py` 启动的脚本里 `from skills.<技能名> import <函数>` 必报 `No module named 'skills'`，报错文字还让模型去装包
 

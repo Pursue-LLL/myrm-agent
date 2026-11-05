@@ -41,7 +41,7 @@ dispatcher  handlers      events         recovery*
 |--------------|------|
 | `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
 | `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/retry） |
-| `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：模型自升级、迭代上限的无工具总结、空回复恢复 |
+| `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：模型自升级、迭代上限的无工具总结、空回复恢复（判断对象是本轮最后一次回复 `_latest_reply`，空回复不在 `collected_messages` 里；推理被输出上限截断的回复归截断恢复，放弃后不再当空回复重问） |
 | `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
 | `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
