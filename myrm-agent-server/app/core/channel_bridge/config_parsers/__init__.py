@@ -11,12 +11,6 @@ verify_search_service_available 以及 _build_enriched_model_config（测试与�
 channel_bridge 配置解析的唯一公开入口；调用方不需要知道实现位于哪个子模块。
 """
 
-from app.channels.types import SessionPolicy
-from app.core.channel_bridge.config_parsers.common import (
-    _build_enriched_model_config,
-    _infer_supports_video,
-    extract_retrieval_models,
-)
 from app.core.channel_bridge.config_parsers.mcp import (
     extract_mcp_configs,
     extract_org_mcp_configs,
@@ -30,6 +24,7 @@ from app.core.channel_bridge.config_parsers.model_fallbacks import (
     extract_vision_fallback_model_configs,
     resolve_vision_fallback_chain_for_agent,
 )
+from app.core.channel_bridge.config_parsers.retrieval import extract_retrieval_models
 from app.core.channel_bridge.config_parsers.search import (
     extract_active_search_config,
     extract_search_provider_chain,
@@ -60,10 +55,7 @@ from app.core.channel_bridge.config_parsers.voice import (
 )
 
 __all__ = [
-    "SessionPolicy",
-    "_infer_supports_video",
     "extract_user_instructions",
-    "_build_enriched_model_config",
     "build_slot_fallback_config_chain",
     "build_video_fallback_config_chain",
     "build_video_fallback_probe_engine_from_providers",

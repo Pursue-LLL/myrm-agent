@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.channel_bridge.config_parsers import _build_enriched_model_config
+from app.core.channel_bridge.config_parsers.common import _build_enriched_model_config
 from app.core.types import ModelConfig
 from app.services.agent.params.models import ModelSelection
 from app.services.agent.params.resolvers import _resolve_model_config
