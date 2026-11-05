@@ -78,7 +78,7 @@ vi.mock('../sections/system/SystemSection', () => ({ default: () => null }));
 vi.mock('../sections/system/AboutSection', () => ({ default: () => null }));
 vi.mock('../sections/system/TrustBadgeCard', () => ({ default: () => null }));
 vi.mock('../sections/system/RecoveryGuideCard', () => ({ default: () => null }));
-vi.mock('../sections/system/StackUpdatePanel', () => ({ default: () => null }));
+vi.mock('../sections/system/stack-update', () => ({ default: () => null }));
 vi.mock('../sections/knowledge/MemorySection', () => ({ default: () => null }));
 vi.mock('../sections/knowledge/MemoryBackupSection', () => ({ default: () => null }));
 vi.mock('../sections/knowledge/RemoteBackupSection', () => ({ default: () => null }));

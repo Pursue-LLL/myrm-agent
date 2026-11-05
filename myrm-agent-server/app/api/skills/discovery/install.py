@@ -1,7 +1,7 @@
 """Skill discovery install/update/uninstall endpoints.
 
 [INPUT]
-app.api.skills.discovery.discovery_schemas (POS: Request/response Pydantic models)
+app.api.skills.discovery.schemas (POS: Request/response Pydantic models)
 app.api.skills._deploy_capability::require_local_skills_capability (POS: Local-mode gate)
 app.core.skills.audit::audit_skill_action (POS: Skill action audit logging)
 app.core.skills.discovery.adopt::complete_discovery_adoption (POS: Explicit allowlist append after install)
@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketServic
 from myrm_agent_harness.api.skills import SkillInstallResult
 
 from app.api.skills._deploy_capability import require_local_skills_capability
-from app.api.skills.discovery.discovery_schemas import (
+from app.api.skills.discovery.schemas import (
     SkillAnalyzeUrlResponse,
     SkillInstallFromUrlRequest,
     SkillInstallRequest,

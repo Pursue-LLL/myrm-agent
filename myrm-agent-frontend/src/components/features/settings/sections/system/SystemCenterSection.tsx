@@ -10,7 +10,7 @@ import SystemSection from './SystemSection';
 import AboutSection from './AboutSection';
 import TrustBadgeCard from './TrustBadgeCard';
 import RecoveryGuideCard from './RecoveryGuideCard';
-import StackUpdatePanel from './StackUpdatePanel';
+import StackUpdatePanel from './stack-update';
 
 const SystemCenterSection = memo(() => {
   const t = useTranslations('settings');

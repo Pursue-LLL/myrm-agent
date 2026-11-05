@@ -23,9 +23,7 @@
 | `__tests__/ProjectExperienceWizardModal.test.tsx` | 六步向导弹窗在真实 en/zh 文案下的标题、步骤标签、步骤计数与上一步 / 下一步；复制的 Markdown 与界面同语言；下载按钮触发下载 |
 | `__tests__/SystemSection.sandboxMode.test.tsx` | 云端构建的系统 Tab 整页测试：真实 `SystemSection` + 真实 `useSystemConfig` + 真实确认对话框 + 6 种语言的真实文案（`describe.each`）；离开加载骨架后只出现重置卡且无本地 Tab 内容、取消不发请求、确认只发一次请求并弹本语言成功提示、502 / 409 各弹本语言的失败 / 运行中提示 |
 | `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
-| `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 勿扰窗口 / 自检Doctor并发防重），组合下面两个子面板 |
-| `StackUpdateChangelog.tsx`            | 分组更新日志：修复项与其它变更各展示 5 条，超出部分可展开/收起 |
-| `StackUpdateSnapshots.tsx`            | 更新前本地快照：自动备份开关、立即备份、恢复与删除，恢复后提示重启 |
+| `stack-update/` | 子目录 | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 勿扰窗口 / 自检Doctor并发防重）：`index.tsx` 状态机，`Changelog.tsx` 分组日志，`Snapshots.tsx` 备份快照；详见 [stack-update/_ARCH.md](stack-update/_ARCH.md) |
 | `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段、不提供模拟升级流水线与镜像探针入口）                 |
 | `ImportExportSection.tsx`             | 配置导入导出页：配置导入导出 + 存储治理卡（`StorageGovernanceCard`）+ 支持包导出卡 + 数据集导出卡 |
 
@@ -116,7 +114,7 @@
 | `__tests__/PrivacyActionRow.test.tsx` | 处理方式行单测（四种方式各自的后果说明、下拉显示当前选择） |
 | `DataFlowDisclosurePanel.tsx`                    | 数据流向披露 SSOT：本地域 / deploy-aware 控制平面 / LLM+MCP+OAuth 集成+Agent Connector+Tauri Channel 实时 egress（含 channel SSE 事件刷新）/ Provider training policy / 跨境路由摘要 / Your Rights 合规导出 / 清空全部会话                                                                                        |
 | `DataFlowYourRightsStrip.tsx`                    | DataFlow 内「您的数据权利」：client-side compliance JSON 导出（路由偏好原样导出；本地模型密钥不在偏好里，不会进导出）+ Memory 设置深链                                                                                                                                                                                             |
-| `DataFlowErasureStrip.tsx`                       | DataFlow 内「清空全部会话」：`ConfirmDialog` 二次确认 → `purgeAllConversations`；成功后清空侧栏会话缓存；触发按钮保持挂载，结果写入常驻实时区域并给出「新对话」入口（整页跳转）；仍有未保存改动的沙箱工作区由服务端保留，成功行下另起一行告知保留数量；有会话运行中（409）与其它失败各给可重试提示，不抛出 |
+| `DataFlowErasureStrip.tsx`                       | DataFlow 内「清空全部会话」：`ConfirmDialog` 二次确认 → `purgeAllConversations`；成功后清空侧栏会话缓存；触发按钮保持挂载，结果写入常驻实时区域并给出「新对话」入口（整页跳转）；有会话运行中（409）与其它失败各给可重试提示，不抛出 |
 | `providerDataUsageCatalog.ts`                    | 内置 Provider 数据使用/训练政策静态 catalog（honest doc 外链）                                                                                                                                                                                                                                     |
 | `__tests__/DataFlowDisclosurePanel.test.tsx`     | DataFlow 面板单测（deploy / oauth / connectors / Tauri channels / channel SSE 双事件 / cross-border 负向 / API 降级 / 渐进加载 / rights）14 cases                                                                                                                                                  |
 | `__tests__/DataFlowYourRightsStrip.test.tsx`     | 合规导出（路由偏好原样、不含密钥）·snapshot helpers·导出点击成功/失败组件测 7 cases                                                                                                                                                                                                                                      |

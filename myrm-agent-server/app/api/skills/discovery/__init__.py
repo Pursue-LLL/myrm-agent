@@ -14,8 +14,8 @@ Server business layer (Skills API). The discovery endpoints and their schemas ar
 together and mounted via ``api.skills.router``, so they stay co-located under one facade.
 """
 
-from app.api.skills.discovery.discovery import router
-from app.api.skills.discovery.discovery_schemas import (
+from app.api.skills.discovery.routes import router
+from app.api.skills.discovery.schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
     CustomSourceRequest,

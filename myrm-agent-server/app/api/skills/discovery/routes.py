@@ -1,8 +1,8 @@
 """Skill discovery read/search endpoints.
 
 [INPUT]
-app.api.skills.discovery.discovery_install (POS: Install, update, uninstall and URL install routes)
-app.api.skills.discovery.discovery_schemas (POS: Request/response Pydantic models)
+app.api.skills.discovery.install (POS: Install, update, uninstall and URL install routes)
+app.api.skills.discovery.schemas (POS: Request/response Pydantic models)
 app.core.skills.discovery.autoupdate::get_update_checker (POS: Update availability checker)
 app.core.skills.marketplace.market_service::SkillMarketService (POS: Skill search/install orchestrator)
 
@@ -21,8 +21,8 @@ from typing import cast
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.agent.skills.market.service import BaseSkillMarketService
 
-from app.api.skills.discovery.discovery_install import router as install_router
-from app.api.skills.discovery.discovery_schemas import (
+from app.api.skills.discovery.install import router as install_router
+from app.api.skills.discovery.schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
     CustomSourceRequest,

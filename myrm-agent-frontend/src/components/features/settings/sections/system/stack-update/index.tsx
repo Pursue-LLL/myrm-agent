@@ -32,8 +32,8 @@ import {
 } from '@/lib/update-prefs';
 
 import { cn } from '@/lib/utils/classnameUtils';
-import StackUpdateChangelog from './StackUpdateChangelog';
-import StackUpdateSnapshots, { type StackSnapshotItem } from './StackUpdateSnapshots';
+import StackUpdateChangelog from './Changelog';
+import StackUpdateSnapshots, { type StackSnapshotItem } from './Snapshots';
 
 interface ChangelogGroups {
   fixed: string[];
