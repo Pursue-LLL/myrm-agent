@@ -15,19 +15,19 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
 )
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
-from app.api.wiki.routes.schemas_import import (
-    ImportFolderRequest,
-    ImportResultResponse,
-    ObsidianImportRequest,
-    ObsidianImportResultResponse,
-)
-from app.api.wiki.routes.shared import (
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.import_helpers import (
     _build_import_message,
     _publish_import_raw,
     _schedule_post_import_dedup_scan,
     _track_import_publish_result,
     _validate_import_conflict_options,
+)
+from app.api.wiki.routes.schemas_import import (
+    ImportFolderRequest,
+    ImportResultResponse,
+    ObsidianImportRequest,
+    ObsidianImportResultResponse,
 )
 from app.services.wiki import MemoryToWikiArchiver
 
@@ -97,7 +97,7 @@ async def import_folder(
             if request.auto_compile:
                 archiver._compiler.start_background_worker()
             else:
-                shared._refresh_wiki_cognitive_map(
+                vault_effects._refresh_wiki_cognitive_map(
                     archiver,
                     WikiMapEventType.IMPORT,
                     f"Imported {len(enqueued_paths)} file(s) without auto-compile",
@@ -105,7 +105,7 @@ async def import_folder(
                 )
 
         if enqueued_paths or files_superseded > 0:
-            await shared._after_wiki_vault_mutation(archiver, "import folder")
+            await vault_effects._after_wiki_vault_mutation(archiver, "import folder")
 
         if enqueued_paths:
             await _schedule_post_import_dedup_scan(agent_id)
@@ -229,7 +229,7 @@ async def import_zip(
                 if auto_compile:
                     archiver._compiler.start_background_worker()
                 else:
-                    shared._refresh_wiki_cognitive_map(
+                    vault_effects._refresh_wiki_cognitive_map(
                         archiver,
                         WikiMapEventType.IMPORT,
                         f"Imported {len(enqueued_paths)} file(s) from ZIP without auto-compile",
@@ -237,7 +237,7 @@ async def import_zip(
                     )
 
             if enqueued_paths or files_superseded > 0:
-                await shared._after_wiki_vault_mutation(archiver, "import zip")
+                await vault_effects._after_wiki_vault_mutation(archiver, "import zip")
 
             if enqueued_paths:
                 await _schedule_post_import_dedup_scan(agent_id)
@@ -343,7 +343,7 @@ async def _process_obsidian_vault(
         if auto_compile:
             archiver._compiler.start_background_worker()
         else:
-            shared._refresh_wiki_cognitive_map(
+            vault_effects._refresh_wiki_cognitive_map(
                 archiver,
                 WikiMapEventType.IMPORT,
                 f"Imported {len(enqueued_paths)} Obsidian note(s) without auto-compile",
@@ -371,7 +371,7 @@ async def _process_obsidian_vault(
     if auto_compile:
         message_parts.append("compilation started")
     if enqueued_paths or stats.files_superseded > 0:
-        await shared._after_wiki_vault_mutation(archiver, "import obsidian")
+        await vault_effects._after_wiki_vault_mutation(archiver, "import obsidian")
     if enqueued_paths:
         await _schedule_post_import_dedup_scan(agent_id)
     if stats.images_copied > 0:

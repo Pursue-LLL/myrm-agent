@@ -77,7 +77,7 @@ def test_reindex_vectors_success_response(
                 new=AsyncMock(return_value=result),
             ) as reindex_mock,
             patch(
-                "app.api.wiki.routes.shared._after_wiki_vault_mutation",
+                "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
                 new=AsyncMock(),
             ) as after_mutation_mock,
             patch(
@@ -137,7 +137,7 @@ def test_reindex_vectors_partial_failure_response(
                 new=AsyncMock(return_value=result),
             ),
             patch(
-                "app.api.wiki.routes.shared._after_wiki_vault_mutation",
+                "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
                 new=AsyncMock(),
             ) as after_mutation_mock,
             patch(

@@ -13,14 +13,14 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
 )
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.import_helpers import (
+    _schedule_post_import_dedup_scan,
+    _validate_import_conflict_options,
+)
 from app.api.wiki.routes.schemas_import import (
     ImportVideoRequest,
     ImportVideoResponse,
-)
-from app.api.wiki.routes.shared import (
-    _schedule_post_import_dedup_scan,
-    _validate_import_conflict_options,
 )
 from app.services.wiki import MemoryToWikiArchiver
 
@@ -108,7 +108,7 @@ async def import_video(
         archiver._queue.add_batch([raw_path])
         if request.auto_compile:
             archiver._compiler.start_background_worker()
-        await shared._after_wiki_vault_mutation(archiver, "import video (superseded)")
+        await vault_effects._after_wiki_vault_mutation(archiver, "import video (superseded)")
         await _schedule_post_import_dedup_scan(agent_id)
         return ImportVideoResponse(
             success=True,
@@ -124,13 +124,13 @@ async def import_video(
         if request.auto_compile:
             archiver._compiler.start_background_worker()
         else:
-            shared._refresh_wiki_cognitive_map(
+            vault_effects._refresh_wiki_cognitive_map(
                 archiver,
                 WikiMapEventType.IMPORT,
                 "Imported video document without auto-compile",
                 {"file": ingress_res.relative_path, "source": "video"},
             )
-        await shared._after_wiki_vault_mutation(archiver, "import video")
+        await vault_effects._after_wiki_vault_mutation(archiver, "import video")
         await _schedule_post_import_dedup_scan(agent_id)
         return ImportVideoResponse(
             success=True,

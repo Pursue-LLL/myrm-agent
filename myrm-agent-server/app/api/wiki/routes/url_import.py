@@ -15,15 +15,15 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
 )
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.import_helpers import (
+    _schedule_post_import_dedup_scan,
+    _validate_import_conflict_options,
+)
 from app.api.wiki.routes.schemas_import import (
     ImportUrlsRequest,
     ImportUrlsResultResponse,
     UrlImportItemResult,
-)
-from app.api.wiki.routes.shared import (
-    _schedule_post_import_dedup_scan,
-    _validate_import_conflict_options,
 )
 from app.services.wiki import MemoryToWikiArchiver
 
@@ -172,7 +172,7 @@ async def import_urls(
         if request.auto_compile:
             archiver._compiler.start_background_worker()
         else:
-            shared._refresh_wiki_cognitive_map(
+            vault_effects._refresh_wiki_cognitive_map(
                 archiver,
                 WikiMapEventType.IMPORT,
                 f"Imported {len(enqueued_paths)} URL document(s) without auto-compile",
@@ -180,7 +180,7 @@ async def import_urls(
             )
 
     if enqueued_paths or superseded_count > 0:
-        await shared._after_wiki_vault_mutation(archiver, "import urls")
+        await vault_effects._after_wiki_vault_mutation(archiver, "import urls")
 
     if enqueued_paths:
         await _schedule_post_import_dedup_scan(agent_id)

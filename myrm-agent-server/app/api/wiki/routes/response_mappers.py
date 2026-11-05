@@ -1,22 +1,14 @@
-"""Wiki API 子路由共享的响应转换、状态码映射与变更后副作用。
+"""Wiki 响应的领域映射。
 
 [POS]
-Wiki API 的共享实现；由 routes/ 下的查询、去重、导入等路由复用。
+把服务层结果转换成 API 响应模型；只做转换，不读写磁盘、不发请求。
 """
 
 from __future__ import annotations
 
-import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.toolkits.wiki.core.types import WikiRetrievalTrace
-from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
-    WikiCognitiveMapService,
-    WikiMapEvent,
-    WikiMapEventType,
-)
 
 from app.api.wiki.routes.schemas import (
     CompileRunResponse,
@@ -32,43 +24,6 @@ from app.services.wiki import MemoryToWikiArchiver
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawPublishResult
-
-logger = logging.getLogger(__name__)
-
-router = APIRouter(tags=["wiki"])
-
-
-def _refresh_wiki_cognitive_map(
-    archiver: MemoryToWikiArchiver,
-    event_type: WikiMapEventType,
-    summary: str,
-    details: dict[str, object] | None = None,
-) -> None:
-    """Rebuild OKF index/log/hot after a wiki lifecycle event."""
-    pending_stats = archiver._pending_mgr.get_stats()
-    queue_stats = archiver._queue.get_stats()
-    WikiCognitiveMapService(
-        archiver._structure,
-        get_pending_count=lambda: int(pending_stats.get("pending", 0)),
-        get_queue_pending=lambda: int(queue_stats.get("pending", 0)),
-    ).refresh(
-        WikiMapEvent(
-            event_type=event_type,
-            summary=summary,
-            details=details or {},
-        )
-    )
-
-
-async def _after_wiki_vault_mutation(archiver: MemoryToWikiArchiver, reason: str) -> None:
-    """Drop stats cache and commit vault git snapshot after wiki mutations."""
-    from app.services.wiki.vault import after_wiki_vault_mutation
-
-    await after_wiki_vault_mutation(archiver, reason)
-
-
-# --- Request/Response Models ---
 
 
 def _compile_run_response(archiver: MemoryToWikiArchiver) -> CompileRunResponse:
@@ -224,139 +179,3 @@ def _retrieval_trace_to_response(
         sidecar_directories=sidecar_directories,
         selected_concepts=selected_concepts,
     )
-
-
-# --- Core RAG & Compilation Endpoints ---
-
-
-async def _schedule_post_import_dedup_scan(agent_id: str | None) -> None:
-    try:
-        from app.services.wiki.dedup_runner import schedule_wiki_dedup_scan
-
-        await schedule_wiki_dedup_scan(agent_id=agent_id, incremental=True)
-    except Exception as exc:
-        logger.warning("Post-import wiki dedup scan failed: %s", exc)
-
-
-def _wiki_apply_http_status(code: str) -> int:
-    mapping = {
-        "concept_not_found": 404,
-        "concept_exists": 409,
-        "canonical_conflict": 409,
-        "conflict": 409,
-        "forbidden_for_caller": 403,
-        "forbidden_for_agent": 403,
-        "invalid_frontmatter": 422,
-        "invalid_request": 422,
-        "publish_blocked": 422,
-        "timeline_rejected": 422,
-    }
-    return mapping.get(code, 400)
-
-
-def _wiki_compound_http_status(code: str) -> int:
-    mapping = {
-        "already_staged": 409,
-        "incognito_forbidden": 403,
-        "invalid_request": 422,
-        "invalid_role": 422,
-        "message_not_found": 404,
-    }
-    return mapping.get(code, 400)
-
-
-async def _publish_import_raw(
-    structure: "WikiStructure",
-    relative_path: str,
-    content: str,
-    *,
-    on_conflict: Literal["skip", "supersede"],
-    supersede_reason: str,
-) -> RawPublishResult:
-    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
-        RawConflictPolicy,
-        RawGateError,
-        RawPublishRequest,
-        publish_raw,
-    )
-
-    policy = RawConflictPolicy.SUPERSEDE if on_conflict == "supersede" else RawConflictPolicy.SKIP
-    try:
-        return await publish_raw(
-            structure,
-            RawPublishRequest(
-                relative_path=relative_path,
-                content=content,
-                conflict_policy=policy,
-                supersede_reason=supersede_reason,
-            ),
-            caller="settings",
-        )
-    except RawGateError as exc:
-        if exc.code == "invalid_request":
-            raise HTTPException(
-                status_code=422,
-                detail={"code": exc.code, "message": exc.message},
-            ) from exc
-        raise
-
-
-def _validate_import_conflict_options(
-    on_conflict: Literal["skip", "supersede"],
-    supersede_reason: str,
-) -> None:
-    if on_conflict == "supersede" and not supersede_reason.strip():
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "code": "invalid_request",
-                "message": "supersede_reason is required when on_conflict is supersede.",
-            },
-        )
-
-
-def _track_import_publish_result(
-    result: RawPublishResult,
-    *,
-    enqueued_paths: list[Path],
-    conflict_paths: list[str],
-    security_blocked_paths: list[str],
-    security_redacted_paths: list[str],
-) -> tuple[int, int]:
-    """Returns (skipped_conflict_count, superseded_count) for one publish result."""
-    if result.security_blocked:
-        security_blocked_paths.append(result.relative_path)
-        return 0, 0
-    if result.written:
-        enqueued_paths.append(result.absolute_path)
-        if result.security_redacted:
-            security_redacted_paths.append(result.relative_path)
-    if result.conflict_skipped:
-        conflict_paths.append(result.relative_path)
-        return 1, 0
-    if result.superseded:
-        return 0, 1
-    return 0, 0
-
-
-def _build_import_message(
-    *,
-    enqueued: int,
-    skipped_conflict: int,
-    superseded: int,
-    security_blocked: int,
-    security_redacted: int,
-    auto_compile: bool,
-    source_label: str = "",
-) -> str:
-    parts = [f"Imported {enqueued} file(s){source_label}"]
-    if skipped_conflict:
-        parts.append(f"{skipped_conflict} conflict(s) skipped")
-    if superseded:
-        parts.append(f"{superseded} superseded")
-    if security_blocked:
-        parts.append(f"{security_blocked} blocked (sensitive content)")
-    if security_redacted:
-        parts.append(f"{security_redacted} redacted")
-    parts.append("compilation started" if auto_compile else "queued without auto-compile")
-    return ", ".join(parts)

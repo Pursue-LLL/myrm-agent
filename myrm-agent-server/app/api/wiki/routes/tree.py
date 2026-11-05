@@ -11,7 +11,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.response_mappers import (
+    _claims_to_response_items,
+    _editor_sections_to_response,
+    _str_or_none,
+)
 from app.api.wiki.routes.schemas import (
     ConceptBacklinkItem,
     ConceptLinkItem,
@@ -22,11 +27,6 @@ from app.api.wiki.routes.schemas import (
     MoveNodeRequest,
     OperationResult,
     TreeNode,
-)
-from app.api.wiki.routes.shared import (
-    _claims_to_response_items,
-    _editor_sections_to_response,
-    _str_or_none,
 )
 from app.services.wiki import MemoryToWikiArchiver
 
@@ -273,7 +273,7 @@ async def move_wiki_node(
             modified_referrers=refactor_report.modified_concept_paths,
         )
 
-        await shared._after_wiki_vault_mutation(archiver, "move concept")
+        await vault_effects._after_wiki_vault_mutation(archiver, "move concept")
         return OperationResult(success=True, message=f"Moved successfully. Updated {refactor_report.updated_count} files.")
     except Exception as e:
         logger.error("Wiki node move failed: %s", e)
@@ -288,7 +288,7 @@ async def delete_wiki_folder(
     """Safely delete a folder and clear all its files from the indexer."""
     try:
         deleted_count = await archiver._structure.delete_folder_safe(path, archiver._query_engine._indexer)
-        await shared._after_wiki_vault_mutation(archiver, "delete folder")
+        await vault_effects._after_wiki_vault_mutation(archiver, "delete folder")
         return OperationResult(success=True, message=f"Folder deleted. Unindexed {deleted_count} files.")
     except Exception as e:
         logger.error("Wiki folder deletion failed: %s", e)

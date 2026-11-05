@@ -28,7 +28,9 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | `portability.py` | 路由 | **GET /portability/export** | ✅ |
 | `schemas.py` | 契约 | 查询/编译/统计/树/变更/去重模型 | ✅ |
 | `schemas_import.py` | 契约 | 批量导入请求与响应模型 | ✅ |
-| `shared.py` | 支撑 | 响应转换、状态码映射、变更后副作用与导入辅助函数 | ✅ |
+| `vault_effects.py` | 支撑 | 变更后的 vault 索引刷新与认知地图事件 | ✅ |
+| `response_mappers.py` | 支撑 | 服务层结果到 API 响应模型的领域映射 | ✅ |
+| `import_helpers.py` | 支撑 | 批量导入的 raw 写入、冲突策略校验、结果统计与消息拼装 | ✅ |
 
 ## 依赖
 

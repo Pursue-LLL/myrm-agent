@@ -13,7 +13,10 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
 )
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.response_mappers import (
+    _compile_run_response,
+)
 from app.api.wiki.routes.schemas import (
     ApprovePendingEditRequest,
     OperationResult,
@@ -22,9 +25,6 @@ from app.api.wiki.routes.schemas import (
     ReindexVectorsResponse,
     RepairPublicationResponse,
     RepairTypesResponse,
-)
-from app.api.wiki.routes.shared import (
-    _compile_run_response,
 )
 from app.services.wiki import MemoryToWikiArchiver
 
@@ -154,13 +154,13 @@ async def approve_pending_edit(
         ) from exc
     if not success:
         raise HTTPException(status_code=400, detail="Edit not found or already processed")
-    shared._refresh_wiki_cognitive_map(
+    vault_effects._refresh_wiki_cognitive_map(
         archiver,
         WikiMapEventType.PENDING_APPROVE,
         f"Approved pending edit {edit_id}",
         {"edit_id": edit_id},
     )
-    await shared._after_wiki_vault_mutation(archiver, f"approve pending edit {edit_id}")
+    await vault_effects._after_wiki_vault_mutation(archiver, f"approve pending edit {edit_id}")
     return OperationResult(success=True, message=f"Approved edit {edit_id}")
 
 
@@ -189,7 +189,7 @@ async def repair_wiki_frontmatter_types(
     if result.errors:
         message = f"{message}; {len(result.errors)} errors"
     if result.files_repaired > 0:
-        shared._refresh_wiki_cognitive_map(
+        vault_effects._refresh_wiki_cognitive_map(
             archiver,
             WikiMapEventType.REPAIR_TYPES,
             message,
@@ -199,7 +199,7 @@ async def repair_wiki_frontmatter_types(
                 "files_skipped": result.files_skipped,
             },
         )
-        await shared._after_wiki_vault_mutation(archiver, "repair frontmatter types")
+        await vault_effects._after_wiki_vault_mutation(archiver, "repair frontmatter types")
     return RepairTypesResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -225,7 +225,7 @@ async def repair_wiki_publication(
     if result.errors:
         message = f"{message}; {len(result.errors)} errors"
     if result.files_repaired > 0 or result.reindexed > 0:
-        shared._refresh_wiki_cognitive_map(
+        vault_effects._refresh_wiki_cognitive_map(
             archiver,
             WikiMapEventType.REPAIR_TYPES,
             message,
@@ -237,7 +237,7 @@ async def repair_wiki_publication(
                 "reindexed": result.reindexed,
             },
         )
-        await shared._after_wiki_vault_mutation(archiver, "repair publication status")
+        await vault_effects._after_wiki_vault_mutation(archiver, "repair publication status")
     return RepairPublicationResponse(
         success=len(result.errors) == 0,
         files_scanned=result.files_scanned,
@@ -279,7 +279,7 @@ async def reindex_wiki_vectors(
     if result.failed:
         message = f"{message}; {result.failed} failed"
     if result.reindexed > 0 or result.failed > 0:
-        await shared._after_wiki_vault_mutation(archiver, "reindex wiki vectors")
+        await vault_effects._after_wiki_vault_mutation(archiver, "reindex wiki vectors")
     await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
     return ReindexVectorsResponse(
         success=result.failed == 0,

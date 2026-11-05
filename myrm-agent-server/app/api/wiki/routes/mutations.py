@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.routes import shared
+from app.api.wiki.routes import vault_effects
 from app.api.wiki.routes.schemas import (
     OperationResult,
     WikiApplyRequestBody,
@@ -23,16 +23,39 @@ from app.api.wiki.routes.schemas import (
     WikiTemplateSeedRequest,
     WikiTemplateSeedResponse,
 )
-from app.api.wiki.routes.shared import (
-    _wiki_apply_http_status,
-    _wiki_compound_http_status,
-)
 from app.services.wiki import MemoryToWikiArchiver
 
 logger = logging.getLogger(__name__)
 
 
 router = APIRouter(tags=["wiki"])
+
+
+def _wiki_apply_http_status(code: str) -> int:
+    mapping = {
+        "concept_not_found": 404,
+        "concept_exists": 409,
+        "canonical_conflict": 409,
+        "conflict": 409,
+        "forbidden_for_caller": 403,
+        "forbidden_for_agent": 403,
+        "invalid_frontmatter": 422,
+        "invalid_request": 422,
+        "publish_blocked": 422,
+        "timeline_rejected": 422,
+    }
+    return mapping.get(code, 400)
+
+
+def _wiki_compound_http_status(code: str) -> int:
+    mapping = {
+        "already_staged": 409,
+        "incognito_forbidden": 403,
+        "invalid_request": 422,
+        "invalid_role": 422,
+        "message_not_found": 404,
+    }
+    return mapping.get(code, 400)
 
 
 @router.post("/apply", response_model=WikiApplyResponse)
@@ -97,7 +120,7 @@ async def apply_wiki_mutation_endpoint(
         logger.error("Wiki mutation apply failed: %s", exc)
         raise HTTPException(status_code=500, detail="Wiki mutation failed") from exc
 
-    await shared._after_wiki_vault_mutation(archiver, "apply mutation")
+    await vault_effects._after_wiki_vault_mutation(archiver, "apply mutation")
     return WikiApplyResponse(
         success=result.success,
         op=result.op.value,
@@ -171,7 +194,7 @@ async def ingest_daily_review_endpoint(
             detail={"code": "ingest_failed", "message": result.message},
         )
 
-    await shared._after_wiki_vault_mutation(archiver, "daily review ingest")
+    await vault_effects._after_wiki_vault_mutation(archiver, "daily review ingest")
     return WikiDailyReviewResponse(
         success=True,
         raw_path=result.raw_relative_path,
@@ -206,7 +229,7 @@ async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, De
     try:
         path.unlink()
         await archiver._query_engine._indexer.delete(name)
-        await shared._after_wiki_vault_mutation(archiver, "delete concept")
+        await vault_effects._after_wiki_vault_mutation(archiver, "delete concept")
         return OperationResult(success=True, message=f"Concept {name} deleted")
     except Exception as e:
         logger.error("Wiki concept deletion failed: %s", e)
@@ -247,7 +270,7 @@ async def delete_raw_source(
 
     affected = len(result.affected_concepts)
     republished = len(result.republished_concepts)
-    await shared._after_wiki_vault_mutation(archiver, "forget raw source")
+    await vault_effects._after_wiki_vault_mutation(archiver, "forget raw source")
     return OperationResult(
         success=True,
         message=f"Forgot raw source {result.relative_path} ({affected} affected, {republished} republished)",

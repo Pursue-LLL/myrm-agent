@@ -11,15 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
+from app.api.wiki.routes.response_mappers import (
+    _citation_sources_to_snippets,
+    _compile_run_response,
+    _retrieval_trace_to_response,
+)
 from app.api.wiki.routes.schemas import (
     WikiCompileResponse,
     WikiQueryRequest,
     WikiQueryResponse,
-)
-from app.api.wiki.routes.shared import (
-    _citation_sources_to_snippets,
-    _compile_run_response,
-    _retrieval_trace_to_response,
 )
 from app.services.risk.refusal import reject_if_risky
 from app.services.wiki import MemoryToWikiArchiver
