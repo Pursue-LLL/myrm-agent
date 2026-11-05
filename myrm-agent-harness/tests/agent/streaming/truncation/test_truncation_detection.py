@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from ..scripted_agent import recover_length_cut
 from .support import llm_with_max_tokens, make_executor
 
 
@@ -27,7 +28,7 @@ async def test_thinking_budget_exhausted_detected(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation(collected_messages)
+        await recover_length_cut(executor, collected_messages)
 
     events = executor._compactor.events
     assert len(events) == 1
@@ -52,7 +53,7 @@ async def test_no_truncation_when_finish_reason_stop(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation(collected_messages)
+        await recover_length_cut(executor, collected_messages)
 
     assert len(executor._compactor.events) == 0
 
@@ -66,7 +67,7 @@ async def test_no_truncation_when_no_tracker(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=None,
     ):
-        await executor._handle_length_truncation([])
+        await recover_length_cut(executor, [])
 
     assert len(executor._compactor.events) == 0
 
@@ -90,7 +91,7 @@ async def test_max_tokens_finish_reason(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation(collected_messages)
+        await recover_length_cut(executor, collected_messages)
 
     events = executor._compactor.events
     assert len(events) == 1
@@ -115,7 +116,7 @@ async def test_anthropic_thinking_block_detection(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation(collected_messages)
+        await recover_length_cut(executor, collected_messages)
 
     events = executor._compactor.events
     assert len(events) == 1
@@ -134,7 +135,7 @@ async def test_empty_collected_messages(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation([])
+        await recover_length_cut(executor, [])
 
     assert len(executor._compactor.events) == 0
 
@@ -155,7 +156,7 @@ async def test_only_human_messages(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        await executor._handle_length_truncation(collected_messages)
+        await recover_length_cut(executor, collected_messages)
 
     assert len(executor._compactor.events) == 0
 
@@ -186,7 +187,7 @@ async def test_tool_calls_with_reasoning_prioritizes_tool_call(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -220,7 +221,7 @@ async def test_tool_calls_with_content(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -258,7 +259,7 @@ async def test_picks_last_ai_message(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -287,7 +288,7 @@ async def test_no_content_no_reasoning_no_tool_calls(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is False
     assert len(executor._compactor.events) == 0

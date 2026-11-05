@@ -30,6 +30,8 @@ from .scripted_agent import (
     make_context,
     make_executor,
     raw_write,
+    recover_empty_reply,
+    recover_length_cut,
     run_agent,
     withheld_message,
 )
@@ -155,7 +157,7 @@ async def test_withheld_call_triggers_a_retry_whatever_the_provider_reports(fini
     executor = _handler_executor({"messages": []})
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason=finish_reason)):
-        retried = await executor._handle_length_truncation([withheld_message()])
+        retried = await recover_length_cut(executor, [withheld_message()])
 
     assert retried is True
     assert executor._tool_truncation_retries == 1
@@ -173,7 +175,7 @@ async def test_repaired_call_without_a_length_cut_is_not_retried():
     executor = _handler_executor({"messages": []})
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="stop")):
-        retried = await executor._handle_length_truncation([repaired])
+        retried = await recover_length_cut(executor, [repaired])
 
     assert retried is False
     assert executor._compactor.events == []
@@ -185,7 +187,7 @@ async def test_exhausted_retry_reports_instead_of_looping():
     executor._tool_truncation_retries = executor._MAX_TOOL_TRUNCATION_RETRIES
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="stop")):
-        retried = await executor._handle_length_truncation([withheld_message()])
+        retried = await recover_length_cut(executor, [withheld_message()])
 
     assert retried is False
     assert executor._compactor.steps == ["tool_call_truncated"]
@@ -196,9 +198,9 @@ async def test_withheld_call_is_not_mistaken_for_an_empty_response():
     """Otherwise empty-response recovery would stack on top and finally raise ``MyrmLLMError``."""
     executor = _handler_executor({"messages": []})
 
-    assert await executor._handle_empty_response([withheld_message()], retries=5) is False
+    assert await recover_empty_reply(executor, [withheld_message()], retries=5) is False
     with pytest.raises(MyrmLLMError):
-        await executor._handle_empty_response([AIMessage(content="")], retries=5)
+        await recover_empty_reply(executor, [AIMessage(content="")], retries=5)
 
 
 async def _collect_from_updates(messages: list[BaseMessage]) -> list[BaseMessage]:

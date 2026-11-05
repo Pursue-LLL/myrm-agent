@@ -57,7 +57,7 @@ from .stream_fatal_error import StreamFatalErrorMixin
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-    from langchain_core.messages import BaseMessage
+    from langchain_core.messages import AIMessage, BaseMessage
     from langgraph.graph.state import CompiledStateGraph
 
     from myrm_agent_harness.agent.context_management.pipeline.processors.media_resolver import (
@@ -150,6 +150,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         self._consecutive_overloaded = 0
         self.streaming_final_answer = False
         self._partial_text_buffer = ""
+        self._latest_reply: AIMessage | None = None
         self._redirect_partial_preserved = False
         self._tool_truncation_retries = 0
         self._compactor = StreamCompactor(ctx.output_queue)
@@ -234,6 +235,7 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                 if ctx.steering_token:
                     ctx.steering_token.reset_turn()
                 self._partial_text_buffer = ""
+                self._latest_reply = None
 
                 await self._run_preflight_pressure_gate()
 

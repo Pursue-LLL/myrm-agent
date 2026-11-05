@@ -26,6 +26,8 @@ from ..scripted_agent import (
     final_answer,
     make_context,
     make_executor,
+    recover_empty_reply,
+    recover_length_cut,
     run_agent,
     withheld_message,
 )
@@ -125,11 +127,11 @@ class Recovery:
 
 
 async def _length_truncation(executor: StreamExecutor, collected: list[BaseMessage]) -> bool:
-    return await executor._handle_length_truncation(collected)
+    return await recover_length_cut(executor, collected)
 
 
 async def _empty_response(executor: StreamExecutor, collected: list[BaseMessage]) -> bool:
-    return await executor._handle_empty_response(collected, retries=0)
+    return await recover_empty_reply(executor, collected, retries=0)
 
 
 RECOVERIES = [
@@ -242,7 +244,7 @@ async def test_resumed_turn_keeps_the_retry_bounded():
     executor._tool_truncation_retries = executor._MAX_TOOL_TRUNCATION_RETRIES
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="length")):
-        retried = await executor._handle_length_truncation([withheld_message()])
+        retried = await recover_length_cut(executor, [withheld_message()])
 
     assert retried is False
     assert executor._compactor.steps == ["tool_call_truncated"]
@@ -254,7 +256,7 @@ async def test_resumed_turn_with_nothing_to_recover_keeps_its_command():
     executor = _executor(Command(resume="approved"))
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="stop")):
-        retried = await executor._handle_length_truncation([AIMessage(content="A complete answer.")])
+        retried = await recover_length_cut(executor, [AIMessage(content="A complete answer.")])
 
     assert retried is False
     assert isinstance(executor._ctx.agent_input, Command)
@@ -266,7 +268,7 @@ async def test_a_withheld_call_leaves_its_arguments_in_the_log(caplog: pytest.Lo
     executor = _executor({"messages": [QUESTION]})
 
     with caplog.at_level("WARNING"), patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="length")):
-        await executor._handle_length_truncation([QUESTION, withheld_message()])
+        await recover_length_cut(executor, [QUESTION, withheld_message()])
 
     logged = " ".join(record.getMessage() for record in caplog.records)
     assert "write_file" in logged

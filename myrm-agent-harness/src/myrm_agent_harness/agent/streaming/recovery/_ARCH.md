@@ -62,10 +62,21 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
   HumanMessage built by `runtime_human_message`, marked `is_system_synthetic`: the approval intent ledger
   and the user-input guard read user words and skip it. Steering is the user's own message and stays
   unmarked.
-- **Only a reply that reaches `collected_messages` can be recovered.** `event_handlers` leaves out an
-  AIMessage with no content, no tool calls and no withheld calls, so the empty-response and reasoning-only
-  handlers see a reply whose text is tag-wrapped reasoning in `content` (MiniMax), not one whose reasoning
-  sits in `additional_kwargs["reasoning_content"]` or one with nothing at all.
+- **The recovery handlers judge the run's latest reply, not the last one in `collected_messages`.**
+  `event_handlers` leaves an AIMessage with no content, no tool calls and no withheld calls out of
+  `collected_messages` (there is nothing to re-send), so a handler that scanned it for the last AIMessage judged
+  an earlier round's reply: an empty reply after a tool round ended the run with no answer, a reasoning-only reply
+  cut by the output limit was retried as a failed tool call, and an empty first reply had no earlier reply to be
+  mistaken for and was ignored. `StreamDispatcherMixin` therefore records `_latest_reply` from every `updates`
+  chunk (`latest_reply.latest_model_reply`); `StreamExecutor` clears it at the start of each pass, so a pass that
+  delivers no reply recovers nothing. `collected_messages` stays what a retry carries (a tool-call retry and a
+  thinking-budget retry leave the failed reply out of it by identity). The reply itself stays in the thread, as it
+  does when a turn simply ends on it.
+- **A length cut inside the reasoning belongs to the truncation recovery alone.** Once the thinking-budget
+  recovery has raised the budget as far as it goes and gives up, `_handle_empty_response` stands down for that
+  reply (`_cut_by_output_limit`): another attempt at the base budget would be cut again. Replies that
+  stopped normally with nothing but reasoning, or with nothing at all, are empty responses: two retries, then a
+  `MyrmLLMError(FORMAT_ERROR)`.
 - **Budget boost needs a real base.** `_boost_output_tokens` scales from the configured
   `max_tokens`; with none configured it falls back to `thinking_output_floor` for known thinking
   models and stays a safe no-op otherwise (an unknown ceiling could otherwise be overshot). The scaled

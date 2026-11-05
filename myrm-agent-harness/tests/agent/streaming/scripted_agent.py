@@ -7,6 +7,7 @@ resumed turns alike.
 """
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -151,6 +152,16 @@ def final_answer() -> Turn:
     return AIMessage(content="Done: report.md written."), "stop"
 
 
+def empty_reply() -> Turn:
+    """A reply with nothing in it: no text, no reasoning, no tool call."""
+    return AIMessage(content=""), "stop"
+
+
+def reasoning_only_cut() -> Turn:
+    """The output limit cut the reply inside its reasoning, which a provider reports in its own field."""
+    return AIMessage(content="", additional_kwargs={"reasoning_content": "Weighing how to word the summary"}), "length"
+
+
 def make_context(agent: object, agent_input: object, *, thread_id: str | None = None) -> StreamContext:
     run_config: dict[str, object] = {"recursion_limit": 12}
     if thread_id is not None:
@@ -231,3 +242,20 @@ async def run_agent(turns: list[Turn], *, gated: bool = False) -> tuple[Run, Scr
     for compactor in compactors:
         merged.events.extend(compactor.events)
     return Run(requests=model.requests, executed=executed, compactor=merged, error=error, approvals=approvals), model
+
+
+def reply_of(messages: Sequence[BaseMessage]) -> AIMessage | None:
+    """The reply a finished run ended on, taken as the last assistant message of ``messages``."""
+    return next((m for m in reversed(messages) if isinstance(m, AIMessage)), None)
+
+
+async def recover_length_cut(executor: StreamExecutor, collected: list[BaseMessage], retries: int = 0) -> bool:
+    """Run the length-truncation recovery on a run that ended on the last assistant message of ``collected``."""
+    executor._latest_reply = reply_of(collected)
+    return await executor._handle_length_truncation(collected, retries)
+
+
+async def recover_empty_reply(executor: StreamExecutor, collected: list[BaseMessage], retries: int = 0) -> bool:
+    """Run the empty-response recovery on a run that ended on the last assistant message of ``collected``."""
+    executor._latest_reply = reply_of(collected)
+    return await executor._handle_empty_response(collected, retries)
