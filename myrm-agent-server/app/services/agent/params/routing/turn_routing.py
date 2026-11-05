@@ -21,8 +21,8 @@ from dataclasses import dataclass
 
 from app.core.types import ModelConfig
 
-from .model_plan import ModelPlan, ModelResolver
-from .models import AgentRequest
+from ..conversion.model_plan import ModelPlan, ModelResolver
+from ..models import AgentRequest
 from .routing_memory import (
     RecentRouting,
     complaint_floor,

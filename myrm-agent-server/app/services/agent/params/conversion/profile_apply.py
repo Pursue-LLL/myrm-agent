@@ -26,8 +26,8 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
 from app.core.types import MCPServerConfig
 
+from ..models import AgentRequest
 from .model_plan import ModelPlan, ModelResolver
-from .models import AgentRequest
 
 if TYPE_CHECKING:
     from app.services.agent.profile.profile_resolver import ResolvedAgentProfile

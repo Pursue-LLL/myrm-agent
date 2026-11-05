@@ -1,12 +1,8 @@
 """[INPUT]
 - app.ai_agents::GeneralAgentParams (POS: General Agent runtime parameter DTO)
-- app.services.agent.params.model_plan (POS: model slot + fallback chain resolution)
-- app.services.agent.params.turn_routing (POS: specialty / complexity / retry-floor routing)
-- app.services.agent.params.sources (POS: search, retrieval and MCP source resolution)
-- app.services.agent.params.profile_apply (POS: Agent profile capability envelope)
-- app.services.agent.params.chat_context (POS: chat workspace / access roots / shared memory)
+- app.services.agent.params.conversion (POS: conversion stages — model plan, sources, profile, chat context, tool surface)
+- app.services.agent.params.routing (POS: specialty / complexity / retry-floor routing + cross-turn routing memory)
 - app.services.agent.params.query_enrichment (POS: server-side query context blocks)
-- app.services.agent.params.tool_surface (POS: fast-search vs web-chat tool mount)
 
 [OUTPUT]
 - convert_to_general_agent_params(): build runtime params and routing metadata for GeneralAgent
@@ -41,17 +37,20 @@ from .archive_restore import (
     ArchiveRestoreRequestError,
     prevalidate_archive_restore_actions,
 )
-from .chat_context import resolve_chat_context
+from .conversion import (
+    apply_agent_profile,
+    finalize_model_plan,
+    resolve_chat_context,
+    resolve_config_sources,
+    resolve_model_plan,
+    resolve_tool_surface,
+)
 from .helpers import _declared_capabilities, _extract_code_execution_network, _requested_privacy_params
 from .media import _extract_media_generation_params
-from .model_plan import finalize_model_plan, resolve_model_plan
 from .models import AgentRequest
-from .profile_apply import apply_agent_profile
 from .query_enrichment import enrich_query
 from .resolvers import _resolve_model_config
-from .sources import resolve_config_sources
-from .tool_surface import resolve_tool_surface
-from .turn_routing import resolve_routing_outcome
+from .routing import resolve_routing_outcome
 
 logger = logging.getLogger(__name__)
 

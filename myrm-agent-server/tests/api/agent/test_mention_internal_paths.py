@@ -23,6 +23,16 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.services.agent.params import mention
+from app.services.agent.params.mention import documents as mention_documents
+from app.services.agent.params.mention.references import artifact_range as mention_artifact_range
+from app.services.agent.params.mention.references import codebase as mention_codebase
+from app.services.agent.params.mention.references import folder as mention_folder
+from app.services.agent.params.mention.references import git as mention_git
+from app.services.agent.params.mention.references import prior_chat as mention_prior_chat
+from app.services.agent.params.mention.references import stored_file as mention_stored_file
+from app.services.agent.params.mention.references import url as mention_url
+from app.services.agent.params.mention.references import wiki as mention_wiki
+from app.services.agent.params.mention.references import workspace_file as mention_workspace_file
 from app.services.agent.params.models import MentionReferenceRequest
 
 _PATH_SECURITY = "myrm_agent_harness.agent.security.path_security"
@@ -84,7 +94,7 @@ def test_text_reference_line_range_swaps_reversed_bounds() -> None:
 
 def test_git_staged_diff_non_zero_exit_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        mention.subprocess,
+        mention_git.subprocess,
         "run",
         lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="", stderr="boom"),
     )
@@ -100,7 +110,7 @@ def test_git_staged_diff_error_paths_return_empty(monkeypatch: pytest.MonkeyPatc
     def _raise(*args: object, **kwargs: object) -> object:
         raise failure
 
-    monkeypatch.setattr(mention.subprocess, "run", _raise)
+    monkeypatch.setattr(mention_git.subprocess, "run", _raise)
 
     assert mention._get_git_staged_diff("/tmp") == ""
 
@@ -112,7 +122,7 @@ def test_folder_tree_returns_empty_for_a_missing_path(tmp_path: Path) -> None:
 def test_folder_tree_truncates_at_the_entry_cap(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("a", encoding="utf-8")
     (tmp_path / "b.txt").write_text("b", encoding="utf-8")
-    monkeypatch.setattr(mention, "_FOLDER_TREE_MAX_ENTRIES", 1)
+    monkeypatch.setattr(mention_folder, "_FOLDER_TREE_MAX_ENTRIES", 1)
 
     assert "(truncated)" in mention._get_folder_tree(str(tmp_path), str(tmp_path))
 
@@ -121,7 +131,7 @@ def test_folder_tree_survives_a_walk_failure(monkeypatch: pytest.MonkeyPatch, tm
     def _raise(*args: object, **kwargs: object) -> object:
         raise OSError("walk boom")
 
-    monkeypatch.setattr(mention.os, "walk", _raise)
+    monkeypatch.setattr(mention_folder.os, "walk", _raise)
 
     assert mention._get_folder_tree(str(tmp_path), str(tmp_path)) == ""
 
@@ -164,7 +174,7 @@ def test_workspace_file_part_survives_a_missing_size(monkeypatch: pytest.MonkeyP
     def _raise(path: str) -> int:
         raise OSError("stat boom")
 
-    monkeypatch.setattr(mention.os.path, "getsize", _raise)
+    monkeypatch.setattr(mention_workspace_file.os.path, "getsize", _raise)
 
     part, consumed = mention._workspace_file_part(str(path), "note.txt", None, None, 0)
 
@@ -185,8 +195,8 @@ def test_workspace_file_part_rejects_a_line_range_for_an_office_document(tmp_pat
 def test_workspace_file_part_reports_a_document_too_large_to_inline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = tmp_path / "report.docx"
     path.write_bytes(b"x")
-    monkeypatch.setattr(mention, "_parse_document", lambda path, ext: "ready")
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_workspace_file, "_parse_document", lambda path, ext: "ready")
+    monkeypatch.setattr(mention_workspace_file, "_can_inline", lambda *args: False)
 
     part, consumed = mention._workspace_file_part(str(path), "report.docx", None, None, 0)
 
@@ -197,7 +207,7 @@ def test_workspace_file_part_reports_a_document_too_large_to_inline(monkeypatch:
 def test_workspace_file_part_reports_content_too_large_to_inline(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = tmp_path / "note.txt"
     path.write_text("x" * 64, encoding="utf-8")
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_workspace_file, "_can_inline", lambda *args: False)
 
     part, consumed = mention._workspace_file_part(str(path), "note.txt", None, None, 0)
 
@@ -208,7 +218,7 @@ def test_workspace_file_part_reports_content_too_large_to_inline(monkeypatch: py
 def test_workspace_file_part_reports_a_document_without_text(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     path = tmp_path / "scan.docx"
     path.write_bytes(b"x")
-    monkeypatch.setattr(mention, "_parse_document", lambda path, ext: None)
+    monkeypatch.setattr(mention_workspace_file, "_parse_document", lambda path, ext: None)
 
     part, consumed = mention._workspace_file_part(str(path), "scan.docx", None, None, 0)
 
@@ -242,7 +252,7 @@ async def test_stored_file_part_reports_missing_content(monkeypatch: pytest.Monk
 async def test_stored_file_part_inlines_an_office_document(monkeypatch: pytest.MonkeyPatch) -> None:
     stored = _stored_service(filename="report.docx", content=b"PK")
     monkeypatch.setattr("app.core.storage.files_service", stored.service)
-    monkeypatch.setattr(mention, "_parse_stored_document", AsyncMock(return_value="body"))
+    monkeypatch.setattr(mention_stored_file, "_parse_stored_document", AsyncMock(return_value="body"))
 
     part, consumed = await mention._stored_file_part(stored.ref, 0)
 
@@ -256,8 +266,8 @@ async def test_stored_file_part_reports_a_parsed_document_too_large(
 ) -> None:
     stored = _stored_service(filename="report.docx", content=b"PK")
     monkeypatch.setattr("app.core.storage.files_service", stored.service)
-    monkeypatch.setattr(mention, "_parse_stored_document", AsyncMock(return_value="body"))
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_stored_file, "_parse_stored_document", AsyncMock(return_value="body"))
+    monkeypatch.setattr(mention_stored_file, "_can_inline", lambda *args: False)
 
     part, consumed = await mention._stored_file_part(stored.ref, 0)
 
@@ -280,7 +290,7 @@ async def test_stored_file_part_describes_a_binary_upload(monkeypatch: pytest.Mo
 async def test_stored_file_part_reports_text_too_large_to_inline(monkeypatch: pytest.MonkeyPatch) -> None:
     stored = _stored_service(filename="notes.txt", content=b"x" * 64)
     monkeypatch.setattr("app.core.storage.files_service", stored.service)
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_stored_file, "_can_inline", lambda *args: False)
 
     part, consumed = await mention._stored_file_part(stored.ref, 0)
 
@@ -302,19 +312,19 @@ async def test_stored_file_part_falls_back_to_binary_when_content_cannot_decode(
 
 @pytest.mark.asyncio
 async def test_parse_stored_document_uses_the_office_parser(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mention, "_parse_document", lambda path, ext: "parsed")
+    monkeypatch.setattr(mention_documents, "_parse_document", lambda path, ext: "parsed")
 
     assert await mention._parse_stored_document(b"PK", ".docx", "report.docx") == "parsed"
 
 
 @pytest.mark.asyncio
 async def test_parse_stored_document_survives_an_unlink_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mention, "_parse_document", lambda path, ext: "parsed")
+    monkeypatch.setattr(mention_documents, "_parse_document", lambda path, ext: "parsed")
 
     def _raise(path: str) -> None:
         raise OSError("unlink boom")
 
-    monkeypatch.setattr(mention.os, "unlink", _raise)
+    monkeypatch.setattr(mention_documents.os, "unlink", _raise)
 
     assert await mention._parse_stored_document(b"PK", ".docx", "report.docx") == "parsed"
 
@@ -324,7 +334,7 @@ async def test_parse_stored_document_returns_none_when_the_parser_fails(monkeypa
     def _boom(path: str, ext: str) -> str:
         raise RuntimeError("broken package")
 
-    monkeypatch.setattr(mention, "_parse_document", _boom)
+    monkeypatch.setattr(mention_documents, "_parse_document", _boom)
 
     assert await mention._parse_stored_document(b"PK", ".docx", "report.docx") is None
 
@@ -343,7 +353,7 @@ def test_codebase_overview_skips_dotfiles_and_caps_the_scan(monkeypatch: pytest.
     (tmp_path / ".hidden").write_text("x", encoding="utf-8")
     (tmp_path / "a.py").write_text("x", encoding="utf-8")
     (tmp_path / "b.py").write_text("x", encoding="utf-8")
-    monkeypatch.setattr(mention, "_CODEBASE_SCAN_MAX_FILES", 1)
+    monkeypatch.setattr(mention_codebase, "_CODEBASE_SCAN_MAX_FILES", 1)
 
     overview = mention._build_codebase_overview(tmp_path)
 
@@ -362,7 +372,7 @@ async def test_codebase_overview_part_reports_an_unavailable_workspace() -> None
 @pytest.mark.asyncio
 async def test_codebase_overview_part_reports_a_truncated_overview(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("x", encoding="utf-8")
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_codebase, "_can_inline", lambda *args: False)
 
     part, consumed = await mention._codebase_overview_part(str(tmp_path), 0)
 
@@ -427,7 +437,7 @@ async def test_prior_chat_part_reports_a_missing_chat(monkeypatch: pytest.Monkey
 async def test_prior_chat_part_reports_a_missing_recall_index(monkeypatch: pytest.MonkeyPatch) -> None:
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
-    monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=None))
+    monkeypatch.setattr(mention_prior_chat, "_load_prior_chat_document", AsyncMock(return_value=None))
     monkeypatch.setattr("app.database.repositories.uow.UnitOfWork", _NoSessionUow)
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
@@ -441,7 +451,7 @@ async def test_prior_chat_part_reports_an_excluded_chat(monkeypatch: pytest.Monk
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=True, title="T", summary="", snippet="")
     monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
-    monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
+    monkeypatch.setattr(mention_prior_chat, "_load_prior_chat_document", AsyncMock(return_value=row))
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
 
@@ -454,7 +464,7 @@ async def test_prior_chat_part_inlines_summary_and_snippet(monkeypatch: pytest.M
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=False, title="T", summary="sum", snippet="snip")
     monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
-    monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
+    monkeypatch.setattr(mention_prior_chat, "_load_prior_chat_document", AsyncMock(return_value=row))
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
 
@@ -468,8 +478,8 @@ async def test_prior_chat_part_reports_context_too_large(monkeypatch: pytest.Mon
     chat = SimpleNamespace(is_incognito=False, source="telegram", title="T")
     row = SimpleNamespace(is_excluded=False, title="T", summary="sum", snippet="snip")
     monkeypatch.setattr("app.services.chat.chat_crud._ChatCrudMixin.get_chat_metadata", AsyncMock(return_value=chat))
-    monkeypatch.setattr(mention, "_load_prior_chat_document", AsyncMock(return_value=row))
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_prior_chat, "_load_prior_chat_document", AsyncMock(return_value=row))
+    monkeypatch.setattr(mention_prior_chat, "_can_inline", lambda *args: False)
 
     part, consumed = await mention._prior_chat_part("chat-1", "@chat:chat-1", 0)
 
@@ -551,7 +561,7 @@ def test_workspace_file_part_reports_a_read_failure(monkeypatch: pytest.MonkeyPa
     def _raise(file_path: str, start_line: int | None, end_line: int | None) -> str:
         raise OSError("read boom")
 
-    monkeypatch.setattr(mention, "_read_file_lines", _raise)
+    monkeypatch.setattr(mention_workspace_file, "_read_file_lines", _raise)
 
     part, consumed = mention._workspace_file_part(str(path), "note.txt", None, None, 0)
 
@@ -570,7 +580,7 @@ async def test_load_prior_chat_document_returns_none_without_a_session(monkeypat
 async def test_folder_tree_truncates_inside_the_directory_walk(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "one").mkdir()
     (tmp_path / "two").mkdir()
-    monkeypatch.setattr(mention, "_FOLDER_TREE_MAX_ENTRIES", 1)
+    monkeypatch.setattr(mention_folder, "_FOLDER_TREE_MAX_ENTRIES", 1)
 
     assert "(truncated)" in mention._get_folder_tree(str(tmp_path), str(tmp_path))
 
@@ -586,8 +596,8 @@ def _plain_git_argv(args: Sequence[str], *, repo_dir: str) -> list[str]:
 
 @pytest.mark.asyncio
 async def test_context_reports_a_staged_diff_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_get_git_staged_diff", lambda workspace: "x" * 32)
-    monkeypatch.setattr(mention, "_MENTION_MAX_TOTAL_BYTES", 1)
+    monkeypatch.setattr(mention_git, "_get_git_staged_diff", lambda workspace: "x" * 32)
+    monkeypatch.setattr(mention_git, "_MENTION_MAX_TOTAL_BYTES", 1)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="git_staged", label="@staged")), str(tmp_path)
@@ -598,9 +608,9 @@ async def test_context_reports_a_staged_diff_too_large(monkeypatch: pytest.Monke
 
 @pytest.mark.asyncio
 async def test_context_inlines_an_unstaged_diff(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "hardened_git_argv", _plain_git_argv)
+    monkeypatch.setattr(mention_git, "hardened_git_argv", _plain_git_argv)
     monkeypatch.setattr(
-        mention.subprocess,
+        mention_git.subprocess,
         "run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="diff --git a b\n+x", stderr=""),
     )
@@ -615,13 +625,13 @@ async def test_context_inlines_an_unstaged_diff(monkeypatch: pytest.MonkeyPatch,
 
 @pytest.mark.asyncio
 async def test_context_reports_an_unstaged_diff_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "hardened_git_argv", _plain_git_argv)
+    monkeypatch.setattr(mention_git, "hardened_git_argv", _plain_git_argv)
     monkeypatch.setattr(
-        mention.subprocess,
+        mention_git.subprocess,
         "run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="x" * 32, stderr=""),
     )
-    monkeypatch.setattr(mention, "_MENTION_MAX_TOTAL_BYTES", 1)
+    monkeypatch.setattr(mention_git, "_MENTION_MAX_TOTAL_BYTES", 1)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="git_diff", label="@diff")), str(tmp_path)
@@ -635,7 +645,7 @@ async def test_context_reports_a_failed_unstaged_diff(monkeypatch: pytest.Monkey
     def _raise(*args: object, **kwargs: object) -> object:
         raise RuntimeError("git boom")
 
-    monkeypatch.setattr(mention.subprocess, "run", _raise)
+    monkeypatch.setattr(mention_git.subprocess, "run", _raise)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="git_diff", label="@diff")), str(tmp_path)
@@ -678,7 +688,7 @@ async def test_context_reports_a_folder_tree_too_large(monkeypatch: pytest.Monke
     folder = tmp_path / "src"
     folder.mkdir()
     (folder / "a.py").write_text("x", encoding="utf-8")
-    monkeypatch.setattr(mention, "_MENTION_MAX_TOTAL_BYTES", 1)
+    monkeypatch.setattr(mention_folder, "_MENTION_MAX_TOTAL_BYTES", 1)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="workspace_folder", path="src", label="@folder:src")),
@@ -690,8 +700,8 @@ async def test_context_reports_a_folder_tree_too_large(monkeypatch: pytest.Monke
 
 @pytest.mark.asyncio
 async def test_context_reports_url_content_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_fetch_url_content", AsyncMock(return_value="x" * 32))
-    monkeypatch.setattr(mention, "_MENTION_MAX_TOTAL_BYTES", 1)
+    monkeypatch.setattr(mention_url, "_fetch_url_content", AsyncMock(return_value="x" * 32))
+    monkeypatch.setattr(mention_url, "_MENTION_MAX_TOTAL_BYTES", 1)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="url", url="https://example.com", label="@url:example")),
@@ -703,7 +713,7 @@ async def test_context_reports_url_content_too_large(monkeypatch: pytest.MonkeyP
 
 @pytest.mark.asyncio
 async def test_context_reports_a_failed_url_fetch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_fetch_url_content", AsyncMock(return_value=""))
+    monkeypatch.setattr(mention_url, "_fetch_url_content", AsyncMock(return_value=""))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="url", url="https://example.com", label="@url:example")),
@@ -715,7 +725,7 @@ async def test_context_reports_a_failed_url_fetch(monkeypatch: pytest.MonkeyPatc
 
 @pytest.mark.asyncio
 async def test_context_inlines_url_content(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_fetch_url_content", AsyncMock(return_value="page text"))
+    monkeypatch.setattr(mention_url, "_fetch_url_content", AsyncMock(return_value="page text"))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="url", url="https://example.com", label="@url:example")),
@@ -751,7 +761,7 @@ async def test_context_rejects_a_workspace_file_outside_the_workspace(monkeypatc
 
 @pytest.mark.asyncio
 async def test_context_resolves_stored_upload_references(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_stored_file_part", AsyncMock(return_value=("<part>stored</part>", 7)))
+    monkeypatch.setattr(mention_stored_file, "_stored_file_part", AsyncMock(return_value=("<part>stored</part>", 7)))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="uploaded_file", file_id="f1", label="scan.pdf")), str(tmp_path)
@@ -771,7 +781,7 @@ async def test_context_reports_a_wiki_concept_without_a_name(tmp_path: Path) -> 
 
 @pytest.mark.asyncio
 async def test_context_resolves_a_wiki_concept(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_wiki_concept_part", AsyncMock(return_value=("<part>concept</part>", 3)))
+    monkeypatch.setattr(mention_wiki, "_wiki_concept_part", AsyncMock(return_value=("<part>concept</part>", 3)))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="wiki_concept", concept_name="c", label="@wiki:c")), str(tmp_path)
@@ -791,7 +801,7 @@ async def test_context_requires_a_wiki_raw_file_id(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_context_resolves_a_wiki_raw_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_wiki_raw_file_part", AsyncMock(return_value=("<part>raw</part>", 3)))
+    monkeypatch.setattr(mention_wiki, "_wiki_raw_file_part", AsyncMock(return_value=("<part>raw</part>", 3)))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="wiki_raw_file", file_id="notes.md", label="@raw:notes")),
@@ -812,7 +822,7 @@ async def test_context_requires_a_prior_chat_id(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_context_resolves_a_prior_chat(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_prior_chat_part", AsyncMock(return_value=("<part>chat</part>", 3)))
+    monkeypatch.setattr(mention_prior_chat, "_prior_chat_part", AsyncMock(return_value=("<part>chat</part>", 3)))
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="prior_chat", path="chat-1", label="@chat:chat-1")),
@@ -844,7 +854,7 @@ async def test_context_inlines_an_artifact_selection(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_context_reports_an_artifact_selection_too_large(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mention, "_can_inline", lambda *args: False)
+    monkeypatch.setattr(mention_artifact_range, "_can_inline", lambda *args: False)
 
     part, _warnings, _tokens = await mention._build_mention_reference_context(
         _context_refs(MentionReferenceRequest(type="artifact_range", content="x" * 16, label="selection")),

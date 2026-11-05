@@ -14,10 +14,9 @@ import pytest
 from myrm_agent_harness.toolkits.llms.routing.complexity_router import RoutingResult, RoutingTier
 
 from app.core.types import ModelConfig
-from app.services.agent.params import routing_memory
 from app.services.agent.params.converter import convert_to_general_agent_params
 from app.services.agent.params.models import AgentRequest, ModelSelection
-from app.services.agent.params.routing_memory import remember_turn_routing
+from app.services.agent.params.routing import remember_turn_routing, routing_memory
 from tests.api.agent.conftest import _build_mock_user_configs
 
 _MAIN = {"providerId": "openai", "model": "gpt-4o"}

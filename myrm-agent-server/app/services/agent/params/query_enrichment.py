@@ -26,7 +26,7 @@ from .archive_restore import (
     build_archive_restore_action_context_with_results,
     inject_archive_restore_actions_into_query,
 )
-from .chat_context import ChatContext
+from .conversion.chat_context import ChatContext
 from .mention import (
     _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
     _build_mention_reference_context,

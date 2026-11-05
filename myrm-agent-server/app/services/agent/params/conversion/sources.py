@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from app.core.types import MCPServerConfig
 
-from .models import AgentRequest
+from ..models import AgentRequest
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig

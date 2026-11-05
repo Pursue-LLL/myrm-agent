@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from app.core.types import ModelConfig
 
-from .models import AgentRequest, ModelSelection
+from ..models import AgentRequest, ModelSelection
 
 if TYPE_CHECKING:
     from app.core.channel_bridge.config_loader import UserConfigs
