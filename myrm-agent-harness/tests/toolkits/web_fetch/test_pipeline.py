@@ -108,5 +108,35 @@ def test_pipeline_passes_error_page_through():
     assert "404" in doc.page_content
 
 
+_SENTENCE = "A readable sentence that gives the page enough content to pass the length gate. "
+
+
+def test_pipeline_reads_the_page_title():
+    """The title metadata is the stripped text of the first title element."""
+    fetch_result = FetchResult(
+        html=f"<html><head><title>\n  The Page Title \n</title></head><body><p>{_SENTENCE * 3}</p></body></html>",
+        url="https://example.com",
+    )
+
+    doc = ContentPipeline().process(fetch_result)
+
+    assert doc is not None
+    assert doc.metadata["title"] == "The Page Title"
+
+
+@pytest.mark.timeout(10)
+def test_pipeline_survives_title_openers_that_are_never_closed():
+    """A page-sized run of unclosed title openers yields an empty title without rescanning the page for each one."""
+    fetch_result = FetchResult(
+        html=f"<html><body><article><p>{_SENTENCE * 6}</p></article>" + "<title" * 125_000 + "</body></html>",
+        url="https://example.com",
+    )
+
+    doc = ContentPipeline().process(fetch_result)
+
+    assert doc is not None
+    assert doc.metadata["title"] == ""
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

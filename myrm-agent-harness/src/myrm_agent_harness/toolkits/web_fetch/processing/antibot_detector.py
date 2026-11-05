@@ -14,7 +14,7 @@ Tiers:
   - Tier 3: Structural integrity → catches silent blocks / empty shells
 
 [INPUT]
-- (none)
+- web_fetch.processing.html_scan::body_content, strip_script_and_style, strip_tags (POS: Linear-time scans of raw HTML text)
 
 [OUTPUT]
 - is_blocked: Tells whether a crawl result was blocked by anti-bot protection or is an error page, with the reason
@@ -26,6 +26,8 @@ Anti-bot and error page detection for crawl results.
 from __future__ import annotations
 
 import re
+
+from .html_scan import body_content, strip_script_and_style, strip_tags
 
 # ---------------------------------------------------------------------------
 # Tier 1: High-confidence structural markers (any page size)
@@ -75,9 +77,6 @@ _CONTENT_ELEMENTS_RE = re.compile(
     re.I,
 )
 _SCRIPT_TAG_RE = re.compile(r"<script\b", re.I)
-_STYLE_TAG_RE = re.compile(r"<style\b[\s\S]*?</style>", re.I)
-_SCRIPT_BLOCK_RE = re.compile(r"<script\b[\s\S]*?</script>", re.I)
-_TAG_RE = re.compile(r"<[^>]+>")
 _BODY_RE = re.compile(r"<body\b", re.I)
 
 # ---------------------------------------------------------------------------
@@ -115,6 +114,11 @@ _DEEP_SCAN_LIMIT = 500_000
 _DEEP_SNIPPET_SIZE = 30_000
 
 
+def _scriptless_head(html: str) -> str:
+    """The head of *html* without scripts and styles, so inline bundles cannot push block markers out of the window."""
+    return strip_script_and_style(html[:_DEEP_SCAN_LIMIT])[:_DEEP_SNIPPET_SIZE]
+
+
 def _looks_like_data(html: str) -> bool:
     """Check if content looks like a JSON/XML API response."""
     stripped = html.strip()
@@ -136,11 +140,8 @@ def _structural_integrity_check(html: str) -> tuple[bool, str]:
     if not _BODY_RE.search(html):
         return True, f"Structural: no <body> tag ({html_len} bytes)"
 
-    body_match = re.search(r"<body\b[^>]*>([\s\S]*)</body>", html, re.I)
-    body_content = body_match.group(1) if body_match else html
-    stripped = _SCRIPT_BLOCK_RE.sub("", body_content)
-    stripped = _STYLE_TAG_RE.sub("", stripped)
-    visible_text = _TAG_RE.sub("", stripped).strip()
+    body = body_content(html)
+    visible_text = strip_tags(strip_script_and_style(html if body is None else body)).strip()
     visible_len = len(visible_text)
 
     signals: list[str] = []
@@ -207,9 +208,7 @@ def is_blocked(
 
     # Large-page deep scan: strip scripts/styles and re-check Tier 1
     if html_len > _DEEP_SCAN_THRESHOLD:
-        stripped_html = _SCRIPT_BLOCK_RE.sub("", html[:_DEEP_SCAN_LIMIT])
-        stripped_html = _STYLE_TAG_RE.sub("", stripped_html)
-        deep_snippet = stripped_html[:_DEEP_SNIPPET_SIZE]
+        deep_snippet = _scriptless_head(html)
         for pattern, reason in _TIER1_PATTERNS:
             if pattern.search(deep_snippet):
                 return True, reason
@@ -218,12 +217,7 @@ def is_blocked(
     if status_code in (403, 503) and not _looks_like_data(html):
         if html_len < _EMPTY_CONTENT_THRESHOLD:
             return True, f"HTTP {status_code} with near-empty response ({html_len} bytes)"
-        if html_len > _TIER2_MAX_SIZE:
-            stripped_html = _SCRIPT_BLOCK_RE.sub("", html[:_DEEP_SCAN_LIMIT])
-            stripped_html = _STYLE_TAG_RE.sub("", stripped_html)
-            check_snippet = stripped_html[:_DEEP_SNIPPET_SIZE]
-        else:
-            check_snippet = snippet
+        check_snippet = _scriptless_head(html) if html_len > _TIER2_MAX_SIZE else snippet
         for pattern, reason in _TIER2_PATTERNS:
             if pattern.search(check_snippet):
                 return True, f"{reason} (HTTP {status_code}, {html_len} bytes)"

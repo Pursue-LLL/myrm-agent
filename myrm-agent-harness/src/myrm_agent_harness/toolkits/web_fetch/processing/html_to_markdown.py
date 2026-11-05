@@ -22,7 +22,7 @@ from typing import ClassVar, cast
 from bs4 import BeautifulSoup, Comment, Tag
 from bs4.element import NavigableString
 
-from myrm_agent_harness.toolkits.web_fetch.processing.markdown_table import render_markdown_table
+from .markdown_table import render_markdown_table
 
 
 @dataclass
@@ -124,7 +124,9 @@ _HEADING_TAGS: set[str] = {"h1", "h2", "h3", "h4", "h5", "h6"}
 _MD_SPECIAL_RE = re.compile(r"([\\`*_\[\]()#+\-!|>~{}])")
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
-_TRAILING_SPACES_RE = re.compile(r" +\n")
+# The lookbehind pins a match to the start of a run of spaces. Without it every later space of a run that no newline
+# follows starts another scan to the end of the run: quadratic in the run length.
+_TRAILING_SPACES_RE = re.compile(r"(?<! ) +\n")
 
 
 def _escape_md(text: str) -> str:
@@ -402,9 +404,7 @@ class HTML2Markdown:
             if not isinstance(tr, Tag):
                 continue
             cells = [
-                self._convert_cell(cell)
-                for cell in tr.children
-                if isinstance(cell, Tag) and cell.name in ("td", "th")
+                self._convert_cell(cell) for cell in tr.children if isinstance(cell, Tag) and cell.name in ("td", "th")
             ]
             if cells:
                 rows.append(cells)

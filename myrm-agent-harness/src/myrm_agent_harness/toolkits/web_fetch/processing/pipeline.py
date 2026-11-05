@@ -6,6 +6,7 @@ it passes through the same processing pipeline.
 
 [INPUT]
 web_fetch.processing.content_pruning::ContentPruningFilter (POS: Boilerplate / noise pruning)
+web_fetch.processing.html_scan::extract_title (POS: Linear-time scans of raw HTML text)
 web_fetch.fetchers.protocol::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.markdown_generator::MarkdownGenerator (POS: HTML-to-Markdown conversion)
 utils.text_cleaner::clean_text (POS: Generic text cleaning utility)
@@ -27,7 +28,6 @@ import atexit
 import contextvars
 import json
 import logging
-import re
 from concurrent.futures import ThreadPoolExecutor
 
 from langchain_core.documents import Document
@@ -36,9 +36,8 @@ from myrm_agent_harness.utils.text_cleaner import clean_text
 
 from ..fetchers.protocols import FetcherType, FetchResult
 from .content_pruning import ContentPruningFilter
+from .html_scan import extract_title
 from .markdown_generator import MarkdownGenerator
-
-_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 logger = logging.getLogger(__name__)
 
@@ -171,8 +170,7 @@ class ContentPipeline:
         if not content or len(content.strip()) < _MIN_CONTENT_LENGTH:
             return None
 
-        title_match = _TITLE_RE.search(fetch_result.html)
-        title = title_match.group(1).strip() if title_match else ""
+        title = (extract_title(fetch_result.html) or "").strip()
         metadata: dict[str, str | bool] = {
             "url": fetch_result.url,
             "title": title,

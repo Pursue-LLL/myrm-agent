@@ -53,6 +53,29 @@ _SKIP_TAGS = frozenset(
     }
 )
 
+# Scoring walks the ancestors of every element and re-reads each subtree's text, so its cost follows the number of
+# ancestor-descendant pairs (the sum of all element depths), not the page size. Real pages stay well below this limit;
+# a page far above it is a nesting bomb that would hold the conversion thread for minutes.
+_MAX_SCORING_PATH_UNITS = 600_000
+
+
+def _dom_path_units(root: Tag, limit: int) -> int:
+    """Count the ancestor-descendant element pairs below *root* (the sum of every element's depth).
+
+    Counts iteratively and stops once above *limit*, so measuring a pathologically deep page is cheap itself.
+    """
+    total = 0
+    stack: list[tuple[Tag, int]] = [(root, 0)]
+    while stack:
+        node, depth = stack.pop()
+        for child in node.children:
+            if isinstance(child, Tag):
+                total += depth + 1
+                if total > limit:
+                    return total
+                stack.append((child, depth + 1))
+    return total
+
 
 class ContentPruningFilter:
     """Prunes a page's DOM tree down to its main content.
@@ -246,7 +269,11 @@ class ContentPruningFilter:
         if not body:
             return [], False
 
-        for el in list(body.find_all(True)):
+        # Over the limit only the scoring is skipped: comments, excluded tags, truncation and block extraction still run.
+        within_scoring_limit = _dom_path_units(body, _MAX_SCORING_PATH_UNITS) <= _MAX_SCORING_PATH_UNITS
+        scored_elements = list(body.find_all(True)) if within_scoring_limit else []
+
+        for el in scored_elements:
             # An element decomposed together with a removed ancestor has lost its attributes.
             if not hasattr(el, "name") or el.name is None or el.name in _SKIP_TAGS:
                 continue
@@ -310,7 +337,8 @@ class ContentPruningFilter:
             if not body:
                 return [], False
 
-            self._prune_tree(body)
+            if within_scoring_limit:
+                self._prune_tree(body)
 
             if max_chars > 0:
                 body, was_truncated = truncate_html_soup(body, max_chars)
