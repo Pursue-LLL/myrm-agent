@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · 语义工具组与需求澄清门禁两套前端组件从没被页面渲染，目录与测试已删除；Canvas 目录里无人导入的门面一并删除
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端；没有改 server、harness、控制平面）。同一次检索里另外 3 个目录不满足删除条件，见「仍然存在」。 |
+| **症状** | ① [实测，孤儿门禁，`origin/main` `96c6f519eb`] 孤儿清单里有 `features/agents/tool-groups/` 的 5 个源文件、`features/chat-window/clarification/` 的 5 个源文件和 `features/canvas/index.ts`。② [代码，`rg` 覆盖全部已跟踪文本文件，按导出名（≥8 个字符）与目录路径两种口径] 这三处在自身目录之外没有任何导入或引用；同名只出现在别处各自独立定义的类型：`store/chat/types/chatState.ts:29` 的 `SecurityPreset`、`store/chat/types/messages.ts:257,273` 的 `ClarificationOption` 与 `ClarificationQuestion`，它们不导入这两个目录。③ [代码] 两个目录都没有 `useTranslations`、`/api/`、`fetch(`：没有语言包键，也没有后端接口与之对应。前者是「6 个业务语义组 + 4 个安全预设 + JSON 导入导出」的卡片与状态仓库，后者是 `/grill-me` 捕获与关键词歧义检测的澄清抽屉；产品里实际的澄清是模型发起的 `ask_question_tool`（harness `agent/meta_tools/clarification/ask_question.py`）与 `message-box/ClarificationInput.tsx` 卡片，不经过这个目录。 |
+| **根因** | [代码] 功能代码与测试成套提交后一直没有接产品入口。对应的路线图条目 `SemanticToolGroupVisualToggleAndZeroTerminalConfigUXSuite`（#114）、`SocraticClarificationIngestionGateAndRequirementDistiller`（#91）已在 `_retired.tsv` 退役（提交 `df24f9f76`），目录却没有跟着处理。2026-11-02 孤儿清理那条把 `tool-groups` 的 5 个文件手工留下，理由是当时有一个未闭合条目在边界里把它写成简称；现在活跃规划里已检索不到 `tool-groups`、`SemanticToolGroup*` 与 `chat-window/clarification` 这些路径和名字。 |
+| **修复** | 删除 `agents/tool-groups/`（9 个文件：5 个源码、3 个测试共 15 例、`_ARCH.md`）、`chat-window/clarification/`（8 个文件：5 个源码、2 个测试共 13 例、`_ARCH.md`）与 `canvas/index.ts`（31 行）；`canvas/_ARCH.md` 去掉门面一行，并写明 `CanvasViewer` 由 `artifacts/ArtifactRenderer.tsx` 动态导入。`features/_ARCH.md`、`chat-window/_ARCH.md` 本来就没有这两个目录的行；`locales/`、`scripts/ci/` 里没有指向它们的键、基线或放行条目。被删文件可以从本提交的父提交取回：`git show <本提交>^:myrm-agent-frontend/src/components/features/agents/tool-groups/index.ts`（其余同理）。 |
+| **行为变化** | 无。被删代码从没被页面渲染过；`canvas/` 里 4 个运行时文件与它们的测试一字未改。 |
+| **回归证据** | [实测，scratch 工作树，`origin/main` `96c6f519eb` 加本提交] [1] `bun run lint` 8 个门禁全部通过。[2] `bun run i18n:split` 之后 `tsc --noEmit` 退出码 0；`bun run verify:i18n` 通过，代码引用门禁扫了 2807 个文件，无缺失键引用。[3] 孤儿门禁相对 `origin/main` 无新增孤儿；存量在 `13ed92f7be` 上是 377 个，删除后 366 个，差的 11 个正是这次删的 5 + 5 + 1。[4] `vitest run` 跑 `features/canvas`、`features/artifacts/__tests__`、`features/chat-window`：204 个文件、1139 例全部通过。 |
+| **仍然存在** | ① 同一次检索里的另外 3 个目录没有删：`features/three-mode-switcher/` 与 `features/artifacts/real-links/` 被路线图条目 #425（正在处理）写成「应按挂载裁决而非删除」，`features/artifact-sandbox/` 被条目 #444 的边界点名；按孤儿清理的保留条件（活跃规划点名即保留）留下，它们仍是孤儿。② `features/canvas/` 整个目录并不是孤儿：`artifacts/ArtifactRenderer.tsx:100` 动态导入 `CanvasViewer`，只有 `index.ts` 无人导入；此前把它算进「孤儿目录」是错的。③ 本次没有在浏览器里点过：被删代码没有任何渲染入口，证据只有读码、全仓检索与门禁。 |
+| **代码位置** | frontend：`src/components/features/agents/tool-groups/`、`src/components/features/chat-window/clarification/`、`src/components/features/canvas/index.ts`（均已删除）、`src/components/features/canvas/_ARCH.md`。 |
+
 ## 2026-11-05 · Agent Marketplace 的导出、导入两个用户路由全仓没有调用方，路由与只服务它们的辅助代码、测试已删除；服务层与控制面推送端点保留
 
 | 字段 | 内容 |
