@@ -1,6 +1,6 @@
 """Marketplace import — install Agent profile from marketplace package.
 
-Takes a marketplace package (exported via marketplace_export) and creates
+Takes a marketplace package (built by export_agent_package) and creates
 the Agent plus all missing dependencies in the local sandbox. Skills are
 created via SkillCreationService; Agents are persisted via AgentService.
 
@@ -13,7 +13,7 @@ created via SkillCreationService; Agents are persisted via AgentService.
   (POS: 外部来源 security_overrides 只收紧不放大闸门；trusted_desktop_apps 不随外部包导入)
 - platform_utils.deployment_capabilities::get_deployment_capabilities
   (POS: 部署能力判据，local/sandbox 默认允许，MYRM_ALLOW_LOCAL_SKILLS=0 时 fail-closed)
-- Marketplace package dict (from marketplace_export)
+- Marketplace package dict (from export_agent_package)
 
 [OUTPUT]
 - import_agent_package(skill_svc, package): Creates Agent + dependencies, returns new Agent ID

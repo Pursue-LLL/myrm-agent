@@ -4,6 +4,8 @@
 
 Agent Marketplace 导入/导出与包契约 SSOT。跨沙箱分发 Agent 配置 + bundled Skills/MCP/Subagents。
 
+导入侧由控制面推送端点 `app/api/internal/import_agent_profile.py` 调用；导出侧没有 HTTP 路由，`export_agent_package` 只由测试调用。
+
 上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ---
@@ -25,4 +27,4 @@ Agent Marketplace 导入/导出与包契约 SSOT。跨沙箱分发 Agent 配置 
 - `app/services/agent/profile_snapshot_service.py` — Agent 字段序列化
 - `app/core/skills/` — Skill 读写
 - `app/services/agent/agent_service.py` — Agent CRUD
-- `app/api/agents/agent.py` — WebUI marketplace export/import 端点
+- `app/api/internal/import_agent_profile.py` — 控制面安装与强制推送端点（`import_agent_package` 的唯一调用方）
