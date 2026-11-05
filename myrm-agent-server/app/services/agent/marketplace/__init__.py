@@ -1,4 +1,4 @@
-"""@input: agent profile export/import API + package contract validation
+"""@input: agent profile package export/import services + package contract validation
 @output: public marketplace package API exports
 @pos: Facade module for app.services.agent.marketplace subpackage.
 """

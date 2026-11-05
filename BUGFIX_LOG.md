@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · Agent Marketplace 的导出、导入两个用户路由全仓没有调用方，路由与只服务它们的辅助代码、测试已删除；服务层与控制面推送端点保留
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（路由层）。服务层里没有生产调用方的导出一侧见「仍然存在」。 |
+| **症状** | ① [代码，`rg` 覆盖 `myrm-agent` 全部子项目、`myrm-control-plane`、`myrm-agent-brand`、仓库根的 `scripts/`、`tools/`、`ifm/`] `GET /user-agents/{agent_id}/marketplace-export` 与 `POST /user-agents/marketplace-import` 只被它们自己的测试请求，前端、桌面端、扩展、控制面与文档站没有任何地方请求这两个地址；路由门禁一直把它们列为没有前端调用方的路由。② [代码] 控制面 `orchestration/marketplace/_ARCH.md` 把安装写成「前端 → 控制面签名 → 前端 → 沙箱 marketplace_import」、把发布写成「前端 → 沙箱 marketplace_export → 控制面」，但前端那一半不存在：`rg 'marketplace/(publish|install|list|entry|version|force-push)' myrm-agent-frontend/src` 没有任何结果。控制面真正走通的是强制推送，它请求的是另一个端点 `POST /api/admin/import-agent-profile`（`myrm_control_plane/api/routers/marketplace.py:475`，沙箱侧 `app/api/internal/import_agent_profile.py`）。 |
+| **根因** | [代码] 企业 Agent Marketplace 的设计需要前端把沙箱与控制面接起来，这一层从来没有做，两个用户路由建好后没有人接界面。 |
+| **修复** | 删除 `app/api/agents/agent_portability.py` 里的两个路由，以及只服务它们的 `_parse_marketplace_import_request_body`、`_extract_marketplace_profile_display_name`、`_marketplace_signature_policy` 与两个环境变量名常量（同名的环境变量仍由 `app/api/internal/import_agent_profile.py` 自己读取）；删除只请求这两个路由的 `tests/api/agent/test_marketplace_import_integration.py`（11 个用例）；`api/agents/_ARCH.md`、`services/agent/marketplace/_ARCH.md` 与三个模块的文档串改成现状。该文件现在只剩 `POST /{agent_id}/clone`，克隆代码一字未动。 |
+| **行为变化** | `GET /api/v1/user-agents/{agent_id}/marketplace-export`、`POST /api/v1/user-agents/marketplace-import` 不再存在；克隆、Agent Plugins ZIP 导入导出、控制面的 `/api/admin/import-agent-profile`（安装与强制推送）不受影响。路由层独有的两个行为随之消失：请求体可以包一层 `{"package": ..., "marketplace_entry_id": ...}`，以及 `{}` 这种空包返回 400（控制面端点对空包经同一个契约校验同样返回 400，只是外面要包一层 `package`；pydantic 的 `ValidationError` 是 `ValueError` 子类，端点按 400 处理，这一点由读码与实测 `validate_marketplace_package({})` 抛 `ValidationError` 得出，没有起服务请求端点）。 |
+| **回归证据** | [实测，scratch 工作树，基于 `b46e08db95`] [1] `test_routes_have_callers` 通过（上一次改动后它列出的正是这 2 个路由，见同日 `activity-feed` 条目）。[2] `tests/services/agent/test_marketplace_import.py`、`test_marketplace_export_redaction.py`、`test_marketplace_security_gate.py`、`tests/api/internal/test_import_agent_profile.py`、`tests/integration/test_marketplace_import_full_chain.py`、`tests/architecture/test_marketplace_layout.py` 与 `test_api_route_consumers.py` 共 122 例全部通过；`tests/api/agent/test_agent_clone_e2e.py` 需要 `.env.test` 里的真实模型（`BASIC_MODEL`），本机没有，没有跑。[3] 起应用读 OpenAPI：`/api/v1/user-agents/{agent_id}/clone` 仍在（`post`），两个 marketplace 路径不在。[4] `ruff check .` 全仓通过；`check_module_reachability.py --server --base origin/main` 通过；`check_import_resolvability` 通过；`check_profile_capability_escalation.py` 通过；`tests/architecture -m architecture` 655 例里 649 通过、4 个跳过、2 个失败来自 `test_text_entry_risk_gate.py`（`api/wiki/router.py::query_wiki` 已搬到 `api/wiki/routes/query.py`），与本次改动无关。[5] `run_architecture_gates.sh` 在第二步 md 引用检查就失败（`tests/_ARCH.md:726` 指向不存在的 `ai_agents/general_agent/test_instructions_and_memory_block_order.py`，来自提交 `352f7f97b4`），脚本遇错即停，所以 CI 里它后面的可达性、`ruff`、架构测试几步当前根本没有跑到，上面 [4] 是我单独跑的。 |
+| **仍然存在** | ① `app/services/agent/marketplace/export.py` 的 `export_agent_package`、`package_contract.py` 的 `build_marketplace_package` 与 `apply_marketplace_transport_signature` 现在没有生产调用方（`rg app` 只有门面 `__init__.py` 的转出、文档与测试；`apply_marketplace_transport_signature` 在本次改动前就只有测试调用）。它们没有跟着删，因为导出一侧是否还要保留、路线图开放条目对它的引用怎么改，需要另外决定；导入一侧由控制面推送端点使用，不受影响。② 企业 Marketplace 的发布与安装在本仓库里没有前端入口，只有控制面推送这一条通路。③ 上面 [4][5] 里别人引入的两处红灯（md 引用、`query_wiki` 风险门禁）未处理。 |
+| **代码位置** | server：`app/api/agents/agent_portability.py`、`tests/api/agent/test_marketplace_import_integration.py`（已删除）、`app/api/agents/_ARCH.md`、`app/services/agent/marketplace/{_ARCH.md,__init__.py,export.py,import_.py}`。 |
+
 ## 2026-11-05 · 邮件技能的真实服务器测试偶发被「跳过」且退出码为 0：测试辅助先挑好空闲端口再交给 Docker 绑定，绑定时报 `address already in use`
 
 | 字段 | 内容 |
