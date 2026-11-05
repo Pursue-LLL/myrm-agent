@@ -112,7 +112,8 @@ class TestTransientFactBoundary:
 
         msg = transient_fact_save_rejection_message()
         assert "Rejected: content represents a real-time transient business state" in msg
-        assert "corpus=sessions" in msg
+        assert "Query live tools/APIs for current status" in msg
+        assert "corpus=" not in msg
         assert "MemorySession" not in msg
 
     @pytest.mark.asyncio
@@ -131,12 +132,15 @@ class TestTransientFactBoundary:
         memory_save = next(t for t in tools if getattr(t, "name", "") == "memory_save_tool")
 
         # 1. Transient knowledge rejected
-        res = await memory_save.ainvoke({"content": "Your package SF10086 is out for delivery", "category": "knowledge"})
+        res = await memory_save.ainvoke(
+            {"content": "Your package SF10086 is out for delivery", "category": "knowledge"}
+        )
         assert "Rejected: content represents a real-time transient business state" in res
         manager.add_knowledge.assert_not_called()
 
         # 2. Durable preference accepted
         manager.set_profile_attribute = AsyncMock()
-        res_pref = await memory_save.ainvoke({"content": "User prefers SF Express", "category": "preference", "preference_key": "courier"})
+        res_pref = await memory_save.ainvoke(
+            {"content": "User prefers SF Express", "category": "preference", "preference_key": "courier"}
+        )
         assert "Preference 'courier'" in res_pref
-

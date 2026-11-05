@@ -122,21 +122,17 @@ def memory_search_tool_bound(request: ModelRequest) -> bool:
 
 
 def memory_search_guidance(*, memory_search_enabled: bool) -> str:
-    """Memory-search tool guidance; empty when the tool is not bound."""
+    """Memory-search tool guidance; empty when the tool is not bound.
+
+    Names no corpus: which corpora exist depends on the agent's search policy, and the tool's own description
+    and schema say so.
+    """
     if not memory_search_enabled:
         return ""
     return "\n".join(
         [
             "## Memory Search",
-            (
-                "Use memory_search_tool with corpus=memory (default) for durable user facts, preferences, "
-                "profile data, rules, and project conventions."
-            ),
-            (
-                "Use corpus=sessions for prior chat evidence, earlier decisions, branch/fork context, "
-                'or requests like "last time", "previously", and "continue that discussion". '
-                "Use corpus=wiki when wiki is enabled; corpus=all searches every enabled corpus."
-            ),
+            "Use memory_search_tool for durable user facts, preferences, profile data, rules, and project conventions.",
             (
                 "Memories and recalled conversations are point-in-time records. "
                 "If recalled info conflicts with current observations, trust what you see now."

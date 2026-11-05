@@ -177,9 +177,9 @@ _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "file_write_tool": 118,
     "glob_tool": 201,
     "grep_tool": 205,
-    "memory_manage_tool": 344,
-    "memory_save_tool": 687,
-    "memory_search_tool": 156,
+    "memory_manage_tool": 339,
+    "memory_save_tool": 678,
+    "memory_search_tool": 110,
     "skill_select_tool": 308,
     "web_fetch_tool": 166,
     "web_search_tool": 1134,
@@ -239,7 +239,7 @@ async def test_measure_turn1_inventory_matches_documented_token_baseline() -> No
         + layer_totals.get("EXTERNAL", 0)
         == description_tokens
     )
-    assert layer_totals["HIGH_PRIORITY"] == 2629
+    assert layer_totals["HIGH_PRIORITY"] == 2569
     assert layer_totals.get("EXTENDED", 0) == 0
     assert layer_totals.get("EXTERNAL", 0) == 0
     # Holds on any host: both sides derive from the same per-host descriptions.

@@ -7,6 +7,7 @@ import pytest
 from app.api.voice.tool_catalog import (
     build_memory_search_tool_parameters,
     memory_search_corpus_enum,
+    memory_search_tool_description,
 )
 from app.api.voice.voice_memory_context import VoiceMemoryContext, voice_memory_context_from
 
@@ -65,3 +66,12 @@ def test_memory_search_corpus_enum_policy_matrix(
     expected_enum: list[str],
 ) -> None:
     assert memory_search_corpus_enum(ctx) == expected_enum
+
+
+def test_memory_search_description_routes_corpora_only_when_there_is_a_choice() -> None:
+    single = memory_search_tool_description(["memory"])
+    assert "corpus=" not in single
+
+    multi = memory_search_tool_description(["memory", "wiki", "sessions", "all"])
+    for corpus in ("memory", "wiki", "sessions", "all"):
+        assert f"corpus={corpus}" in multi

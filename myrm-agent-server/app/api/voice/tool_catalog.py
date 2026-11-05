@@ -3,6 +3,7 @@
 [INPUT]
 - app.api.voice.voice_memory_context::VoiceMemoryContext (POS: voice memory ACL SSOT)
 - app.api.voice.gemini_live::GeminiFunctionDeclaration (POS: Gemini Live tool schema)
+- myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy (POS: the corpora a policy exposes, shared with the chat agent)
 
 [OUTPUT]
 - RealtimeToolDef: OpenAI Realtime function tool schema
@@ -22,6 +23,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+    MemorySearchPolicy,
+    advertised_search_corpora,
+)
 from pydantic import BaseModel
 
 from app.api.voice.voice_memory_context import VoiceMemoryContext
@@ -34,14 +39,7 @@ def memory_search_corpus_enum(ctx: VoiceMemoryContext) -> list[str]:
     """Return corpus enum values exposed to the voice model for the current ACL."""
     if not ctx.enable_memory:
         return ["memory"]
-    corpora: list[str] = ["memory"]
-    if ctx.allow_wiki:
-        corpora.append("wiki")
-    if ctx.allow_sessions:
-        corpora.append("sessions")
-    if len(corpora) > 1:
-        corpora.append("all")
-    return corpora
+    return list(advertised_search_corpora(MemorySearchPolicy(allow_wiki=ctx.allow_wiki, allow_sessions=ctx.allow_sessions)))
 
 
 def memory_search_tool_description(corpus_enum: list[str]) -> str:
@@ -52,6 +50,9 @@ def memory_search_tool_description(corpus_enum: list[str]) -> str:
     if "sessions" in corpus_enum:
         parts.append("prior conversations")
     scope = ", ".join(parts) + "."
+    if len(corpus_enum) == 1:
+        # No ``corpus`` argument is offered, so there is nothing to route.
+        return f"{scope} Use for preferences and durable facts."
     hints: list[str] = ["Use corpus=memory for preferences and durable facts."]
     if "wiki" in corpus_enum:
         hints.append("Use corpus=wiki for agent wiki docs.")

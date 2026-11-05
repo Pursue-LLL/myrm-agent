@@ -21,7 +21,6 @@ CATEGORY_TO_TYPE: dict[str, MemoryType] = {
     "knowledge": MemoryType.SEMANTIC,
     "claim": MemoryType.CLAIM,
     "event": MemoryType.EPISODIC,
-    "pitfall": MemoryType.EPISODIC,
     "preference": MemoryType.PROFILE,
     "rule": MemoryType.PROCEDURAL,
     "instruction": MemoryType.PROCEDURAL,

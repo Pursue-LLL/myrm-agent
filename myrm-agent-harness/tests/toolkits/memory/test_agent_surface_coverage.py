@@ -26,15 +26,16 @@ def test_looks_like_wiki_document_rejects_empty_content() -> None:
     assert looks_like_wiki_document("   ") is False
 
 
-def test_join_scope_fragments_edge_cases() -> None:
-    from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
-        _join_scope_fragments,
-    )
+def test_search_description_scope_joiners_edge_cases() -> None:
+    from myrm_agent_harness.toolkits.memory.agent_surface._memory_search_description import _join_en, _join_zh
 
-    assert _join_scope_fragments([]) == ""
-    assert _join_scope_fragments(["memory"]) == "memory"
-    assert _join_scope_fragments(["memory", "wiki"]) == "memory and wiki"
-    assert _join_scope_fragments(["memory", "wiki", "web"]) == "memory, wiki, and web"
+    assert _join_en([]) == ""
+    assert _join_en(["memory"]) == "memory"
+    assert _join_en(["memory", "wiki"]) == "memory and wiki"
+    assert _join_en(["memory", "wiki", "web"]) == "memory, wiki, and web"
+    assert _join_zh(["长期记忆"]) == "长期记忆"
+    assert _join_zh(["长期记忆", "Wiki"]) == "长期记忆与Wiki"
+    assert _join_zh(["长期记忆", "Wiki", "历史会话"]) == "长期记忆、Wiki与历史会话"
 
 
 @pytest.mark.asyncio

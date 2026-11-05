@@ -58,10 +58,12 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
         ),
     ),
     MemoryDecisionScenario(
-        "session_progress",
-        "memory_search_tool",
-        save_fragments_en=("memory_search_tool with corpus=sessions",),
-        save_fragments_zh=("memory_search_tool，corpus=sessions",),
+        "task_progress_is_not_a_memory",
+        "none",
+        save_fragments_en=("Task progress, session outcomes, or completed-work logs",),
+        save_fragments_zh=("任务进度、会话结果、已完成工作日志",),
+        manage_fragments_en=("Task progress or chat history (not memories)",),
+        manage_fragments_zh=("任务进度或聊天历史（不是记忆）",),
     ),
     MemoryDecisionScenario(
         "new_preference",
