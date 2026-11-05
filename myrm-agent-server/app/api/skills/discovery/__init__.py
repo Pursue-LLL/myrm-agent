@@ -6,8 +6,8 @@
 
 [OUTPUT]
 - Aggregate facade re-exporting every public name of the ``discovery`` subpackage:
-  - discovery: ``router`` (APIRouter prefix `/discovery`) + search/install/preview/update/source handlers
-  - discovery_schemas: request/response Pydantic models
+  - routes / install: ``router`` (APIRouter prefix `/discovery`) + read and write handlers
+  - schemas: request/response Pydantic models
 
 [POS]
 Server business layer (Skills API). The discovery endpoints and their schemas are always wired

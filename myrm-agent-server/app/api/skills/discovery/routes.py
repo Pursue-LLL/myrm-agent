@@ -12,7 +12,7 @@ router: FastAPI router with skill search, preview, detail, update check, registr
 
 [POS]
 Skill discovery API. Delegates search/preview to the harness market service, and leaves every
-write path (install, update, uninstall) to discovery_install.
+write path (install, update, uninstall) to install.py.
 """
 
 import logging
