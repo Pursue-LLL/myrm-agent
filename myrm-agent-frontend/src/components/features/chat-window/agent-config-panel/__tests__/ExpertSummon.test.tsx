@@ -141,14 +141,18 @@ describe('FeaturedExpertChips & ExpertSummonPopover', () => {
 
     mockInstantiateTemplateWithMetrics.mockResolvedValue({ id: 'agent-qa-456' });
 
-    render(<ExpertSummonPopover />);
+    const { container } = render(<ExpertSummonPopover />);
 
     const triggerBtn = screen.getByTestId('expert-summon-popover-trigger');
     await act(async () => {
       fireEvent.click(triggerBtn);
     });
 
-    expect(screen.getByTestId('expert-summon-popover-menu')).toBeInTheDocument();
+    const menu = screen.getByTestId('expert-summon-popover-menu');
+    expect(menu).toBeInTheDocument();
+    // The toolbar scroller clips inline popups, so the menu must be portaled out of it.
+    expect(container).not.toContainElement(menu);
+    expect(screen.getByPlaceholderText('searchPlaceholder')).toHaveFocus();
     expect(await screen.findByText('QA Audit Squad')).toBeInTheDocument();
 
     const summonBtn = screen.getByRole('button', { name: /summonButton/i });

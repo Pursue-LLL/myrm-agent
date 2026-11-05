@@ -12,5 +12,5 @@
 | `usePermissionTierStore.ts` | 门禁状态机 | 管理三档权限模式切换、只读探测放行、常规文件编辑放行与高危 Shell 阻断判定 | 结合 `shouldAutoApprove` 的安全状态机 |
 | `usePermissionAutoApprove.ts` | 桥接 Hook | 将三档权限模式无缝桥接至工具审批流程，实现安全编辑放行与高危命令拦截 | 审批流专用集成 Hook |
 | `ThinkingBudgetEffortSlider.tsx` | UI 组件 | 5 档平滑步进滑块与气泡反馈，智能适配模型 reasoning 支持能力 | React 可交互组件 |
-| `PermissionModeTierSwitcher.tsx` | UI 组件 | 三档权限胶囊切换器与规则说明浮层，提供零打扰与高安全的可选平衡 | React 可交互组件 |
+| `PermissionModeTierSwitcher.tsx` | UI 组件 | 三档权限胶囊切换器与规则说明菜单（`DropdownMenu` 门户渲染：工具栏是 `overflow-x` 滚动容器，内联 `absolute` 浮层会被裁成一条细缝），提供零打扰与高安全的可选平衡；三档为 `menuitemradio`，可用方向键与 Esc 操作 | React 可交互组件 |
 | `index.ts` | 导出出口 | 子包干净聚合出口 | 模块门面 |
