@@ -13,7 +13,6 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { submitClarifyResponse } from '@/services/chat';
 import { ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
 import type { ClarificationForm, HitlAnswerRecord, Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
@@ -29,10 +28,6 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock('@/services/chat', () => ({
-  submitClarifyResponse: vi.fn(),
-}));
-
 const MESSAGE_ID = 'msg-1';
 
 const form: ClarificationForm = {
@@ -46,20 +41,18 @@ const pendingClarification: Message = {
   createdAt: new Date(),
   content: '',
   role: 'assistant',
-  clarification: { answered: false, isResumeMode: true, form },
+  clarification: { answered: false, form },
 };
 
 const record = () => useChatStore.getState().messages[0]?.clarification?.answerRecord;
 
-const renderCard = (isResumeMode = true) =>
-  render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} isResumeMode={isResumeMode} />);
+const renderCard = () => render(<ClarificationInput messageId={MESSAGE_ID} answered={false} form={form} />);
 
 const renderSettled = (answerRecord: HitlAnswerRecord | undefined) =>
-  render(<ClarificationInput messageId={MESSAGE_ID} answered form={form} isResumeMode answerRecord={answerRecord} />);
+  render(<ClarificationInput messageId={MESSAGE_ID} answered form={form} answerRecord={answerRecord} />);
 
 beforeEach(() => {
   pipeline.sendMessage.mockReset();
-  vi.mocked(submitClarifyResponse).mockReset();
   useChatStore.setState({ chatId: 'chat-1', messages: [structuredClone(pendingClarification)] });
 });
 
@@ -106,7 +99,7 @@ describe('answer record written when the card closes', () => {
   it('leaves a card the resumed run replaced alone when the answer then turns out to be already handled', async () => {
     pipeline.sendMessage.mockImplementation(async () => {
       useChatStore.setState((state) => {
-        state.messages[0].clarification = { answered: false, isResumeMode: true, form };
+        state.messages[0].clarification = { answered: false, form };
       });
       throw new ApprovalAlreadyResolvedError();
     });
@@ -118,15 +111,6 @@ describe('answer record written when the card closes', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'skip' })).toBeEnabled());
     expect(record()).toBeUndefined();
     expect(useChatStore.getState().messages[0]?.clarification?.answered).toBe(false);
-  });
-
-  it('keeps a legacy clarify answer as the user answer once the server accepted it', async () => {
-    vi.mocked(submitClarifyResponse).mockResolvedValue(undefined);
-
-    renderCard(false);
-    fireEvent.click(screen.getByRole('button', { name: 'skip' }));
-
-    await waitFor(() => expect(record()).toEqual({ by: 'user', value: '' }));
   });
 });
 
@@ -175,15 +159,7 @@ describe('settled card', () => {
 describe('a card that asked for sign-off', () => {
   const signOffForm: ClarificationForm = { ...form, requiresConfirmation: true };
   const renderSignOff = (answerRecord: HitlAnswerRecord) =>
-    render(
-      <ClarificationInput
-        messageId={MESSAGE_ID}
-        answered
-        form={signOffForm}
-        isResumeMode
-        answerRecord={answerRecord}
-      />,
-    );
+    render(<ClarificationInput messageId={MESSAGE_ID} answered form={signOffForm} answerRecord={answerRecord} />);
 
   it('says the action was not approved when the user skipped it', () => {
     renderSignOff({ by: 'user', value: {} });
@@ -265,7 +241,7 @@ describe('draft kept across the card closing', () => {
     await waitFor(() => expect(record()).toBeDefined());
     first.unmount();
     useChatStore.setState((state) => {
-      state.messages[0].clarification = { answered: false, isResumeMode: true, form };
+      state.messages[0].clarification = { answered: false, form };
     });
 
     renderCard();
@@ -282,7 +258,7 @@ describe('draft kept across the card closing', () => {
     await waitFor(() => expect(record()).toBeDefined());
     first.unmount();
     useChatStore.setState((state) => {
-      state.messages[0].clarification = { answered: false, isResumeMode: true, form };
+      state.messages[0].clarification = { answered: false, form };
     });
 
     renderCard();
@@ -299,7 +275,7 @@ describe('draft kept across the card closing', () => {
     await waitFor(() => expect(record()).toBeDefined());
     first.unmount();
     useChatStore.setState((state) => {
-      state.messages[0].clarification = { answered: false, isResumeMode: true, form };
+      state.messages[0].clarification = { answered: false, form };
     });
 
     renderCard();

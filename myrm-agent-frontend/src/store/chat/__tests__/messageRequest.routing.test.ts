@@ -115,12 +115,6 @@ describe('request routing slots', () => {
     expect(uiClaimsRouting('agent', null)).toBe(false);
   });
 
-  it('keeps the research model slot for deep research even when the agent pins a model', () => {
-    seedProviders(null, PRICED);
-
-    expect(getRoutingModelSelections('deep_research', agent({ modelSelection: PIN })).light?.model).toBe('cheap');
-  });
-
   it('carries configured slot kwargs and fallbacks into the request selections', () => {
     seedProviders(
       {
@@ -147,7 +141,6 @@ describe('request routing slots', () => {
     ['default agent mode', 'agent', () => null],
     ['agent without pin', 'agent', () => agent()],
     ['fast mode', 'fast', () => null],
-    ['deep research', 'deep_research', () => null],
     ['pinned agent', 'agent', () => agent({ modelSelection: PIN })],
     [
       'pinned agent with its own routing enabled',

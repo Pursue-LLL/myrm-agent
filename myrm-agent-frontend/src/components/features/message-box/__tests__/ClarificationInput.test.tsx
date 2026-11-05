@@ -22,10 +22,6 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('@/services/chat', () => ({
-  submitClarifyResponse: vi.fn(),
-}));
-
 vi.mock('@/store/useChatStore', () => ({
   default: () => vi.fn(),
 }));

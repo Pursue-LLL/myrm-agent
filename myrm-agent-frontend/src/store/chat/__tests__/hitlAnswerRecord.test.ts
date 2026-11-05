@@ -4,11 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  clarificationAnswerAsText,
-  isHitlAnswerRecord,
-  summarizeClarificationRecord,
-} from '@/store/chat/hitlAnswerRecord';
+import { clarificationAnswerAsText, summarizeClarificationRecord } from '@/store/chat/hitlAnswerRecord';
 import type { ClarificationForm, HitlAnswerRecord } from '@/store/chat/types';
 
 const form: ClarificationForm = {
@@ -27,24 +23,6 @@ const form: ClarificationForm = {
 };
 
 const user = (value: unknown): HitlAnswerRecord => ({ by: 'user', value });
-
-describe('isHitlAnswerRecord', () => {
-  it.each([
-    ['a user record', { by: 'user', value: {} }, true],
-    ['a timeout record', { by: 'timeout', value: null }, true],
-    [
-      'the client-only already-handled record, which the server never sends',
-      { by: 'already_handled', value: null },
-      false,
-    ],
-    ['a record without a value', { by: 'user' }, false],
-    ['an unknown author', { by: 'agent', value: {} }, false],
-    ['a string', 'answered', false],
-    ['null', null, false],
-  ])('%s', (_label, candidate, expected) => {
-    expect(isHitlAnswerRecord(candidate)).toBe(expected);
-  });
-});
 
 describe('summarizeClarificationRecord', () => {
   it('has nothing to say about a card that was settled before records existed', () => {

@@ -15749,7 +15749,6 @@
         "eraseConfirmAction": "Chats löschen",
         "erasing": "Wird gelöscht…",
         "eraseSuccess": "{count, plural, one {# Chat gelöscht} other {# Chats gelöscht}}",
-        "eraseKept": "{count, plural, one {# Arbeitsbereich mit ungespeicherten Änderungen bleibt in Ihrem Projektordner erhalten} other {# Arbeitsbereiche mit ungespeicherten Änderungen bleiben in Ihrem Projektordner erhalten}}",
         "eraseBusy": "Ein Chat läuft noch. Beenden Sie ihn oder warten Sie, bis er fertig ist, und versuchen Sie es erneut.",
         "eraseFailed": "Das Löschen konnte nicht abgeschlossen werden. Bitte erneut versuchen."
       },

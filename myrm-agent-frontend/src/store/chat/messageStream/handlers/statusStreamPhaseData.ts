@@ -1,5 +1,3 @@
-import { isHitlAnswerRecord } from '@/store/chat/hitlAnswerRecord';
-
 import type { StreamCtx } from '../streamContext';
 import * as H from './handlerDeps';
 
@@ -20,19 +18,6 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
         const steps = state.messages[idx].progressSteps;
         if (steps && steps.length > 0) {
           steps[steps.length - 1].progress_percent = sd.progress_percent as number;
-        }
-      }
-    });
-  }
-
-  if (sd.phase === 'clarify' && sd.status === 'resolved') {
-    actions.setMessages((state) => {
-      const idx = H.findAssistantMessageIndex(state.messages, messageId);
-      const card = idx === -1 ? undefined : state.messages[idx].clarification;
-      if (card) {
-        card.answered = true;
-        if (isHitlAnswerRecord(sd.answerRecord)) {
-          card.answerRecord = sd.answerRecord;
         }
       }
     });
@@ -59,9 +44,7 @@ export function applyStatusPhaseData(ctx: StreamCtx, statusData: Record<string, 
           ? (sd.plan_items as Array<{ id: string; content: string; status?: string }>)
           : undefined;
         const rawSource = typeof sd.source === 'string' ? sd.source : undefined;
-        const isGeneralAgent = !!planItems;
-        const source =
-          rawSource === 'dynamic_workflow' ? 'dynamic_workflow' : isGeneralAgent ? 'general_agent' : 'deep_research';
+        const source = rawSource === 'dynamic_workflow' ? 'dynamic_workflow' : 'general_agent';
         const planText =
           typeof sd.plan === 'string'
             ? (sd.plan as string)

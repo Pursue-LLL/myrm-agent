@@ -3,7 +3,6 @@
  * - ./types::HitlAnswerRecord / ClarificationForm (POS: the record kept on a settled card and the form it answered)
  *
  * [OUTPUT]
- * - isHitlAnswerRecord: type guard for a record arriving from the server (the client-only `already_handled` never does)
  * - summarizeClarificationRecord: what a settled card shows, or null to fall back to the plain answered label
  * - clarificationAnswerAsText: the user's answer as the message they would send, or '' when there is nothing to send
  *
@@ -28,10 +27,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isTextAnswer = (value: unknown): value is string | string[] =>
   typeof value === 'string' || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
-
-export function isHitlAnswerRecord(value: unknown): value is HitlAnswerRecord {
-  return isRecord(value) && (value.by === 'user' || value.by === 'timeout') && 'value' in value;
-}
 
 const joinAnswer = (answer: string | string[]): string => (Array.isArray(answer) ? answer.join(', ') : answer).trim();
 

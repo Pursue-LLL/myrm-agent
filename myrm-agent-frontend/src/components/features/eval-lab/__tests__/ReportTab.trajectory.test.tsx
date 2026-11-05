@@ -40,7 +40,7 @@ describe('ReportTab trajectory disclosure', () => {
               passed: false,
               actual_output: '',
               limit_reached: 'max_tool_calls',
-              case: { message: 'deep research' },
+              case: { message: 'research task' },
             },
           ],
         })}

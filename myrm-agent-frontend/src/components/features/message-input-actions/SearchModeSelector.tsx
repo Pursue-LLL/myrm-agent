@@ -12,7 +12,6 @@
  */
 'use client';
 
-import { useEffect } from 'react';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
@@ -67,12 +66,6 @@ const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
-
-  useEffect(() => {
-    if (actionMode === 'deep_research') {
-      setActionMode('agent');
-    }
-  }, [actionMode, setActionMode]);
 
   const handleModeChange = (mode: ActionMode) => {
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {

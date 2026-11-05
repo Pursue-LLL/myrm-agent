@@ -19,7 +19,6 @@ const CHAT_SESSION_CONFIG_KEYS: ReadonlyArray<keyof ChatState> = [
   'activeMoaPresetId',
   'searchDepth',
   'incognitoMode',
-  'sandboxMode',
 ];
 
 export function extractChatSessionConfig(state: Partial<ChatState>): Partial<ChatState> {

@@ -61,12 +61,12 @@ describe('toolsProgressEvents approval card ownership', () => {
   });
 
   it('attributes the card to the streaming chat and its mode, not the open chat', async () => {
-    await toolsProgressEvents(streamOf(BACKGROUND_CHAT, 'deep_research'));
+    await toolsProgressEvents(streamOf(BACKGROUND_CHAT, 'fast'));
     await vi.dynamicImportSettled();
 
     const [queued] = useToolApprovalStore.getState().queue;
     expect(queued?.chatId).toBe(BACKGROUND_CHAT);
-    expect(queued?.actionMode).toBe('deep_research');
+    expect(queued?.actionMode).toBe('fast');
   });
 
   it('attributes the card to its own chat when that chat is the open one', async () => {

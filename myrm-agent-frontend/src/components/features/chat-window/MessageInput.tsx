@@ -42,7 +42,6 @@ import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityB
 import { ThinkingBudgetEffortSlider, PermissionModeTierSwitcher } from './thinking-permission';
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
-import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
 import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
 import FocusFlushButton from '../message-input-actions/FocusFlushButton';
 import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
@@ -115,10 +114,9 @@ import { AlertTriangle } from 'lucide-react';
 
 interface MessageInputProps {
   loading: boolean;
-  hideWorkspacePicker?: boolean;
 }
 
-const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProps) => {
+const MessageInput = ({ loading }: MessageInputProps) => {
   const commonT = useTranslations('common');
   const chatT = useTranslations('chat');
   const commandsT = useTranslations('commands');
@@ -146,9 +144,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
   }, [fetchProjects, projectsLoaded]);
 
   const hideChatWorkspacePicker = React.useMemo(() => {
-    if (hideWorkspacePicker) {
-      return true;
-    }
     if (!chatId) {
       return false;
     }
@@ -159,7 +154,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
     }
     const project = projects.find((item) => item.id === projectId);
     return Boolean(project?.workspacePath?.trim());
-  }, [hideWorkspacePicker, chatHistoryItems, chatId, projects]);
+  }, [chatHistoryItems, chatId, projects]);
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
   const [isExpanded, setIsExpanded] = React.useState(false);
@@ -534,7 +529,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                 answered={pendingClarification.clarification.answered}
                 options={pendingClarification.clarification.options}
                 allowMultiple={pendingClarification.clarification.allowMultiple}
-                isResumeMode={pendingClarification.clarification.isResumeMode}
                 title={pendingClarification.clarification.title}
                 form={pendingClarification.clarification.form}
                 variant="composer"
@@ -600,6 +594,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                         : chatT(isExpanded ? 'input.expandedPlaceholder' : 'input.placeholder')
                   }
                 />
+                {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
                 {/* 操作栏 */}
                 <div className="flex flex-row items-center justify-between mt-4 gap-2">
                   {/* 左侧：功能按钮 */}
@@ -631,7 +626,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
                       <GoalModeToggle />
                       <IncognitoModeToggle />
-                      <SandboxModeToggle />
                       <SecurityPresetSelector />
                       <FocusFlushButton />
                       <ExpertSummonPopover />
@@ -649,7 +643,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                         onOpenChange={setIsTurnCapabilityOpen}
                       />
                       <ToolsPanel />
-                      {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
                       <button
                         type="button"
                         onClick={() => setIsExpanded((prev) => !prev)}
@@ -801,7 +794,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             <DeepSearchToggle />
             <WorkflowModeToggle />
             <IncognitoModeToggle />
-            <SandboxModeToggle />
             <SecurityPresetSelector />
             <AgentIndicator />
             <KnowledgePickerPopover />

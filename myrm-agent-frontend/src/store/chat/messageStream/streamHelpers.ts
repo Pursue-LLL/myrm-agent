@@ -185,15 +185,6 @@ export async function getUserFriendlyError(errorKind: ErrorKind | undefined, raw
   return { message: rawError };
 }
 
-/**
- * Whether a clarification is answered by resuming the run (agent turn) or by the legacy short call (deep research).
- * The server decides this from the event's own `source` and persists it, so the frontend must apply the same rule
- * rather than the chat the user happens to have open: a general-agent clarify carries no `source` and resumes.
- */
-export function resolveClarifyIsResumeMode(source: unknown): boolean {
-  return typeof source === 'string' && source.trim() ? source.trim() !== 'deep_research' : true;
-}
-
 export function normalizeClarificationForm(value: unknown): ClarificationForm | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;

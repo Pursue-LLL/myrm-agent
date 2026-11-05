@@ -112,7 +112,6 @@ export interface ChatActionsState {
   messages: Message[];
   compactedSummary: string | null;
   compactedBeforeId: string | null;
-  workspaceDir: string | null;
   files: File[];
   mentionReferences: MentionReference[];
   cameraFrames: string[];
@@ -136,7 +135,6 @@ export interface ChatActionsState {
   hasMoreMessages: boolean;
   nextCursor: string | null;
   incognitoMode: boolean;
-  sandboxMode: boolean;
   securityPreset: import('./types/chatState').SecurityPreset;
   notFound: boolean;
   loadError: boolean;
@@ -558,9 +556,6 @@ export const resolveEffectiveAgentId = (
   if (actionMode === 'fast') {
     return 'builtin-fast-search';
   }
-  if (actionMode === 'deep_research') {
-    return resolveVisibleBuiltinAgentId(agentConfig?.agentId?.trim());
-  }
   if (actionMode !== 'agent') {
     return undefined;
   }
@@ -715,6 +710,7 @@ export const createMessageRequest = async (
       },
     }),
     ...(migrationBoundProjectId && { migration_bound_project_id: migrationBoundProjectId }),
+    ...(useChatStore.getState().workspaceDir && { workspace_dir: useChatStore.getState().workspaceDir }),
     ...(agentConfig?.ephemeralSubagents && { ephemeral_subagents: agentConfig.ephemeralSubagents }),
     ...(userInstructions && { user_instructions: userInstructions }),
     ...(liteModelSelection && { lite_model_selection: liteModelSelection }),
@@ -746,7 +742,6 @@ export const createMessageRequest = async (
       enable_memory_auto_extraction: useConfigStore.getState().enableMemoryAutoExtraction,
       enable_conversation_search: useConfigStore.getState().memoryEnableConversationSearch,
       incognito_mode: useChatStore.getState().incognitoMode,
-      ...(useChatStore.getState().sandboxMode && { sandbox_mode: true }),
     }),
     ...(isStreamingMode && {
       pre_compact_enabled: useConfigStore.getState().preCompactEnabled,
@@ -1062,9 +1057,9 @@ export const sendMessage = async (
 
   try {
     // 搜索服务检查：
-    // - 快速搜索/深度研究模式：严格要求搜索服务，否则拦截
+    // - 快速搜索模式：严格要求搜索服务，否则拦截
     // - agent 模式：未配置时由 stream preflight SSE capability_gap 通知（避免与 client toast 重复）
-    const requiresSearch = state.actionMode === 'fast' || state.actionMode === 'deep_research';
+    const requiresSearch = state.actionMode === 'fast';
 
     if (requiresSearch) {
       const { guardSearchServiceConfigured } = await import('@/store/config/searchService');

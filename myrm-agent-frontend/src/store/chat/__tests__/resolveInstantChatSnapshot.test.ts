@@ -27,7 +27,7 @@ describe('resolveInstantChatSnapshot', () => {
     saveChatNavigationSnapshot('chat-a', {
       messages: [{ id: 'm1', role: 'user', content: 'cached' } as unknown as Message],
       agentConfig,
-      actionMode: 'deep_research',
+      actionMode: 'fast',
       selectedModels: { base: 'gpt-4', vision: null, reasoning: null },
       hasUserSelectedModel: true,
       isMessagesLoaded: true,
@@ -46,7 +46,7 @@ describe('resolveInstantChatSnapshot', () => {
     const resolved = resolveInstantChatSnapshot('chat-a');
 
     expect(resolved?.agentConfig).toEqual(agentConfig);
-    expect(resolved?.actionMode).toBe('deep_research');
+    expect(resolved?.actionMode).toBe('fast');
     expect(resolved?.selectedModels).toEqual({ base: 'gpt-4', vision: null, reasoning: null });
     expect(resolved?.messages).toEqual([{ id: 'm2', role: 'assistant', content: 'streaming' }]);
     expect(resolved?.loading).toBe(true);

@@ -153,7 +153,6 @@ const useChatStore = create<ChatState>()(
       pendingWorkflowTemplateDisplayName: null,
       pendingWorkflowTemplateArgs: null,
       incognitoMode: false,
-      sandboxMode: false,
       securityPreset: 'hitl' as const,
       goalBudgetTokens: null,
       goalBudgetUsd: null,
@@ -481,7 +480,6 @@ const useChatStore = create<ChatState>()(
         }),
       setIncognitoMode: (incognitoMode) => set({ incognitoMode }),
       setSessionSkillOverrides: (overrides) => set({ sessionSkillOverrides: overrides }),
-      setSandboxMode: (sandboxMode) => set({ sandboxMode }),
       setActiveKnowledgeBaseNames: (names) => set({ activeKnowledgeBaseNames: names }),
       removeActiveKnowledgeBase: (id) =>
         set((state) => {

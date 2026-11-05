@@ -1,20 +1,53 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/services/chat::browseDirectories, mkdirInWorkspace, updateChatWorkspaceDir (POS: workspace directory API)
+ * - @/store/useChatStore (POS: workspaceDir / chatId / actionMode)
+ * - @/lib/desktopBridge (POS: native folder dialog on desktop)
+ * - @/lib/api::ApiError (POS: 404 means the chat row appears on the first message)
+ * - @/lib/workspacePathIssue::workspacePathIssueMessageKey (POS: shared reading of a backend folder refusal)
+ *
+ * [OUTPUT]
+ * - WorkspaceDirPicker: the single "where does this chat work" control, one row under the composer
+ *
+ * [POS]
+ * The only place a viewer binds, changes or clears the folder a chat works in, on every viewport.
+ * A folder picked before the chat exists travels with the first message instead of being saved
+ * immediately, so the row never fails silently on a new chat.
+ */
+
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { FolderOpen, FolderClosed, ChevronRight, ArrowLeft, X, Check, Clock } from 'lucide-react';
+import {
+  FolderOpen,
+  FolderClosed,
+  FolderPlus,
+  ChevronRight,
+  ChevronDown,
+  ArrowLeft,
+  X,
+  Check,
+  Clock,
+  Loader2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
-import { browseDirectories, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
+import { browseDirectories, mkdirInWorkspace, updateChatWorkspaceDir, type DirectoryEntry } from '@/services/chat';
 import { toast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { desktopBridge } from '@/lib/desktopBridge';
+import { ApiError } from '@/lib/api';
 import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
 
 const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
 const MAX_RECENT_DIRS = 5;
+
+// Canonical office folders. The names stay identical in every UI language: they are a shared
+// on-disk convention, so a folder created in one locale is the same folder in another.
+const OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
 
 function getRecentDirs(): string[] {
   if (typeof window === 'undefined') {
@@ -41,6 +74,17 @@ function addRecentDir(dir: string): void {
   localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(updated));
 }
 
+function shortenHome(path: string): string {
+  return path.replace(/^\/(?:Users|home)\/[^/]+/, '~');
+}
+
+/** Keep the leaf visible when the full path does not fit: `~/a/b/c` becomes `…/b/c`. */
+function compactPath(path: string): string {
+  const home = shortenHome(path);
+  const parts = home.split('/').filter(Boolean);
+  return parts.length <= 3 ? home : `…/${parts.slice(-2).join('/')}`;
+}
+
 interface WorkspaceDirPickerProps {
   className?: string;
 }
@@ -57,6 +101,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
   const [currentPath, setCurrentPath] = useState<string>('');
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [scaffolding, setScaffolding] = useState(false);
   const [pathInput, setPathInput] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
   const loadGenRef = useRef(0);
@@ -108,12 +153,16 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
     return entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);
 
-  if (actionMode !== 'agent') {
-    return null;
-  }
-
   const applyDir = async (dir: string | null) => {
+    const previous = useChatStore.getState().workspaceDir;
+    // Optimistic: the folder also takes effect when the chat row does not exist yet.
+    useChatStore.getState().setWorkspaceDir(dir);
+    setCurrentDir(dir);
     if (!chatId) {
+      if (dir) {
+        addRecentDir(dir);
+      }
+      setOpen(false);
       return;
     }
     try {
@@ -126,7 +175,17 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
       toast({ title: dir ? t('updated') : t('cleared') });
       setOpen(false);
     } catch (error) {
+      // 404: the chat row is written together with the first message, which carries the folder.
+      if (error instanceof ApiError && error.code === 404) {
+        if (dir) {
+          addRecentDir(dir);
+        }
+        setOpen(false);
+        return;
+      }
       const issueKey = workspacePathIssueMessageKey(error);
+      useChatStore.getState().setWorkspaceDir(previous);
+      setCurrentDir(previous);
       toast({ title: issueKey ? tIssue(issueKey) : t('invalidPath'), variant: 'destructive' });
     }
   };
@@ -149,51 +208,76 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
         await applyDir(dir);
       }
     } catch {
-      loadDirectory(currentDir || '~');
+      // The native dialog is unavailable: fall back to the in-page picker, whose open effect loads the folder.
+      setOpen(true);
     }
   };
 
-  const shortenHome = (p: string) => p.replace(/^\/(?:Users|home)\/[^/]+/, '~');
+  const handleScaffold = async () => {
+    if (!currentDir || scaffolding) {
+      return;
+    }
+    setScaffolding(true);
+    try {
+      const { entries: existing } = await browseDirectories(currentDir);
+      const existingNames = new Set(existing.map((entry) => entry.name));
+      const missing = OFFICE_FOLDERS.filter((folder) => !existingNames.has(folder));
+      const results = await Promise.allSettled(missing.map((folder) => mkdirInWorkspace(currentDir, folder)));
+      if (results.some((result) => result.status === 'rejected')) {
+        toast({ title: t('scaffoldFailed'), variant: 'destructive' });
+      } else {
+        toast({ title: t('scaffoldDone') });
+      }
+    } catch {
+      toast({ title: t('scaffoldFailed'), variant: 'destructive' });
+    } finally {
+      setScaffolding(false);
+    }
+  };
 
-  const displayPath = currentDir ? shortenHome(currentDir) : null;
+  if (actionMode !== 'agent') {
+    return null;
+  }
+
+  const displayPath = currentDir ? compactPath(currentDir) : null;
   const recentDirs = getRecentDirs();
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'h-7 shrink-0 gap-1.5 text-xs font-normal whitespace-nowrap text-muted-foreground hover:text-foreground',
-            currentDir && 'text-primary/80',
-            className,
-          )}
-          title={t('tooltip')}
+        <button
+          type="button"
+          title={currentDir ? t('tooltip') : t('sessionDefaultHint')}
+          data-testid="workspace-dir-trigger"
           onClick={(e) => {
             if (desktopBridge.isDesktop()) {
               e.preventDefault();
-              handleTauriNativePicker();
+              void handleTauriNativePicker();
             }
           }}
-        >
-          <FolderOpen className={cn('h-3.5 w-3.5', !currentDir && 'text-amber-500/80')} />
-          {displayPath ? (
-            <span className="max-w-[120px] truncate">{displayPath}</span>
-          ) : (
-            <span className="hidden xl:inline text-amber-500/90 font-medium">{t('unboundWarning') || t('label')}</span>
+          className={cn(
+            'group mt-2 flex min-w-0 items-center gap-2 rounded-xl border px-3 py-1.5 text-left text-xs transition-colors',
+            currentDir
+              ? 'w-fit max-w-full border-primary/25 bg-primary/5 text-foreground hover:bg-primary/10'
+              : 'w-full border-dashed border-border bg-muted/40 text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+            className,
           )}
-        </Button>
+        >
+          <FolderOpen className={cn('h-3.5 w-3.5 shrink-0', currentDir ? 'text-primary' : 'text-muted-foreground')} />
+          <span className="min-w-0 flex-1 truncate font-medium">
+            {displayPath ?? t('sessionDefault')}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50 transition-transform group-data-[state=open]:rotate-180" />
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start">
         <div className="flex flex-col">
-          {/* Path input header */}
-          <div className="flex items-center gap-1.5 border-b px-2 py-1.5">
+          <div className="flex items-center gap-1.5 border-b border-border/60 px-2 py-1.5">
             {parentPath && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0"
+                className="h-6 w-6 shrink-0 rounded-lg"
                 onClick={() => loadDirectory(parentPath)}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -209,7 +293,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 shrink-0 text-primary"
+              className="h-6 w-6 shrink-0 rounded-lg text-primary"
               onClick={() => applyDir(currentPath)}
               title={t('selectThis')}
             >
@@ -219,7 +303,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 text-destructive"
+                className="h-6 w-6 shrink-0 rounded-lg text-destructive"
                 onClick={() => applyDir(null)}
                 title={t('clear')}
               >
@@ -228,29 +312,28 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             )}
           </div>
 
-          {/* Recent directories */}
           {recentDirs.length > 0 && !loading && (
-            <div className="border-b px-2 py-1.5">
-              <div className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase text-muted-foreground">
+            <div className="border-b border-border/60 px-2 py-1.5">
+              <div className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                 <Clock className="h-2.5 w-2.5" />
                 {t('recent')}
               </div>
               {recentDirs.map((dir) => (
                 <button
                   key={dir}
-                  className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-xs hover:bg-accent/50 transition-colors"
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-accent/50"
                   onClick={() => applyDir(dir)}
                 >
                   <FolderOpen className="h-3 w-3 shrink-0 text-primary/60" />
-                  <span className="truncate">{shortenHome(dir)}</span>
+                  <span className="truncate">{compactPath(dir)}</span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Filter input (shown when entries > 8) */}
           {entries.length > 8 && !loading && (
-            <div className="border-b px-2 py-1">
+            <div className="border-b border-border/60 px-2 py-1">
               <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
@@ -260,11 +343,10 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
             </div>
           )}
 
-          {/* Directory list */}
-          <div className="max-h-52 overflow-y-auto">
+          <div className="max-h-52 overflow-y-auto p-1">
             {loading ? (
               <div className="flex items-center justify-center py-6">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             ) : filteredEntries.length === 0 ? (
               <div className="py-6 text-center text-xs text-muted-foreground">{t('noSubdirs')}</div>
@@ -272,7 +354,8 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               filteredEntries.map((entry) => (
                 <button
                   key={entry.path}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-accent/50 transition-colors"
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent/50"
                   onClick={() => loadDirectory(entry.path)}
                 >
                   <FolderClosed className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -282,6 +365,24 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               ))
             )}
           </div>
+
+          {currentDir && (
+            <div className="border-t border-border/60 p-1.5">
+              <button
+                type="button"
+                onClick={handleScaffold}
+                disabled={scaffolding}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+              >
+                {scaffolding ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : (
+                  <FolderPlus className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="truncate">{t('scaffoldOffice')}</span>
+              </button>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

@@ -18,9 +18,16 @@ const translations: Record<string, string> = {
   cleared: 'Working directory cleared',
   recent: 'Recent',
   filter: 'Filter directories...',
+  sessionDefault: 'Session folder',
+  sessionDefaultHint: 'No folder needed: the agent works only inside this chat own folder',
+  scaffoldOffice: 'Create office folders',
+  scaffoldDone: 'Office folders are ready',
+  scaffoldFailed: 'Could not create the office folders',
   tooBroad: 'This folder is too broad',
   dangerous: 'This folder cannot be used',
 };
+
+const TRIGGER = 'workspace-dir-trigger';
 
 const stableT = (key: string) => translations[key] ?? key;
 
@@ -30,6 +37,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/services/chat', () => ({
   browseDirectories: vi.fn(),
+  mkdirInWorkspace: vi.fn(),
   updateChatWorkspaceDir: vi.fn(),
 }));
 
@@ -54,7 +62,7 @@ vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => false),
 }));
 
-import { browseDirectories, updateChatWorkspaceDir } from '@/services/chat';
+import { browseDirectories, mkdirInWorkspace, updateChatWorkspaceDir } from '@/services/chat';
 import { ApiError } from '@/lib/api';
 import { toast } from '@/hooks/shared/useToast';
 
@@ -79,11 +87,28 @@ describe('WorkspaceDirPicker', () => {
     vi.mocked(updateChatWorkspaceDir).mockResolvedValue({
       workspace_dir: '/home/user/projects',
     });
+    vi.mocked(mkdirInWorkspace).mockResolvedValue({
+      path: '/home/user/projects/00_原始资料',
+      name: '00_原始资料',
+    });
   });
 
-  it('renders trigger button in agent mode', () => {
+  it('renders the workspace row in agent mode and names the session folder while unbound', () => {
     renderPicker();
-    expect(screen.getByTitle('Set a working directory')).toBeInTheDocument();
+    const trigger = screen.getByTestId(TRIGGER);
+
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveTextContent('Session folder');
+    expect(trigger).toHaveAttribute('title', translations.sessionDefaultHint);
+  });
+
+  it('shows the compact path instead of the session label once a folder is bound', () => {
+    mockState.workspaceDir = '/home/user/projects';
+    renderPicker();
+    const trigger = screen.getByTestId(TRIGGER);
+
+    expect(trigger).toHaveTextContent('~/projects');
+    expect(trigger).toHaveAttribute('title', translations.tooltip);
   });
 
   it('returns null when actionMode is not agent', () => {
@@ -94,7 +119,7 @@ describe('WorkspaceDirPicker', () => {
 
   it('opens popover and loads directory on click', async () => {
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(browseDirectories).toHaveBeenCalledWith('~');
@@ -106,7 +131,7 @@ describe('WorkspaceDirPicker', () => {
 
   it('navigates on Enter in path input', async () => {
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Enter path or browse below...')).toBeInTheDocument();
@@ -123,7 +148,7 @@ describe('WorkspaceDirPicker', () => {
 
   it('applies directory on select button click', async () => {
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
@@ -139,7 +164,7 @@ describe('WorkspaceDirPicker', () => {
 
   it('stores selected dir in recent dirs', async () => {
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
@@ -167,7 +192,7 @@ describe('WorkspaceDirPicker', () => {
     });
 
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Filter directories...')).toBeInTheDocument();
@@ -186,7 +211,7 @@ describe('WorkspaceDirPicker', () => {
     });
 
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Filter directories...')).toBeInTheDocument();
@@ -207,7 +232,7 @@ describe('WorkspaceDirPicker', () => {
       new ApiError('refused', 40001, [{ field: 'workspace_dir', issue }]),
     );
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
@@ -217,14 +242,15 @@ describe('WorkspaceDirPicker', () => {
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({ title: message, variant: 'destructive' });
     });
-    expect(mockState.setWorkspaceDir).not.toHaveBeenCalled();
+    // The optimistic write is rolled back to the folder that was bound before the attempt.
+    expect(mockState.setWorkspaceDir).toHaveBeenLastCalledWith(null);
     expect(localStorage.getItem('myrm.workspaceDirPicker.recent')).toBeNull();
   });
 
   it('keeps the generic message for other failures', async () => {
     vi.mocked(updateChatWorkspaceDir).mockRejectedValue(new Error('network down'));
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
@@ -236,11 +262,59 @@ describe('WorkspaceDirPicker', () => {
     });
   });
 
+  it('keeps the folder locally when the chat row does not exist yet, so the first message carries it', async () => {
+    vi.mocked(updateChatWorkspaceDir).mockRejectedValue(new ApiError('Chat session not found', 404));
+    renderPicker();
+    fireEvent.click(screen.getByTestId(TRIGGER));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle('Select this directory'));
+
+    await waitFor(() => {
+      expect(mockState.setWorkspaceDir).toHaveBeenLastCalledWith('/home/user/projects');
+    });
+    expect(toast).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('myrm.workspaceDirPicker.recent') || '[]')).toContain(
+      '/home/user/projects',
+    );
+  });
+
+  it('creates only the office folders the workspace is missing', async () => {
+    mockState.workspaceDir = '/home/user/projects';
+    vi.mocked(browseDirectories).mockResolvedValue({
+      current: '/home/user/projects',
+      parent: '/home/user',
+      entries: [
+        { name: '00_原始资料', path: '/home/user/projects/00_原始资料', is_dir: true },
+        { name: 'alpha', path: '/home/user/projects/alpha', is_dir: true },
+      ],
+    });
+    renderPicker();
+    fireEvent.click(screen.getByTestId(TRIGGER));
+
+    await waitFor(() => {
+      expect(screen.getByText('Create office folders')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Create office folders'));
+
+    await waitFor(() => {
+      expect(mkdirInWorkspace).toHaveBeenCalledTimes(3);
+    });
+    expect(vi.mocked(mkdirInWorkspace).mock.calls.map((call) => call[1])).toEqual([
+      '01_参考',
+      '02_生成结果',
+      '03_历史版本',
+    ]);
+    expect(toast).toHaveBeenCalledWith({ title: 'Office folders are ready' });
+  });
+
   it('shows error toast on invalid path', async () => {
     vi.mocked(browseDirectories).mockRejectedValue(new Error('not found'));
 
     renderPicker();
-    fireEvent.click(screen.getByTitle('Set a working directory'));
+    fireEvent.click(screen.getByTestId(TRIGGER));
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({ title: 'Invalid path', variant: 'destructive' });

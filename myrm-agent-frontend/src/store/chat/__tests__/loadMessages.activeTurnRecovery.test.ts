@@ -21,7 +21,6 @@ const mockStore = vi.hoisted(() => {
     setContextPinnedFilesLoadError: vi.fn(),
     setContextBranches: vi.fn(),
     setContextBranchesLoadError: vi.fn(),
-    setSandboxMode: vi.fn(),
     setAgentConfig: vi.fn(),
     fetchTurnOutlines: vi.fn().mockResolvedValue(undefined),
   };

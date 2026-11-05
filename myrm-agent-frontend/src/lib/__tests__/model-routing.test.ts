@@ -55,7 +55,7 @@ function agent(overrides: Partial<AgentConfig> = {}): AgentConfig {
 const PIN = { providerId: 'acme', model: 'mid' };
 
 function resolve(
-  actionMode: 'fast' | 'agent' | 'deep_research',
+  actionMode: 'fast' | 'agent',
   agentConfig: AgentConfig | null,
   defaultModelConfig: DefaultModelConfig,
   providers: ProviderConfig[] = PRICED_PROVIDERS,
@@ -82,14 +82,6 @@ describe('resolveSmartRouting — default-on activation', () => {
     const routing = resolve('fast', null, defaults());
 
     expect(routing.active).toBe(false);
-    expect(routing.canSelect).toBe(false);
-  });
-
-  it('keeps deep research routed because it ignores agent-pinned models', () => {
-    const routing = resolve('deep_research', agent({ modelSelection: PIN }), defaults());
-
-    expect(routing.active).toBe(true);
-    expect(routing.light.primary?.model).toBe('cheap');
     expect(routing.canSelect).toBe(false);
   });
 });

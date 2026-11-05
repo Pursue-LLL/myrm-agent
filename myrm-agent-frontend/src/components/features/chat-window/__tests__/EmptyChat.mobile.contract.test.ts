@@ -4,9 +4,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * jsdom has no layout, so the phone first screen (390x844: composer and workspace card visible without scrolling,
- * nothing wrapping into extra rows) is pinned through the responsive tokens that produce it. Each entry was
- * measured in a real mobile emulation; removing a token brings the measured defect back.
+ * jsdom has no layout, so the phone first screen (390x844: composer and its workspace row visible without
+ * scrolling, nothing wrapping into extra rows) is pinned through the responsive tokens that produce it. Each
+ * entry was measured in a real mobile emulation; removing a token brings the measured defect back.
  */
 const read = (relativePath: string) => readFileSync(resolve(__dirname, relativePath), 'utf8');
 
@@ -30,43 +30,25 @@ describe('empty chat phone first-screen contract', () => {
     expect(tokens.filter((token) => !source.includes(token))).toEqual([]);
   });
 
-  it('lays the workspace mode tabs out as three equal cells with top-aligned icons whose labels wrap or hyphenate, never clipped, below sm', () => {
-    const source = read('../WorkModeTabs.tsx');
+  it('keeps the workspace row on one line: the path truncates instead of pushing the chevron out', () => {
+    const source = read('../WorkspaceDirPicker.tsx');
 
-    expect(source).toContain('grid w-full grid-cols-3');
-    expect(source.match(/mode: '(?:local|cloud|chat)'/g)).toHaveLength(3);
-    expect(
-      source.match(/'flex min-w-0 flex-col [^']*justify-start[^']*sm:flex-row[^']*sm:justify-center[^']*'/g),
-    ).toHaveLength(1);
-    expect(source).toMatch(/MODE_LABEL_CLASS =\s+'max-w-full text-balance hyphens-auto break-words text-center/);
-    expect(source.match(/<span className=\{MODE_LABEL_CLASS\}>/g)).toHaveLength(1);
+    expect(source).toContain("'group mt-2 flex min-w-0 items-center gap-2 rounded-xl border px-3 py-1.5");
+    expect(source).toContain("'w-fit max-w-full border-primary/25 bg-primary/5");
+    expect(source).toContain("'w-full border-dashed border-border bg-muted/40");
+    expect(source).toContain('className="min-w-0 flex-1 truncate font-medium"');
+    expect(source).toContain('className="h-3.5 w-3.5 shrink-0 opacity-50');
   });
 
-  it('halves the workspace mode tab side padding below 375px so each label gets 8px more width', () => {
-    expect(read('../WorkModeTabs.tsx').match(/'flex min-w-0 flex-col [^']*max-\[375px\]:px-1[^']*'/g)).toHaveLength(1);
-  });
+  it('renders the workspace row under the composer textarea, so phones do not depend on the desktop-only toolbar', () => {
+    const composer = read('../MessageInput.tsx');
+    const pickerIndex = composer.indexOf('{!hideChatWorkspacePicker && <WorkspaceDirPicker />}');
+    const actionBarIndex = composer.indexOf('{/* 操作栏 */}');
 
-  it('narrows the workspace mode tabs once more below 340px (1px side padding, 11px labels) so "Workspace" and "작업" stay whole on 320px phones', () => {
-    const source = read('../WorkModeTabs.tsx');
-
-    expect(source.match(/'flex min-w-0 flex-col [^']*max-\[340px\]:px-px[^']*'/g)).toHaveLength(1);
-    expect(source).toMatch(/MODE_LABEL_CLASS =\s+'[^']*max-\[340px\]:text-\[11px\][^']*'/);
-  });
-
-  it('wraps the cloud description row instead of squeezing its dot or storage badge, and keeps the chat icon at full size', () => {
-    const source = read('../NewTaskWorkContextCard.tsx');
-
-    expect(source).toContain('flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5');
-    expect(source).toContain('size-2 shrink-0 rounded-full');
-    expect(source).toContain('<Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-500" />');
-  });
-
-  it('keeps the workspace trigger and its clear button inside the card on phones: the unbound sentence wraps, a bound path shrinks into an ellipsis', () => {
-    const source = read('../NewTaskWorkContextCard.tsx');
-
-    expect(source).toContain("'border-border text-muted-foreground h-auto min-h-8 whitespace-normal py-1.5 text-left'");
-    expect(source).toContain('flex items-center gap-2 min-w-0 flex-1 w-full');
-    expect(source).toContain('gap-1.5 min-w-0 max-w-full justify-start');
+    expect(pickerIndex).toBeGreaterThan(0);
+    expect(pickerIndex).toBeLessThan(actionBarIndex);
+    // One render site: the desktop toolbar must not hold a second copy.
+    expect(composer.match(/<WorkspaceDirPicker \/>/g)).toHaveLength(1);
   });
 
   it('renders the composer text at 16px on phones so iOS Safari does not zoom the page on focus', () => {

@@ -9,8 +9,7 @@ import { describe, expect, it } from 'vitest';
  * reason it earns first-screen space.
  */
 const FIRST_SCREEN_COMPONENTS: Record<string, string> = {
-  MessageInput: 'the composer, the primary action',
-  NewTaskWorkContextCard: 'workspace choice for the new task, always shown',
+  MessageInput: 'the composer, the primary action and the workspace row it owns',
   SamplePrompts: 'starter prompts, always shown',
   AgentConfigPanel: 'collapsed by default; expanded only from the agent indicator',
   CompanionWidget: 'feature-gated, renders beside the composer',

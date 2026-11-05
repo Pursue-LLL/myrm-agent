@@ -222,15 +222,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.CLARIFICATION_REQUIRED) {
     const form = resolveClarificationFormFromEventData(data.data);
-    const payload =
-      data.data && typeof data.data === 'object' ? (data.data as unknown as Record<string, unknown>) : undefined;
-    const isResumeMode = H.resolveClarifyIsResumeMode(payload?.source);
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
         state.messages[messageIndex].clarification = {
           answered: false,
-          isResumeMode,
           title: form?.title ?? undefined,
           form,
         };
@@ -243,7 +239,6 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
           createdAt: new Date(),
           clarification: {
             answered: false,
-            isResumeMode,
             title: form?.title ?? undefined,
             form,
           },

@@ -24,7 +24,7 @@ import { normalizeSessionAccessRoots } from '@/store/chat/types/sessionAccess';
 import { resolveHydratedMoaPresetId, writeStoredMoaPresetId } from '@/store/chat/moaPresetStorage';
 import { parseMessages } from './messageHydration';
 
-const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research'];
+const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent'];
 
 export interface LoadMessagesOptions {
   preserveInstantSessionConfig?: boolean;
@@ -205,14 +205,6 @@ export const loadMessages = async (
         skip: options?.skipActiveTurnAttach,
       });
     }
-
-    apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`)
-      .then((res) => {
-        if (res?.active && useChatStore.getState().chatId === chatId) {
-          useChatStore.getState().setSandboxMode(true);
-        }
-      })
-      .catch(() => {});
 
     void getContextPins(chatId)
       .then(({ files }) => {
