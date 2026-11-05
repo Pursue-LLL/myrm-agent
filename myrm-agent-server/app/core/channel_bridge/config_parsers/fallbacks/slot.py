@@ -21,8 +21,8 @@ from app.core.channel_bridge.config_parsers.common import (
     _build_enriched_model_config,
     _extract_active_key,
 )
-from app.core.channel_bridge.config_parsers.model_fallbacks import extract_vision_fallback_model_configs
-from app.core.channel_bridge.config_parsers.slot_resolution import _resolve_slot_fallback, extract_slot_fallback_chain
+from app.core.channel_bridge.config_parsers.fallbacks.model import extract_vision_fallback_model_configs
+from app.core.channel_bridge.config_parsers.fallbacks.resolution import _resolve_slot_fallback, extract_slot_fallback_chain
 
 logger = logging.getLogger(__name__)
 

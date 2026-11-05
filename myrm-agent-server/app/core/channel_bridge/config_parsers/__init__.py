@@ -11,12 +11,7 @@ verify_search_service_available 以及 _build_enriched_model_config（测试与�
 channel_bridge 配置解析的唯一公开入口；调用方不需要知道实现位于哪个子模块。
 """
 
-from app.core.channel_bridge.config_parsers.mcp import (
-    extract_mcp_configs,
-    extract_org_mcp_configs,
-    merge_org_mcp_configs,
-)
-from app.core.channel_bridge.config_parsers.model_fallbacks import (
+from app.core.channel_bridge.config_parsers.fallbacks.model import (
     build_vision_fallback_config_chain,
     build_vision_fallback_engine_from_providers,
     extract_lite_model_config,
@@ -24,18 +19,8 @@ from app.core.channel_bridge.config_parsers.model_fallbacks import (
     extract_vision_fallback_model_configs,
     resolve_vision_fallback_chain_for_agent,
 )
-from app.core.channel_bridge.config_parsers.retrieval import extract_retrieval_models
-from app.core.channel_bridge.config_parsers.search import (
-    extract_active_search_config,
-    extract_search_provider_chain,
-    is_search_user_configured,
-    verify_search_service_available,
-)
-from app.core.channel_bridge.config_parsers.session import (
-    extract_session_policy,
-    session_policy_from_agent_dict,
-)
-from app.core.channel_bridge.config_parsers.slot_fallbacks import (
+from app.core.channel_bridge.config_parsers.fallbacks.resolution import extract_slot_fallback_chain
+from app.core.channel_bridge.config_parsers.fallbacks.slot import (
     build_slot_fallback_config_chain,
     build_video_fallback_config_chain,
     build_video_fallback_probe_engine_from_providers,
@@ -48,7 +33,22 @@ from app.core.channel_bridge.config_parsers.slot_fallbacks import (
     resolve_chat_fallback_chains_from_providers,
     resolve_slot_fallback_chain_for_agent,
 )
-from app.core.channel_bridge.config_parsers.slot_resolution import extract_slot_fallback_chain
+from app.core.channel_bridge.config_parsers.mcp import (
+    extract_mcp_configs,
+    extract_org_mcp_configs,
+    merge_org_mcp_configs,
+)
+from app.core.channel_bridge.config_parsers.retrieval import extract_retrieval_models
+from app.core.channel_bridge.config_parsers.search import (
+    extract_active_search_config,
+    extract_search_provider_chain,
+    is_search_user_configured,
+    verify_search_service_available,
+)
+from app.core.channel_bridge.config_parsers.session import (
+    extract_session_policy,
+    session_policy_from_agent_dict,
+)
 from app.core.channel_bridge.config_parsers.voice import (
     extract_voice_config,
     extract_web_tts_config,

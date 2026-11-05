@@ -24,11 +24,11 @@ Cron blueprint single-source-of-truth definitions.
 
 from __future__ import annotations
 
-from app.core.cron.blueprints_daily import BLUEPRINTS as _DAILY
-from app.core.cron.blueprints_finance import BLUEPRINTS as _FINANCE
-from app.core.cron.blueprints_knowledge import BLUEPRINTS as _KNOWLEDGE
-from app.core.cron.blueprints_marketing import BLUEPRINTS as _MARKETING
-from app.core.cron.blueprints_types import (
+from app.core.cron.blueprints.catalog.daily import BLUEPRINTS as _DAILY
+from app.core.cron.blueprints.catalog.finance import BLUEPRINTS as _FINANCE
+from app.core.cron.blueprints.catalog.knowledge import BLUEPRINTS as _KNOWLEDGE
+from app.core.cron.blueprints.catalog.marketing import BLUEPRINTS as _MARKETING
+from app.core.cron.blueprints.core.types import (
     _ASSET_ID_RE,
     _QUOTE_CURRENCY_RE,
     BlueprintFailureAlertDefaults,

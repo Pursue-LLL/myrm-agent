@@ -4,7 +4,7 @@
 Cron 蓝图目录的一部分；由 app/core/cron/blueprints.py 按声明顺序拼成内置清单。
 """
 
-from app.core.cron.blueprints_types import (
+from app.core.cron.blueprints.core.types import (
     _CAP_RESEARCH,
     _CAP_RESEARCH_SAVE,
     _TOOLS_RESEARCH,
