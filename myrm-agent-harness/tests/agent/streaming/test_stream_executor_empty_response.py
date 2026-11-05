@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.types import Command
 
 from myrm_agent_harness.agent.streaming.stream_executor import StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
@@ -127,20 +126,6 @@ async def test_empty_response_exhausted(mock_context):
 
     assert exc_info.value.error_code == FailoverReason.FORMAT_ERROR
     assert "empty response repeatedly" in exc_info.value.default_msg
-
-
-@pytest.mark.asyncio
-async def test_empty_response_resume_mode(mock_context):
-    """In resume mode, empty response recovery raises budget instead of retrying."""
-    mock_context.agent_input = Command(resume="some_value")
-    executor = _make_executor(mock_context)
-
-    msg = AIMessage(content="")
-    collected_messages = [msg]
-
-    result = await executor._handle_empty_response(collected_messages, retries=0)
-
-    assert result is False
 
 
 @pytest.mark.asyncio

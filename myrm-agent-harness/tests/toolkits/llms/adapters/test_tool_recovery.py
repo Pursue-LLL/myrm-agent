@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
     build_final_tool_call_chunk,
+    describe_withheld_tool_calls,
     is_stream_complete,
     recover_tool_call_payloads,
 )
@@ -200,3 +201,49 @@ class TestBuildFinalToolCallChunk:
         chunk, _recovered, metadata = build_final_tool_call_chunk(raw, {"file_write": schema})
         assert chunk is not None
         assert metadata[0]["safe"] is True
+
+
+class TestDescribeWithheldToolCalls:
+    """What a withheld call looked like, bounded and redacted, so the next occurrence can be diagnosed from a log."""
+
+    @staticmethod
+    def _withheld(raw_arguments: str) -> dict[str, list[dict[str, object]]]:
+        chunk, _, _ = build_final_tool_call_chunk(
+            [{"id": "call_1", "type": "function", "function": {"name": "write_file", "arguments": raw_arguments}}],
+            None,
+            stream_complete=False,
+        )
+        assert chunk is not None
+        return dict(chunk.message.additional_kwargs)
+
+    def test_names_the_tool_the_strategy_and_the_size(self) -> None:
+        cut = '{"path": "report.md", "content": "Revenue grew by 1'
+
+        [description] = describe_withheld_tool_calls(self._withheld(cut))
+
+        assert "write_file" in description
+        assert "truncated" in description
+        assert f"raw_len={len(cut)}" in description
+        assert "Revenue grew by 1" in description
+
+    def test_long_arguments_keep_only_a_head_and_a_tail(self) -> None:
+        raw = '{"content": "' + "x" * 5_000 + "TAIL-MARKER"
+
+        [description] = describe_withheld_tool_calls(self._withheld(raw))
+
+        assert len(description) < 600
+        assert "TAIL-MARKER" in description
+        assert "raw_len=%d" % len(raw) in description
+
+    def test_secrets_in_the_arguments_are_redacted(self) -> None:
+        secret = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789ABCD"
+
+        [description] = describe_withheld_tool_calls(self._withheld('{"api_key": "' + secret + '", "content": "cut'))
+
+        assert secret not in description
+
+    def test_safe_calls_and_empty_metadata_describe_nothing(self) -> None:
+        assert describe_withheld_tool_calls(None) == []
+        assert describe_withheld_tool_calls({}) == []
+        repaired = {"tool_call_recovery": [{"tool_name": "write_file", "safe": True, "strategy": "standard_json"}]}
+        assert describe_withheld_tool_calls(repaired) == []

@@ -13,7 +13,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `__init__.py` | Package | Public middleware exports. | ✅ |
 | `_session_context.py` | Internal | Shared ContextVars for the middleware chain; `isolated_terminal_errors()` gives a nested child run a registry of its own. | ✅ |
 | `_run_workspace.py` | Internal | `run_workspace`: the `workspace_path` in the LangGraph `Runtime` context a hook receives; shared by `progress_middleware` and `CompletionGuard`. | ✅ |
-| `_message_origin.py` | Internal | `is_user_authored_human_message`: tells a HumanMessage the user wrote from one the runtime injected (`is_system_synthetic`); shared by the approval and security middlewares. | ✅ |
+| `_message_origin.py` | Internal | `is_user_authored_human_message`: tells a HumanMessage the user wrote from one the runtime injected (`is_system_synthetic`); shared by the approval and security middlewares. `runtime_human_message` builds the runtime-injected kind (stream-recovery hints, teammate notes). | ✅ |
 | `advisor_risk_trigger_router.py` | Core | Adaptive risk-triggered router for MoA advisor overlay — gates advisor fan-out based on ReplanMiddleware errors, LoopGuard telemetry, fatal error bypass, and immunity/quota gates. | ✅ |
 | `clarification_guard_middleware.py` | Core | Enforces single `ask_question_tool` call per turn; answers coexisting or duplicate tool calls with synthetic error ToolMessages (the calls stay in the AI message, so the model reads why they did not run). | ✅ |
 

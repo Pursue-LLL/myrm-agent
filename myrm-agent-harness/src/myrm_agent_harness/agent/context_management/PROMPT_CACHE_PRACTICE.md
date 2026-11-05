@@ -1381,7 +1381,7 @@ messages.append(HumanMessage(content=dynamic_notification))
    - 最新用户消息：在一次用户输入的**首次**模型调用里写入 PII 脱敏与安全告诫前缀，之后工具轮次看到的字节不再变化。用无状态的“首次调用”判定（用户消息之后还没有 AI/Tool 消息）保证告诫只前置一次，不靠往历史里加标记。
    - 更早的用户消息：历史随每轮再次送入模型，护栏按同一策略静默改写（PII 脱敏；注入 / 危险意图为 `fail_closed` 时拦截），不写审计、日志与告诫前缀。脱敏结果确定、假名按值稳定，故同一条消息作为最新消息与作为历史时的脱敏字节一致；默认策略（未启用隐私策略，注入 / 意图非 `fail_closed`）下完全不动历史。
    - 新增输入侧改写必须是确定的、对自身输出幂等（脱敏后的文本再脱敏不变），不动 runtime 追加的 `is_system_synthetic` 消息，也不在每次调用重复前置同一段文本。
-   - 保证范围不含恢复路径：`streaming/recovery/stream_recovery_truncation.py` 的 `_try_text_continuation` 等处用**原始输入**重喂消息列表，重喂的原文不会被再次改写。
+   - 保证范围不含恢复路径：`streaming/recovery/stream_recovery_truncation.py` 的 `_try_text_continuation` 等处用**原始输入**重喂消息列表，重喂的原文不会被再次改写；续跑轮（审批后）的重驱动不重喂任何消息，只追加一条提示，前缀留在检查点里原样不动。
 
 **文档引用**：
 - 详见 `CONTEXT_ENGINEERING.md` § Prompt Cache Best Practices
