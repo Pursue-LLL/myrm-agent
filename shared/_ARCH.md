@@ -13,7 +13,7 @@
 
 | 部署面 | 消费方式 |
 |--------|----------|
-| 本地 monorepo dev | Server [providers.py](../myrm-agent-server/app/services/agent/params/providers.py) 读 `myrm-agent/shared/config/`；Frontend `@shared/config/*` |
+| 本地 monorepo dev | Server [providers.py](../myrm-agent-server/app/services/agent/params/model_config/providers.py) 读 `myrm-agent/shared/config/`；Frontend `@shared/config/*` |
 | Docker server 镜像 | `COPY shared /shared` → server 读 `/shared/config/` |
 | Tauri PyInstaller sidecar | `sidecar/build.py` `--add-data` → `_MEIPASS/shared/config/` |
 | Frontend Docker build | builder 阶段 COPY `shared/` 到 `/app/shared`（配合 `next.config.ts` monorepoRoot） |

@@ -2,7 +2,7 @@
 - app.ai_agents::GeneralAgentParams (POS: General Agent runtime parameter DTO)
 - app.services.agent.params.conversion (POS: conversion stages — model plan, sources, profile, chat context, tool surface)
 - app.services.agent.params.routing (POS: specialty / complexity / retry-floor routing + cross-turn routing memory)
-- app.services.agent.params.query_enrichment (POS: server-side query context blocks)
+- app.services.agent.params.enrichment (POS: server-side query context blocks)
 
 [OUTPUT]
 - convert_to_general_agent_params(): build runtime params and routing metadata for GeneralAgent
