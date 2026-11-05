@@ -19,6 +19,7 @@ export const LINT_GATES: readonly string[] = [
   'verify:reduced-motion',
   'verify:hardcoded-copy',
   'verify:icu-syntax',
+  'verify:intl-options',
   'lint:oxlint',
 ];
 

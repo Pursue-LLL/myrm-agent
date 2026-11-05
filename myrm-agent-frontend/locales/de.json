@@ -14626,67 +14626,6 @@
       "resizeSuccess": "Terminalgröße wurde aktualisiert"
     }
   },
-  "channelPairing": {
-    "wizard": {
-      "title": "Visueller Kanal-Kopplungsassistent",
-      "modelAgnosticBadge": "Modellunabhängige Engine · Deterministischer Ablauf ohne CLI",
-      "noCommandNote": "Mit einem Scan verbinden, ohne Befehle einzutippen",
-      "noCommandDesc": "Sie müssen weder auf teure Modelle wechseln noch technische Einrichtungsbefehle im Chat eingeben. Klicken Sie auf einen Kanal, um einen dynamischen QR-Code zu erzeugen und sofort zu koppeln.",
-      "waitingScan": "Bitte scannen Sie den obigen dynamischen QR-Code mit dem Client...",
-      "sessionExpiry": "Gültigkeit: 300 Sekunden",
-      "bindingSuccess": "Kanal erfolgreich authentifiziert und Token gebunden!",
-      "bindingSuccessDesc": "Verschlüsselte Zugangsdaten wurden sicher in der lokalen Sandbox gespeichert. Der Kanal ist zustellbereit.",
-      "startPairing": "QR-Kopplung starten",
-      "confirmScanned": "Abgeschlossenen Scan simulieren",
-      "proceedPing": "Weiter zur Ping-Prüfung",
-      "done": "Fertig & schließen"
-    },
-    "platforms": {
-      "wechat": {
-        "name": "WeChat",
-        "desc": "Dynamische QR-Kopplung per Smartphone, ganz ohne CLI-Befehle",
-        "guide": "WeChat öffnen und den QR-Code zur Autorisierung scannen"
-      },
-      "wecom": {
-        "name": "WeCom",
-        "desc": "Bitable- oder benutzerdefinierte App-Webhook-Anbindung",
-        "guide": "QR-Code in WeCom scannen, um die Verknüpfung zu bestätigen"
-      },
-      "feishu": {
-        "name": "Feishu / Lark",
-        "desc": "Benutzerdefinierter Bot und Zustellung interaktiver Karten",
-        "guide": "QR-Code in Feishu scannen oder Bot-App autorisieren"
-      },
-      "dingtalk": {
-        "name": "DingTalk",
-        "desc": "Gruppen-Bot und sichere dedizierte Zustellung",
-        "guide": "QR-Code in DingTalk scannen, um den Bot zu verbinden"
-      },
-      "slack": {
-        "name": "Slack",
-        "desc": "Eingehender Webhook & Bot-Token",
-        "guide": "Handshake über den Slack-OAuth-Link abschließen"
-      },
-      "telegram": {
-        "name": "Telegram",
-        "desc": "BotFather-Token & Long-Polling-Eingang",
-        "guide": "Kopplungs-Bestätigungscode an den Bot senden"
-      }
-    },
-    "healthCheck": {
-      "title": "Verbindungsprüfung & Latenztest",
-      "modelAgnostic": "Deterministisch",
-      "description": "Sendet einen Test-Ping direkt an den Kanal-Endpunkt und misst die Zustellungs-Roundtrip-Latenz in Millisekunden.",
-      "targetLabel": "Empfänger / Chat-ID (optional)",
-      "targetPlaceholder": "Leer lassen, um den gekoppelten Standardempfänger zu verwenden",
-      "messageLabel": "Testnachricht",
-      "sendPing": "Test-Ping senden",
-      "latency": "Roundtrip-Latenz:",
-      "successTitle": "Verbindungsprüfung erfolgreich",
-      "receiptLabel": "Empfangsbestätigungs-ID:",
-      "errorTitle": "Verbindungsprüfung fehlgeschlagen"
-    }
-  },
   "commandPalette": {
     "title": "Globales Befehlszentrum & Sitzungssuche",
     "shortcutHint": "Jederzeit Cmd+K drücken",

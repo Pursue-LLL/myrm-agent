@@ -14626,67 +14626,6 @@
       "resizeSuccess": "Terminal size updated"
     }
   },
-  "channelPairing": {
-    "wizard": {
-      "title": "Channel Visual Pairing Wizard",
-      "modelAgnosticBadge": "Model-Agnostic Engine · Zero-CLI Deterministic Flow",
-      "noCommandNote": "Connect in one scan, no commands to type",
-      "noCommandDesc": "No need to switch to expensive models or type technical setup commands in chat. Click a channel to generate a dynamic QR code for instant pairing.",
-      "waitingScan": "Please scan the dynamic QR code above with the client...",
-      "sessionExpiry": "Valid for 300 seconds",
-      "bindingSuccess": "Channel Authenticated and Token Bound Successfully!",
-      "bindingSuccessDesc": "Encrypted credentials securely saved to local sandbox. Channel is ready for delivery.",
-      "startPairing": "Start QR Pairing",
-      "confirmScanned": "Simulate Scan Completed",
-      "proceedPing": "Proceed to Ping Verification",
-      "done": "Done & Close"
-    },
-    "platforms": {
-      "wechat": {
-        "name": "WeChat",
-        "desc": "Mobile QR dynamic pairing, zero CLI commands",
-        "guide": "Open WeChat and scan QR to authorize"
-      },
-      "wecom": {
-        "name": "WeCom",
-        "desc": "Bitable or custom app webhook bridge",
-        "guide": "Scan QR in WeCom to confirm binding"
-      },
-      "feishu": {
-        "name": "Feishu / Lark",
-        "desc": "Custom bot and interactive card delivery",
-        "guide": "Scan QR in Feishu or authorize bot app"
-      },
-      "dingtalk": {
-        "name": "DingTalk",
-        "desc": "Group bot and secure dedicated delivery",
-        "guide": "Scan QR in DingTalk to connect bot"
-      },
-      "slack": {
-        "name": "Slack",
-        "desc": "Incoming Webhook & Bot Token",
-        "guide": "Complete handshake via Slack OAuth link"
-      },
-      "telegram": {
-        "name": "Telegram",
-        "desc": "BotFather token & long polling ingress",
-        "guide": "Send pairing verification code to bot"
-      }
-    },
-    "healthCheck": {
-      "title": "Connectivity Probe & Latency Test",
-      "modelAgnostic": "Deterministic",
-      "description": "Dispatches probe ping directly to channel endpoint and measures round-trip delivery latency in milliseconds.",
-      "targetLabel": "Recipient / Chat ID (Optional)",
-      "targetPlaceholder": "Leave blank to use paired default recipient",
-      "messageLabel": "Test Message",
-      "sendPing": "Send Test Ping",
-      "latency": "Round-trip Latency:",
-      "successTitle": "Connectivity Verification Succeeded",
-      "receiptLabel": "Receipt ID:",
-      "errorTitle": "Connectivity Probe Failed"
-    }
-  },
   "commandPalette": {
     "title": "Global Command Hub & Session Search",
     "shortcutHint": "Press Cmd+K anytime",

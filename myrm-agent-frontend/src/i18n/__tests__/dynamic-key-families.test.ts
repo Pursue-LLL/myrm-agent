@@ -10,8 +10,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { INTENSITY_LEVELS } from '@/components/features/chat-window/mobile/useMobileSheetEntries';
 import { WEATHER_LABEL_KEYS } from '@/components/features/message-box/useContextWatermarkMetrics';
+import { INTENSITY_OPTIONS } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import { LANE_LABEL_CODES } from '@/components/features/settings/sections/knowledge/memory-migration-wizard/PreviewCards';
 import { PREVIEW_BUCKET_CODES } from '@/components/features/settings/sections/knowledge/memory-migration-wizard/PreviewPanels';
 import { KNOWN_PERMISSIONS } from '@/components/features/settings/sections/system/securityPolicyUtils';
@@ -119,8 +119,13 @@ describe('dynamic translation key families', () => {
     expect(missingTexts('kanban', keys)).toEqual([]);
   });
 
-  it('mobile sheet: every thinking intensity level has a label', () => {
-    expect(missingTexts('thinkingIntensity', INTENSITY_LEVELS)).toEqual([]);
+  it('thinking intensity picker (desktop popover and mobile sheet): every level has a label', () => {
+    expect(
+      missingTexts(
+        'thinkingIntensity',
+        INTENSITY_OPTIONS.map((option) => option.labelKey),
+      ),
+    ).toEqual([]);
   });
 
   it('background task row: every exit category the server classifies a shell task with has a label', () => {

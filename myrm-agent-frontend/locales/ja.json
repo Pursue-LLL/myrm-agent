@@ -14626,67 +14626,6 @@
       "resizeSuccess": "ターミナルのサイズを更新しました"
     }
   },
-  "channelPairing": {
-    "wizard": {
-      "title": "チャンネルのビジュアルペアリングウィザード",
-      "modelAgnosticBadge": "モデル非依存エンジン · コマンド不要の確定的フロー",
-      "noCommandNote": "スキャンするだけで接続、コマンド入力は不要です",
-      "noCommandDesc": "高価なモデルに切り替えたり、チャットで技術的な設定コマンドを入力したりする必要はありません。チャンネルをクリックして動的 QR コードを生成し、すぐにペアリングできます。",
-      "waitingScan": "上の動的 QR コードをクライアントでスキャンしてください...",
-      "sessionExpiry": "有効期間: 300 秒",
-      "bindingSuccess": "チャンネルの認証とトークンの紐付けが完了しました！",
-      "bindingSuccessDesc": "暗号化された認証情報をローカルサンドボックスに安全に保存しました。チャンネルは配信可能です。",
-      "startPairing": "QR ペアリングを開始",
-      "confirmScanned": "スキャン完了をシミュレート",
-      "proceedPing": "Ping 確認に進む",
-      "done": "完了して閉じる"
-    },
-    "platforms": {
-      "wechat": {
-        "name": "WeChat",
-        "desc": "モバイル QR コードの動的ペアリング、コマンド操作不要",
-        "guide": "WeChat を開き、QR コードをスキャンして認可"
-      },
-      "wecom": {
-        "name": "WeCom",
-        "desc": "Bitable またはカスタムアプリの Webhook 連携",
-        "guide": "WeCom で QR コードをスキャンして連携を確認"
-      },
-      "feishu": {
-        "name": "Feishu / Lark",
-        "desc": "カスタムボットとインタラクティブカードの配信",
-        "guide": "Feishu で QR コードをスキャンするか、ボットアプリを認可"
-      },
-      "dingtalk": {
-        "name": "DingTalk",
-        "desc": "グループボットと安全な専用配信",
-        "guide": "DingTalk で QR コードをスキャンしてボットを接続"
-      },
-      "slack": {
-        "name": "Slack",
-        "desc": "受信 Webhook とボットトークン",
-        "guide": "Slack OAuth リンクでハンドシェイクを完了"
-      },
-      "telegram": {
-        "name": "Telegram",
-        "desc": "BotFather トークンとロングポーリング受信",
-        "guide": "ペアリング確認コードをボットに送信"
-      }
-    },
-    "healthCheck": {
-      "title": "接続プローブとレイテンシテスト",
-      "modelAgnostic": "確定的",
-      "description": "チャンネルのエンドポイントにプローブ Ping を直接送信し、往復の配信レイテンシをミリ秒単位で計測します。",
-      "targetLabel": "受信者 / チャット ID（任意）",
-      "targetPlaceholder": "空欄の場合はペアリング済みの既定の受信者を使用",
-      "messageLabel": "テストメッセージ",
-      "sendPing": "テスト Ping を送信",
-      "latency": "往復レイテンシ:",
-      "successTitle": "接続の確認に成功しました",
-      "receiptLabel": "受信確認 ID:",
-      "errorTitle": "接続プローブに失敗しました"
-    }
-  },
   "commandPalette": {
     "title": "グローバルコマンドハブ＆セッション検索",
     "shortcutHint": "いつでも Cmd+K を押してください",

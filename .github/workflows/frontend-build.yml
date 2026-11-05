@@ -78,9 +78,17 @@ jobs:
       - name: i18n completeness (verify:i18n + glyph sets fresh)
         if: ${{ !cancelled() }}
         run: bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n
-      - name: Vitest (shared provider remap contract)
+      # The full suite is not run here. These are the contracts no static gate can see: the shared provider remap, and
+      # the copy that is read through a key built at run time or through a translator the component picks itself
+      # (a wrong namespace or a missing key shows the person a raw key path).
+      - name: Vitest (provider remap + run-time translation key contracts)
         if: ${{ !cancelled() }}
-        run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
+        run: >-
+          bunx vitest run
+          src/store/config/__tests__/providerIdentityMigration.test.ts
+          src/i18n/__tests__/dynamic-key-families.test.ts
+          src/lib/i18n/__tests__/translateOrRaw.test.ts
+          src/components/features/background-tasks/__tests__/BackgroundTaskRow.test.tsx
       # `build` ends with scripts/verify-sw-push.mjs, so the Web Push handler check runs here.
       - name: Production build (module graph, Serwist SW inject, Web Push handler check)
         if: ${{ !cancelled() }}
