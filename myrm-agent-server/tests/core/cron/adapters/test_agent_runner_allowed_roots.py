@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, Schedule, ScheduleKind
 
-from app.core.cron.adapters.agent_runner import _resolve_effective_allowed_roots
+from app.core.cron.adapters.agent_runner.support import _resolve_effective_allowed_roots
 from app.services.workspace.workspace_path_policy import WorkspacePathIssue, WorkspacePathValidationError
 
 HOME = str(Path.home())

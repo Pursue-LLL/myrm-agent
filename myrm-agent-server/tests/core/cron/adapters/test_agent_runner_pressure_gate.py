@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.cron.adapters.agent_runner import (
-    AgentJobRunner,
-    _memory_overload_reason,
-)
+from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.support import _memory_overload_reason
 
 
 class _FakeLevel:

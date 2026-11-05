@@ -23,8 +23,9 @@ from myrm_agent_harness.toolkits.cron.types import (
 
 from app.core.cron.adapters import agent_runner
 from app.core.cron.adapters.acceptance_verification import _with_verification_metadata
-from app.core.cron.adapters.agent_runner import (
-    AgentJobRunner,
+from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.session import run_with_retries
+from app.core.cron.adapters.agent_runner.stream import (
     _consume_dynamic_workflow_stream,
     _consume_stream,
     _failure_result,
@@ -264,8 +265,8 @@ class TestResultRebuilds:
 class TestInProcessRetries:
     @staticmethod
     def _runner(monkeypatch: pytest.MonkeyPatch, outcomes: list[JobResult]) -> tuple[AgentJobRunner, AsyncMock]:
-        monkeypatch.setattr(agent_runner, "_memory_overload_reason", lambda: None)
-        monkeypatch.setattr(agent_runner.asyncio, "sleep", AsyncMock())
+        monkeypatch.setattr("app.core.cron.adapters.agent_runner.support._memory_overload_reason", lambda: None)
+        monkeypatch.setattr(agent_runner.session.asyncio, "sleep", AsyncMock())
         runner = AgentJobRunner()
         run_once = AsyncMock(side_effect=outcomes)
         monkeypatch.setattr(runner, "_run_once", run_once)
@@ -276,7 +277,7 @@ class TestInProcessRetries:
         failed = JobResult(success=False, error="boom", retry_safe=False)
         runner, run_once = self._runner(monkeypatch, [failed])
 
-        result = await runner._run_with_retries(_job(max_retries=2), context="")
+        result = await run_with_retries(_job(max_retries=2), context="", run_once=runner._run_once)
 
         assert result is failed
         assert run_once.await_count == 1
@@ -285,7 +286,7 @@ class TestInProcessRetries:
     async def test_a_timeout_runs_once(self, monkeypatch: pytest.MonkeyPatch) -> None:
         runner, run_once = self._runner(monkeypatch, [_timeout_result(_job())])
 
-        result = await runner._run_with_retries(_job(max_retries=2), context="")
+        result = await run_with_retries(_job(max_retries=2), context="", run_once=runner._run_once)
 
         assert result.retry_safe is False
         assert run_once.await_count == 1
@@ -294,7 +295,7 @@ class TestInProcessRetries:
     async def test_failure_that_is_safe_to_repeat_uses_every_attempt(self, monkeypatch: pytest.MonkeyPatch) -> None:
         runner, run_once = self._runner(monkeypatch, [JobResult(success=False, error="boom")] * 3)
 
-        result = await runner._run_with_retries(_job(max_retries=2), context="")
+        result = await run_with_retries(_job(max_retries=2), context="", run_once=runner._run_once)
 
         assert result.success is False
         assert run_once.await_count == 3
@@ -304,7 +305,7 @@ class TestInProcessRetries:
         ok = JobResult(success=True, output="done")
         runner, run_once = self._runner(monkeypatch, [JobResult(success=False, error="boom"), ok])
 
-        result = await runner._run_with_retries(_job(max_retries=2), context="")
+        result = await run_with_retries(_job(max_retries=2), context="", run_once=runner._run_once)
 
         assert result is ok
         assert run_once.await_count == 2

@@ -15,7 +15,7 @@ _REQUIRED_SURFACE_FILES: tuple[tuple[str, str], ...] = (
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/core/cron/adapters/agent_runner.py",
+        "app/core/cron/adapters/agent_runner/runner.py",
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
@@ -45,7 +45,7 @@ def test_execution_surface_injects_vision_fallback_cfg(
 
 
 def test_ssot_extract_function_exists() -> None:
-    parser_path = _SERVER_ROOT / "app/core/channel_bridge/config_parsers.py"
+    parser_path = _SERVER_ROOT / "app/core/channel_bridge/config_parsers/fallbacks/model.py"
     content = parser_path.read_text(encoding="utf-8")
     assert "def extract_vision_fallback_model_config(" in content
     assert "def extract_vision_fallback_model_configs(" in content

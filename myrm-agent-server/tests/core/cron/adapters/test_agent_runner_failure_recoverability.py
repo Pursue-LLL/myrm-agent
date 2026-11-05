@@ -20,12 +20,14 @@ from myrm_agent_harness.toolkits.cron.types import (
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason, MyrmLLMError
 
 from app.core.cron.adapters import agent_runner
-from app.core.cron.adapters.agent_runner import AgentJobRunner, _failure_result, _StreamAccumulator
+from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.session import run_with_retries
+from app.core.cron.adapters.agent_runner.stream import _failure_result, _StreamAccumulator
 from app.core.cron.adapters.failure_recoverability import is_transient_failure
 from app.core.types import ModelConfig
 
 _BUDGET_GATE = "app.services.budget.enforcer.should_block_execution"
-_INJECTION_SCAN = "app.core.cron.adapters.agent_runner.scan_cron_prompt"
+_INJECTION_SCAN = "app.core.cron.adapters.agent_runner.runner.scan_cron_prompt"
 _LOAD_USER_CONFIGS = "app.core.channel_bridge.config_loader.load_user_configs"
 _RESOLVE_MODEL = "app.core.channel_bridge.model_resolver.resolve_model_config"
 _TEMPLATE_GUARD = "app.services.workflow_templates.validation.validate_cron_template_at_execution"
@@ -145,12 +147,12 @@ class TestInProcessRetries:
     @staticmethod
     async def _run_with(monkeypatch: pytest.MonkeyPatch, exc: Exception) -> AsyncMock:
         """Run the retry loop over runs that fail with ``exc`` and report how often a run started."""
-        monkeypatch.setattr(agent_runner, "_memory_overload_reason", lambda: None)
-        monkeypatch.setattr(agent_runner.asyncio, "sleep", AsyncMock())
+        monkeypatch.setattr("app.core.cron.adapters.agent_runner.support._memory_overload_reason", lambda: None)
+        monkeypatch.setattr(agent_runner.session.asyncio, "sleep", AsyncMock())
         runner = AgentJobRunner()
         run_once = AsyncMock(side_effect=lambda job, context="": _failure_result(job, exc, _StreamAccumulator()))
         monkeypatch.setattr(runner, "_run_once", run_once)
-        await runner._run_with_retries(_job(max_retries=2), context="")
+        await run_with_retries(_job(max_retries=2), context="", run_once=runner._run_once)
         return run_once
 
     @pytest.mark.asyncio
@@ -178,7 +180,7 @@ def _run_up_to_the_agent(*, model_error: Exception | None = None, template_error
         stack.enter_context(patch(_RESOLVE_MODEL, **model))
         stack.enter_context(patch(_TEMPLATE_GUARD, return_value=template_error))
         stack.enter_context(patch(_CREATE_AGENT, return_value=agent))
-        stack.enter_context(patch.object(agent_runner, "grant_run_lease", return_value="lease"))
+        stack.enter_context(patch.object(agent_runner.runner, "grant_run_lease", return_value="lease"))
         stack.enter_context(patch(_RUNTIME_CONTEXT, new_callable=AsyncMock))
         stack.enter_context(patch(_SESSION_CREDENTIALS, new_callable=AsyncMock, return_value=MagicMock()))
         yield

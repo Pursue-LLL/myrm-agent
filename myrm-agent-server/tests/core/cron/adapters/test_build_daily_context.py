@@ -22,7 +22,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
-from app.core.cron.adapters.agent_runner import (
+from app.core.cron.adapters.agent_runner.support import (
     _DAILY_CROSSDAY_SUMMARY_CHARS,
     _DAILY_MAX_HISTORY_ENTRIES,
     _DAILY_OUTPUT_TRUNCATE_CHARS,

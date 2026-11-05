@@ -17,7 +17,7 @@ from myrm_agent_harness.agent.middlewares.approval.batch_processor import evalua
 from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
 from myrm_agent_harness.core.security.audit import DecisionKind, SecurityDecision, record_decision, reset_audit_log
 
-from app.core.cron.adapters.agent_runner import _StreamAccumulator
+from app.core.cron.adapters.agent_runner.stream import _StreamAccumulator
 from app.core.cron.adapters.blocked_actions import blocked_actions_metadata
 
 

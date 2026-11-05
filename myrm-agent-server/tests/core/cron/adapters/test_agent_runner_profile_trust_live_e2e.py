@@ -16,10 +16,8 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
-from app.core.cron.adapters.agent_runner import (
-    AgentJobRunner,
-    resolve_trusted_desktop_keys,
-)
+from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.support import resolve_trusted_desktop_keys
 from app.database.dto import AgentCreate
 from app.services.agent.agent_service import AgentService
 from app.services.agent.profile.profile_resolver import (
