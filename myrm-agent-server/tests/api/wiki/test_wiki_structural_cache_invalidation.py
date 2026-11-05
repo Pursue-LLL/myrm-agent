@@ -58,7 +58,7 @@ def _bypass_auth():
 def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock,
         patch(
@@ -75,7 +75,7 @@ def test_repair_types_invalidates_structural_cache(client: TestClient) -> None:
 def test_repair_types_skips_invalidate_when_nothing_repaired(client: TestClient) -> None:
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock,
         patch(
@@ -99,7 +99,7 @@ def test_apply_invalidates_structural_cache(client: TestClient) -> None:
     )
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock,
         patch(
@@ -139,7 +139,7 @@ def test_delete_concept_invalidates_structural_cache() -> None:
     scoped_client = TestClient(app)
     try:
         with patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock:
             response = scoped_client.delete("/api/v1/wiki/concepts/Gravity")
@@ -166,11 +166,11 @@ def test_pending_approve_invalidates_structural_cache() -> None:
     try:
         with (
             patch(
-                "app.api.wiki.router._after_wiki_vault_mutation",
+                "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
                 new_callable=AsyncMock,
             ) as invalidate_mock,
             patch(
-                "app.api.wiki.router._refresh_wiki_cognitive_map",
+                "app.api.wiki.routes.vault_effects._refresh_wiki_cognitive_map",
             ),
         ):
             response = scoped_client.post("/api/v1/wiki/pending/1/approve", json={})
@@ -196,7 +196,7 @@ def test_delete_folder_invalidates_structural_cache() -> None:
     scoped_client = TestClient(app)
     try:
         with patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock:
             response = scoped_client.delete("/api/v1/wiki/tree/folder?path=notes")
@@ -232,7 +232,7 @@ def test_move_invalidates_structural_cache(tmp_path) -> None:
     try:
         with (
             patch(
-                "app.api.wiki.router._after_wiki_vault_mutation",
+                "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
                 new_callable=AsyncMock,
             ) as invalidate_mock,
             patch(
@@ -258,7 +258,7 @@ def test_move_invalidates_structural_cache(tmp_path) -> None:
 def test_repair_publication_invalidates_structural_cache(client: TestClient) -> None:
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock,
         patch(
@@ -267,7 +267,7 @@ def test_repair_publication_invalidates_structural_cache(client: TestClient) -> 
             return_value=_RepairPublicationResult(),
         ),
         patch(
-            "app.api.wiki.router._refresh_wiki_cognitive_map",
+            "app.api.wiki.routes.vault_effects._refresh_wiki_cognitive_map",
         ),
     ):
         response = client.post("/api/v1/wiki/repair-publication")
@@ -280,7 +280,7 @@ def test_repair_publication_invalidates_structural_cache(client: TestClient) -> 
 def test_repair_publication_skips_invalidate_when_nothing_changed(client: TestClient) -> None:
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as invalidate_mock,
         patch(

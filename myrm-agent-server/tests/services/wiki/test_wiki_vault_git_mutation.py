@@ -63,7 +63,7 @@ def test_apply_endpoint_triggers_vault_mutation_hook() -> None:
     )
     with (
         patch(
-            "app.api.wiki.router._after_wiki_vault_mutation",
+            "app.api.wiki.routes.vault_effects._after_wiki_vault_mutation",
             new_callable=AsyncMock,
         ) as mutation_mock,
         patch(

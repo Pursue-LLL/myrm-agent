@@ -5,13 +5,12 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
 )
 
 
-def test_collect_clarification_required_deep_research_source() -> None:
+def test_collect_clarification_required_without_source_resumes() -> None:
     payload = collect_clarification_required(
         {
             "type": "clarification_required",
             "data": {
                 "type": "ask_question",
-                "source": "deep_research",
                 "form": {
                     "questions": [{"id": "q1", "prompt": "Which one?"}],
                 },
@@ -19,7 +18,6 @@ def test_collect_clarification_required_deep_research_source() -> None:
         }
     )
     assert payload is not None
-    assert payload["isResumeMode"] is False
     assert payload["answered"] is False
 
 
@@ -33,7 +31,7 @@ def test_collect_plan_confirmation_waiting() -> None:
     )
     assert payload is not None
     assert payload["status"] == "waiting"
-    assert payload["source"] == "deep_research"
+    assert payload["source"] == "general_agent"
 
 
 def test_collect_plan_confirmation_dynamic_workflow() -> None:

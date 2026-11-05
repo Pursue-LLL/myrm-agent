@@ -70,8 +70,6 @@ def _strip_sensitive(data: dict[str, object]) -> dict[str, object]:
 async def export_agent_package(uow: UnitOfWork, agent_id: str) -> dict[str, object]:
     """Export an Agent profile as a marketplace-ready package.
 
-    Matches the API-layer call: export_agent_package(uow, agent_id).
-
     Raises:
         ValueError: If agent_id not found.
     """

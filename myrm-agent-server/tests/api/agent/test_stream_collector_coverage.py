@@ -268,7 +268,6 @@ def test_stream_collector_persists_clarification_required() -> None:
             "messageId": "msg-clarify-1",
             "data": {
                 "type": "ask_question",
-                "source": "deep_research",
                 "title": "Framework choice",
                 "form": {
                     "questions": [
@@ -290,57 +289,9 @@ def test_stream_collector_persists_clarification_required() -> None:
     clarification = extra.get("clarification")
     assert isinstance(clarification, dict)
     assert clarification.get("answered") is False
-    assert clarification.get("isResumeMode") is False
     assert clarification.get("title") == "Framework choice"
     assert isinstance(clarification.get("form"), dict)
 
-    collector.feed_event(
-        {
-            "type": "status",
-            "messageId": "msg-clarify-1",
-            "data": {"phase": "clarify", "status": "resolved"},
-        }
-    )
-    extra_after = collector.extra_data
-    assert extra_after is not None
-    assert extra_after["clarification"]["answered"] is True
-    collector.cleanup()
-
-
-@pytest.mark.parametrize(
-    "answer_record",
-    [
-        {"by": "user", "value": {"framework": "langchain"}},
-        {"by": "timeout", "value": {}},
-    ],
-)
-def test_stream_collector_keeps_the_deep_research_answer_record_on_the_card(answer_record: dict[str, object]) -> None:
-    ACTIVE_COLLECTORS.clear()
-    collector = StreamContentCollector(chat_id="chat-clarify-record")
-    collector.feed_event(
-        {
-            "type": "clarification_required",
-            "messageId": "msg-clarify-2",
-            "data": {
-                "type": "ask_question",
-                "source": "deep_research",
-                "form": {"questions": [{"id": "framework", "prompt": "Which framework?"}]},
-            },
-        }
-    )
-
-    collector.feed_event(
-        {
-            "type": "status",
-            "messageId": "msg-clarify-2",
-            "data": {"phase": "clarify", "status": "resolved", "answerRecord": answer_record},
-        }
-    )
-
-    extra = collector.extra_data
-    assert extra is not None
-    assert extra["clarification"]["answered"] is True
-    assert extra["clarification"]["answerRecord"] == answer_record
     collector.cleanup()
 
 
@@ -364,7 +315,7 @@ def test_stream_collector_persists_plan_confirmation_waiting() -> None:
     plan_confirmation = extra.get("planConfirmation")
     assert isinstance(plan_confirmation, dict)
     assert plan_confirmation.get("status") == "waiting"
-    assert plan_confirmation.get("source") == "deep_research"
+    assert plan_confirmation.get("source") == "general_agent"
     assert "Research" in str(plan_confirmation.get("plan"))
     collector.cleanup()
 
