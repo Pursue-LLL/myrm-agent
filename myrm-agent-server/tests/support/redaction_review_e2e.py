@@ -39,8 +39,7 @@ _LOCALES = (("zh", 1, 2), ("en", 2, 1))  # (locale, own sentence index, other la
 
 DISMISS_MIGRATION_JS = """(() => {
   try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
   } catch (err) {
     return { ok: false, err: String(err) };
   }

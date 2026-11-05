@@ -7,6 +7,7 @@ import React from 'react';
 
 import type { DiscoveryResponse, ExternalSource } from '@/services/migrationDiscovery';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
 const stableT = (key: string) => key;
 const mockPush = vi.fn();
 const mockDiscover = vi.fn<() => Promise<DiscoveryResponse>>();
@@ -53,11 +54,11 @@ describe('MigrationDiscoveryBanner', () => {
     mockPush.mockReset();
     mockDiscover.mockReset();
     mockIsLocalMode.mockReturnValue(true);
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
   afterEach(() => {
-    sessionStorage.clear();
+    localStorage.clear();
   });
 
   it('renders nothing while the scan is pending, so no placeholder flashes in', async () => {
@@ -93,17 +94,32 @@ describe('MigrationDiscoveryBanner', () => {
     expect(importButton.parentElement).toHaveClass('flex-wrap');
   });
 
-  it('stays hidden after dismissal for the rest of the browser session', async () => {
+  it('snoozes the offer for a week after dismissal and skips the disk scan while it is snoozed', async () => {
     mockDiscover.mockResolvedValue(response([source]));
+    const closedAt = Date.now();
     const { container, unmount } = render(<MigrationDiscoveryBanner />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'dismiss' }));
     expect(container.firstChild).toBeNull();
-    expect(sessionStorage.getItem('migration_discovery_dismissed')).toBe('true');
+    const snoozedUntil = Number(localStorage.getItem('myrm.proactive.dismissed.migration-discovery'));
+    expect(snoozedUntil).toBeGreaterThanOrEqual(closedAt + 7 * DAY_MS);
+    expect(snoozedUntil).toBeLessThanOrEqual(Date.now() + 7 * DAY_MS);
 
+    // Even a new browser session (no session flag) stays quiet and does not scan the disk again.
     unmount();
     const remounted = render(<MigrationDiscoveryBanner />);
+    await act(async () => {});
     expect(remounted.container.firstChild).toBeNull();
+    expect(mockDiscover).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers the import again once the week has passed', async () => {
+    mockDiscover.mockResolvedValue(response([source]));
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', String(Date.now() - 1_000));
+
+    render(<MigrationDiscoveryBanner />);
+
+    expect(await screen.findByRole('button', { name: /importButton/ })).toBeInTheDocument();
     expect(mockDiscover).toHaveBeenCalledTimes(1);
   });
 

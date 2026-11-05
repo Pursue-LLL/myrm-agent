@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import UpdateNudgeBanner from '../UpdateNudgeBanner';
 import * as updatePrefs from '@/lib/update-prefs';
@@ -58,6 +58,7 @@ describe('UpdateNudgeBanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    localStorage.clear();
     vi.spyOn(updatePrefs, 'getDeferredVersion').mockReturnValue(null);
     vi.spyOn(updatePrefs, 'isQuietNow').mockReturnValue(false);
   });
@@ -103,7 +104,8 @@ describe('UpdateNudgeBanner', () => {
     });
   });
 
-  it('hides banner when dismissed by user and sets sessionStorage', async () => {
+  it('defers a regular update when the viewer dismisses it, and hides it for the session', async () => {
+    const deferSpy = vi.spyOn(updatePrefs, 'setDeferredVersion');
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -123,6 +125,74 @@ describe('UpdateNudgeBanner', () => {
 
     expect(screen.queryByText('open')).not.toBeInTheDocument();
     expect(sessionStorage.getItem('update_nudge_dismissed')).toBe('true');
+    expect(deferSpy).toHaveBeenCalledWith('v0.2.0');
+  });
+
+  it('stays quiet in the next session for a dismissed version, and speaks up again for a newer one', async () => {
+    vi.mocked(updatePrefs.getDeferredVersion).mockRestore();
+    localStorage.clear();
+    const releaseCheck = (version: string) =>
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ stale: true, latest: { version } }),
+      } as Response);
+
+    global.fetch = releaseCheck('v0.2.0');
+    const first = render(<UpdateNudgeBanner />);
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByLabelText('dismiss'));
+    first.unmount();
+
+    // A new session: the session flag is gone, only the stored deferral remains.
+    sessionStorage.clear();
+    global.fetch = releaseCheck('v0.2.0');
+    const second = render(<UpdateNudgeBanner />);
+    await act(async () => {});
+    expect(global.fetch).toHaveBeenCalled();
+    expect(second.container.firstChild).toBeNull();
+    second.unmount();
+
+    global.fetch = releaseCheck('v0.3.0');
+    render(<UpdateNudgeBanner />);
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
+    localStorage.clear();
+  });
+
+  it('keeps a dismissed security patch quiet for the session only, because patches bypass deferral', async () => {
+    const deferSpy = vi.spyOn(updatePrefs, 'setDeferredVersion');
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        stale: true,
+        latest: { version: 'v0.2.0' },
+        changelog: { is_security: true },
+      }),
+    } as Response);
+
+    const first = render(<UpdateNudgeBanner />);
+    await waitFor(() => {
+      expect(screen.getByTestId('icon-shield')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByLabelText('dismiss'));
+
+    expect(screen.queryByTestId('icon-shield')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('update_nudge_dismissed')).toBe('true');
+    expect(deferSpy).not.toHaveBeenCalled();
+
+    // Same session: not even asked. A new session shows the patch again.
+    first.unmount();
+    vi.mocked(global.fetch).mockClear();
+    render(<UpdateNudgeBanner />);
+    expect(global.fetch).not.toHaveBeenCalled();
+    sessionStorage.clear();
+    render(<UpdateNudgeBanner />);
+    await waitFor(() => {
+      expect(screen.getByTestId('icon-shield')).toBeInTheDocument();
+    });
   });
 
   it('stacks the copy above the actions on phones so the text keeps a readable column', async () => {

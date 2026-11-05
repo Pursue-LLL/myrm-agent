@@ -28,8 +28,7 @@ EVAL_LAB_URL = f"{get_e2e_ui_url()}/eval-lab"
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 
 _DISMISS_MIGRATION_JS = """(() => {
-  sessionStorage.setItem('migration_discovery_dismissed', 'true');
-  sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
   return true;
 })()"""
 

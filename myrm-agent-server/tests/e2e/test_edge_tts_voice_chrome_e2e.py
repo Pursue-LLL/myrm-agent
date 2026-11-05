@@ -54,8 +54,7 @@ def _voice_settings_url() -> str:
 
 
 _DISMISS_MIGRATION_JS = """(() => {
-  sessionStorage.setItem('migration_discovery_dismissed', 'true');
-  sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
   return { ok: true };
 })()"""
 

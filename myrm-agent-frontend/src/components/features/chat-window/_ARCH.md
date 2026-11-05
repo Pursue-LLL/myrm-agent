@@ -46,8 +46,8 @@
 | `__tests__/parseExactAnchors.test.ts` | 测试 | 机器符号解析器单元测试：空文本容错、metaAnchors 优先契约、Markdown 区块提取与正文剥离、JSON 注释提取覆盖 | ✅ |
 | `LoopStatusBar.tsx` | 组件 | 会话级循环调度悬浮胶囊：响应式双主题、自适应倒计时动效、运行轮次与退避步长指示、`--until` 停止目标徽章呈现、一键停止控制 | ✅ |
 | `__tests__/LoopStatusBar.test.tsx` | 测试 | 循环状态胶囊单元测试：隐藏/显示控制、倒计时格式化、停止请求与无缝响应、`--until` 停止目标徽章呈现、暂停态隐藏倒计时与不限轮次计数、翻译键与插值参数覆盖 | ✅ |
-| `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅：扫描中与无数据时不渲染（无占位闪烁），仅发现数据后出现；操作按钮行允许换行，窄屏上较长的按钮文案不会越出屏幕边缘；单源时深链 `?sub=migration&source=`；关闭仅在当前浏览器会话有效 | ✅ |
-| `__tests__/MigrationDiscoveryBanner.test.tsx` | 测试 | 迁移发现横幅测试：扫描中/无数据/扫描失败不渲染、发现数据后单源深链、操作按钮行可换行、关闭后本会话不再出现、非本地模式不扫描 | ✅ |
+| `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅：扫描中与无数据时不渲染（无占位闪烁），仅发现数据后出现；操作按钮行允许换行，窄屏上较长的按钮文案不会越出屏幕边缘；单源时深链 `?sub=migration&source=`；关闭后按设备静默 7 天（`useProactiveDismissal`，key `migration-discovery`），静默期内连磁盘扫描都不做，到期后再次提示 | ✅ |
+| `__tests__/MigrationDiscoveryBanner.test.tsx` | 测试 | 迁移发现横幅测试：扫描中/无数据/扫描失败不渲染、发现数据后单源深链、操作按钮行可换行、关闭后 7 天内不再出现也不再扫描（新会话同样）、到期后重新提示、非本地模式不扫描 | ✅ |
 | `IncognitoNotice.tsx` | 组件 | 空会话态无痕说明：无痕开启时就地写明条款（复用 `memory.incognitoModeDesc`：不读写记忆、不进历史与搜索、闲置超 1 小时自动删除、模型服务商仍会处理发送内容）；开关的悬停提示在触屏上不出现、手机上开关又在底部抽屉里，所以条款直接写在空会话页面上；`role=status` 的 `<output>`，仅用主题变量 | ✅ |
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；手机（<`sm`）顶部留白 `8vh`、≥`sm` 为 `20vh`，使 390×844 的干净首屏无需滚动（由 `__tests__/EmptyChat.mobile.contract.test.ts` 守卫）；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
@@ -57,8 +57,8 @@
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失；本机已运行 Ollama 且有能对话、支持工具调用的模型时（`useOllamaQuickConnect`），多一个「使用 Ollama：模型名」按钮，点击经 `enableProviderWithModel` 启用 Ollama 与该模型、主模型槽位空缺时绑定，没有合格模型时不显示 | ✅ |
-| `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板；手机上文案在上、操作在下（≥`sm` 同一行），文案始终有可读宽度 | ✅ |
-| `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化、跳转动作与手机上下堆叠布局覆盖 | ✅ |
+| `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板；「忽略」常规更新即推迟该版本（与更新面板的「推迟」同一偏好，更新的版本出现时再次提醒），「忽略」安全补丁只在本会话有效（补丁本就穿透推迟）；手机上文案在上、操作在下（≥`sm` 同一行），文案始终有可读宽度 | ✅ |
+| `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化、忽略即推迟（下个会话不再提示、更新的版本再次提醒）、安全补丁忽略仅限本会话、跳转动作与手机上下堆叠布局覆盖 | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |

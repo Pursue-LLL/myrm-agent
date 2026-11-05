@@ -20,8 +20,7 @@ from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for
 RESEARCH_URL = f"{get_e2e_ui_url()}/research"
 
 _DISMISS_MIGRATION_JS = """(() => {
-  sessionStorage.setItem('migration_discovery_dismissed', 'true');
-  sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
   return true;
 })()"""
 

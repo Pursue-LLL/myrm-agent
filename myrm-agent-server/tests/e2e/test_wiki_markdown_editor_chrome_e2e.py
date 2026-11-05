@@ -102,8 +102,7 @@ def _seed_editor_concept(api_url: str) -> str:
 
 _DISMISS_MIGRATION_JS = """(() => {
   try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
   } catch (err) {
     return { ok: false, err: String(err) };
   }

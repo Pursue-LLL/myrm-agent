@@ -5,6 +5,7 @@
  * - beforeinstallprompt event
  * - window.matchMedia('(display-mode: standalone)')
  * - navigator.userAgent (iOS vs Android detection)
+ * - @/hooks/ui/useProactiveDismissal::dismissProactive, isProactiveDismissed (POS: per-device 7-day snooze memory)
  *
  * [OUTPUT]
  * - MobilePwaInstallGuide: Native PWA installation guidance drawer/banner for standalone thin-client parity
@@ -15,20 +16,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconArrowRight,
-  IconCheck,
-  IconSparkles,
-  IconX,
-} from '@/components/features/icons/PremiumIcons';
+import { dismissProactive, isProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
+import { IconArrowRight, IconCheck, IconSparkles, IconX } from '@/components/features/icons/PremiumIcons';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const DISMISS_STORAGE_KEY = 'myrm_pwa_install_dismissed_until';
-const DISMISS_DURATION_DAYS = 7;
+const DISMISS_KEY = 'pwa-install';
+const SNOOZE_DAYS = 7;
 
 export function MobilePwaInstallGuide() {
   const t = useTranslations('mobileShell');
@@ -45,15 +42,14 @@ export function MobilePwaInstallGuide() {
     // If already in standalone mode, do not show guide
     const isStandalone =
       (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
-      ('standalone' in window.navigator && Boolean((window.navigator as unknown as { standalone: boolean }).standalone));
+      ('standalone' in window.navigator &&
+        Boolean((window.navigator as unknown as { standalone: boolean }).standalone));
 
     if (isStandalone) {
       return;
     }
 
-    // Check dismissal timestamp
-    const dismissedUntil = localStorage.getItem(DISMISS_STORAGE_KEY);
-    if (dismissedUntil && Number(dismissedUntil) > Date.now()) {
+    if (isProactiveDismissed(DISMISS_KEY)) {
       return;
     }
 
@@ -84,12 +80,7 @@ export function MobilePwaInstallGuide() {
   const handleDismiss = useCallback(() => {
     setVisible(false);
     setStepModalOpen(false);
-    const expireTime = Date.now() + DISMISS_DURATION_DAYS * 24 * 60 * 60 * 1000;
-    try {
-      localStorage.setItem(DISMISS_STORAGE_KEY, String(expireTime));
-    } catch {
-      // Ignore storage errors in privacy mode
-    }
+    dismissProactive(DISMISS_KEY, { snoozeDays: SNOOZE_DAYS });
   }, []);
 
   const handleInstallClick = useCallback(async () => {
@@ -125,12 +116,8 @@ export function MobilePwaInstallGuide() {
               <IconSparkles className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-foreground">
-                {t('installGuideTitle')}
-              </h4>
-              <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
-                {t('installGuideSubtitle')}
-              </p>
+              <h4 className="text-xs font-semibold text-foreground">{t('installGuideTitle')}</h4>
+              <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{t('installGuideSubtitle')}</p>
             </div>
           </div>
           <button
