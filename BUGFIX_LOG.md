@@ -29,6 +29,19 @@
 | **仍然存在** | ① Discord 在桌面安装包里仍不可用，Matrix 没有 `mautrix` 连不上；桌面端是否提供这两个渠道是待定的产品决策，决定提供时从 `CHANNEL_SDKS_NOT_SHIPPED` 删掉对应项并重新测启动。设置页「一键安装依赖」在冻结后端里不可能成功（本次之前就是如此）：它把后端可执行文件自己当 Python 去跑 `-m ensurepip`，约 50 s 后返回 400 [实测，第 53 轮]；400 的提示还是「Run: uv sync --extra channels-sdk」，对桌面用户没有意义。② `bundle_verify.py` 用 PyInstaller 的归档读取器 `CArchiveReader`，而 PyInstaller 版本没有钉死（server `pyproject.toml` 只在注释里提到，`check_pyinstaller()` 装当时的最新版）：读取接口变了，构建会以「核对失败或读不了」报错，不会静默放过，但要有人来改。③ 只在 macOS arm64 上构建与核对过；Windows 与 Linux 走同一份代码（`--add-data` 分隔符、`_internal/` 位置、hook 路径），没有在本机跑，首次发版或 `workflow_dispatch` 的构建才会验证。④ 没有推送、没有发版：已发布的 v0.1.40 仍缺这批模块，用户拿到修复要等新版本。⑤ 同期发现、不是这次引入、没有处理的红灯：`.github/workflows/server-architecture.yml:85` 的 docker 冒烟导入 `app.services.agent.params.providers`，该模块已搬到 `params/model_config/providers.py`（`23806093b9`），导入抛 `ModuleNotFoundError` [实测]；`validate_arch_inventory.py --md-refs` 有 3 处失效引用（`app/core/cron/_ARCH.md:28`、`app/services/approvals/_ARCH.md:7`、`docker/_ARCH.md:32`），`check_fractal_docs.py` 点名 3 个缺 `_ARCH.md` 的目录（`app/core/cron/adapters/agent_runner`、`app/services/channels/pairing`、`app/services/wiki/writeback`）。`test_desktop_sidecar_data.py` 里两个登记键同样指向已搬走的 `params/providers.py`，已在单独的提交里改正。 |
 | **代码位置** | desktop：`myrm-agent-desktop/sidecar/{build.py,bundle_inventory.py,bundle_verify.py,_ARCH.md}`、`myrm-agent-desktop/{ARCHITECTURE.md,DESKTOP_RELEASE_SYSTEM.md}`。server：`myrm-agent-server/tests/architecture/{test_desktop_sidecar_modules.py,test_desktop_sidecar_data.py}`、`myrm-agent-server/tests/support/desktop_release.py`、`myrm-agent-server/tests/_ARCH.md`。 |
 
+## 2026-11-05 · 「组织 Agent Marketplace」的说明与代码不符：控制面有完整的发布/安装接口，但产品里没有任何客户端，强制推送也到不了沙箱
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **文档与注释已更正**；没有删除任何 Marketplace 代码，也没有改任何行为。是否接上产品或整体删除，还没有决定。 |
+| **症状** | 官网与文档把「组织 Agent Marketplace」写成可用功能：发布 Agent、团队内一键安装、强制同步推送、按热度排序，另有一页幻灯片和一整节文档。同时 `import_agent_profile.py` 的文档字符串写着「控制面在市场安装时把配置推进用户沙箱」。 |
+| **根因** | [代码，逐项核对] ① 控制面确有 `/api/marketplace` 下的 发布、列表、条目、版本、安装、删除、强制推送 七类接口，但本仓库前端、桌面端、浏览器扩展、官网都没有任何调用（`rg "api/marketplace"` 排除文档后零命中）。② 沙箱没有「导出我的 Agent」的接口：`export_agent_package` 只被集成测试调用，`agent_portability.py` 里只有复制。③ 控制面的 `/install` 只记录安装并返回签名包，没有消费方。④ `/api/admin/import-agent-profile` 在 server 只被 `main.py` 挂载和测试调用；控制面只以 `force=True` 调它（强制推送）。强制推送要靠 `marketplace_entry_id` 找到已安装的绑定，而绑定只由非强制导入写入、非强制导入没有调用方，所以强制推送对沙箱返回 404。⑤ 控制面列表按 `updated_at` 倒序，不是热度。⑥ 控制面文档里的「审核为可选开关」对应的 `require_review` 列没有任何代码读取。 |
+| **修复** | 文档与注释改为只写当前事实：官网中英韩三份文案去掉组织 Marketplace 的功能条款与一页幻灯片，宣称检查脚本加入四个禁用词；文档站删除 Agent Marketplace 一节，其余页面去掉相关句子；控制面架构文档与 `/install` 文档字符串写明没有客户端、强制推送不可达、没有审核环节；本仓库 `import_agent_profile.py` 的文档字符串与 `app/api/internal/_ARCH.md` 改为「控制面只以 `force=True` 调用，创建安装绑定的非强制导入没有调用方」；`lucide-icon-resolver.tsx` 的注释去掉「组织市场」。 |
+| **行为变化** | 无。只改了文字，没有改任何可执行代码；官网少了一页幻灯片与若干功能描述。 |
+| **回归证据** | [实测] `rg "api/marketplace"`（排除文档）在本仓库与官网仓库零命中；`rg "export_agent_package"` 在应用代码里零调用方，只有 `tests/integration/test_marketplace_import_full_chain.py`；`rg "import-agent-profile"` 在 server 只有 `main.py` 挂载与两个测试文件；控制面 `marketplace.py` 里 `"force": True` 是调用该端点的唯一载荷；`require_review` 在控制面只出现在模型与迁移里。其余门禁结果见提交说明。 |
+| **仍然存在** | ① 控制面与沙箱里的 Marketplace 代码仍在，没有测试之外的使用者；决定接上还是删除前，它会继续占用维护成本。② 没有在浏览器里确认官网改动后的样子，只跑了文案与宣称的静态检查。 |
+| **代码位置** | server：`app/api/internal/import_agent_profile.py`、`app/api/internal/_ARCH.md`；frontend：`src/components/agent/lucide-icon-resolver.tsx`；控制面与官网、文档站在各自仓库。 |
+
 ## 2026-11-05 · 「可嵌入小部件」整条链路删除：生成对话框没有任何入口能打开，它生成的嵌入代码引用的 `/widget/loader.js` 在整个仓库里不存在
 
 | 字段 | 内容 |
