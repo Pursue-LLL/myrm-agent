@@ -166,7 +166,6 @@ myrm_agent_harness.agent.streaming.answer_draft
 myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.run_digest
 myrm_agent_harness.agent.streaming.stream_buffer
-myrm_agent_harness.agent.streaming.zero_replay
 myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
 myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader

@@ -48,14 +48,6 @@ const TaskExecutionTimelineDrawer = dynamic(
   { ssr: false },
 );
 
-const ReconnectStatusPill = dynamic(
-  () =>
-    import('@/components/features/reconnect-protocol').then((module) => ({
-      default: module.ReconnectStatusPill,
-    })),
-  { ssr: false },
-);
-
 const CommandMatrixModal = dynamic(
   () =>
     import('@/components/features/commands').then((module) => ({
@@ -235,11 +227,6 @@ export default function ChatWindowSatellites({
       ) : null}
       <ContextFootprintInspector open={isContextInspectorOpen} onClose={() => setIsContextInspectorOpen(false)} />
       <TaskExecutionTimelineDrawer />
-      {chatId ? (
-        <div className="fixed top-3.5 right-28 z-40 max-sm:hidden">
-          <ReconnectStatusPill sessionId={chatId} />
-        </div>
-      ) : null}
       <CommandMatrixModal />
       {effectiveChatId && isGeneratorModalOpen ? (
         <WidgetGeneratorModal

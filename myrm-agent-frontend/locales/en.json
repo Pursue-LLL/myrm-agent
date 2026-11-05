@@ -14486,25 +14486,6 @@
     "floatingAria": "Agent floating widget",
     "allowedOriginPlaceholder": "https://example.com or *"
   },
-  "reconnectProtocol": {
-    "close": "Close",
-    "connected": "Live stream connected",
-    "disconnected": "Disconnected",
-    "fetchingSnapshot": "Fetching latest snapshot",
-    "forceResync": "Force resync",
-    "idle": "Idle",
-    "reconnecting": "Reconnecting",
-    "resyncing": "Resyncing",
-    "statusDescription": "Shows how the live task stream recovers after a connection drop",
-    "subscribingLive": "Subscribing to live stream",
-    "title": "Connection recovery",
-    "versionBadge": "Version v{version}",
-    "epochBadge": "Epoch: {epoch}",
-    "messagesCount": "Messages: {count}",
-    "activeTools": "Active Tools: {count}",
-    "latestTurn": "Latest Turn: {summary}",
-    "reconnectCount": "Reconnects: {count}"
-  },
   "scratchpad": {
     "cancel": "Cancel",
     "clearDraft": "Clear draft",

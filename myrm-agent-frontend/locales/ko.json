@@ -14486,25 +14486,6 @@
     "floatingAria": "에이전트 플로팅 위젯",
     "allowedOriginPlaceholder": "https://example.com 또는 *"
   },
-  "reconnectProtocol": {
-    "close": "닫기",
-    "connected": "실시간 스트림 연결됨",
-    "disconnected": "연결이 끊어졌습니다",
-    "fetchingSnapshot": "최신 스냅샷을 가져오는 중",
-    "forceResync": "강제 재동기화",
-    "idle": "대기 중",
-    "reconnecting": "재연결 중",
-    "resyncing": "재동기화 중",
-    "statusDescription": "연결이 끊긴 뒤 실시간 작업 스트림의 복구 상태를 표시합니다",
-    "subscribingLive": "실시간 스트림 구독 중",
-    "title": "연결 복구",
-    "versionBadge": "버전 v{version}",
-    "epochBadge": "에포크: {epoch}",
-    "messagesCount": "메시지: {count}",
-    "activeTools": "활성 도구: {count}",
-    "latestTurn": "최신 턴: {summary}",
-    "reconnectCount": "재연결 횟수: {count}"
-  },
   "scratchpad": {
     "cancel": "취소",
     "clearDraft": "초안 지우기",

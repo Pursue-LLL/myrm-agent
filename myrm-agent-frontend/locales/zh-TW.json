@@ -14486,25 +14486,6 @@
     "floatingAria": "智慧代理懸浮視窗",
     "allowedOriginPlaceholder": "https://example.com 或 *"
   },
-  "reconnectProtocol": {
-    "close": "關閉",
-    "connected": "即時流已連線",
-    "disconnected": "連線已斷開",
-    "fetchingSnapshot": "正在獲取最新快照",
-    "forceResync": "強制重新同步",
-    "idle": "空閒",
-    "reconnecting": "正在重連",
-    "resyncing": "正在重新同步",
-    "statusDescription": "顯示連線中斷後即時任務流的恢復狀態",
-    "subscribingLive": "正在訂閱即時流",
-    "title": "連線恢復",
-    "versionBadge": "版本 v{version}",
-    "epochBadge": "紀元：{epoch}",
-    "messagesCount": "訊息數：{count}",
-    "activeTools": "活躍工具：{count} 個",
-    "latestTurn": "最新輪次：{summary}",
-    "reconnectCount": "重連計數: {count}"
-  },
   "scratchpad": {
     "cancel": "取消",
     "clearDraft": "清空草稿",

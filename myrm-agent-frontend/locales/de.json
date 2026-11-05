@@ -14486,25 +14486,6 @@
     "floatingAria": "Schwebendes Agenten-Widget",
     "allowedOriginPlaceholder": "https://example.com oder *"
   },
-  "reconnectProtocol": {
-    "close": "Schließen",
-    "connected": "Live-Stream verbunden",
-    "disconnected": "Verbindung getrennt",
-    "fetchingSnapshot": "Neuester Snapshot wird abgerufen",
-    "forceResync": "Neu synchronisieren erzwingen",
-    "idle": "Inaktiv",
-    "reconnecting": "Verbindung wird wiederhergestellt",
-    "resyncing": "Synchronisiere neu",
-    "statusDescription": "Zeigt, wie sich der Live-Aufgabenstream nach einem Verbindungsabbruch erholt",
-    "subscribingLive": "Live-Stream wird abonniert",
-    "title": "Verbindungswiederherstellung",
-    "versionBadge": "Version v{version}",
-    "epochBadge": "Epoche: {epoch}",
-    "messagesCount": "Nachrichten: {count}",
-    "activeTools": "Aktive Werkzeuge: {count}",
-    "latestTurn": "Letzte Runde: {summary}",
-    "reconnectCount": "Wiederverbindungen: {count}"
-  },
   "scratchpad": {
     "cancel": "Abbrechen",
     "clearDraft": "Entwurf leeren",

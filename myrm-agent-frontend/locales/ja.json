@@ -14486,25 +14486,6 @@
     "floatingAria": "エージェントのフローティングウィジェット",
     "allowedOriginPlaceholder": "https://example.com または *"
   },
-  "reconnectProtocol": {
-    "close": "閉じる",
-    "connected": "ライブストリーム接続済み",
-    "disconnected": "切断されました",
-    "fetchingSnapshot": "最新のスナップショットを取得中",
-    "forceResync": "強制再同期",
-    "idle": "待機中",
-    "reconnecting": "再接続中",
-    "resyncing": "再同期中",
-    "statusDescription": "接続が切れた後のライブタスクストリームの復旧状況を表示",
-    "subscribingLive": "ライブストリームを購読中",
-    "title": "接続の復旧",
-    "versionBadge": "バージョン v{version}",
-    "epochBadge": "エポック: {epoch}",
-    "messagesCount": "メッセージ: {count}",
-    "activeTools": "アクティブなツール: {count}",
-    "latestTurn": "最新のターン: {summary}",
-    "reconnectCount": "再接続回数: {count}"
-  },
   "scratchpad": {
     "cancel": "キャンセル",
     "clearDraft": "下書きをクリア",

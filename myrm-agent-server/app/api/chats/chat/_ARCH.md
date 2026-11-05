@@ -30,7 +30,6 @@
 | `export_pack.py` | 模块 | `HEAD & GET /{chat_id}/export-pack` — 会话事件日志、子Agent日志与工件文件的自包含流式 ZIP 导出管道，原生支持 `redact_secrets` 动态脱敏、O(1) 内存分块与 SHA256 清单。 | ✅ |
 | `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |
 | `thought_control.py` | 路由 | 思考链提前收敛与主动停止干预控制端点（`POST /{chat_id}/stop-thinking`），遏制长思考死循环与无限推理，强制提前作答 | ✅ |
-| `zero_replay.py` | 路由 | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议端点（`GET /{chat_id}/atomic-snapshot`, `GET /{chat_id}/live-stream`），彻底解决重连回放闪烁与时序错乱 | ✅ |
 | `command_matrix.py` | 路由 | 系统指令矩阵目录（`GET /commands/matrix`）与基于会话状态机的情境感知智能推荐芯片端点（`POST /{chat_id}/commands/suggest`） | ✅ |
 | `embed_bridge.py` | 路由 | 网站与第三方系统可嵌入小部件及宿主上下文双向通信桥端点（`POST/GET /{chat_id}/embed/policy`, `POST /{chat_id}/embed/inject-context`, `POST /{chat_id}/embed/generate-snippet`） | ✅ |
 

@@ -27,7 +27,6 @@ from .trajectory import router as trajectory_router
 from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
-from .zero_replay import router as zero_replay_router
 
 router = APIRouter()
 
@@ -54,7 +53,6 @@ router.include_router(replay_router)
 router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
 router.include_router(thought_control_router)
-router.include_router(zero_replay_router)
 router.include_router(command_matrix_router)
 router.include_router(embed_bridge_router)
 
