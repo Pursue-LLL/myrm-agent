@@ -279,7 +279,7 @@ class TestModelInfoEndpoints:
             "max_tokens": 8192,
         }
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.model_info._try_get_model_info_exact",
             return_value=info,
         ):
             response = client.post(
@@ -305,11 +305,11 @@ class TestModelInfoEndpoints:
         )
         with (
             patch(
-                "app.api.integrations.llms._try_get_model_info_exact",
+                "app.api.integrations.llms.model_info._try_get_model_info_exact",
                 return_value=None,
             ),
             patch(
-                "app.api.integrations.llms._search_models_by_name",
+                "app.api.integrations.llms.model_info._search_models_by_name",
                 return_value=[candidate],
             ),
         ):
@@ -326,7 +326,7 @@ class TestModelInfoEndpoints:
         """Batch lookup mixes exact matches and empty capability fallbacks."""
         info = {"supports_vision": True, "max_tokens": 128000}
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.model_info._try_get_model_info_exact",
             side_effect=lambda model: info if model == "known" else None,
         ):
             response = client.post(

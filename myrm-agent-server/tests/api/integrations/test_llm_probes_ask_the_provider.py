@@ -96,7 +96,7 @@ def test_reachability_reports_each_key_of_one_endpoint_on_its_own(client: TestCl
 def test_reachability_asks_the_provider_again_once_its_own_window_has_passed(
     client: TestClient, provider: FakeChatProvider, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(llms, "_REACHABILITY_CACHE_TTL_S", 0.0)
+    monkeypatch.setattr(llms.verify, "_REACHABILITY_CACHE_TTL_S", 0.0)
 
     first = _reachability(client, provider, _RIGHT_KEY)
     second = _reachability(client, provider, _RIGHT_KEY)

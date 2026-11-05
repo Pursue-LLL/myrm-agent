@@ -399,7 +399,7 @@ class TestPreflightWindowResolution:
     def test_missing_window_skips_warning(self, client: TestClient) -> None:
         """No frontend window and unknown model -> found=False, no warning."""
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight._try_get_model_info_exact",
             return_value=None,
         ):
             response = client.post(
@@ -418,7 +418,7 @@ class TestPreflightWindowResolution:
     def test_backend_resolves_window_from_litellm_info(self, client: TestClient) -> None:
         """Backend resolves max_input_tokens from LiteLLM model info when not provided."""
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight._try_get_model_info_exact",
             return_value={"max_input_tokens": 32000},
         ):
             response = client.post(
@@ -438,7 +438,7 @@ class TestPreflightWindowResolution:
     def test_backend_falls_back_to_max_tokens_key(self, client: TestClient) -> None:
         """max_tokens key is honored when max_input_tokens is absent."""
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight._try_get_model_info_exact",
             return_value={"max_tokens": 64000},
         ):
             response = client.post(
@@ -456,7 +456,7 @@ class TestPreflightWindowResolution:
     def test_backend_ignores_nonpositive_windows(self, client: TestClient) -> None:
         """info with only non-positive windows resolves to None -> found=False."""
         with patch(
-            "app.api.integrations.llms._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight._try_get_model_info_exact",
             return_value={"max_input_tokens": 0, "max_tokens": -1},
         ):
             response = client.post(

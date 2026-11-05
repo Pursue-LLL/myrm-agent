@@ -50,8 +50,8 @@ def test_discover_models_injects_attribution_headers_for_vercel_gateway(client: 
         )
 
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
-        patch("app.api.integrations.llms.secure_request", side_effect=_mock_secure_request),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.secure_request", side_effect=_mock_secure_request),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -90,8 +90,8 @@ def test_discover_models_does_not_inject_attribution_headers_for_other_endpoints
         )
 
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
-        patch("app.api.integrations.llms.secure_request", side_effect=_mock_secure_request),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.secure_request", side_effect=_mock_secure_request),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
