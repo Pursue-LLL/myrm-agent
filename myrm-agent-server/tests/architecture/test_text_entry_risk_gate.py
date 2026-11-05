@@ -65,7 +65,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("api/skills/evolution/derive.py", "derive_skill", "reject_if_risky"),
     ("api/chats/chat/turn.py", "regenerate_last_turn", "reject_if_risky"),
     ("api/chats/chat/copilot.py", "advisor_ask", "reject_if_risky"),
-    ("api/wiki/router.py", "query_wiki", "reject_if_risky"),
+    ("api/wiki/routes/query.py", "query_wiki", "reject_if_risky"),
     ("api/kanban/routes/specify.py", "apply_decompose", "reject_if_risky"),
     ("core/cron/adapters/inbound_event_dispatch.py", "dispatch_cron_event_for_inbound_message", "screen_user_text"),
     ("channels/routing/pipeline/inbound.py", "_claim_delegation", "hold_risky_inbound"),
@@ -73,7 +73,7 @@ _ENTRIES: tuple[tuple[str, str, str], ...] = (
     ("channels/routing/pipeline/inbound.py", "_divert_group_chatter", "hold_risky_inbound"),
     ("channels/routing/pipeline/command_dispatch.py", "_dispatch_resolved", "hold_risky_inbound"),
     ("channels/routing/pipeline/turn.py", "_handle_merged", "hold_risky_inbound"),
-    ("channels/routing/commands/router_commands_approval.py", "_handle_approval_command", "hold_risky_inbound"),
+    ("channels/routing/commands/router_commands/approval.py", "_handle_approval_command", "hold_risky_inbound"),
 )
 
 # Each gate is a thin wrapper that must end in the one screening entry.
@@ -112,7 +112,6 @@ _EXEMPT: dict[tuple[str, str], str] = {
         "api/cron/routes/prerequisite.py",
         "check_prerequisite",
     ): "uses the prompt only as a lookup key to count earlier successful runs; nothing stores or sends it",
-    ("api/agents/general_agent/phase_response.py", "clarify_response"): _MIXED_ANSWER_REASON,
     ("api/agents/general_agent/phase_response.py", "human_gate_response"): _MIXED_ANSWER_REASON,
     (
         "api/agents/general_agent/phase_response.py",
