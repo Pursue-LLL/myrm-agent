@@ -4,7 +4,7 @@
 - asyncio::create_subprocess_exec (POS: async subprocess with pipe streams)
 
 [OUTPUT]
-- RgRunResult: exit code, stderr text and early-stop flag of one ripgrep run
+- RgRunResult: exit code, stderr text, early-stop flag and stdout line count of one ripgrep run
 - run_rg: Stream ripgrep stdout lines (line feed or NUL ended) with early stop, bounded runtime and guaranteed reaping
 
 [POS]
@@ -31,11 +31,17 @@ _STREAM_LIMIT_BYTES = 16 * 1024 * 1024
 
 @dataclass(frozen=True, slots=True)
 class RgRunResult:
-    """Outcome of one ripgrep run."""
+    """Outcome of one ripgrep run.
+
+    ``lines_read`` counts the stdout lines handed to ``on_line``. A failed run that read none gave no answer (a
+    pattern or a flag ripgrep rejects); one that read some searched on past an entry it could not open, so what
+    it printed stands, an empty result included.
+    """
 
     returncode: int | None
     stderr: str
     stopped_early: bool
+    lines_read: int = 0
 
     @property
     def failed(self) -> bool:
@@ -107,10 +113,12 @@ async def run_rg(
 
     stderr_data = bytearray()
     stopped_early = False
+    lines_read = 0
 
     async def _pump_stdout() -> None:
-        nonlocal stopped_early
+        nonlocal stopped_early, lines_read
         while line := await _read_line(stdout, line_terminator):
+            lines_read += 1
             if on_line(line):
                 stopped_early = True
                 with contextlib.suppress(ProcessLookupError):
@@ -139,4 +147,5 @@ async def run_rg(
         returncode=proc.returncode,
         stderr=stderr_data.decode("utf-8", errors="replace"),
         stopped_early=stopped_early,
+        lines_read=lines_read,
     )

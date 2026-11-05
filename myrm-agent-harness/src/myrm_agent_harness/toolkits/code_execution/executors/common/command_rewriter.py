@@ -24,14 +24,15 @@ logger = logging.getLogger(__name__)
 # precede it: a word character, ``.``, ``~``, ``)``, ``}`` or ``]`` makes it the tail of ``/home/me/workspace``,
 # ``./workspace``, ``~/workspace`` or ``$(pwd)/workspace``, and NUL ends a protected real workspace path. The glued
 # value of a one-letter option (``-I/workspace/include``) is the exception. Nothing name-like may follow it
-# (``/workspace2`` is another directory).
+# (``/workspace2`` is another directory). A colon may stand on either side, so that every entry of
+# ``PYTHONPATH=/workspace/a:/workspace/b`` is rewritten.
 _WORKSPACE_ROOT = re.compile(r"""(?:(?<![\w.~)}\]\x00])|(?<=\s-[A-Za-z]))/workspace(?=/|$|[\s'";&|)`:])""")
 
 
 class CommandRewriter:
     """Stateless command rewriter.
 
-    Resolves /workspace paths to actual working directories. Extensible for additional rewrite rules.
+    Resolves /workspace paths to actual working directories.
     """
 
     def rewrite_workspace_paths(self, command: str, workspace_path: Path | None) -> str:
@@ -42,9 +43,13 @@ class CommandRewriter:
 
         Handled patterns: ``cd /workspace``, ``/workspace/file.txt``, ``-I/workspace/include``, etc.
         Only a /workspace that stands as a path of its own is replaced; a directory merely called workspace
-        (``~/workspace``, ``./workspace``, ``/home/me/workspace``) stays as typed. The match is lexical: a brace
-        list (``{/workspace,/tmp}``) is not expanded, and a quoted variable joined to the name
-        (``"$HOME"/workspace``) is taken for the root.
+        (``~/workspace``, ``./workspace``, ``/home/me/workspace``) stays as typed.
+
+        The match is lexical: nothing is expanded the way the shell would. A /workspace behind a glob
+        (``*/workspace``), a backtick substitution or a quoted variable (``"$HOME"/workspace``), and the container
+        side of a mapping (``-v $(pwd):/workspace``, ``scp host:/workspace/x``), are taken for the root. One
+        followed by a wildcard, a comma or a brace (``/workspace*``, ``/workspace,/tmp``, ``{/tmp,/workspace}``)
+        stays as typed.
 
         The resolved workspace path itself is protected before rewriting, so a
         command that already contains the real workspace (e.g. eval graders

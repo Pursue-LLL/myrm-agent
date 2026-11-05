@@ -30,7 +30,7 @@ Content search tool (Claude Code compatible). Searches file contents for matchin
 with regex and literal (--fixed-strings) modes, path-grouped output from 5 matches on and intelligent line truncation.
 Two search tiers follow one file-selection policy (``rg_traversal`` for ripgrep, ``fallback_discovery`` for the
 Python tier); ripgrep runs first, and the Python tier takes over when ripgrep is missing or fails
-without producing a result. A search over a directory withholds the lines of sensitive files on both tiers.
+without printing anything. A search over a directory withholds the lines of sensitive files on both tiers.
 
 """
 
@@ -127,9 +127,10 @@ async def _ripgrep_search(
         )
         if outcome.failed:
             logger.warning(f"ripgrep error: {outcome.stderr}")
-            # An unreadable directory fails the run but leaves valid matches; a pattern ripgrep cannot parse
-            # leaves none, and the Python tier (look-around, back-references) may still be able to search it.
-            if not matches.rows:
+            # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
+            # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
+            # back-references) may still be able to search it.
+            if not outcome.lines_read:
                 raise RuntimeError("ripgrep failed")
     except (TimeoutError, RuntimeError) as e:
         logger.warning(f"ripgrep search failed: {e}, falling back to Python")

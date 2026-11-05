@@ -8,7 +8,7 @@ Common executor components.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Common executor components. | — |
-| command_rewriter.py | Core | Command rewriting service: `/workspace` paths resolved to the working directory wherever a shell takes `/workspace` as a path of its own (a directory merely called workspace, such as `~/workspace`, stays as typed); its log lines show the command masked and cut (`core.security.redact.command_preview`). | ✅ |
+| command_rewriter.py | Core | Command rewriting service: `/workspace` paths resolved to the working directory by a lexical match on the word (a directory merely called workspace, such as `~/workspace`, stays as typed; what a shell would expand first, such as a glob or a brace list, is not seen); its log lines show the command masked and cut (`core.security.redact.command_preview`). | ✅ |
 | error_handler.py | Core | Execution error handling decorator. | ✅ |
 | exit_classify.py | Core | Non-zero exit code semantic classifier. | ✅ |
 | execution_helper.py | Core | Execution helper utilities. | ✅ |
