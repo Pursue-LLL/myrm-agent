@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
 
-from .models import MultimodalQuery
+from ..models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 

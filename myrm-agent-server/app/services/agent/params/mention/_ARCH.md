@@ -18,5 +18,5 @@
 
 ## 依赖关系
 
-- 上游：`params/models.py`（`MentionReferenceRequest` / `MultimodalQuery`）、`params/conversion/query_enrichment.py`（调用方）
+- 上游：`params/models.py`（`MentionReferenceRequest` / `MultimodalQuery`）、`params/enrichment/pipeline.py`（调用方）
 - 下游：harness 路径安全 / 文档解析 / `FetchEngine` / `WikiStructure`、`app.core.storage`（上传）、`app.services.chat`（历史会话召回）

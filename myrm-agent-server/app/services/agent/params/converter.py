@@ -33,10 +33,6 @@ from app.services.agent.moa_preset_resolver import (
 )
 from app.services.agent.resolve_enable_web_fetch import resolve_enable_web_fetch
 
-from .archive_restore import (
-    ArchiveRestoreRequestError,
-    prevalidate_archive_restore_actions,
-)
 from .conversion import (
     apply_agent_profile,
     finalize_model_plan,
@@ -45,11 +41,15 @@ from .conversion import (
     resolve_model_plan,
     resolve_tool_surface,
 )
+from .enrichment import enrich_query
+from .enrichment.archive_restore import (
+    ArchiveRestoreRequestError,
+    prevalidate_archive_restore_actions,
+)
 from .helpers import _declared_capabilities, _extract_code_execution_network, _requested_privacy_params
 from .media import _extract_media_generation_params
+from .model_config import _resolve_model_config
 from .models import AgentRequest
-from .query_enrichment import enrich_query
-from .resolvers import _resolve_model_config
 from .routing import resolve_routing_outcome
 
 logger = logging.getLogger(__name__)

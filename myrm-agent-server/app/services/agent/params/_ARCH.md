@@ -8,28 +8,25 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `archive_restore.py` | 核心 | Typed archive restore 校验与 prompt 物化（`prevalidate_archive_restore_actions`、XML 注入） | ✅ |
 | `workspace_resolve.py` | 辅助 | Chat 级 harness workspace JIT 解析、DB 回写与 Agent 模板物料（`template_workspace_files`，存储格式与释放逻辑见 `services/plugins/template_workspace.py`）安全解压；纯函数 `chat_session_id` / `chat_id_from_session_id`（chat 与 agent 运行会话键 `chat_<id>` 互转，后者只去掉一次前缀；审批、一次性凭据暂存与后台完成回流据此对齐）、`default_chat_workspace_path` / `default_workspaces_root` 不落盘，供 Context Guard 在新会话（尚无 DB 行）把超长提示词溢出到 Agent 实际所在 workspace，并作为 spillover 清扫根目录 | ✅ |
-| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams 的主编排：按固定阶段调用 `conversion/`、`routing/` 与 `query_enrichment.py` 并装配最终参数（返回 6 元组含 `routing_reason`）；`regenerate_instruction` 在 fast / agent 两种模式下都作为 `[Regeneration guidance: …]` 追加到 user_instructions；请求级安全覆盖（会话预设、远程准入、/learn 授权）装配为 `SecurityOverlaySpec` 随参数下发，在 learn 重写之后一次性 `apply` 到已保存的 securityConfig（实现见 `core/security/session_overlay.py`）；隐身会话在此统一关闭 `enable_wiki`。 | — |
+| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams 的主编排：按固定阶段调用 `conversion/`、`routing/` 与 `enrichment/` 并装配最终参数（返回 6 元组含 `routing_reason`）；`regenerate_instruction` 在 fast / agent 两种模式下都作为 `[Regeneration guidance: …]` 追加到 user_instructions；请求级安全覆盖（会话预设、远程准入、/learn 授权）装配为 `SecurityOverlaySpec` 随参数下发，在 learn 重写之后一次性 `apply` 到已保存的 securityConfig（实现见 `core/security/session_overlay.py`）；隐身会话在此统一关闭 `enable_wiki`。 | — |
 | `conversion/` | 子包 | 六个装配阶段：模型槽位（`model_plan`）、数据源（`sources`）、Agent 能力包（`profile_apply`）、会话上下文（`chat_context`）、工具面（`tool_surface`）；阶段顺序由 `converter.py` 持有 | [conversion/_ARCH.md](conversion/_ARCH.md) |
 | `routing/` | 子包 | 路由阶段（`turn_routing`）+ 跨请求路由记忆（`routing_memory`）：specialty / 复杂度 / 重试升档 / HITL resume 复用 | [routing/_ARCH.md](routing/_ARCH.md) |
 | `routing_memory.py` | 门面 | 路由记忆的对外门面：re-export `routing/routing_memory.py` 的公共 API，供 `stream_session` / `chat_repo` 等包外调用方使用 | ✅ |
+| `enrichment/` | 子包 | 消息富化：`pipeline`（archive restore / @mention / 上传同步 / @agent 委派 / /learn / 溢出）、`archive_restore`、`upload_sync` | [enrichment/_ARCH.md](enrichment/_ARCH.md) |
+| `model_config/` | 子包 | 模型配置解析：`resolvers`（ModelSelection → ModelConfig）、`providers`（providerId 规范化与密钥查找，显式加载 shared remap） | [model_config/_ARCH.md](model_config/_ARCH.md) |
 | `mention/` | 子包 | `@` 引用展开：`pipeline` 管调度顺序与 token 预算，`references/` 每类引用一个处理器 | [mention/_ARCH.md](mention/_ARCH.md) |
-| `query_enrichment.py` | 核心 | 用户消息侧的上下文装配：archive restore 注入、@mention 引用、上传文件同步、@agent 委派指令、/learn 重写、超长提示词 ContextBomb 溢出落盘；全部注入 user message，不改 system prompt / tool schema（prompt cache 安全） | ✅ |
 | `profile_output_suffixes.py` | 核心 | `apply_profile_output_suffixes()` — personality + harness `build_response_locale_suffix` 注入 instructions 尾（Web/Channel/Cron/Kanban/Eval/Voice×3/Subagent/Goal stream SSOT）。 | ✅ |
 | `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, …），含 `use_workflow`、`workflow_template_id`、`workflow_template_args`（pinned DW rerun）、首轮一次性 `workspace_dir` 绑定、前端记忆开关、`search_depth`、`reasoning_display_mode`、`active_moa_preset_id`、GUI @ 结构化引用、archive restore、`kanban_default_board_id`、`tool_gateway_config`、`turn_capability_telemetry`、`security_preset`。 | — |
-| `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
-| `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |
 | `mcp_selection.py` | 核心 | Per-agent MCP server+tool 过滤。`apply_agent_mcp_selection()` 按 `mcp_ids` 过滤服务器、按 `mcp_tool_selections` 注入 `tool_include`；`coerce_tool_selections()` 规范化原始元数据。被 converter（经 `conversion/profile_apply`）/executor/agent_bridge/eval/custom_agent_factory 五个入口统一调用 | ✅ |
 | `helpers.py` | 辅助 | 文本提取等辅助函数；`_requested_privacy_params` 提取请求自带的隐私字段（converter 再与已保存设置合并：请求写明的优先，没说的跟随设置）；`_declared_capabilities` 合并多份安全配置里声明的能力名 | — |
 | `media.py` | 辅助 | 多模态媒体参数处理 | — |
-| `upload_sync.py` | 辅助 | 上传文件 workspace 同步与 RAG 智能路由。将用户拖拽上传的大文件（>100KB）从 StorageProvider 复制到 `{workspace}/_uploaded/`。大型文档（PDF/DOCX >100KB）自动标记 `action="wiki_ingest_then_query"`，引导 Agent 使用 wiki_ingest + wiki_query 进行 RAG 检索而非全文读取 | ✅ |
 
 ## Uploaded File Workspace Sync
 
 - 前端通过 `AgentRequest.uploaded_file_ids` 传递本次消息附带的文件 ID 列表。
-- `query_enrichment.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件从 StorageProvider 复制到 `{workspace}/_uploaded/`。
-- 归档恢复：`archive_restore.py` 校验 `archive_restore_actions` 并注入 XML；`query_enrichment.py` 在参数转换期调用。
+- `enrichment/pipeline.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件从 StorageProvider 复制到 `{workspace}/_uploaded/`。
+- 归档恢复：`enrichment/archive_restore.py` 校验 `archive_restore_actions` 并注入 XML；`enrichment/pipeline.py` 在参数转换期调用。
 - 文件路径以 XML 标签注入 user message 的 query context，不影响 system prompt 和 tool definitions 的 prompt cache 前缀：
   - 普通文件：`<uploaded_files_in_workspace>` 标签，Agent 可直接读取
   - 大文档（PDF/DOCX >100KB）：`<large_documents_for_knowledge_base>` 标签，引导 Agent 使用 wiki_ingest_tool 入库后用 wiki_query_tool 检索
@@ -47,7 +44,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - 前端 `@chat:` 经 `MentionReferenceRequest(type="prior_chat")` 进入 `mention/references/prior_chat.py::_prior_chat_part`，从 FTS recall 索引注入 summary+snippet。
 - `@chat:` picker 走 `GET /chats/recall/search`（conversation_recall SSOT，与 inject 同索引）；Cmd+K 仍走 `/chats/search` 消息级发现。
 - `mention/references/prior_chat.py::_prior_chat_part` 在 recall doc 缺失时 lazy `rebuild_chat`；错误码区分 unavailable / excluded / incognito；incognito 只拒绝网页无痕会话（`source == "web"`），外部转录导入的会话借用无痕标记只为不进侧栏，选择器会列出它，引用同样放行。
-- `query_enrichment.py` 在 workspace 尚未就绪时仍注入 `prior_chat`；file/workspace 引用跳过并写入 warning。prior_chat 路径不使用 workspace 内容，fallback 见 `mention/references/prior_chat.py::_MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE`。
+- `enrichment/pipeline.py` 在 workspace 尚未就绪时仍注入 `prior_chat`；file/workspace 引用跳过并写入 warning。prior_chat 路径不使用 workspace 内容，fallback 见 `mention/references/prior_chat.py::_MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE`。
 - 注入 append 到 user query 的 `<mentioned_files>`，不修改 system prompt / tool schema（prompt cache 安全）。
 
 ## artifact_range Mention
@@ -58,7 +55,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## Typed Archive Restore
 
 - `AgentRequest.archive_restore_actions` 接收前端结构化恢复动作，作为归档范围恢复的控制协议。
-- `archive_restore.py` 提供流式入口预校验；`query_enrichment.py` 参数转换期物化并注入 query。单请求最多 3 个恢复范围；校验成功才把精确范围注入本轮 Agent 输入，并返回不含正文的 restore result 元数据供 SSE 结果卡片展示。
+- `enrichment/archive_restore.py` 提供流式入口预校验；`enrichment/pipeline.py` 参数转换期物化并注入 query。单请求最多 3 个恢复范围；校验成功才把精确范围注入本轮 Agent 输入，并返回不含正文的 restore result 元数据供 SSE 结果卡片展示。
 - 前端请求使用 snake_case `archive_restore_actions[].restore_arg`，Server Pydantic 模型接收后传入 harness 恢复上下文构建，不依赖 camelCase 边界字段。
 
 ## General Agent tool loading（非 fast Web、Channel/IM）

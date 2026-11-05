@@ -20,7 +20,7 @@ def test_flux3_prompting_guide_skill_valid() -> None:
 
 
 def test_fal_provider_id_normalization() -> None:
-    from app.services.agent.params.providers import normalize_storage_provider_id
+    from app.services.agent.params.model_config import normalize_storage_provider_id
 
     assert normalize_storage_provider_id("fal") == "fal"
     assert normalize_storage_provider_id("fal_ai") == "fal"

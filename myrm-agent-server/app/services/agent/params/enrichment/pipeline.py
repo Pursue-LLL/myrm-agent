@@ -22,17 +22,17 @@ from dataclasses import dataclass, field
 
 from app.core.types import ModelConfig
 
-from .archive_restore import (
-    build_archive_restore_action_context_with_results,
-    inject_archive_restore_actions_into_query,
-)
-from .conversion.chat_context import ChatContext
-from .mention import (
+from ..conversion.chat_context import ChatContext
+from ..mention import (
     _MENTION_PRIOR_CHAT_FALLBACK_WORKSPACE,
     _build_mention_reference_context,
     _inject_mentioned_files_into_query,
 )
-from .models import AgentRequest, MultimodalQuery
+from ..models import AgentRequest, MultimodalQuery
+from .archive_restore import (
+    build_archive_restore_action_context_with_results,
+    inject_archive_restore_actions_into_query,
+)
 from .upload_sync import (
     inject_uploaded_files_into_query,
     sync_uploaded_files_to_workspace,

@@ -133,7 +133,7 @@ class TestModelSelectionBaseUrlPassthrough:
 
     @pytest.mark.asyncio
     async def test_selection_base_url_cleaned(self) -> None:
-        from app.services.agent.params.resolvers import _resolve_model_config
+        from app.services.agent.params.model_config import _resolve_model_config
 
         selection = ModelSelection(
             provider_id="openai",
@@ -146,7 +146,7 @@ class TestModelSelectionBaseUrlPassthrough:
 
     @pytest.mark.asyncio
     async def test_selection_empty_base_url_uses_provider(self) -> None:
-        from app.services.agent.params.resolvers import _resolve_model_config
+        from app.services.agent.params.model_config import _resolve_model_config
 
         selection = ModelSelection(
             provider_id="openai",

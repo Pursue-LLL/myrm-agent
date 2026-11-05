@@ -29,7 +29,8 @@ _REMAP_RELATIVE = Path("shared") / "config" / "provider_legacy_remap.json"
 
 
 def _server_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    # providers.py lives at app/services/agent/params/model_config/providers.py.
+    return Path(__file__).resolve().parents[5]
 
 
 def _legacy_remap_candidates() -> list[Path]:

@@ -5,7 +5,7 @@ import logging
 from app.core.types import ModelConfig
 from app.core.wire.enrich import enrich_model_config
 
-from .models import ModelSelection
+from ..models import ModelSelection
 from .providers import _find_provider_api_key
 
 logger = logging.getLogger(__name__)

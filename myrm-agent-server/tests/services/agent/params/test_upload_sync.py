@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.agent.params.upload_sync import (
+from app.services.agent.params.enrichment.upload_sync import (
     _RAG_TEXT_THRESHOLD,
     _sanitize_filename,
     _should_use_rag,

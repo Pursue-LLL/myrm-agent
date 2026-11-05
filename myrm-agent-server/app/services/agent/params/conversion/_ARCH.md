@@ -15,5 +15,5 @@
 
 ## 依赖关系
 
-- 上游：`params/converter.py`（唯一调用方）、`params/models.py`、`params/resolvers.py`
+- 上游：`params/converter.py`（唯一调用方）、`params/models.py`、`params/model_config/`
 - 下游：`app.core.channel_bridge.*`（模型/搜索/检索配置）、`app.services.agent.profile.*`（Agent 档案）、`app.services.agent.tool_mount`（挂载策略）、harness 记忆与检索类型
