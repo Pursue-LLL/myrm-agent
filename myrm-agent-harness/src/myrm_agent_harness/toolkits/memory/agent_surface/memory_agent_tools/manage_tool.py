@@ -1,4 +1,4 @@
-"""memory_manage_tool: update / delete / correct / rate / discard existing memories.
+"""memory_manage_tool: update / delete / correct / rate existing memories.
 
 [INPUT]
 - toolkits.memory.agent_surface.memory_agent_tools.common::CATEGORY_TO_TYPE (POS: Stateless helpers for memory_search/save/manage tool arguments)
@@ -26,7 +26,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.write_failure_feedback imp
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import MemoryType
 
-ManageAction = Literal["update", "delete", "correct", "rate", "discard"]
+ManageAction = Literal["update", "delete", "correct", "rate"]
 ManageCategory = Literal["knowledge", "event", "preference", "rule"]
 
 _VECTOR_TYPES = (MemoryType.SEMANTIC, MemoryType.EPISODIC)
@@ -34,9 +34,7 @@ _VECTOR_TYPES = (MemoryType.SEMANTIC, MemoryType.EPISODIC)
 
 class MemoryManageInput(BaseModel):
     action: ManageAction = Field(
-        description=(
-            "update: wording/importance; correct: wrong knowledge; delete; rate; discard: prune outdated memory"
-        ),
+        description="update: wording/importance; correct: wrong knowledge; delete; rate",
     )
     memory_id: str = Field(description="Memory ID from memory_search_tool results.")
     category: ManageCategory = Field(
@@ -133,27 +131,6 @@ async def _correct(manager: MemoryManager, mem_type: MemoryType, memory_id: str,
     return f"Memory corrected (new ID: {correction.id}). Prior entry {memory_id} kept in history."
 
 
-async def _discard(manager: MemoryManager, mem_type: MemoryType, category: str, memory_id: str) -> str:
-    if mem_type in _VECTOR_TYPES:
-        if mem_type not in manager.get_enabled_types():
-            return f"{category} memory is not enabled."
-        discarded = await manager.delete_memory(
-            _vector_collection(manager, mem_type), [memory_id], allow_protected=False
-        )
-        if discarded > 0:
-            return f"Memory discarded (ID: {memory_id})"
-        return f"Cannot discard memory (ID: {memory_id}): protected or not found."
-
-    if mem_type == MemoryType.PROCEDURAL:
-        if not manager.has_relational:
-            return "Procedural memory is not enabled."
-        if await manager.delete_rule(memory_id, allow_protected=False):
-            return f"Rule discarded (ID: {memory_id})"
-        return f"Cannot discard rule (ID: {memory_id}): protected or not found."
-
-    return f"Discard action is not supported for category: {category}"
-
-
 def build_memory_manage_tool(manager: MemoryManager, *, description: str) -> BaseTool:
     """Create memory_manage_tool bound to ``manager``."""
 
@@ -180,8 +157,6 @@ def build_memory_manage_tool(manager: MemoryManager, *, description: str) -> Bas
                 return await _update(manager, memory_id, new_content, new_importance)
             if action == "correct":
                 return await _correct(manager, mem_type, memory_id, new_content)
-            if action == "discard":
-                return await _discard(manager, mem_type, category, memory_id)
             return f"Unknown action: {action}"
         except Exception as e:
             return write_failure_feedback("memory_manage", e, fallback="Failed to manage memory", memory_id=memory_id)

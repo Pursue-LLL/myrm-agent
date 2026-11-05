@@ -43,9 +43,8 @@ MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across
 - knowledge: stable facts about user's world (project tech stack, environment details) — tags and importance apply here
 - event: significant past occurrences worth recalling (e.g., user started new project) — do not specify importance or tags for events
 - preference: user likes/dislikes (requires preference_key)
-- rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority, rule_keywords)
+- rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority)
 - instruction: unconditional global rules that always apply (e.g., "always reply in Chinese") — do not set rule_trigger
-- pitfall: failed attempts, bugs, or dead-ends to prevent repeating (requires failure_reason and negative_lesson; optional subtask_phase)
 
 **IMPORTANCE SCORING** (0–1, primarily for knowledge):
 - 0.8–1.0: User explicitly asked to remember / correction of your behavior

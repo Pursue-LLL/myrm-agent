@@ -210,17 +210,17 @@ class TestSparseOnlyAgentTools:
             # The correction is a distinct memory and survives the original's deletion.
             assert [h.memory.id for h in await manager.search("strict", limit=5)] == [correction_id]
 
-            discarded = await tools["memory_manage_tool"].coroutine(
-                action="discard", memory_id=correction_id, category="knowledge"
+            deleted_correction = await tools["memory_manage_tool"].coroutine(
+                action="delete", memory_id=correction_id, category="knowledge"
             )
-            assert discarded.startswith("Memory discarded")
+            assert deleted_correction.startswith("Memory deleted")
             assert await manager.search("strict", limit=5) == []
 
             rule = await manager.add_rule("提交代码前", "运行 lint")
-            discarded_rule = await tools["memory_manage_tool"].coroutine(
-                action="discard", memory_id=rule.id, category="rule"
+            deleted_rule = await tools["memory_manage_tool"].coroutine(
+                action="delete", memory_id=rule.id, category="rule"
             )
-            assert discarded_rule.startswith("Rule discarded")
+            assert deleted_rule.startswith("Rule deleted")
 
             event = await tools["memory_save_tool"].coroutine(content="线上事故复盘：重试风暴", category="event")
             assert event.startswith("Event stored (ID:")

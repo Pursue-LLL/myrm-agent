@@ -14,7 +14,7 @@ LangChain tools the agent uses to read and write memory: `memory_search_tool` (m
 | `factory.py` | Core | `create_memory_tools`: recall-mode gate, policy/backends defaults, tool assembly. | ✅ |
 | `search_tool.py` | Core | `memory_search_tool`: corpus resolution, drill-down, profile lookup, section assembly. | ✅ |
 | `save_tool.py` | Core | `memory_save_tool` + `MemorySaveInput`: wiki/transient rejection, session buffering vs approval-queue writes per category; knowledge/event gates follow the manager's enabled types, so an embeddings-less deployment saves through the BM25 mirror. | ✅ |
-| `manage_tool.py` | Core | `memory_manage_tool` + `MemoryManageInput`: rate/delete/update/correct/discard of existing memories (protected memories refused); knowledge/event actions gate on the manager's enabled types, not dense capability. | ✅ |
+| `manage_tool.py` | Core | `memory_manage_tool` + `MemoryManageInput`: rate/delete/update/correct of existing memories (protected memories refused); knowledge/event actions gate on the manager's enabled types, not dense capability. | ✅ |
 | `common.py` | Util | `CATEGORY_TO_TYPE` mapping and `parse_string_list` argument normaliser. | ✅ |
 
 ## Key Dependencies

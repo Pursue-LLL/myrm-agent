@@ -77,10 +77,6 @@ class MemorySaveInput(BaseModel):
         default=0,
         description="Rule override strength when category=rule; higher wins.",
     )
-    rule_keywords: list[str] | str | None = Field(
-        default=None,
-        description="Optional keywords that activate a rule.",
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,23 +153,17 @@ async def _save_preference(ctx: _SaveContext, *, preference_key: str | None) -> 
     return format_preference_save_ack(preference_key, ctx.content)
 
 
-async def _save_rule(
-    ctx: _SaveContext,
-    *,
-    trigger: str | None,
-    priority: int,
-    keywords: list[str],
-) -> str:
+async def _save_rule(ctx: _SaveContext, *, trigger: str | None, priority: int) -> str:
     if not ctx.manager.has_relational:
         return "Procedural memory is not enabled."
     if not trigger:
         return "Rule requires 'rule_trigger'."
     if (buffer := ctx.buffer) is not None:
-        buffered = buffer.add_rule(trigger, ctx.content, priority=priority, trigger_keywords=keywords)
+        buffered = buffer.add_rule(trigger, ctx.content, priority=priority)
         if buffered is None:
             return "Rule already exists in session (duplicate detected)"
         return f"Rule buffered (ID: {buffered.id})"
-    stored = await ctx.manager.add_rule(trigger, ctx.content, priority=priority, trigger_keywords=keywords)
+    stored = await ctx.manager.add_rule(trigger, ctx.content, priority=priority)
     return f"Rule {ctx.outcome} (ID: {stored.id})"
 
 
@@ -218,11 +208,9 @@ def build_memory_save_tool(
         preference_key: str | None = None,
         rule_trigger: str | None = None,
         rule_priority: int = 0,
-        rule_keywords: list[str] | str | None = None,
     ) -> str:
         """Persist a new memory entry for the user."""
         parsed_tags = parse_string_list(tags)
-        parsed_keywords = parse_string_list(rule_keywords)
 
         if policy.allow_wiki and category in ("knowledge", "event") and looks_like_wiki_document(content):
             record_wiki_memory_save_rejection()
@@ -252,7 +240,7 @@ def build_memory_save_tool(
             if category == "preference":
                 return await _save_preference(ctx, preference_key=preference_key)
             if category == "rule":
-                return await _save_rule(ctx, trigger=rule_trigger, priority=rule_priority, keywords=parsed_keywords)
+                return await _save_rule(ctx, trigger=rule_trigger, priority=rule_priority)
             if category == "instruction":
                 return await _save_instruction(ctx, priority=rule_priority)
             return f"Unknown category: {category}"
