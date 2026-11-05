@@ -18,7 +18,8 @@ request for an hour (200 entries, 1 MiB each) and hands it back, as a fresh copy
 identical on the wire: endpoint, credentials, headers and body. Only an answer that finished normally and says
 something is kept, so a failure, a truncated answer, a refusal or an empty reply is always asked again. A stream is
 recorded by its decoder and filed when the provider ends it, so a stream the consumer abandons or a connection that
-breaks is never filed. ``MYRM_LLM_ANSWER_CACHE=0`` switches the cache off.
+breaks is never filed. ``MYRM_LLM_ANSWER_CACHE=0`` switches the cache off for the process; a call that has to reach
+the provider every time (a connectivity probe) opts out alone with ``answer_cache=False`` and neither reads nor files.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, cast
 
 from myrm_agent_harness.toolkits.llms.transport.http import (
     AsyncProviderStream,
@@ -111,8 +112,9 @@ def _dump(value: object) -> str:
 
 
 def request_key(request: PreparedRequest) -> str | None:
-    """Identity of a request as the provider sees it; ``None`` for a multipart upload, which is never replayed."""
-    if request.body is None:
+    """Identity of a request as the provider sees it; ``None`` for one that is never replayed: a multipart upload, or
+    a request whose caller opted out of the cache."""
+    if request.body is None or not request.cacheable:
         return None
     wire = [request.provider, request.url, request.stream, dict(request.query), dict(request.headers), request.body]
     text = json.dumps(wire, ensure_ascii=False, separators=(",", ":"), sort_keys=True, default=str)
@@ -184,7 +186,7 @@ def cached_answer[T](
     """The answer of a non-streaming request: the stored copy if there is one, else ``produce()``, filed if ``keep``."""
     key, stored = _stored(request)
     if stored is not None:
-        return json.loads(stored)  # type: ignore[no-any-return]
+        return cast("T", json.loads(stored))
     answer = produce()
     if key is not None and (keep is None or keep(answer)):
         _file(key, answer)
@@ -197,7 +199,7 @@ async def acached_answer[T](
     """Async twin of :func:`cached_answer`."""
     key, stored = _stored(request)
     if stored is not None:
-        return json.loads(stored)  # type: ignore[no-any-return]
+        return cast("T", json.loads(stored))
     answer = await produce()
     if key is not None and (keep is None or keep(answer)):
         _file(key, answer)

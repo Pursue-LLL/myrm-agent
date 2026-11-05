@@ -5,6 +5,7 @@
 - transport.http (POS: request execution and stream iterators)
 - transport.chat_shape (POS: the chat.completion shape the adapter reads, applied to every chat answer)
 - transport.answer_cache (POS: replays the answer of a request that was already answered)
+- transport.params (POS: whether the caller opted the call out of the answer cache)
 - transport.openai_chat / openai_responses / anthropic_messages / anthropic_response / bedrock_converse / bedrock_response / gemini_generate / ollama_chat (POS: the wires)
 
 [OUTPUT]
@@ -15,7 +16,8 @@
 Facade over the wires: resolve the route, let the wire build the provider request, execute it, and return the answer
 in the OpenAI chat shape (dict, or an iterator of chunk dicts when streaming); ``chat_shape`` guarantees that shape
 whichever wire or gateway produced the answer. A request that was already answered is answered from ``answer_cache``
-instead of the provider. The facade keeps no state of its own, so one instance serves every model and thread;
+instead of the provider, unless the call says ``answer_cache=False`` (a probe that has to reach the provider and must
+leave nothing for the next caller). The facade keeps no state of its own, so one instance serves every model and thread;
 connection pools live in ``http``. It exposes the same four calls and keyword arguments the chat adapter has always
 issued, which keeps the adapter's retry, failover and recovery logic untouched.
 """
@@ -23,7 +25,7 @@ issued, which keeps the adapter's retry, failover and recovery logic untouched.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from typing import Final
 
@@ -58,6 +60,7 @@ from myrm_agent_harness.toolkits.llms.transport.http import (
     open_stream,
     send_json,
 )
+from myrm_agent_harness.toolkits.llms.transport.params import wants_answer_cache
 from myrm_agent_harness.toolkits.llms.transport.profile import Route, resolve_route
 
 Messages = Sequence[Mapping[str, object]]
@@ -96,13 +99,18 @@ def _route(params: Mapping[str, object]) -> Route:
     )
 
 
+def _gated(request: PreparedRequest, params: Mapping[str, object]) -> PreparedRequest:
+    """``request``, kept out of the answer cache when the caller opted out of it."""
+    return request if wants_answer_cache(params) else replace(request, cacheable=False)
+
+
 class LLMTransport:
     """Provider transport without state of its own; see the module docstring."""
 
     def completion(self, *, messages: Messages, **params: object) -> dict[str, object] | ProviderStream | ReplayStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
-        request = wire.prepare(route, messages, params)
+        request = _gated(wire.prepare(route, messages, params), params)
         if request.stream:
             return cached_stream(open_stream, request, ShapedDecoder(wire.decoder(route)), CHAT)
         return cached_answer(
@@ -114,7 +122,7 @@ class LLMTransport:
     ) -> dict[str, object] | AsyncProviderStream | AsyncReplayStream:
         route = _route(params)
         wire = _CHAT_WIRES[route.profile.wire]
-        request = wire.prepare(route, messages, params)
+        request = _gated(wire.prepare(route, messages, params), params)
         if request.stream:
             return await acached_stream(aopen_stream, request, ShapedDecoder(wire.decoder(route)), CHAT)
 
@@ -125,14 +133,14 @@ class LLMTransport:
 
     def responses(self, **params: object) -> dict[str, object] | ProviderStream | ReplayStream:
         route = _route(params)
-        request = openai_responses.prepare(route, params)
+        request = _gated(openai_responses.prepare(route, params), params)
         if request.stream:
             return cached_stream(open_stream, request, openai_responses.decoder(route), RESPONSES)
         return cached_answer(request, lambda: openai_responses.parse(route, send_json(request)), keep=RESPONSES.answer)
 
     async def aresponses(self, **params: object) -> dict[str, object] | AsyncProviderStream | AsyncReplayStream:
         route = _route(params)
-        request = openai_responses.prepare(route, params)
+        request = _gated(openai_responses.prepare(route, params), params)
         if request.stream:
             return await acached_stream(aopen_stream, request, openai_responses.decoder(route), RESPONSES)
 

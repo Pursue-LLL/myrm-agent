@@ -174,11 +174,13 @@ def _apply_local_no_auth_marker_transport_overrides(
 def _probe_model_kwargs(model_kwargs: dict[str, object]) -> dict[str, object]:
     """Model arguments of a probe, which has to ask the provider on every call.
 
-    ``caching=False`` makes LiteLLM skip reading its response cache. That cache is keyed by model and messages, not by API
-    key or endpoint, so a cached answer would stand in for a key or endpoint that was never tried. The probe's own answer
-    is still stored; only a later call with identical model, messages and arguments can read it.
+    ``answer_cache=False`` keeps the probe out of the transport's answer cache: it neither reads a stored answer nor files
+    its own. The cache is keyed by the whole request (endpoint, credentials, headers, body), so an edited key or endpoint
+    is already another request, but an unchanged one would be answered from memory, hiding a key the provider has since
+    revoked, a host that has gone away and the latency the speed test measures. Filing nothing also keeps the probe's
+    answer from standing in for the failover health check of the same request.
     """
-    return {**model_kwargs, "caching": False}
+    return {**model_kwargs, "answer_cache": False}
 
 
 class ModelDiscoveryRequest(BaseModel):

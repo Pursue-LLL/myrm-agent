@@ -72,6 +72,8 @@ class PreparedRequest:
     files: Mapping[str, FilePart] | None = None
     # Retries after the first attempt for a failure before anything came back; 0 for a call that must not be repeated.
     retries: int = 0
+    # False keeps the request out of the answer cache: no stored answer is served for it and none is filed.
+    cacheable: bool = True
 
 
 class StreamDecoder(Protocol):

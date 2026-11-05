@@ -235,7 +235,98 @@ class TestChatStreams:
         assert (replayed, len(provider.requests)) == (live, 1)
 
 
+class TestCallsThatOptOut:
+    """``answer_cache=False`` makes one call reach the provider and leave nothing behind; other calls keep the cache."""
+
+    def test_an_opted_out_call_reaches_the_provider_every_time(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        get_transport().completion(**_params(answer_cache=False))
+        get_transport().completion(**_params(answer_cache=False))
+
+        assert len(provider.requests) == 2
+
+    def test_the_async_path_honours_the_opt_out(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        async def ask_twice() -> None:
+            await get_transport().acompletion(**_params(answer_cache=False))
+            await get_transport().acompletion(**_params(answer_cache=False))
+
+        asyncio.run(ask_twice())
+
+        assert len(provider.requests) == 2
+
+    def test_the_switch_is_not_a_provider_parameter(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        get_transport().completion(**_params(answer_cache=False))
+
+        assert "answer_cache" not in json.loads(provider.requests[0].content)
+
+    def test_an_opted_out_call_files_nothing(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        get_transport().completion(**_params(answer_cache=False))
+        assert len(answer_cache) == 0
+        get_transport().completion(**_params())  # the opted-out call left nothing for this one to read
+        get_transport().completion(**_params())
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 1)
+
+    def test_an_opted_out_call_does_not_read_what_an_ordinary_call_filed(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        get_transport().completion(**_params())
+        get_transport().completion(**_params(answer_cache=False))
+        get_transport().completion(**_params())  # the stored copy still serves ordinary calls
+
+        assert len(provider.requests) == 2
+
+    @pytest.mark.parametrize("value", [None, True, 0, "no"], ids=["none", "true", "zero", "text"])
+    def test_only_an_explicit_false_opts_out(self, value: object, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+
+        get_transport().completion(**_params(answer_cache=value))
+        get_transport().completion(**_params(answer_cache=value))
+
+        assert len(provider.requests) == 1
+
+    def test_an_opted_out_stream_is_live_and_unrecorded(self, provider: Provider) -> None:
+        provider.serves(_hello_stream())
+
+        drain(get_transport().completion(**_params(stream=True, answer_cache=False)))
+        drain(get_transport().completion(**_params(stream=True, answer_cache=False)))
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 0)
+
+    def test_an_opted_out_async_stream_is_live_and_unrecorded(self, provider: Provider) -> None:
+        provider.serves(_hello_stream())
+
+        async def run() -> None:
+            await adrain(await get_transport().acompletion(**_params(stream=True, answer_cache=False)))
+            await adrain(await get_transport().acompletion(**_params(stream=True, answer_cache=False)))
+
+        asyncio.run(run())
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 0)
+
+
 class TestThroughTheAdapter:
+    def test_a_model_configured_to_opt_out_asks_every_time_and_never_sends_the_switch(self, provider: Provider) -> None:
+        provider.serves(json_response(answer()))
+        probe = chat_model(streaming=False, model_kwargs={"answer_cache": False})
+        ordinary = chat_model(streaming=False)
+
+        probe.invoke([HumanMessage(content="hi")])
+        probe.invoke([HumanMessage(content="hi")])
+        # The probes left nothing: this call reaches the provider and files its answer, the next one reads it.
+        ordinary.invoke([HumanMessage(content="hi")])
+        ordinary.invoke([HumanMessage(content="hi")])
+
+        assert len(provider.requests) == 3
+        assert all("answer_cache" not in json.loads(request.content) for request in provider.requests)
+
     def test_a_repeated_prompt_costs_one_provider_call_and_reads_the_same(
         self, provider: Provider, tracker: TokenTracker
     ) -> None:

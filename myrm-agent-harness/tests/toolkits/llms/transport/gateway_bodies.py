@@ -46,9 +46,14 @@ def sse_body(*frames: Body | str) -> bytes:
     return "".join([*lines, "data: [DONE]\n\n"]).encode()
 
 
-def chat_model(*, streaming: bool) -> TransportChatModel:
+def chat_model(*, streaming: bool, **options: object) -> TransportChatModel:
     return create_chat_model(
-        model="openai/gpt-4o-mini", base_url="http://gateway.test/v1", api_key="k", temperature=0.0, streaming=streaming
+        model="openai/gpt-4o-mini",
+        base_url="http://gateway.test/v1",
+        api_key="k",
+        temperature=0.0,
+        streaming=streaming,
+        **options,
     )
 
 

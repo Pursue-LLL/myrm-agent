@@ -10,7 +10,7 @@
 - unreachable_api_base(): an api_base nothing listens on
 
 [POS]
-真实 CloudEmbedding（LiteLLM）与 CloudReranker（httpx）打到的假上游：校验类测试用它代替对客户端类的 patch，
+真实 CloudEmbedding 与 CloudReranker（harness 自带的 httpx 传输）打到的假上游：校验类测试用它代替对客户端类的 patch，
 失败分类走的就是客户端真实抛出的异常类型。
 """
 

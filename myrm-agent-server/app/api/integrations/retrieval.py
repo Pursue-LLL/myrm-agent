@@ -46,7 +46,7 @@ _CAUSES: dict[FailoverReason, str] = {
 class RetrievalProbeRequest(BaseModel):
     """Embedding or reranker configuration to probe."""
 
-    model: str = Field(..., description="Model name in LiteLLM format")
+    model: str = Field(..., description="Model name in provider/model format")
     api_key: str = Field(..., description="API key")
     api_base: str | None = Field(default=None, description="Custom API endpoint")
     provider: str | None = Field(
@@ -65,9 +65,8 @@ class ValidationResult(BaseModel):
 def _probe_text() -> str:
     """A text no earlier call used.
 
-    LiteLLM's process-wide response cache (installed once `llm_manager` is first used) is keyed by model and input, not by
-    API key or endpoint: a fixed text would be answered from it after one success, and a key or endpoint edited since
-    would still validate.
+    The transport's answer cache is keyed by the whole request: a fixed text would be answered from it for as long as the
+    endpoint, key and model stay the same, so a provider that has since gone away or revoked the key would still validate.
     """
     return f"probe-{uuid.uuid4().hex}"
 
@@ -79,7 +78,7 @@ def _failed(cause: str, error: str | None = None) -> ValidationResult:
 def _http_status(exc: Exception) -> int | None:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code
-    status = getattr(exc, "status_code", None)  # LiteLLM and OpenAI SDK errors carry the provider's status
+    status = getattr(exc, "status_code", None)  # the transport's LLMHTTPError carries the provider's status
     return status if isinstance(status, int) else None
 
 

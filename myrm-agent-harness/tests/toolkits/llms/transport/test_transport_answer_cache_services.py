@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import embeddings, rerank
+from myrm_agent_harness.toolkits.llms.transport.answer_cache import answer_cache
 from myrm_agent_harness.toolkits.llms.transport.client import get_transport
 
 from .gateway_bodies import Body
@@ -91,6 +93,46 @@ class TestResponsesWire:
         live, replayed = asyncio.run(run())
 
         assert (replayed, len(provider.requests)) == (live, 1)
+
+    def test_an_opted_out_responses_call_reaches_the_provider_every_time(self, provider: Provider) -> None:
+        provider.serves(json_response(_RESPONSE))
+
+        get_transport().responses(**_params(answer_cache=False))
+        get_transport().responses(**_params(answer_cache=False))
+
+        assert len(provider.requests) == 2
+        assert all("answer_cache" not in json.loads(request.content) for request in provider.requests)
+        assert len(answer_cache) == 0
+
+    def test_an_opted_out_async_responses_call_reaches_the_provider_every_time(self, provider: Provider) -> None:
+        provider.serves(json_response(_RESPONSE))
+
+        async def ask_twice() -> None:
+            await get_transport().aresponses(**_params(answer_cache=False))
+            await get_transport().aresponses(**_params(answer_cache=False))
+
+        asyncio.run(ask_twice())
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 0)
+
+    def test_an_opted_out_event_stream_is_live_and_unrecorded(self, provider: Provider) -> None:
+        provider.serves(_response_events())
+
+        drain(get_transport().responses(**_params(stream=True, answer_cache=False)))
+        drain(get_transport().responses(**_params(stream=True, answer_cache=False)))
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 0)
+
+    def test_an_opted_out_async_event_stream_is_live_and_unrecorded(self, provider: Provider) -> None:
+        provider.serves(_response_events())
+
+        async def run() -> None:
+            await adrain(await get_transport().aresponses(**_params(stream=True, answer_cache=False)))
+            await adrain(await get_transport().aresponses(**_params(stream=True, answer_cache=False)))
+
+        asyncio.run(run())
+
+        assert (len(provider.requests), len(answer_cache)) == (2, 0)
 
 
 class TestEmbeddingsAndRerank:

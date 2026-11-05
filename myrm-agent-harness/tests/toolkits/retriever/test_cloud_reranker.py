@@ -53,11 +53,11 @@ def _reranker() -> CloudReranker:
 
 
 class TestRerank:
-    async def test_results_come_back_best_first_with_their_document_text(
+    async def test_hits_come_back_as_the_provider_ranked_them_with_their_document_text(
         self, transport: tuple[list[Call], list[Scorer]]
     ) -> None:
         calls, scorers = transport
-        scorers[0] = lambda query, documents: [(0, 0.2), (2, 0.9), (1, 0.5)]
+        scorers[0] = lambda query, documents: [(2, 0.9), (1, 0.5), (0, 0.2)]
 
         results = await _reranker().rerank("q", ["a", "b", "c"])
 
@@ -68,7 +68,7 @@ class TestRerank:
         ]
         assert calls == [Call("cohere/rerank-v3.5", "q", ["a", "b", "c"], 3, "key", "https://gw.example/v1")]
 
-    async def test_top_k_limits_both_the_request_and_the_answer(
+    async def test_top_k_is_the_limit_asked_of_the_provider_and_its_answer_is_passed_on(
         self, transport: tuple[list[Call], list[Scorer]]
     ) -> None:
         calls, scorers = transport
@@ -76,8 +76,8 @@ class TestRerank:
 
         results = await _reranker().rerank("q", ["a", "b", "c"], top_k=2)
 
-        assert [r.index for r in results] == [2, 1]
         assert calls[0].top_n == 2
+        assert [r.index for r in results] == [0, 2, 1]
 
     async def test_no_documents_means_no_call(self, transport: tuple[list[Call], list[Scorer]]) -> None:
         calls, _ = transport

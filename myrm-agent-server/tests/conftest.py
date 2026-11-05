@@ -47,11 +47,12 @@ os.environ["MYRM_LLM_ANSWER_CACHE"] = "0"
 # Shared fixtures re-exported to every suite. pytest 9 requires pytest_plugins at the
 # top-level conftest only; the referenced modules define explicit-request fixtures
 # (db_session/fts_db) and an artifact-upsert autouse mock that is inert for tests that
-# never touch the artifact pipeline. The first two are plain support modules: a conftest
+# never touch the artifact pipeline. The first three are plain support modules: a conftest
 # that is also listed here is registered twice, and a run targeting its directory aborts.
 pytest_plugins = (
     "tests.support.chat_db_fixtures",
     "tests.support.artifact_upsert_fixture",
+    "tests.support.answer_cache_fixture",
     "tests.api.agent.conftest",
 )
 

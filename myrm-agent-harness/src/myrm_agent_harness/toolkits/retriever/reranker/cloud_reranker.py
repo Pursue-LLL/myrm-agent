@@ -112,7 +112,10 @@ class CloudReranker(RerankerService):
         return scores
 
     async def rerank(self, query: str, documents: list[str], top_k: int | None = None) -> list[RerankResult]:
-        """Rerank ``documents`` for ``query``; the best ``top_k`` (all when None) come back by score, descending.
+        """Rerank ``documents`` for ``query``: ``top_k`` (all when None) is the result limit asked of the provider.
+
+        The hits come back as the provider answered: in its order, and as many as it sent (a provider that ignores
+        the limit answers with more than ``top_k``).
 
         Raises:
             LLMHTTPError: The provider refused the call.
@@ -131,5 +134,4 @@ class CloudReranker(RerankerService):
         if not ranked:
             logger.warning("Rerank returned no results for model %s", self._model)
             return []
-        ranked.sort(key=lambda pair: pair[1], reverse=True)
-        return [RerankResult(index=index, score=score, text=documents[index]) for index, score in ranked[:limit]]
+        return [RerankResult(index=index, score=score, text=documents[index]) for index, score in ranked]
