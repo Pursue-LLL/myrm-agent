@@ -28,7 +28,7 @@ async def test_wiki_ingest_stream_route_exists() -> None:
 
     with (
         patch(
-            "app.api.wiki.ingest_stream.wiki_ingest_event_bus.stream_scope",
+            "app.api.wiki.routes.ingest_stream.wiki_ingest_event_bus.stream_scope",
             new=_fake_stream_scope,
         ),
         patch(

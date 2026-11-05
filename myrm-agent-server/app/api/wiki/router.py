@@ -2,11 +2,11 @@
 
 [INPUT]
 fastapi::APIRouter (POS: FastAPI 路由容器)
-app.api.wiki.ingest_stream::register_ingest_stream_routes (POS: SSE/流式 ingest 路由注册)
+app.api.wiki.routes.ingest_stream::register_ingest_stream_routes (POS: SSE/流式 ingest 路由注册)
 app.api.wiki.routes::query, dedup, stats, tree, mutations, queue, insights, imports, vault, portability,
     url_import, video_import, meeting (POS: Wiki 各业务域子路由)
-app.api.wiki.governance_routes, layers_routes, maintain_routes, obsidian_binding_routes (POS: 既有独立子路由)
-app.api.wiki.sources (POS: 来源管理子路由)
+app.api.wiki.routes.governance, layers_routes, maintain_routes, obsidian_binding_routes (POS: 既有独立子路由)
+app.api.wiki.routes.sources (POS: 来源管理子路由)
 app.api.wiki.routes.clip, routes.ima (POS: 剪藏与图像理解子路由)
 
 [OUTPUT]
@@ -21,7 +21,6 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
-from app.api.wiki.ingest_stream import register_ingest_stream_routes
 from app.api.wiki.routes import (
     dedup,
     imports,
@@ -37,6 +36,7 @@ from app.api.wiki.routes import (
     vault,
     video_import,
 )
+from app.api.wiki.routes.ingest_stream import register_ingest_stream_routes
 from app.api.wiki.routes.schemas import ConceptBacklinkItem, ConceptLinkItem, ConceptLinksResponse
 
 router = APIRouter()
@@ -66,13 +66,13 @@ router.include_router(meeting.router)
 
 register_ingest_stream_routes(router)
 
-from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
-from app.api.wiki.layers_routes import router as wiki_layers_router  # noqa: E402
-from app.api.wiki.maintain_routes import router as wiki_maintain_router  # noqa: E402
-from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
+from app.api.wiki.routes.governance import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.routes.ima import router as wiki_ima_router  # noqa: E402
-from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402
+from app.api.wiki.routes.layers import router as wiki_layers_router  # noqa: E402
+from app.api.wiki.routes.maintain import router as wiki_maintain_router  # noqa: E402
+from app.api.wiki.routes.obsidian_binding import router as wiki_obsidian_binding_router  # noqa: E402
+from app.api.wiki.routes.sources import router as wiki_sources_router  # noqa: E402
 
 router.include_router(wiki_clip_router)
 router.include_router(wiki_maintain_router)

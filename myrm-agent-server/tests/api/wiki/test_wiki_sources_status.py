@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.api.wiki.sources import (
+from app.api.wiki.routes.sources import (
     WikiSourceSyncConfigUpdate,
     _wiki_source_sync_status,
     update_wiki_source_sync_config,
@@ -22,11 +22,11 @@ async def test_status_drive_unauthorized_when_scope_missing() -> None:
 
     with (
         patch(
-            "app.api.wiki.sources.is_oauth_issuer_connected",
+            "app.api.wiki.routes.sources.is_oauth_issuer_connected",
             new=AsyncMock(return_value=True),
         ),
         patch(
-            "app.api.wiki.sources.google_workspace_drive_read_enabled",
+            "app.api.wiki.routes.sources.google_workspace_drive_read_enabled",
             new=AsyncMock(return_value=False),
         ),
     ):
@@ -44,11 +44,11 @@ async def test_status_drive_authorized_when_scope_present() -> None:
 
     with (
         patch(
-            "app.api.wiki.sources.is_oauth_issuer_connected",
+            "app.api.wiki.routes.sources.is_oauth_issuer_connected",
             new=AsyncMock(return_value=True),
         ),
         patch(
-            "app.api.wiki.sources.google_workspace_drive_read_enabled",
+            "app.api.wiki.routes.sources.google_workspace_drive_read_enabled",
             new=AsyncMock(return_value=True),
         ),
     ):
@@ -81,23 +81,23 @@ async def test_update_config_roundtrips_zotero_fields() -> None:
 
     with (
         patch(
-            "app.api.wiki.sources.load_wiki_source_sync_config",
+            "app.api.wiki.routes.sources.load_wiki_source_sync_config",
             new=AsyncMock(side_effect=[WikiSourceSyncConfig(), saved]),
         ),
         patch(
-            "app.api.wiki.sources.save_wiki_source_sync_config",
+            "app.api.wiki.routes.sources.save_wiki_source_sync_config",
             new=AsyncMock(return_value=saved),
         ) as save_mock,
         patch(
-            "app.api.wiki.sources.load_wiki_source_sync_state",
+            "app.api.wiki.routes.sources.load_wiki_source_sync_state",
             new=AsyncMock(return_value=WikiSourceSyncState()),
         ),
         patch(
-            "app.api.wiki.sources.is_oauth_issuer_connected",
+            "app.api.wiki.routes.sources.is_oauth_issuer_connected",
             new=AsyncMock(return_value=False),
         ),
         patch(
-            "app.api.wiki.sources.is_feishu_wiki_sync_available",
+            "app.api.wiki.routes.sources.is_feishu_wiki_sync_available",
             new=AsyncMock(return_value=False),
         ),
     ):
@@ -126,23 +126,23 @@ async def test_update_config_partial_update_keeps_other_fields() -> None:
     db = AsyncMock()
     with (
         patch(
-            "app.api.wiki.sources.load_wiki_source_sync_config",
+            "app.api.wiki.routes.sources.load_wiki_source_sync_config",
             new=AsyncMock(side_effect=[current, current]),
         ),
         patch(
-            "app.api.wiki.sources.save_wiki_source_sync_config",
+            "app.api.wiki.routes.sources.save_wiki_source_sync_config",
             new=_capture_save,
         ),
         patch(
-            "app.api.wiki.sources.load_wiki_source_sync_state",
+            "app.api.wiki.routes.sources.load_wiki_source_sync_state",
             new=AsyncMock(return_value=WikiSourceSyncState()),
         ),
         patch(
-            "app.api.wiki.sources.is_oauth_issuer_connected",
+            "app.api.wiki.routes.sources.is_oauth_issuer_connected",
             new=AsyncMock(return_value=False),
         ),
         patch(
-            "app.api.wiki.sources.is_feishu_wiki_sync_available",
+            "app.api.wiki.routes.sources.is_feishu_wiki_sync_available",
             new=AsyncMock(return_value=False),
         ),
     ):

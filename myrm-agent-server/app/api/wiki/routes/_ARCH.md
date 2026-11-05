@@ -26,6 +26,12 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | `meeting.py` | 路由 | **/meeting-notes/transcribe** 与 **/meeting-notes/live/{session_id}[/ingest|/finalize]** | ✅ |
 | `vault.py` | 路由 | **POST /vault/reveal** · **POST /vault/open-obsidian** | ✅ |
 | `portability.py` | 路由 | **GET /portability/export** | ✅ |
+| `governance.py` | 路由 | **/governance/** 知识治理：overview / extend / archive / undo / revive | ✅ |
+| `layers.py` | 路由 | **/layers/** 分层视图条目与统计 | ✅ |
+| `maintain.py` | 路由 | **/maintain** 启动、取消与状态查询 | ✅ |
+| `sources.py` | 路由 | **/sources/** 配置与手动同步 | ✅ |
+| `obsidian_binding.py` | 路由 | **/vault/** Obsidian 绑定、解绑与增量同步 | ✅ |
+| `ingest_stream.py` | 路由 | **GET /ingest/stream** SSE 进度 | ✅ |
 | `schemas.py` | 契约 | 查询/编译/统计/树/变更/去重模型 | ✅ |
 | `schemas_import.py` | 契约 | 批量导入请求与响应模型 | ✅ |
 | `vault_effects.py` | 支撑 | 变更后的 vault 索引刷新与认知地图事件 | ✅ |
