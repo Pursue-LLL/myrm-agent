@@ -23,9 +23,9 @@ from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import InboundMessage
 
-from .session import handle_compact, handle_new_session
-from .topic import TopicCommand, handle_topic_command
-from .turns import handle_retry, handle_undo
+from ..session import handle_compact, handle_new_session
+from ..topic import TopicCommand, handle_topic_command
+from ..turns import handle_retry, handle_undo
 
 logger = logging.getLogger("app.channels.routing.router")
 
