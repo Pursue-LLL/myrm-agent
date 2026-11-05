@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · 前端「多系统活动流」整套组件从没被页面渲染，目录与测试已删除；仍把它当作现有部件的 3 条路线图前提同步改写
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（前端；没有改 server、harness、控制平面）。仓库根的路线图文档在 dev 仓库同一批次里改写，见「修复」。 |
+| **症状** | ① [实测，孤儿门禁，`origin/main` `672b8bed1e`] 孤儿清单里有 `features/activity-feed/` 的 6 个源文件（`ActivityFeedAggregatorDeck.tsx`、`ActivityFeedStreamCard.tsx`、`activityFeedEngine.ts`、`activityFeedTypes.ts`、`useActivityFeedStore.ts`、`index.ts`）。② [代码，`git grep` 覆盖全部已跟踪文本文件，按 19 个导出名（≥8 个字符）与目录路径两种口径] 目录之外没有任何导入：唯一的同名命中是 `sidebar/attention-hub/attentionHubEngine.ts:23` 自己定义的 `computePriorityWeight`；其余只有 `features/_ARCH.md:67` 的索引行与 `BUGFIX_LOG.md` 里的历史条目。③ [代码] 5 个源文件没有 `useTranslations`、`/api/`、`fetch(`、`EventSource`、`WebSocket`：没有语言包键，也没有任何数据来源。`useActivityFeedStore` 的条目来自邮件、日历、消息、审批、定时任务、看板 6 个系统，但全仓没有一处往这个仓库里写入条目。 |
+| **根因** | [代码] 路线图条目 #190 `ActivityFeedMultiSystemAggregatorAndAutoEvaporatingQueueSuite` 已在 `_retired.tsv` 退役（提交 `df24f9f76`），目录没有跟着处理；同日较早的「项目动态接口」条目把它留到产品决定，理由是 3 个开放条目（topic_17 #28、topic_03 #455、topic_09 的一条边界清单）把它写成「已具备」的现有部件。这 3 处的前提本身不成立：目录没有接入任何页面，也没有数据来源。 |
+| **修复** | ① 删除 `features/activity-feed/`（12 个文件、1604 行：6 个源码、5 个测试共 34 例、`_ARCH.md`），`features/_ARCH.md` 去掉对应索引行。② 在 dev 仓库改写 3 处前提：topic_17 #28 写明跨智能体统一活动流在前端没有实现、现役的活动流只有 `kanban/BoardActivityFeed.tsx` 这一份看板事件流；topic_03 #455 去掉对被删目录的复用依赖；topic_09 的边界清单去掉该条。`_retired.tsv` 里 #190 的退役记录不动。被删文件可以从本提交的父提交取回：`git show <本提交>^:myrm-agent-frontend/src/components/features/activity-feed/index.ts`（其余同理）。 |
+| **行为变化** | 无。被删代码从没被页面渲染过，也没有读写任何后端接口。 |
+| **回归证据** | [实测，scratch 工作树，`origin/main` `672b8bed1e` 加本提交] [1] `bun run lint` 8 个门禁全部通过。[2] `bun run i18n:split` 之后 `tsc --noEmit` 退出码 0；`bun run verify:i18n` 通过，代码引用门禁扫了 2804 个文件，无缺失键引用。[3] 孤儿门禁相对 `origin/main` 无新增孤儿；存量由 366 个降到 360 个，差的 6 个正是这次删的 6 个源文件。[4] 没有跑 `vitest`：被删的 5 个测试文件只测被删目录，别处没有导入它们。 |
+| **仍然存在** | ① `features/agent-transparency/granular-cost/` 也是孤儿，路线图 topic_09、topic_10 的开放条目把它写成「既有面板」并计划把实例维度接入它；它没有挂到任何页面，这两处的前提同样不成立，本次没有动，需要另行处理。② 本次没有在浏览器里点过：被删代码没有任何渲染入口，证据只有读码、全仓检索与门禁。③ 同日较早的「项目动态接口」条目里「前端 `features/activity-feed/` 保留」的描述是当时的状态，已被本条取代。 |
+| **代码位置** | frontend：`src/components/features/activity-feed/`（已删除）、`src/components/features/_ARCH.md`；dev 仓库：`temp-docs/roadmap/topic_03_*.md` #455、`topic_09_*.md`、`topic_17_*.md` #28。 |
+
 ## 2026-11-05 · 语义工具组与需求澄清门禁两套前端组件从没被页面渲染，目录与测试已删除；Canvas 目录里无人导入的门面一并删除
 
 | 字段 | 内容 |
