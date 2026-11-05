@@ -253,9 +253,7 @@ def _build_system_prompt(
     if config.extract_semantic or config.extract_episodic:
         parts.append(_VALIDITY_SECTION)
 
-    if config.wiki_boundary_enabled and (
-        config.extract_semantic or config.extract_episodic
-    ):
+    if config.wiki_boundary_enabled and (config.extract_semantic or config.extract_episodic):
         parts.append(_WIKI_BOUNDARY_SECTION)
 
     parts.append(_GUIDELINES)
