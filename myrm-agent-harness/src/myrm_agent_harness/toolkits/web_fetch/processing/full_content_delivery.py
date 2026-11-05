@@ -84,7 +84,8 @@ def plan_full_content(pages: Sequence[FetchedPage], failed_urls: Sequence[str] =
         return _in_full(headers, bodies, failures)
 
     # file_read_tool numbers lines after universal-newline translation, so line numbers only match the stored copy
-    # once CR and CRLF are LF.
+    # once CR and CRLF are LF, in the headers (a page title can hold them) as well as in the bodies.
+    headers = [_normalize_newlines(header) for header in headers]
     bodies = [_normalize_newlines(body) for body in bodies]
     sizes = _block_sizes(headers, bodies)
     if sum(sizes) <= budget:
