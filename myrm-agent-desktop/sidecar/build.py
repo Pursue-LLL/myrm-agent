@@ -16,12 +16,25 @@ import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
+from bundle_inventory import (
+    HARNESS_PACKAGE,
+    HOOKS_DIR,
+    exclude_options,
+    installed_package_dir,
+    script_data_options,
+    write_inventory_hooks,
+)
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 SERVER_ROOT = PROJECT_ROOT / "myrm-agent-server"
 HARNESS_ROOT = PROJECT_ROOT / "myrm-agent-harness"
+# The harness package as the checkout holds it. The build ships the installed copy (a wheel built from this one), so
+# it passes that copy to `pyinstaller_command`; this one answers when only the command is looked at.
+HARNESS_SOURCE_DIR = HARNESS_ROOT / "src" / HARNESS_PACKAGE
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 SHARED_PROVIDER_REMAP = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
 STDIO_RUNTIME_HOOK = Path(__file__).parent / "stdio_runtime_hook.py"
+BUNDLE_VERIFY = Path(__file__).parent / "bundle_verify.py"
 
 # Server data that code opens by a path relative to its own module (`Path(__file__)...`), as paths under the server
 # root. PyInstaller archives Python only, so each entry is a build input of its own, and a forgotten one breaks
@@ -139,8 +152,12 @@ def _server_data_options(data_sep: str) -> list[str]:
     return options
 
 
-def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
-    """PyInstaller invocation that writes the one-folder bundle to SIDECAR_DIR."""
+def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path = HARNESS_SOURCE_DIR) -> list[str]:
+    """PyInstaller invocation that writes the one-folder bundle to SIDECAR_DIR.
+
+    First-party modules are not left to the import scan: the hooks that `write_inventory_hooks` puts in
+    `work_dir / HOOKS_DIR` list every one of them. `harness_dir` is the harness package the bundle ships.
+    """
     data_sep = ";" if SYSTEM == "windows" else ":"
     cmd = [
         str(server_python),
@@ -155,20 +172,22 @@ def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
         "--hidden-import", "fastapi",
         "--hidden-import", "sqlalchemy",
         "--hidden-import", "qdrant_client",
-        "--hidden-import", "myrm_agent_harness",
-        "--hidden-import", "myrm_agent_harness.api",
+        # Puts the harness package into the build, which is what runs its inventory hook.
+        "--hidden-import", HARNESS_PACKAGE,
+        "--additional-hooks-dir", str(work_dir / HOOKS_DIR),
         "--collect-data", "litellm",
         "--collect-data", "tiktoken",
         "--collect-submodules", "tiktoken",
         "--collect-submodules", "tiktoken_ext",
         "--hidden-import", "tiktoken_ext.openai_public",
-        "--collect-data", "myrm_agent_harness",
-        "--collect-submodules", "myrm_agent_harness",
+        "--collect-data", HARNESS_PACKAGE,
         *_server_data_options(data_sep),
+        *script_data_options(harness_dir, data_sep),
         "--add-data", f"{SHARED_PROVIDER_REMAP}{data_sep}shared/config",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",
         "--exclude-module", "PyQt5",
+        *exclude_options(),
         "--runtime-hook", str(STDIO_RUNTIME_HOOK),
         "--distpath", str(OUTPUT_DIR),
         "--workpath", str(work_dir / "build"),
@@ -177,6 +196,20 @@ def pyinstaller_command(server_python: Path, work_dir: Path) -> list[str]:
     if SYSTEM == "windows":
         cmd.append("--noconsole")
     return cmd
+
+
+def _verify_bundle(server_python: Path, harness_dir: Path) -> None:
+    """Read the finished bundle back: PyInstaller reports a hidden import it cannot resolve as a warning and builds on."""
+    command = [
+        str(server_python),
+        str(BUNDLE_VERIFY),
+        "--executable", str(SIDECAR_EXECUTABLE),
+        "--server-app", str(SERVER_ROOT / "app"),
+        "--harness-dir", str(harness_dir),
+    ]
+    if subprocess.run(command, check=False).returncode != 0:
+        print("\n[ERROR] The bundle check failed (see above): the bundle is incomplete, or it could not be read")
+        sys.exit(1)
 
 
 def _assert_macos_architecture(executable: Path) -> None:
@@ -206,6 +239,9 @@ def build_backend(*, skip_harness_install: bool = False) -> None:
         raise FileNotFoundError(f"Main script not found: {main_script}")
     if not SHARED_PROVIDER_REMAP.is_file():
         raise FileNotFoundError(f"Missing cross-end provider remap artifact: {SHARED_PROVIDER_REMAP}")
+    server_python = _server_python()
+    # The bundle ships the harness the venv has installed (a wheel built from the checkout), not the checkout itself.
+    harness_dir = installed_package_dir(server_python, HARNESS_PACKAGE)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     # Start from nothing at the target path (directory, file or symlink) so no file of an earlier build survives.
@@ -216,7 +252,8 @@ def build_backend(*, skip_harness_install: bool = False) -> None:
 
     # Work files stay outside OUTPUT_DIR: everything under it is shipped or ignored by git, never scratch.
     with tempfile.TemporaryDirectory(prefix="myrm-sidecar-build-") as work_dir:
-        cmd = pyinstaller_command(_server_python(), Path(work_dir))
+        write_inventory_hooks(Path(work_dir) / HOOKS_DIR, SERVER_ROOT / "app", harness_dir)
+        cmd = pyinstaller_command(server_python, Path(work_dir), harness_dir)
         print("\nRunning PyInstaller...")
         print(f"Command: {' '.join(cmd)}\n")
         result = subprocess.run(cmd, cwd=SERVER_ROOT, check=False)
@@ -227,6 +264,7 @@ def build_backend(*, skip_harness_install: bool = False) -> None:
     if not SIDECAR_EXECUTABLE.is_file():
         print(f"\n[ERROR] Output executable not found: {SIDECAR_EXECUTABLE}")
         sys.exit(1)
+    _verify_bundle(server_python, harness_dir)
 
     if SYSTEM != "windows":
         os.chmod(SIDECAR_EXECUTABLE, 0o755)  # noqa: S103 - the entry point must be executable for every user of the install

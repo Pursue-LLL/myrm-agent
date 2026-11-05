@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm-agent-desktop/sidecar/build.py: the sidecar build script, imported as a module
+- myrm-agent-desktop/sidecar/bundle_inventory.py / bundle_verify.py: the modules `build.py` imports from its own directory
 - myrm-agent-desktop/scripts/fetch_node_runtime.py: the Node.js runtime fetch script, imported as a module
 - scripts/ci/desktop-release/smoke_launch_shell.py: the packaged-shell launch smoke, imported as a module
 - .github/workflows/desktop-release*.yml: the release workflow and the repair workflow, parsed into job and step mappings
@@ -10,6 +11,7 @@
 [OUTPUT]
 - REPO_ROOT / DESKTOP / FRONTEND / CI_SCRIPTS / WORKFLOWS / ACTIONS / TAURI_CONF: locations inside the OSS repo
 - sidecar_build_module() / fetch_node_runtime_module() / smoke_launch_shell_module(): those scripts, each imported once
+- sidecar_module(name): a module next to `build.py`, the very object `build.py` imported
 - workflow_jobs(): the jobs of one workflow file
 - release_jobs() / release_steps(): the release workflow's jobs, and the steps of one job as written
 - expanded_release_steps(): the steps of one job with every local composite action replaced by its own steps
@@ -35,6 +37,7 @@ YamlMapping = dict[str, object]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DESKTOP = REPO_ROOT / "myrm-agent-desktop"
+SIDECAR = DESKTOP / "sidecar"
 FRONTEND = REPO_ROOT / "myrm-agent-frontend"
 CI_SCRIPTS = REPO_ROOT / "scripts/ci/desktop-release"
 WORKFLOWS = REPO_ROOT / ".github/workflows"
@@ -54,9 +57,23 @@ def _import_script(name: str, path: Path) -> ModuleType:
     return module
 
 
+def _put_sidecar_on_path() -> None:
+    """`python build.py` finds the modules next to it because its directory leads `sys.path`; an import has to say so."""
+    if str(SIDECAR) not in sys.path:
+        sys.path.append(str(SIDECAR))
+
+
 @cache
 def sidecar_build_module() -> ModuleType:
-    return _import_script("desktop_sidecar_build", DESKTOP / "sidecar/build.py")
+    _put_sidecar_on_path()
+    return _import_script("desktop_sidecar_build", SIDECAR / "build.py")
+
+
+@cache
+def sidecar_module(name: str) -> ModuleType:
+    """A module that sits next to `build.py` (`bundle_inventory`, `bundle_verify`), the very one `build.py` imported."""
+    _put_sidecar_on_path()
+    return importlib.import_module(name)
 
 
 @cache

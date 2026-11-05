@@ -61,7 +61,7 @@ flowchart TD
 
 ## 架构约束
 
-- 不 vendoring harness；Python Sidecar 经 PyInstaller 捆绑解释器与依赖；server 按源码相对路径读取的数据文件（`assets/`、集成目录与搜索服务商清单、渠道文案等）不会被自动归档，必须列在 `sidecar/build.py` 的 `SERVER_DATA` 里，由 `tests/architecture/test_desktop_sidecar_data.py` 钉住
+- 不 vendoring harness；Python Sidecar 经 PyInstaller 捆绑解释器与依赖；server 按源码相对路径读取的数据文件（`assets/`、集成目录与搜索服务商清单、渠道文案等）不会被自动归档，必须列在 `sidecar/build.py` 的 `SERVER_DATA` 里，由 `tests/architecture/test_desktop_sidecar_data.py` 钉住；按名字在运行时加载的第一方模块（渠道 provider 注册表）同样不会被 `import` 扫描发现，由 `sidecar/bundle_inventory.py` 逐文件列出 `app/` 与 harness 的全部模块交给 PyInstaller，打包后 `sidecar/bundle_verify.py` 读回产物核对（缺模块、混入渠道 SDK、缺领域技能脚本都让构建失败），由 `tests/architecture/test_desktop_sidecar_modules.py` 钉住
 - Next standalone 由随包 Node.js 运行时启动（Tauri `externalBin` `myrm-node`，版本与 SHA-256 钉在 `scripts/node_runtime.json`）；壳不依赖、也不回退用户机器上的 `node`
 - `.tauri/` 私钥、`src-tauri/binaries/`、`src-tauri/gen/schemas/` 不入库
 - 业务 API 契约由 `myrm-agent-server` 定义；desktop 仅编排与系统能力封装
