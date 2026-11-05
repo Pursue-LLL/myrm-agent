@@ -592,8 +592,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
             from app.core.cron.adapters.setup import get_cron_manager
-            from app.core.cron.blueprints.job_spec import fill_job_spec
             from app.core.cron.blueprints import get_blueprints_for_tool_description
+            from app.core.cron.blueprints.job_spec import fill_job_spec
 
             agent_locale = getattr(self, "locale", None) or "en"
 
@@ -662,7 +662,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 base_path=self.memory_base_path,
             )
 
-            from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+            from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
                 MemorySearchBackends,
                 MemorySearchPolicy,
             )

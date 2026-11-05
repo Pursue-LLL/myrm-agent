@@ -17,7 +17,6 @@ and conversation providers; runtime cannot broaden corpora beyond policy flags.
 [POS]
 Framework ACL gate for memory_search_tool corpus expansion beyond memory-only recall, and the one source of which
 corpora a policy exposes (tool schema, tool descriptions and the ACL all read it).
-Located under ``toolkits/memory/agent_surface/``; root ``memory_search_policy.py`` is a stable import facade.
 """
 
 from __future__ import annotations

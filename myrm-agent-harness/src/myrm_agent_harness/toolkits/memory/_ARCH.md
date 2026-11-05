@@ -39,7 +39,6 @@ Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 | session_post_process.py  | Core     | Unified post-session task runner (memory consolidation + proactive extraction). | ✅ |
 | signals.py               | Core     | Context signals and per-type weight profiles for retrieval scoring: recency, importance, preference, rating, confidence and a fixed type prior. Recall counts are deliberately not a signal | ✅    |
 | text_utils.py            | Core     | Unified multi-language tokenization for memory retrieval. Uses re.UNICODE                                     | ✅    |
-| memory_search_policy.py   | Facade   | Facade re-exporting memory_search_policy from agent_surface for harness surface.                               | —    |
 
 | Submodule   | Description                                                                       |
 |-------------|-----------------------------------------------------------------------------------|
