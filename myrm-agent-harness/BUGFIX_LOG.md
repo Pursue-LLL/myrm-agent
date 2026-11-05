@@ -2,6 +2,78 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-05-189 · `web_fetch_tool` 的网址在 `urls` 里，权限引擎只读 `url`：网络域名黑名单与按主机写的规则对抓取从不生效，所有抓取共用同一个审批哈希
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`df2aa35c11`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，把引擎读的参数名逐个对照工具真实的入参 schema） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：用户在设置里配的域名黑名单、写的主机规则对 `web_fetch_tool` 没有任何效果，不报错也不留痕；规则要求审批的配置下，对一次抓取选「始终允许」后，所有抓取共用同一个哈希，之后读任何网址都免审批。 |
+| **关联产品** | harness 权限引擎与审批（`agent/security/engine.py`、`core/security/tool_registry/`、`agent/middlewares/approval/`）；设置里的网络域名黑名单（WebUI `DomainBlocklistEditor`）与按主机写的权限规则。 |
+| **症状** | [实测] `network_blocklist=(facebook.com, .evil.net)` 下对 `web_fetch_tool` 调用：`urls=[example.com, facebook.com]`、同一个列表的 JSON 文本、`facebook.com.`（末尾带点）改前都是 allow，改后都是 deny；规则 `net_fetch` / `*.internal.corp` / DENY 对 `wiki.internal.corp` 的抓取改前 ask、改后 deny；两个不同网址列表的审批哈希改前都是 `44136fa355b3678a`，改后分别是 `d5f6309d17c1a8c3`、`5560bc882bdf36c6`。 |
+| **根因** | [代码] `web_fetch_tool` 的参数是 `urls: list[str]`（`toolkits/web_fetch/web_fetch_agent_tools.py` 的 `_FullContentInput`、`_FetchOrExtractInput`），只有 `browser_navigate_tool` 是 `url: str`。引擎的黑名单检查、规则的目标解析、域名审批和审批哈希的核心参数表（`TOOL_CANONICAL_PARAMS["web_fetch_tool"] == ["url"]`）都只读 `url`：抓取调用读到空，黑名单与主机规则什么也匹配不到，哈希只剩一个常量。安全与审批测试一直用 `{"url": ...}` 调用，没有一个用过工具真实的参数 `urls`。 |
+| **修复** | ① 新增 `core/security/tool_registry/url_args.py`：`url_arg_values` 读出一次调用里的每个网址（`url` 与 `urls`；字符串、列表或 JSON 数组文本，审批在参数被解析之前就会读到后者）。② 黑名单：任一网址的 hostname（小写、去掉末尾的点）命中即 DENY；规则目标：每个网址的 hostname 各判一次，最严格的判定生效；解析不出 hostname 的网址以原文代表自己。③ 域名审批（域名不在白名单时 ASK、「始终允许此域名」的会话授权）限定在浏览器导航：抓取只读页面，这条审批从来没有对抓取生效过；放到抓取上会让默认配置（`domain_hitl_enabled=True`、白名单为空）对每个域名都询问，一次浏览器域名授权还会让抓取按规则触发的审批被自动放行。④ `TOOL_CANONICAL_PARAMS["web_fetch_tool"]` 改为 `["urls"]`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 审批在参数被解析之前读 `tool_call["args"]`，数组参数可能还是 JSON 数组文本，读取必须经过 `coerce_path_list`（与文件工具共用）。② `urlparse` 对未闭合的 IPv6 方括号等输入抛 `ValueError`：引擎以前读不到抓取的网址，所以没暴露；网址一进引擎，不处理就会让一次抓取把评估打断。③ 旧测试给 `engine.extract_url_domains` 打的补丁从未生效（审批模块在导入时已经绑定了原函数），迁移后的测试直接用真实函数。 |
+| **回归** | [实测] 新增 `tests/agent/security/test_engine_urls.py`（85 例）、`tests/agent/middlewares/approval/test_domain_approval.py`（6 例）、`tests/core/security/tool_registry/test_url_args.py`，`test_canonical_args_hash.py` 加 4 例（不同网址列表的哈希不同、辅助字段不影响哈希、规范参数必须是两种入参 schema 的字段）。对改前的引擎（`df2aa35c11^`）运行：85 例里 33 个失败，哈希的 3 个失败；8 个变异体全被捕获（抓取也触发域名审批、保留末尾的点、不处理 `ValueError`、取最宽松的判定、黑名单只看第一个网址、规则目标只取第一个主机、不读 `urls`、黑名单漏掉 `net_fetch`）。`tests/agent/security`、`tests/agent/middlewares`、`tests/core/security`、`tests/scripts`：9789 通过、2 跳过、9 xfail、3 失败；3 个失败是 `test_leak_detector_json_keys.py::TestLinearTime` 的计时用例，与本改动无关，并行负载下失败，单独重跑 65 例全通过。 |
+| **仍然存在** | ① 黑名单对抓取只由权限引擎执行，`web_fetch_tool` 本身不读 `network_blocklist`（只有评测用的 `blocked_hostnames` 钩子）。② 精确条目（`facebook.com`）不含子域，要连子域一起封须写 `.facebook.com`（匹配语法本来如此，没有改）。③ [实测] `//facebook.com/x`、`https:\\facebook.com\x` 两种写法引擎不拦（解析不出 hostname，以原文参与匹配）；云端模式下 SSRF 守卫在发请求之前就拒绝它们（`Blocked URL scheme`、`parser-confusing characters`），本地模式跳过该守卫，这两种写法是否真能发出请求没有核实。④ `taint_url_from_args` 仍只读 `url`（`core/security/tool_registry/taint_extractors.py:44`），`web_fetch_tool` 的污点标签取不到来源网址；这次没改。⑤ 两处文案对抓取仍是泛称：`agent/security/profile_audit/checkers/policy_gap.py:76-84` 对挂了网络工具、没开域名审批的智能体建议「开启域名审批」，只挂 `web_fetch_tool` 时开了也不起作用；`core/security/types.py:404-405` 的评估顺序注释写「URL-bearing tools」（该文件 646 行，在行数基线里，没有动）。 |
+| **代码位置** | `src/myrm_agent_harness/agent/security/engine.py`、`core/security/tool_registry/{url_args,registry,file_args,__init__}.py`、`agent/middlewares/approval/middleware.py`（文档）；测试 `tests/agent/security/test_engine_urls.py`、`tests/agent/middlewares/approval/test_domain_approval.py`、`tests/core/security/tool_registry/test_url_args.py`、`tests/agent/security/test_canonical_args_hash.py` |
+
+### BUG-HARNESS-2026-11-05-188 · 网页标题里带回车符时，`web_fetch` 告诉模型的「略去的行范围」整体错位：标题里单独的一个 CR 在读文件时多算一行，计划里没算
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`19872ad820`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，对照 `file_read_tool` 的行号来源） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：不报错；页面标题含单独回车符的长页，模型按提示「读第 N 行到第 M 行」读到的是错位的内容。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/full_content_delivery.py`（`plan_full_content`）；读取方 `file_read_tool`。 |
+| **症状** | [实测] 标题 `Two\rlines`：改前保存文本里留着 CR，且提示里的行范围与读文件看到的行号不一致；`Two\r\nlines`：范围一致，但保存文本里留着 CR；`Three\r\rlines`：范围不一致。改后三种都没有 CR、范围与读取方一致。 |
+| **根因** | [代码] 提示里的行范围按保存副本的行计数，而 `file_read_tool` 读文件时先做通用换行翻译（CR、CRLF 都当换行）再编号。网页正文在写盘前已规整成 LF，页眉（含从页面取来的标题）没有：标题里单独的 CR 对读取方是多出来的一行，对计划不是，之后每个范围都错位；CRLF 则把 CR 留在了保存的文本里。 |
+| **修复** | `plan_full_content` 把页眉和正文一起规整成 LF。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 验证行范围必须按读取方的换行翻译来数：只按 `\n` 切行的计数与读取方不同，量不出这个缺陷。 |
+| **回归** | [实测] 新增 `test_carriage_returns_in_a_title_are_normalized_like_those_in_the_pages`（`Two\rlines`、`Two\r\nlines` 两个参数），对改前的 `full_content_delivery.py`（`19872ad820^`）运行两个都失败，改后通过；`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）。 |
+| **仍然存在** | 只处理了 `plan_full_content` 写出的保存副本与交付文本，没有逐个审计其他写盘路径。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/full_content_delivery.py`、`tests/toolkits/web_fetch/test_full_content_delivery.py` |
+
+### BUG-HARNESS-2026-11-05-187 · 嵌套表格与未闭合的表格行让网页转成 Markdown 的输出按嵌套层数指数增长：邮件里 767 字节的嵌套表格转出 5600 万字符、占 8 秒 CPU 与 495 MB
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`39cb85d75e`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，用构造的嵌套表格量转换输出） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：用嵌套表格排版的 HTML 邮件、网页，或构造的页面，能让一次转换吃掉数百 MB 内存与数秒 CPU，没有报错。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/html_to_markdown.py`、`markdown_table.py`（新）；同一转换器还被 server 的邮件入站（`app/channels/providers/email/inbound.py`）与 Gmail 同步（`app/services/wiki/source_sync/gmail/html_body.py`）使用。 |
+| **症状** | [实测] 767 字节的嵌套表格（邮件正文）：改前输出 5600 万字符、8.27 s、495 MB；嵌套 40 层的链（1,507 字节）改后输出 374 字符、1 ms；1,500 个未闭合的表格行（`html.parser` 会把它们逐层嵌套）改前输出 1460 万字符，改后 29,293 字符、41 ms。 |
+| **根因** | [代码] 单元格转换时又把它里面的嵌套表格转了一遍，而外层表格同时也列出了这个嵌套表格的行：每多一层嵌套，同一批行就多输出一遍，输出随层数指数增长；未闭合的行被 `html.parser` 当成嵌套，同样重复。 |
+| **修复** | 外层表格把每个嵌套行只列一次，单元格跳过嵌套的行与表格；表格布局拆进 `markdown_table.py`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 平面表格必须逐字节不变：改动只允许落在有嵌套的表格上，所以用 3,000 个随机平面表格逐字节比对新旧转换器，再用 33 个整页真实页面核对。 |
+| **回归** | [实测] 平面表格逐字节不变（3,000 个随机表格）；33 个真实页面里 30 个不变，3 个只少了重复出现的文字，没有丢词；6 个新测试在旧转换器上失败；`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）；server 里用到同一转换器的邮件入站、Gmail 同步、IMA 内容、wiki 来源同步等 530 通过、1 跳过。 |
+| **仍然存在** | ① 嵌套表格的行现在并入最外层表格的行列表，内层表格不再在单元格里就地展开；真实页面里有 3/33 的输出因此少了重复出现的文字。② 这次只处理了嵌套与未闭合的表格行；`ul`/`ol` 里的非 `li` 子节点被丢、省略 `</li>`/`</dd>` 后条目被合并等其余宽松 HTML 缺口仍然存在（roadmap `topic_04` #113 ①②）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_to_markdown.py`、`processing/markdown_table.py`、`tests/toolkits/web_fetch/` 下的表格转换测试 |
+
+### BUG-HARNESS-2026-11-05-186 · 一张 75 万字符的构造网页能让整个进程停摆几十秒：反垃圾检测、标题提取、行尾空格规则的正则对每个起始标记都重扫到页尾，剪枝评分对极深的嵌套也慢
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`6343949bea`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，用构造输入逐步量耗时） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：一张页面就能让同一进程里所有会话在转换期间不响应，没有报错；CPython 的 `re` 在一次匹配期间不放开 GIL，放到工作线程里也一样，`asyncio.timeout` 打断不了。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/`：`html_scan.py`（新）、`pipeline.py`、`antibot_detector.py`、`html_to_markdown.py`、`content_pruning.py`。 |
+| **症状** | [实测] 75 万字符输入：反垃圾检测对 `<script` 洪水改前超过 30 s（超时放弃），改后 3 ms；标题提取对一连串未闭合的 `<title` 改前 32.8 s，改后不到 1 ms；Markdown 转换器的行尾空格规则对一长串空格改前超过 150 s（超时放弃），改后 9 ms。剪枝评分对 2,565 层嵌套链（节点深度之和 330 万）改前 1.2 s，改后 0.03 s。 |
+| **根因** | [代码] 反垃圾检测用 `<script\b[\s\S]*?</script>`、`<style\b[\s\S]*?</style>`、`<[^>]+>` 去掉脚本、样式和标签，标题提取用 `<title[^>]*>(.*?)</title>`：每个没有闭合的起始标记都向后扫到页尾，一页里有 n 个这样的标记就是 n² 次字符比较；转换器的行尾空格规则 ` +\n` 对一长串不以换行结尾的空格，从串里每个位置各扫一遍，同样是二次方。剪枝评分对每个节点沿祖先链走，总代价与节点深度之和成正比。 |
+| **修复** | ① 新增 `processing/html_scan.py`：标题、`<body>`、script/style、标签的扫描改成线性的字符串扫描（`extract_title`、`body_content`、`strip_script_and_style`、`strip_tags`），`pipeline.py` 与 `antibot_detector.py` 改用它。② 行尾空格规则改成 `(?<! ) +\n`，只从一串空格的开头匹配。③ 剪枝评分对节点深度之和超过 600,000 的页面跳过评分（真实页面低于 290,000）；注释与排除标签清理、截断、块提取照常运行。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 这类问题随机网页量不出来，要按每个正则的回溯形状逐个构造（未闭合起始标记的洪水、一长串空格、深嵌套链），且每个输入用单独的子进程加硬超时跑，否则一个卡死的探测会拖住整次测量。② 剪枝闸门的阈值按实测定：33 个整页真实页面的深度和低于 290,000，构造链是 330 万，不是按复杂度推导。 |
+| **回归** | [实测] 辅助函数与旧正则在 10 万个随机输入上结果相同；`is_blocked` 在 2 万个随机页面、33 个真实页面 × 4 个状态码上一致；剪枝输出在 1,500 个随机页面和 33 个整页真实页面上逐字相同；新增 `test_html_scan.py`、`test_content_pruning_budget.py`，并扩展 `test_html_to_markdown_whitespace.py`、`test_pipeline.py`。`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）。 |
+| **仍然存在** | ① 深度和超过 600,000 的页面不再评分，按其余步骤的结果交付；阈值只依据 33 个整页真实页面与构造链，没有更多真实页面的统计。② 这次只处理了量到耗时的三处正则与剪枝评分，转换链路里其余步骤没有逐个用最坏输入测过。③ 转换开始之后仍然打断不了（见 BUG-HARNESS-2026-11-04-180）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_scan.py`、`processing/{pipeline,antibot_detector,html_to_markdown,content_pruning}.py`、`tests/toolkits/web_fetch/{test_html_scan,test_content_pruning_budget,test_html_to_markdown_whitespace,test_pipeline}.py` |
+
 ### BUG-HARNESS-2026-11-05-185 · 审批续跑后的一轮里，工具调用被扣下、文本被长度截断、回复为空（标签包裹的推理）都不重试，用户拿到空答案；同样的故障在没有审批的一轮里会恢复
 
 | 字段 | 内容 |
