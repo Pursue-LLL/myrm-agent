@@ -16,6 +16,19 @@
 | **仍然存在** | ① `api_base` 没有 SSRF 防护：验证端点会向调用方给的任意地址发请求，与同目录的 `llm/verify` 一样，只有 `discover-models` 做了防护。② `error` 含上游返回的文本（Key 已抹掉），上游若回显别的敏感信息会一并返回。③ 探针经过检索工厂的进程级缓存：每个被验证过的 `(模型, Key, 端点)` 的服务实例（含 Key）会留在内存里直到进程结束，错误的组合也一样。④ 嵌入探针在 429、5xx、端点不可达时要等约 1.3 秒才报错（OpenAI SDK 自带的重试）。⑤ 没有对真实提供方、真实栈、开发栈（`:28080`，没有重启）验证；非 `openai/` 前缀、走 LiteLLM `arerank` 的重排那一支没有测试（每次不同的探针文本对它同样适用，但没被覆盖）。⑥ 运行时的真实嵌入调用走同一个缓存、同一套键规则 [代码]，换了同名模型的端点之后一小时内可能拿到旧端点的向量 [推断，没有复现]，这次只改了探针。⑦ 调用方门禁里另有 14 条无前端调用方的路由与一条文档证据行号越界，是别的会话留下的，没有处理。⑧ 同一个响应缓存让设置页另外三个对话模型的探针也答成成功：`llm/verify`、`llm/check-reachability`、`llm/speed-test` [实测：开着缓存时，先对接受请求的假上游验证一次，再用同一个模型名、另一个 Key 与端点对返回 401 的假上游验证，三个端点都返回成功（`reachable: true`，首字延迟 1 毫秒），第二个上游一次也没被调用；没有缓存时分别返回 401、`reachable: false`、`status: error`]。这次没有处理，响应缓存全局默认开这个策略本身也没有评估。另外 `check-reachability` 自己还有一层 30 秒缓存，键是模型名加地址，不含 Key（`llms.py:356-366`）[实测：对的 Key 探测后 30 秒内换一个打错的 Key，返回 `cached: true` 的成功；只绕过响应缓存时这一条仍然是假成功]，设置页多 Key 管理里每个 Key 的健康点走的就是这个接口，所以各个 Key 会串用同一个结果；要把 Key 的指纹放进键里才能分开。 |
 | **代码位置** | `myrm-agent-server/app/api/integrations/{retrieval.py,router.py,_ARCH.md}` · `tests/api/integrations/test_retrieval_validation.py` · `tests/support/{fake_retrieval_provider.py,frontend_api_paths.py}` · `tests/architecture/test_frontend_api_client_paths.py` · `myrm-agent-frontend/src/app/api/retrieval/validate/{embedding,reranker}/route.ts` · 控制面 `tests/unit/gateway/reverse_proxy/{test_config_read.py,test_virtualization_retrieval.py}` |
 
+## 2026-11-05 · 项目动态接口 `GET /projects/{project_id}/activity-feed` 全仓没有调用方，路由与只服务它的 `ProjectActivityFeedService` 已删除；前端同名的孤儿目录 `features/activity-feed/` 保留，等产品决定
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（服务端）。前端孤儿目录与剩下的 2 个路由见「仍然存在」。 |
+| **症状** | ① [代码] `app/api/projects/router.py` 的 `get_project_activity_feed` 是 `ProjectActivityFeedService` 唯一的入口（`rg` 全仓，服务端只有这一处引用，另有它自己的单元测试）。② [代码，`rg` 覆盖 `myrm-agent` 全部子项目、`myrm-control-plane`、`myrm-agent-brand`、仓库根的 `scripts/`、`tools/`、`ifm/`] 前端、桌面端、扩展、控制面与文档站没有任何地方请求这个地址。③ [代码] 前端 `features/activity-feed/` 的 `useActivityFeedStore` 与这个接口没有关系：它的条目类型是 email / calendar / messaging / approval / cron / kanban 六类，接口返回的是 task_handoff / task_completed 等六种，两边各自为政，没有任何代码把接口的结果喂给前端。 |
+| **根因** | [代码] 服务端的项目时间线聚合与前端的活动流是两次各自独立的实现，接口建好后没有人接界面，路由门禁一直把它列为没有前端调用方的路由。 |
+| **修复** | 删除路由、`app/services/project/activity_feed_service.py`（204 行，直接查看板、定时任务与里程碑模型，没有只为它存在的仓储方法）、`tests/services/project/test_project_activity_feed_service.py`（134 行）与 `services/project/_ARCH.md` 的对应行。 |
+| **行为变化** | `GET /api/v1/projects/{project_id}/activity-feed` 不再存在；项目的增删改查、会话归属、看板、定时任务与里程碑接口不受影响。 |
+| **回归证据** | [实测，scratch 工作树，基于 `4311ef52cf`] [1] `test_routes_have_callers`：删除前列出 3 个，删除后列出 2 个（`GET /user-agents/{agent_id}/marketplace-export`、`POST /user-agents/marketplace-import`）。[2] `tests/services/project`、`tests/api/projects` 与 `test_api_route_consumers.py` 共 115 例，114 通过、1 失败（就是上面这一例）；`ruff check`、`ruff format --check` 通过，`router.py` 的 `mypy` 无报错（`app/services/project/` 下另两个没有改动的文件有既有的类型错误）；`check_import_resolvability` 通过；`check_fractal_docs.py --no-stub` 通过。[3] 没有起服务请求被删的端点，「不再存在」来自路由表与测试。 |
+| **仍然存在** | ① 前端 `src/components/features/activity-feed/`（`ActivityFeedAggregatorDeck`、`ActivityFeedStreamCard`、`activityFeedEngine`、`useActivityFeedStore` 与 5 个测试）仍是没有任何产品入口引用的孤儿目录，本次没有删：仓内的开放规划条目把它当作「已具备」的现有部件，并计划复用，删它会让那些条目的前提失效，需要先决定那些条目怎么改。② 路由门禁还剩 2 个：`GET /user-agents/{agent_id}/marketplace-export`、`POST /user-agents/marketplace-import`，见同日「路由门禁列出的 10 个没有前端调用方的路由」条目。 |
+| **代码位置** | server：`app/api/projects/router.py`、`app/services/project/activity_feed_service.py`、`tests/services/project/test_project_activity_feed_service.py`、`app/services/project/_ARCH.md`（均已删除或移除对应部分）。 |
+
 ## 2026-11-05 · 路由门禁列出的 10 个没有前端调用方的路由：`/approvals/credentials` 两个其实有人调用、只是路径被拼接藏住；`/machines/{id}/heartbeat`、`/chats/embed/validate-origin`、`/chats/{id}/embed/context`、`/chats/{id}/snapshot-state`、`/chats/{id}/live-event` 五个全仓没有任何调用方，已删除；零重放协议因此露出「没有任何会话状态写入方」的事实；剩下 3 个路由等产品决定
 
 | 字段 | 内容 |
