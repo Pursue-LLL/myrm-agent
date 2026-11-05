@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import ipaddress
 import json
 import logging
@@ -168,6 +169,16 @@ def _apply_local_no_auth_marker_transport_overrides(
     return model_kwargs
 
 
+def _probe_model_kwargs(model_kwargs: dict[str, object]) -> dict[str, object]:
+    """Model arguments of a probe, which has to ask the provider on every call.
+
+    ``caching=False`` makes LiteLLM skip reading its response cache. That cache is keyed by model and messages, not by API
+    key or endpoint, so a cached answer would stand in for a key or endpoint that was never tried. The probe's own answer
+    is still stored; only a later call with identical model, messages and arguments can read it.
+    """
+    return {**model_kwargs, "caching": False}
+
+
 class ModelDiscoveryRequest(BaseModel):
     api_url: str = Field(..., min_length=1, description="OpenAI-compatible API base URL or endpoint URL")
     api_key: str | None = Field(default=None, description="Optional API key (required for non-local endpoints)")
@@ -309,9 +320,8 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
     """
     # 使用request的所有参数创建字典
     kwargs = request.model_dump(exclude_none=True)
-    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
-        kwargs.get("model_kwargs"),
-        kwargs.get("api_key"),
+    kwargs["model_kwargs"] = _probe_model_kwargs(
+        _apply_local_no_auth_marker_transport_overrides(kwargs.get("model_kwargs"), kwargs.get("api_key"))
     )
 
     try:
@@ -362,8 +372,12 @@ _reachability_cache: dict[str, tuple[float, ReachabilityResult]] = {}
 
 
 def _cache_key(request: LLMVerifyRequest) -> str:
-    """Deterministic cache key from model + base_url."""
-    return f"{request.model}|{request.base_url or ''}"
+    """Cache key of one reachability question: a digest of the whole request.
+
+    A different API key, endpoint, proxy or model argument is a different question and has to be asked again; the digest
+    keeps the key itself out of a dict that lives as long as the process.
+    """
+    return hashlib.blake2b(request.model_dump_json(exclude_none=True).encode(), digest_size=16).hexdigest()
 
 
 @router.post("/check-reachability", response_model=StandardSuccessResponse)
@@ -374,7 +388,8 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
     after its deadline. The failure is classified (``timeout`` vs ``provider_error``) and the upstream reason is
     preserved, so the caller can tell "the endpoint did not answer in time" apart from "the provider rejected
     the request" instead of reading a generic "no response".
-    Results are cached for 30 seconds to avoid redundant probes.
+    Results are cached for 30 seconds per identical request (model, endpoint, API key, proxy and model arguments)
+    to avoid redundant probes.
 
     Useful for local model (Ollama) configuration to quickly verify
     that the endpoint is up before committing configuration changes.
@@ -388,9 +403,8 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
         return success_response(data=cached_result.model_dump())
 
     kwargs = request.model_dump(exclude_none=True)
-    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
-        kwargs.get("model_kwargs"),
-        kwargs.get("api_key"),
+    kwargs["model_kwargs"] = _probe_model_kwargs(
+        _apply_local_no_auth_marker_transport_overrides(kwargs.get("model_kwargs"), kwargs.get("api_key"))
     )
 
     try:
@@ -664,6 +678,7 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
 
     for model_config in request.models:
         kwargs = model_config.model_dump(exclude_none=True)
+        kwargs["model_kwargs"] = _probe_model_kwargs(kwargs.get("model_kwargs") or {})
         try:
             await resolve_oauth_marker(kwargs)
             llm = await llm_tools.get_llm(**kwargs)
