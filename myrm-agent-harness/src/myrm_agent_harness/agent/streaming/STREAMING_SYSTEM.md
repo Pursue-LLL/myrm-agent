@@ -40,7 +40,9 @@ dispatcher  handlers      events         recovery*
 | Mixin / 模块 | 职责 |
 |--------------|------|
 | `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
-| `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/escalation/retry/iteration-limit） |
+| `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/retry） |
+| `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：模型自升级、迭代上限的无工具总结、空回复恢复 |
+| `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
 | `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
 | `recovery/stream_recovery_continuation.py` | steering、subagent 完成、goal continuation |
@@ -68,7 +70,7 @@ dispatcher  handlers      events         recovery*
 适配层不会执行参数被截断或无法解析的工具调用，只把它记录在最终 AIMessage 的 `additional_kwargs["tool_call_recovery"]`（该消息没有 `tool_calls`，LangGraph 会据此结束整轮）。因此：
 
 - `event_handlers.process_updates_chunk` 保留只记录被扣留调用的消息，恢复处理器才能看到它；
-- `recovery/stream_recovery_truncation.py` 最多重试 1 次：丢弃该消息，在原请求后追加一条提示（提示缓存前缀不变），并一次性放大输出预算（有上限，不会低于已配置预算）；仍失败，或当前是 resume 轮（无法重放输入），则上报 `tool_call_truncated`；
+- `recovery/stream_recovery_truncation.py` 最多重试 1 次：不再带上该消息，追加一条提示（提示缓存前缀不变），并一次性放大输出预算（有上限，不会低于已配置预算）；仍失败则上报 `tool_call_truncated`。审批后的续跑轮（`agent_input` 是已被 LangGraph 消费的 `Command`，再喂一次不推进任何工作）也走同一入口：输入只含这条提示，图从检查点接着跑，被扣留的调用由悬空调用中间件补一条「参数无效」的结果，重试的写入会再次请求审批。被扣留调用的原始参数只在内存里，重试前以 WARNING 记一行（工具、解析策略、长度、脱敏后的头尾）；
 - 流在收到最终元数据块之前断开时，`finish_reason` 记为 `__stream_dropped__`，`map_to_completion_status` 将其映射为 `truncated`，并禁止“补全 JSON”式修复；
 - 上游在没有 `finish_reason` 时干净关闭，LiteLLM 流包装器会合成 `stop`，块层与正常结束完全相同，因此不会被记为断流（`finish_reason` 与遥测口径不变）。适配器改读包装器自己记录的提供方结束标记（`received_finish_reason` / `intermittent_finish_reason`，`StreamAggregator.provider_finish`）：两者都为空说明提供方没有结束这条流，工具参数不再补全，该调用按被扣留处理并走上面的重试；没有这两个标记的流（Responses 线路）仍只看 `finish_reason`。停在字符串内部的参数无论如何都拒绝执行（`litellm_utils.py` 的 `truncated_mid_value`）。
 
@@ -116,7 +118,7 @@ streaming 产出的事件可被 observability 层订阅，但不反向依赖。
 ## 扩展指南
 
 1. 新 SSE 事件类型 → `types.py` 枚举 + `event_handlers.py` 转换 + 前端契约
-2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合
+2. 新恢复策略 → 独立 mixin 模块，由 `recovery/stream_recovery.py` 组合；需要「追加提示再跑一遍」的策略一律走 `_redrive_with_hint`，不要自己改写 `agent_input`
 3. 禁止在 streaming 层写业务 channel 逻辑 → `myrm-agent-server/app/core/channel_bridge/` 或 Server
 
 ---

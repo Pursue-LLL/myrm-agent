@@ -1,10 +1,10 @@
-"""Tests for stream_recovery.py — escalation, transient retry, iteration limit, empty response.
+"""Tests for stream_recovery.py and stream_recovery_turn_end.py — escalation, transient retry, iteration limit, empty response.
 
 Covers:
 - _handle_escalation (full flow + edge cases)
 - _handle_transient_retry (backoff, exhaustion, cancel)
 - _handle_iteration_limit (GraphRecursionError detection)
-- _handle_empty_response (injection, exhaustion, resume mode)
+- _handle_empty_response (injection, exhaustion)
 - _is_escalation_marker_message (helper function)
 - _handle_overflow stage 2 (retries==1)
 """
@@ -17,7 +17,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
-from myrm_agent_harness.agent.streaming.recovery.stream_recovery import _is_escalation_marker_message
+from myrm_agent_harness.agent.streaming.recovery.stream_recovery_turn_end import _is_escalation_marker_message
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,
@@ -512,16 +512,6 @@ class TestHandleEmptyResponse:
 
         with pytest.raises(MyrmLLMError):
             await executor._handle_empty_response(collected, retries=2)
-
-    @pytest.mark.asyncio
-    async def test_empty_response_resume_mode(self, ctx):
-        """Resume mode → returns False."""
-        ctx.agent_input = Command(resume="val")
-        executor = _make_executor(ctx)
-        collected = [AIMessage(content="")]
-
-        result = await executor._handle_empty_response(collected, retries=0)
-        assert result is False
 
     @pytest.mark.asyncio
     async def test_no_ai_message_returns_false(self, ctx):
