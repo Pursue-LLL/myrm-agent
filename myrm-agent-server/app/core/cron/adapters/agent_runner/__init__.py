@@ -8,5 +8,6 @@ AgentJobRunner
 """
 
 from app.core.cron.adapters.agent_runner.runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.support import resolve_trusted_desktop_keys
 
-__all__ = ["AgentJobRunner"]
+__all__ = ["AgentJobRunner", "resolve_trusted_desktop_keys"]
