@@ -41,9 +41,7 @@ _KNOWN_MISSING_LITERALS: frozenset[str] = frozenset()
 
 # `/api/<root>` calls that leave the server's `/api/v1` mount are served by Next route handlers (src/app/api/*), by the
 # control plane (reached through its own base URL) or by the channel ingress mounted at `/api/channels`.
-_CONTROL_PLANE_ROOTS = frozenset(
-    {"auth", "billing", "channels", "enterprise", "marketplace", "sandboxes", "security", "theme-marketplace"}
-)
+_CONTROL_PLANE_ROOTS = frozenset({"auth", "billing", "channels", "enterprise", "sandboxes", "security", "theme-marketplace"})
 _API_VERSION_ROOT = API_PREFIX.rsplit("/", 1)[-1]
 
 _CALL_RE = re.compile(

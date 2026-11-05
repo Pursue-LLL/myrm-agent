@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · 组织 Agent Marketplace 的沙箱侧整体删除：没有任何调用方，强制推送本来就到不了沙箱，不接产品也不再保留
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **已删除**。同日「官网与文档把组织 Marketplace 写成可用功能」一条只更正了文字、没有删代码，并写明「接上还是删除尚未决定」；本条是决定删除之后的实际改动。控制面、官网与文档站的对应改动在各自仓库。 |
+| **症状** | 沙箱里留着一整套没有用户路径的代码：`app/services/agent/marketplace/`（包契约、导出、导入、安全闸，约 1400 行）与 `app/api/internal/import_agent_profile.py`（`POST /api/admin/import-agent-profile`，约 330 行），外加 110 个只测这些代码的测试。它们要求维护，却不对任何用户可见的功能负责。 |
+| **根因** | [代码，逐项核对] ① 唯一的调用方是控制面的强制推送，而控制面只以 `force=True` 调用该端点；端点按 `marketplace_entry_id` 找已安装的绑定，绑定只由非强制导入创建，非强制导入没有调用方，所以强制推送对沙箱得到 404。② 沙箱没有导出路由，`export_agent_package` 只被测试调用。③ 前端、桌面端、浏览器扩展、官网都不调用控制面的 `/api/marketplace`。用户之间交换专家走的是 Agent Plugins ZIP（`/plugins/export`、`/plugins/import`），它有自己的导入审查与只收紧规则，与被删的代码互不依赖。 |
+| **修复** | 删除 `app/services/agent/marketplace/` 整个包、`app/api/internal/import_agent_profile.py`、`app/main.py` 里的路由挂载，以及只测它们的 6 个测试文件；`_ARCH.md` 与行数基线去掉对应行；`tests/architecture/test_frontend_api_client_paths.py` 的控制面根路径集合去掉 `marketplace`（保留 `theme-marketplace`）；`tests/database/test_agent_repo_coverage.py` 里借用 `marketplace_entry_id` 当样例字段的断言改用 `temperature`。`AGENT_CONFIG_UPDATED` 事件仍由 `agent_service.py` 发布，`ProfileSnapshotService`、前端的 `AgentTemplateMarketplace` 与 `MARKETPLACE_CP_SIGNING_SECRET`（主题市场验签仍在用）都保留。 |
+| **行为变化** | `POST /api/admin/import-agent-profile` 不再存在。它之前对强制推送返回 404，所以没有任何正在工作的流程被切断。控制面侧的三张表由迁移 `020` 删除，见控制面仓库。 |
+| **回归证据** | [实测，scratch 工作树，基于 `76f7ce1a9f`，与同一提交的基线对照] [1] 架构、`tests/api/internal`、`tests/services/agent`、`tests/database/test_agent_repo_coverage.py` （基线 3581 项，本次 3487 项）：失败集与基线逐项相同（73 失败 + 1 错误，均不在被删代码上），通过数 3500 → 3406，减少 94，恰好等于被删的 94 个用例（另有 16 个集成用例随 `tests/integration/test_marketplace_import_full_chain.py` 一并删除，未在这一组里）。[2] `import app.main` 成功。[3] `rg "agent\.marketplace|import_agent_profile|import-agent-profile"`（排除本文件）在本仓库零命中。[4] 改动的 Python 文件 `ruff format --check` 通过。 |
+| **仍然存在** | ① 该范围内与基线相同的 73 个失败与 1 个错误（`tests/services/agent` 的转换器与流式用例、架构门禁里的 10 个）不是本次引入，未处理。② `scripts/check_fractal_docs.py` 报 `app/core/cron/adapters/agent_runner`、`app/core/cron/blueprints/i18n` 缺 `_ARCH.md`，基线上同样如此，未处理。③ `app/api/agents/general_agent/media_config.py` 从 `app.services.agent.params.providers` 导入，该模块已不存在，`import app.main` 在原样代码上会失败；本次测试时在 scratch 里临时改了导入路径，提交里没有带这处改动。④ CI 没有在本次推送后观察。 |
+| **代码位置** | `app/services/agent/marketplace/`（已删除）、`app/api/internal/import_agent_profile.py`（已删除）、`app/main.py`、`app/api/internal/_ARCH.md`、`app/services/agent/_ARCH.md`、`tests/architecture/test_frontend_api_client_paths.py`、`tests/database/test_agent_repo_coverage.py`、`scripts/ci/file_line_budget_baseline.txt`。 |
+
 ## 2026-11-05 · LiteLLM 的进程级响应缓存不再安装：它按模型与消息分键、不看 Key 与端点，设置页三个探针之外，本地模型测试、故障转移健康检查、共享上下文嵌入健康探测也会把没问过的 Key 答成成功；技能整并的「预览 → 执行」握手只靠这层缓存才对得上，改为执行预览存下的那份计划
 
 | 字段 | 内容 |
