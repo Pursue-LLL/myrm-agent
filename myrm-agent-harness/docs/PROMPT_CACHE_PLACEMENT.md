@@ -25,7 +25,7 @@ Prefix cache matches from the start of that byte stream. Anything that changes *
 | Dynamic content | Placement in Myrm harness |
 |-----------------|---------------------------|
 | Wall-clock / timezone | Trailing segment on **HumanMessage** (see PROMPT_CACHE_PRACTICE §2.2) |
-| Retrieved memory brief | Middleware tail / human augmentation; SSE preview marks `injected_in_turn_prefix: false` in server `memory_brief.py` |
+| User memory block | A separate **SystemMessage** `<user_memory_context>` after the leading system messages (`memory_context_middleware.py`), rebuilt on every model call from the turn's memory context and never written back to the thread state; the system prompt text itself carries no memory |
 | Knowledge-base snippets for this turn's question | Final **HumanMessage** tail inside an untrusted-data envelope via `proactive_pack_middleware.py`; the host retrieves them per turn and passes them in the run context, so the memory brief and the history before the final message stay byte-identical |
 | Ephemeral session deltas (LWW) | Final **HumanMessage** tail inside `<ephemeral_session_deltas>`; includes a short `<precedence>` line so deltas override stable memory on conflict (`ephemeral_delta/tail_injector.py`) |
 | Two-layer base context (cadence) | Final **HumanMessage** tail `<base_context>` via `two_layer_context_middleware.py` (Layer 2 dialectic off on live path) |
@@ -51,7 +51,7 @@ Do **not** equate “stable layout” with “100% cache hit”. Observe provide
 | Chat `ContextUsageIndicator` | All GUI users | **Yes** — `health.cache.cache_hit_rate` from provider usage |
 | Session trace / OTLP | Ops, analytics | **Yes** — `prompt_cache_hit_ratio` / `cache_read_*` |
 | Memory command center ephemeral metrics | Advanced / session overrides | **No** — layout & in-flight delta count only; do not show fake percentages |
-| **Two-layer Layer 1 (Item 112)** live chat | All GUI users (GeneralAgent) | **No** — tail layout only; hit rate from chat ring / provider usage. Wired via `two_layer_context_middleware` after ephemeral in `general_agent/factory.py`. Set `MYRM_TWO_LAYER_CONTEXT_LIVE=0` to disable. |
+| **Two-layer Layer 1 (Item 112)** live chat | All GUI users (GeneralAgent) | **No** — tail layout only; hit rate from chat ring / provider usage. Wired via `two_layer_context_middleware` after ephemeral in `general_agent/factory/middlewares.py`. Set `MYRM_TWO_LAYER_CONTEXT_LIVE=0` to disable. |
 | Memory command center **Two-layer studio (Item 112)** | Lab / API preview only (`NEXT_PUBLIC_MEMORY_LABS=1`) | **No** — cadence/dialectic experiments; not required for live tail. |
 | Settings → Runtime snapshot | Local / desktop ops | **N/A** — liveness & memory pressure (`GET /api/v1/ops/snapshot`); not cache hit rate |
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 def test_build_general_agent_gates_cron_setup_on_entitlement() -> None:
     """Verify factory source gates _setup_cron_tools behind _should_enable_cron_tools()."""
-    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "builder.py"
     source = factory_path.read_text(encoding="utf-8")
     tree = ast.parse(source)
 
@@ -29,7 +29,7 @@ def test_build_general_agent_gates_cron_setup_on_entitlement() -> None:
 
 def test_build_general_agent_defaults_single_tenant_user_id() -> None:
     """Single-tenant agent-stream must bind cron tools when caller omits user_id."""
-    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory" / "builder.py"
     source = factory_path.read_text(encoding="utf-8")
     assert "if not user_id:" in source
     assert 'user_id = "default"' in source
