@@ -43,7 +43,7 @@ _NO_ANSWER_TEXT = {
     # Produces the event stream the other consumers read.
     "services/agent/streaming.py": "gateway entry point; yields events unchanged",
     # Speech is played as it arrives; audio already played cannot be retracted.
-    "api/voice/agent_bridge.py": "spoken output is not retractable",
+    "api/voice/agent_bridge/streams.py": "spoken output is not retractable",
     "api/voice/realtime.py": "spoken output is not retractable",
     # Drains the stream to completion for its side effects and discards every event.
     "services/agent/goals/unattended/trigger.py": "events are discarded",

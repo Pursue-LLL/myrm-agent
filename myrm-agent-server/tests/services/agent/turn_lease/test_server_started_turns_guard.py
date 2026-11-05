@@ -20,7 +20,7 @@ APP_ROOT = SERVER_ROOT / "app"
 # Call sites carried by an HTTP request, a voice session or a chat stream, each with its own cancellation lifecycle.
 REQUEST_BOUND: dict[str, int] = {
     "app/api/openai_compat/completions.py": 2,
-    "app/api/voice/agent_bridge.py": 1,
+    "app/api/voice/agent_bridge/streams.py": 1,
     "app/api/voice/realtime.py": 1,
     "app/services/agent/stream_session/stream_loop.py": 1,
 }

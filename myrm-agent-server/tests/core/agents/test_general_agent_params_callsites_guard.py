@@ -19,7 +19,7 @@ APP_ROOT = SERVER_ROOT / "app"
 
 EXPECTED_GENERAL_AGENT_PARAMS_DIRECT: frozenset[str] = frozenset(
     {
-        "app/api/voice/agent_bridge.py",
+        "app/api/voice/agent_bridge/params.py",
         "app/api/voice/realtime.py",
         "app/services/agent/goals/unattended/trigger.py",
         "app/services/agent/params/converter.py",
@@ -40,7 +40,7 @@ EXPECTED_GENERAL_AGENT_PARAMS_MODEL_VALIDATE: frozenset[str] = frozenset(
 # harness tool description SSOT (memory/web_search). Eval is intentionally excluded.
 LOCALE_REQUIRED_GENERAL_AGENT_PARAMS_CALLSITES: frozenset[str] = frozenset(
     {
-        "app/api/voice/agent_bridge.py",
+        "app/api/voice/agent_bridge/params.py",
         "app/api/voice/realtime.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/agent.py",
         "app/core/cron/adapters/agent_runner/runner.py",

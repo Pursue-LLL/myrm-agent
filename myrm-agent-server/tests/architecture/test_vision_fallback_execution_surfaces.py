@@ -19,7 +19,7 @@ _REQUIRED_SURFACE_FILES: tuple[tuple[str, str], ...] = (
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (
-        "app/api/voice/agent_bridge.py",
+        "app/api/voice/agent_bridge/params.py",
         "vision_fallback_model_cfg=vision_fallback_model_cfg",
     ),
     (

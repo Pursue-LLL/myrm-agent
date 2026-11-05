@@ -19,7 +19,7 @@ PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
         "app/core/cron/adapters/agent_runner/profile.py",
         "app/services/kanban/task_runner/runner.py",
         "app/core/eval/executor.py",
-        "app/api/voice/agent_bridge.py",
+        "app/api/voice/agent_bridge/params.py",
         "app/api/voice/realtime.py",
         "app/api/voice/gemini_live.py",
         "app/ai_agents/custom_agent_factory.py",
