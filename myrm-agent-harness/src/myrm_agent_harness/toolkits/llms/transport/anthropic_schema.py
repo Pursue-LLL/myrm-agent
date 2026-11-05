@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, cast
 
 from myrm_agent_harness.toolkits.llms.transport.json_schema import inline_refs
 
@@ -81,7 +81,8 @@ def _convert(node: object) -> object:
             result[key] = _convert(value)
         elif key in _SUBSCHEMA_LISTS and isinstance(value, list):
             target = "anyOf" if key == "oneOf" else key
-            result[target] = [*(result.get(target) or []), *(_convert(v) for v in value)]  # type: ignore[misc]
+            merged = cast("list[object]", result.get(target) or [])
+            result[target] = [*merged, *(_convert(v) for v in value)]
         else:
             result[key] = value
     if result.get("type") == "object":
