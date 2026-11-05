@@ -51,22 +51,24 @@
 | `IncognitoNotice.tsx` | 组件 | 空会话态无痕说明：无痕开启时就地写明条款（复用 `memory.incognitoModeDesc`：不读写记忆、不进历史与搜索、闲置超 1 小时自动删除、模型服务商仍会处理发送内容）；开关的悬停提示在触屏上不出现、手机上开关又在底部抽屉里，所以条款直接写在空会话页面上；`role=status` 的 `<output>`，仅用主题变量 | ✅ |
 | `__tests__/IncognitoNotice.test.tsx` | 测试 | 无痕说明测试：关闭时不渲染、开启后含标题与条款并带 `status` 语义 | ✅ |
 | `EmptyChat.tsx` | 组件 | 空会话态：挂载 `IncognitoNotice`、`MigrationDiscoveryBanner`（仅发现外部助手数据时出现）、`SamplePrompts`、`Companion`、`MessageInput` 等；`AgentConfigPanel` 以收起态挂载，仅在 AgentIndicator 的「详细配置与微调」中展开；模型编排手册入口在设置的模型页与智能路由徽章；首屏组件白名单由 `__tests__/EmptyChat.contract.test.ts` 守卫；手机（<`sm`）顶部留白 `8vh`、≥`sm` 为 `20vh`，使 390×844 的干净首屏无需滚动（由 `__tests__/EmptyChat.mobile.contract.test.ts` 守卫）；标题带 `data-testid="empty-chat-title"`（E2E 以它判定页面已挂载） | ✅ |
-| `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由；桌面输入框工具栏接入边缘渐隐（`MessageInput` 的接线受守卫，渐隐规则本身由 `app/__tests__/scroll-fade-css.test.ts` 钉住），防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
+| `__tests__/EmptyChat.contract.test.ts` | 测试 | 空会话首屏契约：`EmptyChat.tsx` 导入的组件必须在白名单内，新增首屏卡片须同时更新白名单并说明理由；桌面输入框主行只挂 `ComposerPrimaryControls` 与 `ComposerOptionsRegion`（`MessageInput` 不再导入选项区里的次要控件，也不再有横滑工具栏），防止首屏再次堆叠；根节点不得自带 `min-h-*`（撑满视口交给 AppLayout 的 `main`，否则外层 `pt-4` 会把干净的首屏变成滚动条） | ✅ |
 | `__tests__/EmptyChat.mobile.contract.test.ts` | 测试 | 空会话首屏手机端契约（源码级守卫）：精选专家条与示例 prompt 在手机上是单行横滑、≥`sm` 才换行/成网格；工作目录行只有一处渲染、位于输入框与操作栏之间（手机上不依赖桌面工具栏）、路径单行省略且箭头不被挤出；输入框手机字号 `text-base`；EmptyChat 手机顶部留白；ChatWindow 空会话分支的系统横幅外包左侧避让容器，不压在侧栏浮动开关上 | ✅ |
-| `__tests__/ComposerToolbar.popupPortal.contract.test.ts` | 测试 | 输入框工具栏弹层契约（源码级守卫）：工具栏是 `overflow-x-auto` 滚动容器（纵向同样被裁），`message-input-actions/`、`thinking-permission/` 与 `ExpertSummonPopover` 内不得再用内联 `absolute bottom-full / top-full` 定位弹层，必须走 Radix 门户（Popover / DropdownMenu） | ✅ |
+| `__tests__/ComposerToolbar.popupPortal.contract.test.ts` | 测试 | 输入框弹层契约（源码级守卫）：选项区为让高度可以动画而裁切内容（`overflow-hidden`），裁切框会切掉定位在框外的子节点；`message-input-actions/`、`composer-options/`、`thinking-permission/` 与 `ExpertSummonPopover` 内不得再用内联 `absolute bottom-full / top-full` 定位弹层，必须走 Radix 门户（Popover / DropdownMenu） | ✅ |
+| `ComposerClearanceSpacer.tsx` | 组件 | 消息列表末尾的底部间距：高度 = 浮动输入框（`[data-composer-dock]`，必须是消息列的直接子节点）高度 + 底部偏移 + 16px，随选项区展开、排队消息、附件与长草稿变化；高度由 `ResizeObserver` 直接写到元素上，输入框尺寸变化不触发长对话重渲染；`className` 带最小高度（传统列表 `min-h-40 lg:min-h-[15rem]`、虚拟列表 `min-h-44`），首帧与固定高度时一致；`Chat.tsx` 与 `VirtualMessageList` 共用 | ✅ |
+| `__tests__/ComposerClearanceSpacer.test.tsx` | 测试 | 底部间距契约：高度 = 输入框高度 + 底部偏移 + 边距并向上取整、随 `ResizeObserver` 回调更新、卸载时断开；消息列里没有输入框、或输入框不是直接子节点时不改高度 | ✅ |
 | `TurnTimelineRail.tsx` | 组件 | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览、跨轮次连续加载直达（按用户消息 ID 锚定，`loadThroughTurn`）与 Alt+↑/↓ 键盘轮次跳跃（`MobileTurnOutlineSheet` 同文件导出；纯函数模型层 `turnRailModel.ts`，后台完成通知行不算轮次） | ✅ |
 | `FiveContractDeliveryStatusPanel.tsx` | 组件 | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情 | ✅ |
 | `NoProviderBanner.tsx` | 组件 | 未配置 AI Provider 时的引导横幅（amber 警告色），点击跳转 `/settings/models`；「已有订阅」入口经共享 `useXaiDeviceLogin` 以设备码授权接入 xAI SuperGrok，授权成功由 `connectProviderSubscription` 启用 xAI 并按 models.dev 目录补齐起始模型、主模型槽位空缺时绑定；授权失败给出本地化提示；确认弹窗比横幅存活更久，成功提示不会随横幅一起消失；本机已运行 Ollama 且有能对话、支持工具调用的模型时（`useOllamaQuickConnect`），多一个「使用 Ollama：模型名」按钮，点击经 `enableProviderWithModel` 启用 Ollama 与该模型、主模型槽位空缺时绑定，没有合格模型时不显示 | ✅ |
 | `UpdateNudgeBanner.tsx` | 组件 | 空会话与闲置聊天页可用更新提醒横幅：包含常规升级与安全补丁专属视觉（IconShield+amber警戒色）、推迟及勿扰过滤、直跳全栈更新面板；「忽略」常规更新即推迟该版本（与更新面板的「推迟」同一偏好，更新的版本出现时再次提醒），「忽略」安全补丁只在本会话有效（补丁本就穿透推迟）；手机上文案在上、操作在下（≥`sm` 同一行），文案始终有可读宽度 | ✅ |
 | `__tests__/UpdateNudgeBanner.test.tsx` | 测试 | 更新提醒横幅测试套件：常规更新渲染、安全更新穿透显示、免打扰会话持久化、忽略即推迟（下个会话不再提示、更新的版本再次提醒）、安全补丁忽略仅限本会话、跳转动作与手机上下堆叠布局覆盖 | ✅ |
 | `playbook/` | 子包 | 模型编排最佳实践领域子包：包含首屏轻量发现胶囊、交互式看板弹窗、三大黄金预设与一键增量下发引擎（详见 `playbook/_ARCH.md`） | ✅ |
-| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与 MessageInput 桌面工具栏） | ✅ |
+| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar、UserMessage 与输入框选项区 `ComposerOptionsRegion`） | ✅ |
 | `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 + streaming 防护 | ✅ |
 | `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 种子回填；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
-| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`）；会话历史载入期间 `loading` 为真但没有回合，停止按钮保留位置并禁用，持有取消控制器或服务端报告在生成才可按（`useTurnStoppable`）；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；桌面工具栏横向滚动且不显示滚动条，被裁切的一侧经 `useScrollEdgeFade` 渐隐，提示还有控件可滚动到 | ✅ |
+| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`）；会话历史载入期间 `loading` 为真但没有回合，停止按钮保留位置并禁用，持有取消控制器或服务端报告在生成才可按（`useTurnStoppable`）；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；桌面主行只有 5 个控件（`ComposerPrimaryControls`：「+」、Fast/Agent 切换、模型、权限档位、展开编辑器），不再横向滚动，其余选项收在「+」展开的 `ComposerOptionsRegion`；手机（<`sm`）仍由 `sendbox-mobile-plus-btn` 打开操作表；选项区开合记在本机（`useComposerOptionsOpen`），能力编辑弹层打开时选项区临时展开而不改写这个选择；`handleOpenCapabilityEditor` 按视口打开桌面弹层或手机操作表；浮动输入框带 `data-composer-dock`，供 `ComposerClearanceSpacer` 取高度 | ✅ |
 | `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：检测 `mp.weixin.qq.com/s/` 链接 → 引导挂载 `wechat-article-formatter` skill | ✅ |
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `speechKeyterms.ts` | 辅助 | STT 领域热词提取纯函数（近 6 轮消息词频 Top15）；主 composer 与移动端指挥条共用，保证两端口述识别词表一致 | ✅ |
@@ -106,6 +108,7 @@
 | `catchup/` | 目录 | 会话 catch-up 收件箱 UI（`GET /catchup` 列出用户离开期间有动静的会话，在场水位线由 `hooks/chat/usePresenceReadMark` 盖章） | 见 [catchup/_ARCH.md](catchup/_ARCH.md) |
 | `virtual-message-list/` | 目录 | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存） | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
 | `context-strip/` | 目录 | 输入区上方统一内联上下文胶囊流与超载治理（ComposerContextChipStrip） | 见 [context-strip/_ARCH.md](context-strip/_ARCH.md) |
+| `composer-options/` | 目录 | 桌面输入框的主行（5 个控件）与「+」展开的选项区（思考 / 模式 / 能力三组），以及开合记忆与「已启用」摘要 | 见 [composer-options/_ARCH.md](composer-options/_ARCH.md) |
 | `group-chat/` | 目录 | Bot Mode 多智能体群聊驾驶舱：群聊房间成员常驻顶栏、输入框 @ 联想浮窗、多 Agent 顺序接力讨论流、PASS 静默折叠气泡与 needs-you 人权介入呼吸提示栏 | 见 [group-chat/_ARCH.md](group-chat/_ARCH.md) |
 
 ## agent-config-panel/

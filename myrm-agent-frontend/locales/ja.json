@@ -2735,6 +2735,11 @@
       "expandToolbar": "ツールバーを展開",
       "expandEditor": "エディターを拡大（Ctrl/⌘+Shift+Enter）",
       "collapseEditor": "エディターを縮小（Ctrl/⌘+Shift+Enter）",
+      "toolbar": "ツールバー",
+      "toolbarActive": "有効：{names}",
+      "toolbarGroupThinking": "思考",
+      "toolbarGroupModes": "モード",
+      "toolbarGroupCapabilities": "機能",
       "expandedPlaceholder": "Enter で改行 · Ctrl/⌘+Enter で送信 · Esc で閉じる",
       "stop": "停止"
     },

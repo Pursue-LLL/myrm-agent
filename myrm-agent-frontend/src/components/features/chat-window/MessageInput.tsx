@@ -7,13 +7,13 @@
  * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
  * [OUTPUT]
- * - MessageInput: 渲染聊天输入区、工具栏、快捷操作、Agent 状态灯和发送入口。
+ * - MessageInput: 渲染聊天输入区、桌面主行与选项区（手机为操作表）、快捷操作、Agent 状态灯和发送入口。
  *
  * [POS]
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
  */
 import * as React from 'react';
-import { ArrowRight, Square, Plus, X, Navigation, ListPlus, Maximize2, Minimize2, CornerDownLeft } from 'lucide-react';
+import { ArrowRight, Square, Plus, X, Navigation, ListPlus, CornerDownLeft } from 'lucide-react';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
@@ -21,7 +21,6 @@ import AttachButton from '../message-input-actions/AttachButton';
 import SearchModeSelector from '../message-input-actions/SearchModeSelector';
 import DeepSearchToggle from '../message-input-actions/DeepSearchToggle';
 import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
-import BaseModelSelector from '../message-input-actions/BaseModelSelector';
 import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
 import LivenessIndicator from './LivenessIndicator';
 import ReadinessBadge from '../message-input-actions/ReadinessBadge';
@@ -31,21 +30,17 @@ import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
 import EnvironmentShield from '../message-input-actions/EnvironmentShield';
 import AgentIndicator from '../message-input-actions/AgentIndicator';
-import ToolsPanel from '../message-input-actions/ToolsPanel';
-import SessionSkillsToggle from '../message-input-actions/SessionSkillsToggle';
 import KnowledgePickerPopover from '../message-input-actions/KnowledgePickerPopover';
 import TurnCapabilityToggle from '../message-input-actions/TurnCapabilityToggle';
 import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
 import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
-import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
-import { ThinkingBudgetEffortSlider, PermissionModeTierSwitcher } from './thinking-permission';
-import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
-import FocusFlushButton from '../message-input-actions/FocusFlushButton';
 import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
-import { ForkButton } from './ForkButton';
+import { ComposerOptionsRegion } from './composer-options/ComposerOptionsRegion';
+import { ComposerPrimaryControls } from './composer-options/ComposerPrimaryControls';
+import { useComposerOptionsOpen } from './composer-options/useComposerOptionsOpen';
 import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveFilesPanel from '../message-input-actions/ActiveFilesPanel';
 import { useTranslations } from 'next-intl';
@@ -56,8 +51,10 @@ import {
   resolveDualChannelAction,
 } from '@/hooks/message-input/messageInputKeyRouter';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
-import { useScrollEdgeFade } from '@/hooks/ui/useScrollEdgeFade';
 import { reportUserActivity } from '@/services/memory';
+
+/** Tailwind's `sm` breakpoint: from here the desktop row and options region replace the phone's "+" action sheet. */
+const DESKTOP_COMPOSER_QUERY = '(min-width: 640px)';
 
 let lastTypingReportTime = 0;
 const reportTypingActivityThrottled = (chatId?: string) => {
@@ -91,7 +88,6 @@ import { QuoteCard } from './QuoteCard';
 import { useInputHistory } from '@/hooks/message-input/useInputHistory';
 import InputHistoryPopup from './InputHistoryPopup';
 import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
-import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
 import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
 import { SkillRequiredConnectorsPreflightBanner } from './context-strip/SkillRequiredConnectorsPreflightBanner';
 import { ScopedArtifactChip } from './ScopedArtifactChip';
@@ -250,9 +246,23 @@ const MessageInput = ({ loading }: MessageInputProps) => {
 
   const [isTurnCapabilityOpen, setIsTurnCapabilityOpen] = React.useState(false);
   const handleOpenCapabilityEditor = React.useCallback(() => {
-    setIsTurnCapabilityOpen(true);
-    setIsMobileSheetOpen(true);
+    // The desktop edits in the options region's popover; the phone hides that region and edits in the action sheet.
+    if (window.matchMedia(DESKTOP_COMPOSER_QUERY).matches) {
+      setIsTurnCapabilityOpen(true);
+    } else {
+      setIsMobileSheetOpen(true);
+    }
   }, []);
+
+  const optionsRegionId = React.useId();
+  const [optionsOpen, setOptionsOpen] = useComposerOptionsOpen();
+  // The capability popover anchors on a control inside the region, so editing capabilities shows the region
+  // without changing the viewer's saved choice.
+  const optionsExpanded = optionsOpen || isTurnCapabilityOpen;
+  const handleToggleOptions = React.useCallback(() => {
+    setIsTurnCapabilityOpen(false);
+    setOptionsOpen(!optionsExpanded);
+  }, [optionsExpanded, setOptionsOpen]);
 
   const { chips: composerContextChips, summary: composerContextSummary } = useComposerContextChips({
     turnCapabilitySelection,
@@ -309,9 +319,6 @@ const MessageInput = ({ loading }: MessageInputProps) => {
   } = useReferenceMention(inputMessage, cursorPosition);
 
   const dropDisabled = loading || actionMode === 'fast';
-
-  // 桌面工具栏被裁切的一侧渐隐，提示还有控件可滚动到
-  const toolbarFadeRef = useScrollEdgeFade<HTMLDivElement>();
 
   // 拖拽上传
   const { isDragging: isFileDragging, dragHandlers: fileDragHandlers } = useDragDrop({
@@ -612,47 +619,16 @@ const MessageInput = ({ loading }: MessageInputProps) => {
                       </button>
                       <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                     </div>
-                    {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
-                    <div
-                      ref={toolbarFadeRef}
-                      className="scroll-fade-x hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
-                    >
-                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
-                      <DeepSearchToggle />
-                      <WorkflowModeToggle />
-                      <BaseModelSelector />
-                      <ThinkingBudgetEffortSlider />
-                      <PermissionModeTierSwitcher />
-                      <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
-                      <GoalModeToggle />
-                      <IncognitoModeToggle />
-                      <SecurityPresetSelector />
-                      <FocusFlushButton />
-                      <ExpertSummonPopover />
-                      {chatId && messages.length > 0 && !loading && (
-                        <ForkButton chatId={chatId} messageIndex={messages.length - 1} />
-                      )}
-                      <AgentIndicator />
-                      <SessionSkillsToggle />
-                      <KnowledgePickerPopover />
-                      <TurnCapabilityToggle
-                        selection={turnCapabilitySelection}
-                        onSelectionChange={setTurnCapabilitySelection}
-                        disabled={loading}
-                        open={isTurnCapabilityOpen}
-                        onOpenChange={setIsTurnCapabilityOpen}
-                      />
-                      <ToolsPanel />
-                      <button
-                        type="button"
-                        onClick={() => setIsExpanded((prev) => !prev)}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        aria-label={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
-                        title={chatT(isExpanded ? 'input.collapseEditor' : 'input.expandEditor')}
-                      >
-                        {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                      </button>
-                    </div>
+                    {/* 桌面版主行：只放每条消息都会用到的几项，其余选项收在 + 展开的区域里（见下方 ComposerOptionsRegion） */}
+                    <ComposerPrimaryControls
+                      optionsExpanded={optionsExpanded}
+                      optionsRegionId={optionsRegionId}
+                      onToggleOptions={handleToggleOptions}
+                      actionMode={actionMode}
+                      setActionMode={setActionMode}
+                      editorExpanded={isExpanded}
+                      onToggleEditor={() => setIsExpanded((prev) => !prev)}
+                    />
                   </div>
                   {/* 右侧：发送操作 */}
                   <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -732,6 +708,15 @@ const MessageInput = ({ loading }: MessageInputProps) => {
                     )}
                   </div>
                 </div>
+                <ComposerOptionsRegion
+                  id={optionsRegionId}
+                  expanded={optionsExpanded}
+                  loading={loading}
+                  turnCapabilitySelection={turnCapabilitySelection}
+                  onTurnCapabilityChange={setTurnCapabilitySelection}
+                  turnCapabilityOpen={isTurnCapabilityOpen}
+                  onTurnCapabilityOpenChange={setIsTurnCapabilityOpen}
+                />
               </>
             )}
           </div>

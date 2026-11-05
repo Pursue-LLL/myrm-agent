@@ -72,15 +72,41 @@ describe('empty chat first-screen contract', () => {
 });
 
 /**
- * The desktop composer toolbar scrolls sideways with its scrollbar hidden, so a clipped edge would end mid-control
- * with nothing hinting at the rest. jsdom has no layout, so the wiring is pinned at the source; the fade rule itself
- * is pinned by app/__tests__/scroll-fade-css.test.ts.
+ * The desktop composer keeps five controls on its primary row and files every other option under the "+" region.
+ * A scroller on the row once hid eleven of fourteen controls behind a swipe, so a control added to the row again would
+ * bring that back. jsdom has no layout, so the wiring is pinned at the source; the five are pinned by
+ * composer-options/__tests__/ComposerPrimaryControls.test.tsx and the region's groups by ComposerOptionsRegion.test.tsx.
  */
-describe('empty chat composer toolbar scroll hint', () => {
-  it('wires the desktop toolbar scroller to the edge fade', () => {
-    const composer = readFileSync(resolve(__dirname, '../MessageInput.tsx'), 'utf8');
+describe('empty chat composer primary row', () => {
+  const composer = readFileSync(resolve(__dirname, '../MessageInput.tsx'), 'utf8');
 
-    expect(composer).toContain('ref={toolbarFadeRef}');
-    expect(composer).toMatch(/className="scroll-fade-x hidden sm:flex[^"]*overflow-x-auto/);
+  it('mounts the primary controls and the options region once each', () => {
+    expect(composer.match(/<ComposerPrimaryControls\b/g)).toHaveLength(1);
+    expect(composer.match(/<ComposerOptionsRegion\b/g)).toHaveLength(1);
+  });
+
+  it('leaves the options that live in the region out of the composer itself', () => {
+    const regionControls = [
+      'ToolsPanel',
+      'SessionSkillsToggle',
+      'ThinkingIntensityButton',
+      'ThinkingBudgetEffortSlider',
+      'GoalModeToggle',
+      'FocusFlushButton',
+      'ForkButton',
+      'ExpertSummonPopover',
+    ];
+    const importedAgain = regionControls.filter((name) => new RegExp(`import[^;]*\\b${name}\\b`).test(composer));
+
+    expect(
+      importedAgain,
+      `MessageInput.tsx imports ${importedAgain.join(', ')}. Mount a secondary control in ComposerOptionsRegion, ` +
+        'not on the composer row.',
+    ).toEqual([]);
+  });
+
+  it('has no sideways-scrolling toolbar left to hint at', () => {
+    expect(composer).not.toContain('toolbarFadeRef');
+    expect(composer).not.toContain('scroll-fade-x');
   });
 });

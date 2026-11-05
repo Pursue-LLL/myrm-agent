@@ -34,7 +34,7 @@ describe('PermissionModeTierSwitcher', () => {
     expect(screen.getByTestId('permission-option-full-auto')).toBeDefined();
     expect(screen.getByText('自动放行常规代码编辑与安全命令，高危命令强制拦截审批')).toBeDefined();
 
-    // The toolbar is a horizontal scroller, so the menu must live in a portal outside of it.
+    // The composer clips inline popups, so the menu must live in a portal outside of it.
     expect(screen.getByTestId('permission-mode-tier-switcher')).not.toContainElement(menu);
   });
 
