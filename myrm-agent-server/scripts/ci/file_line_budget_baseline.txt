@@ -96,8 +96,6 @@ app/services/agent/agent_service.py
 app/services/agent/builtin_specs/vertical.py
 app/services/agent/gateway.py
 app/services/agent/goals/goal_registry.py
-app/services/agent/marketplace/import_.py
-app/services/agent/marketplace/package_contract.py
 app/services/agent/params/mention.py
 app/services/agent/stream_session/orchestrator_turn_body.py
 app/services/agent/stream_session/stream_loop.py
