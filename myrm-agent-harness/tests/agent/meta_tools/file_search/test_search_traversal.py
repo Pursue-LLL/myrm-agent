@@ -7,8 +7,9 @@ Covers:
 - Symbolic links are never followed out of the workspace
 - A file name that holds a line break is one entry on both tiers
 - ripgrep ignores the user's own configuration
-- ripgrep failures: partial output survives; unparseable patterns, timeouts and a glob listing that fails without
-  naming a file fall back to the Python tier
+- ripgrep failures: a run that printed output stands, an empty answer included (an unreadable directory); a run that
+  printed nothing (an unparseable pattern, flags it cannot run), a timeout and a failure to start fall back to the
+  Python tier
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -220,27 +222,61 @@ class TestRipgrepConfiguration:
         assert hit_files(await run_grep(plain_dir, "needle"), {"kept.txt", "ignored.txt"}) == {"kept.txt"}
 
 
+@pytest.fixture
+def locked_dir(plain_dir: Path) -> Iterator[Path]:
+    """A directory ripgrep cannot open: it walks on past it and exits with status 2 once it is done."""
+    if sys.platform == "win32" or os.geteuid() == 0:
+        pytest.skip("directory permissions are not enforced here (Windows, or root reads every directory)")
+    write_tree(plain_dir, {"locked/h.txt": "needle\n"})
+    locked = plain_dir / "locked"
+    locked.chmod(0)
+    yield locked
+    locked.chmod(0o755)
+
+
+def refuse_python_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make either tool fail when it falls back to the Python tier, so a passing test shows ripgrep's answer stood."""
+
+    def refuse(*_args: object, **_kwargs: object) -> NoReturn:
+        raise AssertionError("the Python tier ran although ripgrep had answered")
+
+    monkeypatch.setattr(glob_tool, "collect_candidate_files", refuse)
+    monkeypatch.setattr(grep_tool, "collect_candidate_files", refuse)
+
+
 @pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)
 class TestRipgrepFailures:
-    @pytest.mark.skipif(sys.platform == "win32", reason="directory permissions are not enforced the same way")
+    @pytest.mark.usefixtures("locked_dir")
     async def test_unreadable_directory_keeps_the_matches_already_found(
         self, plain_dir: Path, run_glob: SearchRunner, run_grep: SearchRunner
     ) -> None:
-        if hasattr(os, "geteuid") and os.geteuid() == 0:
-            pytest.skip("root reads every directory")
         write_tree(plain_dir, {f"ok/f{index:02d}.txt": "needle\n" for index in range(30)})
-        write_tree(plain_dir, {"locked/h.txt": "needle\n"})
-        locked = plain_dir / "locked"
-        locked.chmod(0)
-        try:
-            # More matching files than the Python tier would scan, so a fallback would visibly lose matches.
-            grep_output = await run_grep(plain_dir, "needle", max_files=10)
-            glob_output = await run_glob(plain_dir, "**/*.txt")
-        finally:
-            locked.chmod(0o755)
+
+        # More matching files than the Python tier would scan, so a fallback would visibly lose matches.
+        grep_output = await run_grep(plain_dir, "needle", max_files=10)
+        glob_output = await run_glob(plain_dir, "**/*.txt")
 
         assert "Found 30 match(es)" in grep_output
         assert len(listed(glob_output)) == 30
+
+    @pytest.mark.usefixtures("locked_dir")
+    async def test_glob_with_no_match_stands_when_ripgrep_met_an_unreadable_directory(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
+    ) -> None:
+        write_tree(plain_dir, {"ok/a.txt": "x\n"})
+        refuse_python_tier(monkeypatch)
+
+        assert await run_glob(plain_dir, "**/*.py") == "No files found matching: **/*.py"
+
+    @pytest.mark.usefixtures("locked_dir")
+    async def test_grep_with_no_match_stands_when_ripgrep_met_an_unreadable_directory(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_grep: SearchRunner
+    ) -> None:
+        write_tree(plain_dir, {f"ok/f{index:02d}.txt": "alpha\n" for index in range(30)})
+        refuse_python_tier(monkeypatch)
+
+        # The Python tier would stop at 10 files and say so; ripgrep searched all of them.
+        assert await run_grep(plain_dir, "needle", max_files=10) == "No matches found for: needle"
 
     async def test_pattern_ripgrep_cannot_parse_is_searched_by_the_python_tier(
         self, plain_dir: Path, run_grep: SearchRunner
@@ -273,7 +309,7 @@ class TestRipgrepFailures:
 
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
 
-    async def test_glob_falls_back_when_ripgrep_fails_without_listing_a_file(
+    async def test_glob_falls_back_when_ripgrep_fails_before_printing_anything(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
     ) -> None:
         async def fails(*_args: object, **_kwargs: object) -> RgRunResult:
@@ -291,7 +327,7 @@ class TestRipgrepFailures:
             _cmd: Sequence[str], *, on_line: Callable[[bytes], bool], **_kwargs: object
         ) -> RgRunResult:
             on_line(b"listed.py\0")
-            return RgRunResult(returncode=2, stderr="permission denied", stopped_early=False)
+            return RgRunResult(returncode=2, stderr="permission denied", stopped_early=False, lines_read=1)
 
         monkeypatch.setattr(glob_tool, "run_rg", lists_one_then_fails)
         write_tree(plain_dir, {"listed.py": "", "unlisted.py": ""})

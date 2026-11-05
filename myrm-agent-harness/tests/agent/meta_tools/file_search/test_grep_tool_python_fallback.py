@@ -1,9 +1,9 @@
-"""Tests for grep_tool on its Python tier, which takes over when ripgrep is unavailable or fails.
+"""Tests for grep_tool on its Python tier, which takes over when ripgrep is unavailable or gives no answer.
 
 Covers:
 - Basic search, the result cap and the file cap
 - Binary files and undecodable lines are skipped
-- A failing ripgrep run falls back to the Python tier
+- A ripgrep search that raises (a run that failed without printing anything) falls back to the Python tier
 - Hidden files are searched, and ignore files at the root apply outside a git repository
 - An invalid file pattern is rejected, and the time budget is respected
 """

@@ -22,7 +22,7 @@
 [POS]
 File search tool (Claude Code compatible). Searches for files using glob patterns (* and **) with recursive search, exclusion patterns, resource limits, and audit logging.
 The ripgrep tier only enumerates files (ignore rules applied by ripgrep); matching uses the same glob semantics as the Python tier.
-A ripgrep run that fails without listing a file falls back to the Python tier.
+A ripgrep run that fails without printing anything falls back to the Python tier.
 
 """
 
@@ -73,8 +73,8 @@ async def _list_files_with_ripgrep(
     Every name ends with a NUL byte (``--null``), so a name that holds a line break stays one entry.
 
     Raises:
-        RuntimeError: ripgrep failed and listed no matching file. A failure after matches (an unreadable
-            directory) keeps them.
+        RuntimeError: ripgrep failed without printing anything, so it listed nothing. A failure after output
+            (an unreadable directory) stands, even when no name matched.
     """
     cmd = [
         "rg",
@@ -101,9 +101,10 @@ async def _list_files_with_ripgrep(
         cmd, cwd=search_root, timeout_seconds=timeout_seconds, on_line=_collect, line_terminator=b"\0"
     )
     if result.failed:
-        logger.warning(f"ripgrep files search failed: {result.stderr}")
-        # Nothing to show: let the Python tier list the tree instead of reporting an empty one.
-        if not files:
+        logger.warning(f"ripgrep files search failed (exit code {result.returncode}): {result.stderr}")
+        # Names printed: ripgrep listed the tree past an entry it could not open, so its answer stands, empty or
+        # not. None printed: it listed nothing, and the Python tier must.
+        if not result.lines_read:
             raise RuntimeError("ripgrep failed")
     return files
 

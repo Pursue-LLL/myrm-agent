@@ -4,7 +4,7 @@ Covers:
 - Early stop returns promptly even when unread output far exceeds the stream buffer, on every platform
 - Output lines far longer than asyncio's default stream limit are delivered; beyond the limit the run fails cleanly
 - A line can end at a NUL byte instead of a line feed, with the same early stop and the same limit
-- Full consumption, exit codes and stderr capture
+- Full consumption (with the count of lines handed over), exit codes and stderr capture
 - Timeout and cancellation both reap the child
 - stdin is closed and cwd is honored
 """
@@ -183,19 +183,24 @@ class TestLongLines:
         assert [len(line) for line in lines] == [1_000_001]
         assert result.failed is False
 
+    @pytest.mark.parametrize(
+        ("script", "terminator"),
+        [(_PID_THEN_LONG_LINE_THEN_SLEEP_SCRIPT, b"\n"), (_PID_THEN_LONG_NUL_LINE_THEN_SLEEP_SCRIPT, b"\0")],
+        ids=["line-feed", "nul"],
+    )
     async def test_line_beyond_the_limit_raises_value_error_and_kills_the_child(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, script: str, terminator: bytes
     ) -> None:
         monkeypatch.setattr(_rg_runner, "_STREAM_LIMIT_BYTES", 4096)
         pids: list[int] = []
 
         def on_line(line: bytes) -> bool:
-            pids.append(int(line))
+            pids.append(int(line.removesuffix(terminator)))
             return False
 
         with pytest.raises(ValueError):
             await run_rg(
-                _python(_PID_THEN_LONG_LINE_THEN_SLEEP_SCRIPT), cwd=tmp_path, timeout_seconds=10.0, on_line=on_line
+                _python(script), cwd=tmp_path, timeout_seconds=10.0, on_line=on_line, line_terminator=terminator
             )
 
         assert await _wait_until_gone(pids[0])
@@ -212,12 +217,13 @@ class TestLineTerminator:
         )
 
         assert lines == [b"a\nb\0", b"c\0"]
+        assert result.lines_read == 2
         assert result.failed is False
 
     async def test_the_last_line_may_lack_its_terminator(self, tmp_path: Path) -> None:
         lines, on_line = _collect()
 
-        await run_rg(
+        result = await run_rg(
             _python(_UNTERMINATED_LAST_LINE_SCRIPT),
             cwd=tmp_path,
             timeout_seconds=10.0,
@@ -226,6 +232,7 @@ class TestLineTerminator:
         )
 
         assert lines == [b"a\0", b"b"]
+        assert result.lines_read == 2
 
     async def test_stops_early_between_terminated_lines(self, tmp_path: Path) -> None:
         lines: list[bytes] = []
@@ -242,27 +249,6 @@ class TestLineTerminator:
         assert len(lines) == 100
         assert result.stopped_early is True
         assert time.monotonic() - started < 2.0
-
-    async def test_line_beyond_the_limit_raises_value_error_and_kills_the_child(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(_rg_runner, "_STREAM_LIMIT_BYTES", 4096)
-        pids: list[int] = []
-
-        def on_line(line: bytes) -> bool:
-            pids.append(int(line.removesuffix(b"\0")))
-            return False
-
-        with pytest.raises(ValueError):
-            await run_rg(
-                _python(_PID_THEN_LONG_NUL_LINE_THEN_SLEEP_SCRIPT),
-                cwd=tmp_path,
-                timeout_seconds=10.0,
-                on_line=on_line,
-                line_terminator=b"\0",
-            )
-
-        assert await _wait_until_gone(pids[0])
 
 
 class TestFullRun:
@@ -281,7 +267,7 @@ class TestFullRun:
         )
 
         assert len(lines) == 1000
-        assert result == RgRunResult(returncode=0, stderr="", stopped_early=False)
+        assert result == RgRunResult(returncode=0, stderr="", stopped_early=False, lines_read=1000)
 
     @pytest.mark.parametrize(("code", "failed"), [(0, False), (1, False), (2, True), (127, True)])
     async def test_exit_code_classification(self, tmp_path: Path, code: int, failed: bool) -> None:
@@ -293,6 +279,21 @@ class TestFullRun:
         )
         assert result.returncode == code
         assert result.failed is failed
+
+    @pytest.mark.parametrize(("output", "lines_read"), [("", 0), ("print('a')\nprint('b')\n", 2)])
+    async def test_a_failed_run_reports_how_many_lines_it_printed(
+        self, tmp_path: Path, output: str, lines_read: int
+    ) -> None:
+        """A failure that printed nothing searched nothing; one that printed searched on and failed in the end."""
+        result = await run_rg(
+            _python(f"import sys\n{output}sys.exit(2)\n"),
+            cwd=tmp_path,
+            timeout_seconds=10.0,
+            on_line=lambda _line: False,
+        )
+
+        assert result.failed is True
+        assert result.lines_read == lines_read
 
     async def test_captures_stderr(self, tmp_path: Path) -> None:
         result = await run_rg(

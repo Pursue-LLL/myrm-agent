@@ -9,13 +9,15 @@
 - running_mailbox: start the server, wait until it answers over TLS, remove the container afterwards; a container that an
   earlier run left behind when it was killed is removed first
 - stale_containers: which of the named containers belong to such a run
+- published_port: the host port in ``docker port`` output
 - deliver: put a message into a mailbox the way another sender would
 - messages_of: every message of one user's inbox, parsed
 
 [POS]
 Server pytest-only helper of the live tests of the imap-smtp-email skill. The server accepts any login and creates the
 mailbox of an address when mail first arrives for it. SMTP over implicit TLS needs the skill script's port 465, so that
-host port is taken for the run; a test that cannot have it is skipped, not failed.
+host port is taken for the run; a test that cannot have it is skipped, not failed. The IMAP and plain-delivery host
+ports are the ones Docker picks, read back after the container starts.
 """
 
 from __future__ import annotations
@@ -26,7 +28,6 @@ import email.policy
 import imaplib
 import shutil
 import smtplib
-import socket
 import ssl
 import subprocess
 import time
@@ -82,9 +83,9 @@ def stale_containers(names: Sequence[str], now: float) -> list[str]:
     return stale
 
 
-def _free_port() -> int:
-    with socket.create_server(("127.0.0.1", 0)) as server:
-        return int(server.getsockname()[1])
+def published_port(docker_port_output: str) -> int:
+    """The host port on the first line of ``docker port`` output, such as ``127.0.0.1:32769``."""
+    return int(docker_port_output.splitlines()[0].rpartition(":")[2])
 
 
 def _docker(*args: str) -> subprocess.CompletedProcess[str]:
@@ -119,6 +120,14 @@ def _wait_until_serving(host: str, port: int, certificate: Path) -> None:
     raise TimeoutError(f"GreenMail did not answer over TLS on {host}:{port} within {_START_TIMEOUT_SECONDS}s")
 
 
+def _host_port(name: str, container_port: int) -> int:
+    """The loopback port Docker bound for *container_port*; Docker picks it while binding, so nothing can take it first."""
+    shown = _docker("port", name, f"{container_port}/tcp")
+    if shown.returncode != 0:
+        raise RuntimeError(f"Docker has no host port for {container_port}/tcp of {name}: {shown.stderr.strip()[-300:]}")
+    return published_port(shown.stdout)
+
+
 @contextmanager
 def running_mailbox(directory: Path) -> Iterator[Mailbox]:
     """Start the server with a fresh certificate in *directory*; skip the test when Docker or port 465 is not available."""
@@ -131,14 +140,14 @@ def running_mailbox(directory: Path) -> Iterator[Mailbox]:
     ca_bundle = directory / "ca-bundle.pem"
     # The bundle replaces the default trust store of every client that reads SSL_CERT_FILE, the model provider's included.
     ca_bundle.write_text(Path(certifi.where()).read_text() + "\n" + certificate.read_text())
-    host, imap_port, smtp_port = "127.0.0.1", _free_port(), _free_port()
+    host = "127.0.0.1"
     listed = _docker("ps", "-a", "--filter", f"name={NAME_PREFIX}", "--format", "{{.Names}}")
     for stale in stale_containers(listed.stdout.split(), time.time()):
         _docker("rm", "-f", stale)
     name = f"{NAME_PREFIX}{int(time.time())}-{uuid.uuid4().hex[:8]}"
     started = _docker(
         "run", "-d", "--rm", "--name", name,
-        "-p", f"{host}:{imap_port}:3993", "-p", f"{host}:{smtp_port}:3025", "-p", f"{host}:{SMTP_TLS_HOST_PORT}:3465",
+        "-p", f"{host}::3993", "-p", f"{host}::3025", "-p", f"{host}:{SMTP_TLS_HOST_PORT}:3465",
         "-v", f"{directory}:/keystore:ro", "-e", f"GREENMAIL_OPTS={_SERVER_OPTIONS}", IMAGE,
     )  # fmt: skip
     if started.returncode != 0:
@@ -146,6 +155,7 @@ def running_mailbox(directory: Path) -> Iterator[Mailbox]:
             f"The mail server could not start (port {SMTP_TLS_HOST_PORT} taken, or no image): {started.stderr.strip()[-300:]}"
         )
     try:
+        imap_port, smtp_port = _host_port(name, 3993), _host_port(name, 3025)
         _wait_until_serving(host, imap_port, certificate)
         yield Mailbox(host, imap_port, smtp_port, ca_bundle, certificate)
     finally:
