@@ -6,9 +6,10 @@
 - agent.streaming.escalation_scrubber::EscalationScrubber (POS: 流式层升级标记检测)
 - agent.streaming.interrupt_events::interrupt_events (POS: 中断 → 带卡片 id 的流事件)
 - agent.streaming.interrupt_identity::announced_rounds (POS: 本次运行各中断所处的轮次)
+- agent.streaming.latest_reply::latest_model_reply (POS: 一次 updates 分片携带的最后一条助手回复，含 collected_messages 不收的空回复)
 
 [OUTPUT]
-- StreamDispatcherMixin: dispatches events, forwards structured agent_status fields and records a run's cancellation.
+- StreamDispatcherMixin: dispatches events, forwards structured agent_status fields, records a run's cancellation and the run's latest model reply.
 
 [POS]
 StreamDispatcherMixin dispatches astream chunks to the output_queue and preserves GUI-safe status payload fields.
@@ -36,9 +37,10 @@ from .artifact_events import collect_inline_artifacts, process_realtime_content_
 from .event_handlers import process_messages_chunk, process_updates_chunk
 from .interrupt_events import interrupt_events
 from .interrupt_identity import announced_rounds
+from .latest_reply import latest_model_reply
 
 if TYPE_CHECKING:
-    from langchain_core.messages import BaseMessage
+    from langchain_core.messages import AIMessage, BaseMessage
 
     from myrm_agent_harness.agent.streaming.escalation_scrubber import EscalationScrubber
     from myrm_agent_harness.agent.streaming.reasoning_scrubber import ReasoningScrubber
@@ -64,6 +66,7 @@ class StreamDispatcherMixin:
     streaming_final_answer: bool
     _pseudonym_restorer: _PseudonymRestorer | None
     _partial_text_buffer: str
+    _latest_reply: AIMessage | None
 
     async def _dispatch_chunk(
         self,
@@ -102,6 +105,11 @@ class StreamDispatcherMixin:
                 for event in interrupt_events(interrupts, ctx.message_id, announced_rounds(ctx.agent_input)):
                     await self._emit_event(event, ctx)
             return
+
+        # An empty reply never reaches collected_messages, yet the turn-end recovery handlers must judge it.
+        reply = latest_model_reply(data_dict)
+        if reply is not None:
+            self._latest_reply = reply
 
         async for event in process_updates_chunk(
             data_dict,

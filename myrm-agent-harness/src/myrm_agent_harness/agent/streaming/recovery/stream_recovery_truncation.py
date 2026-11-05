@@ -58,6 +58,7 @@ _MAX_EPHEMERAL_OUTPUT_TOKENS = MAX_EPHEMERAL_OUTPUT_TOKENS
 class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin):
     _ctx: StreamContext
     _compactor: StreamCompactor
+    _latest_reply: AIMessage | None
     streaming_final_answer: bool
     _tool_truncation_retries: int
     _MAX_LENGTH_CONTINUE_RETRIES = 3
@@ -68,23 +69,18 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin)
         collected_messages: list[BaseMessage],
         retries: int = 0,
     ) -> bool:
-        """Detect length truncation and either auto-continue or emit warnings."""
-        from myrm_agent_harness.utils.token_economics.tracker import get_token_tracker
+        """Detect length truncation and either auto-continue or emit warnings.
 
-        last_ai_msg: AIMessage | None = None
-        for msg in reversed(collected_messages):
-            if isinstance(msg, AIMessage):
-                last_ai_msg = msg
-                break
-
+        What was truncated is the run's latest reply, which ``collected_messages`` may not hold (an empty
+        reply is left out of it); ``collected_messages`` is what a retry carries.
+        """
+        last_ai_msg = self._latest_reply
         if last_ai_msg is None:
             return False
 
         # A tool call withheld as unsafe (arguments cut off or unparseable) ends the
         # turn as surely as a length cut, whatever finish_reason the provider reported.
-        tracker = get_token_tracker()
-        length_cut = tracker is not None and tracker.last_finish_reason in ("length", "max_tokens")
-        if not length_cut and not has_withheld_tool_calls(last_ai_msg.additional_kwargs):
+        if not self._cut_by_output_limit() and not has_withheld_tool_calls(last_ai_msg.additional_kwargs):
             return False
 
         has_tool_calls = self._has_tool_calls(last_ai_msg)
@@ -108,6 +104,7 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin)
         if has_tool_calls:
             return await self._try_tool_call_retry(
                 collected_messages,
+                last_ai_msg,
                 locale,
             )
 
@@ -200,6 +197,7 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin)
     async def _try_tool_call_retry(
         self,
         collected_messages: list[BaseMessage],
+        failed_reply: AIMessage,
         locale: str,
     ) -> bool:
         """Re-run the turn after its tool call failed, with a larger output budget.
@@ -207,13 +205,9 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin)
         The failed reply carries nothing executable (its calls are cut off or withheld as unsafe), so it is
         not re-sent. Only retries once to avoid infinite loops.
         """
-        failed_reply = collected_messages[-1] if collected_messages else None
-        if isinstance(failed_reply, AIMessage):
-            for description in describe_withheld_tool_calls(failed_reply.additional_kwargs):
-                logger.warning(" Withheld tool call: %s", description)
-            kept = collected_messages[:-1]
-        else:
-            kept = collected_messages
+        for description in describe_withheld_tool_calls(failed_reply.additional_kwargs):
+            logger.warning(" Withheld tool call: %s", description)
+        kept = [msg for msg in collected_messages if msg is not failed_reply]
 
         tool_truncation_retries = self._tool_truncation_retries
         if tool_truncation_retries >= self._MAX_TOOL_TRUNCATION_RETRIES:
@@ -287,6 +281,14 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin)
             event["diagnostic_result"] = diagnostic_dict
 
         await self._compactor.put(event)
+
+    @staticmethod
+    def _cut_by_output_limit() -> bool:
+        """Whether the provider reported that the latest model call stopped at its output limit."""
+        from myrm_agent_harness.utils.token_economics.tracker import get_token_tracker
+
+        tracker = get_token_tracker()
+        return tracker is not None and tracker.last_finish_reason in ("length", "max_tokens")
 
     @staticmethod
     def _has_tool_calls(msg: AIMessage) -> bool:

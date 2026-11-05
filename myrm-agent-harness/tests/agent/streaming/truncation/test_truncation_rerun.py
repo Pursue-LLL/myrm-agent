@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage
 
+from ..scripted_agent import recover_length_cut
 from .support import llm_with_max_tokens, make_executor
 
 
@@ -33,7 +34,7 @@ async def test_tool_call_truncated_triggers_retry(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -68,7 +69,7 @@ async def test_tool_call_truncated_exhausted_after_retry(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is False
     events = executor._compactor.events
@@ -92,7 +93,7 @@ async def test_text_continuation_for_normal_text_truncation(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     assert len(executor._compactor.events) == 1
@@ -125,7 +126,7 @@ async def test_locale_propagation(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -153,7 +154,7 @@ async def test_merged_context_none(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events
@@ -193,7 +194,7 @@ async def test_diagnostic_failure_still_emits_event(mock_context):
             side_effect=Exception("i18n module broken"),
         ),
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is False
     events = executor._compactor.events
@@ -223,7 +224,7 @@ async def test_text_continuation_exhausted(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages, retries=3)
+        result = await recover_length_cut(executor, collected_messages, retries=3)
 
     assert result is False
     events = executor._compactor.events
@@ -255,7 +256,7 @@ async def test_text_continuation_injects_prompt_and_resets_flag(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     assert executor.streaming_final_answer is False
@@ -301,7 +302,7 @@ async def test_tool_call_retry_drops_truncated_ai_message(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     assert executor.streaming_final_answer is False
@@ -333,7 +334,7 @@ async def test_inline_reasoning_only_truncation_retries(mock_context):
         "myrm_agent_harness.utils.token_economics.tracker.get_token_tracker",
         return_value=tracker_mock,
     ):
-        result = await executor._handle_length_truncation(collected_messages)
+        result = await recover_length_cut(executor, collected_messages)
 
     assert result is True
     events = executor._compactor.events

@@ -25,6 +25,8 @@ from myrm_agent_harness.agent.streaming.stream_executor import (
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
 
+from .scripted_agent import recover_empty_reply
+
 
 class FakeCompactor:
     def __init__(self) -> None:
@@ -468,7 +470,7 @@ class TestHandleEmptyResponse:
             AIMessage(content=""),
         ]
 
-        result = await executor._handle_empty_response(collected, retries=0)
+        result = await recover_empty_reply(executor, collected, retries=0)
 
         assert result is True
         messages = ctx.agent_input["messages"]
@@ -485,7 +487,7 @@ class TestHandleEmptyResponse:
             AIMessage(content="Here is my response"),
         ]
 
-        result = await executor._handle_empty_response(collected, retries=0)
+        result = await recover_empty_reply(executor, collected, retries=0)
         assert result is False
 
     @pytest.mark.asyncio
@@ -496,7 +498,7 @@ class TestHandleEmptyResponse:
         msg.tool_calls = [{"name": "search", "args": {}, "id": "tc1"}]
         collected = [HumanMessage(content="search"), msg]
 
-        result = await executor._handle_empty_response(collected, retries=0)
+        result = await recover_empty_reply(executor, collected, retries=0)
         assert result is False
 
     @pytest.mark.asyncio
@@ -511,7 +513,7 @@ class TestHandleEmptyResponse:
         ]
 
         with pytest.raises(MyrmLLMError):
-            await executor._handle_empty_response(collected, retries=2)
+            await recover_empty_reply(executor, collected, retries=2)
 
     @pytest.mark.asyncio
     async def test_no_ai_message_returns_false(self, ctx):
@@ -519,7 +521,7 @@ class TestHandleEmptyResponse:
         executor = _make_executor(ctx)
         collected = [HumanMessage(content="hello")]
 
-        result = await executor._handle_empty_response(collected, retries=0)
+        result = await recover_empty_reply(executor, collected, retries=0)
         assert result is False
 
     @pytest.mark.asyncio
@@ -531,7 +533,7 @@ class TestHandleEmptyResponse:
             AIMessage(content=""),
         ]
 
-        result = await executor._handle_empty_response(collected, retries=0)
+        result = await recover_empty_reply(executor, collected, retries=0)
 
         assert result is True
         status_events = [
