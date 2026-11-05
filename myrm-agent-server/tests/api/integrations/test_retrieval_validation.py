@@ -1,8 +1,7 @@
 """Retrieval-config validation: POST /integrations/retrieval/{embedding,reranker} probe the real provider.
 
 The real embedding and rerank clients run against a loopback provider, so what the endpoints report for a bad key, an
-unknown model or an unreachable host comes from the exceptions those clients actually raise, not from stubs. The
-transport's answer cache is on, as the server runs it.
+unknown model or an unreachable host comes from the exceptions those clients actually raise, not from stubs.
 """
 
 from __future__ import annotations
@@ -16,8 +15,6 @@ from fastapi.testclient import TestClient
 
 from tests.support.fake_retrieval_provider import FakeRetrievalProvider, fake_retrieval_provider, unreachable_api_base
 from tests.support.minimal_app import build_minimal_app
-
-pytestmark = pytest.mark.usefixtures("answer_cache_on")
 
 app = build_minimal_app(preset="integrations")
 
@@ -141,7 +138,8 @@ def test_a_bare_404_means_the_model_or_endpoint_is_unknown(
     assert result["message"] == "Validation failed: the provider does not know this model or endpoint"
 
 
-def test_an_edited_key_is_checked_against_the_provider_not_the_answer_cache(client: TestClient, api_key: str) -> None:
+def test_an_edited_key_is_checked_against_the_provider(client: TestClient, api_key: str) -> None:
+    # A success for one key and endpoint says nothing about the key and endpoint the form was edited to afterwards.
     with fake_retrieval_provider() as accepting, fake_retrieval_provider() as refusing:
         refusing.status = 401
 
@@ -157,8 +155,8 @@ def test_an_edited_key_is_checked_against_the_provider_not_the_answer_cache(clie
 def test_a_repeated_probe_of_an_unchanged_configuration_reaches_the_provider_again(
     client: TestClient, provider: FakeRetrievalProvider, api_key: str, kind: str
 ) -> None:
-    # The answer cache is keyed by the whole request, so a fixed probe text would be answered from it for as long as
-    # model, key and endpoint stay the same: the provider could have gone away since and the form would still validate.
+    # Every probe carries a text no earlier call used: the provider could have gone away since the last probe, and a
+    # fixed text answered from memory would still validate the form.
     _probe(client, kind, api_key=api_key, api_base=provider.api_base)
     _probe(client, kind, api_key=api_key, api_base=provider.api_base)
 

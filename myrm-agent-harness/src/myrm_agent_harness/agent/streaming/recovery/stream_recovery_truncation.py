@@ -5,8 +5,9 @@
 - agent.streaming.types::AgentEventType (POS: streaming event type constants)
 - agent.errors.diagnostics::LLMErrorDiagnostic (POS: LLM truncation diagnostic builder)
 - utils.token_economics.tracker::get_token_tracker (POS: token finish-reason tracker)
-- toolkits.llms.adapters.tool_recovery::has_withheld_tool_calls (POS: detects tool calls withheld as unsafe)
+- toolkits.llms.adapters.tool_recovery::has_withheld_tool_calls, describe_withheld_tool_calls (POS: detects tool calls withheld as unsafe, and describes them for the log)
 - agent.streaming.recovery.stream_recovery_budget::StreamOutputBudgetMixin (POS: output budget scaling of recovery retries)
+- agent.streaming.recovery.stream_recovery_redrive::StreamRedriveMixin (POS: the re-run input shared by fresh and resumed turns)
 
 [OUTPUT]
 - StreamTruncationRecoveryMixin: handles length/max-token continuation, truncated or withheld tool-call retry, and truncation warnings.
@@ -22,15 +23,18 @@ or withheld (unsafe-argument) tool calls, and emits structured truncation warnin
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.types import Command
+from langchain_core.messages import AIMessage
 
 from myrm_agent_harness.agent.streaming.recovery.stream_recovery_budget import StreamOutputBudgetMixin
+from myrm_agent_harness.agent.streaming.recovery.stream_recovery_redrive import StreamRedriveMixin
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.core.events import THINKING_TAG_NAMES
-from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import has_withheld_tool_calls
+from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
+    describe_withheld_tool_calls,
+    has_withheld_tool_calls,
+)
 from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
     MAX_EPHEMERAL_OUTPUT_TOKENS,
     ephemeral_max_output_tokens,
@@ -41,7 +45,7 @@ from myrm_agent_harness.toolkits.llms.ephemeral_output_tokens import (
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
-    from langchain_core.messages import AnyMessage, BaseMessage
+    from langchain_core.messages import BaseMessage
 
     from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
     from myrm_agent_harness.agent.streaming.stream_executor import StreamContext
@@ -51,7 +55,7 @@ logger = get_agent_logger(__name__)
 _MAX_EPHEMERAL_OUTPUT_TOKENS = MAX_EPHEMERAL_OUTPUT_TOKENS
 
 
-class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
+class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin, StreamRedriveMixin):
     _ctx: StreamContext
     _compactor: StreamCompactor
     streaming_final_answer: bool
@@ -129,27 +133,9 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
         The thinking phase consumed the whole output budget, so the model never
         reached user-visible text. Re-running without more headroom would simply
         truncate again — the budget boost is what makes the retry productive.
-
-        A resumed turn cannot be retried this way: its ``agent_input`` is a
-        ``Command`` that LangGraph has already consumed, and replaying one advances no
-        work (it emits zero stream chunks). Rather than spin, such a turn reports the
-        condition and ends. It deliberately does *not* raise the output budget: this
-        method returns ``False``, so the caller breaks out of the streaming loop and
-        the executor's ``finally`` clears the ephemeral override — a raise here could
-        never outlive the turn and would only produce a misleading "budget raised" log.
         Prevention lives upstream: ``thinking_headroom`` floors a thinking model's
         ``max_tokens`` at creation time.
         """
-        ctx = self._ctx
-
-        if isinstance(ctx.agent_input, Command):
-            logger.warning(
-                " Reasoning-only truncation in resume mode — a consumed Command "
-                "cannot be retried; reporting instead of spinning"
-            )
-            await self._emit_truncation_warning("thinking_budget_exhausted", locale)
-            return False
-
         if retries >= self._MAX_LENGTH_CONTINUE_RETRIES:
             logger.warning(
                 " Thinking-budget recovery exhausted after %d retries",
@@ -159,26 +145,15 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
             await self._emit_truncation_warning("thinking_budget_exhausted", locale)
             return False
 
-        # Drop the reasoning-only draft so the retry starts from clean context; the
-        # user never saw it (the scrubber routed it to REASONING), so it must not
-        # become conversation history.
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-        messages.clear()
-        messages.extend(msg for msg in collected_messages if msg is not draft)
-        messages.append(
-            HumanMessage(
-                content=(
-                    "[System: Your previous response spent its entire output budget on "
-                    "internal reasoning and produced no user-visible answer. Respond "
-                    "directly now, with minimal reasoning.]"
-                )
-            )
+        # The draft is not re-sent: the user never saw it (the scrubber routed it to REASONING).
+        self._redrive_with_hint(
+            (msg for msg in collected_messages if msg is not draft),
+            "[System: Your previous response spent its entire output budget on "
+            "internal reasoning and produced no user-visible answer. Respond "
+            "directly now, with minimal reasoning.]",
         )
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
 
         self._boost_output_tokens(retries)
-        self.streaming_final_answer = False
 
         logger.warning(
             "↻ Thinking-budget recovery (%d/%d)...",
@@ -195,8 +170,6 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
         locale: str,
     ) -> bool:
         """Inject a continuation prompt and signal the outer loop to retry astream."""
-        ctx = self._ctx
-
         if retries >= self._MAX_LENGTH_CONTINUE_RETRIES:
             logger.warning(
                 " Text continuation exhausted after %d retries",
@@ -206,23 +179,12 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
             await self._emit_truncation_warning("text_continuation_exhausted", locale)
             return False
 
-        if isinstance(ctx.agent_input, Command):
-            logger.warning(" Resume mode — text continuation not supported")
-            return False
-
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-        messages.clear()
-        messages.extend(collected_messages)
-
-        continuation_prompt = (
+        self._redrive_with_hint(
+            collected_messages,
             "[System: Your previous response was truncated by the output length limit. "
             "Continue exactly where you left off. Do not restart or repeat prior text. "
-            "Finish the answer directly.]"
+            "Finish the answer directly.]",
         )
-        messages.append(HumanMessage(content=continuation_prompt))
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
-        self.streaming_final_answer = False
 
         self._boost_output_tokens(retries)
 
@@ -240,15 +202,18 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
         collected_messages: list[BaseMessage],
         locale: str,
     ) -> bool:
-        """Discard the failed tool-call message, boost output budget, and signal retry.
+        """Re-run the turn after its tool call failed, with a larger output budget.
 
-        Only retries once to avoid infinite loops.
+        The failed reply carries nothing executable (its calls are cut off or withheld as unsafe), so it is
+        not re-sent. Only retries once to avoid infinite loops.
         """
-        ctx = self._ctx
-        if isinstance(ctx.agent_input, Command):
-            logger.warning(" Resume mode — tool-call truncation retry not supported")
-            await self._emit_truncation_warning("tool_call_truncated", locale)
-            return False
+        failed_reply = collected_messages[-1] if collected_messages else None
+        if isinstance(failed_reply, AIMessage):
+            for description in describe_withheld_tool_calls(failed_reply.additional_kwargs):
+                logger.warning(" Withheld tool call: %s", description)
+            kept = collected_messages[:-1]
+        else:
+            kept = collected_messages
 
         tool_truncation_retries = self._tool_truncation_retries
         if tool_truncation_retries >= self._MAX_TOOL_TRUNCATION_RETRIES:
@@ -263,31 +228,13 @@ class StreamTruncationRecoveryMixin(StreamOutputBudgetMixin):
 
         self._tool_truncation_retries = tool_truncation_retries + 1
 
-        # Drop the final AI message: its tool calls are truncated or withheld as unsafe,
-        # so nothing in it is executable and the retry must not carry its empty-args
-        # re-declaration.
-        cleaned: list[BaseMessage] = []
-        for msg in collected_messages:
-            if isinstance(msg, AIMessage) and msg is collected_messages[-1]:
-                continue
-            cleaned.append(msg)
-
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-        messages.clear()
-        messages.extend(cleaned)
-
-        retry_hint = HumanMessage(
-            content=(
-                "[System: Your previous tool call was not executed because its arguments were "
-                "incomplete or invalid (for example cut off by the output length limit). "
-                "Please retry the operation. If the output is very large, consider splitting "
-                "it into smaller parts.]"
-            )
+        self._redrive_with_hint(
+            kept,
+            "[System: Your previous tool call was not executed because its arguments were "
+            "incomplete or invalid (for example cut off by the output length limit). "
+            "Please retry the operation. If the output is very large, consider splitting "
+            "it into smaller parts.]",
         )
-        messages.append(retry_hint)
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
-        self.streaming_final_answer = False
 
         self._boost_output_tokens(0)
 

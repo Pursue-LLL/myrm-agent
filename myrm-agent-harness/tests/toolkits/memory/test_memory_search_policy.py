@@ -1,9 +1,30 @@
 """Tests for memory search policy ACL."""
 
+from typing import get_args
+
+import pytest
+
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+    ConcreteSearchCorpus,
     MemorySearchPolicy,
+    advertised_search_corpora,
+    enabled_search_corpora,
     resolve_search_corpora,
 )
+
+_POLICY_MATRIX = [
+    pytest.param(MemorySearchPolicy(), ("memory",), ("memory",), id="memory-only"),
+    pytest.param(MemorySearchPolicy(allow_wiki=True), ("memory", "wiki"), ("memory", "wiki", "all"), id="wiki"),
+    pytest.param(
+        MemorySearchPolicy(allow_sessions=True), ("memory", "sessions"), ("memory", "sessions", "all"), id="sessions"
+    ),
+    pytest.param(
+        MemorySearchPolicy(allow_wiki=True, allow_sessions=True),
+        ("memory", "wiki", "sessions"),
+        ("memory", "wiki", "sessions", "all"),
+        id="wiki-and-sessions",
+    ),
+]
 
 
 def test_resolve_memory_only() -> None:
@@ -73,3 +94,29 @@ def test_memory_search_policy_allow_shared_write_default_true() -> None:
 def test_memory_search_policy_allow_shared_write_disabled() -> None:
     policy = MemorySearchPolicy(allow_shared_write=False)
     assert policy.allow_shared_write is False
+
+
+@pytest.mark.parametrize(("policy", "enabled", "advertised"), _POLICY_MATRIX)
+def test_enabled_and_advertised_corpora_follow_policy(
+    policy: MemorySearchPolicy,
+    enabled: tuple[str, ...],
+    advertised: tuple[str, ...],
+) -> None:
+    assert enabled_search_corpora(policy) == enabled
+    assert advertised_search_corpora(policy) == advertised
+
+
+@pytest.mark.parametrize(("policy", "enabled", "advertised"), _POLICY_MATRIX)
+def test_acl_accepts_exactly_what_is_advertised(
+    policy: MemorySearchPolicy,
+    enabled: tuple[str, ...],
+    advertised: tuple[str, ...],
+) -> None:
+    for corpus in advertised:
+        _, reason = resolve_search_corpora(corpus, policy)  # type: ignore[arg-type]
+        assert reason is None, corpus
+    assert resolve_search_corpora("all", policy)[0] == list(enabled)
+    for corpus in set(get_args(ConcreteSearchCorpus)) - set(enabled):
+        corpora, reason = resolve_search_corpora(corpus, policy)
+        assert corpora == []
+        assert reason, corpus

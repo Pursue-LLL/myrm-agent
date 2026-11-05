@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - /api/v1/health/update-status (POS: stack update truth)
- * - lib/update-prefs (POS: deferral + quiet-hours preferences)
+ * - lib/update-prefs (POS: deferral + quiet-hours preferences, read and written)
  *
  * [OUTPUT]
  * UpdateNudgeBanner: behind-notice entry to the Stack Update Panel.
@@ -11,7 +11,9 @@
  * [POS]
  * EmptyChat banner shown when the server stack is stale, unless the version
  * is deferred, quiet hours are active, or the session dismissed it. Security
- * patches bypass deferral and quiet hours.
+ * patches bypass deferral and quiet hours. Dismissing a regular update defers
+ * that version, so it stays quiet until a newer one ships; dismissing a
+ * security patch lasts for the session only.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -19,7 +21,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
-import { getDeferredVersion, getQuietHours, isQuietNow } from '@/lib/update-prefs';
+import { getDeferredVersion, getQuietHours, isQuietNow, setDeferredVersion } from '@/lib/update-prefs';
 import { IconArrowRight, IconDownload, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -82,8 +84,13 @@ export default function UpdateNudgeBanner() {
     } catch {
       // Best effort only.
     }
+    // A regular update stays quiet until a newer version ships (the same preference as "defer" in the update panel).
+    // A security patch bypasses deferral, so closing it can only last for this session.
+    if (!isSecurity && version) {
+      setDeferredVersion(version);
+    }
     setVisible(false);
-  }, []);
+  }, [isSecurity, version]);
 
   if (!visible) {
     return null;

@@ -24,7 +24,7 @@ MEMORY_SAVE_CORE_ZH = """为用户存储新记忆。记忆跨会话持久化并�
 
 **何时禁止使用本工具**：
 - 已召回事实有误 → 使用 memory_manage_tool，action=correct（不要重复 save）
-- 任务进度、会话结果、已完成工作日志 → 使用 memory_search_tool，corpus=sessions
+- 任务进度、会话结果、已完成工作日志
 - 临时状态：PR 号、commit SHA、当前文件路径、进行中的事项
 - 实时业务状态：订单/物流进度、余额、验证码/OTP、临时下载或排队链接 — 应查实时工具
 - 一周内过时的信息、分步流程/工作流、原始数据转储/代码片段/冗长文本
@@ -67,7 +67,7 @@ MEMORY_MANAGE_TOOL_DESCRIPTION_ZH = """更新、删除、纠正或评分已有�
 
 **何时禁止使用本工具（转用其他工具/机制）**：
 - 存储新事实、偏好或规则 → memory_save_tool
-- 任务进度或聊天历史 → memory_search_tool，corpus=sessions
+- 任务进度或聊天历史（不是记忆）
 - [preference] 结果：profile 属性没有可管理的 id — 要修改请用 memory_save_tool 以相同的 preference_key 重新保存；Agent 不能删除偏好
 
 **操作指南**：

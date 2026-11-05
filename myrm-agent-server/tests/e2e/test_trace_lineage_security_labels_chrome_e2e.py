@@ -64,8 +64,7 @@ MAX_TURNS = 3
 _OPEN_DIAGNOSTICS_JS = """(() => {
   // First, dismiss any blocking onboarding/migration modals if present
   try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
     localStorage.setItem('myrm_onboarding_complete', 'true');
     localStorage.setItem('myrm_boot_shown', '1');
   } catch (e) {}
@@ -438,8 +437,7 @@ async def test_chrome_ui_lineage_trace_replay(
         # T3/T4: Open the performance diagnostics dialog for the finished turn
         open_diag_js = f"""(async () => {{
           try {{
-            sessionStorage.setItem('migration_discovery_dismissed', 'true');
-            sessionStorage.setItem('competitor_migration_dismissed', 'true');
+            localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
             localStorage.setItem('myrm_onboarding_complete', 'true');
             localStorage.setItem('myrm_boot_shown', '1');
           }} catch (e) {{}}

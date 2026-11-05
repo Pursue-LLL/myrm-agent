@@ -2,6 +2,130 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-05-191 · `memory_search_tool` 的参数 schema、描述和系统提示不随检索策略变化：默认智能体（只有记忆检索）被告知有 wiki / sessions / all 三个 corpus 和三个 `expand_*` 参数，传了就被拒绝；保存与管理工具的描述还写着 `corpus=sessions`，并把 schema 不接受的 `pitfall` 类别列给模型
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`70b0fef2ae`；`pitfall` 描述行、`discard`、`rule_keywords` 的删除在 `d3fc8b38df` 中） |
+| **发现时间** | 2026-11-05（评估记忆三工具的 token 占用时，把模型可见的每一句话对照工具真实的入参 schema 与检索策略） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：schema 与描述本身不报错；模型照着做时得到显式拒绝或校验失败，白白多花一次工具调用；每个默认回合记忆三工具的 wire 多付 121 个 token（其中 search 108），系统提示的检索指引多付 58 个 token。 |
+| **关联产品** | harness 记忆工具（`toolkits/memory/agent_surface/`）、记忆检索指引（`agent/middlewares/memory_context/memory_context_budget.py`）、server 语音工具目录（`app/api/voice/tool_catalog.py`）。 |
+| **症状** | [实测] ① 默认策略（只开 memory）下，改前 `memory_search_tool` 的 wire schema 带 `corpus` 枚举 `['memory','wiki','sessions','all']` 和 `expand_conversation_id` / `expand_message_id` / `expand_window`；仅开 wiki 时枚举里仍有 `sessions`。② 系统提示的检索指引（107 token）点名 `corpus=memory` / `sessions` / `wiki` / `all`；`memory_save_tool`、`memory_manage_tool` 的描述和短期事实拒绝文案都写着 `corpus=sessions`。③ 传 `corpus="sessions"`（含 `expand_*`）得到 `Conversation history search is disabled. Enable it in Memory settings.`，传 `corpus="wiki"` 得到 `Wiki search is not enabled for this agent.`。④ 保存工具的描述把 `pitfall` 列为可存类别，要求 `failure_reason`、`negative_lesson`；schema 的 `category` 枚举里没有 `pitfall`，也没有这两个字段：在 `d3fc8b38df^` 上 `MemorySaveInput(category="pitfall")` 抛 `literal_error`。 |
+| **根因** | [代码] 模型可见的文字有几处各自为政的来源：参数 schema 是静态 pydantic 类（`corpus` 枚举写死四项、`expand_*` 常驻）；搜索描述由 policy 拼接，但保存、管理与拒绝文案是固定句子，MCP 变体再用一张替换表改写；系统提示的检索指引是另一份固定文案；语音工具目录又一份。只有 ACL（`resolve_search_corpora`）读 policy，策略一变其余各处就和实际能力对不上。`pitfall`、`rule_keywords`（`trigger_keywords` 在 harness 与 server 里只有写入与存取，没有任何检索或匹配代码读它）、`discard`（与 `delete` 调同一个 `delete_memory` / `delete_rule(allow_protected=False)`）是更早留下的、没有对应能力或读者的表面。 |
+| **修复** | ① `memory_search_policy.py` 新增 `enabled_search_corpora` / `advertised_search_corpora`，ACL、schema、描述、语音枚举都从它派生。② 新增 `memory_agent_tools/search_input.py`：按 policy 生成参数 schema——启用的 corpus ≥2 个时才有 `corpus`（含 `all`），`expand_*` 只在会话检索可用时出现；仅 memory 时 `corpus` 对模型隐藏但仍校验，传入未启用的 corpus 仍得到显式拒绝，而不是静默改查 memory。③ 新增 `_memory_search_description.py`：corpus 指南只在模型能选 corpus 时出现；保存、管理、短期事实拒绝文案不再指向任何 corpus；MCP 变体按面独立撰写，替换表删除。④ `memory_search_guidance` 不点名任何 corpus（107 → 49 token）。⑤ 语音工具目录的 corpus 枚举与描述复用同一来源。⑥ 删除没有对应能力或读者的表面：`pitfall` 描述行、agent 面 `rule_keywords` 参数和 `discard` 动作（`d3fc8b38df`，随另一会话的提交落入），`CATEGORY_TO_TYPE` 里的 `pitfall` 别名（本次）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 模型传了未启用的 corpus 时不能让校验层替它报错：`corpus` 对模型隐藏，但必须仍被接受，否则 `corpus="sessions"` 变成校验失败，丢掉 ACL 的明确拒绝（静默改查 memory 更糟）。② 契约测试第一版把 save 描述里 “persists across sessions” 的 `sessions` 当成会话检索措辞，改用 `corpus=sessions`、`expand_*`、`message_id`、`- sessions:` 精确标记。③ 另一会话尚未提交的 `tests/agent/middlewares/test_memory_context_middleware.py` 在 HEAD 上断言旧指引含 `corpus=sessions`，随本次改动改为断言 `corpus=` 不出现。 |
+| **回归** | [实测] 新增 `tests/toolkits/memory/test_memory_tool_surface_contract.py`（65 例：policy × 语言 × 审批全矩阵，经真实 wire 路径与 MCP server 核对：描述点名的标识符都是某个记忆工具的 schema 字段、`corpus=` 提及 ⊆ 枚举、wiki / 会话检索措辞只在 policy 启用时出现；5 个变异体全被捕获）、`test_memory_search_input.py`（21 例）、`test_memory_search_policy.py` 加矩阵用例、`test_voice_memory_context.py` 加描述用例。改后的 HEAD 树单独检出运行：harness `tests/toolkits/memory`、`tests/scripts`、`tests/agent/middlewares`、`tests/agent/tool_management` 与相关架构门禁 6,605 通过；server 记忆 / 语音 / 装配 / 导入基线 401 通过，`test_incognito_e2e` 的 2 例在隔离树里因缺 `.env.test` 报错（原工作区中通过）。默认 Turn-1 wire（gpt-5，o200k_base）记忆三工具 1,860 → 1,739 token（search 359 → 251、save 989 → 980、manage 512 → 508）；宿主无关口径整体 8,371（门禁上限 8,550）。 |
+| **仍然存在** | ① 会话检索默认关闭是产品决策，这次没有动；改前的拒绝文案带有「在记忆设置里开启」，模型可能转述给用户，改后默认策略下模型看不到会话检索，也就没有这条提示（没有核实改前模型是否真会转述）。② 没有用真实模型验证「无效调用是否因此减少」（需要付费调用与凭据，没有授权）；这次只证明了模型看到的文字与能力一致。③ MCP `memory_store` 仍暴露 `rule_keywords`（MCP 面，未改）。④ `utils/token_estimation.estimate_tool_schema_tokens` 没有改动（MCP 路由阈值按它校准），它与 wire 实测口径不同。 |
+| **代码位置** | `toolkits/memory/agent_surface/{memory_search_policy,_memory_search_description,_memory_agent_tool_descriptions,_memory_tool_texts_en,_memory_tool_texts_zh,transient_fact_boundary}.py`、`memory_agent_tools/{search_input,search_tool,common}.py`、`agent/middlewares/memory_context/memory_context_budget.py`（`memory_search_guidance`）、server `app/api/voice/tool_catalog.py`；测试 `tests/toolkits/memory/test_memory_tool_surface_contract.py`、`test_memory_search_input.py`、`test_memory_search_policy.py`、`tests/architecture/test_tool_wire_budget_gate.py` |
+
+### BUG-HARNESS-2026-11-05-190 · `memory_manage_tool` 要模型自己写对记忆类型 `category`，写错就报「受保护或找不到」；`rate` 动作不查命名空间，能给同一用户其他命名空间的记忆打分
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`3d445e62cc`） |
+| **发现时间** | 2026-11-05（评估记忆三工具的参数时，逐个对照每个参数在真实记忆上的行为） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：用户说「忘掉那条」，模型猜错 `category` 就得到「可能受保护或找不到」，记忆其实存在，要再试一次才删掉；`rate` 的越界只影响排序权重 `user_rating`，不泄露内容、不删除。 |
+| **关联产品** | harness 记忆管理工具（`agent_surface/memory_agent_tools/manage_tool.py`）与 Memory MCP 的 `memory_manage`（`agent_surface/mcp_server/manage_tool.py`）。 |
+| **症状** | [实测] 临时库里存一条 event 和一条 rule：改前 `memory_manage(action="delete", memory_id=<event id>, category="knowledge")` 与 `<rule id>, category="knowledge"` 都返回 `Cannot delete memory (ID: …): it may be protected by the user or not found. Protected memories cannot be deleted by the agent.`，同一个 event id 用 `category="event"` 返回 `Memory deleted`。命名空间：绑定 `agent:stranger` 的管理器对 `agent:owner` 的记忆调 `rate_memory` 返回 `True`，该记忆的 `user_rating` 从 0.5 变成 0.65；同一管理器的 `delete_memory` 返回 0（删除与更新本来就受命名空间限制）。 |
+| **根因** | [代码] 工具的地址由 `(memory_id, category)` 两部分组成：模型填的 `category` 决定走哪个存储，而存储里的记忆类型才是事实，猜错得到的是「找不到」而不是「类型不符」。`rate` 分支直接按 id 调管理器，没有经过按命名空间解析 id 的那一步。 |
+| **修复** | ① 工具只以 `memory_id` 寻址：`manage_memory`（新增 `agent_surface/memory_manage_core.py`，Agent 工具与 MCP 共用，两边各约 100 行的重复删除）先在管理器绑定的命名空间内解析 id，已存记忆的类型决定走哪个存储、哪些动作适用；范围外的 id 与没有 id 的 `[preference]` 召回项一样视为 `Memory not found`。② 参数 schema 去掉 `category`；描述去掉 CATEGORY LIMITS 块，加入「`[preference]` 结果没有可管理的 id，改值需用相同 `preference_key` 重新 `memory_save_tool`」。③ MCP 客户端仍传 `category` 时被忽略（SDK 丢弃多余参数，有测试固定）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 更新与删除早就受命名空间限制，`rate` 是唯一漏掉的：修的是 `rate`，删除的 `Cannot delete` 提示来自 `category` 猜错，不是范围问题。 |
+| **回归** | [实测] `tests/toolkits/memory/test_tools.py`：`test_manage_delete_event_reaches_the_episodic_collection`（类型由已存记忆决定）、`test_manage_unknown_id_is_reported_as_not_found`（update / delete / correct / rate 四个动作）、`test_manage_schema_is_addressed_by_id_alone`；`test_mcp_server.py`：`test_manage_legacy_category_argument_is_ignored`、`test_manage_schema_is_addressed_by_id_alone`。改后同一临时库：`stranger` 经工具对该 id 做 rate / delete 都返回 `Memory not found (ID: …)`，`owner` 的记忆 `user_rating` 仍是 0.5，`owner` 自己 rate 得到 `Memory rated (ID: …, score: 5)`。描述 359 → 344 token，默认 wire 8,513 → 8,454。 |
+| **仍然存在** | ① 改前已被其他命名空间打过分的记忆，评分没有回滚，也没有核对是否存在这类数据。② MCP `memory_store` 仍有 `rule_keywords`（MCP 面，未改）。 |
+| **代码位置** | `toolkits/memory/agent_surface/{memory_manage_core,memory_agent_tools/manage_tool,mcp_server/manage_tool}.py`、`_memory_tool_texts_{en,zh}.py`；测试 `tests/toolkits/memory/test_tools.py`、`test_mcp_server.py` |
+
+### BUG-HARNESS-2026-11-05-189 · `web_fetch_tool` 的网址在 `urls` 里，权限引擎只读 `url`：网络域名黑名单与按主机写的规则对抓取从不生效，所有抓取共用同一个审批哈希
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`df2aa35c11`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，把引擎读的参数名逐个对照工具真实的入参 schema） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：用户在设置里配的域名黑名单、写的主机规则对 `web_fetch_tool` 没有任何效果，不报错也不留痕；规则要求审批的配置下，对一次抓取选「始终允许」后，所有抓取共用同一个哈希，之后读任何网址都免审批。 |
+| **关联产品** | harness 权限引擎与审批（`agent/security/engine.py`、`core/security/tool_registry/`、`agent/middlewares/approval/`）；设置里的网络域名黑名单（WebUI `DomainBlocklistEditor`）与按主机写的权限规则。 |
+| **症状** | [实测] `network_blocklist=(facebook.com, .evil.net)` 下对 `web_fetch_tool` 调用：`urls=[example.com, facebook.com]`、同一个列表的 JSON 文本、`facebook.com.`（末尾带点）改前都是 allow，改后都是 deny；规则 `net_fetch` / `*.internal.corp` / DENY 对 `wiki.internal.corp` 的抓取改前 ask、改后 deny；两个不同网址列表的审批哈希改前都是 `44136fa355b3678a`，改后分别是 `d5f6309d17c1a8c3`、`5560bc882bdf36c6`。 |
+| **根因** | [代码] `web_fetch_tool` 的参数是 `urls: list[str]`（`toolkits/web_fetch/web_fetch_agent_tools.py` 的 `_FullContentInput`、`_FetchOrExtractInput`），只有 `browser_navigate_tool` 是 `url: str`。引擎的黑名单检查、规则的目标解析、域名审批和审批哈希的核心参数表（`TOOL_CANONICAL_PARAMS["web_fetch_tool"] == ["url"]`）都只读 `url`：抓取调用读到空，黑名单与主机规则什么也匹配不到，哈希只剩一个常量。安全与审批测试一直用 `{"url": ...}` 调用，没有一个用过工具真实的参数 `urls`。 |
+| **修复** | ① 新增 `core/security/tool_registry/url_args.py`：`url_arg_values` 读出一次调用里的每个网址（`url` 与 `urls`；字符串、列表或 JSON 数组文本，审批在参数被解析之前就会读到后者）。② 黑名单：任一网址的 hostname（小写、去掉末尾的点）命中即 DENY；规则目标：每个网址的 hostname 各判一次，最严格的判定生效；解析不出 hostname 的网址以原文代表自己。③ 域名审批（域名不在白名单时 ASK、「始终允许此域名」的会话授权）限定在浏览器导航：抓取只读页面，这条审批从来没有对抓取生效过；放到抓取上会让默认配置（`domain_hitl_enabled=True`、白名单为空）对每个域名都询问，一次浏览器域名授权还会让抓取按规则触发的审批被自动放行。④ `TOOL_CANONICAL_PARAMS["web_fetch_tool"]` 改为 `["urls"]`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 审批在参数被解析之前读 `tool_call["args"]`，数组参数可能还是 JSON 数组文本，读取必须经过 `coerce_path_list`（与文件工具共用）。② `urlparse` 对未闭合的 IPv6 方括号等输入抛 `ValueError`：引擎以前读不到抓取的网址，所以没暴露；网址一进引擎，不处理就会让一次抓取把评估打断。③ 旧测试给 `engine.extract_url_domains` 打的补丁从未生效（审批模块在导入时已经绑定了原函数），迁移后的测试直接用真实函数。 |
+| **回归** | [实测] 新增 `tests/agent/security/test_engine_urls.py`（85 例）、`tests/agent/middlewares/approval/test_domain_approval.py`（6 例）、`tests/core/security/tool_registry/test_url_args.py`，`test_canonical_args_hash.py` 加 4 例（不同网址列表的哈希不同、辅助字段不影响哈希、规范参数必须是两种入参 schema 的字段）。对改前的引擎（`df2aa35c11^`）运行：85 例里 33 个失败，哈希的 3 个失败；8 个变异体全被捕获（抓取也触发域名审批、保留末尾的点、不处理 `ValueError`、取最宽松的判定、黑名单只看第一个网址、规则目标只取第一个主机、不读 `urls`、黑名单漏掉 `net_fetch`）。`tests/agent/security`、`tests/agent/middlewares`、`tests/core/security`、`tests/scripts`：9789 通过、2 跳过、9 xfail、3 失败；3 个失败是 `test_leak_detector_json_keys.py::TestLinearTime` 的计时用例，与本改动无关，并行负载下失败，单独重跑 65 例全通过。 |
+| **仍然存在** | ① 黑名单对抓取只由权限引擎执行，`web_fetch_tool` 本身不读 `network_blocklist`（只有评测用的 `blocked_hostnames` 钩子）。② 精确条目（`facebook.com`）不含子域，要连子域一起封须写 `.facebook.com`（匹配语法本来如此，没有改）。③ [实测] `//facebook.com/x`、`https:\\facebook.com\x` 两种写法引擎不拦（解析不出 hostname，以原文参与匹配）；云端模式下 SSRF 守卫在发请求之前就拒绝它们（`Blocked URL scheme`、`parser-confusing characters`），本地模式跳过该守卫，这两种写法是否真能发出请求没有核实。④ `taint_url_from_args` 仍只读 `url`（`core/security/tool_registry/taint_extractors.py:44`），`web_fetch_tool` 的污点标签取不到来源网址；这次没改。⑤ 两处文案对抓取仍是泛称：`agent/security/profile_audit/checkers/policy_gap.py:76-84` 对挂了网络工具、没开域名审批的智能体建议「开启域名审批」，只挂 `web_fetch_tool` 时开了也不起作用；`core/security/types.py:404-405` 的评估顺序注释写「URL-bearing tools」（该文件 646 行，在行数基线里，没有动）。 |
+| **代码位置** | `src/myrm_agent_harness/agent/security/engine.py`、`core/security/tool_registry/{url_args,registry,file_args,__init__}.py`、`agent/middlewares/approval/middleware.py`（文档）；测试 `tests/agent/security/test_engine_urls.py`、`tests/agent/middlewares/approval/test_domain_approval.py`、`tests/core/security/tool_registry/test_url_args.py`、`tests/agent/security/test_canonical_args_hash.py` |
+
+### BUG-HARNESS-2026-11-05-188 · 网页标题里带回车符时，`web_fetch` 告诉模型的「略去的行范围」整体错位：标题里单独的一个 CR 在读文件时多算一行，计划里没算
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`19872ad820`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，对照 `file_read_tool` 的行号来源） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：不报错；页面标题含单独回车符的长页，模型按提示「读第 N 行到第 M 行」读到的是错位的内容。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/full_content_delivery.py`（`plan_full_content`）；读取方 `file_read_tool`。 |
+| **症状** | [实测] 标题 `Two\rlines`：改前保存文本里留着 CR，且提示里的行范围与读文件看到的行号不一致；`Two\r\nlines`：范围一致，但保存文本里留着 CR；`Three\r\rlines`：范围不一致。改后三种都没有 CR、范围与读取方一致。 |
+| **根因** | [代码] 提示里的行范围按保存副本的行计数，而 `file_read_tool` 读文件时先做通用换行翻译（CR、CRLF 都当换行）再编号。网页正文在写盘前已规整成 LF，页眉（含从页面取来的标题）没有：标题里单独的 CR 对读取方是多出来的一行，对计划不是，之后每个范围都错位；CRLF 则把 CR 留在了保存的文本里。 |
+| **修复** | `plan_full_content` 把页眉和正文一起规整成 LF。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 验证行范围必须按读取方的换行翻译来数：只按 `\n` 切行的计数与读取方不同，量不出这个缺陷。 |
+| **回归** | [实测] 新增 `test_carriage_returns_in_a_title_are_normalized_like_those_in_the_pages`（`Two\rlines`、`Two\r\nlines` 两个参数），对改前的 `full_content_delivery.py`（`19872ad820^`）运行两个都失败，改后通过；`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）。 |
+| **仍然存在** | 只处理了 `plan_full_content` 写出的保存副本与交付文本，没有逐个审计其他写盘路径。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/full_content_delivery.py`、`tests/toolkits/web_fetch/test_full_content_delivery.py` |
+
+### BUG-HARNESS-2026-11-05-187 · 嵌套表格与未闭合的表格行让网页转成 Markdown 的输出按嵌套层数指数增长：邮件里 767 字节的嵌套表格转出 5600 万字符、占 8 秒 CPU 与 495 MB
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`39cb85d75e`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，用构造的嵌套表格量转换输出） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：用嵌套表格排版的 HTML 邮件、网页，或构造的页面，能让一次转换吃掉数百 MB 内存与数秒 CPU，没有报错。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/html_to_markdown.py`、`markdown_table.py`（新）；同一转换器还被 server 的邮件入站（`app/channels/providers/email/inbound.py`）与 Gmail 同步（`app/services/wiki/source_sync/gmail/html_body.py`）使用。 |
+| **症状** | [实测] 767 字节的嵌套表格（邮件正文）：改前输出 5600 万字符、8.27 s、495 MB；嵌套 40 层的链（1,507 字节）改后输出 374 字符、1 ms；1,500 个未闭合的表格行（`html.parser` 会把它们逐层嵌套）改前输出 1460 万字符，改后 29,293 字符、41 ms。 |
+| **根因** | [代码] 单元格转换时又把它里面的嵌套表格转了一遍，而外层表格同时也列出了这个嵌套表格的行：每多一层嵌套，同一批行就多输出一遍，输出随层数指数增长；未闭合的行被 `html.parser` 当成嵌套，同样重复。 |
+| **修复** | 外层表格把每个嵌套行只列一次，单元格跳过嵌套的行与表格；表格布局拆进 `markdown_table.py`。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 平面表格必须逐字节不变：改动只允许落在有嵌套的表格上，所以用 3,000 个随机平面表格逐字节比对新旧转换器，再用 33 个整页真实页面核对。 |
+| **回归** | [实测] 平面表格逐字节不变（3,000 个随机表格）；33 个真实页面里 30 个不变，3 个只少了重复出现的文字，没有丢词；6 个新测试在旧转换器上失败；`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）；server 里用到同一转换器的邮件入站、Gmail 同步、IMA 内容、wiki 来源同步等 530 通过、1 跳过。 |
+| **仍然存在** | ① 嵌套表格的行现在并入最外层表格的行列表，内层表格不再在单元格里就地展开；真实页面里有 3/33 的输出因此少了重复出现的文字。② 这次只处理了嵌套与未闭合的表格行；`ul`/`ol` 里的非 `li` 子节点被丢、省略 `</li>`/`</dd>` 后条目被合并等其余宽松 HTML 缺口仍然存在（roadmap `topic_04` #113 ①②）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_to_markdown.py`、`processing/markdown_table.py`、`tests/toolkits/web_fetch/` 下的表格转换测试 |
+
+### BUG-HARNESS-2026-11-05-186 · 一张 75 万字符的构造网页能让整个进程停摆几十秒：反垃圾检测、标题提取、行尾空格规则的正则对每个起始标记都重扫到页尾，剪枝评分对极深的嵌套也慢
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`6343949bea`） |
+| **发现时间** | 2026-11-05（重审 web_fetch 修复链时，用构造输入逐步量耗时） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：一张页面就能让同一进程里所有会话在转换期间不响应，没有报错；CPython 的 `re` 在一次匹配期间不放开 GIL，放到工作线程里也一样，`asyncio.timeout` 打断不了。 |
+| **关联产品** | harness `toolkits/web_fetch/processing/`：`html_scan.py`（新）、`pipeline.py`、`antibot_detector.py`、`html_to_markdown.py`、`content_pruning.py`。 |
+| **症状** | [实测] 75 万字符输入：反垃圾检测对 `<script` 洪水改前超过 30 s（超时放弃），改后 3 ms；标题提取对一连串未闭合的 `<title` 改前 32.8 s，改后不到 1 ms；Markdown 转换器的行尾空格规则对一长串空格改前超过 150 s（超时放弃），改后 9 ms。剪枝评分对 2,565 层嵌套链（节点深度之和 330 万）改前 1.2 s，改后 0.03 s。 |
+| **根因** | [代码] 反垃圾检测用 `<script\b[\s\S]*?</script>`、`<style\b[\s\S]*?</style>`、`<[^>]+>` 去掉脚本、样式和标签，标题提取用 `<title[^>]*>(.*?)</title>`：每个没有闭合的起始标记都向后扫到页尾，一页里有 n 个这样的标记就是 n² 次字符比较；转换器的行尾空格规则 ` +\n` 对一长串不以换行结尾的空格，从串里每个位置各扫一遍，同样是二次方。剪枝评分对每个节点沿祖先链走，总代价与节点深度之和成正比。 |
+| **修复** | ① 新增 `processing/html_scan.py`：标题、`<body>`、script/style、标签的扫描改成线性的字符串扫描（`extract_title`、`body_content`、`strip_script_and_style`、`strip_tags`），`pipeline.py` 与 `antibot_detector.py` 改用它。② 行尾空格规则改成 `(?<! ) +\n`，只从一串空格的开头匹配。③ 剪枝评分对节点深度之和超过 600,000 的页面跳过评分（真实页面低于 290,000）；注释与排除标签清理、截断、块提取照常运行。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 这类问题随机网页量不出来，要按每个正则的回溯形状逐个构造（未闭合起始标记的洪水、一长串空格、深嵌套链），且每个输入用单独的子进程加硬超时跑，否则一个卡死的探测会拖住整次测量。② 剪枝闸门的阈值按实测定：33 个整页真实页面的深度和低于 290,000，构造链是 330 万，不是按复杂度推导。 |
+| **回归** | [实测] 辅助函数与旧正则在 10 万个随机输入上结果相同；`is_blocked` 在 2 万个随机页面、33 个真实页面 × 4 个状态码上一致；剪枝输出在 1,500 个随机页面和 33 个整页真实页面上逐字相同；新增 `test_html_scan.py`、`test_content_pruning_budget.py`，并扩展 `test_html_to_markdown_whitespace.py`、`test_pipeline.py`。`tests/toolkits/{web_fetch,wiki,web_search}` 与 `tests/utils` 4145 通过（2026-11-05，当前树）。 |
+| **仍然存在** | ① 深度和超过 600,000 的页面不再评分，按其余步骤的结果交付；阈值只依据 33 个整页真实页面与构造链，没有更多真实页面的统计。② 这次只处理了量到耗时的三处正则与剪枝评分，转换链路里其余步骤没有逐个用最坏输入测过。③ 转换开始之后仍然打断不了（见 BUG-HARNESS-2026-11-04-180）。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_scan.py`、`processing/{pipeline,antibot_detector,html_to_markdown,content_pruning}.py`、`tests/toolkits/web_fetch/{test_html_scan,test_content_pruning_budget,test_html_to_markdown_whitespace,test_pipeline}.py` |
+
+
+### BUG-HARNESS-2026-11-05-185 · 审批续跑后的一轮里，工具调用被扣下、文本被长度截断、回复为空（标签包裹的推理）都不重试，用户拿到空答案；同样的故障在没有审批的一轮里会恢复
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`50f865791f`） |
+| **发现时间** | 2026-11-04（复盘 MiniMax 在 k8s100 任务 A 上的空答案：第 2 轮越界 glob 触发审批并续跑，第 11 轮调用被扣下，事件里没有 `tool_call_retry`） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P2：凡是先停在审批、批准后才续跑的一轮（越界路径、写文件、委派）遇到上述任一故障，用户看到的都是一轮没有答案的结束；故障本身与审批无关，只是续跑轮没有恢复手段。 |
+| **关联产品** | harness 流式恢复（`agent/streaming/recovery/`：`stream_recovery_truncation.py`、`stream_recovery_turn_end.py`、`stream_recovery_redrive.py`、`stream_recovery_continuation.py`）、`agent/middlewares/_message_origin.py`、`toolkits/llms/adapters/tool_recovery.py`。 |
+| **症状** | [实测] 脚本化的假 LLM（真实 Myrm 智能体 + 假 OpenAI 兼容端点，`temp-docs/temp-task-context/harness-ptc-bench/repro_failure_paths.py`）：先出一次需要审批的 glob，批准后同一轮里模型回复一个被截断的写文件调用。改前（`HEAD` 导出）`truncated-resume`：`product_retried: false, final_answer_streamed: false, tool_call_truncated_warning: true`；改后 `true / true / false`。同一故障放在无审批的新一轮（`truncated-fresh`）改前改后都是 `true / true / false`。同一台架的其余续跑场景，改前 → 改后：文本被长度截断 `len-resume` 未重试、无答案 → 带续写提示、有答案；标签包裹推理的空回复 `empty-resume` 未重试、无答案 → 带恢复提示、有答案；被扣下的调用在重试后再次请求审批 `tool-resume-reapprove`（审批 1 次、告警 → 审批 2 次、有答案）。 |
+| **根因** | [代码] 续跑轮的 `agent_input` 是 `Command(resume=...)`，LangGraph 已经消费它；图跑到终点后再喂一次，不推进任何工作（实测零个流块）。三个恢复处理器（工具调用重试、文本续写、推理耗尽重试）和空回复恢复都靠「清空 `agent_input['messages']`、重填、追加一条提示」再跑一遍，对 `Command` 没有 `messages` 可改，所以各自带一个 `isinstance(agent_input, Command)` 分支直接放弃。这个限制被 5 个单测固化成了「有意的限制」，但 `Command` 只是上一次驱动的载体：线程（检查点）里已经有这一轮产生的全部消息，从线程续跑只需要一条提示。 |
+| **修复** | ① 新增 `stream_recovery_redrive.py::StreamRedriveMixin._redrive_with_hint(kept, hint)`，截断三处与空回复恢复都经它重跑：新一轮用收集到的消息加提示重建输入；续跑轮的输入是 `{"messages": [提示]}`，图从检查点接着跑，被扣下的调用由悬空调用中间件补一条「参数无效」结果，所以模型先读到失败，再读到提示；前缀不动，提示缓存不受影响。删掉 4 个 `Command` 分支。② 恢复提示和队友收件箱的注入消息改用 `runtime_human_message`（`is_system_synthetic`）：审批意图账本与用户输入守卫按用户原话读 HumanMessage，之前把「Your previous tool call was not executed…」当成了用户说的话。③ `describe_withheld_tool_calls`：被扣下的调用原始参数只在内存里，重试前以 WARNING 记一行（工具、解析策略、长度、脱敏后的头 80 字与尾 160 字），下次再发生时能从日志看出参数是怎么坏的。④ `stream_recovery.py` 785 行拆出 `stream_recovery_turn_end.py`（升级、迭代上限总结、空回复），行数基线条目删除。 |
+| **验证** | [实测] 新增 `tests/agent/streaming/recovery/test_redrive_from_thread.py`：真实 `create_agent` 循环加审批暂停，每个暂停用 `Command` 续跑；三个处理器各在新一轮与续跑轮下的重驱动输入、提示的作者、重试上限、描述日志。变异检查：把 `_redrive_with_hint` 的续跑分支改回放弃，12 个用例失败（含全部端到端用例）；把提示改回普通 HumanMessage，8 个用例失败。`tests/agent/streaming`、`tests/toolkits/llms/adapters` 1788 通过；`tests/agent`、`tests/toolkits/llms`、`tests/core` 全量（6 个并行进程）25480 通过，并行负载下有 2 到 18 个与本改动无关的计时或并发用例失败（线性时间检测、`safe_exec`、`permission_engine` 等），失败的用例单独重跑全部通过；`tests/architecture` 只剩两个清单失败，来自他人在途的 `url_args.py`、`search_input.py` 条目，`recovery/_ARCH.md` 与行数基线已通过。 |
+| **仍然存在** | ① **空回复与「只有推理字段」的截断回复收不到**：`event_handlers.py` 不把「没有内容、没有工具调用、没有被扣留调用」的 AIMessage 收进 `collected_messages`，所以处理器看到的「最后一条 AI 消息」是更早一轮带工具调用的那条。[实测] 新一轮里模型在工具轮之后回复完全为空、或只有 `reasoning_content` 且 `finish=stop`，一次恢复请求也没有发出，一轮无答案结束（`HEAD` 与改后相同）；推理耗尽的截断被误判成工具调用截断，发出「工具调用未执行」的提示。只有推理被标签包进 `content` 的回复（MiniMax）收得到。② 续跑轮里升级、溢出压缩、steering、goal 续跑、一次性恢复仍然直接放弃（`Command` 分支保留）；失败转移与瞬时重试在流中途触发，本来就能重放 `Command`（429、500、503 实测恢复）。③ 上游为什么发出无法解析的参数，仍然未查明；本修复保证的是新一轮与续跑轮恢复一致，不是不再发生。④ 真实 MiniMax 与前端对 `tool_call_retry` 事件序列的呈现没有重测（只测到流事件层）。 |
+
 ### BUG-HARNESS-2026-11-04-184 · 保存成 `.py` 文件、用 `python file.py` 启动的脚本里 `from skills.<技能名> import <函数>` 必报 `No module named 'skills'`，报错文字还让模型去装包
 
 | 字段 | 内容 |

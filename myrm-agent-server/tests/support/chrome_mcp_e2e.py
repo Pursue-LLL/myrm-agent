@@ -1168,8 +1168,7 @@ def _settings_http_warm_skippable(route_path: str) -> bool:
 
 _SETTINGS_DISMISSAL_BINDING_JS = """(() => {
   try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
     sessionStorage.removeItem('e2e_warm_platform_readiness');
   } catch (err) {
     return { ok: false, err: String(err) };

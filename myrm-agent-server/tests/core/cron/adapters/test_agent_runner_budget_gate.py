@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 
 from app.core.cron.adapters import agent_runner
 from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.session import run_with_retries
 
 _BUDGET_GATE = "app.services.budget.enforcer.should_block_execution"
 _CAPABILITIES = "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
@@ -53,7 +54,7 @@ def _job(kind: ScheduleKind = ScheduleKind.INTERVAL, **overrides: object) -> Cro
 
 @pytest.fixture(autouse=True)
 def _no_memory_pressure(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(agent_runner, "_memory_overload_reason", lambda: None)
+    monkeypatch.setattr("app.core.cron.adapters.agent_runner.support._memory_overload_reason", lambda: None)
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +95,7 @@ class TestBudgetBlockedRun:
 
     @pytest.mark.asyncio
     async def test_the_skip_is_logged_as_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.WARNING, logger=agent_runner.logger.name):
+        with caplog.at_level(logging.WARNING, logger=agent_runner.runner.logger.name):
             await AgentJobRunner()._run_once(_job())
 
         assert [r.levelno for r in caplog.records if "job-1" in r.getMessage() and "budget" in r.getMessage()] == [
@@ -107,9 +108,9 @@ async def test_the_retry_loop_asks_the_budget_once_and_does_not_wait(
     budget_blocked: AsyncMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sleep = AsyncMock()
-    monkeypatch.setattr(agent_runner.asyncio, "sleep", sleep)
+    monkeypatch.setattr(agent_runner.session.asyncio, "sleep", sleep)
 
-    result = await AgentJobRunner()._run_with_retries(_job(max_retries=2), context="")
+    result = await run_with_retries(_job(max_retries=2), context="", run_once=AgentJobRunner()._run_once)
 
     assert result.skipped is True
     assert budget_blocked.await_count == 1

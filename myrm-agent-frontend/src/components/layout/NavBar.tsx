@@ -9,7 +9,6 @@ import {
   Settings,
   User,
   Sidebar,
-  Wand2,
   Plug,
   LogOut,
   Crown,
@@ -18,24 +17,18 @@ import {
   CreditCard,
   Briefcase,
   FolderKanban,
-  TrendingUp,
-  Shield,
-  Activity,
-  FolderTree,
 } from 'lucide-react';
-import { AiGenerativeIcon, InvestigationIcon } from 'hugeicons-react';
+import { AiGenerativeIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import useAuthStore from '@/store/useAuthStore';
-import useConfigStore from '@/store/useConfigStore';
 import { useSubscription } from '@/hooks/billing/useSubscription';
 import { isLocalMode, isRemoteGatewayActive } from '@/lib/deploy-mode';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
-import { preloadMonacoEditor } from '@/lib/utils/componentPreloader';
 import { useNavBadges } from '@/hooks/shell/useNavBadges';
 
-import { UtilityMenu } from './UtilityMenu';
+import { NavMoreMenu } from './NavMoreMenu';
 import NotificationBell from '@/components/features/notifications/NotificationBell';
 import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
 import { IconTerminal } from '@/components/features/icons/PremiumIcons';
@@ -84,7 +77,6 @@ function NavBarInner({
   const tUserMenu = useTranslations('userMenu');
   const tBackgroundTasks = useTranslations('backgroundTasks');
   const { user, isLoading, logout, loginMock } = useAuthStore();
-  const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const { isPro } = useSubscription();
   const [avatarError, setAvatarError] = useState(false);
   const isLocal = isLocalMode();
@@ -97,24 +89,6 @@ function NavBarInner({
       onCloseMobileSidebar();
     }
   }, [isMobile, onCloseMobileSidebar]);
-
-  // 快捷入口：跳转到设置页对应 tab 或独立页面
-  const quickAccessItems: {
-    id: string;
-    icon: NavIconComponent;
-    label: string;
-    settingsTab?: string;
-    href?: string;
-  }[] = [
-    { id: 'runs', icon: Activity, label: t('nav.runs'), href: '/runs' },
-    { id: 'health', icon: InvestigationIcon, label: t('nav.health'), href: '/health' },
-    { id: 'security-center', icon: Shield, label: t('nav.securityCenter'), href: '/security' },
-    { id: 'journey', icon: TrendingUp, label: t('growthDashboard.title'), href: '/journey' },
-    { id: 'batch-directories', icon: FolderTree, label: t('nav.batchDirectories'), href: '/batch-directories' },
-    { id: 'skills', icon: Wand2, label: t('settings.menu.skills'), settingsTab: 'skills' },
-    { id: 'mcp', icon: Plug, label: t('settings.menu.mcp'), settingsTab: 'mcp' },
-    ...(enableEvalLab ? [{ id: 'eval-lab', icon: FlaskConical, label: t('nav.evalLab'), href: '/eval-lab' }] : []),
-  ];
 
   const navItems: { id: NavTab; icon: NavIconComponent; label: string }[] = [
     { id: 'chat', icon: AiGenerativeIcon, label: t('nav.chat') },
@@ -371,43 +345,12 @@ function NavBarInner({
           );
         })}
 
-        {/* Quick Access Items */}
-        {quickAccessItems.map((item) => {
-          const Icon = item.icon;
-          // 判断当前是否在对应设置页或独立页面
-          // 使用动态路由后可以通过 pathname 判断激活状态
-          const href = item.href || `/settings/${item.settingsTab}`;
-          const isActive = currentPathname === href;
-
-          // 为eval-lab和skills页面添加hover预加载
-          const handleMouseEnter = () => {
-            if (item.id === 'eval-lab' || item.id === 'skills') {
-              preloadMonacoEditor();
-            }
-          };
-
-          return (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <Link
-                  href={href}
-                  onClick={closeMobileSidebar}
-                  onMouseEnter={handleMouseEnter}
-                  className={cn(
-                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-brand',
-                  )}
-                  aria-label={item.label}
-                >
-                  <Icon size={18} />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">{item.label}</TooltipContent>
-            </Tooltip>
-          );
-        })}
+        {/* Everything beyond the primary destinations (monitoring pages, extension surfaces, tool panels) */}
+        <NavMoreMenu
+          currentPathname={currentPathname}
+          extensionConnected={badges.extensionConnected}
+          onNavigate={closeMobileSidebar}
+        />
       </div>
 
       {/* Footer: Sidebar Toggle + Settings */}
@@ -459,33 +402,6 @@ function NavBarInner({
             <TooltipContent side="right">{t('nav.remoteGateway')}</TooltipContent>
           </Tooltip>
         )}
-
-        {/* Extension Bridge Status */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Link
-              href="/settings/extensionBridge"
-              onClick={closeMobileSidebar}
-              className="inline-flex items-center justify-center w-10 h-10 rounded-xl transition-transform hover:scale-105"
-              aria-label={badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
-            >
-              <span
-                className={cn(
-                  'h-2.5 w-2.5 rounded-full transition-colors',
-                  badges.extensionConnected
-                    ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.14)]'
-                    : 'bg-gray-300 shadow-[0_0_0_3px_rgba(156,163,175,0.12)]',
-                )}
-              />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {badges.extensionConnected ? t('nav.extensionConnected') : t('nav.extensionDisconnected')}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Secondary tools: one rail entry for the globally mounted panels */}
-        <UtilityMenu />
 
         {/* Declarative Extension Slot for bottom tools */}
         <ExtensionSlot name="navbar.bottom.tools" className="flex flex-col gap-1 items-center" />

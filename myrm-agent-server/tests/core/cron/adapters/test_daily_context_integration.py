@@ -27,7 +27,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     SessionTarget,
 )
 
-from app.core.cron.adapters.agent_runner import _build_daily_context
+from app.core.cron.adapters.agent_runner.support import _build_daily_context
 
 _STORE_PATCH = "app.core.cron.adapters.setup.get_cron_store"
 

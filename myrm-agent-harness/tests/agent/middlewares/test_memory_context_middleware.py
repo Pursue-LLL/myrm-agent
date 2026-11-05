@@ -310,7 +310,7 @@ def test_format_memory_search_guidance_when_enabled():
     )
     assert untrusted is not None
     assert "memory_search_tool" in untrusted
-    assert "corpus=sessions" in untrusted
+    assert "corpus=" not in untrusted
 
 
 def test_memory_search_tool_bound_accepts_objects_and_dicts():

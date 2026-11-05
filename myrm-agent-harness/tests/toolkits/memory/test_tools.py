@@ -947,9 +947,15 @@ class TestSearchDescriptionConditionalization:
         assert "web corpus" not in desc
         assert "previously fetched web pages" not in desc
 
-    def test_all_corpus_always_present(self):
-        tool = self._get_search_tool()
-        assert "all:" in tool.description
+    def test_all_corpus_is_offered_only_when_there_is_a_choice(self):
+        memory_only = self._get_search_tool()
+        assert "all:" not in memory_only.description
+        assert "corpus" not in memory_only.get_input_schema().model_json_schema()["properties"]
+
+        for wiki, sessions in ((True, False), (False, True), (True, True)):
+            tool = self._get_search_tool(allow_wiki=wiki, allow_sessions=sessions)
+            assert "all:" in tool.description
+            assert "all" in tool.get_input_schema().model_json_schema()["properties"]["corpus"]["enum"]
 
     def test_sessions_hidden_when_disabled(self):
         tool = self._get_search_tool(allow_sessions=False)

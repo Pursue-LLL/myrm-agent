@@ -48,7 +48,7 @@ async def _answer(model: str, stream: bytes) -> AIMessage:
         llm = create_chat_model(
             model, base_url=server.base_url + base_path, api_key="sk-offline", streaming=True, max_tokens=1024
         )
-        return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])  # type: ignore[return-value]
+        return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])
 
 
 def _cut_streams(pieces: list[str]) -> dict[str, tuple[str, bytes]]:

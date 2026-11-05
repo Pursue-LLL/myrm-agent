@@ -81,8 +81,25 @@ describe('MobilePwaInstallGuide', () => {
     fireEvent.click(remindBtn);
 
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
-    const stored = localStorage.getItem('myrm_pwa_install_dismissed_until');
+    const stored = localStorage.getItem('myrm.proactive.dismissed.pwa-install');
     expect(stored).toBeTruthy();
     expect(Number(stored)).toBeGreaterThan(Date.now());
+  });
+
+  it('stays hidden while the snooze runs and returns once it has expired', () => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      writable: true,
+      configurable: true,
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+    });
+
+    localStorage.setItem('myrm.proactive.dismissed.pwa-install', String(Date.now() + 60_000));
+    const snoozed = render(<MobilePwaInstallGuide />);
+    expect(snoozed.container).toBeEmptyDOMElement();
+    snoozed.unmount();
+
+    localStorage.setItem('myrm.proactive.dismissed.pwa-install', String(Date.now() - 1_000));
+    render(<MobilePwaInstallGuide />);
+    expect(screen.getByRole('complementary', { name: 'installGuideTitle' })).toBeInTheDocument();
   });
 });

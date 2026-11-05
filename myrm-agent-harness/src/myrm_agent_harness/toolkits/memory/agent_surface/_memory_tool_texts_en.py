@@ -22,7 +22,7 @@ MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across
 
 **WHEN NOT TO USE THIS TOOL**:
 - An existing recalled memory fact is wrong → use memory_manage_tool with action=correct (do not save a duplicate)
-- Task progress, session outcomes, or completed-work logs → use memory_search_tool with corpus=sessions
+- Task progress, session outcomes, or completed-work logs
 - Temporary state: PR numbers, commit SHAs, current file paths, WIP items
 - Real-time business states: order/logistics tracking, live account balances, OTP/verification codes, temporary download or queue links — query live integrations instead
 - Information that will be stale within a week
@@ -67,7 +67,7 @@ MEMORY_MANAGE_TOOL_DESCRIPTION_EN = """Update, delete, correct, or rate an exist
 
 **WHEN NOT TO USE**:
 - Storing new facts, preferences, or rules → memory_save_tool
-- Task progress or chat history → memory_search_tool with corpus=sessions
+- Task progress or chat history (not memories)
 - A [preference] result: a profile attribute has no manageable id — change it by saving the same preference_key again with memory_save_tool; the agent cannot delete one
 
 **ACTION GUIDE**:

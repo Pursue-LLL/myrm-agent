@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/migrationDiscovery::discoverMigrationSources (POS: External assistant data auto-discovery client)
+ * @/hooks/ui/useProactiveDismissal::dismissProactive, isProactiveDismissed (POS: per-device memory for closed cards)
  *
  * [OUTPUT]
  * MigrationDiscoveryBanner: one-click import prompt for detected external assistant data.
@@ -11,6 +12,7 @@
  * Local/Tauri-only banner shown in EmptyChat when external assistant data is detected.
  * Renders nothing while scanning and when nothing is found, so users without external data never see a
  * placeholder card flash in and out. Routes user to migration wizard in settings for full preview and confirm flow.
+ * Closing it snoozes the offer on this device for a week, and the disk scan is skipped while it is snoozed.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -18,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
+import { dismissProactive, isProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
 import { isLocalMode } from '@/lib/deploy-mode';
 import {
   canDeepLinkMigrationSource,
@@ -28,6 +31,10 @@ import {
 import { IconArrowRight, IconDownload } from '@/components/features/icons/PremiumIcons';
 
 type BannerState = 'idle' | 'found' | 'dismissed';
+
+const DISMISS_KEY = 'migration-discovery';
+// Importing is a one-off decision: a closed offer stays quiet for a week instead of returning with every new chat.
+const SNOOZE_DAYS = 7;
 
 export default function MigrationDiscoveryBanner() {
   const t = useTranslations('chat.migrationDiscovery');
@@ -40,10 +47,7 @@ export default function MigrationDiscoveryBanner() {
       return;
     }
 
-    const dismissed =
-      sessionStorage.getItem('migration_discovery_dismissed') ??
-      sessionStorage.getItem('competitor_migration_dismissed');
-    if (dismissed === 'true') {
+    if (isProactiveDismissed(DISMISS_KEY)) {
       setState('dismissed');
       return;
     }
@@ -74,7 +78,7 @@ export default function MigrationDiscoveryBanner() {
 
   const handleDismiss = useCallback(() => {
     setState('dismissed');
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    dismissProactive(DISMISS_KEY, { snoozeDays: SNOOZE_DAYS });
   }, []);
 
   const handleNavigate = useCallback(() => {

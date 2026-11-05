@@ -1,24 +1,19 @@
 """The settings-page probes ask the provider on every call: verify, check-reachability and speed-test.
 
-The real chat model runs against a loopback provider that serves one API key, with the transport's answer cache switched
-on as the server runs it. A key or endpoint the user has just edited has to be judged by the provider, and so does a
-request that has not changed since an earlier success: a stored answer must neither stand in for a mistyped key nor hide
-a provider that has since gone away, and a probe files nothing that a later call could read.
+The real chat model runs against a loopback provider that serves one API key. A key or endpoint the user has just edited
+has to be judged by the provider, and so does a request that has not changed since an earlier success: no answer is kept
+that could stand in for a mistyped key or hide a provider that has since gone away.
 """
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Iterator
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import HumanMessage
-from myrm_agent_harness.toolkits.llms.transport.answer_cache import answer_cache
 
 from app.api.integrations import llms
-from app.core.types import ModelConfig
 from tests.support.fake_chat_provider import FakeChatProvider, fake_chat_provider
 from tests.support.minimal_app import build_minimal_app
 
@@ -45,8 +40,9 @@ def provider() -> Iterator[FakeChatProvider]:
 
 
 @pytest.fixture(autouse=True)
-def fresh_caches(answer_cache_on: None) -> Iterator[None]:
-    # An empty answer cache and an empty reachability cache keep the tests from answering each other.
+def empty_reachability_cache() -> Iterator[None]:
+    # The reachability cache is the one cache a probe may be answered from; an empty one keeps the tests from answering
+    # each other.
     llms._reachability_cache.clear()
     yield
     llms._reachability_cache.clear()
@@ -98,7 +94,7 @@ def test_reachability_reports_each_key_of_one_endpoint_on_its_own(client: TestCl
 def test_reachability_asks_the_provider_again_once_its_own_window_has_passed(
     client: TestClient, provider: FakeChatProvider, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(llms, "_REACHABILITY_CACHE_TTL_S", 0.0)
+    monkeypatch.setattr(llms.verify, "_REACHABILITY_CACHE_TTL_S", 0.0)
 
     first = _reachability(client, provider, _RIGHT_KEY)
     second = _reachability(client, provider, _RIGHT_KEY)
@@ -150,48 +146,17 @@ def test_speed_test_times_every_run_against_the_provider(client: TestClient, pro
     assert len(provider.requests) == 2
 
 
-def test_ordinary_calls_keep_the_response_cache_after_a_probe(client: TestClient, provider: FakeChatProvider) -> None:
-    assert client.post(_VERIFY, json=_config(provider, _RIGHT_KEY)).status_code == 200
+@pytest.mark.parametrize("probe", ["verify", "reachability", "speed-test"])
+def test_probes_keep_the_model_arguments_the_caller_sent(client: TestClient, provider: FakeChatProvider, probe: str) -> None:
+    config = _config(provider, _RIGHT_KEY, model_kwargs={"extra_headers": {"X-Probe-Marker": "kept"}})
 
-    async def ask_twice() -> None:
-        from myrm_agent_harness.toolkits.llms import llm_manager
-
-        arguments = ModelConfig(model=_MODEL, api_key=_RIGHT_KEY, base_url=provider.base_url).model_dump(exclude_none=True)
-        llm = await llm_manager.get_llm(**arguments)
-        for _ in range(2):
-            await llm.ainvoke([HumanMessage(content="What is the capital of France?")])
-
-    asyncio.run(ask_twice())
-
-    # The probe and the first ordinary ask reach the provider; the second ordinary ask is answered from the answer cache.
-    assert len(provider.requests) == 2
-
-
-def _run_probe(client: TestClient, provider: FakeChatProvider, probe: str, **extra: object) -> None:
-    config = _config(provider, _RIGHT_KEY, **extra)
     if probe == "speed-test":
         client.post(_SPEED_TEST, json={"models": [config]})
     else:
         client.post(_VERIFY if probe == "verify" else _REACHABILITY, json=config)
 
-
-@pytest.mark.parametrize("probe", ["verify", "reachability", "speed-test"])
-def test_probes_keep_the_model_arguments_the_caller_sent(client: TestClient, provider: FakeChatProvider, probe: str) -> None:
-    _run_probe(client, provider, probe, model_kwargs={"extra_headers": {"X-Probe-Marker": "kept"}})
-
     [seen] = provider.requests
     assert seen.headers["x-probe-marker"] == "kept"
-
-
-@pytest.mark.parametrize("probe", ["verify", "reachability", "speed-test"])
-def test_a_probe_files_nothing_and_keeps_its_switch_off_the_wire(
-    client: TestClient, provider: FakeChatProvider, probe: str
-) -> None:
-    _run_probe(client, provider, probe)
-
-    [seen] = provider.requests
-    assert "answer_cache" not in seen.body
-    assert len(answer_cache) == 0
 
 
 def test_verify_asks_the_provider_again_for_a_request_it_already_made(client: TestClient, provider: FakeChatProvider) -> None:

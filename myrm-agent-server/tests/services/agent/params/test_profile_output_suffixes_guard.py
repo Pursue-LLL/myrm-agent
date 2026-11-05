@@ -16,7 +16,7 @@ PROFILE_OUTPUT_SUFFIX_REQUIRED: frozenset[str] = frozenset(
     {
         "app/services/agent/params/conversion/profile_apply.py",
         "app/core/channel_bridge/agent_executor/execute_preamble/instructions.py",
-        "app/core/cron/adapters/agent_runner.py",
+        "app/core/cron/adapters/agent_runner/profile.py",
         "app/services/kanban/task_runner/runner.py",
         "app/core/eval/executor.py",
         "app/api/voice/agent_bridge.py",

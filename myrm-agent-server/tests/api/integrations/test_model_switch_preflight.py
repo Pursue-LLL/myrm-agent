@@ -399,7 +399,7 @@ class TestPreflightWindowResolution:
     def test_missing_window_skips_warning(self, client: TestClient) -> None:
         """No frontend window and unknown model -> found=False, no warning."""
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value=None,
         ):
             response = client.post(
@@ -418,7 +418,7 @@ class TestPreflightWindowResolution:
     def test_backend_resolves_window_from_catalog_info(self, client: TestClient) -> None:
         """Backend resolves max_input_tokens from the model catalog when not provided."""
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value={"max_input_tokens": 32000},
         ):
             response = client.post(
@@ -438,7 +438,7 @@ class TestPreflightWindowResolution:
     def test_backend_does_not_read_max_tokens_as_a_window(self, client: TestClient) -> None:
         """max_tokens is an output budget for part of the catalog, never a context window."""
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value={"max_tokens": 64000},
         ):
             response = client.post(
@@ -456,7 +456,7 @@ class TestPreflightWindowResolution:
     def test_backend_ignores_nonpositive_windows(self, client: TestClient) -> None:
         """A non-positive window resolves to None -> found=False."""
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value={"max_input_tokens": 0},
         ):
             response = client.post(

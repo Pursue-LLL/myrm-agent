@@ -37,7 +37,7 @@
 │   ↓              │
 │ Domain Blocklist │ ← Layer 2b: URL hostname 命中 network_blocklist → DENY（先于 HITL）
 │   ↓              │
-│ Domain HITL      │ ← Layer 2c: URL域名审批（domain_hitl_enabled 时）
+│ Domain HITL      │ ← Layer 2c: 浏览器导航的域名审批（domain_hitl_enabled 时）
 │   ↓              │
 │ Path Policy      │ ← Layer 2.5: forbidden→allowed_roots→workspace 路径安全
 │   ↓              │
@@ -552,8 +552,8 @@ Step 1:    Capability Fence → 未授权 → DENY
 Step 2a:   Shell Command Analyzer → BLOCK → DENY, ESCALATE → ASK
 Step 2a.5: Command Denylist → 用户自定义 fnmatch glob → DENY（YOLO 不可绕过）
 Step 2b:   URL Scheme Check → 非 http/https → DENY
-Step 2b2:  Domain Blocklist → hostname 命中 network_blocklist → DENY（无条件，优先于 Step 2c）
-Step 2c:   Domain HITL → 域名不在 allowlist → ASK（仅 domain_hitl_enabled=True 时）
+Step 2b2:  Domain Blocklist → 网络工具任一 URL 的 hostname 命中 network_blocklist → DENY（无条件，优先于 Step 2c）
+Step 2c:   Domain HITL → 浏览器导航的域名不在 allowlist → ASK（仅 domain_hitl_enabled=True 时）
 Step 3:    Path Policy → forbidden → DENY, allowed/workspace → pass (file_read/file_write only)
 Step 4:    Permission Ruleset + Target Resolution → last-match-wins
 Step 5:    Fallback → ASK
@@ -562,11 +562,11 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 **Step 2a.5 — Command Denylist**：用户可在 WebUI 全局安全设置或 Per-Agent 安全配置中定义 fnmatch glob 模式列表（如 `git push --force*`、`kubectl delete*`、`*DROP DATABASE*`）。匹配采用大小写不敏感的 `fnmatch`，仅对 `shell_exec` 和 `code_interpreter` 权限类型生效。命中则 **DENY**，YOLO 模式也无法绕过（因为 `batch_processor.evaluate_tool_batch` 在 YOLO 路径仍调用 `evaluate_tool_call` 并尊重 DENY）。全局和 Agent 级 denylist 通过 `channel_presets._merge_user_and_agent` 取并集合并。
 
-**Step 2b2 — Domain Blocklist**：对含 `url` 参数的 URL-bearing 工具（`web_fetch`、`browser_navigate` 等），提取 hostname 并匹配 `SecurityConfig.network_blocklist`（与 allowlist 共用 `_domain_in_allowlist` 模式语法：`example.com`、`.example.com`）。命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
+**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的 hostname（小写、去掉末尾的点；解析不出 hostname 的网址以其原文参与匹配，解析异常不会中断评估），逐个匹配 `SecurityConfig.network_blocklist`（与 allowlist 共用 `_domain_in_allowlist` 模式语法：`example.com` 只匹配该域本身，`.example.com` 匹配该域及其全部子域）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
 
-**Step 2c — Domain HITL**：当 `SecurityConfig.domain_hitl_enabled=True` 时，对含 URL 参数的工具（`web_fetch`、`browser_navigate_tool`）提取 hostname 并检查是否在 `network_allowlist` 中。不在 allowlist 中的域名触发 ASK，经由批量审批流程呈现给用户。用户可选择：
+**Step 2c — Domain HITL**：当 `SecurityConfig.domain_hitl_enabled=True` 时，对浏览器导航（`browser_navigate`）提取 hostname 并检查是否在 `network_allowlist` 中。不在 allowlist 中的域名触发 ASK，经由批量审批流程呈现给用户。`web_fetch` 只读取页面，不触发域名审批，仍受 Step 2b2 黑名单与 Step 4 规则约束。用户可选择：
 - "本次允许" — 正常批准
-- "始终允许此域名" — 加入会话级运行时 allowlist（`_runtime_allowed_domains`），后续同域名请求自动通过
+- "始终允许此域名" — 加入会话级运行时 allowlist（`_runtime_allowed_domains`），后续同域名的浏览器导航自动通过（授权只作用于浏览器导航，不会免去 `web_fetch` 按规则触发的审批）
 - "拒绝" — 阻止此次操作
 
 运行时 allowlist 存储于 ContextVar，与会话生命周期一致。业务层可监听 domain approval 事件实现跨会话持久化。
@@ -575,8 +575,8 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 | 权限类型 | 提取字段 | 特殊处理 |
 |---------|---------|---------|
-| `browser_navigate_tool` | `url` | 提取 hostname（支持 scheme-prefixed 和 bare host:port） |
-| `web_fetch` | `url` | 提取 hostname（与 browser_navigate 共用逻辑） |
+| `browser_navigate` | `url` | 提取 hostname（支持 scheme-prefixed 和 bare host:port，小写、去掉末尾的点） |
+| `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的 hostname 并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
 | `shell_exec` | `command` | 原始值 |
 | `file_read` / `file_write` | `path` | 原始值 |
 | 其他 | — | 返回 `"*"` |
@@ -697,6 +697,7 @@ class AllowlistEntry:
   - `bash_code_execute_tool`: `["command"]` — 仅命令内容影响 allowlist 哈希；`reason` 必填（审计 + 审批 UI `execution_intent`），但不参与哈希
   - `file_write_tool`: `["path", "content"]` — 仅路径和内容影响哈希
   - `browser_navigate_tool`: `["url"]` — 仅 URL 影响哈希
+  - `web_fetch_tool`: `["urls"]` — 仅被读取的网址列表影响哈希，对一个网址列表的"始终允许"不会匹配读取其他网址的调用
 - `compute_canonical_args_hash(tool_name, tool_args)` 根据映射表提取核心参数后计算 SHA256[:16] 哈希
 - **解决问题**：LLM 每次生成的 `reason` 用词可能不同（"列出文件" vs "展示目录内容"），但功能相同（同一 `command`）。标准化哈希确保同一功能操作产生相同哈希，精确匹配真正可用
 - **哈希只算一次**：哈希在 `aafter_model` 批量入口点统一计算，通过 `args_hashes: dict[int, str | None]` 传递给所有下游函数（`_evaluate_tool_batch`、`_apply_approval_decisions`、`allowlist.check`），避免重复计算；基准见 `tests/agent/security/test_canonical_hash_performance.py`
@@ -1417,7 +1418,7 @@ Agent security_overrides
 | forbidden_paths | 始终保留默认值 | 安全红线不可被任何层覆盖 |
 | network_allowlist | 并集（Agent 可授予额外域名） | 域名过滤白名单（browser + web_fetch + hooks） |
 | network_blocklist | 并集（Agent 可追加封禁域名） | URL hostname 硬拒绝（DENY，先于 domain HITL） |
-| domain_hitl_enabled | OR（任一方启用则启用） | URL 工具域名级审批开关 |
+| domain_hitl_enabled | OR（任一方启用则启用） | 浏览器导航域名级审批开关 |
 | injection_policy | OR-严格（任一方 `fail_closed` 则 `fail_closed`） | Prompt injection 策略只能升级不能降级 |
 | ruleset | Agent merge 到用户上（Agent 优先级更高） | last-match-wins |
 | timeout | Agent 覆盖用户（如果非默认值） | Agent 特化 |

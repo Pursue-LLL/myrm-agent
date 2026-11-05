@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.core.cron.adapters.agent_runner import (
+from app.core.cron.adapters.agent_runner.stream import (
     _derive_stop_reason_from_event,
     _StreamAccumulator,
 )

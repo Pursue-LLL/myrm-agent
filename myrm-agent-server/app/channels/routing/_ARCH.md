@@ -166,7 +166,7 @@ attachments and logs a warning): skipping would hand an admitted sender's voice 
   owner's identity, so that is the pairing `is_untrusted_event_sender` looks for; a control-plane forward passes the
   admin check whatever identity it carries, so the identity it arrives with is tested as well (`is_untrusted_sender`).
   `inbound_event_dispatch.py` opens the harness `untrusted_ingress_scope()` around `CronScheduler.dispatch_event`; the
-  job tasks the scheduler spawns inherit it, and `core/cron/adapters/agent_runner.py` reads it. For such a run the
+  job tasks the scheduler spawns inherit it, and `core/cron/adapters/agent_runner/runner.py` reads it. For such a run the
   read-only research lease is forced (`research_lease.py`), memory is off, the job is never queued as a goal in a chat
   and the MAIN chat history is not loaded, and workflow-template jobs are skipped. The matched message text is still
   appended to the job prompt after the injection scan; for a non-owner sender the lease bounds what it can steer.

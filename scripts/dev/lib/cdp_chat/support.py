@@ -1104,8 +1104,7 @@ DISMISS_MODALS_JS = """
     return { ok: false, err: 'not-localhost', href: location.href };
   }
   try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
     localStorage.setItem('myrm_onboarding_complete', 'true');
     localStorage.setItem('myrm_boot_shown', '1');
   } catch (err) {

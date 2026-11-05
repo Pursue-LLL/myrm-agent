@@ -61,8 +61,7 @@ def _nav_to_channel_js(channel_type: str) -> str:
     // ignore
   }}
   try {{
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    localStorage.setItem('myrm.proactive.dismissed.migration-discovery', 'forever');
     localStorage.setItem('myrm-selected-channel', '{channel_type}');
   }} catch {{
     // ignore

@@ -10,6 +10,7 @@ from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.services.memory.shared_context import shared_context_health as health_module
+from tests.support.fake_retrieval_provider import FakeRetrievalProvider, fake_retrieval_provider
 
 
 class _FakeEmbeddingService:
@@ -127,3 +128,24 @@ async def test_shared_context_health_sanitizes_probe_auth_failure(monkeypatch: p
     assert result.probed is True
     assert result.reason == "invalid_api_key"
     assert result.retryable is False
+
+
+@pytest.mark.asyncio
+async def test_shared_context_health_asks_the_provider_that_is_configured_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The real embedding client asks the configured provider on every probe; another provider's answer does not vouch for it."""
+
+    async def probe(provider: FakeRetrievalProvider, api_key: str) -> health_module.SharedContextMemoryHealthResult:
+        async def _cfg() -> EmbeddingConfig:
+            return EmbeddingConfig(model="openai/test-embed", api_key=api_key, api_base=provider.api_base)
+
+        monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
+        return await health_module.check_shared_context_memory_health(probe=True)
+
+    with fake_retrieval_provider() as accepting, fake_retrieval_provider() as refusing:
+        refusing.status = 401
+        accepted = await probe(accepting, "sk-right")
+        refused = await probe(refusing, "sk-edited")
+
+    assert (accepted.ready, accepted.reason) == (True, None)
+    assert (refused.ready, refused.reason) == (False, "invalid_api_key")
+    assert len(refusing.requests) == 1

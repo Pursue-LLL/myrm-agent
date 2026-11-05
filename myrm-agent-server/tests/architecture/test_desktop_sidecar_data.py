@@ -41,7 +41,7 @@ _DATA_READERS = {
 _OTHER_FILE_USES = {
     "app/config/settings.py": "BASE_DIR, the base of paths the settings let the environment override",
     "app/core/infra/frontend_launcher.py": "starts the Next.js dev server of a checkout; the shell starts the bundled one",
-    "app/services/agent/params/providers.py": "reads the provider remap from the bundle's shared/config before any checkout path",
+    "app/services/agent/params/model_config/providers.py": "reads the provider remap from the bundle's shared/config before any checkout path",
     "app/startup/env_loader.py": "optional .env files and the checkout's harness browser directory, both skipped when absent",
     "app/startup/local_search_bootstrap.py": "docker-compose.yaml of a checkout, skipped with a warning when absent",
 }
@@ -51,7 +51,7 @@ _OTHER_FILE_USES = {
 # is flagged, and the modules below are the exceptions, with the reason.
 _CWD_RELATIVE_ROOTS = frozenset({"app", "assets", "shared"})
 _CWD_RELATIVE_OK = {
-    "app/services/agent/params/providers.py": "the last candidate for the provider remap, tried after the bundle's own copy",
+    "app/services/agent/params/model_config/providers.py": "the last candidate for the provider remap, tried after the bundle's own copy",
 }
 
 # What counts as data in the tree: everything under assets/, and under app/ every file that is not Python, not a

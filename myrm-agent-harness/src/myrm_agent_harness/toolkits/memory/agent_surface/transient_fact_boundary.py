@@ -9,7 +9,7 @@ and shared heuristics for auto-extraction filters.
 
 [OUTPUT]
 - looks_like_transient_business_fact: Heuristic for transient business state memory payloads.
-- transient_fact_save_rejection_message: Rejection message guiding tool to query live API / session.
+- transient_fact_save_rejection_message: Rejection message guiding tool to query live API.
 - filter_transient_business_memories: Drop transient business semantic/episodic memories before persist.
 - record_transient_fact_rejection / get_transient_fact_rejection_count: Guard metrics.
 
@@ -101,8 +101,8 @@ def transient_fact_save_rejection_message() -> str:
     """Rejection message for transient business state memory payloads."""
     return (
         "Rejected: content represents a real-time transient business state (such as order status, logistics, "
-        "live balances, OTP/verification codes, or temporary queue links). Query live tools/APIs for current status; "
-        "use memory_search_tool with corpus=sessions for past conversation context. Never persist into long-term memory. "
+        "live balances, OTP/verification codes, or temporary queue links). Query live tools/APIs for current status. "
+        "Never persist into long-term memory. "
         "Memory is strictly for durable facts, user preferences, and stable behavioral rules."
     )
 

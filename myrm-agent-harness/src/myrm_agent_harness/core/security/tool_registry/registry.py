@@ -328,7 +328,7 @@ TOOL_CANONICAL_PARAMS: dict[str, list[str]] = {
     "browser_extract_tool": ["selector"],
     "grep_tool": ["pattern", "path"],
     "glob_tool": ["pattern", "path"],
-    "web_fetch_tool": ["url"],
+    "web_fetch_tool": ["urls"],
     "web_search_tool": ["query"],
     "memory_save_tool": ["content", "tags"],
     "memory_search_tool": ["query"],

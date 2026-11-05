@@ -13,11 +13,11 @@ from app.core.cron.adapters.agent_runner import AgentJobRunner
 async def test_runner_counts_run_while_it_executes(monkeypatch: pytest.MonkeyPatch) -> None:
     observed: list[int] = []
 
-    async def fake_run(self: AgentJobRunner, job: object, *, context: str) -> JobResult:
+    async def fake_run(job: object, *, context: str, run_once: object) -> JobResult:
         observed.append(active_background_agent_runs())
         return JobResult(success=True)
 
-    monkeypatch.setattr(AgentJobRunner, "_run_with_retries", fake_run)
+    monkeypatch.setattr("app.core.cron.adapters.agent_runner.session.run_with_retries", fake_run)
 
     result = await AgentJobRunner().run(object(), context="")  # type: ignore[arg-type]
 
@@ -28,10 +28,10 @@ async def test_runner_counts_run_while_it_executes(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.asyncio
 async def test_runner_releases_count_when_run_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def failing_run(self: AgentJobRunner, job: object, *, context: str) -> JobResult:
+    async def failing_run(job: object, *, context: str, run_once: object) -> JobResult:
         raise RuntimeError("agent crashed")
 
-    monkeypatch.setattr(AgentJobRunner, "_run_with_retries", failing_run)
+    monkeypatch.setattr("app.core.cron.adapters.agent_runner.session.run_with_retries", failing_run)
 
     with pytest.raises(RuntimeError):
         await AgentJobRunner().run(object(), context="")  # type: ignore[arg-type]

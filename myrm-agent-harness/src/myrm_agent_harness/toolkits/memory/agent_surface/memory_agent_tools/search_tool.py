@@ -4,6 +4,7 @@
 - toolkits.memory.agent_surface.memory_agent_tools.common::{CATEGORY_TO_TYPE, parse_string_list} (POS: Stateless helpers for memory_search/save/manage tool arguments)
 - toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 - toolkits.memory.agent_surface.memory_search_policy (POS: corpus ACL and optional wiki/sessions backends)
+- toolkits.memory.agent_surface.memory_agent_tools.search_input (POS: policy-derived args schema)
 - toolkits.memory.agent_surface.memory_search_execution (POS: memory/wiki/sessions search execution helpers)
 - toolkits.memory.agent_surface.memory_recall_formatting / memory_recall_budget (POS: recall output SSOT)
 - toolkits.memory.agent_surface.tool_result_sources (POS: pack/unpack metadata.sources for corpus results)
@@ -25,6 +26,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common 
     CATEGORY_TO_TYPE,
     parse_string_list,
 )
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.search_input import memory_search_input
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import (
     DEFAULT_RECALL_LIMIT,
     normalize_recall_limit,
@@ -70,7 +72,7 @@ def build_memory_search_tool(
 ) -> BaseTool:
     """Create memory_search_tool bound to ``manager`` under the given corpus policy."""
 
-    @tool("memory_search_tool", description=description)
+    @tool("memory_search_tool", description=description, args_schema=memory_search_input(policy))
     async def memory_search(
         query: str = "",
         corpus: MemorySearchCorpus = "memory",

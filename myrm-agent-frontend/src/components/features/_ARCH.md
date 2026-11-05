@@ -56,7 +56,6 @@
 | `embeds/`                                     | 外链 URL 富媒体嵌入（provider 匹配 + consent + iframe）              | [_ARCH.md](embeds/_ARCH.md)                                                       |
 | `presentation/`                               | 演示文稿（PPT）生成弹窗、幻灯片渲染与预览下载                        | [_ARCH.md](presentation/_ARCH.md)                                |
 | `task-inspector/`                             | 任务执行实时透视镜与技能调用时序可视化看板（步骤树、瀑布流、毫秒级耗时、插嘴打断） | [_ARCH.md](task-inspector/_ARCH.md)                                               |
-| `reconnect-protocol/`                         | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议（极简状态胶囊、原子快照对齐与纯 Live 增量流） | [_ARCH.md](reconnect-protocol/_ARCH.md)                                           |
 | `commands/`                                   | 情境感知型渐进式能力即时推荐、交互式快捷指令全景面板（“鼠标垫视图”）与智能微引导引擎 | [_ARCH.md](commands/_ARCH.md)                                                     |
 | `canvas/`                                     | Canvas 画布文件严格沙箱隔离与交互式脚本动态鉴权体系（Strict CSP、iframe sandbox、出网审批门禁） | [_ARCH.md](canvas/_ARCH.md)                                                       |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |

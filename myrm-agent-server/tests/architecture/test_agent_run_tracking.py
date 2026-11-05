@@ -22,10 +22,13 @@ _GATEWAY_COUNTED = {
     "services/agent/streaming.py": 1,
     "services/agent/adaptive_wakeup/wake_turn_stream.py": 1,
 }
+# Call the pipeline inside another tracked file's scope (the parent wraps the whole run).
+_TRACKED_DELEGATES = {
+    "core/cron/adapters/agent_runner/stream.py": "core/cron/adapters/agent_runner/runner.py",
+}
 # Call the pipeline directly; the file must wrap the run in ``track_background_agent_run``.
 _TRACKED = {
     "core/channel_bridge/agent_executor/executor.py": 1,
-    "core/cron/adapters/agent_runner.py": 1,
     "core/eval/executor.py": 1,
     "services/kanban/task_runner/runner.py": 1,
 }
@@ -81,7 +84,7 @@ def test_the_scan_sees_the_known_call_sites() -> None:
 
 @pytest.mark.architecture
 def test_every_process_stream_call_site_is_accounted_for() -> None:
-    expected = {**_GATEWAY_COUNTED, **_TRACKED}
+    expected = {**_GATEWAY_COUNTED, **_TRACKED, **{k: 1 for k in _TRACKED_DELEGATES}}
     assert _process_stream_sites() == expected, (
         "process_stream call sites changed. A run outside AgentGateway must be wrapped in "
         "track_background_agent_run() so the hosted idle recycler cannot pause the sandbox mid-run; "
@@ -95,6 +98,13 @@ def test_gateway_counted_site_goes_through_the_gateway(relative_path: str) -> No
     source = (_APP / relative_path).read_text(encoding="utf-8")
 
     assert count_calls(source, "execute_stream"), f"{relative_path} no longer routes its run through AgentGateway.execute_stream"
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("relative_path, owner", sorted(_TRACKED_DELEGATES.items()))
+def test_delegated_site_runs_inside_a_tracked_owner(relative_path: str, owner: str) -> None:
+    assert (_APP / relative_path).is_file(), f"{relative_path} does not exist"
+    assert opens_run_tracker((_APP / owner).read_text(encoding="utf-8")), f"{owner} does not wrap its run"
 
 
 @pytest.mark.architecture

@@ -368,36 +368,6 @@ class TestApplyApprovalDecisionsRare:
         assert "requires new approval" in messages[0].content
 
     @pytest.mark.asyncio
-    async def test_domain_hitl_approve(self) -> None:
-        tc = _tc("web_fetch", {"url": "https://example.com"}, "tc1")
-        ai_msg = AIMessage(content="", tool_calls=[tc])
-        pending = [(0, tc, "web_fetch", "Domain not in allowlist", None)]
-        decisions = [{"type": "approve", "extensions": {"allowDomain": True}}]
-
-        runtime_domains: set[str] = set()
-        with (
-            patch(
-                "myrm_agent_harness.agent.security.engine.extract_url_domains",
-                return_value=("example.com",),
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.approval._batch_review._get_runtime_domains",
-                return_value=runtime_domains,
-            ),
-        ):
-            revised, _, _ = await apply_approval_decisions(
-                decisions,
-                ai_msg,
-                [],
-                pending,
-                [0],
-                {},
-                config=SecurityConfig(),
-            )
-        assert "example.com" in runtime_domains
-        assert len(revised) == 1
-
-    @pytest.mark.asyncio
     async def test_edit_decision_without_args_keeps_original(self) -> None:
         """edit decision with no args → original tool call kept unchanged."""
         tc = _tc("bash_code_execute_tool", {"command": "ls"}, "tc1")
@@ -412,21 +382,6 @@ class TestApplyApprovalDecisionsRare:
 
 
 class TestBuildInterruptPayloadRare:
-    def test_ptc_fields_and_domains(self) -> None:
-        tc = _tc("web_fetch", {"url": "https://example.com"}, "tc1")
-        extra_ctx = {"ptc_tool_name_full": "custom_fetch", "ptc_annotations": ["a1"]}
-        pending = [(0, tc, "web_fetch", "Domain check", extra_ctx)]
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.security.command_explainer.extract.build_shell_approval_fields",
-            return_value={"shellPreview": None},
-        ):
-            payload, indices = build_interrupt_payload(pending, "session-1")
-        assert indices == [0]
-        req = payload["actionRequests"][0]
-        assert req["action"] == "custom_fetch"
-        assert req["ptc_annotations"] == ["a1"]
-        assert req["domains"] == ("example.com",)
-
     def test_smart_denied_config(self) -> None:
         tc = _tc("bash_code_execute_tool", {"command": "ls"}, "tc1")
         extra_ctx = {"smart_denied": True, "reviewer_reason": "risky"}

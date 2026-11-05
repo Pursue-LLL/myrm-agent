@@ -13,7 +13,7 @@
 Settings probes an embedding or reranker configuration with one real call before applying it. The probe goes through the
 factories the product builds its services with, so what validates is what the product then reuses. A refused probe is
 still an HTTP 200 carrying `success=False` and a message that names the cause: the settings UI shows `message` as is.
-Every probe carries a text no earlier call used, so a response cache can never answer it in place of the provider.
+Every probe carries a text no earlier call used, so no cache keyed by the text can answer it in place of the provider.
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ class ValidationResult(BaseModel):
 def _probe_text() -> str:
     """A text no earlier call used.
 
-    The transport's answer cache is keyed by the whole request: a fixed text would be answered from it for as long as the
-    endpoint, key and model stay the same, so a provider that has since gone away or revoked the key would still validate.
+    A cache keyed by model and input (an embedding service's own, a gateway's) would answer a repeated text after one
+    success, and a key or endpoint edited since would still validate.
     """
     return f"probe-{uuid.uuid4().hex}"
 

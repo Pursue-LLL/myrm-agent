@@ -58,12 +58,12 @@ def test_discover_models_requires_key_for_non_local_endpoint(client: TestClient)
 
 def test_discover_models_allows_loopback_no_auth_in_local_mode(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response({"data": [{"id": "qwen3:8b"}]}),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -81,12 +81,12 @@ def test_discover_models_allows_loopback_no_auth_in_local_mode(client: TestClien
 
 def test_discover_models_allows_loopback_with_explicit_key_in_local_mode(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response({"data": [{"id": "qwen3:14b"}]}),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -107,12 +107,12 @@ def test_discover_models_allows_loopback_with_explicit_key_in_local_mode(client:
 
 def test_discover_models_reports_ssrf_block(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             side_effect=SSRFSecurityError("blocked internal target"),
         ),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -127,15 +127,15 @@ def test_discover_models_reports_ssrf_block(client: TestClient) -> None:
 
 def test_discover_models_external_https_provider(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response(
                 {"data": [{"id": "deepseek-v4-flash"}, {"id": "minimax-m3"}]},
                 url="https://93.184.216.34/zen/go/v1/models",
             ),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -247,12 +247,12 @@ def test_discover_models_rejects_invalid_url(client: TestClient) -> None:
 def test_discover_models_provider_http_error(client: TestClient) -> None:
     """Provider 4xx/5xx response is recorded and probing continues."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response({"error": "boom"}, status_code=503),
         ),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -268,9 +268,9 @@ def test_discover_models_provider_http_error(client: TestClient) -> None:
 def test_discover_models_invalid_json(client: TestClient) -> None:
     """Invalid JSON payload is recorded and probing continues."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=httpx.Response(
                 status_code=200,
                 content=b"<html>not json</html>",
@@ -278,7 +278,7 @@ def test_discover_models_invalid_json(client: TestClient) -> None:
                 request=httpx.Request("GET", "http://127.0.0.1:8899/v1/models"),
             ),
         ),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -294,12 +294,12 @@ def test_discover_models_invalid_json(client: TestClient) -> None:
 def test_discover_models_generic_error(client: TestClient) -> None:
     """Generic transport error surfaces as last_error."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             side_effect=RuntimeError("connection refused"),
         ),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -333,15 +333,15 @@ def test_is_trusted_split_stack_host_rejects_link_local_and_public() -> None:
 
 def test_discover_models_allows_lan_rfc1918_no_auth_in_local_mode(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response(
                 {"data": [{"id": "deepseek-r1:32b"}]},
                 url="http://192.168.1.50:11434/v1/models",
             ),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -360,15 +360,15 @@ def test_discover_models_allows_lan_rfc1918_no_auth_in_local_mode(client: TestCl
 
 def test_discover_models_allows_tailscale_cgnat_no_auth_in_local_mode(client: TestClient) -> None:
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response(
                 {"data": [{"id": "qwen2.5:72b"}]},
                 url="http://100.80.20.10:8000/v1/models",
             ),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -388,8 +388,8 @@ def test_discover_models_allows_tailscale_cgnat_no_auth_in_local_mode(client: Te
 def test_discover_models_blocks_lan_in_sandbox_mode(client: TestClient) -> None:
     """In cloud SaaS / Sandbox mode, private LAN endpoints require key and are blocked by SSRF."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
-        patch("app.api.integrations.llms.is_local_mode", return_value=False),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=False),
     ):
         # Without key in sandbox -> blocked immediately
         response = client.post(
@@ -405,8 +405,8 @@ def test_discover_models_blocks_lan_in_sandbox_mode(client: TestClient) -> None:
 def test_discover_models_rejects_link_local_metadata_in_local_mode(client: TestClient) -> None:
     """169.254.169.254 (link-local cloud metadata) is never trusted as split-stack, requiring key and not whitelisted."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -421,15 +421,15 @@ def test_discover_models_rejects_link_local_metadata_in_local_mode(client: TestC
 def test_discover_models_bare_lan_ip_with_port(client: TestClient) -> None:
     """Bare URL like 192.168.1.50:11434 is normalized to http://192.168.1.50:11434 and discovered without key."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response(
                 {"data": [{"id": "llama3.3:70b"}]},
                 url="http://192.168.1.50:11434/v1/models",
             ),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -448,15 +448,15 @@ def test_discover_models_bare_lan_ip_with_port(client: TestClient) -> None:
 def test_discover_models_lan_with_explicit_key_preserves_auth_header(client: TestClient) -> None:
     """When user provides an explicit key for a LAN/Tailscale host, it is preserved and the host is whitelisted."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             return_value=_json_response(
                 {"data": [{"id": "qwen2.5-coder:32b"}]},
                 url="http://100.80.20.10:8000/v1/models",
             ),
         ) as secure_request_mock,
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",
@@ -491,12 +491,12 @@ def test_is_trusted_split_stack_host_exact_cidr_boundaries() -> None:
 def test_discover_models_connection_failure_handled_gracefully(client: TestClient) -> None:
     """When a trusted split-stack endpoint is down or unreachable, returns success=False with clear error."""
     with (
-        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.discovery.create_httpx_client", _mock_httpx_client),
         patch(
-            "app.api.integrations.llms.secure_request",
+            "app.api.integrations.llms.discovery.secure_request",
             side_effect=httpx.ConnectError("Connection refused"),
         ),
-        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+        patch("app.api.integrations.llms.discovery.is_local_mode", return_value=True),
     ):
         response = client.post(
             "/api/v1/integrations/llm/discover-models",

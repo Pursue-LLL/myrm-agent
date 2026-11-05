@@ -18,7 +18,8 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason, MyrmLLMError
 
-from app.core.cron.adapters.agent_runner import AgentJobRunner, _failure_result, _StreamAccumulator
+from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.agent_runner.stream import _failure_result, _StreamAccumulator
 from app.core.cron.adapters.provider_window_deferral import USAGE_LIMIT_SKIP_REASON, usage_limit_deferral
 
 _NOW = datetime(2026, 10, 13, 10, 0, tzinfo=UTC)
@@ -102,7 +103,7 @@ async def test_run_does_not_retry_in_process_against_a_closed_window(monkeypatch
 async def test_memory_overload_only_rearms_one_shot_jobs(
     monkeypatch: pytest.MonkeyPatch, kind: ScheduleKind, expects_retry: bool
 ) -> None:
-    monkeypatch.setattr("app.core.cron.adapters.agent_runner._memory_overload_reason", lambda: "memory_pressure:high")
+    monkeypatch.setattr("app.core.cron.adapters.agent_runner.support._memory_overload_reason", lambda: "memory_pressure:high")
     result = await AgentJobRunner().run(_job(kind))
 
     assert result.skipped is True

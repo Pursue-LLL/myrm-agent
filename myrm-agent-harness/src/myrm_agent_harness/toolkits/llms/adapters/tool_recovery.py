@@ -6,10 +6,12 @@
 - utils.tool_argument_recovery::parse_tool_call_arguments_with_recovery (POS: tool-argument JSON recovery utilities)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: finish_reason telemetry sentinel for dropped streams)
 - observability.metrics.registry::metrics_registry (POS: Global metrics registry)
+- core.security.redact::redact_sensitive_text (POS: credential redaction for the argument text a diagnostic quotes)
 
 [OUTPUT]
 - is_stream_complete(): Map a provider finish_reason (and whether the provider itself reported it) to the arg-recovery completeness signal
 - has_withheld_tool_calls(): Whether a message records tool calls withheld as unsafe (never executable)
+- describe_withheld_tool_calls(): One bounded, redacted line per withheld call (tool, strategy, size, head and tail of the arguments)
 - recover_tool_call_payloads(): Parse and recover tool call arguments with fallback strategies (HTML-entity decoding is opt-in)
 - build_final_tool_call_chunk(): Build the final ChatGenerationChunk carrying all safely recovered tool calls; calls withheld as unsafe are recorded in `additional_kwargs["tool_call_recovery"]` on a metadata-only chunk
 
@@ -28,6 +30,7 @@ from typing import Any
 from langchain_core.messages import AIMessageChunk, ToolCallChunk
 from langchain_core.outputs import ChatGenerationChunk
 
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.llms.adapters.safety_termination_detector import (
     detect_safety_termination,
 )
@@ -38,6 +41,9 @@ from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
 from myrm_agent_harness.utils.token_economics.usage_ledger import (
     DROPPED_STREAM_FINISH_REASON,
 )
+
+_EXCERPT_HEAD_CHARS = 80
+_EXCERPT_TAIL_CHARS = 160
 
 
 def is_stream_complete(finish_reason: str | None, provider_finish: bool | None = None) -> bool:
@@ -75,6 +81,31 @@ def has_withheld_tool_calls(additional_kwargs: Mapping[str, object] | None) -> b
     """
     items = additional_kwargs.get("tool_call_recovery") if additional_kwargs else None
     return isinstance(items, list) and any(isinstance(item, Mapping) and item.get("safe") is False for item in items)
+
+
+def describe_withheld_tool_calls(additional_kwargs: Mapping[str, object] | None) -> list[str]:
+    """One line per call withheld as unsafe: tool, parse strategy, argument size and a redacted excerpt.
+
+    The raw argument text is the only evidence of why a call could not be parsed and it is kept in memory only, so
+    a recovery layer logs this before it moves on. A value cut off by the output limit shows in the tail, a malformed
+    start in the head. The text is redacted whole before it is cut, so a secret is never split across the excerpt.
+    """
+    items = additional_kwargs.get("tool_call_recovery") if additional_kwargs else None
+    if not isinstance(items, list):
+        return []
+    lines: list[str] = []
+    for item in items:
+        if not isinstance(item, Mapping) or item.get("safe") is not False:
+            continue
+        raw = item.get("raw_arguments")
+        text = redact_sensitive_text(raw) if isinstance(raw, str) else ""
+        if len(text) <= _EXCERPT_HEAD_CHARS + _EXCERPT_TAIL_CHARS:
+            excerpt = f"args={text!r}"
+        else:
+            excerpt = f"head={text[:_EXCERPT_HEAD_CHARS]!r} tail={text[-_EXCERPT_TAIL_CHARS:]!r}"
+        raw_size = len(raw) if isinstance(raw, str) else 0
+        lines.append(f"{item.get('tool_name')} strategy={item.get('strategy')} raw_len={raw_size} {excerpt}")
+    return lines
 
 
 def recover_tool_call_payloads(

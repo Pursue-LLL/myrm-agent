@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
+import pytest
+
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
     DEFAULT_MEMORY_TOOL_DESCRIPTION_LOCALE,
     MEMORY_MANAGE_TOOL_DESCRIPTION,
@@ -16,11 +20,27 @@ from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descrip
     resolve_memory_manage_tool_description,
     resolve_memory_save_tool_description,
 )
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+    MemorySearchPolicy,
+    advertised_search_corpora,
+)
 from myrm_agent_harness.toolkits.memory.agent_surface.wiki_memory_boundary import (
     WIKI_MEMORY_SAVE_MAX_CHARS,
     WIKI_MEMORY_SAVE_MIN_HEADINGS,
 )
+
+_FULL_POLICY = MemorySearchPolicy(allow_wiki=True, allow_sessions=True)
+_POLICIES = [
+    pytest.param(MemorySearchPolicy(), id="memory-only"),
+    pytest.param(MemorySearchPolicy(allow_wiki=True), id="wiki"),
+    pytest.param(MemorySearchPolicy(allow_sessions=True), id="sessions"),
+    pytest.param(_FULL_POLICY, id="wiki-and-sessions"),
+]
+_GUIDE_CORPUS_LINE = {
+    "en": re.compile(r"^- ([a-z]+)(?: \(default\))?:", re.M),
+    "zh": re.compile(r"^- ([a-z]+)(?:（默认）)?：", re.M),
+}
+_GUIDE_TITLE = {"en": "**Corpus guide**", "zh": "**Corpus 指南**"}
 
 
 def test_default_locale_is_english() -> None:
@@ -46,8 +66,8 @@ def test_mcp_surface_maps_gui_tool_names() -> None:
         surface="mcp",
     )
     assert "memory_manage" in store_mcp
-    assert "do not store via memory_store" in store_mcp
     assert "memory_save_tool" not in store_mcp
+    assert "corpus=" not in store_mcp
     assert "WIKI BOUNDARY" in store_mcp
     assert "wiki_ingest_tool" not in store_mcp
 
@@ -56,8 +76,7 @@ def test_mcp_surface_zh_never_leaks_gui_wiki_tool() -> None:
     """Chinese MCP surface must never reference the GUI-only wiki_ingest_tool.
 
     Covers both the default description and the explicit wiki-enabled safety
-    net (the ZH replacement pair strips the GUI tool reference from the
-    WIKI BOUNDARY fragment).
+    net (the WIKI BOUNDARY fragment is authored per surface).
     """
     from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
         build_mcp_memory_store_tool_description,
@@ -82,8 +101,7 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
     assert "**WHEN TO SAVE**" in save
     assert "do this proactively" in save
     assert "memory_manage_tool" in save
-    assert "corpus=sessions" in save
-    assert "memory_search_tool" in save
+    assert "corpus=" not in save
     assert "do not set rule_trigger" in save
     assert "**CATEGORY GUIDE**" in save
     assert "instruction-style, gets misinterpreted as a command" in save
@@ -96,7 +114,7 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
     assert "preference_key" in manage
     assert "category" not in manage
     assert "Parameter semantics are in the tool schema" in manage
-    assert "**Corpus guide**" in search
+    assert "corpus=" not in manage
     assert "profile_key" in search
 
 
@@ -106,8 +124,7 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     search = build_memory_search_tool_description(MemorySearchPolicy(), locale="zh")
     assert "**何时保存**" in save
     assert "memory_manage_tool" in save
-    assert "corpus=sessions" in save
-    assert "memory_search_tool" in save
+    assert "corpus=" not in save
     assert "不要设置 rule_trigger" in save
     assert "**类别指南**" in save
     assert "指令式，易被误解为命令" in save
@@ -120,7 +137,7 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     assert "preference_key" in manage
     assert "category" not in manage
     assert "参数说明见工具参数定义" in manage
-    assert "**Corpus 指南**" in search
+    assert "corpus=" not in manage
     assert "profile_key" in search
 
 
@@ -175,36 +192,51 @@ def test_create_memory_tools_uses_description_ssot(memory_config, mock_vector_st
     )
 
 
-def test_memory_search_description_omits_disabled_corpora() -> None:
-    policy = MemorySearchPolicy(allow_wiki=False, allow_sessions=False)
-    desc = build_memory_search_tool_description(policy, locale="en")
-    assert "- wiki:" not in desc
-    assert "- sessions:" not in desc
-    assert "- web:" not in desc
-    assert "- memory (default)" in desc
-    assert "- all:" in desc
-
-    policy_wiki = MemorySearchPolicy(allow_wiki=True, allow_sessions=False)
-    desc_wiki = build_memory_search_tool_description(policy_wiki, locale="en")
-    assert "- wiki:" in desc_wiki
-    assert "- sessions:" not in desc_wiki
-
-
-def test_memory_search_description_includes_enabled_corpora() -> None:
-    policy = MemorySearchPolicy(allow_wiki=True, allow_sessions=True)
-    desc = build_memory_search_tool_description(policy, locale="en")
-    assert "- wiki:" in desc
-    assert "- sessions:" in desc
-    assert "- web:" not in desc
+@pytest.mark.parametrize("locale", ["en", "zh"])
+@pytest.mark.parametrize("policy", _POLICIES)
+def test_search_description_guide_lists_exactly_the_advertised_corpora(policy: MemorySearchPolicy, locale: str) -> None:
+    desc = build_memory_search_tool_description(policy, locale=locale)
+    advertised = list(advertised_search_corpora(policy))
+    guide_corpora = _GUIDE_CORPUS_LINE[locale].findall(desc)
+    if len(advertised) == 1:
+        assert _GUIDE_TITLE[locale] not in desc
+        assert guide_corpora == []
+        assert "corpus=" not in desc
+    else:
+        assert _GUIDE_TITLE[locale] in desc
+        assert guide_corpora == advertised
 
 
-def test_memory_search_description_zh_includes_all_enabled_corpora() -> None:
-    policy = MemorySearchPolicy(allow_wiki=True, allow_sessions=True)
-    desc = build_memory_search_tool_description(policy, locale="zh-CN")
-    assert "Wiki 文档" in desc
-    assert "历史会话" in desc
-    assert "- web：" not in desc
+@pytest.mark.parametrize("locale", ["en", "zh"])
+@pytest.mark.parametrize("policy", _POLICIES)
+def test_search_description_names_conversation_search_only_when_sessions_are_enabled(
+    policy: MemorySearchPolicy, locale: str
+) -> None:
+    desc = build_memory_search_tool_description(policy, locale=locale)
+    conversation_terms = ("corpus=sessions", "expand_conversation_id", "expand_message_id", "message_id")
+    assert all(term in desc for term in conversation_terms) is policy.allow_sessions
+    assert any(term in desc for term in conversation_terms) is policy.allow_sessions
+
+
+@pytest.mark.parametrize("locale", ["en", "zh"])
+@pytest.mark.parametrize("policy", _POLICIES)
+def test_search_description_never_contradicts_the_corpus_choice(policy: MemorySearchPolicy, locale: str) -> None:
+    desc = build_memory_search_tool_description(policy, locale=locale)
+    assert "- web" not in desc
     assert "corpus=web" not in desc
+    assert "For memory retrieval only" not in desc
+    assert "仅用于记忆检索" not in desc
+
+
+def test_search_description_carries_the_sessions_routing_triggers() -> None:
+    en = build_memory_search_tool_description(_FULL_POLICY, locale="en")
+    for trigger in ("last time", "previously", "continue that discussion", "branch/fork"):
+        assert trigger in en
+    zh = build_memory_search_tool_description(_FULL_POLICY, locale="zh-CN")
+    for trigger in ("上次", "之前", "接着聊", "分支/fork"):
+        assert trigger in zh
+    assert "Wiki 文档" in zh
+    assert "历史会话" in zh
 
 
 def test_memory_tool_descriptions_support_zh_cn_locale() -> None:
@@ -212,7 +244,7 @@ def test_memory_tool_descriptions_support_zh_cn_locale() -> None:
         MemorySearchPolicy(), locale="zh-CN"
     )
     assert resolve_memory_manage_tool_description("zh-CN") == MEMORY_MANAGE_TOOL_DESCRIPTION_ZH
-    search = build_memory_search_tool_description(MemorySearchPolicy(), locale="zh-CN")
+    search = build_memory_search_tool_description(_FULL_POLICY, locale="zh-CN")
     assert "**Corpus 指南**" in search
 
 

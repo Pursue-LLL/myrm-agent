@@ -279,7 +279,7 @@ class TestModelInfoEndpoints:
             "max_input_tokens": 8192,
         }
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.model_info.model_facts",
             return_value=info,
         ):
             response = client.post(
@@ -305,11 +305,11 @@ class TestModelInfoEndpoints:
         )
         with (
             patch(
-                "app.api.integrations.llms.model_facts",
+                "app.api.integrations.llms.model_info.model_facts",
                 return_value=None,
             ),
             patch(
-                "app.api.integrations.llms._search_models_by_name",
+                "app.api.integrations.llms.model_info._search_models_by_name",
                 return_value=[candidate],
             ),
         ):
@@ -326,7 +326,7 @@ class TestModelInfoEndpoints:
         """Batch lookup mixes exact matches and empty capability fallbacks."""
         info = {"supports_vision": True, "max_input_tokens": 128000}
         with patch(
-            "app.api.integrations.llms.model_facts",
+            "app.api.integrations.llms.model_info.model_facts",
             side_effect=lambda model: info if model == "known" else None,
         ):
             response = client.post(
@@ -437,7 +437,7 @@ class TestCatalogBackedHelpers:
             "anthropic/claude-3.5": {"max_input_tokens": 200000},
             "openai/other": {},
         }
-        with patch("app.api.integrations.llms.known_models", return_value=fake_catalog):
+        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
             candidates = _search_models_by_name("gpt-4o")
         assert len(candidates) == 1
         assert candidates[0].model_key == "openai/gpt-4o"
@@ -448,7 +448,7 @@ class TestCatalogBackedHelpers:
         """Keys without a provider prefix resolve to 'unknown'."""
         from app.api.integrations.llms import _search_models_by_name
 
-        with patch("app.api.integrations.llms.known_models", return_value={"plain-name": {"max_input_tokens": 4096}}):
+        with patch("app.api.integrations.llms.model_info.known_models", return_value={"plain-name": {"max_input_tokens": 4096}}):
             candidates = _search_models_by_name("plain")
         assert len(candidates) == 1
         assert candidates[0].provider == "unknown"
@@ -463,6 +463,6 @@ class TestCatalogBackedHelpers:
             "openai/plain-upcoming": {"deprecation_date": "2999-01-01"},
             "openai/plain-current": {},
         }
-        with patch("app.api.integrations.llms.known_models", return_value=fake_catalog):
+        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
             candidates = _search_models_by_name("plain")
         assert [c.model_key for c in candidates] == ["openai/plain-upcoming", "openai/plain-current"]
