@@ -3,6 +3,7 @@
 [INPUT]
 - agent.skills.mcp.ipc_endpoint::mcp_ipc_endpoint, ipc_proxy::CallerScope (POS: per-execution MCP IPC server and the run it serves)
 - toolkits.code_execution.code_detector::code_detector, CodeType (POS: Code type detector)
+- toolkits.code_execution.saved_script::resolve_saved_script (POS: ``python file.py`` -> the workspace script it runs)
 - agent.skills.mcp.executor::skill_executor (POS: Skill MCP execution bridge)
 - agent.skills.runtime.command_paths::rewrite_skill_paths, detect_skill_script_command (POS: Skill command path utilities)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
@@ -22,6 +23,7 @@ import logging
 import math
 import re
 from contextlib import AsyncExitStack
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -42,9 +44,12 @@ from myrm_agent_harness.toolkits.code_execution.code_detector import (
     CodeType,
     code_detector,
 )
+from myrm_agent_harness.toolkits.code_execution.saved_script import resolve_saved_script
 from myrm_agent_harness.toolkits.code_execution.utils import WorkspacePathResolver
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.meta_tools.bash._executor.workspace_manager import WorkspaceManager
+    from myrm_agent_harness.agent.skills.mcp.executor import SkillExecutor
     from myrm_agent_harness.toolkits.code_execution import Workspace
     from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
 
@@ -64,6 +69,14 @@ class PreparedExecution(NamedTuple):
 class BashExecutorPrepareMixin:
     """Detect execution mode and prepare code, MCP IPC scope, and skill staging helpers."""
 
+    if TYPE_CHECKING:
+        # Provided by BashExecutor and BashExecutorContextMixin.
+        _enable_skill_execution: bool
+        _skill_executor: SkillExecutor | None
+        _workspace_manager: WorkspaceManager
+
+        def _execution_workspace_root(self, session_root: str | None) -> str | None: ...
+
     @staticmethod
     def _is_read_only_scope() -> bool:
         """True when the active capability handle carries no WRITE.
@@ -71,10 +84,8 @@ class BashExecutorPrepareMixin:
         Mirrors ``LocalExecutor._scoped_context`` so the IPC server enforces the
         same scope for MCP tools that the direct Function-Calling path applies.
         """
-        from myrm_agent_harness.core.security.ocap.guard import (
-            CapabilityAction,
-            check_capability_access,
-        )
+        from myrm_agent_harness.core.security.ocap import CapabilityAction
+        from myrm_agent_harness.core.security.ocap.guard import check_capability_access
 
         return not check_capability_access(CapabilityAction.WRITE)
 
@@ -98,7 +109,8 @@ class BashExecutorPrepareMixin:
         """Detect execution mode (Python/Bash/Skill) and prepare code.
 
         A skill command gets its own MCP IPC server, registered on ``ipc_servers`` so it stops
-        with the execution that owns the stack.
+        with the execution that owns the stack. The same holds for a saved script that imports skills, whose
+        server is limited to read-only MCP tools.
         """
         use_python_execution = False
         prepared_code = command
@@ -106,14 +118,27 @@ class BashExecutorPrepareMixin:
         trace_nonce = None
 
         if self._enable_skill_execution and self._skill_executor:
+            script = None
             is_skill, skill_name = self._skill_executor.detect_skill_in_command(command)
+            if not is_skill:
+                # A saved script started as a plain `python file.py` is read by the host so that it gets the skill
+                # runtime too, but its code was never reviewed: its server is limited to read-only MCP tools.
+                script = resolve_saved_script(command, self._execution_workspace_root(scope.workspace_root))
+                if script is not None:
+                    is_skill, skill_name = self._skill_executor.detect_skill_in_script(script.source)
 
             if is_skill and skill_name:
                 use_python_execution = True
+                if script is not None:
+                    scope = replace(scope, script_file=True)
                 endpoint = await ipc_servers.enter_async_context(mcp_ipc_endpoint(scope))
                 logger.info(f" [MCP] Using IPC mode (socket: {endpoint.socket_path})")
 
-                skill_context = self._skill_executor.prepare_for_execution(command=command, endpoint=endpoint)
+                skill_context = (
+                    self._skill_executor.prepare_script_for_execution(command, script, endpoint)
+                    if script is not None
+                    else self._skill_executor.prepare_for_execution(command=command, endpoint=endpoint)
+                )
                 prepared_code = skill_context.prepared_code
                 mcp_config_items = skill_context.mcp_config
                 trace_nonce = endpoint.trace_nonce

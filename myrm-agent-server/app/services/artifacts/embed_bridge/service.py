@@ -66,11 +66,6 @@ class EmbedBridgeService:
             self._policies[session_id] = policy
         return policy
 
-    def validate_origin(self, origin: str, session_id: str | None = None) -> bool:
-        """Validates if the origin is authorized under the applicable policy."""
-        policy = self.get_security_policy(session_id)
-        return self._engine.validate_origin(origin, policy)
-
     def inject_host_context(
         self,
         session_id: str,
@@ -92,10 +87,6 @@ class EmbedBridgeService:
             user_metadata=user_metadata or {},
         )
         return self._engine.inject_context(session_id, snapshot, policy)
-
-    def get_latest_context(self, session_id: str) -> BridgeInjectedContext | None:
-        """Retrieves the most recent host context snapshot injected into this session."""
-        return self._engine.get_latest_context(session_id)
 
     @staticmethod
     def generate_embed_snippet(

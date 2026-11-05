@@ -1,4 +1,4 @@
-"""Tests for self-hosted machine fleet management, telemetry heartbeats, and live takeover endpoints."""
+"""Tests for self-hosted machine fleet management and live takeover endpoints."""
 
 import pytest
 from fastapi import FastAPI
@@ -55,26 +55,6 @@ def test_generate_registration_token_for_platforms(client: TestClient) -> None:
     data_win = res_win.json()
     assert data_win["platform"] == "windows"
     assert "powershell" in data_win["quick_command"]
-
-
-def test_machine_heartbeat_reporting(client: TestClient) -> None:
-    """Report live telemetry heartbeat and observe metrics update."""
-    heartbeat_payload = {
-        "cpu_usage_pct": 88.5,
-        "memory_usage_pct": 74.2,
-        "disk_usage_pct": 55.0,
-        "active_tasks_count": 8,
-    }
-
-    res = client.post(
-        "/api/v1/machines/mach-mac-studio-01/heartbeat",
-        json=heartbeat_payload,
-    )
-    assert res.status_code == 200
-    node = res.json()
-    assert node["metrics"]["cpu_usage_pct"] == 88.5
-    assert node["metrics"]["active_tasks_count"] == 8
-    assert node["status"] == "busy"
 
 
 def test_live_takeover_and_release_lifecycle(client: TestClient) -> None:

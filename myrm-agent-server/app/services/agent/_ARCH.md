@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch / Deep Research）、Web 搜索服务，以及统一的 Agent 执行网关（并发控制、超时保护、可观测性）。
+Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch）、Web 搜索服务，以及统一的 Agent 执行网关（并发控制、超时保护、可观测性）。
 
 本层同时承担 Saved Agent 运行时契约的单一事实源职责。前端设置页、聊天配置面板、Web/Channel/Cron 入口和 DB 自定义子 Agent 都通过这里持久化和读取同一份配置，避免字段在不同入口之间漂移。
 
@@ -16,7 +16,7 @@ Harness 工具层级 SSOT：`myrm-agent-harness/.../tool_management/tool_layers.
 | Track | When | CORE file/bash | Primary SSOT |
 | --- | --- | --- | --- |
 | **General** | Default saved agent; Web non-fast; **Channel/IM**; Cron/Kanban | On | `tool_mount.resolve_agent_mount` → harness `get_meta_tools` |
-| **Search/Fast** | Web chat `action_mode=fast` only | UECD read-only (`FileAccessMode.SPILL_AND_UPLOADS`) | `params/converter.py` + `tool_mount.resolve_agent_mount(WEB_FAST)` |
+| **Search/Fast** | Web chat `action_mode=fast` only | UECD read-only (`FileAccessMode.SPILL_AND_UPLOADS`) | `params/tool_surface.py` + `tool_mount.resolve_agent_mount(WEB_FAST)` |
 | **Cron narrow** | Job `tools_allowed` without baseline | Optional off | `core/cron/adapters/tools_policy.py` |
 
 Design notes:
@@ -49,7 +49,7 @@ Design notes:
 | `readiness/` | ✅ 核心 | Per-agent 配置就绪预检（6 维度 ready/warning/blocked + Settings deep link） | [_ARCH.md](readiness/_ARCH.md) |
 | `stream_session/` | ✅ 核心 | General Agent SSE 流式会话编排 | [_ARCH.md](stream_session/_ARCH.md) |
 | `turn_lease/` | ✅ 核心 | 服务端自启回合（目标续跑、审批超时恢复、崩溃重放）的会话占用 + 取消令牌租约，被取消时结束后台任务 | [_ARCH.md](turn_lease/_ARCH.md) |
-| `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer、Deep Research 流、takeover 链接注入 | [_ARCH.md](streaming_support/_ARCH.md) |
+| `streaming_support/` | ✅ 核心 | SSE 格式化、Failover、内容收集、Multiplexer、takeover 链接注入 | [_ARCH.md](streaming_support/_ARCH.md) |
 | `adaptive_wakeup/` | ✅ 核心 | 后台任务与子智能体完成后的自适应唤醒：有界预算决定每次完成的去向、每次完成都留一条通知行、唤醒回合在会话空闲且用户没有叫停时于 `server_turn_lease` 下运行，详见 [adaptive_wakeup/_ARCH.md](adaptive_wakeup/_ARCH.md) | - |
 
 > **API 边界**：预置智能体模板实例化（`instantiate-template`）在 `app/api/agents/templates.py`，不在本 services 层。
@@ -70,7 +70,7 @@ Design notes:
 | `builtin_agent_specs.py` | ✅ 门面 | 聚合 `_BUILTIN_AGENTS`（27 段规格 tuple）+ re-export 类型/工具常量；实现位于 `builtin_specs/` |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退）；`is_tool_stuck_pause` 判定 loop guard 的暂停（`action_type=tool_stuck`）：它无人可答、不是审批，`streaming.py` 不为它登记审批记录、不发 `awaiting_approval`，收集器按它落「已暂停」步骤；语音桥、IM 渠道流（`stream_events`）与阶段步进器（`stream_session/phase_stepper.py`）也用它：语音桥播报停下、IM 记 `tool_stuck_paused` 并在回复里说明、步进器不为它推进到「等待审批」节点；Web 前端与浏览器扩展侧栏按同一个 `action_type` 在客户端判断，改标记时一并改 |
 | `memo_scope.py` | ✅ 核心 | 模型调用 memo 的业务侧装配：按「回合身份 + 账本路径」构造本回合的 memo 作用域并包住 agent 流；作用域 token 只跨单次 `__anext__`（跨 Task 关闭 async generator 不会触发 ContextVar.reset 报错）；没有回合身份或账本路径时不启用，行为不变 |
-| `streaming.py` | ✅ 核心 | General Agent Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Clarification + Plan Confirmation HITL，Deep Research 流 `streaming_support/deep_research_stream.py` 等它）；browser takeover 事件经 `streaming_support/takeover_live_assist.py` 在服务端直出 `live_assist_url`；finally 中检测 interrupt 类事件（approval/clarification）并发布 `awaiting_approval` session_status 激活侧边栏 per-chat 注意力指示（loop guard 的 `tool_stuck` 暂停除外：无人可答，不登记审批记录——登记了，下一条用户消息会被 `orchestrator` 的待审批守卫当成「正忙」拒绝——也不发该状态）；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
+| `streaming.py` | ✅ 核心 | General Agent Harness 流式桥接（Gateway + SSE 事件转换）；`PhaseWaiter` 通用阶段暂停/恢复门控（Dynamic Workflow 的计划确认与 human ask 等它）；browser takeover 事件经 `streaming_support/takeover_live_assist.py` 在服务端直出 `live_assist_url`；finally 中检测 interrupt 类事件（approval/clarification）并发布 `awaiting_approval` session_status 激活侧边栏 per-chat 注意力指示（loop guard 的 `tool_stuck` 暂停除外：无人可答，不登记审批记录——登记了，下一条用户消息会被 `orchestrator` 的待审批守卫当成「正忙」拒绝——也不发该状态）；POOLED 路径经 `finalize_agent_session` 释放 execution cache | ✅ |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent；`delegate_task` 工具装在 `GeneralAgent` 包装里的内层 `SkillAgent` 上，所以交给 Harness 的是内层智能体（包装里没有内层智能体时抛错，而不是返回一个「没有工具」的失败批次） | ✅ |
 | `fission_config.py` | ✅ 辅助 | 从 Agent `engine_params.max_parallel_fission` 解析并发上限（默认 3，上限 5），供 Web/Channel/Kanban/FastSearch 统一传入 `execute_swarm_fission` |
 | `steering/` | ✅ 核心 | Steering 域：会话级 SteeringToken 注册表 + 政策模式引用队列（去重/上限/信封/计数器），域唯一入口 `steering/__init__.py` | [_ARCH.md](steering/_ARCH.md) |
@@ -107,7 +107,7 @@ Design notes:
 
 ## AgentGateway
 
-所有 Agent 执行（General / FastSearch / Deep Research / Headless Wakeup）都经过 `AgentGateway`：
+所有 Agent 执行（General / FastSearch / Headless Wakeup）都经过 `AgentGateway`：
 
 - **全局并发控制**：`Semaphore(AGENT_MAX_CONCURRENT)` 防止服务器过载。后台异步唤醒任务（Headless）同样受此保护，防止与前台活跃会话抢占资源导致 OOM 或 429 限流。
 - **内存压力熔断**：实现 `PressureSubscriber` 协议，订阅 Harness `MemoryPressureMonitor`。当压力 ≥ CRITICAL 时，阻塞新 Agent 执行（已运行的不受影响），直到压力降至 WARNING/NORMAL 或 `queue_timeout` 到期。

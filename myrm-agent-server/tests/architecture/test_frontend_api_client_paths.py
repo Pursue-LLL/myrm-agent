@@ -9,7 +9,8 @@ tests/architecture/test_frontend_api_client_paths.py
 
 [OUTPUT]
 - Fails when an apiRequest/apiClient call targets a missing route or method
-- Fails when any frontend source spells out `/api/v1/...` (raw fetch, displayed webhook URL, ...) for a route that does not exist;
+- Fails when any frontend source spells out `/api/v1/...` (raw fetch, displayed webhook URL, the backend target a Next route
+  handler proxies to, ...) for a route that does not exist;
   a literal may stop at a base path of a route, and WebSocket endpoints are outside the OpenAPI table
 - Fails when a `/api/<root>` literal leaves the server's `/api/v1` mount for a root nothing serves (`/api/webui/...`, `/api/memory/...`)
 """
@@ -25,6 +26,7 @@ from tests.support.frontend_api_paths import (
     PATH_CHARS,
     frontend_path_literals,
     frontend_sources,
+    literals_in,
     normalize_path,
     segments,
 )
@@ -156,6 +158,26 @@ def test_known_missing_literals_are_still_missing(route_table: RouteTable) -> No
 )
 def test_literal_targets_route_semantics(literal: tuple[str, ...], route: tuple[str, ...], expected: bool) -> None:
     assert _literal_targets_route(literal, route) is expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # A Next route handler proxies to an absolute backend URL built from host and port expressions.
+        (
+            "postJsonHttp(`http://${apiHost}:${apiPort}/api/v1/retrieval/embedding`, body)",
+            [(("", "retrieval", "embedding"), True)],
+        ),
+        ("fetch(`https://${host}/api/v1/retrieval/reranker`)", [(("", "retrieval", "reranker"), True)]),
+        ("fetch(`${API_BASE_URL}/api/v1/memory`)", [(("", "memory"), True)]),
+        # A host expression that no path follows is a URL being assembled, not an API call.
+        ("const url = `http://${localIP}:${webuiPort}`", []),
+        ("const url = `http://${window.location.hostname}:8003`", []),
+        ("const candidate = `http://${trimmed}`", []),
+    ],
+)
+def test_literals_in_reads_the_target_of_a_proxy_call(text: str, expected: list[tuple[tuple[str, ...], bool]]) -> None:
+    assert [(literal.segments, literal.prefixed) for literal in literals_in("route.ts", text)] == expected
 
 
 @_SKIP_WITHOUT_FRONTEND

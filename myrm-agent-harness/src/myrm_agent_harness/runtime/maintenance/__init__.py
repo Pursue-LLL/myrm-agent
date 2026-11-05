@@ -11,7 +11,6 @@ Key components:
 - CapacityTicket — permission token for maintenance tasks
 """
 
-from .hardware import HardwareProfile, detect_hardware_profile
 from .protocols import (
     AgentHealthScore,
     CapacityDenial,
@@ -35,14 +34,12 @@ __all__ = [
     "CapacityTicket",
     "DeviceLoadSensor",
     "GlobalAdaptiveScheduler",
-    "HardwareProfile",
     "LoadSensor",
     "MaintenanceScheduler",
     "MaintenanceTaskType",
     "SaaSLoadSensor",
     "SystemLoadLevel",
     "SystemLoadSnapshot",
-    "detect_hardware_profile",
     "get_maintenance_scheduler",
     "init_maintenance_scheduler",
 ]

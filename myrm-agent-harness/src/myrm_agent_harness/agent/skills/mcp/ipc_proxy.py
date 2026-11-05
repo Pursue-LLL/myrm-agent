@@ -8,7 +8,7 @@ Agent-in-Sandbox 模式下，子进程通过 Unix Socket 与 Agent 主进程通�
 - 子进程（代码执行）：通过 Socket 文件与主进程通信
 - 路由：skill_name == "__builtin__" → BuiltinToolRegistry
          其他 → MCPSkillProxyService
-- 调用方范围：会话、agent、工作区、只读状态由宿主在起服务端时固定（``CallerScope``），
+- 调用方范围：会话、agent、工作区、只读状态、是否保存脚本由宿主在起服务端时固定（``CallerScope``），
   不从请求里取——脚本可以直接写套接字，请求里的任何字段都不可信。
 - 调用上下文：每个请求设置 ``IPCCallContext`` 到 ContextVar，
   让 ``notify`` 等内置 handler 取到 session_id /
@@ -46,11 +46,7 @@ from pydantic import BaseModel
 from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import (
     CallBudget,
 )
-from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import (
-    path_policy_error,
-    read_only_policy_error,
-    scope_gate_error,
-)
+from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import REQUEST_GATES
 from myrm_agent_harness.core.network.ipc_socket import (
     SOCKET_DIR_MODE,
     SOCKET_FILE_MODE,
@@ -98,6 +94,9 @@ class CallerScope:
     """True when the run holds a read-only capability handle: the server then refuses every MCP tool
     that does not declare readOnlyHint. Carried here, not read from the capability ContextVar, because
     the handler runs in the server's task, which cannot observe the calling run's handle."""
+    script_file: bool = False
+    """True when the run is a saved script file: the host approved the command, never the file's code, so the
+    server refuses every MCP tool that does not declare readOnlyHint."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -326,24 +325,13 @@ class MCPIPCServer:
                 logger.warning(f"{log_prefix} Call budget exhausted (session={self._scope.session_id})")
                 return MCPIPCResponse(success=False, error=budget_error).model_dump_json()
 
-            policy_error = read_only_policy_error(request, self._scope)
-            if policy_error is not None:
-                logger.warning(f"{log_prefix} Blocked by read-only policy: {request.skill_name}.{request.tool_name}")
-                return MCPIPCResponse(success=False, error=policy_error).model_dump_json()
-
-            path_error = path_policy_error(request, self._scope)
-            if path_error is not None:
-                logger.warning(
-                    f"{log_prefix} Blocked by path policy: {request.skill_name}.{request.tool_name} - {path_error}"
-                )
-                return MCPIPCResponse(success=False, error=path_error).model_dump_json()
-
-            scope_error = scope_gate_error(request, self._scope)
-            if scope_error is not None:
-                logger.warning(
-                    f"{log_prefix} Blocked by agent scope gate: {request.skill_name}.{request.tool_name} - {scope_error}"
-                )
-                return MCPIPCResponse(success=False, error=scope_error).model_dump_json()
+            for gate_name, gate in REQUEST_GATES:
+                gate_error = gate(request, self._scope)
+                if gate_error is not None:
+                    logger.warning(
+                        f"{log_prefix} Blocked by {gate_name}: {request.skill_name}.{request.tool_name} - {gate_error}"
+                    )
+                    return MCPIPCResponse(success=False, error=gate_error).model_dump_json()
 
             logger.info(f"{log_prefix} Request: {request.skill_name}.{request.tool_name}")
 

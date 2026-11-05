@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.agent.streaming.zero_replay: ZeroReplayProtocolEngine, SessionAtomicSnapshot, LiveStreamFilterConfig, SessionLifecycleStatus
+- myrm_agent_harness.agent.streaming.zero_replay: ZeroReplayProtocolEngine, SessionAtomicSnapshot, LiveStreamFilterConfig
 
 [OUTPUT]
 - ZeroReplaySnapshotService: Server-side business service managing zero-replay atomic snapshots and live event stream gating
@@ -11,19 +11,14 @@ Provides atomic state snapshot compilation, handshake verification, and live SSE
 
 from __future__ import annotations
 
-import logging
 import threading
-import time
 from typing import ClassVar, Literal
 
 from myrm_agent_harness.agent.streaming.zero_replay import (
     LiveStreamFilterConfig,
     SessionAtomicSnapshot,
-    SessionLifecycleStatus,
     ZeroReplayProtocolEngine,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class ZeroReplaySnapshotService:
@@ -34,14 +29,6 @@ class ZeroReplaySnapshotService:
 
     def __init__(self) -> None:
         self._engine = ZeroReplayProtocolEngine()
-        self._state_lock = threading.Lock()
-        self._session_status: dict[str, SessionLifecycleStatus] = {}
-        self._leaf_entries: dict[str, str] = {}
-        self._active_tools: dict[str, list[dict[str, str]]] = {}
-        self._message_counts: dict[str, int] = {}
-        self._latest_summaries: dict[str, str] = {}
-        self._artifacts_summaries: dict[str, list[dict[str, str]]] = {}
-        self._session_metadata: dict[str, dict[str, str]] = {}
 
     @classmethod
     def get_instance(cls) -> ZeroReplaySnapshotService:
@@ -50,59 +37,21 @@ class ZeroReplaySnapshotService:
                 cls._instance = cls()
             return cls._instance
 
-    def update_session_state(
-        self,
-        session_id: str,
-        status: SessionLifecycleStatus | None = None,
-        leaf_entry_id: str | None = None,
-        active_tool_calls: list[dict[str, str]] | None = None,
-        message_count: int | None = None,
-        latest_turn_summary: str | None = None,
-        artifacts_summary: list[dict[str, str]] | None = None,
-        metadata: dict[str, str] | None = None,
-    ) -> SessionAtomicSnapshot:
-        """Updates internal snapshot components and increments state version."""
-        with self._state_lock:
-            if status is not None:
-                self._session_status[session_id] = status
-            if leaf_entry_id is not None:
-                self._leaf_entries[session_id] = leaf_entry_id
-            if active_tool_calls is not None:
-                self._active_tools[session_id] = active_tool_calls
-            if message_count is not None:
-                self._message_counts[session_id] = message_count
-            if latest_turn_summary is not None:
-                self._latest_summaries[session_id] = latest_turn_summary
-            if artifacts_summary is not None:
-                self._artifacts_summaries[session_id] = artifacts_summary
-            if metadata is not None:
-                current_meta = self._session_metadata.setdefault(session_id, {})
-                current_meta.update(metadata)
-
-        # Increment version to mark atomic state change
-        self._engine.increment_state_version(session_id)
-        return self.get_atomic_snapshot(session_id)
-
     def get_atomic_snapshot(self, session_id: str) -> SessionAtomicSnapshot:
-        """Compiles a fresh immutable atomic state snapshot for the requested session."""
-        with self._state_lock:
-            status = self._session_status.get(session_id, "idle")
-            leaf_id = self._leaf_entries.get(session_id)
-            active_tools = list(self._active_tools.get(session_id, []))
-            msg_count = self._message_counts.get(session_id, 0)
-            summary = self._latest_summaries.get(session_id)
-            artifacts = list(self._artifacts_summaries.get(session_id, []))
-            meta = dict(self._session_metadata.get(session_id, {}))
+        """Compiles a fresh immutable atomic state snapshot for the requested session.
 
+        Nothing in the product reports session state to this service, so the snapshot carries the idle defaults;
+        only the epoch and the state version come from the engine.
+        """
         return self._engine.compile_atomic_snapshot(
             session_id=session_id,
-            status=status,
-            leaf_entry_id=leaf_id,
-            active_tool_calls=active_tools,
-            message_count=msg_count,
-            latest_turn_summary=summary,
-            artifacts_summary=artifacts,
-            metadata=meta,
+            status="idle",
+            leaf_entry_id=None,
+            active_tool_calls=[],
+            message_count=0,
+            latest_turn_summary=None,
+            artifacts_summary=[],
+            metadata={},
         )
 
     def evaluate_handshake(
@@ -142,24 +91,6 @@ class ZeroReplaySnapshotService:
             event_version=event_version,
             filter_config=filter_config,
         )
-
-    def create_live_event_payload(
-        self,
-        session_id: str,
-        event_type: str,
-        payload: dict[str, object],
-    ) -> dict[str, object]:
-        """Creates a stamped live stream event payload with incremental version and current timestamp."""
-        new_version = self._engine.increment_state_version(session_id)
-        now_ms = time.time() * 1000.0
-        return {
-            "session_id": session_id,
-            "epoch_id": self._engine.get_or_create_epoch(session_id),
-            "state_version": new_version,
-            "event_timestamp_ms": now_ms,
-            "event_type": event_type,
-            "payload": payload,
-        }
 
     def serialize_snapshot(self, snapshot: SessionAtomicSnapshot) -> dict[str, object]:
         """Serializes SessionAtomicSnapshot to a JSON-compatible dictionary."""

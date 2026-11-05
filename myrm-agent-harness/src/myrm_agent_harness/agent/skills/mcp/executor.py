@@ -3,14 +3,15 @@
 负责 PTC（Programmatic Tool Calling）检测、代码预处理和执行准备。
 
 核心职责：
-1. 检测命令中是否包含 PTC 调用（skills.xxx 或 tools.xxx）
+1. 检测命令（内联 Python）或保存脚本中是否包含 PTC 调用（skills.xxx 或 tools.xxx）
 2. 获取技能的 MCP 配置
-3. 将 IPC 客户端代码注入到用户代码中
+3. 将 IPC 客户端代码注入到用户代码（或保存脚本的启动器）中
 4. 返回预处理后的代码供 executor 执行
 
 [INPUT]
 - agent.skills.mcp.ipc_proxy::IPCEndpoint (POS: what the generated client needs to reach one IPC server)
 - toolkits.code_execution::MCPConfigItem (POS: Code execution toolkit entry point. Aggregates execution configuration, executor implementations, workspace management, and factory functions for the Agent-in-Sandbox architecture.)
+- toolkits.code_execution.saved_script::SavedScript (POS: A workspace script that ``python file.py`` would run; builds its in-process launcher)
 
 [OUTPUT]
 - SkillExecutionContext: class — Skill Execution Context
@@ -35,6 +36,7 @@ from myrm_agent_harness.toolkits.code_execution.python_extractor import (
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     detect_ptc_imports,
 )
+from myrm_agent_harness.toolkits.code_execution.saved_script import SavedScript
 
 logger = logging.getLogger(__name__)
 
@@ -105,16 +107,51 @@ class SkillExecutor:
         is_ptc, identifier = self.detect_skill_in_command(command)
 
         if not is_ptc or not identifier:
-            return SkillExecutionContext(
-                is_skill=False, skill_name=None, mcp_config=None, original_code=command, prepared_code=command
-            )
+            return self._not_a_skill(command)
 
         python_code = self._extract_python_code(command)
         if not python_code:
-            return SkillExecutionContext(
-                is_skill=False, skill_name=None, mcp_config=None, original_code=command, prepared_code=command
-            )
+            return self._not_a_skill(command)
 
+        return self._skill_context(command, self._rewrite_skill_imports(python_code), identifier, endpoint)
+
+    def prepare_script_for_execution(
+        self,
+        command: str,
+        script: SavedScript,
+        endpoint: IPCEndpoint,
+    ) -> SkillExecutionContext:
+        """准备保存脚本的执行
+
+        ``python file.py`` 在子 shell 里跑，拿不到 ``skills`` 导入钩子和 IPC 通道；这里由宿主读到的脚本源码
+        （与内联代码一样补全缺失的 ``skills.`` 前缀）经启动器按 ``__main__`` 在同一进程内执行，前面注入客户端。
+
+        Args:
+            command: 原始 Bash 命令（``python file.py`` 形态）
+            script: 宿主已读取并确认位于工作区内的脚本
+            endpoint: 这次执行专属的 IPC 服务端
+
+        Returns:
+            SkillExecutionContext；脚本不导入技能时 is_skill 为 False 且代码保持原命令
+        """
+        is_ptc, identifier = self.detect_skill_in_script(script.source)
+        if not is_ptc or not identifier:
+            return self._not_a_skill(command)
+
+        launcher = script.launcher(self._rewrite_skill_imports(script.source))
+        return self._skill_context(command, launcher, identifier, endpoint)
+
+    @staticmethod
+    def _not_a_skill(command: str) -> SkillExecutionContext:
+        """命令不是技能调用：代码保持原样。"""
+        return SkillExecutionContext(
+            is_skill=False, skill_name=None, mcp_config=None, original_code=command, prepared_code=command
+        )
+
+    def _skill_context(
+        self, command: str, user_code: str, identifier: str, endpoint: IPCEndpoint
+    ) -> SkillExecutionContext:
+        """在用户代码前注入 IPC 客户端，并取技能的 MCP 配置。"""
         from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
 
         mcp_config = None
@@ -124,9 +161,8 @@ class SkillExecutor:
             mcp_config = self.get_skill_mcp_config(identifier)
             logger.info(f"Detected MCP skill: {identifier}")
 
-        python_code = self._rewrite_skill_imports(python_code)
         ipc_client_code = self._generate_mcp_client_code(endpoint, self._collect_read_only_tools(identifier))
-        prepared_code = f"{ipc_client_code}\n\n# === User Code ===\n{python_code}"
+        prepared_code = f"{ipc_client_code}\n\n# === User Code ===\n{user_code}"
 
         return SkillExecutionContext(
             is_skill=True,
@@ -152,6 +188,26 @@ class SkillExecutor:
             return False, None
 
         return self._detect_ptc_in_code(python_code)
+
+    def detect_skill_in_script(self, source: str) -> tuple[bool, str | None]:
+        """检测保存脚本的源码是否导入宿主能服务的 MCP 技能
+
+        比内联代码严格：只认 AST（解析不了的脚本交给 Python 报语法错误），且只认已注册并带 MCP 配置的技能。
+        工作区里恰好叫 ``xxx_skill`` 或 ``tools`` 的本地模块、内置工具导入都保持普通脚本，不会被改写成技能调用。
+
+        Args:
+            source: 脚本源码
+
+        Returns:
+            (is_skill, skill_name) - 是否导入可服务的 MCP 技能，技能名称
+        """
+        detected = detect_ptc_imports(source)
+        if detected is None:
+            return False, None
+        _, identifier = detected
+        if identifier and self.get_skill_mcp_config(identifier) is not None:
+            return True, identifier
+        return False, None
 
     def _detect_ptc_in_code(self, code: str) -> tuple[bool, str | None]:
         """检测代码中是否包含 PTC 调用

@@ -5,7 +5,7 @@
 - myrm_agent_harness.agent.skills.mcp.ipc_request_policy (POS: authorization gates)
 
 [OUTPUT]
-- Coverage for already-running/stopped lifecycle and path/scope gate early returns.
+- Coverage for already-running/stopped lifecycle, path/scope gate early returns and the gate order.
 
 [POS]
 IPC proxy edge-case tests. No sandbox or real MCP server is spawned.
@@ -18,7 +18,12 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.skills.mcp.ipc_call_budget import CallBudget
 from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, MCPIPCRequest, MCPIPCServer
-from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import path_policy_error, scope_gate_error
+from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import (
+    REQUEST_GATES,
+    path_policy_error,
+    scope_gate_error,
+    script_file_policy_error,
+)
 
 
 def _server(tmp_path: Path, name: str) -> MCPIPCServer:
@@ -66,3 +71,16 @@ def test_path_policy_skips_a_scope_without_workspace(tmp_path: Path) -> None:
 def test_scope_gate_skips_without_agent_or_policy() -> None:
     assert scope_gate_error(_request(), CallerScope(agent_id=None)) is None
     assert scope_gate_error(_request(), CallerScope(agent_id="agent-without-policy")) is None
+
+
+def test_script_file_policy_skips_a_scope_that_is_not_a_saved_script() -> None:
+    assert script_file_policy_error(_request(), CallerScope()) is None
+
+
+def test_request_gates_keep_their_documented_order() -> None:
+    assert [name for name, _ in REQUEST_GATES] == [
+        "read-only policy",
+        "saved-script policy",
+        "path policy",
+        "agent scope gate",
+    ]

@@ -48,7 +48,7 @@ bash/
 | `_executor/executor.py` | Core | BashExecutor 聚合根（DI 编排，MRO: Execute → Background → Prepare → Context）。 |
 | `_executor/execute_mixin.py` | Core | 同步 execute() 编排；stdout/stderr 对称 eviction；失败路径双流落盘。 |
 | `_executor/background_mixin.py` | Core | 后台进程 spawn + 裸尾 `&` 剥离。 |
-| `_executor/prepare_mixin.py` | Core | MCP proxy、代码类型检测、技能 staging。 |
+| `_executor/prepare_mixin.py` | Core | MCP proxy、代码类型检测、保存脚本路由（只读 MCP 范围）、技能 staging。 |
 | `_executor/context_mixin.py` | Core | ExecutionContext 构建、OAuth issuer 作用域、事件日志。 |
 | `_executor/constants.py` | Internal | 共享常量（MCP 超时下限）。 |
 | `_executor/workspace_manager.py` | Core | 工作区薄委托（懒加载绑定存储根）。 |

@@ -27,7 +27,6 @@ pytestmark = pytest.mark.architecture
 _DATA_READERS = {
     "app/ai_agents/subagent_catalog.py": "app/config/subagents",
     "app/ai_agents/subagent_presets.py": "app/config/subagents",
-    "app/api/integrations/hardware/model_specs.py": "assets/cookbook_specs.json",
     "app/channels/i18n/engine.py": "app/channels/i18n/locales",
     "app/channels/providers/whatsapp/helpers.py": "app/channels/providers/whatsapp/bridge",
     "app/core/eval/locomo.py": "app/core/eval/fixtures",

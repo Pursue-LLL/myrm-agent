@@ -306,29 +306,33 @@ async def test_ollama_model_context_diagnostic() -> None:
 
     diagnostic = OllamaModelContextDiagnostic()
 
-    # 1. Local mode with Ollama running and models available
+    # 1. Local mode with Ollama running and a model that reports a 64K context
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("httpx.AsyncClient.get") as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get, patch("httpx.AsyncClient.post") as mock_post:
             mock_resp = MagicMock()
             mock_resp.status_code = 200
             mock_resp.json.return_value = {
                 "models": [
                     {"name": "qwen2.5:14b"},
-                    {"name": "qwen2.5:14b-agentic"},
+                    {"name": "qwen3:8b"},
                 ]
             }
             mock_get.return_value = mock_resp
+            show_resp = MagicMock()
+            show_resp.status_code = 200
+            show_resp.json.return_value = {"parameters": "temperature 0.7\nnum_ctx 64000"}
+            mock_post.return_value = show_resp
 
             report = await diagnostic.check_health()
             assert report.component_name == "OllamaContext"
             assert report.status == "pass"
             assert report.code == "OK_OLLAMA_CONTEXT_READY"
             assert report.meta_data["total_models"] == 2
-            assert "qwen2.5:14b-agentic" in report.meta_data["agentic_models"]
+            assert report.meta_data["long_context_models"] == ["qwen2.5:14b", "qwen3:8b"]
 
-    # 2. Local mode with Ollama running but NO agentic models created yet
+    # 2. Local mode with Ollama running but no model reporting a 64K context
     with patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL):
-        with patch("httpx.AsyncClient.get") as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get, patch("httpx.AsyncClient.post") as mock_post:
             mock_resp = MagicMock()
             mock_resp.status_code = 200
             mock_resp.json.return_value = {
@@ -337,11 +341,15 @@ async def test_ollama_model_context_diagnostic() -> None:
                 ]
             }
             mock_get.return_value = mock_resp
+            show_resp = MagicMock()
+            show_resp.status_code = 200
+            show_resp.json.return_value = {"parameters": "temperature 0.7"}
+            mock_post.return_value = show_resp
 
             report = await diagnostic.check_health()
             assert report.component_name == "OllamaContext"
             assert report.status == "warn"
-            assert report.code == "WARN_OLLAMA_NO_AGENTIC_MODELS"
+            assert report.code == "WARN_OLLAMA_NO_LONG_CONTEXT"
             assert report.fix_suggestion is not None
 
     # 3. Sandbox mode skips Ollama probe
@@ -361,6 +369,39 @@ async def test_ollama_model_context_diagnostic() -> None:
             assert report.component_name == "OllamaContext"
             assert report.status == "pass"
             assert report.code == "INFO_OLLAMA_UNREACHABLE"
+
+
+@pytest.mark.asyncio
+async def test_ollama_context_probe_stops_at_its_budget() -> None:
+    """A daemon that never answers `/api/show` must not hold the doctor probe open."""
+    import asyncio
+    import time
+
+    from app.config.deploy_mode import DeployMode
+    from app.core.infra.health.server_diagnostics import OllamaModelContextDiagnostic
+
+    diagnostic = OllamaModelContextDiagnostic()
+
+    async def never_answers(*_args: object, **_kwargs: object) -> None:
+        await asyncio.sleep(30)
+
+    tags_resp = MagicMock()
+    tags_resp.status_code = 200
+    tags_resp.json.return_value = {"models": [{"name": "qwen2.5:14b"}]}
+
+    with (
+        patch("app.config.deploy_mode.get_deploy_mode", return_value=DeployMode.LOCAL),
+        patch("httpx.AsyncClient.get", return_value=tags_resp),
+        patch("httpx.AsyncClient.post", side_effect=never_answers),
+        patch("app.core.infra.health.ollama_context_probe.PROBE_BUDGET_S", 0.05),
+    ):
+        started = time.monotonic()
+        report = await diagnostic.check_health()
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 1.0
+    assert report.status == "warn"
+    assert report.code == "WARN_OLLAMA_NO_LONG_CONTEXT"
 
 
 @pytest.mark.asyncio

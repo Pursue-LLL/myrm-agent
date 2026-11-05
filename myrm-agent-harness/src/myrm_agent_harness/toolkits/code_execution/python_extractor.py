@@ -172,13 +172,15 @@ _SKILLS_PACKAGE = "skills"
 
 SKILLS_NAMESPACE_ADVICE = (
     "Do not install anything: `skills` is the virtual namespace of MCP skills, not a package. "
-    "Call a skill from the inline Python of `bash_code_execute_tool` with "
-    "`from skills.<skill_name> import <function>` (names from the skill SOP); "
-    "a bare `import skills` or a saved `.py` file run with `python file.py` does not get that namespace."
+    "Import a skill with `from skills.<skill_name> import <function>` (names from the skill SOP), either in the "
+    "inline Python of `bash_code_execute_tool` or in a saved script started as exactly `python file.py` "
+    "(no flags, arguments, pipes or env prefix; read-only tools only). "
+    "A bare `import skills` or any other way of starting a script does not get that namespace."
 )
 """What to tell a model whose code failed with ``No module named 'skills'``.
 
-The namespace is armed only for code the extractor recognises as a skill call (see ``SKILL_IMPORT_RE``).
+The namespace is armed only for inline code the extractor recognises as a skill call (see ``SKILL_IMPORT_RE``) and
+for a saved script the host reads itself (see ``saved_script``).
 """
 
 

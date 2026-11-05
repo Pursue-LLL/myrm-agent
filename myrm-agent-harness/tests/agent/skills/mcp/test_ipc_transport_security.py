@@ -6,8 +6,10 @@ model-generated code. These tests pin the properties that keep that from becomin
 1. the socket is owner-only (0600) inside a 0700 directory;
 2. a request must carry the server's bearer token;
 3. a script execution cannot exceed its tool-call budget;
-4. who the calls are made for (session, agent, workspace, read-only state) belongs to the server: a request
-   that restates any of it is ignored, so a script cannot lift its own restrictions.
+4. who the calls are made for (session, agent, workspace, read-only state, whether the code is a saved script)
+   belongs to the server: a request that restates any of it is ignored, so a script cannot lift its own
+   restrictions;
+5. a saved script, whose code the host never reviewed, may call only tools declaring readOnlyHint.
 """
 
 from __future__ import annotations
@@ -31,14 +33,16 @@ def _server(scope: CallerScope | None = None, budget: CallBudget | None = None) 
     return MCPIPCServer(execution_ipc_socket_path(), scope or CallerScope(session_id="s1"), budget or CallBudget())
 
 
-def _exchange(server: MCPIPCServer, bodies: list[dict[str, object]], *, authenticate: bool = True) -> list[dict]:
+def _exchange(
+    server: MCPIPCServer, bodies: list[dict[str, object]], *, authenticate: bool = True
+) -> list[dict[str, object]]:
     """Start ``server``, send each body over one connection in order, stop the server."""
 
-    async def _run() -> list[dict]:
+    async def _run() -> list[dict[str, object]]:
         await server.start()
         try:
             reader, writer = await asyncio.open_unix_connection(server.socket_path)
-            responses: list[dict] = []
+            responses: list[dict[str, object]] = []
             for body in bodies:
                 token = {"auth_token": server.auth_token} if authenticate else {}
                 payload = json.dumps({**token, **body}).encode()
@@ -184,6 +188,68 @@ def test_read_only_scope_allows_read_only_mcp_tool() -> None:
     # The tool has no real MCP config registered, so dispatch fails on lookup;
     # what matters is that the policy gate let the call through.
     assert "read-only" not in str(body.get("error") or "").lower()
+
+
+def test_saved_script_scope_blocks_mutating_mcp_tool() -> None:
+    """Only the command of a saved script was approved, so its code may not change external state."""
+    _register_mcp_tool(read_only=False)
+    server = _server(CallerScope(session_id="s1", script_file=True))
+
+    (body,) = _exchange(server, [_create_record()])
+
+    assert body["success"] is False
+    error = str(body["error"]).lower()
+    assert "saved script" in error
+    assert "inline" in error, "the refusal must say where the call can be made"
+
+
+def test_saved_script_scope_blocks_a_tool_without_safety_metadata() -> None:
+    """A tool the host holds no readOnlyHint for is treated as mutating."""
+    server = _server(CallerScope(session_id="s1", script_file=True))
+
+    (body,) = _exchange(server, [{**_create_record(), "tool_name": "never-registered"}])
+
+    assert body["success"] is False
+    assert "saved script" in str(body["error"]).lower()
+
+
+def test_request_cannot_lift_the_saved_script_scope() -> None:
+    """The script writes the request itself, so it must not be able to say it is not a saved script."""
+    _register_mcp_tool(read_only=False)
+    server = _server(CallerScope(session_id="s1", script_file=True))
+
+    (body,) = _exchange(server, [_create_record(script_file=False)])
+
+    assert body["success"] is False
+    assert "saved script" in str(body["error"]).lower()
+
+
+def test_saved_script_scope_allows_read_only_mcp_tool() -> None:
+    _register_mcp_tool(read_only=True)
+    server = _server(CallerScope(session_id="s1", script_file=True))
+
+    (body,) = _exchange(server, [_create_record()])
+
+    # No real MCP config is registered, so dispatch fails on lookup; the policy gate let the call through.
+    assert "saved script" not in str(body.get("error") or "").lower()
+
+
+def test_saved_script_scope_allows_builtin_tools() -> None:
+    server = _server(CallerScope(session_id="s1", script_file=True))
+
+    (body,) = _exchange(server, [_notify()])
+
+    assert body["success"] is True
+
+
+def test_inline_scope_is_not_restricted_to_read_only_tools() -> None:
+    """Inline Python is reviewed per call by the approval layer, so the IPC server does not second-guess it."""
+    _register_mcp_tool(read_only=False)
+    server = _server(CallerScope(session_id="s1"))
+
+    (body,) = _exchange(server, [_create_record()])
+
+    assert "saved script" not in str(body.get("error") or "").lower()
 
 
 def test_call_budget_matches_track_two() -> None:

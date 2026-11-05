@@ -6,8 +6,6 @@
 [OUTPUT]
 - GET /{chat_id}/atomic-snapshot: Returns single atomic snapshot payload
 - GET /{chat_id}/live-stream: Zero-event-replay live SSE stream with handshake validation
-- POST /{chat_id}/snapshot-state: Internal update of session state snapshot
-- POST /{chat_id}/live-event: Broadcasts a live-only event with incremented state version
 
 [POS]
 API route layer for Atomic Snapshot and Live Stream Zero-Replay Reconnect Protocol (Item 36 P0).
@@ -19,32 +17,15 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator
-from typing import Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
 
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.zero_replay import ZeroReplaySnapshotService
 
 router = APIRouter()
-
-
-class UpdateSnapshotStateRequest(BaseModel):
-    status: Literal["idle", "running", "paused", "interrupted", "error"] | None = None
-    leaf_entry_id: str | None = None
-    active_tool_calls: list[dict[str, str]] | None = None
-    message_count: int | None = None
-    latest_turn_summary: str | None = None
-    artifacts_summary: list[dict[str, str]] | None = None
-    metadata: dict[str, str] | None = None
-
-
-class BroadcastLiveEventRequest(BaseModel):
-    event_type: str = Field(..., description="Event type name")
-    payload: dict[str, str] = Field(default_factory=dict, description="Event data payload")
 
 
 @router.get("/{chat_id}/atomic-snapshot", response_model=StandardSuccessResponse)
@@ -54,41 +35,6 @@ async def get_atomic_snapshot(chat_id: str) -> JSONResponse:
     snapshot = service.get_atomic_snapshot(chat_id)
     serialized = service.serialize_snapshot(snapshot)
     return success_response(serialized)
-
-
-@router.post("/{chat_id}/snapshot-state", response_model=StandardSuccessResponse)
-async def update_snapshot_state(
-    chat_id: str,
-    body: UpdateSnapshotStateRequest,
-) -> JSONResponse:
-    """Updates atomic state components and returns the updated snapshot."""
-    service = ZeroReplaySnapshotService.get_instance()
-    snapshot = service.update_session_state(
-        session_id=chat_id,
-        status=body.status,
-        leaf_entry_id=body.leaf_entry_id,
-        active_tool_calls=body.active_tool_calls,
-        message_count=body.message_count,
-        latest_turn_summary=body.latest_turn_summary,
-        artifacts_summary=body.artifacts_summary,
-        metadata=body.metadata,
-    )
-    return success_response(service.serialize_snapshot(snapshot))
-
-
-@router.post("/{chat_id}/live-event", response_model=StandardSuccessResponse)
-async def broadcast_live_event(
-    chat_id: str,
-    body: BroadcastLiveEventRequest,
-) -> JSONResponse:
-    """Dispatches a live event stamped with an incremental version and timestamp."""
-    service = ZeroReplaySnapshotService.get_instance()
-    event_payload = service.create_live_event_payload(
-        session_id=chat_id,
-        event_type=body.event_type,
-        payload=dict(body.payload),
-    )
-    return success_response(event_payload)
 
 
 @router.get("/{chat_id}/live-stream")

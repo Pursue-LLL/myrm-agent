@@ -33,6 +33,7 @@ PTC（程序化工具调用）
 - `bash_code_execute` Turn1 **不** inject `myrm_tools` stub（CI：`test_bash_native_ptc_removed.py`）。
 - `ptc/` RpcServer **仅**服务 DW PTC（`inject_ptc_for_python_execution`）。
 - MCP PTC 与 DW PTC 同族，实现路径分离。
+- MCP PTC 的 `skills.*` 命名空间只在宿主自己读到代码的执行里存在：内联 Python，以及裸 `[cd <工作区根> &&] python[3] <file>.py` 形态、且导入宿主能服务的 MCP 技能的保存脚本（`saved_script.py`；脚本以 `__main__` 在同一进程内执行，服务端范围 `script_file` 只放行只读 MCP 工具，写类工具须在内联 Python 里调用以走命令级审批）。带参数、管道、环境变量前缀等其他启动形态交给 shell，没有该命名空间。
 
 **产品对外**：仅暴露 **动态工作流（DW PTC）**；MCP PTC 为引擎内部能力。
 
@@ -117,7 +118,7 @@ PTC（程序化工具调用）
 
 `CodeExecutor` 的本地实现，直接在当前进程环境中执行代码：
 
-- **Python 执行**：每次调用创建独立子进程，通过 wrapper script 注入模块黑名单。内置 **Actionable Diagnostic Hints** 机制，拦截 `ModuleNotFoundError` 并追加 `python -m pip install` 修复建议，引导大模型自主纠错。
+- **Python 执行**：每次调用创建独立子进程，通过 wrapper script 注入模块黑名单。内置 **Actionable Diagnostic Hints** 机制，拦截 `ModuleNotFoundError` 并追加 `python -m pip install` 修复建议，引导大模型自主纠错（`skills` 是虚拟命名空间而不是可安装的包，其错误改给出调用技能的正确写法）。
 - **Bash 执行**：通过 `PersistentSession` 维护长驻 Bash 进程，`export` 的变量和工作目录跨命令保持（凭证除外：按命令注入并在命令后清除）
 - **文件操作**：直接使用 `pathlib` 本地 IO，零网络开销
 - **授权目录与 shell**：bash 与后台进程仅在 OS 沙箱生效时（Seatbelt / bwrap / AppContainer；容器内 AUTO 模式不启用沙箱）可以使用授权目录：可读写目录并入沙箱可写路径，只读目录只加入可读路径，授权目录里的 `.git/config` 与 `.git/hooks` 仍只读；命令校验器只在沙箱生效时对这些目录放行路径检查，没有沙箱时仍拒绝点名授权目录的命令。常驻 shell 的沙箱在启动时固定，授权集合变化会换用新的 shell（会话键带授权签名）并关闭旧的，旧 shell 的工作目录与环境变量不保留。只认 `declared` 与 `session` 根。Python 脚本走自己的审计钩子，写入只限工作区与临时目录，因此无法写入授权目录。钩子判断「在工作区或临时目录里」按完整的路径段比较：与工作区同名前缀的同级目录（`/work` 与 `/work-evil`）在外面。

@@ -1,5 +1,5 @@
-"""[INPUT] MachineNode, MachineMetrics, RegistrationTokenResponse, and Takeover schemas.
-[OUTPUT] REST API endpoints for self-hosted machine fleet management, telemetry heartbeats, and live takeover.
+"""[INPUT] MachineNode, RegistrationTokenResponse, and Takeover schemas.
+[OUTPUT] REST API endpoints for self-hosted machine fleet management and live takeover.
 [POS] app/api/machines/router.py.
 """
 
@@ -8,7 +8,6 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.services.machines import (
-    MachineMetrics,
     MachineNode,
     MachinePlatform,
     MachineService,
@@ -46,23 +45,11 @@ def get_machine_endpoint(machine_id: str) -> MachineNode:
     status_code=status.HTTP_201_CREATED,
 )
 def generate_registration_token_endpoint(
-    platform: MachinePlatform = Query(
-        MachinePlatform.DARWIN, description="Target host platform (darwin, linux, windows)"
-    ),
+    platform: MachinePlatform = Query(MachinePlatform.DARWIN, description="Target host platform (darwin, linux, windows)"),
 ) -> RegistrationTokenResponse:
     """Generate temporary registration token and copy-pasteable 1-click shell script."""
     service = MachineService.get_instance()
     return service.generate_registration_token(platform)
-
-
-@router.post("/{machine_id}/heartbeat", response_model=MachineNode)
-def report_heartbeat_endpoint(
-    machine_id: str,
-    metrics: MachineMetrics,
-) -> MachineNode:
-    """Report machine heartbeat with live CPU, memory, disk, and task telemetry."""
-    service = MachineService.get_instance()
-    return service.heartbeat(machine_id, metrics)
 
 
 @router.post("/{machine_id}/takeover", response_model=TakeoverSession)

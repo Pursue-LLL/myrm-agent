@@ -2,6 +2,42 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-04-184 · 保存成 `.py` 文件、用 `python file.py` 启动的脚本里 `from skills.<技能名> import <函数>` 必报 `No module named 'skills'`，报错文字还让模型去装包
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`2429c1bd1c`；报错文字部分是 `9b002ea324`、`43cedc77f1`） |
+| **发现时间** | 2026-11-04（复盘 MiniMax 在 k8s100 任务 A 上的空答案离群运行：事件日志里 6 次 `No module named 'skills'`，模型把脚本存成文件再用 `python file.py` 启动） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P3：报错后模型可以改回内联 Python，不丢数据；但白费轮次，且旧的报错文字把模型指向「装包」，永远装不好。 |
+| **关联产品** | harness MCP 技能执行（`agent/skills/mcp/executor.py`、`ipc_proxy.py`、`ipc_request_policy.py`）、`bash_code_execute_tool` 的准备阶段（`agent/meta_tools/bash/_executor/prepare_mixin.py`）、保存脚本识别（`toolkits/code_execution/saved_script.py`）。 |
+| **症状** | [实测] 用一个放在本仓库之外的复现脚本里的脚本化模型（真实 Myrm 智能体 + 假 OpenAI 兼容端点）：先 `file_write_tool` 写一个导入技能的 `probe_skills.py`，再 `cd /workspace && python3 probe_skills.py`。改前（`HEAD` 导出）`module_not_found: true, skill_import_ok: false`；改后 `module_not_found: false, skill_import_ok: true`。同一份脚本带参数启动（`python3 probe_skills.py --verbose`）改后仍失败，这是有意保留的边界。[实测，bench 日志] 整套 bench 604 次运行里 5 次遇到该错误（MiniMax 4/42、DeepSeek 1/152、Gemini 0/170）。 |
+| **根因** | [代码] `skills` 是虚拟命名空间，只对宿主自己读到的代码启用：`python_extractor` 认出的内联 Python 才会在 `prepare_mixin._prepare_execution` 里起这次执行专属的 IPC 服务端并前置导入钩子。`python file.py` 在子 shell 里跑，没有钩子也没有 IPC 通道，所以导入必败；而旧的恢复提示按普通的 `ModuleNotFoundError` 给「安装这个包」的建议。 |
+| **修复** | ① 报错文字（两条路径 `error_recovery` 与 `terminal_hints`）改为说明 `skills` 不是可安装的包、应怎样调用。② 新增 `saved_script.py`：只识别 `[cd <工作区根> &&] python[3] <file>.py` 这一种启动形态（无参数、管道、环境变量前缀；文件须是工作区内、符号链接解析后仍在根内、不超过 256 KiB 的 UTF-8 普通文件），由宿主读入源码；若脚本经 AST 导入了宿主能服务的 MCP 技能，就和内联代码走同一套技能运行时（宿主读到的源码经启动器在同一进程内按 `__main__` 执行，`sys.argv` / `sys.path[0]` / `__file__` 与 `python file.py` 一致，回溯里是真实文件名与行号）。③ 这类执行的 IPC 服务端范围带 `CallerScope.script_file`：审批只覆盖命令、不覆盖文件里的代码，所以只放行声明 `readOnlyHint` 的工具与内置工具，写类工具必须在内联 Python 里调用（那里按调用走命令级审批）；拒绝文字会说明这一点。④ IPC 闸门收成有序元组 `REQUEST_GATES`；`/workspace` 对 shell 的含义（执行器绑定的根，未绑定才用会话目录）抽成 `_execution_workspace_root`，执行上下文与保存脚本解析共用。 |
+| **反复次数** | 第 1 次（先改文字，再补能力）。 |
+| **踩坑** | ① 保存脚本的解析根必须与 shell 的 `/workspace` 是同一个目录：测试夹具里执行器绑定的目录与会话工作区目录不同，第一版按会话目录解析，读到的不是 shell 会运行的那个文件。② `detect_ptc_imports` 把任何以 `_skill` 结尾的模块名、任何 `tools.*` 导入都当技能调用，内联代码里可以接受，但对保存脚本会把项目自己的 `data_skill.py` / `tools/` 包改写成技能调用；所以保存脚本只认「已注册并带 MCP 配置」的技能，内置工具导入不走这条路径。③ 内联路径对解析不了的代码回退到正则；保存脚本若照搬，语法错误的脚本会被判成技能调用并在运行期才报错，所以保存脚本只用 AST，解析不了的交给 Python 自己报。 |
+| **回归** | [实测] ① 新增/扩展测试：`test_saved_script.py` 57 例（命令形态矩阵、符号链接越界、大小与编码、启动器语义含 `__main__` / `__file__` / `sys.argv` / `sys.path[0]` / `from __future__` / 回溯 / 退出码）、`test_ipc_transport_security.py` 6 例（保存脚本只读、请求不能自己解除、未知工具按写类处理、内联不受限）、`test_executor_prepare.py`（仅 AST、只认已服务技能、启动器装配）、`test_mcp_marker_full_stack.py`（真实 `bash_code_execute_tool` → `BashExecutor` → `LocalExecutor` 子进程，仅 MCP 服务端替换：带 `asyncio.run` 的保存脚本跑通并产生来源、`cd /workspace && …` 形态、写类工具被拒且从未到达 MCP 服务端而内联可调、失败时回溯含文件名与已调用次数、无技能导入的脚本不起 IPC 服务端、带参数/`-u`/管道的启动形态仍交给 shell、项目自己的 `tools/` 与 `*_skill.py` 不被劫持）。② 10 个变异体全被捕获：去掉符号链接包含检查、允许尾随参数、关掉 `script_file` 闸门、不标记 `script_file`、去掉「已服务技能」检查、解析根改回会话目录、未知工具放行、内联也标 `script_file`、闸门顺序调换、解析不了的脚本回退正则。③ `tests/agent/{skills,meta_tools/bash,resilience,security,middlewares/approval}` + `tests/toolkits/code_execution`：10340 通过、275 跳过、0 失败；`tests/architecture`：7129 通过、11 跳过；`ruff` / `mypy`（改动的源码与测试）无告警。 |
+| **仍然存在** | ① 真实模型上的效果未测：MiniMax 基线 4/42，n=5 的复测分辨不出变化；模型为什么存脚本、为什么在 `stop` 之后继续，未查明。② 其他启动形态（带参数、管道、环境变量前缀、`-u`）、只导入内置工具的脚本、非 UTF-8 或超过 256 KiB 的脚本仍交给 shell，没有 `skills` 命名空间；报错文字会告知这一点。③ 导入已服务技能的保存脚本里，工作区自己的 `tools` 包会被钩子接管（同一进程里 `tools.*` 导入归钩子）。④ 另一个既有的错标，未改：`BashExecutor._detect_skill_from_code` 作用在拼好的执行代码上，匹配到生成客户端里的注释 `from skills.xxx import yyy`，把所有内联 MCP 执行的技能名认成 `xxx`（[实测] 对 `prepare_for_execution` 的输出调用得 `xxx`）。[读代码] 这个名字目前没有可观察的后果：`ExecutionContext.active_skills` 在测试之外没有读取者；`allowed_credential_issuers` 只被 `_bash_exec.py` 的 `execute_bash`、`execute_bash_stream` 读取（行 172、258），MCP 代码走的 Python 路径（`executor.py:224`）只用 `context.env`；以 `xxx` 查技能环境变量得空（除非恰有叫 `xxx` 的技能）。改成真实技能名反而可能把该技能的环境变量带进沙箱里的 Python，所以没有改；将来若有代码读取 `active_skills`，会读到 `xxx`。⑤ 服务端把执行器绑到 `declared_allowed_roots[0]`（用户的项目目录，`myrm-agent-server/app/ai_agents/general_agent/factory.py:155,277-278`），而会话工作区管理器给出的是 `<存储根>/workspaces/<session_id>`（`WorkspaceService.find_by_session_id`），服务端里两者本来就不同。[读代码] 保存脚本按执行器根目录解析（与 shell 的 `/workspace` 一致，`_execution_workspace_root`）；IPC 路径策略仍用会话目录，与内联代码相同，且 IPC 只在路径策略返回拒绝时才拦截，默认策略只拒绝 `DANGEROUS_PATHS`，越出工作区是询问而不是拒绝，所以不会因此多放行。相对路径按会话目录而不是项目目录解析，对危险路径的判断可能与真实落点有出入，这是内联代码就有的行为，保存脚本又只能调只读工具。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/code_execution/saved_script.py`、`agent/skills/mcp/{executor,ipc_proxy,ipc_request_policy}.py`、`agent/meta_tools/bash/_executor/{prepare_mixin,context_mixin}.py`、`toolkits/code_execution/python_extractor.py`（`SKILLS_NAMESPACE_ADVICE`）、`tests/toolkits/code_execution/test_saved_script.py`、`tests/agent/meta_tools/bash/test_mcp_marker_full_stack.py`；复现脚本放在本仓库之外 |
+
+### BUG-HARNESS-2026-11-04-183 · 配了重排服务时，`CloudReranker.rerank_pairs` 按命中到达的顺序给文档填分、不看命中自带的 `index`：记忆重排闸门永远保持融合顺序，Web 重排管线把每篇文档的分数给成了排在它那个名次上的文档的分数
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`49e2f51cf7`） |
+| **发现时间** | 2026-11-04（审计检索与重排时，逐行读 `rerank_pairs`，再用按相关度排序、给每个命中标 `index` 的假 `/rerank` 端点复现） |
+| **修复时间** | 2026-11-04 |
+| **严重程度** | P2：配了重排服务的用户拿到的不是重排后的顺序，没有报错；记忆闸门形同虚设，Web 管线的分数与文档错位。 |
+| **关联产品** | harness 检索（`toolkits/retriever/reranker/cloud_reranker.py`）；调用方：记忆重排闸门、Web 重排管线（`hybrid_search/reranking_pipeline.py`）。 |
+| **症状** | [实测，改前代码] 提供方按相关度降序返回命中，每个命中带 `index`。① 三对 `(query, 文档)` 的相关度依次是 0.1、0.9、0.5：`rerank_pairs` 改前返回 `[0.9, 0.5, 0.1]`，改后 `[0.1, 0.9, 0.5]`。② 记忆闸门，融合顺序 a、b、c、d，相关度 0.1、0.9、0.05、0.5：改前输出 `a, b, c, d`（融合顺序原样保留），改后 `b, d, a, c`。③ Web 管线，a1、a2、a3 的相关度 0.2、0.8、0.5：改前 a1 得 0.8、输入顺序原样保留，改后 a2 得 0.8、a3 得 0.5、a1 得 0.2。 |
+| **根因** | [代码] `rerank_pairs` 把提供方返回的命中（按相关度降序到达）与「对」的位置逐个 `zip`，不读命中的 `index`；提供方一旦不按输入顺序返回，分数就落到别的文档上。自初始导入 `746c24e5c1`（2026-06-02）起如此。闸门与管线的测试都替换了 `rerank_pairs` 本身，`CloudReranker` 没有自己的测试，这个回填从没被执行过。 |
+| **修复** | `rerank_pairs` 按 query 分组，每个 query 一次提供方调用（各组并发），按命中的 `index` 把分数填回该文档在输入里的位置；提供方没有返回的文档记 0.0；`index` 为负或超出该次发出的文档数时抛 `ValueError`（负数以前会绕到列表尾部）；`aclose()` 补返回注解。新增 `tests/support/rerank_provider.py`（按相关度排序、给每个命中标 `index` 的假 `/rerank`，真实 `CloudReranker` 打到它）与两个测试文件。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 假上游只要按输入顺序返回命中，这个缺陷就看不见：真实提供方按相关度排序，测试替身也必须这样；闸门测试替换 `rerank_pairs` 之后，回填那一步根本不在被测路径上。 |
+| **回归** | [实测] ① 新增 9 个用例（`test_cloud_reranker_pairs.py`、`test_rerank_gate_cloud_reranker.py`），对改前的 `CloudReranker`（`49e2f51cf7^` 的源码，在导入时装进去）运行：8 个失败、1 个通过；改后全绿。② 4 个变异体全被捕获：回到按位置回填 8 例失败，去掉越界校验 2 例，去掉负下标校验 1 例，把命中的 `index` 当成整张对照表里的位置而不是该 query 自己那组文档里的位置 4 例。③ `tests/toolkits/{retriever,memory,web_search,web_fetch}` 4960 通过、6 跳过（2026-11-04，改后的树）。 |
+| **仍然存在** | ① 非 `openai/` 前缀、走 LiteLLM `arerank` 的那一支没有单独的测试，被假端点覆盖的只有 OpenAI 兼容的 HTTP 那一支。② 重排对检索质量的实际影响没有评测。③ 已配重排服务的用户升级后排序会变：以前记忆闸门等于没重排。④ 设置页校验重排与嵌入配置的端点缺失是另一个问题，记在产品仓台账。 |
+| **代码位置** | `src/myrm_agent_harness/toolkits/retriever/reranker/cloud_reranker.py`（`rerank_pairs`）、`tests/support/rerank_provider.py`、`tests/toolkits/retriever/test_cloud_reranker_pairs.py`、`tests/toolkits/memory/test_rerank_gate_cloud_reranker.py` |
+
 ### BUG-HARNESS-2026-11-04-182 · 删除 litellm，模型请求改走自建的 httpx 传输层；随之堵住它留下的隐患：默认开启的响应缓存会在 1 小时内给相同输入同一份回答，聊天密钥可能发给嵌入服务商，`doctor` 把密钥当探测地址，云端重排的分数按位置回填
 
 | 字段 | 内容 |

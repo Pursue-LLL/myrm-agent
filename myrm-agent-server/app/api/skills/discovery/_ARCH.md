@@ -9,7 +9,8 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出 `router` 与全部 schema 名，保持外部 import 稳定 | ✅ |
-| `discovery.py` | 核心 | `/discovery/*` 路由：search（含 package_type 过滤与 MCP 声明透传）、install/update/uninstall（受沙箱能力门控）、preview、registry-probe、analyze-url、custom sources、`/pool/sync`；uninstall 支持父子技能级联清理与依赖者校验 | ✅ |
+| `discovery.py` | 核心 | `/discovery/*` 读路径：search（含 package_type 过滤与 MCP 声明透传）、preview、detail、updates、registry-probe、custom sources、static-index、`/pool/sync`；同时 include 安装子路由 | ✅ |
+| `discovery_install.py` | 核心 | `/discovery/*` 写路径：install/update/uninstall（受沙箱能力门控）、analyze-url、install-from-url；uninstall 支持父子技能级联清理与依赖者校验，安装响应形状只在这里构造 | ✅ |
 | `discovery_schemas.py` | 契约 | 请求/响应 Pydantic 模型（含 `SkillInstallRequest`、`SkillPreviewResponse`、`CustomSource*`、`SkillPoolSync*`、`StaticIndexStatusResponse`） | ✅ |
 
 ## 依赖

@@ -169,13 +169,6 @@ def collect_clarification_required(
 
     clarification: dict[str, object] = {"answered": False}
 
-    source = payload.get("source")
-    if isinstance(source, str) and source.strip():
-        clarification["source"] = source.strip()
-        clarification["isResumeMode"] = source.strip() != "deep_research"
-    else:
-        clarification["isResumeMode"] = True
-
     title = payload.get("title")
     if isinstance(title, str) and title.strip():
         clarification["title"] = title.strip()
@@ -202,7 +195,9 @@ def collect_clarification_required(
     if isinstance(question, str) and question.strip():
         clarification["question"] = question.strip()
 
-    if len(clarification) <= 2 and "form" not in clarification:
+    # "answered" is always present, so a populated clarification carries at least one more key;
+    # without that the card has nothing to show and must not be persisted.
+    if len(clarification) <= 1:
         return None
     return clarification
 
@@ -210,7 +205,7 @@ def collect_clarification_required(
 def collect_plan_confirmation_status(
     data: dict[str, object],
 ) -> dict[str, object] | None:
-    """Build durable extra_data.planConfirmation from deep-research status events."""
+    """Build durable extra_data.planConfirmation from plan-phase status events."""
     phase = data.get("phase")
     status = data.get("status")
     if phase != "plan_confirm" or not isinstance(status, str):
@@ -234,7 +229,7 @@ def collect_plan_confirmation_status(
         result: dict[str, object] = {
             "plan": plan,
             "status": "waiting",
-            "source": data.get("source") if isinstance(data.get("source"), str) else "deep_research",
+            "source": data.get("source") if isinstance(data.get("source"), str) else "general_agent",
         }
         spawn_count = data.get("spawn_count")
         if isinstance(spawn_count, int):

@@ -5,8 +5,8 @@
 - myrm_agent_harness.agent.skills.runtime::registry (POS: MCP skill metadata lookup)
 
 [OUTPUT]
-- Coverage for prepare_for_execution, regex fallback, import rewrite, client assembly from an endpoint,
-  and read-only tool collection.
+- Coverage for prepare_for_execution, saved-script detection and preparation, regex fallback, import rewrite,
+  client assembly from an endpoint, and read-only tool collection.
 
 [POS]
 Executor preparation tests. Keeps PTC detection and generated-client assembly covered
@@ -15,6 +15,7 @@ without spawning a sandbox or an IPC server.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,6 +25,7 @@ from myrm_agent_harness.agent.skills.mcp.ipc_proxy import IPCEndpoint
 from myrm_agent_harness.agent.skills.runtime.registry import SkillRegistry
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.code_execution import MCPConfigItem
+from myrm_agent_harness.toolkits.code_execution.saved_script import SavedScript, resolve_saved_script
 
 _ENDPOINT = IPCEndpoint(socket_path="/tmp/sock", tcp_port=0, auth_token="token", trace_nonce="nonce")
 
@@ -164,3 +166,93 @@ def test_collect_read_only_tools_reads_safety_metadata(monkeypatch: pytest.Monke
     )
 
     assert SkillExecutor._collect_read_only_tools("demo_skill") == frozenset({"demo_skill.ping"})
+
+
+@pytest.fixture
+def serving(monkeypatch: pytest.MonkeyPatch) -> SkillExecutor:
+    """An executor whose host serves ``demo_skill`` only."""
+    executor = SkillExecutor()
+    config = [MCPConfigItem(name="demo", type="stdio", command="echo", args=[])]
+    monkeypatch.setattr(executor, "get_skill_mcp_config", lambda name: config if name == "demo_skill" else None)
+    monkeypatch.setattr(executor, "_generate_mcp_client_code", lambda *args, **kwargs: "CLIENT")
+    monkeypatch.setattr(executor, "_collect_read_only_tools", lambda _name: frozenset())
+    return executor
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("from skills.demo_skill import ping\n", (True, "demo_skill")),
+        ("import skills.demo_skill as s\n", (True, "demo_skill")),
+        ("from demo_skill import ping\n", (True, "demo_skill")),
+        ("import json\nprint(json.dumps({}))\n", (False, None)),
+        ("", (False, None)),
+        # Not a skill the host serves: a local module that merely looks like one stays a plain script.
+        ("from data_skill import load\n", (False, None)),
+        ("from skills.other_skill import ping\n", (False, None)),
+        # Builtin tools are not routed for saved scripts, and a project's own `tools` package must keep working.
+        ("from tools.notify import notify\n", (False, None)),
+        ("from tools.helpers import run\n", (False, None)),
+        # A script Python cannot parse is reported by Python, never routed on a textual match.
+        ("from skills.demo_skill import ping\nif x ==", (False, None)),
+    ],
+)
+def test_detect_skill_in_script_routes_only_skills_the_host_serves(
+    serving: SkillExecutor, source: str, expected: tuple[bool, str | None]
+) -> None:
+    assert serving.detect_skill_in_script(source) == expected
+
+
+def _saved(tmp_path: Path, source: str, name: str = "probe.py") -> SavedScript:
+    (tmp_path / name).write_text(source, encoding="utf-8")
+    script = resolve_saved_script(f"python3 {name}", str(tmp_path))
+    assert script is not None
+    return script
+
+
+def test_prepare_script_injects_the_client_before_the_scripts_launcher(serving: SkillExecutor, tmp_path: Path) -> None:
+    script = _saved(tmp_path, "from skills.demo_skill import ping\nprint(ping)\n")
+
+    context = serving.prepare_script_for_execution("python3 probe.py", script, _ENDPOINT)
+
+    assert context.is_skill is True
+    assert context.skill_name == "demo_skill"
+    assert context.mcp_config == serving.get_skill_mcp_config("demo_skill")
+    assert context.original_code == "python3 probe.py"
+    client, _, launcher = context.prepared_code.partition("\n\n# === User Code ===\n")
+    assert client == "CLIENT"
+    assert launcher == script.launcher(script.source)
+
+
+def test_prepare_script_rewrites_bare_skill_imports_like_inline_code(serving: SkillExecutor, tmp_path: Path) -> None:
+    script = _saved(tmp_path, "from demo_skill import ping\n")
+
+    context = serving.prepare_script_for_execution("python3 probe.py", script, _ENDPOINT)
+
+    assert context.prepared_code.endswith(script.launcher("from skills.demo_skill import ping\n"))
+
+
+@pytest.mark.parametrize(
+    "source", ["print('plain')\n", "from tools.notify import notify\n", "from data_skill import x\n"]
+)
+def test_prepare_script_that_is_not_a_served_skill_call_is_left_untouched(
+    serving: SkillExecutor, tmp_path: Path, source: str
+) -> None:
+    context = serving.prepare_script_for_execution("python3 probe.py", _saved(tmp_path, source), _ENDPOINT)
+
+    assert context.is_skill is False
+    assert context.prepared_code == "python3 probe.py"
+    assert context.original_code == "python3 probe.py"
+
+
+def test_prepared_script_with_the_real_client_template_is_valid_python(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    executor = SkillExecutor()
+    monkeypatch.setattr(executor, "get_skill_mcp_config", lambda name: [] if name == "demo_skill" else None)
+    script = _saved(tmp_path, "from skills.demo_skill import ping\nprint(__name__, __file__)\n")
+
+    context = executor.prepare_script_for_execution("python3 probe.py", script, _ENDPOINT)
+
+    compile(context.prepared_code, "<prepared>", "exec")
+    assert context.prepared_code.endswith(script.launcher(script.source))
