@@ -3110,18 +3110,6 @@
       "agent_10": "Search and summarize industry news from the past week",
       "agent_11": "Help me design a user feedback collection plan",
       "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout",
-      "deep_research_0": "Comprehensive comparison of RAG vs fine-tuning for enterprise LLM applications",
-      "deep_research_1": "In-depth analysis of WebAssembly's impact on modern web performance",
-      "deep_research_2": "Research the current state and future of autonomous driving technology",
-      "deep_research_3": "In-depth analysis of the architectural evolution of AI Agents",
-      "deep_research_4": "Comprehensive research on the latest advances in multimodal LLMs",
-      "deep_research_5": "Compare AI regulatory frameworks across US, EU, and China",
-      "deep_research_6": "Research the integration of knowledge graphs with large language models",
-      "deep_research_7": "Investigate edge computing best practices in IoT scenarios",
-      "deep_research_8": "Analyze the feasibility of Rust replacing C++ in systems programming",
-      "deep_research_9": "Research commercialization paths for open-source large models",
-      "deep_research_10": "Study the practical effectiveness of federated learning in privacy protection",
-      "deep_research_11": "Analyze quantum computing threats to current encryption and countermeasures",
       "time_morning_0": "Help me prioritize and schedule today's top key tasks",
       "time_morning_1": "Help me break down standup agenda and unfinished action items",
       "time_morning_2": "Summarize today's key industry updates and watchlist",
@@ -3495,11 +3483,6 @@
     "agentFeature1": "Deep search with quality-first approach",
     "agentFeature2": "Automatically uses skills and MCP services, progressively selecting the right tools for complex tasks",
     "agentFeature3": "Long-term memory for personalized responses",
-    "deep_research": "Deep Research",
-    "deep_researchTitle": "Deep Research",
-    "deep_researchDescription": "Multi-round search + structured report, typically 2-5 minutes",
-    "deep_researchFeature1": "Multi-phase research: Plan → Multi-round search → Report",
-    "deep_researchFeature2": "Cross-validated findings with cited sources in a structured report",
     "consensusTitle": "Consensus",
     "consensusDescription": "Multi-model collaborative reasoning — queries multiple AI models in parallel and synthesizes a refined answer",
     "consensusFeature1": "Parallel queries to diverse models for comprehensive perspectives",
@@ -3510,7 +3493,7 @@
     "deepSearchDescription": "Reads full web pages for accurate, detailed answers. Takes a bit longer but delivers higher quality results.",
     "workflowModeLabel": "Orchestration (PTC)",
     "workflowModeTitle": "Dynamic Workflow Concurrent Orchestration",
-    "workflowModeDescription": "Orchestration Mode (PTC) generates Python scripts to spawn concurrent sub-agents in sandbox, breaking context window limits for deep research and full codebase refactoring. Cost Honesty: Direct-FC is recommended for short tasks; PTC adds ~9% token overhead for script generation and preflight."
+    "workflowModeDescription": "Orchestration Mode (PTC) generates Python scripts to spawn concurrent sub-agents in sandbox, breaking context window limits for research and full codebase refactoring. Cost Honesty: Direct-FC is recommended for short tasks; PTC adds ~9% token overhead for script generation and preflight."
   },
   "thinkingIntensity": {
     "title": "Thinking Intensity",
@@ -4172,10 +4155,6 @@
     "swarm_fission": "Parallel swarm fission ({count} tasks)",
     "swarm_fission_running": "Running parallel fission",
     "subagent_notification": "Subagent completed",
-    "deep_research_start": "Starting deep research",
-    "deep_research_planning": "Creating research plan",
-    "deep_research_researching": "Researching",
-    "deep_research_report": "Generating research report",
     "skill_select_tool_tool": "Selecting skill",
     "skill_search_tool_tool": "Searching skills",
     "code_execution_tool_tool": "Executing code",
@@ -10701,7 +10680,7 @@
         "standard": "Standard Balanced Layer (Balanced / Standard Tier)",
         "standardDesc": "Robust workhorse (e.g. Qwen-2.5-32B / Pro). Ideal for multi-step tool execution.",
         "reasoning": "Deep Reasoning Layer (Deep Reasoning / Max Tier)",
-        "reasoningDesc": "Top-tier intelligence (e.g. DeepSeek-R1 / Max). Ideal for architectural code review & deep research."
+        "reasoningDesc": "Top-tier intelligence (e.g. DeepSeek-R1 / Max). Ideal for architectural code review & in-depth analysis."
       }
     },
     "save": "Save",
@@ -13291,18 +13270,6 @@
         "error": "Error"
       }
     }
-  },
-  "sandbox": {
-    "sandboxMode": "Sandbox",
-    "sandboxModeDesc": "Isolate all file changes in a temporary branch. Freely experiment without affecting your main codebase — merge or discard when done.",
-    "enableSandbox": "Enable Sandbox",
-    "disableSandbox": "Exit Sandbox",
-    "mergeSandbox": "Merge Changes",
-    "discardSandbox": "Discard Changes",
-    "active": "Sandbox Active",
-    "mergeSuccess": "Changes merged successfully",
-    "mergeFailed": "Merge failed — resolve conflicts manually",
-    "discardSuccess": "Sandbox discarded"
   },
   "mobileHub": {
     "title": "Active Agents",
