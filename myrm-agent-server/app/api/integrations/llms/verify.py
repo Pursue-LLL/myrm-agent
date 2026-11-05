@@ -1,8 +1,15 @@
-"""[OUTPUT]
-verify endpoints.
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms::llm_manager (POS: per-call model client factory)
+- app.services.agent.provider_oauth_tokens::resolve_oauth_marker (POS: OAuth marker transport)
+
+[OUTPUT]
+- verify_llm_connection: one real provider call for the settings-page verify button
+- check_model_reachability: single-turn reachability probe with its own short cache
+- LLMVerifyRequest / LLMVerifyData / ReachabilityResult, _cache_key, _reachability_cache
 
 [POS]
-Connection verification and lightweight model reachability probing.
+Verification endpoints. Both probes must reach the provider, so their cache keys include the full
+request (model, endpoint, key digest, proxy, temperature, model args).
 """
 
 from __future__ import annotations

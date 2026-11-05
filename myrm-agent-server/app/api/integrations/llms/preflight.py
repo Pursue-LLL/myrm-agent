@@ -1,8 +1,15 @@
-"""[OUTPUT]
-preflight endpoints.
+"""[INPUT]
+- litellm::model_cost (POS: built-in model metadata)
+- .model_info::_try_get_model_info_exact (POS: exact model metadata lookup)
+
+[OUTPUT]
+- model_switch_preflight: context-window fit and compaction estimate for a model switch
+- ModelSwitchPreflightItem / ModelSwitchPreflightRequest / ModelSwitchPreflightResult
+- _resolve_target_max_input_tokens
 
 [POS]
-Model switch preflight: context-window fit and compaction estimate.
+Preflight endpoint for switching models mid-chat. Answers "will the current context fit, and when
+would compaction start" before the switch happens.
 """
 
 from __future__ import annotations

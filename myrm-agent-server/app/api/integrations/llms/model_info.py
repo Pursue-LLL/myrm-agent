@@ -1,8 +1,15 @@
-"""[OUTPUT]
-model_info endpoints.
+"""[INPUT]
+- litellm::model_cost (POS: built-in model metadata)
+- fastapi / pydantic (POS: route + schema primitives)
+
+[OUTPUT]
+- get_model_info / get_model_info_batch: capability lookup for one model or a batch
+- ModelCapabilities / ModelCandidate / ModelInfoResponse / ModelInfoRequest / ModelInfoBatchRequest
+- _try_get_model_info_exact, _build_capabilities, _search_models_by_name
 
 [POS]
-Model capability lookup against litellm model metadata.
+Model metadata endpoints. Exact name match first, then gateway-prefix stripping, so the settings page
+shows real capabilities instead of a fabricated default.
 """
 
 from __future__ import annotations

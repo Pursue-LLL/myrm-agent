@@ -1,8 +1,14 @@
-"""[OUTPUT]
-speed_test endpoints.
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms::llm_manager (POS: per-call model client factory)
+- app.services.agent.provider_oauth_tokens::resolve_oauth_marker (POS: OAuth marker transport)
+
+[OUTPUT]
+- speed_test: sequential streaming probe per model, sorted by first-token latency
+- SpeedTestItemResult / SpeedTestRequest, _ttft_sort_key
 
 [POS]
-Batch speed test: first-token latency per configured model.
+Speed-test endpoint. Measures TTFT and throughput with the same streaming path the chat uses, so the
+number reflects what a user would actually feel.
 """
 
 from __future__ import annotations
