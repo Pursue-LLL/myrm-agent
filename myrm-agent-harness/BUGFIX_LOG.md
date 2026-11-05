@@ -2,6 +2,42 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-05-191 · `memory_search_tool` 的参数 schema、描述和系统提示不随检索策略变化：默认智能体（只有记忆检索）被告知有 wiki / sessions / all 三个 corpus 和三个 `expand_*` 参数，传了就被拒绝；保存与管理工具的描述还写着 `corpus=sessions`，并把 schema 不接受的 `pitfall` 类别列给模型
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`70b0fef2ae`；`pitfall` 描述行、`discard`、`rule_keywords` 的删除在 `d3fc8b38df` 中） |
+| **发现时间** | 2026-11-05（评估记忆三工具的 token 占用时，把模型可见的每一句话对照工具真实的入参 schema 与检索策略） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：schema 与描述本身不报错；模型照着做时得到显式拒绝或校验失败，白白多花一次工具调用；每个默认回合记忆三工具的 wire 多付 121 个 token（其中 search 108），系统提示的检索指引多付 58 个 token。 |
+| **关联产品** | harness 记忆工具（`toolkits/memory/agent_surface/`）、记忆检索指引（`agent/middlewares/memory_context/memory_context_budget.py`）、server 语音工具目录（`app/api/voice/tool_catalog.py`）。 |
+| **症状** | [实测] ① 默认策略（只开 memory）下，改前 `memory_search_tool` 的 wire schema 带 `corpus` 枚举 `['memory','wiki','sessions','all']` 和 `expand_conversation_id` / `expand_message_id` / `expand_window`；仅开 wiki 时枚举里仍有 `sessions`。② 系统提示的检索指引（107 token）点名 `corpus=memory` / `sessions` / `wiki` / `all`；`memory_save_tool`、`memory_manage_tool` 的描述和短期事实拒绝文案都写着 `corpus=sessions`。③ 传 `corpus="sessions"`（含 `expand_*`）得到 `Conversation history search is disabled. Enable it in Memory settings.`，传 `corpus="wiki"` 得到 `Wiki search is not enabled for this agent.`。④ 保存工具的描述把 `pitfall` 列为可存类别，要求 `failure_reason`、`negative_lesson`；schema 的 `category` 枚举里没有 `pitfall`，也没有这两个字段：在 `d3fc8b38df^` 上 `MemorySaveInput(category="pitfall")` 抛 `literal_error`。 |
+| **根因** | [代码] 模型可见的文字有几处各自为政的来源：参数 schema 是静态 pydantic 类（`corpus` 枚举写死四项、`expand_*` 常驻）；搜索描述由 policy 拼接，但保存、管理与拒绝文案是固定句子，MCP 变体再用一张替换表改写；系统提示的检索指引是另一份固定文案；语音工具目录又一份。只有 ACL（`resolve_search_corpora`）读 policy，策略一变其余各处就和实际能力对不上。`pitfall`、`rule_keywords`（`trigger_keywords` 在 harness 与 server 里只有写入与存取，没有任何检索或匹配代码读它）、`discard`（与 `delete` 调同一个 `delete_memory` / `delete_rule(allow_protected=False)`）是更早留下的、没有对应能力或读者的表面。 |
+| **修复** | ① `memory_search_policy.py` 新增 `enabled_search_corpora` / `advertised_search_corpora`，ACL、schema、描述、语音枚举都从它派生。② 新增 `memory_agent_tools/search_input.py`：按 policy 生成参数 schema——启用的 corpus ≥2 个时才有 `corpus`（含 `all`），`expand_*` 只在会话检索可用时出现；仅 memory 时 `corpus` 对模型隐藏但仍校验，传入未启用的 corpus 仍得到显式拒绝，而不是静默改查 memory。③ 新增 `_memory_search_description.py`：corpus 指南只在模型能选 corpus 时出现；保存、管理、短期事实拒绝文案不再指向任何 corpus；MCP 变体按面独立撰写，替换表删除。④ `memory_search_guidance` 不点名任何 corpus（107 → 49 token）。⑤ 语音工具目录的 corpus 枚举与描述复用同一来源。⑥ 删除没有对应能力或读者的表面：`pitfall` 描述行、agent 面 `rule_keywords` 参数和 `discard` 动作（`d3fc8b38df`，随另一会话的提交落入），`CATEGORY_TO_TYPE` 里的 `pitfall` 别名（本次）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 模型传了未启用的 corpus 时不能让校验层替它报错：`corpus` 对模型隐藏，但必须仍被接受，否则 `corpus="sessions"` 变成校验失败，丢掉 ACL 的明确拒绝（静默改查 memory 更糟）。② 契约测试第一版把 save 描述里 “persists across sessions” 的 `sessions` 当成会话检索措辞，改用 `corpus=sessions`、`expand_*`、`message_id`、`- sessions:` 精确标记。③ 另一会话尚未提交的 `tests/agent/middlewares/test_memory_context_middleware.py` 在 HEAD 上断言旧指引含 `corpus=sessions`，随本次改动改为断言 `corpus=` 不出现。 |
+| **回归** | [实测] 新增 `tests/toolkits/memory/test_memory_tool_surface_contract.py`（65 例：policy × 语言 × 审批全矩阵，经真实 wire 路径与 MCP server 核对：描述点名的标识符都是某个记忆工具的 schema 字段、`corpus=` 提及 ⊆ 枚举、wiki / 会话检索措辞只在 policy 启用时出现；5 个变异体全被捕获）、`test_memory_search_input.py`（21 例）、`test_memory_search_policy.py` 加矩阵用例、`test_voice_memory_context.py` 加描述用例。改后的 HEAD 树单独检出运行：harness `tests/toolkits/memory`、`tests/scripts`、`tests/agent/middlewares`、`tests/agent/tool_management` 与相关架构门禁 6,605 通过；server 记忆 / 语音 / 装配 / 导入基线 401 通过，`test_incognito_e2e` 的 2 例在隔离树里因缺 `.env.test` 报错（原工作区中通过）。默认 Turn-1 wire（gpt-5，o200k_base）记忆三工具 1,860 → 1,739 token（search 359 → 251、save 989 → 980、manage 512 → 508）；宿主无关口径整体 8,371（门禁上限 8,550）。 |
+| **仍然存在** | ① 会话检索默认关闭是产品决策，这次没有动；改前的拒绝文案带有「在记忆设置里开启」，模型可能转述给用户，改后默认策略下模型看不到会话检索，也就没有这条提示（没有核实改前模型是否真会转述）。② 没有用真实模型验证「无效调用是否因此减少」（需要付费调用与凭据，没有授权）；这次只证明了模型看到的文字与能力一致。③ MCP `memory_store` 仍暴露 `rule_keywords`（MCP 面，未改）。④ `utils/token_estimation.estimate_tool_schema_tokens` 没有改动（MCP 路由阈值按它校准），它与 wire 实测口径不同。 |
+| **代码位置** | `toolkits/memory/agent_surface/{memory_search_policy,_memory_search_description,_memory_agent_tool_descriptions,_memory_tool_texts_en,_memory_tool_texts_zh,transient_fact_boundary}.py`、`memory_agent_tools/{search_input,search_tool,common}.py`、`agent/middlewares/memory_context/memory_context_budget.py`（`memory_search_guidance`）、server `app/api/voice/tool_catalog.py`；测试 `tests/toolkits/memory/test_memory_tool_surface_contract.py`、`test_memory_search_input.py`、`test_memory_search_policy.py`、`tests/architecture/test_tool_wire_budget_gate.py` |
+
+### BUG-HARNESS-2026-11-05-190 · `memory_manage_tool` 要模型自己写对记忆类型 `category`，写错就报「受保护或找不到」；`rate` 动作不查命名空间，能给同一用户其他命名空间的记忆打分
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`3d445e62cc`） |
+| **发现时间** | 2026-11-05（评估记忆三工具的参数时，逐个对照每个参数在真实记忆上的行为） |
+| **修复时间** | 2026-11-05 |
+| **严重程度** | P3：用户说「忘掉那条」，模型猜错 `category` 就得到「可能受保护或找不到」，记忆其实存在，要再试一次才删掉；`rate` 的越界只影响排序权重 `user_rating`，不泄露内容、不删除。 |
+| **关联产品** | harness 记忆管理工具（`agent_surface/memory_agent_tools/manage_tool.py`）与 Memory MCP 的 `memory_manage`（`agent_surface/mcp_server/manage_tool.py`）。 |
+| **症状** | [实测] 临时库里存一条 event 和一条 rule：改前 `memory_manage(action="delete", memory_id=<event id>, category="knowledge")` 与 `<rule id>, category="knowledge"` 都返回 `Cannot delete memory (ID: …): it may be protected by the user or not found. Protected memories cannot be deleted by the agent.`，同一个 event id 用 `category="event"` 返回 `Memory deleted`。命名空间：绑定 `agent:stranger` 的管理器对 `agent:owner` 的记忆调 `rate_memory` 返回 `True`，该记忆的 `user_rating` 从 0.5 变成 0.65；同一管理器的 `delete_memory` 返回 0（删除与更新本来就受命名空间限制）。 |
+| **根因** | [代码] 工具的地址由 `(memory_id, category)` 两部分组成：模型填的 `category` 决定走哪个存储，而存储里的记忆类型才是事实，猜错得到的是「找不到」而不是「类型不符」。`rate` 分支直接按 id 调管理器，没有经过按命名空间解析 id 的那一步。 |
+| **修复** | ① 工具只以 `memory_id` 寻址：`manage_memory`（新增 `agent_surface/memory_manage_core.py`，Agent 工具与 MCP 共用，两边各约 100 行的重复删除）先在管理器绑定的命名空间内解析 id，已存记忆的类型决定走哪个存储、哪些动作适用；范围外的 id 与没有 id 的 `[preference]` 召回项一样视为 `Memory not found`。② 参数 schema 去掉 `category`；描述去掉 CATEGORY LIMITS 块，加入「`[preference]` 结果没有可管理的 id，改值需用相同 `preference_key` 重新 `memory_save_tool`」。③ MCP 客户端仍传 `category` 时被忽略（SDK 丢弃多余参数，有测试固定）。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 更新与删除早就受命名空间限制，`rate` 是唯一漏掉的：修的是 `rate`，删除的 `Cannot delete` 提示来自 `category` 猜错，不是范围问题。 |
+| **回归** | [实测] `tests/toolkits/memory/test_tools.py`：`test_manage_delete_event_reaches_the_episodic_collection`（类型由已存记忆决定）、`test_manage_unknown_id_is_reported_as_not_found`（update / delete / correct / rate 四个动作）、`test_manage_schema_is_addressed_by_id_alone`；`test_mcp_server.py`：`test_manage_legacy_category_argument_is_ignored`、`test_manage_schema_is_addressed_by_id_alone`。改后同一临时库：`stranger` 经工具对该 id 做 rate / delete 都返回 `Memory not found (ID: …)`，`owner` 的记忆 `user_rating` 仍是 0.5，`owner` 自己 rate 得到 `Memory rated (ID: …, score: 5)`。描述 359 → 344 token，默认 wire 8,513 → 8,454。 |
+| **仍然存在** | ① 改前已被其他命名空间打过分的记忆，评分没有回滚，也没有核对是否存在这类数据。② MCP `memory_store` 仍有 `rule_keywords`（MCP 面，未改）。 |
+| **代码位置** | `toolkits/memory/agent_surface/{memory_manage_core,memory_agent_tools/manage_tool,mcp_server/manage_tool}.py`、`_memory_tool_texts_{en,zh}.py`；测试 `tests/toolkits/memory/test_tools.py`、`test_mcp_server.py` |
+
 ### BUG-HARNESS-2026-11-05-189 · `web_fetch_tool` 的网址在 `urls` 里，权限引擎只读 `url`：网络域名黑名单与按主机写的规则对抓取从不生效，所有抓取共用同一个审批哈希
 
 | 字段 | 内容 |

@@ -111,7 +111,7 @@ class ToolLayer(IntEnum):
 |------|---------|---------|----------:|
 | 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 277（条件绑定；未挂载 `skill_market_tool` 时 289） |
 | 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~551 |
-| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 描述 +66（156 → 222） |
+| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 的 description 110 → 232（+122）、args schema 124 → 181（+57）：未开启时 schema 不带 `corpus` 与 `expand_*` |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
 | 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,160 |
 | Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool, wiki_apply_tool；wiki_compile/maintain 仅 REST/admin | ~344 |
@@ -345,8 +345,8 @@ const staleCoreSkills = useMemo(() => {
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
 | 最小场景 | 8 个 | ~5,894 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~10,300 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~19,660（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 典型场景 | 13 个 | ~10,190 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~19,552（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
@@ -354,7 +354,7 @@ const staleCoreSkills = useMemo(() => {
 |------|------:|---------|
 | System Prompt 层 | ~2,369 | `messages[0]` 2,070 + `messages[1]` 299，跨用户共享缓存 |
 | CORE 工具层 | ~2,673 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,677 | 默认缓存 |
+| HIGH_PRIORITY 工具层 | ~2,569 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -372,8 +372,8 @@ Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表�
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
 | CORE | 8 | 2,673 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,677 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,350** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,195**；参数 schema 另计约 4,400（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| HIGH_PRIORITY | 5 | 2,569 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **5,242** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,087**；参数 schema 另计约 4,200（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 
