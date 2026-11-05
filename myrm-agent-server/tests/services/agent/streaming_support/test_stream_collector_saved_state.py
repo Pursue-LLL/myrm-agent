@@ -67,7 +67,7 @@ def test_a_resolved_plan_confirmation_keeps_the_plan_it_resolved() -> None:
     assert _saved(collector)["planConfirmation"] == {
         "plan": "do it",
         "status": "edited",
-        "source": "deep_research",
+        "source": "general_agent",
         "spawnCount": 2,
     }
 

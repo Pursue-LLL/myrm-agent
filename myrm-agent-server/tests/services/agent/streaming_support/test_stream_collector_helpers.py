@@ -110,7 +110,6 @@ def test_a_clarification_keeps_its_options_multiple_choice_flag_and_question() -
     saved = collect_clarification_required(
         {
             "data": {
-                "source": "deep_research",
                 "options": ["A", " ", "B", 3],
                 "allowMultiple": True,
                 "prompt": " Pick one ",
@@ -120,8 +119,6 @@ def test_a_clarification_keeps_its_options_multiple_choice_flag_and_question() -
 
     assert saved == {
         "answered": False,
-        "source": "deep_research",
-        "isResumeMode": False,
         "options": ["A", "B"],
         "allowMultiple": True,
         "question": "Pick one",
@@ -158,7 +155,7 @@ def test_a_waiting_plan_is_saved_with_its_items_cost_and_goal() -> None:
     assert saved == {
         "plan": "1. first\n2. second",
         "status": "waiting",
-        "source": "deep_research",
+        "source": "general_agent",
         "spawnCount": 3,
         "estimatedCostUsd": 0.1235,
         "remainingBudgetUsd": 2.0,
