@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from tests.support.fake_chat_provider import fake_chat_provider
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="config")
@@ -37,6 +38,7 @@ def test_reachable_model_reports_success() -> None:
     assert data["message"] == "OK"
     assert isinstance(data["latency_ms"], int)
     ainvoke.assert_awaited_once()
+    assert ainvoke.await_args is not None
     # Per-call limits are enforced by the endpoint deadline; config kwargs never reach the provider.
     assert "config" not in ainvoke.await_args.kwargs
 
@@ -86,3 +88,17 @@ def test_provider_failure_is_classified() -> None:
     assert data["success"] is False
     assert "refused" in data["message"].lower()
     assert "Errno" not in data["message"]
+
+
+def test_a_wrong_key_is_judged_by_the_provider_after_the_right_key_was_accepted() -> None:
+    """The real ChatLiteLLM asks the provider on every test; an answer given to the right key does not vouch for another."""
+    from myrm_agent_harness.toolkits.llms import llm_manager  # noqa: F401  # applies the LiteLLM defaults the server runs with
+
+    with fake_chat_provider("sk-right") as provider:
+        endpoint = {"model": "openai/test-chat", "base_url": provider.base_url}
+        right = client.post(_URL, json={**endpoint, "api_key": "sk-right"}).json()
+        wrong = client.post(_URL, json={**endpoint, "api_key": "sk-wrong"}).json()
+
+    assert right["success"] is True
+    assert (wrong["success"], wrong["message"]) == (False, "Authentication failed — check your API key")
+    assert [seen.authorization for seen in provider.requests] == ["Bearer sk-right", "Bearer sk-wrong"]

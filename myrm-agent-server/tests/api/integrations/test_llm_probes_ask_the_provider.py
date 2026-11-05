@@ -1,24 +1,19 @@
 """The settings-page probes ask the provider on every call: verify, check-reachability and speed-test.
 
-The real ChatLiteLLM runs against a loopback provider that serves one API key, with the LiteLLM response cache switched on
-as the server runs it. A key or endpoint the user has just edited has to be judged by the provider: LiteLLM's response cache
-is keyed by model and messages, so an answer cached for the right key would otherwise stand in for a mistyped one.
+The real ChatLiteLLM runs against a loopback provider that serves one API key, with the LiteLLM defaults the server runs
+with. A key or endpoint the user has just edited has to be judged by the provider, not by an answer that was kept for the
+key that was right a moment ago.
 """
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Iterator
 from unittest.mock import patch
 
-import litellm
 import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import HumanMessage
-from litellm.caching.caching import Cache, CacheMode, LiteLLMCacheType
 
 from app.api.integrations import llms
-from app.core.types import ModelConfig
 from tests.support.fake_chat_provider import FakeChatProvider, fake_chat_provider
 from tests.support.minimal_app import build_minimal_app
 
@@ -45,14 +40,11 @@ def provider() -> Iterator[FakeChatProvider]:
 
 
 @pytest.fixture(autouse=True)
-def response_cache(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    # The first use of llm_manager installs the response cache the server runs with; a fresh one per test keeps the tests
-    # from answering each other, and so does an empty reachability cache.
+def server_llm_defaults() -> Iterator[None]:
+    # The first use of llm_manager applies the LiteLLM defaults the server runs with; an empty reachability cache keeps
+    # the tests from answering each other.
     from myrm_agent_harness.toolkits.llms import llm_manager  # noqa: F401
 
-    monkeypatch.setattr(
-        litellm, "cache", Cache(type=LiteLLMCacheType.LOCAL, mode=CacheMode.default_on, default_in_memory_ttl=3600)
-    )
     llms._reachability_cache.clear()
     yield
     llms._reachability_cache.clear()
@@ -153,25 +145,6 @@ def test_speed_test_times_every_run_against_the_provider(client: TestClient, pro
     second = _speed_test(client, provider, _RIGHT_KEY)
 
     assert (first["status"], second["status"]) == ("ok", "ok")
-    assert len(provider.requests) == 2
-
-
-def test_ordinary_calls_keep_the_response_cache_after_a_probe(client: TestClient, provider: FakeChatProvider) -> None:
-    assert client.post(_VERIFY, json=_config(provider, _RIGHT_KEY)).status_code == 200
-
-    async def ask_twice() -> None:
-        from myrm_agent_harness.toolkits.llms import llm_manager
-
-        arguments = ModelConfig(model=_MODEL, api_key=_RIGHT_KEY, base_url=provider.base_url).model_dump(exclude_none=True)
-        llm = await llm_manager.get_llm(**arguments)
-        for _ in range(2):
-            await llm.ainvoke([HumanMessage(content="What is the capital of France?")])
-
-    asyncio.run(ask_twice())
-
-    # The probe and the first ordinary ask reach the provider; the second ordinary ask is answered from the response cache.
-    # The question is not the probe's own message: a probe stores its answer as any call does, which would answer an
-    # identical ask.
     assert len(provider.requests) == 2
 
 

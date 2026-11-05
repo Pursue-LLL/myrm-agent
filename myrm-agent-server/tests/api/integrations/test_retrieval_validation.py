@@ -10,10 +10,8 @@ from collections.abc import Iterator
 from unittest.mock import patch
 from uuid import uuid4
 
-import litellm
 import pytest
 from fastapi.testclient import TestClient
-from litellm.caching.caching import Cache, CacheMode, LiteLLMCacheType
 
 from tests.support.fake_retrieval_provider import FakeRetrievalProvider, fake_retrieval_provider, unreachable_api_base
 from tests.support.minimal_app import build_minimal_app
@@ -41,13 +39,6 @@ def provider() -> Iterator[FakeRetrievalProvider]:
 def api_key() -> str:
     # The retriever factories keep one service per (model, key, base): a fresh key keeps every test on its own service.
     return f"sk-probe-{uuid4().hex}"
-
-
-@pytest.fixture(autouse=True)
-def response_cache(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The server runs with the LiteLLM response cache that toolkits/llms/config.py installs once llm_manager is first used;
-    # a fresh one per test keeps the tests from answering each other.
-    monkeypatch.setattr(litellm, "cache", Cache(type=LiteLLMCacheType.LOCAL, mode=CacheMode.default_on))
 
 
 def _probe(client: TestClient, kind: str, *, api_key: str, api_base: str) -> dict[str, object]:
@@ -147,9 +138,8 @@ def test_a_bare_404_means_the_model_or_endpoint_is_unknown(
     assert result["message"] == "Validation failed: the provider does not know this model or endpoint"
 
 
-def test_an_edited_key_is_checked_against_the_provider_not_the_response_cache(client: TestClient, api_key: str) -> None:
-    # The response cache is keyed by model and text, not by key or endpoint: with a fixed probe text, one success would
-    # answer every later probe of that model, however wrong the key or endpoint had become since.
+def test_an_edited_key_is_checked_against_the_provider(client: TestClient, api_key: str) -> None:
+    # A success for one key and endpoint says nothing about the key and endpoint the form was edited to afterwards.
     with fake_retrieval_provider() as accepting, fake_retrieval_provider() as refusing:
         refusing.status = 401
 

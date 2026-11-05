@@ -9,7 +9,7 @@ Toolkits Llms module.
 |------|------|-------------|-------|
 | __init__.py | Package |   Init   | — |
 | media_task_types.py | Core | Image async-job payload/result DTOs for `toolkits/tasks` integration | ✅ |
-| config.py | Config | LiteLLM default configuration (privacy, caching, `drop_params` safety-net). Works with `ChatLiteLLM._inject_allowed_params()` to protect explicit params from provider whitelist gaps | ✅ |
+| config.py | Config | LiteLLM default configuration (privacy, `drop_params` safety-net). Works with `ChatLiteLLM._inject_allowed_params()` to protect explicit params from provider whitelist gaps. Installs no response cache: LiteLLM's is keyed by model and messages, not by API key or endpoint, so a probe or health check would be answered for a key that was never tried (`tests/toolkits/llms/test_litellm_defaults.py` guards it) | ✅ |
 | capability_learner.py | Core | In-process model capability cache — records runtime-discovered capabilities (e.g. rejects_media, rejects_allowed_tools_tool_choice) with TTL. | ✅ |
 | allowed_tools_capability.py | Core | Provider gate for OpenAI ``tool_choice.type=allowed_tools``; execution-layer policy remains authoritative when skipped. | ✅ |
 | ephemeral_output_tokens.py | Core | ContextVar override for truncation-recovery output budget; read by `ChatLiteLLM`. | ✅ |

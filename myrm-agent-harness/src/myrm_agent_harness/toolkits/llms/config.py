@@ -3,20 +3,23 @@
 
 [INPUT]
 - litellm::litellm (POS: LiteLLM library, unified multi-model invocation interface)
-- litellm.caching.caching::Cache, CacheMode, LiteLLMCacheType (POS: LiteLLM cache configuration)
 
 [OUTPUT]
-- litellm global configuration (drop_params, modify_params, telemetry, turn_off_message_logging, cache, etc.)
+- litellm global configuration (drop_params, modify_params, telemetry, turn_off_message_logging, etc.)
 
 [POS]
 LiteLLM default configuration. Sets sensible defaults for litellm (privacy protection,
-logging control, caching, etc.). Configuration is auto-applied at module import time,
+logging control, etc.). Configuration is auto-applied at module import time,
 ensuring all LiteLLM instances use a unified configuration. As the config layer, it
 affects the behavior of all LLM instances.
+
+It installs no response cache on purpose: LiteLLM's is keyed by model and messages, not by
+API key or endpoint, so an answer cached for one provider would stand in for any other key
+or endpoint asked the same question. A caller that wants a recorded answer asks for one
+explicitly (``memo_run``, an embedding cache).
 """
 
 import litellm
-from litellm.caching.caching import Cache, CacheMode, LiteLLMCacheType
 
 # Global safety-net: silently drop parameters not in the provider's
 # ``supported_params`` whitelist.  This prevents unknown/cross-provider
@@ -47,10 +50,3 @@ litellm.suppress_debug_info = True
 # When model doesn't support function calling, litellm will try to append
 # function descriptions to system prompt. Default: False.
 litellm.add_function_to_prompt = False
-
-# Model response caching configuration
-litellm.cache = Cache(
-    type=LiteLLMCacheType.LOCAL,
-    mode=CacheMode.default_on,
-    default_in_memory_ttl=3600,  # 1 hour
-)

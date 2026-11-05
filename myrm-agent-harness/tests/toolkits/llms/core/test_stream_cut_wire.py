@@ -38,7 +38,6 @@ def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
     monkeypatch.setattr(litellm, "drop_params", True)
     monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
 @tool
@@ -53,7 +52,7 @@ async def _answer(model: str, stream: bytes) -> AIMessage:
         llm = create_litellm_model(
             model, base_url=server.base_url + base_path, api_key="sk-offline", streaming=True, max_tokens=1024
         )
-        return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])  # type: ignore[return-value]
+        return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])
 
 
 def _cut_streams(pieces: list[str]) -> dict[str, tuple[str, bytes]]:

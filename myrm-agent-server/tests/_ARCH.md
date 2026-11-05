@@ -824,10 +824,10 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft
 - `tests/api/skills/conftest.py`：minimal app 含 drafts/curator/sync/evolution/skill-growth 路由；`mock_local_skills_dir` 把主本地技能目录与本地扫描路径指向临时目录（成长生命周期、草稿通知、草稿路由与复盘名字解析的测试共用）
 - `tests/api/integrations/test_llm_speed_test.py`：`POST /api/v1/integrations/llm/speed-test`
-- `tests/api/integrations/test_llm_probes_ask_the_provider.py`：`llm/verify`、`llm/check-reachability`、`llm/speed-test` 三个探针每次都问上游（真实 ChatLiteLLM 打到只认一把 Key 的回环假上游，开着 LiteLLM 响应缓存：对的 Key 探测之后换成打错的 Key，三个探针都得到 401 / `reachable: false` / 逐次计时；`check-reachability` 的 30 秒结果缓存对同一请求命中、过期后重问，模型、Key、端点、代理、温度、模型参数任一变化都是新问题，缓存里不留 Key 明文；探针保留调用方给的 `model_kwargs`；探针之后普通调用仍走响应缓存，绕过不是全局的）
+- `tests/api/integrations/test_llm_probes_ask_the_provider.py`：`llm/verify`、`llm/check-reachability`、`llm/speed-test` 三个探针每次都问上游（真实 ChatLiteLLM 打到只认一把 Key 的回环假上游，带服务端运行时的 LiteLLM 默认配置：对的 Key 探测之后换成打错的 Key，三个探针都得到 401 / `reachable: false` / 逐次计时；`check-reachability` 的 30 秒结果缓存对同一请求命中、过期后重问，模型、Key、端点、代理、温度、模型参数任一变化都是新问题，缓存里不留 Key 明文；探针保留调用方给的 `model_kwargs`）
 - `tests/api/integrations/test_model_switch_preflight.py`：`POST /api/v1/integrations/llm/model-switch-preflight`（tier 推断 / 显式比例 clamp / prompt_mode 回退 / 多模型）
 - `tests/api/integrations/test_models_dev.py`：`GET /api/v1/integrations/models-dev`（成功信封、5 分钟缓存、并发请求（含上游失败时）共享同一次下载、上游失败一律 502 且不缓存）
-- `tests/api/integrations/test_retrieval_validation.py`：`POST /api/v1/integrations/retrieval/{embedding,reranker}`（真实 CloudEmbedding / CloudReranker 打到回环假上游，开着 LiteLLM 响应缓存：成功报维度 / 命中数；Key 被拒、额度耗尽、模型或端点未知、限流、端点不可达各点名原因；上游回显的 Key 被抹掉；缺 Key 不打上游；换了 Key 或端点后的再次探测不被响应缓存答成成功）
+- `tests/api/integrations/test_retrieval_validation.py`：`POST /api/v1/integrations/retrieval/{embedding,reranker}`（真实 CloudEmbedding / CloudReranker 打到回环假上游：成功报维度 / 命中数；Key 被拒、额度耗尽、模型或端点未知、限流、端点不可达各点名原因；上游回显的 Key 被抹掉；缺 Key 不打上游；换了 Key 或端点后的再次探测问的是现在配置的上游）
 - `tests/api/notifications/conftest.py`：in-memory DB + loopback auth（通知 API 集成测）
 - `tests/api/config/test_readiness_e2e.py`、`tests/api/security/test_generate_policy_e2e.py`：`@pytest.mark.e2e`（默认套件不收集）
 

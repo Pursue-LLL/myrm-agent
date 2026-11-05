@@ -8,6 +8,8 @@ to unit tests.
 
 from __future__ import annotations
 
+from typing import TypedDict, Unpack
+
 import litellm
 import pytest
 from langchain_core.messages import HumanMessage
@@ -29,10 +31,18 @@ def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
     monkeypatch.setattr(litellm, "drop_params", True)
     monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
-async def _request_body(model: str, **kwargs: object) -> JsonBody:
+class _ModelOptions(TypedDict, total=False):
+    """The factory options these tests vary."""
+
+    max_tokens: int
+    supports_reasoning: bool
+    extra_body: dict[str, str]
+    top_p: float
+
+
+async def _request_body(model: str, **kwargs: Unpack[_ModelOptions]) -> JsonBody:
     """Make one call through the production factory and return the body the provider received."""
     with FakeProviderServer(lambda _body: FakeReply(openai_text_stream())) as server:
         llm = create_litellm_model(

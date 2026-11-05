@@ -9,6 +9,7 @@ reactive parameter stripping would otherwise hide the problem behind retries.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import TypedDict, Unpack
 
 import litellm
 import pytest
@@ -36,7 +37,6 @@ def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
     monkeypatch.setattr(litellm, "drop_params", True)
     monkeypatch.setattr(litellm, "modify_params", True)
-    monkeypatch.setattr(litellm, "cache", None)
 
 
 @pytest.fixture
@@ -67,7 +67,17 @@ def _unknown_fields(body: JsonBody) -> list[str]:
     return sorted(set(body) - ANTHROPIC_REQUEST_FIELDS)
 
 
-async def _claude_requests(**kwargs: object) -> list[JsonBody]:
+class _ModelOptions(TypedDict, total=False):
+    """The factory options these tests vary."""
+
+    max_tokens: int
+    reasoning_effort: str
+    temperature: float
+    top_k: int
+    supports_reasoning: bool
+
+
+async def _claude_requests(**kwargs: Unpack[_ModelOptions]) -> list[JsonBody]:
     with _strict_server() as server:
         llm = create_litellm_model(CLAUDE, base_url=server.base_url, api_key="sk-offline", streaming=True, **kwargs)
         await llm.ainvoke([HumanMessage(content="hello")])
