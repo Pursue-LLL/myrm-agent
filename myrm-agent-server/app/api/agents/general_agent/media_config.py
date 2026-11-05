@@ -2,7 +2,7 @@
 
 [INPUT]
 - core.channel_bridge.config_loader::load_user_configs (POS: merged user config bundles)
-- services.agent.params.providers::_find_provider_api_key, _resolve_image_api_key_provider
+- services.agent.params.model_config::_find_provider_api_key, _resolve_image_api_key_provider
   (POS: provider API key resolution)
 - myrm_agent_harness.toolkits.llms.video / tts (POS: provider health check and probe synthesis)
 
@@ -24,7 +24,7 @@ from myrm_agent_harness.infra.tls_compat import create_httpx_client
 from pydantic import BaseModel, SecretStr
 from pydantic.alias_generators import to_camel
 
-from app.services.agent.params.providers import (
+from app.services.agent.params.model_config import (
     _find_provider_api_key,
     _resolve_image_api_key_provider,
 )

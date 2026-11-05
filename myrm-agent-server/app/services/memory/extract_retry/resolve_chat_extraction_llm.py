@@ -51,8 +51,8 @@ async def _resolve_main_model_cfg(
         return model_cfg
 
     if resolved.model_kwargs:
+        from app.services.agent.params.model_config import _resolve_model_config
         from app.services.agent.params.models import ModelSelection
-        from app.services.agent.params.resolvers import _resolve_model_config
 
         agent_model_selection = ModelSelection(
             provider_id="auto",
@@ -108,8 +108,8 @@ async def _resolve_lite_model_cfg(
     raw_kwargs = lite_model.get("modelKwargs")
     model_kwargs = raw_kwargs if isinstance(raw_kwargs, dict) else None
 
+    from app.services.agent.params.model_config import _resolve_model_config
     from app.services.agent.params.models import ModelSelection
-    from app.services.agent.params.resolvers import _resolve_model_config
 
     lite_selection = ModelSelection(
         provider_id=str(provider_id),

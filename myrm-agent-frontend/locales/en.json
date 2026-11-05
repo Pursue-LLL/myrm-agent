@@ -2744,6 +2744,11 @@
       "expandToolbar": "Expand toolbar",
       "expandEditor": "Expand editor (Ctrl/⌘+Shift+Enter)",
       "collapseEditor": "Collapse editor (Ctrl/⌘+Shift+Enter)",
+      "toolbar": "Toolbar",
+      "toolbarActive": "On: {names}",
+      "toolbarGroupThinking": "Thinking",
+      "toolbarGroupModes": "Modes",
+      "toolbarGroupCapabilities": "Capabilities",
       "expandedPlaceholder": "Enter for a new line · Ctrl/⌘+Enter to send · Esc to exit",
       "stop": "Stop"
     },

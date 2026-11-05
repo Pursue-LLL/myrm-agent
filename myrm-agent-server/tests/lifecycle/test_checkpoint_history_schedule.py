@@ -44,11 +44,11 @@ def recording(monkeypatch: pytest.MonkeyPatch) -> Iterator[type[_RecordingSchedu
     _RecordingScheduler.started = False
     monkeypatch.setattr("apscheduler.AsyncScheduler", _RecordingScheduler)
     yield _RecordingScheduler
-    task = schedulers._db_maintenance_scheduler_task
+    task = schedulers.maintenance._db_maintenance_scheduler_task
     if task is not None:
         task.cancel()
-    monkeypatch.setattr(schedulers, "_db_maintenance_scheduler_task", None)
-    monkeypatch.setattr(schedulers, "_db_maintenance_scheduler", None)
+    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler_task", None)
+    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler", None)
 
 
 async def test_the_prune_runs_every_six_hours_starting_after_the_boot_burst(recording: type[_RecordingScheduler]) -> None:

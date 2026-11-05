@@ -227,7 +227,7 @@ class TestVoiceFastLaneAndSupervisor:
         mock_handler.spawn_background = AsyncMock(return_value="task-12345")
 
         with (
-            patch("app.api.voice.agent_bridge._VOICE_SUPERVISOR_TIMEOUT_S", 0.05),
+            patch("app.api.voice.agent_bridge.streams._VOICE_SUPERVISOR_TIMEOUT_S", 0.05),
             patch.object(bridge, "_build_agent_params", return_value=mock_params),
             patch.object(bridge, "_is_fast_lane_query", return_value=False),
             patch.object(bridge, "_tts_working_hint", new_callable=AsyncMock),

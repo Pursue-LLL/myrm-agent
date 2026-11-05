@@ -12,7 +12,7 @@ from myrm_agent_harness.toolkits.llms import (
     LanEndpointNoProxyManager,
     ThinkingModelReasoningAdapter,
 )
-from myrm_agent_harness.toolkits.memory.strategies.extractor import _parse_response
+from myrm_agent_harness.toolkits.memory.strategies.extractor.parse import _parse_response
 
 
 class TestLanEndpointNoProxyManager:

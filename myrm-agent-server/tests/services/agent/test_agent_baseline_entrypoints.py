@@ -38,7 +38,7 @@ _ENTRYPOINTS: tuple[tuple[str, str, str], ...] = (
         "resolve_agent_mount",
         "ExecutionSurface.WEB_CHAT",
     ),
-    ("app/api/voice/agent_bridge.py", "resolve_agent_mount", "ExecutionSurface.VOICE"),
+    ("app/api/voice/agent_bridge/params.py", "resolve_agent_mount", "ExecutionSurface.VOICE"),
     (
         "app/api/voice/voice_memory_context.py",
         "resolve_agent_mount",

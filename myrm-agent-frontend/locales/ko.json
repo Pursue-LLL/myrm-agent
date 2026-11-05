@@ -2735,6 +2735,11 @@
       "expandToolbar": "도구 모음 펼치기",
       "expandEditor": "편집기 확대 (Ctrl/⌘+Shift+Enter)",
       "collapseEditor": "편집기 축소 (Ctrl/⌘+Shift+Enter)",
+      "toolbar": "도구 모음",
+      "toolbarActive": "사용 중: {names}",
+      "toolbarGroupThinking": "사고",
+      "toolbarGroupModes": "모드",
+      "toolbarGroupCapabilities": "기능",
       "expandedPlaceholder": "Enter로 줄바꿈 · Ctrl/⌘+Enter로 전송 · Esc로 닫기",
       "stop": "중지"
     },

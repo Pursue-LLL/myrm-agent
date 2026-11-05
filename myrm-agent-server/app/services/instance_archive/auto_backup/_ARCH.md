@@ -52,4 +52,4 @@
 
 ## 依赖方向
 
-`app/api/instance_archive/auto_backup.py` 与 `app/lifecycle/schedulers.py` → 本目录 → `app/services/instance_archive/{export_jobs,models,policy}` → `myrm_agent_harness.infra.state_archive`。`services/memory/backup/remote_sync/state.py` 只读取本目录的实例标记（`AutoBackupStore.tag()`）。本目录不依赖 API 层；父包不依赖本目录（`export_jobs` 只暴露 `done` / `is_busy` / 注册表供其使用）；harness 不感知本目录。
+`app/api/instance_archive/auto_backup.py` 与 `app/lifecycle/schedulers/` → 本目录 → `app/services/instance_archive/{export_jobs,models,policy}` → `myrm_agent_harness.infra.state_archive`。`services/memory/backup/remote_sync/state.py` 只读取本目录的实例标记（`AutoBackupStore.tag()`）。本目录不依赖 API 层；父包不依赖本目录（`export_jobs` 只暴露 `done` / `is_busy` / 注册表供其使用）；harness 不感知本目录。

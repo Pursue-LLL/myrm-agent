@@ -36,5 +36,5 @@ stream_loop / stream_finalize
 ## 依赖关系
 
 - `app/config/settings.py` — CP telemetry 配置
-- `app/schemas/control_plane.py` — batch envelope 类型
+- `app/schemas/control_plane/` — batch envelope 类型
 - `deployments/prometheus/rules.yml` — dropped/flush 告警

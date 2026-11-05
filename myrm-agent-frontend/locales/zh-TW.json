@@ -2735,6 +2735,11 @@
       "expandToolbar": "展開工具欄",
       "expandEditor": "展開編輯器（Ctrl/⌘+Shift+Enter）",
       "collapseEditor": "收起編輯器（Ctrl/⌘+Shift+Enter）",
+      "toolbar": "工具欄",
+      "toolbarActive": "已啟用：{names}",
+      "toolbarGroupThinking": "思考",
+      "toolbarGroupModes": "模式",
+      "toolbarGroupCapabilities": "能力",
       "expandedPlaceholder": "Enter 換行 · Ctrl/⌘+Enter 傳送 · Esc 退出",
       "stop": "停止"
     },

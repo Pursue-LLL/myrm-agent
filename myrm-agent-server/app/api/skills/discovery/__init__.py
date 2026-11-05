@@ -14,7 +14,11 @@ Server business layer (Skills API). The discovery endpoints and their schemas ar
 together and mounted via ``api.skills.router``, so they stay co-located under one facade.
 """
 
-from app.api.skills.discovery.routes import router
+from fastapi import APIRouter
+
+from app.api.skills.discovery.index_admin import router as index_admin_router
+from app.api.skills.discovery.install import router as install_router
+from app.api.skills.discovery.routes import router as routes_router
 from app.api.skills.discovery.schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
@@ -40,6 +44,13 @@ from app.api.skills.discovery.schemas import (
     StaticIndexStatusResponse,
     UpdateCheckResponse,
 )
+from app.api.skills.discovery.sources import router as sources_router
+
+router = APIRouter(prefix="/discovery")
+router.include_router(install_router)
+router.include_router(routes_router)
+router.include_router(sources_router)
+router.include_router(index_admin_router)
 
 __all__ = [
     "CustomSourceListResponse",

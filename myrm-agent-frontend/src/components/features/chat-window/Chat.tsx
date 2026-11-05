@@ -55,6 +55,7 @@ import SessionAnalyticsDialog from '@/components/features/settings/sections/syst
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { TurnTimelineRail, MobileTurnOutlineSheet } from './TurnTimelineRail';
 import { useComposerFastFocus } from './useComposerFastFocus';
+import { ComposerClearanceSpacer } from './ComposerClearanceSpacer';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import HumanAttentionBar from './approval/HumanAttentionBar';
@@ -62,11 +63,7 @@ import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync'
 import { useRewindStore } from '@/store/chat/useRewindStore';
 import { RewindDialog } from './RewindDialog';
 import ScrollToBottomButton from './ScrollToBottomButton';
-import {
-  UserQuestionNav,
-  UserQuestionOutlineDrawer,
-  useUserQuestionNavStore,
-} from './question-nav';
+import { UserQuestionNav, UserQuestionOutlineDrawer, useUserQuestionNavStore } from './question-nav';
 import type { Message } from '@/store/chat/types/messages';
 
 const EMPTY_MESSAGES: Message[] = [];
@@ -387,6 +384,7 @@ const Chat = ({
     return (
       <div
         ref={inputContainerRef}
+        data-composer-dock
         className={`fixed myrm-safe-bottom-floating left-0 right-0 z-40 transition-all duration-300 ${!showInput ? 'opacity-0 translate-y-10' : 'opacity-100'}`}
         style={{
           paddingLeft: 'var(--main-padding-left, 0)',
@@ -673,8 +671,8 @@ const Chat = ({
         <div ref={containerRef} className="flex flex-col mx-auto max-w-5xl px-4 md:px-0 relative">
           {messageBoxElements}
           {loading && !messageAppeared && <MessageBoxLoading />}
-          {/* 底部填充空间，避免内容被输入框遮挡 */}
-          <div className="h-40 lg:h-[15rem] w-full" />
+          {/* 底部填充空间，避免内容被输入框遮挡；高度随输入框实际高度变化 */}
+          <ComposerClearanceSpacer columnRef={containerRef} className="min-h-40 lg:min-h-[15rem] w-full shrink-0" />
           <div ref={messageEnd} className="h-0" data-message-end="true" />
           {inputElement}
           <ScrollToBottomButton

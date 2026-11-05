@@ -111,8 +111,8 @@ class _ChatCompactionMixin(_ChatServiceBase):
 
             model_cfg = None
             if providers_dict:
+                from app.services.agent.params.model_config import _resolve_model_config
                 from app.services.agent.params.models import ModelSelection
-                from app.services.agent.params.resolvers import _resolve_model_config
 
                 default_model_cfg = providers_dict.get("defaultModelConfig", {})
                 if isinstance(default_model_cfg, dict):

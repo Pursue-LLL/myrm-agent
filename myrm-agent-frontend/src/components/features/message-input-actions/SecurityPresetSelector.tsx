@@ -8,7 +8,7 @@
  * SecurityPresetSelector: 会话级安全预设三档下拉选择器。
  *
  * [POS]
- * 输入框工具栏安全预设选择器。Agent 模式下提供 HITL/Auto-Approve Edits/Read-Only 三档，
+ * 输入框选项区（「模式」组）的安全预设选择器。Agent 模式下提供 HITL/Auto-Approve Edits/Read-Only 三档，
  * 与 YOLO 模式互斥：YOLO 开启时做任何选择（含点击当前项）都先关闭 YOLO。
  * 选择后通过 security_preset 字段随消息发送至 server。
  */

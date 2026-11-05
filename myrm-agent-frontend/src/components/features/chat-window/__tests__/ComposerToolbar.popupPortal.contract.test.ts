@@ -4,15 +4,17 @@ import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The desktop composer toolbar is an `overflow-x-auto` scroller, and a scroller clips on both axes. A popup
- * positioned inside it with `absolute bottom-full` / `top-full` is cut to the toolbar's strip height, so the
- * viewer opens an empty-looking control. Controls that live in the toolbar open Radix portals (Popover,
- * DropdownMenu, HoverCard) instead. jsdom has no layout, so the rule is pinned at the source.
+ * The desktop composer's options region clips its content (`overflow-hidden`, so its height can animate), and a
+ * clipping box cuts a child that is positioned outside it. A popup positioned inside it with `absolute bottom-full`
+ * / `top-full` is cut to the region's height, so the viewer opens an empty-looking control. Controls that live in the
+ * composer open Radix portals (Popover, DropdownMenu, HoverCard) instead. jsdom has no layout, so the rule is pinned
+ * at the source.
  */
 const FEATURES_DIR = resolve(__dirname, '../..');
 
 const TOOLBAR_SOURCES = [
   'message-input-actions',
+  'chat-window/composer-options',
   'chat-window/thinking-permission',
   'chat-window/agent-config-panel/ExpertSummonPopover.tsx',
 ];
@@ -45,7 +47,7 @@ describe('composer toolbar popups', () => {
 
     expect(
       offenders,
-      `${offenders.join(', ')} position a popup inside the clipping toolbar scroller. ` +
+      `${offenders.join(', ')} position a popup inside the composer's clipping options region. ` +
         'Open it through @/components/primitives/popover or dropdown-menu, which render in a portal.',
     ).toEqual([]);
   });

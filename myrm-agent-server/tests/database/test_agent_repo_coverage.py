@@ -432,7 +432,7 @@ class TestUpdateProfileMetadataBranches:
                         "security_overrides": {"danger": ["rm"]},
                         "default_security_preset": "strict",
                         "workspace_policy": "READ_ONLY_SANDBOX",
-                        "engine_params": {"marketplace_entry_id": "entry-1"},
+                        "engine_params": {"temperature": 0.2},
                         "openapi_services": ["svc"],
                         "session_policy": {"max_turns": 5},
                         "notify_targets": ["webhook"],
@@ -444,7 +444,7 @@ class TestUpdateProfileMetadataBranches:
         assert agent.security_overrides == {"danger": ["rm"]}
         assert agent.default_security_preset == "strict"
         assert agent.workspace_policy == "READ_ONLY_SANDBOX"
-        assert agent.engine_params == {"marketplace_entry_id": "entry-1"}
+        assert agent.engine_params == {"temperature": 0.2}
         assert agent.openapi_services == ["svc"]
         assert agent.session_policy == {"max_turns": 5}
         assert agent.notify_targets == ["webhook"]

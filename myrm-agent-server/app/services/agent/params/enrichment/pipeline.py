@@ -1,8 +1,8 @@
 """[INPUT]
 - app.services.agent.params.models::AgentRequest, MultimodalQuery (POS: Agent API request DTO)
 - app.services.agent.params.mention (POS: @-mention reference materialization)
-- app.services.agent.params.upload_sync (POS: uploaded file workspace sync)
-- app.services.agent.params.archive_restore (POS: typed archive restore materialization)
+- app.services.agent.params.enrichment.upload_sync (POS: uploaded file workspace sync)
+- app.services.agent.params.enrichment.archive_restore (POS: typed archive restore materialization)
 - app.services.chat.context_bomb_guard (POS: oversized prompt spillover)
 
 [OUTPUT]

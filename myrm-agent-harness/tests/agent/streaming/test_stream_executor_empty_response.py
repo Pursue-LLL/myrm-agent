@@ -1,13 +1,16 @@
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from myrm_agent_harness.agent.streaming.stream_executor import StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.toolkits.cron.delivery_guard import SILENT_MARKER
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+
+from .scripted_agent import TRACKER_PATH, recover_empty_reply
 
 
 class DummyCompactor:
@@ -53,7 +56,7 @@ async def test_empty_response_detected(mock_context):
     msg = AIMessage(content="")
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is True
     assert not executor.streaming_final_answer
@@ -75,7 +78,7 @@ async def test_empty_response_with_thinking_only(mock_context):
     msg = AIMessage(content=[{"type": "thinking", "thinking": "Let me think..."}])
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is True
     assert not executor.streaming_final_answer
@@ -95,7 +98,7 @@ async def test_not_empty_with_content(mock_context):
     msg = AIMessage(content="Here is the answer.")
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is False
 
@@ -108,7 +111,7 @@ async def test_not_empty_with_tool_calls(mock_context):
     msg = AIMessage(content="", tool_calls=[{"name": "search", "args": {}, "id": "call_1"}])
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is False
 
@@ -122,7 +125,7 @@ async def test_empty_response_exhausted(mock_context):
     collected_messages = [msg]
 
     with pytest.raises(MyrmLLMError) as exc_info:
-        await executor._handle_empty_response(collected_messages, retries=2)
+        await recover_empty_reply(executor, collected_messages, retries=2)
 
     assert exc_info.value.error_code == FailoverReason.FORMAT_ERROR
     assert "empty response repeatedly" in exc_info.value.default_msg
@@ -136,7 +139,7 @@ async def test_empty_response_tag_wrapped_reasoning_is_empty(mock_context):
     msg = AIMessage(content="<think>deliberating but never answering</think>")
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is True
     messages = mock_context.agent_input["messages"]
@@ -151,6 +154,38 @@ async def test_empty_response_tag_wrapped_with_answer_is_not_empty(mock_context)
     msg = AIMessage(content="<think>deliberating</think>\n\nDONE")
     collected_messages = [msg]
 
-    result = await executor._handle_empty_response(collected_messages, retries=0)
+    result = await recover_empty_reply(executor, collected_messages, retries=0)
 
     assert result is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "reply",
+    [
+        AIMessage(content="<think>deliberating but never answering</think>"),
+        AIMessage(content="", additional_kwargs={"reasoning_content": "deliberating but never answering"}),
+    ],
+    ids=["tag-wrapped", "reasoning-field"],
+)
+async def test_reasoning_cut_by_the_output_limit_is_left_to_the_truncation_recovery(mock_context, reply):
+    """Asking again at the base budget would only cut again, so only the budget recovery handles this reply."""
+    executor = _make_executor(mock_context)
+
+    with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="length")):
+        result = await recover_empty_reply(executor, [reply])
+
+    assert result is False
+    assert mock_context.agent_input["messages"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("silent_reply", [SILENT_MARKER, "NO_REPLY"])
+async def test_silence_tokens_are_not_empty_responses(mock_context, silent_reply):
+    """Cron and channel flows stay quiet with an exact token (an empty reply is not one), so it is never asked again."""
+    executor = _make_executor(mock_context)
+
+    result = await recover_empty_reply(executor, [AIMessage(content=silent_reply)])
+
+    assert result is False
+    assert mock_context.agent_input["messages"] == []

@@ -16,6 +16,7 @@ describe('proactive dismissal memory', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('treats a card nobody closed as not dismissed', () => {
@@ -46,8 +47,12 @@ describe('proactive dismissal memory', () => {
   });
 
   it('still keeps the card closed for this page when storage rejects the write', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('quota', 'QuotaExceededError');
+    // The test environment's storage is a polyfill that a spy on `Storage.prototype` cannot reach.
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      },
     });
 
     dismissProactive('private-mode-card');

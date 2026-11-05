@@ -2,6 +2,44 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · 新会话首屏与输入框第二轮瘦身：精选专家条在每个会话里出现且关了又回来、更新 / 迁移 / 安装卡片每个新标签都重现、侧栏常驻 16 个图标、桌面输入框 14 个控件挤在一条只有渐隐提示的横滑条里
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（精选专家条、卡片关闭记忆、侧栏「更多」、输入框主行与选项区四处，外加侧栏常驻入口数的守卫测试）。「仍然存在」里的项未处理。 |
+| **症状** | ① [代码，读修复前的文件] 精选专家条 `FeaturedExpertChips` 在每个会话里都渲染，每次切换会话都重新请求模板，模板到达时在输入框上方突然冒出来，关掉后下次又回来；换行的 PC 专家条 68 px 高、占位 38 px，到达时输入框被顶下去 30 px。② [代码] 更新条、迁移发现卡片、手机安装引导的关闭只管到本次浏览器会话结束，每个新标签都带回同样的卡片，迁移卡片每次还重新扫盘。③ [代码，数的是源码，没有实测] 侧栏常驻 16 个图标（开着评测实验室是 17 个），三个标签之后没有悬停就分不清。④ [实测，1440×900，改动前，Chromium] 桌面输入框的工具栏是一条横向滚动条，14 个控件里只有 3 个完整可见，可见区 557 px、内容 1501 px；1100 宽是 465 / 1300，900 宽是 505 / 1300。⑤ [代码] 打开「单轮能力」编辑器的回调同时把桌面弹层和手机操作表都置为打开。 |
+| **根因** | ① 专家条的显示没有和「空会话」绑定，也没有可持久化的关闭记忆。② 关闭记忆各卡片各写各的，且只用了会话级存储。③ 每个新页面都往侧栏加一个图标，没有「更多」这一层。④ 工具栏把所有选项平铺，靠横向滚动承载，没有主次；上一轮只给被裁的一侧加了渐隐提示，控件本身仍然看不见。⑤ 手机与桌面各有一套界面，回调不分端。 |
+| **修复** | ① 专家条只在空会话渲染；加载期间用与成品同盒的占位（单行可滑，所有宽度高度一致，失败时不留占位）；精选模板缓存 60 秒并共享在途请求；关闭按设备记住（`hooks/ui/useProactiveDismissal.ts`，键 `myrm.proactive.dismissed.featured-experts`，水合首帧仍按「未关闭」渲染，副作用先核对真实记忆再请求）；召唤专家不再覆盖已有草稿；关闭按钮 PC 24 px、手机 32 px，图标不再脉冲。② 更新条：关闭常规更新等于推迟该版本（与更新面板的「推迟」同一偏好），安全补丁仍绕过推迟，所以关闭只管本次会话；迁移卡片：关闭后本机静默 7 天，静默期内跳过扫盘；手机安装引导：自有时间戳键换成同一个助手（7 天）；55 个 Chrome E2E 脚本与开发辅助里压住迁移卡片的旧会话标记，机械改为新键。③ 侧栏常驻入口 16 → 8（头像、三个标签、「更多」、任务、通知、设置）；监控页、扩展入口、次要工具面板收进一个分「检视 / 扩展 / 工具」三组的「更多」菜单，目的地是真实链接，当前页高亮并带 `aria-current`，菜单按可用高度封顶并可滚动，触屏行高 44 px，仅键盘关闭时把焦点还给入口；`UtilityMenu` 由 `NavMoreMenu` 取代，新页面只改 `useNavMoreSections.ts` 一个列表。④ 桌面输入框主行固定 5 个控件（「+」、极速 / Agent、模型、权限档位、展开编辑器），不换行不滚动，窄屏下只有模型名省略、其余控件不收缩；其余选项按「思考 / 模式 / 能力」三组收在「+」展开的选项区（`chat-window/composer-options/`，关着时 `inert`，控件仍挂载）；有模式开着时「+」带圆点，名称与悬停提示说出「已启用：…」；展开状态按设备记住（`hooks/ui/persistedStringStore.ts`，与关闭记忆共用，服务端与水合首帧都按「关」渲染）；消息列表底部间距随浮动输入框的实测高度变化（`ComposerClearanceSpacer.tsx`，传统与虚拟列表共用）。⑤ 打开「单轮能力」编辑器时，桌面只开选项区里的弹层，手机只开操作表。⑥ 守卫：`layout/__tests__/NavBar.railBudget.test.tsx` 点名守住侧栏 8 个常驻入口；`composer-options/__tests__/ComposerPrimaryControls.test.tsx` 与 `EmptyChat.contract.test.ts` 守住主行 5 个控件、不得再出现滚动容器；`agent-config-panel/__tests__/ExpertSummon.test.tsx` 守住「只在空会话出现、其他会话不请求模板」。 |
+| **行为变化** | ① 空会话首屏的专家条是一行，占位与成品等高，关掉后本机不再回来。② 关掉迁移卡片或手机安装引导后本机 7 天内不再出现，关掉更新条后到下一个版本才再出现；安全补丁仍会出现。③ 侧栏只剩 8 个图标，其余在「更多」里。④ 桌面输入框默认只有 5 个控件，其余点「+」展开；手机不变，仍用「+」打开操作表。 |
+| **回归证据** | [实测，开发 UI 对接后端接口，Chromium headless] [1] 专家条：1440×900 占位与成品条都是 38 px，输入框不动；390×844 都是 46 px；第二个新会话立即出现芯片且不发第二次模板请求；关闭并刷新后条保持关闭，模板请求 0 次（加水合核对之前是 1 次）。[2] 卡片：关闭两张卡片后开新会话，迁移卡片不出现且发出 0 次发现请求；已关闭的版本保持安静，更新的版本会再出现；对被推迟版本的安全补丁会出现，且只在下一个会话前保持关闭；`/mobile` 的安装引导写入 7.0 天静默期，刷新后保持隐藏，静默期过期后回来。[3] 侧栏：PC 1440×900 与手机 390×844（触屏）都是 8 个控件；菜单 13 行三组，完整落在视口内（PC 左 60 / 右 316 / 下 782；手机上 152 / 下 836）；行高 PC 36 px、触屏 44 px 且无快捷键提示；1440×520 窗口里菜单封顶 504 px 并可滚动（scrollHeight 579 对 clientHeight 502），最后一行可达；375×667 占 8..659；点「活动」去 `/runs` 且入口高亮（`aria-current="true"`）；指针选择、点外面与手机点按之后都没有提示气泡和焦点环；键盘打开后按 Esc 焦点回到入口；PC 检查了亮暗两套主题，手机检查了暗色。[4] 输入框：1440×900 折叠时 788×206 px（与改动前相同），主行最宽 501 px 且 scrollWidth 等于 clientWidth，展开多 145 px（351 px）；1100 / 900 / 768 / 700 / 640 宽下主行无横向溢出，折叠高度都是 206 px（权限胶囊在修复前的 1100 / 768 / 700 / 640 被挤成两行，输入框是 212 px，修复后保持 104×26 px）；1100 / 768 / 700 / 640 宽下可见的模型名是 134 / 141 / 78 / 23 px（完整 167 px）；会话里底部间距从 222 px 增到 365 px，最后一条消息离输入框 231 px，传统列表（2 条消息）与虚拟列表（26 条，超过 20 条的阈值）一样，折叠后回到 222 px；选项区关着时脚本点击其中的控件有效，三个模式开着时「+」的名称是「展开工具栏 · 已启用：编排模式 (PTC)、作为长期目标执行、无痕模式」；保存的展开状态刷新后保持；Tab 在选项区关着时到不了其中的控件，打开后到得了；手机 390×844 输入框 326×222 px、「+」操作表 9 个按钮、桌面开关与选项区 `display:none`；亮暗主题在 PC 与手机都检查过。[5] 单测与变异：输入框这一轮新增 41 个测试（7 个文件），39 个变异（在源码副本上做，不碰工作树）都被预期的测试杀掉；侧栏守卫 2 例，4 个变异都被杀掉；侧栏「更多」22 例与 9 个变异、专家条与卡片记忆的用例见各自测试文件。 |
+| **仍然存在** | ① 只在开发服务器上测量，没有测生产构建的布局偏移。② 选项区展开 / 收起的 200 ms 高度动画是否顺滑没有人看过（代码里 `motion-reduce` 下关闭过渡）。③ 新增的 5 个文案键在德 / 日 / 韩 / 繁体中文里的措辞没有母语者审读。④ 视口宽 700 px 与 640 px 时（输入框 636 px 与 576 px），模型名只剩 78 px 与 23 px 可见，因为其余控件保持宽度；没有处理。⑤ 保存为「展开」的用户在水合后会看到一次高度滑动（服务端与首帧都按「关」渲染）。⑥ 侧栏原来的 16 个图标是读源码数出来的，不是实测。⑦ 「单轮能力编辑器原先同时打开桌面弹层与手机操作表」来自读代码，没有在运行时复现。⑧ 精选专家条在输入框较窄时（手机、窄窗口）靠横滑看后面的芯片，被裁的一侧有渐隐提示；去掉每个芯片上的「专家 / 团队」角标可以多露出一个芯片，需要产品决定，没有处理。 |
+| **代码位置** | frontend：`src/components/features/chat-window/{MessageInput.tsx,Chat.tsx,ComposerClearanceSpacer.tsx,composer-options/,agent-config-panel/FeaturedExpertChips.tsx,virtual-message-list/VirtualMessageList.tsx}`、`src/components/layout/{NavBar.tsx,NavMoreMenu.tsx,useNavMoreSections.ts}`、`src/hooks/ui/{persistedStringStore.ts,useProactiveDismissal.ts}`、`src/services/featuredTemplates.ts`、更新 / 迁移 / 安装三张卡片、六个 `locales/*.json`、55 个 E2E 脚本与 `scripts/dev/lib/cdp_chat/support.py`、对应测试与 `_ARCH.md`。 |
+
+## 2026-11-05 · 桌面输入框里的权限档位菜单与专家召唤浮层被工具栏的滚动容器裁成一条细缝：浮层用内联 `absolute` 挂在 `overflow-x-auto` 的工具栏里，纵向同样被裁
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**。修复前没有在浏览器里复现，症状由代码与 CSS 规则推出。 |
+| **症状** | ① [代码，读修复前的文件] 权限档位菜单与专家召唤浮层都是内联 `absolute` 定位，挂在桌面输入框的工具栏里。② [代码 + CSS 规则] 工具栏是 `overflow-x: auto` 的横向滚动容器，另一个轴的 `overflow: visible` 此时计算为 `auto`，纵向同样裁切，所以向上弹出的浮层只露出工具栏 36 px 高的那一条，选项用鼠标点不到。 |
+| **根因** | [代码] 两个浮层没有走门户，被最近的裁切祖先（工具栏滚动容器）裁掉；没有任何测试检查工具栏里的弹层会不会被裁。 |
+| **修复** | ① 权限档位切换器改用项目的 `DropdownMenu`（门户渲染，碰到视口边缘翻转并平移，方向键与 Esc 可用，三档是 `menuitemradio`）。② 专家召唤浮层改用 `Popover`（门户渲染，打开即聚焦搜索框，关闭按钮有名称，用例芯片上的原生 emoji 换成图标，删掉没人传的 `className` 属性）。③ 新增源码级契约 `chat-window/__tests__/ComposerToolbar.popupPortal.contract.test.ts`：输入框控件所在目录里不得再出现内联 `absolute bottom-full / top-full` 弹层，必须走 Radix 门户；它的匹配模式能同时命中修复前的两个文件。 |
+| **回归证据** | [实测，1440×900，修复后，开发 UI 对接后端接口] 两个菜单的 9 / 9 个采样点都落在菜单自身上，最近的裁切祖先是 900 px 的页面容器而不是工具栏滚动条，真实鼠标点击能到达选项。[单测] 权限档位切换器与专家召唤的用例使用真实 Radix 与 user-event；契约测试扫描目录并要求命中数大于 15。 |
+| **仍然存在** | ① 契约只扫描 `message-input-actions/`、`chat-window/composer-options/`、`chat-window/thinking-permission/` 与 `ExpertSummonPopover.tsx`，输入框周边其他目录里的内联弹层不在范围内。② 修复前的症状没有在浏览器里复现。 |
+| **代码位置** | frontend：`src/components/features/chat-window/thinking-permission/PermissionModeTierSwitcher.tsx`、`agent-config-panel/ExpertSummonPopover.tsx`、两者的测试、`chat-window/__tests__/ComposerToolbar.popupPortal.contract.test.ts` 与相关 `_ARCH.md`。 |
+
+## 2026-11-05 · 组织 Agent Marketplace 的沙箱侧整体删除：没有任何调用方，强制推送本来就到不了沙箱，不接产品也不再保留
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **已删除**。同日「官网与文档把组织 Marketplace 写成可用功能」一条只更正了文字、没有删代码，并写明「接上还是删除尚未决定」；本条是决定删除之后的实际改动。控制面、官网与文档站的对应改动在各自仓库。 |
+| **症状** | 沙箱里留着一整套没有用户路径的代码：`app/services/agent/marketplace/`（包契约、导出、导入、安全闸，约 1400 行）与 `app/api/internal/import_agent_profile.py`（`POST /api/admin/import-agent-profile`，约 330 行），外加 110 个只测这些代码的测试。它们要求维护，却不对任何用户可见的功能负责。 |
+| **根因** | [代码，逐项核对] ① 唯一的调用方是控制面的强制推送，而控制面只以 `force=True` 调用该端点；端点按 `marketplace_entry_id` 找已安装的绑定，绑定只由非强制导入创建，非强制导入没有调用方，所以强制推送对沙箱得到 404。② 沙箱没有导出路由，`export_agent_package` 只被测试调用。③ 前端、桌面端、浏览器扩展、官网都不调用控制面的 `/api/marketplace`。用户之间交换专家走的是 Agent Plugins ZIP（`/plugins/export`、`/plugins/import`），它有自己的导入审查与只收紧规则，与被删的代码互不依赖。 |
+| **修复** | 删除 `app/services/agent/marketplace/` 整个包、`app/api/internal/import_agent_profile.py`、`app/main.py` 里的路由挂载，以及只测它们的 6 个测试文件；`_ARCH.md` 与行数基线去掉对应行；`tests/architecture/test_frontend_api_client_paths.py` 的控制面根路径集合去掉 `marketplace`（保留 `theme-marketplace`）；`tests/database/test_agent_repo_coverage.py` 里借用 `marketplace_entry_id` 当样例字段的断言改用 `temperature`。`AGENT_CONFIG_UPDATED` 事件仍由 `agent_service.py` 发布，`ProfileSnapshotService`、前端的 `AgentTemplateMarketplace` 与 `MARKETPLACE_CP_SIGNING_SECRET`（主题市场验签仍在用）都保留。 |
+| **行为变化** | `POST /api/admin/import-agent-profile` 不再存在。它之前对强制推送返回 404，所以没有任何正在工作的流程被切断。控制面侧的三张表由迁移 `020` 删除，见控制面仓库。 |
+| **回归证据** | [实测，scratch 工作树，基于 `76f7ce1a9f`，与同一提交的基线对照] [1] 架构、`tests/api/internal`、`tests/services/agent`、`tests/database/test_agent_repo_coverage.py` （基线 3581 项，本次 3487 项）：失败集与基线逐项相同（73 失败 + 1 错误，均不在被删代码上），通过数 3500 → 3406，减少 94，恰好等于被删的 94 个用例（另有 16 个集成用例随 `tests/integration/test_marketplace_import_full_chain.py` 一并删除，未在这一组里）。[2] `import app.main` 成功。[3] `rg "agent\.marketplace|import_agent_profile|import-agent-profile"`（排除本文件）在本仓库零命中。[4] 改动的 Python 文件 `ruff format --check` 通过。 |
+| **仍然存在** | ① 该范围内与基线相同的 73 个失败与 1 个错误（`tests/services/agent` 的转换器与流式用例、架构门禁里的 10 个）不是本次引入，未处理。② `scripts/check_fractal_docs.py` 曾报 `app/core/cron/adapters/agent_runner`、`app/core/cron/blueprints/i18n` 缺 `_ARCH.md`，基线上同样如此；后续提交给两个目录各补了 `_ARCH.md`，并把 `app/core/cron/_ARCH.md` 里已不存在的 `adapters/agent_runner.py` 路径改成包目录，该脚本两种模式现已通过。③ `app/api/agents/general_agent/media_config.py` 从 `app.services.agent.params.providers` 导入，该模块已不存在，`import app.main` 在原样代码上会失败；本次测试时在 scratch 里临时改了导入路径，提交里没有带这处改动。④ CI 没有在本次推送后观察。 |
+| **代码位置** | `app/services/agent/marketplace/`（已删除）、`app/api/internal/import_agent_profile.py`（已删除）、`app/main.py`、`app/api/internal/_ARCH.md`、`app/services/agent/_ARCH.md`、`tests/architecture/test_frontend_api_client_paths.py`、`tests/database/test_agent_repo_coverage.py`、`scripts/ci/file_line_budget_baseline.txt`。 |
+
 ## 2026-11-05 · LiteLLM 的进程级响应缓存不再安装：它按模型与消息分键、不看 Key 与端点，设置页三个探针之外，本地模型测试、故障转移健康检查、共享上下文嵌入健康探测也会把没问过的 Key 答成成功；技能整并的「预览 → 执行」握手只靠这层缓存才对得上，改为执行预览存下的那份计划
 
 | 字段 | 内容 |

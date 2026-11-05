@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
+    from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.core.skills.models import UserSkillConfig
-    from app.platform_utils.storage import StorageProvider
 
 
 @dataclass(slots=True)
@@ -40,7 +40,6 @@ async def load_skill_runtime(
 
     # 3. Load Skills (prebuilt visibility follows the user's enabled-prebuilt set)
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
-
 
     _user_skill_cfg = await UserSkillConfigManager(storage_backend).get_config()
     allowed_prebuilt = frozenset(_user_skill_cfg.enabled_prebuilt_ids)

@@ -13,10 +13,10 @@ from myrm_agent_harness.toolkits.memory.strategies.extractor import (
     ExtractionResult,
     FeedbackSignal,
     MemoryExtractor,
-    _parse_response,
     detect_correction_signals,
     detect_feedback_signals,
 )
+from myrm_agent_harness.toolkits.memory.strategies.extractor.parse import _parse_response
 from myrm_agent_harness.toolkits.memory.types import (
     ClaimConflictState,
     ClaimGraphState,
@@ -1064,9 +1064,7 @@ class TestCorrectionPromptBuilding:
     """Test _build_system_prompt correction-related sections."""
 
     def test_reflection_section_always_included(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         config = ExtractionConfig()
         prompt = _build_system_prompt(config, correction_detected=False)
@@ -1075,9 +1073,7 @@ class TestCorrectionPromptBuilding:
         assert "User Correction" in prompt
 
     def test_correction_hint_included_when_detected(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         config = ExtractionConfig()
         prompt = _build_system_prompt(config, correction_detected=True)
@@ -1085,9 +1081,7 @@ class TestCorrectionPromptBuilding:
         assert "source_error" in prompt
 
     def test_correction_hint_absent_when_not_detected(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         config = ExtractionConfig()
         prompt = _build_system_prompt(config, correction_detected=False)
@@ -1103,36 +1097,28 @@ class TestExtractionQualityRules:
     """Regression tests for extraction quality prompt rules."""
 
     def test_third_person_rule_present(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig())
         assert "Third Person" in prompt
         assert "no pronouns" in prompt.lower()
 
     def test_outcomes_rule_present(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig())
         assert "Outcomes" in prompt
         assert "WAS DONE" in prompt
 
     def test_conciseness_rule_present(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig())
         assert "Concise" in prompt
         assert "15-50 words" in prompt
 
     def test_never_store_blacklist_present(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig())
         assert "Never store" in prompt
@@ -1142,9 +1128,7 @@ class TestExtractionQualityRules:
 
     def test_language_fidelity_rule_present_for_english(self):
         """English extraction must also keep CJK names verbatim (no romanization)."""
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(), "en")
         assert "Never translate" in prompt
@@ -1154,9 +1138,7 @@ class TestExtractionQualityRules:
 
     def test_language_fidelity_rule_present_for_chinese(self):
         """Chinese extraction keeps prose Chinese while names stay verbatim."""
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(), "zh")
         assert "Never translate" in prompt
@@ -1164,27 +1146,21 @@ class TestExtractionQualityRules:
         assert "verbatim in their" in prompt
 
     def test_wiki_boundary_section_when_enabled(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(wiki_boundary_enabled=True))
         assert "Wiki vs Memory Boundary" in prompt
         assert "wiki_ingest_tool" not in prompt
 
     def test_wiki_boundary_section_absent_when_disabled(self):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(wiki_boundary_enabled=False))
         assert "Wiki vs Memory Boundary" not in prompt
 
     def test_quality_rules_absent_when_no_types_enabled(self):
         """Quality rules are part of core prompt, not shown when all types disabled."""
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         config = ExtractionConfig(
             extract_profile=False,
@@ -1198,18 +1174,14 @@ class TestExtractionQualityRules:
 
     def test_domain_preset_section_included_when_set(self):
         """Domain preset hints are injected when domain_preset is non-none."""
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(domain_preset="persona"))
         assert "Domain Priority Attributes" in prompt
 
     def test_domain_preset_section_absent_when_none(self):
         """Domain preset hints are skipped for the default none preset."""
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(ExtractionConfig(domain_preset="none"))
         assert "Domain Priority Attributes" not in prompt
@@ -1513,9 +1485,7 @@ class TestTaskDigest:
         assert len(result.memories) == 0
 
     def test_digest_prompt_section_included_when_enabled(self, digest_config):
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(digest_config)
         assert "Task Digest" in prompt
@@ -1523,9 +1493,7 @@ class TestTaskDigest:
 
     def test_digest_prompt_section_absent_when_disabled(self):
         config = ExtractionConfig(enable_task_digest=False)
-        from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-            _build_system_prompt,
-        )
+        from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import _build_system_prompt
 
         prompt = _build_system_prompt(config)
         assert "Task Digest" not in prompt

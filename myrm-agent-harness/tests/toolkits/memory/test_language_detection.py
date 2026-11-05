@@ -13,11 +13,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-    _CHINESE_THRESHOLD,
     ExtractionConfig,
     MemoryExtractor,
-    _build_system_prompt,
     detect_language,
+)
+from myrm_agent_harness.toolkits.memory.strategies.extractor.prompt import (
+    _CHINESE_THRESHOLD,
+    _build_system_prompt,
 )
 from myrm_agent_harness.toolkits.memory.types import (
     EpisodicMemory,

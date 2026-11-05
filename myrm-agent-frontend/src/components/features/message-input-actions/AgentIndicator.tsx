@@ -8,10 +8,10 @@
  * @/lib/utils/agent-config::buildAgentConfig (POS: 智能体配置映射)
  *
  * [OUTPUT]
- * AgentIndicator: 输入框工具栏智能体指示器与内联快切下拉组件。
+ * AgentIndicator: 输入框选项区的智能体指示器与内联快切下拉组件。
  *
  * [POS]
- * 输入区工具栏核心操作项。默认展示当前活跃 Agent 头像/图标与名称；
+ * 输入区选项区（「能力」组）与手机操作表里的核心操作项。默认展示当前活跃 Agent 头像/图标与名称；
  * 点击弹出轻量 DropdownMenu，支持在活跃多轮会话中 1 秒热切内置预设（Presets）与自定义智能体（Custom Agents），
  * 联动底层 agentId、skills、MCP、systemPrompt 与安全预设，底部保留详细配置面板与管理中心入口。
  */
@@ -76,7 +76,7 @@ const getGradientFromAvatarUrl = (avatarUrl?: string, fallbackIndex: number = 0)
 
 /**
  * Agent 指示器与快切下拉组件
- * 位于 Composer 输入框工具栏：
+ * 位于 Composer 输入框的选项区（手机上在操作表里）：
  * 1. 默认展示当前激活智能体头像/图标与名称
  * 2. 点击弹出轻量 DropdownMenu 快速切换已保存智能体或内置预设
  * 3. 底部保留「详细配置与微调」与「管理智能体中心」入口

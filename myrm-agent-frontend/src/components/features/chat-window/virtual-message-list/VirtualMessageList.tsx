@@ -10,6 +10,7 @@
  * - ./MessageRow (POS: 单条消息行组件)
  * - ./useMessageHeights (POS: 消息高度缓存 Hook)
  * - @/hooks/ui/useScrollPositionRestore (POS: 滚动跟随持久化镜像总线)
+ * - ../ComposerClearanceSpacer (POS: 列表末尾随浮动输入框高度变化的底部间距)
  *
  * [OUTPUT]
  * - VirtualMessageList: 虚拟滚动消息列表组件
@@ -40,6 +41,7 @@ import MessageBox from '../../message-box/MessageBox';
 import MessageBoxLoading from '../../message-box/MessageBoxLoading';
 import { useMessageHeights } from './useMessageHeights';
 import { CompactedSummaryView } from '../CompactedSummaryView';
+import { ComposerClearanceSpacer } from '../ComposerClearanceSpacer';
 
 /** 虚拟消息列表属性 */
 interface VirtualMessageListProps {
@@ -51,8 +53,8 @@ interface VirtualMessageListProps {
   messageAppeared: boolean;
   /** 用户是否手动滚动 */
   userScrolledRef: React.MutableRefObject<boolean>;
-  /** 容器 Ref（用于获取宽度等） */
-  containerRef?: React.RefObject<HTMLDivElement | null>;
+  /** 消息列容器 Ref：浮动输入框是它的直接子节点，底部间距据此跟随输入框高度 */
+  containerRef: React.RefObject<HTMLDivElement | null>;
   /** 聊天 ID（切换时清理高度缓存） */
   chatId?: string;
   /** 搜索结果高亮的消息 ID */
@@ -85,7 +87,7 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     loading,
     messageAppeared,
     userScrolledRef,
-    containerRef: _containerRef,
+    containerRef,
     chatId,
     highlightMessageId,
     scrollToMessageRef,
@@ -376,8 +378,8 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
           </div>
         )}
 
-        {/* 底部安全间距，避免内容被浮动输入框遮挡 */}
-        <div className="h-44 w-full shrink-0" />
+        {/* 底部安全间距，避免内容被浮动输入框遮挡；高度随输入框实际高度变化 */}
+        <ComposerClearanceSpacer columnRef={containerRef} className="min-h-44 w-full shrink-0" />
       </div>
     );
   },

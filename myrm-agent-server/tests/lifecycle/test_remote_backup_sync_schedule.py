@@ -63,10 +63,10 @@ def recording(monkeypatch: pytest.MonkeyPatch) -> Iterator[type[_RecordingSchedu
     _RecordingScheduler.started = False
     monkeypatch.setattr("apscheduler.AsyncScheduler", _RecordingScheduler)
     yield _RecordingScheduler
-    task = schedulers._remote_backup_scheduler_task
+    task = schedulers.backup._remote_backup_scheduler_task
     if task is not None:
         task.cancel()
-    monkeypatch.setattr(schedulers, "_remote_backup_scheduler_task", None)
+    monkeypatch.setattr(schedulers.backup, "_remote_backup_scheduler_task", None)
 
 
 async def test_the_hourly_check_is_registered_a_few_minutes_after_boot(recording: type[_RecordingScheduler]) -> None:

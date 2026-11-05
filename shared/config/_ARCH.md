@@ -6,7 +6,7 @@
 
 ## Normalize Contract
 
-Legacy storage id remap 在前后端使用**同一算法**（与 [`providers.py`](../../myrm-agent-server/app/services/agent/params/providers.py) · [`providerIdentityMigration.ts`](../../myrm-agent-frontend/src/store/config/providerIdentityMigration.ts) 一致）：
+Legacy storage id remap 在前后端使用**同一算法**（与 [`providers.py`](../../myrm-agent-server/app/services/agent/params/model_config/providers.py) · [`providerIdentityMigration.ts`](../../myrm-agent-frontend/src/store/config/providerIdentityMigration.ts) 一致）：
 
 1. `trim()` 首尾空白
 2. `-` → `_`

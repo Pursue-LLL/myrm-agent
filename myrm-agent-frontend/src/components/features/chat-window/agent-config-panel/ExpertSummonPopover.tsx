@@ -6,14 +6,14 @@
  * - @/services/templateDiscovery::templateMatchesSearchQuery, resolveTemplateKind (POS: 模板搜索与类型判定)
  * - @/services/templateSummon::instantiateTemplateWithMetrics (POS: 专家召唤统一入口与漏斗埋点)
  * - ./prefillComposerWithUseCase (POS: 召唤后预填输入框且不覆盖草稿)
- * - @/components/primitives/popover (POS: 门户渲染的浮层，避免被工具栏横向滚动容器裁切)
+ * - @/components/primitives/popover (POS: 门户渲染的浮层，避免被选项区的裁切容器切掉)
  *
  * [OUTPUT]
- * - ExpertSummonPopover: 输入框工具栏的专家团队一键发现与召唤 Popover 浮层
+ * - ExpertSummonPopover: 输入框选项区的专家团队一键发现与召唤 Popover 浮层
  *
  * [POS]
- * MessageInput 工具栏中的专家发现入口，支持即时预览与召唤闭环。
- * 浮层必须走门户：工具栏是 overflow-x 滚动容器，内联 absolute 浮层会被其纵向裁切。
+ * 输入框选项区「能力」组中的专家发现入口，支持即时预览与召唤闭环。
+ * 浮层必须走门户：选项区为动画高度而 overflow-hidden，内联 absolute 浮层会被它裁掉。
  */
 
 import { memo, useEffect, useRef, useState, useMemo, useCallback } from 'react';

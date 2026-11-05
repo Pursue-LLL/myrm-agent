@@ -20,7 +20,7 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | `mutations.py` | 路由 | **POST /apply** · **POST /compound** · **POST /daily-review** · **POST /templates/seed** · **DELETE /concepts** · **DELETE /raw** | ✅ |
 | `queue.py` | 路由 | **/queue** 状态与重试、**/pending** 审批、**/repair-types**、**/repair-publication**、**/reindex-vectors** | ✅ |
 | `insights.py` | 路由 | **/purpose**、**/graph/insights**、**/research**、**/ingest**、**/graph** | ✅ |
-| `imports.py` | 路由 | **/import/folder** · **/import/zip** · **/import/obsidian** · **/import/obsidian-zip** | ✅ |
+| `imports/` | 子包 | **/import/folder** · **/import/zip**（folder_zip.py）· **/import/obsidian** · **/import/obsidian-zip**（obsidian.py）；详见 [imports/_ARCH.md](imports/_ARCH.md) | ✅ |
 | `url_import.py` | 路由 | **POST /import/urls** | ✅ |
 | `video_import.py` | 路由 | **POST /import/video** | ✅ |
 | `meeting.py` | 路由 | **/meeting-notes/transcribe** 与 **/meeting-notes/live/{session_id}[/ingest|/finalize]** | ✅ |

@@ -2735,6 +2735,11 @@
       "expandToolbar": "Symbolleiste ausklappen",
       "expandEditor": "Editor vergrößern (Strg/⌘+Umschalt+Enter)",
       "collapseEditor": "Editor verkleinern (Strg/⌘+Umschalt+Enter)",
+      "toolbar": "Symbolleiste",
+      "toolbarActive": "Aktiv: {names}",
+      "toolbarGroupThinking": "Denken",
+      "toolbarGroupModes": "Modi",
+      "toolbarGroupCapabilities": "Fähigkeiten",
       "expandedPlaceholder": "Enter für neue Zeile · Strg/⌘+Enter zum Senden · Esc zum Schließen",
       "stop": "Stopp"
     },

@@ -35,7 +35,6 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_memory_brief_telemetry_layout.py` | memory brief CP 遥测须位于 `app/services/agent/memory_brief_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |
 | `test_builtin_specs_layout.py` | 预置智能体规格须位于 `app/services/agent/builtin_specs/` 子包，禁止根目录 legacy 平铺文件复活 |
 | `test_memory_guardian_guard_telemetry_layout.py` | memory guardian guard CP 遥测须位于 `app/services/agent/memory_guardian_guard_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |
-| `test_marketplace_layout.py` | Agent Marketplace 导入/导出须位于 `app/services/agent/marketplace/` 子包，禁止根目录 legacy 平铺文件复活 |
 | `test_app_package_init_layout.py` | `app/**` 含 `.py` 的目录须声明 `__init__.py`（禁止隐式 namespace 包） |
 | `test_conversation_recall_layout.py` | Conversation Recall 仓储须位于 `app/database/repositories/conversation_recall/` 子包，禁止 repositories 根 legacy 平铺文件复活 |
 | `test_e2ee_layout.py` | Mobile remote E2EE 须位于 `app/remote_access/e2ee/` 子包，禁止 remote_access 根 legacy 平铺文件复活 |

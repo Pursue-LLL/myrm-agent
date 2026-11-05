@@ -1,0 +1,271 @@
+"""Wiki folder / zip 批量导入。
+
+[POS]
+Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。
+"""
+
+from __future__ import annotations
+
+import logging
+import tempfile
+from pathlib import Path
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
+    WikiMapEventType,
+)
+
+from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
+from app.api.wiki.routes import vault_effects
+from app.api.wiki.routes.import_helpers import (
+    _build_import_message,
+    _publish_import_raw,
+    _schedule_post_import_dedup_scan,
+    _track_import_publish_result,
+    _validate_import_conflict_options,
+)
+from app.api.wiki.routes.schemas_import import (
+    ImportFolderRequest,
+    ImportResultResponse,
+)
+from app.services.wiki import MemoryToWikiArchiver
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["wiki"])
+
+
+@router.post("/import/folder", response_model=ImportResultResponse)
+async def import_folder(
+    request: ImportFolderRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> ImportResultResponse:
+    """Batch import all text documents from a local folder into the wiki raw/ directory."""
+    _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
+    try:
+        source_dir = Path(request.folder_path)
+        scanned_files = archiver._structure.scan_folder(source_dir, request.extensions)
+
+        if not scanned_files:
+            return ImportResultResponse(
+                success=True,
+                files_scanned=0,
+                files_enqueued=0,
+                message="No matching files found",
+            )
+
+        enqueued_paths: list[Path] = []
+        conflict_paths: list[str] = []
+        security_blocked_paths: list[str] = []
+        security_redacted_paths: list[str] = []
+        files_skipped_conflict = 0
+        files_superseded = 0
+
+        for src_file in scanned_files:
+            try:
+                content = src_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                try:
+                    content = src_file.read_text(encoding="latin-1")
+                except Exception:
+                    logger.warning(f"Skipping unreadable file: {src_file}")
+                    continue
+
+            rel_path = src_file.relative_to(source_dir).as_posix()
+            result = await _publish_import_raw(
+                archiver._structure,
+                rel_path,
+                content,
+                on_conflict=request.on_conflict,
+                supersede_reason=request.supersede_reason,
+            )
+            skipped, superseded = _track_import_publish_result(
+                result,
+                enqueued_paths=enqueued_paths,
+                conflict_paths=conflict_paths,
+                security_blocked_paths=security_blocked_paths,
+                security_redacted_paths=security_redacted_paths,
+            )
+            files_skipped_conflict += skipped
+            files_superseded += superseded
+
+        if enqueued_paths:
+            archiver._queue.add_batch(enqueued_paths)
+            if request.auto_compile:
+                archiver._compiler.start_background_worker()
+            else:
+                vault_effects._refresh_wiki_cognitive_map(
+                    archiver,
+                    WikiMapEventType.IMPORT,
+                    f"Imported {len(enqueued_paths)} file(s) without auto-compile",
+                    {"files_enqueued": len(enqueued_paths)},
+                )
+
+        if enqueued_paths or files_superseded > 0:
+            await vault_effects._after_wiki_vault_mutation(archiver, "import folder")
+
+        if enqueued_paths:
+            await _schedule_post_import_dedup_scan(agent_id)
+
+        return ImportResultResponse(
+            success=True,
+            files_scanned=len(scanned_files),
+            files_enqueued=len(enqueued_paths),
+            files_skipped_conflict=files_skipped_conflict,
+            files_superseded=files_superseded,
+            files_security_blocked=len(security_blocked_paths),
+            files_security_redacted=len(security_redacted_paths),
+            conflict_paths=conflict_paths,
+            security_blocked_paths=security_blocked_paths,
+            security_redacted_paths=security_redacted_paths,
+            message=_build_import_message(
+                enqueued=len(enqueued_paths),
+                skipped_conflict=files_skipped_conflict,
+                superseded=files_superseded,
+                security_blocked=len(security_blocked_paths),
+                security_redacted=len(security_redacted_paths),
+                auto_compile=request.auto_compile,
+            ),
+        )
+    except FileNotFoundError as e:
+        logger.warning("Folder import source not found: %s", e)
+        raise HTTPException(status_code=404, detail="Source folder not found") from e
+    except Exception as e:
+        logger.error(f"Folder import failed: {e}")
+        raise HTTPException(status_code=500, detail="Folder import failed") from e
+
+
+@router.post("/import/zip", response_model=ImportResultResponse)
+async def import_zip(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    file: UploadFile = File(..., description="ZIP file to import"),
+    extensions: str = Query(".md,.txt,.org", description="Comma-separated extensions"),
+    auto_compile: bool = Query(True, description="Start compilation after import"),
+    on_conflict: Literal["skip", "supersede"] = Query(
+        "skip",
+        description="When a raw file already exists with different content",
+    ),
+    supersede_reason: str = Query("", description="Required when on_conflict is supersede"),
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> ImportResultResponse:
+    """Upload and import a ZIP archive of documents into the wiki."""
+    import zipfile
+
+    _MAX_ZIP_BYTES = 100 * 1024 * 1024  # 100 MB
+    _validate_import_conflict_options(on_conflict, supersede_reason)
+
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+
+    if file.size and file.size > _MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+
+    ext_list = [e.strip() for e in extensions.split(",") if e.strip()]
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            zip_path = tmp_path / "upload.zip"
+
+            content = await file.read()
+            if len(content) > _MAX_ZIP_BYTES:
+                raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+            zip_path.write_bytes(content)
+
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmp_path / "extracted")
+
+            extracted_dir = tmp_path / "extracted"
+            scanned_files = archiver._structure.scan_folder(extracted_dir, ext_list)
+
+            if not scanned_files:
+                return ImportResultResponse(
+                    success=True,
+                    files_scanned=0,
+                    files_enqueued=0,
+                    message="No matching files in ZIP",
+                )
+
+            enqueued_paths: list[Path] = []
+            conflict_paths: list[str] = []
+            security_blocked_paths: list[str] = []
+            security_redacted_paths: list[str] = []
+            files_skipped_conflict = 0
+            files_superseded = 0
+
+            for src_file in scanned_files:
+                try:
+                    file_content = src_file.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    try:
+                        file_content = src_file.read_text(encoding="latin-1")
+                    except Exception:
+                        logger.warning(f"Skipping unreadable file in ZIP: {src_file}")
+                        continue
+
+                rel_path = src_file.relative_to(extracted_dir).as_posix()
+                result = await _publish_import_raw(
+                    archiver._structure,
+                    rel_path,
+                    file_content,
+                    on_conflict=on_conflict,
+                    supersede_reason=supersede_reason,
+                )
+                skipped, superseded = _track_import_publish_result(
+                    result,
+                    enqueued_paths=enqueued_paths,
+                    conflict_paths=conflict_paths,
+                    security_blocked_paths=security_blocked_paths,
+                    security_redacted_paths=security_redacted_paths,
+                )
+                files_skipped_conflict += skipped
+                files_superseded += superseded
+
+            if enqueued_paths:
+                archiver._queue.add_batch(enqueued_paths)
+                if auto_compile:
+                    archiver._compiler.start_background_worker()
+                else:
+                    vault_effects._refresh_wiki_cognitive_map(
+                        archiver,
+                        WikiMapEventType.IMPORT,
+                        f"Imported {len(enqueued_paths)} file(s) from ZIP without auto-compile",
+                        {"files_enqueued": len(enqueued_paths)},
+                    )
+
+            if enqueued_paths or files_superseded > 0:
+                await vault_effects._after_wiki_vault_mutation(archiver, "import zip")
+
+            if enqueued_paths:
+                await _schedule_post_import_dedup_scan(agent_id)
+
+            return ImportResultResponse(
+                success=True,
+                files_scanned=len(scanned_files),
+                files_enqueued=len(enqueued_paths),
+                files_skipped_conflict=files_skipped_conflict,
+                files_superseded=files_superseded,
+                files_security_blocked=len(security_blocked_paths),
+                files_security_redacted=len(security_redacted_paths),
+                conflict_paths=conflict_paths,
+                security_blocked_paths=security_blocked_paths,
+                security_redacted_paths=security_redacted_paths,
+                message=_build_import_message(
+                    enqueued=len(enqueued_paths),
+                    skipped_conflict=files_skipped_conflict,
+                    superseded=files_superseded,
+                    security_blocked=len(security_blocked_paths),
+                    security_redacted=len(security_redacted_paths),
+                    auto_compile=auto_compile,
+                    source_label=" from ZIP",
+                ),
+            )
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file") from None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ZIP import failed: {e}")
+        raise HTTPException(status_code=500, detail="ZIP import failed") from e

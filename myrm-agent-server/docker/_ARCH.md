@@ -29,7 +29,7 @@ docker build -f myrm-agent-server/Dockerfile -t myrm-server .
 docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 ```
 
-Runtime 阶段 `COPY shared /shared`，供 [providers.py](../app/services/agent/params/providers.py) 在 `/shared/config/provider_legacy_remap.json` 加载跨端 provider ID remap。
+Runtime 阶段 `COPY shared /shared`，供 [providers.py](../app/services/agent/params/model_config/providers.py) 在 `/shared/config/provider_legacy_remap.json` 加载跨端 provider ID remap。
 
 依赖安装：`uv.lock` 把 harness 解析为本仓库 editable path source；镜像内用 `uv sync --frozen --all-extras --no-install-package myrm-agent-harness` 装其余依赖（harness 的依赖仍来自 lock），再 `uv pip install --no-deps` 装入 harness wheel，因此镜像里的 harness 不是 editable。Runtime 校验：`verify-harness-distribution --matplotlib-cjk`。
 

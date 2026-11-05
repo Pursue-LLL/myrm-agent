@@ -33,5 +33,5 @@ lifecycle/memory_guardian (fail-closed)
 ## 依赖关系
 
 - `app/config/settings.py` — CP telemetry 配置
-- `app/schemas/control_plane.py` — batch envelope 类型
-- `app/lifecycle/schedulers.py` — start/stop 委托
+- `app/schemas/control_plane/` — batch envelope 类型
+- `app/lifecycle/schedulers/` — start/stop 委托

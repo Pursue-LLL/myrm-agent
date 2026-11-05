@@ -247,15 +247,11 @@ class StreamTurnEndRecoveryMixin(StreamTruncationRecoveryMixin):
     ) -> bool:
         """Detect empty LLM response and inject a prompt to recover.
 
+        The reply judged is the run's latest one, which ``collected_messages`` does not hold when it is empty.
         Returns True when a continuation prompt was injected (caller should ``continue``
         the outer loop to re-run astream). Returns False otherwise.
         """
-        last_ai_msg: AIMessage | None = None
-        for msg in reversed(collected_messages):
-            if isinstance(msg, AIMessage):
-                last_ai_msg = msg
-                break
-
+        last_ai_msg = self._latest_reply
         if last_ai_msg is None:
             return False
 
@@ -269,6 +265,11 @@ class StreamTurnEndRecoveryMixin(StreamTruncationRecoveryMixin):
         # Note: We do NOT exempt reasoning-only responses (e.g. <thinking> blocks without actual output).
         # A reasoning-only response is still an empty response from the user's perspective and must be retried.
         if has_tool_calls or has_content:
+            return False
+
+        # A reply the output limit cut inside its reasoning belongs to the truncation recovery, which has
+        # already raised the budget as far as it goes: asking again at the base budget would only cut again.
+        if self._cut_by_output_limit() and (has_tagged_reasoning or self._has_reasoning_content(last_ai_msg)):
             return False
 
         if has_tagged_reasoning:
