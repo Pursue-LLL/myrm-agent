@@ -19,5 +19,5 @@
 
 ## 依赖
 
-- `app.core.channel_bridge.model_resolver` — LiteLLM 模型名规范化
+- `app.core.channel_bridge.model_resolver` — 把 provider 与模型名规范化为带路由前缀的模型 id（`_to_route_model_id`）
 - `app.channels.types` — 会话与语音类型
