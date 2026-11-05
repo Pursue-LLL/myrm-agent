@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.agent.stream_session.stream_session_types (POS: 会话上下文数据类)
-- app.services.agent.stream_session.stream_loop (POS: Core streaming loop: routes to fast/reasoning/deep-research lanes, handles approval timeouts, compression exhaustion, workflow escalation, and context overflow reset)
+- app.services.agent.stream_session.stream_loop (POS: Core streaming loop: routes to fast / reasoning / wiki-knowledge lanes, handles approval timeouts, compression exhaustion, workflow escalation, and context overflow reset)
 - app.services.agent.stream_session.stream_disconnect (POS: 直连 SSE 断连监控的启停作用域，先于 finalize 退出)
 - app.services.agent.stream_session.stream_exception_chunks (POS: 把流异常转成用户可见的错误 chunk)
 - app.services.agent.stream_session.stream_finalize (POS: 会话 teardown)
