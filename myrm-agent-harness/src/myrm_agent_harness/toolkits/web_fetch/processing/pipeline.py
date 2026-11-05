@@ -29,7 +29,6 @@ import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 from langchain_core.documents import Document
 
@@ -190,6 +189,8 @@ class ContentPipeline:
         fetches) for as long as it runs, and the fetch timeout cannot interrupt it there.
         """
         context = contextvars.copy_context()
-        return await asyncio.get_running_loop().run_in_executor(
-            _CONVERSION_EXECUTOR, partial(context.run, self.process, fetch_result, max_chars)
-        )
+
+        def convert() -> Document | None:
+            return context.run(self.process, fetch_result, max_chars)
+
+        return await asyncio.get_running_loop().run_in_executor(_CONVERSION_EXECUTOR, convert)

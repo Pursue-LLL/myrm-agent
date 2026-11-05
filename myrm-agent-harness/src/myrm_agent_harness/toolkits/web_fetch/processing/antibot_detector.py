@@ -3,7 +3,7 @@
 Three-tier layered detection to determine if a crawl was blocked
 by anti-bot protection or returned an error page.
 
-Detection philosophy (from crawl4ai):
+Detection philosophy:
   false positives are cheap (the fallback/degradation rescues them),
   false negatives are catastrophic (Agent gets garbage content).
   Err on the side of detection.
@@ -17,7 +17,7 @@ Tiers:
 - (none)
 
 [OUTPUT]
-- is_blocked: Detect if a crawl result was blocked by anti-bot protecti...
+- is_blocked: Tells whether a crawl result was blocked by anti-bot protection or is an error page, with the reason
 
 [POS]
 Anti-bot and error page detection for crawl results.

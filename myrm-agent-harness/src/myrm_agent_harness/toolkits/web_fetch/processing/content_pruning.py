@@ -1,16 +1,17 @@
-"""Content剪枝Filter器
+"""DOM-tree pruning content filter for fetched HTML.
 
-基于 DOM 树剪枝算法  HTML ContentFilter，Extract正文区域、移除导航/广告 etc.噪音。
-针对 header 标签 and Content区域做了智能optimized。
+Scores every node by text density, link density, tag weight, class/id hints and text length, drops the nodes below a
+threshold and removes navigation, ads and other boilerplate. A ``header`` inside a content region is kept.
 
 [INPUT]
-- (none)
+utils.tree_truncator::truncate_html_soup (POS: Budget-aware truncation of HTML and ARIA trees) [lazy]
 
 [OUTPUT]
-- ContentPruningFilter: class — Content Pruning Filter
+ContentPruningFilter: Reduces a page to its main-content HTML blocks (``filter_content``)
 
 [POS]
-Provides ContentPruningFilter.
+Boilerplate and noise pruning for the web fetch processing pipeline: turns raw page HTML into the content blocks
+the Markdown generator converts.
 """
 
 from __future__ import annotations
@@ -19,8 +20,9 @@ import logging
 import math
 import re
 from collections import deque
+from typing import cast
 
-from bs4 import BeautifulSoup, Comment  # type: ignore[import-untyped]
+from bs4 import BeautifulSoup, Comment, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -53,12 +55,11 @@ _SKIP_TAGS = frozenset(
 
 
 class ContentPruningFilter:
-    """基于 DOM 树剪枝 ContentFilter器
+    """Prunes a page's DOM tree down to its main content.
 
-    特点：
-    1. 保留 article/main/section  in   header 标签
-    2. 基于上下文 智能 link_density 评分
-    3. 提高 strong/b  etc.强调标签 权重
+    1. Keeps ``article`` / ``main`` / ``section`` and a ``header`` inside them.
+    2. Scores link density in context: a pure link list is boilerplate, a link-heavy paragraph is not.
+    3. Weights emphasis tags such as ``strong`` and ``b`` higher.
     """
 
     def __init__(
@@ -113,7 +114,7 @@ class ContentPruningFilter:
         }
 
     # ------------------------------------------------------------------
-    # DOM 树剪枝（内化自 PruningContentFilter）
+    # DOM tree pruning
     # ------------------------------------------------------------------
 
     def _remove_comments(self, soup: BeautifulSoup) -> None:
@@ -125,21 +126,14 @@ class ContentPruningFilter:
             for element in soup.find_all(tag):
                 element.decompose()
 
-    def _prune_tree(self, node: object) -> None:
-        if not node or not hasattr(node, "name") or node.name is None:  # type: ignore[union-attr]
-            return
-
-        text_len = len(node.get_text(strip=True))  # type: ignore[union-attr]
-        tag_len = len(node.encode_contents().decode("utf-8"))  # type: ignore[union-attr]
-        link_text_len = sum(
-            len(s.strip())
-            for s in (a.string for a in node.find_all("a", recursive=False))  # type: ignore[union-attr]
-            if s
-        )
+    def _prune_tree(self, node: Tag) -> None:
+        text_len = len(node.get_text(strip=True))
+        tag_len = len(node.encode_contents().decode("utf-8"))
+        link_text_len = sum(len(s.strip()) for s in (a.string for a in node.find_all("a", recursive=False)) if s)
 
         metrics = {
             "node": node,
-            "tag_name": node.name,  # type: ignore[union-attr]
+            "tag_name": node.name,
             "text_len": text_len,
             "tag_len": tag_len,
             "link_text_len": link_text_len,
@@ -148,60 +142,51 @@ class ContentPruningFilter:
         score = self._compute_composite_score(metrics, text_len, tag_len, link_text_len)
 
         if score < self.threshold:
-            node.decompose()  # type: ignore[union-attr]
+            node.decompose()
         else:
-            children = [child for child in node.children if hasattr(child, "name")]  # type: ignore[union-attr]
-            for child in children:
+            for child in [child for child in node.children if isinstance(child, Tag)]:
                 self._prune_tree(child)
 
-    def _compute_class_id_weight(self, node: object) -> float:
+    def _compute_class_id_weight(self, node: Tag) -> float:
         class_id_score = 0.0
-        attrs = getattr(node, "attrs", {})
+        attrs = node.attrs
         if "class" in attrs:
             classes = " ".join(attrs["class"])
             if _NEGATIVE_PATTERNS.match(classes):
                 class_id_score -= 0.5
-        if "id" in attrs and _NEGATIVE_PATTERNS.match(attrs["id"]):
+        if "id" in attrs and _NEGATIVE_PATTERNS.match(str(attrs["id"])):
             class_id_score -= 0.5
         return class_id_score
 
     # ------------------------------------------------------------------
-    # 区域检测
+    # Region detection
     # ------------------------------------------------------------------
 
-    def _check_element_area(self, element: object) -> str:
-        if hasattr(element, "name"):
-            if element.name in {"main", "article", "section"}:  # type: ignore[union-attr]
+    def _check_element_area(self, element: Tag) -> str:
+        node: Tag | None = element
+        while node is not None:
+            if node.name in {"main", "article", "section"}:
                 return "content"
-            elif element.name in {"nav", "footer", "aside"}:  # type: ignore[union-attr]
+            if node.name in {"nav", "footer", "aside"}:
                 return "navigation"
-
-        parent = element.parent if hasattr(element, "parent") else None  # type: ignore[union-attr]
-        while parent and hasattr(parent, "name"):
-            if parent.name in {"main", "article", "section"}:
-                return "content"
-            elif parent.name in {"nav", "footer", "aside"}:
-                return "navigation"
-            parent = parent.parent if hasattr(parent, "parent") else None
+            node = node.parent
         return ""
 
-    def _check_in_content_area(self, element: object) -> bool:
+    def _check_in_content_area(self, element: Tag) -> bool:
         return self._check_element_area(element) == "content"
 
     # ------------------------------------------------------------------
-    # 辅助检测
+    # Helper checks
     # ------------------------------------------------------------------
 
-    def _is_pure_link_list(self, node: object) -> bool:
-        if not hasattr(node, "children"):
-            return False
+    def _is_pure_link_list(self, node: Tag) -> bool:
         children_with_links = 0
-        for child in node.children:  # type: ignore[union-attr]
-            if not hasattr(child, "name") or child.name is None:
+        for child in node.children:
+            if not isinstance(child, Tag):
                 continue
             if child.name == "a":
                 children_with_links += 1
-            elif hasattr(child, "find"):
+            else:
                 try:
                     if child.find("a", recursive=True):
                         children_with_links += 1
@@ -216,57 +201,53 @@ class ContentPruningFilter:
     def _has_ssr_variant_class(self, class_list: list[str]) -> bool:
         return any("ssr-variant" in str(cls) for cls in class_list)
 
-    def _bfs_find_content_section(self, element: object) -> bool:
-        queue: deque[object] = deque([element])
+    def _bfs_find_content_section(self, element: Tag) -> bool:
+        queue: deque[Tag] = deque([element])
         visited: set[int] = {id(element)}
         while queue:
             current = queue.popleft()
-            if hasattr(current, "name") and current.name in ("section", "main", "article"):  # type: ignore[union-attr]
+            if current.name in ("section", "main", "article"):
                 return True
-            if hasattr(current, "children"):
-                for child in current.children:  # type: ignore[union-attr]
-                    if hasattr(child, "name") and child.name and id(child) not in visited:  # type: ignore[union-attr]
-                        queue.append(child)
-                        visited.add(id(child))
+            for child in current.children:
+                if isinstance(child, Tag) and id(child) not in visited:
+                    queue.append(child)
+                    visited.add(id(child))
         return False
 
-    def _compute_content_hash(self, element: object) -> int | None:
-        text = element.get_text(strip=True)  # type: ignore[union-attr]
+    def _compute_content_hash(self, element: Tag) -> int | None:
+        text = element.get_text(strip=True)
         if not text or len(text) < 10:
             return None
-        tag_name = element.name if hasattr(element, "name") else ""  # type: ignore[union-attr]
-        child_count = len(list(element.children)) if hasattr(element, "children") else 0  # type: ignore[union-attr]
-        return hash(f"{tag_name}:{child_count}:{text[:300]}")
+        return hash(f"{element.name}:{len(list(element.children))}:{text[:300]}")
 
     # ------------------------------------------------------------------
-    # coreFilter
+    # Core filter
     # ------------------------------------------------------------------
 
     def filter_content(self, html: str, max_chars: int = 0) -> tuple[list[str], bool]:
-        """HTML 预Process + DOM 剪枝，ReturnFiltered HTML 片段List"""
-        from bs4 import BeautifulSoup
-
+        """Prune *html* to its content blocks (outer HTML strings) and report whether they were truncated."""
         from myrm_agent_harness.utils.tree_truncator import truncate_html_soup
 
         soup = BeautifulSoup(html, "lxml")
         if not soup.body:
             soup = BeautifulSoup(f"<body>{html}</body>", "lxml")
 
-        ssr_variant_hashes: dict[int, object] = {}
+        ssr_variant_hashes: dict[int, Tag] = {}
 
-        def _calculate_link_density(element: object) -> tuple[int, int, float]:
-            text = element.get_text(strip=True) if hasattr(element, "get_text") else ""  # type: ignore[union-attr]
+        def _calculate_link_density(element: Tag) -> tuple[int, int, float]:
+            text = element.get_text(strip=True)
             if not text:
                 return 0, 0, 0.0
-            links = element.find_all("a") if hasattr(element, "find_all") else []  # type: ignore[union-attr]
-            link_text = "".join(a.get_text(strip=True) for a in links if hasattr(a, "get_text"))
-            return len(links), len(text), len(link_text) / len(text) if text else 0.0
+            links = element.find_all("a")
+            link_text = "".join(a.get_text(strip=True) for a in links)
+            return len(links), len(text), len(link_text) / len(text)
 
         body = soup.body
         if not body:
             return [], False
 
         for el in list(body.find_all(True)):
+            # An element decomposed together with a removed ancestor has lost its attributes.
             if not hasattr(el, "name") or el.name is None or el.name in _SKIP_TAGS:
                 continue
             if not hasattr(el, "attrs"):
@@ -348,7 +329,7 @@ class ContentPruningFilter:
             return [], False
 
     # ------------------------------------------------------------------
-    # 评分逻辑
+    # Scoring
     # ------------------------------------------------------------------
 
     def _compute_composite_score(
@@ -358,15 +339,15 @@ class ContentPruningFilter:
         tag_len: int,
         link_text_len: int,
     ) -> float:
+        node = cast(Tag, metrics["node"])
         if self.min_word_threshold:
-            text = metrics["node"].get_text(strip=True)  # type: ignore[union-attr]
+            text = node.get_text(strip=True)
             word_count = text.count(" ") + 1
             if word_count < self.min_word_threshold:
                 return -1.0
 
         score = 0.0
         total_weight = 0.0
-        node = metrics["node"]
 
         if self.metric_config["text_density"]:
             density = text_len / tag_len if tag_len > 0 else 0
@@ -419,7 +400,7 @@ class ContentPruningFilter:
 
         final_score = score / total_weight if total_weight > 0 else 0.0
 
-        area = self._check_element_area(metrics["node"])
+        area = self._check_element_area(node)
         if area == "navigation":
             final_score *= 0.90
         elif area == "content":

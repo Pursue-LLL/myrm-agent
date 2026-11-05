@@ -15,10 +15,12 @@ from __future__ import annotations
 import html
 import re
 import urllib.parse
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
-from bs4 import BeautifulSoup, Comment, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, Tag
+from bs4.element import NavigableString
 
 
 @dataclass
@@ -117,7 +119,7 @@ _INLINE_TAGS: set[str] = {
 
 _HEADING_TAGS: set[str] = {"h1", "h2", "h3", "h4", "h5", "h6"}
 
-_MD_SPECIAL_RE: ClassVar[re.Pattern[str]] = re.compile(r"([\\`*_\[\]()#+\-!|>~{}])")
+_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\]()#+\-!|>~{}])")
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 _TRAILING_SPACES_RE = re.compile(r" +\n")
@@ -154,7 +156,7 @@ class HTML2Markdown:
     def update_params(self, **kwargs: object) -> None:
         for key, value in kwargs.items():
             if key == "preserve_tags":
-                self._opts.preserve_tags = set(value)  # type: ignore[arg-type]
+                self._opts.preserve_tags = set(cast("Iterable[str]", value))
             elif hasattr(self._opts, key):
                 setattr(self._opts, key, value)
 
@@ -255,7 +257,7 @@ class HTML2Markdown:
         code_tag = tag.find("code", recursive=False)
         if code_tag and isinstance(code_tag, Tag):
             lang = ""
-            classes = code_tag.get("class", [])
+            classes = code_tag.get("class")
             if isinstance(classes, list):
                 for cls in classes:
                     if isinstance(cls, str) and cls.startswith("language-"):
@@ -365,7 +367,7 @@ class HTML2Markdown:
 
     def _handle_ol(self, tag: Tag) -> str:
         items: list[str] = []
-        start = int(tag.get("start", 1) or 1)
+        start = int(str(tag.get("start") or 1))
         idx = start
         for child in tag.children:
             if isinstance(child, Tag) and child.name == "li":
@@ -451,7 +453,7 @@ class HTML2Markdown:
         return f"\n\n{stripped}\n\n"
 
 
-_TAG_HANDLERS: dict[str, object] = {
+_TAG_HANDLERS: dict[str, Callable[[HTML2Markdown, Tag], str]] = {
     "h1": HTML2Markdown._handle_heading,
     "h2": HTML2Markdown._handle_heading,
     "h3": HTML2Markdown._handle_heading,
