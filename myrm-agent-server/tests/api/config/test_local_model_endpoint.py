@@ -56,7 +56,7 @@ def test_stalled_model_is_cancelled_and_reported_as_no_response() -> None:
 
     with (
         patch(_FACTORY, return_value=_llm_with(AsyncMock(side_effect=_stall))),
-        patch("app.api.config.router._LOCAL_MODEL_TEST_TIMEOUT_S", 0.05),
+        patch("app.api.config.routes.diagnostics._LOCAL_MODEL_TEST_TIMEOUT_S", 0.05),
     ):
         response = client.post(_URL, json=_PAYLOAD)
 
