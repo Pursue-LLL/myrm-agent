@@ -4,7 +4,7 @@
 - asyncio::create_subprocess_exec (POS: async subprocess with pipe streams)
 
 [OUTPUT]
-- RgRunResult: exit code, stderr text, early-stop flag and stdout line count of one ripgrep run
+- RgRunResult: exit code, stderr text, early-stop flag, stdout line count and whether the run answered
 - run_rg: Stream ripgrep stdout lines (line feed or NUL ended) with early stop, bounded runtime and guaranteed reaping
 
 [POS]
@@ -33,9 +33,10 @@ _STREAM_LIMIT_BYTES = 16 * 1024 * 1024
 class RgRunResult:
     """Outcome of one ripgrep run.
 
-    ``lines_read`` counts the stdout lines handed to ``on_line``. A failed run that read none gave no answer (a
-    pattern or a flag ripgrep rejects); one that read some searched on past an entry it could not open, so what
-    it printed stands, an empty result included.
+    ``lines_read`` counts the stdout lines handed to ``on_line``. ``answered`` says whether those lines can be used:
+    status 2 after some output means ripgrep searched on past an entry it could not open (an unreadable directory),
+    so what it printed stands, an empty result included. A failure before any output (a pattern or a flag ripgrep
+    rejects) searched nothing, and a run that was killed or crashed cannot vouch for a partial result.
     """
 
     returncode: int | None
@@ -45,8 +46,13 @@ class RgRunResult:
 
     @property
     def failed(self) -> bool:
-        """True when ripgrep itself failed (exit code 2+), as opposed to 'no match' (1) or our own early stop."""
+        """True when ripgrep ended with a status other than match (0) or no match (1), our own early stop aside."""
         return not self.stopped_early and self.returncode not in (0, 1)
+
+    @property
+    def answered(self) -> bool:
+        """True when the run did not fail, or failed with status 2 after printing: see the class docstring."""
+        return not self.failed or (self.returncode == 2 and self.lines_read > 0)
 
 
 async def _drain(stream: asyncio.StreamReader) -> None:

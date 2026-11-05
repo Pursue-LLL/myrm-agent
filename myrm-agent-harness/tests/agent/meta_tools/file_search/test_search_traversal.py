@@ -7,9 +7,9 @@ Covers:
 - Symbolic links are never followed out of the workspace
 - A file name that holds a line break is one entry on both tiers
 - ripgrep ignores the user's own configuration
-- ripgrep failures: a run that printed output stands, an empty answer included (an unreadable directory); a run that
-  printed nothing (an unparseable pattern, flags it cannot run), a timeout and a failure to start fall back to the
-  Python tier
+- ripgrep failures: a run that ended with status 2 after printing stands, an empty answer included (an unreadable
+  directory); any other failure (an unparseable pattern, flags it cannot run, a kill after printing), a timeout and
+  a failure to start fall back to the Python tier
 """
 
 from __future__ import annotations
@@ -298,6 +298,17 @@ class TestRipgrepFailures:
 
         assert hit_files(await run_grep(plain_dir, "needle"), {"a.py"}) == {"a.py"}
 
+    async def test_grep_falls_back_when_ripgrep_cannot_run(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_grep: SearchRunner
+    ) -> None:
+        async def cannot_run(*_args: object, **_kwargs: object) -> None:
+            raise OSError("exec failed")
+
+        monkeypatch.setattr(grep_tool, "run_rg", cannot_run)
+        write_tree(plain_dir, {"a.py": "needle\n"})
+
+        assert hit_files(await run_grep(plain_dir, "needle"), {"a.py"}) == {"a.py"}
+
     async def test_glob_falls_back_when_ripgrep_cannot_run(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
     ) -> None:
@@ -333,3 +344,32 @@ class TestRipgrepFailures:
         write_tree(plain_dir, {"listed.py": "", "unlisted.py": ""})
 
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"listed.py"}
+
+    async def test_glob_falls_back_when_ripgrep_is_killed_after_printing_names(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
+    ) -> None:
+        async def killed_after_one_name(
+            _cmd: Sequence[str], *, on_line: Callable[[bytes], bool], **_kwargs: object
+        ) -> RgRunResult:
+            on_line(b"unrelated.txt\0")
+            return RgRunResult(returncode=-9, stderr="", stopped_early=False, lines_read=1)
+
+        monkeypatch.setattr(glob_tool, "run_rg", killed_after_one_name)
+        write_tree(plain_dir, {"a.py": "", "unrelated.txt": ""})
+
+        # The one name it printed says nothing about the names it never reached.
+        assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
+
+    async def test_grep_falls_back_when_ripgrep_is_killed_after_printing(
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_grep: SearchRunner
+    ) -> None:
+        async def killed_after_one_event(
+            _cmd: Sequence[str], *, on_line: Callable[[bytes], bool], **_kwargs: object
+        ) -> RgRunResult:
+            on_line(b'{"type":"begin","data":{"path":{"text":"a.py"}}}\n')
+            return RgRunResult(returncode=-9, stderr="", stopped_early=False, lines_read=1)
+
+        monkeypatch.setattr(grep_tool, "run_rg", killed_after_one_event)
+        write_tree(plain_dir, {"a.py": "needle\n", "b.py": "needle\n"})
+
+        assert hit_files(await run_grep(plain_dir, "needle"), {"a.py", "b.py"}) == {"a.py", "b.py"}
