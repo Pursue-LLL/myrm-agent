@@ -38,8 +38,6 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
 | `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
-| `blueprint_job_spec.py` | 核心 | 蓝图填充结果到任务的唯一转换与创建点：`to_job_spec` 把 `BlueprintFillResult` 逐字段转为 harness 的 `BlueprintJobSpec`（15 个字段同名，空的预检脚本视为没有），`fill_job_spec` 是 Agent 工具的蓝图填充器，`create_blueprint_job` 按 spec 创建任务（调用方只补它自己的名称、调度、智能体、允许根和超时兜底）。Agent 工具、Second Brain 预设与稍后读清理三条路径都经它，蓝图声明的字段在每条路径上都到达存储的任务；`tests/core/cron/test_blueprint_job_creation.py` 对全部 21 个内置蓝图逐字段核对 Agent 工具与创建函数两条路径 |
-| `blueprint_i18n_supplement.py` | 核心 | ja/de/ko 蓝图文案补充模块，导入时合并进 `BUILTIN_BLUEPRINTS` | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
 ---

@@ -19,7 +19,7 @@ from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronSchedu
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 from app.api.cron.routes.blueprints import router as blueprint_router
-from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES
+from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES
 from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
 
 # Blueprints with required empty-default text slots need explicit values in fill tests.

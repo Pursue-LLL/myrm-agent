@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
-from app.core.cron.blueprint_job_spec import create_blueprint_job, fill_job_spec, to_job_spec
+from app.core.cron.blueprints.job_spec import create_blueprint_job, fill_job_spec, to_job_spec
 from app.core.cron.blueprints import (
     BUILTIN_BLUEPRINTS,
     BlueprintFailureAlertDefaults,

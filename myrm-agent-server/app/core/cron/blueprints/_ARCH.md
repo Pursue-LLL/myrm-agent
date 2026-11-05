@@ -11,7 +11,9 @@ Cron 内置蓝图目录：`core/` 提供数据结构与注册/填充逻辑，`ca
 | `__init__.py` | 门面 | 对外导出 `BUILTIN_BLUEPRINTS`、`CronBlueprint`、`fill_blueprint` 等公开名字 | ✅ |
 | `core/` | 子包 | 蓝图数据结构、能力常量、时间→cron 转换、注册表与填充校验 | ✅ |
 | `catalog/` | 子包 | 按主题分组的蓝图数据，按声明顺序拼接成内置清单 | ✅ |
+| `i18n.py` | 数据 | ja/de/ko 文案补充，供 `core.types` 合并进蓝图 | ✅ |
+| `job_spec.py` | 核心 | 蓝图填充结果到 harness `BlueprintJobSpec` 的唯一转换与创建点 | ✅ |
 
 ## 依赖
 
-- `app.core.cron.blueprint_i18n_supplement` — ja/de/ko 文案补充
+

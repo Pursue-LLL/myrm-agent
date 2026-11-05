@@ -25,7 +25,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
-from app.core.cron.blueprint_job_spec import fill_job_spec
+from app.core.cron.blueprints.job_spec import fill_job_spec
 
 USER = "user-1"
 EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
