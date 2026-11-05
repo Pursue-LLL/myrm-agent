@@ -1,5 +1,5 @@
 """[INPUT] MachineNode, MachineMetrics, and TakeoverSession models.
-[OUTPUT] MachineService managing self-hosted machine fleet, heartbeats, and live takeover states.
+[OUTPUT] MachineService managing self-hosted machine fleet and live takeover states.
 [POS] app/services/machines/machine_service.py.
 """
 
@@ -118,31 +118,6 @@ class MachineService:
     def register_machine(self, node: MachineNode) -> MachineNode:
         """Register or update a machine node."""
         self._machines[node.machine_id] = node
-        return node
-
-    def heartbeat(self, machine_id: str, metrics: MachineMetrics) -> MachineNode:
-        """Update machine metrics and refresh heartbeat."""
-        node = self._machines.get(machine_id)
-        if not node:
-            now_iso = datetime.now(timezone.utc).isoformat()
-            node = MachineNode(
-                machine_id=machine_id,
-                hostname=f"node-{machine_id[:8]}",
-                display_name=f"Self-Hosted Node ({machine_id[:8]})",
-                platform=MachinePlatform.LINUX,
-                ip_address="127.0.0.1",
-                status=MachineStatus.ONLINE,
-                metrics=metrics,
-                registered_at=now_iso,
-                tags=["Self-Hosted"],
-            )
-            self._machines[machine_id] = node
-        else:
-            node.metrics = metrics
-            # If not in human takeover, status reflects activity
-            if node.status != MachineStatus.TAKEOVER:
-                node.status = MachineStatus.BUSY if metrics.active_tasks_count > 0 else MachineStatus.ONLINE
-
         return node
 
     def initiate_takeover(self, machine_id: str, operator_id: str = "user-primary") -> TakeoverSession:
