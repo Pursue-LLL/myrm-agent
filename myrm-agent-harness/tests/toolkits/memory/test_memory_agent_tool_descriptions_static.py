@@ -91,10 +91,10 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
     assert "**WHEN TO USE**" in manage
     assert "memory_save_tool" in manage
     assert "memory_search_tool" in manage
-    assert "correct → knowledge only" in manage
+    assert "knowledge memories only" in manage
     assert "preserves history" in manage
-    assert "instruction saves" in manage
-    assert "category=rule" in manage
+    assert "preference_key" in manage
+    assert "category" not in manage
     assert "Parameter semantics are in the tool schema" in manage
     assert "**Corpus guide**" in search
     assert "profile_key" in search
@@ -115,10 +115,10 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     assert "长期或慢性状况" in save
     assert "**何时使用**" in manage
     assert "memory_save_tool" in manage
-    assert "correct → 仅 knowledge" in manage
+    assert "仅 knowledge 记忆" in manage
     assert "保留历史记录" in manage
-    assert "instruction 保存" in manage
-    assert "category=rule" in manage
+    assert "preference_key" in manage
+    assert "category" not in manage
     assert "参数说明见工具参数定义" in manage
     assert "**Corpus 指南**" in search
     assert "profile_key" in search

@@ -68,17 +68,12 @@ MEMORY_MANAGE_TOOL_DESCRIPTION_ZH = """更新、删除、纠正或评分已有�
 **何时禁止使用本工具（转用其他工具/机制）**：
 - 存储新事实、偏好或规则 → memory_save_tool
 - 任务进度或聊天历史 → memory_search_tool，corpus=sessions
+- [preference] 结果：profile 属性没有可管理的 id — 要修改请用 memory_save_tool 以相同的 preference_key 重新保存；Agent 不能删除偏好
 
 **操作指南**：
 - delete：删除记忆（用户保护（钉选或锁定）的记忆 Agent 不能删）
 - update：仅微调措辞或重要性 — 事实本身仍有效（如修正错别字「Pyhton」→「Python」）；需要 new_content；用户已保护（钉选或锁定）的记忆 Agent 不能更新 — 请先请用户解除保护
-- correct：用最新正确事实替换过时或错误事实（如「用户在旧金山」→「用户搬到了西雅图」）— 仅 knowledge 类别；需要 new_content；保留历史记录；纠正已有记忆时优先于 memory_save_tool；用户已保护（钉选或锁定）的记忆 Agent 不能纠正 — 请先请用户解除保护
-- rate：记录用户反馈 — 仅 knowledge 或 event；需要 rating_score 1-5（1=差，5=优）
-
-**类别限制**：
-- correct → 仅 knowledge
-- rate → 仅 knowledge 或 event
-- preference 类 profile 属性不能通过本工具删除
-- instruction 保存（memory_save_tool）后存为 rule；管理时用 category=rule
+- correct：用最新正确事实替换过时或错误事实（如「用户在旧金山」→「用户搬到了西雅图」）— 仅 knowledge 记忆；需要 new_content；保留历史记录；纠正已有记忆时优先于 memory_save_tool；用户已保护（钉选或锁定）的记忆 Agent 不能纠正 — 请先请用户解除保护
+- rate：记录用户反馈 — 仅 knowledge 或 event 记忆；需要 rating_score 1-5（1=差，5=优）
 
 参数说明见工具参数定义。"""

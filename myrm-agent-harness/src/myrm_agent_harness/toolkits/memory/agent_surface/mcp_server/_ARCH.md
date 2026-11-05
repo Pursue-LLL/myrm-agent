@@ -17,7 +17,7 @@ MCP adapter exposing `MemoryManager` to external agents as `memory_recall`, `mem
 | `recall_tool.py` | Core | `memory_recall`: semantic search, profile lookup, budgeted and sanitized rendering. | ✅ |
 | `list_tool.py` | Core | `memory_list`: category overview and paginated enumeration. | ✅ |
 | `store_tool.py` | Core | `memory_store`: validation, wiki boundary, per-category writes; knowledge/event gates follow the manager's enabled types, so an embeddings-less deployment stores through the BM25 mirror. | ✅ |
-| `manage_tool.py` | Core | `memory_manage`: rate / delete / update / correct of existing memories; knowledge/event actions gate on the manager's enabled types, not dense capability. | ✅ |
+| `manage_tool.py` | Core | `memory_manage`: MCP binding over `../memory_manage_core.py` (rate / delete / update / correct by memory id). | ✅ |
 
 ## Key Dependencies
 

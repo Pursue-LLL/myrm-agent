@@ -853,7 +853,7 @@ tools = create_memory_tools(manager=manager)
 | --------------- | --------------------------------------------------------------------- |
 | `memory_search_tool` | HIGH_PRIORITY 层统一读工具：`corpus=memory|wiki|sessions|all`；Server 通过 `MemorySearchPolicy` ACL 绑定 wiki/会话后端 |
 | `memory_save_tool`   | 存储新记忆，支持 knowledge/event/preference/rule/instruction 五种类别；LLM description 由 `build_memory_save_tool_description(policy, approval_required, locale)` 组装（EN/ZH core + 可选 wiki 边界 + 可选审批提示）；参数语义在 `MemorySaveInput` Pydantic schema；当 `MemorySearchPolicy.allow_wiki=True` 时，≥800 字或 ≥3 个 markdown 标题的 knowledge/event 会被硬拒并指向 `wiki_ingest_tool` |
-| `memory_manage_tool` | 更新/删除/纠正/评分已有记忆；LLM description 与 save 对称分流（新事实→save；过时/错误事实→correct preserves history；措辞微调→update；rate→knowledge/event）；instruction 保存后按 `category=rule` 管理；工具返回用户向文案（不含内部 demote 术语）；参数语义在 `MemoryManageInput` Pydantic schema；Memory MCP HTTP（`agent_surface/mcp_server/`）的 `memory_manage` 同样 import `resolve_memory_manage_tool_description()` SSOT |
+| `memory_manage_tool` | 更新/删除/纠正/评分已有记忆；LLM description 与 save 对称分流（新事实→save；过时/错误事实→correct preserves history；措辞微调→update；rate→knowledge/event）；仅以 `memory_id` 寻址：记忆类型由已存记忆决定，没有 `category` 参数，id 只在管理器绑定的命名空间内解析（范围外的 id 视为不存在），Agent 工具与 MCP `memory_manage` 共用 `agent_surface/memory_manage_core.py`；`[preference]` 召回项没有可管理的 id，改值需以相同 `preference_key` 重新 `memory_save_tool`；工具返回用户向文案（不含内部 demote 术语）；参数语义在 `MemoryManageInput` Pydantic schema；Memory MCP HTTP（`agent_surface/mcp_server/`）的 `memory_manage` 同样 import `resolve_memory_manage_tool_description()` SSOT |
 
 #### Wiki vs Memory 写入边界
 

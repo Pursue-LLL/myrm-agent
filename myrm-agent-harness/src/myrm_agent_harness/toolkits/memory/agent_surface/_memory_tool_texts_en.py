@@ -68,17 +68,12 @@ MEMORY_MANAGE_TOOL_DESCRIPTION_EN = """Update, delete, correct, or rate an exist
 **WHEN NOT TO USE**:
 - Storing new facts, preferences, or rules → memory_save_tool
 - Task progress or chat history → memory_search_tool with corpus=sessions
+- A [preference] result: a profile attribute has no manageable id — change it by saving the same preference_key again with memory_save_tool; the agent cannot delete one
 
 **ACTION GUIDE**:
 - delete: remove a memory (memories the user protected cannot be deleted by the agent)
 - update: tweak wording or importance only — fact remains true (e.g., fix typo "Pyhton" -> "Python"); requires new_content; a memory the user protected cannot be updated by the agent — ask the user to release the protection first
-- correct: replace an outdated or wrong fact with the new truth (e.g., "User lives in Beijing" -> "User moved to Shanghai") — knowledge category only; requires new_content; preserves history; use instead of memory_save_tool when correcting existing memories; a memory the user protected cannot be corrected by the agent — ask the user to release the protection first
-- rate: record user feedback — knowledge or event only; requires rating_score 1-5 (1=poor, 5=excellent)
-
-**CATEGORY LIMITS**:
-- correct → knowledge only
-- rate → knowledge or event only
-- preference profile attributes cannot be deleted via this tool
-- instruction saves (via memory_save_tool) are stored as rules; manage them with category=rule
+- correct: replace an outdated or wrong fact with the new truth (e.g., "User lives in Beijing" -> "User moved to Shanghai") — knowledge memories only; requires new_content; preserves history; use instead of memory_save_tool when correcting existing memories; a memory the user protected cannot be corrected by the agent — ask the user to release the protection first
+- rate: record user feedback — knowledge or event memories only; requires rating_score 1-5 (1=poor, 5=excellent)
 
 Parameter semantics are in the tool schema."""
