@@ -11,7 +11,8 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 | pipeline.py | Core | ContentPipeline — HTML/JSON/XML to Markdown | ✅ |
 | content_sanitize.py | Util | Strip base64 blobs from markdown | ✅ |
 | content_pruning.py | Util | Boilerplate/noise pruning | ✅ |
-| html_to_markdown.py | Util | HTML to Markdown conversion | ✅ |
+| html_to_markdown.py | Util | HTML to Markdown conversion; a table lists the rows of its nested tables itself, so nesting depth never multiplies the output | ✅ |
+| markdown_table.py | Util | Markdown table layout of converted table rows (blank header when the table has none) | ✅ |
 | markdown_generator.py | Util | Markdown document generation | ✅ |
 | url_normalizer.py | Util | URL normalization for dedup | ✅ |
 | full_content_delivery.py | Core | Delivery plan for full-content reads: one shared character budget split max-min fairly across pages, a truncation window per cut page, the exact saved-file line range of every omitted section, newline-normalized and soft-wrapped saved text, failed-URL listing | ✅ |
