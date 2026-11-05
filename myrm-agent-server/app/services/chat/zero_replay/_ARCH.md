@@ -11,7 +11,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出门面 `ZeroReplaySnapshotService` | ✅ |
-| `service.py` | 核心 | `ZeroReplaySnapshotService` 单例服务，管理会话原子快照编译、epoch 判定、版本单调自增与 Live 增量过滤 | ✅ |
+| `service.py` | 核心 | `ZeroReplaySnapshotService` 单例服务，编译会话原子快照（产品内没有会话状态写入方，快照取空闲态默认值，只有 epoch 与状态版本来自引擎）、epoch 判定与 Live 增量过滤 | ✅ |
 
 ## 依赖
 

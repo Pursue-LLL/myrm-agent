@@ -39,10 +39,9 @@ async def async_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 
 
 @pytest.mark.asyncio
-async def test_atomic_snapshot_retrieval_and_state_updates(async_client: httpx.AsyncClient) -> None:
+async def test_atomic_snapshot_retrieval_is_stable_per_session(async_client: httpx.AsyncClient) -> None:
     chat_id = f"test_chat_{uuid.uuid4().hex[:8]}"
 
-    # 1. Fetch initial atomic snapshot
     resp = await async_client.get(f"/api/v1/chats/{chat_id}/atomic-snapshot")
     assert resp.status_code == 200
     data = resp.json()["data"]
@@ -50,31 +49,17 @@ async def test_atomic_snapshot_retrieval_and_state_updates(async_client: httpx.A
     assert data["state_version"] >= 1
     assert data["status"] == "idle"
     assert data["message_count"] == 0
+    assert data["active_tool_calls"] == []
     assert len(data["epoch_id"]) > 0
 
-    # 2. Update snapshot state with active tools and running status
-    patch_req = {
-        "status": "running",
-        "leaf_entry_id": "entry_node_42",
-        "active_tool_calls": [{"id": "call_1", "tool_name": "web_search"}],
-        "message_count": 5,
-        "latest_turn_summary": "Searching web documentation",
-    }
-    update_resp = await async_client.post(f"/api/v1/chats/{chat_id}/snapshot-state", json=patch_req)
-    assert update_resp.status_code == 200
-    updated_data = update_resp.json()["data"]
-    assert updated_data["status"] == "running"
-    assert updated_data["leaf_entry_id"] == "entry_node_42"
-    assert updated_data["state_version"] > data["state_version"]
-    assert len(updated_data["active_tool_calls"]) == 1
-    assert updated_data["latest_turn_summary"] == "Searching web documentation"
+    # Nothing reports session state, so a second fetch keeps the epoch and the version
+    again = (await async_client.get(f"/api/v1/chats/{chat_id}/atomic-snapshot")).json()["data"]
+    assert again["epoch_id"] == data["epoch_id"]
+    assert again["state_version"] == data["state_version"]
 
-    # 3. Subsequent snapshot fetch matches latest updated state
-    fetch_again = await async_client.get(f"/api/v1/chats/{chat_id}/atomic-snapshot")
-    assert fetch_again.status_code == 200
-    current = fetch_again.json()["data"]
-    assert current["state_version"] == updated_data["state_version"]
-    assert current["status"] == "running"
+    # Another session gets its own epoch
+    other = (await async_client.get(f"/api/v1/chats/test_chat_{uuid.uuid4().hex[:8]}/atomic-snapshot")).json()["data"]
+    assert other["epoch_id"] != data["epoch_id"]
 
 
 @pytest.mark.asyncio
@@ -82,7 +67,7 @@ async def test_handshake_stale_epoch_rejection(async_client: httpx.AsyncClient) 
     chat_id = f"test_chat_{uuid.uuid4().hex[:8]}"
 
     # Stale epoch must trigger handshake_failed
-    stale_params = {
+    stale_params: dict[str, str | int | float] = {
         "client_epoch": "stale_epoch_xyz",
         "client_version": 1,
         "client_timestamp_ms": time.time() * 1000.0,
@@ -116,22 +101,3 @@ async def test_handshake_success_and_live_ready_subscription(async_client: httpx
     assert "event: live_ready" in body
     assert "connected" in body
     assert "zero_replay_active" in body
-
-
-@pytest.mark.asyncio
-async def test_broadcast_live_event_increments_version(async_client: httpx.AsyncClient) -> None:
-    chat_id = f"test_chat_{uuid.uuid4().hex[:8]}"
-
-    snap_before = (await async_client.get(f"/api/v1/chats/{chat_id}/atomic-snapshot")).json()["data"]
-    version_before = snap_before["state_version"]
-
-    event_req = {
-        "event_type": "tool_heartbeat",
-        "payload": {"step": "executing_sql"},
-    }
-    broadcast_resp = await async_client.post(f"/api/v1/chats/{chat_id}/live-event", json=event_req)
-    assert broadcast_resp.status_code == 200
-    event_data = broadcast_resp.json()["data"]
-    assert event_data["event_type"] == "tool_heartbeat"
-    assert event_data["state_version"] > version_before
-    assert event_data["session_id"] == chat_id

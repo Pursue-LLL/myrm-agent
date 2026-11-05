@@ -69,7 +69,7 @@ export class OneTimeCredentialError extends Error {
 }
 
 async function postJson(path: string, body: unknown): Promise<Response> {
-  const resp = await fetch(`${API_BASE_URL}/approvals/credentials${path}`, {
+  const resp = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -86,7 +86,7 @@ export async function stageOneTimeCredentials(
   command: string,
   credentials: CredentialToStage[],
 ): Promise<StagedCredential[]> {
-  const resp = await postJson('', {
+  const resp = await postJson('/approvals/credentials', {
     chat_id: chatId,
     command,
     credentials: credentials.map(({ key, secret, ttlSeconds }) => ({
@@ -104,5 +104,5 @@ export async function wipeOneTimeCredentials(chatId: string, handleIds: string[]
   if (handleIds.length === 0) {
     return;
   }
-  await postJson('/wipe', { chat_id: chatId, handle_ids: handleIds });
+  await postJson('/approvals/credentials/wipe', { chat_id: chatId, handle_ids: handleIds });
 }

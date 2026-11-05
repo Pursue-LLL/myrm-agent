@@ -5,7 +5,7 @@
 - app.api.chats.chat.embed_bridge::router
 
 [OUTPUT]
-- Pytest test cases verifying origin validation, context injection, security policies, and snippet generation.
+- Pytest test cases verifying origin enforcement, context injection, security policies, and snippet generation.
 
 [POS]
 Server-side integration test suite for Item 41 P1. Strictly under 160 lines. Zero `Any`.
@@ -38,19 +38,6 @@ async def async_client() -> AsyncGenerator[httpx.AsyncClient, None]:
 
 
 @pytest.mark.asyncio
-async def test_validate_origin_default(async_client: httpx.AsyncClient) -> None:
-    # Default policy allows any origin (*)
-    resp = await async_client.post(
-        "/api/v1/chats/embed/validate-origin",
-        json={"origin": "https://example.com"},
-    )
-    assert resp.status_code == 200
-    data = resp.json()["data"]
-    assert data["valid"] is True
-    assert data["origin"] == "https://example.com"
-
-
-@pytest.mark.asyncio
 async def test_session_policy_and_origin_verification(async_client: httpx.AsyncClient) -> None:
     chat_id = f"chat_{uuid.uuid4().hex[:8]}"
 
@@ -66,30 +53,28 @@ async def test_session_policy_and_origin_verification(async_client: httpx.AsyncC
     assert policy_resp.status_code == 200
     assert policy_resp.json()["data"]["allowed_origins"] == ["https://mycorp.com", "*.corp.internal"]
 
-    # Verify origin allowed
-    val1 = await async_client.post(
-        "/api/v1/chats/embed/validate-origin",
-        json={"origin": "https://mycorp.com", "chat_id": chat_id},
-    )
-    assert val1.json()["data"]["valid"] is True
+    get_resp = await async_client.get(f"/api/v1/chats/{chat_id}/embed/policy")
+    assert get_resp.json()["data"]["allowed_origins"] == ["https://mycorp.com", "*.corp.internal"]
 
-    # Verify subdomain wildcard allowed
-    val2 = await async_client.post(
-        "/api/v1/chats/embed/validate-origin",
-        json={"origin": "https://crm.corp.internal", "chat_id": chat_id},
-    )
-    assert val2.json()["data"]["valid"] is True
+    async def inject_from(origin: str) -> dict[str, object]:
+        resp = await async_client.post(
+            f"/api/v1/chats/{chat_id}/embed/inject-context",
+            json={"origin": origin, "current_url": f"{origin}/page"},
+        )
+        assert resp.status_code == 200
+        payload: dict[str, object] = resp.json()
+        return payload
 
-    # Verify unauthorized origin rejected
-    val3 = await async_client.post(
-        "/api/v1/chats/embed/validate-origin",
-        json={"origin": "https://unauthorized.evil", "chat_id": chat_id},
-    )
-    assert val3.json()["data"]["valid"] is False
+    # Exact origin and subdomain wildcard are allowed
+    assert (await inject_from("https://mycorp.com"))["code"] == 0
+    assert (await inject_from("https://crm.corp.internal"))["code"] == 0
+
+    # Unauthorized origin is rejected
+    assert (await inject_from("https://unauthorized.evil"))["code"] == 403
 
 
 @pytest.mark.asyncio
-async def test_inject_host_context_and_retrieval(async_client: httpx.AsyncClient) -> None:
+async def test_inject_host_context(async_client: httpx.AsyncClient) -> None:
     chat_id = f"chat_{uuid.uuid4().hex[:8]}"
 
     # Inject context under permissive default policy
@@ -110,14 +95,6 @@ async def test_inject_host_context_and_retrieval(async_client: httpx.AsyncClient
     assert "@host_context: External Host Webpage Snapshot" in data["context_text"]
     assert "SKU-99201 High-Speed Router" in data["context_text"]
     assert "coupon: DISCOUNT50" in data["context_text"]
-
-    # Retrieve latest context
-    get_resp = await async_client.get(f"/api/v1/chats/{chat_id}/embed/context")
-    assert get_resp.status_code == 200
-    latest = get_resp.json()["data"]
-    assert latest is not None
-    assert latest["session_id"] == chat_id
-    assert latest["snapshot"]["current_url"] == "https://portal.example.com/checkout/step-2"
 
 
 @pytest.mark.asyncio

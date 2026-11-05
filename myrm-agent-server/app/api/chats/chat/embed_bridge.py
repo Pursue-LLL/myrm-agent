@@ -1,14 +1,12 @@
 """[INPUT]
 - Path parameters: chat_id
-- Request bodies: ValidateOriginRequest, SetEmbedPolicyRequest, InjectHostContextRequest, GenerateSnippetRequest
+- Request bodies: SetEmbedPolicyRequest, InjectHostContextRequest, GenerateSnippetRequest
 - EmbedBridgeService: Domain service
 
 [OUTPUT]
-- POST /chats/embed/validate-origin: Validate host origin permission
 - POST /chats/{chat_id}/embed/policy: Set embed security policy
 - GET /chats/{chat_id}/embed/policy: Get embed security policy
 - POST /chats/{chat_id}/embed/inject-context: Inject host webpage context
-- GET /chats/{chat_id}/embed/context: Get latest injected context
 - POST /chats/{chat_id}/embed/generate-snippet: Generate embed script snippet
 
 [POS]
@@ -29,11 +27,6 @@ from app.schemas.responses import StandardSuccessResponse
 from app.services.artifacts.embed_bridge import EmbedBridgeService
 
 router = APIRouter()
-
-
-class ValidateOriginRequest(BaseModel):
-    origin: str = Field(..., min_length=1, description="Host origin URL (e.g., https://example.com)")
-    chat_id: str | None = Field(default=None, description="Optional chat session ID for policy check")
 
 
 class SetEmbedPolicyRequest(BaseModel):
@@ -60,14 +53,6 @@ class GenerateSnippetRequest(BaseModel):
     allowed_origin: str = Field(default="*", description="Restricted embed origin")
 
 
-@router.post("/embed/validate-origin", response_model=StandardSuccessResponse)
-async def validate_host_origin(body: ValidateOriginRequest) -> JSONResponse:
-    """Validates if the provided origin meets cross-origin bridge security policy."""
-    svc = EmbedBridgeService.get_instance()
-    is_valid = svc.validate_origin(body.origin, body.chat_id)
-    return success_response(data={"valid": is_valid, "origin": body.origin})
-
-
 @router.post("/{chat_id}/embed/policy", response_model=StandardSuccessResponse)
 async def set_embed_policy(
     body: SetEmbedPolicyRequest,
@@ -81,11 +66,13 @@ async def set_embed_policy(
         allow_form_capture=body.allow_form_capture,
         allow_selection_capture=body.allow_selection_capture,
     )
-    return success_response(data={
-        "allowed_origins": policy.allowed_origins,
-        "allow_form_capture": policy.allow_form_capture,
-        "allow_selection_capture": policy.allow_selection_capture,
-    })
+    return success_response(
+        data={
+            "allowed_origins": policy.allowed_origins,
+            "allow_form_capture": policy.allow_form_capture,
+            "allow_selection_capture": policy.allow_selection_capture,
+        }
+    )
 
 
 @router.get("/{chat_id}/embed/policy", response_model=StandardSuccessResponse)
@@ -95,11 +82,13 @@ async def get_embed_policy(
     """Retrieves embed security policy for a specific chat session."""
     svc = EmbedBridgeService.get_instance()
     policy = svc.get_security_policy(chat_id)
-    return success_response(data={
-        "allowed_origins": policy.allowed_origins,
-        "allow_form_capture": policy.allow_form_capture,
-        "allow_selection_capture": policy.allow_selection_capture,
-    })
+    return success_response(
+        data={
+            "allowed_origins": policy.allowed_origins,
+            "allow_form_capture": policy.allow_form_capture,
+            "allow_selection_capture": policy.allow_selection_capture,
+        }
+    )
 
 
 @router.post("/{chat_id}/embed/inject-context", response_model=StandardSuccessResponse)
@@ -122,41 +111,20 @@ async def inject_host_context(
     except PermissionError as exc:
         return error_response(code=403, message=str(exc))
 
-    return success_response(data={
-        "session_id": injected.session_id,
-        "context_text": injected.context_text,
-        "injected_at_ms": injected.injected_at_ms,
-        "snapshot": {
-            "origin": injected.snapshot.origin,
-            "current_url": injected.snapshot.current_url,
-            "page_title": injected.snapshot.page_title,
-            "selected_text": injected.snapshot.selected_text,
-            "form_fields": injected.snapshot.form_fields,
-        },
-    })
-
-
-@router.get("/{chat_id}/embed/context", response_model=StandardSuccessResponse)
-async def get_latest_host_context(
-    chat_id: str = Path(..., description="Chat session ID"),
-) -> JSONResponse:
-    """Retrieves the latest injected host context for the session."""
-    svc = EmbedBridgeService.get_instance()
-    injected = svc.get_latest_context(chat_id)
-    if injected is None:
-        return success_response(data=None)
-
-    return success_response(data={
-        "session_id": injected.session_id,
-        "context_text": injected.context_text,
-        "injected_at_ms": injected.injected_at_ms,
-        "snapshot": {
-            "origin": injected.snapshot.origin,
-            "current_url": injected.snapshot.current_url,
-            "page_title": injected.snapshot.page_title,
-            "selected_text": injected.snapshot.selected_text,
-        },
-    })
+    return success_response(
+        data={
+            "session_id": injected.session_id,
+            "context_text": injected.context_text,
+            "injected_at_ms": injected.injected_at_ms,
+            "snapshot": {
+                "origin": injected.snapshot.origin,
+                "current_url": injected.snapshot.current_url,
+                "page_title": injected.snapshot.page_title,
+                "selected_text": injected.snapshot.selected_text,
+                "form_fields": injected.snapshot.form_fields,
+            },
+        }
+    )
 
 
 @router.post("/{chat_id}/embed/generate-snippet", response_model=StandardSuccessResponse)
@@ -175,10 +143,12 @@ async def generate_embed_snippet(
         theme=body.theme,
         allowed_origin=body.allowed_origin,
     )
-    return success_response(data={
-        "chat_id": chat_id,
-        "mode": body.mode,
-        "theme": body.theme,
-        "allowed_origin": body.allowed_origin,
-        "snippet": snippet,
-    })
+    return success_response(
+        data={
+            "chat_id": chat_id,
+            "mode": body.mode,
+            "theme": body.theme,
+            "allowed_origin": body.allowed_origin,
+            "snippet": snippet,
+        }
+    )
