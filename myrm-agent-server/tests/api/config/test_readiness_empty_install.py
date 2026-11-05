@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.api.config.router import get_config_readiness
+from app.api.config.routes.catalog import get_config_readiness
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.database.models import ConfigAuditLog, UserConfig
 from app.services.config import service
