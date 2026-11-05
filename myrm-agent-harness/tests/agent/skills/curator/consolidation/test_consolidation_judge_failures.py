@@ -98,7 +98,7 @@ class TestAFailingJudgeThroughTheCurator:
     """The curator swallows a failed consolidation pass, so the count has to travel inside the plan it returns."""
 
     @pytest.mark.asyncio
-    async def test_every_failed_cluster_reaches_the_caller_of_a_dry_run(self) -> None:
+    async def test_every_failed_cluster_reaches_the_caller_of_a_proposal(self) -> None:
         names = [f"{family}-{i}" for family in ("report", "invoice", "meeting") for i in range(4)]
         outage = _llm_answering(*[RuntimeError("429 rate limited")] * 3)
         curator = SkillCurator(
@@ -108,7 +108,7 @@ class TestAFailingJudgeThroughTheCurator:
             write_backend=MagicMock(),
         )
 
-        _, plan = await curator.run_async([make_skill(name) for name in names], force=True, consolidation_dry_run=True)
+        _, plan = await curator.run_async([make_skill(name) for name in names], force=True)
 
         assert isinstance(plan, ConsolidationPlan)
         assert (plan.failed_clusters, plan.is_empty) == (3, True)

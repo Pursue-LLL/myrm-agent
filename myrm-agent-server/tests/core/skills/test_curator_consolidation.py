@@ -232,12 +232,9 @@ class TestConsolidationDependencies:
 class TestConsolidationSparesBoundAndInstalledSkills:
     """Preview and execute hand the bound skills (agents / cron jobs) and the installed ones to the curator."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("dry_run", [True, False])
-    async def test_run_async_receives_protected_and_installed_names(self, dry_run: bool) -> None:
-        mock_curator_instance = MagicMock()
-        mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), ConsolidationReport()))
-
+    @staticmethod
+    @contextmanager
+    def _curator_seeing(curator: MagicMock) -> Iterator[None]:
         with (
             patch(
                 "app.core.skills.curator.consolidation._get_consolidation_deps",
@@ -248,13 +245,37 @@ class TestConsolidationSparesBoundAndInstalledSkills:
                 "app.core.skills.curator.consolidation.bound_skill_names",
                 AsyncMock(return_value=frozenset({"bound"})),
             ),
-            patch("myrm_agent_harness.agent.skills.curator.SkillCurator", return_value=mock_curator_instance),
+            patch("myrm_agent_harness.agent.skills.curator.SkillCurator", return_value=curator),
         ):
-            from app.core.skills.curator.consolidation import run_consolidation_execute, run_consolidation_preview
+            yield
 
-            await (run_consolidation_preview() if dry_run else run_consolidation_execute())
+    @pytest.mark.asyncio
+    async def test_preview_hands_them_to_the_proposal(self) -> None:
+        curator = MagicMock()
+        curator.run_async = AsyncMock(return_value=(MagicMock(), ConsolidationPlan()))
 
-        kwargs = mock_curator_instance.run_async.call_args.kwargs
+        with self._curator_seeing(curator):
+            from app.core.skills.curator.consolidation import run_consolidation_preview
+
+            await run_consolidation_preview()
+
+        kwargs = curator.run_async.call_args.kwargs
+        assert kwargs["protected_names"] == frozenset({"bound"})
+        assert kwargs["installed_names"] == frozenset({"from-store"})
+
+    @pytest.mark.asyncio
+    async def test_execute_hands_them_to_the_application_of_the_plan(self) -> None:
+        curator = MagicMock()
+        curator.apply_consolidation_plan = AsyncMock(return_value=ConsolidationReport())
+        plan = ConsolidationPlan()
+
+        with self._curator_seeing(curator):
+            from app.core.skills.curator.consolidation import run_consolidation_execute
+
+            await run_consolidation_execute(plan)
+
+        assert curator.apply_consolidation_plan.call_args.args[1] is plan
+        kwargs = curator.apply_consolidation_plan.call_args.kwargs
         assert kwargs["protected_names"] == frozenset({"bound"})
         assert kwargs["installed_names"] == frozenset({"from-store"})
 
@@ -277,7 +298,7 @@ class TestConsolidationExecute:
             total_archived=2,
         )
         mock_curator_instance = MagicMock()
-        mock_curator_instance.run_async = AsyncMock(return_value=(MagicMock(), report))
+        mock_curator_instance.apply_consolidation_plan = AsyncMock(return_value=report)
 
         with (
             patch(
@@ -290,7 +311,7 @@ class TestConsolidationExecute:
         ):
             from app.core.skills.curator.consolidation import run_consolidation_execute
 
-            result = await run_consolidation_execute()
+            result = await run_consolidation_execute(ConsolidationPlan())
 
         assert result == {
             "success_count": 1,

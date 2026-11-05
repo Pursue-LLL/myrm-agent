@@ -3,7 +3,7 @@
 Performs a single stateless sweep over all skills:
 1. Evaluates each skill against CuratorConfig thresholds
 2. Applies lifecycle transitions (active→stale, stale→archived)
-3. Optionally runs consolidation pass (umbrella merge)
+3. Optionally proposes a consolidation plan (umbrella merge) that the host applies when the user agrees
 4. Returns a structured CuratorRunResult
 
 Design principles:
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
 
-    from .consolidation import ConsolidationPlan, ConsolidationReport
+    from .consolidation import ConsolidationPlan, ConsolidationReport, SkillConsolidator
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,9 @@ class SkillCurator:
     Evaluates all provided skills against the configured thresholds and
     applies transitions. Each call to run() is a complete, independent sweep.
 
-    Optionally runs a consolidation pass to merge fragmented skills into
-    class-level umbrella skills (requires llm and write_backend).
+    Optionally proposes a consolidation plan that merges fragmented skills into
+    class-level umbrella skills (requires llm and write_backend), and applies a
+    plan once the host has shown it to the user.
 
     Usage:
         curator = SkillCurator(stats_collector, config)
@@ -64,7 +65,8 @@ class SkillCurator:
 
         # With consolidation:
         curator = SkillCurator(stats_collector, config, llm=cheap_llm, write_backend=backend)
-        result = await curator.run_async(skills)
+        result, plan = await curator.run_async(skills)
+        report = await curator.apply_consolidation_plan(skills, plan)
     """
 
     def __init__(
@@ -158,38 +160,61 @@ class SkillCurator:
         skills: list[SkillMetadata],
         *,
         force: bool = False,
-        consolidation_dry_run: bool = True,
         protected_names: frozenset[str] = frozenset(),
         installed_names: frozenset[str] = frozenset(),
-    ) -> tuple[CuratorRunResult, ConsolidationPlan | ConsolidationReport | None]:
-        """Execute a full curator sweep including optional consolidation.
+    ) -> tuple[CuratorRunResult, ConsolidationPlan | None]:
+        """Execute a lifecycle sweep and propose a consolidation plan.
+
+        The plan is only proposed: ``apply_consolidation_plan`` carries it out, so the host can show it first.
 
         Args:
             skills: All skills to evaluate.
             force: If True, bypass the enabled check.
-            consolidation_dry_run: If True, return consolidation plan without executing.
             protected_names: See ``run``. Protected skills are also kept out of consolidation,
                 which would archive them behind the caller's back, and no umbrella may take their names.
             installed_names: See ``run``. Exempt installed skills are kept out of consolidation too,
                 and their names are reserved the same way.
 
         Returns:
-            Tuple of (lifecycle_result, consolidation_result).
-            consolidation_result is None if consolidation is disabled/unavailable.
+            Tuple of (lifecycle_result, consolidation_plan).
+            consolidation_plan is None if consolidation is disabled/unavailable.
         """
         lifecycle_result = self.run(
             skills, force=force, protected_names=protected_names, installed_names=installed_names
         )
 
-        consolidation_result: ConsolidationPlan | ConsolidationReport | None = None
+        plan: ConsolidationPlan | None = None
         if self.consolidation_available:
-            exempt_names = self._exempt_names(protected_names, installed_names)
-            mergeable = [s for s in skills if s.name not in exempt_names]
-            consolidation_result = await self._run_consolidation(
-                mergeable, dry_run=consolidation_dry_run, reserved_names=exempt_names
-            )
+            mergeable, exempt_names = self._split_exempt(skills, protected_names, installed_names)
+            plan = await self._propose_consolidation(mergeable, reserved_names=exempt_names)
 
-        return lifecycle_result, consolidation_result
+        return lifecycle_result, plan
+
+    async def apply_consolidation_plan(
+        self,
+        skills: list[SkillMetadata],
+        plan: ConsolidationPlan,
+        *,
+        protected_names: frozenset[str] = frozenset(),
+        installed_names: frozenset[str] = frozenset(),
+    ) -> ConsolidationReport | None:
+        """Carry out a plan ``run_async`` proposed, exactly as proposed; the model is not asked again.
+
+        Args:
+            skills: The skills as they are now. The plan may be older than this call, so a skill it names
+                that has since been pinned, archived or exempted is left alone.
+            plan: A plan ``run_async`` returned.
+            protected_names: See ``run_async``.
+            installed_names: See ``run_async``.
+
+        Returns:
+            What was done, or None if consolidation is disabled/unavailable.
+        """
+        if not self.consolidation_available:
+            return None
+
+        mergeable, exempt_names = self._split_exempt(skills, protected_names, installed_names)
+        return await self._consolidator().apply(plan, mergeable, reserved_names=exempt_names)
 
     def _exempt_names(self, protected_names: frozenset[str], installed_names: frozenset[str]) -> frozenset[str]:
         """Skills a sweep must leave alone: those the caller depends on, plus installed ones while protection is on."""
@@ -197,26 +222,24 @@ class SkillCurator:
             return protected_names | installed_names
         return protected_names
 
-    async def _run_consolidation(
+    def _split_exempt(
         self,
         skills: list[SkillMetadata],
-        *,
-        dry_run: bool = True,
-        reserved_names: frozenset[str] = frozenset(),
-    ) -> ConsolidationPlan | ConsolidationReport | None:
-        """Run consolidation pass if dependencies are available.
+        protected_names: frozenset[str],
+        installed_names: frozenset[str],
+    ) -> tuple[list[SkillMetadata], frozenset[str]]:
+        """The skills consolidation may touch, and the names of the exempt ones left out (no umbrella may take them)."""
+        exempt_names = self._exempt_names(protected_names, installed_names)
+        return [s for s in skills if s.name not in exempt_names], exempt_names
 
-        ``reserved_names`` are the skills left out of ``skills``; no umbrella may take their names.
-        """
-        if not self.consolidation_available:
-            return None
-
+    def _consolidator(self) -> SkillConsolidator:
+        """The consolidation pipeline, built from the dependencies ``consolidation_available`` vouches for."""
         assert self._llm is not None
         assert self._write_backend is not None
 
         from .consolidation.orchestrator import SkillConsolidator
 
-        consolidator = SkillConsolidator(
+        return SkillConsolidator(
             llm=self._llm,
             write_backend=self._write_backend,
             stats_collector=self._stats,
@@ -224,8 +247,22 @@ class SkillCurator:
             min_cluster_size=self._config.consolidation_min_cluster_size,
         )
 
+    async def _propose_consolidation(
+        self,
+        skills: list[SkillMetadata],
+        *,
+        reserved_names: frozenset[str] = frozenset(),
+    ) -> ConsolidationPlan | None:
+        """Propose a consolidation plan if dependencies are available.
+
+        ``reserved_names`` are the skills left out of ``skills``; no umbrella may take their names.
+        """
+        if not self.consolidation_available:
+            return None
+
+        consolidator = self._consolidator()
         try:
-            return await consolidator.run(skills, dry_run=dry_run, reserved_names=reserved_names)
+            return await consolidator.propose(skills, reserved_names=reserved_names)
         except Exception as e:
             logger.error("Consolidation pass failed: %s", e)
             return None

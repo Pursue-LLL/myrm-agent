@@ -10,7 +10,6 @@ import pytest
 from myrm_agent_harness.agent.skills.curator.consolidation.orchestrator import SkillConsolidator
 from myrm_agent_harness.agent.skills.curator.consolidation.types import (
     ConsolidationActionType,
-    ConsolidationPlan,
     ConsolidationReport,
 )
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus
@@ -25,12 +24,11 @@ class TestSkillConsolidatorOrchestrator:
         return MagicMock(), MagicMock(), MagicMock()
 
     @pytest.mark.asyncio
-    async def test_run_too_few_skills(self, mock_deps: tuple[MagicMock, MagicMock, MagicMock]) -> None:
+    async def test_propose_too_few_skills(self, mock_deps: tuple[MagicMock, MagicMock, MagicMock]) -> None:
         llm, write, stats = mock_deps
         consolidator = SkillConsolidator(llm, write, stats, min_skills_for_consolidation=10)
         skills = [make_skill(f"skill_{i}") for i in range(5)]
-        result = await consolidator.run(skills, dry_run=True)
-        assert isinstance(result, ConsolidationPlan)
+        result = await consolidator.propose(skills)
         assert result.is_empty
 
     def test_filter_eligible_excludes_pinned(self) -> None:
@@ -53,10 +51,10 @@ class TestSkillConsolidatorOrchestrator:
 
 
 class TestSkillConsolidatorFullPipeline:
-    """Tests for orchestrator full execution path (non-dry-run)."""
+    """Tests for the orchestrator's propose and apply stages."""
 
     @pytest.mark.asyncio
-    async def test_run_dry_run_with_detected_clusters(self) -> None:
+    async def test_propose_with_detected_clusters(self) -> None:
         """Full pipeline: enough skills, clusters detected, plan returned."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
 
@@ -90,14 +88,13 @@ class TestSkillConsolidatorFullPipeline:
             make_skill("deploy_skill", "Deploy app"),
         ]
 
-        result = await consolidator.run(skills, dry_run=True)
-        assert isinstance(result, ConsolidationPlan)
+        result = await consolidator.propose(skills)
         assert not result.is_empty
         assert result.actions[0].action_type == ConsolidationActionType.CREATE_UMBRELLA
 
     @pytest.mark.asyncio
-    async def test_run_execute_mode(self) -> None:
-        """Full pipeline execute mode: creates umbrella, archives sources."""
+    async def test_apply_executes_the_proposed_plan(self) -> None:
+        """Propose then apply: expands the target and archives the sources."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
 
         mock_structured = AsyncMock(
@@ -129,12 +126,13 @@ class TestSkillConsolidatorFullPipeline:
             make_skill("deploy_skill", "Deploy app"),
         ]
 
-        result = await consolidator.run(skills, dry_run=False)
+        plan = await consolidator.propose(skills)
+        result = await consolidator.apply(plan, skills)
         assert isinstance(result, ConsolidationReport)
         assert result.success_count >= 1
 
     @pytest.mark.asyncio
-    async def test_run_no_clusters_detected(self) -> None:
+    async def test_propose_no_clusters_detected(self) -> None:
         """Pipeline with enough skills but no shared name prefix: the judge is never asked."""
         mock_llm = MagicMock()
         mock_write = MagicMock()
@@ -153,13 +151,12 @@ class TestSkillConsolidatorFullPipeline:
             for prefix in ("alpha", "beta", "gamma", "delta")
         ]
 
-        result = await consolidator.run(skills, dry_run=True)
-        assert isinstance(result, ConsolidationPlan)
+        result = await consolidator.propose(skills)
         assert result.is_empty
         mock_llm.with_structured_output.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_run_judge_returns_keep_for_all(self) -> None:
+    async def test_propose_judge_returns_keep_for_all(self) -> None:
         """Pipeline where judge decides KEEP for all clusters."""
         from myrm_agent_harness.agent.skills.curator.consolidation.judge import _ClusterJudgment
 
@@ -191,8 +188,7 @@ class TestSkillConsolidatorFullPipeline:
             make_skill("deploy_skill", "Deploy"),
         ]
 
-        result = await consolidator.run(skills, dry_run=True)
-        assert isinstance(result, ConsolidationPlan)
+        result = await consolidator.propose(skills)
         assert result.is_empty
 
 
@@ -236,11 +232,11 @@ class TestPreviewMatchesExecution:
             make_skill("deploy_skill", "Deploy app"),
         ]
 
-        plan = await self._consolidator(action, target).run(skills, dry_run=True)
-        report = await self._consolidator(action, target).run(skills, dry_run=False)
+        consolidator = self._consolidator(action, target)
 
-        assert isinstance(plan, ConsolidationPlan)
-        assert isinstance(report, ConsolidationReport)
+        plan = await consolidator.propose(skills)
+        report = await consolidator.apply(plan, skills)
+
         assert report.failure_count == 0
         assert report.net_reduction == expected_reduction
         assert plan.estimated_reduction == report.net_reduction

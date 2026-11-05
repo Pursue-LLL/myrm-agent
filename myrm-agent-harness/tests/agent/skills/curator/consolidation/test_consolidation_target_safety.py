@@ -277,9 +277,8 @@ class TestReservedNamesReachTheJudgeThroughTheWholePipeline:
             min_cluster_size=3,
         )
 
-        plan = await consolidator.run(_git_skills(root), dry_run=True, reserved_names=frozenset({"git_operations"}))
+        plan = await consolidator.propose(_git_skills(root), reserved_names=frozenset({"git_operations"}))
 
-        assert isinstance(plan, ConsolidationPlan)
         assert plan.is_empty
 
     async def test_curator_reserves_the_skills_it_keeps_out_of_consolidation(
@@ -298,9 +297,7 @@ class TestReservedNamesReachTheJudgeThroughTheWholePipeline:
             write_backend=_DiskWriteBackend(root),
         )
 
-        _, plan = await curator.run_async(
-            [*_git_skills(root), bound], consolidation_dry_run=True, protected_names=frozenset({"git_operations"})
-        )
+        _, plan = await curator.run_async([*_git_skills(root), bound], protected_names=frozenset({"git_operations"}))
 
         assert isinstance(plan, ConsolidationPlan)
         assert plan.is_empty
