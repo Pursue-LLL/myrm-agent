@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from myrm_agent_harness.agent.streaming.stream_executor import StreamContext, StreamExecutor
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.toolkits.cron.delivery_guard import SILENT_MARKER
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
 
@@ -173,6 +174,18 @@ async def test_reasoning_cut_by_the_output_limit_is_left_to_the_truncation_recov
 
     with patch(TRACKER_PATH, return_value=MagicMock(last_finish_reason="length")):
         result = await recover_empty_reply(executor, [reply])
+
+    assert result is False
+    assert mock_context.agent_input["messages"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("silent_reply", [SILENT_MARKER, "NO_REPLY"])
+async def test_silence_tokens_are_not_empty_responses(mock_context, silent_reply):
+    """Cron and channel flows stay quiet with an exact token (an empty reply is not one), so it is never asked again."""
+    executor = _make_executor(mock_context)
+
+    result = await recover_empty_reply(executor, [AIMessage(content=silent_reply)])
 
     assert result is False
     assert mock_context.agent_input["messages"] == []
