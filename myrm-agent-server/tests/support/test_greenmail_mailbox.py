@@ -1,11 +1,12 @@
-"""The helper that starts a real mail server removes what a killed run left behind, and nothing else.
+"""The helper that starts a real mail server removes what a killed run left behind, and reads its ports correctly.
 
 [INPUT]
-- tests/support/greenmail_mailbox.py: stale_containers
+- tests/support/greenmail_mailbox.py: stale_containers, published_port
 
 [OUTPUT]
 - Fails when a container of a run that was killed long ago is kept, when one of a run that is still going or of another
   tool is removed, or when a name that does not carry a start time is taken for a stale one.
+- Fails when the host port is read from anywhere but the first line of ``docker port`` output.
 
 [POS]
 Unit test of the pure part of the helper; starting the server needs Docker and is covered by the live test that uses it.
@@ -15,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.greenmail_mailbox import NAME_PREFIX, stale_containers
+from tests.support.greenmail_mailbox import NAME_PREFIX, published_port, stale_containers
 
 _NOW = 1_800_000_000
 
@@ -39,3 +40,15 @@ _NOW = 1_800_000_000
 )
 def test_only_the_containers_of_a_run_killed_long_ago_are_stale(names: list[str], stale: list[str]) -> None:
     assert stale_containers(names, _NOW) == stale
+
+
+@pytest.mark.parametrize(
+    ("shown", "port"),
+    [
+        pytest.param("127.0.0.1:32769\n", 32769, id="loopback-v4"),
+        pytest.param("[::1]:32771\n", 32771, id="loopback-v6"),
+        pytest.param("127.0.0.1:32769\n[::1]:32770\n", 32769, id="the-first-line-wins"),
+    ],
+)
+def test_the_host_port_is_read_from_the_first_line_of_docker_port(shown: str, port: int) -> None:
+    assert published_port(shown) == port

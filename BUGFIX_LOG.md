@@ -2,6 +2,18 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-05 · 邮件技能的真实服务器测试偶发被「跳过」且退出码为 0：测试辅助先挑好空闲端口再交给 Docker 绑定，绑定时报 `address already in use`
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交可用 `git log -S'def published_port'` 找回）。偶发的真实原因没有确认，见「仍然存在」①。 |
+| **症状** | [实测，GreenMail 2.1.15（Docker），同一条命令 `./myrm-dev test` 跑 `tests/assets/test_imap_smtp_email_real_server.py`、`tests/api/agent/test_imap_smtp_email_skill_e2e.py`、`tests/assets/test_imap_smtp_email_skill_permissions.py`，加 `-m "e2e or not e2e" -rs`] 这一轮结果是 `1 passed, 4 skipped in 8.54s`、退出码 0：真实服务器的两个用例被跳过，原因是 `failed to bind host port 127.0.0.1:56404/tcp: address already in use`，56404 是测试辅助自己挑的 IMAP 端口。紧接着同一个测试文件连跑三次都是 3 例通过，此前同一条命令的各轮都是 `4 passed, 1 skipped`。 |
+| **根因** | [代码] `tests/support/greenmail_mailbox.py` 的 `_free_port()` 绑定端口 0 取号后立即关闭，号码之后才写进 `docker run -p 127.0.0.1:<号>:3993`，取号与 Docker 绑定之间有一段空档，别的进程在这段空档里占了该口，绑定就失败，错误文本与上面一致；绑定失败走的是「服务器起不来则跳过」的分支，所以真实服务器的用例没跑却不算失败。[未证实] 这次是谁占的口没有查到，也没有复现：人为占口两种做法（一个监听口占着该号；该号被某个本地连接当客户端口）Docker 都照常发布成功，所以空档只能说存在、症状与它相符，不能说已证明是它。同一进程连续两次 `_free_port()` 返回同一号码：2000 次实测 0 次，已排除。 |
+| **修复** | 去掉 `_free_port()`。IMAP 与明文投递口改成 `-p 127.0.0.1::3993`、`-p 127.0.0.1::3025`，由 Docker 在绑定时挑口，容器起来后用 `docker port <名字> <端口>/tcp` 读回（实测输出形如 `127.0.0.1:32769`）。新增纯函数 `published_port` 取输出第一行的端口；`docker port` 失败时抛 `RuntimeError`，容器照旧在 `finally` 里删除。465 口技能脚本固定要用，仍是固定映射。 |
+| **回归证据** | [实测] ① `tests/support/test_greenmail_mailbox.py` 新增 3 例（IPv4 回环、IPv6 回环、多行取第一行），全文件 9 通过。② 变异：把 `published_port` 改成取最后一行、按第一个冒号切，跑出 2 例红（IPv6 与多行）；改回后 9 通过。注意变异后的第一次运行竟是 9 通过，原因没查到，之后同一命令连跑两次都是 2 红，据此不把第一次当结论。③ 修复后真实服务器 3 例（`-m e2e`）连跑 4 次都通过，`myrm-mail-test*` 容器 0 个。④ `ruff check`、`ruff format --check`、`mypy`、`pyright` 对这两个文件无报错。 |
+| **仍然存在** | ① 偶发只见过一次，改后无法证明它不再出现，只是去掉了「先挑后绑」的空档；Docker 自己挑口发生冲突的可能性没有测。② 465 口被占时仍跳过，退出码仍为 0。③ 服务器起不来的跳过没有计入任何汇总，看结果的人要读 `-rs` 的跳过原因。 |
+| **代码位置** | server：`tests/support/{greenmail_mailbox.py,test_greenmail_mailbox.py}`、`tests/_ARCH.md`。 |
+
 ## 2026-11-04 · 设置页验证嵌入 / 重排配置自 2026-06-08 起一直 404：集成路由挂到 `/integrations` 下时两个前端代理没跟着改，之后提供端点的模块又被当成「没人调用」删掉，调用方门禁读不懂代理里的 URL 模板；恢复时发现探针文本固定，开着 LiteLLM 响应缓存时一次成功会让之后换了 Key 或端点的验证也显示成功
 
 | 字段 | 内容 |
