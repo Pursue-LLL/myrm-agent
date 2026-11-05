@@ -10,7 +10,6 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import { usePresenceReadMark } from '@/hooks/chat/usePresenceReadMark';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
-import { useWidgetBridgeStore } from '@/components/features/widget';
 
 const VisualDesktopToggle = dynamic(
   () =>
@@ -48,26 +47,10 @@ const TaskExecutionTimelineDrawer = dynamic(
   { ssr: false },
 );
 
-const ReconnectStatusPill = dynamic(
-  () =>
-    import('@/components/features/reconnect-protocol').then((module) => ({
-      default: module.ReconnectStatusPill,
-    })),
-  { ssr: false },
-);
-
 const CommandMatrixModal = dynamic(
   () =>
     import('@/components/features/commands').then((module) => ({
       default: module.CommandMatrixModal,
-    })),
-  { ssr: false },
-);
-
-const WidgetGeneratorModal = dynamic(
-  () =>
-    import('@/components/features/widget').then((module) => ({
-      default: module.WidgetGeneratorModal,
     })),
   { ssr: false },
 );
@@ -192,9 +175,6 @@ export default function ChatWindowSatellites({
   const closeDesktopInspector = useDesktopInspectorStore((s) => s.closePanel);
   useClosePanelOnChatSwitch(effectiveChatId, isDesktopInspectorOpen, closeDesktopInspector);
 
-  const isGeneratorModalOpen = useWidgetBridgeStore((s) => s.isGeneratorModalOpen);
-  const setGeneratorModalOpen = useWidgetBridgeStore((s) => s.setGeneratorModalOpen);
-
   return (
     <>
       <DesktopControlApprovalOverlay />
@@ -235,19 +215,7 @@ export default function ChatWindowSatellites({
       ) : null}
       <ContextFootprintInspector open={isContextInspectorOpen} onClose={() => setIsContextInspectorOpen(false)} />
       <TaskExecutionTimelineDrawer />
-      {chatId ? (
-        <div className="fixed top-3.5 right-28 z-40 max-sm:hidden">
-          <ReconnectStatusPill sessionId={chatId} />
-        </div>
-      ) : null}
       <CommandMatrixModal />
-      {effectiveChatId && isGeneratorModalOpen ? (
-        <WidgetGeneratorModal
-          chatId={effectiveChatId}
-          isOpen={isGeneratorModalOpen}
-          onClose={() => setGeneratorModalOpen(false)}
-        />
-      ) : null}
 
       <DigitalSelfDraftInboxSatellite />
       <DashboardWorkspaceDrawer />

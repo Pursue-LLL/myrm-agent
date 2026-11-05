@@ -110,6 +110,7 @@
 | **仍然存在** | ① 深度和超过 600,000 的页面不再评分，按其余步骤的结果交付；阈值只依据 33 个整页真实页面与构造链，没有更多真实页面的统计。② 这次只处理了量到耗时的三处正则与剪枝评分，转换链路里其余步骤没有逐个用最坏输入测过。③ 转换开始之后仍然打断不了（见 BUG-HARNESS-2026-11-04-180）。 |
 | **代码位置** | `src/myrm_agent_harness/toolkits/web_fetch/processing/html_scan.py`、`processing/{pipeline,antibot_detector,html_to_markdown,content_pruning}.py`、`tests/toolkits/web_fetch/{test_html_scan,test_content_pruning_budget,test_html_to_markdown_whitespace,test_pipeline}.py` |
 
+
 ### BUG-HARNESS-2026-11-05-185 · 审批续跑后的一轮里，工具调用被扣下、文本被长度截断、回复为空（标签包裹的推理）都不重试，用户拿到空答案；同样的故障在没有审批的一轮里会恢复
 
 | 字段 | 内容 |

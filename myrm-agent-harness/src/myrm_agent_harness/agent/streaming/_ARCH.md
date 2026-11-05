@@ -31,4 +31,3 @@
 | `stream_fatal_error.py` | 核心 | 致命错误上报 Mixin：把一次运行的异常转成带诊断的 GUI 错误事件（故障归属、恢复建议、冷却剩余时间）、以脱敏文本记入运行统计（`AgentRunStatistics.record_error`，随 SESSION_END 钩子载荷离开进程）、写入事件日志并抛出 `MyrmLLMError`；`StreamExecutor` 经多继承使用 |
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |
 | `utils.py` | 辅助 | 时间戳规则、时区管理上下文变量及工具名称规范化等通用辅助函数 |
-| `zero_replay/` | 子包 | 零事件重放前后端无缝重连协议核心引擎（单次原子快照基线 + 纯实时增量流门禁过滤）。参见 [zero_replay/_ARCH.md](zero_replay/_ARCH.md) |

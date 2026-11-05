@@ -166,7 +166,6 @@ myrm_agent_harness.agent.streaming.answer_draft
 myrm_agent_harness.agent.streaming.citation_audit
 myrm_agent_harness.agent.streaming.run_digest
 myrm_agent_harness.agent.streaming.stream_buffer
-myrm_agent_harness.agent.streaming.zero_replay
 myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
 myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader
@@ -306,7 +305,6 @@ myrm_agent_harness.toolkits.acp.core.backend_detector
 myrm_agent_harness.toolkits.acp.runtime.pool
 myrm_agent_harness.toolkits.acp.toolchains
 myrm_agent_harness.toolkits.acp.types
-myrm_agent_harness.toolkits.artifacts.embed_bridge
 myrm_agent_harness.toolkits.browser
 myrm_agent_harness.toolkits.browser.action_capture
 myrm_agent_harness.toolkits.browser.captcha

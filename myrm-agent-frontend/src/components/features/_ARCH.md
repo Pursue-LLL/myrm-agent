@@ -56,7 +56,6 @@
 | `embeds/`                                     | 外链 URL 富媒体嵌入（provider 匹配 + consent + iframe）              | [_ARCH.md](embeds/_ARCH.md)                                                       |
 | `presentation/`                               | 演示文稿（PPT）生成弹窗、幻灯片渲染与预览下载                        | [_ARCH.md](presentation/_ARCH.md)                                |
 | `task-inspector/`                             | 任务执行实时透视镜与技能调用时序可视化看板（步骤树、瀑布流、毫秒级耗时、插嘴打断） | [_ARCH.md](task-inspector/_ARCH.md)                                               |
-| `reconnect-protocol/`                         | 基于单次原子状态快照与零事件重放 Live SSE 订阅的前后端无缝重连协议（极简状态胶囊、原子快照对齐与纯 Live 增量流） | [_ARCH.md](reconnect-protocol/_ARCH.md)                                           |
 | `commands/`                                   | 情境感知型渐进式能力即时推荐、交互式快捷指令全景面板（“鼠标垫视图”）与智能微引导引擎 | [_ARCH.md](commands/_ARCH.md)                                                     |
 | `canvas/`                                     | Canvas 画布文件严格沙箱隔离与交互式脚本动态鉴权体系（Strict CSP、iframe sandbox、出网审批门禁） | [_ARCH.md](canvas/_ARCH.md)                                                       |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |
@@ -64,7 +63,6 @@
 | `runtime/`                                  | 纯函数式多端状态投影中枢、实时运行时控制台与 Attempt 状态变迁透视抽屉（Quad-Surface 视图切换、Attempt 水位线与故障诊断） | [_ARCH.md](runtime/_ARCH.md)                                                     |
 | `browser-annotation/`                       | 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统（选区高亮、编号 Pin、DOM 特征提取、脱敏与子树分组并行修复） | [_ARCH.md](browser-annotation/_ARCH.md)                                           |
 | `workspace-cockpit/`                        | 个人数字员工工作区总控驾驶舱（“你不在的时候”离线成果统计、4 泳道任务流、实时 streaming tail 与悬浮会话托盘） | [_ARCH.md](workspace-cockpit/_ARCH.md)                                             |
-| `activity-feed/` | 组件 `ActivityFeedAggregatorDeck`、`ActivityFeedStreamCard`；状态仓库 `useActivityFeedStore` | [_ARCH.md](activity-feed/_ARCH.md) |
 | `arena/` | 组件 `AdoptSynthesizeBar`、`LocalProjectWorkspaceCard`、`MultiModelSplitArenaView`；状态仓库 `useArenaStore` | [_ARCH.md](arena/_ARCH.md) |
 | `artifact-sandbox/` | 组件 `FinancialSandplayWidget`、`InteractiveArtifactSandbox`、`NewsletterRichStyler`；状态仓库 `useArtifactSandboxStore` | [_ARCH.md](artifact-sandbox/_ARCH.md) |
 | `command-center/` | 组件 `CommandCenterHeaderTrigger`、`CommandCenterMaintenanceTab`、`CommandCenterModal`、`CommandCenterSessionsTab` 等 6 个；状态仓库 `useCommandCenterStore` | [_ARCH.md](command-center/_ARCH.md) |

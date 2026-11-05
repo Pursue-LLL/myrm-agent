@@ -8,7 +8,6 @@ from .command_matrix import router as command_matrix_router
 from .compaction import router as compaction_router
 from .copilot import router as copilot_router
 from .core import router as core_router
-from .embed_bridge import router as embed_bridge_router
 from .export_pack import router as export_pack_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
@@ -27,7 +26,6 @@ from .trajectory import router as trajectory_router
 from .trash import router as trash_router
 from .turn import router as turn_router
 from .ui_interaction import router as ui_interaction_router
-from .zero_replay import router as zero_replay_router
 
 router = APIRouter()
 
@@ -54,8 +52,6 @@ router.include_router(replay_router)
 router.include_router(export_pack_router)
 router.include_router(ui_interaction_router)
 router.include_router(thought_control_router)
-router.include_router(zero_replay_router)
 router.include_router(command_matrix_router)
-router.include_router(embed_bridge_router)
 
 __all__ = ["router"]
