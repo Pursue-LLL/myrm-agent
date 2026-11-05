@@ -19,7 +19,7 @@ from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.provider_oauth_tokens import resolve_oauth_marker
 
-from .common import _probe_model_kwargs, router
+from .common import router
 
 
 class SpeedTestItemResult(BaseModel):
@@ -64,7 +64,6 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
 
     for model_config in request.models:
         kwargs = model_config.model_dump(exclude_none=True)
-        kwargs["model_kwargs"] = _probe_model_kwargs(kwargs.get("model_kwargs") or {})
         try:
             await resolve_oauth_marker(kwargs)
             llm = await llm_tools.get_llm(**kwargs)

@@ -9,7 +9,7 @@ Aggregate exit of the LLM integration package: one module per probe area, one ro
 
 from __future__ import annotations
 
-from .common import _LOCAL_NO_AUTH_KEY_MARKER, _apply_local_no_auth_marker_transport_overrides, _probe_model_kwargs, router
+from .common import _LOCAL_NO_AUTH_KEY_MARKER, _apply_local_no_auth_marker_transport_overrides, router
 from .discovery import (
     ModelDiscoveryRequest,
     ModelDiscoveryResult,
@@ -64,7 +64,6 @@ __all__ = [
     "_extract_model_ids",
     "_is_loopback_host",
     "_is_trusted_split_stack_host",
-    "_probe_model_kwargs",
     "_search_models_by_name",
     "_try_get_model_info_exact",
     "router",

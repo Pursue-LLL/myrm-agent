@@ -21,7 +21,7 @@ from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.agent.provider_oauth_tokens import resolve_oauth_marker
 
-from .common import _apply_local_no_auth_marker_transport_overrides, _probe_model_kwargs, router
+from .common import _apply_local_no_auth_marker_transport_overrides, router
 
 
 class LLMVerifyRequest(ModelConfig):
@@ -49,8 +49,9 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
     """
     # 使用request的所有参数创建字典
     kwargs = request.model_dump(exclude_none=True)
-    kwargs["model_kwargs"] = _probe_model_kwargs(
-        _apply_local_no_auth_marker_transport_overrides(kwargs.get("model_kwargs"), kwargs.get("api_key"))
+    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
+        kwargs.get("model_kwargs"),
+        kwargs.get("api_key"),
     )
 
     try:
@@ -133,8 +134,9 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
         return success_response(data=cached_result.model_dump())
 
     kwargs = request.model_dump(exclude_none=True)
-    kwargs["model_kwargs"] = _probe_model_kwargs(
-        _apply_local_no_auth_marker_transport_overrides(kwargs.get("model_kwargs"), kwargs.get("api_key"))
+    kwargs["model_kwargs"] = _apply_local_no_auth_marker_transport_overrides(
+        kwargs.get("model_kwargs"),
+        kwargs.get("api_key"),
     )
 
     try:
