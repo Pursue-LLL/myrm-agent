@@ -104,7 +104,7 @@ def test_an_unlisted_domain_asks_under_its_code_with_the_host_as_subject() -> No
     config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("example.com",))
 
     _asks(
-        evaluate_tool_call("web_fetch", {"url": "https://other.org/page"}, config),
+        evaluate_tool_call("browser_navigate", {"url": "https://other.org/page"}, config),
         ApprovalReasonCode.DOMAIN_REQUIRES_APPROVAL,
         "other.org",
     )

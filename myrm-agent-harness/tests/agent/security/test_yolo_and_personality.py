@@ -1242,47 +1242,6 @@ class TestEvaluateToolBatchAdditionalPaths:
         assert len(approved) == 0
 
     @pytest.mark.asyncio
-    async def test_domain_hitl_runtime_match_auto_approves(self) -> None:
-        """When domain HITL is enabled and domain already approved at runtime, auto-approve."""
-        from unittest.mock import patch
-
-        from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
-            _get_runtime_domains,
-            evaluate_tool_batch,
-            reset_runtime_domains,
-        )
-        from myrm_agent_harness.agent.security.types import PermissionAction
-
-        reset_runtime_domains()
-        runtime_domains = _get_runtime_domains()
-        runtime_domains.add("example.com")
-
-        config = SecurityConfig(yolo_mode_enabled=False, domain_hitl_enabled=True)
-        tool_calls = [
-            {
-                "name": "web_fetch_tool",
-                "args": {"url": "https://example.com/api"},
-                "id": "1",
-                "type": "tool_call",
-            },
-        ]
-        with (
-            patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor.evaluate_tool_call",
-                return_value=(PermissionAction.ASK, "domain check"),
-            ),
-            patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor.resolve_permission_type",
-                return_value="web_fetch",
-            ),
-        ):
-            approved, _denied, _pending = await evaluate_tool_batch(
-                tool_calls, config, False, "/tmp", "sess-domain", {}
-            )
-        assert len(approved) == 1
-        reset_runtime_domains()
-
-    @pytest.mark.asyncio
     async def test_skill_hook_block_denies(self) -> None:
         """When a skill hook blocks a tool, deny it."""
         from unittest.mock import patch

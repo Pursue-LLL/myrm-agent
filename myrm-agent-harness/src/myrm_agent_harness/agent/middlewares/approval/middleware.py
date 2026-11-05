@@ -15,8 +15,8 @@ model call, refusal counters), so it happens in the node before; this node only 
 Batch approval: When multiple tools require approval in a single turn, all are
 collected and presented in one interrupt() call. Users decide for all tools at once.
 
-Domain HITL: When ``domain_hitl_enabled`` is True, URL-bearing tools (web_fetch,
-browser_navigate) whose hostname is not in ``network_allowlist`` trigger ASK.
+Domain HITL: When ``domain_hitl_enabled`` is True, a browser navigation (browser_navigate) to a hostname that is not
+in ``network_allowlist`` triggers ASK; a fetch (web_fetch) only reads pages and is not asked about its domain.
 Users can approve per-request or "always allow this domain" (session-scoped).
 
 Cron sessions (session_key starts with "cron:") have nobody to answer an ASK, so

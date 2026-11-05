@@ -3,13 +3,15 @@
 [INPUT]
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
+  core.security.tool_registry::host_file_paths, url_arg_values (POS: the files and the URLs a call names, read under every spelling)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
 - evaluate_tool_call(): deterministic evaluation (Layers 1–5)
-  (capability → shell_command_analyzer → command_denylist → URL scheme check
+  (capability → shell_command_analyzer → command_denylist → URL scheme check → domain blocklist
    → domain HITL → path_policy → target-aware ruleset → risk_classifier fallback).
-  A domain that needs approval answers ASK with a CodedReason.
+  The blocklist and the rule targets cover every URL a network tool names; a domain outside the allowlist
+  asks only when the browser navigates there, with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
 - check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)
@@ -17,7 +19,7 @@
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
 - file_write_disabled(): whether a SecurityConfig unconditionally denies ``file_write``
-- extract_url_domains(): extract hostnames from URL-bearing tool arguments
+- extract_url_domains(): the hostnames of a browser navigation, which the person can approve per domain
 
 [POS]
 Layers 1–5 of the security architecture. Pure deterministic evaluation —
@@ -46,7 +48,7 @@ from myrm_agent_harness.agent.security.types import (
     PermissionRuleset,
     SecurityConfig,
 )
-from myrm_agent_harness.core.security.tool_registry import host_file_paths
+from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_values
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -95,13 +97,10 @@ def check_capability(permission: str, target: str, capabilities: CapabilitySet) 
     )
 
 
-_TARGET_EXTRACTORS: dict[str, str] = {
-    "browser_navigate": "url",
-    "web_fetch": "url",
-    "net_fetch": "url",
-}
-
 _URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
+# Only a browser navigation asks about a domain outside the allowlist: a fetch only reads a page, and is held to the
+# blocklist and the ruleset.
+_DOMAIN_APPROVAL_PERMISSIONS: frozenset[str] = frozenset({"browser_navigate"})
 _PATH_CHECKED_PERMISSIONS: frozenset[str] = frozenset({"file_read", "file_write"})
 _ACTION_SEVERITY: dict[PermissionAction, int] = {
     PermissionAction.ALLOW: 0,
@@ -126,93 +125,85 @@ def _domain_in_allowlist(hostname: str, allowlist: tuple[str, ...]) -> bool:
 
 
 def _extract_url_host(url: str) -> str:
-    """Extract the hostname from a URL for pattern matching.
+    """Extract the lowercase hostname from a URL for pattern matching.
 
-    Handles both scheme-prefixed URLs (``http://192.168.1.1/path``)
-    and bare host:port (``localhost:3000``).
+    Handles both scheme-prefixed URLs (``http://192.168.1.1/path``) and bare host:port (``localhost:3000``).
+    A URL that names no host stands for itself, so a malformed address is neither waved through nor an error.
     """
     if "://" in url:
-        parsed = urlparse(url)
-        return parsed.hostname or url
-    host = url.split(":")[0].split("/")[0]
-    return host or url
+        try:
+            host = urlparse(url).hostname or ""
+        except ValueError:
+            host = ""
+    else:
+        host = url.split(":")[0].split("/")[0].lower()
+    # ``evil.com.`` is the same host as ``evil.com``
+    return host.rstrip(".") or url
+
+
+def _url_hosts(tool_input: dict[str, object]) -> tuple[str, ...]:
+    """The distinct hosts of every URL the call names, in order."""
+    return tuple(dict.fromkeys(_extract_url_host(url) for url in url_arg_values(tool_input)))
 
 
 def _check_domain_blocklist(
     permission: str, tool_input: dict[str, object], network_blocklist: tuple[str, ...]
 ) -> tuple[PermissionAction | None, str]:
-    """Deny URL-bearing tools when hostname matches network blocklist."""
+    """Deny a URL-bearing tool when any host it names matches the network blocklist."""
     if permission not in _URL_BEARING_PERMISSIONS or not network_blocklist:
         return None, ""
-    url = str(tool_input.get("url", "")).strip()
-    if not url:
-        return None, ""
-    hostname = _extract_url_host(url)
-    if not hostname:
-        return None, ""
-    if _domain_in_allowlist(hostname, network_blocklist):
-        return PermissionAction.DENY, f"Domain '{hostname}' is blocked by policy"
+    for hostname in _url_hosts(tool_input):
+        if _domain_in_allowlist(hostname, network_blocklist):
+            return PermissionAction.DENY, f"Domain '{hostname}' is blocked by policy"
     return None, ""
 
 
 def _check_domain_policy(
     permission: str, tool_input: dict[str, object], network_allowlist: tuple[str, ...]
 ) -> tuple[PermissionAction | None, str]:
-    """Check URL-bearing tools against the network domain allowlist (Layer 2c).
+    """Ask about a browser navigation to a domain outside the network allowlist (Layer 2c).
 
-    Only applies when ``domain_hitl_enabled`` is True. Returns ASK for URLs
-    whose hostname is not in the allowlist. Callers gate on ``domain_hitl_enabled``.
+    Only applies when ``domain_hitl_enabled`` is True. Callers gate on ``domain_hitl_enabled``.
     """
-    if permission not in _URL_BEARING_PERMISSIONS:
+    if permission not in _DOMAIN_APPROVAL_PERMISSIONS:
         return None, ""
-    url = str(tool_input.get("url", "")).strip()
-    if not url:
-        return None, ""
-    hostname = _extract_url_host(url)
-    if not hostname:
-        return None, ""
-    if _domain_in_allowlist(hostname, network_allowlist):
-        return None, ""
-    return PermissionAction.ASK, CodedReason(
-        f"Domain '{hostname}' requires approval", ApprovalReasonCode.DOMAIN_REQUIRES_APPROVAL, hostname
-    )
+    for hostname in _url_hosts(tool_input):
+        if not _domain_in_allowlist(hostname, network_allowlist):
+            return PermissionAction.ASK, CodedReason(
+                f"Domain '{hostname}' requires approval", ApprovalReasonCode.DOMAIN_REQUIRES_APPROVAL, hostname
+            )
+    return None, ""
 
 
 def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name: str | None = None) -> str:
-    """Extract the target resource from tool_input for pattern matching.
+    """Extract the single target resource from tool_input for pattern matching.
 
-    For URL-bearing permissions (``browser_navigate``, ``web_fetch``),
-    extracts the hostname so that rules like ``192.168.*`` or ``*.example.com``
-    match regardless of scheme or path.
     For ``mcp_invoke``, uses the full tool name (e.g. ``mcp__gmail__send_email``)
     as the target, enabling per-tool rules like
     ``{"mcp_invoke": {"mcp__gmail__send_email": "ask", "*": "allow"}}``.
     For ``shell_exec`` and ``code_interpreter`` (the bash tool), uses the command text.
-    For other permissions, returns the raw field value.
-    Returns ``"*"`` when no target extraction is needed.
+    Returns ``"*"`` for any other permission; the files and URLs a call names are targets of their own
+    (see ``_resolve_targets``).
     """
     if permission == "mcp_invoke" and tool_name:
         return tool_name
     if permission in COMMAND_BEARING_PERMISSIONS:
         return command_text(tool_input) or "*"
-    key = _TARGET_EXTRACTORS.get(permission)
-    if not key:
-        return "*"
-    value = tool_input.get(key)
-    if not value:
-        return "*"
-    raw = str(value)
-    if permission in _URL_BEARING_PERMISSIONS:
-        return _extract_url_host(raw)
-    return raw
+    return "*"
 
 
 def _resolve_targets(
     permission: str, tool_input: dict[str, object], *, tool_name: str | None = None
 ) -> tuple[str, ...]:
-    """Every resource a call touches: each host file of a file tool, else the single ``_resolve_target`` target."""
+    """Every resource a call touches, matched against rules such as ``192.168.*`` or ``*.example.com``.
+
+    Each host file of a file tool and each host of a network tool, whatever the scheme or path of its URL;
+    for any other tool the single ``_resolve_target`` target.
+    """
     if permission in _PATH_CHECKED_PERMISSIONS:
         return tuple(host_file_paths(tool_input)) or ("*",)
+    if permission in _URL_BEARING_PERMISSIONS:
+        return _url_hosts(tool_input) or ("*",)
     return (_resolve_target(permission, tool_input, tool_name=tool_name),)
 
 
@@ -305,7 +296,8 @@ def evaluate_tool_call(
     2a. Shell Command Analyzer → BLOCK → DENY, ESCALATE → ASK
     2a.5. Command Denylist → user-defined fnmatch globs → DENY (YOLO-proof)
     2b. URL Scheme Check → non-http(s) → DENY
-    2c. Domain HITL → domain not in allowlist → ASK (when enabled)
+    2b2. Domain Blocklist → any URL of a network tool on the blocklist → DENY
+    2c. Domain HITL → browser navigation to a domain not in the allowlist → ASK (when enabled)
     3. Path Policy → forbidden/allowed/workspace check (file_read/file_write only)
     4. Permission ruleset with target resolution → last-match-wins
     5. Risk classifier fallback → SAFE shell commands → ALLOW (shell_exec/code_interpreter)
@@ -424,17 +416,8 @@ def file_write_disabled(config: SecurityConfig | None) -> bool:
 
 
 def extract_url_domains(permission: str, tool_input: dict[str, object]) -> tuple[str, ...]:
-    """Extract hostnames from URL-bearing tool arguments.
+    """The lowercase hostnames the person can approve per domain: those of a browser navigation.
 
-    Returns a tuple of lowercased hostnames found in the tool's URL parameters.
-    Empty tuple if the permission type has no URL parameters or none are present.
+    Empty tuple for any other tool, and when the call names no URL.
     """
-    if permission not in _URL_BEARING_PERMISSIONS:
-        return ()
-    url = str(tool_input.get("url", "")).strip()
-    if not url:
-        return ()
-    hostname = _extract_url_host(url)
-    if hostname:
-        return (hostname.lower(),)
-    return ()
+    return _url_hosts(tool_input) if permission in _DOMAIN_APPROVAL_PERMISSIONS else ()

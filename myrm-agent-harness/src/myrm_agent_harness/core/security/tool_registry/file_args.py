@@ -6,7 +6,7 @@
 [OUTPUT]
 - FILE_ARG_KEYS: every argument name a file tool receives its files under
 - PATHS_ALIAS_KEYS: the single-path spellings ``file_read_tool`` accepts for its ``paths`` list
-- coerce_path_list: a path argument as a list, reading a string that holds a JSON array the way the tool does
+- coerce_path_list: an array argument as a list, reading a string that holds a JSON array the way the tool does (``url_args`` reads ``urls`` with it too)
 - file_arg_values: each non-empty path string among those arguments, passed as a string, a JSON array string or a list
 - strip_read_range: a path without its ``:START-END`` line-range selector
 - is_url: whether a path is a network URL, which file tools refuse
@@ -64,8 +64,8 @@ _READ_RANGE_SUFFIX_RE = re.compile(r":\d+-\d*$")
 
 
 def coerce_path_list(value: object) -> list[object] | None:
-    """A path argument as a list: a list stays one, a string holding a JSON array becomes that array, any other
-    string is a single path, and anything else is not a path argument.
+    """A path (or URL) argument as a list: a list stays one, a string holding a JSON array becomes that array, any
+    other string is a single path, and anything else is not a path argument.
 
     Models often send an array argument as its JSON text. The tool reads it as the array, so every judgement of
     the call must read it the same way: the paths inside are the files that get opened.

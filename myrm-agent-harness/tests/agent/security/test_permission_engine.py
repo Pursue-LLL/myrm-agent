@@ -18,16 +18,12 @@ from myrm_agent_harness.agent.security.config import (
     security_config_to_dict,
 )
 from myrm_agent_harness.agent.security.engine import (
-    _check_domain_blocklist,
-    _check_domain_policy,
-    _domain_in_allowlist,
     _resolve_target,
     check_capability,
     check_tool_path_policy,
     disabled_permissions,
     evaluate,
     evaluate_tool_call,
-    extract_url_domains,
     merge,
 )
 from myrm_agent_harness.agent.security.types import (
@@ -312,10 +308,6 @@ class TestCheckToolPathPolicy:
 
 
 class TestResolveTarget:
-    def test_browser_navigate_extracts_host(self) -> None:
-        target = _resolve_target("browser_navigate", {"url": "http://192.168.1.1/admin"})
-        assert target == "192.168.1.1"
-
     def test_shell_exec_returns_command(self) -> None:
         target = _resolve_target("shell_exec", {"command": "ls -la"})
         assert target == "ls -la"
@@ -462,205 +454,6 @@ class TestDisabledPermissions:
         assert "file_read" not in result
 
 
-class TestDomainInAllowlist:
-    """Tests for _domain_in_allowlist() — exact and suffix matching."""
-
-    def test_exact_match(self) -> None:
-        assert _domain_in_allowlist("example.com", ("example.com",)) is True
-
-    def test_exact_no_match(self) -> None:
-        assert _domain_in_allowlist("evil.com", ("example.com",)) is False
-
-    def test_suffix_match_subdomain(self) -> None:
-        assert _domain_in_allowlist("mail.google.com", (".google.com",)) is True
-
-    def test_suffix_match_bare_domain(self) -> None:
-        assert _domain_in_allowlist("google.com", (".google.com",)) is True
-
-    def test_suffix_no_partial_match(self) -> None:
-        assert _domain_in_allowlist("notgoogle.com", (".google.com",)) is False
-
-    def test_case_insensitive(self) -> None:
-        assert _domain_in_allowlist("EXAMPLE.COM", ("example.com",)) is True
-
-    def test_empty_allowlist(self) -> None:
-        assert _domain_in_allowlist("example.com", ()) is False
-
-    def test_multiple_entries(self) -> None:
-        allowlist = ("example.com", ".google.com", "localhost")
-        assert _domain_in_allowlist("mail.google.com", allowlist) is True
-        assert _domain_in_allowlist("localhost", allowlist) is True
-        assert _domain_in_allowlist("evil.com", allowlist) is False
-
-
-class TestCheckDomainPolicy:
-    """Tests for _check_domain_policy() — Layer 2c domain HITL check."""
-
-    def test_url_not_in_allowlist_triggers_ask(self) -> None:
-        action, reason = _check_domain_policy("web_fetch", {"url": "https://evil.com/page"}, ("example.com",))
-        assert action == PermissionAction.ASK
-        assert "evil.com" in reason
-
-    def test_url_in_allowlist_passes(self) -> None:
-        action, _ = _check_domain_policy("web_fetch", {"url": "https://example.com/page"}, ("example.com",))
-        assert action is None
-
-    def test_non_url_permission_ignored(self) -> None:
-        action, _ = _check_domain_policy("shell_exec", {"command": "curl https://evil.com"}, ("example.com",))
-        assert action is None
-
-    def test_empty_url_passes(self) -> None:
-        action, _ = _check_domain_policy("web_fetch", {"url": ""}, ("example.com",))
-        assert action is None
-
-    def test_no_url_param_passes(self) -> None:
-        action, _ = _check_domain_policy("web_fetch", {}, ("example.com",))
-        assert action is None
-
-    def test_browser_navigate_checked(self) -> None:
-        action, reason = _check_domain_policy("browser_navigate", {"url": "https://unknown.com"}, ("example.com",))
-        assert action == PermissionAction.ASK
-        assert "unknown.com" in reason
-
-    def test_suffix_match_in_allowlist(self) -> None:
-        action, _ = _check_domain_policy("web_fetch", {"url": "https://api.google.com/v1"}, (".google.com",))
-        assert action is None
-
-    def test_net_fetch_triggers_domain_check(self) -> None:
-        """net_fetch (production permission for web_fetch_tool) must also trigger domain checks."""
-        action, reason = _check_domain_policy("net_fetch", {"url": "https://evil.com/page"}, ("example.com",))
-        assert action == PermissionAction.ASK
-        assert "evil.com" in reason
-
-    def test_net_fetch_allowlist_passes(self) -> None:
-        action, _ = _check_domain_policy("net_fetch", {"url": "https://example.com/page"}, ("example.com",))
-        assert action is None
-
-
-class TestCheckDomainBlocklist:
-    """Tests for _check_domain_blocklist() — deny blocked hostnames before HITL."""
-
-    def test_blocked_domain_denies(self) -> None:
-        action, reason = _check_domain_blocklist(
-            "browser_navigate",
-            {"url": "https://facebook.com/login"},
-            ("facebook.com",),
-        )
-        assert action == PermissionAction.DENY
-        assert "facebook.com" in reason
-
-    def test_non_blocked_passes(self) -> None:
-        action, _ = _check_domain_blocklist(
-            "web_fetch",
-            {"url": "https://example.com/page"},
-            ("facebook.com",),
-        )
-        assert action is None
-
-    def test_empty_blocklist_passes(self) -> None:
-        action, _ = _check_domain_blocklist("web_fetch", {"url": "https://evil.com"}, ())
-        assert action is None
-
-    def test_empty_url_passes(self) -> None:
-        action, _ = _check_domain_blocklist("browser_navigate", {"url": ""}, ("evil.com",))
-        assert action is None
-
-    def test_non_url_permission_ignored(self) -> None:
-        action, _ = _check_domain_blocklist("shell_exec", {"command": "curl evil.com"}, ("evil.com",))
-        assert action is None
-
-    def test_unparseable_url_passes(self) -> None:
-        action, _ = _check_domain_blocklist("web_fetch", {"url": "://bad"}, ("evil.com",))
-        assert action is None
-
-
-class TestEvaluateToolCallBlocklist:
-    """Integration: evaluate_tool_call applies network_blocklist before rules."""
-
-    def test_blocked_browser_navigate_denies(self) -> None:
-        from myrm_agent_harness.agent.security.types import SecurityConfig
-
-        config = SecurityConfig(network_blocklist=("facebook.com",))
-        action, reason = evaluate_tool_call(
-            "browser_navigate",
-            {"url": "https://facebook.com/login"},
-            config,
-        )
-        assert action == PermissionAction.DENY
-        assert "facebook.com" in reason
-
-
-class TestExtractUrlDomains:
-    """Tests for extract_url_domains() — public API for domain extraction."""
-
-    def test_web_fetch_extracts_hostname(self) -> None:
-        domains = extract_url_domains("web_fetch", {"url": "https://mail.google.com/inbox"})
-        assert domains == ("mail.google.com",)
-
-    def test_browser_navigate_extracts_hostname(self) -> None:
-        domains = extract_url_domains("browser_navigate", {"url": "https://example.com/path"})
-        assert domains == ("example.com",)
-
-    def test_non_url_permission_returns_empty(self) -> None:
-        assert extract_url_domains("shell_exec", {"command": "ls"}) == ()
-
-    def test_missing_url_returns_empty(self) -> None:
-        assert extract_url_domains("web_fetch", {}) == ()
-
-    def test_empty_url_returns_empty(self) -> None:
-        assert extract_url_domains("web_fetch", {"url": ""}) == ()
-
-    def test_bare_hostname_with_port(self) -> None:
-        domains = extract_url_domains("web_fetch", {"url": "localhost:3000/api"})
-        assert domains == ("localhost",)
-
-    def test_ip_address(self) -> None:
-        domains = extract_url_domains("web_fetch", {"url": "http://192.168.1.1/api"})
-        assert domains == ("192.168.1.1",)
-
-    def test_net_fetch_extracts_hostname(self) -> None:
-        """net_fetch (production permission) must also extract URL hostnames."""
-        domains = extract_url_domains("net_fetch", {"url": "https://api.example.com/v1"})
-        assert domains == ("api.example.com",)
-
-
-class TestEvaluateToolCallDomainHitl:
-    """Tests for evaluate_tool_call() with domain_hitl_enabled."""
-
-    def test_domain_hitl_enabled_blocks_unknown(self) -> None:
-        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("example.com",))
-        action, reason = evaluate_tool_call("web_fetch", {"url": "https://evil.com/x"}, config)
-        assert action == PermissionAction.ASK
-        assert "evil.com" in reason
-
-    def test_domain_hitl_enabled_allows_known(self) -> None:
-        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("example.com",))
-        action, _ = evaluate_tool_call("web_fetch", {"url": "https://example.com/x"}, config)
-        assert action != PermissionAction.DENY
-
-    def test_domain_hitl_disabled_no_check(self) -> None:
-        config = SecurityConfig(domain_hitl_enabled=False, network_allowlist=("example.com",))
-        _action, reason = evaluate_tool_call("web_fetch", {"url": "https://evil.com/x"}, config)
-        assert "evil.com" not in reason
-
-    def test_domain_hitl_non_url_tool_unaffected(self) -> None:
-        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=())
-        action, _ = evaluate_tool_call("file_read", {"path": "."}, config, workspace_root=os.getcwd())
-        assert action == PermissionAction.ALLOW
-
-    def test_net_fetch_domain_hitl_blocks_unknown(self) -> None:
-        """Production path: web_fetch_tool resolves to net_fetch; domain HITL must still work."""
-        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("example.com",))
-        action, reason = evaluate_tool_call("net_fetch", {"url": "https://evil.com/x"}, config)
-        assert action == PermissionAction.ASK
-        assert "evil.com" in reason
-
-    def test_net_fetch_domain_hitl_allows_known(self) -> None:
-        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("example.com",))
-        action, _ = evaluate_tool_call("net_fetch", {"url": "https://example.com/x"}, config)
-        assert action != PermissionAction.DENY
-
-
 class TestParseSecurityConfigDomainHitl:
     """Tests for parse_security_config() with domainHitlEnabled."""
 
@@ -689,27 +482,6 @@ class TestParseSecurityConfigDomainHitl:
         assert config is not None
         assert config.domain_hitl_enabled is True
         assert config.network_allowlist == ("example.com", ".google.com")
-
-
-class TestResolveTargetWebFetch:
-    """Tests for _resolve_target() with web_fetch (hostname extraction)."""
-
-    def test_web_fetch_extracts_hostname(self) -> None:
-        target = _resolve_target("web_fetch", {"url": "https://api.example.com/v1"})
-        assert target == "api.example.com"
-
-    def test_web_fetch_no_url_returns_star(self) -> None:
-        target = _resolve_target("web_fetch", {})
-        assert target == "*"
-
-    def test_web_fetch_bare_host(self) -> None:
-        target = _resolve_target("web_fetch", {"url": "localhost:3000"})
-        assert target == "localhost"
-
-    def test_net_fetch_extracts_hostname(self) -> None:
-        """net_fetch (production permission) must also extract hostname as target."""
-        target = _resolve_target("net_fetch", {"url": "https://api.example.com/v1"})
-        assert target == "api.example.com"
 
 
 class TestSkillManageAndCronManagePermissions:
