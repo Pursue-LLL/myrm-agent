@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from myrm_agent_harness.core.security.tool_registry import url_arg_hosts, url_arg_values, url_host
+from myrm_agent_harness.core.security.tool_registry import url_arg_error, url_arg_hosts, url_arg_values, url_host
 from myrm_agent_harness.core.security.tool_registry.url_args import URL_ARG_KEYS
 
 
@@ -60,39 +60,59 @@ def test_pathologically_nested_text_does_not_crash() -> None:
         ("http://192.168.1.1/admin", "192.168.1.1"),
         ("https://API.Example.com:8443/v1?q=1", "api.example.com"),
         ("https://user:pw@example.com/x", "example.com"),
-        ("localhost:3000/api", "localhost"),
-        ("LOCALHOST:3000", "localhost"),
-        ("Example.com/page", "example.com"),
+        ("HTTP://LOCALHOST:3000", "localhost"),
         ("https://example.com./x", "example.com"),
-        ("Example.COM.", "example.com"),
+        ("https://Straße.de/", "xn--strae-oqa.de"),
+        ("https://ＥＸＡＭＰＬＥ。com/", "example.com"),
+        ("http://2130706433/", "127.0.0.1"),
+        ("http://0x7f.1:8080/", "127.0.0.1"),
+        ("http://[0:0:0:0:0:0:0:1]/", "::1"),
     ],
 )
-def test_the_host_is_lowercase_without_scheme_port_path_or_trailing_dot(url: str, host: str) -> None:
+def test_the_host_is_the_canonical_one_a_client_dials_without_scheme_port_path_or_trailing_dot(
+    url: str, host: str
+) -> None:
     assert url_host(url) == host
 
 
 @pytest.mark.parametrize(
-    ("url", "host"),
+    "url",
     [
-        ("http://attacker.test\\@good.test/x?d=1", "attacker.test"),
-        ("https://evil.test\\.good.test/x", "evil.test"),
-        ("https://good.test\\path", "good.test"),
-        ("https://good.test/a\\b@evil.test/", "good.test"),
+        "http://attacker.test\\@good.test/x?d=1",
+        "https://evil.test\\.good.test/x",
+        "https://good.test\\path",
+        "https://good.test/a\\b@evil.test/",
+        "http://a@b@evil.test/",
+        "http://127%2e0%2e0%2e1/",
+        "http://256.1.1.1/",
     ],
 )
-def test_a_backslash_ends_the_authority_as_a_browser_reads_it(url: str, host: str) -> None:
-    assert url_host(url) == host
+def test_a_url_with_no_canonical_form_names_no_host(url: str) -> None:
+    """Clients read such a URL as different hosts, or as none; so no host is its host, and ``url_arg_error`` says why."""
+    assert url_host(url) == url
+    assert url_arg_error({"url": url})
 
 
-@pytest.mark.parametrize("url", ["://bad", "file:///etc/passwd", "http://[::1", "http://./"])
-def test_a_url_without_a_host_stands_for_itself(url: str) -> None:
+@pytest.mark.parametrize(
+    "url",
+    [
+        "://bad",
+        "file:///etc/passwd",
+        "http://[::1",
+        "http://./",
+        "localhost:3000/api",
+        "Example.com/page",
+        "Example.COM.",
+    ],
+)
+def test_a_string_that_is_not_an_outbound_url_stands_for_itself(url: str) -> None:
     assert url_host(url) == url
 
 
 def test_every_url_of_the_call_gives_its_host_once_in_order() -> None:
-    urls = ["https://b.test/1", "https://a.test", "https://B.test./2", "a.test:8080"]
+    urls = ["https://b.test/1", "https://a.test", "https://B.test./2", "http://a.test:8080", "http://0x7f.1/"]
 
-    assert url_arg_hosts({"urls": urls}) == ("b.test", "a.test")
+    assert url_arg_hosts({"urls": urls}) == ("b.test", "a.test", "127.0.0.1")
 
 
 def test_the_hosts_of_url_and_urls_are_listed_url_first() -> None:
@@ -109,3 +129,26 @@ def test_a_single_url_string_names_one_host() -> None:
 
 def test_blank_and_non_string_values_name_no_host() -> None:
     assert url_arg_hosts({"urls": ["", "  ", 3, None], "url": None, "reason": "https://a.test"}) == ()
+
+
+def test_the_error_names_why_the_first_unreadable_url_has_no_canonical_form() -> None:
+    args: dict[str, object] = {"urls": ["https://ok.test", "http://a..b/", "http://evil.test\\@good.test/"]}
+
+    assert url_arg_error(args) == "Invalid hostname"
+
+
+def test_the_error_reads_json_text_of_a_list() -> None:
+    assert url_arg_error({"urls": json.dumps(["https://ok.test", "http://[::1%en0]/"])}) == "Invalid hostname"
+
+
+def test_a_call_whose_urls_all_have_a_canonical_form_has_no_error() -> None:
+    args: dict[str, object] = {"urls": ["https://ok.test/a", "http://2130706433:8080/", "HTTPS://Ｅxample.com"]}
+
+    assert url_arg_error(args) is None
+    assert url_arg_error({}) is None
+
+
+@pytest.mark.parametrize("value", ["localhost:3000", "example.com/x", "about:blank", "data:text/plain,hi"])
+def test_a_string_without_a_scheme_separator_is_no_url_to_refuse(value: str) -> None:
+    """A tool that does not take the string as a URL reports its own error; the permission layer must not."""
+    assert url_arg_error({"url": value}) is None

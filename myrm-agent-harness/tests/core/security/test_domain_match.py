@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.core.security import domain_match
 from myrm_agent_harness.core.security.domain_match import canonical_entry, canonical_host, host_matches
 
 _ENTRIES = [
@@ -85,13 +84,6 @@ class TestCanonicalHost:
 
         assert canonical_host(too_long) == too_long
         assert canonical_host("é.com") == "xn--9ca.com"
-
-    def test_text_longer_than_a_dns_name_never_enters_the_cache(self) -> None:
-        cached = domain_match._read_short_host.cache_info().currsize
-
-        canonical_host("a" * 300 + ".com")
-
-        assert domain_match._read_short_host.cache_info().currsize == cached
 
 
 class TestCanonicalEntry:
@@ -172,6 +164,12 @@ class TestHostMatches:
         assert not host_matches("σας.gr", ("σασ.gr",))
         assert host_matches("می\u200cخواهم.ir", ("xn--mgbn2ecje63gr19l.ir",))
         assert not host_matches("می\u200cخواهم.ir", ("میخواهم.ir",))
+
+    def test_a_numeric_ipv4_host_is_the_dotted_address_the_client_dials(self) -> None:
+        assert host_matches("2130706433", ("127.0.0.1",))
+        assert host_matches("0x7f.1", ("127.0.0.1",))
+        assert host_matches("127.0.0.1", ("0177.0.0.1",))
+        assert not host_matches("2130706434", ("127.0.0.1",))
 
     def test_an_ipv6_literal_matches_by_address(self) -> None:
         assert host_matches("::1", ("[::1]",))

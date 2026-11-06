@@ -2,11 +2,13 @@
 
 [INPUT]
 - core.security.tool_registry.file_args::coerce_path_list (POS: reads an array argument the way the tools do, a JSON array sent as text included)
+- utils.url_syntax::parse_outbound_hostname, parse_outbound_url (POS: the canonical spelling of an outbound URL, or why it has none)
 
 [OUTPUT]
 - URL_ARG_KEYS: every argument name a network tool receives its URLs under
 - url_arg_values: each non-empty URL string among those arguments, passed as a string, a JSON array string or a list
-- url_host / url_arg_hosts: the host a URL names as a browser reads it, and the distinct hosts of every URL a call names
+- url_host / url_arg_hosts: the canonical host an outbound URL names, and the distinct hosts of every URL a call names
+- url_arg_error: why a URL of the call has no canonical form, or None
 
 [POS]
 Shared by the permission engine (blocklist, per-domain approval and rule targets) and the taint exemption so
@@ -17,7 +19,7 @@ in ``url``.
 
 from __future__ import annotations
 
-from urllib.parse import urlparse
+from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname, parse_outbound_url
 
 from .file_args import coerce_path_list
 
@@ -35,22 +37,25 @@ def url_arg_values(args: dict[str, object]) -> list[str]:
 
 
 def url_host(url: str) -> str:
-    r"""The lowercase host a URL names, without a trailing dot (``evil.com.`` is the host ``evil.com``).
+    """The canonical host an outbound URL names (``evil.com.`` is the host ``evil.com``).
 
-    Reads scheme-prefixed URLs (``http://192.168.1.1/path``) and bare ``host:port`` (``localhost:3000``). A backslash
-    ends the authority as it does in a browser, so ``http://evil.test\@good.test/`` names ``evil.test``. A string
-    that names no host stands for itself, so a malformed address is neither waved through nor an error.
+    A string that is not an outbound URL stands for itself: no tool dials it, and a malformed address is neither
+    waved through nor an error.
     """
-    if "://" in url:
-        try:
-            host = urlparse(url.replace("\\", "/")).hostname or ""
-        except ValueError:
-            host = ""
-    else:
-        host = url.split(":")[0].split("/")[0].lower()
-    return host.rstrip(".") or url
+    host, _ = parse_outbound_hostname(url)
+    return host or url
 
 
 def url_arg_hosts(args: dict[str, object]) -> tuple[str, ...]:
     """The distinct hosts of every URL the call names, in order."""
     return tuple(dict.fromkeys(url_host(url) for url in url_arg_values(args)))
+
+
+def url_arg_error(args: dict[str, object]) -> str | None:
+    """Why a URL the call names has no canonical form, or None; a string without ``://`` is no URL to refuse here."""
+    for url in url_arg_values(args):
+        if "://" in url:
+            target, error = parse_outbound_url(url)
+            if target is None:
+                return error
+    return None

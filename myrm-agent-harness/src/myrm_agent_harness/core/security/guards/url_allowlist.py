@@ -1,14 +1,16 @@
 """Context-based URL allowlist for skill-level DLP domain restrictions.
 
 [INPUT]
-- (none)
+- utils.url_syntax::canonical_hostname (POS: the one ASCII spelling of a host, the one the outbound URL gates dial)
 
 [OUTPUT]
 - SSRFSecurityError: raised when hostname violates skill allowed-domains
 - URLAllowlistGuard: ContextVar-scoped domain allowlist for tool execution
 
 [POS]
-Skill DLP domain enforcement for outbound HTTP; applied by tool_executor and SSRF validators.
+Skill DLP domain enforcement for outbound HTTP; applied by tool_executor and SSRF validators. The host and
+every allowed domain are compared in that canonical spelling, so a Unicode entry and the Punycode host a
+client dials are one domain.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from myrm_agent_harness.utils.url_syntax import canonical_hostname
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,6 +30,11 @@ class SSRFSecurityError(ValueError):
 
 
 _allowed_domains_var: contextvars.ContextVar[list[str] | None] = contextvars.ContextVar("allowed_domains", default=None)
+
+
+def _spell(text: str) -> str:
+    """The host *text* names in the spelling the outbound URL gates dial; text that names no host stands for itself."""
+    return canonical_hostname(text.strip()) or text.strip().lower().rstrip(".")
 
 
 class URLAllowlistGuard:
@@ -48,17 +57,16 @@ class URLAllowlistGuard:
         if allowed_domains is None:
             return
 
-        clean_host = (hostname or "").strip().lower().rstrip(".")
+        clean_host = _spell(hostname or "")
         if not clean_host:
             raise SSRFSecurityError("Access blocked: empty or invalid hostname")
 
         for domain in allowed_domains:
             if not domain:
                 continue
-            clean_domain = domain.strip().lower()
-            if clean_domain == "*":
+            if domain.strip() == "*":
                 return
-            clean_domain = clean_domain.lstrip(".").rstrip(".")
+            clean_domain = _spell(domain.strip().lstrip("."))
             if not clean_domain:
                 continue
             if clean_host == clean_domain or clean_host.endswith(f".{clean_domain}"):
