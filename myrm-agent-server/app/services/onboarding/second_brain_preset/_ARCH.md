@@ -10,6 +10,7 @@ Second Brain 预设：读路径（状态 + checklist）与写路径（幂等 app
 | `common.py` | 辅助 | 常量（config key / cron 名 / template id / user & device）、`SecondBrainPresetError`、`_ApplyMutation`、preset state 读写、模板加载与 locale 归一；**唯一的 `get_cron_manager` 打桩点** | ✅ |
 | `checks.py` | 核心 | provider / wiki / agent tool 就绪检查、`_build_checklist`、`_resolve_agent`（创建或复用 user agent，含技能启用与 vault seed） | ✅ |
 | `cron_setup.py` | 核心 | cron job 查找、blueprint 供给（read-it-later + wiki delta + maintenance）、id reconcile、security repair、read-it-later hygiene | ✅ |
+| `job_repair.py` | 辅助 | 启动期幂等修复：把仍为旧声明（`file_read+file_write`）的 wiki-delta job 补齐 blueprint 的 knowledge 能力与 vault `allowed_roots`；用户改过的声明不动。由 `cron_setup` 调用 | ✅ |
 | `mutations.py` | 核心 | wiki gmail source 开启、成功消息、apply 回滚（删除 agent / cron） | ✅ |
 | `status.py` | 核心 | 读路径：`get_second_brain_preset_status` | ✅ |
 | `apply.py` | 核心 | 写路径：`apply_second_brain_preset`（幂等 apply，失败回滚） | ✅ |

@@ -10,7 +10,7 @@ import pytest
 from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType
 
 from app.config.settings import settings
-from app.services.onboarding.second_brain_job_repair import repair_wiki_delta_job
+from app.services.onboarding.second_brain_preset.job_repair import repair_wiki_delta_job
 
 _NEW_CAPABILITIES = ("file_read", "knowledge_read", "knowledge_write")
 
@@ -36,7 +36,7 @@ def _manager(job: SimpleNamespace | None) -> SimpleNamespace:
 
 
 async def _repair(mgr: SimpleNamespace) -> bool:
-    with patch("app.services.onboarding.second_brain_job_repair.get_cron_manager", return_value=mgr):
+    with patch("app.services.onboarding.second_brain_preset.job_repair.get_cron_manager", return_value=mgr):
         return await repair_wiki_delta_job("job-delta", user_id="default")
 
 

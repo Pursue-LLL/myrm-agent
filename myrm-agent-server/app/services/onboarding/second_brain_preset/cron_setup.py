@@ -16,7 +16,6 @@ from myrm_agent_harness.toolkits.cron.types import CronJobPatch, JobType
 
 from app.core.cron.blueprints import fill_blueprint
 from app.core.cron.blueprints.job_spec import create_blueprint_job, to_job_spec
-from app.services.onboarding.second_brain_job_repair import repair_wiki_delta_job
 from app.services.wiki.vault import resolve_agent_wiki_vault_path
 
 from . import common
@@ -27,6 +26,7 @@ from .common import (
     _USER_ID,
     logger,
 )
+from .job_repair import repair_wiki_delta_job
 
 
 async def _find_preset_cron_job(*, job_name: str, stored_job_id: str | None) -> str | None:
