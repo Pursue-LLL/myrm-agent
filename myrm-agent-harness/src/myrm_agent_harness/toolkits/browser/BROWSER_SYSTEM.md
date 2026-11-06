@@ -647,8 +647,8 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | 先发现 URL | `web_search_tool` | 搜索后再 fetch 或 navigate |
 
 **实现位置**：
-- `web_fetch/web_fetch_agent_tools.py` — web_fetch 描述声明只读优先
-- `browser/tools/navigate.py` — `with_dynamic_hints` 注入 web_search / web_fetch 提示（工具不可用时 weave 自动剥离）
+- `web_fetch/_web_fetch_tool_description.py` — web_fetch 描述只讲能力（含 PDF / DOCX / XLSX / PPTX），不提浏览器，所以不挂浏览器工具时也成立；选型提示只放在浏览器一侧
+- `browser/tools/navigate.py` — `with_dynamic_hints` 注入 web_search / web_fetch 提示（对应工具未挂载时 weave 自动剥离）
 - `agent/security/guards/loop_guard/suggestions/core.py` — 失败时双向互指（web_fetch ↔ browser_navigate）
 - `agent/middlewares/completion/completion_guard/external_evidence.py` — 回答前要求 web_search / web_fetch / browser / MCP 证据（PTC bash `skills.mcp_*` 或 Direct FC `mcp__{server}__{tool}`）
 
@@ -1087,7 +1087,7 @@ Manual refresh: GET /webui/desktop/snapshot (tags sourceChatId with foreground c
 | **MutationObserver变化检测** | ✅ | ❌ | ❌ | ❌ |
 | **CAPTCHA 协调（可插拔）** | ✅ | ❌ | ⚠️ CDP 耦合 | ❌ |
 | **Agent 触发人类接管** | ✅ | ❌ | ❌ | ❌ |
-| **web_fetch ↔ browser 双向工具描述引导** | ✅ Dynamic Hints + Loop Guard | ⚠️ browser→web 单向 | ⚠️ web_fetch 单工具描述 | ❌ |
+| **web_fetch ↔ browser 工具选型引导** | ✅ 浏览器侧 Dynamic Hint（browser→web）+ Loop Guard 失败时双向互指 | ⚠️ browser→web 单向 | ⚠️ web_fetch 单工具描述 | ❌ |
 | **运行时移动设备仿真** | ✅ CDP 三连注入 + 8 款精选设备 | ⚠️ 仅静态 context 配置 | ⚠️ 仅静态 context 配置（`is_mobile`/`has_touch`） | ❌ |
 
 ### 架构对比

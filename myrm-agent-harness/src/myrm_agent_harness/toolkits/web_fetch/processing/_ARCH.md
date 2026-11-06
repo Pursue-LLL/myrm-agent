@@ -19,7 +19,7 @@ Post-fetch content processing: HTML to Markdown, pruning, sanitization, URL norm
 | spill.py | Util | Saves the complete text through the injected evicted-content callbacks, builds the read guide and announces the saved file to the GUI | ✅ |
 | html_scan.py | Util | Linear-time scans of raw HTML text (title, body, script/style blocks, tags) for pages that may be hostile | ✅ |
 | antibot_detector.py | Util | Anti-bot detection heuristics | ✅ |
-| binary_router.py | Util | Binary content type routing | ✅ |
+| binary_router.py | Util | Binary content type routing; a payload no parser accepts is decoded as text only when its leading bytes contain no NUL, otherwise it is rejected | ✅ |
 
 ## Dependencies
 

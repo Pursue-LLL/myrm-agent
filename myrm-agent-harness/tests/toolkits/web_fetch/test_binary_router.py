@@ -246,6 +246,27 @@ class TestRouteBinaryContent:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_unparsed_binary_payload_is_not_decoded_as_text(self) -> None:
+        headers = {
+            "content-type": "application/octet-stream",
+            "content-disposition": 'attachment; filename="setup.exe"',
+        }
+        data = b"MZ\x90\x00" + bytes(range(256)) * 8
+        result = await route_binary_content(data, headers, "http://example.com/setup.exe")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_unparsed_text_payload_returns_raw_text(self) -> None:
+        headers = {
+            "content-type": "application/octet-stream",
+            "content-disposition": 'attachment; filename="config.toml"',
+        }
+        result = await route_binary_content(b'name = "demo"\n', headers, "http://example.com/config.toml")
+        assert result is not None
+        assert result.page_content == 'name = "demo"\n'
+        assert result.metadata["source_type"] == "binary_text"
+
+    @pytest.mark.asyncio
     async def test_content_truncation(self) -> None:
         long_text = "A" * 200_000
         mock_parser = AsyncMock()

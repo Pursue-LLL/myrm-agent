@@ -22,7 +22,7 @@ Layered single-page web fetch engine with L1 HTTP / L2 Browser / L3 Stealth fall
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports FetchEngine and result types | ✅ |
 | web_fetch_agent_tools.py | Core | LangChain web_fetch_tool factory; with both embedding and reranker configs the tool offers `fetch_and_extract` and `fetch_full_content`, otherwise it only reads pages in full (`urls`, up to 5, plus `reason`; all pages share one budget, the complete text is saved when any page is cut) | ✅ |
-| _web_fetch_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH) | ✅ |
+| _web_fetch_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH); names the readable document formats (PDF, DOCX, XLSX, PPTX) and never mentions browser tools | ✅ |
 
 ## L4 Escalation (WFEL)
 
@@ -34,7 +34,7 @@ chain (Jina then Firecrawl when enabled in server config). Providers bind per ag
 
 ## Tool routing (web_fetch vs browser)
 
-When both tools are mounted: read-only pages → `web_fetch_tool` (CORE); interactive flows → browser tools (EXTENDED). Guidance lives in tool descriptions + Dynamic Hints (`browser/tools/navigate.py`), not System Prompt. Loop Guard provides symmetric fallback suggestions. See `toolkits/browser/BROWSER_SYSTEM.md` §web_fetch 与 browser 分工.
+When both tools are mounted: read-only pages → `web_fetch_tool` (CORE); interactive flows → browser tools (EXTENDED). Guidance lives in the Dynamic Hint on `browser_navigate_tool` (`browser/tools/navigate.py`), not System Prompt; the Schema Weaver drops it when `web_fetch_tool` is not mounted, and the `web_fetch_tool` description never mentions browser tools, so it stays correct when none is mounted. Loop Guard provides symmetric fallback suggestions. See `toolkits/browser/BROWSER_SYSTEM.md` §web_fetch 与 browser 分工.
 
 ## Key Dependencies
 

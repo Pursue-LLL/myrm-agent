@@ -28,6 +28,7 @@ from langchain_core.documents import Document
 logger = logging.getLogger(__name__)
 
 _MAX_BINARY_SIZE = 20 * 1024 * 1024  # 20 MB safety limit
+_BINARY_SNIFF_BYTES = 8192  # leading bytes inspected to tell binary payloads from text
 
 _CONTENT_TYPE_MAP: dict[str, str] = {
     "application/pdf": ".pdf",
@@ -129,7 +130,8 @@ async def route_binary_content(
 ) -> Document | None:
     """Route binary content to appropriate parser and return a Document.
 
-    Returns None if the content type is unrecognized or parsing fails.
+    Returns None if the content type is unrecognized, parsing fails, or a payload
+    without a parser is binary rather than text.
     """
     if len(raw_body) > _MAX_BINARY_SIZE:
         logger.warning("Binary content too large (%d bytes), skipping: %s", len(raw_body), url[:100])
@@ -144,7 +146,8 @@ async def route_binary_content(
 
     if not is_supported(f"file{ext}"):
         logger.info("No parser available for extension %s, returning raw text", ext)
-        if ext in (".zip",):
+        # NUL bytes never occur in text; decoding such a payload would hand the model garbage.
+        if ext == ".zip" or b"\x00" in raw_body[:_BINARY_SNIFF_BYTES]:
             return None
         try:
             text = raw_body.decode("utf-8", errors="replace")

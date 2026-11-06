@@ -181,7 +181,7 @@ _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "memory_save_tool": 678,
     "memory_search_tool": 110,
     "skill_select_tool": 308,
-    "web_fetch_tool": 166,
+    "web_fetch_tool": 92,
     "web_search_tool": 1134,
 }
 

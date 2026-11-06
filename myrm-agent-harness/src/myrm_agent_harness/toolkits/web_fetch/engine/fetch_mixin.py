@@ -98,15 +98,18 @@ class FetchEngineFetchMixin:
             logger.warning(f"HTTP {fetch_result.status_code} not degradable, abort: {url}")
             return None, False, latency_ms, cpu_percent, memory_mb, None
 
-        if fetcher_type == FetcherType.HTTP and not fetch_result.has_content:
-            logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
-            return None, True, latency_ms, cpu_percent, memory_mb, None
-
+        # Non-text bodies (PDF, Office) reach here as raw bytes with empty html, so they must be routed to a
+        # file parser before the empty-shell check; a payload no parser accepts still degrades to the browser.
         if fetch_result.raw_body is not None:
             from ..processing.binary_router import route_binary_content
 
             doc = await route_binary_content(fetch_result.raw_body, fetch_result.headers, url)
-            return doc, False, latency_ms, cpu_percent, memory_mb, fetch_result
+            if doc is not None:
+                return doc, False, latency_ms, cpu_percent, memory_mb, fetch_result
+
+        if fetcher_type == FetcherType.HTTP and not fetch_result.has_content:
+            logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
+            return None, True, latency_ms, cpu_percent, memory_mb, None
 
         from ..extractors.weixin_extractor import (
             has_weixin_js_content,

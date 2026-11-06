@@ -52,7 +52,9 @@ _MAX_REDIRECTS = 5
 _HTTP3_RETRY_STATUS = frozenset({403})
 
 
-DEFAULT_MAX_RESPONSE_BYTES = 750_000
+# Only text bodies are truncated, to bound the HTML pipeline's work. A truncated PDF or Office file cannot be
+# parsed, so non-text bodies stay whole; the binary router enforces its own size limit on them.
+MAX_TEXT_BODY_BYTES = 750_000
 
 
 class HttpFetcher:
@@ -355,19 +357,19 @@ class HttpFetcher:
         )
 
         body = getattr(response, "body", b"")
-        if len(body) > DEFAULT_MAX_RESPONSE_BYTES:
-            logger.warning(
-                "L1 HTTP response body capped: %d -> %d bytes for %s",
-                len(body),
-                DEFAULT_MAX_RESPONSE_BYTES,
-                current_url,
-            )
-            body = body[:DEFAULT_MAX_RESPONSE_BYTES]
         encoding = getattr(response, "encoding", None)
 
         if is_text:
             from ..probe.charset_detector import detect_and_decode_html
 
+            if len(body) > MAX_TEXT_BODY_BYTES:
+                logger.warning(
+                    "L1 HTTP response body capped: %d -> %d bytes for %s",
+                    len(body),
+                    MAX_TEXT_BODY_BYTES,
+                    current_url,
+                )
+                body = body[:MAX_TEXT_BODY_BYTES]
             html, _detected_enc = detect_and_decode_html(body, encoding)
             return FetchResult(
                 html=html,
