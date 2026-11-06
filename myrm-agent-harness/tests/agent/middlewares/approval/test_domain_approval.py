@@ -2,8 +2,9 @@
 
 Approving a navigation can grant its domain for the session, and a later navigation to it then runs without a card.
 A fetch is not asked about its domain, so its card offers no domain and a domain granted to the browser never lets
-a fetch run without the approval its own rules ask for. A granted domain is the host a browser dials, so a URL that only
-names it behind a backslash is asked about under the host it really reaches.
+a fetch run without the approval its own rules ask for. A granted domain is the host a browser dials: a URL that only
+names it behind a backslash has no canonical host, is denied before any card is built and so is never let through by
+the grant.
 """
 
 from __future__ import annotations
@@ -92,15 +93,16 @@ class TestGrantedDomainInABatch:
         assert [call["id"] for _, call in approved] == ["nav"]
         assert pending == []
 
-    async def test_a_granted_domain_does_not_let_a_backslash_url_through_to_another_host(self) -> None:
+    async def test_a_backslash_url_naming_a_granted_domain_is_denied_and_never_asked_about(self) -> None:
         _get_runtime_domains().add("example.com")
 
-        approved, _denied, pending = await evaluate_tool_batch(
+        approved, denied, pending = await evaluate_tool_batch(
             [_SPOOFED], SecurityConfig(domain_hitl_enabled=True), False, "/tmp", "session", {}
         )
 
         assert approved == []
-        assert [entry[1]["id"] for entry in pending] == ["spoofed"]
+        assert pending == []
+        assert [(call["id"], "parser-confusing" in reason) for _, call, reason in denied] == [("spoofed", True)]
 
     async def test_a_granted_domain_does_not_let_a_fetch_through(self) -> None:
         _get_runtime_domains().add("example.com")
@@ -127,11 +129,15 @@ class TestApprovalCard:
         assert request["domains"] == ("example.com",)
         assert payload["reviewConfigs"][0]["domainApproval"] is True
 
-    def test_a_backslash_url_card_offers_the_host_the_browser_dials(self) -> None:
-        with patch(_SHELL_FIELDS_PATH, return_value={"shellPreview": None}):
-            payload, _ = build_interrupt_payload([(0, _SPOOFED, "browser_navigate", "Domain check", None)], "session-1")
+    def test_a_card_offers_the_host_in_the_spelling_a_browser_dials(self) -> None:
+        spelled = ToolCall(
+            type="tool_call", name="browser_navigate_tool", args={"url": "HTTPS://Example.COM./a"}, id="spelled"
+        )
 
-        assert payload["actionRequests"][0]["domains"] == ("other.test",)
+        with patch(_SHELL_FIELDS_PATH, return_value={"shellPreview": None}):
+            payload, _ = build_interrupt_payload([(0, spelled, "browser_navigate", "Domain check", None)], "session-1")
+
+        assert payload["actionRequests"][0]["domains"] == ("example.com",)
 
     def test_a_fetch_card_offers_no_domain(self) -> None:
         with patch(_SHELL_FIELDS_PATH, return_value={}):
