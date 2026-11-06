@@ -8,6 +8,7 @@
 [OUTPUT]
 - classify_verification(): the verification category of a bash tool call, or None
 - tag_verification_call(): records the category on a finished bash call and fails it when its exit code says so
+- without_skill_scripts(): the records minus scripts saved to a file that import an MCP skill, and the runs of them
 
 [POS]
 Tells the guard which recorded bash calls count as verification of code the run wrote, and whether each passed.
@@ -19,11 +20,16 @@ only launches the real program (environment assignments, ``timeout``, ``uv run``
 The output judge reads text for failure keywords, which ruff, tsc and a summary-only pytest run do not print; the
 exit code the bash tool appends is what marks those runs failed. The shell reports the status of the last command it
 ran, so the exit code is held against a command only when its last pipeline stage is itself a verification.
+A script that imports an MCP skill is a tool call, not code to verify. Inline, the command carries the import and is
+recognised from its text; a script saved to a file only runs as ``python file.py``, so ``without_skill_scripts``
+reads the file's content from the run's own write records and takes the write and its runs out of the checklist.
 """
 
 from __future__ import annotations
 
+import posixpath
 import re
+from collections.abc import Sequence
 
 from myrm_agent_harness.agent.meta_tools.bash import read_exit_code
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, SuccessLevel, VerificationCategory
@@ -114,6 +120,10 @@ _PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*)?")
 # stand in for a test run that never happened, and a failure would be held against the run as a failed check.
 _SKILL_SCRIPT = re.compile(r"\b(?:from|import)\s+(?:skills\b|\w+_skill\b)")
 _NON_VERIFYING_PYTHON_MODULES = frozenset({"pip", "venv", "ensurepip"})
+_PYTHON_RUNS_NO_FILE = frozenset({"-m", "-c"})
+_PYTHON_OPTIONS_WITH_VALUE = frozenset({"-W", "-X"})
+_FILE_WRITE_TOOL = "file_write_tool"
+_BASH_TOOL = "bash_code_execute_tool"
 
 _PLAIN_WRAPPERS = frozenset({"env", "time", "nohup", "npx", "bunx", "uvx"})
 _SUBCOMMAND_WRAPPERS = frozenset(
@@ -132,7 +142,7 @@ _OPTIONS_WITH_VALUE = frozenset(
     {"--with", "--from", "--python", "-p", "--package", "--project", "--directory", "--group", "--extra"}
     | {"--env-file", "-u", "-k", "-s", "--signal", "--kill-after"}
 )
-_ENV_ASSIGNMENT = re.compile(r"[a-z_][a-z0-9_]*=")
+_ENV_ASSIGNMENT = re.compile(r"[a-z_][a-z0-9_]*=", re.IGNORECASE)
 _DURATION = re.compile(r"\d+(?:\.\d+)?[smhd]?")
 
 # Shell words, with quoted spans kept inside their word so ``-m "a; pytest"`` is never split. A stray quote
@@ -230,13 +240,90 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
     A command that carries a script importing an MCP skill is a tool call, not a verification.
     """
     command = _command(tool_args).lower()
-    if not command or _SKILL_SCRIPT.search(command):
+    if not command or _imports_mcp_skill(command):
         return None
     for segment in _segments(command):
         category = _classify_segment(segment)
         if category is not None:
             return category
     return None
+
+
+def _imports_mcp_skill(text: str) -> bool:
+    return _SKILL_SCRIPT.search(text) is not None
+
+
+def _unquote(token: str) -> str:
+    return token.strip("'\"")
+
+
+def _python_script(args: list[str]) -> str | None:
+    """The ``.py`` file ``python <args>`` runs; ``-m`` and ``-c`` run a module or a string, not a file."""
+    index = 0
+    while index < len(args) and args[index].startswith("-"):
+        if args[index] in _PYTHON_RUNS_NO_FILE:
+            return None
+        index += 2 if args[index] in _PYTHON_OPTIONS_WITH_VALUE else 1
+    script = _unquote(args[index]) if index < len(args) else ""
+    return script if script.endswith(".py") else None
+
+
+def _script_runs(command: str) -> list[tuple[str | None, str]]:
+    """Each ``python [options] <file>.py`` the command line runs, with the directory a ``cd`` before it set."""
+    runs: list[tuple[str | None, str]] = []
+    directory: str | None = None
+    for segment in _segments(command):
+        tokens = _strip_launchers(segment)
+        if not tokens:
+            continue
+        program = _program(tokens[0])
+        if program == "cd" and len(tokens) > 1:
+            directory = _unquote(tokens[1])
+        elif program == "python" and (script := _python_script(tokens[1:])) is not None:
+            runs.append((directory, script))
+    return runs
+
+
+def _same_file(written: str, directory: str | None, script: str) -> bool:
+    """Whether ``python script`` (after ``cd directory``) runs the file ``written``.
+
+    A path given without its root (the model's relative name, a container path) is the same file as an absolute one
+    that ends with it.
+    """
+    ran = posixpath.normpath(posixpath.join(directory, script) if directory else script)
+    saved = posixpath.normpath(written)
+    if ran == saved:
+        return True
+    if ran.startswith("/") != saved.startswith("/"):
+        absolute, relative = (ran, saved) if ran.startswith("/") else (saved, ran)
+        return absolute.endswith(f"/{relative}")
+    return False
+
+
+def without_skill_scripts(records: Sequence[CallRecord]) -> list[CallRecord]:
+    """The records the verification checklist judges: no script saved to a file that imports an MCP skill, nor its runs.
+
+    Such a script is a tool call like the inline ones ``classify_verification`` leaves out. Its write is not code
+    that needs a test run, its pass proves nothing about other code, and its failure says nothing once the data
+    came another way. A file counts from the write that gave it that import until a write that took it out, and
+    only the runs after that write are dropped.
+    """
+    skill_files: set[str] = set()
+    kept: list[CallRecord] = []
+    for record in records:
+        if record.tool_name == _FILE_WRITE_TOOL:
+            path = str(record.args.get("path", ""))
+            if path.endswith(".py"):
+                if _imports_mcp_skill(str(record.args.get("content", ""))):
+                    skill_files.add(path)
+                    continue
+                skill_files = {saved for saved in skill_files if not _same_file(saved, None, path)}
+        elif skill_files and record.tool_name == _BASH_TOOL:
+            runs = _script_runs(str(record.args.get("command", "")))
+            if any(_same_file(path, directory, script) for directory, script in runs for path in skill_files):
+                continue
+        kept.append(record)
+    return kept
 
 
 def _exited_with_failure(result_text: str) -> bool:
@@ -284,4 +371,4 @@ def tag_verification_call(record: CallRecord, tool_args: dict[str, object], resu
         record.success_level = SuccessLevel.FAILURE
 
 
-__all__ = ["classify_verification", "tag_verification_call"]
+__all__ = ["classify_verification", "tag_verification_call", "without_skill_scripts"]

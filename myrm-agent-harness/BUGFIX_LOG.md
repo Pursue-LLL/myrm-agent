@@ -2,6 +2,26 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-06-198 · 完成闸门把「运行一个 Python 文件」记成 test 验证，模型存成文件的技能脚本（写入加运行）因此被当成要验证的代码：脚本失败后，哪怕数据已用内联 Python 取到，答案仍被拒 3 次才强制放行，一次运行多出十几到几十轮
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`9e2ec0b940`） |
+| **发现时间** | 2026-11-06（给 BUG-HARNESS-2026-11-06-197「改后仍有 4/8 次跑到 18–37 轮」与 BUG-184「答完仍继续，未查明」查因：读这些运行的完整请求记录 `req_*.json`） |
+| **修复时间** | 2026-11-06 |
+| **严重程度** | P2：只在模型把 MCP 技能脚本存成文件时出现；一旦出现，一次运行多出 10–50 轮、数十万到上百万 token，有时以超时收场（受控注入的对照臂 8 次里 2 次）。 |
+| **关联产品** | harness `agent/middlewares/completion/completion_guard/{verification.py,checklist/assessment.py}`；BUG-184（保存的脚本导入技能）、BUG-197（退出 0 时的命名空间说明）同一条路径的第三层。 |
+| **症状** | [实测，请求记录] 一次运行里模型已经 `finish=stop` 给出完整答案，下一次请求的最后一条 user 消息却是 `Before providing your final answer, verify the following: 1. CRITICAL: Verification failed for: test. You MUST fix failing checks before finishing. … STATUS: REJECTED`，模型回答「本次为纯查询任务，工作区中无可执行测试」，又被拒，一共 3 次，第 4 次强制放行。[实测，BUG-197 的对照臂，DeepSeek v4.1 flash，k8s100 B，每臂 8 次] 修复 197 之后仍跑到 18、21、30、37 轮的 4 次运行，恰好就是 8 次里请求体带「答案被拒」指令的 4 次（共 12 条，11 条是 `Verification failed for: test`，1 条是 `Address 1 unresolved failure(s) in: file_write_tool`），其余 4 次 6–7 轮没有；197 之前的基线臂 8 次里 7 次有（共 20 条）。[实测，自然批次，未注入，DeepSeek 与 MiniMax 的 k8s100 S / B / A] 不预载 40 次里 1 次（MiniMax B，45 轮，3 条）、预载 40 次里 2 次（MiniMax A，28 与 27 轮，共 3 条），台架里 ≥27 轮的自然运行除一次撞审批上限的（34 轮，无此指令）外全是这样的运行。 |
+| **根因** | [代码，修复前 `138c3c1a0b`] ① `verification.py:54` `("python",): _TEST`：运行任何 Python 文件都记成 test 验证。② `verification.py:233` 技能脚本不算验证的豁免只看命令文本里有没有 `from skills…`；保存成文件的脚本，命令只是 `python3 probe.py`，认不出（BUG-184 之后这是受支持的路径，豁免没跟上）。③ `record_rules.py:85-92`：一个类别「最近一次运行失败」就一直算失败，要之后同类别的运行通过才算纠正；模型之后用内联 Python 取数不属于任何验证类别，纠正不了。④ 写文件本身让 `has_writes` 为真，`assessment.py:105` 起判 `CRITICAL`；`guard.py:163` 默认拒 3 次再强制放行。[实测，PSF 第 3 次运行] 保存的脚本失败了两次：带 `2>&1 \| head -60` 启动拿不到 `skills`（BUG-197），简单形态 `cd <工作区> && python probe.py` 进了技能运行时，却因 `list_namespaces` 没声明 `readOnlyHint` 被「保存的脚本只能调只读工具」拒绝；模型随后用内联 Python 取到数据并作答，答案被拒。指令只写「Verification failed for: test」，不说是哪条命令，模型无从纠正，只能继续探索。 |
+| **修复** | `verification.without_skill_scripts(records)`：按调用顺序扫描记录，`file_write_tool` 写入的 `.py` 文件内容里有 MCP 技能导入的，该文件从这次写入起算技能脚本，直到后来一次写入把导入拿掉；技能脚本的写入记录和其后 `python [选项] <文件>.py`（含 `cd`、环境变量前缀、`2>&1 \| head`、绝对路径或带根目录的路径）的运行记录不进验证清单。`assess_checklist` 与 `find_last_successful_verification_command` 先过这一步，所以它的写入不要求测试、它的通过不算别的代码的证明、它的失败不算失败的检查、也不会被独立重跑。只动检查清单；`check_deliverable_write_claim`、外部证据、执行声明等其余检查读原始记录，不受影响。 |
+| **反复次数** | 第 3 次（184 → 197 → 本条，同一条路径）。 |
+| **踩坑** | ① 第一版只想在分类处豁免：那样技能脚本的写入就成了「代码写入未验证」，运行失败成了「未解决的执行失败」，仍然 `REJECTED`（原本通过的保存脚本还会变成 `UNVERIFIED_CODE`），所以写入与运行必须成对移出清单。② `python3 -u probe.py`：`-u` 在启动器的选项表里是带值选项（`env -u NAME`），会吞掉脚本名，Python 参数用单独的解析（只有 `-W`、`-X` 带值，`-m`、`-c` 不是运行文件）。③ 完整跑 `tests/agent/middlewares/completion` + `tests/agent/meta_tools/bash` 时 `test_events.py::test_the_forced_finish_is_recorded_once_the_budget_is_spent` 在第一遍失败过一次，随后同集合重跑 5 次、该文件单跑都通过，未复现，与本条改动无关（该用例的记录列表为空，本条逻辑对它是恒等）。 |
+| **回归** | [实测] 新增 `tests/agent/middlewares/completion/completion_guard/checklist/test_skill_script_runs.py` 29 个用例（写入与失败运行不拦、通过不当别的代码的证明、不被独立重跑；真实代码的写入与失败仍拦；同名异目录、`.md` 里引用技能导入、之后又写成普通代码、没有技能脚本时记录原样返回；14 种命令形态的识别；守卫整体放行与仍然拦截各一个）；`tests/agent/middlewares`、`tests/agent/meta_tools/bash`、`tests/agent/security` 共 6927 通过；`tests/architecture` 的 6 个失败（分发模式与 core IP 清单）在 `138c3c1a0b` 上同样 6 个，与本条无关；ruff、格式、src 的 mypy 通过。 |
+| **真实模型受控对照** | DeepSeek v4.1 flash，k8s100 B，每臂 8 次，两臂交错并行；`fault_proxy.py piped-script` 只在第 2 个工具调用回复处注入一次「写 `probe.py`，再 `cd <工作区> && python3 probe.py 2>&1 \| head -60`」，其余每一轮都由真实模型回答。对照 = 修复 197 之后的源码（`02f3a69b6e`），实验 = 本条改动。[实测] 轮数中位 26.5（6 次有效：5–36；另 2 次超时）→ **6**（5–10）；全 8 次对 8 次的轮数均值差，精确置换检验单侧 p=0.0034；有答案被拒指令的运行 6/8 → **0/8**（Fisher 双侧 p=0.007）；总 Token 中位 610k → 69k；耗时中位 201 s → 36 s；答对 6/6 有效 → 8/8；对照另有 2 次超过 420 s 的超时（其中 1 次已答对，另 1 次没答出）。自然回归（同一台架，DeepSeek k8s100 S / B / A 各 4 次，实验源码）：轮数、首轮 prompt、总 Token 与不预载基线一致（S 3 轮 29.7k，B 3–4 轮 31.5k，A 7–9 轮 123k 对 135k），没有一次出现被拒指令；加权 cost 随上游缓存命中波动，不作比较。证据 `temp-docs/temp-task-context/harness-ptc-bench/evidence/guard_saved_skill_script/RESULTS.json`（根仓库）。 |
+| **行为变化（须知）** | 只有整文件写入（`file_write_tool`）、内容含 MCP 技能导入的 `.py` 文件受影响：它的写入与其后的运行不再进验证清单。没有技能脚本的运行，记录原样返回，行为不变。 |
+| **仍然存在** | ① 识别只靠本轮 `file_write_tool` 的写入记录：heredoc（`cat > x.py <<EOF`）、`file_edit_tool` 改出来的脚本、上一轮写下本轮才运行的脚本，识别不了，仍按旧规则当作 test。② 内联技能脚本失败后的处理没变：运行里另有真实写入时，内联 MCP 调用失败仍可能因「同一调用之后未成功」判为未解决失败。③ 「答案被拒」指令只写类别（`Verification failed for: test`），不说是哪条命令，模型仍然无从纠正：只要还有别的原因触发拒绝，会继续多绕几轮。④ 受控验证只在 DeepSeek 上做（MiniMax 套餐额度用尽，Gemini 账号被停用）；自然发生率只有探索批次的 3/80，不是 F1 级样本；注入把「存脚本」换成了固定动作，量的是出错之后的恢复，不是出错的频率。⑤ 带管道、带参数的启动形态仍拿不到 `skills`（BUG-197 只给了说明）。 |
+| **代码位置** | `src/myrm_agent_harness/agent/middlewares/completion/completion_guard/verification.py`（`without_skill_scripts` 与其辅助函数）、`.../checklist/assessment.py`（两处入口）；文档 `completion_guard/_ARCH.md`、`checklist/_ARCH.md`；测试 `tests/agent/middlewares/completion/completion_guard/checklist/test_skill_script_runs.py`、`tests/support/call_records.py`（`write(..., content=)`）。 |
+
 ### BUG-HARNESS-2026-11-06-197 · 模型把脚本存成文件、用 `python file.py 2>&1 | head -60` 这类带管道的形式启动，脚本里 `from skills.<技能>` 导入失败时命令退出码是 0，工具不告诉模型「`skills` 是虚拟命名空间、不是要装的包」：模型转去磁盘上找包、读环境变量、翻源码，一次运行 27–56 轮
 
 | 字段 | 内容 |
@@ -18,7 +38,7 @@
 | **踩坑** | 第一版注入脚本让两个注入调用共用同一个 call id，`bash_code_execute_tool` 的调用还漏了必填的 `reason`：模型看到的是「Field required」和「调用被中断」，不是 skills 报错，16 次运行作废重做（已删除，证据目录里只有第二版）。MiniMax 臂没能做：Token Plan 用量在这轮对照里用尽（网关回 429，`15:00 UTC+8` 前不再放行），受影响的运行按台架的清洗规则（有 HTTP 错误即剔除）处理。 |
 | **回归** | [实测] `tests/agent/meta_tools/bash` 997 通过；新增 5 个用例（带管道的回溯、脚本自己打印的错误、其他缺失模块与无关输出不触发、只读命令显示这段文字不触发、`format_result` 同时带伪成功提醒与说明且 `read_exit_code` 仍读成 0）；ruff、mypy 通过。 |
 | **行为变化（须知）** | 退出码为 0 且输出里出现 `skills` 导入失败文字时，工具结果末尾多一行 `[Auto-Hint] Python cannot import 'skills'. …`。 |
-| **仍然存在** | ① 没有降低模型「存成文件再启动」的概率，也没有让带管道的启动形态拿到 `skills`（BUG-184 仍只认无参数、无管道的 `[cd 根 &&] python file.py`）：改后仍有 3/8 次注入运行跑到 18–37 轮，即模型读到说明后有时仍要绕很久。② 效果只在 DeepSeek 上用注入验证；自然发生率没有重测：已知的是 BUG-184 记的整套 bench 604 次里 5 次、本轮未注入的 MiniMax 任务 B 12 次里 1 次（46 轮）；F1 冻结数据里 Myrm 的两次空答案（MiniMax 任务 A）没有留下请求记录，成因不明，不能算在内。MiniMax 配额恢复后再测。③ 注入把「模型存脚本」这一步换成了固定动作，所以这里量的是「出错之后的恢复」，不是「出错的频率」。 |
+| **仍然存在** | ① 没有降低模型「存成文件再启动」的概率，也没有让带管道的启动形态拿到 `skills`（BUG-184 仍只认无参数、无管道的 `[cd 根 &&] python file.py`）：改后仍有 4/8 次注入运行跑到 18–37 轮（18、21、30、37），这 4 次恰好是有「答案被拒」指令的 4 次，成因见 BUG-HARNESS-2026-11-06-198。② 效果只在 DeepSeek 上用注入验证；自然发生率没有重测：已知的是 BUG-184 记的整套 bench 604 次里 5 次、本轮未注入的 MiniMax 任务 B 12 次里 1 次（46 轮）；F1 冻结数据里 Myrm 的两次空答案（MiniMax 任务 A）没有留下请求记录，成因不明，不能算在内。MiniMax 配额恢复后再测。③ 注入把「模型存脚本」这一步换成了固定动作，所以这里量的是「出错之后的恢复」，不是「出错的频率」。 |
 | **代码位置** | `src/myrm_agent_harness/agent/meta_tools/bash/_tool/{terminal_hints.py,formatting.py}`；测试 `tests/agent/meta_tools/bash/test_terminal_hints.py`；证据 `temp-docs/temp-task-context/harness-ptc-bench/evidence/piped_script_fault/`（根仓库），注入代理 `fault_proxy.py` 的 `piped-script` 模式。 |
 
 ### BUG-HARNESS-2026-11-06-196 · 一行很宽、其余很多短行的表格让网页转 Markdown 的输出按「行数 × 最宽一行的列数」增长：4000 列 × 4000 行的 116 KB 网页转出 48 MB、占 1.15 s CPU 与 394 MB

@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.middlewares.completion.completion_guard.checklist.record_rules::code_changed_since_proof, failed_verification_types, is_proof, unresolved_failures (POS: the rules the verdict is made of)
+- agent.middlewares.completion.completion_guard.verification::without_skill_scripts (POS: leaves saved MCP skill scripts out of the records)
 - agent.security.guards.loop_guard::CallRecord, ToolGroup, SuccessLevel (POS: loop guard types)
 
 [OUTPUT]
@@ -29,6 +30,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist.
     is_proof,
     unresolved_failures,
 )
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import without_skill_scripts
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,
@@ -78,7 +80,7 @@ def find_last_successful_verification_command(records: list[CallRecord]) -> str 
     Returns None if no successful verification exists. Used by CompletionGuard
     to independently re-run the verification command in the sandbox.
     """
-    for rec in reversed(records):
+    for rec in reversed(without_skill_scripts(records)):
         if is_proof(rec):
             return str(rec.args.get("command", "")).strip() or None
     return None
@@ -259,11 +261,12 @@ def assess_checklist(records: list[CallRecord], workspace_root: str | None = Non
     Groups tool calls by semantic category and produces targeted
     verification items based on what the Agent actually did.
 
-    Internal tool records (``_``-prefixed) are filtered out first. Work is critical only when the run wrote
-    something its verification, unresolved failures or todo list do not support (see ``record_rules``); without
-    writes every finding is a WARNING.
+    Internal tool records (``_``-prefixed) and scripts saved to a file that import an MCP skill (tool calls, not
+    code to verify) are left out first. Work is critical only when the run wrote something its verification,
+    unresolved failures or todo list do not support (see ``record_rules``); without writes every finding is a
+    WARNING.
     """
-    records = [r for r in records if not r.tool_name.startswith("_")]
+    records = without_skill_scripts([r for r in records if not r.tool_name.startswith("_")])
 
     groups: dict[ToolGroup, list[CallRecord]] = {}
     for rec in records:
