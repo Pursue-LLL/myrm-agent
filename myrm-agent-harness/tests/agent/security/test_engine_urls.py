@@ -74,6 +74,24 @@ class TestCheckDomainBlocklist:
         assert action == PermissionAction.DENY
         assert "facebook.com" in reason
 
+    @pytest.mark.parametrize("stop", ["。", "．", "｡"])
+    def test_a_trailing_full_stop_of_any_kind_does_not_leave_the_blocklist(self, stop: str) -> None:
+        by_url = _check_domain_blocklist("net_fetch", {"urls": [f"https://facebook.com{stop}/x"]}, ("facebook.com",))
+        by_entry = _check_domain_blocklist("net_fetch", {"urls": ["https://facebook.com/x"]}, (f"facebook.com{stop}",))
+
+        assert by_url[0] == PermissionAction.DENY
+        assert by_entry[0] == PermissionAction.DENY
+
+    @pytest.mark.parametrize(
+        ("entry", "url"),
+        [
+            ("xn--strae-oqa.example", "https://straße.example/x"),
+            ("straße.example", "https://xn--strae-oqa.example/x"),
+        ],
+    )
+    def test_an_entry_and_a_url_name_one_idn_host_in_either_spelling(self, entry: str, url: str) -> None:
+        assert _check_domain_blocklist("net_fetch", {"urls": [url]}, (entry,))[0] == PermissionAction.DENY
+
     @pytest.mark.parametrize("entry", ["*.evil.net", ".evil.net", ".EVIL.net:8443", "https://*.evil.net/x"])
     def test_a_wildcard_entry_blocks_the_domain_and_its_subdomains_in_every_spelling(self, entry: str) -> None:
         for url in ("https://evil.net", "https://a.b.evil.net/x"):
@@ -129,6 +147,7 @@ class TestEvaluateToolCallBlocklist:
             ["https://example.com", "https://x.evil.net/p", "https://python.org"],
             json.dumps(["https://example.com", "https://facebook.com/login"]),
             ["https://facebook.com./login"],
+            ["https://facebook.com。/login"],
             ["FACEBOOK.com/login"],
         ],
     )
@@ -233,6 +252,14 @@ class TestEvaluateToolCallDomainHitl:
 
         assert action == PermissionAction.ASK
         assert "attacker.test" in reason
+
+    def test_a_sharp_s_lookalike_of_an_allowed_host_asks(self) -> None:
+        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("wordpress.com",))
+
+        action, reason = evaluate_tool_call("browser_navigate", {"url": "https://wordpreß.com/x"}, config)
+
+        assert action == PermissionAction.ASK
+        assert "wordpreß.com" in reason
 
     def test_disabled_no_check(self) -> None:
         config = SecurityConfig(domain_hitl_enabled=False, network_allowlist=("example.com",))

@@ -194,6 +194,7 @@ class TestTrustedEgressHosts:
             {"url": "https://api.partner.com/v1/health"},
             {"url": "https://API.Partner.com:8443/v1"},
             {"url": "https://api.partner.com./v1"},
+            {"url": "https://api.partner.com。/v1"},
             {"urls": ["https://api.partner.com/a", "https://api.partner.com/b"]},
             {"urls": '["https://api.partner.com/a"]'},
         ],
@@ -216,6 +217,15 @@ class TestTrustedEgressHosts:
 
         assert conflict is not None
         assert TaintLabel.SECRET in conflict
+
+    def test_a_sharp_s_lookalike_of_a_trusted_host_stays_a_sink(self) -> None:
+        tracker = self._tainted()
+        trusted = {"wordpress.com"}
+
+        assert tracker.check_sink("web_fetch_tool", {"url": "https://wordpress.com/x"}, trusted_hosts=trusted) is None
+        assert (
+            tracker.check_sink("web_fetch_tool", {"url": "https://wordpreß.com/x"}, trusted_hosts=trusted) is not None
+        )
 
     def test_one_untrusted_url_among_trusted_ones_keeps_the_sink(self) -> None:
         urls = ["https://api.partner.com/a", "https://suspicious-api.io/b"]

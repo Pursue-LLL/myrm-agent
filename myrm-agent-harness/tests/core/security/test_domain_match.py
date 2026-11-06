@@ -20,6 +20,9 @@ _ENTRIES = [
     "https://*.example.com/x",
     "example.com.",
     "*.münchen.de",
+    "*.Straße.de",
+    "example.com。",
+    ".example.com．",
     "*",
     "*.",
     ".",
@@ -35,9 +38,11 @@ class TestCanonicalHost:
             ("example.com.", "example.com"),
             ("example.com:8443", "example.com"),
             ("https://Example.com:8443/path?q=1", "example.com"),
-            ("münchen.de", "xn--mnchen-3ya.de"),
             ("ｅｖｉｌ.com", "evil.com"),
             ("evil。com", "evil.com"),
+            ("evil.com。", "evil.com"),
+            ("evil.com．", "evil.com"),
+            ("evil.com｡", "evil.com"),
             ("[::1]:8080", "::1"),
             ("::1", "::1"),
             ("", ""),
@@ -47,12 +52,35 @@ class TestCanonicalHost:
     def test_a_string_reduces_to_the_host_it_names(self, raw: str, host: str) -> None:
         assert canonical_host(raw) == host
 
-    def test_a_name_the_idna_codec_rejects_stays_as_written(self) -> None:
-        assert canonical_host("a..b") == "a..b"
-        assert canonical_host("A" * 70 + ".com") == "a" * 70 + ".com"
+    @pytest.mark.parametrize(
+        ("raw", "host"),
+        [
+            ("münchen.de", "xn--mnchen-3ya.de"),
+            ("日本語.jp", "xn--wgv71a119e.jp"),
+            ("😀.com", "xn--e28h.com"),
+            ("straße.de", "xn--strae-oqa.de"),
+            ("Straße.DE", "xn--strae-oqa.de"),
+            ("strasse.de", "strasse.de"),
+            ("xn--strae-oqa.de", "xn--strae-oqa.de"),
+            ("σας.gr", "xn--mxa8ab.gr"),
+            ("ΣΑΣ.gr", "xn--mxa9ab.gr"),
+            ("می\u200cخواهم.ir", "xn--mgbn2ecje63gr19l.ir"),
+        ],
+    )
+    def test_a_non_ascii_label_is_the_punycode_a_browser_dials(self, raw: str, host: str) -> None:
+        """Each value is the hostname the WHATWG URL parser gives for the same text; ``ß``, ``ς`` and the joiner stay."""
+        assert canonical_host(raw) == host
+
+    @pytest.mark.parametrize("name", ["a..b", "A" * 70 + ".com"])
+    def test_an_ascii_name_is_read_as_written(self, name: str) -> None:
+        assert canonical_host(name) == name.lower()
+
+    @pytest.mark.parametrize("name", ["a\u0080b.é", "�.com"])
+    def test_a_name_the_mapping_rejects_stays_as_written(self, name: str) -> None:
+        assert canonical_host(name) == name
 
     def test_text_longer_than_a_dns_name_is_read_as_written(self) -> None:
-        # Past 253 characters nothing can be dialed, so the IDNA codec (slow on a megabyte of non-ASCII text) is skipped.
+        # Past 253 characters nothing can be dialed, so the mapping (its cost grows with the text) is skipped.
         too_long = ".".join(["é"] * 200) + ".com"
 
         assert canonical_host(too_long) == too_long
@@ -80,6 +108,11 @@ class TestCanonicalEntry:
             (".Example.COM:8443", "*.example.com"),
             ("https://*.example.com/x", "*.example.com"),
             ("*.münchen.de", "*.xn--mnchen-3ya.de"),
+            ("straße.de", "xn--strae-oqa.de"),
+            ("*.Straße.de", "*.xn--strae-oqa.de"),
+            ("example.com。", "example.com"),
+            (".example.com．", "*.example.com"),
+            ("*.example.com｡", "*.example.com"),
             ("*", "*"),
             ("*.", "*."),
             (".", "*."),
@@ -119,6 +152,26 @@ class TestHostMatches:
     def test_a_fullwidth_host_is_the_ascii_host_the_client_dials(self) -> None:
         assert host_matches("ｅｖｉｌ.com", ("evil.com",))
         assert host_matches("evil。com", ("*.evil.com",))
+
+    @pytest.mark.parametrize("stop", ["。", "．", "｡"])
+    def test_a_trailing_full_stop_of_any_kind_is_a_trailing_dot(self, stop: str) -> None:
+        assert host_matches(f"example.com{stop}", ("example.com",))
+        assert host_matches("example.com", (f"example.com{stop}",))
+        assert host_matches(f"a.example.com{stop}", ("*.example.com",))
+        assert not host_matches(f"example.com{stop}", ("example.org",))
+
+    def test_sharp_s_is_not_ss(self) -> None:
+        assert host_matches("straße.de", ("straße.de",))
+        assert host_matches("straße.de", ("xn--strae-oqa.de",))
+        assert host_matches("xn--strae-oqa.de", ("straße.de",))
+        assert not host_matches("straße.de", ("strasse.de",))
+        assert not host_matches("strasse.de", ("straße.de",))
+
+    def test_final_sigma_and_a_joiner_name_hosts_of_their_own(self) -> None:
+        assert host_matches("σας.gr", ("xn--mxa8ab.gr",))
+        assert not host_matches("σας.gr", ("σασ.gr",))
+        assert host_matches("می\u200cخواهم.ir", ("xn--mgbn2ecje63gr19l.ir",))
+        assert not host_matches("می\u200cخواهم.ir", ("میخواهم.ir",))
 
     def test_an_ipv6_literal_matches_by_address(self) -> None:
         assert host_matches("::1", ("[::1]",))
