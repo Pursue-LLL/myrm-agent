@@ -160,6 +160,8 @@ Layer 2 由多个子模块组成，覆盖网络安全、命令安全、文件系
 
 **阻断的主机名**：`localhost`, `169.254.169.254`(AWS), `metadata.google.internal`(GCP), `100.100.100.200`(阿里云), `metadata.tencentyun.com`(腾讯云)
 
+**规范写法（判什么就拨什么）**：出站 URL 先由 `utils/url_syntax.py::parse_outbound_url` 解析成唯一的规范写法：UTS 46 映射并把非 ASCII 标签写成 Punycode，旧式数字 IPv4（`2130706433`、`0x7f.1`、`0177.0.0.1`）写成点分十进制，IPv6 取压缩形式，去掉末尾的点，端口按数字写，凭据段保留。各层判定的是这一写法的主机（引擎的黑名单与域名审批、`web_fetch` 的主机黑名单与 SSRF 分类、外泄白名单、技能域名白名单），拨号点发出的也是这一写法（`web_fetch_tool` 取回 `_url_gate.validate_urls` 返回的规范 URL，浏览器导航前先过 `canonical_navigation_url`），所以被判定的主机就是客户端实际连接的主机。含反斜杠、制表符、换行、百分号编码的主机、畸形 authority（多个 `@`、未闭合的方括号）、非法主机或端口的 URL 没有规范写法，一律拒绝，不会让分类器和客户端各读出一个主机。
+
 **DNS Pinning 策略**：
 
 验证流程返回 `SSRFResult`，其中包含已验证安全的 `resolved_ips`。调用方**必须**将 HTTP 连接钉住到这些 IP 上，彻底封堵 DNS rebinding TOCTOU 攻击窗口：
@@ -179,7 +181,7 @@ class SSRFResult:
 
 **出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、A2A resolver、cron webhook、HTTP hooks、LobeHub 技能安装、wiki URL ingestion 与 asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
 
-**浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource（与 OpenClaw 同级策略）。本地模式 `allow_private_networks=True` 时跳过 SSRF 校验。
+**浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时跳过 SSRF 校验。
 
 ### 3.2 命令/模块黑名单
 
@@ -554,6 +556,7 @@ Step 1:    Capability Fence → 未授权 → DENY
 Step 2a:   Shell Command Analyzer → BLOCK → DENY, ESCALATE → ASK
 Step 2a.5: Command Denylist → 用户自定义 fnmatch glob → DENY（YOLO 不可绕过）
 Step 2b:   URL Scheme Check → 非 http/https → DENY
+Step 2b1:  URL Syntax Check → 网络工具含 `://` 的网址没有规范写法 → DENY（无条件，先于 Step 2b2）
 Step 2b2:  Domain Blocklist → 网络工具任一 URL 的 hostname 命中 network_blocklist → DENY（无条件，优先于 Step 2c）
 Step 2c:   Domain HITL → 浏览器导航的域名不在 allowlist → ASK（仅 domain_hitl_enabled=True 时）
 Step 3:    Path Policy → forbidden → DENY, allowed/workspace → pass (file_read/file_write only)
@@ -564,7 +567,9 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 **Step 2a.5 — Command Denylist**：用户可在 WebUI 全局安全设置或 Per-Agent 安全配置中定义 fnmatch glob 模式列表（如 `git push --force*`、`kubectl delete*`、`*DROP DATABASE*`）。匹配采用大小写不敏感的 `fnmatch`，仅对 `shell_exec` 和 `code_interpreter` 权限类型生效。命中则 **DENY**，YOLO 模式也无法绕过（因为 `batch_processor.evaluate_tool_batch` 在 YOLO 路径仍调用 `evaluate_tool_call` 并尊重 DENY）。全局和 Agent 级 denylist 通过 `channel_presets._merge_user_and_agent` 取并集合并。
 
-**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的 hostname（小写、去掉末尾的点；解析不出 hostname 的网址以其原文参与匹配，解析异常不会中断评估），逐个匹配 `SecurityConfig.network_blocklist`（条目语法与 allowlist、浏览器域名过滤器、污点豁免共用 `core/security/domain_match.py`：`example.com` 只匹配该域本身，`*.example.com` 与 `.example.com` 匹配该域及其全部子域；条目里的协议、路径、端口与末尾的点被忽略，大小写不敏感；主机按浏览器拨号时的写法比较（UTS 46 映射：全角字符与表意句号折成普通写法，非 ASCII 标签写成 Punycode，`ß`、`ς` 保持原字，所以 `straße.de` 与 `strasse.de` 是两个主机）；`*`、`*.*` 这类不指向任何主机的条目留在列表里、什么也不匹配）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
+**Step 2b1 — URL Syntax Check**：对 `web_fetch`、`net_fetch`、`browser_navigate`，调用里任何含 `://` 的网址（参数 `url`，或 `urls` 中的每一项，也接受 JSON 数组文本）若没有规范写法（含反斜杠、制表符、换行等分歧字符，百分号编码的主机，畸形 authority 或端口，非法主机），直接 **DENY**，理由为 `URL not allowed: …`：这样的网址里，列表读出的主机与客户端拨的主机可能不是同一个，没有任何名单能可靠判定它。不含 `://` 的字符串（裸 `host:port`）不在此列，由 Step 2b2 与规则按原文处理。
+
+**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的规范主机（小写、非 ASCII 标签写成 Punycode、旧式数字 IPv4 写成点分十进制、去掉末尾的点；没有规范写法的字符串以其原文参与匹配），逐个匹配 `SecurityConfig.network_blocklist`（条目语法与 allowlist、浏览器域名过滤器、污点豁免共用 `core/security/domain_match.py`：`example.com` 只匹配该域本身，`*.example.com` 与 `.example.com` 匹配该域及其全部子域；条目里的协议、路径、端口与末尾的点被忽略，大小写不敏感；主机按浏览器拨号时的写法比较（UTS 46 映射：全角字符与表意句号折成普通写法，非 ASCII 标签写成 Punycode，`ß`、`ς` 保持原字，所以 `straße.de` 与 `strasse.de` 是两个主机；旧式数字 IPv4 写成点分十进制，所以条目 `127.0.0.1` 与 `2130706433`、`0x7f.1` 是同一个主机）；`*`、`*.*` 这类不指向任何主机的条目留在列表里、什么也不匹配）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
 
 **Step 2c — Domain HITL**：当 `SecurityConfig.domain_hitl_enabled=True` 时，对浏览器导航（`browser_navigate`）提取 hostname 并检查是否在 `network_allowlist` 中。不在 allowlist 中的域名触发 ASK，经由批量审批流程呈现给用户。`web_fetch` 只读取页面，不触发域名审批，仍受 Step 2b2 黑名单与 Step 4 规则约束。用户可选择：
 - "本次允许" — 正常批准
@@ -577,8 +582,8 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 | 权限类型 | 提取字段 | 特殊处理 |
 |---------|---------|---------|
-| `browser_navigate` | `url` | 提取 hostname（支持 scheme-prefixed 和 bare host:port，小写、去掉末尾的点） |
-| `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的 hostname 并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
+| `browser_navigate` | `url` | 提取规范主机（见 3.1「规范写法」）；没有规范写法的字符串（如不带协议的 `host:port`）以原文作为目标 |
+| `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的规范主机并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
 | `shell_exec` | `command` | 原始值 |
 | `file_read` / `file_write` | `path` | 原始值 |
 | 其他 | — | 返回 `"*"` |
@@ -1144,7 +1149,7 @@ _LOCAL_BROWSER_RELAXATION = (
 )
 ```
 
-本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 同步跳过 SSRF Guard 检查（保留 URL scheme 检查）。
+本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 同步跳过 SSRF Guard 检查（保留 URL scheme 检查与 URL 规范化）。
 
 **web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 同样跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
 
