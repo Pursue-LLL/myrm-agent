@@ -6,8 +6,8 @@ import logging
 
 import pytest
 
-from app.services.agent.params.models import ModelSelection
 from app.services.agent.params.model_config import _resolve_model_config
+from app.services.agent.params.models import ModelSelection
 
 _SECRET = "custom-key-not-matching-any-redaction-prefix"
 
