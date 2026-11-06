@@ -13585,8 +13585,7 @@
     "sessionOverrideTitle": "이 대화의 선호 업데이트",
     "sessionOverrideDescription": "이 대화 중에 선호나 사실을 바로잡았다면, 이 답변은 그 변경을 반영합니다.",
     "sessionOverrideMobile": "이 답변에 이 대화의 {count}건 업데이트가 반영되었습니다",
-    "sessionMemoryUpdatedHint": "기본 설정이 저장되었으며 이 채팅의 이후 답변에 적용됩니다.",
-    "briefLearnedInPrefix": "학습된 컨텍스트가 이 답변의 메모리 프리픽스에 포함되었습니다: 선호도 {preferences}개, 규칙 {rules}개, 수정 항목 {corrections}개."
+    "sessionMemoryUpdatedHint": "기본 설정이 저장되었으며 이 채팅의 이후 답변에 적용됩니다."
   },
   "e2ee": {
     "secured": "E2EE",

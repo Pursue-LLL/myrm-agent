@@ -13585,8 +13585,7 @@
     "sessionOverrideTitle": "Aktualisierungen in diesem Chat",
     "sessionOverrideDescription": "Wenn Sie in diesem Gespräch etwas korrigiert haben, folgt diese Antwort diesen Änderungen.",
     "sessionOverrideMobile": "{count} Aktualisierung(en) aus diesem Chat sind in dieser Antwort berücksichtigt",
-    "sessionMemoryUpdatedHint": "Ihre Präferenzen wurden gespeichert und gelten für die nächsten Antworten in diesem Chat.",
-    "briefLearnedInPrefix": "Gelernter Kontext wurde in das Speicherpräfix dieser Antwort aufgenommen: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturen."
+    "sessionMemoryUpdatedHint": "Ihre Präferenzen wurden gespeichert und gelten für die nächsten Antworten in diesem Chat."
   },
   "e2ee": {
     "secured": "E2EE",

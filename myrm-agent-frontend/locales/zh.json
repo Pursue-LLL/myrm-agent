@@ -13585,8 +13585,7 @@
     "sessionOverrideTitle": "本会话的偏好更新",
     "sessionOverrideDescription": "您在本对话中更正过偏好或事实，本条回复已按这些更新理解。",
     "sessionOverrideMobile": "本条回复体现了本会话的 {count} 项更新",
-    "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。",
-    "briefLearnedInPrefix": "本回复的记忆前缀已包含学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。"
+    "sessionMemoryUpdatedHint": "偏好已保存，将在本会话的后续回复中生效。"
   },
   "e2ee": {
     "secured": "端到端加密",

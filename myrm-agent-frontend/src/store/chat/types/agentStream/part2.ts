@@ -28,14 +28,13 @@ export interface MemoryBriefData {
     instruction_count: number;
     rule_count: number;
   };
+  /** Learned facts are reported for display only; the agent retrieves them on demand via memory_search_tool. */
   learned: {
     preference_count: number;
     rule_count: number;
     correction_count: number;
     preference_ids: string[];
     rule_ids: string[];
-    /** Stable prefix injection skips learned facts; retrieval uses memory_search_tool. */
-    injected_in_turn_prefix?: boolean;
   };
 }
 

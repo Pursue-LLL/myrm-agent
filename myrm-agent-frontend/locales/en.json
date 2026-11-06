@@ -13585,8 +13585,7 @@
     "sessionOverrideTitle": "Preference updates this chat",
     "sessionOverrideDescription": "You changed something earlier in this conversation. This reply follows those updates.",
     "sessionOverrideMobile": "{count} update(s) from this chat are reflected here",
-    "sessionMemoryUpdatedHint": "Your preferences were saved and will apply to the next replies in this chat.",
-    "briefLearnedInPrefix": "Learned context was included in this reply's memory prefix: {preferences} preferences, {rules} rules, {corrections} correction items."
+    "sessionMemoryUpdatedHint": "Your preferences were saved and will apply to the next replies in this chat."
   },
   "e2ee": {
     "secured": "E2EE",
