@@ -21,4 +21,4 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 
 When the user enables `image_generation` / `video_generation` / `tts` on an agent
 and credentials are configured, tools are registered as **AgentDeclared** (eager,
-Turn 1 schema) via `general_agent/tool_setup.py` — not deferred.
+Turn 1 schema) via `general_agent/tool_setup/media.py` — not deferred.
