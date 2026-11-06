@@ -272,7 +272,7 @@ class TestPreferenceStabilityStrategy:
                 )
             )
         await strategy.micro_rebuild()
-        active = await strategy.get_active_preferences()
+        active = await store.list_by_lifecycle(PreferenceLifecycle.ACTIVE)
         assert len(active) >= 1
         assert active[0].key == "lang"
         await store.close()

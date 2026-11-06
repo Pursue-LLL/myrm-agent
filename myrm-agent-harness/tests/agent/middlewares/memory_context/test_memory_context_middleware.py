@@ -177,7 +177,6 @@ async def test_reuses_prefetched_snapshot_without_refetch():
         await memory_context_middleware.awrap_model_call(req, handler)
 
     mock_manager.get_context.assert_not_called()
-    mock_manager.get_learned_context.assert_not_called()
     req.override.assert_called_once()
     injected_messages = req.override.call_args[1]["messages"]
     stable_payload = "\n".join(str(m.content) for m in injected_messages if isinstance(m, SystemMessage))
@@ -239,42 +238,3 @@ async def test_inserts_after_multiple_system_messages():
     assert [type(m) for m in injected] == [SystemMessage, SystemMessage, SystemMessage, HumanMessage]
     assert [m.content for m in injected[:2]] == ["System prompt 1", "System prompt 2"]
     assert MEMORY_CONTEXT_MARKER in str(injected[2].content)
-
-
-async def test_learned_facts_are_never_fetched_or_injected():
-    """Learned facts stay out of the prompt prefix: an empty profile gets the cold-start block only."""
-    handler = AsyncMock()
-    req = make_request(
-        messages=[
-            SystemMessage(content="sys"),
-            HumanMessage(content="Real user"),
-        ]
-    )
-
-    mock_manager = MagicMock()
-    mock_manager.user_id = "u-learned-only"
-    mock_manager.recall_mode = RecallMode.HYBRID
-    mock_manager.get_context = AsyncMock(return_value={})
-    mock_manager.get_learned_context = AsyncMock(
-        return_value={
-            "learned_rules": [{"trigger": "learned-trigger", "action": "learned-action", "content": "x"}],
-            "learned_preferences": [],
-        }
-    )
-
-    with bound_manager(mock_manager):
-        await memory_context_middleware.awrap_model_call(req, handler)
-
-    mock_manager.get_learned_context.assert_not_called()
-    req.override.assert_called_once()
-    injected = req.override.call_args[1]["messages"]
-    assert [type(m) for m in injected] == [SystemMessage, SystemMessage, HumanMessage]
-    assert "learned-action" not in "\n".join(str(m.content) for m in injected)
-    cold_msgs = [
-        m
-        for m in injected
-        if isinstance(m, SystemMessage)
-        and "Discovery Mode" in str(m.content)
-        and MEMORY_CONTEXT_MARKER in str(m.content)
-    ]
-    assert len(cold_msgs) == 1

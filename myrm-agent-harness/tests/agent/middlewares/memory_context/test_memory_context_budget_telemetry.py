@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.middlewares.memory_context.memory_context_format import MEMORY_BLOCK_BUDGET_CHARS
@@ -35,14 +34,9 @@ def _rule(trigger: str, action: str, priority: int = 0) -> dict[str, object]:
     return {"trigger": trigger, "action": action, "priority": priority, "user_endorsed": False}
 
 
-async def _gauge_and_block(
-    memory_ctx: dict[str, object], *, max_learned_context_chars: int = 2000, model_context_tokens: int | None = None
-) -> tuple[MemoryRuntimeBudget | None, str]:
+async def _gauge_and_block(memory_ctx: dict[str, object]) -> tuple[MemoryRuntimeBudget | None, str]:
     manager = MagicMock()
     manager.recall_mode = RecallMode.HYBRID
-    manager._config = MagicMock(
-        max_learned_context_chars=max_learned_context_chars, model_context_tokens=model_context_tokens
-    )
     manager.user_id = "u1"
     manager.get_context = AsyncMock(return_value=memory_ctx)
     request = make_request(messages=[SystemMessage(content="identity"), HumanMessage(content="hi")])
@@ -125,17 +119,3 @@ async def test_a_heavy_memory_fills_the_budget_without_overflowing_it() -> None:
     assert budget["rulesTruncated"] is True
     assert 0.9 * MEMORY_BLOCK_BUDGET_CHARS < budget["used"] <= MEMORY_BLOCK_BUDGET_CHARS
     assert budget["rulesInjected"] == _rule_lines(block)
-
-
-@pytest.mark.parametrize(("max_learned_context_chars", "model_context_tokens"), [(1200, None), (50000, 8000)])
-async def test_the_gauge_does_not_depend_on_the_manager_config(
-    max_learned_context_chars: int, model_context_tokens: int | None
-) -> None:
-    budget, _ = await _gauge_and_block(
-        {"global_profile": {"name": "Li Ming"}},
-        max_learned_context_chars=max_learned_context_chars,
-        model_context_tokens=model_context_tokens,
-    )
-
-    assert budget is not None
-    assert budget["total"] == MEMORY_BLOCK_BUDGET_CHARS

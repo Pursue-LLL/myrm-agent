@@ -405,9 +405,6 @@ class MemoryConfig:
     Deduplication:
     - dedup: Three-layer smart deduplication configuration
 
-    Learned context (listed in the memory-brief preview, never injected into the model prompt):
-    - max_learned_context_chars: Budget for the learned memories (preferences + rules) ``get_learned_context`` returns
-
     Consolidation:
     - consolidation: Cross-session memory consolidation (dream mechanism)
 
@@ -429,13 +426,6 @@ class MemoryConfig:
     """Maximum query tokens evaluated during BM25 search. Queries exceeding this
     budget trigger IDF-aware selective pruning to prevent fan-out calculation explosion."""
     dedup: DeduplicationParams = field(default_factory=DeduplicationParams)
-    max_learned_context_chars: int = 2000
-    max_corrections: int = 10
-    """Maximum correction memories ``get_learned_context`` returns. Corrections are prioritized over
-    preferences and capped to prevent stale corrections from flooding the learned context."""
-    model_context_tokens: int | None = None
-    """Model's total context window in tokens. When set, learned context budget
-    scales as max(max_learned_context_chars, model_context_tokens // 30)."""
     consolidation: ConsolidationConfig = field(default_factory=ConsolidationConfig)
     recurrence: RecurrenceConfig = field(default_factory=RecurrenceConfig)
     forgetting: ForgettingConfig = field(default_factory=ForgettingConfig)

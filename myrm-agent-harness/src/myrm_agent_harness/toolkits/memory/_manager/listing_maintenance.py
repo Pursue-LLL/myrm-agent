@@ -293,7 +293,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
         """Execute full preference stability rebuild during maintenance.
 
         After rebuild, writes back stability scores to SemanticMemory.preference_strength
-        so the existing retrieval pipeline (get_learned_context, ResultBooster) automatically
+        so the existing retrieval pipeline (ResultBooster) automatically
         benefits without any modifications.
         """
         if self._preference_strategy is None:
