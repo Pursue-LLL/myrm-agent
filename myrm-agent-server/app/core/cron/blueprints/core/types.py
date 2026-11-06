@@ -1,7 +1,23 @@
-"""Cron 蓝图的数据结构与调度辅助。
+"""[INPUT]
+- app.core.cron.blueprints.i18n::SUPPLEMENTAL_BY_ID (POS: `app.core.cron.blueprints.i18n` 的唯一入口；按主题分组的文案在子模块中定义。)
+
+[OUTPUT]
+- BlueprintFillError: Raised when blueprint slot values fail validation.
+- BlueprintSlot: A user-fillable parameter in a blueprint.
+- BlueprintScheduleResult: Generated schedule from blueprint slot values.
+- BlueprintFillResult: Result of filling a blueprint with user-provided slot values.
+- BlueprintMonitorDefaults: Default monitor configuration to apply when creating a job from a blueprint.
+- BlueprintFailureAlertDefaults: Default failure-alert policy to apply when creating a job from a blueprint.
+- BlueprintJobDefaults: Execution defaults used to materialize a full Cron create payload.
+- CronBlueprint: A reusable automation template.
+- _merge_locale_dict: _merge_locale_dict
+- _with_supplemental_locales: Attach ja/de/ko catalog fields from the supplemental locale module.
+- _time_to_cron: _time_to_cron
+- _time_to_cron_weekday: _time_to_cron_weekday
+- _time_to_cron_with_weekdays: _time_to_cron_with_weekdays
 
 [POS]
-蓝图目录（blueprints_*）与注册表（blueprints.py）共用的类型和纯函数；不包含任何具体蓝图。
+蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。
 """
 
 from __future__ import annotations

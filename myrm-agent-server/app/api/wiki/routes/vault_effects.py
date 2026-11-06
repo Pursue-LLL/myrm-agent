@@ -1,4 +1,10 @@
-"""Wiki 变更后的 vault 与认知地图副作用。
+"""[INPUT]
+- myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiCognitiveMapService / WikiMapEvent / WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- _refresh_wiki_cognitive_map: Rebuild OKF index/log/hot after a wiki lifecycle event.
+- _after_wiki_vault_mutation: Drop stats cache and commit vault git snapshot after wiki mutations.
 
 [POS]
 所有写 wiki 的路由在落盘后调用，保证索引、热区与认知地图与磁盘一致。

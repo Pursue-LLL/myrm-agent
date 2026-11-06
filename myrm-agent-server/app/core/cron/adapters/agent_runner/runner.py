@@ -1,28 +1,19 @@
-"""Agent job runner — executes cron jobs through the Agent pipeline.
+"""[INPUT]
+- myrm_agent_harness.api.security::is_untrusted_ingress_active (POS: Security facade: process-wide Managed Approval Policy for external consumers.)
+- myrm_agent_harness.toolkits.cron.cron_agent_tools::enter_cron_execution_context / exit_cron_execution_context (POS: Agent tool for scheduled task management: the ``cron_manage`` tool declaration, the cron-execution guard and blueprint /)
+- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks.)
+- myrm_agent_harness.toolkits.cron.situation::SituationReportBuilder (POS: Situation Report — pluggable context aggregator for heartbeat ticks.)
+- myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / ScheduleKind / SessionTarget (POS: Cron job domain types.)
+- app.core.agent.run_activity::track_background_agent_run (POS: Cron, kanban, IM channel and eval runs call the agent pipeline directly, so the gateway's active)
+- app.core.cron.adapters.injection_scan::scan_cron_prompt (POS: Server-layer cron prompt injection scanner. Reuses harness pattern library.)
+- app.core.cron.adapters.research_lease::grant_run_lease / release_run_lease (POS: Decides which cron runs execute under the harness read-only research lease: jobs that declare nothing or only)
+- app.core.cron.adapters.agent_runner::session (POS: `app.core.cron.adapters.agent_runner` 的唯一入口；实现按执行阶段分布在同一目录的模块中。)
+- app.core.cron.adapters.agent_runner.profile::resolve_cron_agent_profile (POS: agent_runner 的 profile 引导层；只读 Agent Profile，不创建任务、不写库。)
+- app.core.cron.adapters.agent_runner.stream::_consume_dynamic_workflow_stream / _consume_stream / _deterministic_failure / _failure_result / _StreamAccumulator / _timeout_result (POS: agent_runner 的流处理层：把 Agent 事件累加成 JobResult，不参与任务编排。)
+- app.core.cron.adapters.agent_runner.support::_budget_skip_reason / _build_daily_context / _build_effective_prompt / _finalize_heartbeat_follow_up_delivery / _resolve_cron_enable_memory / _resolve_cron_enable_web_search / _resolve_effective_allowed_roots / resolve_trusted_desktop_keys (POS: agent_runner 的支撑层；不持有执行器状态。)
 
-1. agent/context_management/PROMPT_CACHE_PRACTICE.md §2.3 Cron 场景
-
-Reads the user's latest configs from ConfigService at execution time
-(no config snapshot). Model priority: agent profile model > CronJob.model
-> user's default model. No implicit fallback to arbitrary providers.
-
-When CronJob.agent_id is set, loads the agent's full profile via
-AgentProfileResolver to inject system_prompt, skills, model,
-subagent_ids, security overrides, max_iterations, and memory_policy
-into GeneralAgentParams — identical to Web/Channel entry points.
-
-Session target modes:
-- ISOLATED: each execution runs with a blank context (default).
-- MAIN: reuses the bound web-chat session's history.
-- DAILY: same-day executions share context via injected run-history;
-  a fresh context starts each calendar day.  See §2.3 of
-  PROMPT_CACHE_PRACTICE.md for cache-safety analysis.
-
-For recurring jobs, a [SILENT] instruction is appended to the prompt
-so the Agent can skip delivery when there's nothing actionable to report.
-
-During execution, a ContextVar guard prevents the Agent from creating new
-cron jobs (cron self-scheduling prevention).
+[OUTPUT]
+- AgentJobRunner: JobRunner implementation that delegates to AgentFactory.
 
 [POS]
 `agent_runner` 的执行核心：`AgentJobRunner` 编排一次 cron 任务的 Agent 执行；执行前检查、会话后置动作、事件流累积、profile 解析由同目录其余模块承担。

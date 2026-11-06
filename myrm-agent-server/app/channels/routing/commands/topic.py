@@ -1,4 +1,11 @@
-"""话题命令：解析与绑定/解绑/切换处理。
+"""[INPUT]
+- app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and)
+- app.channels.types::InboundMessage / OutboundMessage (POS: Channel system domain types — pure data definitions, no I/O.)
+
+[OUTPUT]
+- TopicCommand: Parsed topic management command.
+- parse_topic_args: Parse topic command arguments from resolved command.
+- handle_topic_command: Handle /bind, /unbind, /topic commands for topic/channel management.
 
 [POS]
 IM 斜杠命令域的子模块；由 app/channels/routing/commands/__init__.py 聚合导出。

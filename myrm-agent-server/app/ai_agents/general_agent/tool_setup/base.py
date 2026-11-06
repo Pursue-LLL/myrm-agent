@@ -1,4 +1,8 @@
-"""ToolSetupMixin 的共享基类：类型检查下的宿主属性声明。
+"""[INPUT]
+- app.ai_agents.general_agent.external_agents::ExternalAgentsMixin (POS: 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP 后端注册、)
+
+[OUTPUT]
+- ToolSetupBaseMixin: Mixin providing all tool initialization methods for GeneralAgent.
 
 [POS]
 各工具族 mixin 共同继承，避免重复声明宿主属性。

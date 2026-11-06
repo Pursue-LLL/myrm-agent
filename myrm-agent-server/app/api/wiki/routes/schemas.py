@@ -1,4 +1,51 @@
-"""Wiki API 请求与响应模型（查询、编译、统计、树、变更、去重、导入、会议）。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- WikiQueryRequest: WikiQueryRequest
+- WikiSourceSnippet: WikiSourceSnippet
+- WikiClaimEvidenceItem: WikiClaimEvidenceItem
+- WikiClaimItem: WikiClaimItem
+- WikiRetrievalTraceIndexHit: WikiRetrievalTraceIndexHit
+- WikiRetrievalSeedTraceItem: WikiRetrievalSeedTraceItem
+- WikiRetrievalTraceResponse: WikiRetrievalTraceResponse
+- WikiQueryResponse: WikiQueryResponse
+- WikiCompileResponse: The compile has been handed to the background worker; its progress arrives on the ingest stream.
+- CompileRunResponse: CompileRunResponse
+- WikiStructuralIssuesResponse: WikiStructuralIssuesResponse
+- WikiDedupStatsResponse: WikiDedupStatsResponse
+- WikiAssetIndexStatsResponse: WikiAssetIndexStatsResponse
+- WikiMaintainStateResponse: WikiMaintainStateResponse
+- WikiStatsResponse: WikiStatsResponse
+- GraphNodeItem: GraphNodeItem
+- GraphEdgeItem: GraphEdgeItem
+- WikiGraphResponse: WikiGraphResponse
+- ConceptLinkItem: ConceptLinkItem
+- ConceptBacklinkItem: ConceptBacklinkItem
+- ConceptLinksResponse: ConceptLinksResponse
+- WikiEditorSectionsResponse: WikiEditorSectionsResponse
+- ConceptResponse: ConceptResponse
+- ConceptListResponse: ConceptListResponse
+- TreeNode: TreeNode
+- CreateFolderRequest: CreateFolderRequest
+- MoveNodeRequest: MoveNodeRequest
+- DeleteFolderRequest: DeleteFolderRequest
+- WikiApplyClaimPatch: WikiApplyClaimPatch
+- WikiApplyRequestBody: WikiApplyRequestBody
+- WikiApplyResponse: WikiApplyResponse
+- WikiCompoundRequestBody: WikiCompoundRequestBody
+- WikiCompoundResponse: WikiCompoundResponse
+- WikiDailyReviewRequestBody: WikiDailyReviewRequestBody
+- WikiDailyReviewResponse: WikiDailyReviewResponse
+- WikiTemplateSeedRequest: WikiTemplateSeedRequest
+- WikiTemplateSeedResponse: WikiTemplateSeedResponse
+- QueueStatusResponse: QueueStatusResponse
+- PendingEditsResponse: PendingEditsResponse
+- OperationResult: OperationResult
+- ApprovePendingEditRequest: ApprovePendingEditRequest
+- RepairTypesResponse: RepairTypesResponse
+- RepairPublicationResponse: RepairPublicationResponse
+- ReindexVectorsResponse: ReindexVectorsResponse
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

@@ -1,7 +1,11 @@
-"""金融与网站巡检蓝图：简单/进阶金融监控、SEO 与站点健康周检。
+"""[INPUT]
+- app.core.cron.blueprints.core.types::_CAP_RESEARCH / _TOOLS_RESEARCH / BlueprintFailureAlertDefaults / BlueprintJobDefaults / BlueprintMonitorDefaults / BlueprintSlot / CronBlueprint (POS: 蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
-Cron 蓝图目录的一部分；由 app/core/cron/blueprints.py 按声明顺序拼成内置清单。
+Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。
 """
 
 from app.core.cron.blueprints.core.types import (

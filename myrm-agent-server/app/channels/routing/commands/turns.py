@@ -1,4 +1,12 @@
-"""回合级命令处理：重试、撤销与文件回退提示。
+"""[INPUT]
+- app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and)
+- app.channels.types::InboundMessage / OutboundMessage (POS: Channel system domain types — pure data definitions, no I/O.)
+
+[OUTPUT]
+- _format_file_revert_notice: _format_file_revert_notice
+- _publish_outbound_notice: _publish_outbound_notice
+- handle_retry: Handle /retry command: delete last assistant turn and return original query for re-execution.
+- handle_undo: Handle /undo command: delete the entire last turn (user + assistant messages).
 
 [POS]
 IM 斜杠命令域的子模块；由 app/channels/routing/commands/__init__.py 聚合导出。

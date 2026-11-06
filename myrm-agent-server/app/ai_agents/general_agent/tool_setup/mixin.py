@@ -1,4 +1,15 @@
-"""ToolSetupMixin 组合：把各工具族 mixin 合成一个类。
+"""[INPUT]
+- app.ai_agents.general_agent.tool_setup.artifact::ArtifactToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.browser::BrowserToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.computer::ComputerToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.cron::CronToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.media::MediaToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.memory::MemoryToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.search::SearchToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+- app.ai_agents.general_agent.tool_setup.skill::SkillToolsMixin (POS: ToolSetupMixin 的一个工具族；由 mixin.py 组合。)
+
+[OUTPUT]
+- ToolSetupMixin: Mixin providing all tool initialization methods for GeneralAgent.
 
 [POS]
 GeneralAgent 只继承这个类；MRO 顺序固定为声明的工具族顺序。

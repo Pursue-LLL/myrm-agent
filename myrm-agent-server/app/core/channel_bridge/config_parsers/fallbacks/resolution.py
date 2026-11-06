@@ -1,4 +1,9 @@
-"""模型槽位回退项解析（视觉/视频链共用）。
+"""[INPUT]
+- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- extract_slot_fallback_chain: Resolve the ordered fallback selections within a ModelSlot to ModelConfig list.
+- _resolve_slot_fallback: Resolve the primary fallback selection within a ModelSlot to a ModelConfig.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

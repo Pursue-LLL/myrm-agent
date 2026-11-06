@@ -1,4 +1,9 @@
-"""把绑定 Agent 的配置解析成 Cron 执行上下文。
+"""[INPUT]
+- myrm_agent_harness.toolkits.cron.types::CronJob (POS: Cron job domain types.)
+
+[OUTPUT]
+- CronAgentProfileBootstrap: CronAgentProfileBootstrap
+- resolve_cron_agent_profile: resolve_cron_agent_profile
 
 [POS]
 agent_runner 的 profile 引导层；只读 Agent Profile，不创建任务、不写库。

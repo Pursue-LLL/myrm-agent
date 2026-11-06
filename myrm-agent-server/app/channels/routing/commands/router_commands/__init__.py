@@ -1,7 +1,30 @@
-"""Router 命令 mixin 门面：按命令族组合。
+"""[INPUT]
+- app.channels.routing.commands.router_commands.approval::RouterCommandsApprovalMixin (POS: Router approval mixin segment. Validates reaction/button approvals and builds harness-compatible resume_value for)
+- app.channels.routing.commands.router_commands.approval_end::RouterCommandsApprovalEndMixin (POS: Router approval-end mixin segment. When nobody answers in time the registry's timer calls)
+- app.channels.routing.commands.router_commands.delegation::RouterCommandsDelegationMixin (POS: Delegated tasks run in the background and stay out of ``_active_tasks`` so the chat remains free; the one moment they)
+- app.channels.routing.commands.router_commands.draft::DraftAction / RouterCommandsDraftMixin / parse_draft_args (POS: Router draft mixin segment. Lets the owner decide on a reply held for review from the chat they are already in,)
+- app.channels.routing.commands.router_commands.goals::RouterCommandsGoalsMixin (POS: Router goals mixin segment. Delegates persistent goals, subgoals, background)
+- app.channels.routing.commands.router_commands.memory::RouterCommandsMemoryMixin (POS: Router memory mixin segment. Surfaces session diagnostics, kanban IM control,)
+- app.channels.routing.commands.router_commands.mixin::RouterCommandsMixin (POS: RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance;)
+- app.channels.routing.commands.router_commands.modes::RouterCommandsModesMixin (POS: Router mode mixin segment. Manages YOLO auto-approve sessions, personality overrides,)
+- app.channels.routing.commands.router_commands.quota::RouterCommandsQuotaMixin (POS: Router quota mixin segment. Dedicated handler for /quota slash command with local SQLite lookup,)
+- app.channels.routing.commands.router_commands.session::RouterCommandsSessionMixin (POS: Router session mixin segment. Handles /new cleanup chain, context compact,)
+- app.channels.routing.commands.router_commands.stop::RouterCommandsStopMixin (POS: Router stop mixin segment. Cancels the active turn of a session, or the delegated tasks the sender started from the)
 
 [OUTPUT]
-各命令族 mixin（审批、审批收尾、委派、草稿、目标、记忆、模式、配额、会话、停止）、由它们组合出的 RouterCommandsMixin、DraftAction / parse_draft_args
+- RouterCommandsApprovalMixin
+- RouterCommandsApprovalEndMixin
+- RouterCommandsDelegationMixin
+- DraftAction
+- RouterCommandsDraftMixin
+- parse_draft_args
+- RouterCommandsGoalsMixin
+- RouterCommandsMemoryMixin
+- RouterCommandsMixin
+- RouterCommandsModesMixin
+- RouterCommandsQuotaMixin
+- RouterCommandsSessionMixin
+- RouterCommandsStopMixin
 
 [POS]
 `app.channels.routing.commands.router_commands` 的唯一入口；每个命令族的实现在同目录单独模块中。

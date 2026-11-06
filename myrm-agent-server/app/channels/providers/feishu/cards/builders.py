@@ -1,4 +1,12 @@
-"""通用卡片构造：组件、思考、结果与成本备注。
+"""[INPUT]
+- app.channels.providers.feishu.cards.actions::build_card_actions (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- build_component_card: Build a Feishu Interactive Card from OutboundMessage components.
+- build_thinking_card: Placeholder card shown while agent is processing.
+- wrap_text_as_card: Wrap arbitrary text in a minimal card for consistent edit formatting.
+- _format_cost_note: Format cost_metadata into a compact note string for Feishu cards.
+- build_result_card: Final result card with optional header, sources, and timestamp.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。

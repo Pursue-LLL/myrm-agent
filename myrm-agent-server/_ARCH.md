@@ -11,7 +11,7 @@ FastAPI 单机业务后端：HTTP API、渠道桥接、生命周期编排；Agen
 | `app/` | 核心 | 业务源码（api / services / channels / core 等）· [app/_ARCH.md](app/_ARCH.md) |
 | `scripts/` | 辅助 | 部署 CLI、分形/行数门禁、CI 脚本 · [scripts/_ARCH.md](scripts/_ARCH.md) |
 | `tests/` | 辅助 | 单元 / 集成 / 架构守门 · [tests/_ARCH.md](tests/_ARCH.md) |
-| `assets/` | 辅助 | 预置 Agent/Skill/Cookbook 静态资源 · [assets/_ARCH.md](assets/_ARCH.md) |
+| `assets/` | 辅助 | 预置 Agent/Skill 静态资源 · [assets/_ARCH.md](assets/_ARCH.md) |
 | `docker/` | 辅助 | Server 与 Skill Sandbox 镜像 · [docker/_ARCH.md](docker/_ARCH.md) |
 | `deployments/` | 辅助 | 可选运维栈（如 Prometheus）· [deployments/_ARCH.md](deployments/_ARCH.md) |
 | `searxng/` | 辅助 | 本地 SearXNG 配置 · [searxng/_ARCH.md](searxng/_ARCH.md) |

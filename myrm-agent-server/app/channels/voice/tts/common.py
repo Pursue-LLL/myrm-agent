@@ -1,4 +1,15 @@
-"""TTS 共享常量、可用性探测与临时文件辅助。
+"""[INPUT]
+- app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.core.utils.chat_utils::extract_litellm_answer_text (POS: Aggregate exit of the chat-utils package: history conversion, image compression, inbound multimodal)
+
+[OUTPUT]
+- _resolve_base_url: Resolve the API base URL: config override (OpenAI & Voicebox) > provider default.
+- is_piper_available: Return whether the optional local Piper TTS engine is installed.
+- is_local_tts_available: Return whether any fully offline local TTS provider (Piper) is available.
+- is_edge_tts_available: Return whether the optional Edge TTS (GPL-3.0) package is installed.
+- _import_edge_tts: Import edge_tts or raise with an install hint.
+- _write_temp: _write_temp
+- _summarize_for_tts: Summarize long text using LLM before TTS synthesis.
 
 [POS]
 voice tts 子包的一部分；由 __init__.py 聚合导出。

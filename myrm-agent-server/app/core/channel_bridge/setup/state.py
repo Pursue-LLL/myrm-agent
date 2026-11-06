@@ -1,7 +1,17 @@
-"""频道桥接初始化的跨模块状态。
+"""[INPUT]
+- app.core.channel_bridge.background_task_handler::ChannelBackgroundTaskHandler (POS: Business-layer adapter connecting /background (/btw /bg) slash commands to the)
+- app.core.channel_bridge.btw_notifier::BtwTaskNotifier (POS: Business-layer ServerEventBus subscriber. Does NOT modify the Kanban pipeline,)
+- app.core.channel_bridge.goal_terminal_notifier::GoalTerminalNotifier (POS: Business-layer ServerEventBus subscriber. Mirrors BtwTaskNotifier pattern for)
+- app.core.channel_bridge.kanban_command_handler::ChannelKanbanCommandHandler (POS: Business-layer adapter connecting /kanban (/kb) slash commands to the)
+- app.core.channel_bridge.webui_voice_work_notifier::WebuiVoiceWorkNotifier (POS: Server business layer. Closes the WebUI loop when BtwTaskNotifier skips web chats.)
+- app.core.notifications.dispatcher::NotificationDispatcher (POS: Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint,)
+- app.core.web_push.dispatcher::WebPushDispatcher (POS: Independent ServerEventBus subscriber. Does NOT modify dispatcher.py or btw_notifier.py.)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
-gateway 与 instances 共享的运行时单例；集中一处，避免拆分后各自持有副本。
+gateway 与 instances 共享的运行时单例；集中一处，保证读写同一对象。
 """
 
 from __future__ import annotations

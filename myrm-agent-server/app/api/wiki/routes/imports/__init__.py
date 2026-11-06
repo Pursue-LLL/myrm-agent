@@ -1,7 +1,14 @@
-"""Wiki 批量导入路由聚合出口。
+"""[INPUT]
+- app.api.wiki.routes.imports.folder_zip::folder_zip_router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
+- app.api.wiki.routes.imports.obsidian::obsidian_router (POS: Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。)
 
 [OUTPUT]
-router: 依次挂载 folder/zip 与 obsidian/obsidian-zip，保持原注册顺序。
+- APIRouter
+- folder_zip_router
+- obsidian_router
+
+[POS]
+Wiki 批量导入路由聚合出口。
 """
 
 from fastapi import APIRouter

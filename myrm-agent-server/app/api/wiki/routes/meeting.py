@@ -1,4 +1,19 @@
-"""Wiki 会议录音转写与实时会议纪要路由。
+"""[INPUT]
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.services.meeting_notes.service::process_meeting_audio / publish_meeting_notes (POS: Business orchestration facade for the Meeting Scribe pipeline. Delegates ASR to)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- app.services.meeting_notes.live_notes::LiveNotesSession / get_live_notes_registry (POS: Business orchestration layer for live meeting notes. Consumes *finalized* transcript)
+
+[OUTPUT]
+- MeetingNotesResponse: Response payload for meeting audio transcription pipeline.
+- transcribe_meeting_audio: Chunked parallel ASR + LLM minutes distillation + wiki raw publish for one meeting audio upload.
+- LiveNotesIngestRequest: LiveNotesIngestRequest
+- LiveNotesSnapshotResponse: LiveNotesSnapshotResponse
+- _live_notes_response: _live_notes_response
+- ingest_live_meeting_transcript: Ingest one finalized transcript chunk; refresh rolling notes when due.
+- get_live_meeting_snapshot: Return the current rolling notes snapshot for a live meeting.
+- finalize_live_meeting: Force a final distillation, publish minutes to the wiki, and release the session.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

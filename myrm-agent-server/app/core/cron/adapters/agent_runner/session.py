@@ -1,4 +1,13 @@
-"""Cron Agent 的重试策略与会话后置动作。
+"""[INPUT]
+- myrm_agent_harness.toolkits.cron.situation::SituationContext / SituationReportBuilder (POS: Situation Report — pluggable context aggregator for heartbeat ticks.)
+- myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / ScheduleKind (POS: Cron job domain types.)
+- app.core.cron.adapters.agent_runner::support (POS: `app.core.cron.adapters.agent_runner` 的唯一入口；实现按执行阶段分布在同一目录的模块中。)
+- app.core.cron.adapters.agent_runner.support::_OVERLOAD_RETRY_DELAY / _build_effective_prompt (POS: agent_runner 的支撑层；不持有执行器状态。)
+
+[OUTPUT]
+- run_with_retries: run_with_retries
+- inject_situation_report: Build and prepend a situation report for heartbeat jobs.
+- try_enqueue_if_goal_active: If an active goal exists on this chat, enqueue the cron task as a queued goal.
 
 [POS]
 agent_runner 的会话级辅助：重试退避、心跳情境报告注入、活跃目标入队。

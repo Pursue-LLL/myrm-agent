@@ -1,4 +1,22 @@
-"""Cron Agent 流式消费与结果累积。
+"""[INPUT]
+- myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: The one consumer-side definition of the restart contract that ``StreamExecutor`` recoveries emit (the top-level)
+- myrm_agent_harness.core.security.audit::get_audit_entries (POS: Cross-cutting concern. Called from tool_interceptor_middleware and all)
+- myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / SessionTarget (POS: Cron job domain types.)
+- app.core.agent.stop_reason::merge_stop_reason (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the)
+- app.core.cron.adapters.blocked_actions::blocked_actions_metadata (POS: An unattended job has nobody to tell when a rule stops one of its actions, and the agent's own)
+- app.core.cron.adapters.effectful_steps::has_effectful_tools (POS: Server cron adapter. The one definition of "this run already did something a repeat would do again", shared by the)
+- app.core.cron.adapters.failure_recoverability::is_transient_failure (POS: Cron-side reader of the failure taxonomy. A failure that no repeat can fix (a revoked key, a context that is)
+- app.core.cron.adapters.provider_window_deferral::usage_limit_deferral (POS: Cron-side consumer of the provider-window fact. A job that fails inside a known window must)
+- app.core.cron.adapters.agent_runner.support::_coerce_usage_int / _derive_stop_reason_from_event / _source_sort_key (POS: agent_runner 的支撑层；不持有执行器状态。)
+
+[OUTPUT]
+- _timeout_result: The run used up its time budget; a repeat would spend the same budget again, so it is never repeated.
+- _deterministic_failure: A gate turned the job away (no prompt, one-shot budget, prompt scan, workflow template); a repeat meets it again.
+- _failure_result: Map an exception escaping an agent run to its JobResult (breaker, usage-limit deferral, failure).
+- _StreamAccumulator: _StreamAccumulator
+- _load_thread_history: Load chat history when session_target is MAIN and chat_id is available.
+- _consume_stream: _consume_stream
+- _consume_dynamic_workflow_stream: _consume_dynamic_workflow_stream
 
 [POS]
 agent_runner 的流处理层：把 Agent 事件累加成 JobResult，不参与任务编排。

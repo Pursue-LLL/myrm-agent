@@ -1,4 +1,12 @@
-"""引导流程、Second Brain 应用与 SearXNG 启停/探测。
+"""[INPUT]
+- app.api.config.routes.support::_SECOND_BRAIN_APPLY_LOCK / _acquire_second_brain_cross_process_lock / _release_second_brain_cross_process_lock / _require_local_deploy_mode / _second_brain_apply_lock_path (POS: 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。)
+
+[OUTPUT]
+- complete_config_onboarding: Mark user's first-time configuration as complete.
+- get_second_brain_onboarding_status: Return Second Brain preset checklist (agent, cron, vault, provider).
+- apply_second_brain_onboarding: Apply Second Brain preset: user agent + read-it-later cron + checklist state.
+- start_local_searxng_endpoint: Start SearXNG via Docker Compose and wait until HTTP probe succeeds (local/tauri only).
+- probe_searxng_endpoint: Probe local search backends for zero-config setup.
 
 [POS]
 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。

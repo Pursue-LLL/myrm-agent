@@ -1,10 +1,25 @@
-"""语音合成门面。
+"""[INPUT]
+- app.channels.voice.tts.common::EDGE_TTS_INSTALL_HINT / _resolve_base_url / _summarize_for_tts / _write_temp / is_edge_tts_available / is_local_tts_available / is_piper_available (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.voice.tts.core::synthesize / synthesize_stream (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.voice.tts.providers::_elevenlabs_request / _fish_audio_request / _minimax_request / _openai_request (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
-synthesize / synthesize_stream / is_*_available / 提供方辅助函数与安装提示。
+- EDGE_TTS_INSTALL_HINT
+- _resolve_base_url
+- _summarize_for_tts
+- _write_temp
+- is_edge_tts_available
+- is_local_tts_available
+- is_piper_available
+- synthesize
+- synthesize_stream
+- _elevenlabs_request
+- _fish_audio_request
+- _minimax_request
+- _openai_request
 
 [POS]
-`app.channels.voice.tts` 的唯一入口；实现按 common/core/providers 拆分。
+`app.channels.voice.tts` 的唯一入口；实现按 common/core/providers 分层。
 """
 
 from app.channels.voice.tts.common import (

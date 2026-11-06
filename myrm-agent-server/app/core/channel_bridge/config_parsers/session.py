@@ -1,4 +1,9 @@
-"""会话策略解析。
+"""[INPUT]
+- app.channels.types::SessionPolicy / SessionResetMode (POS: Channel system domain types — pure data definitions, no I/O.)
+
+[OUTPUT]
+- extract_session_policy: Extract IM session reset policy from personalSettings.
+- session_policy_from_agent_dict: Build a SessionPolicy from a per-agent session_policy dict.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

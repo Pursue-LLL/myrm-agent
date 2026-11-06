@@ -1,4 +1,25 @@
-"""GeneralAgent 的执行运行时：沙箱执行器、记忆回调与渠道通知工具。
+"""[INPUT]
+- myrm_agent_harness.agent.context_management.archive_checkpoint.store::ArchiveCheckpointStore (POS: Archive checkpoint persistence via EpisodicMemory.)
+- myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service::ArchiveCheckpointNotifier (POS: Async lite-LLM archive summary scheduling.)
+- myrm_agent_harness.agent.context_management.infra.schemas::ContextCompressEvictionCallback / ContextCompressOffloadCallback / ContextSnapshotCallback (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
+- myrm_agent_harness.agent.context_management.infra.schemas_pre_compact::ContextPreCompactCallback (POS: Context management pre-compaction interception schemas. Defines the three-state control contract (Cancel / Replace / Pas)
+- myrm_agent_harness.toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
+- app.ai_agents.extensions::ArchiveCheckpointMemoryExtension / PreCompactMemoryExtension / ZeroCostMemoryExtension / ArchiveCheckpointMemoryExtension / PreCompactMemoryExtension / ZeroCostMemoryExtension (POS: app.ai_agents.extensions)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- myrm_agent_harness.toolkits.code_execution.factory::create_executor (POS: Code executor factory. Creates LocalExecutor for in-container code execution based on configuration.)
+- app.ai_agents.general_agent.config_builders::build_execution_config (POS: Config builders for General Agent)
+- myrm_agent_harness.runtime.context.offload::create_compress_offload_callback / create_context_snapshot_callback (POS: Context offload: persist full tool outputs and conversation snapshots to persistent volume.)
+- app.platform_utils::get_quota_manager (POS: 平台适配层)
+- app.services.agent.outbound_notify.factory_wiring::append_channel_notify_tool (POS: Single SSOT for `general_agent/factory/` and integration tests — avoids duplicated wiring logic.)
+- myrm_agent_harness.toolkits.code_execution.interceptor::set_execution_interceptor (POS: Seam between the code-execution toolkit and a host that wants to snapshot or audit actions.)
+- app.services.checkpoint.snapshot_service::get_snapshot_interceptor (POS: Server-layer snapshot interceptor. Handles per-turn dedup, SSE events,)
+- myrm_agent_harness.toolkits.memory.strategies.extraction_domain::auto_detect_preset (POS: Domain extraction preset data and prompt section builder for the memory extractor.)
+
+[OUTPUT]
+- SandboxRuntime: SandboxRuntime
+- load_channel_notify_tool: load_channel_notify_tool
+- build_sandbox_runtime: build_sandbox_runtime
 
 [POS]
 装配第三阶段；只创建执行资源，不组装中间件或提示词。

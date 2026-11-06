@@ -1,4 +1,22 @@
-"""各 TTS 提供方的请求构造与流式实现。
+"""[INPUT]
+- app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.channels.voice.tts.common::_DEFAULT_VOICES / _PIPER_INSTALL_HINT / _STREAM_CHUNK_SIZE / _TTS_TIMEOUT / _import_edge_tts / _resolve_base_url / _write_temp / is_piper_available (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _openai_request: _openai_request
+- _elevenlabs_request: _elevenlabs_request
+- _fish_audio_request: _fish_audio_request
+- _minimax_request: _minimax_request
+- _synthesize_api: Unified non-streaming synthesis for API-based providers.
+- _synthesize_piper: Synthesize text using local Piper TTS.
+- _synthesize_edge: _synthesize_edge
+- _stream_openai: _stream_openai
+- _stream_elevenlabs: _stream_elevenlabs
+- _stream_fish_audio: _stream_fish_audio
+- _stream_minimax: MiniMax streaming returns SSE with hex-encoded audio in each event.
+- _stream_edge: _stream_edge
+- _stream_voicebox: _stream_voicebox
+- _stream_piper: Stream Piper TTS synthesis chunks.
 
 [POS]
 voice tts 子包的一部分；由 __init__.py 聚合导出。

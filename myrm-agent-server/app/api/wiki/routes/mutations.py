@@ -1,4 +1,19 @@
-"""Wiki 变更应用、复合消息、日报、模板与删除路由。
+"""[INPUT]
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
+- app.api.wiki.routes.schemas::OperationResult / WikiApplyRequestBody / WikiApplyResponse / WikiCompoundRequestBody / WikiCompoundResponse / WikiDailyReviewRequestBody / WikiDailyReviewResponse / WikiTemplateSeedRequest / WikiTemplateSeedResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- _wiki_apply_http_status: _wiki_apply_http_status
+- _wiki_compound_http_status: _wiki_compound_http_status
+- apply_wiki_mutation_endpoint: Apply a narrow wiki mutation through the WPG publish gate.
+- compound_chat_message_to_wiki: Stage a chat Q&A pair as a pending wiki edit (HITL; zero LLM).
+- ingest_daily_review_endpoint: Ingest a daily-review journal verbatim into raw/DailyReview and enqueue compilation.
+- seed_standard_templates_endpoint: Seed the four standard markdown templates into concepts/templates/ (idempotent).
+- delete_concept: Delete a concept file manually.
+- DeleteRawRequest: DeleteRawRequest
+- delete_raw_source: Forget a raw source file and re-anchor dependent compiled pages.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

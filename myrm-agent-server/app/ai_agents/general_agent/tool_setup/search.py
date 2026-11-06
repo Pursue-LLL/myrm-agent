@@ -1,4 +1,10 @@
-"""搜索/抓取与澄清工具。
+"""[INPUT]
+- app.ai_agents.general_agent.ask_question_result::format_ask_question_result (POS: The user's skip and the HITL timeout both resume the interrupt with an empty value. A plain clarification may)
+- app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
+- app.ai_agents.general_agent.tool_setup.common::_should_mount_ask_question_tool (POS: 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。)
+
+[OUTPUT]
+- SearchToolsMixin: 搜索/抓取与澄清工具。
 
 [POS]
 ToolSetupMixin 的一个工具族；由 mixin.py 组合。

@@ -1,4 +1,10 @@
-"""配置 schema、全量读取与就绪检查。
+"""[INPUT]
+- app.schemas.config::OMNI_CONFIG_MODELS (POS: 配置 API 数据模型)
+- app.api.config.routes.support::_VALID_CONFIG_KEYS / _readiness_db_timeout_sec (POS: 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。)
+
+[OUTPUT]
+- get_config_schema: 获取指定配置项的 JSON Schema
+- get_config_readiness: Check configuration readiness status.
 
 [POS]
 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。

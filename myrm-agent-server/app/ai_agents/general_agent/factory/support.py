@@ -1,4 +1,36 @@
-"""GeneralAgent 装配的辅助函数。
+"""[INPUT]
+- myrm_agent_harness.toolkits.kanban::KanbanStore / create_kanban_tools (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in)
+- myrm_agent_harness.toolkits.mcp.config::MCPConfig (POS: MCP Configuration)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- app.core.types::MCPServerConfig (POS: Core types package)
+- app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: Deploy-mode gates for computer_use (Semantic Desktop Control).)
+- app.platform_utils.deployment_capabilities::get_deployment_capabilities / get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
+- app.ai_agents.general_agent.kanban_tool_mode::resolve_kanban_tool_mode (POS: GeneralAgent factory 的 Kanban 工具 bind 解析辅助模块；TaskRunner 强制 worker，chat 默认 orchestrator。)
+- app.services.kanban.kanban_attach_handler::create_kanban_attach_handler (POS: Server-side implementation for kanban_attach LLM tool (SSRF-safe URL fetch + worktree-aware path ingest).)
+- app.services.kanban.service::KanbanService (POS: Kanban business service facade; domain logic lives in sibling orchestrator modules.)
+- app.ai_agents.general_agent.callbacks::make_skill_review_callback / make_commitment_extraction_callback (POS: Callbacks for General Agent)
+- myrm_agent_harness.api.hooks::create_extraction_llm_func (POS: Public re-export facade. Product code imports hooks here instead of private ``agent._*`` modules.)
+- myrm_agent_harness.toolkits.memory.session_post_process::run_session_post_process (POS: Single entry point for memory-domain background work after a conversation)
+- app.ai_agents.general_agent.correction_propagation::make_correction_propagation_callback (POS: 会话结束时的隐式纠错传播。两阶段检测用户纠正信号，产出结构化纠错提案，分别路由到)
+- app.ai_agents.general_agent.frustration_routing::make_frustration_skill_routing_callback (POS: Frustration signal → Skill evolution routing callback.)
+- myrm_agent_harness.core.config::ModelTier / infer_model_tier (POS: Core config — framework-agnostic configuration types.)
+- app.services.agent.backends.mcp_oauth_store::get_mcp_oauth_token_store (POS: MCP OAuth token encrypted persistence. Implements framework MCPOAuthTokenStore)
+- myrm_agent_harness.toolkits.mcp.oauth::MCPOAuthProvider (POS: MCP OAuth 2.0 + PKCE authentication. Framework-level provider implementing)
+- app.platform_utils.sandbox.entitlements.entitlement_guard::fetch_sandbox_entitlements / fetch_sandbox_entitlements (POS: Sandbox entitlement guard — resolves CP internal entitlements for SaaS sandbox mode.)
+- app.services.budget.enforcer::is_eco_mode_active (POS: Budget enforcement service. Bridges harness MultidimensionalBudgetGuard with server-side)
+
+[OUTPUT]
+- _try_inject_mcp_oauth: Inject MCPOAuthProvider if the server has stored OAuth tokens.
+- _should_setup_computer_use_tools: Return False when deploy mode or sandbox entitlements cannot run desktop control.
+- _should_enable_cron_tools: Return False in SaaS sandbox when the plan does not include cron.
+- _should_enable_subagent_tools: Return False only when SaaS sandbox cannot reach Control Plane entitlements.
+- _resolve_kanban_default_board_id: Pick default board for kanban tools: preferred id when valid, else newest when unset.
+- _setup_kanban_tools: Load kanban tools according to agent_wrapper.kanban_tool_mode.
+- _get_budget_pressure_fn: Create budget pressure callback for eco mode, or None if budget module unavailable.
+- _build_skill_review_callback: Background skill review writes skills and approval records, so an incognito session never wires it.
+- _build_session_cleanup_callback: Build a composite session cleanup callback (follow-up extraction + correction propagation + skill routing).
+- _apply_small_model_tuning: Auto-tune agent parameters when a small/weak model is detected.
 
 [POS]
 与装配主流程分离的工具/Kanban/回调构造；只被 factory 包内部调用。

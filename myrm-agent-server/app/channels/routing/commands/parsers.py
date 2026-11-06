@@ -1,4 +1,14 @@
-"""斜杠命令参数解析：approval / yolo / personality / memory，全部是无 I/O 的纯函数。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- parse_yolo_args: Parse YOLO mode arguments.
+- parse_personality_args: Parse personality command arguments.
+- parse_memory_args: Parse /memory sub-command arguments.
+- DenyWithReason: Deny decision carrying a user-supplied reason for Agent course-correction.
+- normalize_approval_emoji: Strip variation selectors (FE0E/FE0F) and Fitzpatrick skin-tone modifiers.
+- parse_approval_command: Parse approval commands into the three-tier decision model.
+- is_explicit_approval_command: Whether ``content`` is an explicit /approve, /approve-always, /deny, or /batch.
 
 [POS]
 IM 斜杠命令域的子模块；由 app/channels/routing/commands/__init__.py 聚合导出。

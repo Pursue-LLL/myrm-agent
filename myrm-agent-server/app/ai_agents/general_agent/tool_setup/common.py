@@ -1,4 +1,14 @@
-"""ToolSetupMixin 的模块级辅助函数。
+"""[INPUT]
+- myrm_agent_harness.core.artifacts.constants::ArtifactType (POS: Artifact type mappings — framework-agnostic constants.)
+
+[OUTPUT]
+- _should_mount_ask_question_tool: Return True when structured HITL clarification is safe and product-appropriate.
+- _configured_media_api_key: _configured_media_api_key
+- _media_gateway_configured: _media_gateway_configured
+- _is_media_credential_configured: _is_media_credential_configured
+- _video_generation_credential_configured: _video_generation_credential_configured
+- _select_image_constraints: Select optimal ImageConstraints based on model family.
+- _get_artifact_push_fn: Create an artifact push callback for image/video generation tools.
 
 [POS]
 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。

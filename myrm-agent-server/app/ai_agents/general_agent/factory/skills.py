@@ -1,4 +1,16 @@
-"""GeneralAgent 的技能运行时：存储后端、技能后端与运行时技能列表。
+"""[INPUT]
+- myrm_agent_harness.backends.skills.protocols::SkillBackend (POS: Skill backend protocol definition. Specifies the unified interface for loading skills from multiple sources.)
+- myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: Storage provider abstract base class. Defines the unified storage interface contract for all)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- app.core.skills.models::UserSkillConfig (POS: Skill system data models.)
+- app.core.skills.effective_skill_ids::resolve_runtime_skill_ids (POS: Runtime skill ID resolver. Strictly respects explicit Agent profile allowlist:)
+- app.core.skills.loader::create_skill_backend (POS: Business-layer skill backend factory. The framework layer only accepts the SkillBackend interface; permission)
+- app.core.skills.store.user_config::UserSkillConfigManager (POS: 用户技能配置管理)
+- app.platform_utils::get_storage_provider (POS: 平台适配层)
+
+[OUTPUT]
+- SkillRuntime: SkillRuntime
+- load_skill_runtime: load_skill_runtime
 
 [POS]
 装配第二阶段；只解析技能可见性，不创建工具。

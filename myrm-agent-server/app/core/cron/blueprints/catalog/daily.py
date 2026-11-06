@@ -1,7 +1,11 @@
-"""日常节奏蓝图：晨报、周复盘、提醒、资讯、晚间收尾、健康检查、竞品与习惯、学习、社媒观察。
+"""[INPUT]
+- app.core.cron.blueprints.core.types::_CAP_DEVOPS / _CAP_RESEARCH / _CAP_WEB / _TOOLS_DEVOPS / _TOOLS_RESEARCH / _TOOLS_WEB / BlueprintSlot / CronBlueprint (POS: 蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
-Cron 蓝图目录的一部分；由 app/core/cron/blueprints.py 按声明顺序拼成内置清单。
+Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。
 """
 
 from app.core.cron.blueprints.core.types import (

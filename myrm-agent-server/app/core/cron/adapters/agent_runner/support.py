@@ -1,4 +1,23 @@
-"""Cron Agent 执行前检查与纯辅助。
+"""[INPUT]
+- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks.)
+- myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / ScheduleKind (POS: Cron job domain types.)
+- app.core.agent.stop_reason::step_item_text (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the)
+
+[OUTPUT]
+- _heartbeat_follow_up_delivered: Return True when heartbeat output counts as a successful follow-up delivery ack.
+- _finalize_heartbeat_follow_up_delivery: Confirm or reset follow-up delivery state after a heartbeat agent run.
+- _scan_stalled_group_threads: Run one lazy stall scan from the heartbeat path (no new daemon).
+- _source_sort_key: _source_sort_key
+- _coerce_usage_int: _coerce_usage_int
+- _derive_stop_reason_from_event: _derive_stop_reason_from_event
+- _resolve_effective_allowed_roots: The folders a run may work in: the job's own roots, else its project's workspace.
+- _build_effective_prompt: Append [SILENT] instruction for recurring jobs.
+- resolve_trusted_desktop_keys: Resolve pre-trusted desktop app entries to canonical trust keys.
+- _resolve_cron_enable_memory: Enable memory for cron only when all gates pass.
+- _resolve_cron_enable_web_search: Enable web_search for cron when policy allows it and search is configured.
+- _build_daily_context: Build injected context for DAILY session-target jobs.
+- _memory_overload_reason: Return a skip reason when memory is critical, else None.
+- _budget_skip_reason: Skip code of a budget-blocked run: a hosted deployment is out of plan credit, a local one over its daily budget.
 
 [POS]
 agent_runner 的支撑层；不持有执行器状态。

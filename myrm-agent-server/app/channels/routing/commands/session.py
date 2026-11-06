@@ -1,4 +1,11 @@
-"""会话级命令处理：新建会话与上下文压缩。
+"""[INPUT]
+- app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and)
+- app.channels.routing.router_keys::routing_state_key (POS: ``routing_state_key`` builds the key for the router's in-memory state maps. It carries every)
+- app.channels.types::InboundMessage / OutboundMessage (POS: Channel system domain types — pure data definitions, no I/O.)
+
+[OUTPUT]
+- handle_new_session: Handle /new command: mark peer so next message creates a fresh Chat.
+- handle_compact: Handle /compact command: compress chat context to reduce token cost.
 
 [POS]
 IM 斜杠命令域的子模块；由 app/channels/routing/commands/__init__.py 聚合导出。

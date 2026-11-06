@@ -1,4 +1,10 @@
-"""Wiki 统计概览路由。
+"""[INPUT]
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.routes.schemas::WikiAssetIndexStatsResponse / WikiDedupStatsResponse / WikiMaintainStateResponse / WikiStatsResponse / WikiStructuralIssuesResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- get_wiki_stats: get_wiki_stats
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

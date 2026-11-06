@@ -1,4 +1,11 @@
-"""语音与朗读配置解析。
+"""[INPUT]
+- app.channels.types::TTSMode (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.core.channel_bridge.config_parsers.common::_float_setting / _int_setting (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _build_voice_config_from_dict: Build VoiceConfig from the frontend voice settings dict.
+- extract_voice_config: Extract VoiceConfig from the frontend's voice settings.
+- extract_web_tts_config: Extract VoiceConfig for Web UI read-aloud (/tts API).
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

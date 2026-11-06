@@ -1,4 +1,14 @@
-"""通用解析：数值兜底、检索模型、模型配置辅助与视频能力推断。
+"""[INPUT]
+- app.core.channel_bridge.model_resolver::_to_litellm_model (POS: Business-layer model resolution. Uses framework-level parsers (to_litellm_model, parse_litellm_model))
+
+[OUTPUT]
+- _int_setting: _int_setting
+- _float_setting: _float_setting
+- _model_config_identity: _model_config_identity
+- _append_unique_model_config: _append_unique_model_config
+- _build_enriched_model_config: Build ModelConfig with wire enrich + capabilities + context window.
+- _infer_supports_video: Infer native video support from custom model info or model id.
+- _extract_active_key: Extract active API key from provider dict.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

@@ -1,4 +1,9 @@
-"""联系人消歧与交付物卡片。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- build_contact_disambiguation_card: Build an interactive disambiguation card when multiple contact candidates match.
+- build_deliverable_card: Build an enterprise deliverable handover card.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。

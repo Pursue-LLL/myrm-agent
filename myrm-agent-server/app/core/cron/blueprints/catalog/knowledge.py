@@ -1,7 +1,11 @@
-"""知识库蓝图：稍后读内化、wiki 晨间增量、维护、vault 周检、日报复利、语料去重。
+"""[INPUT]
+- app.core.cron.blueprints.core.types::_CAP_WIKI / _TOOLS_WIKI / BlueprintJobDefaults / BlueprintSlot / CronBlueprint (POS: 蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
-Cron 蓝图目录的一部分；由 app/core/cron/blueprints.py 按声明顺序拼成内置清单。
+Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。
 """
 
 from app.core.cron.blueprints.core.types import (
