@@ -7,7 +7,6 @@ or a silent provider.
 
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,23 +14,19 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError, LLMResponseError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMResponseError
 
 from app.schemas.responses import BusinessCode
 from tests.support.minimal_app import build_minimal_app
+from tests.support.provider_failures import provider_failure
 
 _SECRET = "sk-live-0123456789abcdef"
+_REJECTED = f"{_SECRET} is not valid for org-acme"
 _SESSIONS = [{"title": "Code Review", "action_mode": "chat", "total_tokens": 5000, "total_usd": 0.01}]
 _ROUTES = [
     ("GET", "/api/v1/statistics/daily-wrap", "Get daily wrap"),
     ("POST", "/api/v1/statistics/daily-wrap/regenerate", "Regenerate daily wrap"),
 ]
-
-
-def _provider_failure(status: int) -> LLMHTTPError:
-    body = json.dumps({"error": {"message": f"{_SECRET} is not valid for org-acme"}})
-    request = httpx.Request("POST", "https://provider.test/v1/chat/completions")
-    return LLMHTTPError("openai", status, body, httpx.Response(status, content=body.encode(), request=request))
 
 
 @contextmanager
@@ -69,9 +64,9 @@ async def client() -> AsyncIterator[AsyncClient]:
 @pytest.mark.parametrize(
     ("failure", "code"),
     [
-        (_provider_failure(401), BusinessCode.AI_AUTH_ERROR),
-        (_provider_failure(429), BusinessCode.AI_RATE_LIMIT_ERROR),
-        (_provider_failure(503), BusinessCode.AI_MODEL_ERROR),
+        (provider_failure(401, _REJECTED), BusinessCode.AI_AUTH_ERROR),
+        (provider_failure(429, _REJECTED), BusinessCode.AI_RATE_LIMIT_ERROR),
+        (provider_failure(503, _REJECTED), BusinessCode.AI_MODEL_ERROR),
         (LLMResponseError("openai", "openai answered with a non-JSON body: '<html>'"), BusinessCode.AI_MODEL_ERROR),
         (httpx.ReadTimeout("provider stayed silent"), BusinessCode.AI_TIMEOUT_ERROR),
     ],

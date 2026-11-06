@@ -6,10 +6,14 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api.config.routes.diagnostics import _classify_local_model_error
 from tests.support.fake_chat_provider import fake_chat_provider
+from tests.support.fake_retrieval_provider import unreachable_api_base
 from tests.support.minimal_app import build_minimal_app
+from tests.support.provider_failures import provider_failure
 
 app = build_minimal_app(preset="config")
 client = TestClient(app)
@@ -111,3 +115,37 @@ def test_a_wrong_key_is_judged_by_the_provider_after_the_right_key_was_accepted(
     assert right["success"] is True
     assert (wrong["success"], wrong["message"]) == (False, "Authentication failed — check your API key")
     assert [seen.authorization for seen in provider.requests] == ["Bearer sk-right", "Bearer sk-wrong"]
+
+
+def test_a_server_nothing_listens_on_is_reported_as_not_running() -> None:
+    """The real chat model's failure to connect carries no "refused" wording, yet the message still says what to check."""
+    response = client.post(_URL, json={"model": "ollama/llama3", "base_url": unreachable_api_base().removesuffix("/v1")})
+
+    data = response.json()
+    assert data["success"] is False
+    assert data["message"].endswith("is the model server running?")
+    assert "Errno" not in data["message"]
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [
+        (httpx.ConnectError("All connection attempts failed"), "Could not connect — is the model server running?"),
+        (httpx.ConnectError("[Errno 61] Connection refused"), "Connection refused — is the model server running?"),
+        (
+            httpx.ConnectError("[Errno 8] nodename nor servname provided, or not known"),
+            "DNS resolution failed — check the base URL",
+        ),
+        (httpx.ConnectError("[Errno -2] Name or service not known"), "DNS resolution failed — check the base URL"),
+        (
+            httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"),
+            "SSL/TLS error — check your server's certificate",
+        ),
+        (provider_failure(401, "Incorrect API key provided"), "Authentication failed — check your API key"),
+        (provider_failure(404, "The model does not exist"), "Model not found — check the model name"),
+        (provider_failure(500, "The server had an error"), "Connection test failed"),
+    ],
+    ids=["connect", "refused", "dns-macos", "dns-linux", "tls", "auth", "unknown-model", "server-fault"],
+)
+def test_each_failure_the_model_transport_raises_has_its_own_message(failure: Exception, message: str) -> None:
+    assert _classify_local_model_error(failure) == message

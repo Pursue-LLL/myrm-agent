@@ -11,7 +11,7 @@ import json
 
 import httpx
 import pytest
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMHTTPError, LLMResponseError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMResponseError
 
 from app.core.utils.errors import MyrmError, _classify_exception, handle_llm_exception, internal_error
 from app.core.utils.errors.constants import (
@@ -20,15 +20,10 @@ from app.core.utils.errors.constants import (
     _FAILOVER_REASON_TO_BUSINESS_CODE,
 )
 from app.schemas.responses import BusinessCode
+from tests.support.provider_failures import provider_failure
 
 _SECRET = "sk-live-0123456789abcdef"
-
-
-def _provider_failure(status: int) -> LLMHTTPError:
-    """What the model transport raises when the provider answers a call with an error status."""
-    body = json.dumps({"error": {"message": f"{_SECRET} is not valid for org-acme"}})
-    request = httpx.Request("POST", "https://provider.test/v1/chat/completions")
-    return LLMHTTPError("openai", status, body, httpx.Response(status, content=body.encode(), request=request))
+_REJECTED = f"{_SECRET} is not valid for org-acme"
 
 
 def _stream_error_event(kind: str) -> LLMAnswerError:
@@ -49,7 +44,7 @@ def _stream_error_event(kind: str) -> LLMAnswerError:
     ],
 )
 def test_a_provider_answer_is_named_by_its_status(status: int, code: BusinessCode, message: str) -> None:
-    assert _classify_exception(_provider_failure(status)) == (code, message)
+    assert _classify_exception(provider_failure(status, _REJECTED)) == (code, message)
 
 
 @pytest.mark.parametrize(
@@ -135,7 +130,7 @@ def test_database_and_network_failures_keep_their_codes(exception: Exception, co
 
 
 def test_the_catch_all_names_a_failed_model_call_without_the_provider_text() -> None:
-    error = internal_error(operation="Compact chat context", exception=_provider_failure(401))
+    error = internal_error(operation="Compact chat context", exception=provider_failure(401, _REJECTED))
 
     assert error.status_code == 500
     assert error.detail["code"] == BusinessCode.AI_AUTH_ERROR.value
@@ -151,7 +146,7 @@ def test_every_code_a_failure_can_map_to_has_a_user_message() -> None:
 
 def test_handle_llm_exception_reports_the_provider_reason() -> None:
     with pytest.raises(MyrmError) as raised:
-        handle_llm_exception(_provider_failure(429), "Verification")
+        handle_llm_exception(provider_failure(429, _REJECTED), "Verification")
 
     assert raised.value.code == BusinessCode.AI_RATE_LIMIT_ERROR
     assert raised.value.message.startswith("Verification failed: ")
@@ -165,7 +160,7 @@ def test_a_failure_the_classifier_cannot_read_is_a_model_error(monkeypatch: pyte
     monkeypatch.setattr("app.core.utils.errors.base.classify_failover_reason", unreadable)
 
     with pytest.raises(MyrmError) as raised:
-        handle_llm_exception(_provider_failure(401), "Verification")
+        handle_llm_exception(provider_failure(401, _REJECTED), "Verification")
 
     assert raised.value.code == BusinessCode.AI_MODEL_ERROR
     assert raised.value.message.endswith("[reason: unknown_error]")

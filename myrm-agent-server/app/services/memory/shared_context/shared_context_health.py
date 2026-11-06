@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.toolkits.retriever.embedding.factory::EmbeddingConfig (POS: Embedding factory)
 myrm_agent_harness.toolkits.retriever.embedding.factory::get_embedding_service (POS: Embedding factory)
+myrm_agent_harness.toolkits.llms.transport::LLMCallError (POS: Model call failure base, carries the HTTP status)
 
 [OUTPUT]
 SharedContextMemoryHealthResult: Shared Context memory dependency health result
@@ -21,6 +22,7 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from myrm_agent_harness.api.config import ConfigIncompleteError
+from myrm_agent_harness.toolkits.llms.transport import LLMCallError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
 
 from app.services.agent.platform_config import require_platform_embedding_config
@@ -80,18 +82,21 @@ def _is_local_api_base(api_base: str | None) -> bool:
 
 
 def _classify_probe_failure(exc: Exception) -> _ProbeFailure:
+    # The provider's status is its verdict whatever its body says ("invalid subscription key", "invalid api token");
+    # wording only decides what a status cannot, such as a quota that answers 429 or a dropped connection.
+    status = exc.status_code if isinstance(exc, LLMCallError) else None
     name = type(exc).__name__.lower()
     message = str(exc).lower()
     combined = f"{name} {message}"
-    if "authentication" in combined or "unauthorized" in combined or "incorrect api key" in combined:
+    if status == 401 or "authentication" in combined or "unauthorized" in combined or "incorrect api key" in combined:
         return _ProbeFailure(status="not_configured", reason="invalid_api_key", retryable=False)
     if "api key" in combined and ("invalid" in combined or "missing" in combined):
         return _ProbeFailure(status="not_configured", reason="invalid_api_key", retryable=False)
-    if "quota" in combined or "insufficient" in combined:
+    if status == 402 or "quota" in combined or "insufficient" in combined:
         return _ProbeFailure(status="unreachable", reason="insufficient_quota", retryable=False)
     if "rate" in combined or "429" in combined:
         return _ProbeFailure(status="unreachable", reason="rate_limited", retryable=True)
-    if "timeout" in combined or "timed out" in combined:
+    if status == 408 or "timeout" in combined or "timed out" in combined:
         return _ProbeFailure(status="unreachable", reason="timeout", retryable=True)
     if "connection" in combined or "network" in combined or "connect" in combined:
         return _ProbeFailure(status="unreachable", reason="network_error", retryable=True)

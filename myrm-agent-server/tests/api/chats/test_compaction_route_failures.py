@@ -6,7 +6,6 @@ provider's failure is not the caller's invalid input, so an unreadable provider 
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 
@@ -14,20 +13,16 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError, LLMResponseError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMResponseError
 
 from app.api.chats.chat.compaction import router
 from app.database.connection import get_db
 from app.schemas.responses import BusinessCode
+from tests.support.provider_failures import provider_failure
 
 _SECRET = "sk-live-0123456789abcdef"
+_REJECTED = f"{_SECRET} is not valid for org-acme"
 _ROUTE = "/chat-1/compact"
-
-
-def _provider_failure(status: int) -> LLMHTTPError:
-    body = json.dumps({"error": {"message": f"{_SECRET} is not valid for org-acme"}})
-    request = httpx.Request("POST", "https://provider.test/v1/chat/completions")
-    return LLMHTTPError("openai", status, body, httpx.Response(status, content=body.encode(), request=request))
 
 
 @pytest.fixture
@@ -50,9 +45,9 @@ def _compaction_raising(error: Exception):
 @pytest.mark.parametrize(
     ("failure", "code"),
     [
-        (_provider_failure(401), BusinessCode.AI_AUTH_ERROR),
-        (_provider_failure(429), BusinessCode.AI_RATE_LIMIT_ERROR),
-        (_provider_failure(503), BusinessCode.AI_MODEL_ERROR),
+        (provider_failure(401, _REJECTED), BusinessCode.AI_AUTH_ERROR),
+        (provider_failure(429, _REJECTED), BusinessCode.AI_RATE_LIMIT_ERROR),
+        (provider_failure(503, _REJECTED), BusinessCode.AI_MODEL_ERROR),
         (LLMResponseError("openai", "openai answered with a non-JSON body: '<html>'"), BusinessCode.AI_MODEL_ERROR),
         (httpx.ConnectTimeout("provider unreachable"), BusinessCode.AI_TIMEOUT_ERROR),
     ],

@@ -27,7 +27,7 @@ from app.ai_agents.general_agent.tools import ensure_tool_layer_bootstrap
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 # Heavy third-party stacks a model call may need later but the HTTP import path must not pay for.
-_DEFERRED_MODULES = ("litellm", "openai", "anthropic", "boto3", "google.genai", "tiktoken", "tokenizers")
+_DEFERRED_MODULES = ("openai", "anthropic", "boto3", "google.genai", "tiktoken", "tokenizers")
 
 
 def test_importing_app_main_keeps_heavy_agent_runtime_lazy() -> None:

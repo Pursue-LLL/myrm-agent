@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 
 import httpx
 import pytest
 from myrm_agent_harness.api.config import ConfigIncompleteError
-from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.services.memory.shared_context import shared_context_health as health_module
 from tests.support.fake_retrieval_provider import FakeRetrievalProvider, fake_retrieval_provider
+from tests.support.provider_failures import provider_failure
 
 
 class _FakeEmbeddingService:
@@ -23,13 +22,6 @@ class _FakeEmbeddingService:
         if self._exc is not None:
             raise self._exc
         return self._vector
-
-
-def _auth_failure(message: str) -> LLMHTTPError:
-    """The failure the model transport raises when the embedding provider rejects the API key."""
-    body = json.dumps({"error": {"message": message}})
-    response = httpx.Response(401, content=body.encode(), request=httpx.Request("POST", "https://provider.test/v1/embeddings"))
-    return LLMHTTPError("openai", 401, body, response)
 
 
 async def _make_config(model: str, api_key: str, api_base: str | None) -> EmbeddingConfig:
@@ -118,7 +110,9 @@ async def test_shared_context_health_sanitizes_probe_auth_failure(monkeypatch: p
     monkeypatch.setattr(
         health_module,
         "get_embedding_service",
-        lambda config: _FakeEmbeddingService(exc=_auth_failure("Incorrect API key provided: sk-invalid")),
+        lambda config: _FakeEmbeddingService(
+            exc=provider_failure(401, "Incorrect API key provided: sk-invalid", path="/v1/embeddings")
+        ),
     )
 
     result = await health_module.check_shared_context_memory_health(probe=True)
@@ -149,3 +143,57 @@ async def test_shared_context_health_asks_the_provider_that_is_configured_now(mo
     assert (accepted.ready, accepted.reason) == (True, None)
     assert (refused.ready, refused.reason) == (False, "invalid_api_key")
     assert len(refusing.requests) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        "Access denied due to invalid subscription key or wrong API endpoint",
+        "invalid api token",
+    ],
+)
+async def test_a_rejected_key_is_recognised_by_the_status_whatever_the_provider_calls_it(
+    monkeypatch: pytest.MonkeyPatch, refusal: str
+) -> None:
+    """Azure and Cohere answer 401 without the words "api key": the status alone says the key was refused."""
+    with fake_retrieval_provider() as provider:
+        provider.status = 401
+        provider.refusal = refusal
+
+        async def _cfg() -> EmbeddingConfig:
+            return EmbeddingConfig(model="openai/test-embed", api_key="sk-edited", api_base=provider.api_base)
+
+        monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
+        result = await health_module.check_shared_context_memory_health(probe=True)
+
+    assert (result.ready, result.status, result.reason, result.retryable) == (False, "not_configured", "invalid_api_key", False)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("failure", "reason", "retryable"),
+    [
+        (provider_failure(402, "Request refused", path="/v1/embeddings"), "insufficient_quota", False),
+        (provider_failure(408, "Request refused", path="/v1/embeddings"), "timeout", True),
+        (provider_failure(429, "Request refused", path="/v1/embeddings"), "rate_limited", True),
+        (provider_failure(503, "Request refused", path="/v1/embeddings"), "embedding_probe_failed", True),
+        (httpx.ReadTimeout("provider stayed silent"), "timeout", True),
+        (httpx.ConnectError("All connection attempts failed"), "network_error", True),
+    ],
+    ids=["402", "408", "429", "503", "read-timeout", "connect-error"],
+)
+async def test_a_failed_probe_is_graded_by_the_status_or_the_transport_error(
+    monkeypatch: pytest.MonkeyPatch, failure: Exception, reason: str, retryable: bool
+) -> None:
+    """The failures the embedding transport raises, with an answer body that carries none of the usual wording."""
+
+    async def _cfg() -> EmbeddingConfig:
+        return EmbeddingConfig(model="text-embedding-3-small", api_key="sk-valid", api_base=None)
+
+    monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
+    monkeypatch.setattr(health_module, "get_embedding_service", lambda config: _FakeEmbeddingService(exc=failure))
+
+    result = await health_module.check_shared_context_memory_health(probe=True)
+
+    assert (result.ready, result.status, result.reason, result.retryable) == (False, "unreachable", reason, retryable)
