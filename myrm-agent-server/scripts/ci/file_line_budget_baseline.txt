@@ -59,7 +59,6 @@ app/channels/voice/stt.py
 app/config/settings.py
 app/core/channel_bridge/config_parsers.py
 app/core/channel_bridge/model_resolver.py
-app/core/channel_bridge/setup.py
 app/core/channel_bridge/topic_config.py
 app/core/cron/adapters/agent_runner/runner.py
 app/core/cron/adapters/sqlalchemy_store.py

@@ -27,7 +27,8 @@ interface ReferenceMentionPopoverProps {
   selectedIndex: number;
   query: string;
   onSelect: (reference: ReferenceSuggestion) => void;
-  anchorEl?: HTMLElement | null;
+  /** Ref of the anchor element (the composer input); `current` is read when the popover positions, never during render. */
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 const EXT_ICON_MAP: Record<string, React.ElementType> = {
@@ -92,7 +93,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   selectedIndex,
   query,
   onSelect,
-  anchorEl,
+  anchorRef,
 }) => {
   const t = useTranslations('chat.fileMention');
   const chatId = useChatStore((s) => s.chatId);
@@ -115,7 +116,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
 
   return (
     <Popover open={open} modal={false}>
-      {anchorEl && <PopoverAnchor virtualRef={{ current: anchorEl }} />}
+      {anchorRef && <PopoverAnchor virtualRef={anchorRef} />}
       <PopoverContent
         className="w-[380px] p-0 shadow-xl border-border/50"
         side="top"
@@ -232,6 +233,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                       onMouseEnter={() => {}}
                     >
                       {isAgent && file.avatar_url ? (
+                        // oxlint-disable-next-line next/no-img-element -- the avatar is a user-supplied arbitrary address (remote or data URL), which next/image cannot optimize
                         <img
                           src={file.avatar_url}
                           alt={title}

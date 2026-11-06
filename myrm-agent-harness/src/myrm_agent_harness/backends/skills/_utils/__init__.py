@@ -1,10 +1,16 @@
-"""Skills 解析工具门面。
+"""[INPUT]
+- myrm_agent_harness.backends.skills._utils.frontmatter::_MAX_SKILL_FILE_SIZE / SkillFrontmatter / SkillMetadataError / parse_frontmatter (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.backends.skills._utils.parsing::parse_skill_frontmatter (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
-SkillFrontmatter / SkillMetadataError / parse_frontmatter / parse_skill_frontmatter / 文件大小上限。
+- _MAX_SKILL_FILE_SIZE
+- SkillFrontmatter
+- SkillMetadataError
+- parse_frontmatter
+- parse_skill_frontmatter
 
 [POS]
-`myrm_agent_harness.backends.skills._utils` 的唯一入口；实现按 frontmatter/contract/parsing 拆分。
+`myrm_agent_harness.backends.skills._utils` 的唯一入口；实现按 frontmatter/contract/parsing 分层。
 """
 
 from myrm_agent_harness.backends.skills._utils.frontmatter import (

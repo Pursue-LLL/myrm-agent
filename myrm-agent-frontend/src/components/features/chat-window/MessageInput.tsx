@@ -456,7 +456,7 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             items={commandItems}
             selectedIndex={commandSelectedIndex}
             onSelect={executeCommand}
-            anchorEl={inputRef.current}
+            anchorRef={inputRef}
           />
 
           {/* @ 引用面板 */}
@@ -466,7 +466,7 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             selectedIndex={referenceMentionSelectedIndex}
             query={referenceMentionQuery}
             onSelect={(reference) => selectReference(reference, setInputMessage)}
-            anchorEl={inputRef.current}
+            anchorRef={inputRef}
           />
 
           {/* 拖拽上传 Overlay */}

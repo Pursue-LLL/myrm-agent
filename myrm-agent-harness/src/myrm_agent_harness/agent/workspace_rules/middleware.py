@@ -123,7 +123,7 @@ def _find_workspace_insert_idx(messages: Sequence[object]) -> int:
     """Find insertion point: after all leading SystemMessages.
 
     This places workspace_context after system_prompt and user_instructions
-    but before HumanMessage/memory learned advisory.
+    but before the first HumanMessage.
     """
     idx = 0
     for i, msg in enumerate(messages):

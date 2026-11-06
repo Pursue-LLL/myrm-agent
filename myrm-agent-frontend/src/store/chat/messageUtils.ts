@@ -84,7 +84,7 @@ export const ensureAssistantStreamMessage = (
  * Drop a half-streamed assistant draft before a recovery that restarts the turn.
  *
  * The harness re-runs the answer from scratch after model failover, transient
- * retry, context compaction, escalation, etc., and emits the recovery event
+ * retry, context compaction, etc., and emits the recovery event
  * before the restreamed chunks arrive. Clearing the accumulated content /
  * reasoning here (and resetting the reasoning timer) keeps the UI from
  * splicing the stale partial draft with the complete re-generated answer.

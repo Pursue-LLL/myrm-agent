@@ -5,7 +5,7 @@ Unified Capability Discovery gateway. Indexes agent-bound searchable skills (MCP
 
 **Query contract**: the index matches words in skill names and descriptions, and those are mostly English, so the description and the `query` argument ask for English keywords plus synonyms and do not promise that any language works. A miss names the retry (English keywords or synonyms) and, when skills are bound, how many skills `query='*'` would list; a hit ends with the same one-line retry, except the `*` listing itself. The `No capabilities found` prefix is stable for callers that test for it.
 
-**Boundary**: searches the **agent-bound skill library**. External marketplace install uses ``skill_market_tool`` when **product Turn1-mount** enables it (`enable_skill_market` / market backend wired in server `tool_setup.py`); otherwise the discovery tool description points users to Settings → Skills → Discover.
+**Boundary**: searches the **agent-bound skill library**. External marketplace install uses ``skill_market_tool`` when **product Turn1-mount** enables it (`enable_skill_market` / market backend wired in server `tool_setup/skill.py`); otherwise the discovery tool description points users to Settings → Skills → Discover.
 
 ## MCP / OpenAPI overflow policy (SSOT)
 

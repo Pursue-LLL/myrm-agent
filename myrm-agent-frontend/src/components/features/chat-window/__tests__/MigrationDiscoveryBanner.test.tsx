@@ -32,6 +32,13 @@ vi.mock('@/services/migrationDiscovery', () => ({
 }));
 
 import MigrationDiscoveryBanner from '../MigrationDiscoveryBanner';
+import { useNoticeSlot } from '@/hooks/ui/useNoticeSlot';
+
+/** Stands in for another first-screen notice that is already readable. */
+function OtherNotice({ shown }: { shown: boolean }) {
+  useNoticeSlot('update-nudge', shown);
+  return null;
+}
 
 const source: ExternalSource = {
   competitor: 'hermes',
@@ -121,6 +128,27 @@ describe('MigrationDiscoveryBanner', () => {
 
     expect(await screen.findByRole('button', { name: /importButton/ })).toBeInTheDocument();
     expect(mockDiscover).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits while another notice is on screen instead of stacking above it, then appears once that one closes', async () => {
+    mockDiscover.mockResolvedValue(response([source]));
+
+    const { rerender } = render(
+      <>
+        <OtherNotice shown />
+        <MigrationDiscoveryBanner />
+      </>,
+    );
+    await act(async () => {});
+    expect(screen.queryByRole('button', { name: /importButton/ })).toBeNull();
+
+    rerender(
+      <>
+        <OtherNotice shown={false} />
+        <MigrationDiscoveryBanner />
+      </>,
+    );
+    expect(await screen.findByRole('button', { name: /importButton/ })).toBeInTheDocument();
   });
 
   it('does not scan outside local mode', () => {

@@ -153,9 +153,8 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
           <button
             onClick={() => router.push('/')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            aria-label="Home"
           >
-            <BrandLogo size={56} priority className="w-10 h-10" />
+            <BrandLogo size={56} priority decorative className="w-10 h-10" />
             <span className="text-lg font-semibold brand-gradient-text">MyrmAgent</span>
           </button>
           <button

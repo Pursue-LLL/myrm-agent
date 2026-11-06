@@ -39,12 +39,16 @@ dispatcher  handlers      events         recovery*
 | Mixin / 模块 | 职责 |
 |--------------|------|
 | `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
-| `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/retry） |
+| `recovery/stream_recovery.py` | 主恢复策略组合：overflow、failover、安全拒答回退、瞬时重试，并混入下列各恢复 mixin |
 | `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：迭代上限的无工具总结、空回复恢复（判断对象是本轮最后一次回复 `_latest_reply`，空回复不在 `collected_messages` 里；推理被输出上限截断的回复归截断恢复，放弃后不再当空回复重问） |
 | `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
-| `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
-| `recovery/stream_recovery_continuation.py` | steering、subagent 完成、goal continuation |
+| `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / REASONING_MANDATORY / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `reasoning_mandatory_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
+| `recovery/stream_recovery_continuation.py` | steering、teammate 收件箱注入、subagent 完成、goal continuation |
+| `recovery/stream_recovery_window.py` | `ProviderWindowRecoveryMixin`：限流 / 账单 / 过载错误在模型切换之后、盲目瞬时退避之前，按供应商声明的重试边界处理——≤300 秒的等待在本轮内睡满（每次运行最多 3 次），更久的把运行中的目标挂起到重置时刻；挂不起来或等也无济于事的（无目标、目标已被暂停、重置超出 24 小时）带真实重置时间立即结束本轮；没有声明边界时交给后续处理器 |
+| `recovery/stream_recovery_budget.py` | `StreamOutputBudgetMixin`：截断恢复一次性放大的输出预算（基准的 2/3/4 倍，受上限与模型文档输出上限约束），由 `StreamTruncationRecoveryMixin` 继承 |
+| `recovery/context_pressure_gate.py` | `PreflightGateMixin`：发送前的上下文压力闸门、token 预算压缩，以及「推定溢出」恢复（400 里自述了模型自身输出上限的，不当作溢出） |
+| `stream_fatal_error.py` | `StreamFatalErrorMixin`：致命错误上报——转成带诊断的 GUI 错误事件、脱敏后记入运行统计、写事件日志并抛出 `MyrmLLMError` |
 | `stream_compactor.py` | 高频流式文本片段合并缓冲（容量/时间/事件类型变更/显式 flush，后台看门狗防幽灵延迟） |
 | `stream_buffer.py` | SSE 断线重连回复缓冲：内存滑动窗口 + GlobalStreamRegistry（Last-Event-ID 短断连复连，无磁盘持久化；一次运行一个缓冲，同 id 的续跑用 `start_run` 换新缓冲） |
 

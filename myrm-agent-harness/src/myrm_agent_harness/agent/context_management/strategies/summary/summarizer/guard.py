@@ -1,4 +1,12 @@
-"""摘要必要性判断与辅助模型上下文裁剪。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.utils.model_utils::get_model_context_limit (POS: Stateless utilities for inspecting LLM model properties.)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
+- myrm_agent_harness.utils.token_estimation::estimate_context_tokens / estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for)
+- myrm_agent_harness.agent.context_management.infra.schemas::ContextConfig (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
+
+[OUTPUT]
+- _guard_aux_context: Trim messages to fit within the aux model's context window.
+- should_summarize: Check whether proactive summarization should be triggered (dual-signal).
 
 [POS]
 摘要策略子包的一部分；由 __init__.py 聚合导出。

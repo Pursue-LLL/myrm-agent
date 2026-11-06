@@ -285,17 +285,11 @@ export default function MemoryInsightPanel({
                         </div>
                       )}
                     <div className="text-[11px] text-muted-foreground leading-relaxed">
-                      {memoryBrief.learned.injected_in_turn_prefix === true
-                        ? t('briefLearnedInPrefix', {
-                            preferences: memoryBrief.learned.preference_count,
-                            rules: memoryBrief.learned.rule_count,
-                            corrections: memoryBrief.learned.correction_count,
-                          })
-                        : t('briefLearnedSummary', {
-                            preferences: memoryBrief.learned.preference_count,
-                            rules: memoryBrief.learned.rule_count,
-                            corrections: memoryBrief.learned.correction_count,
-                          })}
+                      {t('briefLearnedSummary', {
+                        preferences: memoryBrief.learned.preference_count,
+                        rules: memoryBrief.learned.rule_count,
+                        corrections: memoryBrief.learned.correction_count,
+                      })}
                     </div>
                     {(memoryBrief.learned.preference_ids.length > 0 || memoryBrief.learned.rule_ids.length > 0) && (
                       <div className="flex flex-wrap gap-1.5 mt-1">

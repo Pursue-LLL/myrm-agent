@@ -31,8 +31,12 @@ function formatTokens(tokens: number): string {
 }
 
 function formatCost(usd: number): string {
-  if (usd <= 0) return '$0.0000';
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  if (usd <= 0) {
+    return '$0.0000';
+  }
+  if (usd < 0.01) {
+    return `$${usd.toFixed(4)}`;
+  }
   return `$${usd.toFixed(3)}`;
 }
 
@@ -59,7 +63,9 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       const usage = msg.usage;
-      if (!usage) continue;
+      if (!usage) {
+        continue;
+      }
 
       if (typeof usage.total_tokens === 'number') {
         totalTokens += usage.total_tokens;
@@ -108,7 +114,7 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
         type="button"
         title={t('popoverTitle')}
         className={cn(
-          'group flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono transition-all select-none',
+          'group flex min-h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono transition-all select-none',
           'border bg-background/80 hover:bg-muted/80 backdrop-blur-sm shadow-2xs cursor-pointer',
           sessionEconomics.isCacheActive
             ? 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
@@ -138,7 +144,7 @@ export const RealTimeCostAndCacheHud: React.FC = memo(() => {
             ) : null}
           </>
         ) : (
-          <span className="text-[10px] text-muted-foreground group-hover:text-foreground">{t('idleLabel')}</span>
+          <span className="text-[11px] text-muted-foreground group-hover:text-foreground">{t('idleLabel')}</span>
         )}
       </button>
     </ModelPricingPopover>

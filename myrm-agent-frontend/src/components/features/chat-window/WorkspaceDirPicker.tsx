@@ -41,47 +41,23 @@ import useChatStore from '@/store/useChatStore';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { ApiError } from '@/lib/api';
 import { workspacePathIssueMessageKey } from '@/lib/workspacePathIssue';
+import {
+  WORKSPACE_PICKER_RECENT_KEY,
+  getRecentDirectoryPaths,
+  rememberDirectoryPath,
+  shortenHomePath,
+} from '@/lib/directoryBrowseRecent';
 
-const RECENT_DIRS_KEY = 'myrm.workspaceDirPicker.recent';
-const MAX_RECENT_DIRS = 5;
-
-// Canonical office folders. The names stay identical in every UI language: they are a shared
-// on-disk convention, so a folder created in one locale is the same folder in another.
+// The scaffold finds the folders it already created by name, so the names are not localized: a language
+// switch would otherwise create a second set next to the first.
 const OFFICE_FOLDERS = ['00_原始资料', '01_参考', '02_生成结果', '03_历史版本'] as const;
 
-function getRecentDirs(): string[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-  try {
-    const raw = localStorage.getItem(RECENT_DIRS_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_DIRS);
-  } catch {
-    return [];
-  }
-}
-
-function addRecentDir(dir: string): void {
-  const current = getRecentDirs().filter((d) => d !== dir);
-  const updated = [dir, ...current].slice(0, MAX_RECENT_DIRS);
-  localStorage.setItem(RECENT_DIRS_KEY, JSON.stringify(updated));
-}
-
-function shortenHome(path: string): string {
-  return path.replace(/^\/(?:Users|home)\/[^/]+/, '~');
-}
+const rememberDir = (dir: string): void => rememberDirectoryPath(WORKSPACE_PICKER_RECENT_KEY, dir);
 
 /** Keep the leaf visible when the full path does not fit: `~/a/b/c` becomes `…/b/c`. */
 function compactPath(path: string): string {
-  const home = shortenHome(path);
-  const parts = home.split('/').filter(Boolean);
+  const home = shortenHomePath(path);
+  const parts = home.split(/[\\/]/).filter(Boolean);
   return parts.length <= 3 ? home : `…/${parts.slice(-2).join('/')}`;
 }
 
@@ -153,6 +129,9 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
     return entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);
 
+  // Read when the popover opens: the row is on every empty chat, and storage is only needed once it is used.
+  const recentDirs = useMemo(() => (open ? getRecentDirectoryPaths(WORKSPACE_PICKER_RECENT_KEY) : []), [open]);
+
   const applyDir = async (dir: string | null) => {
     const previous = useChatStore.getState().workspaceDir;
     // Optimistic: the folder also takes effect when the chat row does not exist yet.
@@ -160,7 +139,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
     setCurrentDir(dir);
     if (!chatId) {
       if (dir) {
-        addRecentDir(dir);
+        rememberDir(dir);
       }
       setOpen(false);
       return;
@@ -170,7 +149,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
       setCurrentDir(result.workspace_dir);
       useChatStore.getState().setWorkspaceDir(result.workspace_dir);
       if (result.workspace_dir) {
-        addRecentDir(result.workspace_dir);
+        rememberDir(result.workspace_dir);
       }
       toast({ title: dir ? t('updated') : t('cleared') });
       setOpen(false);
@@ -178,7 +157,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
       // 404: the chat row is written together with the first message, which carries the folder.
       if (error instanceof ApiError && error.code === 404) {
         if (dir) {
-          addRecentDir(dir);
+          rememberDir(dir);
         }
         setOpen(false);
         return;
@@ -240,7 +219,6 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
   }
 
   const displayPath = currentDir ? compactPath(currentDir) : null;
-  const recentDirs = getRecentDirs();
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -264,9 +242,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
           )}
         >
           <FolderOpen className={cn('h-3.5 w-3.5 shrink-0', currentDir ? 'text-primary' : 'text-muted-foreground')} />
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {displayPath ?? t('sessionDefault')}
-          </span>
+          <span className="min-w-0 flex-1 truncate font-medium">{displayPath ?? t('sessionDefault')}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50 transition-transform group-data-[state=open]:rotate-180" />
         </button>
       </PopoverTrigger>
@@ -279,6 +255,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
                 size="icon"
                 className="h-6 w-6 shrink-0 rounded-lg"
                 onClick={() => loadDirectory(parentPath)}
+                title={t('back')}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
               </Button>

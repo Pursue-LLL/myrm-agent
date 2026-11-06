@@ -57,7 +57,7 @@ function StripSkeleton({ className }: { className?: string }) {
     <div data-testid="featured-expert-chips-skeleton" aria-hidden="true" className={cn(STRIP_CLASS, className)}>
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
         {SKELETON_CHIP_WIDTHS.map((width) => (
-          <span key={width} className={cn('h-8 shrink-0 rounded-md bg-muted/70 sm:h-6', width)} />
+          <span key={width} className={cn('h-8 shrink-0 rounded-lg bg-muted/70 sm:h-6', width)} />
         ))}
       </div>
       <span className="size-8 shrink-0 sm:size-6" />
@@ -169,7 +169,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
               disabled={Boolean(summoningId)}
               onClick={() => void handleSummon(template)}
               className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-2xs sm:h-6',
+                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-2xs sm:h-6',
                 isSummoning && 'border-primary text-primary',
               )}
               title={template.description ?? template.name}

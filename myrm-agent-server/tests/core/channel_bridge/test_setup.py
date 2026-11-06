@@ -61,15 +61,19 @@ async def _empty_channels():
 @pytest.mark.asyncio
 async def test_start_channel_gateway_enables_core_router_in_cp_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.core.channel_bridge import setup as setup_module
+    from app.core.channel_bridge.setup import gateway as gateway_module
+    from app.core.channel_bridge.setup import instances as instances_module
+    from app.core.channel_bridge.setup import state as state_module
     from app.services.event import app_event_bus as event_bus_module
 
     fake_gateway = _FakeGateway()
 
-    monkeypatch.setattr(setup_module, "channel_gateway", fake_gateway)
-    monkeypatch.setattr(setup_module, "create_all_channels", _empty_channels)
-    monkeypatch.setattr(setup_module, "is_local_mode", lambda: False)
-    monkeypatch.setattr(setup_module, "_restore_channel_instances", AsyncMock())
-    monkeypatch.setattr(setup_module, "NotificationDispatcher", _FakeNotificationDispatcher)
+    monkeypatch.setattr(gateway_module, "channel_gateway", fake_gateway)
+    monkeypatch.setattr(instances_module, "channel_gateway", fake_gateway)
+    monkeypatch.setattr(gateway_module, "create_all_channels", _empty_channels)
+    monkeypatch.setattr(gateway_module, "is_local_mode", lambda: False)
+    monkeypatch.setattr(gateway_module, "_restore_channel_instances", AsyncMock())
+    monkeypatch.setattr(gateway_module, "NotificationDispatcher", _FakeNotificationDispatcher)
     monkeypatch.setattr(event_bus_module, "get_event_bus", lambda: _FakeEventBus())
 
     await setup_module.start_channel_gateway()
@@ -78,4 +82,4 @@ async def test_start_channel_gateway_enables_core_router_in_cp_mode(monkeypatch:
     assert fake_gateway.enable_kwargs is not None
     assert fake_gateway.enable_kwargs["policy_provider"] is not None
     assert fake_gateway.enable_kwargs["topic_resolver"] is not None
-    assert setup_module._notification_dispatcher is not None
+    assert state_module._notification_dispatcher is not None

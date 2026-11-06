@@ -122,7 +122,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
         <button
           type="button"
           className={cn(
-            'flex h-7 items-center gap-1.5 rounded-md border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:bg-muted/80 active:scale-95 shadow-2xs',
+            'flex h-7 items-center gap-1.5 rounded-lg border border-border/80 bg-background/80 px-2 text-xs font-medium text-foreground transition-all hover:border-primary/50 hover:bg-muted/80 active:scale-95 shadow-2xs',
             open && 'border-primary text-primary bg-primary/5',
           )}
           title={t('featuredTitle')}
@@ -170,7 +170,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({ onSummone
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="w-full rounded-md border border-border/70 bg-secondary/50 py-1 pl-7 pr-2 text-xs outline-hidden focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+            className="w-full rounded-lg border border-border/70 bg-secondary/50 py-1 pl-7 pr-2 text-xs outline-hidden focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
           />
         </div>
 

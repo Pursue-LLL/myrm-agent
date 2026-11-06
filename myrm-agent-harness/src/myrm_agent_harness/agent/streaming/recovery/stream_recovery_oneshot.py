@@ -15,7 +15,7 @@ without entering backoff or failover loops.
 - _resolve_model_name_from_ctx() / _resolve_api_base_from_ctx(): 能力学习所需的模型/端点解析
 
 [POS]
-Targeted one-shot recovery handlers for THINKING_SIGNATURE, DUPLICATE_TOOL_USE_ID,
+Targeted one-shot recovery handlers for THINKING_SIGNATURE, REASONING_MANDATORY, DUPLICATE_TOOL_USE_ID,
 IMAGE_TOO_LARGE, MEDIA_REJECTED, ALLOWED_TOOLS_TOOL_CHOICE_REJECTED, and LONG_CONTEXT_TIER errors. Includes model name resolution
 via llm_info for capability learning.
 """
@@ -467,4 +467,3 @@ def _strip_all_media_from_messages(messages: list[BaseMessage]) -> int:
             msg.content = new_content  # type: ignore[assignment]
             stripped_count += 1
     return stripped_count
-

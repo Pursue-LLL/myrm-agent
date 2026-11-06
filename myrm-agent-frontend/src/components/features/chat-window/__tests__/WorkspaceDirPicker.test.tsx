@@ -180,6 +180,59 @@ describe('WorkspaceDirPicker', () => {
     expect(recent).toContain('/home/user/projects');
   });
 
+  it('keeps the chosen folder when storage refuses the recent-list write', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    try {
+      renderPicker();
+      fireEvent.click(screen.getByTestId(TRIGGER));
+      await waitFor(() => {
+        expect(screen.getByTitle('Select this directory')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTitle('Select this directory'));
+
+      await waitFor(() => {
+        expect(toast).toHaveBeenCalledWith({ title: 'Working directory updated' });
+      });
+      expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+      expect(mockState.setWorkspaceDir).not.toHaveBeenCalledWith(null);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it('reads the recent list only once the popover is open', async () => {
+    localStorage.setItem('myrm.workspaceDirPicker.recent', JSON.stringify(['/home/user/notes']));
+    const getItem = vi.spyOn(Storage.prototype, 'getItem');
+    try {
+      renderPicker();
+      expect(getItem).not.toHaveBeenCalledWith('myrm.workspaceDirPicker.recent');
+
+      fireEvent.click(screen.getByTestId(TRIGGER));
+
+      expect(await screen.findByText('~/notes')).toBeInTheDocument();
+      expect(getItem).toHaveBeenCalledWith('myrm.workspaceDirPicker.recent');
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
+  it('names the parent-folder button instead of leaving an anonymous icon', async () => {
+    renderPicker();
+    fireEvent.click(screen.getByTestId(TRIGGER));
+
+    expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('compacts a Windows path by its last two folders', () => {
+    mockState.workspaceDir = 'D:\\work\\clients\\acme\\reports';
+    renderPicker();
+
+    expect(screen.getByTestId(TRIGGER)).toHaveTextContent('…/acme/reports');
+  });
+
   it('shows filter input when entries exceed 8', async () => {
     vi.mocked(browseDirectories).mockResolvedValue({
       current: '/home/user/projects',
@@ -276,9 +329,7 @@ describe('WorkspaceDirPicker', () => {
       expect(mockState.setWorkspaceDir).toHaveBeenLastCalledWith('/home/user/projects');
     });
     expect(toast).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('myrm.workspaceDirPicker.recent') || '[]')).toContain(
-      '/home/user/projects',
-    );
+    expect(JSON.parse(localStorage.getItem('myrm.workspaceDirPicker.recent') || '[]')).toContain('/home/user/projects');
   });
 
   it('creates only the office folders the workspace is missing', async () => {

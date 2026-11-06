@@ -1,4 +1,9 @@
-"""技能安全扫描模式：filesystem 类。
+"""[INPUT]
+- myrm_agent_harness.backends.skills.scanning.scanner::ScanSeverity (POS: myrm_agent_harness.backends.skills.scanning.scanner)
+- myrm_agent_harness.backends.skills.scanning.patterns.types::PatternList (POS: patterns 子包共用类型；避免每个模式模块重复导入 scanner。)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
 patterns 子包的一部分；纯数据，由 __init__.py 汇总。

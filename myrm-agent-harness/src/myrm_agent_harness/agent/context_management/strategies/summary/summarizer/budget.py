@@ -1,4 +1,12 @@
-"""摘要预算提示与结果裁剪。
+"""[INPUT]
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
+- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for)
+- myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
+- myrm_agent_harness.agent.context_management.strategies.summary.summary_builder::create_summary_message (POS: Message reconstruction after summarisation.)
+
+[OUTPUT]
+- _build_budget_hint: Build a budget hint for the summary prompt.
+- _cap_summary_if_needed: Ensure summarised output is shorter than the original.
 
 [POS]
 摘要策略子包的一部分；由 __init__.py 聚合导出。

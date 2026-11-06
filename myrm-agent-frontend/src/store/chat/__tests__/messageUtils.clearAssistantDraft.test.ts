@@ -1,7 +1,7 @@
 /**
  * clearAssistantDraft — restart protocol helper that drops a half-streamed
  * assistant draft (content / reasoning / reasoning timer) before a recovery
- * re-runs the turn from scratch (model failover, transient retry, escalation…).
+ * re-runs the turn from scratch (model failover, transient retry, context compaction, etc.).
  */
 import { describe, expect, it } from 'vitest';
 

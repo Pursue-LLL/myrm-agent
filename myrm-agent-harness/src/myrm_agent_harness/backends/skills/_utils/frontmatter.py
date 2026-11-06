@@ -1,4 +1,13 @@
-"""SKILL.md frontmatter 常量、模型、YAML 解析与字段校验。
+"""[INPUT]
+- myrm_agent_harness.backends.skills.types::SkillContract / SkillPermission / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at)
+
+[OUTPUT]
+- SkillMetadataError: Skill metadata parsing or validation error.
+- SkillFrontmatter: Parsed SKILL.md frontmatter data (agentskills.io spec compliant).
+- _parse_frontmatter_yaml: Extract and parse YAML frontmatter from SKILL.md content.
+- parse_frontmatter: Extract YAML frontmatter and body from markdown content.
+- _validate_and_extract_description: Validate and extract description field per agentskills.io spec.
+- _warn_unknown_fields: Log warnings for unrecognized frontmatter fields.
 
 [POS]
 skills _utils 子包的一部分；由 __init__.py 聚合导出。

@@ -13585,8 +13585,7 @@
     "sessionOverrideTitle": "このチャットでの設定の更新",
     "sessionOverrideDescription": "この会話の途中で設定や事実を訂正した場合、この返信はその更新を反映します。",
     "sessionOverrideMobile": "この返信には、このチャットの {count} 件の更新が反映されています",
-    "sessionMemoryUpdatedHint": "設定は保存され、このチャットの以降の返信に適用されます。",
-    "briefLearnedInPrefix": "学習済みのコンテキストをこの返信のメモリプレフィックスに含めました：好み {preferences} 件、ルール {rules} 件、修正項目 {corrections} 件。"
+    "sessionMemoryUpdatedHint": "設定は保存され、このチャットの以降の返信に適用されます。"
   },
   "e2ee": {
     "secured": "エンドツーエンド暗号化",

@@ -138,12 +138,9 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
       <div className="flex items-center px-2 pb-1">
         <button
           onClick={() => setShowInput(true)}
-          className={cn(
-            'flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors',
-            isMobile && 'text-[9px]',
-          )}
+          className="flex h-6 items-center gap-1.5 rounded-lg px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground pointer-coarse:h-8 dark:hover:bg-white/6"
         >
-          <FolderOpen size={10} />
+          <FolderOpen size={12} />
           <span>{t('project.addFirst')}</span>
         </button>
       </div>
@@ -336,8 +333,8 @@ function ChipButton({
         'border border-transparent',
         active
           ? color
-            ? 'text-white shadow-sm'
-            : 'text-[var(--accent-warm-foreground)] shadow-sm'
+            ? 'text-white'
+            : 'text-[var(--accent-warm-foreground)]'
           : 'text-muted-foreground/70 hover:text-foreground bg-black/4 dark:bg-white/6 hover:bg-black/8 dark:hover:bg-white/10',
         isMobile && 'text-[9px] h-4 px-1.5',
       )}

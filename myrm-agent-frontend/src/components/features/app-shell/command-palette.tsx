@@ -32,8 +32,8 @@ interface CommandPaletteProps {
   selectedIndex: number;
   /** 选择命令回调 */
   onSelect: (item: SlashItem) => void;
-  /** 锚点元素（输入框） */
-  anchorEl?: HTMLElement | null;
+  /** 锚点元素（输入框）的 ref：定位时才读取 `current`，渲染期不碰 ref */
+  anchorRef?: React.RefObject<HTMLElement | null>;
 }
 
 function isSlashAction(item: SlashItem): item is SlashAction {
@@ -44,7 +44,7 @@ function isSlashCommand(item: SlashItem): item is SlashCommand {
   return item.type === 'command';
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, selectedIndex, onSelect, anchorEl }) => {
+export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, selectedIndex, onSelect, anchorRef }) => {
   const t = useTranslations('commands');
   const router = useRouter();
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -82,7 +82,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, sel
 
   return (
     <Popover open={open} modal={false}>
-      {anchorEl && <PopoverAnchor virtualRef={{ current: anchorEl }} />}
+      {anchorRef && <PopoverAnchor virtualRef={anchorRef} />}
       <PopoverContent
         data-testid="slash-command-palette"
         className="w-[420px] p-0 shadow-xl border-border/50"

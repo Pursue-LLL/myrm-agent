@@ -491,7 +491,7 @@ class TestRouteTask:
         STANDARD with a distinct reason instead of stalling the request."""
         from myrm_agent_harness.toolkits.llms.routing import complexity_router
 
-        monkeypatch.setattr(complexity_router, "_JUDGE_TIMEOUT_S", 0.01)
+        monkeypatch.setattr(complexity_router.judge, "_JUDGE_TIMEOUT_S", 0.01)
         judge_llm = AsyncMock()
 
         async def _slow(*_args: object, **_kwargs: object) -> MagicMock:

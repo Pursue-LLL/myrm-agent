@@ -6,6 +6,7 @@
  *
  * [OUTPUT]
  * - dismissProactive: remember that a card was closed, for good or for a number of days.
+ * - OFFER_SNOOZE_DAYS: how long a closed one-off offer (import, install) stays quiet.
  * - isProactiveDismissed: read that memory.
  * - useProactiveDismissed: the same memory as a hydration-safe, reactive hook.
  *
@@ -21,6 +22,9 @@ import { createPersistedStringStore } from './persistedStringStore';
 
 const FOREVER = 'forever';
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** A one-off offer is a single decision, so a closed one stays quiet this long instead of returning with every new chat. */
+export const OFFER_SNOOZE_DAYS = 7;
 
 const store = createPersistedStringStore('myrm.proactive.dismissed.');
 

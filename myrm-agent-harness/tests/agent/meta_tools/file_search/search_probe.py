@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import subprocess
 import types
 from collections.abc import Awaitable, Callable
@@ -83,3 +84,12 @@ def listed(output: str) -> set[str]:
 def hit_files(output: str, candidates: set[str]) -> set[str]:
     """The candidates that appear in a grep_tool result."""
     return {candidate for candidate in candidates if candidate in output}
+
+
+def warnings_from(caplog: pytest.LogCaptureFixture, tool: types.ModuleType) -> str:
+    """What `tool` logged at WARNING level or above, the levels a production process keeps, as one text."""
+    return "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if record.name == tool.__name__ and record.levelno >= logging.WARNING
+    )

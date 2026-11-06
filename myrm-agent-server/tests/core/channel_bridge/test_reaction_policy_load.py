@@ -67,7 +67,7 @@ async def test_refresh_reaction_policy_applies_to_gateway_router() -> None:
     with (
         patch.object(channel_gateway, "_router", mock_router),
         patch(
-            "app.core.channel_bridge.setup._load_reaction_policy",
+            "app.core.channel_bridge.setup.policies._load_reaction_policy",
             new=AsyncMock(return_value=custom),
         ),
     ):

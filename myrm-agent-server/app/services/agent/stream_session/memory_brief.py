@@ -110,7 +110,6 @@ def _build_preview(
             "correction_count": correction_count,
             "preference_ids": _safe_ids(learned_prefs),
             "rule_ids": _safe_ids(learned_rules),
-            "injected_in_turn_prefix": False,
         },
     }
     return preview_data

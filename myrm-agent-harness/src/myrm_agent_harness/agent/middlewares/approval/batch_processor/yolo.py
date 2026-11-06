@@ -1,4 +1,17 @@
-"""YOLO 模式的批量自动批准/拒绝。
+"""[INPUT]
+- myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
+- myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation —)
+- myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
+- myrm_agent_harness.agent.security.tool_registry::resolve_permission_type (POS: Tool safety registry — re-exported from core.security.tool_registry.)
+- myrm_agent_harness.agent.security.types::PermissionAction / SecurityConfig (POS: Security type definitions — re-exported from core.security.types.)
+- myrm_agent_harness.core.security.readonly_research_sandbox::get_readonly_research_sandbox_facade (POS: Entry of the read-only research lease package.)
+- myrm_agent_harness.core.security.spend_governance::compute_action_digest / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
+- myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
+- myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-)
+
+[OUTPUT]
+- operator_as_key_deny_message: Fail-closed before HITL: lone printable operators are never key names.
+- _evaluate_yolo_batch: _evaluate_yolo_batch
 
 [POS]
 batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。

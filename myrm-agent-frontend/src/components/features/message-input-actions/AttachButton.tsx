@@ -230,6 +230,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
         <Tooltip content={t('attach')}>
           <button
             type="button"
+            aria-label={t('attach')}
             onClick={() => {
               if (isTauriRuntime()) {
                 handleTauriFileSelect();

@@ -1,4 +1,11 @@
-"""LLM 驱动的 MemoryExtractor。
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory.strategies.extractor.models::ConcreteMemory / ExtractedMemory / ExtractionConfig / ExtractionResult / LLMFunc (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.parse::_parse_response (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.prompt::_build_system_prompt / detect_language (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.types::EpisodicMemory / MemoryLifecycle / MemoryType / ProceduralMemory / ProfileEntry / SemanticMemory / ToolRulePriority (POS: Memory type system foundation. Provides type-safe schema definitions for all)
+
+[OUTPUT]
+- MemoryExtractor: Extracts memorable information from conversations via LLM.
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。
