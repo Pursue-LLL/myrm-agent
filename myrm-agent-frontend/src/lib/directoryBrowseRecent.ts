@@ -21,9 +21,14 @@ export function getRecentDirectoryPaths(storageKey: string): string[] {
   }
 }
 
+/** The list is a convenience: storage that refuses the write (quota, private mode) must not fail the pick itself. */
 export function rememberDirectoryPath(storageKey: string, dir: string): void {
   const current = getRecentDirectoryPaths(storageKey).filter((entry) => entry !== dir);
-  localStorage.setItem(storageKey, JSON.stringify([dir, ...current].slice(0, MAX_RECENT_DIRS)));
+  try {
+    localStorage.setItem(storageKey, JSON.stringify([dir, ...current].slice(0, MAX_RECENT_DIRS)));
+  } catch {
+    // Dropped on purpose; the next pick tries again.
+  }
 }
 
 export function shortenHomePath(path: string): string {
@@ -32,3 +37,4 @@ export function shortenHomePath(path: string): string {
 
 export const DIRECTORY_GRANT_RECENT_KEY = 'myrm.directoryGrant.recent';
 export const PROJECT_WORKSPACE_RECENT_KEY = 'myrm.projectWorkspace.recent';
+export const WORKSPACE_PICKER_RECENT_KEY = 'myrm.workspaceDirPicker.recent';
