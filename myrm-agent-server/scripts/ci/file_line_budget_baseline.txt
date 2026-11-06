@@ -35,7 +35,6 @@ app/channels/core/gateway.py
 app/channels/implementations/fastapi/registrar.py
 app/channels/providers/_ilink/client.py
 app/channels/providers/dingtalk/api.py
-app/channels/providers/feishu/cards.py
 app/channels/providers/feishu/channel.py
 app/channels/providers/feishu/comment/handler.py
 app/channels/providers/feishu/parser.py
