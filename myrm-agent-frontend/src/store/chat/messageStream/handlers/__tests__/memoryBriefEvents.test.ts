@@ -99,7 +99,9 @@ describe('memoryBriefEvents', () => {
   });
 
   it('keeps exactly the stable counts the panel renders', async () => {
-    const ctx = makeCtx([{ messageId: 'msg-1', chatId: 'chat-1', role: 'assistant', content: '', createdAt: new Date() }]);
+    const ctx = makeCtx([
+      { messageId: 'msg-1', chatId: 'chat-1', role: 'assistant', content: '', createdAt: new Date() },
+    ]);
 
     await memoryBriefEvents(ctx);
 
