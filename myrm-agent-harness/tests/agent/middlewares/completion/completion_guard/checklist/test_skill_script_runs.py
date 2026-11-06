@@ -105,6 +105,39 @@ class TestASkillImportedByNameIsTheSameScript:
         assert assess_checklist(records).causes == {CriticalCause.FAILED_VERIFICATION}
 
 
+class TestOnlyAnMcpSkillMakesAScriptASkillScript:
+    """A workspace may hold a package of its own that is called ``skills``; code written against it is still code."""
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "from skills.planner import plan\n\nprint(plan())\n",
+            "import skills\n\nprint(skills.__file__)\n",
+            "from skills import planner\n",
+            "import importlib\nmod = importlib.import_module('skills')\n",
+            "from my_skill import run\n",
+        ],
+    )
+    def test_code_that_imports_something_else_called_skills_is_still_code(self, content: str) -> None:
+        records = [write("/w/app.py", content=content), shell("cd /w && python3 app.py", FAIL, TEST)]
+
+        assert assess_checklist(records).causes == {CriticalCause.FAILED_VERIFICATION}
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "from mcp_kubernetes_skill import list_namespaces\n",
+            "import skills.mcp_kubernetes_skill as k8s\n",
+            "import mcp_12306_skill\n",
+            "import importlib\nmod = importlib.import_module('mcp_kubernetes_skill')\n",
+        ],
+    )
+    def test_every_way_of_naming_an_mcp_skill_module_counts(self, content: str) -> None:
+        records = [write("/w/probe.py", content=content), shell("cd /w && python3 probe.py", FAIL, TEST)]
+
+        assert assess_checklist(records).causes == frozenset()
+
+
 class TestEditingASavedSkillScript:
     """The probe is reworked with ``file_edit_tool`` as often as it is rewritten."""
 
