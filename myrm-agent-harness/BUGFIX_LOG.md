@@ -6,7 +6,7 @@
 
 | 字段 | 内容 |
 | --- | --- |
-| **状态** | **FIXED**（本条随提交；见 `git log -- myrm-agent-harness/src/myrm_agent_harness/agent/meta_tools/bash/_tool/terminal_hints.py`） |
+| **状态** | **FIXED**（`02f3a69b6e`） |
 | **发现时间** | 2026-11-06（给 BUG-HARNESS-2026-11-04-184 的「仍然存在」①「模型为什么存脚本、为什么在 `stop` 之后继续，未查明」查因：读 MiniMax 在 k8s100 任务 B 上 46 轮那次运行的完整请求记录） |
 | **修复时间** | 2026-11-06 |
 | **严重程度** | P2：只在模型选了「存文件再启动」且启动命令带管道或脚本自己捕获了导入错误时出现，MiniMax 上见过；一旦出现，一次运行烧掉数十轮、数十万到上百万 token，常以超时收场。 |
