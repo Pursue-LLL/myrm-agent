@@ -30,7 +30,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { InvestigationIcon } from 'hugeicons-react';
-import { PuzzlePiece } from '@phosphor-icons/react';
+import { PuzzlePiece, TreeStructure } from '@phosphor-icons/react';
 import useConfigStore from '@/store/useConfigStore';
 import { useWorkbenchStore } from '@/store/useWorkbenchStore';
 import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
@@ -135,7 +135,7 @@ export function useNavMoreSections(extensionConnected: boolean): NavMoreSection[
     {
       kind: 'action',
       id: 'session-map',
-      icon: Activity,
+      icon: TreeStructure,
       label: t('sessionMap.hudTrigger'),
       shortcut: t('sessionMap.shortcutHint'),
       action: () => openPanel(UTILITY_PANEL_EVENTS.sessionMap),
