@@ -1,8 +1,8 @@
-# File line baseline (paths relative to src/, format: path<TAB>lines)
 # CI: check_file_line_limit.py --baseline this file
+# File line baseline (paths relative to src/, format: path<TAB>lines)
 # Files listed here may exceed 500 lines; line count must not grow.
-# Tighten caps with: check_file_line_limit.py --ratchet
 # Remove entries after splitting below 500 lines.
+# Tighten caps with: check_file_line_limit.py --ratchet
 myrm_agent_harness/agent/_internals/agent_runtime.py	767
 myrm_agent_harness/agent/_internals/run_lifecycle.py	509
 myrm_agent_harness/agent/base_agent.py	585
@@ -17,7 +17,7 @@ myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	647
 myrm_agent_harness/agent/goals/continuation.py	656
 myrm_agent_harness/agent/meta_tools/bash/_compression/compressors.py	691
 myrm_agent_harness/agent/meta_tools/file_ops/core/file_operation_service.py	611
-myrm_agent_harness/agent/middlewares/approval/batch_processor.py	1192
+myrm_agent_harness/agent/middlewares/approval/batch_processor/core.py	1009
 myrm_agent_harness/agent/middlewares/context_pipeline/context_pipeline_middleware.py	512
 myrm_agent_harness/agent/middlewares/tooling/_tool_guards.py	587
 myrm_agent_harness/agent/middlewares/tooling/_tool_helpers.py	599
@@ -58,15 +58,15 @@ myrm_agent_harness/toolkits/llms/video/video_engine.py	544
 myrm_agent_harness/toolkits/memory/_internal/search_service.py	838
 myrm_agent_harness/toolkits/memory/relational/sqlite_store.py	834
 myrm_agent_harness/toolkits/memory/strategies/deduplicator.py	780
+myrm_agent_harness/toolkits/memory/strategies/merger.py	554
 myrm_agent_harness/toolkits/memory/strategies/pattern_discovery.py	510
 myrm_agent_harness/toolkits/memory/types.py	934
 myrm_agent_harness/toolkits/web_fetch/engine/base.py	532
 myrm_agent_harness/toolkits/web_fetch/router/adaptive_router.py	657
 myrm_agent_harness/toolkits/web_fetch/router/domain_metrics.py	503
 myrm_agent_harness/toolkits/wiki/core/claims_contract.py	771
+myrm_agent_harness/toolkits/wiki/core/structure.py	507
 myrm_agent_harness/toolkits/wiki/retrieval/query.py	896
 myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	542
 myrm_agent_harness/utils/context_format.py	517
 myrm_agent_harness/utils/token_economics/tracker.py	569
-myrm_agent_harness/toolkits/wiki/core/structure.py	507
-myrm_agent_harness/toolkits/memory/strategies/merger.py	554

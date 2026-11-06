@@ -72,7 +72,7 @@ async def test_classify_all_shell_in_auto_mode_enabled_triggers_review_for_safe_
     tool_call = _make_shell_call("ls -la")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor._batch_review._security_reviewer",
+        "myrm_agent_harness.agent.middlewares.approval._batch_review._security_reviewer",
         mock_reviewer,
     ):
         approved, denied, pending = await evaluate_tool_batch(
@@ -104,7 +104,7 @@ async def test_classify_all_shell_in_auto_mode_disabled_skips_review_for_safe_cm
     tool_call = _make_shell_call("ls -la")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor._batch_review._security_reviewer",
+        "myrm_agent_harness.agent.middlewares.approval._batch_review._security_reviewer",
         mock_reviewer,
     ):
         approved, denied, pending = await evaluate_tool_batch(
@@ -143,7 +143,7 @@ async def test_shell_escalation_interactive_smart_denied() -> None:
     tool_call = _make_shell_call("cat ~/.aws/credentials")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor._batch_review._security_reviewer",
+        "myrm_agent_harness.agent.middlewares.approval._batch_review._security_reviewer",
         mock_reviewer,
     ):
         approved, denied, pending = await evaluate_tool_batch(
@@ -216,7 +216,7 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
     tool_call = _make_shell_call("python run_migration.py")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor.is_threshold_breached",
+        "myrm_agent_harness.agent.middlewares.approval.batch_processor.core.is_threshold_breached",
         return_value=ThresholdBreach.CONSECUTIVE,
     ):
         _approved, _denied, pending = await evaluate_tool_batch(

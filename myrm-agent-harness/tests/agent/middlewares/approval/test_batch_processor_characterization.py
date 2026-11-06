@@ -18,13 +18,13 @@ from myrm_agent_harness.agent.middlewares.approval import (
     set_workspace_root,
 )
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import evaluate_tool_batch
+from myrm_agent_harness.agent.middlewares.approval.helpers import reset_denial_counter
+from myrm_agent_harness.agent.security.guards.taint_tracker import reset_taint_tracker
 from myrm_agent_harness.agent.security.types import (
     PermissionAction,
     PermissionRule,
     SecurityConfig,
 )
-from myrm_agent_harness.agent.middlewares.approval.helpers import reset_denial_counter
-from myrm_agent_harness.agent.security.guards.taint_tracker import reset_taint_tracker
 
 
 @pytest.fixture(autouse=True)
@@ -81,7 +81,7 @@ async def test_interactive_ask_yields_pending_not_approved() -> None:
     assert approved == []
     assert denied == []
     assert len(pending) == 1
-    idx, call, permission_type, reason, context = pending[0]
+    idx, call, permission_type, reason, _context = pending[0]
     assert idx == 0 and call is calls[0]
     assert permission_type
     assert reason == ""
