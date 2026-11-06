@@ -15,6 +15,7 @@ from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.config import FileIOConfig
 from myrm_agent_harness.agent.meta_tools.file_search import glob_tool, grep_tool
+from myrm_agent_harness.agent.meta_tools.file_search.fallback_discovery import collect_candidate_files
 from tests.agent.meta_tools.file_search.search_probe import (
     SEARCH_TIMEOUT_GUARD_SECONDS,
     SearchRunner,
@@ -22,20 +23,28 @@ from tests.agent.meta_tools.file_search.search_probe import (
 )
 
 
-@pytest.fixture
-def require_ripgrep() -> None:
-    """Skip without ripgrep locally; fail under CI, where a skip would silently drop every ripgrep-tier check."""
-    if shutil.which("rg") is not None:
+def _require_binary(binary: str, *, remedy: str) -> None:
+    """Skip without ``binary`` locally; fail under CI, where a skip would silently drop every check that needs it."""
+    if shutil.which(binary) is not None:
         return
     if os.environ.get("CI"):
-        pytest.fail("ripgrep is missing: the CI job must install it (see 'Ensure ripgrep' in harness-test.yml)")
-    pytest.skip("ripgrep not installed")
+        pytest.fail(f"{binary} is missing: {remedy}")
+    pytest.skip(f"{binary} not installed")
+
+
+@pytest.fixture
+def require_ripgrep() -> None:
+    _require_binary("rg", remedy="the CI job must install it (see 'Ensure ripgrep' in harness-test.yml)")
 
 
 @pytest.fixture
 def require_git() -> None:
-    if shutil.which("git") is None:
-        pytest.skip("git not installed")
+    _require_binary("git", remedy="the CI runner image must provide it")
+
+
+@pytest.fixture
+def ripgrep_fallback() -> None:
+    """Request it in a test that makes ripgrep fail on purpose: ``engine`` then lets the Python tier serve the call."""
 
 
 @pytest.fixture
@@ -84,8 +93,10 @@ def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> I
     A test that only makes sense on one tier narrows it with
     ``@pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)``.
 
-    On the python tier ripgrep is also refused: a tool that stopped following the detection would otherwise search
-    with ripgrep and its test would still pass, so the test fails when either tool tried to start it.
+    Each tier is held to its own: on the python tier ripgrep is refused, and on the ripgrep tier the python tier is
+    watched. Both tools fall back to the other tier when one fails, and the results are the same on both, so
+    without these guards a tool that stopped following the detection, or a ripgrep that rejected every call,
+    would leave its tests green. A test that makes ripgrep fail on purpose requests ``ripgrep_fallback``.
     """
     use_ripgrep = request.param == "ripgrep"
     if use_ripgrep:
@@ -99,11 +110,20 @@ def engine(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> I
         refused.append(list(cmd))
         raise OSError("the python tier must not start ripgrep")
 
-    if not use_ripgrep:
+    python_tier = MagicMock(wraps=collect_candidate_files)
+    if use_ripgrep:
+        if "ripgrep_fallback" not in request.fixturenames:
+            monkeypatch.setattr(grep_tool, "collect_candidate_files", python_tier)
+            monkeypatch.setattr(glob_tool, "collect_candidate_files", python_tier)
+    else:
         monkeypatch.setattr(grep_tool, "run_rg", refuse_ripgrep)
         monkeypatch.setattr(glob_tool, "run_rg", refuse_ripgrep)
     yield str(request.param)
     assert not refused, f"ripgrep was started while the python tier was selected: {refused}"
+    assert not python_tier.call_args_list, (
+        f"the python tier ran while the ripgrep tier was selected: {python_tier.call_args_list} "
+        "(a test that makes ripgrep fail on purpose requests the ripgrep_fallback fixture)"
+    )
 
 
 @pytest.fixture
