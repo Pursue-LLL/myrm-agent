@@ -49,7 +49,9 @@ class TTSConfig(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    provider: str = Field(default="openai", description="TTS provider (openai, elevenlabs)")
+    provider: str = Field(
+        default="openai", description="TTS provider (openai, elevenlabs)"
+    )
     model: str = Field(default="tts-1", description="TTS model identifier")
     voice: str = Field(default="alloy", description="Voice identifier")
     speed: float = Field(
@@ -64,10 +66,14 @@ class TTSConfig(BaseModel):
         le=20.0,
         description="Pitch adjustment in Hz (provider-dependent)",
     )
-    api_key: SecretStr | None = Field(default=None, description="API key (protected from logging)")
+    api_key: SecretStr | None = Field(
+        default=None, description="API key (protected from logging)"
+    )
     base_url: str | None = Field(default=None, description="Custom API base URL")
     timeout_seconds: int = Field(default=60, description="Request timeout in seconds")
-    max_retries: int = Field(default=1, ge=0, le=3, description="Max retry attempts on failure")
+    max_retries: int = Field(
+        default=1, ge=0, le=3, description="Max retry attempts on failure"
+    )
     gateway_config: ToolGatewayConfig | None = Field(
         default=None,
         description="Unified gateway configuration for proxying and billing",

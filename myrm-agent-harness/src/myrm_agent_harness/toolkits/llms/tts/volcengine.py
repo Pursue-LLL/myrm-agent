@@ -49,7 +49,9 @@ _SEED_AUDIO_TIMEOUT_FLOOR_SECONDS = 120.0
 _SEED_TEXT_PROMPT_LIMIT = 3000
 _OPENAI_DEFAULT_VOICE = "alloy"
 
-_READ_ALOUD_TEMPLATE = "请用自然清晰的普通话朗读以下内容，不要添加额外的字词：\n「{spoken}」"
+_READ_ALOUD_TEMPLATE = (
+    "请用自然清晰的普通话朗读以下内容，不要添加额外的字词：\n「{spoken}」"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,7 +72,10 @@ def is_seed_audio_model(model: str) -> bool:
 def resolve_volcengine_timeout(config: TTSConfig) -> httpx.Timeout:
     """Seed-Audio is generative and slow; enforce a 120s floor for it."""
     seconds = float(config.timeout_seconds)
-    if is_seed_audio_model(config.model) and seconds < _SEED_AUDIO_TIMEOUT_FLOOR_SECONDS:
+    if (
+        is_seed_audio_model(config.model)
+        and seconds < _SEED_AUDIO_TIMEOUT_FLOOR_SECONDS
+    ):
         seconds = _SEED_AUDIO_TIMEOUT_FLOOR_SECONDS
     return httpx.Timeout(seconds, connect=30.0)
 
@@ -184,7 +189,9 @@ async def parse_volcengine_response(
     try:
         payload: dict[str, object] = response.json()
     except ValueError as exc:
-        raise TTSGenerationError(f"Volcengine returned non-JSON response: {exc}") from exc
+        raise TTSGenerationError(
+            f"Volcengine returned non-JSON response: {exc}"
+        ) from exc
 
     if request.kind == "doubao":
         return _parse_doubao_payload(payload)
@@ -223,15 +230,21 @@ async def _parse_seed_audio_payload(
     if isinstance(audio_b64, str) and audio_b64.strip():
         audio = base64.b64decode(audio_b64)
         if not audio:
-            raise TTSGenerationError("Seed-Audio returned empty audio data (transient; retrying may help)")
+            raise TTSGenerationError(
+                "Seed-Audio returned empty audio data (transient; retrying may help)"
+            )
         return audio, "audio/mpeg", _extract_duration(payload)
 
     temp_url = payload.get("url")
     if isinstance(temp_url, str) and temp_url.strip():
         try:
-            resp = await secure_get(temp_url.strip(), timeout=float(config.timeout_seconds))
+            resp = await secure_get(
+                temp_url.strip(), timeout=float(config.timeout_seconds)
+            )
         except Exception as exc:
-            raise TTSGenerationError(f"Seed-Audio temp URL download failed: {exc}") from exc
+            raise TTSGenerationError(
+                f"Seed-Audio temp URL download failed: {exc}"
+            ) from exc
         resp.raise_for_status()
         if not resp.content:
             raise TTSGenerationError("Seed-Audio temp URL contained empty audio")

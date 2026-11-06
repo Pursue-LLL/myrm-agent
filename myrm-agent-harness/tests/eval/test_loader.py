@@ -194,7 +194,9 @@ class TestLoadMultiTurnCases:
         data = [
             {
                 "message": "Single turn test",
-                "semantic_assertions": [{"type": "llm_judge", "expected": "friendly", "threshold": 0.9}],
+                "semantic_assertions": [
+                    {"type": "llm_judge", "expected": "friendly", "threshold": 0.9}
+                ],
             },
             {"turns": [{"message": "Multi turn test"}]},
         ]
@@ -266,7 +268,9 @@ class TestLoaderEdgeCases:
         cases = load_cases(path)
         assert cases[0].metadata == {"count": "42", "flag": "True"}
 
-    def test_load_cases_with_retrieval_and_post_episode_and_canary(self, tmp_path: Path) -> None:
+    def test_load_cases_with_retrieval_and_post_episode_and_canary(
+        self, tmp_path: Path
+    ) -> None:
         data = [
             {
                 "message": "Find doc and verify",

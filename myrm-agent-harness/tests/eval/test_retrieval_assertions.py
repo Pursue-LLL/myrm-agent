@@ -136,3 +136,4 @@ def test_evaluate_retrieval_assertions_distinct_sources_insufficient() -> None:
     passed, details = evaluate_retrieval_assertions([assertion], hits)
     assert passed is False
     assert "distinct sources" in (details or "")
+
