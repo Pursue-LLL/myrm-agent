@@ -13,8 +13,9 @@
 - open_stream / aopen_stream: one streaming round trip, as a chunk iterator
 - ProviderStream / AsyncProviderStream: chunk iterators that remember the finish reason the provider reported
 - finish_reason_of: the finish reason one chat chunk carries, if any
-- aclose_clients: closes and forgets every shared client, so the next request builds its client under the TLS and
-  proxy settings then in force
+- aclose_clients: closes and forgets every shared client (shutdown; tests)
+- retire_clients: forgets every shared client without closing it, so the next request builds its client under the TLS
+  and proxy settings then in force while a request still using one finishes undisturbed
 
 [POS]
 The only place the transport touches the network. A wire module builds a PreparedRequest and a decoder; this module
@@ -99,7 +100,8 @@ def _async_client(proxy: str | None) -> httpx.AsyncClient:
     loop = asyncio.get_running_loop()
     for key, (known, _) in list(_ASYNC_CLIENTS.items()):
         if known.is_closed():
-            del _ASYNC_CLIENTS[key]
+            # ``pop``: another thread's ``retire_clients`` may have emptied the registry since the snapshot.
+            _ASYNC_CLIENTS.pop(key, None)
     _, clients = _ASYNC_CLIENTS.setdefault(id(loop), (loop, {}))
     client = clients.get(proxy)
     if client is None or client.is_closed:
@@ -118,9 +120,9 @@ def _sync_client(proxy: str | None) -> httpx.Client:
 async def aclose_clients() -> None:
     """Close and forget every shared client.
 
-    A client keeps the TLS context it was built with, so a process that changes its TLS policy at runtime calls this
-    to make the next request build a new one. Clients of another event loop cannot be closed from this one and are
-    only forgotten.
+    For the end of the process, and for a test that must not leave a connection behind. Closing aborts a request that
+    is still being read, so a running process that changes its TLS policy calls ``retire_clients`` instead. Clients of
+    another event loop cannot be closed from this one and are only forgotten.
     """
     running = asyncio.get_running_loop()
     entries = list(_ASYNC_CLIENTS.values())
@@ -134,6 +136,18 @@ async def aclose_clients() -> None:
                 await client.aclose()
     for sync_client in sync_clients:
         sync_client.close()
+
+
+def retire_clients() -> None:
+    """Forget every shared client without closing it, so the next request builds a new one.
+
+    A client keeps the TLS context it was built with, so a running process that changes its TLS or proxy policy calls
+    this to have the next request follow the change. A request that is still using a client (a stream being read)
+    holds its own reference and finishes on it; the client is collected once nothing refers to it.
+    """
+    _ASYNC_CLIENTS.clear()
+    with _SYNC_LOCK:
+        _SYNC_CLIENTS.clear()
 
 
 def _build(client: httpx.Client | httpx.AsyncClient, req: PreparedRequest) -> httpx.Request:

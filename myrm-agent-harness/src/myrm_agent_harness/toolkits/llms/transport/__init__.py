@@ -8,7 +8,8 @@
 
 [OUTPUT]
 - LLMTransport / get_transport: chat and Responses calls against any supported provider
-- aclose_clients: drops the shared HTTP clients (shutdown, or after the TLS policy changed)
+- aclose_clients / retire_clients: close, or only forget, the shared HTTP clients (shutdown; a TLS policy that changed
+  in a running process)
 - LLMCallError: the base of the failures a call can raise; LLMHTTPError / LLMAnswerError: the two a caller reads the
   status and body of
 - Route / UnsupportedProviderError / resolve_route / speaks_openai_body / PROFILES: provider resolution
@@ -26,7 +27,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.llms.transport.client import LLMTransport, get_transport
     from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMCallError, LLMHTTPError
-    from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients
+    from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients, retire_clients
     from myrm_agent_harness.toolkits.llms.transport.profile import (
         PROFILES,
         Route,
@@ -42,6 +43,7 @@ _EXPORT_MODULES = {
     "LLMHTTPError": "errors",
     "LLMAnswerError": "errors",
     "aclose_clients": "http",
+    "retire_clients": "http",
     "PROFILES": "profile",
     "Route": "profile",
     "UnsupportedProviderError": "profile",
@@ -60,6 +62,7 @@ __all__ = [
     "aclose_clients",
     "get_transport",
     "resolve_route",
+    "retire_clients",
     "speaks_openai_body",
 ]
 

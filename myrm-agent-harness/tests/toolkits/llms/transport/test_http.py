@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, ItemsView, Iterator
 
 import httpx
 import pytest
@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.llms.transport.http import (
     aopen_stream,
     asend_json,
     open_stream,
+    retire_clients,
     send_json,
 )
 
@@ -302,6 +303,74 @@ class TestSharedClients:
         assert http._async_client(None) is not first
         assert http._sync_client(None) is not sync_first
         await aclose_clients()
+
+    async def test_retiring_forgets_the_clients_without_closing_them(self) -> None:
+        await aclose_clients()
+        first = http._async_client(None)
+        sync_first = http._sync_client(None)
+
+        retire_clients()
+
+        assert not first.is_closed
+        assert not sync_first.is_closed
+        assert http._async_client(None) is not first
+        assert http._sync_client(None) is not sync_first
+        await first.aclose()
+        sync_first.close()
+        await aclose_clients()
+
+    async def test_an_async_request_in_flight_when_the_clients_are_retired_finishes_on_its_client(self) -> None:
+        await aclose_clients()
+        loop = asyncio.get_running_loop()
+
+        def retire_then_answer(request: httpx.Request) -> httpx.Response:
+            retire_clients()
+            return httpx.Response(200, json={"ok": True})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(retire_then_answer))
+        http._ASYNC_CLIENTS[id(loop)] = (loop, {None: client})
+        try:
+            assert await asend_json(_request()) == {"ok": True}
+            assert not client.is_closed
+            assert http._ASYNC_CLIENTS == {}
+        finally:
+            await client.aclose()
+
+    def test_a_sync_request_in_flight_when_the_clients_are_retired_finishes_on_its_client(self) -> None:
+        def retire_then_answer(request: httpx.Request) -> httpx.Response:
+            retire_clients()
+            return httpx.Response(200, json={"ok": True})
+
+        client = httpx.Client(transport=httpx.MockTransport(retire_then_answer))
+        with http._SYNC_LOCK:
+            http._SYNC_CLIENTS.clear()
+            http._SYNC_CLIENTS[None] = client
+        try:
+            assert send_json(_request()) == {"ok": True}
+            assert not client.is_closed
+            assert http._SYNC_CLIENTS == {}
+        finally:
+            client.close()
+
+    async def test_forgetting_a_closed_loops_entry_survives_a_retire_from_another_thread(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``retire_clients`` can empty the registry between the scan for closed loops and the removal of one."""
+        closed_loop = asyncio.new_event_loop()
+        closed_loop.close()
+
+        class RetiredMidScan(dict[int, tuple[asyncio.AbstractEventLoop, dict[str | None, httpx.AsyncClient]]]):
+            def items(self) -> ItemsView[int, tuple[asyncio.AbstractEventLoop, dict[str | None, httpx.AsyncClient]]]:
+                scanned = dict(super().items())
+                self.clear()
+                return scanned.items()
+
+        monkeypatch.setattr(http, "_ASYNC_CLIENTS", RetiredMidScan({id(closed_loop): (closed_loop, {})}))
+
+        client = http._async_client(None)
+
+        assert not client.is_closed
+        await client.aclose()
 
     async def test_clients_of_another_loop_are_forgotten_not_closed(self) -> None:
         await aclose_clients()

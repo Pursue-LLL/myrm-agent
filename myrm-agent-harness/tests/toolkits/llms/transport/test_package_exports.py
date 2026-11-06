@@ -34,6 +34,7 @@ def test_exports_are_the_defining_module_objects() -> None:
     assert transport.LLMCallError is errors.LLMCallError
     assert transport.LLMHTTPError is errors.LLMHTTPError
     assert transport.aclose_clients is http.aclose_clients
+    assert transport.retire_clients is http.retire_clients
     assert transport.resolve_route is profile.resolve_route
 
 
