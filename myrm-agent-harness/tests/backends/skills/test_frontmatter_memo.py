@@ -51,18 +51,18 @@ _INVALID = "---\nname: broken\n---\n\nNo description, so the parser rejects it.\
 def parse_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Skill names of every parse that really ran (a memo hit never reaches ``_parse_frontmatter_fields``)."""
     calls: list[str] = []
-    real = _utils._parse_frontmatter_fields
+    real = _utils.parsing._parse_frontmatter_fields
 
     def counting(content: str, skill_dir_name: str) -> SkillFrontmatter:
         calls.append(skill_dir_name)
         return real(content, skill_dir_name)
 
-    monkeypatch.setattr(_utils, "_parse_frontmatter_fields", counting)
+    monkeypatch.setattr(_utils.parsing, "_parse_frontmatter_fields", counting)
     return calls
 
 
 def test_memoized_parse_equals_a_fresh_parse() -> None:
-    fresh = _utils._parse_frontmatter_fields(_RICH, "rich-skill")
+    fresh = _utils.parsing._parse_frontmatter_fields(_RICH, "rich-skill")
 
     assert parse_skill_frontmatter(_RICH, "rich-skill") == fresh
     assert parse_skill_frontmatter(_RICH, "rich-skill") == fresh
@@ -92,7 +92,7 @@ def test_the_skill_name_is_part_of_the_key(parse_calls: list[str]) -> None:
 
 
 def test_a_callers_edit_of_one_parse_never_reaches_the_next() -> None:
-    expected = _utils._parse_frontmatter_fields(_RICH, "rich-skill")
+    expected = _utils.parsing._parse_frontmatter_fields(_RICH, "rich-skill")
     first = parse_skill_frontmatter(_RICH, "rich-skill")
 
     first.metadata["team"] = "tampered"
@@ -119,7 +119,7 @@ def test_an_invalid_frontmatter_fails_every_time(parse_calls: list[str]) -> None
 def test_a_repeated_parse_warns_once_per_text(caplog: pytest.LogCaptureFixture) -> None:
     content = _RICH.replace("name: rich-skill\n", "name: rich-skill\nunheard-of-field: 1\n")
 
-    with caplog.at_level(logging.WARNING, logger=_utils.logger.name):
+    with caplog.at_level(logging.WARNING, logger=_utils.parsing.logger.name):
         for _ in range(3):
             parse_skill_frontmatter(content, "rich-skill")
 
