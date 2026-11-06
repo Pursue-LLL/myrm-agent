@@ -17,7 +17,7 @@
 | `fission_repo.py` | 核心 | FissionTaskRecord 数据访问层（高并发子代理任务拓扑持久化） | ✅ |
 | `channel_message_repo.py` | 核心 | 多渠道入站明细仓储（Channel Message Data Plane），提供原子写入、上下文按需拉取、知识学习候选集查询、30 天冷热生命周期滚动修剪以及当日配额调用计数（`get_daily_trigger_count`） | ✅ |
 | `conversation_recall/` | 核心 | Conversation Recall 索引子包（`repo`/`lookup_repo`/`sql`/`types`）；对外经 `__init__.py` re-export | ✅ |
-| `agent_repo.py` | 核心 | Agent 领域仓储；ORM ↔ AgentProfile；mutation 后 `flush` + `refresh` 再映射（避免 async lazy-load `updated_at`）；`enabled_builtin_tools` 写路径经 `persist_enabled_builtin_tools` 校验 | ✅ |
+| `agent_repo/` | 核心 | Agent 领域仓储，按读写与映射拆 4 个 mixin（mapping / reads / create / update）+ `store`（组合，全静态方法、无实例状态）：ORM ↔ AgentProfile、分页列表/计数、创建/删除、更新（乐观并发）；mutation 后 `flush` + `refresh` 再映射。见 [agent_repo/_ARCH.md](agent_repo/_ARCH.md) | ✅ |
 | `uow.py` | 核心 | 全局工作单元模式 (UnitOfWork)，管理异步会话上下文与多仓储原子事务；`write=True` 供读后写的工作单元在入口即取 SQLite 写锁（见 `factory.acquire_write_lock`） | ✅ |
 
 ## 模块依赖
