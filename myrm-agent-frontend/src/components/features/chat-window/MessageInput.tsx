@@ -1,166 +1,88 @@
 /**
  * [INPUT]
  * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
- * - @/hooks/message-input/messageInputKeyRouter::{resolveDualChannelAction, resolveBusySubmitMode, resolveBusyPlaceholderKey} (POS: 聊天输入框双通道键盘交互路由核心)
+ * - ./composer/* (POS: 输入区的文本区、发送控制、面板开合、拖放与按键分流)
+ * - ./composer-options/{ComposerPrimaryControls,ComposerOptionsRegion} (POS: 桌面主行与选项区)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
- * - @/hooks/chat/useTurnStoppable::useTurnStoppable (POS: 当前聊天是否有 Stop 能够到达的回合)
- * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
  * [OUTPUT]
- * - MessageInput: 渲染聊天输入区、桌面主行与选项区（手机为操作表）、快捷操作、Agent 状态灯和发送入口。
+ * - MessageInput: 聊天输入区：把输入状态、各面板与发送控制装配成一个表单。
  *
  * [POS]
- * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
+ * 聊天输入区的装配层：持有各块之间需要共享的状态（编辑器是否全屏、光标位置、斜杠与 @ 面板、历史弹窗），
+ * 把它们接到 `composer/` 下各自负责展示或分流的单元上。桌面主行与选项区由 composer-options 承载，手机用「+」打开操作表。
  */
-import * as React from 'react';
-import { ArrowRight, Square, Plus, X, Navigation, ListPlus, CornerDownLeft } from 'lucide-react';
-import { isImeComposing } from '@/lib/utils/imeUtils';
-import TextareaAutosize from 'react-textarea-autosize';
-import AttachList from '../message-input-actions/AttachList';
+import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+
+import { CommandPalette } from '@/components/features/app-shell/command-palette';
+import { useMessageInput } from '@/hooks/message-input/useMessageInput';
+import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
+import { useInputHistory } from '@/hooks/message-input/useInputHistory';
+import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
+import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
+import { findActivePendingClarification } from '@/store/chat/clarificationState';
+import useChatStore from '@/store/useChatStore';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+
+import ActiveFilesPanel from '../message-input-actions/ActiveFilesPanel';
 import AttachButton from '../message-input-actions/AttachButton';
-import SearchModeSelector from '../message-input-actions/SearchModeSelector';
-import DeepSearchToggle from '../message-input-actions/DeepSearchToggle';
-import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
-import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
-import LivenessIndicator from './LivenessIndicator';
-import ReadinessBadge from '../message-input-actions/ReadinessBadge';
-import BudgetBadge from './BudgetBadge';
-import { RealTimeCostAndCacheHud } from './RealTimeCostAndCacheHud';
-import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
-import SessionSpendSurface from '@/components/billing/SessionSpendSurface';
-import EnvironmentShield from '../message-input-actions/EnvironmentShield';
-import AgentIndicator from '../message-input-actions/AgentIndicator';
-import KnowledgePickerPopover from '../message-input-actions/KnowledgePickerPopover';
-import TurnCapabilityToggle from '../message-input-actions/TurnCapabilityToggle';
-import WorkspaceDirPicker from './WorkspaceDirPicker';
-import SpeechInputButton from '../message-input-actions/SpeechInputButton';
-import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
-import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
-import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
+import AttachList from '../message-input-actions/AttachList';
 import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
+import ClarificationInput from '../message-box/ClarificationInput';
+import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
+import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
+import { CompactConfirmDialog } from './composer/CompactConfirmDialog';
+import { ComposerDropOverlay } from './composer/ComposerDropOverlay';
+import { ComposerSendControls } from './composer/ComposerSendControls';
+import { ComposerStatusIndicators } from './composer/ComposerStatusIndicators';
+import { ComposerTextarea } from './composer/ComposerTextarea';
+import { ComposerVoiceActions } from './composer/ComposerVoiceActions';
+import { handleComposerKeyDown } from './composer/composerKeyDown';
+import { MobileComposerEntry } from './composer/MobileComposerEntry';
+import { MobileComposerSheet } from './composer/MobileComposerSheet';
+import { useCaretPosition } from './composer/useCaretPosition';
+import { useComposerDragDrop } from './composer/useComposerDragDrop';
+import { useComposerPanels } from './composer/useComposerPanels';
+import { useHideChatWorkspacePicker } from './composer/useHideChatWorkspacePicker';
 import { ComposerOptionsRegion } from './composer-options/ComposerOptionsRegion';
 import { ComposerPrimaryControls } from './composer-options/ComposerPrimaryControls';
-import { useComposerOptionsOpen } from './composer-options/useComposerOptionsOpen';
-import { QueuedMessagesList } from './QueuedMessagesList';
-import ActiveFilesPanel from '../message-input-actions/ActiveFilesPanel';
-import { useTranslations } from 'next-intl';
-import { useMessageInput } from '@/hooks/message-input/useMessageInput';
-import {
-  resolveBusyPlaceholderKey,
-  resolveBusySubmitMode,
-  resolveDualChannelAction,
-} from '@/hooks/message-input/messageInputKeyRouter';
-import { useDragDrop } from '@/hooks/ui/useDragDrop';
-import { reportUserActivity } from '@/services/memory';
-
-/** Tailwind's `sm` breakpoint: from here the desktop row and options region replace the phone's "+" action sheet. */
-const DESKTOP_COMPOSER_QUERY = '(min-width: 640px)';
-
-let lastTypingReportTime = 0;
-const reportTypingActivityThrottled = (chatId?: string) => {
-  const now = Date.now();
-  if (now - lastTypingReportTime > 5000) {
-    lastTypingReportTime = now;
-    void reportUserActivity(chatId, 'typing').catch(() => {});
-  }
-};
-import { usePriorChatComposerDrop } from '@/hooks/chat/usePriorChatComposerDrop';
-import { useDesktopFolderDrop } from '@/hooks/message-input/useDesktopFolderDrop';
-import { LinkDetectionDialog } from './LinkDetectionDialog';
-import { MobileActionSheet } from './mobile/MobileActionSheet';
-import { useMobileSheetEntries } from './mobile/useMobileSheetEntries';
-import { CommandPalette } from '@/components/features/app-shell/command-palette';
-import { useSlashCommand } from '@/hooks/message-input/useSlashCommand';
-import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
-import { ReferenceMentionPopover } from './ReferenceMentionPopover';
-import ClarificationInput from '../message-box/ClarificationInput';
-import SessionAccessRootsBar from './SessionAccessRootsBar';
-import ProjectBoundaryBadge from './ProjectBoundaryBadge';
-import { findActivePendingClarification } from '@/store/chat/clarificationState';
-import { selectChatGenerating } from '@/store/chat/serverTurn';
-import { useTurnStoppable } from '@/hooks/chat/useTurnStoppable';
-import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
-import useChatStore from '@/store/useChatStore';
-import { useShallow } from 'zustand/react/shallow';
-import { useProjectStore } from '@/store/useProjectStore';
-import { useFeatureGateStore } from '@/store/useFeatureGateStore';
-import { QuoteCard } from './QuoteCard';
-import { useInputHistory } from '@/hooks/message-input/useInputHistory';
-import InputHistoryPopup from './InputHistoryPopup';
-import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
 import { SkillRequiredConnectorsPreflightBanner } from './context-strip/SkillRequiredConnectorsPreflightBanner';
+import InputHistoryPopup from './InputHistoryPopup';
+import { LinkDetectionDialog } from './LinkDetectionDialog';
+import ProjectBoundaryBadge from './ProjectBoundaryBadge';
+import { QueuedMessagesList } from './QueuedMessagesList';
+import { QuoteCard } from './QuoteCard';
+import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import { ScopedArtifactChip } from './ScopedArtifactChip';
-import { WechatArticleComposerHint } from './WechatArticleComposerHint';
-import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
-import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
+import SessionAccessRootsBar from './SessionAccessRootsBar';
 import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
-import { extractKeyterms } from './speechKeyterms';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/primitives/alert-dialog';
-import { AlertTriangle } from 'lucide-react';
+import { WechatArticleComposerHint } from './WechatArticleComposerHint';
+import WorkspaceDirPicker from './WorkspaceDirPicker';
 
 interface MessageInputProps {
   loading: boolean;
 }
 
 const MessageInput = ({ loading }: MessageInputProps) => {
-  const commonT = useTranslations('common');
-  const chatT = useTranslations('chat');
   const commandsT = useTranslations('commands');
   const messages = useChatStore((s) => s.messages);
-  const chatId = useChatStore((s) => s.chatId);
-  const serverTurnActive = useChatStore(selectChatGenerating);
-  const turnStoppable = useTurnStoppable();
-  const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
-  const projects = useProjectStore((s) => s.projects);
-  const projectsLoaded = useProjectStore((s) => s.loaded);
-  const fetchProjects = useProjectStore((s) => s.fetchProjects);
-  const agentConfig = useChatStore((s) => s.agentConfig);
+  const agentId = useChatStore((s) => s.agentConfig?.agentId);
   const mentionReferences = useChatStore((s) => s.mentionReferences);
   const removeMentionReference = useChatStore((s) => s.removeMentionReference);
-  const keyterms = React.useMemo(() => extractKeyterms(messages), [messages]);
-  const pendingClarification = React.useMemo(() => findActivePendingClarification(messages), [messages]);
-  const isComposerClarifyMode = pendingClarification !== null;
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
-  const { triggerPrewarm, cancelPrewarm, shouldPrewarm } = useChatTurnPrewarm();
+  const hideChatWorkspacePicker = useHideChatWorkspacePicker();
+  const pendingClarification = useMemo(() => findActivePendingClarification(messages), [messages]);
 
-  React.useEffect(() => {
-    if (!projectsLoaded) {
-      void fetchProjects();
-    }
-  }, [fetchProjects, projectsLoaded]);
-
-  const hideChatWorkspacePicker = React.useMemo(() => {
-    if (!chatId) {
-      return false;
-    }
-    const chatItem = chatHistoryItems.find((item) => item.id === chatId);
-    const projectId = chatItem?.projectId;
-    if (!projectId) {
-      return false;
-    }
-    const project = projects.find((item) => item.id === projectId);
-    return Boolean(project?.workspacePath?.trim());
-  }, [chatHistoryItems, chatId, projects]);
-
-  const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const panels = useComposerPanels();
 
   const {
     showLinkDialog,
     setShowLinkDialog,
     dontRemindAgain,
     setDontRemindAgain,
-    isUploadingPaste,
     showCompactConfirm,
     setShowCompactConfirm,
     dontRemindCompact,
@@ -198,71 +120,15 @@ const MessageInput = ({ loading }: MessageInputProps) => {
     resumeQueue,
   } = useMessageInput();
 
-  const showBtwDisambiguation = React.useMemo(
+  const showBtwDisambiguation = useMemo(
     () => loading && /^\/(?:btw|bg)\b/i.test(inputMessage.trim()),
     [loading, inputMessage],
   );
 
-  // The busy hint names what Enter actually does, which depends on the agent's busy-input setting and attachments.
-  const busyPlaceholderKey = resolveBusyPlaceholderKey(
-    resolveBusySubmitMode(files.length > 0, agentConfig?.busyInputMode),
-    isExpanded,
-  );
-
-  const stopButton = (
-    <button
-      type="button"
-      onClick={stopMessage}
-      // While the chat's history loads nothing is attached yet: Stop stays in place but cannot be pressed.
-      disabled={!turnStoppable}
-      className="bg-slate-500 dark:bg-white text-white dark:text-black hover:bg-black/80 dark:hover:bg-white/80 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-500 dark:disabled:hover:bg-white transition duration-100 rounded-full p-2"
-      aria-label={chatT('input.stop')}
-    >
-      <Square size={17} />
-    </button>
-  );
-
-  const { pendingExplicitSkillActivation, setPendingExplicitSkillActivation } = useChatStore(
-    useShallow((state) => ({
-      pendingExplicitSkillActivation: state.pendingExplicitSkillActivation,
-      setPendingExplicitSkillActivation: state.setPendingExplicitSkillActivation,
-    })),
-  );
-  const { pendingWorkflowTemplateId, pendingWorkflowTemplateDisplayName } = useChatStore(
-    useShallow((state) => ({
-      pendingWorkflowTemplateId: state.pendingWorkflowTemplateId,
-      pendingWorkflowTemplateDisplayName: state.pendingWorkflowTemplateDisplayName,
-    })),
-  );
-
   const inputHistory = useInputHistory({
-    agentId: agentConfig?.agentId,
+    agentId,
     getInputValue: () => inputMessage,
   });
-
-  const mobileSheetEntries = useMobileSheetEntries({
-    onClose: () => setIsMobileSheetOpen(false),
-  });
-
-  const [isTurnCapabilityOpen, setIsTurnCapabilityOpen] = React.useState(false);
-  const handleOpenCapabilityEditor = React.useCallback(() => {
-    // The desktop edits in the options region's popover; the phone hides that region and edits in the action sheet.
-    if (window.matchMedia(DESKTOP_COMPOSER_QUERY).matches) {
-      setIsTurnCapabilityOpen(true);
-    } else {
-      setIsMobileSheetOpen(true);
-    }
-  }, []);
-
-  const optionsRegionId = React.useId();
-  const [optionsOpen, setOptionsOpen] = useComposerOptionsOpen();
-  // The capability popover anchors on a control inside the region, so editing capabilities shows the region
-  // without changing the viewer's saved choice.
-  const optionsExpanded = optionsOpen || isTurnCapabilityOpen;
-  const handleToggleOptions = React.useCallback(() => {
-    setIsTurnCapabilityOpen(false);
-    setOptionsOpen(!optionsExpanded);
-  }, [optionsExpanded, setOptionsOpen]);
 
   const { chips: composerContextChips, summary: composerContextSummary } = useComposerContextChips({
     turnCapabilitySelection,
@@ -272,43 +138,20 @@ const MessageInput = ({ loading }: MessageInputProps) => {
     clearCurrentSessionMessageId,
     mentionReferences,
     removeMentionReference,
-    onOpenCapabilityEditor: handleOpenCapabilityEditor,
+    onOpenCapabilityEditor: panels.openCapabilityEditor,
     hideAttachList,
   });
 
-  const handleTranscript = React.useCallback(
-    (text: string) => {
-      const currentMessage = inputRef.current?.value || '';
-      setInputMessage(currentMessage ? `${currentMessage} ${text}` : text);
-      inputRef.current?.focus();
-    },
-    [setInputMessage, inputRef],
-  );
+  const { caret, syncCaret } = useCaretPosition(inputRef, inputMessage);
 
-  // 追踪光标位置（用于快捷指令检测）
-  const [cursorPosition, setCursorPosition] = React.useState(0);
-
-  // 更新光标位置的统一方法
-  const updateCursorPosition = React.useCallback(() => {
-    const pos = inputRef.current?.selectionStart || 0;
-    setCursorPosition(pos);
-  }, [inputRef]);
-
-  // 监听输入变化，更新光标位置
-  React.useEffect(() => {
-    updateCursorPosition();
-  }, [inputMessage, updateCursorPosition]);
-
-  // 快捷指令
   const {
     showCommandPalette,
     filteredItems: commandItems,
     selectedIndex: commandSelectedIndex,
     executeCommand,
     handleKeyDown: handleCommandKeyDown,
-  } = useSlashCommand(inputMessage, cursorPosition);
+  } = useSlashCommand(inputMessage, caret);
 
-  // @ 结构化引用
   const {
     isOpen: showReferenceMention,
     results: referenceMentionResults,
@@ -316,65 +159,12 @@ const MessageInput = ({ loading }: MessageInputProps) => {
     query: referenceMentionQuery,
     selectReference,
     handleKeyDown: handleReferenceMentionKeyDown,
-  } = useReferenceMention(inputMessage, cursorPosition);
+  } = useReferenceMention(inputMessage, caret);
 
-  const dropDisabled = loading || actionMode === 'fast';
-
-  // 拖拽上传
-  const { isDragging: isFileDragging, dragHandlers: fileDragHandlers } = useDragDrop({
-    onFilesSelected: (selectedFiles) => {
-      void handleDroppedFiles(selectedFiles);
-    },
-    accept: [
-      'image/*',
-      'video/*',
-      'audio/*',
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'application/vnd.ms-powerpoint',
-      'text/csv',
-      'text/plain',
-      'text/markdown',
-      'application/json',
-    ],
-    maxFiles: 20,
-    disabled: dropDisabled,
+  const { dragHandlers, isDragging, isSessionDragging } = useComposerDragDrop({
+    disabled: loading || actionMode === 'fast',
+    onFilesSelected: handleDroppedFiles,
   });
-
-  const { isSessionDragging, dragHandlers: sessionDragHandlers } = usePriorChatComposerDrop({
-    disabled: dropDisabled,
-  });
-
-  const { isDraggingOver: isDesktopFolderDragging } = useDesktopFolderDrop({
-    disabled: dropDisabled,
-  });
-
-  const mergedDragHandlers = React.useMemo(
-    () => ({
-      onDragEnter: (event: React.DragEvent) => {
-        fileDragHandlers.onDragEnter(event);
-        sessionDragHandlers.onDragEnter(event);
-      },
-      onDragOver: (event: React.DragEvent) => {
-        fileDragHandlers.onDragOver(event);
-        sessionDragHandlers.onDragOver(event);
-      },
-      onDragLeave: (event: React.DragEvent) => {
-        fileDragHandlers.onDragLeave(event);
-        sessionDragHandlers.onDragLeave(event);
-      },
-      onDrop: (event: React.DragEvent) => {
-        fileDragHandlers.onDrop(event);
-        sessionDragHandlers.onDrop(event);
-      },
-    }),
-    [fileDragHandlers, sessionDragHandlers],
-  );
-
-  const isDragging = isFileDragging || isSessionDragging || isDesktopFolderDragging;
 
   return (
     <>
@@ -389,68 +179,28 @@ const MessageInput = ({ loading }: MessageInputProps) => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleSubmit();
+            void handleSubmit();
           }}
-          onKeyDown={(e) => {
-            // IME 组合输入阶段不拦截按键，避免回车键误发送或触发快捷指令。
-            if (isImeComposing(e)) {
-              return;
-            }
-
-            if (e.key === 'Backspace' && inputMessage === '') {
-              const lastRemovableChip = [...composerContextChips].reverse().find((c) => c.isRemovable && c.onRemove);
-              if (lastRemovableChip) {
-                e.preventDefault();
-                lastRemovableChip.onRemove?.();
-                return;
-              }
-            }
-
-            if (isExpanded && e.key === 'Escape') {
-              e.preventDefault();
-              setIsExpanded(false);
-              return;
-            }
-
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
-              e.preventDefault();
-              setIsExpanded((prev) => !prev);
-              return;
-            }
-
-            if (showCommandPalette) {
-              handleCommandKeyDown(e);
-              return;
-            }
-            if (showReferenceMention && handleReferenceMentionKeyDown(e)) {
-              return;
-            }
-
-            // 输入历史弹窗键盘处理
-            if (inputHistory.handleKeyDown(e)) {
-              if (inputHistory.popup.open && (e.key === 'Tab' || e.key === 'Enter')) {
-                const text = inputHistory.confirm();
-                if (text) {
-                  setInputMessage(text);
-                }
-              }
-              return;
-            }
-
-            const dualAction = resolveDualChannelAction(e, { loading, expanded: isExpanded });
-            if (dualAction === 'queue') {
-              void handleQueueSubmit();
-              return;
-            }
-            if (dualAction === 'submit') {
-              void handleSubmit();
-              return;
-            }
-          }}
+          onKeyDown={(e) =>
+            handleComposerKeyDown(e, {
+              inputMessage,
+              setInputMessage,
+              chips: composerContextChips,
+              loading,
+              editorExpanded: isExpanded,
+              setEditorExpanded: setIsExpanded,
+              showCommandPalette,
+              onCommandKeyDown: handleCommandKeyDown,
+              showReferenceMention,
+              onReferenceMentionKeyDown: handleReferenceMentionKeyDown,
+              inputHistory,
+              submit: handleSubmit,
+              queue: handleQueueSubmit,
+            })
+          }
           className="w-full"
-          {...mergedDragHandlers}
+          {...dragHandlers}
         >
-          {/* 快捷指令面板 */}
           <CommandPalette
             open={showCommandPalette}
             items={commandItems}
@@ -459,7 +209,6 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             anchorRef={inputRef}
           />
 
-          {/* @ 引用面板 */}
           <ReferenceMentionPopover
             open={showReferenceMention}
             results={referenceMentionResults}
@@ -469,21 +218,8 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             anchorRef={inputRef}
           />
 
-          {/* 拖拽上传 Overlay */}
-          {isDragging && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary rounded-lg pointer-events-none">
-              <div className="text-center">
-                <div className="text-2xl font-semibold text-primary mb-2">
-                  {isSessionDragging ? chatT('dragDrop.sessionTitle') : chatT('dragDrop.title')}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {isSessionDragging ? chatT('dragDrop.sessionDescription') : chatT('dragDrop.description')}
-                </div>
-              </div>
-            </div>
-          )}
+          {isDragging && <ComposerDropOverlay session={isSessionDragging} />}
 
-          {/* 消息排队提示 */}
           <QueuedMessagesList
             queue={queue}
             pausedReason={queuePausedReason}
@@ -495,7 +231,6 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             resume={resumeQueue}
           />
 
-          {/* 文件列表显示区域 */}
           {!hideAttachList && files.length > 0 && (
             <AttachList
               files={files}
@@ -505,17 +240,14 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             />
           )}
 
-          {/* 当前轮次活动文件面板 */}
           <ActiveFilesPanel />
 
-          {/* 子代理协同常驻微进度条 */}
           <ChatInlineTeamRunVisibilityStrip />
 
           <div
             className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative"
             data-chat-composer
           >
-            {/* 输入历史弹窗 */}
             <InputHistoryPopup
               popup={inputHistory.popup}
               onSelect={(index) => {
@@ -530,7 +262,7 @@ const MessageInput = ({ loading }: MessageInputProps) => {
             <QuoteCard />
             <ProjectBoundaryBadge />
             <SessionAccessRootsBar />
-            {isComposerClarifyMode && pendingClarification ? (
+            {pendingClarification ? (
               <ClarificationInput
                 messageId={pendingClarification.messageId}
                 answered={pendingClarification.clarification.answered}
@@ -547,13 +279,13 @@ const MessageInput = ({ loading }: MessageInputProps) => {
                 <ScopedArtifactChip />
                 <SkillRequiredConnectorsPreflightBanner
                   activeSkillIds={turnCapabilitySelection?.skillIds ?? null}
-                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
+                  onOpenCapabilityEditor={panels.openCapabilityEditor}
                 />
                 <ComposerContextChipStrip
                   chips={composerContextChips}
                   summary={composerContextSummary}
                   disabled={loading}
-                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
+                  onOpenCapabilityEditor={panels.openCapabilityEditor}
                 />
                 <ContextSpilloverBadge text={inputMessage} />
                 <WechatArticleComposerHint inputMessage={inputMessage} />
@@ -562,160 +294,67 @@ const MessageInput = ({ loading }: MessageInputProps) => {
                     {commandsT('builtin.btwDisambiguation')}
                   </p>
                 ) : null}
-                <TextareaAutosize
-                  ref={inputRef}
-                  data-chat-input
+                <ComposerTextarea
+                  inputRef={inputRef}
                   value={inputMessage}
-                  onFocus={() => {
-                    if (shouldPrewarm) {
-                      void triggerPrewarm();
-                    }
-                  }}
-                  onBlur={() => {
-                    window.setTimeout(() => {
-                      const active = document.activeElement;
-                      if (active instanceof HTMLElement && active.closest('[data-chat-composer]')) {
-                        return;
-                      }
-                      void cancelPrewarm();
-                    }, 120);
-                  }}
+                  loading={loading}
+                  hasFiles={files.length > 0}
+                  expanded={isExpanded}
+                  ghostText={inputHistory.ghostText}
                   onChange={(e) => {
                     handleInputChange(e);
-                    reportTypingActivityThrottled(chatId);
-                    updateCursorPosition();
+                    syncCaret();
                     if (inputHistory.popup.open) {
                       inputHistory.close();
                     }
                   }}
                   onPaste={handlePaste}
-                  onKeyUp={updateCursorPosition}
-                  onClick={updateCursorPosition}
-                  minRows={isExpanded ? 8 : 2}
-                  className={`bg-transparent placeholder:text-muted-foreground/50 text-base sm:text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
-                  placeholder={
-                    inputHistory.ghostText
-                      ? inputHistory.ghostText
-                      : loading
-                        ? chatT(busyPlaceholderKey)
-                        : chatT(isExpanded ? 'input.expandedPlaceholder' : 'input.placeholder')
-                  }
+                  onCaretMove={syncCaret}
                 />
                 {!hideChatWorkspacePicker && <WorkspaceDirPicker />}
-                {/* 操作栏 */}
                 <div className="flex flex-row items-center justify-between mt-4 gap-2">
-                  {/* 左侧：功能按钮 */}
                   <div className="flex flex-row items-center gap-1 sm:gap-2 min-w-0 flex-1">
-                    {/* 移动端精简版：+ 按钮触发 ActionSheet + 核心快捷入口 */}
-                    <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setIsMobileSheetOpen(true)}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
-                        aria-label={chatT('input.expandToolbar')}
-                        data-testid="sendbox-mobile-plus-btn"
-                      >
-                        <Plus size={16} />
-                      </button>
-                      <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
-                    </div>
-                    {/* 桌面版主行：只放每条消息都会用到的几项，其余选项收在 + 展开的区域里（见下方 ComposerOptionsRegion） */}
+                    <MobileComposerEntry
+                      actionMode={actionMode}
+                      setActionMode={setActionMode}
+                      onOpenSheet={panels.openMobileSheet}
+                    />
                     <ComposerPrimaryControls
-                      optionsExpanded={optionsExpanded}
-                      optionsRegionId={optionsRegionId}
-                      onToggleOptions={handleToggleOptions}
+                      optionsExpanded={panels.optionsExpanded}
+                      optionsRegionId={panels.optionsRegionId}
+                      onToggleOptions={panels.toggleOptions}
                       actionMode={actionMode}
                       setActionMode={setActionMode}
                       editorExpanded={isExpanded}
                       onToggleEditor={() => setIsExpanded((prev) => !prev)}
                     />
                   </div>
-                  {/* 右侧：发送操作 */}
                   <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
-                    <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
-                      <WorkUnitBalanceBar compact className="shrink-0" />
-                      <SessionSpendSurface className="shrink-0" />
-                      <ContextUsageIndicator />
-                      <ReadinessBadge />
-                      <LivenessIndicator />
-                      <div className="hidden sm:flex items-center gap-1">
-                        <EnvironmentShield />
-                        <BudgetBadge />
-                        <RealTimeCostAndCacheHud />
-                      </div>
-                    </div>
-                    {/* 附件按钮在所有设备上都显示在右侧 */}
+                    <ComposerStatusIndicators />
                     {actionMode !== 'fast' && <AttachButton files={files} setFiles={setFiles} />}
                     {isVoiceEnabled && (
-                      <SpeechInputButton onTranscript={handleTranscript} disabled={loading} keyterms={keyterms} />
+                      <ComposerVoiceActions inputRef={inputRef} setInputMessage={setInputMessage} disabled={loading} />
                     )}
-                    {isVoiceEnabled && <VoiceSessionButton disabled={loading} keyterms={keyterms} />}
-                    {loading ? (
-                      <div className="flex items-center gap-1">
-                        {inputMessage.trim().length > 0 || pendingExplicitSkillActivation ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={handleRedirectSubmit}
-                              className="bg-primary text-primary-foreground hover:bg-primary/80 transition duration-100 rounded-full p-2"
-                              aria-label={chatT('redirect.send')}
-                              title={chatT('redirect.tooltip')}
-                            >
-                              <CornerDownLeft size={17} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSteerSubmit}
-                              className="bg-muted-foreground/20 text-foreground hover:bg-muted-foreground/30 transition duration-100 rounded-full p-2"
-                              aria-label={chatT('steer.send')}
-                              title={chatT('steer.tooltip')}
-                            >
-                              <Navigation size={17} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleQueueSubmit()}
-                              className="bg-accent/60 text-white hover:bg-accent/80 transition duration-100 rounded-full p-2"
-                              aria-label={chatT('queue.sendLater')}
-                              title={chatT('queue.sendLaterTooltip')}
-                            >
-                              <ListPlus size={17} />
-                            </button>
-                          </>
-                        ) : null}
-                        {stopButton}
-                      </div>
-                    ) : (
-                      <>
-                        {/* A turn the server started itself (a wake after background work) runs without `loading`; Stop still reaches it. */}
-                        {serverTurnActive && stopButton}
-                        <span className="brand-elevation-slot">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleSubmit();
-                            }}
-                            disabled={
-                              inputMessage.trim().length === 0 && files.length === 0 && !pendingExplicitSkillActivation
-                            }
-                            className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
-                            aria-label={commonT('send')}
-                          >
-                            <ArrowRight size={17} />
-                          </button>
-                        </span>
-                      </>
-                    )}
+                    <ComposerSendControls
+                      loading={loading}
+                      inputMessage={inputMessage}
+                      hasFiles={files.length > 0}
+                      onStop={stopMessage}
+                      onRedirect={handleRedirectSubmit}
+                      onSteer={handleSteerSubmit}
+                      onQueue={handleQueueSubmit}
+                      onSend={handleSubmit}
+                    />
                   </div>
                 </div>
                 <ComposerOptionsRegion
-                  id={optionsRegionId}
-                  expanded={optionsExpanded}
+                  id={panels.optionsRegionId}
+                  expanded={panels.optionsExpanded}
                   loading={loading}
                   turnCapabilitySelection={turnCapabilitySelection}
                   onTurnCapabilityChange={setTurnCapabilitySelection}
-                  turnCapabilityOpen={isTurnCapabilityOpen}
-                  onTurnCapabilityOpenChange={setIsTurnCapabilityOpen}
+                  turnCapabilityOpen={panels.isTurnCapabilityOpen}
+                  onTurnCapabilityOpenChange={panels.setIsTurnCapabilityOpen}
                 />
               </>
             )}
@@ -723,7 +362,6 @@ const MessageInput = ({ loading }: MessageInputProps) => {
         </form>
       </div>
 
-      {/* 链接检测对话框 */}
       <LinkDetectionDialog
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
@@ -733,62 +371,20 @@ const MessageInput = ({ loading }: MessageInputProps) => {
         onSkip={handleSkipAtSymbol}
       />
 
-      {/* 压缩确认对话框 */}
-      <AlertDialog open={showCompactConfirm} onOpenChange={setShowCompactConfirm}>
-        <AlertDialogContent className="sm:max-w-[425px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-amber-500">
-              <AlertTriangle size={20} />
-              {chatT('compact.confirmTitle')}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-base pt-2">
-              {chatT('compact.confirmDescription')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      <CompactConfirmDialog
+        open={showCompactConfirm}
+        onOpenChange={setShowCompactConfirm}
+        dontRemind={dontRemindCompact}
+        onDontRemindChange={setDontRemindCompact}
+        onConfirm={confirmCompact}
+      />
 
-          <div className="flex items-center space-x-2 py-2">
-            <input
-              type="checkbox"
-              id="dontRemindCompact"
-              checked={dontRemindCompact}
-              onChange={(e) => setDontRemindCompact(e.target.checked)}
-              className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
-            />
-            <label htmlFor="dontRemindCompact" className="text-sm text-muted-foreground">
-              {chatT('compact.dontRemindAgain')}
-            </label>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>{commonT('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCompact} className="bg-amber-500 text-white hover:bg-amber-600">
-              {chatT('compact.confirmButton')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 移动端 ActionSheet */}
-      <MobileActionSheet
-        open={isMobileSheetOpen}
-        onClose={() => setIsMobileSheetOpen(false)}
-        title={chatT('input.expandToolbar')}
-        entries={mobileSheetEntries}
-        footer={
-          <>
-            <DeepSearchToggle />
-            <WorkflowModeToggle />
-            <IncognitoModeToggle />
-            <SecurityPresetSelector />
-            <AgentIndicator />
-            <KnowledgePickerPopover />
-            <TurnCapabilityToggle
-              selection={turnCapabilitySelection}
-              onSelectionChange={setTurnCapabilitySelection}
-              disabled={loading}
-            />
-          </>
-        }
+      <MobileComposerSheet
+        open={panels.isMobileSheetOpen}
+        onClose={panels.closeMobileSheet}
+        loading={loading}
+        turnCapabilitySelection={turnCapabilitySelection}
+        onTurnCapabilityChange={setTurnCapabilitySelection}
       />
     </>
   );

@@ -69,7 +69,8 @@
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 粘贴/发送外链前的安全确认对话框 | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
-| `MessageInput.tsx` | 核心 | 主输入框：附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`）；会话历史载入期间 `loading` 为真但没有回合，停止按钮保留位置并禁用，持有取消控制器或服务端报告在生成才可按（`useTurnStoppable`）；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；桌面主行只有 5 个控件（`ComposerPrimaryControls`：「+」、Fast/Agent 切换、模型、权限档位、展开编辑器），不再横向滚动，其余选项收在「+」展开的 `ComposerOptionsRegion`；手机（<`sm`）仍由 `sendbox-mobile-plus-btn` 打开操作表；选项区开合记在本机（`useComposerOptionsOpen`），能力编辑弹层打开时选项区临时展开而不改写这个选择；`handleOpenCapabilityEditor` 按视口打开桌面弹层或手机操作表；浮动输入框带 `data-composer-dock`，供 `ComposerClearanceSpacer` 取高度 | ✅ |
+| `MessageInput.tsx` | 核心 | 主输入框的装配层：持有各块之间共享的状态（编辑器是否全屏、光标位置、斜杠与 `@` 面板、输入历史弹窗），把 `useMessageInput` 的输入状态接到 `composer/` 的单元（文本区、发送控制、面板开合、拖放、按键分流、手机「+」与操作表）；附件、Slash、`@`/Tauri 侧栏 session drop→prior_chat cite、语音、模式切换、队列与流式发送；挂载 `WechatArticleComposerHint`；展开编辑器内 Enter 换行、Ctrl/⌘+Enter 发送；桌面主行只有 5 个控件（`ComposerPrimaryControls`），其余选项收在「+」展开的 `ComposerOptionsRegion`，手机（<`sm`）由 `sendbox-mobile-plus-btn` 打开操作表；输入框字号手机上为 `text-base`（16px，iOS 对更小的输入框聚焦时会自动放大页面）、≥`sm` 为 `text-sm`；服务端自启回合（后台任务完成后的唤醒）运行时 `loading` 不置位，仍并排显示停止按钮（`selectChatGenerating`），会话历史载入期间停止按钮保留位置并禁用（`useTurnStoppable`）；各单元的职责与契约见 [composer/_ARCH.md](composer/_ARCH.md) | ✅ |
+| `__tests__/MessageInput.{keyboard,controls,panels}.test.tsx`、`__tests__/messageInputHarness.tsx` | 测试 | 输入区接线的集成测试：子组件与重 Hook 换成记录属性的替身，只验证 `MessageInput` 自己的决定；覆盖键盘分流与文本区（回车、IME、队列、全屏编辑、退格删芯片、斜杠 / @ / 历史、typing 节流、聚焦预热与失焦取消）、发送控制（发送 / 停止 / 纠偏 / 引导 / 排队的出现条件、语音与热词）、面板与拖放（手机操作表、能力编辑落点、选项区、拖放覆盖层与合并处理器、压缩确认、链接检测、工作目录行的显示条件）；测试文件必须先导入替身模块再导入被测组件 | ✅ |
 | `WechatArticleComposerHint.tsx` | 组件 | 输入区 banner：检测 `mp.weixin.qq.com/s/` 链接 → 引导挂载 `wechat-article-formatter` skill | ✅ |
 | `wechatComposerHintUtils.ts` | 辅助 | 微信文章 URL 检测、formatter skill 挂载态判定、Agent 技能设置深链 | ✅ |
 | `speechKeyterms.ts` | 辅助 | STT 领域热词提取纯函数（近 6 轮消息词频 Top15）；主 composer 与移动端指挥条共用，保证两端口述识别词表一致 | ✅ |
@@ -109,6 +110,7 @@
 | `catchup/` | 目录 | 会话 catch-up 收件箱 UI（`GET /catchup` 列出用户离开期间有动静的会话，在场水位线由 `hooks/chat/usePresenceReadMark` 盖章） | 见 [catchup/_ARCH.md](catchup/_ARCH.md) |
 | `virtual-message-list/` | 目录 | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存） | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
 | `context-strip/` | 目录 | 输入区上方统一内联上下文胶囊流与超载治理（ComposerContextChipStrip） | 见 [context-strip/_ARCH.md](context-strip/_ARCH.md) |
+| `composer/` | 目录 | 聊天输入区的组成单元：文本区、发送控制、手机「+」与操作表、拖放、按键分流、面板开合联动 | 见 [composer/_ARCH.md](composer/_ARCH.md) |
 | `composer-options/` | 目录 | 桌面输入框的主行（5 个控件）与「+」展开的选项区（思考 / 模式 / 能力三组），以及开合记忆与「已启用」摘要 | 见 [composer-options/_ARCH.md](composer-options/_ARCH.md) |
 | `group-chat/` | 目录 | Bot Mode 多智能体群聊驾驶舱：群聊房间成员常驻顶栏、输入框 @ 联想浮窗、多 Agent 顺序接力讨论流、PASS 静默折叠气泡与 needs-you 人权介入呼吸提示栏 | 见 [group-chat/_ARCH.md](group-chat/_ARCH.md) |
 

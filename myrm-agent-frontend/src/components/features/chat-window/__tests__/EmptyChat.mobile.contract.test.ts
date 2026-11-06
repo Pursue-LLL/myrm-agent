@@ -45,17 +45,19 @@ describe('empty chat phone first-screen contract', () => {
 
   it('renders the workspace row under the composer textarea, so phones do not depend on the desktop-only toolbar', () => {
     const composer = read('../MessageInput.tsx');
+    const textareaIndex = composer.indexOf('<ComposerTextarea');
     const pickerIndex = composer.indexOf('{!hideChatWorkspacePicker && <WorkspaceDirPicker />}');
-    const actionBarIndex = composer.indexOf('{/* 操作栏 */}');
+    const actionBarIndex = composer.indexOf('<MobileComposerEntry');
 
-    expect(pickerIndex).toBeGreaterThan(0);
+    expect(textareaIndex).toBeGreaterThan(0);
+    expect(pickerIndex).toBeGreaterThan(textareaIndex);
     expect(pickerIndex).toBeLessThan(actionBarIndex);
     // One render site: the desktop toolbar must not hold a second copy.
     expect(composer.match(/<WorkspaceDirPicker \/>/g)).toHaveLength(1);
   });
 
   it('renders the composer text at 16px on phones so iOS Safari does not zoom the page on focus', () => {
-    const textarea = read('../MessageInput.tsx').match(/<TextareaAutosize[\s\S]*?\/>/)?.[0] ?? '';
+    const textarea = read('../composer/ComposerTextarea.tsx').match(/<TextareaAutosize[\s\S]*?\/>/)?.[0] ?? '';
 
     expect(textarea).toContain('text-base sm:text-sm');
   });
