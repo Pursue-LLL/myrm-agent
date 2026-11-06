@@ -9,14 +9,14 @@
 - .pool.throttle::ThrottleStrategy (POS: throttle strategy protocol)
 - .pool.config::BrowserMode, NavigationWaitConfig (POS: browser configuration)
 - .wait::wait_for_page_ready, WaitStrategy, WaitMetrics (POS: smart wait strategies)
-- .ssrf_guard::goto_with_ssrf_guard (POS: Playwright document navigation SSRF guard)
+- .ssrf_guard::goto_with_ssrf_guard, assert_browser_navigation_allowed, assert_landed_url_allowed (POS: Playwright document navigation SSRF guard and the judgement of where a download request ended)
 - ..utils.private_origins::private_origin_grants (POS: per-context registry of explicitly navigated private origins)
 - .session.consent_dismisser::ConsentDismisser (POS: cookie consent auto-dismiss)
 - ..exceptions::BrowserNavigationError (POS: intelligent navigation failure diagnostics)
 - ..utils.page_health::abort_pending_navigation, probe_alive, PageUnresponsiveError (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- Navigator: page navigation manager (with throttling, smart wait, and consent dismissal)
+- Navigator: page navigation manager (with throttling, smart wait, and consent dismissal) and the SSRF policy of the URLs a session downloads
 
 [POS]
 Page navigation utility module. Responsibilities:
@@ -26,6 +26,8 @@ Page navigation utility module. Responsibilities:
 4. Timeout control + full metrics exposure; a navigation that outlives its budget is stopped and
    settled (committed document kept, nothing committed or an unresponsive page raises)
 5. Cookie consent auto-dismiss (optional, for BrowserFetcher path)
+6. The SSRF and domain-list judgement of a URL download: admission before the request and the address it
+   ended on, with the same policy and private-origin grants as goto
 
 Design principles:
 - Independent utility module, reusable by BrowserSession and BrowserFetcher
@@ -73,6 +75,7 @@ class Navigator:
     2. History navigation (back/forward/reload)
     3. Smart wait (hybrid detection: DOM + network dual guarantee)
     4. Domain-level learning (SMART strategy tuned by historical data)
+    5. The URL policy of downloads started by URL (``admit_download``, ``assert_landed_allowed``)
 
     Not involved: tab management, snapshot generation, element interaction.
     """
@@ -202,17 +205,11 @@ class Navigator:
         url_before = self._page.url
         navigated = False
         try:
-            from ..utils.private_origins import private_origin_grants
             from .ssrf_guard import goto_with_ssrf_guard
 
-            grants = None
-            if self._allow_private_networks:
-                grants = (
-                    self._private_origins
-                    if self._private_origins is not None
-                    else private_origin_grants(self._page.context)
-                )
-            response = await goto_with_ssrf_guard(self._page, url, timeout_ms=_NAVIGATION_TIMEOUT_MS, grants=grants)
+            response = await goto_with_ssrf_guard(
+                self._page, url, timeout_ms=_NAVIGATION_TIMEOUT_MS, grants=self._grants()
+            )
             navigated = True
         except Exception as e:
             if is_timeout_error(e):
@@ -283,6 +280,46 @@ class Navigator:
             status_code,
         )
         return title, final_url, status_code
+
+    def _grants(self) -> PrivateOriginGrants | None:
+        """The private-origin grants of local mode, or None where the cloud policy applies."""
+        if not self._allow_private_networks:
+            return None
+        if self._private_origins is not None:
+            return self._private_origins
+        from ..utils.private_origins import private_origin_grants
+
+        return private_origin_grants(self._page.context)
+
+    async def admit_download(self, url: str) -> None:
+        """Judge a canonical URL before the browser is told to download it.
+
+        The check a navigation makes first: in local mode a URL the agent names grants its own
+        origin, anything else private stays refused, and cloud metadata never passes.
+
+        Raises:
+            BrowserNavigationBlockedError: the URL is not a public network URL under the active policy.
+        """
+        from .ssrf_guard import assert_browser_navigation_allowed
+
+        grants = self._grants()
+        if grants is not None:
+            grants.grant(url)
+        await assert_browser_navigation_allowed(url, grants)
+
+    async def assert_landed_allowed(self, url: str, *, discard_document: bool = False) -> None:
+        """Judge where a download request ended: the final address after redirects, or the page the tab landed on.
+
+        The request filter is never handed a redirect hop, so the address the request finally reached
+        gets the SSRF policy and the domain lists here. ``discard_document`` resets the tab when the
+        refused URL is already loaded in it.
+
+        Raises:
+            BrowserNavigationBlockedError: the final URL is refused.
+        """
+        from .ssrf_guard import assert_landed_url_allowed
+
+        await assert_landed_url_allowed(self._page, url, self._grants(), discard_document=discard_document)
 
     async def _settle_timed_out_navigation(self, url: str, url_before: str, *, cause: Exception) -> None:
         """Stop a navigation that outlived its budget and decide whether a page is left to read.

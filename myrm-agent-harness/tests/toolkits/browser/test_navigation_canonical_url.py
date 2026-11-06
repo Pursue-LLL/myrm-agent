@@ -1,12 +1,14 @@
 """A browser navigation is judged, granted and loaded under the canonical spelling of its URL.
 
 Chromium folds ``2130706433`` into ``127.0.0.1`` and ``Straße`` into Punycode itself; every check that runs before
-the load reads the spelling it was given. ``canonical_navigation_url`` closes that gap at the two entries of a
-navigation, ``BrowserSession.navigate`` and ``goto_with_ssrf_guard``, so the host a check reads is the host Chromium dials.
+the load reads the spelling it was given. ``canonical_navigation_url`` closes that gap at the entries of a browser
+request, ``BrowserSession.navigate`` and ``goto_with_ssrf_guard`` (a download by URL does the same, see
+``test_download_url_guard``), so the host a check reads is the host Chromium dials.
 """
 
 from __future__ import annotations
 
+from functools import partial
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -120,6 +122,7 @@ def _session(blocked_host: str | None) -> MagicMock:
     session._ensure_components = AsyncMock()
     session._tab_controller.list_tabs.return_value = ["tab"]
     session._hostname_blocked_by_policy = MagicMock(return_value=blocked_host)
+    session._assert_not_blocklisted = partial(BrowserSessionNavigationMixin._assert_not_blocklisted, session)
     return session
 
 

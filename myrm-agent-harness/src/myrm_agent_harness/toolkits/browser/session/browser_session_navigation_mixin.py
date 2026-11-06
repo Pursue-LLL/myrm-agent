@@ -13,7 +13,7 @@
 - utils.page_health::PageUnresponsiveError (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- BrowserSessionNavigationMixin: navigate (the URL is canonicalized first), private-network extension routing, Stealth Ladder upgrade
+- BrowserSessionNavigationMixin: navigate (the URL is canonicalized first), `_assert_not_blocklisted` (the URL blocklist check navigation and downloads share), private-network extension routing, Stealth Ladder upgrade
 
 [POS]
 Navigation API for BrowserSession. Calls lifecycle mixin for component initialization; must
@@ -93,6 +93,18 @@ class BrowserSessionNavigationMixin(BrowserSessionTabMixin, BrowserSessionCaptch
             return hostname
         return None
 
+    def _assert_not_blocklisted(self, url: str) -> None:
+        """Refuse a canonical URL whose host is on the session's URL blocklist."""
+        blocked_host = self._hostname_blocked_by_policy(url)
+        if blocked_host:
+            from myrm_agent_harness.utils.errors import ToolError
+
+            raise ToolError(
+                f"Navigation blocked: domain '{blocked_host}' is on the URL blocklist.",
+                user_hint="This domain is blocked by your security policy. Choose another site or update Settings.",
+                error_code="BROWSER_URL_BLOCKLIST",
+            )
+
     async def _append_navigate_interactive_summary(self, result: str) -> str:
         """Append a compact interactive ref preview to reduce post-nav snapshot round-trips."""
         try:
@@ -122,16 +134,7 @@ class BrowserSessionNavigationMixin(BrowserSessionTabMixin, BrowserSessionCaptch
         if not self._tab_controller.list_tabs():
             await self.new_tab()
         await self._ensure_components()
-
-        blocked_host = self._hostname_blocked_by_policy(url)
-        if blocked_host:
-            from myrm_agent_harness.utils.errors import ToolError
-
-            raise ToolError(
-                f"Navigation blocked: domain '{blocked_host}' is on the URL blocklist.",
-                user_hint="This domain is blocked by your security policy. Choose another site or update Settings.",
-                error_code="BROWSER_URL_BLOCKLIST",
-            )
+        self._assert_not_blocklisted(url)
 
         # Fast-fail: skip 240s timeout if domain is already known as terminal challenge
         _nav_domain = urlparse(url).netloc

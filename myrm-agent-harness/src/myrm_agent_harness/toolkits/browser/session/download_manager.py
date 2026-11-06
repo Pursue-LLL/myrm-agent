@@ -2,16 +2,19 @@
 
 [INPUT]
 - patchright.async_api::Page, Download (POS: Patchright page and download objects)
+- navigation.ssrf_guard::BrowserNavigationBlockedError (POS: the refusal a download address verifier raises)
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- DownloadManager: file download manager
+- DownloadManager: file download manager; an explicit download_url is verified at the address it came from before anything is saved
 - DownloadConfig: download configuration
 - DownloadResult: immutable download result
 
 [POS]
 Browser file download manager. Single responsibility: listen for, process, and record file downloads.
-Integrated into BrowserSession as an optional component.
+Integrated into BrowserSession as an optional component. It holds no URL policy: the caller of
+download_url passes the verifier that judges the final address, and while that request waits on a page it
+is the only processor of the page's downloads, so the listener cannot save what the verifier refuses.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import contextlib
 import logging
 import os
 import re
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,10 +32,15 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
+from ..navigation.ssrf_guard import BrowserNavigationBlockedError
+
 if TYPE_CHECKING:
     from patchright.async_api import Download, Page
 
 logger = logging.getLogger(__name__)
+
+# The address travels as an argument, never spliced into the script, so it cannot be read as code.
+_START_NAVIGATION_JS = "(target) => { window.location.href = target; }"
 
 _DEFAULT_ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -134,6 +143,7 @@ class DownloadManager:
         self._semaphore = asyncio.Semaphore(self._config.max_concurrent_downloads)
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._attached_page_ids: set[int] = set()
+        self._requesting_pages: dict[int, int] = {}
 
         self._config.downloads_dir.mkdir(parents=True, exist_ok=True)
 
@@ -155,16 +165,31 @@ class DownloadManager:
         """Get the most recent download result."""
         return self._downloads[-1] if self._downloads else None
 
-    async def download_url(self, page: Page, url: str, timeout: float | None = None) -> DownloadResult | None:
+    async def download_url(
+        self,
+        page: Page,
+        url: str,
+        timeout: float | None = None,
+        *,
+        verify_final_url: Callable[[str], Awaitable[None]] | None = None,
+    ) -> DownloadResult | None:
         """Actively download a file from a URL.
+
+        While the request waits, the page's own download listener stands down, so this call alone decides what
+        is saved. ``verify_final_url`` judges the address the download came from (the final one, after redirects)
+        before any byte is kept; a refusal cancels the download and propagates.
 
         Args:
             page: Page to initiate download from
-            url: URL to download
+            url: URL to download (admitted by the caller before it gets here)
             timeout: Download timeout in seconds (defaults to config)
+            verify_final_url: Raises ``BrowserNavigationBlockedError`` for an address that must not be saved
 
         Returns:
             DownloadResult if successful, None otherwise
+
+        Raises:
+            BrowserNavigationBlockedError: the download came from an address ``verify_final_url`` refused.
         """
         if url in self._downloaded_urls:
             for result in reversed(self._downloads):
@@ -175,14 +200,43 @@ class DownloadManager:
 
         try:
             async with self._semaphore:
-                async with page.expect_download(timeout=effective_timeout) as download_info:
-                    await page.evaluate(f"() => window.location.href = {url!r}")
+                with self._owning_downloads_of(page):
+                    async with page.expect_download(timeout=effective_timeout) as download_info:
+                        await page.evaluate(_START_NAVIGATION_JS, url)
 
-                download = await download_info.value
-                return await self._process_download(download, auto=False)
+                    download = await download_info.value
+                    if verify_final_url is not None:
+                        await self._cancel_unless_verified(download, verify_final_url)
+                    return await self._process_download(download, auto=False)
+        except BrowserNavigationBlockedError:
+            raise
         except Exception as e:
             logger.warning("Failed to download URL %s: %s", redact_sensitive_text(url)[:80], e)
             return None
+
+    @contextlib.contextmanager
+    def _owning_downloads_of(self, page: Page) -> Iterator[None]:
+        """Make the caller the only processor of the page's downloads for the duration of the block."""
+        key = id(page)
+        self._requesting_pages[key] = self._requesting_pages.get(key, 0) + 1
+        try:
+            yield
+        finally:
+            remaining = self._requesting_pages[key] - 1
+            if remaining:
+                self._requesting_pages[key] = remaining
+            else:
+                del self._requesting_pages[key]
+
+    @staticmethod
+    async def _cancel_unless_verified(download: Download, verify_final_url: Callable[[str], Awaitable[None]]) -> None:
+        """Cancel the download when its final address is refused or cannot be judged; the error propagates."""
+        try:
+            await verify_final_url(download.url)
+        except Exception:
+            with contextlib.suppress(Exception):
+                await download.cancel()
+            raise
 
     async def check_and_download_pdf(self, page: Page) -> DownloadResult | None:
         """Check if current page is a PDF and auto-download it.
@@ -229,6 +283,8 @@ class DownloadManager:
 
     def _on_download(self, download: Download) -> None:
         """Handle download event from page (sync callback → async task)."""
+        if id(download.page) in self._requesting_pages:
+            return  # the download_url call waiting on this page verifies the final address, then saves
         task = asyncio.create_task(self._handle_download_async(download))
         self._pending_tasks.add(task)
         task.add_done_callback(self._pending_tasks.discard)

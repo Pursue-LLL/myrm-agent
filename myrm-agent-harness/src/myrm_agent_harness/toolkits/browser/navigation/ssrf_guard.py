@@ -12,10 +12,11 @@
 - canonical_navigation_url: the URL a browser is asked to load, in canonical spelling, or a BrowserNavigationBlockedError
 - assert_browser_navigation_allowed: Validate a navigation URL
 - assert_browser_redirect_chain_allowed: Walk redirect chain on a Playwright Request
+- assert_landed_url_allowed: Judge the URL a download request ended on (final address or the page the tab landed on), discarding a refused document
 - goto_with_ssrf_guard: page.goto with temporary document-level route interception
 
 [POS]
-Playwright-specific SSRF guard aligned with OpenClaw document navigation policy.
+Playwright-specific SSRF guard for document navigation and for the downloads a session starts by URL.
 Reuses core SSRF guards; does not duplicate IP blocklists. Redirect hops are not routable under
 patchright, so they are judged after the load; a document that violates policy is discarded by
 resetting the tab to ``about:blank`` before the error is raised. A failed navigation is stopped
@@ -122,6 +123,27 @@ async def assert_browser_redirect_chain_allowed(
         if current.redirected_from is not None:
             _assert_domain_lists_allow_hop(current.url, domain_lists)
         current = current.redirected_from
+
+
+async def assert_landed_url_allowed(
+    page: Page,
+    url: str,
+    grants: PrivateOriginGrants | None = None,
+    *,
+    discard_document: bool = False,
+) -> None:
+    """Judge the URL a request ended on, the way a navigation judges the hops of its redirect chain.
+
+    ``url`` gets the SSRF check and the context's domain lists. ``discard_document`` resets the tab to a blank page
+    when ``url`` is a document the tab already shows, so a refused page can no longer be read.
+    """
+    try:
+        await assert_browser_navigation_allowed(url, grants)
+        _assert_domain_lists_allow_hop(url, domain_lists_for(page.context))
+    except BrowserNavigationBlockedError:
+        if discard_document:
+            await _discard_committed_document(page)
+        raise
 
 
 def _is_document_navigation(page: Page, request: Request) -> bool:

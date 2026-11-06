@@ -181,7 +181,9 @@ class SSRFResult:
 
 **出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、A2A resolver、cron webhook、HTTP hooks、LobeHub 技能安装、wiki URL ingestion 与 asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
 
-**浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时跳过 SSRF 校验。
+**浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时改用私网源授权策略：会话显式导航到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝。
+
+`browser_manage_tool` 的 `download_url` 与导航走同一套判定：先规范化并过 URL 黑名单，再由 `Navigator.admit_download` 按同一策略放行（本地模式下被点名的源获得授权，仅限该源），之后才让页面发起请求；下载实际来自的地址（重定向之后）、以及请求落在页面而非文件时标签页所在的地址，由 `assert_landed_url_allowed` 复核，被拒的下载取消、被拒的页面重置为 `about:blank`，`javascript:`、`file:` 等非网络 scheme 直接拒绝。重定向的中间跳在 patchright 下不可路由，请求仍会到达重定向目标，但响应既不保存也不返回；下载期间页面自带的下载监听器让位给这次调用，不会把被拒的下载另存一份。
 
 ### 3.2 命令/模块黑名单
 

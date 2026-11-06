@@ -1191,7 +1191,7 @@ browser/
 │   ├── browser_session_extraction_mixin.py — 内容提取、vision fallback、截图对比
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
 │   ├── browser_session_interaction_mixin.py — interact（ref 操作）/ interact_at（坐标操作）及可选视觉校验
-│   ├── browser_session_download_mixin.py — download_url / PDF 自动下载 / 下载记录读取
+│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定）/ PDF 自动下载 / 下载记录读取
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
 │   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误
@@ -1214,7 +1214,7 @@ browser/
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证
 │   ├── dialog_manager.py — JS dialog 生命周期
-│   ├── download_manager.py — 文件下载
+│   ├── download_manager.py — 文件下载（显式下载先核对最终地址再落盘）
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
