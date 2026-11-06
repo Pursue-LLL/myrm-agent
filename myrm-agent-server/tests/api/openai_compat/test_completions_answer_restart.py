@@ -61,7 +61,7 @@ async def test_restart_keeps_text_before_the_last_tool_step() -> None:
             {"type": "message", "data": "Checking. "},
             {"type": "tool_start", "data": {"name": "lookup"}},
             {"type": "message", "data": "The price is 1"},
-            {"type": "model_escalated", "data": {"restart": True}},
+            {"type": "status", "restart": True, "data": {"status": "retrying"}},
             {"type": "message", "data": "The price is 12 USD."},
             {"type": "message_end", "usage": {}},
         ]

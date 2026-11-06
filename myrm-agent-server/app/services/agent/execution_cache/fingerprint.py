@@ -201,7 +201,6 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "safety_fallback_model_cfg": _model_sig(agent_wrapper.safety_fallback_model_cfg),
         "fallback_lite_model_cfg": _model_sig(agent_wrapper.fallback_lite_model_cfg),
         "light_model_cfg": _model_sig(agent_wrapper.light_model_cfg),
-        "reasoning_model_cfg": _model_sig(agent_wrapper.reasoning_model_cfg),
         "vision_fallback_model_cfg": _model_sig(agent_wrapper.vision_fallback_model_cfg),
         "vision_fallback_model_cfgs": _model_list_sig(agent_wrapper.vision_fallback_model_cfgs),
         "video_fallback_model_cfgs": _model_list_sig(agent_wrapper.video_fallback_model_cfgs),

@@ -21,12 +21,11 @@
 |---|------|-------------------:|----------|------|
 | 1 | CORE_SYSTEM_PROMPT | **662** (EN) / **858** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 738 / 940。组成 = identity + ABSOLUTE_OBEDIENCE + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
 | 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:61` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
-| 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:39` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束 |
-| 4 | resolve_escalation_contract | 189（模板 184 + 模型名占位） | `agent_core_rules.py:95` | 仅当配置 escalation 模型且与主模型**不同名**时注入，否则 0（`resolve_escalation_contract` 早返） |
-| 5 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
-| 6 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
-| 7 | canary 指令 | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57，**非字节恒定**但差异可忽略 |
-| 8 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:421`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
+| 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束 |
+| 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
+| 5 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
+| 6 | canary 指令 | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57，**非字节恒定**但差异可忽略 |
+| 7 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:421`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
 
 **`messages[0]` 合计（实测，含上表 1~7，不含运行时条件追加）**：
 

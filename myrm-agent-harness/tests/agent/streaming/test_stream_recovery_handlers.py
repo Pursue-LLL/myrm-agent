@@ -1,11 +1,9 @@
-"""Tests for stream_recovery.py and stream_recovery_turn_end.py — escalation, transient retry, iteration limit, empty response.
+"""Tests for stream_recovery.py and stream_recovery_turn_end.py — transient retry, iteration limit, empty response.
 
 Covers:
-- _handle_escalation (full flow + edge cases)
 - _handle_transient_retry (backoff, exhaustion, cancel)
 - _handle_iteration_limit (GraphRecursionError detection)
 - _handle_empty_response (injection, exhaustion)
-- _is_escalation_marker_message (helper function)
 - _handle_overflow stage 2 (retries==1)
 """
 
@@ -15,9 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.types import Command
 
-from myrm_agent_harness.agent.streaming.recovery.stream_recovery_turn_end import _is_escalation_marker_message
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,
@@ -71,39 +67,6 @@ def _make_executor(
     return executor
 
 
-# ─── _is_escalation_marker_message ───────────────────────────────────────────
-
-
-class TestIsEscalationMarkerMessage:
-    def test_ai_message_with_marker(self):
-        msg = AIMessage(content="<<<NEEDS_PRO>>>")
-        assert _is_escalation_marker_message(msg) is True
-
-    def test_ai_message_with_marker_and_whitespace(self):
-        msg = AIMessage(content="  <<<NEEDS_PRO>>>  \n")
-        assert _is_escalation_marker_message(msg) is True
-
-    def test_ai_message_with_reason(self):
-        msg = AIMessage(content="<<<NEEDS_PRO: complex math>>>")
-        assert _is_escalation_marker_message(msg) is True
-
-    def test_ai_message_normal_content(self):
-        msg = AIMessage(content="Hello, how can I help?")
-        assert _is_escalation_marker_message(msg) is False
-
-    def test_human_message_with_marker(self):
-        msg = HumanMessage(content="<<<NEEDS_PRO>>>")
-        assert _is_escalation_marker_message(msg) is False
-
-    def test_ai_message_list_content(self):
-        msg = AIMessage(content=[{"type": "text", "text": "hello"}])
-        assert _is_escalation_marker_message(msg) is False
-
-    def test_ai_message_empty(self):
-        msg = AIMessage(content="")
-        assert _is_escalation_marker_message(msg) is False
-
-
 # ─── _handle_overflow stage 2 ────────────────────────────────────────────────
 
 
@@ -127,149 +90,6 @@ async def test_overflow_stage2_truncation(ctx):
 
     assert result is True
     truncate_mock.assert_called_once()
-
-
-# ─── _handle_escalation ──────────────────────────────────────────────────────
-
-
-class TestHandleEscalation:
-    @pytest.fixture
-    def escalation_ctx(self, ctx):
-        target_llm = MagicMock()
-        target_llm.model_name = "gpt-4o"
-        ctx.escalation_target_llm = target_llm
-        ctx.llm_info = {"model_name": "gpt-4o-mini"}
-        return ctx
-
-    @pytest.mark.asyncio
-    async def test_escalation_success(self, escalation_ctx):
-        """Full escalation flow: scrubber detected → switch model → emit event."""
-        rebuild_fn = MagicMock()
-        executor = StreamExecutor(
-            ctx=escalation_ctx,
-            fallback_llm=None,
-            safety_fallback_llm=None,
-            rebuild_agent_fn=rebuild_fn,
-        )
-        executor._compactor = FakeCompactor()
-
-        scrubber = MagicMock()
-        scrubber.detected = True
-        scrubber.reason = "complex task"
-        executor._escalation_scrubber = scrubber
-
-        collected = [
-            HumanMessage(content="Solve this"),
-            AIMessage(content="<<<NEEDS_PRO>>>"),
-        ]
-
-        result = await executor._handle_escalation(collected)
-
-        assert result is True
-        assert executor._escalation_used is True
-        rebuild_fn.assert_called_once_with(escalation_ctx.escalation_target_llm)
-        events = executor._compactor.events
-        escalation_events = [
-            e for e in events if isinstance(e, dict) and e.get("type") == AgentEventType.MODEL_ESCALATED.value
-        ]
-        assert len(escalation_events) == 1
-        assert escalation_events[0]["data"]["from_model"] == "gpt-4o-mini"
-        assert escalation_events[0]["data"]["to_model"] == "gpt-4o"
-        assert escalation_events[0]["data"]["restart"] is True
-        scrubber.reset.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_escalation_not_detected(self, escalation_ctx):
-        """Scrubber has not detected marker → returns False."""
-        executor = _make_executor(escalation_ctx)
-        scrubber = MagicMock()
-        scrubber.detected = False
-        executor._escalation_scrubber = scrubber
-
-        result = await executor._handle_escalation([])
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_escalation_no_target(self, ctx):
-        """No escalation_target_llm → returns False."""
-        ctx.escalation_target_llm = None
-        executor = _make_executor(ctx)
-        scrubber = MagicMock()
-        scrubber.detected = True
-        executor._escalation_scrubber = scrubber
-
-        result = await executor._handle_escalation([])
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_escalation_already_used(self, escalation_ctx):
-        """Escalation already used → returns False."""
-        executor = _make_executor(escalation_ctx)
-        executor._escalation_used = True
-        scrubber = MagicMock()
-        scrubber.detected = True
-        executor._escalation_scrubber = scrubber
-
-        result = await executor._handle_escalation([])
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_escalation_same_model(self, ctx):
-        """Same model as target → returns False."""
-        target_llm = MagicMock()
-        target_llm.model_name = "gpt-4o-mini"
-        ctx.escalation_target_llm = target_llm
-        ctx.llm_info = {"model_name": "gpt-4o-mini"}
-
-        executor = _make_executor(ctx)
-        scrubber = MagicMock()
-        scrubber.detected = True
-        executor._escalation_scrubber = scrubber
-
-        result = await executor._handle_escalation([])
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_escalation_resume_mode(self, escalation_ctx):
-        """Resume mode (Command) → returns False."""
-        escalation_ctx.agent_input = Command(resume="val")
-        executor = _make_executor(escalation_ctx)
-        scrubber = MagicMock()
-        scrubber.detected = True
-        executor._escalation_scrubber = scrubber
-
-        result = await executor._handle_escalation([])
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_escalation_filters_marker_message(self, escalation_ctx):
-        """Marker messages are filtered out from replayed messages."""
-        rebuild_fn = MagicMock()
-        executor = StreamExecutor(
-            ctx=escalation_ctx,
-            fallback_llm=None,
-            safety_fallback_llm=None,
-            rebuild_agent_fn=rebuild_fn,
-        )
-        executor._compactor = FakeCompactor()
-
-        scrubber = MagicMock()
-        scrubber.detected = True
-        scrubber.reason = None
-        executor._escalation_scrubber = scrubber
-
-        collected = [
-            HumanMessage(content="Hello"),
-            AIMessage(content="<<<NEEDS_PRO>>>"),
-            HumanMessage(content="Another message"),
-        ]
-
-        await executor._handle_escalation(collected)
-
-        messages = escalation_ctx.agent_input["messages"]
-        for msg in messages:
-            if isinstance(msg, AIMessage):
-                assert "<<<NEEDS_PRO" not in msg.content
 
 
 # ─── _handle_transient_retry ─────────────────────────────────────────────────

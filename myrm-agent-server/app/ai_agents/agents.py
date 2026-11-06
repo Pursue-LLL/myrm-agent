@@ -206,7 +206,6 @@ class AgentFactory:
             quote=params.quote,
             providers_dict=params.providers_dict,
             light_model_cfg=params.light_model_cfg,
-            reasoning_model_cfg=params.reasoning_model_cfg,
             goal=params.goal,
             openapi_services=params.openapi_services,
             prompt_mode=params.prompt_mode,

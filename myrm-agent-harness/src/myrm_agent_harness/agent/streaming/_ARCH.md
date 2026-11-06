@@ -2,20 +2,19 @@
 
 ## 架构概述
 
-提供流式事件转换与分发、思考与升级标签脱毒、重复循环熔断、高频事件压实、Last-Event-ID 重连重放缓冲，以及流式错误的重试与恢复能力。详细设计见 [STREAMING_SYSTEM.md](STREAMING_SYSTEM.md)。
+提供流式事件转换与分发、思考标签脱毒、重复循环熔断、高频事件压实、Last-Event-ID 重连重放缓冲，以及流式错误的重试与恢复能力。详细设计见 [STREAMING_SYSTEM.md](STREAMING_SYSTEM.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 |
 | --- | --- | --- |
 | `__init__.py` | 入口 | 包入口（不再导出符号，调用方按模块路径导入） |
-| `agent_core_rules.py` | 核心 | 核心行为规则（所有模型共用的反叙述、工具结果诚实、反幻觉规则，与模型名无关）与升级契约 |
+| `agent_core_rules.py` | 核心 | 核心行为规则（所有模型共用的反叙述、工具结果诚实、反幻觉规则，与模型名无关） |
 | `answer_draft.py` | 核心 | 流式回复文本累积器 `AnswerDraft` 与重启契约判定 `is_answer_restart`：恢复重放时只丢弃“最近一次 `tool_start` 之后”的在途段落（已完成的工具步骤由检查点保留，模型从其后续写，之前的文本不会重发）；所有从 `process_stream` 事件拼最终回复的消费者统一使用，禁止各自重写该规则 |
 | `artifact_events.py` | 核心 | 工件事件处理（文件工件、UI工件、内联图片工件与实时内容更新） |
 | `channel_output_hints.py` | 核心 | 交付渠道输出格式提示词生成（Channel-Aware Output Guidance）与前置提示保障 |
 | `citation_audit.py` | 核心 | 流式回复引用标记审计（【N】序号与信息源对照验证） |
-| `escalation_scrubber.py` | 核心 | 模型自主升级标记（`<<<NEEDS_PRO>>>`）流式拦截与重试恢复触发 |
-| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束。真正的空回复（无 content、无推理文本、无工具调用）不进 `collected_messages`（没有可重发的内容），恢复处理器改读 `latest_reply.latest_model_reply` 记下的本轮最后一次回复。工具错误步骤的 `error` 经 `core.security.model_directed_notes.user_facing_text` 截到第一条给模型的备注之前（`[System: …]`、`[SECURITY_DENIAL_DIAGNOSTIC]`），界面只显示拒绝的原因，模型读到的 ToolMessage 原文不变；整段都是备注时回退为 `Unknown error` |
+| `event_handlers.py` | 核心 | LangGraph updates/messages 流式事件向业务事件转换与图片事件分发。错误事件经 `_error_category_value` 归一化 `ToolErrorCategory`：**必须取 `.value`**（该枚举是裸 `str` mixin，`str()` 会渲染成 `'ToolErrorCategory.ESTOP'`），否则 SSE 契约泄漏 Python 类路径、且 `classify_tool_fault_side` 因表内是值形字符串而全部失配退化为 `unknown`。只记录“被扣留工具调用”的 AIMessage（无 content、无 `tool_calls`，但 `additional_kwargs["tool_call_recovery"]` 含 `safe=False`）必须保留在 `collected_messages`：LangGraph 以末条无 `tool_calls` 的 AIMessage 结束整轮，若按“空消息”丢弃，恢复处理器就看不到这次失败的工具调用，整轮静默结束。真正的空回复（无 content、无推理文本、无工具调用）不进 `collected_messages`（没有可重发的内容），恢复处理器改读 `latest_reply.latest_model_reply` 记下的本轮最后一次回复。工具错误步骤的 `error` 经 `core.security.model_directed_notes.user_facing_text` 截到第一条给模型的备注之前（`[System: …]`、`[SECURITY_DENIAL_DIAGNOSTIC]`），界面只显示拒绝的原因，模型读到的 ToolMessage 原文不变；整段都是备注时回退为 `Unknown error`。成功的工具结果只从 `ToolMessage.additional_kwargs[TOOL_SOURCES_KWARG]` 读取引用来源（由 `middlewares/tooling/tool_sources_hoisting.py` 在拦截的最后一步从 `{content, metadata}` 结果取出），交给会话的 `SourceTracker`，产出 `reviewing_sources` 步骤与 `sources` 事件；不解析 `content` 文本 |
 | `interrupt_events.py` | 核心 | LangGraph `__interrupt__` 分片 → 流事件：每个中断一个事件，顶层带卡片 id `interruptId`（并行子 agent 各自挂起时，每张审批卡片可单独作答；resume 侧见 `_internals/resume_addressing.py`） |
 | `interrupt_identity.py` | 核心 | 卡片 id = `<LangGraph 中断 id>.<轮次>`：LangGraph 的中断 id 只标识挂起的任务，同一任务连续多次 `interrupt()`（委派在每一步前都要审批）共用一个 id，轮次 = 该任务已消费的答复数，使每次挂起各有各的卡片 id；`AddressedResume` 是携带各待决中断轮次的 resume 指令，由 resume 咽喉在运行开始前读检查点得出、经 `announced_rounds` 交给分发器盖章，运行中不读检查点 |
 | `latest_reply.py` | 核心 | `latest_model_reply(update)`：一次 `updates` 分片携带的最后一条 AIMessage，包括 `collected_messages` 不收的空回复；由 `StreamDispatcherMixin` 记为 `_latest_reply`，供截断/空回复恢复处理器判断「本轮最后一次回复」 |

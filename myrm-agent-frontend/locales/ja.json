@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "プライマリモデルが利用できないため、バックアップモデルに切り替えました",
     "model_failover_auth": "認証に失敗したため、バックアップモデルに切り替えました",
     "model_failover_unconfigured": "プライマリモデルが失敗しました。設定でバックアップモデルを構成してください",
-    "model_escalated": "モデルを自動アップグレードしました：{from} → {to}",
-    "model_escalated_reason": "理由：{reason}",
     "model_recovery": "モデルが復旧しました：{model}",
     "model_recovery_downtime": "利用不可時間 {seconds} 秒",
     "safety_fallback_unconfigured": "コンテンツがブロックされました。設定で安全バックアップモデルを構成してください",

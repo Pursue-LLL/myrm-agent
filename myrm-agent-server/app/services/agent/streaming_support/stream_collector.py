@@ -601,23 +601,6 @@ class StreamContentCollector:
         label_parts = [str(v) for v in (from_model, to_model) if v]
         self._append_failover_step(display_key, " → ".join(label_parts))
 
-    def _on_model_escalated(self, event: dict[str, object], data: object) -> None:
-        if not isinstance(data, dict):
-            return
-        # Escalation clears the turn and re-plays it with a stronger model;
-        # any text containing the escalation marker is a draft to drop.
-        self._discard_draft()
-        from_model = data.get("from_model")
-        to_model = data.get("to_model")
-        label_parts = [str(v) for v in (from_model, to_model) if v]
-        self._progress_steps.append(
-            {
-                "step_key": "model_escalated",
-                "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
-                "status": "success",
-            }
-        )
-
     @property
     def content(self) -> str:
         return self._answer.text
@@ -653,7 +636,7 @@ class StreamContentCollector:
         """Drop partial content streamed before a recovery that restarts the turn.
 
         Every recovery that makes the LLM regenerate the in-flight answer segment
-        (model failover, transient retry, context compaction, escalation, ...)
+        (model failover, transient retry, context compaction, ...)
         emits its STATUS/SSE event synchronously *before* the restreamed chunks,
         so the text of that segment is a draft that will be fully regenerated.
         Dropping it (idempotent: a second event finds nothing left to drop) keeps
@@ -882,5 +865,4 @@ _EVENT_HANDLERS: dict[str, Callable[[StreamContentCollector, dict[str, object], 
     "clarification_required": StreamContentCollector._on_clarification_required,
     "status": StreamContentCollector._on_status,
     "model_failover": StreamContentCollector._on_model_failover,
-    "model_escalated": StreamContentCollector._on_model_escalated,
 }

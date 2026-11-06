@@ -200,16 +200,6 @@ export interface CaptchaStreamEvent extends BaseAgentEvent {
   };
 }
 
-export interface ModelEscalatedStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.MODEL_ESCALATED;
-  data?: {
-    from_model?: string;
-    to_model?: string;
-    reason?: string;
-    restart?: boolean;
-  };
-}
-
 export interface ModelFailoverStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.MODEL_FAILOVER;
   data?: {

@@ -68,7 +68,6 @@ export const AgentEventType = {
   CAPTCHA_DETECTED: 'captcha_detected',
   CAPTCHA_RESOLVED: 'captcha_resolved',
   CAPTCHA_TIMEOUT: 'captcha_timeout',
-  MODEL_ESCALATED: 'model_escalated',
   MODEL_FAILOVER: 'model_failover',
   MODEL_RECOVERY: 'model_recovery',
   FILE_MUTATION_FAILED: 'file_mutation_failed',

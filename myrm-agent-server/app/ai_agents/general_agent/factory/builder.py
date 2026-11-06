@@ -15,7 +15,6 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-
     from langchain_core.tools import BaseTool
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
     from myrm_agent_harness.api import SkillAgent
@@ -63,12 +62,12 @@ async def build_general_agent(
     from ..config_builders import (
         resolve_skill_env_map,
     )
+
     llm_bundle = await initialize_agent_llms(agent_wrapper)
     llm = llm_bundle.llm
     fallback_llm = llm_bundle.fallback_llm
     safety_fallback_llm = llm_bundle.safety_fallback_llm
     stream_fallback_llms = llm_bundle.stream_fallback_llms
-    escalation_target_llm = llm_bundle.escalation_target_llm
     privacy_routing_cfg = llm_bundle.privacy_routing_cfg
 
     # 2. Storage backend + 3. Skills
@@ -174,9 +173,7 @@ async def build_general_agent(
     archive_checkpoint_ext = runtime.archive_checkpoint_ext
 
     # 6. Create middlewares
-    middlewares = await build_agent_middlewares(
-        agent_wrapper, effective_chat_id, runtime, lite_llm=llm_bundle.lite_llm
-    )
+    middlewares = await build_agent_middlewares(agent_wrapper, effective_chat_id, runtime, lite_llm=llm_bundle.lite_llm)
 
     # 7. Checkpointer
     from app.platform_utils import get_checkpointer
@@ -412,7 +409,6 @@ async def build_general_agent(
         fallback_llm=fallback_llm,
         fallback_llms=stream_fallback_llms,
         safety_fallback_llm=safety_fallback_llm,
-        escalation_target_llm=escalation_target_llm,
         checkpointer=checkpointer,
         privacy_routing_config=privacy_routing_cfg,
         event_log_backend=agent_wrapper.event_log_backend,
@@ -479,5 +475,3 @@ async def build_general_agent(
 
     logger.info("GeneralAgent 初始化完成")
     return agent
-
-

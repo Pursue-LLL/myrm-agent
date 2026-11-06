@@ -128,7 +128,6 @@ class GeneralAgent(ToolSetupMixin):
         channel_name: str = "web_chat",
         providers_dict: dict[str, object] | None = None,
         light_model_cfg: ModelConfig | None = None,
-        reasoning_model_cfg: ModelConfig | None = None,
         memory_channel_id: str | None = None,
         memory_conversation_id: str | None = None,
         memory_task_id: str | None = None,
@@ -263,7 +262,6 @@ class GeneralAgent(ToolSetupMixin):
         self.privacy_custom_keywords_s3 = privacy_custom_keywords_s3 or []
         self.providers_dict = providers_dict
         self.light_model_cfg = light_model_cfg
-        self.reasoning_model_cfg = reasoning_model_cfg
         self.privacy_custom_patterns_s2 = privacy_custom_patterns_s2 or []
         self.privacy_custom_patterns_s3 = privacy_custom_patterns_s3 or []
         self.privacy_sensitive_tools_s2 = privacy_sensitive_tools_s2 or []

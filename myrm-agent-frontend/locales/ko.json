@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "기본 모델을 사용할 수 없어 백업 모델로 전환됨",
     "model_failover_auth": "인증 실패, 백업 모델로 전환됨",
     "model_failover_unconfigured": "기본 모델 호출 실패 — 설정에서 백업 모델을 구성하세요",
-    "model_escalated": "모델 자동 업그레이드: {from} → {to}",
-    "model_escalated_reason": "사유: {reason}",
     "model_recovery": "모델 복구됨: {model}",
     "model_recovery_downtime": "사용 불가 {seconds}초",
     "safety_fallback_unconfigured": "콘텐츠가 차단됨 — 설정에서 안전 백업 모델을 구성하세요",

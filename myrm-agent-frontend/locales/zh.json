@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "主模型不可用，已切换到备用模型",
     "model_failover_auth": "鉴权失败，已切换到备用模型",
     "model_failover_unconfigured": "主模型调用失败，请在设置中配置备用模型",
-    "model_escalated": "模型已自动升级：{from} → {to}",
-    "model_escalated_reason": "原因：{reason}",
     "model_recovery": "模型已恢复可用：{model}",
     "model_recovery_downtime": "不可用时长 {seconds} 秒",
     "safety_fallback_unconfigured": "内容被安全策略拦截，请在设置中配置安全备用模型",

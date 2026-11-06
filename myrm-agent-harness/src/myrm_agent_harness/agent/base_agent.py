@@ -33,10 +33,7 @@ from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ._internals.base_agent_modes_mixin import BaseAgentModesMixin
-from .streaming.agent_core_rules import (
-    AGENT_CORE_RULES,
-    resolve_escalation_contract,
-)
+from .streaming.agent_core_rules import AGENT_CORE_RULES
 from .streaming.channel_output_hints import resolve_channel_output_hint
 from .streaming.utils import DATETIME_SYSTEM_RULES
 from .sub_agents.manager import SubagentManager, SubagentTask
@@ -80,7 +77,6 @@ class BaseAgent(BaseAgentModesMixin):
         fallback_llm: BaseChatModel | None = None,
         fallback_llms: list[BaseChatModel] | None = None,
         safety_fallback_llm: BaseChatModel | None = None,
-        escalation_target_llm: BaseChatModel | None = None,
         checkpointer: BaseCheckpointSaver | None = None,
         event_log_backend: EventLogBackend | None = None,
         model_resolver: object | None = None,
@@ -91,7 +87,6 @@ class BaseAgent(BaseAgentModesMixin):
         )
         self.fallback_llm = self.fallback_llms[0] if self.fallback_llms else fallback_llm
         self.safety_fallback_llm = safety_fallback_llm
-        self.escalation_target_llm = escalation_target_llm
         self.executor = executor
         self.user_middlewares = middlewares or []
         self.system_prompt = system_prompt
@@ -170,7 +165,6 @@ class BaseAgent(BaseAgentModesMixin):
                 (self.system_prompt or "")
                 + DATETIME_SYSTEM_RULES
                 + AGENT_CORE_RULES
-                + resolve_escalation_contract(self.llm, self.escalation_target_llm)
                 + resolve_channel_output_hint(self.config.channel_name)
                 + detect_platform().environment_prompt_line
                 + build_canary_instruction(canary)

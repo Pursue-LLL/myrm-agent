@@ -104,7 +104,6 @@ async def enforce_org_model_policy(agent_wrapper: GeneralAgent) -> None:
         agent_wrapper.lite_model_cfg,
         agent_wrapper.fallback_model_cfg,
         agent_wrapper.safety_fallback_model_cfg,
-        agent_wrapper.reasoning_model_cfg,
     ):
         name = getattr(cfg, "model", None) if cfg is not None else None
         if name:

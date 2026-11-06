@@ -11,13 +11,13 @@
 - agent.streaming.recovery.stream_recovery_window (POS: provider rate-limit window recovery)
 - toolkits.llms.errors.provider_window (POS: provider-stated retry boundary for the transient backoff floor)
 - agent.streaming.recovery.stream_recovery_truncation (POS: length truncation recovery)
-- agent.streaming.recovery.stream_recovery_turn_end (POS: escalation, iteration-limit grace summary, and empty-response recovery)
+- agent.streaming.recovery.stream_recovery_turn_end (POS: iteration-limit grace summary and empty-response recovery)
 
 [OUTPUT]
 - StreamRecoveryMixin: used by StreamExecutor via multiple inheritance
 
 [POS]
-StreamRecoveryMixin composes overflow, deferred failover (429 never failover unless quota exhausted; 529 after 3 consecutive; emits `model_failover_unconfigured` when failoverable but no fallback LLM), safety refusal fallback (HTTP 200 refusal/content_filter → safety_fallback_llm), provider-window recovery (exact in-turn wait / goal park / fail-fast on a stated reset, via ProviderWindowRecoveryMixin), transient retry (short-circuits on is_quota_exhausted; honors an in-turn Retry-After as the backoff floor), and the mixins that hold the other strategies: turn-end (escalation, iteration-limit with grace-call summary, empty-response), truncation, steering, subagent, and goal continuation.
+StreamRecoveryMixin composes overflow, deferred failover (429 never failover unless quota exhausted; 529 after 3 consecutive; emits `model_failover_unconfigured` when failoverable but no fallback LLM), safety refusal fallback (HTTP 200 refusal/content_filter → safety_fallback_llm), provider-window recovery (exact in-turn wait / goal park / fail-fast on a stated reset, via ProviderWindowRecoveryMixin), transient retry (short-circuits on is_quota_exhausted; honors an in-turn Retry-After as the backoff floor), and the mixins that hold the other strategies: turn-end (iteration-limit with grace-call summary, empty-response), truncation, steering, subagent, and goal continuation.
 
 """
 

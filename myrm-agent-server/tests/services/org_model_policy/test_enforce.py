@@ -19,7 +19,6 @@ def _make_agent_wrapper(
     lite_model: str | None = None,
     fallback_model: str | None = None,
     safety_fallback_model: str | None = None,
-    reasoning_model: str | None = None,
     engine_params: dict[str, object] | None = None,
 ) -> SimpleNamespace:
     def _cfg(m: str | None) -> SimpleNamespace | None:
@@ -30,7 +29,6 @@ def _make_agent_wrapper(
         lite_model_cfg=_cfg(lite_model),
         fallback_model_cfg=_cfg(fallback_model),
         safety_fallback_model_cfg=_cfg(safety_fallback_model),
-        reasoning_model_cfg=_cfg(reasoning_model),
         engine_params=engine_params,
     )
 

@@ -1,19 +1,17 @@
 /**
  * [INPUT]
- * - locales progressSteps.model_failover_* / model_escalated_* / model_recovery_* (POS: 6-locale model notify toast SSOT)
+ * - locales progressSteps.model_failover_* / model_recovery_* (POS: 6-locale model notify toast SSOT)
  *
  * [OUTPUT]
  * - resolveModelFailoverToastKey(): full i18n key for showI18nToast
  * - resolveModelFailoverProgressStepKey(): progressSteps step_key for UI
- * - MODEL_ESCALATED_* / MODEL_RECOVERY_*: SSOT keys for MODEL_ESCALATED / MODEL_RECOVERY SSE paths
+ * - MODEL_RECOVERY_*: SSOT keys for the MODEL_RECOVERY SSE path
  *
  * [POS]
- * i18n key SSOT for modelNotifyEvents (MODEL_ESCALATED / MODEL_FAILOVER / MODEL_RECOVERY).
+ * i18n key SSOT for modelNotifyEvents (MODEL_FAILOVER / MODEL_RECOVERY).
  * FailoverReason string → progressSteps key mapping shared by STATUS and MODEL_FAILOVER SSE paths.
  */
 
-export const MODEL_ESCALATED_TOAST_KEY = 'progressSteps.model_escalated';
-export const MODEL_ESCALATED_REASON_KEY = 'progressSteps.model_escalated_reason';
 export const MODEL_RECOVERY_TOAST_KEY = 'progressSteps.model_recovery';
 export const MODEL_RECOVERY_DOWNTIME_KEY = 'progressSteps.model_recovery_downtime';
 

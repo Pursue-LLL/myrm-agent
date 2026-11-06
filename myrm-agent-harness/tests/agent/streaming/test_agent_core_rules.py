@@ -1,9 +1,7 @@
 """agent_core_rules.py unit tests
 
-Covers the public/internal functions and constants:
+Covers:
 - AGENT_CORE_RULES: the one rule block every model gets
-- _extract_model_name: model name extraction from LLM instances
-- resolve_escalation_contract: conditional self-upgrade contract
 - BaseAgent system prompt assembly: identical for every model name
 """
 
@@ -11,32 +9,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from myrm_agent_harness.agent.base_agent import BaseAgent
-from myrm_agent_harness.agent.streaming.agent_core_rules import (
-    _ESCALATION_CONTRACT_TEMPLATE,
-    AGENT_CORE_RULES,
-    _extract_model_name,
-    resolve_escalation_contract,
-)
+from myrm_agent_harness.agent.streaming.agent_core_rules import AGENT_CORE_RULES
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
-
-
-def _make_llm(model_name: str | None = None, model: str | None = None) -> BaseChatModel:
-    """Create a mock LLM with configurable model_name / model attributes."""
-    llm = MagicMock(spec=BaseChatModel)
-    if model_name is not None:
-        llm.model_name = model_name
-    else:
-        del llm.model_name
-    if model is not None:
-        llm.model = model
-    else:
-        del llm.model
-    return llm
-
 
 # ============================================================================
 # AGENT_CORE_RULES constant
@@ -117,87 +94,6 @@ class TestAgentCoreRules:
 
 
 # ============================================================================
-# _extract_model_name
-# ============================================================================
-
-
-class TestExtractModelName:
-    def test_uses_model_name_attr(self) -> None:
-        assert _extract_model_name(_make_llm(model_name="GPT-4o")) == "gpt-4o"
-
-    def test_falls_back_to_model_attr(self) -> None:
-        assert _extract_model_name(_make_llm(model="Claude-3.5-Sonnet")) == "claude-3.5-sonnet"
-
-    def test_model_name_takes_precedence(self) -> None:
-        assert _extract_model_name(_make_llm(model_name="GPT-4o", model="claude-3")) == "gpt-4o"
-
-    def test_empty_model_name_falls_back(self) -> None:
-        assert _extract_model_name(_make_llm(model_name="", model="Gemini-2.0")) == "gemini-2.0"
-
-    def test_no_attrs_returns_empty(self) -> None:
-        assert _extract_model_name(_make_llm()) == ""
-
-    def test_always_returns_lowercase(self) -> None:
-        assert _extract_model_name(_make_llm(model_name="DEEPSEEK-R1")) == "deepseek-r1"
-
-    def test_non_string_attrs_are_ignored(self) -> None:
-        """A wrapper or test double may expose non-string attributes; the resolver must not crash on them."""
-        assert _extract_model_name(MagicMock(spec=BaseChatModel)) == ""
-
-    def test_non_string_model_name_falls_back_to_a_string_model_attr(self) -> None:
-        llm = MagicMock(spec=BaseChatModel)
-        llm.model = "GPT-4o"
-        assert _extract_model_name(llm) == "gpt-4o"
-
-
-# ============================================================================
-# resolve_escalation_contract
-# ============================================================================
-
-
-class TestResolveEscalationContract:
-    def test_no_target_returns_empty(self) -> None:
-        assert resolve_escalation_contract(_make_llm(model_name="gpt-4o"), None) == ""
-
-    def test_same_model_returns_empty(self) -> None:
-        llm = _make_llm(model_name="gpt-4o")
-        assert resolve_escalation_contract(llm, _make_llm(model_name="gpt-4o")) == ""
-
-    def test_different_models_returns_contract(self) -> None:
-        result = resolve_escalation_contract(_make_llm(model_name="deepseek-v3-flash"), _make_llm(model_name="gpt-4o"))
-        assert "<<<NEEDS_PRO>>>" in result
-        assert "deepseek-v3-flash" in result
-        assert "gpt-4o" in result
-
-    def test_contract_contains_xml_tags(self) -> None:
-        result = resolve_escalation_contract(
-            _make_llm(model_name="gpt-4o-mini"), _make_llm(model_name="claude-3.5-sonnet")
-        )
-        assert "<escalation_contract>" in result
-        assert "</escalation_contract>" in result
-
-    def test_contract_mentions_sparingly(self) -> None:
-        result = resolve_escalation_contract(_make_llm(model_name="deepseek-chat"), _make_llm(model_name="deepseek-r1"))
-        assert "sparingly" in result
-
-    def test_empty_model_name_returns_empty(self) -> None:
-        assert resolve_escalation_contract(_make_llm(model_name=""), _make_llm(model_name="gpt-4o")) == ""
-
-    def test_empty_target_name_returns_empty(self) -> None:
-        assert resolve_escalation_contract(_make_llm(model_name="gpt-4o"), _make_llm(model_name="")) == ""
-
-    def test_idempotent(self) -> None:
-        """KV cache safety: same inputs produce identical output."""
-        llm = _make_llm(model_name="deepseek-v3-flash")
-        target = _make_llm(model_name="gpt-4o")
-        assert resolve_escalation_contract(llm, target) == resolve_escalation_contract(llm, target)
-
-    def test_template_uses_format_correctly(self) -> None:
-        assert "{current_model}" in _ESCALATION_CONTRACT_TEMPLATE
-        assert "{target_model}" in _ESCALATION_CONTRACT_TEMPLATE
-
-
-# ============================================================================
 # BaseAgent system prompt assembly
 # ============================================================================
 
@@ -238,7 +134,7 @@ async def _assemble_system_prompt(model_name: str) -> str:
 
 
 class TestSystemPromptIsModelAgnostic:
-    """Without an escalation target, the assembly never looks at the model name."""
+    """The assembly never looks at the model name."""
 
     async def test_prompt_is_identical_for_every_model_name(self) -> None:
         prompts = {name: await _assemble_system_prompt(name) for name in _MODEL_NAMES}

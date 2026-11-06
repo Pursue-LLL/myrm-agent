@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "Primary model unavailable, switched to backup model",
     "model_failover_auth": "Authentication failed, switched to backup model",
     "model_failover_unconfigured": "Primary model failed — configure a backup model in Settings",
-    "model_escalated": "Model auto-upgraded: {from} → {to}",
-    "model_escalated_reason": "Reason: {reason}",
     "model_recovery": "Model recovered: {model}",
     "model_recovery_downtime": "Unavailable for {seconds}s",
     "safety_fallback_unconfigured": "Content blocked — configure a safety fallback model in Settings",

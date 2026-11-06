@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MODEL_ESCALATED_REASON_KEY,
-  MODEL_ESCALATED_TOAST_KEY,
   MODEL_RECOVERY_DOWNTIME_KEY,
   MODEL_RECOVERY_TOAST_KEY,
   resolveModelFailoverProgressStepKey,
@@ -35,9 +33,7 @@ describe('modelNotifyToastKey', () => {
     expect(resolveModelFailoverToastKey('unknown_reason')).toBe('progressSteps.model_failover');
   });
 
-  it('exports escalation and recovery toast SSOT keys', () => {
-    expect(MODEL_ESCALATED_TOAST_KEY).toBe('progressSteps.model_escalated');
-    expect(MODEL_ESCALATED_REASON_KEY).toBe('progressSteps.model_escalated_reason');
+  it('exports recovery toast SSOT keys', () => {
     expect(MODEL_RECOVERY_TOAST_KEY).toBe('progressSteps.model_recovery');
     expect(MODEL_RECOVERY_DOWNTIME_KEY).toBe('progressSteps.model_recovery_downtime');
   });

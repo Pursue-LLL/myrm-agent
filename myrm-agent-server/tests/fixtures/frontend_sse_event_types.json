@@ -37,7 +37,6 @@
   "memory_brief",
   "message",
   "message_end",
-  "model_escalated",
   "model_failover",
   "model_recovery",
   "phase_transition",

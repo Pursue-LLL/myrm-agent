@@ -2,13 +2,11 @@
 
 [INPUT]
 - agent.streaming.recovery.stream_recovery_truncation (POS: reply-shape helpers and the re-run input shared with the truncation recoveries)
-- agent.streaming.escalation_scrubber::EscalationScrubber (POS: streaming-layer escalation marker detection)
 - agent.config.llm_safety::normalize_messages (POS: re-pairs tool calls with their results for a direct LLM call)
 - utils.chat_utils::extract_answer_text (POS: answer extraction that falls back for reasoning models with empty content)
 
 [OUTPUT]
-- StreamTurnEndRecoveryMixin: model self-escalation, iteration-limit handling with a grace-call summary, and empty-response recovery.
-- _is_escalation_marker_message: whether a message is nothing but an escalation marker
+- StreamTurnEndRecoveryMixin: iteration-limit handling with a grace-call summary, and empty-response recovery.
 
 [POS]
 Mixed into StreamRecoveryMixin. These handlers act on the messages a finished turn collected, not on an error it raised.
@@ -16,10 +14,9 @@ Mixed into StreamRecoveryMixin. These handlers act on the messages a finished tu
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.types import Command
 
 from myrm_agent_harness.agent.errors.fault_side import FaultSide
 from myrm_agent_harness.agent.streaming.recovery.stream_recovery_truncation import StreamTruncationRecoveryMixin
@@ -28,10 +25,8 @@ from myrm_agent_harness.utils.chat_utils import extract_answer_text
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
-    from langchain_core.language_models import BaseChatModel
-    from langchain_core.messages import AnyMessage, BaseMessage
+    from langchain_core.messages import BaseMessage
 
-    from myrm_agent_harness.agent.streaming.escalation_scrubber import EscalationScrubber
     from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
     from myrm_agent_harness.agent.streaming.stream_executor import StreamContext
 
@@ -41,97 +36,15 @@ logger = get_agent_logger(__name__)
 class StreamTurnEndRecoveryMixin(StreamTruncationRecoveryMixin):
     """Turn-end recovery handlers, used by StreamExecutor via StreamRecoveryMixin.
 
-    Accesses StreamExecutor attributes via self: _ctx, _compactor, _escalation_scrubber, _escalation_used,
-    streaming_final_answer, _rebind_agent_after_rebuild, _emit_recovery_event.
+    Accesses StreamExecutor attributes via self: _ctx, _compactor, _emit_recovery_event.
     """
 
     _ctx: StreamContext
     _compactor: StreamCompactor
-    _escalation_scrubber: EscalationScrubber
-    _escalation_used: bool
 
     if TYPE_CHECKING:
 
-        def _rebind_agent_after_rebuild(self, new_llm: BaseChatModel) -> None: ...
-
         async def _emit_recovery_event(self, step_key: str, **extra: object) -> None: ...
-
-    async def _handle_escalation(
-        self,
-        collected_messages: list[BaseMessage],
-    ) -> bool:
-        """Handle model self-escalation: switch to a stronger model and retry.
-
-        When the EscalationScrubber detects a marker (e.g. ``<<<NEEDS_PRO>>>``),
-        this handler switches to the escalation target model and replays the turn.
-
-        Returns True when an escalation was performed (caller should ``continue``).
-        """
-        scrubber = self._escalation_scrubber
-        if not scrubber.detected:
-            return False
-
-        ctx = self._ctx
-        escalation_target = ctx.escalation_target_llm
-        if escalation_target is None:
-            logger.warning(" Escalation marker detected but no escalation_target_llm configured — ignoring")
-            return False
-
-        if self._escalation_used:
-            logger.warning(" Escalation already used this session — marker treated as normal content")
-            return False
-
-        self._escalation_used = True
-
-        current_model = (ctx.llm_info or {}).get("model_name", "unknown")
-
-        target_model = getattr(escalation_target, "model_name", None) or getattr(
-            escalation_target, "model", "stronger-model"
-        )
-
-        if current_model == target_model:
-            logger.warning(
-                " Current model == escalation target (%s) — marker ignored",
-                current_model,
-            )
-            return False
-
-        if isinstance(ctx.agent_input, Command):
-            logger.warning(" Resume mode — escalation not supported")
-            return False
-
-        logger.warning(
-            " Model self-escalation: %s → %s (reason: %s)",
-            current_model,
-            target_model,
-            scrubber.reason or "none",
-        )
-
-        self._rebind_agent_after_rebuild(escalation_target)
-
-        await self._compactor.put(
-            {
-                "type": AgentEventType.MODEL_ESCALATED.value,
-                "data": {
-                    "from_model": current_model,
-                    "to_model": target_model,
-                    "reason": scrubber.reason,
-                    "restart": True,
-                },
-                "messageId": ctx.message_id,
-            }
-        )
-
-        messages_dict = ctx.agent_input
-        messages = cast(list["BaseMessage"], messages_dict.get("messages", []))
-        messages.clear()
-        original_messages = [m for m in collected_messages if not _is_escalation_marker_message(m)]
-        messages.extend(original_messages)
-        messages_dict["messages"] = cast("list[AnyMessage]", messages)
-
-        scrubber.reset()
-        self.streaming_final_answer = False
-        return True
 
     async def _handle_iteration_limit(
         self,
@@ -305,14 +218,3 @@ class StreamTurnEndRecoveryMixin(StreamTruncationRecoveryMixin):
 
         await self._emit_recovery_event("empty_response_recovery", restart=True)
         return True
-
-
-def _is_escalation_marker_message(msg: BaseMessage) -> bool:
-    """Check if a message is an AI response that only contains an escalation marker."""
-    if not isinstance(msg, AIMessage):
-        return False
-    content = msg.content
-    if isinstance(content, str):
-        trimmed = content.strip()
-        return trimmed.startswith("<<<NEEDS_PRO") and trimmed.endswith(">>>")
-    return False

@@ -194,7 +194,6 @@ class GeneralAgentParams(BaseAgentParams):
     privacy_routing_raw: dict[str, object] | None = None
     providers_dict: dict[str, object] | None = None
     light_model_cfg: ModelConfig | None = None
-    reasoning_model_cfg: ModelConfig | None = None
     privacy_custom_keywords_s2: list[str] = []
     privacy_custom_keywords_s3: list[str] = []
     privacy_custom_patterns_s2: list[str] = []

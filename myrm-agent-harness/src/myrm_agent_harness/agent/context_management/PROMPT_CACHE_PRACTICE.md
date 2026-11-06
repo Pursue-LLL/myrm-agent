@@ -1264,7 +1264,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `tool_management/tool_layers.py` | CORE/COMMON/EXTENDED/EXTERNAL 四层定义 + 工具注册表 |
 | `tool_management/registry.py` | `resolve()` 按 layer + name 排序，确保工具定义顺序确定性 |
 | `streaming/utils.py` | `get_datetime_prompt()` 生成时间标签 + `DATETIME_SYSTEM_RULES` 系统规则常量 |
-| `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本；`resolve_escalation_contract()` 在配置了升级目标模型且与当前模型不同时返回升级契约 |
+| `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本 |
 | `streaming/message_builder.py` | `inject_datetime_tags()` 时间戳注入逻辑（当前消息 + 历史消息确定性注入） |
 | `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + environment_prompt_line + canary 到 system_prompt |
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |

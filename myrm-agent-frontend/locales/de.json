@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "Primärmodell nicht verfügbar, zu Backup-Modell gewechselt",
     "model_failover_auth": "Authentifizierung fehlgeschlagen, zu Backup-Modell gewechselt",
     "model_failover_unconfigured": "Primärmodell fehlgeschlagen — Backup-Modell in den Einstellungen konfigurieren",
-    "model_escalated": "Modell automatisch hochgestuft: {from} → {to}",
-    "model_escalated_reason": "Grund: {reason}",
     "model_recovery": "Modell wieder verfügbar: {model}",
     "model_recovery_downtime": "Ausfallzeit {seconds}s",
     "safety_fallback_unconfigured": "Inhalt blockiert — Sicherheits-Backup-Modell in den Einstellungen konfigurieren",

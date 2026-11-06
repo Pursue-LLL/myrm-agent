@@ -48,7 +48,6 @@ class TestAgentEventTypeEnum:
             "BASH_COMMAND_EXECUTED",
             "FILE_DIFF",
             "CAPTCHA_DETECTED",
-            "MODEL_ESCALATED",
             "BROWSER_VIEW_UPDATE",
             "DESKTOP_VIEW_UPDATE",
             "REASONING",
