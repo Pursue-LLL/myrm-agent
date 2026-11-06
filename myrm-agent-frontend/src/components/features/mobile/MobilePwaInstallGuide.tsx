@@ -5,7 +5,7 @@
  * - beforeinstallprompt event
  * - window.matchMedia('(display-mode: standalone)')
  * - navigator.userAgent (iOS vs Android detection)
- * - @/hooks/ui/useProactiveDismissal::dismissProactive, isProactiveDismissed (POS: per-device 7-day snooze memory)
+ * - @/hooks/ui/useProactiveDismissal::dismissProactive, useProactiveDismissed (POS: per-device 7-day snooze memory)
  *
  * [OUTPUT]
  * - MobilePwaInstallGuide: Native PWA installation guidance drawer/banner for standalone thin-client parity
@@ -14,9 +14,9 @@
  * Mobile PWA installation discovery banner providing Safari Add-to-Home and Chrome install-prompt flows.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
-import { dismissProactive, isProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
+import { OFFER_SNOOZE_DAYS, dismissProactive, useProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
 import { IconArrowRight, IconCheck, IconSparkles, IconX } from '@/components/features/icons/PremiumIcons';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -24,67 +24,70 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+/** Where the page runs; `unknown` is what the server and the hydration render see. */
+type InstallEnvironment = 'unknown' | 'installed' | 'ios' | 'android' | 'other';
+
 const DISMISS_KEY = 'pwa-install';
-const SNOOZE_DAYS = 7;
+
+/** The device and its display mode do not change while the page is open, so there is nothing to subscribe to. */
+const subscribeToNothing = (): (() => void) => () => {};
+
+const readServerEnvironment = (): InstallEnvironment => 'unknown';
+
+function readInstallEnvironment(): InstallEnvironment {
+  const isStandalone =
+    (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+    ('standalone' in window.navigator && Boolean((window.navigator as unknown as { standalone: boolean }).standalone));
+  if (isStandalone) {
+    return 'installed';
+  }
+
+  const ua = window.navigator.userAgent.toLowerCase();
+  if (/iphone|ipad|ipod/.test(ua)) {
+    return 'ios';
+  }
+  return /android/.test(ua) ? 'android' : 'other';
+}
 
 export function MobilePwaInstallGuide() {
   const t = useTranslations('mobileShell');
-  const [visible, setVisible] = useState<boolean>(false);
-  const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
+  const environment = useSyncExternalStore(subscribeToNothing, readInstallEnvironment, readServerEnvironment);
+  const snoozed = useProactiveDismissed(DISMISS_KEY);
   const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const [accepted, setAccepted] = useState<boolean>(false);
   const [stepModalOpen, setStepModalOpen] = useState<boolean>(false);
 
+  // Not offered inside the installed app, nor while the viewer has closed it.
+  const offerable = (environment === 'ios' || environment === 'android' || environment === 'other') && !snoozed;
+  // iOS and Android always get the guide; any other browser only once it hands over an install offer.
+  const visible = offerable && !accepted && (environment !== 'other' || installPromptEvent !== null);
+  const isIos = environment === 'ios';
+  const stepsTitle = isIos ? t('iosStepsTitle') : t('installStepsTitle');
+
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!offerable) {
       return;
     }
 
-    // If already in standalone mode, do not show guide
-    const isStandalone =
-      (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
-      ('standalone' in window.navigator &&
-        Boolean((window.navigator as unknown as { standalone: boolean }).standalone));
-
-    if (isStandalone) {
-      return;
-    }
-
-    if (isProactiveDismissed(DISMISS_KEY)) {
-      return;
-    }
-
-    const ua = window.navigator.userAgent.toLowerCase();
-    const isIOS = /iphone|ipad|ipod/.test(ua);
-    const isAndroid = /android/.test(ua);
-
-    if (isIOS) {
-      setPlatform('ios');
-      setVisible(true);
-    } else if (isAndroid) {
-      setPlatform('android');
-      setVisible(true);
-    }
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setInstallPromptEvent(e as BeforeInstallPromptEvent);
-      setVisible(true);
+    const handleBeforeInstallPrompt = (event: Event) => {
+      // Taking the offer over keeps the browser from showing its own prompt; the guide triggers it on demand.
+      event.preventDefault();
+      setInstallPromptEvent(event as BeforeInstallPromptEvent);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, []);
+  }, [offerable]);
 
   const handleDismiss = useCallback(() => {
-    setVisible(false);
     setStepModalOpen(false);
-    dismissProactive(DISMISS_KEY, { snoozeDays: SNOOZE_DAYS });
+    dismissProactive(DISMISS_KEY, { snoozeDays: OFFER_SNOOZE_DAYS });
   }, []);
 
   const handleInstallClick = useCallback(async () => {
-    if (platform === 'ios') {
+    if (isIos) {
       setStepModalOpen(true);
       return;
     }
@@ -93,12 +96,12 @@ export function MobilePwaInstallGuide() {
       await installPromptEvent.prompt();
       const choice = await installPromptEvent.userChoice;
       if (choice.outcome === 'accepted') {
-        setVisible(false);
+        setAccepted(true);
       }
     } else {
       setStepModalOpen(true);
     }
-  }, [installPromptEvent, platform]);
+  }, [installPromptEvent, isIos]);
 
   if (!visible) {
     return null;
@@ -143,7 +146,7 @@ export function MobilePwaInstallGuide() {
             onClick={() => void handleInstallClick()}
             className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-xs transition-opacity hover:opacity-90"
           >
-            <span>{platform === 'ios' ? t('viewSteps') : t('installNow')}</span>
+            <span>{isIos ? t('viewSteps') : t('installNow')}</span>
             <IconArrowRight className="h-3 w-3" />
           </button>
         </div>
@@ -153,14 +156,12 @@ export function MobilePwaInstallGuide() {
         <dialog
           open
           aria-modal="true"
-          aria-label={t('iosStepsTitle')}
+          aria-label={stepsTitle}
           className="fixed inset-0 z-50 m-0 flex h-full w-full max-h-none max-w-none items-end justify-center bg-black/60 p-4 backdrop-blur-xs border-none"
         >
           <div className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                {platform === 'ios' ? t('iosStepsTitle') : t('installStepsTitle')}
-              </h3>
+              <h3 className="text-sm font-semibold text-foreground">{stepsTitle}</h3>
               <button
                 type="button"
                 onClick={() => setStepModalOpen(false)}
@@ -171,7 +172,7 @@ export function MobilePwaInstallGuide() {
             </div>
 
             <ol className="mt-4 space-y-3 text-xs text-muted-foreground">
-              {platform === 'ios' ? (
+              {isIos ? (
                 <>
                   <li className="flex items-start gap-2.5">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
