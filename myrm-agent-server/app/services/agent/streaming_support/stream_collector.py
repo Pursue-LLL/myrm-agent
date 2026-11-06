@@ -13,7 +13,7 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
-HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
+HITL clarification (`clarification`), plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), council phase progress (`councilPhases`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
@@ -562,17 +562,6 @@ class StreamContentCollector:
                             **self._plan_confirmation,
                             **plan_update,
                         }
-                if (
-                    phase_payload.get("phase") == "clarify"
-                    and phase_payload.get("status") == "resolved"
-                    and self._clarification is not None
-                ):
-                    answer_record = phase_payload.get("answerRecord")
-                    self._clarification = {
-                        **self._clarification,
-                        "answered": True,
-                        **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
-                    }
         if step_key == "cache_break" and isinstance(data, dict):
             self._cache_break = data
         if event.get("restart") is True:

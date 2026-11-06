@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 # The agent loop reports the mode it ran a turn with. Only these mean the turn ran on the chat's thread: a
-# turn served by another lane (fast, research, workflow) leaves the thread without the exchange.
+# turn served by another lane (fast, workflow) leaves the thread without the exchange.
 _THREAD_BOUND_MODES = frozenset({"continue", "replace", "resume"})
 
 

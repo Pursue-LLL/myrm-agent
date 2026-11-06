@@ -346,7 +346,6 @@ async def safe_purge_vault() -> dict[str, object]:
     - Consumer cursor auto-increment sequences (sqlite_sequence)
     - The pending-memory queues and memory event log (stored memories, profile attributes and rules stay)
     - LangGraph checkpoints, session grants, and the workspaces / artifacts of those chats
-    - The sandbox worktrees of those chats, except those with unsaved work (counted in ``kept_sandboxes``)
 
     Answers 409 without touching anything while a conversation has a turn in flight.
     """
@@ -370,8 +369,6 @@ async def safe_purge_vault() -> dict[str, object]:
         "checkpoint_cleared_chats": result.checkpoint_cleared_chats,
         "fts_tables_purged": result.fts_tables_purged,
         "cursors_reset": result.cursors_reset,
-        "cleared_sandboxes": result.cleared_sandboxes,
-        "kept_sandboxes": result.kept_sandboxes,
         "preserved_agents": result.preserved_agents,
         "preserved_api_keys": result.preserved_api_keys,
         "preserved_user_configs": result.preserved_user_configs,

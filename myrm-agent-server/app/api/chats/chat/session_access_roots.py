@@ -87,7 +87,6 @@ async def grant_session_access_root_endpoint(
                 writable=body.writable,
                 label=body.label.strip() if body.label else "",
                 workspace_dir=workspace_dir,
-                sandbox_active=bool(chat.sandbox_base_dir),
             )
         except DirectoryGrantRefusedError as refusal:
             raise permission_error(str(refusal)) from refusal

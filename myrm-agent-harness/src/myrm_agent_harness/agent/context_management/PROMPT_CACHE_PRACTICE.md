@@ -279,7 +279,7 @@ System: `<data_boundary_rules>` …               ← SecurityBoundary，state �
 - **一次性注入**：同时检测 `<user_memory_context` **与** `<<<UNTRUSTED_DATA`（cover learned-only）。
 - **`MemoryConfig.max_learned_context_chars`**：依旧在 learned 数据源侧裁剪；中间件再做 token/char envelope 兜底。
 
-**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane/DeepResearch 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
+**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
 
 ### 2.6 只增不改的消息历史与单调前缀铁律（Append-Only Law）
 
@@ -1334,7 +1334,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 ### 规则说明
 
 **为什么？**
-- 动态内容（如子 Agent 通知、Deep Research 结果、实时时间戳）每次不同
+- 动态内容（如子 Agent 通知、后台任务结果、实时时间戳）每次不同
 - `SystemMessage` 变化会破坏 Prompt Cache 前缀，导致所有后续缓存失效
 - 这会导致 **10x 成本增加**（95% 缓存命中率 → 0%）
 
@@ -1360,11 +1360,10 @@ messages.append(HumanMessage(content=dynamic_notification))
 
 1. **`_internals/agent_runtime.py::drain_notifications`** — 子 Agent 通知注入（HumanMessage via `stale_notifications`）
 2. **`stream_executor.py::_handle_subagent_notifications`** — 子 Agent 完成通知注入
-3. **`deep_research/_orchestrator_phases.py::_phase_report`** — Deep Research 结果注入（HumanMessage `# Research Findings`）
-4. **`progress_middleware.py`** — Active todo focus 注入（HumanMessage via request.override）
-5. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束注入（HumanMessage via awrap_model_call + request.override，瞬态不持久化）
-6. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告/终止提示注入（HumanMessage with `[SYSTEM INSTRUCTION]` prefix）
-7. **`citation_rules_middleware.py`**（server 层）— 引用规则注入（HumanMessage via request.override）
+3. **`progress_middleware.py`** — Active todo focus 注入（HumanMessage via request.override）
+4. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束注入（HumanMessage via awrap_model_call + request.override，瞬态不持久化）
+5. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告/终止提示注入（HumanMessage with `[SYSTEM INSTRUCTION]` prefix）
+6. **`citation_rules_middleware.py`**（server 层）— 引用规则注入（HumanMessage via request.override）
 
 这些位置已添加代码注释，明确说明使用 `HumanMessage` 的原因。
 

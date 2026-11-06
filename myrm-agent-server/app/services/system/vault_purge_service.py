@@ -15,7 +15,7 @@
 System-level safe vault purge orchestrator. Executes reverse-dependency physical wipes of
 conversation corpora, the state and files of every chat, FTS5 shadow indexes, and consumer
 cursors while strictly safeguarding user configuration (API Keys, providers, custom agents,
-and channel pairing identities). Sandbox worktrees that still hold unsaved work are kept.
+and channel pairing identities).
 """
 
 from __future__ import annotations
@@ -56,8 +56,6 @@ class SafeVaultPurgeResult:
     purged_channel_messages: int = 0
     purged_memory_events: int = 0
     checkpoint_cleared_chats: int = 0
-    cleared_sandboxes: int = 0
-    kept_sandboxes: int = 0
     fts_tables_purged: list[str] = field(default_factory=list)
     cursors_reset: list[str] = field(default_factory=list)
     preserved_agents: int = 0
@@ -99,8 +97,7 @@ class SafeVaultPurgeService:
         4. In one transaction delete the rows bound to a chat, conversation recall, messages, chats and
            channel messages, empty the memory pipeline tables, and reset sqlite_sequence counters /
            consumer cursors.
-        5. Remove the sandbox worktrees, workspaces and artifacts of the purged chats; a worktree with
-           unsaved work is kept and counted in ``kept_sandboxes``.
+        5. Remove the workspaces and artifacts of the purged chats.
         6. Run PRAGMA incremental_vacuum and optimize to reclaim physical disk space.
         """
         async with _PURGE_LOCK:
@@ -163,15 +160,15 @@ class SafeVaultPurgeService:
                                 )
                             result.fts_tables_purged.append(fts_tbl)
 
-                # Collect chat ids and sandbox directories before deleting chats
-                sandbox_by_chat: dict[str, str | None] = {}
+                # Collect chat ids before deleting chats
+                purged_chat_ids: list[str] = []
                 if "chats" in existing_tables:
                     async with engine.connect() as conn:
-                        rows = (await conn.execute(text("SELECT id, sandbox_base_dir FROM chats"))).fetchall()
-                        sandbox_by_chat = {r[0]: r[1] for r in rows}
+                        rows = (await conn.execute(text("SELECT id FROM chats"))).fetchall()
+                        purged_chat_ids = [str(r[0]) for r in rows]
 
                 # Phase 2b: Conversation state goes while its chats are still listed
-                for chat_id in sandbox_by_chat:
+                for chat_id in purged_chat_ids:
                     await chat_disposal.clear_runtime_caches(chat_id)
                     if await chat_disposal.clear_conversation_state(chat_id):
                         result.checkpoint_cleared_chats += 1
@@ -224,10 +221,8 @@ class SafeVaultPurgeService:
                                 )
                                 result.cursors_reset.append(tbl)
 
-                # Phase 4: Remove the files the purged chats produced; work that is not saved elsewhere stays
-                removal = await chat_disposal.remove_chat_files(sandbox_by_chat)
-                result.cleared_sandboxes = removal.removed_worktrees
-                result.kept_sandboxes = removal.kept_worktrees
+                # Phase 4: Remove the files the purged chats produced
+                await chat_disposal.remove_chat_files(purged_chat_ids)
 
                 # Phase 5: Reclaim physical disk pages
                 async with engine.connect() as conn:

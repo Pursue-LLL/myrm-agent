@@ -1,4 +1,4 @@
-"""PhaseWaiter unit tests — in-process suspend/resume for Deep Research phases."""
+"""PhaseWaiter unit tests — in-process suspend/resume for orchestrator gates."""
 
 import asyncio
 

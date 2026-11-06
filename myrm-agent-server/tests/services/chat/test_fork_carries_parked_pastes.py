@@ -73,16 +73,12 @@ async def test_a_fork_of_a_default_workspace_chat_gets_the_pasted_file_of_its_hi
 
 
 @pytest.mark.asyncio
-async def test_a_fork_of_a_sandbox_chat_gets_the_pasted_file_in_the_repository_root_it_runs_in(
-    db_session, tmp_path: Path, fake_home: Path
-) -> None:
+async def test_a_fork_gets_the_pasted_file_in_the_folder_it_runs_in(db_session, tmp_path: Path, fake_home: Path) -> None:
     del fake_home
-    repo, worktree = tmp_path / "repo", tmp_path / "repo" / ".sandboxes" / "sandbox-abc"
-    worktree.mkdir(parents=True)
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
     parent_id = str(uuid4())
-    relative_path = await _parent_with_paste(
-        db_session, parent_id, worktree, workspace_dir=str(worktree), sandbox_base_dir=str(repo)
-    )
+    relative_path = await _parent_with_paste(db_session, parent_id, repo, workspace_dir=str(repo))
 
     result = await ConversationForkManager.fork_conversation(db=db_session, parent_chat_id=parent_id, message_index=0)
 

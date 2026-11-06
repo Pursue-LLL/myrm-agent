@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.ai_agents::GeneralAgentParams (POS: Agent 参数定义层。纯参数数据结构，解耦 AgentFactory 创建逻辑与 Pydantic 参数校验)
-- app.core.types::ModelConfig (POS: Business-specific type definitions used across the business layer)
 - app.services.agent.params::AgentRequest (POS: Agent parameter conversion and model resolution)
 - app.services.agent.stream_session.lazy_session_gate::PendingSessionDraft (POS: Stream-session persistence gate: no session row or sandbox directory exists until the first active generation event)
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata)
@@ -32,7 +31,6 @@ from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
 from app.ai_agents import GeneralAgentParams
-from app.core.types import ModelConfig
 from app.services.agent.params import AgentRequest
 from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
@@ -51,10 +49,8 @@ class AgentStreamSession:
     steering_token: SteeringToken | None
     routing_tier: str | None
     archive_restore_results: list[dict[str, object]]
-    research_model_cfg: ModelConfig | None
     registry: GlobalStreamRegistry
     collector: StreamContentCollector
-    is_long_running_task: bool
     goal_provider: GoalProvider | None
     extra_context: dict[str, object]
     routing_specialty: str | None = field(default=None)

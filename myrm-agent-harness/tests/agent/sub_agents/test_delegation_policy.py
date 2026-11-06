@@ -6,8 +6,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from myrm_agent_harness.agent.deep_research.config import DeepResearchConfig
-from myrm_agent_harness.agent.deep_research.helpers import build_research_subagent_config
 from myrm_agent_harness.agent.sub_agents.builder import filter_tools
 from myrm_agent_harness.agent.sub_agents.delegation_policy import (
     register_leaf_blocked_tools,
@@ -76,12 +74,3 @@ def test_explicit_allowlist_cannot_re_enable_memory_write_tools() -> None:
     kept = {tool.name for tool in filter_tools(config, _tools("memory_search_tool", *_MEMORY_WRITE_TOOLS))}
 
     assert kept == {"memory_search_tool"}
-
-
-def test_deep_research_children_never_inherit_memory_write_tools() -> None:
-    """Deep research builds its children through filter_tools alone, so only the L1 blocklist protects it."""
-    config = build_research_subagent_config(DeepResearchConfig())
-
-    kept = {tool.name for tool in filter_tools(config, _tools("web_search_tool", *_MEMORY_WRITE_TOOLS))}
-
-    assert kept == {"web_search_tool"}

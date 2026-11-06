@@ -1,14 +1,14 @@
 """Product surface SSOT — hidden agents, templates, and removed feature keys.
 
 [INPUT]
-app.services.features.registration::FeatureStage.REMOVED (POS: deep_research 产品面关闭策略)
+app.services.features.registration::FeatureStage.REMOVED (POS: 已下线产品面的配置清洗)
 
 [OUTPUT]
 HIDDEN_BUILTIN_AGENT_IDS / HIDDEN_PREBUILT_TEMPLATE_IDS / REMOVED_FEATURE_OVERRIDE_KEYS
 及 is_hidden_* 判定函数。
 
 [POS]
-Deep Research 等产品隐藏策略的 Server 层单一事实源；API 列表与模板 API 过滤入口。
+已下线产品面的 Server 层单一事实源；API 列表与模板 API 过滤入口。
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ HIDDEN_PREBUILT_TEMPLATE_IDS: frozenset[str] = frozenset(
 
 REMOVED_FEATURE_OVERRIDE_KEYS: frozenset[str] = frozenset(
     {
-        "deep_research",
         "consensus",
     }
 )

@@ -41,10 +41,8 @@ def _session() -> AgentStreamSession:
         steering_token=None,
         routing_tier=None,
         archive_restore_results=[],
-        research_model_cfg=None,
         registry=cast(GlobalStreamRegistry, None),
         collector=StreamContentCollector(chat_id="chat-watch"),
-        is_long_running_task=False,
         goal_provider=None,
         extra_context={},
     )

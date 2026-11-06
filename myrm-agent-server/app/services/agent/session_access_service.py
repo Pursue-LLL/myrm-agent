@@ -81,7 +81,6 @@ def bootstrap_session_access_roots(
     raw: object | None,
     *,
     workspace_dir: str | None = None,
-    sandbox_active: bool = False,
 ) -> tuple[AccessRoot, ...]:
     roots = access_roots_from_json(raw)
     validated: list[AccessRoot] = []
@@ -92,7 +91,6 @@ def bootstrap_session_access_roots(
         if not is_directory_grant_allowed_for_deployment(
             grant_path,
             workspace_dir=workspace_dir,
-            sandbox_active=sandbox_active,
             writable=root.writable,
         ):
             logger.warning(
@@ -127,7 +125,6 @@ async def grant_chat_session_access_root(
     label: str = "",
     source: str = "desktop_drag_drop",
     workspace_dir: str | None = None,
-    sandbox_active: bool = False,
 ) -> tuple[AccessRoot, ...]:
     """Add one session access root and persist to chat record.
 
@@ -148,7 +145,6 @@ async def grant_chat_session_access_root(
         writable=writable,
         source=source,
         workspace_dir=workspace_dir,
-        sandbox_active=sandbox_active,
         policy=_default_path_policy(),
     )
     updated = get_session_access_roots()
@@ -202,18 +198,13 @@ def is_directory_grant_allowed_for_deployment(
     grant_path: str,
     *,
     workspace_dir: str | None,
-    sandbox_active: bool,
     writable: bool = True,
 ) -> bool:
-    """Gate directory grants by deployment mode (sandbox worktree, cloud volume, local desktop).
+    """Gate directory grants by deployment mode (cloud volume, local desktop).
 
-    A worktree-isolated chat refuses every grant: its file changes must stay in the temporary branch.
     ``writable`` selects the mount mode the gate checks: a write grant is also refused when it
     contains a dangerous root (a home directory, a drive root), a read-only grant is not.
     """
-    if sandbox_active:
-        return False
-
     from myrm_agent_harness.api.hooks import (
         MountMode,
         MountSpec,
@@ -241,7 +232,6 @@ def _apply_validated_grant(
     writable: bool,
     source: str,
     workspace_dir: str | None,
-    sandbox_active: bool,
     policy: PathPolicy | None = None,
 ) -> bool:
     grant_path = resolve_grant_directory_path(raw_path, workspace_dir)
@@ -250,7 +240,6 @@ def _apply_validated_grant(
     if not is_directory_grant_allowed_for_deployment(
         grant_path,
         workspace_dir=workspace_dir,
-        sandbox_active=sandbox_active,
         writable=writable,
     ):
         logger.warning(
@@ -274,7 +263,6 @@ async def apply_directory_resume_grant(
     chat_id: str | None,
     resume_value: dict[str, object],
     *,
-    sandbox_active: bool = False,
     workspace_dir: str | None = None,
 ) -> None:
     """Persist and bootstrap grants from path-ASK approval resume payloads."""
@@ -307,7 +295,6 @@ async def apply_directory_resume_grant(
                 writable=grant.get("writable") is True,
                 source="path_ask_grant",
                 workspace_dir=workspace_dir,
-                sandbox_active=sandbox_active,
                 policy=policy,
             ):
                 granted = True

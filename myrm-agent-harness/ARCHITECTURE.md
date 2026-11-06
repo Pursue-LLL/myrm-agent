@@ -312,7 +312,6 @@ agent/ (运行时核心层)
 | [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) | 分发构建 |
 | [EVENT_LOG_SYSTEM.md](src/myrm_agent_harness/agent/event_log/EVENT_LOG_SYSTEM.md) | 事件日志 |
 | [DYNAMIC_WORKFLOW_SYSTEM.md](src/myrm_agent_harness/agent/dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) | 动态工作流 |
-| [DEEP_RESEARCH_SYSTEM.md](src/myrm_agent_harness/agent/deep_research/DEEP_RESEARCH_SYSTEM.md) | 深度研究 |
 | [TOOL_MANAGEMENT_SYSTEM.md](src/myrm_agent_harness/agent/tool_management/TOOL_MANAGEMENT_SYSTEM.md) | 工具管理 |
 | [TOOL_DESIGN_STRATEGY.md](src/myrm_agent_harness/agent/tool_management/TOOL_DESIGN_STRATEGY.md) | 工具设计策略 |
 

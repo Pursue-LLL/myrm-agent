@@ -232,7 +232,7 @@ async def run_retry_extract_for_chat(chat_id: str, *, source: str = "manual_retr
         history,
         last_assistant.content or "",
         source=source,
-        workspace_path=chat.workspace_dir or chat.sandbox_base_dir,
+        workspace_path=chat.workspace_dir,
     )
     return True
 

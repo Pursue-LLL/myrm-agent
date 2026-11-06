@@ -193,9 +193,9 @@ def _send_message(
           if (!bridge?.sendChatMessage) {{
             return {{ ok: false, err: 'no-sendChatMessage' }};
           }}
-          // Fast/deep_research action modes require search to be configured and
-          // will be rejected by sendTurnSearchGuard under e2e_search_policy=empty.
-          // Turn-lock waiting is mode-independent, so pin agent mode explicitly.
+          // Fast mode requires search to be configured and will be rejected by
+          // sendTurnSearchGuard under e2e_search_policy=empty. Turn-lock waiting
+          // is mode-independent, so pin agent mode explicitly.
           if (bridge?.setActionMode) {{
             bridge.setActionMode('agent');
           }}

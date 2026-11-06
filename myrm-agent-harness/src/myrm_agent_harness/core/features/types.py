@@ -77,7 +77,7 @@ class FeatureSpec:
     """
 
     id: str
-    """Unique identifier, e.g. 'skill_optimization', 'deep_research'."""
+    """Unique identifier, e.g. 'skill_optimization', 'voice_interaction'."""
 
     key: str
     """Configuration key used in config files and API."""

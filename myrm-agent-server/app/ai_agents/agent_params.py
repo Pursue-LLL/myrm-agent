@@ -218,7 +218,6 @@ class GeneralAgentParams(BaseAgentParams):
     jit_subagents: dict[str, object] | None = None
     session_loaded_skill_names: list[str] | None = None
     session_access_roots: list[dict[str, object]] | None = None
-    sandbox_base_dir: str | None = None
     goal: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
     prompt_mode: str = "full"

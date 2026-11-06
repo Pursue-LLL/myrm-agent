@@ -259,8 +259,8 @@ def child_run_scope(task_id: str) -> Iterator[None]:
 def ephemeral_run_scope(scope_key: str) -> Iterator[None]:
     """``isolated_run_guards`` for a nested run that keeps its caller's identity and is never resumed.
 
-    The run stays under the caller's approval session and does not become a sub-agent; a deep-research agent
-    is such a run. Nothing will resume it, so the loop guard filed for it is dropped when the block ends,
+    The run stays under the caller's approval session and does not become a sub-agent; an orchestrator-owned
+    nested run is such a run. Nothing will resume it, so the loop guard filed for it is dropped when the block ends,
     however it ends.
     """
     try:

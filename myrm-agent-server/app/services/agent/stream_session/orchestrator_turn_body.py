@@ -46,7 +46,6 @@ from app.services.agent.stream_session.orchestrator_turn_setup import (
     build_turn_extra_context,
     build_turn_params,
     prepare_goal_provider,
-    resolve_research_model,
     search_service_unavailable_detail,
 )
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
@@ -165,8 +164,6 @@ async def execute_agent_turn_after_reserve(
     if persisted_message_id:
         params.turn_identity = str(persisted_message_id)
 
-    research_model_cfg = await resolve_research_model(request)
-
     unavailable_detail = search_service_unavailable_detail(request, params)
     if unavailable_detail is not None:
         await record_terminal_failure("server_error")
@@ -187,7 +184,6 @@ async def execute_agent_turn_after_reserve(
     if history_mode is not None:
         extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
 
-    is_long_running_task = request.action_mode in ("deep_research", "agentic_search")
     collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
     if request.chat_id:
         from app.services.copilot.run_digest_store import RunDigestStore
@@ -202,10 +198,8 @@ async def execute_agent_turn_after_reserve(
         steering_token=steering_token,
         routing_tier=turn.routing_tier,
         archive_restore_results=turn.archive_restore_results,
-        research_model_cfg=research_model_cfg,
         registry=registry,
         collector=collector,
-        is_long_running_task=is_long_running_task,
         goal_provider=goal_provider,
         extra_context=extra_context,
         routing_specialty=turn.routing_specialty,
@@ -217,7 +211,7 @@ async def execute_agent_turn_after_reserve(
         pending_session_draft=pending_draft,
     )
 
-    if request.chat_id and request.resume_value is None and not is_long_running_task:
+    if request.chat_id and request.resume_value is None:
         if pending_draft is None or getattr(pending_draft, "committed", False):
             try:
                 await write_interrupted_turn_marker(request, params, user_message_id=persisted_message_id)

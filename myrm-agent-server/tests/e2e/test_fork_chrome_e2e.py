@@ -240,7 +240,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     ), f"Expected title {custom_title}, got {child_chat.get('title')}"
 
     # Parent had sandbox active (workspace_dir pointed to sandbox worktree).
-    # After fork, child must use repo root (sandbox_base_dir of parent), not the sandbox path.
+    # After fork, child must run in the same folder as its parent.
     parent_resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
         f"{api_url}/api/v1/chats/{chat_id}"
     )

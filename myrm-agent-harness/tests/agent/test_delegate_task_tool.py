@@ -105,7 +105,7 @@ class TestBuildDynamicDescription:
             return_value=SubagentConfig(
                 system_prompt="I am a research agent",
                 display_name="研究助手",
-                description="Performs deep research",
+                description="Performs research",
                 tools=("web_search", "read_file"),
             )
         )
@@ -113,7 +113,7 @@ class TestBuildDynamicDescription:
         desc = await _build_dynamic_description(catalog, allowed_types=None)
 
         assert "研究助手 (agent-abc)" in desc
-        assert "Performs deep research" in desc
+        assert "Performs research" in desc
         # Tools list is no longer included in the description to save tokens
         assert "web_search" not in desc
 

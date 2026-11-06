@@ -88,9 +88,6 @@ class Chat(Base):
     # Never stored for incognito chats and never copied to forks; a context flush resets it.
     external_cli_sessions: Mapped[dict[str, dict[str, str]] | None] = mapped_column(JSON, nullable=True)
 
-    # Original repo root when sandbox (git worktree) is active
-    sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-
     # Project grouping: organize chats into user-defined projects
     project_id: Mapped[str | None] = mapped_column(
         String(255),

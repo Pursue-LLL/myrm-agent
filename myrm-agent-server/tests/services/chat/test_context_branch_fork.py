@@ -126,7 +126,7 @@ async def test_fork_from_branch_creates_child_chat(
 
 
 @pytest.mark.asyncio
-async def test_fork_from_branch_of_a_sandbox_chat_carries_the_pasted_files_its_snapshot_names(
+async def test_fork_from_a_branch_carries_the_pasted_files_its_snapshot_names(
     db_session: AsyncSession,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -141,14 +141,14 @@ async def test_fork_from_branch_of_a_sandbox_chat_carries_the_pasted_files_its_s
     root.mkdir()
     monkeypatch.setenv(PERSISTENT_ROOT_ENV, str(root))
 
-    repo, worktree = tmp_path / "repo", tmp_path / "repo" / ".sandboxes" / "sandbox-abc"
-    worktree.mkdir(parents=True)
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
     paste = paste_over_the_limit("meeting-line: the decision was to keep watching\n")
-    parked = ContextBombDefenseService.process_incoming_content(paste, workspace_root=worktree, kept=True)
+    parked = ContextBombDefenseService.process_incoming_content(paste, workspace_root=repo, kept=True)
     assert parked.relative_path is not None
 
     chat_id = "chat-branch-fork-paste"
-    db_session.add(Chat(id=chat_id, title="Parent", workspace_dir=str(worktree), sandbox_base_dir=str(repo)))
+    db_session.add(Chat(id=chat_id, title="Parent", workspace_dir=str(repo)))
     await db_session.commit()
     snapshot_rel = f".context/{chat_id}/snapshots/pre-compact.jsonl"
     snapshot_file = root / ".context" / chat_id / "snapshots" / "pre-compact.jsonl"

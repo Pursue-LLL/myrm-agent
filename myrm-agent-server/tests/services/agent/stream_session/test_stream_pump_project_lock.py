@@ -28,7 +28,6 @@ def _make_session(
     message_id: str = "test-msg-456",
 ) -> MagicMock:
     session = MagicMock()
-    session.is_long_running_task = False
     session.cancel_token.is_cancelled = False
     session.had_fatal_error = False
     session.request.chat_id = "test-chat-123"

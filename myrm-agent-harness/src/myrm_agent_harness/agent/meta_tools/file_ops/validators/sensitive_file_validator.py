@@ -3,7 +3,7 @@
 Detects and warns about operations on sensitive files (credentials, keys, etc.).
 
 [INPUT]
-- agent.config::DEFAULT_FILE_IO_CONFIG, (POS: Configuration and type definitions for the Deep Research system. Pure data structures with no business logic dependencies.)
+- agent.config::DEFAULT_FILE_IO_CONFIG, (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
 - agent.security.path_security::SENSITIVE_FILE_PATTERNS (POS: Path security — single source of truth for dangerous paths and sensitive files.)
 - core.security.path.pattern::first_matching_pattern (POS: shared path-pattern matcher)
 

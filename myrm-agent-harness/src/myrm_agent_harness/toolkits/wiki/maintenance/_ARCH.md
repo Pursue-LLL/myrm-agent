@@ -27,4 +27,4 @@ Deterministic broken markdown/wikilink links, frontmatter-type checks, and raw-b
 
 - `core` (config, structure, types)
 - `retrieval` (indexer for FTS5/edge updates)
-- `web_search` (optional, for deep research)
+- `web_search` (optional)

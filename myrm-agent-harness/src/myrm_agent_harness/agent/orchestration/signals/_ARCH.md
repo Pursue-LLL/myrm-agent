@@ -10,9 +10,8 @@ Parent: [../_ARCH.md](../_ARCH.md)
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Core | Re-exports signal names, DR tool builders, verifier factory | ✅ |
-| catalog.py | Core | `ORCHESTRATION_SIGNAL_NAMES` SSOT (DR + Verifier) | ✅ |
-| deep_research.py | Core | DR `dispatch_research` / `think` / `finalize_report` schemas + `build_orchestrator_tools` | ✅ |
+| __init__.py | Core | Re-exports signal names and the verifier factory | ✅ |
+| catalog.py | Core | `ORCHESTRATION_SIGNAL_NAMES` SSOT (Verifier) | ✅ |
 | verifier.py | Core | Verifier `submit_verdict` session factory | ✅ |
 
 ## Key Dependencies

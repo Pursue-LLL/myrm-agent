@@ -4,7 +4,6 @@ Validates that disabled features are correctly rejected (403) at the API layer,
 and that enabled features pass through normally.
 
 Covers:
-- action_mode gate (deep_research) via orchestrator
 - voice_interaction gate via router-level Depends (STT/TTS/Voice)
 - registration completeness
 """
@@ -67,18 +66,6 @@ class TestFeatureRegistration:
         assert not fs.enabled("consensus")
         assert any("removed" in w.lower() for w in fs.warnings())
 
-    def test_deep_research_registered_as_removed(self):
-        _init_with_overrides({})
-        spec = registry.get("deep_research")
-        assert spec is not None
-        assert spec.stage == FeatureStage.REMOVED
-        assert spec.default_enabled is False
-
-    def test_deep_research_override_is_ignored(self):
-        fs = _init_with_overrides({"deep_research": True})
-        assert not fs.enabled("deep_research")
-        assert any("removed" in w.lower() for w in fs.warnings())
-
     def test_voice_interaction_registered(self):
         _init_with_overrides({})
         spec = registry.get("voice_interaction")
@@ -87,9 +74,8 @@ class TestFeatureRegistration:
         assert spec.default_enabled is False
 
     def test_all_gated_features_default_disabled(self):
-        """voice_interaction off by default; deep_research and consensus are removed."""
+        """voice_interaction off by default; consensus is removed."""
         fs = _init_with_overrides({})
-        assert not fs.enabled("deep_research")
         assert not fs.enabled("consensus")
         assert not fs.enabled("voice_interaction")
 
@@ -100,7 +86,6 @@ class TestFeatureRegistration:
                 "voice_interaction": True,
             }
         )
-        assert not fs.enabled("deep_research")
         assert not fs.enabled("consensus")
         assert fs.enabled("voice_interaction")
 
@@ -108,13 +93,7 @@ class TestFeatureRegistration:
         from app.services.features.feature_config_service import sanitize_user_overrides
 
         _init_with_overrides({})
-        cleaned = sanitize_user_overrides(
-            {
-                "deep_research": True,
-                "consensus": True,
-            }
-        )
-        assert "deep_research" not in cleaned
+        cleaned = sanitize_user_overrides({"consensus": True})
         assert "consensus" not in cleaned
 
 
@@ -144,45 +123,6 @@ class TestVerifyVoiceEnabled:
         from app.api.dependencies import verify_voice_enabled
 
         verify_voice_enabled()
-
-
-# ---------------------------------------------------------------------------
-# 3. Action mode gate in orchestrator
-# ---------------------------------------------------------------------------
-
-
-class TestActionModeGate:
-    """Test _ACTION_MODE_FEATURE_GATE mapping and logic."""
-
-    def test_gate_mapping_has_deep_research(self):
-        from app.services.agent.stream_session.orchestrator import (
-            _ACTION_MODE_FEATURE_GATE,
-        )
-
-        assert "deep_research" in _ACTION_MODE_FEATURE_GATE
-        assert _ACTION_MODE_FEATURE_GATE["deep_research"] == "deep_research"
-
-    def test_fast_mode_not_gated(self):
-        from app.services.agent.stream_session.orchestrator import (
-            _ACTION_MODE_FEATURE_GATE,
-        )
-
-        assert "fast" not in _ACTION_MODE_FEATURE_GATE
-
-    def test_agent_mode_not_gated(self):
-        from app.services.agent.stream_session.orchestrator import (
-            _ACTION_MODE_FEATURE_GATE,
-        )
-
-        assert "agent" not in _ACTION_MODE_FEATURE_GATE
-
-    def test_none_mode_not_gated(self):
-        from app.services.agent.stream_session.orchestrator import (
-            _ACTION_MODE_FEATURE_GATE,
-        )
-
-        assert _ACTION_MODE_FEATURE_GATE.get(None or "") is None
-        assert _ACTION_MODE_FEATURE_GATE.get("") is None
 
 
 # ---------------------------------------------------------------------------
@@ -263,11 +203,10 @@ class TestExperimentalFeaturesAPI:
     """Experimental settings API must not expose removed features."""
 
     @pytest.mark.asyncio
-    async def test_experimental_list_excludes_deep_research(self, async_client: AsyncClient):
-        _init_with_overrides({"deep_research": True, "consensus": True})
+    async def test_experimental_list_excludes_removed_features(self, async_client: AsyncClient):
+        _init_with_overrides({"consensus": True})
         response = await async_client.get("/api/v1/features/experimental")
         assert response.status_code == 200
         payload = response.json()
         keys = [item["key"] for item in payload.get("features", []) if isinstance(item, dict)]
-        assert "deep_research" not in keys
         assert "consensus" not in keys

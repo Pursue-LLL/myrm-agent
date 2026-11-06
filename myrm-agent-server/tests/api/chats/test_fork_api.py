@@ -202,7 +202,7 @@ async def test_fork_with_custom_title(async_client: httpx.AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> None:
-    """Fork from parent with active sandbox resets child workspace to original repo root."""
+    """Fork inherits the folder the parent works in."""
     from sqlalchemy import select
 
     from app.database.models.chat import Chat
@@ -213,10 +213,9 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
     async with factory() as db:
         chat = Chat(
             id=chat_id,
-            title="Sandbox Parent",
+            title="Project Parent",
             source="web",
-            workspace_dir="/project/.sandboxes/sandbox-abc123",
-            sandbox_base_dir="/project",
+            workspace_dir="/project",
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
         )
@@ -249,8 +248,7 @@ async def test_fork_resets_sandbox_via_api(async_client: httpx.AsyncClient) -> N
 
     async with factory() as db:
         child = (await db.execute(select(Chat).where(Chat.id == data["new_chat_id"]))).scalar_one()
-        assert child.workspace_dir == "/project", "Child should use original repo root, not parent's sandbox worktree"
-        assert child.sandbox_base_dir is None, "Child should have no active sandbox"
+        assert child.workspace_dir == "/project"
 
 
 async def test_fork_info_endpoint_returns_root_and_depth(

@@ -157,7 +157,8 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
 
 
 @pytest.mark.asyncio
-async def test_finalize_marks_clarification_answered_after_dr_resolved_status() -> None:
+async def test_finalize_marks_nothing_when_the_turn_did_not_resume_a_clarification() -> None:
+    """Collector state alone never settles a stored card: only a resume value says a card was answered."""
     session = MagicMock()
     session.request = MagicMock()
     session.request.chat_id = "chat-clarify"
@@ -167,7 +168,7 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
     session.cancel_token = MagicMock()
     session.cancel_token.is_cancelled = False
     session.params = MagicMock()
-    session.params.message_id = "dr-stream-id"
+    session.params.message_id = "stream-id"
     session.params.model_cfg = MagicMock()
     session.params.locale = "en"
     session.collector = MagicMock()
@@ -203,4 +204,4 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
             clarification,
         )
 
-    mock_mark.assert_awaited_once_with("chat-clarify", None)
+    mock_mark.assert_not_awaited()

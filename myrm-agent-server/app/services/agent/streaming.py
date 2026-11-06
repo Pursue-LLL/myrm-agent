@@ -10,7 +10,7 @@ Bridges Agent/Orchestrator → AgentGateway → SSE output.
 
 [OUTPUT]
 - ai_agent_service_stream: General Agent SSE stream (budget_blocked semantic code; progress.started without UI copy)
-- PhaseWaiter: Generic in-process suspend/resume for Deep Research phases (clarification, plan confirmation); the Deep Research stream in streaming_support/deep_research_stream.py waits on it
+- PhaseWaiter: Generic in-process suspend/resume for Dynamic Workflow HITL gates (plan confirmation, human ask)
 - swarm_fission_resume::stream_with_swarm_fission_resume (POS: Swarm Fission Yield-Resume server orchestration)
 
 [POS]
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# PhaseWaiter — generic in-process suspend/resume for Deep Research phases
+# PhaseWaiter — generic in-process suspend/resume for Dynamic Workflow gates
 # ---------------------------------------------------------------------------
 
 PhaseAnswer = str | list[str] | dict[str, str | list[str]] | None
@@ -52,10 +52,10 @@ _phase_waiters: dict[str, "PhaseWaiter"] = {}
 
 
 class PhaseWaiter:
-    """Generic suspend/resume gate for Deep Research orchestrator phases.
+    """Generic suspend/resume gate for an in-process orchestrator phase.
 
-    Used by both Clarification and Plan Confirmation to pause the
-    orchestrator while the user provides input via a POST endpoint.
+    Used by the Dynamic Workflow plan confirmation and human-ask gates to
+    pause the orchestrator while the user provides input via a POST endpoint.
     Auto-expires after PHASE_TIMEOUT_SECONDS.
     """
 

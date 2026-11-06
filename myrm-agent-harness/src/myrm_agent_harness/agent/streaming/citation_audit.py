@@ -7,7 +7,7 @@
 - audit_citation_markers: verify fullwidth 【N】 indices against source count
 
 [POS]
-Shared streaming helper; used by server persistence and deep research report audit.
+Shared streaming helper; used by server persistence.
 """
 
 from __future__ import annotations

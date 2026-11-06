@@ -12,7 +12,6 @@
 [OUTPUT]
 - TurnParams: converted agent params plus routing attribution of one turn
 - build_turn_params: resume side effects (takeover decision, directory grant) then request → params conversion
-- resolve_research_model: light-model config for Deep Research planning
 - search_service_unavailable_detail: why a search-bound turn cannot run, or None
 - prepare_goal_provider: goal provider of the chat with the request's goal budget applied
 - build_turn_extra_context: runtime context handed to the agent run, with the prewarm join and the turn's knowledge pack
@@ -28,8 +27,8 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from app.core.types import ChatHistoryReq, ModelConfig
-from app.services.agent.params import _resolve_model_config, convert_to_general_agent_params
+from app.core.types import ChatHistoryReq
+from app.services.agent.params import convert_to_general_agent_params
 from app.services.agent.params.routing_memory import remember_turn_routing
 from app.services.agent.stream_session.proactive_pack import resolve_turn_knowledge_pack
 
@@ -84,14 +83,12 @@ async def build_turn_params(
             request.chat_id,
             request.resume_value.get("decision"),
         )
-        sandbox_active = False
         chat_workspace_dir: str | None = None
         if request.chat_id:
             try:
                 from app.services.chat.chat_service import ChatService
 
                 chat_meta = await ChatService.get_chat_metadata(request.chat_id)
-                sandbox_active = bool(chat_meta and chat_meta.sandbox_base_dir)
                 if chat_meta:
                     from app.services.chat.effective_workspace import (
                         resolve_effective_chat_workspace,
@@ -111,7 +108,6 @@ async def build_turn_params(
         await apply_directory_resume_grant(
             request.chat_id,
             request.resume_value,
-            sandbox_active=sandbox_active,
             workspace_dir=chat_workspace_dir,
         )
         (
@@ -168,25 +164,8 @@ async def build_turn_params(
     )
 
 
-async def resolve_research_model(request: AgentRequest) -> ModelConfig | None:
-    """Deep Research plans with the light model selection when the request carries one."""
-    if request.action_mode != "deep_research" or not request.light_model_selection:
-        return None
-    try:
-        from app.core.channel_bridge.config_loader import load_user_configs
-
-        configs = await load_user_configs()
-        providers_dict = configs.providers_dict if configs else None
-        return await _resolve_model_config(request.light_model_selection, providers_dict)
-    except Exception:
-        logger.warning("Failed to resolve research model")
-        return None
-
-
 def search_service_unavailable_detail(request: AgentRequest, params: GeneralAgentParams) -> str | None:
     """User-facing reason the turn cannot run without a configured search service, or None when it can."""
-    if request.action_mode == "deep_research" and not params.enable_web_search:
-        return "Search service not configured. Deep Research requires a configured search service."
     if request.agent_id in _SEARCH_AGENT_IDS and not params.enable_web_search:
         return "Search service not configured. Please add a search service in Settings."
     if request.action_mode == "fast" and params.search_service_cfg is None:

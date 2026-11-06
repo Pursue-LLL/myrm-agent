@@ -54,7 +54,6 @@ async def _run_pump(registry: GlobalStreamRegistry, message_id: str, *chunks: st
     session.request.message_id = message_id
     session.request.chat_id = "chat-cleanup"
     session.params.project_id = None
-    session.is_long_running_task = False
     session.had_fatal_error = False
     session.registry = registry
     buffer = await registry.start_run(message_id)

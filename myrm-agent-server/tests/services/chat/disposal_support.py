@@ -18,8 +18,6 @@ from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
 from app.services.chat import chat_disposal
 
 CHAT_ID = "chat-disposal-1"
-SANDBOX_ROOT = "/tmp/myrm-test-sandbox"
-SANDBOX_DIR = f"{SANDBOX_ROOT}/{CHAT_ID}"
 OWNER = "sandbox"
 
 
@@ -29,7 +27,6 @@ class Spies:
     execution_cache: AsyncMock
     memory_purge: AsyncMock
     retry_queue: AsyncMock
-    worktree: AsyncMock
     workspace: AsyncMock
     ephemeral_delta: MagicMock
 
@@ -41,7 +38,6 @@ def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
         execution_cache=AsyncMock(),
         memory_purge=AsyncMock(return_value={}),
         retry_queue=AsyncMock(),
-        worktree=AsyncMock(return_value=True),
         workspace=AsyncMock(return_value={}),
         ephemeral_delta=MagicMock(),
     )
@@ -50,7 +46,6 @@ def install_spies(monkeypatch: pytest.MonkeyPatch) -> Spies:
     manager = MagicMock(purge_by_source_chat_id=recorded.memory_purge)
     monkeypatch.setattr("app.core.memory.get_cascade_memory_manager", AsyncMock(return_value=manager))
     monkeypatch.setattr("app.services.memory.extract_retry.extract_retry_queue.clear_for_chat", recorded.retry_queue)
-    monkeypatch.setattr("app.services.chat.sandbox_worktree.cleanup_sandbox_worktree", recorded.worktree)
     monkeypatch.setattr("app.services.infra.sandbox_cleanup.cleanup_chat_workspaces", recorded.workspace)
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.memory.ephemeral_delta.notify.clear_ephemeral_deltas_for_session",

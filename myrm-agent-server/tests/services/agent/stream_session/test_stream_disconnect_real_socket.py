@@ -48,7 +48,6 @@ def _session(request: Request) -> AgentStreamSession:
             collector=SimpleNamespace(has_subscribers=False),
             params=SimpleNamespace(message_id="msg-1"),
             cancel_token=CancellationToken(request_id="msg-1"),
-            is_long_running_task=False,
             disconnect_monotonic=None,
             disconnect_time=None,
             last_activity_monotonic=time.monotonic() - ACTIVITY_STALE_SECONDS - 1,

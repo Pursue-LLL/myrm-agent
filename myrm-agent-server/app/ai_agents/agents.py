@@ -198,7 +198,6 @@ class AgentFactory:
             subagent_ids=params.subagent_ids,
             jit_subagents=params.jit_subagents,
             session_loaded_skill_names=params.session_loaded_skill_names,
-            sandbox_base_dir=params.sandbox_base_dir,
             max_iterations=params.max_iterations,
             memory_policy=params.memory_policy,
             memory_decay_profile=params.memory_decay_profile,

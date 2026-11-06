@@ -46,19 +46,19 @@ class TestFeatureSpec:
 
     def test_valid_experimental_feature(self):
         spec = FeatureSpec(
-            id="deep_research",
-            key="deep_research",
+            id="voice_interaction",
+            key="voice_interaction",
             stage=FeatureStage.EXPERIMENTAL,
             default_enabled=False,
-            description="Deep research",
+            description="Voice interaction",
             experimental_info=ExperimentalInfo(
-                name="Deep Research",
-                description="Multi-step research",
+                name="Voice Interaction",
+                description="Hands-free voice input and output",
                 announcement="NEW!",
             ),
         )
         assert spec.experimental_info is not None
-        assert spec.experimental_info.name == "Deep Research"
+        assert spec.experimental_info.name == "Voice Interaction"
 
     def test_experimental_without_info_raises(self):
         with pytest.raises(ValueError, match="missing experimental_info"):

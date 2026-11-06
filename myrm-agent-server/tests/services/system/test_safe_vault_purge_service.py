@@ -22,11 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 from app.platform_utils import _reset_checkpointer_for_testing, set_checkpointer
 from app.services.chat import chat_disposal
 from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES
-from app.services.chat.chat_disposal import ChatFilesRemoval
 from app.services.system.vault_purge_service import SafeVaultPurgeService
 from tests.support.real_schema_db import create_real_schema_engine, seed_row
 
-SANDBOX_DIR = "/work/repo"
 CONVERSATION_TABLES = (
     "chats",
     "messages",
@@ -47,7 +45,7 @@ FTS_QUERIES = {
 
 
 async def _seed_conversation(conn: AsyncConnection, chat_id: str = "chat-1") -> None:
-    await seed_row(conn, "chats", id=chat_id, sandbox_base_dir=SANDBOX_DIR)
+    await seed_row(conn, "chats", id=chat_id)
     await seed_row(conn, "messages", id=f"m-{chat_id}", chat_id=chat_id, content="apple pie recipe")
     await seed_row(conn, "messages", id=f"m2-{chat_id}", chat_id=chat_id, content="second reply")
     await seed_row(conn, "channel_messages", chat_id=chat_id, channel="wechat", id=f"c-{chat_id}")
@@ -92,7 +90,7 @@ async def purge_engine(tmp_path: Path) -> AsyncIterator[AsyncEngine]:
 @pytest.fixture
 def remove_files() -> Iterator[AsyncMock]:
     """The file removal is covered by the disposal tests; here it must only be called with the right input."""
-    spy = AsyncMock(return_value=ChatFilesRemoval(removed_worktrees=1, kept_worktrees=2))
+    spy = AsyncMock()
     with patch.object(chat_disposal, "remove_chat_files", spy):
         yield spy
 
@@ -169,17 +167,14 @@ async def test_purge_resets_the_consumer_cursors_of_the_wiped_tables(purge_engin
 
 
 @pytest.mark.asyncio
-async def test_purge_hands_every_sandbox_to_the_file_removal_and_reports_what_stayed(
-    purge_engine: AsyncEngine, remove_files: AsyncMock
-) -> None:
+async def test_purge_hands_every_purged_chat_to_the_file_removal(purge_engine: AsyncEngine, remove_files: AsyncMock) -> None:
     async with purge_engine.begin() as conn:
-        await seed_row(conn, "chats", id="chat-no-sandbox")
+        await seed_row(conn, "chats", id="chat-2")
 
-    result = await SafeVaultPurgeService.purge_vault()
+    await SafeVaultPurgeService.purge_vault()
 
-    remove_files.assert_awaited_once_with({"chat-1": SANDBOX_DIR, "chat-no-sandbox": None})
-    assert result.cleared_sandboxes == 1
-    assert result.kept_sandboxes == 2
+    remove_files.assert_awaited_once()
+    assert sorted(remove_files.await_args.args[0]) == ["chat-1", "chat-2"]
 
 
 @pytest.mark.asyncio
