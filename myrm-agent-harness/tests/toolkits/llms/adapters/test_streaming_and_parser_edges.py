@@ -10,7 +10,6 @@ import json
 from types import SimpleNamespace
 
 from myrm_agent_harness.toolkits.llms.adapters.streaming import (
-    _is_complete_json_fragment,
     aggregate_tool_call_chunk,
     build_tool_call_chunks,
     normalize_usage,
@@ -51,17 +50,6 @@ class TestProviderReportedFinish:
         assert provider_reported_finish(None) is None
         assert provider_reported_finish(iter(())) is None
         assert provider_reported_finish(SimpleNamespace()) is None
-
-
-class TestIsCompleteJsonFragment:
-    def test_complete_object(self) -> None:
-        assert _is_complete_json_fragment('{"a": 1}') is True
-
-    def test_partial_object(self) -> None:
-        assert _is_complete_json_fragment('{"a":') is False
-
-    def test_non_json_prefix(self) -> None:
-        assert _is_complete_json_fragment("not-json") is False
 
 
 class TestBuildToolCallChunks:
@@ -188,18 +176,6 @@ class TestAnthropicXmlGuards:
 class TestQwenXmlGuards:
     def test_empty_content(self) -> None:
         assert _parse_qwen_xml_json_format("") == []
-
-
-class TestJsonFragmentGuards:
-    def test_non_string_input(self) -> None:
-        assert _is_complete_json_fragment(None) is False
-        assert _is_complete_json_fragment(123) is False
-
-    def test_array_fragment(self) -> None:
-        assert _is_complete_json_fragment("[1, 2]") is True
-
-    def test_invalid_json(self) -> None:
-        assert _is_complete_json_fragment("{bad}") is False
 
 
 class TestNormalizeUsageModelDump:
