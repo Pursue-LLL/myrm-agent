@@ -1,3 +1,19 @@
+"""Resolve a ModelSelection into a credentialed ModelConfig from the WebUI provider rows.
+
+[INPUT]
+- ..models::ModelSelection (POS: provider id, model, base URL and per-request model kwargs)
+- .providers::_find_provider_api_key (POS: key lookup when no enabled provider row matches)
+- app.core.channel_bridge.model_resolver (POS: active key extraction, litellm model naming, default-model fallback)
+
+[OUTPUT]
+- _resolve_model_config: ModelSelection -> ModelConfig; raises ValueError when the provider has no active key
+- _resolve_provider_base_url: the base URL from the explicit selection only
+
+[POS]
+The single resolver behind `model_config.__init__`: picks the enabled provider row, collects its active keys,
+applies base URL, egress proxy and reasoning effort, and enriches the result with the provider's wire metadata.
+"""
+
 from __future__ import annotations
 
 import logging

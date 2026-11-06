@@ -1,4 +1,11 @@
-"""回退链解析子包：轻量模型、视觉、视频、槽位与后台进化。"""
+"""回退链解析子包：轻量模型、视觉、视频、槽位与后台进化。
+
+[OUTPUT]
+`model.py` 的轻量模型与视觉回退解析、`slot.py` 的槽位 / 视频 / 后台进化 / 聊天回退链构建、`resolution.py` 的槽位回退链提取
+
+[POS]
+`app.core.channel_bridge.config_parsers.fallbacks` 的唯一入口；各类回退链的解析实现在同目录单独模块中。
+"""
 
 from app.core.channel_bridge.config_parsers.fallbacks.model import (
     build_vision_fallback_config_chain,

@@ -52,7 +52,6 @@ app/api/files/vault_api.py
 app/api/files/vault_proxy.py
 app/api/health/router.py
 app/api/integrations/catalog.py
-app/api/integrations/llms.py
 app/api/integrations/router.py
 app/api/integrations/search.py
 app/api/kanban/routes/bulk.py
@@ -74,11 +73,7 @@ app/api/security/schemas.py
 app/api/security/vault_credentials.py
 app/api/skill_optimization/dependencies.py
 app/api/skill_optimization/router.py
-app/api/skill_optimization/routes/dashboard.py
-app/api/skill_optimization/routes/optimization.py
-app/api/skill_optimization/routes/system.py
 app/api/skill_optimization/routes/versions.py
-app/api/skills/audit.py
 app/api/skills/config.py
 app/api/skills/core.py
 app/api/skills/curator.py
@@ -88,7 +83,6 @@ app/api/skills/instances.py
 app/api/skills/migrations.py
 app/api/skills/packaging.py
 app/api/skills/permissions.py
-app/api/skills/quality.py
 app/api/skills/router.py
 app/api/skills/schemas.py
 app/api/skills/sync.py
@@ -117,7 +111,6 @@ app/core/channel_bridge/agent_executor/session.py
 app/core/channel_bridge/personality_adapter.py
 app/core/channel_bridge/providers/http_timeout.py
 app/core/channel_bridge/search_topology.py
-app/core/cron/adapters/agent_runner.py
 app/core/cron/adapters/channel_delivery.py
 app/core/cron/adapters/memory_lock.py
 app/core/cron/adapters/setup.py
@@ -153,7 +146,6 @@ app/core/storage/models.py
 app/core/storage/service.py
 app/core/types/business.py
 app/core/utils/__init__.py
-app/core/utils/chat_utils.py
 app/core/utils/files_utils.py
 app/database/allowlist_store.py
 app/database/connection.py
@@ -165,7 +157,6 @@ app/database/repositories/fission_repo.py
 app/lifecycle/__init__.py
 app/lifecycle/browser.py
 app/lifecycle/monitors.py
-app/lifecycle/schedulers.py
 app/middleware/auth.py
 app/middleware/cache.py
 app/middleware/ingress.py
@@ -187,7 +178,6 @@ app/services/agent/params/__init__.py
 app/services/agent/params/helpers.py
 app/services/agent/params/media.py
 app/services/agent/params/models.py
-app/services/agent/params/resolvers.py
 app/services/agent/search.py
 app/services/agent/stream_session/reconnect.py
 app/services/agent/stream_session/risk_gate.py
