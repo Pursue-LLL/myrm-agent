@@ -68,6 +68,16 @@ _FAILOVER_REASON_TO_BUSINESS_CODE: dict[FailoverReason, BusinessCode] = {
 _DEFAULT_LLM_BUSINESS_CODE = BusinessCode.AI_MODEL_ERROR
 
 
+# What a route tells the user about a failed model call: the provider's own text stays in the log, because it can
+# name keys, hosts and account details.
+_AI_FAILURE_MESSAGES: dict[BusinessCode, str] = {
+    BusinessCode.AI_AUTH_ERROR: "AI service authentication failed",
+    BusinessCode.AI_RATE_LIMIT_ERROR: "AI service rate limited",
+    BusinessCode.AI_TIMEOUT_ERROR: "AI service timeout",
+    BusinessCode.AI_MODEL_ERROR: "AI model call failed",
+}
+
+
 _FAILOVER_REASON_TO_DETAILED_REASON: dict[FailoverReason, str] = {
     FailoverReason.RATE_LIMIT: "rate_limit_exceeded",
     FailoverReason.LONG_CONTEXT_TIER: "long_context_tier",

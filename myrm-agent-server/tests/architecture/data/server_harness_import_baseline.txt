@@ -402,6 +402,7 @@ myrm_agent_harness.toolkits.llms.media_task_types
 myrm_agent_harness.toolkits.llms.routing
 myrm_agent_harness.toolkits.llms.routing.complexity_router
 myrm_agent_harness.toolkits.llms.text_completion
+myrm_agent_harness.toolkits.llms.transport
 myrm_agent_harness.toolkits.llms.tts
 myrm_agent_harness.toolkits.llms.tts.generator
 myrm_agent_harness.toolkits.llms.tts.models
