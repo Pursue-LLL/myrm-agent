@@ -5,6 +5,8 @@ interface BrandLogoProps {
   className?: string;
   size?: number;
   priority?: boolean;
+  /** The brand name is already written next to the mark, so the image adds nothing for assistive tech. */
+  decorative?: boolean;
 }
 
 const BRAND_ICON_SRC = '/brand/brand-mark-128.webp';
@@ -14,11 +16,11 @@ function brandIconSrc(displaySize: number): string {
   return displaySize > 64 ? BRAND_ICON_LARGE_SRC : BRAND_ICON_SRC;
 }
 
-export default function BrandLogo({ className, size = 40, priority = false }: BrandLogoProps) {
+export default function BrandLogo({ className, size = 40, priority = false, decorative = false }: BrandLogoProps) {
   return (
     <Image
       src={brandIconSrc(size)}
-      alt="MyrmAgent"
+      alt={decorative ? '' : 'MyrmAgent'}
       width={size}
       height={size}
       priority={priority}
