@@ -8,7 +8,7 @@
 [OUTPUT]
 - classify_verification(): the verification category of a bash tool call, or None
 - tag_verification_call(): records the category on a finished bash call and fails it when its exit code says so
-- imports_mcp_skill(): whether a script's text imports an MCP skill
+- imports_mcp_skill(): whether a script's source imports an MCP skill module
 - script_runs(): the ``python <file>.py`` runs a command line makes, with the directory a ``cd`` set
 
 [POS]
@@ -117,9 +117,17 @@ _PROGRAM_ALIASES = {"gradlew": "gradle", "mvnw": "mvn"}
 _PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*)?")
 # A script that imports an MCP skill makes a tool call. It checks nothing about the code the run wrote: a pass would
 # stand in for a test run that never happened, and a failure would be held against the run as a failed check.
-# It reaches the skill by an import statement or by loading ``skills.<name>`` through ``importlib``.
-_SKILL_SCRIPT = re.compile(
+# A command that touches the ``skills`` namespace in any way is left out, which includes a probe of it
+# (``import skills``): the command is the model's own look at the runtime, never a check of its work.
+_SKILL_NAMESPACE_USE = re.compile(
     r"\b(?:from|import)\s+(?:skills\b|\w+_skill\b)|\b(?:import_module|__import__)\(\s*f?[\"']skills\b"
+)
+# A script saved to a file is judged by the one thing that makes it a tool call: it names an MCP skill module
+# (``mcp_<server>_skill``, bare or under ``skills.``). A workspace may hold a package of its own called ``skills``, and
+# code written against that is code the run must verify.
+_MCP_SKILL_MODULE = r"(?:skills\.)?mcp_\w+_skill\b"
+_MCP_SKILL_IMPORT = re.compile(
+    rf"\b(?:from|import)\s+{_MCP_SKILL_MODULE}|\b(?:import_module|__import__)\(\s*f?[\"'](?:{_MCP_SKILL_MODULE}|skills\.)"
 )
 _NON_VERIFYING_PYTHON_MODULES = frozenset({"pip", "venv", "ensurepip"})
 _PYTHON_RUNS_NO_FILE = frozenset({"-m", "-c"})
@@ -240,7 +248,7 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
     A command that carries a script importing an MCP skill is a tool call, not a verification.
     """
     command = _command(tool_args).lower()
-    if not command or imports_mcp_skill(command):
+    if not command or _SKILL_NAMESPACE_USE.search(command):
         return None
     for segment in _segments(command):
         category = _classify_segment(segment)
@@ -249,8 +257,9 @@ def classify_verification(tool_args: dict[str, object]) -> VerificationCategory 
     return None
 
 
-def imports_mcp_skill(text: str) -> bool:
-    return _SKILL_SCRIPT.search(text) is not None
+def imports_mcp_skill(source: str) -> bool:
+    """Whether a script's source imports an MCP skill module (a bare ``skills`` package of the workspace does not)."""
+    return _MCP_SKILL_IMPORT.search(source) is not None
 
 
 def _unquote(token: str) -> str:

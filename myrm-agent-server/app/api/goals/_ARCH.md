@@ -17,4 +17,4 @@
 
 ## 关键常量
 
-- `NON_TERMINAL_GOAL_STATUSES`: 7 种非终态状态的 frozenset，定义在 `app/services/agent/goals/goal_controls.py`，本路由与 statistics/router.py 复用
+- `NON_TERMINAL_GOAL_STATUSES`: 7 种非终态状态的 frozenset，定义在 `app/services/agent/goals/goal_controls.py`，本路由与 statistics/router/activity.py 复用
