@@ -4115,6 +4115,7 @@
     "media_rejected_recovery": "Modell hat Medien abgelehnt — entfernt und neuer Versuch",
     "vision_fallback_recovery": "Model kann keine Bilder verarbeiten — in Text umgewandelt, erneuter Versuch",
     "thinking_signature_recovery": "Denkblock repariert — erneuter Versuch",
+    "reasoning_mandatory_recovery": "Modell verlangt Schlussfolgerung — Stufe angepasst, erneuter Versuch",
     "tool_history_recovery": "Konversationsverlauf repariert — erneuter Versuch",
     "image_shrink_recovery": "Bilder an Limits angepasst — erneuter Versuch",
     "long_context_tier_recovery": "Kontextstufe angepasst — erneuter Versuch",

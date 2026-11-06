@@ -4115,6 +4115,7 @@
     "media_rejected_recovery": "模型拒絕媒體輸入 — 已移除並重試",
     "vision_fallback_recovery": "模型不支援圖片 — 已轉為文字描述並重試",
     "thinking_signature_recovery": "思考區塊已修復並重試",
+    "reasoning_mandatory_recovery": "模型要求開啟推理 — 已調整推理強度並重試",
     "tool_history_recovery": "對話歷史已自動修復並重試",
     "image_shrink_recovery": "圖片已壓縮至限制內並重試",
     "long_context_tier_recovery": "上下文層級已調整並重試",

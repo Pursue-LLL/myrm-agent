@@ -9,6 +9,7 @@ describe('statusStreamProgressSteps allowed_tools recovery', () => {
 
   it('recognizes stream recovery progress steps', () => {
     expect(isStatusProgressStep('thinking_signature_recovery')).toBe(true);
+    expect(isStatusProgressStep('reasoning_mandatory_recovery')).toBe(true);
     expect(isStatusProgressStep('tool_history_recovery')).toBe(true);
     expect(isStatusProgressStep('image_shrink_recovery')).toBe(true);
     expect(isStatusProgressStep('image_payload_recovery')).toBe(true);

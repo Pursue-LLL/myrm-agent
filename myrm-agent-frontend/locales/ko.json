@@ -4115,6 +4115,7 @@
     "media_rejected_recovery": "모델이 미디어를 거부함 — 제거 후 재시도 중",
     "vision_fallback_recovery": "모델이 이미지를 지원하지 않음 — 텍스트로 변환 후 재시도 중",
     "thinking_signature_recovery": "씽킹 블록 복구됨 — 재시도 중",
+    "reasoning_mandatory_recovery": "모델이 추론을 요구함 — 추론 강도 조정 후 재시도 중",
     "tool_history_recovery": "대화 기록 복구됨 — 재시도 중",
     "image_shrink_recovery": "이미지가 제한에 맞게 축소됨 — 재시도 중",
     "long_context_tier_recovery": "컨텍스트 티어가 조정됨 — 재시도 중",

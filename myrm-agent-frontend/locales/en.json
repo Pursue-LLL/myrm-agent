@@ -4130,6 +4130,7 @@
     "media_rejected_recovery": "Model rejected media — removed and retrying",
     "vision_fallback_recovery": "Model can't see images — converted to text, retrying",
     "thinking_signature_recovery": "Thinking block repaired — retrying",
+    "reasoning_mandatory_recovery": "Model requires reasoning — effort adjusted and retrying",
     "tool_history_recovery": "Conversation history repaired — retrying",
     "image_shrink_recovery": "Images resized to fit limits — retrying",
     "long_context_tier_recovery": "Context tier adjusted — retrying",

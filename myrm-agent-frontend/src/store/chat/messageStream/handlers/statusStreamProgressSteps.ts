@@ -41,6 +41,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'media_rejected_recovery',
   'vision_fallback_recovery',
   'thinking_signature_recovery',
+  'reasoning_mandatory_recovery',
   'tool_history_recovery',
   'image_shrink_recovery',
   'image_payload_recovery',
