@@ -88,9 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     for problem in problems:
         print(f"[bundle-verify] FAIL: {problem}", file=sys.stderr)
     if not problems:
-        print(
-            "[bundle-verify] OK: every first-party module, tool script and harness data file is in, no channel SDK is"
-        )
+        print("[bundle-verify] OK: first-party modules, tool scripts and harness data files are bundled; channel SDKs are not")
     return 1 if problems else 0
 
 
