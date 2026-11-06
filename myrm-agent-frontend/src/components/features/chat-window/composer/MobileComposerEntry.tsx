@@ -27,10 +27,11 @@ export function MobileComposerEntry({ actionMode, setActionMode, onOpenSheet }: 
 
   return (
     <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
+      {/* The glyph stays 28px; the invisible `after:` box lifts the touch target to 44×44 on every side except the right, where the mode switch sits 6px away. */}
       <button
         type="button"
         onClick={onOpenSheet}
-        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
+        className="relative flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors after:absolute after:-inset-y-2 after:-left-3.5 after:-right-0.5"
         aria-label={chatT('input.expandToolbar')}
         data-testid="sendbox-mobile-plus-btn"
       >

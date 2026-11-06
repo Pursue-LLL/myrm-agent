@@ -184,3 +184,17 @@ describe('ComposerTextarea releasing the warm turn on blur', () => {
     expect(prewarm.cancelPrewarm).not.toHaveBeenCalled();
   });
 });
+
+describe('ComposerTextarea colors', () => {
+  // Against the composer surface the placeholder at half opacity measured 2.0:1 in the light palette and 2.7:1 in the dark one;
+  // the full muted-foreground token measures 5.1:1 and 7.0:1. Typed text stays on the foreground token so imported palettes recolor it.
+  it('keeps the placeholder readable and the text on theme tokens', () => {
+    const { textarea } = renderTextarea();
+    const classes = Array.from(textarea.classList);
+
+    expect(classes).toEqual(expect.arrayContaining(['placeholder:text-muted-foreground', 'text-foreground']));
+    expect(
+      classes.filter((name) => /^placeholder:text-muted-foreground\/|^(dark:)?text-(black|white)/.test(name)),
+    ).toEqual([]);
+  });
+});

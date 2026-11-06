@@ -144,7 +144,7 @@ export function ComposerTextarea({
       onClick={onCaretMove}
       minRows={expanded ? 8 : 2}
       className={cn(
-        'bg-transparent placeholder:text-muted-foreground/50 text-base sm:text-sm text-black dark:text-white resize-none focus:outline-none w-full',
+        'bg-transparent placeholder:text-muted-foreground text-base sm:text-sm text-foreground resize-none focus:outline-none w-full',
         expanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]',
       )}
       placeholder={placeholder}
