@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-蓝图的 ja/de/ko 补充文案：en/zh 文案写在蓝图定义里，本包只放其余三种语言的标题、描述与提示词模板，按蓝图 ID 索引。`core/types.py` 的 `_with_supplemental_locales` 用 `SUPPLEMENTAL_BY_ID` 按蓝图 ID 取补充文案，逐字段合并进蓝图（同语言键以补充文案为准）。上级文档：[../_ARCH.md](../_ARCH.md)。
+蓝图的 ja/de/ko 补充文案：en/zh 文案写在蓝图定义里，本包只放其余三种语言的标题、描述与提示词模板，按蓝图 ID 索引。`../core/types.py` 的 `_with_supplemental_locales` 用 `SUPPLEMENTAL_BY_ID` 按蓝图 ID 取补充文案，逐字段合并进蓝图（同语言键以补充文案为准）。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

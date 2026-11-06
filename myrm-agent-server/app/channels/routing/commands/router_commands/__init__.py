@@ -1,4 +1,11 @@
-"""Router 命令 mixin 门面：按命令族组合。"""
+"""Router 命令 mixin 门面：按命令族组合。
+
+[OUTPUT]
+各命令族 mixin（审批、审批收尾、委派、草稿、目标、记忆、模式、配额、会话、停止）、由它们组合出的 RouterCommandsMixin、DraftAction / parse_draft_args
+
+[POS]
+`app.channels.routing.commands.router_commands` 的唯一入口；每个命令族的实现在同目录单独模块中。
+"""
 
 from app.channels.routing.commands.router_commands.approval import RouterCommandsApprovalMixin
 from app.channels.routing.commands.router_commands.approval_end import RouterCommandsApprovalEndMixin
