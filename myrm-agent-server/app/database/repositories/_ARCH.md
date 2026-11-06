@@ -9,7 +9,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|---|
-| `chat_repo.py` | 核心 | 提供 Chat 和 Message 实体 CRUD、compaction CAS 与 sibling group 持久化、路由档位历史（动量窗口、被重试回合的档位），并委托消息级 FTS5 检索。重试与版本计数只作用于回合的回答，系统通知行（`SYSTEM_NOTICE_EXTRA_KEYS`）保持活跃且不入版本组；`get_last_user_message` 跳过没有起回合的后台完成通知（`WAKEUP_NOTICE_INERT_KINDS`），重试、重新生成、撤销因此作用于它之前的回合；`get_latest_message(conversation_only=True)` 在此之上再去掉全部后台完成通知行（`NOT_WAKEUP_NOTICE`），供会话列表预览重算使用（压缩边界仍取真实最新一行）。无痕会话的 `title` / `first_message` / `last_message` 在 `add_chat` 与 `update_chat_fields` 两个写入口统一不落库（单条 UPDATE 内按行上的无痕标记保留原值）。 | ✅ |
+| `chat_repo/` | 核心 | Chat / Message 仓储，按实体拆 4 个 mixin（chats / messages / siblings / routing）+ `common`（常量与回合过滤条件）+ `store`（组合，全静态方法、无实例状态）：Chat/Message CRUD、compaction CAS、sibling group、路由档位历史、回收站生命周期；消息级 FTS5 委托 `chat_message_search_repo`。见 [chat_repo/_ARCH.md](chat_repo/_ARCH.md) | ✅ |
 | `chat_message_search_repo.py` | 辅助 | 聊天消息全文检索仓储，封装消息级 FTS5 查询、active message 过滤与 Conversation Recall 排除策略。提供 `get_matching_chat_ids()` 供侧边栏 keyword 搜索接入 FTS。 | ✅ |
 | `channel_key_match.py` | 辅助 | 渠道会话键的边界匹配：`channel_key_extends`（会话键本身与以 `:` 续接的键：话题、智能体、纪元）与 `channel_key_epochs`（会话键本身与其重置纪元 `:e=`，不含同一对端的话题与智能体）。按键的段边界做索引范围比较，不用 `LIKE` 前缀（前缀会把 `u1` 与 `u10` 混为一谈，且 `_` 是通配符）；空闲重置、渠道预算的成本汇总与审计、最新渠道聊天的查找共用 | ✅ |
 | `chat_history_sync_repo.py` | 辅助 | 聊天历史同步仓储：`load_branch` 读取压缩锚点之后的活跃消息有序 id 与压缩状态（不受历史条数上限约束，同刻时间戳以 id 定序）、`has_active_answer`（按 `request_message_id` 判断本回合回答已落库且活跃）、`store_token` 写 `Chat.history_sync_token`（不触碰 `updated_at`） | ✅ |
@@ -24,4 +24,4 @@
 
 - 依赖 `app.database.models`：进行 ORM 对象的构建与映射。
 - 依赖 `sqlalchemy.ext.asyncio`：底层数据库会话执行。
-- `chat_repo.py` 依赖 `chat_message_search_repo.py`：将消息级全文检索 SQL 从 Chat/Message CRUD 仓储中分离。
+- `chat_repo/messages.py` 依赖 `chat_message_search_repo.py`：将消息级全文检索 SQL 从 Chat/Message CRUD 仓储中分离。
