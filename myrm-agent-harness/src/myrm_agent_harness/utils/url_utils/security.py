@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import re as _re
 
-from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname
+from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname, parse_outbound_url
 
 from .blocking import (
     _BLOCKED_HOSTNAME_SUFFIXES,
@@ -86,6 +86,10 @@ _DEFAULT_WHITELIST_PATTERNS: list[_re.Pattern[str]] = [
 ]
 
 
+# Text before the '@' of an authority is a credential pair; it names no host.
+_USERINFO = _re.compile(r"(?<=://)[^/?#]*@")
+
+
 def check_url_exfiltration(
     url: str,
     *,
@@ -136,10 +140,14 @@ def check_url_exfiltration(
             else:
                 whitelist.append(pattern)
 
-    # Check whitelist
-    for pattern in whitelist:
-        if pattern.search(url):
-            return []  # Whitelisted, skip detection
+    # A whitelist entry names the host the client dials (http://localhost:80@evil.test/ dials evil.test), so it is
+    # read from the canonical URL without credentials; a URL with no canonical form is never whitelisted.
+    if whitelist:
+        target, _ = parse_outbound_url(url)
+        if target is not None:
+            dialed = _USERINFO.sub("", target.url, count=1)
+            if any(pattern.search(dialed) for pattern in whitelist):
+                return []  # Whitelisted, skip detection
 
     # 1-6: Use precompiled patterns for performance
     for _name, (pattern, message) in _EXFILTRATION_PATTERNS.items():
