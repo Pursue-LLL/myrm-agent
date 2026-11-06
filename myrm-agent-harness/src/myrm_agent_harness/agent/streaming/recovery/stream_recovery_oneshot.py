@@ -467,4 +467,3 @@ def _strip_all_media_from_messages(messages: list[BaseMessage]) -> int:
             msg.content = new_content  # type: ignore[assignment]
             stripped_count += 1
     return stripped_count
-
