@@ -4,7 +4,8 @@ The shell is started from its install location with the working directory and en
 Start-menu or desktop launch: no Node.js on PATH and, on macOS and Linux, a fresh profile directory (the
 slowest, first launch). It has to bring up the Python backend and the bundled Next.js server on their fixed
 ports, serve a page whose static assets resolve, serve the data the backend ships (skills, agent templates,
-integration catalog, search providers), stay up, and shut its children down when asked to quit.
+integration catalog, search providers), create every channel type it offers (smoke_channels.py), stay up, and shut
+its children down when asked to quit.
 
 Usage:
     python smoke_launch_shell.py --bundle <MyrmAgent.app | AppImage squashfs-root | install directory>
@@ -29,6 +30,8 @@ import urllib.request
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+import smoke_channels
 
 HOST = "127.0.0.1"
 # Fixed by the shell: BackendConfig's default port and `DESKTOP_FRONTEND_PORT` in src-tauri/src/config.rs.
@@ -259,6 +262,18 @@ def check_bundled_data(shell: subprocess.Popen[bytes], log: Path, ports: Ports) 
         )
 
 
+def check_channels(log: Path, ports: Ports) -> None:
+    """Every channel type the product offers must be creatable, as the settings page creates one."""
+    check = smoke_channels.create_every_channel(ports.backend_root)
+    for leftover in check.leftovers:
+        print(f"[shell-smoke] warning: channel instance not removed: {leftover}")
+    if check.problems:
+        problems = "\n".join(f"  {problem}" for problem in check.problems)
+        raise SmokeFailure(f"the backend cannot create channel types it offers:\n{problems}\n{log_tail(log)}")
+    unavailable = ", ".join(check.unavailable) or "none"
+    print(f"[shell-smoke] channels: {len(check.created)} types created and removed; unavailable by design: {unavailable}")
+
+
 def served_ports(ports: Ports) -> list[int]:
     """The ports of `ports` that currently accept a connection."""
     served: list[int] = []
@@ -389,6 +404,7 @@ def run(bundle: Path, platform: str, *, ports: Ports = DEFAULT_PORTS, ready_time
             wait_until_ready(shell, log, ports, ready_timeout_sec)
             check_static_assets(ports.frontend_root)
             check_bundled_data(shell, log, ports)
+            check_channels(log, ports)
             stay_up(shell, log, ports)
             if platform == "win32":
                 # Windows has no SIGTERM to send, so the graceful quit is not exercised here; the tree kill is

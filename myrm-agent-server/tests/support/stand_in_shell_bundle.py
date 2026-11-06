@@ -6,7 +6,8 @@
 [OUTPUT]
 - Ports: the two ports a stand-in shell serves on
 - stand_in_bundle(): a macOS `.app` or Linux `squashfs-root`-style directory whose executable starts a backend and a
-  frontend as children on those ports, with a chosen behaviour (healthy, crash, leaky, ...), page and data
+  frontend as children on those ports, with a chosen behaviour (healthy, crash, leaky, ...), page, data and
+  channel API
 
 [POS]
 Test double for scripts/ci/desktop-release/smoke_launch_shell.py: the smoke has to be shown to fail on every way the
@@ -32,7 +33,7 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-role, port, frontend, data = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+role, port, frontend, data, channels = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
 PAGE = b'<script src="/_next/static/app.js"></script>' if frontend != "bare" else b"<html></html>"
 STARTED = time.monotonic()
 # The lists the backend builds from its bundled data, in the two response shapes the real API uses.
@@ -42,6 +43,9 @@ LISTS = {
     "/api/v1/integrations/catalog": {"success": True, "data": {"entries": [{"id": "c"}], "total": 1}},
     "/api/v1/integrations/search/providers": {"success": True, "data": {"providers": [{"slug": "p"}]}},
 }
+CHANNELS = "/api/v1/channels/manage"
+# A bundle without the Discord SDK refuses that type and says so; a defective one refuses more.
+REFUSED = {"discord"} | ({"telegram", "slack"} if channels == "refusing" else set())
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -50,6 +54,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(b"ok")
         elif role == "backend" and self.path in LISTS:
             self.reply_list(self.path)
+        elif role == "backend" and self.path == CHANNELS + "/status":
+            self.reply(json.dumps([{"name": "discord", "channelType": "discord", "status": "unavailable"}]).encode())
         elif role == "frontend" and self.path == "/":
             self.reply(PAGE)
         elif role == "frontend" and self.path == "/_next/static/app.js" and frontend == "complete":
@@ -57,8 +63,26 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def reply(self, body):
-        self.send_response(200)
+    def do_POST(self):
+        if role != "backend" or self.path != CHANNELS + "/instances":
+            self.send_error(404)
+            return
+        channel_type = json.loads(self.rfile.read(int(self.headers["Content-Length"])))["channelType"]
+        if channel_type in REFUSED:
+            detail = f"Channel type '{channel_type}' unavailable (missing SDK?)"
+            self.reply(json.dumps({"detail": detail}).encode(), 400)
+        else:
+            body = {"instanceId": "i-" + channel_type, "channelType": channel_type, "status": "disabled"}
+            self.reply(json.dumps(body).encode(), 201)
+
+    def do_DELETE(self):
+        if role == "backend" and self.path.startswith(CHANNELS + "/instances/"):
+            self.reply(b"", 204)
+        else:
+            self.send_error(404)
+
+    def reply(self, body, status=200):
+        self.send_response(status)
         self.end_headers()
         self.wfile.write(body)
 
@@ -99,7 +123,10 @@ if BEHAVIOUR == "canonical-path-only" and os.path.realpath(sys.argv[0]) != sys.a
     sys.exit(3)
 
 SERVERS = [("backend", {backend})] + ([] if BEHAVIOUR == "backend-only" else [("frontend", {frontend})])
-children = [subprocess.Popen([sys.executable, "-c", {server!r}, role, str(port), "{page}", "{data}"]) for role, port in SERVERS]
+children = [
+    subprocess.Popen([sys.executable, "-c", {server!r}, role, str(port), "{page}", "{data}", "{channels}"])
+    for role, port in SERVERS
+]
 
 
 def quit_(*_args):
@@ -123,6 +150,7 @@ def stand_in_bundle(
     behaviour: str = "healthy",
     page: str = "complete",
     data: str = "full",
+    channels: str = "healthy",
     executable: str = "AppRun",
 ) -> Path:
     """A bundle whose executable acts like the shell: it starts the backend and the Next server as children."""
@@ -141,6 +169,7 @@ def stand_in_bundle(
             server=_SERVER,
             page=page,
             data=data,
+            channels=channels,
         ),
         encoding="utf-8",
     )

@@ -5,6 +5,7 @@
 - myrm-agent-desktop/sidecar/bundle_inventory.py / bundle_verify.py: the modules `build.py` imports from its own directory
 - myrm-agent-desktop/scripts/fetch_node_runtime.py: the Node.js runtime fetch script, imported as a module
 - scripts/ci/desktop-release/smoke_launch_shell.py: the packaged-shell launch smoke, imported as a module
+- scripts/ci/desktop-release/smoke_channels.py: the channel creation check the smoke imports from its own directory
 - .github/workflows/desktop-release*.yml: the release workflow and the repair workflow, parsed into job and step mappings
 - .github/actions/*/action.yml: the local composite actions the release jobs call
 
@@ -12,6 +13,7 @@
 - REPO_ROOT / DESKTOP / FRONTEND / CI_SCRIPTS / WORKFLOWS / ACTIONS / TAURI_CONF: locations inside the OSS repo
 - sidecar_build_module() / fetch_node_runtime_module() / smoke_launch_shell_module(): those scripts, each imported once
 - sidecar_module(name): a module next to `build.py`, the very object `build.py` imported
+- smoke_channels_module(): the module next to the launch smoke, the very object the smoke imported
 - workflow_jobs(): the jobs of one workflow file
 - release_jobs() / release_steps(): the release workflow's jobs, and the steps of one job as written
 - expanded_release_steps(): the steps of one job with every local composite action replaced by its own steps
@@ -57,22 +59,22 @@ def _import_script(name: str, path: Path) -> ModuleType:
     return module
 
 
-def _put_sidecar_on_path() -> None:
-    """`python build.py` finds the modules next to it because its directory leads `sys.path`; an import has to say so."""
-    if str(SIDECAR) not in sys.path:
-        sys.path.append(str(SIDECAR))
+def _put_on_path(directory: Path) -> None:
+    """`python script.py` finds the modules next to it because its directory leads `sys.path`; an import has to say so."""
+    if str(directory) not in sys.path:
+        sys.path.append(str(directory))
 
 
 @cache
 def sidecar_build_module() -> ModuleType:
-    _put_sidecar_on_path()
+    _put_on_path(SIDECAR)
     return _import_script("desktop_sidecar_build", SIDECAR / "build.py")
 
 
 @cache
 def sidecar_module(name: str) -> ModuleType:
     """A module that sits next to `build.py` (`bundle_inventory`, `bundle_verify`), the very one `build.py` imported."""
-    _put_sidecar_on_path()
+    _put_on_path(SIDECAR)
     return importlib.import_module(name)
 
 
@@ -83,7 +85,15 @@ def fetch_node_runtime_module() -> ModuleType:
 
 @cache
 def smoke_launch_shell_module() -> ModuleType:
+    _put_on_path(CI_SCRIPTS)
     return _import_script("desktop_smoke_launch_shell", CI_SCRIPTS / "smoke_launch_shell.py")
+
+
+@cache
+def smoke_channels_module() -> ModuleType:
+    """The module next to the launch smoke, the very one the smoke imported."""
+    _put_on_path(CI_SCRIPTS)
+    return importlib.import_module("smoke_channels")
 
 
 def workflow_jobs(name: str) -> dict[str, YamlMapping]:
