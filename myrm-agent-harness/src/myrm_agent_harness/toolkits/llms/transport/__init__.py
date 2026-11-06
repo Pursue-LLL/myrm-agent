@@ -2,14 +2,15 @@
 
 [INPUT]
 - transport.client (POS: LLMTransport facade)
-- transport.errors (POS: LLMHTTPError / LLMAnswerError)
+- transport.errors (POS: LLMCallError / LLMHTTPError / LLMAnswerError)
 - transport.http (POS: shared HTTP clients)
 - transport.profile (POS: provider table and route resolution)
 
 [OUTPUT]
 - LLMTransport / get_transport: chat and Responses calls against any supported provider
 - aclose_clients: drops the shared HTTP clients (shutdown, or after the TLS policy changed)
-- LLMHTTPError / LLMAnswerError: the failures a call can raise
+- LLMCallError: the base of the failures a call can raise; LLMHTTPError / LLMAnswerError: the two a caller reads the
+  status and body of
 - Route / UnsupportedProviderError / resolve_route / speaks_openai_body / PROFILES: provider resolution
 
 [POS]
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.llms.transport.client import LLMTransport, get_transport
-    from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMHTTPError
+    from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMCallError, LLMHTTPError
     from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients
     from myrm_agent_harness.toolkits.llms.transport.profile import (
         PROFILES,
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 _EXPORT_MODULES = {
     "LLMTransport": "client",
     "get_transport": "client",
+    "LLMCallError": "errors",
     "LLMHTTPError": "errors",
     "LLMAnswerError": "errors",
     "aclose_clients": "http",
@@ -49,6 +51,7 @@ _EXPORT_MODULES = {
 
 __all__ = [
     "PROFILES",
+    "LLMCallError",
     "LLMHTTPError",
     "LLMAnswerError",
     "LLMTransport",

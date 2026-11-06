@@ -31,6 +31,7 @@ def test_exports_are_the_defining_module_objects() -> None:
     from myrm_agent_harness.toolkits.llms.transport import client, errors, http, profile
 
     assert transport.get_transport is client.get_transport
+    assert transport.LLMCallError is errors.LLMCallError
     assert transport.LLMHTTPError is errors.LLMHTTPError
     assert transport.aclose_clients is http.aclose_clients
     assert transport.resolve_route is profile.resolve_route

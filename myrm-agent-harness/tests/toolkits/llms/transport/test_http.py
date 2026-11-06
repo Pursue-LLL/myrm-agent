@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import http
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMHTTPError, LLMResponseError
 from myrm_agent_harness.toolkits.llms.transport.http import (
     Chunk,
     PreparedRequest,
@@ -132,7 +132,7 @@ class TestSendJson:
         self, network: Callable[[Handler], list[httpx.Request]], content: bytes
     ) -> None:
         network(lambda request: httpx.Response(200, content=content))
-        with pytest.raises(ValueError, match="openai answered"):
+        with pytest.raises(LLMResponseError, match="openai answered"):
             send_json(_request())
 
     def test_a_multipart_request_carries_its_own_boundary_content_type(

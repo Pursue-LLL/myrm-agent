@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import inspect
+
 import httpx
 import pytest
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
+from myrm_agent_harness.toolkits.llms.transport import errors as transport_errors
 from myrm_agent_harness.toolkits.llms.transport.errors import (
     LLMAnswerError,
+    LLMCallError,
     LLMHTTPError,
+    LLMResponseError,
     araise_for_status,
     raise_for_status,
 )
@@ -96,6 +101,51 @@ class TestLLMAnswerError:
     def test_keeps_the_payload_as_body(self) -> None:
         payload: dict[str, object] = {"error": {"message": "boom"}}
         assert LLMAnswerError("p", payload).body == payload
+
+
+class TestLLMResponseError:
+    def test_stands_for_the_gateway_fault_it_is(self) -> None:
+        error = LLMResponseError("openai", "openai answered with a non-JSON body: '<html>'")
+        assert (error.llm_provider, error.status_code) == ("openai", 502)
+        assert str(error) == "openai answered with a non-JSON body: '<html>'"
+
+    def test_a_handler_of_invalid_input_does_not_take_it_for_the_input(self) -> None:
+        """A route answers a ``ValueError`` with "your input is invalid"; a provider's unreadable answer is not that."""
+
+        def answer_invalid_input() -> str:
+            try:
+                raise LLMResponseError("p", "unreadable")
+            except ValueError:
+                return "invalid input"
+
+        with pytest.raises(LLMResponseError):
+            answer_invalid_input()
+
+
+class TestLLMCallError:
+    def test_every_failure_of_a_model_call_is_one(self) -> None:
+        failures = (
+            LLMHTTPError("openai", 500, "{}", _response(500, "{}")),
+            LLMAnswerError("openai", {"error": {"code": 429}}),
+            LLMResponseError("openai", "not json"),
+        )
+        for failure in failures:
+            assert isinstance(failure, LLMCallError), type(failure).__name__
+            assert failure.llm_provider == "openai"
+
+    def test_a_failure_added_to_the_module_cannot_stand_outside_the_base(self) -> None:
+        """The server maps ``LLMCallError`` to an AI error code, so a class that forgot the base would be an internal error."""
+        defined = [
+            cls
+            for _, cls in inspect.getmembers(transport_errors, inspect.isclass)
+            if cls.__module__ == transport_errors.__name__ and issubclass(cls, Exception)
+        ]
+        assert LLMCallError in defined
+        assert [cls.__name__ for cls in defined if not issubclass(cls, LLMCallError)] == []
+
+    def test_faults_that_are_not_a_model_call_are_not_one(self) -> None:
+        assert not isinstance(httpx.ReadTimeout("slow"), LLMCallError)
+        assert not isinstance(ValueError("bad input"), LLMCallError)
 
 
 class TestRaiseForStatus:

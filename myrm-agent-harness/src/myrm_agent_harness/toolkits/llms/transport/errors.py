@@ -4,6 +4,7 @@
 - httpx::Response (POS: the failed HTTP answer)
 
 [OUTPUT]
+- LLMCallError: the base of every failure below, so a caller can tell "the model call failed" from any other fault
 - LLMHTTPError: a non-2xx answer, carrying the status, the parsed body and the response
 - LLMAnswerError: a failure the provider reports inside a 2xx answer (an error event of an open stream, or an error body)
 - LLMResponseError: a 2xx answer that is not the JSON object the wire expects
@@ -52,7 +53,20 @@ BASE_RESP_STATUS: Final = {1002: 429, 1004: 401, 1008: 402, 1026: 400, 2013: 400
 _STREAM_UNNAMED_STATUS: Final = 500
 
 
-class LLMHTTPError(Exception):
+class LLMCallError(Exception):
+    """A model call the provider did not answer with a usable answer.
+
+    Every failure of this module is one, so code that must tell a failed model call from any other fault (the
+    server's error classifier, which maps it to an AI error code instead of an internal error) needs one type and
+    cannot miss a failure added later. ``llm_provider`` names the provider; ``status_code`` is the HTTP status the
+    failure stands for, ``None`` when it names none.
+    """
+
+    llm_provider: str
+    status_code: int | None
+
+
+class LLMHTTPError(LLMCallError):
     """A provider answered with a non-2xx status."""
 
     def __init__(
@@ -69,7 +83,7 @@ class LLMHTTPError(Exception):
         super().__init__(f"{provider} API error {status_code}: {body_text[:_MESSAGE_LIMIT]}")
 
 
-class LLMAnswerError(Exception):
+class LLMAnswerError(LLMCallError):
     """A provider reported a failure inside a 2xx answer: an error event of an open stream, or an error body.
 
     ``status_code`` is the HTTP status the failure stands for: the one it carries, else the one its kind implies, else
@@ -87,11 +101,12 @@ class LLMAnswerError(Exception):
         super().__init__(f"{provider} {where} error: {json.dumps(payload, ensure_ascii=False)[:_MESSAGE_LIMIT]}")
 
 
-class LLMResponseError(ValueError):
+class LLMResponseError(LLMCallError):
     """A 2xx answer that is not the JSON object the wire expects (a gateway's error page, a cut-off body).
 
     It carries the 502 of a gateway that relayed an invalid upstream answer, so the failure classifier treats it as the
-    provider fault it is and not as an unknown error nobody can act on.
+    provider fault it is and not as an unknown error nobody can act on. It is not a ``ValueError`` on purpose: callers
+    answer a ``ValueError`` with "your input is invalid", and a provider's unreadable answer is not the caller's input.
     """
 
     status_code = 502
