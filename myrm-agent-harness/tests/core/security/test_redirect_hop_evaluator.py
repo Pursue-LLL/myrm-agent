@@ -56,6 +56,7 @@ class TestWithoutGrants:
             ("http://app.local/", "LOCAL_HOSTNAME_PATTERN"),
             ("http://service.internal/status", "LOCAL_HOSTNAME_PATTERN"),
             ("http://[::1]:8080/", "PRIVATE_IPV6_::1/128"),
+            ("http://[::]:8080/", "PRIVATE_IPV6_::/128"),  # the unspecified address dials the local host
             ("http://[fd00::1234]:9000/v1", "PRIVATE_IPV6_fc00::/7"),
             ("http://[fe80::1]/", "PRIVATE_IPV6_fe80::/10"),
             ("http://[::ffff:10.0.0.5]/", "PRIVATE_IPV4_10.0.0.0/8"),
