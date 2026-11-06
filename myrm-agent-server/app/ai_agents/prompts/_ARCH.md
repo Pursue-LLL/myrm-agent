@@ -30,13 +30,13 @@
 | `naked` | 40 / 40 | 工具调用指引（安全边界由 SecurityBoundaryMiddleware 统一注入） | 完全用户控制与轻量测试 |
 | `search` | 1,184 / 1,904 | 搜索专用提示词（来自 fast_search_agent_prompt.py，含搜索版回复规则，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
 
-体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、模型族执行纪律、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按模型族 × 语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
+体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、核心行为规则、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
 
 search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（deep）静态缓存，
 保证 Kv Cache 前缀稳定性。deep suffix 在 factory.py 中按 `search_depth` 动态追加。
 
 通用防御规则（XML 工具调用防御、上下文优先检查、工具使用纪律等）由框架层
-`model_discipline.py` 的 `AGENT_CORE_RULES` 提供，业务层仅包含
+`agent_core_rules.py` 的 `AGENT_CORE_RULES` 提供，业务层仅包含
 身份定义和 `request_answer_user_tool` 自审规则。
 
 工具规则解耦（Self-contained Tooling）：

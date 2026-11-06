@@ -90,7 +90,7 @@ dispatcher  handlers      events         recovery*
 | `reasoning_scrubber.py` | 非标准模型 thinking 标签 → 独立 THINKING 事件 |
 | `escalation_scrubber.py` | `<<<NEEDS_PRO>>>` 检测 → 模型升级信号 |
 | `repetition_scrubber.py` | Token/N-Gram 滑窗死循环监测与 Markdown 代码块语法感知自适应熔断 |
-| `model_discipline.py` | 按模型族注入执行纪律 prompt |
+| `agent_core_rules.py` | 注入核心行为规则 prompt（所有模型共用） |
 | `channel_output_hints.py` | 按通道（Telegram/WhatsApp/voice）输出格式提示 |
 
 ---
