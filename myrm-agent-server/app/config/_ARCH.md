@@ -20,7 +20,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `settings.py` | ✅ 核心 | 应用配置定义（AppSettings）。仅 [P]/[O]/[S] 进程 env；`ExecutionCacheSettings` 供会话执行单元动态空闲回收超时配置（`MYRM_EXECUTION_CACHE_IDLE_SECONDS`，0=禁用）；`ControlPlaneSettings` + `ContextCompactionTelemetrySettings` + `MemoryBriefStatusTelemetrySettings` + `MemoryGuardianGuardTelemetrySettings` 供 sandbox 遥测（batch/flush/queue，memory-brief 额外含 `allowed_phases`）；业务 LLM/Embedding 走 WebUI（`platform_config.py`），不在 settings 中 | ✅ |
+| `settings/` | ✅ 核心 | 应用配置，按组拆为 7 个模块（constants / llm / channels / security / infra / app / singleton）：`AppSettings` 组合、`settings` 单例（`get_settings()` 带 `lru_cache`）、执行缓存空闲回收等配置项；仅 [P]/[O]/[S] 进程 env。见 [settings/_ARCH.md](settings/_ARCH.md) | ✅ |
 | `pre_flight.py` | ✅ 核心 | 配置启动前验证；local/tauri WebUI 模型 warning | ✅ |
 | `change_tracker.py` | ✅ 核心 | 配置变更追踪（track_config_changes，基于哈希比较） | ✅ |
 | `migrator.py` | ✅ 核心 | 配置迁移工具（check_and_migrate_config，版本升级时自动迁移） | ✅ |
