@@ -146,6 +146,14 @@ class TestSendJson:
         network(lambda request: httpx.Response(200, json={"ok": 1}))
         assert await asend_json(_request()) == {"ok": 1}
 
+    async def test_async_twin_raises_a_failed_status_with_the_provider_body(
+        self, network: Callable[[Handler], list[httpx.Request]]
+    ) -> None:
+        network(lambda request: httpx.Response(429, json={"error": {"message": "slow"}}))
+        with pytest.raises(LLMHTTPError) as caught:
+            await asend_json(_request())
+        assert (caught.value.status_code, caught.value.body) == (429, {"error": {"message": "slow"}})
+
     async def test_async_twin_tries_a_connection_that_never_opened_once_more(
         self, network: Callable[[Handler], list[httpx.Request]], monkeypatch: pytest.MonkeyPatch
     ) -> None:

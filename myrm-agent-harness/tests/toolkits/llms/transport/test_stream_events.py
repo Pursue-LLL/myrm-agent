@@ -121,14 +121,22 @@ class TestEventStream:
 
 class TestCorruptedStreams:
     def test_a_flipped_payload_bit_fails_the_message_checksum(self) -> None:
-        with pytest.raises(LLMResponseError, match=_CORRUPTED):
+        with pytest.raises(LLMResponseError, match=r"\(message checksum\)"):
             _events(_corrupt(_BODY))
 
     def test_a_flipped_prelude_bit_fails_the_prelude_checksum(self) -> None:
         flipped = bytearray(_BODY)
         flipped[1] ^= 0x01
-        with pytest.raises(LLMResponseError, match=_CORRUPTED):
+        with pytest.raises(LLMResponseError, match=r"\(prelude checksum\)"):
             _events(bytes(flipped))
+
+    def test_a_prelude_checksum_that_is_wrong_is_refused_even_when_the_rest_of_the_message_checks_out(self) -> None:
+        (total,) = struct.unpack_from(">I", _BODY)
+        damaged = bytearray(_BODY[:total])
+        damaged[8] ^= 0x01
+        damaged[-4:] = struct.pack(">I", zlib.crc32(bytes(damaged[:-4])))
+        with pytest.raises(LLMResponseError, match=r"\(prelude checksum\)"):
+            _events(bytes(damaged))
 
     @pytest.mark.parametrize("cut", [1, 5, 11, 13, 40])
     def test_a_body_that_ends_inside_a_message_fails_instead_of_ending_quietly(self, cut: int) -> None:

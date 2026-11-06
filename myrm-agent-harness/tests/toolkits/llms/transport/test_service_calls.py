@@ -8,7 +8,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.transport import embeddings, rerank
 from myrm_agent_harness.toolkits.llms.transport.http import PreparedRequest
-from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.profile import PROFILES, UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.service_routes import service_route
 
 Answer = dict[str, object]
@@ -73,10 +73,24 @@ class TestServiceRoute:
         with pytest.raises(UnsupportedProviderError):
             service_route("mystery-model", api_key="k", api_base=None)
 
-    def test_no_environment_credential_is_read(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENAI_API_KEY", "from-env")
-        monkeypatch.setenv("OPENAI_BASE_URL", "https://env.example/v1")
-        assert service_route("text-embedding-3-small", api_key=None, api_base=None).api_key is None
+    @pytest.mark.parametrize(
+        ("model", "api_base"),
+        [
+            ("text-embedding-3-small", None),
+            ("openai/text-embedding-3-small", None),
+            ("gemini/text-embedding-004", None),
+            ("openrouter/openai/text-embedding-3-small", None),
+            ("jina_ai/jina-embeddings-v3", None),
+            ("BAAI/bge-m3", "https://gw.example/v1"),
+        ],
+    )
+    def test_no_environment_credential_is_read(
+        self, monkeypatch: pytest.MonkeyPatch, model: str, api_base: str | None
+    ) -> None:
+        for profile in PROFILES.values():
+            for name in profile.api_key_env:
+                monkeypatch.setenv(name, "from-env")
+        assert service_route(model, api_key=None, api_base=api_base).api_key is None
 
 
 class TestServiceEndpointFromEnvironment:
