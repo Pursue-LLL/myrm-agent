@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+# Selected by the `-m architecture` run in server-architecture.yml.
+pytestmark = pytest.mark.architecture
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 # Names that resolve only inside the private dev shell: its planning directory (with or without a
 # trailing slash), its own name, its maintainer quick-start document and planning item ids, matched
