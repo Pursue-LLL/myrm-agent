@@ -1,4 +1,4 @@
-"""Check a built sidecar bundle against bundle_inventory: every first-party module in, the channel SDKs left out out.
+"""Check a built sidecar bundle against bundle_inventory: every first-party module and data file in, channel SDKs out.
 
 PyInstaller answers a hidden import it cannot resolve with a warning and builds on, so a bundle that lost modules still
 builds, starts and passes /health. This reads the finished bundle and fails the build instead. Run it with the server
@@ -15,7 +15,13 @@ from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
 from pathlib import Path
 
-from bundle_inventory import CHANNEL_SDKS_NOT_SHIPPED, HARNESS_PACKAGE, domain_tool_scripts, first_party_modules
+from bundle_inventory import (
+    CHANNEL_SDKS_NOT_SHIPPED,
+    HARNESS_PACKAGE,
+    domain_tool_scripts,
+    first_party_modules,
+    harness_data_files,
+)
 
 # How many offenders a problem names; the full list is the build's own business.
 NAMED_OFFENDERS = 8
@@ -42,9 +48,9 @@ def bundled_sdks(bundled: AbstractSet[str]) -> list[str]:
     return sorted({name.partition(".")[0] for name in bundled} & set(CHANNEL_SDKS_NOT_SHIPPED))
 
 
-def missing_scripts(internal: Path, harness_dir: Path, scripts: Iterable[Path]) -> list[Path]:
-    """The scripts that are not under `internal`, the bundle's data directory, at their own relative path."""
-    return [script for script in scripts if not (internal / HARNESS_PACKAGE / script.relative_to(harness_dir)).is_file()]
+def missing_files(internal: Path, harness_dir: Path, files: Iterable[Path]) -> list[Path]:
+    """The harness files that are not under `internal`, the bundle's data directory, at their own relative path."""
+    return [file for file in files if not (internal / HARNESS_PACKAGE / file.relative_to(harness_dir)).is_file()]
 
 
 def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path) -> list[str]:
@@ -59,10 +65,15 @@ def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path) -> list[
             )
     if sdks := bundled_sdks(bundled):
         problems.append(f"channel SDKs that are meant to stay out are in the bundle: {sdks}")
-    scripts = domain_tool_scripts(harness_dir)
-    if absent := missing_scripts(executable.parent / "_internal", harness_dir, scripts):
-        names = [script.name for script in absent[:NAMED_OFFENDERS]]
-        problems.append(f"{len(absent)} of {len(scripts)} domain tool scripts are not in the bundle: {names}")
+    internal = executable.parent / "_internal"
+    shipped_as_files = {
+        "domain tool scripts": domain_tool_scripts(harness_dir),
+        "harness data files": harness_data_files(harness_dir),
+    }
+    for label, files in shipped_as_files.items():
+        if absent := missing_files(internal, harness_dir, files):
+            names = [file.name for file in absent[:NAMED_OFFENDERS]]
+            problems.append(f"{len(absent)} of {len(files)} {label} are not in the bundle: {names}")
     return problems
 
 
@@ -77,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     for problem in problems:
         print(f"[bundle-verify] FAIL: {problem}", file=sys.stderr)
     if not problems:
-        print("[bundle-verify] OK: every first-party module and domain tool script is in the bundle, no channel SDK is")
+        print("[bundle-verify] OK: every first-party module, tool script and harness data file is in, no channel SDK is")
     return 1 if problems else 0
 
 

@@ -13,6 +13,9 @@ One kind of Python file is not a module: the tool scripts of the built-in browse
 as text from `domain_skills/builtin/<skill>/<path in the skill's manifest>` and executes it. They are shipped as data at
 their own relative path, because `--collect-data` leaves `.py` files out and a skill directory such as `x-com` is not an
 importable name.
+
+The data files the harness reads by `__file__` are shipped by `--collect-data`; the build does not take that on trust
+either, and bundle_verify.py looks for the files this module lists.
 """
 
 from __future__ import annotations
@@ -32,6 +35,11 @@ HOOKS_DIR = "hooks"
 
 # Where the harness keeps its built-in domain skills, relative to the harness package.
 DOMAIN_SKILLS_DIR = PurePosixPath("toolkits/browser/domain_skills/builtin")
+
+# Data the harness reads by ``__file__`` and cannot serve a model call without, relative to the harness package: the
+# model catalog (context windows, prices and capabilities) and the token-count tables. A bundle that lacks one still
+# builds and starts, and the catalog then answers with nothing and token counts reach for the network.
+HARNESS_DATA_DIRS = (PurePosixPath("toolkits/llms/catalog/data"), PurePosixPath("utils/_tiktoken_tables"))
 
 # Directories that hold no first-party code: caches, and what a developer's `npm install` leaves in the WhatsApp bridge.
 _PRUNED_DIRS = frozenset({"__pycache__", "node_modules"})
@@ -82,6 +90,21 @@ def domain_tool_scripts(harness_dir: Path) -> list[Path]:
         for manifest in manifests
         for tool in json.loads(manifest.read_text(encoding="utf-8")).get("python_tools", {}).values()
     ]
+
+
+def harness_data_files(harness_dir: Path) -> list[Path]:
+    """Every data file under HARNESS_DATA_DIRS; a directory that holds none is an error, since nothing would ship it."""
+    files: list[Path] = []
+    for directory in HARNESS_DATA_DIRS:
+        found = sorted(
+            path
+            for path in (harness_dir / directory).rglob("*")
+            if path.is_file() and path.suffix != ".py" and not _PRUNED_DIRS.intersection(path.parts)
+        )
+        if not found:
+            raise FileNotFoundError(f"{directory} holds no data file under {harness_dir}: update HARNESS_DATA_DIRS")
+        files += found
+    return files
 
 
 def package_modules(package_dir: Path, package: str, scripts: Collection[Path] = ()) -> list[str]:
