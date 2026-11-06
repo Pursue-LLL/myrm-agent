@@ -212,7 +212,7 @@ class TestGenerateStructuredSummaryFull:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
             return_value=None,
         ):
             new_messages, summary = await generate_structured_summary(
@@ -243,7 +243,7 @@ class TestGenerateStructuredSummaryFull:
         messages: list[BaseMessage] = [HumanMessage(content="重构auth模块")]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
             return_value=None,
         ):
             _, summary = await generate_structured_summary(
@@ -276,7 +276,7 @@ class TestGenerateStructuredSummaryFull:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
             return_value=None,
         ):
             _, summary = await generate_structured_summary(
@@ -656,7 +656,7 @@ class TestSummarizeWithAuditExceptionHandling:
 
         with (
             patch(
-                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
                 return_value=None,
             ),
             pytest.raises(ValueError, match="Failed to generate structured summary"),
@@ -691,7 +691,7 @@ class TestSummarizeWithAuditExceptionHandling:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
             return_value=None,
         ):
             _, summary = await generate_structured_summary(
@@ -982,7 +982,7 @@ class TestGuardAuxContext:
         msgs: list[BaseMessage] = [HumanMessage(content="x " * 5000)]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=None,
         ):
             result = _guard_aux_context(msgs, mock_llm)
@@ -998,7 +998,7 @@ class TestGuardAuxContext:
         msgs: list[BaseMessage] = [HumanMessage(content="short")]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=128_000,
         ):
             result = _guard_aux_context(msgs, mock_llm)
@@ -1016,7 +1016,7 @@ class TestGuardAuxContext:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=8192,
         ):
             result = _guard_aux_context(msgs, mock_llm)
@@ -1036,7 +1036,7 @@ class TestGuardAuxContext:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=4096,
         ):
             result = _guard_aux_context(msgs, mock_llm)
@@ -1056,7 +1056,7 @@ class TestGuardAuxContext:
         ]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=1024,
         ):
             result = _guard_aux_context(msgs, mock_llm)
@@ -1074,7 +1074,7 @@ class TestGuardAuxContext:
         msgs: list[BaseMessage] = [HumanMessage(content="test")]
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
             return_value=100,
         ):
             result = _guard_aux_context(msgs, mock_llm, prompt_tokens=200)
@@ -1102,11 +1102,11 @@ class TestGuardAuxContextIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
                 return_value=4096,
             ),
         ):
@@ -1135,11 +1135,11 @@ class TestGuardAuxContextIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.extract_existing_summary",
+                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary.extract_existing_summary",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit",
+                "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit",
                 return_value=200_000,
             ),
         ):
@@ -1177,14 +1177,14 @@ class TestSequentialCompactionInvariant:
         llm = AsyncMock()
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._summarize_full_with_audit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary._summarize_full_with_audit",
             new=AsyncMock(return_value=first),
         ):
             rebuilt1, _ = await generate_structured_summary(messages=messages, llm=llm)
         assert sum(1 for m in rebuilt1 if is_summary_message(m)) == 1
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._summarize_incremental_with_audit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary._summarize_incremental_with_audit",
             new=AsyncMock(return_value=second),
         ) as mock_incremental:
             rebuilt2, final = await generate_structured_summary(
@@ -1227,7 +1227,7 @@ class TestSequentialCompactionInvariant:
         llm = AsyncMock()
 
         with patch(
-            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._summarize_incremental_with_audit",
+            "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary._summarize_incremental_with_audit",
             new=AsyncMock(return_value=merged),
         ) as mock_incremental:
             rebuilt, final = await generate_structured_summary(
@@ -1263,7 +1263,7 @@ async def test_generate_structured_summary_preserves_prompt_cache_prefix() -> No
     llm = AsyncMock()
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._summarize_full_with_audit",
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.summary._summarize_full_with_audit",
         new=AsyncMock(return_value=summary),
     ):
         rebuilt, final_summary = await generate_structured_summary(messages=messages, llm=llm)
