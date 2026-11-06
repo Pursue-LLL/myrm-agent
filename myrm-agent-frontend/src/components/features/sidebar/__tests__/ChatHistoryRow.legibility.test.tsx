@@ -99,3 +99,39 @@ describe('ChatHistoryRow more button target', () => {
     expect(className).toContain('min-w-11');
   });
 });
+
+/** Classes that apply on the light theme: everything without a variant prefix such as `dark:`. */
+const lightClasses = (element: Element | null): string[] => {
+  expect(element).not.toBeNull();
+  return (element?.getAttribute('class') ?? '').split(/\s+/).filter((name) => name && !name.includes(':'));
+};
+
+describe('ChatHistoryRow badges', () => {
+  const compactedChat: ChatItem = { ...chat, isCompacted: true };
+
+  it('writes the pin number at 11px in the neutral text color on both themes, since brand teal is 2.2:1 on light and 4.1:1 on the dark selected row', () => {
+    renderRow({ pinIndex: 1 });
+
+    const { className } = screen.getByText('1', { selector: 'kbd' });
+    expect(className).toContain('text-[11px]');
+    expect(className).toContain('text-foreground/80');
+    expect(className).not.toMatch(/text-primary/);
+  });
+
+  it('writes the compacted label at 11px in the warning color, since the accent orange is 2.7:1 on the light theme', () => {
+    renderRow({ chat: compactedChat });
+
+    const label = screen.getByText('chat.compact.badge');
+    const classes = lightClasses(label.closest('div'));
+    expect(classes).toContain('text-[11px]');
+    expect(classes).toContain('text-warning');
+    expect(classes.some((name) => name.startsWith('text-accent-warm'))).toBe(false);
+    expect(label.closest('div')?.className).toContain('dark:text-accent-warm');
+  });
+
+  it('does not shrink the compacted label below the size its badge declares', () => {
+    renderRow({ chat: compactedChat });
+
+    expect(screen.getByText('chat.compact.badge').className).not.toMatch(/scale-/);
+  });
+});

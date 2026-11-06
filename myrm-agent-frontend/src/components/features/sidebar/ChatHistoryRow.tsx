@@ -199,7 +199,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   </span>
                 )}
                 {pinIndex != null && (
-                  <kbd className="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-mono font-semibold bg-primary/15 text-primary/80 dark:text-primary/90 ring-1 ring-primary/20">
+                  <kbd className="flex-shrink-0 inline-flex items-center justify-center w-4 h-4 rounded text-[11px] font-mono font-semibold bg-primary/15 text-foreground/80 ring-1 ring-primary/20">
                     {pinIndex}
                   </kbd>
                 )}
@@ -209,7 +209,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
             <div className="flex items-center gap-2 mt-1">
               <p className="text-xs text-muted-foreground">{formatTime(chat.updatedAt)}</p>
               {chat.isCompacted && (
-                <div className="flex items-center gap-0.5 text-[10px] px-1 py-[1px] rounded bg-primary/10 text-accent-warm font-medium">
+                <div className="flex items-center gap-0.5 text-[11px] px-1 py-[1px] rounded bg-primary/10 text-warning dark:text-accent-warm font-medium">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="10"
@@ -225,7 +225,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     <path d="m12 12 4 4 4-4" />
                     <path d="M16 16V9" />
                   </svg>
-                  <span className="scale-90 origin-left whitespace-nowrap">{t('chat.compact.badge')}</span>
+                  <span className="whitespace-nowrap">{t('chat.compact.badge')}</span>
                 </div>
               )}
             </div>
