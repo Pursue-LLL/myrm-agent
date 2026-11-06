@@ -17,7 +17,7 @@ myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	647
 myrm_agent_harness/agent/goals/continuation.py	656
 myrm_agent_harness/agent/meta_tools/bash/_compression/compressors.py	691
 myrm_agent_harness/agent/meta_tools/file_ops/core/file_operation_service.py	611
-myrm_agent_harness/agent/middlewares/approval/batch_processor/core.py	1009
+myrm_agent_harness/agent/middlewares/approval/batch_processor/decide.py	931
 myrm_agent_harness/agent/middlewares/context_pipeline/context_pipeline_middleware.py	512
 myrm_agent_harness/agent/middlewares/tooling/_tool_guards.py	587
 myrm_agent_harness/agent/middlewares/tooling/_tool_helpers.py	599
