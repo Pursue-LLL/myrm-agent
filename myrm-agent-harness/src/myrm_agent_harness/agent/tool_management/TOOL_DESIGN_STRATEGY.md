@@ -340,13 +340,13 @@ const staleCoreSkills = useMemo(() => {
 
 ### 6.1 典型场景 Token 预算
 
-证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE 层按 2026-11-05 重测，HIGH_PRIORITY 层按 2026-11-04 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-05 重测）
+证据来源: [DEFAULT_AGENT_TOKEN_INVENTORY.md](DEFAULT_AGENT_TOKEN_INVENTORY.md)（§总计估算；CORE 层按 2026-11-05 重测，HIGH_PRIORITY 层按 2026-11-06 重测，EXTENDED / EXTERNAL 层按 2026-11-04 重测，System Prompt 层按 2026-11-05 重测）
 
 | 场景 | 工具数量 | Token 消耗 | 说明 |
 |------|--------:|----------:|------|
 | 最小场景 | 8 个 | ~5,150 | CORE 8 工具（`web_fetch` + bash×2 + file×3 + glob/grep） |
-| 典型场景 | 13 个 | ~9,450 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
-| 满载场景 | 56 个 | ~18,810（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
+| 典型场景 | 13 个 | ~9,270 | CORE + HIGH_PRIORITY（web_search + memory×3 + skill_select） |
+| 满载场景 | 56 个 | ~18,640（粗估） | 所有层级同轮 bind；EXTENDED/EXTERNAL 为清单文档 §四 各行描述值求和（`delegate_task_tool` 只计固定部分，kanban 两组角色同时计入） |
 
 ### 6.2 Token 消耗构成（典型场景 · 默认 profile）
 
@@ -354,7 +354,7 @@ const staleCoreSkills = useMemo(() => {
 |------|------:|---------|
 | System Prompt 层 | ~1,701 | `messages[0]` 1,402 + `messages[1]` 299，跨用户共享缓存 |
 | CORE 工具层 | ~2,599 | 始终缓存 |
-| HIGH_PRIORITY 工具层 | ~2,569 | 默认缓存 |
+| HIGH_PRIORITY 工具层 | ~2,394 | 默认缓存 |
 | EXTENDED 工具层 | ~0 | 默认 profile 无附加 |
 | schema wrapper 包装 | ~845 | 13 工具 × 65（仅 API 包装，**不含**参数 schema；参数 schema 约 4,400，SSOT 见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 | 动态注入 | ~1,200 | 同用户会话内稳定 |
@@ -367,19 +367,19 @@ const staleCoreSkills = useMemo(() => {
 
 ### 7.1 始终加载 (Always Load)
 
-Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,573、合计 5,987，均按 OS hint 差 26 折算）：
+Turn1 默认 bind 的 13 个工具分层（数量以 `tool_layers.py` 注册表为准，token 为 `measure_turn1_token_inventory.py` 实测 o200k_base；**宿主 macOS arm64**，其中 `bash_code_execute` 的 OS hint 随宿主变化，Linux 下 CORE 为 2,573、合计 5,812，均按 OS hint 差 26 折算）：
 
 | 层级 | 数量 | 描述 Token | 工具 |
 |------|-----:|----------:|------|
 | CORE | 8 | 2,599 | `web_fetch` + `bash_code_execute` + `bash_process` + `file_edit/read/write` + `glob` + `grep` |
-| HIGH_PRIORITY | 5 | 2,569 | `web_search` + `memory_search/save/manage` + `skill_select` |
-| **合计** | **13** | **5,168** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 6,013**；参数 schema 另计约 4,200（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
+| HIGH_PRIORITY | 5 | 2,394 | `web_search` + `memory_search/save/manage` + `skill_select` |
+| **合计** | **13** | **4,993** | 另计 schema wrapper 845（13 × 65，仅 API 包装）→ **合计 5,838**；参数 schema 另计约 4,200（SSOT：`DEFAULT_AGENT_TOKEN_INVENTORY.md` §六） |
 
 ### 7.2 条件加载 (Conditional Load)
 
 | 工具类型 | 加载条件 | 数量 | Token |
 |---------|---------|-----:|------:|
-| 记忆工具 | 启用记忆系统 | 3 | 1,235（仅 memory corpus；wiki + sessions 全开 1,372） |
+| 记忆工具 | 启用记忆系统 | 3 | 952（仅 memory corpus；wiki + sessions 全开 1,146） |
 | 技能工具 | 有技能后端 | 4 | ~1,136（含条件绑定的 `skill_search_tool` 277） |
 | 本地文件索引工具 | 用户配置本地索引目录（Discoverable） | 2 | - |
 | 浏览器工具 | 启用浏览器 | 8 | ~762 |
@@ -490,6 +490,8 @@ def get_tool_layer(tool_name: str) -> ToolLayer:
 | --- | --- |
 | **「搜索 → 载入真实 schema → 直调」** | 这是 Hermes `tool_describe` 的形状，与盲调的区别是 **schema 真的进了上下文**。它与现有 Direct FC 的差别只是「schema 何时进入」，不是「有没有 schema」 |
 | **先补 >11.25K 真实服务器基准** | `PTC_OVERHEAD_MULTIPLIER=25` 的 11.25K 是**理论 crossover × 0.4**（`agent/_factory/mcp_routing.py:48-57`），不是实测；Anthropic 公开门槛是 >10K。没有实测就不该动架构 |
+
+**内置记忆工具延迟的实测（2026-11-06，英文，MiniMax-M3.1-Flash-Preview，温度 0.5）**：把 `memory_save_tool`、`memory_manage_tool` 换成一个 86 token 的 `load_tool`（枚举这两个名字，载入后才把真实定义加进请求），Turn 1 工具块从 1,508 降到 337，净省 1,171 token/轮。19 个场景各 5 次，对照同一文本的常驻版（各 10 次）：需要写入的场景成功率 67/75（89%）对 146/150（97%），单侧 Fisher p=0.016；全部场景 87/95 对 186/190，低 6.3 个点（p=0.017）。差距几乎全在「用户夸召回准 → `rate`」一个场景（1/5 对 10/10），去掉它后 86/90 对 176/180（p=0.26）。每个真要用工具的场景多一轮往返（平均 2.32 步对 1.52 步）。没有测缓存：载入使 tools 变化，其后的 System 与消息前缀缓存失效（`PROMPT_CACHE_PRACTICE.md` §2.1），所以 1,171 只在缓存未命中的轮次才是真节省；把载入提示写详细会缩小 `rate` 的差距，但要吃掉这笔节省（未测）。样本小、单模型、合成最小提示：只能说没有证据支持延迟这两个工具，不构成本节的结论。
 
 **该不该做**：评估中，尚无结论。需要一次架构评审，对照实测基准明确「恢复工具级延迟」或其他新增结局相对 §2.5 现状的收益。不得再用「已领先」作为不做的理由。
 
