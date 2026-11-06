@@ -13,8 +13,8 @@ Validates (harness scope — 3 checks):
 Business-layer CORE prompt caps (full ≤2000 / lean ≤1200 / lean÷full ≤0.70 on
 ``cl100k_base``) live in the server repo:
 ``myrm-agent-server/tests/ai_agents/test_prompt_integrity.py::TestPromptTokenBudgetGate``.
-The assembled static first system message (core prompt + datetime rules + per-model discipline + channel hint,
-per model family and locale) and ``<widget_capability>`` are capped in
+The assembled static first system message (core prompt + datetime rules + agent core rules + channel hint,
+per locale) and ``<widget_capability>`` are capped in
 ``myrm-agent-server/tests/architecture/test_first_turn_static_prompt_budget.py``.
 """
 
@@ -29,7 +29,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from myrm_agent_harness.agent.streaming.model_discipline import (
+from myrm_agent_harness.agent.streaming.agent_core_rules import (
     AGENT_CORE_RULES,
 )
 from myrm_agent_harness.agent.streaming.utils import (
@@ -97,7 +97,7 @@ class TestPromptTokenBudgetGate:
         sec_boundary_tokens = get_token_count(SECURITY_BOUNDARY_SYSTEM_RULES)
         datetime_tokens = get_token_count(DATETIME_SYSTEM_RULES)
 
-        # AGENT_CORE_RULES measures 303 tokens, ceiling 350 tokens
+        # AGENT_CORE_RULES measures 312 tokens, ceiling 350 tokens
         assert agent_core_tokens <= 350, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 350"
 
         # SECURITY_BOUNDARY_SYSTEM_RULES measures 299 tokens, ceiling 314 tokens (measured + 5%)

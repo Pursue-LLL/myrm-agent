@@ -5,7 +5,8 @@ PyInstaller bundles what its scan of `import` statements reaches. The channel re
 backend: the build passed, the backend started, and twenty channel types answered "unavailable" in the installed app
 only. `sidecar/bundle_inventory.py` therefore hands PyInstaller every `.py` file of `app/` and of the harness package,
 and `bundle_verify.py` reads the finished bundle back. This pins the inventory against the registry and the tree, the
-SDKs the bundle leaves out against the code that imports them, and the verifier against a bundle that lost a module.
+SDKs the bundle leaves out against the code that imports them, the verifier against a bundle that lost a module, and
+the channel types the launch smoke creates against the registry and the SDKs.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from types import ModuleType
 
 import pytest
 
-from tests.support.desktop_release import sidecar_build_module, sidecar_module
+from tests.support.desktop_release import sidecar_build_module, sidecar_module, smoke_channels_module
 
 # server-architecture.yml runs `-m architecture` on every change under app/ and assets/, which is when this can break.
 pytestmark = pytest.mark.architecture
@@ -53,6 +54,11 @@ def inventory() -> ModuleType:
 @pytest.fixture(scope="module")
 def verify() -> ModuleType:
     return sidecar_module("bundle_verify")
+
+
+@pytest.fixture(scope="module")
+def channels() -> ModuleType:
+    return smoke_channels_module()
 
 
 def _python_files(tree: Path) -> Iterator[Path]:
@@ -238,6 +244,21 @@ def test_only_the_provider_that_needs_its_sdk_at_import_fails_to_load_without_th
     assert _module_level_sdk_imports("import discord.opus\nx = 1", sdks) == {"discord"}
     assert _module_level_sdk_imports("try:\n    import mautrix\nexcept ImportError:\n    pass\n", sdks) == set()
     assert _module_level_sdk_imports("def f():\n    import mautrix\n", sdks) == set()
+
+
+def test_the_launch_smoke_creates_exactly_the_channel_types_the_registry_offers(channels: ModuleType) -> None:
+    from app.channels.providers import registry
+
+    assert sorted(channels.CHANNEL_TYPES) == sorted(registry._BUILTIN_SPECS), "update CHANNEL_TYPES in smoke_channels.py"
+
+
+def test_the_launch_smoke_accepts_a_refusal_only_where_the_provider_cannot_load_without_its_sdk(
+    channels: ModuleType, inventory: ModuleType
+) -> None:
+    left_out_channels = {left_out.channel for left_out in inventory.CHANNEL_SDKS_NOT_SHIPPED.values()}
+
+    assert channels.UNAVAILABLE_WITHOUT_SDK == frozenset(_SDK_AT_MODULE_LEVEL)
+    assert channels.UNAVAILABLE_WITHOUT_SDK <= left_out_channels
 
 
 def _bundle_with(tmp_path: Path, build: ModuleType, inventory: ModuleType, *, scripts: bool) -> Path:

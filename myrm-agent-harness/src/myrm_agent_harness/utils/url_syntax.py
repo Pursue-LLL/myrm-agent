@@ -9,8 +9,8 @@
 
 [POS]
 Shared by every outbound-URL policy, including the ones that admit private hosts (local mode) and
-therefore have no hostname blocklist: the parser-divergence defence and the scheme allowlist must
-not depend on which blocklist a policy brings.
+therefore have no hostname blocklist: the parser-divergence defence (confusing characters and
+percent-encoded hosts) and the scheme allowlist must not depend on which blocklist a policy brings.
 """
 
 from __future__ import annotations
@@ -42,6 +42,12 @@ def parse_outbound_hostname(url: str) -> tuple[str | None, str]:
     hostname = parsed.hostname
     if not hostname:
         return None, "Missing hostname"
+
+    # An HTTP client percent-decodes a host before dialing it (127%2e0%2e0%2e1 reaches 127.0.0.1) while the
+    # classifiers read the raw text. An IPv6 literal is the only host that holds a ':' and the only one
+    # whose zone id (fe80::1%25en0) legitimately keeps a '%'.
+    if "%" in hostname and ":" not in hostname:
+        return None, "Hostname contains percent-encoding"
 
     # Normalize trailing dot (FQDN: "localhost." -> "localhost") to match blocklists.
     return hostname.rstrip("."), ""

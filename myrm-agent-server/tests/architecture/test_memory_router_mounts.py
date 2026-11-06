@@ -6,7 +6,8 @@ tests/architecture/test_memory_router_mounts.py
 [INPUT]
 - app/api/memory/router.py: parsed, never imported (importing it mounts every router)
 - data/memory_default_mounts.txt: one default mount per line, `<include_router first argument>` for an unattributed
-  mount (shrink-only) or `<argument> | <caller file:line>` for a mount that names its default-visible caller
+  mount (shrink-only) or `<argument> | <caller file:line>` for a mount that names its default-visible caller; the caller
+  path is relative to the repository root, so the gate reads the same files in a standalone checkout and in a workspace
 
 [OUTPUT]
 - Fails when `router.py` mounts a router unconditionally and the file does not list it
@@ -30,7 +31,7 @@ import pytest
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _ROUTER_FILE = _SERVER_ROOT / "app" / "api" / "memory" / "router.py"
 _MOUNTS_FILE = Path(__file__).resolve().parent / "data" / "memory_default_mounts.txt"
-_MONOREPO_ROOT = _SERVER_ROOT.parents[1]
+_REPO_ROOT = _SERVER_ROOT.parent
 _EVIDENCE_RE = re.compile(r"^(?P<path>[^:\s]+):(?P<first>\d+)(?:-(?P<last>\d+))?$")
 _TEST_PATH_PARTS = frozenset({"tests", "test", "__tests__"})
 
@@ -122,7 +123,7 @@ def test_admitted_mounts_name_a_caller(entries: dict[str, str | None]) -> None:
 
 @pytest.mark.architecture
 def test_admitted_mount_callers_exist(entries: dict[str, str | None]) -> None:
-    problems = unverifiable_callers(entries, _MONOREPO_ROOT)
+    problems = unverifiable_callers(entries, _REPO_ROOT)
     assert not problems, "admitted memory mounts must cite a real product caller:\n" + "\n".join(problems)
 
 

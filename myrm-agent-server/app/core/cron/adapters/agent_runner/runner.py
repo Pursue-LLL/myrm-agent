@@ -23,6 +23,9 @@ so the Agent can skip delivery when there's nothing actionable to report.
 
 During execution, a ContextVar guard prevents the Agent from creating new
 cron jobs (cron self-scheduling prevention).
+
+[POS]
+`agent_runner` 的执行核心：`AgentJobRunner` 编排一次 cron 任务的 Agent 执行；执行前检查、会话后置动作、事件流累积、profile 解析由同目录其余模块承担。
 """
 
 from __future__ import annotations
@@ -30,7 +33,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.api.security import is_untrusted_ingress_active
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
@@ -73,10 +75,9 @@ from .support import (
     resolve_trusted_desktop_keys,
 )
 
-if TYPE_CHECKING:
-    pass
-
 logger = logging.getLogger(__name__)
+
+
 class AgentJobRunner:
     """JobRunner implementation that delegates to AgentFactory.
 

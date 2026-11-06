@@ -30,7 +30,6 @@ async def test_pump_emits_context_compaction_when_pre_reply_compact_succeeded() 
     session.request.message_id = "msg-1"
     session.params.project_id = None
     session.request.chat_id = "chat-1"
-    session.is_long_running_task = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()
@@ -56,7 +55,6 @@ async def test_pump_skips_context_compaction_when_pre_reply_compact_skipped() ->
     session.request.message_id = "msg-2"
     session.params.project_id = None
     session.request.chat_id = "chat-2"
-    session.is_long_running_task = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()
@@ -85,7 +83,6 @@ async def test_pump_skips_duplicate_sse_when_already_sent() -> None:
     session.request.message_id = "msg-3"
     session.params.project_id = None
     session.request.chat_id = "chat-3"
-    session.is_long_running_task = False
     session.had_fatal_error = False
     session.collector = MagicMock()
     session.registry.remove = AsyncMock()

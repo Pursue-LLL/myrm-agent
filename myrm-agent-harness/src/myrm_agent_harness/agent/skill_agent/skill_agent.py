@@ -132,7 +132,6 @@ class SkillAgent(
         fallback_llm: BaseChatModel | None = None,
         fallback_llms: list[BaseChatModel] | None = None,
         safety_fallback_llm: BaseChatModel | None = None,
-        escalation_target_llm: BaseChatModel | None = None,
         checkpointer: "BaseCheckpointSaver[str] | None" = None,
         event_log_backend: EventLogBackend | None = None,
         trusted_skill_ids: list[str] | None = None,
@@ -173,7 +172,6 @@ class SkillAgent(
             fallback_llm=fallback_llm,
             fallback_llms=fallback_llms,
             safety_fallback_llm=safety_fallback_llm,
-            escalation_target_llm=escalation_target_llm,
             checkpointer=checkpointer,
             event_log_backend=event_log_backend,
         )

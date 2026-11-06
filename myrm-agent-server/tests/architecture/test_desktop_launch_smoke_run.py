@@ -1,9 +1,9 @@
 """The packaged-shell launch smoke (`scripts/ci/desktop-release/smoke_launch_shell.py`) against stand-in bundles.
 
-The smoke demands that the shell brings up the backend, which must serve the data it ships, and the bundled Next.js
-server, keeps them up and takes them down when asked to quit. A smoke that cannot fail proves nothing, so each way the
-product can misbehave is reproduced here by a stand-in bundle whose executable acts like the shell, or misacts on
-purpose, and must be reported.
+The smoke demands that the shell brings up the backend, which must serve the data it ships and create every channel
+type it offers, and the bundled Next.js server, keeps them up and takes them down when asked to quit. A smoke that
+cannot fail proves nothing, so each way the product can misbehave is reproduced here by a stand-in bundle whose
+executable acts like the shell, or misacts on purpose, and must be reported.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from typing import cast
 
 import pytest
 
-from tests.support.desktop_release import smoke_launch_shell_module
+from tests.support.desktop_release import smoke_channels_module, smoke_launch_shell_module
 from tests.support.stand_in_shell_bundle import Ports, stand_in_bundle
 
 _POSIX_ONLY = pytest.mark.skipif(sys.platform == "win32", reason="the smoke reads the POSIX process table and signals")
@@ -158,11 +158,17 @@ def quick(smoke: ModuleType, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
 @_POSIX_ONLY
 class TestRunAgainstAStandInShell:
-    def test_a_shell_that_serves_the_product_and_quits_cleanly_passes(self, quick: ModuleType, tmp_path: Path) -> None:
+    def test_a_shell_that_serves_the_product_and_quits_cleanly_passes(
+        self, quick: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         ports = _free_ports(quick)
 
         quick.run(stand_in_bundle(tmp_path, ports), "linux", ports=ports, ready_timeout_sec=30)
 
+        channels = smoke_channels_module()
+        created = len(channels.CHANNEL_TYPES) - len(channels.UNAVAILABLE_WITHOUT_SDK)
+        expected = f"[shell-smoke] channels: {created} types created and removed; unavailable by design: discord"
+        assert expected in capsys.readouterr().out
         _assert_ports_released(quick, ports)
 
     def test_a_macos_shell_is_started_in_the_filesystem_root_as_under_finder(self, quick: ModuleType, tmp_path: Path) -> None:
@@ -267,6 +273,16 @@ class TestRunAgainstAStandInShell:
 
         with pytest.raises(quick.SmokeFailure, match=r"skills .*agent templates .*integration catalog .*search providers"):
             quick.run(stand_in_bundle(tmp_path, ports, data="broken"), "linux", ports=ports, ready_timeout_sec=30)
+
+        _assert_ports_released(quick, ports)
+
+    def test_a_backend_that_refuses_channel_types_fails_the_smoke_with_each_type_named(
+        self, quick: ModuleType, tmp_path: Path
+    ) -> None:
+        ports = _free_ports(quick)
+
+        with pytest.raises(quick.SmokeFailure, match=r"(?s)cannot create channel types.*telegram: HTTP 400.*slack: HTTP 400"):
+            quick.run(stand_in_bundle(tmp_path, ports, channels="refusing"), "linux", ports=ports, ready_timeout_sec=30)
 
         _assert_ports_released(quick, ports)
 

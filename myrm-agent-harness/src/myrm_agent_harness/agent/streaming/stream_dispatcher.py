@@ -3,7 +3,6 @@
 [INPUT]
 - agent.streaming.event_handlers::process_messages_chunk, process_updates_chunk (POS: 事件处理器)
 - agent.streaming.artifact_events::collect_inline_artifacts, process_realtime_content_events (POS: Artifact 事件处理器)
-- agent.streaming.escalation_scrubber::EscalationScrubber (POS: 流式层升级标记检测)
 - agent.streaming.interrupt_events::interrupt_events (POS: 中断 → 带卡片 id 的流事件)
 - agent.streaming.interrupt_identity::announced_rounds (POS: 本次运行各中断所处的轮次)
 - agent.streaming.latest_reply::latest_model_reply (POS: 一次 updates 分片携带的最后一条助手回复，含 collected_messages 不收的空回复)
@@ -42,7 +41,6 @@ from .latest_reply import latest_model_reply
 if TYPE_CHECKING:
     from langchain_core.messages import AIMessage, BaseMessage
 
-    from myrm_agent_harness.agent.streaming.escalation_scrubber import EscalationScrubber
     from myrm_agent_harness.agent.streaming.reasoning_scrubber import ReasoningScrubber
     from myrm_agent_harness.agent.streaming.repetition_scrubber import StreamRepetitionScrubber
     from myrm_agent_harness.agent.streaming.stream_compactor import StreamCompactor
@@ -61,7 +59,6 @@ class StreamDispatcherMixin:
     _ctx: StreamContext
     _compactor: StreamCompactor
     _reasoning_scrubber: ReasoningScrubber
-    _escalation_scrubber: EscalationScrubber
     _repetition_scrubber: StreamRepetitionScrubber
     streaming_final_answer: bool
     _pseudonym_restorer: _PseudonymRestorer | None
@@ -138,9 +135,7 @@ class StreamDispatcherMixin:
                 content = event.get("data", "")
                 if isinstance(content, str):
                     self._partial_text_buffer += content
-                    forwarded = self._escalation_scrubber.process(content)
-                    if forwarded is None:
-                        continue
+                    forwarded = content
                     if hasattr(self, "_repetition_scrubber"):
                         rep_checked = self._repetition_scrubber.process(forwarded)
                         if rep_checked is None:

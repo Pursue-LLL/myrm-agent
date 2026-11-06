@@ -43,7 +43,6 @@ def _session(*, enable_web_search: bool) -> SimpleNamespace:
         extra_context={},
         stream_ttft_ms=None,
         stream_started_at_monotonic=0.0,
-        research_model_cfg=None,
         collector=StreamContentCollector(chat_id=None),
         goal_provider=None,
         pending_session_draft=None,

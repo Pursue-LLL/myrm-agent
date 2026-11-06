@@ -87,7 +87,6 @@ def resolve_builtin_tool_flags(
 def is_sandbox_capable_tools(
     tools: Sequence[str],
     *,
-    has_sandbox_dir: bool = False,
     declared_capabilities: Collection[str] = (),
 ) -> bool:
     """Check if the resolved tool set or capabilities indicate a sandbox/coding capable agent.
@@ -95,8 +94,6 @@ def is_sandbox_capable_tools(
     Agents with code execution, file ops, external CLI, terminal access, or explicit
     sandbox directory/capabilities require strict memory write gating to avoid L3 pollution.
     """
-    if has_sandbox_dir:
-        return True
     if any(cap in declared_capabilities for cap in ("code_execution", "sandbox", "terminal", "coding")):
         return True
     sandbox_tool_identifiers = {"code_execute", "external_cli"}

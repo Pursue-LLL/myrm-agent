@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.meta_tools.bash._tool.formatting import format_result
+from myrm_agent_harness.agent.meta_tools.bash._tool.formatting import format_result, read_exit_code
 from myrm_agent_harness.agent.meta_tools.bash._tool.terminal_hints import (
     annotate_failure,
     annotate_masked_success,
+    annotate_skills_import_failure,
 )
 from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 
@@ -113,3 +114,45 @@ def test_format_result_integrates_hints() -> None:
     formatted, _, _ = format_result(result, command="python test.py")
     assert "[Auto-Hint]" in formatted
     assert "python3" in formatted
+
+
+_SKILLS_TRACEBACK = (
+    "Traceback (most recent call last):\n"
+    '  File "k8s_probe.py", line 3, in <module>\n'
+    "    from skills.mcp_kubernetes_skill import list_namespaces\n"
+    "ModuleNotFoundError: No module named 'skills'"
+)
+
+
+def test_skills_import_failure_behind_a_pipe_gets_the_namespace_advice() -> None:
+    # `| head` makes the shell exit 0, so `annotate_failure` never runs for this result.
+    hint = annotate_skills_import_failure("cd /workspace && python3 k8s_probe.py 2>&1 | head -60", _SKILLS_TRACEBACK)
+    assert hint is not None
+    assert SKILLS_NAMESPACE_ADVICE in hint
+
+
+def test_skills_import_failure_the_script_caught_and_printed_gets_the_namespace_advice() -> None:
+    hint = annotate_skills_import_failure(
+        "python3 probe.py", "[OBSERVATION] import ERROR: ModuleNotFoundError No module named 'skills'"
+    )
+    assert hint is not None
+    assert SKILLS_NAMESPACE_ADVICE in hint
+
+
+def test_skills_import_failure_ignores_other_missing_modules_and_unrelated_output() -> None:
+    assert (
+        annotate_skills_import_failure("python3 run.py | tail", "ModuleNotFoundError: No module named 'pandas'") is None
+    )
+    assert annotate_skills_import_failure("python3 run.py", "42 namespaces listed") is None
+
+
+def test_skills_import_failure_ignores_a_read_only_command_that_merely_shows_the_text() -> None:
+    assert annotate_skills_import_failure("grep -rn \"No module named 'skills'\" src", _SKILLS_TRACEBACK) is None
+
+
+def test_format_result_adds_the_namespace_advice_to_a_masked_skills_import_failure() -> None:
+    result = {"stdout": _SKILLS_TRACEBACK, "stderr": "", "exit_code": "0"}
+    formatted, _, _ = format_result(result, command="cd /workspace && python3 k8s_probe.py 2>&1 | head -60")
+    assert "Masked Failure Warning" in formatted
+    assert f"[Auto-Hint] Python cannot import 'skills'. {SKILLS_NAMESPACE_ADVICE}" in formatted
+    assert read_exit_code(formatted) == 0

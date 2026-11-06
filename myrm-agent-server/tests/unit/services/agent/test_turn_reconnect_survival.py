@@ -26,7 +26,6 @@ from app.services.agent.streaming_support.stream_collector import StreamContentC
 def _create_mock_session(
     *,
     is_disconnected: bool = True,
-    is_long_running: bool = False,
     message_id: str = "msg_test_reconnect",
 ) -> tuple[AgentStreamSession, AsyncMock]:
     mock_disconnect_fn = AsyncMock(return_value=is_disconnected)
@@ -48,10 +47,8 @@ def _create_mock_session(
         steering_token=None,
         routing_tier=None,
         archive_restore_results=[],
-        research_model_cfg=None,
         registry=MagicMock(),
         collector=collector,
-        is_long_running_task=is_long_running,
         goal_provider=None,
         extra_context={},
     )

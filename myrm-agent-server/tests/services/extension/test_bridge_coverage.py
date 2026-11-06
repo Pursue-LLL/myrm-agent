@@ -79,7 +79,7 @@ async def test_relay_cdp_ready_connected_binds_transport() -> None:
     bridge._connected = True
     bridge._ws = MagicMock()
     await bridge.set_authorized_domains(["example.com"])
-    with patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager:
+    with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
         mock_relay = AsyncMock()
         mock_relay.relay_cdp_ready.return_value = True
         mock_manager.return_value = mock_relay
@@ -126,7 +126,7 @@ async def test_connect_success_focuses_preferred_tab() -> None:
             AsyncMock(return_value="ws://cdp"),
         ),
         patch.object(bridge, "_ensure_playwright", AsyncMock(return_value=mock_pw)),
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
     ):
         mock_manager.return_value = AsyncMock()
         instance = await bridge.connect()
@@ -199,7 +199,7 @@ async def test_connect_to_domain_navigates_then_finds_tab() -> None:
     with (
         patch.object(bridge, "_send_request", side_effect=fake_send),
         patch.object(bridge, "_ensure_playwright", AsyncMock(return_value=mock_pw)),
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
     ):
         mock_manager.return_value = AsyncMock()
         instance = await bridge.connect_to_domain("example.com")
@@ -226,7 +226,7 @@ async def test_connect_to_domain_no_tab_available_raises() -> None:
     with (
         patch.object(bridge, "_send_request", side_effect=fake_send),
         patch.object(bridge, "_ensure_playwright", AsyncMock(return_value=MagicMock())),
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
     ):
         mock_manager.return_value = AsyncMock()
         with pytest.raises(ExtensionBridgeNotAvailable, match="No extension tab"):
@@ -278,7 +278,7 @@ async def test_receive_loop_dispatch_messages() -> None:
             ),
         ]
     )
-    with patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager:
+    with patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager:
         mock_relay = AsyncMock()
         mock_manager.return_value = mock_relay
         await bridge._receive_loop()
@@ -320,8 +320,8 @@ async def test_receive_loop_tabs_prune_notifies_policy() -> None:
     )
     bridge._paused_tab_ids = frozenset({1, 99})
     with (
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
-        patch("app.services.extension.bridge._broadcast_extension_status"),
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common._broadcast_extension_status"),
     ):
         mock_manager.return_value = MagicMock()
         await bridge._receive_loop()
@@ -337,8 +337,8 @@ async def test_heartbeat_timeout_disconnects() -> None:
     bridge._last_heartbeat = time.monotonic() - 60.0
     with (
         patch("asyncio.sleep", new=AsyncMock()),
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
-        patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast,
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common._broadcast_extension_status") as mock_broadcast,
     ):
         mock_manager.return_value = AsyncMock()
         await bridge._heartbeat_loop()
@@ -355,7 +355,7 @@ async def test_heartbeat_send_failure_breaks_loop() -> None:
     bridge._last_heartbeat = time.monotonic()
     with (
         patch("asyncio.sleep", new=AsyncMock()),
-        patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager,
+        patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager,
     ):
         mock_manager.return_value = AsyncMock()
         await bridge._heartbeat_loop()

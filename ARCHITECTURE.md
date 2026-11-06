@@ -106,7 +106,7 @@ flowchart TD
 | 阶段 | 模块 | POS |
 |------|------|-----|
 | 进程入口 | `run.py` → `app/startup/*` | OS 进程、锁、uvicorn |
-| 运行时生命周期 | `app/server/lifespan.py` | FastAPI lifespan 三阶段 |
+| 运行时生命周期 | `app/server/lifespan/` | FastAPI lifespan 三阶段 |
 | 后台编排 | `app/lifecycle/*` | Gateway/Cron/看板/记忆守护者等 |
 | 请求路径 | `app/api` → `app/services` → harness | 单机业务编排 |
 

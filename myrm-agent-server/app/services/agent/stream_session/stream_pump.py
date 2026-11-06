@@ -143,7 +143,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
         try:
             now_mono = time.monotonic()
             turn_duration = (now_mono - session.stream_started_at_monotonic) if session.stream_started_at_monotonic > 0 else 0.0
-            is_long_turn = session.is_long_running_task or turn_duration >= 30.0
+            is_long_turn = turn_duration >= 30.0
 
             if is_long_turn and not session.cancel_token.is_cancelled:
                 if await _is_client_detached(session):

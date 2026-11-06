@@ -3,17 +3,8 @@
 from __future__ import annotations
 
 from myrm_agent_harness.agent.orchestration.signals.catalog import (
-    DEEP_RESEARCH_SIGNAL_NAMES,
     ORCHESTRATION_SIGNAL_NAMES,
     VERIFIER_SIGNAL_NAMES,
-)
-from myrm_agent_harness.agent.orchestration.signals.deep_research import (
-    DISPATCH_TOOL_NAME,
-    FINALIZE_TOOL_NAME,
-    THINK_TOOL_NAME,
-    DispatchResearchInput,
-    build_orchestrator_tools,
-    build_signal_schema,
 )
 from myrm_agent_harness.agent.orchestration.signals.verifier import (
     SUBMIT_VERDICT_SIGNAL_NAME,
@@ -24,35 +15,7 @@ from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSou
 
 
 def test_orchestration_signal_names_are_the_union_of_their_groups() -> None:
-    assert DEEP_RESEARCH_SIGNAL_NAMES | VERIFIER_SIGNAL_NAMES == ORCHESTRATION_SIGNAL_NAMES
-
-
-def test_build_signal_schema_shape() -> None:
-    schema = build_signal_schema(
-        DISPATCH_TOOL_NAME,
-        "Dispatch research sub-agent",
-        DispatchResearchInput,
-    )
-    assert schema["type"] == "function"
-    function = schema["function"]
-    assert function["name"] == DISPATCH_TOOL_NAME
-    assert function["description"] == "Dispatch research sub-agent"
-    params = function["parameters"]
-    assert "properties" in params
-    assert "task" in params["properties"]
-    assert "title" not in params
-
-
-def test_build_orchestrator_tools_include_think() -> None:
-    tools = build_orchestrator_tools(include_think=True)
-    names = [tool["function"]["name"] for tool in tools]
-    assert names == [DISPATCH_TOOL_NAME, THINK_TOOL_NAME, FINALIZE_TOOL_NAME]
-
-
-def test_build_orchestrator_tools_exclude_think() -> None:
-    tools = build_orchestrator_tools(include_think=False)
-    names = [tool["function"]["name"] for tool in tools]
-    assert names == [DISPATCH_TOOL_NAME, FINALIZE_TOOL_NAME]
+    assert VERIFIER_SIGNAL_NAMES == ORCHESTRATION_SIGNAL_NAMES
 
 
 def test_create_submit_verdict_tool_writes_context() -> None:

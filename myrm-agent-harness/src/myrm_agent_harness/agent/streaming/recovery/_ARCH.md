@@ -11,7 +11,7 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
 | context_pressure_gate.py | Gate | Pre-flight context pressure gate, token budget compaction, and presumed-overflow recovery handler (a 400 that states the model's own output ceiling is never presumed to be an overflow) | ✅ |
 | goal_session.py | Core | `goal_session_id(ctx)`: the goal lookup key of a run (chat id, else session id, else message id); shared by goal continuation and provider-window parking so both address the same goal | ✅ |
 | stream_recovery.py | Core | StreamRecoveryMixin — composes overflow, LLM failover (with fast-failover on is_quota_exhausted), safety refusal fallback, transient retry (short-circuited on quota exhaustion), and the mixins that hold the other strategies (turn-end, truncation, one-shot, provider-window, continuation) | ✅ |
-| stream_recovery_turn_end.py | Core | StreamTurnEndRecoveryMixin — what runs on the messages of a turn that finished badly: model self-escalation, iteration-limit handling with a toolless grace-call summary, and empty-response recovery (re-runs through `_redrive_with_hint`); `_is_escalation_marker_message` | ✅ |
+| stream_recovery_turn_end.py | Core | StreamTurnEndRecoveryMixin — what runs on the messages of a turn that finished badly: iteration-limit handling with a toolless grace-call summary, and empty-response recovery (re-runs through `_redrive_with_hint`) | ✅ |
 | stream_recovery_redrive.py | Core | StreamRedriveMixin — `_redrive_with_hint(kept, hint)`: the one way the truncation and empty-response recoveries re-run a turn. A fresh turn is rebuilt from `kept` plus a runtime-authored hint; a resumed turn gets just the hint and continues from its thread | ✅ |
 | stream_recovery_budget.py | Core | StreamOutputBudgetMixin — output-budget half of truncation recovery, inherited by `StreamTruncationRecoveryMixin`: `_boost_output_tokens` sets the one-shot larger budget a retry runs with (2x/3x/4x of the base, capped at `MAX_EPHEMERAL_OUTPUT_TOKENS` and at the model's documented output ceiling; a base that already reaches a cap or ceiling is kept as is), starting from the configured `max_tokens` or, failing that, a thinking model's headroom floor | ✅ |
 | stream_recovery_continuation.py | Core | StreamContinuationRecoveryMixin — steering injection, teammate-inbox injection (runtime-authored, not user words), subagent completion, goal continuation | ✅ |
@@ -56,7 +56,7 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
   answers a withheld call with an invalid-arguments result, so the model reads what failed before it reads
   the hint. A retried write asks for approval again, as any new call does. Failover and transient
   retry act while the stream is still mid-run and replay the `Command` itself (verified for 429, 500 and 503
-  after an approval); overflow compaction, escalation, steering, goal continuation and the one-shot
+  after an approval); overflow compaction, steering, goal continuation and the one-shot
   recoveries are declined on a resumed turn.
 - **Recovery hints are runtime-authored.** The hint a recovery appends (and a teammate-inbox note) is a
   HumanMessage built by `runtime_human_message`, marked `is_system_synthetic`: the approval intent ledger

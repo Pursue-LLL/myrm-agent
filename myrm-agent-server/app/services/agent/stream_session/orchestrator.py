@@ -49,11 +49,6 @@ from app.services.agent.stream_session.turn_capability_terminal import (
 
 logger = logging.getLogger(__name__)
 
-_ACTION_MODE_FEATURE_GATE: dict[str, str] = {
-    "deep_research": "deep_research",
-}
-
-
 # Gateway hygiene limit: ~120K tokens (rough character-to-token ratio) to prevent OOM
 _GATEWAY_MAX_INPUT_CHARS: int = 360_000
 
@@ -124,17 +119,6 @@ async def run_agent_stream(
     reconnect_response = await try_stream_reconnect(request, http_request)
     if reconnect_response is not None:
         return reconnect_response
-
-    gated_feature = _ACTION_MODE_FEATURE_GATE.get(request.action_mode or "")
-    if gated_feature:
-        from myrm_agent_harness.core.features import get_features
-
-        if not get_features().enabled(gated_feature):
-            await _record_terminal_failure_if_needed("server_error")
-            return JSONResponse(
-                status_code=403,
-                content={"detail": f"{request.action_mode} is disabled via Feature Gate"},
-            )
 
     text_content = stream_text_content(request)
     # What the person typed: the guard below may turn text_content into a stub for the run, but the stored message is the typed text.

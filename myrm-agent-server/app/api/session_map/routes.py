@@ -113,7 +113,7 @@ async def list_session_map_projects(
                     tokens_used=c.total_tokens or 0,
                     last_active_at=updated_str,
                     tags=c.tags or [],
-                    workspace_dir=c.workspace_dir or c.sandbox_base_dir,
+                    workspace_dir=c.workspace_dir,
                 )
 
                 if c.project_id and c.project_id in clusters_map:

@@ -284,19 +284,6 @@ def test_execution_fingerprint_changes_when_force_delegate_changes() -> None:
     assert none_fp != delegated_fp
 
 
-def test_execution_fingerprint_changes_when_reasoning_model_changes() -> None:
-    """Reasoning LLM is wired into the harness spec at build time (factory:113-124),
-    so a reasoning-model selection change must bust the POOLED cache."""
-    wrapper = GeneralAgent(
-        model_cfg=ModelConfig(model="test-model", api_key="test-key", base_url="http://test"),
-        mcp_config=None,
-    )
-    none_fp = compute_execution_fingerprint(wrapper)
-    wrapper.reasoning_model_cfg = ModelConfig(model="qwen3-thinking", api_key="k", base_url="http://x")
-    configured_fp = compute_execution_fingerprint(wrapper)
-    assert none_fp != configured_fp
-
-
 def test_execution_fingerprint_changes_when_privacy_routing_changes() -> None:
     """Privacy routing wraps the lite LLM at build time (factory:91,137-139),
     so routing rule changes must bust the POOLED cache while localApiKey rotation

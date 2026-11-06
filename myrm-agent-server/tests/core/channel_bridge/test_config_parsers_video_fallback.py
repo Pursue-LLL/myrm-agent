@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from app.core.channel_bridge.config_parsers.common import _infer_supports_video
 from app.core.channel_bridge.config_parsers import (
     build_video_fallback_probe_engine_from_providers,
     extract_video_fallback_model_configs,
 )
+from app.core.channel_bridge.config_parsers.common import _infer_supports_video
 
 
 def test_infer_supports_video_uses_custom_model_info() -> None:

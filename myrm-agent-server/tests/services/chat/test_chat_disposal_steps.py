@@ -14,12 +14,9 @@ from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_
 from app.platform_utils import _reset_checkpointer_for_testing
 from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service
 from app.services.chat import chat_disposal
-from app.services.chat.chat_disposal import ChatFilesRemoval
 from tests.services.chat.disposal_support import (
     CHAT_ID,
     OWNER,
-    SANDBOX_DIR,
-    SANDBOX_ROOT,
     Spies,
     grant_and_checkpoint,
     install_spies,
@@ -84,41 +81,19 @@ async def test_clear_conversation_state_is_idempotent(checkpointer: BaseCheckpoi
 
 
 @pytest.mark.asyncio
-async def test_remove_chat_files_keeps_removing_the_workspace_when_the_worktree_fails(spies: Spies) -> None:
-    spies.worktree.side_effect = RuntimeError("worktree busy")
+async def test_remove_chat_files_cleans_every_workspace_in_one_batch(spies: Spies) -> None:
+    await chat_disposal.remove_chat_files(["a", "b", "c"])
 
-    assert await chat_disposal.remove_chat_files({CHAT_ID: SANDBOX_DIR}) == ChatFilesRemoval(kept_worktrees=1)
-
-    spies.workspace.assert_awaited_once_with([CHAT_ID])
-
-
-@pytest.mark.asyncio
-async def test_remove_chat_files_without_a_sandbox_skips_the_worktree(spies: Spies) -> None:
-    assert await chat_disposal.remove_chat_files({CHAT_ID: None}) == ChatFilesRemoval()
-
-    spies.worktree.assert_not_awaited()
-    spies.workspace.assert_awaited_once_with([CHAT_ID])
-
-
-@pytest.mark.asyncio
-async def test_remove_chat_files_counts_removed_worktrees_and_cleans_all_workspaces_in_one_call(spies: Spies) -> None:
-    removal = await chat_disposal.remove_chat_files({"a": f"{SANDBOX_ROOT}/a", "b": None, "c": f"{SANDBOX_ROOT}/c"})
-
-    assert removal == ChatFilesRemoval(removed_worktrees=2)
-    assert spies.worktree.await_count == 2
     spies.workspace.assert_awaited_once_with(["a", "b", "c"])
 
 
 @pytest.mark.asyncio
-async def test_remove_chat_files_leaves_a_worktree_with_unsaved_work_in_place(spies: Spies) -> None:
-    """Safe mode: the worktree that refuses removal is reported as kept, and the other chats are still cleaned."""
-    spies.worktree.side_effect = [False, True]
+async def test_remove_chat_files_swallows_a_failing_workspace_cleanup(spies: Spies) -> None:
+    spies.workspace.side_effect = RuntimeError("vault scan unavailable")
 
-    removal = await chat_disposal.remove_chat_files({"dirty": f"{SANDBOX_ROOT}/dirty", "clean": f"{SANDBOX_ROOT}/clean"})
+    await chat_disposal.remove_chat_files([CHAT_ID])
 
-    assert removal == ChatFilesRemoval(removed_worktrees=1, kept_worktrees=1)
-    assert [call.kwargs for call in spies.worktree.await_args_list] == [{}, {}]
-    spies.workspace.assert_awaited_once_with(["dirty", "clean"])
+    spies.workspace.assert_awaited_once_with([CHAT_ID])
 
 
 @pytest.mark.asyncio
@@ -137,10 +112,9 @@ async def test_a_failing_step_does_not_stop_the_remaining_disposal_steps(
 ) -> None:
     spies.memory_purge.side_effect = RuntimeError("vector store unavailable")
     spies.ephemeral_delta.side_effect = RuntimeError("cache corrupted")
-    spies.worktree.side_effect = RuntimeError("worktree busy")
     await grant_and_checkpoint(checkpointer)
 
-    await chat_disposal.dispose_permanently_deleted_chats({CHAT_ID: SANDBOX_DIR})
+    await chat_disposal.dispose_permanently_deleted_chats([CHAT_ID])
 
     assert not await is_stored(checkpointer, CHAT_ID)
     assert not is_granted()
@@ -182,7 +156,7 @@ async def test_a_failing_event_log_removal_does_not_stop_the_remaining_disposal_
     )
     await grant_and_checkpoint(checkpointer)
 
-    await chat_disposal.dispose_permanently_deleted_chats({CHAT_ID: SANDBOX_DIR})
+    await chat_disposal.dispose_permanently_deleted_chats([CHAT_ID])
 
     assert not await is_stored(checkpointer, CHAT_ID)
     assert not is_granted()

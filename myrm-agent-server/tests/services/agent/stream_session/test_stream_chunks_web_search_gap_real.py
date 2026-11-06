@@ -52,10 +52,8 @@ def _session(*, profile_enabled: bool, runtime_enabled: bool) -> AgentStreamSess
         steering_token=None,
         routing_tier=None,
         archive_restore_results=[],
-        research_model_cfg=None,
         registry=cast(GlobalStreamRegistry, None),
         collector=StreamContentCollector(chat_id="chat-gap"),
-        is_long_running_task=False,
         goal_provider=None,
         extra_context={},
     )

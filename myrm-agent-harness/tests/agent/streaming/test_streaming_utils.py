@@ -1,6 +1,6 @@
 """streaming/utils.py 全面测试
 
-覆盖：AGENT_BEHAVIOR_RULES 常量、set_user_timezone、set_datetime_injection_enabled、
+覆盖：DATETIME_SYSTEM_RULES、set_user_timezone、set_datetime_injection_enabled、
 get_datetime_prompt 无效时区分支、validate_context、normalize_tool_names。
 """
 
@@ -15,7 +15,6 @@ import pytest
 from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.streaming.utils import (
-    AGENT_BEHAVIOR_RULES,
     DATETIME_SYSTEM_RULES,
     DATETIME_TAG,
     DATETIME_TAG_END,
@@ -29,42 +28,14 @@ from myrm_agent_harness.agent.streaming.utils import (
 )
 
 
-class TestAgentBehaviorRules:
-    """AGENT_BEHAVIOR_RULES 常量内容校验"""
+class TestDatetimeSystemRules:
+    """DATETIME_SYSTEM_RULES 常量内容校验"""
 
     def test_wrapped_in_xml_tags(self) -> None:
-        assert "<agent_behavior_rules>" in AGENT_BEHAVIOR_RULES
-        assert "</agent_behavior_rules>" in AGENT_BEHAVIOR_RULES
-
-    def test_anti_narration_keywords(self) -> None:
-        assert "NEVER narrate" in AGENT_BEHAVIOR_RULES
-        assert "FINAL ANSWER" in AGENT_BEHAVIOR_RULES
-
-    def test_bilingual_examples(self) -> None:
-        assert "让我查一下" in AGENT_BEHAVIOR_RULES
-        assert "搜索中" in AGENT_BEHAVIOR_RULES
-        assert "I will use" in AGENT_BEHAVIOR_RULES
-
-    def test_self_correction(self) -> None:
-        assert "NEVER output <tool_call>" in AGENT_BEHAVIOR_RULES
-
-    def test_tool_honesty_keywords(self) -> None:
-        assert "NEVER fabricate" in AGENT_BEHAVIOR_RULES
-        assert "No results found" in AGENT_BEHAVIOR_RULES
-        assert "report the error" in AGENT_BEHAVIOR_RULES
-
-    def test_starts_with_newline(self) -> None:
-        assert AGENT_BEHAVIOR_RULES.startswith("\n")
-
-    def test_is_static_string(self) -> None:
-        assert AGENT_BEHAVIOR_RULES is AGENT_BEHAVIOR_RULES
-        assert isinstance(AGENT_BEHAVIOR_RULES, str)
-
-    def test_datetime_rules_also_static(self) -> None:
         assert "<datetime_rules>" in DATETIME_SYSTEM_RULES
         assert "</datetime_rules>" in DATETIME_SYSTEM_RULES
 
-    def test_datetime_rules_format_matches_code_output(self) -> None:
+    def test_format_matches_code_output(self) -> None:
         """锁定 DATETIME_SYSTEM_RULES 的格式描述与代码实际输出一致。
 
         历史消息（_format_time_with_timezone）：YYYY-MM-DD HH:MM:SS (UTC±X)，无 Weekday。

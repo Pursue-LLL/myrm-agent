@@ -544,46 +544,6 @@ def test_status_without_restart_keeps_draft() -> None:
     collector.cleanup()
 
 
-def test_model_escalated_discards_draft() -> None:
-    """Escalation re-plays the turn with a stronger model; drop the draft.
-
-    The draft is discarded and the escalation transition is persisted as a
-    progress step (mirroring model_failover), so history replay shows which
-    model switch happened even though the final answer was regenerated.
-    """
-    collector = StreamContentCollector(chat_id="chat-escalated-draft")
-    collector.feed_event({"type": "message", "data": "Partial escalated text "})
-    collector.feed_event({"type": "reasoning", "data": "escalation reasoning "})
-
-    collector.feed_event(
-        {
-            "type": "model_escalated",
-            "data": {
-                "from_model": "openai/fast",
-                "to_model": "openai/strong",
-                "reason": "escalation",
-                "restart": True,
-            },
-        }
-    )
-
-    assert collector.content == ""
-    assert collector.reasoning is None
-    assert collector.extra_data is not None
-    progress_steps = collector.extra_data.get("progressSteps")
-    assert progress_steps == [
-        {
-            "step_key": "model_escalated",
-            "items": [{"text": "openai/fast → openai/strong"}],
-            "status": "success",
-        }
-    ]
-
-    collector.feed_event({"type": "message", "data": "Replayed with stronger model"})
-    assert collector.content == "Replayed with stronger model"
-    collector.cleanup()
-
-
 def test_failover_after_a_tool_step_keeps_the_text_streamed_before_it() -> None:
     ACTIVE_COLLECTORS.clear()
     collector = StreamContentCollector(chat_id="chat-failover-after-tool")

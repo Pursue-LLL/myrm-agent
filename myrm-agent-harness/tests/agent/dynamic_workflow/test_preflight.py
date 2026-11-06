@@ -37,10 +37,10 @@ def test_format_plan_preview_product_copy():
         estimated_cost_usd=1.5,
         remaining_budget_usd=10.0,
         cost_status="configured_max_cost",
-        goal_brief="Deep research payment gateways",
+        goal_brief="Research payment gateways",
     )
     preview = format_plan_preview(review)
-    assert "Goal: Deep research payment gateways" in preview
+    assert "Goal: Research payment gateways" in preview
     assert "3 sub-agent task(s)" in preview
     assert f"with up to {DEFAULT_MAX_CONCURRENT_SPAWNS} at a time" in preview
     assert "Estimated cost: $1.50" in preview

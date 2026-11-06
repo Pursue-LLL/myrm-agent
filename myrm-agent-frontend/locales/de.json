@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "Primärmodell nicht verfügbar, zu Backup-Modell gewechselt",
     "model_failover_auth": "Authentifizierung fehlgeschlagen, zu Backup-Modell gewechselt",
     "model_failover_unconfigured": "Primärmodell fehlgeschlagen — Backup-Modell in den Einstellungen konfigurieren",
-    "model_escalated": "Modell automatisch hochgestuft: {from} → {to}",
-    "model_escalated_reason": "Grund: {reason}",
     "model_recovery": "Modell wieder verfügbar: {model}",
     "model_recovery_downtime": "Ausfallzeit {seconds}s",
     "safety_fallback_unconfigured": "Inhalt blockiert — Sicherheits-Backup-Modell in den Einstellungen konfigurieren",
@@ -16305,76 +16303,54 @@
       "detailArgs": "Bereinigte Argumente:"
     },
     "retrieval": {
-      "embeddingConfig": "Embedding-Modellkonfiguration",
-      "rerankerConfig": "Reranker-Modellkonfiguration",
-      "embeddingModel": "Embedding-Modell",
-      "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche (läuft lokal)",
-      "embeddingModelDescriptionSaas": "Text-Vektorisierungsmodell für semantische Suche (kostenlos für Abonnenten)",
-      "rerankerModel": "Reranker-Modell",
-      "rerankerModelDescription": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet (läuft lokal)",
-      "rerankerModelDescriptionSaas": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet (kostenlos für Abonnenten)",
-      "localModel": "Lokales Modell",
-      "platformService": "Plattformdienst",
-      "customProvider": "Benutzerdefinierter Anbieter",
+      "card": {
+        "title": "Verbesserte Suche",
+        "description": "Suche nach Bedeutung statt nach Schlüsselwörtern; die relevantesten Passagen stehen zuerst. Wählen Sie einen Anbieter und geben Sie den API-Key nur einmal ein."
+      },
+      "embedding": {
+        "title": "Semantische Suche",
+        "description": "Findet Inhalte aus Wissensdatenbank, Speicher, FAQ und verbundenen Quellen nach Bedeutung, nicht nur nach Schlüsselwörtern.",
+        "enable": "Aktivieren",
+        "enabled": "Aktiviert",
+        "notEnabled": "Nicht aktiviert"
+      },
+      "rerank": {
+        "title": "Treffer-Reranking",
+        "description": "Stellt die relevantesten Speichereinträge und Seitenpassagen zuerst vor das LLM."
+      },
+      "disclosure": {
+        "title": "Was an Ihren Anbieter gesendet wird",
+        "embedding": "Semantische Suche: Ihre Anfragen sowie Texte aus Wissensdatenbank, Speicher, FAQ und verbundenen Quellen.",
+        "rerank": "Treffer-Reranking: Ihre Anfrage und die abgerufenen Speicherausschnitte, die sortiert werden.",
+        "pageReading": "Seiten lesen: Sind beide aktiv, gehen Auszüge abgerufener Webseiten zusammen mit der Anfrage an beide Anbieter.",
+        "coverage": "Reranking wirkt im Chat (außer Schnellsuche) und in Nachrichtenkanälen. Geplante Aufgaben, Kanban-Aufgaben, unbeaufsichtigte Ziele und Sprache nutzen es nicht, und die Schnellsuche verwendet keine Retrieval-Modelle."
+      },
+      "advanced": {
+        "title": "Separat konfigurieren",
+        "embeddingModel": "Embedding-Modell",
+        "rerankerModel": "Reranker-Modell"
+      },
       "provider": "Anbieter",
       "modelName": "Modellname",
       "modelNamePlaceholder": "Modellname eingeben",
       "apiKey": "API Key",
       "apiKeyPlaceholder": "Ihren API-Schlüssel eingeben",
       "apiKeyHint": "API-Schlüssel von der Anbieterwebsite abrufen oder benutzerdefinierten Schlüssel für lokale Dienste eingeben",
+      "showApiKey": "API-Key anzeigen",
+      "hideApiKey": "API-Key ausblenden",
       "apiBase": "API-Basis-URL",
       "apiBasePlaceholder": "Benutzerdefinierter API-Endpunkt (optional)",
       "apiBaseHint": "Nur bei Verwendung eines benutzerdefinierten Dienstes erforderlich",
       "viewProviderModels": "Unterstützte Modelle anzeigen",
-      "modelLabel": "Modell",
-      "modelPlaceholder": "Wählen Sie den Modellnamen aus oder geben Sie ihn ein...",
-      "modelHint": "Beliebiges vom Anbieter unterstütztes Modell eingeben. Siehe",
-      "apiKeyLabel": "API Key",
-      "apiBaseLabel": "API-Basis-URL",
-      "optional": "freiwillig",
-      "testConnection": "Verbindung testen",
-      "testing": "Testen...",
-      "connectionSuccess": "Erfolgreich verbunden",
-      "connectionError": "Verbindung fehlgeschlagen",
-      "saveConfiguration": "Konfiguration speichern",
-      "unsavedChanges": "Sie haben ungespeicherte Änderungen. Sie werden in 1 Sekunde automatisch gespeichert.",
-      "saveSuccess": "Konfiguration gespeichert",
-      "saveSuccessDesc": "Ihre Abrufdienstkonfiguration wurde erfolgreich gespeichert.",
-      "saveError": "Speichern fehlgeschlagen",
-      "saveErrorDesc": "Konfiguration konnte nicht gespeichert werden. Bitte erneut versuchen.",
-      "checkingStatus": "Überprüfung...",
       "apply": {
         "button": "Anwenden",
-        "applied": "Angewendet",
-        "applying": "Bewerben...",
-        "success": "Erfolgreich angewendet",
-        "failed": "Anwenden fehlgeschlagen",
-        "notApplied": "Nicht angewendet"
-      },
-      "validation": {
-        "button": "Konfiguration validieren",
-        "validateConfig": "Konfiguration validieren",
-        "revalidateButton": "Angewendet, klicken zum erneuten Validieren",
-        "validating": "Validierung...",
-        "notValidated": "Nicht validiert",
-        "missingFields": "Bitte füllen Sie alle Pflichtfelder aus",
-        "missingApiBase": "Benutzerdefinierter Anbieter erfordert eine API-Basis-URL",
-        "success": "Validierung erfolgreich",
-        "failed": "Validierung fehlgeschlagen",
-        "networkError": "Netzwerkverbindung fehlgeschlagen"
+        "applied": "Angewendet"
       },
       "hint": {
-        "title": "Embedding- und Reranking-Modelle kommen beim Lesen von Webseiten und beim Abruf von Erinnerungen zum Einsatz und geben der LLM zuerst die Inhalte, die zur Frage am besten passen – bei weit geringeren Kosten als LLMs.",
         "options": "Sie können kostenlose oder kostenpflichtige Anbietermodelle verwenden. Für maximale Privatsphäre können Sie Open-Source-Modelle lokal im OpenAI-kompatiblen Format bereitstellen.",
         "recommendation": "Mehrsprachige Modelle werden empfohlen und können je nach tatsächlicher Nutzung ausgewählt werden.",
         "deployTip": "KI nach Bereitstellungsmethoden fragen",
         "deployQuestion": "Wie kann ich OpenAI-kompatible Open-Source-Embedding- und Reranking-Modelldienste lokal bereitstellen?"
-      },
-      "advancedRetrieval": {
-        "title": "Erweiterte Suche",
-        "toggleLabel": "Seitenlesen und Erinnerungsabruf optimieren",
-        "toggleDescription": "Wenn aktiviert, werden lange Webseiten und Erinnerungen mit Embedding- und Reranking-Modellen nach Relevanz sortiert, sodass die nützlichsten Passagen bevorzugt an die LLM gehen (erfordert Embedding- und Reranking-Modellkonfiguration)",
-        "cannotEnable": "Bitte konfigurieren und wenden Sie Embedding- und Reranking-Modelle zuerst auf der Seite „Standardmodell\" an"
       },
       "validationMessages": {
         "successWithDimension": "Validierung erfolgreich (Dimension: {dimension})",
@@ -16879,8 +16855,6 @@
         "recommended": "Empfohlen / Auto"
       },
       "retrieval": {
-        "embeddingModel": "Embedding-Modell",
-        "embeddingModelDescription": "Text-Vektorisierungsmodell für semantische Suche über Wissensdatenbank, Speicher und andere Funktionen",
         "dismiss": "Verwerfen",
         "orphanWarning": "{count, plural, one {# Speicher wird erst nach der Migration auf das neue Embedding-Modell in Antworten verwendet} other {# Speicher werden erst nach der Migration auf das neue Embedding-Modell in Antworten verwendet}}",
         "reindex": "Migrieren",
@@ -16889,28 +16863,7 @@
         "reindexDone": "{count} Speicher auf das neue Modell migriert",
         "reindexUpToDate": "Alle Speicher liegen bereits im neuen Modell",
         "reindexPartial": "{migrated} migriert, {failed} konnten nicht migriert werden. Erneut versuchen, um sie nachzuholen",
-        "reindexError": "Die Migration wurde unterbrochen. Erneut starten, um fortzufahren",
-        "rerankerModel": "Reranker-Modell",
-        "rerankerModelDescription": "Reranking-Modell, das Passagen beim Seitenlesen und Erinnerungsabruf nach Relevanz ordnet",
-        "provider": "Anbieter",
-        "modelName": "Modellname",
-        "modelNamePlaceholder": "Modellname eingeben",
-        "viewProviderModels": "Unterstützte Modellliste anzeigen",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "Ihren API-Schlüssel eingeben",
-        "apiKeyHint": "API-Schlüssel von der Anbieterwebsite abrufen oder benutzerdefinierten Schlüssel für lokale Dienste eingeben",
-        "apiBase": "API-Basis-URL",
-        "apiBasePlaceholder": "https://api.example.com/v1",
-        "apiBaseHint": "Benutzerdefinierter API-Endpunkt für OpenAI-kompatible Dienste",
-        "testConnection": "Verbindung testen",
-        "testing": "Testen...",
-        "save": "Konfiguration speichern",
-        "statusLabel": {
-          "validated": "Angewendet",
-          "notValidated": "Nicht validiert",
-          "validating": "Validierung...",
-          "failed": "Validierung fehlgeschlagen"
-        }
+        "reindexError": "Die Migration wurde unterbrochen. Erneut starten, um fortzufahren"
       },
       "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt"
     },

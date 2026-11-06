@@ -13,7 +13,7 @@ from app.server import lifespan
 
 
 def _count_parallel_tasks_and_labels() -> tuple[int, int]:
-    tree = ast.parse(inspect.getsource(lifespan))
+    tree = ast.parse(inspect.getsource(lifespan.startup))
     tasks = labels = -1
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign) or len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):

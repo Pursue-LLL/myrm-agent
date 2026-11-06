@@ -9,9 +9,9 @@ import pytest
 _HARNESS_SRC = Path(__file__).resolve().parents[2] / "src" / "myrm_agent_harness"
 
 
-def test_model_discipline_does_not_import_web_search_query_policy() -> None:
-    discipline_path = _HARNESS_SRC / "agent" / "streaming" / "model_discipline.py"
-    source = discipline_path.read_text(encoding="utf-8")
+def test_agent_core_rules_do_not_import_web_search_query_policy() -> None:
+    core_rules_path = _HARNESS_SRC / "agent" / "streaming" / "agent_core_rules.py"
+    source = core_rules_path.read_text(encoding="utf-8")
     assert "search_query_policy" not in source
     assert "WEB_SEARCH_QUERY_GUIDANCE" not in source
 

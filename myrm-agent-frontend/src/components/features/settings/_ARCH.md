@@ -43,7 +43,7 @@
 | `common/`                        | 骨架屏、共享 UI                                      | [common/_ARCH.md](common/_ARCH.md)                                               |
 | `default-model/`                 | 默认模型子表单                                       | [default-model/_ARCH.md](default-model/_ARCH.md)                                 |
 | `model-service/`                 | 模型服务配置                                         | [model-service/_ARCH.md](model-service/_ARCH.md)                                 |
-| `retrieval/`                     | 检索服务配置                                         | [retrieval/_ARCH.md](retrieval/_ARCH.md)                                         |
+| `retrieval/`                     | 检索增强卡（语义搜索与重排序）及按模型的高级配置     | [retrieval/_ARCH.md](retrieval/_ARCH.md)                                         |
 
 ## 依赖
 

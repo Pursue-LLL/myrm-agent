@@ -19,7 +19,7 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _SCHEDULER_SOURCES = (
-    _SERVER_ROOT / "app" / "lifecycle" / "schedulers.py",
+    *sorted((_SERVER_ROOT / "app" / "lifecycle" / "schedulers").glob("*.py")),
     _SERVER_ROOT / "app" / "services" / "memory" / "imports" / "integration_sync_daemon.py",
 )
 # APScheduler 4.x only processes schedules after one of these calls (`start()` no longer exists).

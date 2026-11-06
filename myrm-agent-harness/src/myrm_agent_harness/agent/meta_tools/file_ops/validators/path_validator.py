@@ -3,7 +3,7 @@
 验证路径的安全性，防止路径遍历攻击、符号链接攻击等。
 
 [INPUT]
-- agent.config::DEFAULT_FILE_IO_CONFIG, (POS: Configuration and type definitions for the Deep Research system. Pure data structures with no business logic dependencies.)
+- agent.config::DEFAULT_FILE_IO_CONFIG, (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
 
 [OUTPUT]
 - PathValidator: class — Path Validator

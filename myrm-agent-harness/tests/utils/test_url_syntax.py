@@ -15,6 +15,8 @@ from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname
         ("http://LOCALHOST./", "localhost"),  # trailing dot stripped and case folded, so blocklists match
         ("http://[::1]:8080/", "::1"),
         ("wss://stream.example.com/", "stream.example.com"),
+        ("http://[fe80::1%25en0]:8080/", "fe80::1%25en0"),  # an IPv6 zone id is the one place a host keeps its '%'
+        ("https://us%40er@example.com/a%20b?q=%41", "example.com"),  # '%' outside the host is plain URL text
     ],
 )
 def test_accepts_http_family_urls_and_returns_the_host(url: str, hostname: str) -> None:
@@ -27,6 +29,10 @@ def test_accepts_http_family_urls_and_returns_the_host(url: str, hostname: str) 
         ("http://evil.com\t@169.254.169.254/", "parser-confusing"),
         ("http://evil.com\\@169.254.169.254/", "parser-confusing"),
         ("http://evil.com\n.internal/", "parser-confusing"),
+        ("http://127%2e0%2e0%2e1/", "percent-encoding"),  # a client decodes it and dials 127.0.0.1
+        ("http://local%68ost:8080/", "percent-encoding"),
+        ("http://169.254.169.%32%35%34/latest/meta-data/", "percent-encoding"),
+        ("https://%65xample.com/", "percent-encoding"),
         ("file:///etc/passwd", "Blocked URL scheme: file"),
         ("ftp://example.com/", "Blocked URL scheme: ftp"),
         ("gopher://example.com/", "Blocked URL scheme: gopher"),

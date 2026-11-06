@@ -83,6 +83,7 @@ async def test_pending_session_draft_idempotent_commit():
             active_moa_preset_id=None,
             persist_moa_preset=False,
             mark_read=True,
+            workspace_dir=None,
         )
 
         # Second call must be a no-op
@@ -133,3 +134,30 @@ async def test_commit_lazy_session_barrier():
         await commit_lazy_session_barrier(session)
         assert mock_append.await_count == 1
         assert mock_mat.await_count == 1
+
+    # 3. The draft carries the folder the turn brought: no session-private directory is materialized
+    session.pending_session_draft = PendingSessionDraft(
+        chat_id="chat-lazy-789",
+        user_content="Summarise the invoices",
+        sent_at=datetime.now(UTC),
+        sent_timezone="UTC",
+        message_id="msg-u3",
+        action_mode="agent",
+        agent_id="general",
+        workspace_dir="/home/user/projects",
+    )
+    with (
+        patch(
+            "app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock
+        ) as mock_append,
+        patch(
+            "app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock
+        ) as mock_mat,
+    ):
+        await commit_lazy_session_barrier(session)
+        assert mock_append.await_args.kwargs["workspace_dir"] == "/home/user/projects"
+        mock_mat.assert_not_called()
+
+        await commit_lazy_session_barrier(session)
+        assert mock_append.await_count == 1
+        mock_mat.assert_not_called()

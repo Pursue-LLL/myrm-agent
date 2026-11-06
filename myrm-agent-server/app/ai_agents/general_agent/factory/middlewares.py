@@ -168,6 +168,6 @@ async def build_agent_middlewares(
         ]
     )
 
-    middlewares = cast(list[AgentMiddleware], middlewares_list)
+    middlewares = cast("list[AgentMiddleware]", middlewares_list)
 
     return middlewares

@@ -68,6 +68,7 @@ _IPV4_PRIVATE_NETWORKS: tuple[ipaddress.IPv4Network, ...] = (
 
 _IPV6_PRIVATE_NETWORKS: tuple[ipaddress.IPv6Network, ...] = (
     ipaddress.IPv6Network("::1/128"),  # Loopback
+    ipaddress.IPv6Network("::/128"),  # Unspecified address: dialing it reaches the local host
     ipaddress.IPv6Network("fc00::/7"),  # Unique local address (ULA)
     ipaddress.IPv6Network("fe80::/10"),  # Link-local unicast
 )

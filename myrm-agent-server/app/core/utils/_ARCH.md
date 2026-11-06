@@ -13,7 +13,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |-----|------|------|-------|
-| `errors.py` | 核心 | `MyrmError`、`StandardHTTPException`、`register_exception_handlers`、HTTP 异常快捷函数（validation/not_found/auth/permission/conflict/internal/service_unavailable/external）、全结构敏感信息自动脱敏防护和 LLM/embedding 依赖错误分类。开发模式（DEBUG=true）下错误响应包含完整堆栈追踪。注：`ToolError` 由框架层提供（`myrm_agent_harness.utils.errors`） | ✅ |
+| `errors/` | 核心 | API 错误工具，按职责分 6 个模块（constants / base / http / handlers / redaction / llm）：`MyrmError` 与业务码分类、`StandardHTTPException` 与 HTTP 错误工厂、FastAPI 异常处理器、home 路径折叠与 payload 脱敏、LLM 异常归一。见 [errors/_ARCH.md](errors/_ARCH.md) | ✅ |
 | `response_utils.py` | 核心 | `success_response`、`list_response`、`paginated_response` | — |
 | `files_utils.py` | 核心 | `extract_file_id_from_url`、`read_image_bytes`（存储 URL → 图片原始字节与 MIME，只读本地存储不发网络请求）、`read_image_as_base64`（同上的 base64 形式），均通过 FilesService + StorageProvider 统一存储访问 | — |
 | `media_file_reader.py` | 核心 | `read_uploaded_media_file_content`：为 harness `FileContentReader` 注入 `/api/media/files/{id}/content` 字节（VisionFallback + MediaResolver） | — |

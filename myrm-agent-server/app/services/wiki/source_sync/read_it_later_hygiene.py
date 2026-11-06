@@ -22,8 +22,8 @@ from myrm_agent_harness.toolkits.cron.types import CronJob, JobType
 
 from app.core.cron.adapters.setup import get_cron_manager
 from app.core.cron.adapters.wiki_router_job_runner import WIKI_SOURCE_SYNC_COMMAND
-from app.core.cron.blueprints.job_spec import create_blueprint_job, to_job_spec
 from app.core.cron.blueprints import fill_blueprint
+from app.core.cron.blueprints.job_spec import create_blueprint_job, to_job_spec
 
 logger = logging.getLogger(__name__)
 

@@ -102,7 +102,7 @@ class TestBuildTurnParams:
         turn = await setup.build_turn_params(_request(resume_value=resume_value), [], MagicMock())
 
         resolve_takeover.assert_awaited_once_with(CHAT_ID, decision="approve")
-        apply_grant.assert_awaited_once_with(CHAT_ID, resume_value, sandbox_active=False, workspace_dir=None)
+        apply_grant.assert_awaited_once_with(CHAT_ID, resume_value, workspace_dir=None)
         assert turn.extra_context == {"hitl_session_active": True}
         assert isinstance(converted_params.query, Command)
         assert converted_params.query.resume == resume_value
@@ -130,7 +130,6 @@ class TestSearchServiceUnavailableDetail:
     @pytest.mark.parametrize(
         ("request_fields", "params_fields", "expected"),
         [
-            ({"action_mode": "deep_research"}, {"enable_web_search": False}, "Deep Research requires"),
             ({"agent_id": "builtin-deep-search"}, {"enable_web_search": False}, "add a search service in Settings"),
             ({"action_mode": "fast"}, {"search_service_cfg": None}, "Fast search requires"),
         ],
@@ -149,47 +148,6 @@ class TestSearchServiceUnavailableDetail:
 
     def test_reports_nothing_when_the_search_service_is_configured(self) -> None:
         assert setup.search_service_unavailable_detail(_request(action_mode="fast"), _params()) is None
-
-
-class TestResolveResearchModel:
-    @pytest.mark.asyncio
-    async def test_skips_config_loading_unless_deep_research_carries_a_light_selection(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from app.core.channel_bridge import config_loader
-
-        load = AsyncMock()
-        monkeypatch.setattr(config_loader, "load_user_configs", load)
-
-        assert await setup.resolve_research_model(_request(action_mode="agent", light_model_selection="m")) is None
-        assert await setup.resolve_research_model(_request(action_mode="deep_research")) is None
-        load.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_resolves_the_light_selection_against_the_user_providers(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.core.channel_bridge import config_loader
-
-        providers = {"p": object()}
-        model_cfg = object()
-        resolve = AsyncMock(return_value=model_cfg)
-        monkeypatch.setattr(config_loader, "load_user_configs", AsyncMock(return_value=SimpleNamespace(providers_dict=providers)))
-        monkeypatch.setattr(setup, "_resolve_model_config", resolve)
-        selection = SimpleNamespace(model="light")
-
-        result = await setup.resolve_research_model(_request(action_mode="deep_research", light_model_selection=selection))
-
-        assert result is model_cfg
-        resolve.assert_awaited_once_with(selection, providers)
-
-    @pytest.mark.asyncio
-    async def test_a_resolution_failure_leaves_the_turn_on_its_default_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.core.channel_bridge import config_loader
-
-        monkeypatch.setattr(config_loader, "load_user_configs", AsyncMock(side_effect=RuntimeError("config store down")))
-
-        result = await setup.resolve_research_model(_request(action_mode="deep_research", light_model_selection="m"))
-
-        assert result is None
 
 
 class TestPrepareGoalProvider:

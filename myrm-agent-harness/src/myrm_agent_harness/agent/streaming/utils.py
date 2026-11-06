@@ -5,12 +5,10 @@
 
 [INPUT]
 - langchain_core.tools::BaseTool (POS: LangChain 工具基类)
-- streaming.model_discipline::AGENT_CORE_RULES (POS: 反叙述 + 工具诚实规则，re-exported as AGENT_BEHAVIOR_RULES)
 - core.context_vars::{user_timezone_var, datetime_injection_enabled_var} (POS: 跨层 ContextVar)
 
 [OUTPUT]
 - DATETIME_TAG, DATETIME_TAG_END, DATETIME_SYSTEM_RULES: 标记常量与系统规则
-- AGENT_BEHAVIOR_RULES: 反叙述 + 工具诚实系统规则 (re-export from model_discipline.AGENT_CORE_RULES)
 - user_timezone_var, datetime_injection_enabled_var: 上下文变量
 - set_user_timezone(): 设置用户时区
 - set_datetime_injection_enabled(): 设置是否启用时间戳注入
@@ -20,7 +18,7 @@
 
 [POS]
 Agent internal utility functions. Provides context validation, timestamp injection,
-agent behavior rules (anti-narration + tool honesty), and tool name normalization.
+and tool name normalization.
 
 """
 
@@ -31,9 +29,6 @@ from zoneinfo import ZoneInfo
 
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.agent.streaming.model_discipline import (
-    AGENT_CORE_RULES as AGENT_BEHAVIOR_RULES,
-)
 from myrm_agent_harness.core.context_vars import (
     datetime_injection_enabled_var,
     user_timezone_var,
@@ -41,7 +36,6 @@ from myrm_agent_harness.core.context_vars import (
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 __all__ = [
-    "AGENT_BEHAVIOR_RULES",
     "DATETIME_FORMAT",
     "DATETIME_SYSTEM_RULES",
     "DATETIME_TAG",

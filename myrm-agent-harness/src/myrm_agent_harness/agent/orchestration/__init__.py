@@ -1,7 +1,7 @@
 """Orchestration control plane — signals (not Action Tools).
 
 [OUTPUT]
-- signals: JSON schema contracts intercepted by orchestrators (DR, Verifier)
+- signals: JSON schema contracts intercepted by orchestrators (Verifier)
 
 [POS]
 Separates control-plane LLM signals from Action Tools in ``tool_management/``.

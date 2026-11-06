@@ -201,9 +201,7 @@ class ContextBranchForkService:
         new_chat_id = str(uuid4())
         title = (new_title or branch.label or "Snapshot branch").strip()[:255] or "Snapshot branch"
 
-        if parent_chat.sandbox_base_dir:
-            fork_workspace_dir = parent_chat.sandbox_base_dir
-        elif parent_chat.workspace_dir:
+        if parent_chat.workspace_dir:
             fork_workspace_dir = parent_chat.workspace_dir
         else:
             from app.services.chat.chat_service import ChatService
@@ -224,7 +222,6 @@ class ContextBranchForkService:
             action_mode=parent_chat.action_mode,
             active_moa_preset_id=parent_chat.active_moa_preset_id,
             workspace_dir=fork_workspace_dir,
-            sandbox_base_dir=None,
             project_id=parent_chat.project_id,
             is_incognito=parent_chat.is_incognito,
             compacted_summary=None,

@@ -147,21 +147,6 @@ async def test_a_resume_without_the_toggle_or_the_plan_grants_nothing(tmp_path) 
     assert get_session_access_roots() == ()
 
 
-@pytest.mark.asyncio
-async def test_directory_grant_blocked_in_sandbox_mode(tmp_path) -> None:
-    downloads = tmp_path / "downloads"
-    downloads.mkdir()
-
-    await apply_directory_resume_grant(
-        "chat-sandbox",
-        _path_ask_grant(downloads),
-        sandbox_active=True,
-        workspace_dir=str(tmp_path / "ws"),
-    )
-
-    assert get_session_access_roots() == ()
-
-
 def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         "app.services.agent.session_access_service._is_cloud_volume_deployment",
@@ -174,7 +159,6 @@ def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path
         is_directory_grant_allowed_for_deployment(
             host_path,
             workspace_dir=str(tmp_path / "ws"),
-            sandbox_active=False,
         )
         is False
     )
@@ -184,7 +168,6 @@ def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path
         is_directory_grant_allowed_for_deployment(
             under_volume,
             workspace_dir=None,
-            sandbox_active=False,
         )
         is True
     )
@@ -192,7 +175,7 @@ def test_cloud_deployment_rejects_host_path_outside_volume(monkeypatch, tmp_path
 
 def test_write_grant_containing_a_dangerous_root_is_refused_but_read_grant_is_not(tmp_path) -> None:
     home = os.path.expanduser("~")
-    kwargs = {"workspace_dir": None, "sandbox_active": False}
+    kwargs = {"workspace_dir": None}
 
     assert is_directory_grant_allowed_for_deployment(home, writable=True, **kwargs) is False
     assert is_directory_grant_allowed_for_deployment(home, writable=False, **kwargs) is True

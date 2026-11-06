@@ -90,11 +90,13 @@ class TestDomainAllowlist:
         assert not DomainAllowlist(patterns=("x.com")).is_empty
 
     def test_punycode_and_url_normalization(self):
-        al = DomainAllowlist.from_strings([
-            "https://api.github.com:443/v1",
-            "*.github.com",
-            "*.你好.cn",
-        ])
+        al = DomainAllowlist.from_strings(
+            [
+                "https://api.github.com:443/v1",
+                "*.github.com",
+                "*.你好.cn",
+            ]
+        )
         assert al.is_allowed("api.github.com")
         assert al.is_allowed("https://api.github.com/v1")
         assert al.is_allowed("raw.github.com")
@@ -102,6 +104,38 @@ class TestDomainAllowlist:
         assert al.is_allowed("sub.xn--6qq79v.cn")
         assert not al.is_allowed("evil.cn")
         assert not al.is_allowed("")
+
+    def test_dot_prefixed_entry_is_stored_as_the_wildcard(self):
+        al = DomainAllowlist.from_strings([".Example.COM:8443"])
+        assert al.patterns == ("*.example.com",)
+        assert al.is_allowed("example.com")
+        assert al.is_allowed("a.example.com")
+        assert not al.is_allowed("notexample.com")
+
+    def test_trailing_dot_host_is_the_same_host(self):
+        assert DomainAllowlist(patterns=("example.com",)).is_allowed("example.com.")
+
+    def test_entry_naming_no_host_stays_in_the_list_and_matches_nothing(self):
+        al = DomainAllowlist.from_strings(["*", "*.*"])
+        assert al.patterns == ("*", "*.*")
+        assert not al.is_empty
+        assert not al.is_allowed("example.com")
+
+    @pytest.mark.parametrize(
+        "entry",
+        ["example.com", "Example.COM", "*.example.com", ".example.com", "example.com:8443", "https://*.example.com/x"],
+    )
+    @pytest.mark.parametrize(
+        "host",
+        ["example.com", "a.example.com", "a.b.example.com", "notexample.com", "example.com.evil.com", "example.org"],
+    )
+    def test_the_filter_and_the_engine_blocklist_read_an_entry_alike(self, entry: str, host: str):
+        filter_blocks = DomainAllowlist.from_strings([entry]).is_blocked(host)
+        config = SecurityConfig(network_blocklist=(entry,))
+
+        verdict, _ = evaluate_tool_call("browser_navigate", {"url": f"https://{host}/"}, config)
+
+        assert (verdict == PermissionAction.DENY) == filter_blocks
 
 
 # ============================================================================

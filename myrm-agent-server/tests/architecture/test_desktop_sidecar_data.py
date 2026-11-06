@@ -39,7 +39,7 @@ _DATA_READERS = {
 
 # Modules that use `__file__` for something else, and why a bundle without that file is fine.
 _OTHER_FILE_USES = {
-    "app/config/settings.py": "BASE_DIR, the base of paths the settings let the environment override",
+    "app/config/settings/constants.py": "BASE_DIR, the base of paths the settings let the environment override",
     "app/core/infra/frontend_launcher.py": "starts the Next.js dev server of a checkout; the shell starts the bundled one",
     "app/services/agent/params/model_config/providers.py": "reads the provider remap from the bundle's shared/config before any checkout path",
     "app/startup/env_loader.py": "optional .env files and the checkout's harness browser directory, both skipped when absent",

@@ -194,7 +194,6 @@ class GeneralAgentParams(BaseAgentParams):
     privacy_routing_raw: dict[str, object] | None = None
     providers_dict: dict[str, object] | None = None
     light_model_cfg: ModelConfig | None = None
-    reasoning_model_cfg: ModelConfig | None = None
     privacy_custom_keywords_s2: list[str] = []
     privacy_custom_keywords_s3: list[str] = []
     privacy_custom_patterns_s2: list[str] = []
@@ -218,7 +217,6 @@ class GeneralAgentParams(BaseAgentParams):
     jit_subagents: dict[str, object] | None = None
     session_loaded_skill_names: list[str] | None = None
     session_access_roots: list[dict[str, object]] | None = None
-    sandbox_base_dir: str | None = None
     goal: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
     prompt_mode: str = "full"

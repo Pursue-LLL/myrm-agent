@@ -1,0 +1,22 @@
+# general_agent/tool_setup/
+
+## 架构概述
+
+GeneralAgent 工具装配：每个工具族一个 mixin，`mixin.py` 按固定顺序组合，`base.py` 只声明宿主属性，`common.py` 放无状态辅助。上级：[../_ARCH.md](../_ARCH.md)。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 门面 | 导出 `ToolSetupMixin` | ✅ |
+| `mixin.py` | 组合 | 按固定 MRO 组合各工具族 | ✅ |
+| `base.py` | 基类 | `ToolSetupBaseMixin` + TYPE_CHECKING 宿主属性 | ✅ |
+| `common.py` | 支撑 | 媒体凭据/图片约束/artifact push 等模块级辅助 | ✅ |
+| `skill.py` | 工具族 | 技能市场、技能管理 | ✅ |
+| `search.py` | 工具族 | 搜索/抓取、澄清 | ✅ |
+| `media.py` | 工具族 | 图像、视频、TTS | ✅ |
+| `cron.py` | 工具族 | Cron | ✅ |
+| `memory.py` | 工具族 | 记忆 | ✅ |
+| `browser.py` | 工具族 | 浏览器、验证码 | ✅ |
+| `artifact.py` | 工具族 | Artifact 发布 | ✅ |
+| `computer.py` | 工具族 | 桌面控制 | ✅ |

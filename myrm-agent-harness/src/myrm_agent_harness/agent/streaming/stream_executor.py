@@ -8,7 +8,6 @@
 - agent.streaming.reasoning_scrubber::ReasoningScrubber (POS: 流式清洗器)
 - agent.streaming.recovery.context_pressure_gate::PreflightGateMixin (POS: Deterministic send-gate owned by the streaming recovery layer)
 - agent.streaming.stream_fatal_error::StreamFatalErrorMixin (POS: Fatal-error reporting for StreamExecutor)
-- agent.streaming.escalation_scrubber::EscalationScrubber (POS: 流式层升级标记检测)
 - agent.streaming.recovery.stream_recovery_truncation::reset_ephemeral_max_output_tokens (POS: ephemeral output token cleanup)
 - agent.types::AgentEventType, AgentRunStatistics (POS: 类型定义)
 
@@ -109,7 +108,6 @@ class StreamContext:
     on_loop_restart: Callable[[str, Goal], Awaitable[None]] | None = None
     on_goal_hold: Callable[[Goal, ProviderWindowHint], Awaitable[None]] | None = None
     file_content_reader: FileContentReader | None = None
-    escalation_target_llm: BaseChatModel | None = None
     llm: BaseChatModel | None = None
     token_tracker: TokenTracker | None = None
     memory_manager: MemoryManager | None = None
@@ -146,7 +144,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         self._safety_fallback_llm = safety_fallback_llm
         self._rebuild_agent_fn = rebuild_agent_fn
         self.failover_used = failover_used
-        self._escalation_used = False
         self._consecutive_overloaded = 0
         self.streaming_final_answer = False
         self._partial_text_buffer = ""
@@ -157,12 +154,8 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         self._reasoning_scrubber = ReasoningScrubber()
         self._pseudonym_restorer = None
 
-        from .escalation_scrubber import EscalationScrubber
         from .repetition_scrubber import StreamRepetitionScrubber
 
-        self._escalation_scrubber = EscalationScrubber(
-            enabled=ctx.escalation_target_llm is not None,
-        )
         self._repetition_scrubber = StreamRepetitionScrubber(
             enabled=True,
             cancel_token=ctx.cancel_token,
@@ -352,9 +345,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                 if await self._handle_steering(collected_messages):
                     continue
 
-                if await self._handle_escalation(collected_messages):
-                    continue
-
                 if await self._handle_length_truncation(collected_messages, length_continue_retries):
                     length_continue_retries += 1
                     continue
@@ -427,19 +417,6 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
                     "node_count": ctx.stats.node_execution_count,
                 },
             )
-            escalation_flushed = self._escalation_scrubber.flush()
-            if escalation_flushed:
-                for scrubbed_type, scrubbed_text in self._reasoning_scrubber.process(escalation_flushed):
-                    if scrubbed_text:
-                        restored = self._restore_pseudonyms(scrubbed_text)
-                        await self._emit_event(
-                            {
-                                "type": scrubbed_type.value,
-                                "data": restored,
-                                "messageId": ctx.message_id,
-                            },
-                            ctx,
-                        )
             for event_type, content in self._reasoning_scrubber.flush():
                 if content:
                     restored = self._restore_pseudonyms(content)

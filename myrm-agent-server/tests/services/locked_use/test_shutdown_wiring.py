@@ -1,7 +1,7 @@
 """关闭期租约交还的接线守护 — 回锁必须排在耗时的 drain 之前。
 
 [INPUT]
-- app/server/lifespan.py（POS: 服务关闭编排；以 AST 读取，不导入整个应用）
+- app/server/lifespan/shutdown.py（POS: 服务关闭编排；以 AST 读取，不导入整个应用）
 
 [OUTPUT]
 - `_shutdown` 先 await stop_unattended_curtain_watcher、再 begin_drain 的顺序断言
@@ -17,7 +17,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-_LIFESPAN = Path(__file__).resolve().parents[3] / "app" / "server" / "lifespan.py"
+_SHUTDOWN_MODULE = Path(__file__).resolve().parents[3] / "app" / "server" / "lifespan" / "shutdown.py"
 
 
 def _awaited_call_lines(function: ast.AsyncFunctionDef) -> dict[str, int]:
@@ -33,7 +33,7 @@ def _awaited_call_lines(function: ast.AsyncFunctionDef) -> dict[str, int]:
 
 
 def test_shutdown_hands_the_lease_back_before_the_slow_drain() -> None:
-    module = ast.parse(_LIFESPAN.read_text(encoding="utf-8"))
+    module = ast.parse(_SHUTDOWN_MODULE.read_text(encoding="utf-8"))
     shutdown = next(node for node in module.body if isinstance(node, ast.AsyncFunctionDef) and node.name == "_shutdown")
 
     awaited = _awaited_call_lines(shutdown)

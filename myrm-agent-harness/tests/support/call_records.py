@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - OK / FAIL / EMPTY: the success levels a call ends with
-- call / write / shell / unit_tests / lint: a call by tool and target, a file write, a shell command, a test run, a lint run
+- call / write / edit / shell / unit_tests / lint: a call by tool and target, a file write (optionally with its content), a file edit, a shell command, a test run, a lint run
 
 [POS]
 Pytest-only helper shared by the completion-guard rule, checklist and guard tests, so each test states the trace
@@ -30,9 +30,12 @@ def call(
     target: str,
     level: SuccessLevel = OK,
     verification: VerificationCategory | None = None,
+    content: str | None = None,
 ) -> CallRecord:
     """One recorded call; ``target`` is the path of a file tool or the command of a shell."""
     args: dict[str, object] = {"command": target} if tool == "bash_code_execute_tool" else {"path": target}
+    if content is not None:
+        args["content"] = content
     return CallRecord(
         tool_name=tool,
         args_hash=f"{tool}:{target}",
@@ -42,8 +45,21 @@ def call(
     )
 
 
-def write(path: str, level: SuccessLevel = OK) -> CallRecord:
-    return call("file_write_tool", path, level)
+def write(path: str, level: SuccessLevel = OK, content: str | None = None) -> CallRecord:
+    return call("file_write_tool", path, level, content=content)
+
+
+def edit(
+    path: str, old: str = "", new: str = "", level: SuccessLevel = OK, *, edits: object | None = None
+) -> CallRecord:
+    """One ``file_edit_tool`` call replacing ``old`` with ``new``; ``edits`` sets the raw payload instead."""
+    payload = edits if edits is not None else [{"old_str": old, "new_str": new}]
+    return CallRecord(
+        tool_name="file_edit_tool",
+        args_hash=f"file_edit_tool:{path}:{old}",
+        args={"path": path, "edits": payload},
+        success_level=level,
+    )
 
 
 def shell(

@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "プライマリモデルが利用できないため、バックアップモデルに切り替えました",
     "model_failover_auth": "認証に失敗したため、バックアップモデルに切り替えました",
     "model_failover_unconfigured": "プライマリモデルが失敗しました。設定でバックアップモデルを構成してください",
-    "model_escalated": "モデルを自動アップグレードしました：{from} → {to}",
-    "model_escalated_reason": "理由：{reason}",
     "model_recovery": "モデルが復旧しました：{model}",
     "model_recovery_downtime": "利用不可時間 {seconds} 秒",
     "safety_fallback_unconfigured": "コンテンツがブロックされました。設定で安全バックアップモデルを構成してください",
@@ -16305,76 +16303,54 @@
       "detailArgs": "サニタイズ済み引数："
     },
     "retrieval": {
-      "embeddingConfig": "エンベディングモデル設定",
-      "rerankerConfig": "リランカーモデル設定",
-      "embeddingModel": "エンベディングモデル",
-      "embeddingModelDescription": "テキストベクトル化モデル。セマンティック検索用（ローカル実行）",
-      "embeddingModelDescriptionSaas": "テキストベクトル化モデル。セマンティック検索に使用（サブスクリプションユーザーは無料）",
-      "rerankerModel": "リランカーモデル",
-      "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（ローカル実行）",
-      "rerankerModelDescriptionSaas": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル（サブスクリプションユーザーは無料）",
-      "localModel": "ローカルモデル",
-      "platformService": "プラットフォームサービス",
-      "customProvider": "カスタムプロバイダー",
+      "card": {
+        "title": "検索の強化",
+        "description": "キーワードではなく意味で検索し、最も関連性の高い内容を先頭に並べます。プロバイダーを選び、APIキーを一度入力するだけで使えます。"
+      },
+      "embedding": {
+        "title": "セマンティック検索",
+        "description": "キーワードだけでなく意味で、ナレッジベース・メモリ・FAQ・連携ソースの内容を探します。",
+        "enable": "有効にする",
+        "enabled": "有効",
+        "notEnabled": "無効"
+      },
+      "rerank": {
+        "title": "再ランキング",
+        "description": "最も関連性の高いメモリとページの内容を、先に LLM へ渡します。"
+      },
+      "disclosure": {
+        "title": "プロバイダーに送信される内容",
+        "embedding": "セマンティック検索：検索クエリと、ナレッジベース・メモリ・FAQ・連携ソースのテキスト。",
+        "rerank": "再ランキング：検索クエリと、並べ替え対象として呼び出されたメモリの断片。",
+        "pageReading": "ページ読み取り：両方が有効な場合、取得した Web ページの抜粋がクエリとともに両方のプロバイダーへ送信されます。",
+        "coverage": "再ランキングはチャット（高速検索を除く）とメッセージチャネルで機能します。スケジュールタスク、カンバンタスク、無人実行の目標、音声では使用されません。高速検索では検索用モデルを一切使用しません。"
+      },
+      "advanced": {
+        "title": "個別に設定",
+        "embeddingModel": "エンベディングモデル",
+        "rerankerModel": "リランカーモデル"
+      },
       "provider": "プロバイダー",
       "modelName": "モデル名前",
       "modelNamePlaceholder": "モデル名を入力",
       "apiKey": "APIキー",
       "apiKeyPlaceholder": "APIキーを入力してください",
       "apiKeyHint": "プロバイダー公式サイトから API キーを取得するか、ローカルサービスの場合はカスタムキーを入力",
+      "showApiKey": "APIキーを表示",
+      "hideApiKey": "APIキーを非表示",
       "apiBase": "API ベース URL",
       "apiBasePlaceholder": "カスタム API エンドポイント（任意）",
       "apiBaseHint": "カスタムサービスを使用する場合のみ必須",
       "viewProviderModels": "対応モデルの一覧を表示",
-      "modelLabel": "モデル",
-      "modelPlaceholder": "モデル名を選択または入力...",
-      "modelHint": "プロバイダーが対応する任意のモデルを入力してください。参照",
-      "apiKeyLabel": "APIキー",
-      "apiBaseLabel": "API ベース URL",
-      "optional": "任意",
-      "testConnection": "テスト接続",
-      "testing": "テスト中...",
-      "connectionSuccess": "接続しました",
-      "connectionError": "接続失敗",
-      "saveConfiguration": "設定を保存",
-      "unsavedChanges": "未保存の変更があります。1 秒後に自動保存されます。",
-      "saveSuccess": "設定を保存しました",
-      "saveSuccessDesc": "検索サービスの設定が正常に保存されました。",
-      "saveError": "保存に失敗しました",
-      "saveErrorDesc": "設定の保存に失敗しました。もう一度お試しください。",
-      "checkingStatus": "確認中...",
       "apply": {
         "button": "適用",
-        "applied": "適用済み",
-        "applying": "適用中...",
-        "success": "適用しました",
-        "failed": "適用に失敗しました",
-        "notApplied": "未適用"
-      },
-      "validation": {
-        "button": "設定を検証",
-        "validateConfig": "設定を検証",
-        "revalidateButton": "適用済み。クリックして再検証",
-        "validating": "検証中...",
-        "notValidated": "未検証",
-        "missingFields": "必須フィールドをすべて入力してください",
-        "missingApiBase": "カスタムプロバイダーには API Base URL が必要です",
-        "success": "検証に成功しました",
-        "failed": "検証失敗",
-        "networkError": "ネットワーク接続失敗"
+        "applied": "適用済み"
       },
       "hint": {
-        "title": "エンベディングと再ランキングモデルは Web ページの読み取りとメモリの呼び出しで使われ、質問に最も関連する内容を優先して LLM に渡します。コストは大規模言語モデルよりはるかに低くなります。",
         "options": "無料または有料のサービスプロバイダーモデルを使用できます。究極のプライバシーを求める場合は、OpenAI 互換形式でローカルにオープンソースモデルをデプロイすることもできます。",
         "recommendation": "多言語モデルを推奨します。実際の利用状況に応じて選択できます。",
         "deployTip": "具体的なデプロイ方法は AI に直接質問できます",
         "deployQuestion": "OpenAI 互換形式のオープンソースエンベディング・再ランキングモデルをローカルにデプロイする方法"
-      },
-      "advancedRetrieval": {
-        "title": "詳細検索",
-        "toggleLabel": "ページ読み取りとメモリ呼び出しを最適化",
-        "toggleDescription": "有効にすると、長い Web ページやメモリをエンベディングと再ランキングモデルで関連性順に並べ、最も有用な内容を優先して LLM に渡します（エンベディングと再ランキングモデルの設定が必要）",
-        "cannotEnable": "先に「デフォルトモデル」ページでエンベディングモデルとリランカーモデルを設定して適用してください"
       },
       "validationMessages": {
         "successWithDimension": "検証に成功しました（次元：{dimension}）",
@@ -16879,8 +16855,6 @@
         "recommended": "推奨 / Auto"
       },
       "retrieval": {
-        "embeddingModel": "エンベディングモデル",
-        "embeddingModelDescription": "ナレッジベースやメモリなどのセマンティック検索用のテキストベクトル化モデル",
         "dismiss": "閉じる",
         "orphanWarning": "{count} 件のメモリが新しいエンベディングモデルに未移行です。移行するまで回答には使われません",
         "reindex": "移行",
@@ -16889,28 +16863,7 @@
         "reindexDone": "{count} 件のメモリを新しいモデルに移行しました",
         "reindexUpToDate": "すべてのメモリは新しいモデルに移行済みです",
         "reindexPartial": "{migrated} 件を移行、{failed} 件は移行できませんでした。もう一度お試しください",
-        "reindexError": "移行が中断されました。もう一度実行すると続きから再開します",
-        "rerankerModel": "リランカーモデル",
-        "rerankerModelDescription": "ページ読み取りとメモリ呼び出しで関連性順に並べ替える再ランキングモデル",
-        "provider": "プロバイダー",
-        "modelName": "モデル名前",
-        "modelNamePlaceholder": "モデル名を入力",
-        "viewProviderModels": "対応モデルのリストを表示",
-        "apiKey": "APIキー",
-        "apiKeyPlaceholder": "APIキーを入力してください",
-        "apiKeyHint": "プロバイダーの公式サイトから API キーを取得するか、ローカルサービスの場合はカスタムキーを入力",
-        "apiBase": "API ベース URL",
-        "apiBasePlaceholder": "https://api.example.com/v1",
-        "apiBaseHint": "カスタム API エンドポイント。OpenAI 互換サービス用",
-        "testConnection": "テスト接続",
-        "testing": "テスト中...",
-        "save": "設定を保存",
-        "statusLabel": {
-          "validated": "適用済み",
-          "notValidated": "未検証",
-          "validating": "検証中...",
-          "failed": "検証失敗"
-        }
+        "reindexError": "移行が中断されました。もう一度実行すると続きから再開します"
       },
       "modelRestricted": "組織ポリシーにより制限されています"
     },

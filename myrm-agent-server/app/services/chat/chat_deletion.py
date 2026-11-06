@@ -64,23 +64,8 @@ class _ChatDeletionMixin(_ChatServiceBase):
         return {"deleted": deleted, "failed": failed}
 
     @staticmethod
-    async def _read_sandbox_base_dir(chat_id: str) -> str | None:
-        """Read the chat sandbox path in a short read-only transaction.
-
-        Kept separate so the delete transaction stays write-only: with a
-        deferred BEGIN, a prior SELECT marks the connection read-seen and
-        ``factory._escalate_write_transaction`` skips the BEGIN IMMEDIATE
-        upgrade, so concurrent deletes abort with SQLITE_BUSY_SNAPSHOT — a
-        lock the busy_timeout PRAGMA cannot resolve.
-        """
-        async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False, include_trashed=True)
-            return chat.sandbox_base_dir if chat else None
-
-    @staticmethod
     async def permanently_delete_chat(chat_id: str) -> bool:
         """Permanently delete a trashed chat and its workspace, including derived memories."""
-        sandbox_base_dir: str | None = await _ChatDeletionMixin._read_sandbox_base_dir(chat_id)
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
@@ -92,7 +77,7 @@ class _ChatDeletionMixin(_ChatServiceBase):
                 await ConversationRecallIndexService.delete_chat(sess, chat_id)
 
         if ok:
-            await chat_disposal.dispose_permanently_deleted_chats({chat_id: sandbox_base_dir})
+            await chat_disposal.dispose_permanently_deleted_chats([chat_id])
         return ok
 
     @staticmethod
@@ -125,7 +110,6 @@ class _ChatDeletionMixin(_ChatServiceBase):
         async with UnitOfWork() as uow:
             trashed, _ = await _ChatServiceBase._cr(uow).get_trashed_chats_paginated(0, 10000)
             chat_ids = [c.id for c in trashed]
-            sandbox_map = {c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir}
         if not chat_ids:
             return 0
         async with UnitOfWork() as uow:
@@ -137,7 +121,7 @@ class _ChatDeletionMixin(_ChatServiceBase):
                 await ConversationRecallIndexService.delete_chat(sess, cid)
             count = await repo.empty_trash()
 
-        await chat_disposal.dispose_permanently_deleted_chats({cid: sandbox_map.get(cid) for cid in chat_ids})
+        await chat_disposal.dispose_permanently_deleted_chats(chat_ids)
         return count
 
     @staticmethod

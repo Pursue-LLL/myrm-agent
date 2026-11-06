@@ -143,7 +143,7 @@ class TestRetryWithoutAStrongerRung:
 
 
 class TestRetryOfAnAnswerWithoutAComplexityTier:
-    """Fast mode, a pinned model and unescalated deep research record no tier: that answer ran the main model."""
+    """Fast mode and a pinned model record no tier: that answer ran the main model."""
 
     async def test_unrouted_answer_climbs_from_the_main_model_not_from_an_older_routed_turn(self) -> None:
         turn = _turn(_GREETING, main="gpt-4o", light="gpt-4o-mini", reasoning="deepseek-reasoner", retry=True)

@@ -5,11 +5,12 @@
 - app.services.agent.stream_session.orchestrator_turn_setup (POS: params, search gate, goal provider and runtime context of the turn)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
 - app.services.agent.stream_session.turn_history_sync (POS: how the turn relates to the chat's agent thread)
+- app.services.agent.stream_session.turn_workspace_bind (POS: canonical first-turn workspace bind, validated before the chat row is written)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → history → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background)
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
 - write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable
 
@@ -45,7 +46,6 @@ from app.services.agent.stream_session.orchestrator_turn_setup import (
     build_turn_extra_context,
     build_turn_params,
     prepare_goal_provider,
-    resolve_research_model,
     search_service_unavailable_detail,
 )
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
@@ -54,6 +54,10 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
 from app.services.agent.stream_session.turn_history_sync import resolve_turn_history_mode
+from app.services.agent.stream_session.turn_workspace_bind import (
+    TurnWorkspaceRefused,
+    bind_turn_workspace,
+)
 from app.services.agent.streaming_support.sse_helpers import error_sse
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
@@ -95,6 +99,15 @@ async def execute_agent_turn_after_reserve(
     # Registered before the first await so a Stop that lands during setup finds this turn.
     cancel_token = CancellationToken(request_id=request.message_id)
     CancellationRegistry.register(cancel_token)
+
+    # Canonicalize the folder this turn was started with before the user row is persisted, so the
+    # draft chat row and the turn itself are written with the same path.
+    try:
+        await bind_turn_workspace(request)
+    except TurnWorkspaceRefused as exc:
+        await record_terminal_failure("server_error")
+        await fail_buffered_turn(buffer, request.message_id, exc.detail)
+        return
 
     # Commit the user row before any optional profile/model-window/compact work.
     # The HTTP response is already accepted at this point; API
@@ -151,8 +164,6 @@ async def execute_agent_turn_after_reserve(
     if persisted_message_id:
         params.turn_identity = str(persisted_message_id)
 
-    research_model_cfg = await resolve_research_model(request)
-
     unavailable_detail = search_service_unavailable_detail(request, params)
     if unavailable_detail is not None:
         await record_terminal_failure("server_error")
@@ -173,7 +184,6 @@ async def execute_agent_turn_after_reserve(
     if history_mode is not None:
         extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
 
-    is_long_running_task = request.action_mode in ("deep_research", "agentic_search")
     collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
     if request.chat_id:
         from app.services.copilot.run_digest_store import RunDigestStore
@@ -188,10 +198,8 @@ async def execute_agent_turn_after_reserve(
         steering_token=steering_token,
         routing_tier=turn.routing_tier,
         archive_restore_results=turn.archive_restore_results,
-        research_model_cfg=research_model_cfg,
         registry=registry,
         collector=collector,
-        is_long_running_task=is_long_running_task,
         goal_provider=goal_provider,
         extra_context=extra_context,
         routing_specialty=turn.routing_specialty,
@@ -203,7 +211,7 @@ async def execute_agent_turn_after_reserve(
         pending_session_draft=pending_draft,
     )
 
-    if request.chat_id and request.resume_value is None and not is_long_running_task:
+    if request.chat_id and request.resume_value is None:
         if pending_draft is None or getattr(pending_draft, "committed", False):
             try:
                 await write_interrupted_turn_marker(request, params, user_message_id=persisted_message_id)

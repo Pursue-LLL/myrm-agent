@@ -10,7 +10,7 @@
 - ASK_QUESTION_TOOL_DESCRIPTION, ASK_QUESTION_TOOL_DESCRIPTION_EN, ASK_QUESTION_TOOL_DESCRIPTION_ZH, resolve_ask_question_tool_description
 
 [POS]
-Package entry for structured HITL clarification primitives used by server and deep research.
+Package entry for structured HITL clarification primitives used by the server.
 """
 
 from myrm_agent_harness.agent.meta_tools.clarification._ask_question_descriptions import (

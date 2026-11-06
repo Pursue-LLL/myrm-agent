@@ -329,6 +329,8 @@ class TaintLabel(StrEnum):
 3. **Reasoning-Blind Transcript Classifier**：如果启用了 `auto_mode_enabled`，在污点冲突提升为 ASK 之前（以及所有其他 engine 返回 ASK 的场景），会调用 Transcript Classifier（优先使用用户配置的轻量级 `auto_review_model`）。Classifier 采用 Reasoning-Blind 设计——只看用户消息（`intent_context`）和最近工具调用序列（`recent_tool_calls`，只含工具名+参数，不含 assistant 文本和工具输出），以防止 agent 通过自我合理化绕过审查。Classifier 同时接收当前会话的 Taint 标签（由 `middleware` 从 `TaintTracker.labels` 提取）和 Trust Context（用户配置的 `network_allowlist` 作为 `trusted_domains` 传递，帮助区分内部可信域名与外部不可信目标），其 Prompt 内置 Taint Context Rules 和 Trust Context Rules。Taint Context 使 Classifier 能理解 `EXTERNAL_NETWORK`（不可信网络数据）和 `SECRET`（凭据/密钥）的安全含义，在存在 taint 的会话中做出更谨慎的判断；Trust Context 使 Classifier 知道用户显式信任的域名（如公司内部 API），避免将 shell 命令中针对可信域名的网络操作误判为数据外泄（Trust Context 不覆盖 BLOCK RULES）。Classifier 根据四大阻止规则类别（销毁/外泄、降低安全态势、跨信任边界、绕过审查）和用户授权意图进行分步判断。如果符合用户预期则静默 ALLOW；如果违反阻止规则或超出用户授权范围则 DENY；如果无法判断（UNCERTAIN），则回退到 ASK 弹窗，**并将 Classifier 的疑虑分析（Reason）注入到弹窗提示中**，辅助用户决策（所有场景均已覆盖）。审查结果通过 Structured Output (Pydantic) 强制约束，确保解析鲁棒性。所有分类决策（ALLOW/DENY/UNCERTAIN）均通过 `record_decision` 记录到安全审计链。
 4. 每次 Agent run 开始时 `reset_taint_tracker()` 重置
 
+**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，若调用的每个网址（`url` 与 `urls`）的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，仍按汇处理。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
+
 **保守策略与智能放行**：由于 LLM 是黑盒，无法确定它是否"忘记"了污点数据，因此一旦标记，污点在整个会话期间持续存在。传统做法是冲突时一律提升到用户审批（导致警报疲劳）。引入 Smart Intent Guard 后，系统能在保证安全的前提下，通过理解用户意图实现智能放行。
 
 `TaintTracker` 使用 `ContextVar` 实现会话级隔离，每个异步上下文独立。
@@ -562,7 +564,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 **Step 2a.5 — Command Denylist**：用户可在 WebUI 全局安全设置或 Per-Agent 安全配置中定义 fnmatch glob 模式列表（如 `git push --force*`、`kubectl delete*`、`*DROP DATABASE*`）。匹配采用大小写不敏感的 `fnmatch`，仅对 `shell_exec` 和 `code_interpreter` 权限类型生效。命中则 **DENY**，YOLO 模式也无法绕过（因为 `batch_processor.evaluate_tool_batch` 在 YOLO 路径仍调用 `evaluate_tool_call` 并尊重 DENY）。全局和 Agent 级 denylist 通过 `channel_presets._merge_user_and_agent` 取并集合并。
 
-**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的 hostname（小写、去掉末尾的点；解析不出 hostname 的网址以其原文参与匹配，解析异常不会中断评估），逐个匹配 `SecurityConfig.network_blocklist`（与 allowlist 共用 `_domain_in_allowlist` 模式语法：`example.com` 只匹配该域本身，`.example.com` 匹配该域及其全部子域）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
+**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的 hostname（小写、去掉末尾的点；解析不出 hostname 的网址以其原文参与匹配，解析异常不会中断评估），逐个匹配 `SecurityConfig.network_blocklist`（条目语法与 allowlist、浏览器域名过滤器、污点豁免共用 `core/security/domain_match.py`：`example.com` 只匹配该域本身，`*.example.com` 与 `.example.com` 匹配该域及其全部子域；条目里的协议、路径、端口与末尾的点被忽略，大小写不敏感；主机按浏览器拨号时的写法比较（UTS 46 映射：全角字符与表意句号折成普通写法，非 ASCII 标签写成 Punycode，`ß`、`ς` 保持原字，所以 `straße.de` 与 `strasse.de` 是两个主机）；`*`、`*.*` 这类不指向任何主机的条目留在列表里、什么也不匹配）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
 
 **Step 2c — Domain HITL**：当 `SecurityConfig.domain_hitl_enabled=True` 时，对浏览器导航（`browser_navigate`）提取 hostname 并检查是否在 `network_allowlist` 中。不在 allowlist 中的域名触发 ASK，经由批量审批流程呈现给用户。`web_fetch` 只读取页面，不触发域名审批，仍受 Step 2b2 黑名单与 Step 4 规则约束。用户可选择：
 - "本次允许" — 正常批准

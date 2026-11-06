@@ -102,7 +102,6 @@ class ChatDTO(BaseModel):
     session_loaded_skill_names: list[str] | None = None
     workspace_dir: str | None = None
     session_access_roots: list[dict[str, object]] | None = None
-    sandbox_base_dir: str | None = None
     project_id: str | None = None
     is_pinned: bool = False
     pin_order: int = 0

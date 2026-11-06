@@ -21,13 +21,26 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.factory
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
 
 _IDENTIFIER = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
-_CORPUS_VALUE = re.compile(r"corpus=([a-z]+)")
+# "field=value" is how a description tells the model which value of an enumerated argument to pass.
+_FIELD_VALUE = re.compile(r"\b([a-z_]+)=([a-z_]+)\b")
+_GUIDE_ENTRY = re.compile(r"^- ([a-z]+)[:：]", re.MULTILINE)
 _WIKI = re.compile("wiki", re.IGNORECASE)
 # The word "sessions" also means plain chat sessions in prose, so conversation search is recognised by what only it has.
 _SESSIONS_SEARCH = re.compile(r"corpus=sessions|expand_\w+|\bmessage_id\b|^- sessions[:：]", re.MULTILINE)
 _AGENT_TOOL_NAMES = {"memory_search_tool", "memory_save_tool", "memory_manage_tool", "wiki_ingest_tool"}
 # A field of the sessions hit the model reads, not an argument it passes.
 _RESULT_FIELDS = {"message_id"}
+# Every argument memory_save_tool sends to the provider is read by the save path; one nothing reads is text without a reader.
+_SAVE_ARGUMENTS = {
+    "content",
+    "category",
+    "importance",
+    "tags",
+    "write_target",
+    "preference_key",
+    "rule_trigger",
+    "rule_priority",
+}
 
 _POLICIES = [
     pytest.param(MemorySearchPolicy(), id="memory-only"),
@@ -66,6 +79,16 @@ def _fields(function: WireFunction) -> set[str]:
     return set(parameters["properties"])
 
 
+def _enum_values(function: WireFunction) -> dict[str, set[str]]:
+    """Each enumerated argument of one tool, with the values the schema accepts for it."""
+    parameters = cast(dict[str, dict[str, dict[str, object]]], function["parameters"])
+    return {
+        field: set(cast(list[str], schema["enum"]))
+        for field, schema in parameters["properties"].items()
+        if "enum" in schema
+    }
+
+
 def _description(function: WireFunction) -> str:
     return str(function["description"])
 
@@ -83,17 +106,42 @@ def test_descriptions_name_only_arguments_and_tools_that_exist(
 
 
 @pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)
-def test_search_description_routes_only_to_corpora_the_schema_offers(
+def test_search_description_mentions_corpus_only_when_the_schema_offers_it(
     policy: MemorySearchPolicy, locale: str, approval: bool
 ) -> None:
     search = _wire_functions(policy, locale, approval)["memory_search_tool"]
-    properties = cast(dict[str, dict[str, object]], cast(dict[str, object], search["parameters"])["properties"])
-    routed = set(_CORPUS_VALUE.findall(_description(search)))
-    if "corpus" in properties:
-        assert routed <= set(cast(list[str], properties["corpus"]["enum"]))
-    else:
-        assert not routed
+    if "corpus" not in _fields(search):
         assert "corpus" not in _description(search)
+
+
+@pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)
+def test_descriptions_offer_only_values_the_schema_accepts(
+    policy: MemorySearchPolicy, locale: str, approval: bool
+) -> None:
+    functions = _wire_functions(policy, locale, approval)
+    accepted: dict[str, set[str]] = {}
+    for function in functions.values():
+        for field, values in _enum_values(function).items():
+            accepted.setdefault(field, set()).update(values)
+    for name, function in functions.items():
+        for field, value in _FIELD_VALUE.findall(_description(function)):
+            if field in accepted:
+                assert value in accepted[field], f"{name} offers {field}={value}, which the schema does not accept"
+
+
+@pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)
+def test_save_category_guide_lists_exactly_the_categories_the_schema_accepts(
+    policy: MemorySearchPolicy, locale: str, approval: bool
+) -> None:
+    save = _wire_functions(policy, locale, approval)["memory_save_tool"]
+    assert set(_GUIDE_ENTRY.findall(_description(save))) == _enum_values(save)["category"]
+
+
+@pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)
+def test_save_offers_exactly_the_arguments_the_save_path_reads(
+    policy: MemorySearchPolicy, locale: str, approval: bool
+) -> None:
+    assert _fields(_wire_functions(policy, locale, approval)["memory_save_tool"]) == _SAVE_ARGUMENTS
 
 
 @pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)

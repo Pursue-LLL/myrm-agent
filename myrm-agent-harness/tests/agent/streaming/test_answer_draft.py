@@ -35,9 +35,6 @@ class TestIsAnswerRestart:
     def test_top_level_flag(self) -> None:
         assert is_answer_restart(_FAILOVER_RESTART)
 
-    def test_nested_flag_on_model_escalated(self) -> None:
-        assert is_answer_restart({"type": "model_escalated", "data": {"restart": True}})
-
     def test_hint_only_status_is_not_a_restart(self) -> None:
         assert not is_answer_restart({"type": "status", "step_key": "model_failover_unconfigured"})
 
@@ -94,12 +91,6 @@ class TestAnswerDraft:
         draft.feed(_message("partial"))
         assert draft.feed(_FAILOVER_RESTART)
         assert not draft.feed(_FAILOVER_RESTART)
-        assert draft.text == ""
-
-    def test_nested_escalation_restart_drops_the_segment(self) -> None:
-        draft = AnswerDraft()
-        draft.feed(_message("weak model draft"))
-        assert draft.feed({"type": "model_escalated", "data": {"restart": True}})
         assert draft.text == ""
 
     def test_explicit_restart_matches_event_restart(self) -> None:

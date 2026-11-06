@@ -35,7 +35,7 @@ _ALLOWED: dict[str, str] = {
         "version-keyed third-party CLI installs (node-<version>, an npm prefix) shared by every Myrm process on the "
         "machine like a package-manager cache; the install endpoint is the only writer and no test calls it"
     ),
-    "app/config/settings.py": (
+    "app/config/settings/infra.py": (
         "the settings field that reads MYRM_DATA_DIR through its alias: the literal is its documented default, "
         "pinned by test_data_dir_contract"
     ),

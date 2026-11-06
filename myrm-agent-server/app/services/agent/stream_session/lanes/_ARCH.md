@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Chat 专用零 LLM 或轻量 SSE lane 实现，与 `stream_lane_factory.py` 中的 Fast Lane / Deep Research 等工厂并列，由 `stream_loop.py` 按准入规则路由。
+Chat 专用零 LLM 或轻量 SSE lane 实现，与 `stream_lane_factory.py` 中的 Fast Lane 等工厂并列，由 `stream_loop.py` 按准入规则路由。
 
 ## 文件清单
 

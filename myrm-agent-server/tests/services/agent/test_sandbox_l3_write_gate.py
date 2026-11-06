@@ -23,10 +23,6 @@ class TestIsSandboxCapableTools:
         tools = ["web_search", "external_cli"]
         assert is_sandbox_capable_tools(tools) is True
 
-    def test_sandbox_dir_detected(self) -> None:
-        tools = ["web_search", "memory"]
-        assert is_sandbox_capable_tools(tools, has_sandbox_dir=True) is True
-
     def test_declared_capabilities_detected(self) -> None:
         tools = ["web_search", "memory"]
         assert is_sandbox_capable_tools(tools, declared_capabilities=("code_execution",)) is True

@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "Primary model unavailable, switched to backup model",
     "model_failover_auth": "Authentication failed, switched to backup model",
     "model_failover_unconfigured": "Primary model failed — configure a backup model in Settings",
-    "model_escalated": "Model auto-upgraded: {from} → {to}",
-    "model_escalated_reason": "Reason: {reason}",
     "model_recovery": "Model recovered: {model}",
     "model_recovery_downtime": "Unavailable for {seconds}s",
     "safety_fallback_unconfigured": "Content blocked — configure a safety fallback model in Settings",
@@ -16305,76 +16303,54 @@
       "detailArgs": "Sanitized Args:"
     },
     "retrieval": {
-      "embeddingConfig": "Embedding Model Configuration",
-      "rerankerConfig": "Reranker Model Configuration",
-      "embeddingModel": "Embedding Model",
-      "embeddingModelDescription": "Text vectorization model for semantic search (runs locally)",
-      "embeddingModelDescriptionSaas": "Text vectorization model for semantic search (free for subscribers)",
-      "rerankerModel": "Reranker Model",
-      "rerankerModelDescription": "Reranking model that orders passages by relevance during page reading and memory recall (runs locally)",
-      "rerankerModelDescriptionSaas": "Reranking model that orders passages by relevance during page reading and memory recall (free for subscribers)",
-      "localModel": "Local Model",
-      "platformService": "Platform Service",
-      "customProvider": "Custom Provider",
+      "card": {
+        "title": "Retrieval Enhancement",
+        "description": "Search by meaning instead of keywords and rank the most relevant passages first. Choose a provider and enter its API key once."
+      },
+      "embedding": {
+        "title": "Semantic search",
+        "description": "Finds knowledge base, memory, FAQ and connected-source content by meaning, not only by keywords.",
+        "enable": "Enable",
+        "enabled": "Enabled",
+        "notEnabled": "Not enabled"
+      },
+      "rerank": {
+        "title": "Reranking",
+        "description": "Puts the most relevant memories and page passages in front of the LLM first."
+      },
+      "disclosure": {
+        "title": "What is sent to your provider",
+        "embedding": "Semantic search: your queries and text from the knowledge base, memory, FAQ and connected sources.",
+        "rerank": "Reranking: your query and the recalled memory snippets being ranked.",
+        "pageReading": "Page reading: when both are on, excerpts of fetched web pages go to both providers together with the query.",
+        "coverage": "Reranking works in chat (except Fast Search) and message channels. Scheduled tasks, kanban tasks, unattended goals and voice do not use it, and Fast Search uses no retrieval models."
+      },
+      "advanced": {
+        "title": "Configure separately",
+        "embeddingModel": "Embedding model",
+        "rerankerModel": "Reranker model"
+      },
       "provider": "Provider",
       "modelName": "Model Name",
       "modelNamePlaceholder": "Enter model name",
       "apiKey": "API Key",
       "apiKeyPlaceholder": "Enter your API key",
       "apiKeyHint": "Get API key from provider website, or enter custom key for local service",
+      "showApiKey": "Show API key",
+      "hideApiKey": "Hide API key",
       "apiBase": "API Base URL",
       "apiBasePlaceholder": "Custom API endpoint (optional)",
       "apiBaseHint": "Only required when using custom service",
       "viewProviderModels": "View supported models",
-      "modelLabel": "Model",
-      "modelPlaceholder": "Select or enter a model name...",
-      "modelHint": "Enter any model your provider supports. See",
-      "apiKeyLabel": "API Key",
-      "apiBaseLabel": "API Base URL",
-      "optional": "optional",
-      "testConnection": "Test Connection",
-      "testing": "Testing...",
-      "connectionSuccess": "Connected successfully",
-      "connectionError": "Connection failed",
-      "saveConfiguration": "Save Configuration",
-      "unsavedChanges": "You have unsaved changes. They will be saved automatically in 1 second.",
-      "saveSuccess": "Configuration Saved",
-      "saveSuccessDesc": "Your retrieval service configuration has been saved successfully.",
-      "saveError": "Save Failed",
-      "saveErrorDesc": "Failed to save configuration. Please try again.",
-      "checkingStatus": "Checking...",
       "apply": {
         "button": "Apply",
-        "applied": "Applied",
-        "applying": "Applying...",
-        "success": "Applied successfully",
-        "failed": "Apply failed",
-        "notApplied": "Not applied"
-      },
-      "validation": {
-        "button": "Validate Config",
-        "validateConfig": "Validate Config",
-        "revalidateButton": "Applied, click to revalidate",
-        "validating": "Validating...",
-        "notValidated": "Not validated",
-        "missingFields": "Please fill in all required fields",
-        "missingApiBase": "Custom provider requires API Base URL",
-        "success": "Validation successful",
-        "failed": "Validation failed",
-        "networkError": "Network connection failed"
+        "applied": "Applied"
       },
       "hint": {
-        "title": "Embedding and reranking models are used when reading web pages and recalling memories, so the content most relevant to the question reaches the LLM first, and they cost far less than LLMs.",
         "options": "You can use free or paid service provider models. For ultimate privacy, you can deploy open-source models locally in OpenAI-compatible format.",
         "recommendation": "Multilingual models are recommended and can be selected based on actual usage.",
         "deployTip": "Ask AI for deployment methods",
         "deployQuestion": "How to deploy OpenAI-compatible open-source embedding and reranking model services locally"
-      },
-      "advancedRetrieval": {
-        "title": "Advanced Retrieval",
-        "toggleLabel": "Optimize page reading and memory recall",
-        "toggleDescription": "When enabled, long web pages and memories are ranked by relevance with an embedding model and a reranking model, so the most useful passages are prioritized for the LLM. Requires both models to be configured.",
-        "cannotEnable": "Please configure and apply embedding and reranking models in the Default Model page first"
       },
       "validationMessages": {
         "successWithDimension": "Validation successful (dimension: {dimension})",
@@ -16879,8 +16855,6 @@
         "recommended": "Recommended / Auto"
       },
       "retrieval": {
-        "embeddingModel": "Embedding Model",
-        "embeddingModelDescription": "Text vectorization model for semantic search across knowledge base, memory, and other capabilities",
         "dismiss": "Dismiss",
         "orphanWarning": "{count, plural, one {# memory is not used in replies until it is migrated to the new embedding model} other {# memories are not used in replies until they are migrated to the new embedding model}}",
         "reindex": "Migrate",
@@ -16889,28 +16863,7 @@
         "reindexDone": "{count, plural, one {# memory} other {# memories}} migrated to the new model",
         "reindexUpToDate": "All memories are already on the new model",
         "reindexPartial": "{migrated} migrated, {failed} could not be migrated. Try again to retry them.",
-        "reindexError": "Migration was interrupted. Try again to continue where it left off.",
-        "rerankerModel": "Reranker Model",
-        "rerankerModelDescription": "Reranking model that orders passages by relevance during page reading and memory recall",
-        "provider": "Provider",
-        "modelName": "Model Name",
-        "modelNamePlaceholder": "Enter model name",
-        "viewProviderModels": "View supported models list",
-        "apiKey": "API Key",
-        "apiKeyPlaceholder": "Enter your API key",
-        "apiKeyHint": "Get API key from provider's website, or enter custom key for local services",
-        "apiBase": "API Base URL",
-        "apiBasePlaceholder": "https://api.example.com/v1",
-        "apiBaseHint": "Custom API endpoint for OpenAI-compatible services",
-        "testConnection": "Test Connection",
-        "testing": "Testing...",
-        "save": "Save Configuration",
-        "statusLabel": {
-          "validated": "Applied",
-          "notValidated": "Not validated",
-          "validating": "Validating...",
-          "failed": "Validation failed"
-        }
+        "reindexError": "Migration was interrupted. Try again to continue where it left off."
       },
       "modelRestricted": "Restricted by organization policy"
     },

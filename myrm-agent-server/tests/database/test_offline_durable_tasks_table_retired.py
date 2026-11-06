@@ -45,9 +45,7 @@ async def test_an_upgrading_database_loses_the_table_and_keeps_everything_else(
             await conn.run_sync(Base.metadata.create_all)
             for statement in filter(None, (part.strip() for part in _UPGRADING_DB_DDL.split(";"))):
                 await conn.execute(text(statement))
-            await conn.execute(
-                text("INSERT INTO offline_durable_tasks (id, chat_id, action_mode) VALUES ('t1', 'c1', 'deep_research')")
-            )
+            await conn.execute(text("INSERT INTO offline_durable_tasks (id, chat_id, action_mode) VALUES ('t1', 'c1', 'agent')"))
         async with AsyncSession(engine) as session:
             session.add(Chat(id="c1", title="Kept chat", action_mode="fast", source="web"))
             await session.commit()

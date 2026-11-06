@@ -145,7 +145,7 @@ async def test_exact_anchor_index_and_lean_compaction_real_llm_flow() -> None:
     config = ContextConfig(max_context_tokens=128000)
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._get_structured_llm_or_parser",
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.audit._get_structured_llm_or_parser",
         side_effect=_force_parser_fallback,
     ):
         new_messages, summary = await generate_structured_summary(

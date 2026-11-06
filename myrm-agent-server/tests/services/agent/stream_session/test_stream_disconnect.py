@@ -31,7 +31,6 @@ def _session(
     *,
     disconnected: bool = True,
     has_subscribers: bool = False,
-    long_running: bool = False,
     disconnect_monotonic: float | None = None,
     activity_age_seconds: float = 0.0,
 ) -> AgentStreamSession:
@@ -44,7 +43,6 @@ def _session(
             collector=SimpleNamespace(has_subscribers=has_subscribers),
             params=SimpleNamespace(message_id="msg-1"),
             cancel_token=CancellationToken(request_id="msg-1"),
-            is_long_running_task=long_running,
             disconnect_monotonic=disconnect_monotonic,
             disconnect_time=None if disconnect_monotonic is None else time.time(),
             last_activity_monotonic=now_mono - activity_age_seconds,
@@ -110,13 +108,6 @@ async def test_fresh_activity_defers_cancellation_past_the_grace_period() -> Non
         disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS + 1),
         activity_age_seconds=ACTIVITY_STALE_SECONDS - 1,
     )
-
-    assert await build_disconnect_checker(session)() is False
-
-
-@pytest.mark.asyncio
-async def test_long_running_turn_is_never_cancelled_for_a_disconnect() -> None:
-    session = _session(long_running=True, disconnect_monotonic=time.monotonic() - (GRACE_PERIOD_SECONDS + 1))
 
     assert await build_disconnect_checker(session)() is False
 
@@ -207,18 +198,6 @@ async def test_sustained_disconnect_cancels_the_turn_once_the_grace_period_ends(
         await asyncio.wait_for(_until_cancelled(session.cancel_token), timeout=2)
 
     assert session.cancel_token.cancel_reason == CancelReason.DISCONNECT
-
-
-@pytest.mark.asyncio
-async def test_long_running_turn_survives_a_sustained_disconnect(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(stream_disconnect, "_CHECK_INTERVAL_SECONDS", _FAST_INTERVAL_SECONDS)
-    monkeypatch.setattr(stream_disconnect, "GRACE_PERIOD_SECONDS", 2 * _FAST_INTERVAL_SECONDS)
-    session = _session(long_running=True)
-
-    async with watch_client_disconnect(session):
-        await asyncio.sleep(15 * _FAST_INTERVAL_SECONDS)
-
-    assert session.cancel_token.is_cancelled is False
 
 
 @pytest.mark.asyncio

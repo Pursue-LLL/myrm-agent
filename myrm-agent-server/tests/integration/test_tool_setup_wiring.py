@@ -27,7 +27,7 @@ def test_image_generation_registers_basetool() -> None:
     tools: list[object] = []
 
     with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
         return_value=None,
     ):
         mixin._setup_image_generation_tools(tools)
@@ -67,7 +67,7 @@ def test_image_generation_accepts_gateway_only() -> None:
     tools: list[object] = []
 
     with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
         return_value=None,
     ):
         mixin._setup_image_generation_tools(tools)
@@ -107,7 +107,7 @@ def test_video_generation_registers_basetool() -> None:
     tools: list[object] = []
 
     with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
         return_value=None,
     ):
         mixin._setup_video_generation_tools(tools)
@@ -132,7 +132,7 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
     tools: list[object] = []
 
     with patch(
-        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        "app.ai_agents.general_agent.tool_setup.common._get_artifact_push_fn",
         return_value=None,
     ):
         mixin._setup_video_generation_tools(tools)

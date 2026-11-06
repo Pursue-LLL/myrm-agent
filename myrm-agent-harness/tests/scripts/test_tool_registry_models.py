@@ -67,11 +67,11 @@ def test_ghost_registrations_filters_internal() -> None:
     assert report.ghost_registrations() == {"ghost"}
 
 
-def test_ghost_registrations_filters_schema_only_control_plane() -> None:
-    """DR orchestrator signal tools are schema-only registry entries."""
+def test_ghost_registrations_filters_internal_control_plane() -> None:
+    """Orchestrator signal tools are internal registry entries."""
     report = ScanReport(
         declarations=[_decl("alive")],
-        registered_names={"alive", "dispatch_research", "think", "finalize_report"},
+        registered_names={"alive", "submit_verdict"},
     )
     assert report.ghost_registrations() == set()
 

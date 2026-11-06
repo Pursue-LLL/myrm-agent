@@ -51,7 +51,6 @@ import type {
   IterationLimitReachedStreamEvent,
   MemoryBriefStreamEvent,
   MessageEndStreamEvent,
-  ModelEscalatedStreamEvent,
   ModelFailoverStreamEvent,
   ModelRecoveryStreamEvent,
   PrivacyLevelStreamEvent,
@@ -121,7 +120,6 @@ export type AgentStreamEvent =
   | ReasoningStreamEvent
   | StatusStreamEvent
   | CaptchaStreamEvent
-  | ModelEscalatedStreamEvent
   | ModelFailoverStreamEvent
   | ModelRecoveryStreamEvent
   | ToolsSnapshotStreamEvent

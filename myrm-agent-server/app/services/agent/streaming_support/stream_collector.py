@@ -13,7 +13,7 @@ JSON SSE chunks and parsed Agent stream events (POS: Agent runtime event stream)
 [OUTPUT]
 StreamContentCollector: collects assistant content and message extra_data, including memory citation refs,
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
-HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
+HITL clarification (`clarification`), plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), council phase progress (`councilPhases`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
@@ -562,17 +562,6 @@ class StreamContentCollector:
                             **self._plan_confirmation,
                             **plan_update,
                         }
-                if (
-                    phase_payload.get("phase") == "clarify"
-                    and phase_payload.get("status") == "resolved"
-                    and self._clarification is not None
-                ):
-                    answer_record = phase_payload.get("answerRecord")
-                    self._clarification = {
-                        **self._clarification,
-                        "answered": True,
-                        **({"answerRecord": answer_record} if isinstance(answer_record, dict) else {}),
-                    }
         if step_key == "cache_break" and isinstance(data, dict):
             self._cache_break = data
         if event.get("restart") is True:
@@ -612,23 +601,6 @@ class StreamContentCollector:
         label_parts = [str(v) for v in (from_model, to_model) if v]
         self._append_failover_step(display_key, " → ".join(label_parts))
 
-    def _on_model_escalated(self, event: dict[str, object], data: object) -> None:
-        if not isinstance(data, dict):
-            return
-        # Escalation clears the turn and re-plays it with a stronger model;
-        # any text containing the escalation marker is a draft to drop.
-        self._discard_draft()
-        from_model = data.get("from_model")
-        to_model = data.get("to_model")
-        label_parts = [str(v) for v in (from_model, to_model) if v]
-        self._progress_steps.append(
-            {
-                "step_key": "model_escalated",
-                "items": [{"text": " → ".join(label_parts)}] if label_parts else [],
-                "status": "success",
-            }
-        )
-
     @property
     def content(self) -> str:
         return self._answer.text
@@ -664,7 +636,7 @@ class StreamContentCollector:
         """Drop partial content streamed before a recovery that restarts the turn.
 
         Every recovery that makes the LLM regenerate the in-flight answer segment
-        (model failover, transient retry, context compaction, escalation, ...)
+        (model failover, transient retry, context compaction, ...)
         emits its STATUS/SSE event synchronously *before* the restreamed chunks,
         so the text of that segment is a draft that will be fully regenerated.
         Dropping it (idempotent: a second event finds nothing left to drop) keeps
@@ -893,5 +865,4 @@ _EVENT_HANDLERS: dict[str, Callable[[StreamContentCollector, dict[str, object], 
     "clarification_required": StreamContentCollector._on_clarification_required,
     "status": StreamContentCollector._on_status,
     "model_failover": StreamContentCollector._on_model_failover,
-    "model_escalated": StreamContentCollector._on_model_escalated,
 }

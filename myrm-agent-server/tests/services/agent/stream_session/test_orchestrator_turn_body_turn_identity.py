@@ -49,9 +49,6 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     async def fake_build_turn(*_args: object, **_kwargs: object) -> object:
         return turn
 
-    async def fake_research_model(*_args: object, **_kwargs: object) -> None:
-        return None
-
     def fake_unavailable(*_args: object, **_kwargs: object) -> None:
         return None
 
@@ -76,7 +73,6 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     monkeypatch.setattr(orchestrator_turn_body, "resolve_turn_history_mode", fake_history_mode)
     monkeypatch.setattr(orchestrator_turn_body, "apply_migration_bound_project", fake_apply_project)
     monkeypatch.setattr(orchestrator_turn_body, "build_turn_params", fake_build_turn)
-    monkeypatch.setattr(orchestrator_turn_body, "resolve_research_model", fake_research_model)
     monkeypatch.setattr(orchestrator_turn_body, "search_service_unavailable_detail", fake_unavailable)
     monkeypatch.setattr(orchestrator_turn_body, "prepare_goal_provider", fake_goal_provider)
     monkeypatch.setattr(orchestrator_turn_body, "build_turn_extra_context", fake_extra_context)
@@ -93,6 +89,7 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
         engine_params=None,
         sibling_group_id=None,
         action_mode="agent",
+        workspace_dir=None,
     )
 
     async def record_failure(_reason: object) -> None:

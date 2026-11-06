@@ -4,7 +4,7 @@ Validates regex patterns to prevent ReDoS (Regular Expression Denial of Service)
 
 [INPUT]
 - utils.errors::ToolError (POS: Storage quota related errors.)
-- agent.config::FileIOConfig (POS: Configuration and type definitions for the Deep Research system. Pure data structures with no business logic dependencies.)
+- agent.config::FileIOConfig (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
 
 [OUTPUT]
 - RegexTimeoutError: Timeout exception for regex operations

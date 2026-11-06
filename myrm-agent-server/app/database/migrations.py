@@ -719,6 +719,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN external_cli_sessions JSON",
     BACKFILL_LEGACY_WAKEUP_NOTICE_SQL,
     REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL,
+    # Isolation comes from automatic file snapshots, so the git-worktree sandbox root is no longer stored.
+    "ALTER TABLE chats DROP COLUMN sandbox_base_dir",
 ]
 
 # 创建索引的SQL语句列表

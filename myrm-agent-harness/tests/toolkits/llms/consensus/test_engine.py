@@ -1226,7 +1226,7 @@ class TestBuildAggregationMessages:
 class TestChatHistory:
     """Consensus must honour chat_history so multi-turn conversations
     work correctly, matching the behaviour of the other stream lanes
-    (dynamic workflow, deep research, fast lane).
+    (dynamic workflow, fast lane).
     """
 
     async def test_run_with_chat_history(self):

@@ -125,7 +125,6 @@ class TestHandleOverflowExhaustion:
 def _build_executor(ctx: MagicMock, compactor: AsyncMock) -> "StreamExecutor":
     """Build through the real constructor so state added to ``StreamExecutor.__init__`` never drifts from this test."""
     ctx.output_queue = AsyncMock()
-    ctx.escalation_target_llm = None
     ctx.cancel_token = None
     ctx.memory_manager = None
     executor = StreamExecutor(ctx, rebuild_agent_fn=lambda _agent: None)

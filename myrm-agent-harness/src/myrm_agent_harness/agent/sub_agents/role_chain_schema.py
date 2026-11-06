@@ -84,7 +84,7 @@ IMPLEMENT_REVIEW_FIX_PRESET: Final[RoleChainPreset] = RoleChainPreset(
     category="engineering",
 )
 
-# 2. Clarify -> Scout -> Worker (Deep Research & Delivery Chain)
+# 2. Clarify -> Scout -> Worker (Investigation & Delivery Chain)
 CLARIFY_SCOUT_WORKER_PRESET: Final[RoleChainPreset] = RoleChainPreset(
     preset_id="clarify_scout_worker",
     name="Clarify -> Scout -> Worker Chain",

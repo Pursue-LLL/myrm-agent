@@ -173,7 +173,7 @@ def test_apply_second_brain_preset_success() -> None:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -189,19 +189,19 @@ def test_apply_second_brain_preset_success() -> None:
                 new=AsyncMock(return_value=created_profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._wiki_has_content",
+                "app.services.onboarding.second_brain_preset.checks._wiki_has_content",
                 return_value=True,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
+                "app.services.onboarding.second_brain_preset.apply.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=True, files_copied=0),
             ),
         ):
@@ -270,7 +270,7 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -286,39 +286,39 @@ def test_apply_second_brain_preset_idempotent_reuses_cron() -> None:
                 new=AsyncMock(return_value=profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._wiki_has_content",
+                "app.services.onboarding.second_brain_preset.checks._wiki_has_content",
                 return_value=False,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=False),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
+                "app.services.onboarding.second_brain_preset.apply.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=True, files_copied=0),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._ensure_read_it_later_cron",
+                "app.services.onboarding.second_brain_preset.cron_setup._ensure_read_it_later_cron",
                 new=AsyncMock(return_value=("cron-existing-read", False)),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._ensure_wiki_morning_delta_cron",
+                "app.services.onboarding.second_brain_preset.cron_setup._ensure_wiki_morning_delta_cron",
                 new=AsyncMock(return_value=("cron-existing-delta", False)),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._ensure_wiki_maintain_cron",
+                "app.services.onboarding.second_brain_preset.cron_setup._ensure_wiki_maintain_cron",
                 new=AsyncMock(return_value=("cron-existing-maintain", False)),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._save_preset_state",
+                "app.services.onboarding.second_brain_preset.common._save_preset_state",
                 new=AsyncMock(),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._maybe_enable_wiki_gmail_source",
+                "app.services.onboarding.second_brain_preset.mutations._maybe_enable_wiki_gmail_source",
                 new=AsyncMock(),
             ),
         ):
@@ -363,7 +363,7 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -379,15 +379,15 @@ def test_apply_second_brain_preset_rollback_on_cron_failure() -> None:
                 new=AsyncMock(return_value=created_profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.AgentService.delete_agent",
+                "app.services.onboarding.second_brain_preset.mutations.AgentService.delete_agent",
                 new=delete_agent,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
+                "app.services.onboarding.second_brain_preset.apply.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=False, files_copied=1),
             ),
         ):
@@ -419,7 +419,7 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -435,11 +435,11 @@ def test_apply_seeds_when_reusing_named_agent(tmp_path: Path, monkeypatch: pytes
                 new=create_agent,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
         ):
@@ -471,7 +471,7 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -487,11 +487,11 @@ def test_apply_second_brain_preset_seeds_default_vault(tmp_path: Path, monkeypat
                 new=AsyncMock(return_value=created_profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
         ):
@@ -535,7 +535,7 @@ def test_second_brain_status_clears_stale_agent_id() -> None:
                 new=AsyncMock(return_value=None),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
         ):
@@ -562,7 +562,7 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -578,15 +578,15 @@ def test_apply_second_brain_message_includes_vault_seed_count() -> None:
                 new=AsyncMock(return_value=created_profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
+                "app.services.onboarding.second_brain_preset.apply.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=False, files_copied=3),
             ),
         ):
@@ -609,7 +609,7 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
         with (
             patch("app.core.security.auth.identity.is_loopback_ip", return_value=True),
             patch(
-                "app.services.onboarding.second_brain_preset.ensure_skills_enabled",
+                "app.services.onboarding.second_brain_preset.checks.ensure_skills_enabled",
                 new=AsyncMock(),
             ),
             patch(
@@ -625,15 +625,15 @@ def test_apply_second_brain_wiki_morning_delta_uses_blueprint() -> None:
                 new=AsyncMock(return_value=created_profile),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.get_cron_manager",
+                "app.services.onboarding.second_brain_preset.common.get_cron_manager",
                 return_value=mock_mgr,
             ),
             patch(
-                "app.services.onboarding.second_brain_preset._provider_is_ready",
+                "app.services.onboarding.second_brain_preset.checks._provider_is_ready",
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "app.services.onboarding.second_brain_preset.seed_agent_vault_from_default",
+                "app.services.onboarding.second_brain_preset.apply.seed_agent_vault_from_default",
                 return_value=SimpleNamespace(skipped=True, files_copied=0),
             ),
         ):

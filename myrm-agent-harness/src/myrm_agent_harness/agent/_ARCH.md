@@ -6,7 +6,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 
 **Consumer boundary (external integrators):** import `myrm_agent_harness.api` and submodules `api.hooks` / `api.skills` — **not** `agent._*` private modules. See [../api/_ARCH.md](../api/_ARCH.md).
 
-**L2 system docs**: [sub_agents/SUB_AGENT_SYSTEM.md](sub_agents/SUB_AGENT_SYSTEM.md) · [skills/SKILL_SYSTEM.md](skills/SKILL_SYSTEM.md) · [meta_tools/META_TOOLS_SYSTEM.md](meta_tools/META_TOOLS_SYSTEM.md) · [context_management/CONTEXT_MANAGEMENT_SYSTEM.md](context_management/CONTEXT_MANAGEMENT_SYSTEM.md) · [middlewares/MIDDLEWARE_SYSTEM.md](middlewares/MIDDLEWARE_SYSTEM.md) · [streaming/STREAMING_SYSTEM.md](streaming/STREAMING_SYSTEM.md) · [event_log/EVENT_LOG_SYSTEM.md](event_log/EVENT_LOG_SYSTEM.md) · [dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md](dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) · [deep_research/DEEP_RESEARCH_SYSTEM.md](deep_research/DEEP_RESEARCH_SYSTEM.md) · [tool_management/TOOL_MANAGEMENT_SYSTEM.md](tool_management/TOOL_MANAGEMENT_SYSTEM.md) · [security/SECURITY_SYSTEM.md](security/SECURITY_SYSTEM.md) · [goals/GOAL_SYSTEM.md](goals/GOAL_SYSTEM.md)
+**L2 system docs**: [sub_agents/SUB_AGENT_SYSTEM.md](sub_agents/SUB_AGENT_SYSTEM.md) · [skills/SKILL_SYSTEM.md](skills/SKILL_SYSTEM.md) · [meta_tools/META_TOOLS_SYSTEM.md](meta_tools/META_TOOLS_SYSTEM.md) · [context_management/CONTEXT_MANAGEMENT_SYSTEM.md](context_management/CONTEXT_MANAGEMENT_SYSTEM.md) · [middlewares/MIDDLEWARE_SYSTEM.md](middlewares/MIDDLEWARE_SYSTEM.md) · [streaming/STREAMING_SYSTEM.md](streaming/STREAMING_SYSTEM.md) · [event_log/EVENT_LOG_SYSTEM.md](event_log/EVENT_LOG_SYSTEM.md) · [dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md](dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) · [tool_management/TOOL_MANAGEMENT_SYSTEM.md](tool_management/TOOL_MANAGEMENT_SYSTEM.md) · [security/SECURITY_SYSTEM.md](security/SECURITY_SYSTEM.md) · [goals/GOAL_SYSTEM.md](goals/GOAL_SYSTEM.md)
 
 ---
 
@@ -28,7 +28,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 ┌────────────────────────────▼────────────────────────────────┐
 │ L3 Tool & Orchestration Surface                              │
 │  meta_tools · skills · sub_agents · parallel · goals · plugins │
-│  dynamic_workflow · deep_research · tool_management          │
+│  dynamic_workflow · tool_management                           │
 │  coordination · background_worker                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,6 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `coordination/` | Subagent P2P mailbox (TeammateMailbox) | [coordination/_ARCH.md](coordination/_ARCH.md) |
 | `creator_mode/` | 自然语言创造模式预设合成器、沙盒防御校验与多端漫游网关 (Item 39) | - |
 | `dynamic_workflow/` | LLM-generated PTC orchestration scripts | [DYNAMIC_WORKFLOW_SYSTEM.md](dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) |
-| `deep_research/` | Multi-phase deep research orchestrator | [DEEP_RESEARCH_SYSTEM.md](deep_research/DEEP_RESEARCH_SYSTEM.md) |
 | `orchestration/` | Control-plane signals (not Action Tools) | [orchestration/_ARCH.md](orchestration/_ARCH.md) |
 | `errors/` | Execution errors + diagnostics | [ERROR_SYSTEM.md](errors/ERROR_SYSTEM.md) |
 | `event_log/` | Full event history (complements checkpointer) | [EVENT_LOG_SYSTEM.md](event_log/EVENT_LOG_SYSTEM.md) |

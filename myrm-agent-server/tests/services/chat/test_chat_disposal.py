@@ -26,8 +26,6 @@ from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES, ChatBoundTable
 from app.services.chat.chat_service import ChatService
 from tests.services.chat.disposal_support import (
     CHAT_ID,
-    SANDBOX_DIR,
-    SANDBOX_ROOT,
     Spies,
     grant_and_checkpoint,
     install_spies,
@@ -72,7 +70,6 @@ async def _seed_chat(
             title="disposal",
             source=source,
             is_incognito=incognito,
-            sandbox_base_dir=f"{SANDBOX_ROOT}/{chat_id}",
             created_at=now - idle_for,
             updated_at=now - idle_for,
             deleted_at=None if trashed_for is None else now - trashed_for,
@@ -155,7 +152,6 @@ async def test_every_entry_point_tears_down_the_same_state(
     spies.ephemeral_delta.assert_called_once_with(CHAT_ID)
     spies.memory_purge.assert_awaited_once_with(CHAT_ID)
     spies.retry_queue.assert_awaited_once_with(CHAT_ID)
-    spies.worktree.assert_awaited_once_with(SANDBOX_DIR, CHAT_ID)
     spies.workspace.assert_awaited_once_with([CHAT_ID])
 
 
@@ -176,7 +172,6 @@ async def test_emptying_the_trash_cleans_the_workspaces_of_all_chats_in_one_call
     workspace_call = spies.workspace.await_args
     assert workspace_call is not None
     assert sorted(workspace_call.args[0]) == chat_ids
-    assert spies.worktree.await_count == 3
     assert sorted(call.args[0] for call in spies.memory_purge.await_args_list) == chat_ids
 
 

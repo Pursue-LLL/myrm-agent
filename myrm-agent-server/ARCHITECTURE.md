@@ -222,9 +222,9 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 | 向量记忆 | Qdrant embedded 或远程 URL | 语义记忆检索 |
 | 可选图存储 | `DATABASE_URL` 设置时 PostgreSQL+AGE | **仅** episodic graph 扩展，**非** LangGraph checkpoint |
 
-**状态根单一入口**：Server 的 Myrm 自有路径（技能目录、备份、渠道登录态、各类缓存等）都从状态根派生——`MYRM_DATA_DIR`，未设置时 `~/.myrm`。业务代码统一经 `myrm_agent_harness.api.resolve_data_dir()` / `resolve_workspace_state_dir()` 解析（配置层 `app/config/settings.py` 用同一个环境变量与默认值定义数据库等路径），禁止用 `Path.home()` 或 `"~/…"` 手拼 Myrm 目录。这是测试 / E2E 的隔离运行时与真实使用互不影响的前提；门禁：`tests/architecture/test_state_paths_follow_data_dir.py`（登记表里每一项都写明为何安全）。仍用 cwd 相对 `.myrm/…` 的目录登记在 harness `FRAMEWORK_DESIGN_PRINCIPLES.md` §8。
+**状态根单一入口**：Server 的 Myrm 自有路径（技能目录、备份、渠道登录态、各类缓存等）都从状态根派生——`MYRM_DATA_DIR`，未设置时 `~/.myrm`。业务代码统一经 `myrm_agent_harness.api.resolve_data_dir()` / `resolve_workspace_state_dir()` 解析（配置层 `app/config/settings/infra.py` 用同一个环境变量与默认值定义数据库等路径），禁止用 `Path.home()` 或 `"~/…"` 手拼 Myrm 目录。这是测试 / E2E 的隔离运行时与真实使用互不影响的前提；门禁：`tests/architecture/test_state_paths_follow_data_dir.py`（登记表里每一项都写明为何安全）。仍用 cwd 相对 `.myrm/…` 的目录登记在 harness `FRAMEWORK_DESIGN_PRINCIPLES.md` §8。
 
-Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `lifespan.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
+Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `app/server/lifespan/startup.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
 
 **对话历史单一权威**：checkpoint 线程保存模型实际看到的消息（含工具轨迹），Chat/Message 保存用户看到的消息。网页对话的回合开始时，server 比对 `chats.history_sync_token`（「活跃分支 + 压缩摘要」的摘要，只在回合完整结束后写入）与当前存储对话的摘要：一致则声明 `history_mode=continue`（只发新消息，前缀不变，provider 缓存命中），否则 `replace`（清空线程，由存储历史重建）。新聊天、升级前的旧聊天、分叉出的子聊天没有记录，首轮必然重建；撤销/重试/截断/回退立即清线程；重新生成、切换兄弟、压缩、服务端追加的通知、失败/取消/等待用户的回合都靠摘要失配重建。重建会丢掉线程里的工具轨迹（与撤销后重发的既有行为一致）。IM、定时、唤醒、目标重触发等调用方未接管线程卫生，沿用 `append`。详见 `app/services/chat/history_sync.py` 与 `app/services/agent/stream_session/turn_history_sync.py`。
 
@@ -239,7 +239,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
 - **Context Health 聚合**：`app/api/statistics/context_health.py` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
-- **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane/DeepResearch（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
+- **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
 
 ### 0.4 进化驱动型技能观测 (Evolution-Driven Skill Observation)
 

@@ -1,4 +1,20 @@
-"""Stream lane factories — dynamic workflow, deep research, and fast lane SSE builders."""
+"""Stream lane factories — dynamic workflow and fast lane SSE builders.
+
+[INPUT]
+- app.ai_agents::AgentFactory / GeneralAgentParams (POS: agent construction and resolved turn params)
+- app.services.agent.params::_extract_text_from_query (POS: multimodal query → text)
+- app.core.utils.delivery_provenance::apply_general_agent_pipeline_banner (POS: per-channel user-turn banner)
+- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: request-level cancellation)
+
+[OUTPUT]
+- create_dynamic_workflow_stream: Dynamic Workflow SSE lane
+- create_fast_lane_stream: Fast Search SSE lane
+- archive_restore_error_response: 422 response for an invalid archive restore request
+- _inject_wu_consumed: platform work-unit accounting on MESSAGE_END
+
+[POS]
+Server-side SSE lane constructors; the turn loop picks one lane per request and pumps its chunks.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +26,12 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 from app.ai_agents import AgentFactory, GeneralAgentParams
-from app.core.types import ModelConfig
 from app.core.utils.delivery_provenance import apply_general_agent_pipeline_banner
 from app.services.agent.params import (
     ArchiveRestoreRequestError,
     _extract_text_from_query,
 )
 from app.services.agent.params.models import MultimodalQuery
-from app.services.agent.streaming_support.deep_research_stream import ai_deep_research_service_stream
 
 logger = logging.getLogger(__name__)
 
@@ -234,233 +248,6 @@ async def create_dynamic_workflow_stream(
             yield chunk
     finally:
         reset_token_tracker()
-
-
-async def create_deep_research_stream(
-    params: GeneralAgentParams,
-    cancel_token: "CancellationToken | None",
-    research_model_cfg: "ModelConfig | None" = None,
-) -> AsyncIterable[dict[str, object]]:
-    """Build Deep Research SSE stream from GeneralAgentParams.
-
-    Extracts the LLM and search tools from the resolved params,
-    then delegates to ai_deep_research_service_stream.
-    If research_model_cfg is provided, it is used for research sub-agents
-    (lighter/cheaper model for search tasks), while the main LLM handles
-    planning and report generation.
-    """
-    from myrm_agent_harness.toolkits import create_web_search_tool
-    from myrm_agent_harness.toolkits.llms import llm_manager
-
-    from app.core.agent.tool_description_locale import resolve_tool_description_locale
-    from app.core.utils.chat_utils import convert_chat_history
-
-    llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
-    tool_description_locale = resolve_tool_description_locale(
-        agent_locale=params.locale,
-        channel=params.channel_name,
-    )
-    search_tool = create_web_search_tool(
-        search_service_cfg=params.search_service_cfg,
-        description_locale=tool_description_locale,
-    )
-
-    research_agent_llm = None
-    if research_model_cfg:
-        try:
-            research_agent_llm = await llm_manager.get_llm_from_config(
-                research_model_cfg,
-                api_keys=getattr(research_model_cfg, "api_keys", None),
-            )
-        except Exception:
-            logger.warning("Failed to create research agent LLM, falling back to main LLM")
-
-    raw_q = params.query
-    if isinstance(raw_q, str) or isinstance(raw_q, list):
-        text_query = _extract_text_from_query(cast(MultimodalQuery, raw_q))
-    else:
-        text_query = ""
-    if text_query:
-        text_query = cast(
-            str,
-            apply_general_agent_pipeline_banner(text_query, channel_name=params.channel_name),
-        )
-    chat_history = await convert_chat_history(params.chat_history) if params.chat_history else None
-
-    on_report_ready = _build_wiki_vault_callback(params) if params.enable_wiki else None
-    on_explore = _build_explore_callback(params) if params.enable_wiki else None
-
-    async for chunk in ai_deep_research_service_stream(
-        llm=llm,
-        query=text_query,
-        message_id=params.message_id or "",
-        chat_history=chat_history,
-        parent_tools=[search_tool],
-        cancel_token=cancel_token,
-        context={
-            "session_id": params.chat_id or "",
-            "agent_id": params.agent_id or "",
-        },
-        research_agent_llm=research_agent_llm,
-        on_report_ready=on_report_ready,
-        on_explore=on_explore,
-    ):
-        yield chunk
-
-
-_EXPLORE_MAX_ARTICLES = 8
-_EXPLORE_CHAR_BUDGET = 6000
-
-
-def _build_explore_callback(params: GeneralAgentParams):
-    """Build an on_explore callback that searches the local Wiki for relevant knowledge.
-
-    Uses FTS5 full-text search only (zero LLM calls, zero cost).
-    Returns a formatted summary of local articles related to the research plan,
-    so the orchestrator can skip redundant web searches.
-    """
-
-    async def _explore_local_knowledge(research_plan: str) -> str | None:
-        from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-        from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
-
-        from app.services.wiki.vault import resolve_wiki_vault_path
-
-        wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
-        if not wiki_base_dir.exists():
-            return None
-
-        structure = WikiStructure(wiki_base_dir)
-        indexer = WikiIndexer(structure)
-
-        results = await indexer.search(research_plan, limit=_EXPLORE_MAX_ARTICLES)
-        if not results:
-            return None
-
-        sections: list[str] = []
-        total_chars = 0
-        for concept_name, score in results:
-            if total_chars >= _EXPLORE_CHAR_BUDGET:
-                break
-            concept_path = structure.get_concept_file_path(concept_name)
-            if not concept_path.exists():
-                continue
-            content = concept_path.read_text(encoding="utf-8")
-            remaining = _EXPLORE_CHAR_BUDGET - total_chars
-            if len(content) > remaining:
-                content = content[:remaining] + "\n[truncated]"
-            sections.append(f"### {concept_name} (relevance: {score:.2f})\n\n{content}")
-            total_chars += len(content)
-
-        if not sections:
-            return None
-
-        logger.info(
-            "[deep-research-explore] Found %d local articles (%d chars)",
-            len(sections),
-            total_chars,
-        )
-        return "\n\n---\n\n".join(sections)
-
-    return _explore_local_knowledge
-
-
-def _build_wiki_vault_callback(params: GeneralAgentParams):
-    """Build an on_report_ready callback that vaults Deep Research results into wiki.
-
-    Each structured agent_result is written as a separate raw markdown file
-    into the wiki ingestion directory, then enqueued for background compilation.
-    """
-    from pathlib import Path
-
-    async def _vault_research_to_wiki(result: object) -> None:
-        from datetime import UTC, datetime
-
-        from myrm_agent_harness.toolkits.llms import llm_manager
-        from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-
-        from app.services.wiki.vault import resolve_wiki_vault_path
-
-        wiki_base_dir = resolve_wiki_vault_path(params.agent_id)
-        wiki_base_dir.mkdir(parents=True, exist_ok=True)
-
-        agent_results = getattr(result, "agent_results", [])
-        if not agent_results:
-            return
-
-        complete_results = [r for r in agent_results if not r.get("partial")]
-        if not complete_results:
-            return
-
-        structure = WikiStructure(wiki_base_dir)
-        structure.ensure_structure()
-
-        from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
-            RawConflictPolicy,
-            RawPublishRequest,
-            publish_raw,
-        )
-
-        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-        written_files: list[Path] = []
-
-        for idx, entry in enumerate(complete_results):
-            task = entry.get("task", "research")
-            content = entry.get("result", "")
-            if not content or len(content) < 200:
-                continue
-
-            safe_task = "".join(c if c.isalnum() or c in "-_" else "_" for c in task[:60]).strip("_")
-            relative_path = f"deep_research_{timestamp}_{idx}_{safe_task}.md"
-
-            escaped_task = task.replace('"', '\\"')
-            frontmatter = (
-                f"---\n"
-                f"source: deep_research\n"
-                f"bridge_source: deep_research\n"
-                f'task: "{escaped_task}"\n'
-                f'timestamp: "{timestamp}"\n'
-                f'session_id: "{params.chat_id or ""}"\n'
-                f"---\n\n"
-            )
-            result = await publish_raw(
-                structure,
-                RawPublishRequest(
-                    relative_path=relative_path,
-                    content=frontmatter + content,
-                    conflict_policy=RawConflictPolicy.FAIL,
-                ),
-                caller="chat",
-            )
-            if result.security_blocked:
-                logger.warning(
-                    "[deep-research-vault] Blocked raw write for %s: sensitive content",
-                    relative_path,
-                )
-                continue
-            if result.written:
-                written_files.append(result.absolute_path)
-
-        if not written_files:
-            return
-
-        try:
-            from app.services.wiki.vault import get_wiki_archiver
-
-            wiki_llm = await llm_manager.get_llm_from_config(
-                params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
-            )
-            archiver = get_wiki_archiver(wiki_llm, agent_id=params.agent_id)
-            for fp in written_files:
-                archiver._compiler.enqueue_file(fp)
-            logger.info(
-                "[deep-research-vault] Enqueued %d research files for wiki compilation",
-                len(written_files),
-            )
-        except Exception as e:
-            logger.warning("[deep-research-vault] Failed to enqueue for compilation: %s", e, exc_info=True)
-
-    return _vault_research_to_wiki
 
 
 async def create_fast_lane_stream(

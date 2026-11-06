@@ -136,7 +136,6 @@ class AgentEventType(StrEnum):
     CAPTCHA_DETECTED = "captcha_detected"
     CAPTCHA_RESOLVED = "captcha_resolved"
     CAPTCHA_TIMEOUT = "captcha_timeout"
-    MODEL_ESCALATED = "model_escalated"
     FILE_MUTATION_FAILED = "file_mutation_failed"
     TOOL_IMAGE_OUTPUT = "tool_image_output"
     BROWSER_VIEW_UPDATE = "browser_view_update"

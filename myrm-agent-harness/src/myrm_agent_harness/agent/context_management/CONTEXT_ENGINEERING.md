@@ -159,7 +159,7 @@ Orchestrator Agent（调度者）
   │ └─────────────────────────┘
   │
   ├─ todo_write（主 Agent 多步进度，planning 组 opt-in）
-  ├─ invoke_acp_agent_tool / dispatch_research（子智能体委派，独立上下文）
+  ├─ invoke_acp_agent_tool（子智能体委派，独立上下文）
   ├─ knowledge_manager（子智能体，有推理能力）
   │
   ├─ search_tool（普通工具）

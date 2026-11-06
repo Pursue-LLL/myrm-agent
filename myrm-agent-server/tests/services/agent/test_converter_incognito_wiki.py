@@ -1,7 +1,7 @@
 """Incognito chats must not reach the Wiki: it is resolved off at the single point where chat params are built.
 
-Every Wiki surface in an agent run (tools, long-reply auto-archive, post-compaction archive, Deep Research vaulting)
-keys off ``params.enable_wiki``, so the converter is where "incognito leaves no trace" has to hold.
+Every Wiki surface in an agent run (tools, long-reply auto-archive, post-compaction archive) keys off
+``params.enable_wiki``, so the converter is where "incognito leaves no trace" has to hold.
 """
 
 from __future__ import annotations

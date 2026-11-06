@@ -10,7 +10,7 @@
 - chat_memory_events::record_memory_influence_event (POS: 记忆影响账本投影)
 
 [OUTPUT]
-- _ChatMessageMixin: 消息追加、分页查询、全量查询、按 id 查询、assistant 消息安全持久化
+- _ChatMessageMixin: 消息追加（含首轮工作目录随会话行落库）、分页查询、全量查询、按 id 查询、assistant 消息安全持久化
 
 [POS]
 消息持久化编排层。提供消息追加（含自动 chat 元数据更新）、
@@ -224,6 +224,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         active_moa_preset_id: str | None = None,
         persist_moa_preset: bool = False,
         mark_read: bool = False,
+        workspace_dir: str | None = None,
     ) -> MessageDTO:
         # Guard against incoming context bomb by transparently spilling over massive user text
         final_content, shown_text, extra_data = await _park_user_text(content, chat_id, extra_data, None)
@@ -249,6 +250,8 @@ class _ChatMessageMixin(_ChatServiceBase):
                     active_moa_preset_id=(active_moa_preset_id if persist_moa_preset else None),
                     ephemeral_subagents=ephemeral_subagents,
                     is_incognito=is_incognito,
+                    # Only a chat created here takes it; a stored folder changes through PATCH /chats/{id}/workspace.
+                    workspace_dir=workspace_dir,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow(),
                 )

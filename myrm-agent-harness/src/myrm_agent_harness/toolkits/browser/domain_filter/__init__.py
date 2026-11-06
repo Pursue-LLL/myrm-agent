@@ -31,6 +31,7 @@ Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
 [INPUT]
 - pool.config::ResourceBlockConfig (POS: resource blocking config, includes block_ad_domains flag)
 - .ad_domains::AD_DOMAINS (POS: frozenset of ~3500 ad/tracker domains, lazy-loaded when block_ad_domains=True)
+- core.security.domain_match::canonical_entry, host_matches (POS: one reading of the domain entries of a network list)
 
 [OUTPUT]
 - DomainAllowlist: immutable domain pattern matcher
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.toolkits.browser.pool.config import ResourceBlockConfig
 
+from myrm_agent_harness.core.security.domain_match import canonical_entry, host_matches
 from myrm_agent_harness.toolkits.browser.domain_filter.http_filter import (
     _RESOURCE_TYPE_MAP,
 )
@@ -79,37 +81,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _normalize_domain_token(domain: str) -> str:
-    """Normalize domain/hostname pattern with Punycode IDN and URI sanitation.
-
-    1. Trims whitespace and converts to lower case.
-    2. Strips leading scheme ('https://') and trailing paths/ports if inadvertently passed.
-    3. Converts internationalized domain names (IDN / Unicode) to ASCII Punycode (e.g. 'xn--...').
-    4. Preserves wildcard prefix ('*.') if present.
-    """
-    domain = domain.strip().lower()
-    if not domain:
-        return ""
-    if "://" in domain:
-        domain = domain.split("://", 1)[1]
-    domain = domain.split("/", 1)[0].split(":", 1)[0]
-    is_wildcard = domain.startswith("*.")
-    raw_domain = domain[2:] if is_wildcard else domain
-    try:
-        ascii_domain = raw_domain.encode("idna").decode("ascii")
-    except (UnicodeError, Exception):
-        ascii_domain = raw_domain
-    return f"*.{ascii_domain}" if is_wildcard else ascii_domain
-
-
 @dataclass(frozen=True, slots=True)
 class DomainAllowlist:
     """Immutable domain allowlist with exact and wildcard matching.
 
-    Patterns:
+    Entries are read by ``core.security.domain_match``, the same reading the permission engine uses:
     - ``"example.com"`` — exact match
-    - ``"*.example.com"`` — matches ``example.com`` and all subdomains
-    - Supports Punycode (IDN) and URL cleaning (scheme/port/path stripping).
+    - ``"*.example.com"`` and ``".example.com"`` — match ``example.com`` and all subdomains
+    - Punycode (IDN) conversion and URL cleaning (scheme/port/path stripping) happen when the list is built.
 
     Callers with an allowlist semantics use :meth:`is_allowed`; callers with a
     blocklist semantics use :meth:`is_blocked`. Both share the same pattern
@@ -118,26 +97,9 @@ class DomainAllowlist:
 
     patterns: tuple[str, ...]
 
-    def _matches(self, hostname: str) -> bool:
-        hostname = _normalize_domain_token(hostname)
-        if not hostname:
-            return False
-        for pattern in self.patterns:
-            norm_pattern = _normalize_domain_token(pattern)
-            if not norm_pattern:
-                continue
-            if norm_pattern.startswith("*."):
-                suffix = norm_pattern[1:]  # ".example.com"
-                bare = norm_pattern[2:]  # "example.com"
-                if hostname == bare or hostname.endswith(suffix):
-                    return True
-            elif hostname == norm_pattern:
-                return True
-        return False
-
     def is_allowed(self, hostname: str) -> bool:
         """Return True when *hostname* matches an allowed pattern."""
-        return self._matches(hostname)
+        return host_matches(hostname, self.patterns)
 
     def is_blocked(self, hostname: str) -> bool:
         """Return True when *hostname* matches a blocked pattern.
@@ -146,12 +108,12 @@ class DomainAllowlist:
         membership; the distinct name lets blocklist call sites read naturally
         instead of reinterpreting ``is_allowed`` as "is in the deny list".
         """
-        return self._matches(hostname)
+        return host_matches(hostname, self.patterns)
 
     @classmethod
     def from_strings(cls, domains: Sequence[str]) -> DomainAllowlist:
         """Create from a sequence of domain pattern strings."""
-        cleaned = tuple(_normalize_domain_token(d) for d in domains if d.strip())
+        cleaned = tuple(canonical_entry(d) for d in domains if d.strip())
         return cls(patterns=tuple(d for d in cleaned if d))
 
     @property

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.streaming.model_discipline import (
-    resolve_execution_discipline,
-)
+from myrm_agent_harness.agent.streaming.agent_core_rules import AGENT_CORE_RULES
 from myrm_agent_harness.toolkits.web_search.engine import SearchServiceConfig
 from myrm_agent_harness.toolkits.web_search.web_search_agent_tools import (
     create_web_search_tool,
@@ -48,13 +46,6 @@ class TestWebSearchDescriptionBaseline:
         assert "每条 query 脱离会话和其他 query 后都必须可理解" in description
         assert "复杂问题可额外加入一条综合 query" in description
 
-    def test_rewrite_rules_not_in_execution_discipline(self) -> None:
-        from unittest.mock import MagicMock
-
-        from langchain_core.language_models import BaseChatModel
-
-        llm = MagicMock(spec=BaseChatModel)
-        llm.model_name = "gpt-4o"
-        discipline = resolve_execution_discipline(llm)
-        assert "Query Rewriting Rules" not in discipline
-        assert "<rewrite_rules>" not in discipline
+    def test_rewrite_rules_not_in_agent_core_rules(self) -> None:
+        assert "Query Rewriting Rules" not in AGENT_CORE_RULES
+        assert "<rewrite_rules>" not in AGENT_CORE_RULES

@@ -18,7 +18,7 @@ from myrm_agent_harness.agent.context_management.strategies.summary.summarizer i
     _guard_aux_context,
 )
 
-_CONTEXT_LIMIT = "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.get_model_context_limit"
+_CONTEXT_LIMIT = "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.guard.get_model_context_limit"
 
 
 def _call(call_id: str) -> dict[str, object]:

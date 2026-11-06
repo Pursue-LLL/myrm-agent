@@ -12,7 +12,6 @@ POST /channels/bitable-copilot/wrangle
 POST /channels/manage/test-inbound
 POST /channels/manage/{channel_name}/data-plane/prune
 GET /channels/{channel_id}/login/oauth2/callback
-GET /chats/{chat_id}/sandbox/diff
 POST /chats/{chat_id}/subagents/delegation/pause
 POST /chats/{chat_id}/subagents/delegation/resume
 POST /commerce/spending/commit

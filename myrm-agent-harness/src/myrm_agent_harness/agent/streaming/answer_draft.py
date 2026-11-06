@@ -9,11 +9,10 @@
 - is_answer_restart: whether an event announces that the in-flight segment will be streamed again
 
 [POS]
-The one consumer-side definition of the restart contract that ``StreamExecutor`` recoveries emit
-(``restart`` on STATUS events, ``data.restart`` on MODEL_ESCALATED). A segment is the text since the last
-``tool_start``: completed tool steps are checkpointed, so a recovery resumes after them and never re-sends the
-text that preceded them. Consumers that build a final answer from ``process_stream`` events use this class
-instead of re-deriving the rule.
+The one consumer-side definition of the restart contract that ``StreamExecutor`` recoveries emit (the top-level
+``restart`` flag on STATUS events). A segment is the text since the last ``tool_start``: completed tool steps are
+checkpointed, so a recovery resumes after them and never re-sends the text that preceded them. Consumers that
+build a final answer from ``process_stream`` events use this class instead of re-deriving the rule.
 """
 
 from __future__ import annotations
@@ -25,10 +24,7 @@ from myrm_agent_harness.core.events.types import AgentEventType
 
 def is_answer_restart(event: Mapping[str, object]) -> bool:
     """Whether ``event`` announces that the in-flight answer segment will be streamed again."""
-    if event.get("restart") is True:
-        return True
-    payload = event.get("data")
-    return isinstance(payload, Mapping) and payload.get("restart") is True
+    return event.get("restart") is True
 
 
 class AnswerDraft:

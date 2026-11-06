@@ -168,7 +168,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 - **仅最后一条消息（新内容）无法缓存**——这是不可避免的
 - **System Prompt 永远不包含动态内容**——完全冻结
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
-- **执行纪律系统**：`resolve_execution_discipline(llm)`（`streaming/model_discipline.py`）追加在 `DATETIME_SYSTEM_RULES` 之后、`canary_instruction` 之前。输出固定文本（由模型名称决定，session 内不变），完全缓存安全。包含三层：Layer 1 核心规则（反叙述 + 工具诚实），Layer 2 工具强制（必须行动而非描述），Layer 3 per-model 纪律（GPT/Gemini/Claude/DeepSeek 等各有针对性纠正）
+- **核心行为规则**：`AGENT_CORE_RULES`（`streaming/agent_core_rules.py`）追加在 `DATETIME_SYSTEM_RULES` 之后、`canary_instruction` 之前。输出固定文本（反叙述 + 工具诚实 + 搜索与上下文复用），所有模型字节相同、与模型名无关，session 内不变，完全缓存安全。模型特有的失败模式不靠分厂商的提示词文本，由代码兜底（工具调用解析器、流恢复、CompletionGuard）
 - **环境感知注入**：`detect_platform().environment_prompt_line`（`toolkits/code_execution/platform.py`）追加在 `resolve_channel_output_hint` 之后。输出一个 `<environment>` XML 标签，包含 OS 类型/版本/架构、Shell 类型/工具链差异、Python 工具链状态（pip/PEP-668/uv）。由 `detect_platform()` 的 `@lru_cache(maxsize=1)` 保证进程生命周期内不变，Python 探测由 `env_probe.get_environment_probe_line()` 的 `threading.Lock` 保证一次性探测。正常环境省略 Python 部分（零额外 token），异常环境增加 <50 tokens。完全缓存安全
 
 这与 Claude Code 的官方策略一致：动态信息通过 `<system-reminder>` 标签放在 user message 中。
@@ -279,7 +279,7 @@ System: `<data_boundary_rules>` …               ← SecurityBoundary，state �
 - **一次性注入**：同时检测 `<user_memory_context` **与** `<<<UNTRUSTED_DATA`（cover learned-only）。
 - **`MemoryConfig.max_learned_context_chars`**：依旧在 learned 数据源侧裁剪；中间件再做 token/char envelope 兜底。
 
-**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane/DeepResearch 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
+**业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
 
 ### 2.6 只增不改的消息历史与单调前缀铁律（Append-Only Law）
 
@@ -1044,7 +1044,7 @@ Turn 12 (会话结束):
 |------|------|
 | 位置 | harness ``toolkits/*/`` 工具的 **description + args schema**；**禁止**迁入 ``AGENT_CORE_RULES`` / 全局 System Prompt |
 | Token | **搬迁不省 token**（API 顺序 ``Tools → System → Messages``，同文本换段前缀总长不变）；只有 **压缩** description 才省 |
-| 跨工具行为 | 「何时该搜」等跨工具规则可留 ``model_discipline.AGENT_CORE_RULES`` |
+| 跨工具行为 | 「何时该搜」等跨工具规则可留 ``agent_core_rules.AGENT_CORE_RULES`` |
 | 门禁 | ``tests/architecture/test_tool_prompt_placement.py`` + ``measure_turn1_token_inventory.py`` |
 | 例外 | ``web_search_tool`` 保留长 description（中下等模型 query 调优）；**禁止**再迁入 System 或进一步瘦身，除非重做 golden eval |
 
@@ -1266,9 +1266,9 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `tool_management/tool_layers.py` | CORE/COMMON/EXTENDED/EXTERNAL 四层定义 + 工具注册表 |
 | `tool_management/registry.py` | `resolve()` 按 layer + name 排序，确保工具定义顺序确定性 |
 | `streaming/utils.py` | `get_datetime_prompt()` 生成时间标签 + `DATETIME_SYSTEM_RULES` 系统规则常量 |
-| `streaming/model_discipline.py` | Per-model 执行纪律系统：`resolve_execution_discipline(llm)` 返回 3 层合并的固定文本（核心规则 + 工具强制 + per-model 纠正） |
+| `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本 |
 | `streaming/message_builder.py` | `inject_datetime_tags()` 时间戳注入逻辑（当前消息 + 历史消息确定性注入） |
-| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + resolve_execution_discipline(llm) + environment_prompt_line + canary 到 system_prompt |
+| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + environment_prompt_line + canary 到 system_prompt |
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |
@@ -1336,7 +1336,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 ### 规则说明
 
 **为什么？**
-- 动态内容（如子 Agent 通知、Deep Research 结果、实时时间戳）每次不同
+- 动态内容（如子 Agent 通知、后台任务结果、实时时间戳）每次不同
 - `SystemMessage` 变化会破坏 Prompt Cache 前缀，导致所有后续缓存失效
 - 这会导致 **10x 成本增加**（95% 缓存命中率 → 0%）
 
@@ -1362,11 +1362,10 @@ messages.append(HumanMessage(content=dynamic_notification))
 
 1. **`_internals/agent_runtime.py::drain_notifications`** — 子 Agent 通知注入（HumanMessage via `stale_notifications`）
 2. **`stream_executor.py::_handle_subagent_notifications`** — 子 Agent 完成通知注入
-3. **`deep_research/_orchestrator_phases.py::_phase_report`** — Deep Research 结果注入（HumanMessage `# Research Findings`）
-4. **`progress_middleware.py`** — Active todo focus 注入（HumanMessage via request.override）
-5. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束注入（HumanMessage via awrap_model_call + request.override，瞬态不持久化）
-6. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告/终止提示注入（HumanMessage with `[SYSTEM INSTRUCTION]` prefix）
-7. **`citation_rules_middleware.py`**（server 层）— 引用规则注入（HumanMessage via request.override）
+3. **`progress_middleware.py`** — Active todo focus 注入（HumanMessage via request.override）
+4. **`middlewares/security/security_guardrail_middleware.py`** — Circuit Breaker 环境约束注入（HumanMessage via awrap_model_call + request.override，瞬态不持久化）
+5. **`utils/token_economics/budget_boundary_middleware.py`** — 预算警告/终止提示注入（HumanMessage with `[SYSTEM INSTRUCTION]` prefix）
+6. **`citation_rules_middleware.py`**（server 层）— 引用规则注入（HumanMessage via request.override）
 
 这些位置已添加代码注释，明确说明使用 `HumanMessage` 的原因。
 

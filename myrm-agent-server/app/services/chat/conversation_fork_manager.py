@@ -191,9 +191,9 @@ class ConversationForkManager:
         else:
             new_title = new_title.strip()[:255]
 
-        # Resolve workspace for fork: sandbox resets to repo root; otherwise SSOT project bind.
-        if parent_chat.sandbox_base_dir:
-            fork_workspace_dir = parent_chat.sandbox_base_dir
+        # Resolve workspace for fork: the parent's own folder, otherwise the SSOT project bind.
+        if parent_chat.workspace_dir:
+            fork_workspace_dir = parent_chat.workspace_dir
         else:
             from app.services.chat.chat_service import ChatService
             from app.services.chat.effective_workspace import (
@@ -220,7 +220,6 @@ class ConversationForkManager:
             action_mode=parent_chat.action_mode,
             active_moa_preset_id=parent_chat.active_moa_preset_id,
             workspace_dir=fork_workspace_dir,
-            sandbox_base_dir=None,
             project_id=parent_chat.project_id,
             is_incognito=parent_chat.is_incognito,
             compacted_summary=parent_chat.compacted_summary,

@@ -44,8 +44,6 @@ def test_safe_purge_vault_api_endpoint(client: TestClient) -> None:
         purged_chats=5,
         purged_messages=25,
         purged_channel_messages=3,
-        cleared_sandboxes=3,
-        kept_sandboxes=2,
         fts_tables_purged=["messages_fts"],
         cursors_reset=["conversation_recall_segments"],
         preserved_agents=2,
@@ -66,8 +64,6 @@ def test_safe_purge_vault_api_endpoint(client: TestClient) -> None:
         assert data["status"] == "success"
         assert data["purged_chats"] == 5
         assert data["purged_messages"] == 25
-        assert data["cleared_sandboxes"] == 3
-        assert data["kept_sandboxes"] == 2
         assert data["preserved_agents"] == 2
         assert data["preserved_api_keys"] == 3
         assert data["preserved_user_configs"] == 4

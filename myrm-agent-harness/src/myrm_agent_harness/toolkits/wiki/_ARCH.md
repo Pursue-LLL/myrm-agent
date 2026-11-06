@@ -28,7 +28,7 @@ directory sidecars, bottom-up incremental DAG refresh, and LLM-driven wikilink e
 - `web_fetch` (FetchEngine for URL ingestion with YouTube/Bilibili subtitle extraction + multi-tier fallback; MarkdownGenerator as fallback converter)
 - `core.security.http.secure_fetch` (secure_get fallback for URL ingestion when FetchEngine unavailable)
 - `utils` (logger, context_format)
-- `web_search` (deep research integration)
+- `web_search` (optional)
 - `memory` (auto-archive from conversations)
 - `vector` (Qdrant hybrid search)
 - `retriever` (RRF fusion)

@@ -21,9 +21,8 @@
 - _classify_git_error: Map git stderr to a WorktreeErrorReason.
 
 [POS]
-通用工具层的共享 git worktree 命令基础设施：sandbox 与 kanban 的 worktree
-生命周期共用同一份实现，避免两处语义漂移。被 chat.sandbox_worktree 与
-kanban task_runner 直接引用。每条会读写工作树或更新引用的 git 命令都经 ``_run_git``：用户带着 ``.git`` 目录
+通用工具层的共享 git worktree 命令基础设施：kanban 任务的 worktree
+生命周期使用这份实现。被 kanban task_runner 直接引用。每条会读写工作树或更新引用的 git 命令都经 ``_run_git``：用户带着 ``.git`` 目录
 交来的文件夹，其配置不能让服务端在沙箱之外运行程序或联网。
 """
 
@@ -176,7 +175,7 @@ async def _git_worktree_add(
     """Create an isolated worktree via ``git worktree add --force -B``.
 
     Ensures the worktree directory is excluded from ``git status`` before the
-    add.  ``context`` (e.g. "chat sandbox" / "kanban task") stamps log
+    add.  ``context`` (e.g. "kanban task") stamps log
     messages so owners are identifiable.  Returns the worktree path on success
     or a structured error.
     """

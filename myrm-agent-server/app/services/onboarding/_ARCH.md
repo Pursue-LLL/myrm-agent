@@ -10,8 +10,7 @@ Server 层原子 onboarding 预设编排。复用 agent template 与 cron bluepr
 |------|------|------|-------|
 | `__init__.py` | 包 | 模块说明 | — |
 | `schemas.py` | SSOT | Second Brain preset Pydantic models | — |
-| `second_brain_preset.py` | 核心 | Second Brain 预设：创建/复用 user agent + default→agent vault seed（新建或复用 agent 均触发）+ read_it_later + wiki_morning_delta 双 cron + 4 项 checklist + rollback；apply 成功 message 含 vault seed 计数；status 发现 agent 已删则清 `secondBrainPreset`；`wiki_morning_delta` job 以该 agent 的 vault 作 `allowed_roots`（vault 成为该次运行的主工作区，prompt 里的 `raw/` 相对路径落在 vault 内；无人值守下 vault 外读取会被拒）；`repair_wiki_delta_job_security` 供启动期调用 | ✅ |
-| `second_brain_job_repair.py` | 辅助 | 启动期幂等修复：声明仍为旧值（`file_read+file_write`，wiki 工具全被 fence 拒绝）的 wiki-delta job 补齐 blueprint 的 knowledge 能力与 vault `allowed_roots`；声明不等于旧值（含用户改过的）一律不动 | ✅ |
+| `second_brain_preset/` | 核心 | Second Brain 预设，按读写路径与 cron 供给拆 7 个模块（common / checks / cron_setup / job_repair / mutations / status / apply）：创建/复用 user agent + vault seed、read-it-later + wiki delta + maintenance cron、4 项 checklist、幂等 apply 与失败回滚、启动期 wiki-delta 声明修复；`get_cron_manager` 收敛到 `common` 作为唯一打桩点。见 [second_brain_preset/_ARCH.md](second_brain_preset/_ARCH.md) | ✅ |
 
 ## 依赖
 

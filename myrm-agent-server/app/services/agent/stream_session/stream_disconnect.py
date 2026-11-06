@@ -9,9 +9,9 @@
 - watch_client_disconnect: async context manager owning the monitor of one direct-SSE turn
 
 [POS]
-A direct-SSE client that stays away past ``GRACE_PERIOD_SECONDS`` cancels its turn.
-Long-running turns are never cancelled for a disconnect: they finish in the
-background and ``stream_pump`` notifies the user.
+A direct-SSE client that stays away past ``GRACE_PERIOD_SECONDS`` and whose
+turn has gone stale cancels its turn; ``stream_pump`` notifies the user when a
+turn that ran for 30 seconds or more ends after the client left.
 """
 
 from __future__ import annotations
@@ -49,9 +49,6 @@ def build_disconnect_checker(
         if not disconnected or session.collector.has_subscribers:
             session.disconnect_monotonic = None
             session.disconnect_time = None
-            return False
-
-        if session.is_long_running_task:
             return False
 
         if session.disconnect_monotonic is None:

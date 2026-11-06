@@ -49,7 +49,7 @@ async def test_lifespan_applies_a_pending_python_env_reset_before_any_startup_ph
         raise _StopStartup
 
     monkeypatch.setattr("app.services.infra.python_env_reset.apply_pending_python_env_reset", _apply_reset)
-    monkeypatch.setattr(lifespan_module, "_phase_1a_sequential", _first_phase)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1a_sequential", _first_phase)
 
     with pytest.raises(_StopStartup):
         async with lifespan_module.optimized_lifespan(FastAPI()):
@@ -72,7 +72,7 @@ async def test_lifespan_goes_straight_on_when_there_is_no_reset_to_apply(monkeyp
         raise _StopStartup
 
     monkeypatch.setattr("app.services.infra.python_env_reset.apply_pending_python_env_reset", _apply_reset)
-    monkeypatch.setattr(lifespan_module, "_phase_1a_sequential", _first_phase)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1a_sequential", _first_phase)
 
     with pytest.raises(_StopStartup):
         async with lifespan_module.optimized_lifespan(FastAPI()):
@@ -97,7 +97,7 @@ async def test_lifespan_still_starts_when_the_environment_reset_fails(
         raise _StopStartup
 
     monkeypatch.setattr("app.services.infra.python_env_reset.apply_pending_python_env_reset", _apply_reset)
-    monkeypatch.setattr(lifespan_module, "_phase_1a_sequential", _first_phase)
+    monkeypatch.setattr(lifespan_module.startup, "_phase_1a_sequential", _first_phase)
 
     with caplog.at_level("WARNING", logger=lifespan_module.logger.name), pytest.raises(_StopStartup):
         async with lifespan_module.optimized_lifespan(FastAPI()):

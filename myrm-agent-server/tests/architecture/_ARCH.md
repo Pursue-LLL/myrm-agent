@@ -70,7 +70,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `data/route_external_consumers.txt` | 前端不调用、但有外部调用方的路由登记：`METHOD /path \| 调用方 (file:line)`，调用方不拼写路径时在括号里再写锚点文字 |
 | `test_route_evidence.py` | 外部调用方登记里引用的 file:line 仍然有效：被引用的行拼写了路由最后一段静态路径（整词），或包含登记里写明的锚点；文件不存在、行号越界、引用格式不对都失败；检出里没有被引用的目录时跳过并如实计数，不算通过；校验函数的各分支（整词、锚点、越界、缺文件、跳过、多根目录）逐条钉住 |
 | `data/route_consumer_baseline.txt` | 门禁引入前就没有调用方的存量路由；删路由或接上前端后必须同步删行 |
-| `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入；写明的调用方必须是真实存在的非测试文件里的有效行号；自带检测器正反例自检 |
+| `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入；写明的调用方（路径相对仓库根）必须是真实存在的非测试文件里的有效行号；自带检测器正反例自检 |
 | `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
 | `test_public_mutating_routes.py` | 变更类路由（POST/PUT/PATCH/DELETE）跳过认证中间件只有一种合法理由：handler 自己认证调用方；此类路由必须登记在测试内的表里并写明认证方式，未登记（例如公开前缀把运维动作一并放行）或登记后不再公开都会失败 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
@@ -86,7 +86,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
-| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 执行纪律（所有模型的核心规则，GPT / Codex 另加持续性提醒，Opus 5 及以上另加行为调优补充）+ web_chat 渠道提示，按 GPT / Claude Sonnet / Claude Opus 5 / Gemini / DeepSeek × 中英文逐格设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
+| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 核心行为规则（所有模型共用）+ web_chat 渠道提示，按中英文各设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound、inbound_message、inbound_poll 三个 mixin 不得定义同名方法（源码里 `TYPE_CHECKING` 下给类型检查器的声明不算）；MRO 中话题 mixin 先于 hooks mixin；`collect_issues` 必须来自诊断 mixin，而不是 `BaseChannel` 的默认实现 |

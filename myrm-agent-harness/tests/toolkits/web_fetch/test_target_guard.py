@@ -74,8 +74,11 @@ class TestLocalPolicy:
             "http://10.0.0.5/",
             "http://192.168.0.1/admin",
             "http://[::1]:3000/",
+            "http://[::]:3000/",  # the unspecified address dials the local host
             "http://[::ffff:10.0.0.5]/",
             "http://printer.local/",
+            "http://127%2e0%2e0%2e1:3000/",  # a client decodes the host and dials 127.0.0.1
+            "http://local%68ost:3000/",
         ],
     )
     async def test_other_private_origins_are_blocked(self, hop: str) -> None:
@@ -106,6 +109,7 @@ class TestLocalPolicy:
             "http://[::ffff:169.254.169.254]/",
             "http://metadata.google.internal/computeMetadata/v1/",
             "http://2852039166/",  # 169.254.169.254 as a decimal integer
+            "http://169.254.169.%32%35%34/latest/meta-data/",  # 169.254.169.254 with percent-encoded octets
         ],
     )
     async def test_cloud_metadata_is_never_reachable_not_even_when_requested(self, metadata: str) -> None:

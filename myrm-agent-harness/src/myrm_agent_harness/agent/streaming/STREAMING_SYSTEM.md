@@ -1,14 +1,14 @@
 # Streaming System Design
 
-> BaseAgent 事件处理管道。将 LangGraph `astream` 原始 chunk 转换为前端/通道可消费的 SSE 业务事件，并承载流式恢复、模型升级与 artifact 转发。
+> BaseAgent 事件处理管道。将 LangGraph `astream` 原始 chunk 转换为前端/通道可消费的 SSE 业务事件，并承载流式恢复与 artifact 转发。
 
 ---
 
 ## 设计目标
 
 1. **统一事件契约**：`streaming/types.py` 定义 AgentEventType 与 payload DTO
-2. **流式清洗**：reasoning/escalation 标记跨 chunk 缓冲，不泄漏到用户可见输出
-3. **多层恢复**：overflow、failover、escalation、truncation、steering、subagent、goal continuation
+2. **流式清洗**：reasoning 标记跨 chunk 缓冲，不泄漏到用户可见输出
+3. **多层恢复**：overflow、failover、truncation、steering、subagent、goal continuation
 4. **Artifact 转发**：file/UI/inline artifact 与 multimodal tool output（TOOL_IMAGE_OUTPUT）
 
 ---
@@ -30,9 +30,8 @@ stream_     event_        artifact_      stream_
 dispatcher  handlers      events         recovery*
     │           │             │              │
     ▼           ▼             ▼              ▼
- output_queue  SSE DTO    registry/UI    failover/escalation/
- (asyncio)     转换        事件            truncation/oneshot/
-                                                    continuation
+ output_queue  SSE DTO    registry/UI    failover/truncation/
+ (asyncio)     转换        事件            oneshot/continuation
 ```
 
 ### Mixin 拆分（stream_executor 组合）
@@ -41,7 +40,7 @@ dispatcher  handlers      events         recovery*
 |--------------|------|
 | `stream_dispatcher.py` | chunk → output_queue；`__interrupt__` 分片交 `interrupt_events.py` 逐中断转事件，卡片 id 的轮次取自 `interrupt_identity.announced_rounds(ctx.agent_input)`（swarm_fission 专路由）；`_record_cancellation` 是 Stop 的统一收尾（标记 `was_cancelled` 并发出 `cancelled` 事件） |
 | `recovery/stream_recovery.py` | 主恢复策略组合（overflow/failover/retry） |
-| `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：模型自升级、迭代上限的无工具总结、空回复恢复（判断对象是本轮最后一次回复 `_latest_reply`，空回复不在 `collected_messages` 里；推理被输出上限截断的回复归截断恢复，放弃后不再当空回复重问） |
+| `recovery/stream_recovery_turn_end.py` | 一轮结束后的处理：迭代上限的无工具总结、空回复恢复（判断对象是本轮最后一次回复 `_latest_reply`，空回复不在 `collected_messages` 里；推理被输出上限截断的回复归截断恢复，放弃后不再当空回复重问） |
 | `recovery/stream_recovery_redrive.py` | 「追加一条提示再跑一遍」的统一入口（新一轮重建输入，续跑轮从检查点续） |
 | `recovery/stream_recovery_truncation.py` | max-token 续写、被截断或被扣留（参数不完整/无法解析）的 tool-call 重试 |
 | `recovery/stream_recovery_oneshot.py` | THINKING_SIGNATURE / DUPLICATE_TOOL_USE_ID / IMAGE_TOO_LARGE / MEDIA_REJECTED / ALLOWED_TOOLS_TOOL_CHOICE_REJECTED / LONG_CONTEXT_TIER 等一次性恢复（支持单图超限收缩与多图累积超限历史轮次聚合降级保底，WebUI progress step: `thinking_signature_recovery`, `tool_history_recovery`, `image_shrink_recovery`, `long_context_tier_recovery`, `vision_fallback_recovery`, `media_rejected_recovery`, `allowed_tools_rejected_recovery`） |
@@ -76,7 +75,7 @@ dispatcher  handlers      events         recovery*
 
 ### 恢复重放与回复文本（重启契约）
 
-恢复处理器（模型切换、溢出压缩、一次性恢复等）会让 `StreamExecutor` 重新驱动同一份 `agent_input`，并通过 STATUS 事件的顶层 `restart: true`（`MODEL_ESCALATED` 为 `data.restart: true`）告知消费者“在途段落将被重新流式输出”。仅给出提示、不重放的 STATUS（如备用模型未配置）不带该标记。
+恢复处理器（模型切换、溢出压缩、一次性恢复等）会让 `StreamExecutor` 重新驱动同一份 `agent_input`，并通过 STATUS 事件的顶层 `restart: true` 告知消费者“在途段落将被重新流式输出”。仅给出提示、不重放的 STATUS（如备用模型未配置）不带该标记。
 
 - 执行图带检查点（`thread_id` = session_key 或 message_id）：已完成的工具步骤随检查点保留，重放时模型从其后续写，工具不会重复执行，工具步骤之前的文本也不会重发。因此重启只作废“最近一次 `tool_start` 之后”的在途段落，而不是整条回复。
 - Python 侧统一用 `answer_draft.AnswerDraft` 实现该规则（WebUI 前端在 `tool_start` 重置累积缓冲、遇重启丢弃草稿，结果等价）：`feed(event)` 累积 `message` 文本、在 `tool_start` 处标记段落起点、遇重启事件丢弃在途段落并返回文本是否变化；`restart()` 供调用方在别的通道得知同一次切换时显式调用（幂等）。拼装最终回复的消费者（子智能体执行器、IM 通道、定时任务、看板、评测、自动续跑、WebUI 持久化、OpenAI 兼容接口的非流式响应）都使用它；子智能体与主智能体跑在同一个 `StreamExecutor` 上，其结果（及失败时的 `partial_output`）是主模型读到的工具结果；语音播报与逐段下发的流式响应不使用——已朗读的音频、已发出的 SSE 增量无法收回。
@@ -88,9 +87,8 @@ dispatcher  handlers      events         recovery*
 | 模块 | 职责 |
 |------|------|
 | `reasoning_scrubber.py` | 非标准模型 thinking 标签 → 独立 THINKING 事件 |
-| `escalation_scrubber.py` | `<<<NEEDS_PRO>>>` 检测 → 模型升级信号 |
 | `repetition_scrubber.py` | Token/N-Gram 滑窗死循环监测与 Markdown 代码块语法感知自适应熔断 |
-| `model_discipline.py` | 按模型族注入执行纪律 prompt |
+| `agent_core_rules.py` | 注入核心行为规则 prompt（所有模型共用） |
 | `channel_output_hints.py` | 按通道（Telegram/WhatsApp/voice）输出格式提示 |
 
 ---

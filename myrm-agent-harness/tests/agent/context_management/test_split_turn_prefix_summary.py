@@ -83,7 +83,7 @@ async def test_summarize_full_includes_split_turn_prefix_in_prompt() -> None:
     mock_llm.with_structured_output.return_value = mock_structured_llm
 
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._invoke_summary"
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.audit._invoke_summary"
     ) as mock_invoke:
         mock_invoke.return_value = StructuredSummary(
             user_goal="User active query",
@@ -121,7 +121,7 @@ async def test_summarize_incremental_includes_split_turn_prefix_in_prompt() -> N
 
     mock_llm = MagicMock()
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._invoke_summary"
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.audit._invoke_summary"
     ) as mock_invoke:
         mock_invoke.return_value = StructuredSummary(
             user_goal="Build features + Active instruction",
@@ -170,7 +170,7 @@ async def test_generate_structured_summary_end_to_end_split_turn() -> None:
 
     mock_llm = MagicMock()
     with patch(
-        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer._invoke_summary"
+        "myrm_agent_harness.agent.context_management.strategies.summary.summarizer.audit._invoke_summary"
     ) as mock_invoke:
         mock_invoke.return_value = StructuredSummary(
             user_goal="Run complex task step by step",

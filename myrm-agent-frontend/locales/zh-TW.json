@@ -4054,8 +4054,6 @@
     "model_failover_model_not_found": "主模型不可用，已切換到備用模型",
     "model_failover_auth": "鑑權失敗，已切換到備用模型",
     "model_failover_unconfigured": "主模型呼叫失敗，請在設定中配置備用模型",
-    "model_escalated": "模型已自動升級：{from} → {to}",
-    "model_escalated_reason": "原因：{reason}",
     "model_recovery": "模型已恢復可用：{model}",
     "model_recovery_downtime": "不可用時長 {seconds} 秒",
     "safety_fallback_unconfigured": "內容被安全策略攔截，請在設定中配置安全備用模型",
@@ -16305,76 +16303,54 @@
       "detailArgs": "脫敏參數："
     },
     "retrieval": {
-      "embeddingConfig": "嵌入模型配置",
-      "rerankerConfig": "重排序模型配置",
-      "embeddingModel": "嵌入模型",
-      "embeddingModelDescription": "文字向量化模型，用於語義搜尋（本地執行）",
-      "embeddingModelDescriptionSaas": "文字向量化模型，用於語義搜尋（訂閱使用者免費）",
-      "rerankerModel": "重排序模型",
-      "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序（本地執行）",
-      "rerankerModelDescriptionSaas": "重排序模型，在網頁讀取與記憶召回時按相關性排序（訂閱使用者免費）",
-      "localModel": "本地模型",
-      "platformService": "平臺服務",
-      "customProvider": "自定義提供商",
+      "card": {
+        "title": "檢索增強",
+        "description": "依語義而非關鍵字搜尋，並把最相關的內容排在最前面。只需選擇提供商並填寫一次 API 金鑰。"
+      },
+      "embedding": {
+        "title": "語義搜尋",
+        "description": "依含義而不只是關鍵字，查找知識庫、記憶、FAQ 和已連接來源中的內容。",
+        "enable": "啟用",
+        "enabled": "已啟用",
+        "notEnabled": "未啟用"
+      },
+      "rerank": {
+        "title": "重排序",
+        "description": "把與問題最相關的記憶和網頁片段優先交給 LLM。"
+      },
+      "disclosure": {
+        "title": "會傳送給提供商的內容",
+        "embedding": "語義搜尋：你的查詢，以及知識庫、記憶、FAQ 和已連接來源中的文字。",
+        "rerank": "重排序：你的查詢，以及待排序的已召回記憶片段。",
+        "pageReading": "網頁讀取：兩項都開啟時，擷取到的網頁片段會連同查詢一起傳送給這兩個提供商。",
+        "coverage": "重排序在聊天（快速搜尋除外）和訊息通道中生效；定時任務、看板任務、無人值守目標和語音不使用重排序，快速搜尋不使用任何檢索模型。"
+      },
+      "advanced": {
+        "title": "分別設定",
+        "embeddingModel": "嵌入模型",
+        "rerankerModel": "重排序模型"
+      },
       "provider": "提供商",
       "modelName": "模型名稱",
       "modelNamePlaceholder": "輸入模型名稱",
       "apiKey": "API 金鑰",
       "apiKeyPlaceholder": "輸入您的 API 金鑰",
       "apiKeyHint": "從提供商官網獲取 API 金鑰，如果是本地服務輸入自定義秘鑰",
+      "showApiKey": "顯示 API 金鑰",
+      "hideApiKey": "隱藏 API 金鑰",
       "apiBase": "API 基礎 URL",
       "apiBasePlaceholder": "自定義 API 端點（可選）",
       "apiBaseHint": "僅在使用自定義服務時需要填寫",
       "viewProviderModels": "檢視支援的模型列表",
-      "modelLabel": "模型",
-      "modelPlaceholder": "選擇或輸入模型名稱...",
-      "modelHint": "輸入服務商支援的任意模型。參考",
-      "apiKeyLabel": "API 金鑰",
-      "apiBaseLabel": "API 基礎 URL",
-      "optional": "可選",
-      "testConnection": "測試連線",
-      "testing": "測試中...",
-      "connectionSuccess": "連線成功",
-      "connectionError": "連線失敗",
-      "saveConfiguration": "儲存配置",
-      "unsavedChanges": "有未儲存的更改，將在 1 秒後自動儲存。",
-      "saveSuccess": "配置已儲存",
-      "saveSuccessDesc": "您的檢索服務配置已成功儲存。",
-      "saveError": "儲存失敗",
-      "saveErrorDesc": "儲存配置失敗，請重試。",
-      "checkingStatus": "檢查中...",
       "apply": {
         "button": "應用",
-        "applied": "已應用",
-        "applying": "應用中...",
-        "success": "應用成功",
-        "failed": "應用失敗",
-        "notApplied": "未應用"
-      },
-      "validation": {
-        "button": "驗證配置",
-        "validateConfig": "驗證配置",
-        "revalidateButton": "已應用，點此重新驗證",
-        "validating": "驗證中...",
-        "notValidated": "未驗證",
-        "missingFields": "請填寫所有必填欄位",
-        "missingApiBase": "自定義提供商需要填寫 API Base URL",
-        "success": "驗證成功",
-        "failed": "驗證失敗",
-        "networkError": "網路連線失敗"
+        "applied": "已應用"
       },
       "hint": {
-        "title": "嵌入和重排序模型用於讀取網頁和召回記憶，把與問題最相關的內容優先交給 LLM，且其價格遠遠低於大語言模型。",
         "options": "你可以使用免費或付費服務商模型，如果追求極致的隱私也可使用 OpenAI 相容的格式在本地部署開源模型。",
         "recommendation": "推薦使用多語言模型，可根據實際使用情況選擇。",
         "deployTip": "具體部署方法可以直接詢問 AI",
         "deployQuestion": "如何在本地部署 OpenAI 相容格式的開源嵌入和重排序模型服務"
-      },
-      "advancedRetrieval": {
-        "title": "高階檢索",
-        "toggleLabel": "最佳化網頁讀取與記憶召回",
-        "toggleDescription": "開啟後，將用嵌入和重排序模型對較長的網頁內容和記憶按相關性排序，優先把最有用的內容交給 LLM（需先配置嵌入和重排序模型）",
-        "cannotEnable": "請先在「預設模型」頁配置並應用嵌入模型和重排序模型"
       },
       "validationMessages": {
         "successWithDimension": "驗證成功（維度：{dimension}）",
@@ -16879,8 +16855,6 @@
         "recommended": "推薦 / Auto"
       },
       "retrieval": {
-        "embeddingModel": "嵌入模型",
-        "embeddingModelDescription": "文字向量化模型，用於支援知識庫、記憶等能力的語義搜尋",
         "dismiss": "忽略",
         "orphanWarning": "有 {count} 條記憶尚未遷移到新的嵌入模型，遷移前不會用於回答",
         "reindex": "遷移",
@@ -16889,28 +16863,7 @@
         "reindexDone": "已將 {count} 條記憶遷移到新模型",
         "reindexUpToDate": "所有記憶已在新模型上",
         "reindexPartial": "已遷移 {migrated} 條，{failed} 條未能遷移，可再次嘗試",
-        "reindexError": "遷移被中斷，再次點擊可從中斷處繼續",
-        "rerankerModel": "重排序模型",
-        "rerankerModelDescription": "重排序模型，在網頁讀取與記憶召回時按相關性排序",
-        "provider": "提供商",
-        "modelName": "模型名稱",
-        "modelNamePlaceholder": "輸入模型名稱",
-        "viewProviderModels": "檢視支援的模型列表",
-        "apiKey": "API 金鑰",
-        "apiKeyPlaceholder": "輸入您的 API 金鑰",
-        "apiKeyHint": "從提供商官網獲取 API 金鑰，如果是本地服務輸入自定義秘鑰",
-        "apiBase": "API 基礎 URL",
-        "apiBasePlaceholder": "https://api.example.com/v1",
-        "apiBaseHint": "自定義 API 端點，用於 OpenAI 相容服務",
-        "testConnection": "測試連線",
-        "testing": "測試中...",
-        "save": "儲存配置",
-        "statusLabel": {
-          "validated": "已應用",
-          "notValidated": "未驗證",
-          "validating": "驗證中...",
-          "failed": "驗證失敗"
-        }
+        "reindexError": "遷移被中斷，再次點擊可從中斷處繼續"
       },
       "modelRestricted": "受組織政策限制"
     },

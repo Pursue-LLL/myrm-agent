@@ -33,7 +33,6 @@ def _make_bare_agent() -> BaseAgent:
     agent.llm = MagicMock()
     agent.fallback_llm = None
     agent.safety_fallback_llm = None
-    agent.escalation_target_llm = None
     agent.executor = None
     agent.user_middlewares = []
     agent.system_prompt = "test"

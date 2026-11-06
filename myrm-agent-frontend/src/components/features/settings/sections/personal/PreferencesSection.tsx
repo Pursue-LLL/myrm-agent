@@ -4,7 +4,6 @@ import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Skeleton } from '@/components/primitives/skeleton';
 import {
-  Sorting01Icon,
   Mic01Icon,
   Video01Icon,
   TextFontIcon,
@@ -19,8 +18,6 @@ import {
 import { IconAlertCircle, IconFlask } from '@/components/features/icons/PremiumIcons';
 import useConfigStore from '@/store/useConfigStore';
 import useEmbedConsentStore, { type EmbedMode } from '@/store/useEmbedConsentStore';
-import useRetrievalStore from '@/store/useRetrievalStore';
-import { toast } from '@/lib/utils/toast';
 import ThemeSwitcher from '../../Switcher';
 import AppearancePanel from '@/components/features/theme/AppearancePanel';
 import LanguageSwitcher from '../../LanguageSwitcher';
@@ -51,7 +48,6 @@ const VOICE_AGENT_BRIDGE_KEY = 'voiceAgentBridgeEnabled';
 
 const PreferencesSection = memo(() => {
   const t = useTranslations('settings');
-  const tRetrieval = useTranslations('settings.retrieval');
   const tVoice = useTranslations('voiceSession');
   const { initConfig } = useConfigStore();
   const { personalSettings, updatePersonalSettings } = usePersonalSettings();
@@ -60,9 +56,6 @@ const PreferencesSection = memo(() => {
     isLocal,
     value: personalSettings as unknown as Record<string, unknown>,
   };
-
-  const { enableAdvancedRetrieval, setEnableAdvancedRetrieval, embeddingApplied, rerankerApplied } =
-    useRetrievalStore();
 
   const embedMode = useEmbedConsentStore((s) => s.embedMode);
   const setEmbedMode = useEmbedConsentStore((s) => s.setEmbedMode);
@@ -124,23 +117,6 @@ const PreferencesSection = memo(() => {
     enableCompletionSound: VoiceIcon,
     enableWebNotifications: IconAlertCircle,
   };
-
-  useEffect(() => {
-    if (enableAdvancedRetrieval && (!embeddingApplied || !rerankerApplied)) {
-      setEnableAdvancedRetrieval(false);
-    }
-  }, [embeddingApplied, rerankerApplied, enableAdvancedRetrieval, setEnableAdvancedRetrieval]);
-
-  const handleAdvancedRetrievalChange = useCallback(
-    (checked: boolean) => {
-      if (checked && (!embeddingApplied || !rerankerApplied)) {
-        toast.warning(tRetrieval('advancedRetrieval.cannotEnable'));
-        return;
-      }
-      setEnableAdvancedRetrieval(checked);
-    },
-    [embeddingApplied, rerankerApplied, setEnableAdvancedRetrieval, tRetrieval],
-  );
 
   if (isLoading) {
     return (
@@ -322,18 +298,6 @@ const PreferencesSection = memo(() => {
           </div>
           <NotificationChannelEditor />
           <WebPushCard />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection title={tRetrieval('advancedRetrieval.title')}>
-        <div className="flex flex-col space-y-4">
-          <ConfigToggleItem
-            icon={Sorting01Icon}
-            title={tRetrieval('advancedRetrieval.toggleLabel')}
-            description={tRetrieval('advancedRetrieval.toggleDescription')}
-            checked={enableAdvancedRetrieval}
-            onCheckedChange={handleAdvancedRetrievalChange}
-          />
         </div>
       </SettingsSection>
     </div>

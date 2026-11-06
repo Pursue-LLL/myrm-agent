@@ -3,7 +3,8 @@
 [INPUT]
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
-  core.security.tool_registry::host_file_paths, url_arg_values (POS: the files and the URLs a call names, read under every spelling)
+  core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
+  core.security.tool_registry::host_file_paths, url_arg_hosts (POS: the files a call names and the hosts of the URLs it names, read under every spelling)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
@@ -31,7 +32,6 @@ since it requires async I/O; this keeps the engine pure.
 from __future__ import annotations
 
 from fnmatch import fnmatch
-from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.command_rules import (
@@ -48,7 +48,8 @@ from myrm_agent_harness.agent.security.types import (
     PermissionRuleset,
     SecurityConfig,
 )
-from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_values
+from myrm_agent_harness.core.security.domain_match import host_matches
+from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_hosts
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -109,51 +110,14 @@ _ACTION_SEVERITY: dict[PermissionAction, int] = {
 }
 
 
-def _domain_in_allowlist(hostname: str, allowlist: tuple[str, ...]) -> bool:
-    """Check if *hostname* matches any entry in *allowlist*.
-
-    Supports exact match and suffix match (entries starting with ``"."``).
-    """
-    lower = hostname.lower()
-    for entry in allowlist:
-        if entry.startswith("."):
-            if lower == entry[1:] or lower.endswith(entry):
-                return True
-        elif lower == entry:
-            return True
-    return False
-
-
-def _extract_url_host(url: str) -> str:
-    """Extract the lowercase hostname from a URL for pattern matching.
-
-    Handles both scheme-prefixed URLs (``http://192.168.1.1/path``) and bare host:port (``localhost:3000``).
-    A URL that names no host stands for itself, so a malformed address is neither waved through nor an error.
-    """
-    if "://" in url:
-        try:
-            host = urlparse(url).hostname or ""
-        except ValueError:
-            host = ""
-    else:
-        host = url.split(":")[0].split("/")[0].lower()
-    # ``evil.com.`` is the same host as ``evil.com``
-    return host.rstrip(".") or url
-
-
-def _url_hosts(tool_input: dict[str, object]) -> tuple[str, ...]:
-    """The distinct hosts of every URL the call names, in order."""
-    return tuple(dict.fromkeys(_extract_url_host(url) for url in url_arg_values(tool_input)))
-
-
 def _check_domain_blocklist(
     permission: str, tool_input: dict[str, object], network_blocklist: tuple[str, ...]
 ) -> tuple[PermissionAction | None, str]:
     """Deny a URL-bearing tool when any host it names matches the network blocklist."""
     if permission not in _URL_BEARING_PERMISSIONS or not network_blocklist:
         return None, ""
-    for hostname in _url_hosts(tool_input):
-        if _domain_in_allowlist(hostname, network_blocklist):
+    for hostname in url_arg_hosts(tool_input):
+        if host_matches(hostname, network_blocklist):
             return PermissionAction.DENY, f"Domain '{hostname}' is blocked by policy"
     return None, ""
 
@@ -167,8 +131,8 @@ def _check_domain_policy(
     """
     if permission not in _DOMAIN_APPROVAL_PERMISSIONS:
         return None, ""
-    for hostname in _url_hosts(tool_input):
-        if not _domain_in_allowlist(hostname, network_allowlist):
+    for hostname in url_arg_hosts(tool_input):
+        if not host_matches(hostname, network_allowlist):
             return PermissionAction.ASK, CodedReason(
                 f"Domain '{hostname}' requires approval", ApprovalReasonCode.DOMAIN_REQUIRES_APPROVAL, hostname
             )
@@ -203,7 +167,7 @@ def _resolve_targets(
     if permission in _PATH_CHECKED_PERMISSIONS:
         return tuple(host_file_paths(tool_input)) or ("*",)
     if permission in _URL_BEARING_PERMISSIONS:
-        return _url_hosts(tool_input) or ("*",)
+        return url_arg_hosts(tool_input) or ("*",)
     return (_resolve_target(permission, tool_input, tool_name=tool_name),)
 
 
@@ -420,4 +384,4 @@ def extract_url_domains(permission: str, tool_input: dict[str, object]) -> tuple
 
     Empty tuple for any other tool, and when the call names no URL.
     """
-    return _url_hosts(tool_input) if permission in _DOMAIN_APPROVAL_PERMISSIONS else ()
+    return url_arg_hosts(tool_input) if permission in _DOMAIN_APPROVAL_PERMISSIONS else ()

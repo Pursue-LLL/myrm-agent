@@ -12,7 +12,7 @@
 
 [POS]
 Replaces scattered ``_deduplicate_tools()`` + ``sort_tools()`` in BaseAgent/SkillAgent.
-Orchestration signals (DR/Verifier) are **not** registered here — see ``agent/orchestration/``.
+Orchestration signals (Verifier) are **not** registered here — see ``agent/orchestration/``.
 """
 
 from __future__ import annotations

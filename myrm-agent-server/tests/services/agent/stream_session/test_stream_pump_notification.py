@@ -30,7 +30,6 @@ def _make_session(
     message_id: str = "test-msg-456",
 ) -> MagicMock:
     session = MagicMock()
-    session.is_long_running_task = is_long_running
     session.cancel_token.is_cancelled = is_cancelled
     session.had_fatal_error = False
     session.request.chat_id = chat_id
@@ -40,8 +39,8 @@ def _make_session(
     session.collector.has_subscribers = False
     session.http_request.is_disconnected = AsyncMock(return_value=is_disconnected)
     session.registry.remove = AsyncMock()
-    # 0.0 means "start unknown": the pump then treats the turn as short unless it was flagged long-running.
-    session.stream_started_at_monotonic = 0.0
+    # 0.0 means "start unknown": the pump then treats the turn as short.
+    session.stream_started_at_monotonic = time.monotonic() - 31.0 if is_long_running else 0.0
     session.last_activity_monotonic = time.monotonic()
     return session
 
@@ -159,8 +158,8 @@ async def test_short_task_no_notification():
 
 
 @pytest.mark.asyncio
-async def test_detached_turn_past_the_duration_threshold_notifies_without_the_long_running_flag():
-    """A client that left a turn running ≥30s is told when it ends, even without the long-running flag."""
+async def test_detached_turn_past_the_duration_threshold_notifies():
+    """A client that left a turn running ≥30s is told when it ends."""
     session = _make_session(is_long_running=False)
     session.stream_started_at_monotonic = time.monotonic() - 31.0
     buf = _make_buffer()

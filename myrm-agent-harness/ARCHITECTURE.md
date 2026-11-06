@@ -146,12 +146,13 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | **类型系统** | Pydantic >= 2.0.0                 | 数据验证和类型定义            |
 | **异步 I/O** | aiofiles, httpx, aiosqlite | 文件、网络、SQLite 异步操作   |
 | **HTML**     | beautifulsoup4, lxml              | 网页剪枝与 DOM 解析           |
+| **域名**     | idna                              | 域名按浏览器拨号时的写法折叠（UTS 46），域名列表条目与主机据此比较 |
 | **Checkpoint** | langgraph-checkpoint-sqlite, dill | 会话状态持久化与序列化      |
 | **沙箱执行** | 系统沙箱组件 `sandbox-exec`（macOS）/ `bwrap`（Linux）/ AppContainer（Windows）（非 Python 依赖；见 `toolkits/code_execution/EXECUTION_SYSTEM.md`） | 子进程权限收窄                |
 | **存储**     | aiofiles                          | 本地文件系统存储              |
 | **文件解析** | pdfplumber（core）                | PDF 文本+表格提取（默认安装） |
 
-可选 extras 中的检索/监控/ACP 依赖见下节（`[retrieval]`、`[observability]`、`[acp]`）。Core runtime 依赖 **24** 项（`tests/architecture/test_core_dependencies.py` 锁定）。
+可选 extras 中的检索/监控/ACP 依赖见下节（`[retrieval]`、`[observability]`、`[acp]`）。Core runtime 依赖 **26** 项（`tests/architecture/test_core_dependencies.py` 锁定）。
 
 ### 可选依赖（extras）
 
@@ -312,7 +313,6 @@ agent/ (运行时核心层)
 | [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md) | 分发构建 |
 | [EVENT_LOG_SYSTEM.md](src/myrm_agent_harness/agent/event_log/EVENT_LOG_SYSTEM.md) | 事件日志 |
 | [DYNAMIC_WORKFLOW_SYSTEM.md](src/myrm_agent_harness/agent/dynamic_workflow/DYNAMIC_WORKFLOW_SYSTEM.md) | 动态工作流 |
-| [DEEP_RESEARCH_SYSTEM.md](src/myrm_agent_harness/agent/deep_research/DEEP_RESEARCH_SYSTEM.md) | 深度研究 |
 | [TOOL_MANAGEMENT_SYSTEM.md](src/myrm_agent_harness/agent/tool_management/TOOL_MANAGEMENT_SYSTEM.md) | 工具管理 |
 | [TOOL_DESIGN_STRATEGY.md](src/myrm_agent_harness/agent/tool_management/TOOL_DESIGN_STRATEGY.md) | 工具设计策略 |
 

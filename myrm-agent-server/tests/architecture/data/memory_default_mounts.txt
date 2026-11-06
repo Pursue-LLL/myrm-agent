@@ -1,6 +1,7 @@
 # Memory routers mounted for every user. Read by tests/architecture/test_memory_router_mounts.py.
 # A bare line is an unattributed default mount: it can only be removed. A new mount goes behind `if settings.memory_labs_enabled:`
-# in app/api/memory/router.py, or is added here as `<include_router first argument> | <default-visible caller file:line>`.
+# in app/api/memory/router.py, or is added here as `<include_router first argument> | <default-visible caller file:line>`,
+# the path relative to the repository root.
 pending.router
 conflicts.router
 shared_context_health.router
@@ -17,5 +18,5 @@ external_transcripts.router
 domain_mesh.router
 radar.router
 follow_ups_router
-memory_graph.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/insights/MemoryKnowledgeGraph.tsx:142
-evidence_playback.router | myrm-agent/myrm-agent-frontend/src/components/features/memory/drawers/EvidenceDrawer.tsx:149
+memory_graph.router | myrm-agent-frontend/src/components/features/memory/insights/MemoryKnowledgeGraph.tsx:142
+evidence_playback.router | myrm-agent-frontend/src/components/features/memory/drawers/EvidenceDrawer.tsx:149

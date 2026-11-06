@@ -853,33 +853,6 @@ async def test_execute_teammate_messages_triggers_continue(fire_hook_mock, base_
 
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
-async def test_execute_escalation_triggers_continue(fire_hook_mock, base_ctx):
-    """_handle_escalation returning True triggers loop continuation."""
-    executor = _make_executor(base_ctx)
-    call_count = [0]
-
-    async def _astream_multi(*args, **kwargs):
-        call_count[0] += 1
-        yield ("messages", (AIMessage(content=f"turn {call_count[0]}"), {"tags": []}))
-
-    base_ctx.agent.astream = _astream_multi
-    escalation_call = [0]
-
-    async def _mock_escalation(collected):
-        escalation_call[0] += 1
-        return escalation_call[0] == 1
-
-    with (
-        patch.object(executor, "_dispatch_chunk", new_callable=AsyncMock),
-        patch.object(executor, "_handle_escalation", side_effect=_mock_escalation),
-    ):
-        await executor.execute()
-
-    assert call_count[0] == 2
-
-
-@pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
 async def test_execute_length_truncation_triggers_continue(fire_hook_mock, base_ctx):
     """_handle_length_truncation returning True increments counter and continues."""
     executor = _make_executor(base_ctx)
@@ -957,23 +930,3 @@ async def test_execute_empty_response_triggers_continue(fire_hook_mock, base_ctx
         await executor.execute()
 
     assert call_count[0] == 2
-
-
-@pytest.mark.asyncio
-@patch("myrm_agent_harness.agent.hooks.executor.fire_hook", new_callable=AsyncMock)
-async def test_execute_escalation_scrubber_flush(fire_hook_mock, base_ctx):
-    """Escalation scrubber pending content is flushed in finally block."""
-    executor = _make_executor(base_ctx)
-    base_ctx.agent.astream = _mock_astream_normal
-
-    executor._escalation_scrubber.flush = MagicMock(return_value="escalated text")
-    executor._reasoning_scrubber.process = MagicMock(return_value=[(AgentEventType.MESSAGE, "clean text")])
-
-    with (
-        patch.object(executor, "_dispatch_chunk", new_callable=AsyncMock),
-        patch.object(executor, "_emit_event", new_callable=AsyncMock) as emit_mock,
-    ):
-        await executor.execute()
-
-    emitted_dicts = [call.args[0] for call in emit_mock.call_args_list]
-    assert any(d.get("type") == AgentEventType.MESSAGE.value and d.get("data") == "clean text" for d in emitted_dicts)

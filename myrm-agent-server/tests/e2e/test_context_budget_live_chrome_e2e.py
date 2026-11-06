@@ -47,7 +47,7 @@ _SEND_READY_JS = """(() => {
 _SEND_VIA_BRIDGE_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-sendChatMessage' };
-  // agent mode avoids the fast/deep_research search-configuration guard.
+  // agent mode avoids the fast-search configuration guard.
   if (bridge?.setActionMode) bridge.setActionMode('agent');
   return await bridge.sendChatMessage(PROMPT);
 })()"""

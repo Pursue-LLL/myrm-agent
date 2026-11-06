@@ -379,8 +379,8 @@ def build_standalone_agent(
     """Build an independent BaseAgent without a parent agent context.
 
     Unlike build_child_agent, this does not require a parent BaseAgent.
-    Designed for orchestrators (e.g. Deep Research) that manage agents
-    directly rather than through the BaseAgent tree.
+    Designed for orchestrators that manage agents directly rather than
+    through the BaseAgent tree.
     """
     from langchain_core.language_models import BaseChatModel
 

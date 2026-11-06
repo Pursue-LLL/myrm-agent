@@ -53,10 +53,8 @@ def _session(
         routing_tier=None,
         context_warnings=[],
         archive_restore_results=[],
-        research_model_cfg=None,
         registry=object(),
         collector=_FakeCollector(),
-        is_long_running_task=False,
         goal_provider=None,
         extra_context={},
     )

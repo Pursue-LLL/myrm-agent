@@ -94,13 +94,6 @@ _ALL_FEATURES: list[FeatureSpec] = [
     ),
     # === Experimental ===
     FeatureSpec(
-        id="deep_research",
-        key="deep_research",
-        stage=FeatureStage.REMOVED,
-        default_enabled=False,
-        description="Deep research mode removed from product UI; planned for future launch (harness retained)",
-    ),
-    FeatureSpec(
         id="companion_mode",
         key="companion_mode",
         stage=FeatureStage.STABLE,

@@ -46,15 +46,9 @@ INTERNAL_TOOL_NAMES: frozenset[str] = frozenset(
     }
 )
 
-# Registered names without an AST-visible @tool declaration: the deep-research signal schemas
-# (bind_tools only, must all be listed — see orchestration/signals/catalog.py) plus tools the scan cannot attribute.
-SCHEMA_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
-    {
-        "dispatch_research",
-        "finalize_report",
-        "think",
-    }
-)
+# Registered names without an AST-visible @tool declaration (none today): the scan
+# attributes every remaining schema to a declaration.
+SCHEMA_ONLY_TOOL_NAMES: frozenset[str] = frozenset()
 
 # Built-in tools whose JSON schema is bound by the server (no @tool AST in harness).
 SERVER_BOUND_SCHEMA_TOOL_NAMES: frozenset[str] = frozenset({"request_answer_user_tool"})

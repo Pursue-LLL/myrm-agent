@@ -87,10 +87,8 @@ src/components/features/settings/SettingsMenu.tsx
 src/components/features/settings/mcp/MCPConfigEditor.tsx
 src/components/features/settings/model-service/ApiKeyManager.tsx
 src/components/features/settings/model-service/ProviderConfig.tsx
-src/components/features/settings/retrieval/ProviderModelSelector.tsx
 src/components/features/settings/sections/ai-core/AgentEditPanel.tsx
 src/components/features/settings/sections/ai-core/AgentsSection.tsx
-src/components/features/settings/sections/ai-core/DefaultModelSection.tsx
 src/components/features/settings/sections/ai-core/ModelServiceSection.tsx
 src/components/features/settings/sections/ai-core/agent/AgentCapabilitiesTabSections.tsx
 src/components/features/settings/sections/ai-core/agent/AgentFaqTab.tsx
