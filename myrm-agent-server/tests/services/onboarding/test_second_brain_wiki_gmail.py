@@ -9,7 +9,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_second_brain_preset_delegates_to_wiki_gmail_defaults() -> None:
-    from app.services.onboarding.second_brain_preset import _maybe_enable_wiki_gmail_source
+    from app.services.onboarding.second_brain_preset.mutations import _maybe_enable_wiki_gmail_source
 
     with patch(
         "app.services.wiki.source_sync.defaults.maybe_enable_wiki_gmail_on_google_connect",
