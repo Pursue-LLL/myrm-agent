@@ -16,7 +16,6 @@ myrm_agent_harness/agent/event_log/analytics_queries.py	597
 myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	647
 myrm_agent_harness/agent/goals/continuation.py	656
 myrm_agent_harness/agent/meta_tools/bash/_compression/compressors.py	691
-myrm_agent_harness/agent/meta_tools/bash/_security/preflight_checks.py	846
 myrm_agent_harness/agent/meta_tools/file_ops/core/file_operation_service.py	611
 myrm_agent_harness/agent/middlewares/approval/batch_processor.py	1192
 myrm_agent_harness/agent/middlewares/context_pipeline/context_pipeline_middleware.py	512
