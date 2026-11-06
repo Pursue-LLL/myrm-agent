@@ -16,7 +16,7 @@ preserving the flat-module import surface for all consumers.
 - SafetyMetadata / MCPAnnotations / resolve_safety_metadata / resolve_permission_type
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
 - host_file_paths / is_url / coerce_path_list / PATHS_ALIAS_KEYS — the host files a file-tool call may open (``file_args.py``)
-- url_arg_values — the URLs a network-tool call names (``url_args.py``)
+- url_arg_values / url_arg_hosts / url_host — the URLs a network-tool call names and the hosts they name (``url_args.py``)
 - check_safety_coverage / _check_safety_coverage — module-load safety gate
 - _FAIL_CLOSED_DEFAULTS / _PTC_* — internal helpers
 """
@@ -53,7 +53,7 @@ from .safety_table import (
     TOOL_SAFETY_METADATA,
     SafetyMetadata,
 )
-from .url_args import url_arg_values
+from .url_args import url_arg_hosts, url_arg_values, url_host
 
 __all__ = [
     "AUTO_APPROVED_BUILTIN_TOOLS",
@@ -87,5 +87,7 @@ __all__ = [
     "resolve_permission_type",
     "resolve_safety_metadata",
     "unregister_ptc_safety_metadata",
+    "url_arg_hosts",
     "url_arg_values",
+    "url_host",
 ]

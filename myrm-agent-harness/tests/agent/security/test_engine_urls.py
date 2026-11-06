@@ -2,7 +2,8 @@
 
 ``web_fetch_tool`` receives its pages in ``urls`` (a list, or the JSON text of one) and ``browser_navigate_tool`` its
 page in ``url``. The blocklist and the rule targets read both spellings, so a fetch is refused for a blocked host and
-matches a host rule. Only a browser navigation asks about a domain outside the allowlist.
+matches a host rule. Only a browser navigation asks about a domain outside the allowlist. A list entry is read by
+``domain_match``, so ``*.host``, ``.host`` and ``host:port`` reach the verdict they mean.
 """
 
 from __future__ import annotations
@@ -15,10 +16,7 @@ import pytest
 from myrm_agent_harness.agent.security.engine import (
     _check_domain_blocklist,
     _check_domain_policy,
-    _domain_in_allowlist,
-    _extract_url_host,
     _resolve_targets,
-    _url_hosts,
     evaluate_tool_call,
     extract_url_domains,
     merge,
@@ -38,75 +36,6 @@ _FETCH_PERMISSIONS = ("web_fetch", "net_fetch")
 def _fetch_verdict(urls: object, config: SecurityConfig) -> tuple[PermissionAction, str]:
     """The verdict on a ``web_fetch_tool`` call, composed the way the approval middleware composes it."""
     return evaluate_tool_call(resolve_permission_type(_FETCH_TOOL), {"urls": urls}, config, tool_name=_FETCH_TOOL)
-
-
-class TestDomainInAllowlist:
-    """_domain_in_allowlist() — exact and suffix matching."""
-
-    def test_exact_match(self) -> None:
-        assert _domain_in_allowlist("example.com", ("example.com",)) is True
-
-    def test_exact_no_match(self) -> None:
-        assert _domain_in_allowlist("evil.com", ("example.com",)) is False
-
-    def test_suffix_match_subdomain(self) -> None:
-        assert _domain_in_allowlist("mail.google.com", (".google.com",)) is True
-
-    def test_suffix_match_bare_domain(self) -> None:
-        assert _domain_in_allowlist("google.com", (".google.com",)) is True
-
-    def test_suffix_no_partial_match(self) -> None:
-        assert _domain_in_allowlist("notgoogle.com", (".google.com",)) is False
-
-    def test_case_insensitive(self) -> None:
-        assert _domain_in_allowlist("EXAMPLE.COM", ("example.com",)) is True
-
-    def test_empty_allowlist(self) -> None:
-        assert _domain_in_allowlist("example.com", ()) is False
-
-    def test_multiple_entries(self) -> None:
-        allowlist = ("example.com", ".google.com", "localhost")
-        assert _domain_in_allowlist("mail.google.com", allowlist) is True
-        assert _domain_in_allowlist("localhost", allowlist) is True
-        assert _domain_in_allowlist("evil.com", allowlist) is False
-
-
-class TestExtractUrlHost:
-    @pytest.mark.parametrize(
-        ("url", "host"),
-        [
-            ("http://192.168.1.1/admin", "192.168.1.1"),
-            ("https://API.Example.com:8443/v1?q=1", "api.example.com"),
-            ("https://user:pw@example.com/x", "example.com"),
-            ("localhost:3000/api", "localhost"),
-            ("LOCALHOST:3000", "localhost"),
-            ("Example.com/page", "example.com"),
-            ("https://example.com./x", "example.com"),
-            ("Example.COM.", "example.com"),
-        ],
-    )
-    def test_the_host_is_lowercase_without_scheme_port_path_or_trailing_dot(self, url: str, host: str) -> None:
-        assert _extract_url_host(url) == host
-
-    @pytest.mark.parametrize("url", ["://bad", "file:///etc/passwd", "http://[::1", "http://./"])
-    def test_a_url_without_a_host_stands_for_itself(self, url: str) -> None:
-        assert _extract_url_host(url) == url
-
-
-class TestUrlHosts:
-    def test_every_url_of_the_call_gives_its_host_once_in_order(self) -> None:
-        urls = ["https://b.test/1", "https://a.test", "https://B.test./2", "a.test:8080"]
-
-        assert _url_hosts({"urls": urls}) == ("b.test", "a.test")
-
-    def test_json_text_of_a_list_is_read_like_the_list(self) -> None:
-        assert _url_hosts({"urls": json.dumps(["https://a.test", "https://b.test"])}) == ("a.test", "b.test")
-
-    def test_a_single_url_string_is_one_url(self) -> None:
-        assert _url_hosts({"urls": "https://a.test/page"}) == ("a.test",)
-
-    def test_blank_and_non_string_values_name_no_host(self) -> None:
-        assert _url_hosts({"urls": ["", "  ", 3, None], "url": None, "reason": "https://a.test"}) == ()
 
 
 class TestCheckDomainBlocklist:
@@ -137,11 +66,22 @@ class TestCheckDomainBlocklist:
         assert action == PermissionAction.DENY
         assert "facebook.com" in reason
 
-    def test_suffix_entry_blocks_the_domain_and_its_subdomains(self) -> None:
-        blocklist = (".evil.net",)
-
+    @pytest.mark.parametrize("entry", ["*.evil.net", ".evil.net", ".EVIL.net:8443", "https://*.evil.net/x"])
+    def test_a_wildcard_entry_blocks_the_domain_and_its_subdomains_in_every_spelling(self, entry: str) -> None:
         for url in ("https://evil.net", "https://a.b.evil.net/x"):
-            assert _check_domain_blocklist("net_fetch", {"urls": [url]}, blocklist)[0] == PermissionAction.DENY
+            assert _check_domain_blocklist("net_fetch", {"urls": [url]}, (entry,))[0] == PermissionAction.DENY
+        assert _check_domain_blocklist("net_fetch", {"urls": ["https://notevil.net"]}, (entry,))[0] is None
+
+    @pytest.mark.parametrize("entry", ["Evil.NET", "evil.net:8443", "https://evil.net/x", "evil.net."])
+    def test_a_plain_entry_blocks_that_host_however_it_is_written(self, entry: str) -> None:
+        assert _check_domain_blocklist("net_fetch", {"urls": ["https://evil.net/a"]}, (entry,))[0] == (
+            PermissionAction.DENY
+        )
+        assert _check_domain_blocklist("net_fetch", {"urls": ["https://a.evil.net/a"]}, (entry,))[0] is None
+
+    @pytest.mark.parametrize("entry", ["*", "*.*", "a.*.net"])
+    def test_an_entry_naming_no_host_blocks_nothing(self, entry: str) -> None:
+        assert _check_domain_blocklist("net_fetch", {"urls": ["https://evil.net"]}, (entry,))[0] is None
 
     def test_non_blocked_passes(self) -> None:
         assert (
@@ -200,6 +140,13 @@ class TestEvaluateToolCallBlocklist:
 
         assert action != PermissionAction.DENY
 
+    def test_an_entry_as_the_settings_ui_accepts_it_denies_a_fetch(self) -> None:
+        """The settings form accepts ``*.host`` and ``host:port``; a list the form saved must not be inert."""
+        config = SecurityConfig(network_blocklist=("*.evil.org", "bad.example:8443"))
+
+        assert _fetch_verdict(["https://cdn.evil.org/x"], config)[0] == PermissionAction.DENY
+        assert _fetch_verdict(["https://bad.example/x"], config)[0] == PermissionAction.DENY
+
 
 class TestCheckDomainPolicy:
     """_check_domain_policy() — Layer 2c: a browser navigation to a domain outside the allowlist asks."""
@@ -215,9 +162,20 @@ class TestCheckDomainPolicy:
             _check_domain_policy("browser_navigate", {"url": "https://example.com/page"}, ("example.com",))[0] is None
         )
 
-    def test_suffix_match_in_allowlist(self) -> None:
+    @pytest.mark.parametrize("entry", [".google.com", "*.google.com", "https://*.google.com/"])
+    def test_a_wildcard_entry_allows_the_domain_and_its_subdomains(self, entry: str) -> None:
+        for url in ("https://google.com", "https://api.google.com/v1"):
+            assert _check_domain_policy("browser_navigate", {"url": url}, (entry,))[0] is None
+        assert _check_domain_policy("browser_navigate", {"url": "https://notgoogle.com"}, (entry,))[0] == (
+            PermissionAction.ASK
+        )
+
+    def test_a_plain_entry_allows_that_host_only(self) -> None:
         assert (
-            _check_domain_policy("browser_navigate", {"url": "https://api.google.com/v1"}, (".google.com",))[0] is None
+            _check_domain_policy("browser_navigate", {"url": "https://Example.COM:8443/x"}, ("example.com",))[0] is None
+        )
+        assert _check_domain_policy("browser_navigate", {"url": "https://a.example.com"}, ("example.com",))[0] == (
+            PermissionAction.ASK
         )
 
     def test_trailing_dot_does_not_leave_the_allowlist(self) -> None:
@@ -250,6 +208,13 @@ class TestEvaluateToolCallDomainHitl:
 
     def test_known_navigation_runs_without_a_card(self) -> None:
         action, _ = evaluate_tool_call("browser_navigate", {"url": "https://example.com/x"}, self._CONFIG)
+
+        assert action == PermissionAction.ALLOW
+
+    def test_a_wildcard_entry_as_the_settings_ui_accepts_it_covers_the_subdomains(self) -> None:
+        config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("*.example.com",))
+
+        action, _ = evaluate_tool_call("browser_navigate", {"url": "https://api.example.com/x"}, config)
 
         assert action == PermissionAction.ALLOW
 

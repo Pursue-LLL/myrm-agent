@@ -8,7 +8,8 @@ tool produces tainted output, all subsequent tool calls to incompatible
 sinks are escalated to ASK (require user approval) rather than blocked.
 
 [INPUT]
-- (none — self-contained, pure standard library)
+- core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
+- core.security.tool_registry::url_arg_hosts (POS: the hosts of the URLs a call names, under every argument spelling)
 
 [OUTPUT]
 - TaintLabel: source categories (EXTERNAL_NETWORK, SECRET)
@@ -31,6 +32,9 @@ import re
 from collections.abc import Collection
 from contextvars import ContextVar
 from enum import StrEnum, unique
+
+from myrm_agent_harness.core.security.domain_match import host_matches
+from myrm_agent_harness.core.security.tool_registry import url_arg_hosts
 
 logger = logging.getLogger(__name__)
 
@@ -71,18 +75,11 @@ class TaintTracker:
     has "forgotten" the tainted data from its context.
     """
 
-    __slots__ = ("_allowed_sinks", "_taints")
+    __slots__ = ("_taints",)
 
     def __init__(self) -> None:
         # Maps TaintLabel to a set of sources (e.g., URLs, file paths)
         self._taints: dict[TaintLabel, set[str]] = {}
-        # Session-approved sink identifiers or domain hostnames
-        self._allowed_sinks: set[str] = set()
-
-    def allow_session_sink(self, identifier: str) -> None:
-        """Allow a specific sink tool name or destination hostname for this session."""
-        if identifier:
-            self._allowed_sinks.add(identifier.strip().lower())
 
     def record(self, label: TaintLabel, source: str | None = None) -> None:
         """Record that tainted data of the given type is now in the LLM context.
@@ -155,28 +152,13 @@ class TaintTracker:
         """Check if calling this tool violates any taint policy.
 
         Returns a dictionary mapping conflicting TaintLabels to their sources,
-        or None if clean or whitelisted.
+        or None if clean or the call names only trusted hosts.
         """
-        tool_key = tool_name.lower().strip()
-        if tool_key in self._allowed_sinks:
-            return None
-
-        if tool_input:
-            url_str = tool_input.get("url")
-            if isinstance(url_str, str):
-                try:
-                    from urllib.parse import urlparse
-
-                    host = urlparse(url_str).netloc.lower()
-                    if host:
-                        if host in self._allowed_sinks:
-                            return None
-                        if trusted_hosts and (
-                            host in trusted_hosts or any(host.endswith(f".{th.lower()}") for th in trusted_hosts)
-                        ):
-                            return None
-                except Exception:
-                    pass
+        # One untrusted URL among several keeps the call a sink: the data could leave through it.
+        if trusted_hosts and tool_input:
+            hosts = url_arg_hosts(tool_input)
+            if hosts and all(host_matches(host, trusted_hosts) for host in hosts):
+                return None
 
         blocked = set(TAINT_SINK_POLICIES.get(tool_name, frozenset()))
 
