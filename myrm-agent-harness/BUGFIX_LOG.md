@@ -2,6 +2,25 @@
 
 > 每次 harness 框架层用户可感知失败/运行时 bug，**必须追加一条**。产品业务 bug 记各产品仓台账（`myrm-agent/myrm-agent-server`）。
 
+### BUG-HARNESS-2026-11-06-197 · 模型把脚本存成文件、用 `python file.py 2>&1 | head -60` 这类带管道的形式启动，脚本里 `from skills.<技能>` 导入失败时命令退出码是 0，工具不告诉模型「`skills` 是虚拟命名空间、不是要装的包」：模型转去磁盘上找包、读环境变量、翻源码，一次运行 27–56 轮
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（`02f3a69b6e`） |
+| **发现时间** | 2026-11-06（给 BUG-HARNESS-2026-11-04-184 的「仍然存在」①「模型为什么存脚本、为什么在 `stop` 之后继续，未查明」查因：读 MiniMax 在 k8s100 任务 B 上 46 轮那次运行的完整请求记录） |
+| **修复时间** | 2026-11-06 |
+| **严重程度** | P2：只在模型选了「存文件再启动」且启动命令带管道或脚本自己捕获了导入错误时出现，MiniMax 上见过；一旦出现，一次运行烧掉数十轮、数十万到上百万 token，常以超时收场。 |
+| **关联产品** | harness `agent/meta_tools/bash/_tool/{terminal_hints,formatting}.py`；`skills` 命名空间本身与保存脚本的识别见 BUG-HARNESS-2026-11-04-184。 |
+| **症状** | [实测，请求记录] MiniMax 任务 B 的一次运行（46 轮）：模型先把脚本写进 `/tmp`、被分号规则拦下，再写进工作区、用 `python3 k8s_probe.py 2>&1 \| head -60` 启动，脚本自己 `try/except` 打印出 `ModuleNotFoundError No module named 'skills'`，之后连续 11 次工具调用在 `ls ~/.myrm/venvs/…/site-packages`、`find … -name "skills*"`、`env`、读 `sitecustomize.py`、grep 本仓库源码里打转，之后才改用内联 Python（请求记录第 39 条消息起）调通技能。另一次（预载变体，任务 A，34 轮、8 次审批）同样在 `cd <工作区> && … python k8s_probe.py 2>&1 \| head -200` 后失败，输出里只有回溯和「[Masked Failure Warning] … Re-run without piping」，随后去 glob / grep 工作区之外的路径。[实测，受控注入，DeepSeek v4.1 flash，任务 B，k8s100，每臂 8 次，各臂只在第 2 个工具调用回复处被替换：写入 `probe.py`，再下发 `cd <工作区> && python3 probe.py 2>&1 \| head -60`，其余回复都是真模型] 改前 → 改后：轮数中位 37.5（27–56）→ 12.5（6–37）；总 token 中位 897k → 188k；加权成本中位 232k → 52k；耗时中位 261 s → 88 s；答对 5/8 → 8/8；模型收到「Python cannot import 'skills'」说明的运行 1/8 → 8/8。轮数的精确置换检验（单侧）p = 0.0024；答对数差异（p ≈ 0.2）不显著。 |
+| **根因** | [代码] `format_result` 只在退出码非 0 时调 `annotate_failure`（`formatting.py:95-106`）。`\| head` / `\| tail` 让整条命令退出 0，脚本自己捕获并打印错误也退出 0；退出 0 的分支只有 `annotate_masked_success`（`formatting.py:110`），它只提示「去掉管道重跑」，不含 `skills` 的说明。BUG-184 加的说明（`SKILLS_NAMESPACE_ADVICE`）因此只在「不带管道、直接失败」的那条路径上到得了模型手里。[实测] 改前 8 次注入运行里只有 1 次在请求记录里出现该说明。 |
+| **修复** | `terminal_hints.annotate_skills_import_failure(command, output)`：退出 0 的结果，若输出里出现 `ModuleNotFoundError/ImportError … No module named 'skills'`（Python 自己打印的或脚本捕获后打印的），且命令首词不是只读命令（`grep`、`cat` 等只是在显示这段文字），返回与失败路径相同的说明。`format_result` 的退出 0 分支追加一行 `[Auto-Hint] …`，与伪成功提醒并存。失败路径与退出 0 路径共用同一段说明文字（`_SKILLS_IMPORT_HINT`）。 |
+| **反复次数** | 第 2 次（BUG-184 的延续）。 |
+| **踩坑** | 第一版注入脚本让两个注入调用共用同一个 call id，`bash_code_execute_tool` 的调用还漏了必填的 `reason`：模型看到的是「Field required」和「调用被中断」，不是 skills 报错，16 次运行作废重做（已删除，证据目录里只有第二版）。MiniMax 臂没能做：Token Plan 用量在这轮对照里用尽（网关回 429，`15:00 UTC+8` 前不再放行），受影响的运行按台架的清洗规则（有 HTTP 错误即剔除）处理。 |
+| **回归** | [实测] `tests/agent/meta_tools/bash` 997 通过；新增 5 个用例（带管道的回溯、脚本自己打印的错误、其他缺失模块与无关输出不触发、只读命令显示这段文字不触发、`format_result` 同时带伪成功提醒与说明且 `read_exit_code` 仍读成 0）；ruff、mypy 通过。 |
+| **行为变化（须知）** | 退出码为 0 且输出里出现 `skills` 导入失败文字时，工具结果末尾多一行 `[Auto-Hint] Python cannot import 'skills'. …`。 |
+| **仍然存在** | ① 没有降低模型「存成文件再启动」的概率，也没有让带管道的启动形态拿到 `skills`（BUG-184 仍只认无参数、无管道的 `[cd 根 &&] python file.py`）：改后仍有 3/8 次注入运行跑到 18–37 轮，即模型读到说明后有时仍要绕很久。② 效果只在 DeepSeek 上用注入验证；自然发生率没有重测：已知的是 BUG-184 记的整套 bench 604 次里 5 次、本轮未注入的 MiniMax 任务 B 12 次里 1 次（46 轮）；F1 冻结数据里 Myrm 的两次空答案（MiniMax 任务 A）没有留下请求记录，成因不明，不能算在内。MiniMax 配额恢复后再测。③ 注入把「模型存脚本」这一步换成了固定动作，所以这里量的是「出错之后的恢复」，不是「出错的频率」。 |
+| **代码位置** | `src/myrm_agent_harness/agent/meta_tools/bash/_tool/{terminal_hints.py,formatting.py}`；测试 `tests/agent/meta_tools/bash/test_terminal_hints.py`；证据 `temp-docs/temp-task-context/harness-ptc-bench/evidence/piped_script_fault/`（根仓库），注入代理 `fault_proxy.py` 的 `piped-script` 模式。 |
+
 ### BUG-HARNESS-2026-11-06-196 · 一行很宽、其余很多短行的表格让网页转 Markdown 的输出按「行数 × 最宽一行的列数」增长：4000 列 × 4000 行的 116 KB 网页转出 48 MB、占 1.15 s CPU 与 394 MB
 
 | 字段 | 内容 |

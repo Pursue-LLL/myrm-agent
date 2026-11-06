@@ -132,7 +132,7 @@ def _isolated_myrm_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _inject_test_checkpointer() -> None:
-    """Inject a checkpointer as the real app startup does in lifespan.py.
+    """Inject a checkpointer as the real app startup does in app/server/lifespan/startup.py.
 
     The dual-arm run builds agents through the real AgentFactory, which calls
     ``get_checkpointer()`` with no fallback. The integration app (minimal app)

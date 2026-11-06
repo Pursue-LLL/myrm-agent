@@ -9,6 +9,7 @@
 [OUTPUT]
 - annotate_failure: Map (command, exit_code, output) to actionable recovery hint
 - annotate_masked_success: Detect exit 0 that masks an upstream failure
+- annotate_skills_import_failure: Namespace advice for an exit-0 result whose output shows the ``skills`` import failing
 
 [POS]
 Heuristic diagnostic guidance layer for bash tool execution. Non-intrusive runtime
@@ -23,6 +24,13 @@ from collections.abc import Callable
 from myrm_agent_harness.toolkits.code_execution.python_extractor import SKILLS_NAMESPACE_ADVICE
 
 _SCAN_CHARS = 4000
+
+_SKILLS_IMPORT_FAILED_RE = re.compile(
+    r"(?:ModuleNotFoundError|ImportError)\W.{0,40}?No module named\s*['\"]?skills(?![\w.])", re.IGNORECASE
+)
+"""A failed ``skills`` import as Python prints it, or as a script that caught the error prints it."""
+
+_SKILLS_IMPORT_HINT = f"Python cannot import 'skills'. {SKILLS_NAMESPACE_ADVICE}"
 
 
 def _hint_gh_unknown_json_field(command: str, output: str) -> str | None:
@@ -102,7 +110,7 @@ def _hint_module_not_found(command: str, output: str) -> str | None:
         return None
     module_name = m.group(1)
     if module_name == "skills":
-        return f"Python cannot import 'skills'. {SKILLS_NAMESPACE_ADVICE}"
+        return _SKILLS_IMPORT_HINT
     return (
         f"Python cannot import '{module_name}'. If using a virtual environment, activate it "
         "or execute directly via `.venv/bin/python`. If missing, install with uv / pip."
@@ -227,6 +235,20 @@ def annotate_masked_success(command: str, output: str) -> str | None:
             "but the output contains error markers. Re-run bare to inspect actual status."
         )
     return None
+
+
+def annotate_skills_import_failure(command: str, output: str) -> str | None:
+    """Namespace advice when an exit-0 result shows the ``skills`` import failing.
+
+    ``annotate_failure`` only runs for a non-zero exit. A pipe into ``head``/``tail`` or a script that catches the
+    ``ImportError`` and prints it exits 0, so without this the model is told nothing about why the namespace is
+    missing and goes looking for the package on disk instead of calling the skill from inline Python.
+    """
+    if _first_token(command or "") in _READONLY_HEADS:
+        return None
+    if _SKILLS_IMPORT_FAILED_RE.search((output or "")[:_SCAN_CHARS]) is None:
+        return None
+    return _SKILLS_IMPORT_HINT
 
 
 def annotate_failure(command: str, exit_code: int, output: str) -> str | None:

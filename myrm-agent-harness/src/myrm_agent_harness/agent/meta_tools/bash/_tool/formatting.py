@@ -89,6 +89,7 @@ def format_result(result: Mapping[str, object], command: str = "") -> tuple[str,
     from myrm_agent_harness.agent.meta_tools.bash._tool.terminal_hints import (
         annotate_failure,
         annotate_masked_success,
+        annotate_skills_import_failure,
     )
 
     if exit_code != "0":
@@ -109,6 +110,9 @@ def format_result(result: Mapping[str, object], command: str = "") -> tuple[str,
         masked_note = annotate_masked_success(command, stdout_str) if command else None
         if masked_note:
             output_parts.append(masked_note)
+        skills_hint = annotate_skills_import_failure(command, f"{stdout_str}\n{stderr_str}") if command else None
+        if skills_hint:
+            output_parts.append(f"[Auto-Hint] {skills_hint}")
 
     if not output_parts:
         return "(no output)", False, {}

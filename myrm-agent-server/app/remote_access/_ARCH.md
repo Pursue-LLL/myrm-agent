@@ -67,5 +67,5 @@
 ## 被依赖方
 
 - `app/api/remote_access/router.py`
-- `app/server/lifespan.py` — shutdown 时 `tunnel_manager.shutdown()`
+- `app/server/lifespan/shutdown.py` — shutdown 时 `tunnel_manager.shutdown()`
 - `tests/remote_access/` — trust_zone / pairing / mobile_gate / auth / sessions / pairing upgrade

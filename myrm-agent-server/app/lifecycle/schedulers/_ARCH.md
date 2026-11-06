@@ -18,4 +18,4 @@
 ## 依赖关系
 
 - 上游：`app.core.infra.background_task`、APScheduler、各业务服务（清理 / 备份 / 遥测）
-- 下游：`app/server/lifespan.py`（起停编排）、`tests/lifecycle/*`
+- 下游：`app/server/lifespan/`（起停编排）、`tests/lifecycle/*`
