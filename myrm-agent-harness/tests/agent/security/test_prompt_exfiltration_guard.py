@@ -208,6 +208,7 @@ class TestTrustedEgressHosts:
             {"urls": ["https://suspicious-api.io/data"]},
             {"url": "https://api.partner.com.evil.io/x"},
             {"url": "https://api.partner.com@evil.io/x"},
+            {"url": "https://evil.io\\@api.partner.com/x"},
         ],
     )
     def test_an_untrusted_host_stays_a_sink(self, args: dict[str, object]) -> None:

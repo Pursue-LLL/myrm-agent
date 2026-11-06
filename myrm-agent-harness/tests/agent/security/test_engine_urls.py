@@ -66,6 +66,14 @@ class TestCheckDomainBlocklist:
         assert action == PermissionAction.DENY
         assert "facebook.com" in reason
 
+    def test_a_backslash_does_not_move_the_blocked_host_out_of_the_url(self) -> None:
+        url = "https://facebook.com\\.example.com/"
+
+        action, reason = _check_domain_blocklist("browser_navigate", {"url": url}, ("facebook.com",))
+
+        assert action == PermissionAction.DENY
+        assert "facebook.com" in reason
+
     @pytest.mark.parametrize("entry", ["*.evil.net", ".evil.net", ".EVIL.net:8443", "https://*.evil.net/x"])
     def test_a_wildcard_entry_blocks_the_domain_and_its_subdomains_in_every_spelling(self, entry: str) -> None:
         for url in ("https://evil.net", "https://a.b.evil.net/x"):
@@ -218,6 +226,14 @@ class TestEvaluateToolCallDomainHitl:
 
         assert action == PermissionAction.ALLOW
 
+    def test_a_backslash_url_is_judged_by_the_host_the_browser_dials(self) -> None:
+        url = "http://attacker.test\\@example.com/x"
+
+        action, reason = evaluate_tool_call("browser_navigate", {"url": url}, self._CONFIG)
+
+        assert action == PermissionAction.ASK
+        assert "attacker.test" in reason
+
     def test_disabled_no_check(self) -> None:
         config = SecurityConfig(domain_hitl_enabled=False, network_allowlist=("example.com",))
 
@@ -247,6 +263,11 @@ class TestExtractUrlDomains:
 
     def test_hostname_is_lowercase_without_trailing_dot(self) -> None:
         assert extract_url_domains("browser_navigate", {"url": "https://Mail.Example.com./x"}) == ("mail.example.com",)
+
+    def test_a_backslash_ends_the_host_the_card_names(self) -> None:
+        url = "http://attacker.test\\@example.com/x?d=secret"
+
+        assert extract_url_domains("browser_navigate", {"url": url}) == ("attacker.test",)
 
     def test_bare_hostname_with_port(self) -> None:
         assert extract_url_domains("browser_navigate", {"url": "localhost:3000/api"}) == ("localhost",)

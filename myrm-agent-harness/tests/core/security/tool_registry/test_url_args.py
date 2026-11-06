@@ -71,6 +71,19 @@ def test_the_host_is_lowercase_without_scheme_port_path_or_trailing_dot(url: str
     assert url_host(url) == host
 
 
+@pytest.mark.parametrize(
+    ("url", "host"),
+    [
+        ("http://attacker.test\\@good.test/x?d=1", "attacker.test"),
+        ("https://evil.test\\.good.test/x", "evil.test"),
+        ("https://good.test\\path", "good.test"),
+        ("https://good.test/a\\b@evil.test/", "good.test"),
+    ],
+)
+def test_a_backslash_ends_the_authority_as_a_browser_reads_it(url: str, host: str) -> None:
+    assert url_host(url) == host
+
+
 @pytest.mark.parametrize("url", ["://bad", "file:///etc/passwd", "http://[::1", "http://./"])
 def test_a_url_without_a_host_stands_for_itself(url: str) -> None:
     assert url_host(url) == url

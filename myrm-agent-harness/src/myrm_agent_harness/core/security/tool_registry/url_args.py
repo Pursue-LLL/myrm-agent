@@ -6,7 +6,7 @@
 [OUTPUT]
 - URL_ARG_KEYS: every argument name a network tool receives its URLs under
 - url_arg_values: each non-empty URL string among those arguments, passed as a string, a JSON array string or a list
-- url_host / url_arg_hosts: the host a URL names, and the distinct hosts of every URL a call names
+- url_host / url_arg_hosts: the host a URL names as a browser reads it, and the distinct hosts of every URL a call names
 
 [POS]
 Shared by the permission engine (blocklist, per-domain approval and rule targets) and the taint exemption so
@@ -35,14 +35,15 @@ def url_arg_values(args: dict[str, object]) -> list[str]:
 
 
 def url_host(url: str) -> str:
-    """The lowercase host a URL names, without a trailing dot (``evil.com.`` is the host ``evil.com``).
+    r"""The lowercase host a URL names, without a trailing dot (``evil.com.`` is the host ``evil.com``).
 
-    Reads scheme-prefixed URLs (``http://192.168.1.1/path``) and bare ``host:port`` (``localhost:3000``). A string
+    Reads scheme-prefixed URLs (``http://192.168.1.1/path``) and bare ``host:port`` (``localhost:3000``). A backslash
+    ends the authority as it does in a browser, so ``http://evil.test\@good.test/`` names ``evil.test``. A string
     that names no host stands for itself, so a malformed address is neither waved through nor an error.
     """
     if "://" in url:
         try:
-            host = urlparse(url).hostname or ""
+            host = urlparse(url.replace("\\", "/")).hostname or ""
         except ValueError:
             host = ""
     else:
