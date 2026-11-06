@@ -241,9 +241,8 @@ def _find_system_insert_idx(messages):
 [0] SystemMessage: system prompt          ← 跨用户缓存命中 ✅
 [1] SystemMessage: <user_instructions>    ← 同用户缓存命中 ✅
 [2] SystemMessage: <workspace_context>    ← 同对话线程内逐字节稳定（规则文件被编辑时才变）✅
-[3] SystemMessage: Stable `<user_memory_context>` ← 同用户缓存命中 ✅
-[4] HumanMessage（可选）: <<<UNTRUSTED_DATA>>> learned advisory ← envelope id random / per-request
-[5] HumanMessage: ...                     ← 每轮变化
+[3] SystemMessage: `<user_memory_context>` ← 同用户缓存命中 ✅
+[4] HumanMessage: ...                     ← 每轮变化
 ```
 
 `<workspace_context>` 里的沙箱快照（`Git:` 状态、顶层文件列表）会随 agent 自己的改动变化，注入又只是对单次请求的 override、不写回图状态，若每次模型调用都重算，agent 一改文件位置 [2] 的字节就变，其后的前缀缓存在那次调用失效。因此快照按对话线程只生成一次：第一次发现线程里没有快照的模型调用在工作线程里生成它（限时 3 秒：超时的探测被抛弃，线程存下空串并冻结，此后不再探测、不注入快照块，位置 [2] 同样不动），并随这次调用的响应存入检查点状态的私有键 `workspace_snapshot` / `workspace_snapshot_root`（工作区变了才重新生成），之后每次调用读回同一份文本，约 250 token（`myrm-agent` 仓库实测 940 字符）；不用 `before_model` 之类的钩子节点，因为它会给每次模型调用多写一条检查点；规则文件仍每次实时读取。真实循环里的用例：`tests/agent/workspace_rules/test_middleware_run_scope.py`。
@@ -252,12 +251,11 @@ def _find_system_insert_idx(messages):
 
 ### 2.5 记忆上下文注入的缓存感知设计
 
-`middlewares/memory_context/memory_context_middleware.py`（`asyncio.gather` 静态 + learned）拆分注入：**Stable** vs **learned advisory**。
+`middlewares/memory_context/memory_context_middleware.py` 把用户存储的记忆作为一个 `<user_memory_context>` `SystemMessage`（`# User Context (stable)`）插在连续 leading **SystemMessage** 链末端，与同用户前缀稳定对齐。块是请求局部的：每次模型调用都按本轮的记忆上下文重新生成并插入，不写回线程状态。本轮的记忆上下文在回合开始时定下：有记忆快照（`memory_brief_snapshot`）时读它；没有快照的运行在本轮第一次模型调用时读一次 `manager.get_context`，本轮后续调用复用这次结果，所以本轮内保存的记忆下一轮才进块。工具指引按每次调用绑定的工具挑选，挑选结果写进上下文的副本，所以同一轮内绑定的工具不变时各次调用的字节相同，记忆未被编辑时各轮之间也相同。
 
-1. **Stable** (`# User Context (stable)`)：`SystemMessage`，包裹 `<user_memory_context>`。含 Profile/Rules/Self-Instructions/Corrections；插入在连续 leading **SystemMessage** 链末端（与同用户前缀稳定对齐）。
-2. **Learned advisory**：偏好与 learned rules：`HumanMessage`，在**第一条真人用户 Human** 之前插入。原始 Markdown 先做 `sanitize` + `_escape_xml_item`，再 **`wrap_untrusted(..., source="memory_context")`** → ``<<<UNTRUSTED_DATA id="random">>>`` ，与同进程 **`SECURITY_BOUNDARY_SYSTEM_RULES`** 中约定的边界语义一致。**随机边界 id**会降低「整块 HumanMessage 前缀」在厂商缓存中的可预见性——这是与安全边界预测的显式权衡；跨用户仍可共享第一条 core System Prompt 快照。
+块只含用户配置的、变化很慢的条目（Profile、Rules、Self-Instructions、工作状态、工具指引）；已学习的事实不进块，由模型经 `memory_search_tool` 检索，前缀因此不随检索结果变化，也没有每请求随机的内容。
 
-**冷/暖启动自适应**：新用户仅注入 `_COLD_START_CONTEXT`（Stable SystemMessage）；老用户 Stable + Learned Human（若有）。
+**冷/暖启动自适应**：新用户仅注入 `_COLD_START_CONTEXT`；老用户注入记忆块。
 
 **RecallMode 控制**：`TOOLS` 模式跳过注入；`CONTEXT` 模式注入 context 但**不携带** Citation/Memory Search guidance（`memory_search_tool` 未绑定），cold-start 时整体跳过注入；`HYBRID` 模式注入 context 并携带完整 guidance tail。
 
@@ -267,17 +265,17 @@ def _find_system_insert_idx(messages):
 System: core prompt
 System: `<user_instructions>` …
 System: `<workspace_context>` …                 ← 同对话线程内 Stable（可无）
-System: `<user_memory_context>` … stable …    ← per-user Stable
-Human: <<<UNTRUSTED_DATA>>> learned …         ← advisory（可无）
+System: `<user_memory_context>` …             ← per-user Stable
 Human: 用户第一句 …                             ← varies
 System: `<data_boundary_rules>` …               ← SecurityBoundary，state 追加合并，首次模型调用后落在最新用户消息之后
 ```
 
 **关键设计**
 
-- **统一预算**：Stable + Learned 共享单一 `_partition_budget_sections`（max_tokens≈等价于单次 `PromptBudgetGuard(2500)`），禁止两侧各跑一次 2500 导致前缀膨胀双倍。
-- **一次性注入**：同时检测 `<user_memory_context` **与** `<<<UNTRUSTED_DATA`（cover learned-only）。
-- **`MemoryConfig.max_learned_context_chars`**：依旧在 learned 数据源侧裁剪；中间件再做 token/char envelope 兜底。
+- **单一预算**：块内所有段落共享一次 `render_budgeted_sections`（`max_tokens=2500`，按段落优先级截断），块外没有第二份预算。
+- **请求局部 + 标记判重**：块由消息标记 `additional_kwargs["memory_context"]` 识别，请求里已有带标记的块时才跳过（记 WARNING）；不按文本判重，因为数据边界规则、用户粘贴内容与工具结果都可能含 `<user_memory_context` / `<<<UNTRUSTED_DATA` 字样。块不写回线程状态，检查点里没有这个块的文本。
+- **存储值先消毒**：条目经 `defang_markup()` 把每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;` 后再进预算，存储值不能关闭记忆块或开出自己的 `<user_instructions>` 块；`&`、`>`、URL 和代码原样保留。改写是确定的，同样的存储值每次得到同样的字节，缓存前缀不受影响。
+- **预算遥测**：`set_memory_runtime_budget` 的 `total` 是块预算折成的字符数（`max_tokens=2500` × 4，即 `MEMORY_BLOCK_BUDGET_CHARS`），`used` 是进入块的段落占用的字符数（被丢弃的段落不计），规则数含 VETO 与行为规则；`MemoryConfig.max_learned_context_chars` 只截断 `get_learned_context`（server 记忆简报预览的数据源），与块的预算无关。
 
 **业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
 
@@ -1034,7 +1032,7 @@ Turn 12 (会话结束):
 | Active todo focus | ``progress_middleware`` 追加到当前轮 HumanMessage（瞬时/尾部） | 保证 system prefix cache；**注意**：后续轮次严禁回溯剥离已缓存轮次，否则触发 ``messages_changed`` |
 | Session Notes 摘要 | ``SessionNotesProcessor`` 注入 **HumanMessage** | 不破坏 cache |
 | Summarize 摘要 | ``SummarizeProcessor`` 注入 **HumanMessage** | 不破坏 cache |
-| 记忆上下文 | ``memory_context_middleware`` **SystemMessage** (one-shot) | 仅首轮 baseline 建立 |
+| 记忆上下文 | ``memory_context_middleware`` **SystemMessage**（请求局部：每次调用按本轮记忆上下文重建，不写回线程状态） | 同一轮内绑定的工具不变时各次调用字节相同；只有记忆快照重建后才反映记忆的编辑（计为 ``system prompt changed``），会话中的记忆写入另经 ephemeral delta 追加到最新 Human 尾部，不动 System 前缀 |
 
 **单工具 invoke 规则（2026-07-23 增补）**：
 
@@ -1048,7 +1046,7 @@ Turn 12 (会话结束):
 
 ``SkillMetadata.always=True`` 表示 **始终出现在首条 HumanMessage ``<bound_skills>`` catalog**（``always="true"`` 属性），**不是**写入 SystemMessage。
 
-MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 planner / memory 等 middleware 的首轮 one-shot 注入，而非 MCP 协议或 skill_select 目录变更。
+MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 planner 的首轮 one-shot 注入、memory 注入内容的变化（首轮建立、记忆快照重建后反映了编辑）等，而非 MCP 协议或 skill_select 目录变更。
 
 **压缩感知**：``CompressProcessor``、``CacheTtlPruneProcessor``、``SessionNotesProcessor``、``SummarizeProcessor`` 执行后均调用 ``notify_compaction()`` 重置基线，避免压缩后的正常缓存重建被误报为断裂。
 

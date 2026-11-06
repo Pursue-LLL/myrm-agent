@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from myrm_agent_harness.agent.skills import SkillMetadata
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -53,11 +53,17 @@ _task_intent_var: ContextVar[str] = ContextVar("task_intent", default="")
 
 
 class MemoryRuntimeBudget(TypedDict):
+    """How full the memory block's budget was on a model call.
+
+    ``used`` and ``total`` are characters: what the block's sections use, out of the block's budget. The rule counts
+    cover veto and behavioral rules; ``rulesTruncated`` says the budget kept fewer of them than are configured.
+    """
+
     used: int
     total: int
-    rulesConfigured: NotRequired[int]
-    rulesInjected: NotRequired[int]
-    rulesTruncated: NotRequired[bool]
+    rulesConfigured: int
+    rulesInjected: int
+    rulesTruncated: bool
 
 
 MemoryInjectionState = Literal["applied", "not_applied"]
@@ -170,18 +176,7 @@ def set_memory_manager(manager: MemoryManager | None) -> None:
 def get_memory_runtime_budget() -> MemoryRuntimeBudget | None:
     """Get memory budget telemetry emitted by memory context middleware."""
     payload = _memory_runtime_budget_var.get()
-    if payload is None:
-        return None
-    copied: MemoryRuntimeBudget = {"used": payload["used"], "total": payload["total"]}
-    # Rule fidelity keys are only present when the injection path produced them;
-    # other writers keep the original two-field payload shape.
-    if "rulesConfigured" in payload:
-        copied["rulesConfigured"] = payload["rulesConfigured"]
-    if "rulesInjected" in payload:
-        copied["rulesInjected"] = payload["rulesInjected"]
-    if "rulesTruncated" in payload:
-        copied["rulesTruncated"] = payload["rulesTruncated"]
-    return copied
+    return None if payload is None else payload.copy()
 
 
 def set_memory_runtime_budget(payload: MemoryRuntimeBudget | None) -> None:
@@ -189,17 +184,16 @@ def set_memory_runtime_budget(payload: MemoryRuntimeBudget | None) -> None:
     if payload is None:
         _memory_runtime_budget_var.set(None)
         return
-    stored: MemoryRuntimeBudget = {
-        "used": max(0, int(payload["used"])),
-        "total": max(0, int(payload["total"])),
-    }
-    if "rulesConfigured" in payload:
-        configured = max(0, int(payload["rulesConfigured"]))
-        injected = payload.get("rulesInjected")
-        stored["rulesConfigured"] = configured
-        stored["rulesInjected"] = min(max(0, int(injected if injected is not None else 0)), configured)
-        stored["rulesTruncated"] = bool(payload.get("rulesTruncated", False))
-    _memory_runtime_budget_var.set(stored)
+    configured = max(0, int(payload["rulesConfigured"]))
+    _memory_runtime_budget_var.set(
+        {
+            "used": max(0, int(payload["used"])),
+            "total": max(0, int(payload["total"])),
+            "rulesConfigured": configured,
+            "rulesInjected": min(max(0, int(payload["rulesInjected"])), configured),
+            "rulesTruncated": bool(payload["rulesTruncated"]),
+        }
+    )
 
 
 def get_memory_runtime_injection() -> MemoryRuntimeInjection | None:

@@ -1,51 +1,55 @@
 """Memory context injection middleware.
 
-Hybrid instruction hierarchy with cold/warm adaptive prompt:
-
-- Stable / high-privilege layer: Profile, Self-Instructions, Behavioral Rules + Corrections
-  → wrapped in ``<user_memory_context>``, injected as SystemMessage immediately after leading
-    System prompts (prompt-cache friendly).
-
-- Untrusted learned layer: auto-extracted Preferences + Learned Rules
-    → Turn1 injection skips learned facts (cache-stable); retrieved via ``memory_search_tool(corpus=memory)``.
-    When injected, wrapped with ``wrap_untrusted(..., source="memory_context")`` (`<<<UNTRUSTED_DATA id="…">>`)
-
-- Cold start: Discovery Mode lives only in `<user_memory_context>` (still SystemMessage).
+Injects the user's stored memory — profile, self-instructions, behavioral rules (VETO rules first), tool guidance,
+working state — as one ``<user_memory_context>`` SystemMessage immediately after the leading System prompts
+(prompt-cache friendly). Learned facts are never injected: the model retrieves them through
+``memory_search_tool(corpus=memory)``, which keeps the prompt prefix stable across turns. A user with no stored memory
+gets the cold-start Discovery Mode block instead.
 
 Respects RecallMode: TOOLS skips injection entirely.
-Injection is one-shot: detected via ``<user_memory_context`` OR ``<<<UNTRUSTED_DATA``.
+The block is request-local: it is rebuilt for every model call and never persisted to the thread. It is built from the
+run context's ``memory_brief_snapshot``; a run without one loads ``manager.get_context`` on the turn's first model
+call and the turn's later calls reuse that load, so a memory saved mid-turn reaches the next turn and no two calls of
+one turn see different memory. A turn starts at the user's own latest message in the thread; a notice the runtime
+appends and a rewrite an outer middleware makes to the request start none. Neither the snapshot nor the loaded
+context is written to: tool guidance, which depends on the tools bound to the call, goes into a copy. A call is
+skipped (and a warning logged) only when the request already carries a block this middleware built, recognised by its
+flag rather than by its text.
 
 Design message order:
 
     System Prompt (cross-user stable) …
     <user_instructions> …
-    <user_memory_context> … stable profile / rules …
-    HumanMessage with <<<UNTRUSTED_DATA learned …>>>  + Memory Search cues
+    <user_memory_context> … profile / rules / guidance + Memory Search cues …
     first real user HumanMessage …
 
 [INPUT]
-- toolkits.memory.config::RecallMode (POS: Memory configuration — functional switches and retrieval params only.)
+- toolkits.memory.config::RecallMode, RetrievalConfig (POS: Memory configuration — functional switches and retrieval params only.)
 - toolkits.memory.manager::MemoryManager (POS: Unified memory manager and core facade of the Memory Toolkit. Orchestrates all memory operations via pure dependency injection — no concrete backends, only protocols.)
-- agent.security.guards.prompt_budget::BudgetedSection, CHARS_PER_TOKEN (POS: Prompt Budget Guard — section budgets for dynamic injection.)
-- agent.security.detection.content_boundary::sanitize, wrap_untrusted (POS: Untrusted content folding, marker neutralization, randomized UNTRUSTED_DATA envelopes.)
+- toolkits.memory.tool_guidance::ToolGuidanceItem, synthesize_tool_guidance (POS: Tool memory procedural contract & synthesis domain layer.)
+- agent.middlewares._message_origin::is_user_authored_human_message (POS: Message-provenance predicate shared by the approval, security and memory-context middlewares, and the constructor of the messages it skips.)
+- .memory_context_format::MemoryBlock, MEMORY_BLOCK_BUDGET_CHARS, _format_memory_context, _has_memory_context, _memory_context_message, _bound_tool_names, _memory_search_tool_bound (POS: Memory block renderer for MemoryContextMiddleware: renders the block text and builds and recognises the flagged message that carries it.)
 
 [OUTPUT]
-- memory_context_middleware: AgentMiddleware — stable + learned memory injection with unified budget and idempotent markers.
+- memory_context_middleware: AgentMiddleware — memory block injection with a unified budget, idempotent per request.
 
 [POS]
-Memory context injection middleware bridging MemoryManager snapshots into the model prefix with privilege separation for learned content.
+Memory context injection middleware bridging MemoryManager snapshots into the model prefix.
 """
 
 from __future__ import annotations
 
 import asyncio
+import copy
 import logging
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, cast
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, AnyMessage, SystemMessage
 
+from myrm_agent_harness.agent.middlewares._message_origin import is_user_authored_human_message
 from myrm_agent_harness.toolkits.memory.config import RecallMode, RetrievalConfig
 from myrm_agent_harness.toolkits.memory.tool_guidance import (
     ToolGuidanceItem,
@@ -53,18 +57,30 @@ from myrm_agent_harness.toolkits.memory.tool_guidance import (
 )
 
 from .memory_context_format import (
-    STABLE_RULES_TITLE,
+    MEMORY_BLOCK_BUDGET_CHARS,
+    MemoryBlock,
+    _bound_tool_names,
     _format_memory_context,
     _has_memory_context,
+    _memory_context_message,
     _memory_search_tool_bound,
 )
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.skill_agent.context import (
+        MemoryInjectionReason,
+        MemoryInjectionSource,
+        MemoryInjectionState,
+        MemoryRuntimeInjection,
+    )
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_LOAD_TIMEOUT_SECONDS = RetrievalConfig().timeout_seconds
+
+# Slot of the run-context dict that carries a turn's loaded memory context to the turn's later model calls.
+_TURN_LOAD_SLOT = "_memory_context_turn_load"
 
 
 def _retrieval_timeout_seconds(manager: object) -> float:
@@ -78,18 +94,17 @@ def _retrieval_timeout_seconds(manager: object) -> float:
 
 
 def _set_memory_injection_status(
-    _manager: MemoryManager,
     *,
-    state: str,
-    source: str | None = None,
-    reason: str | None = None,
+    state: MemoryInjectionState,
+    source: MemoryInjectionSource | None = None,
+    reason: MemoryInjectionReason | None = None,
 ) -> None:
     from myrm_agent_harness.agent.skill_agent.context import (
         set_memory_runtime_budget,
         set_memory_runtime_injection,
     )
 
-    payload: dict[str, str] = {"state": state}
+    payload: MemoryRuntimeInjection = {"state": state}
     if source is not None:
         payload["source"] = source
     if reason is not None:
@@ -100,14 +115,213 @@ def _set_memory_injection_status(
     set_memory_runtime_injection(payload)
 
 
+def _reset_memory_telemetry() -> None:
+    """Drop the previous model call's budget and injection status, so an early exit never carries them over."""
+    from myrm_agent_harness.agent.skill_agent.context import (
+        set_memory_runtime_budget,
+        set_memory_runtime_injection,
+    )
+
+    set_memory_runtime_budget(None)
+    set_memory_runtime_injection(None)
+
+
+def _prefixed_ai_message(msg: AIMessage) -> AIMessage | None:
+    """``msg`` with its text led by ``[Agent: name]``, so the model can tell the agents of a shared thread apart.
+
+    ``None`` when the message needs no change: it has no text block to lead, or the tag is already there.
+    """
+    prefix = f"[Agent: {msg.name}]\n"
+    content = msg.content
+    new_content: str | list[str | dict[str, object]]
+    if isinstance(content, str):
+        if content.startswith(prefix):
+            return None
+        new_content = f"{prefix}{content}"
+    elif isinstance(content, list) and content:
+        first_block = content[0]
+        if not isinstance(first_block, dict) or first_block.get("type") != "text":
+            return None
+        first_text = first_block.get("text", "")
+        if not isinstance(first_text, str) or first_text.startswith(prefix):
+            return None
+        led_block = copy.deepcopy(first_block)
+        led_block["text"] = f"{prefix}{first_text}"
+        new_content = [led_block, *copy.deepcopy(content[1:])]
+    else:
+        return None
+    return AIMessage(
+        content=new_content,
+        name=msg.name,
+        tool_calls=msg.tool_calls,
+        additional_kwargs=msg.additional_kwargs,
+        id=msg.id,
+    )
+
+
+def _attribute_ai_messages(request: ModelRequest) -> ModelRequest:
+    """``request`` with every named AI message led by its agent tag; ``request`` itself when none needs one."""
+    messages = list(request.messages)
+    modified = False
+    for idx, msg in enumerate(messages):
+        if isinstance(msg, AIMessage) and msg.name:
+            prefixed = _prefixed_ai_message(msg)
+            if prefixed is not None:
+                messages[idx] = prefixed
+                modified = True
+    return request.override(messages=messages) if modified else request
+
+
+@dataclass(frozen=True)
+class _StaticContext:
+    """The outcome of loading the stable memory context: the context to render, or the reason there is none."""
+
+    source: MemoryInjectionSource
+    ctx: dict[str, object] | None = None
+    skip_reason: MemoryInjectionReason | None = None
+
+
+def _checked_static_context(raw: object, source: MemoryInjectionSource) -> _StaticContext:
+    """``raw`` as a loadable context, or the reason it cannot be rendered."""
+    if isinstance(raw, BaseException):
+        logger.warning("Static memory context failed: %s", raw)
+        return _StaticContext(source, skip_reason="static_error")
+    if not isinstance(raw, dict):
+        logger.warning("Static memory context payload has unexpected type: %s", type(raw).__name__)
+        return _StaticContext(source, skip_reason="invalid_static_payload")
+    return _StaticContext(source, ctx=raw)
+
+
+async def _live_load(manager: MemoryManager) -> _StaticContext:
+    """Load the stable memory context from the manager, bounded by its retrieval timeout."""
+    try:
+        async with asyncio.timeout(_retrieval_timeout_seconds(manager)):
+            loaded = await manager.get_context(
+                include_profile=True,
+                include_rules=True,
+                include_agent_instructions=True,
+            )
+    except TimeoutError:
+        logger.warning("Memory context load timed out; skipping memory injection")
+        return _StaticContext("fallback", skip_reason="load_timeout")
+    except Exception as e:
+        logger.warning("Failed to load memory context: %s", e)
+        return _StaticContext("fallback", skip_reason="load_error")
+    return _checked_static_context(loaded, "fallback")
+
+
+@dataclass(frozen=True)
+class _TurnLoad:
+    """What the first model call of a turn loaded, left in the run context for the turn's later calls."""
+
+    turn_id: str
+    loaded: _StaticContext
+
+
+def _current_turn_id(messages: Sequence[AnyMessage]) -> str | None:
+    """The id of the user's latest message: every model call of one turn, tool loop included, shares it.
+
+    A notice the runtime appends mid-run (a recovery hint, a restore note) is not the user's message and starts no turn.
+    """
+    for message in reversed(messages):
+        if is_user_authored_human_message(message):
+            return message.id
+    return None
+
+
+def _thread_messages(request: ModelRequest) -> Sequence[AnyMessage]:
+    """The conversation the graph holds, which the request-local rewrites of the outer middlewares never reach.
+
+    Those rewrites change the request's messages from one call of a turn to the next: the circuit-breaker constraints
+    are appended to every call, and the todo focus replaces the runtime notice at the tail on a run's first call only.
+    A request built outside a graph run carries no thread, so its own messages stand in.
+    """
+    thread = request.state.get("messages")
+    return thread if isinstance(thread, list) and thread else request.messages
+
+
+async def _load_static_context(
+    manager: MemoryManager, context: object, messages: Sequence[AnyMessage]
+) -> _StaticContext:
+    """The stable memory context of this model call.
+
+    A run that prefetched a snapshot reads it. Otherwise the first call of a turn loads from the manager and the
+    turn's later calls reuse that outcome: a memory the agent saves mid-turn reaches the model on the next turn and
+    never splits one turn's prompt prefix, and a failed load is not retried (and waited for) on every call.
+    """
+    if not isinstance(context, dict):
+        return await _live_load(manager)
+    snapshot = context.get("memory_brief_snapshot")
+    if isinstance(snapshot, dict):
+        return _checked_static_context(snapshot.get("memory_ctx", {}), "snapshot")
+    turn_id = _current_turn_id(messages)
+    if turn_id is None:
+        return await _live_load(manager)
+    memo = context.get(_TURN_LOAD_SLOT)
+    if isinstance(memo, _TurnLoad) and memo.turn_id == turn_id:
+        return memo.loaded
+    loaded = await _live_load(manager)
+    context[_TURN_LOAD_SLOT] = _TurnLoad(turn_id, loaded)
+    return loaded
+
+
+def _context_with_tool_guidance(ctx: dict[str, object], request: ModelRequest) -> dict[str, object]:
+    """A copy of ``ctx`` carrying the tool guidance of the tools this call binds.
+
+    Every model call of the turn reads the same loaded context, and the guidance is picked per call from the tools
+    that call binds: it goes into a copy, so one call's pick never reaches the next call or the snapshot.
+    """
+    memory_ctx = dict(ctx)
+    raw_guidance_raw = memory_ctx.get("raw_tool_guidance_items")
+    if isinstance(raw_guidance_raw, list) and raw_guidance_raw:
+        raw_guidance = [g for g in raw_guidance_raw if isinstance(g, ToolGuidanceItem)]
+        # A request that binds no named tool carries no scope: guidance for every tool is kept.
+        tool_guidance_map = synthesize_tool_guidance(
+            raw_guidance,
+            target_tools=set(_bound_tool_names(request)) or None,
+        )
+        if tool_guidance_map:
+            memory_ctx["tool_guidance"] = tool_guidance_map
+    return memory_ctx
+
+
+def _with_memory_block(messages: Sequence[AnyMessage], block: str) -> list[AnyMessage]:
+    """``messages`` with the block after the leading system messages, so the cached prefix stays intact."""
+    new_messages = list(messages)
+    insert_idx = next((i for i, m in enumerate(new_messages) if not isinstance(m, SystemMessage)), len(new_messages))
+    new_messages.insert(insert_idx, _memory_context_message(block))
+    return new_messages
+
+
+def _publish_budget(block: MemoryBlock) -> None:
+    """Expose the block's budget use to the runner state for the UX progress bar.
+
+    Reports how many rules actually reached the model, so a budget-trimmed prompt never reports the full configured
+    rule count as if the model had obeyed all of them.
+    """
+    # Store normalized telemetry for server-side SSE/persistence hooks.
+    from myrm_agent_harness.agent.skill_agent.context import (
+        set_memory_runtime_budget,
+    )
+
+    set_memory_runtime_budget(
+        {
+            "used": block.budget_used_chars,
+            "total": MEMORY_BLOCK_BUDGET_CHARS,
+            "rulesConfigured": block.rules_configured,
+            "rulesInjected": block.rules_injected,
+            "rulesTruncated": block.rules_injected < block.rules_configured,
+        }
+    )
+
+
 class MemoryContextMiddleware(AgentMiddleware):
-    """Inject user memory context on first LLM call.
+    """Inject user memory context into every model call.
 
-    Stable context is appended as ``SystemMessage`` after leading systems; learned
-    context is appended as ``HumanMessage`` with ``<<<UNTRUSTED_DATA>>>`` framing
-    before the user's first HumanMessage.
-
-    Requires context key: "memory_manager" (MemoryManager with user_id bound).
+    The block is a ``SystemMessage`` inserted after the leading system messages. It is built from the per-turn
+    ``memory_brief_snapshot`` of the run context when present, otherwise from the ``manager.get_context`` load of the
+    turn's first model call; the manager is the one bound with ``set_memory_manager`` (MemoryManager with user_id
+    bound).
     """
 
     name = "memory_context_middleware"
@@ -117,73 +331,14 @@ class MemoryContextMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        import copy
-
-        from langchain_core.messages import AIMessage
-
-        new_req_messages = list(request.messages)
-        req_modified = False
-        for idx, msg in enumerate(new_req_messages):
-            if isinstance(msg, AIMessage) and getattr(msg, "name", None):
-                prefix = f"[Agent: {msg.name}]\n"
-                if isinstance(msg.content, str) and not msg.content.startswith(prefix):
-                    new_msg = AIMessage(
-                        content=f"{prefix}{msg.content}",
-                        name=msg.name,
-                        tool_calls=getattr(msg, "tool_calls", []),
-                        additional_kwargs=getattr(msg, "additional_kwargs", {}),
-                        id=getattr(msg, "id", None),
-                    )
-                    new_req_messages[idx] = new_msg
-                    req_modified = True
-                    continue
-                elif isinstance(msg.content, list) and len(msg.content) > 0:
-                    first_block = msg.content[0]
-                    if not isinstance(first_block, dict) or first_block.get("type") != "text":
-                        continue
-                    first_text = first_block.get("text", "")
-                    if isinstance(first_text, str) and not first_text.startswith(prefix):
-                        new_content = copy.deepcopy(msg.content)
-                        if not isinstance(new_content[0], dict):
-                            continue
-                        new_content[0]["text"] = f"{prefix}{first_text}"
-                        new_msg = AIMessage(
-                            content=new_content,
-                            name=msg.name,
-                            tool_calls=getattr(msg, "tool_calls", []),
-                            additional_kwargs=getattr(msg, "additional_kwargs", {}),
-                            id=getattr(msg, "id", None),
-                        )
-                        new_req_messages[idx] = new_msg
-                        req_modified = True
-                        continue
-
-        if req_modified:
-            request = request.override(messages=new_req_messages)
-
-        state = request.state
-        state_extra = cast(dict[str, object], state)
-        state_messages = state.get("messages", [])
-        from myrm_agent_harness.agent.skill_agent.context import (
-            set_memory_runtime_budget,
-            set_memory_runtime_injection,
-        )
-
+        request = _attribute_ai_messages(request)
         # Always clear previous-turn telemetry first to avoid stale carry-over when
         # this turn exits early (e.g., missing manager/context).
-        set_memory_runtime_budget(None)
-        set_memory_runtime_injection(None)
+        _reset_memory_telemetry()
 
-        if _has_memory_context(state_messages) or _has_memory_context(request.messages):
-            from myrm_agent_harness.agent.skill_agent.context import get_memory_manager
-
-            existing_manager: MemoryManager | None = get_memory_manager()
-            if existing_manager:
-                _set_memory_injection_status(
-                    existing_manager,
-                    state="not_applied",
-                    reason="already_present",
-                )
+        if _has_memory_context(request.messages):
+            logger.warning("Memory context block already present in the request; skipping injection")
+            _set_memory_injection_status(state="not_applied", reason="already_present")
             return await handler(request)
 
         context = getattr(request.runtime, "context", None) if request.runtime else None
@@ -194,7 +349,6 @@ class MemoryContextMiddleware(AgentMiddleware):
             return await handler(request)
 
         _set_memory_injection_status(
-            manager,
             state="not_applied",
             reason="missing_context" if not context else "not_injected",
         )
@@ -202,199 +356,24 @@ class MemoryContextMiddleware(AgentMiddleware):
             return await handler(request)
 
         if manager.recall_mode == RecallMode.TOOLS:
-            _set_memory_injection_status(
-                manager,
-                state="not_applied",
-                reason="recall_mode_tools",
-            )
+            _set_memory_injection_status(state="not_applied", reason="recall_mode_tools")
             return await handler(request)
 
-        prefetched_snapshot = context.get("memory_brief_snapshot") if isinstance(context, dict) else None
-        injection_source = "snapshot" if isinstance(prefetched_snapshot, dict) else "fallback"
-        static_result: object
-        learned_result: object
-        if isinstance(prefetched_snapshot, dict):
-            static_result = prefetched_snapshot.get("memory_ctx", {})
-            learned_result = {}
-            snapshot_id = prefetched_snapshot.get("snapshot_id")
-            if isinstance(snapshot_id, str) and snapshot_id.strip():
-                state_extra["memory_brief_snapshot_id"] = snapshot_id.strip()
-        else:
-            try:
-                async with asyncio.timeout(_retrieval_timeout_seconds(manager)):
-                    static_result = await manager.get_context(
-                        include_profile=True,
-                        include_rules=True,
-                        include_agent_instructions=True,
-                    )
-                learned_result = {}
-            except TimeoutError:
-                logger.warning("Memory context load timed out; skipping memory injection")
-                _set_memory_injection_status(
-                    manager,
-                    state="not_applied",
-                    reason="load_timeout",
-                )
-                return await handler(request)
-            except Exception as e:
-                logger.warning("Failed to load memory context: %s", e)
-                _set_memory_injection_status(
-                    manager,
-                    state="not_applied",
-                    reason="load_error",
-                )
-                return await handler(request)
-
-        if isinstance(static_result, BaseException):
-            logger.warning("Static memory context failed: %s", static_result)
-            _set_memory_injection_status(
-                manager,
-                state="not_applied",
-                reason="static_error",
-            )
+        loaded = await _load_static_context(manager, context, _thread_messages(request))
+        if loaded.ctx is None:
+            _set_memory_injection_status(state="not_applied", reason=loaded.skip_reason)
             return await handler(request)
-        if not isinstance(static_result, dict):
-            logger.warning(
-                "Static memory context payload has unexpected type: %s",
-                type(static_result).__name__,
-            )
-            _set_memory_injection_status(
-                manager,
-                state="not_applied",
-                reason="invalid_static_payload",
-            )
-            return await handler(request)
-        memory_ctx: dict[str, object] = static_result
 
-        # JIT synthesize deterministic tool guidance scoped to active tools in the request
-        raw_guidance_raw = memory_ctx.get("raw_tool_guidance_items")
-        if isinstance(raw_guidance_raw, list) and raw_guidance_raw:
-            raw_guidance = [g for g in raw_guidance_raw if isinstance(g, ToolGuidanceItem)]
-            req_tools = getattr(request, "tools", None)
-            active_tools: set[str] | None = None
-            if req_tools:
-                found_names: set[str] = set()
-                if isinstance(req_tools, (list, tuple, set)):
-                    for t in req_tools:
-                        if hasattr(t, "name") and isinstance(t.name, str):
-                            found_names.add(t.name)
-                        elif isinstance(t, dict):
-                            if "name" in t and isinstance(t["name"], str):
-                                found_names.add(t["name"])
-                            elif "function" in t and isinstance(t["function"], dict) and "name" in t["function"]:
-                                found_names.add(str(t["function"]["name"]))
-                if found_names:
-                    active_tools = found_names
-
-            tool_guidance_map = synthesize_tool_guidance(
-                raw_guidance,
-                target_tools=active_tools,
-            )
-            if tool_guidance_map:
-                memory_ctx["tool_guidance"] = tool_guidance_map
-
-        if isinstance(learned_result, BaseException):
-            logger.warning("Learned memory context failed (non-fatal): %s", learned_result)
-            learned_ctx: dict[str, list[dict[str, str]]] = {
-                "learned_rules": [],
-                "learned_preferences": [],
-            }
-        elif not isinstance(learned_result, dict):
-            learned_ctx = {"learned_rules": [], "learned_preferences": []}
-        else:
-            # P0: keep Turn1 prefix cache-stable — learned facts are retrieved via memory_search_tool.
-            learned_ctx = {"learned_rules": [], "learned_preferences": []}
-
+        memory_ctx = _context_with_tool_guidance(loaded.ctx, request)
         memory_search_enabled = _memory_search_tool_bound(request)
-        stable_formatted, untrusted_formatted, accepted_by_title = _format_memory_context(
-            memory_ctx,
-            learned_ctx,
-            memory_search_enabled=memory_search_enabled,
-        )
-        if not stable_formatted and not untrusted_formatted:
-            _set_memory_injection_status(
-                manager,
-                state="not_applied",
-                reason="empty_context",
-            )
+        block = _format_memory_context(memory_ctx, memory_search_enabled=memory_search_enabled)
+        if not block.text:
+            _set_memory_injection_status(state="not_applied", reason="empty_context")
             return await handler(request)
 
-        new_messages = list(request.messages)
-
-        if stable_formatted:
-            stable_msg = SystemMessage(content=stable_formatted)
-            # Insert after the last SystemMessage to maintain Prefix Cache
-            insert_idx_stable = 0
-            for i, msg in enumerate(new_messages):
-                if isinstance(msg, SystemMessage):
-                    insert_idx_stable = i + 1
-                else:
-                    break
-            new_messages.insert(insert_idx_stable, stable_msg)
-            state_messages.insert(insert_idx_stable, stable_msg)
-
-        if untrusted_formatted:
-            untrusted_msg = HumanMessage(content=untrusted_formatted)
-            # Insert before the first HumanMessage
-            insert_idx_untrusted = len(new_messages)
-            for i, msg in enumerate(new_messages):
-                if isinstance(msg, HumanMessage):
-                    insert_idx_untrusted = i
-                    break
-            new_messages.insert(insert_idx_untrusted, untrusted_msg)
-            state_messages.insert(insert_idx_untrusted, untrusted_msg)
-
-        n_rules = len(learned_ctx.get("learned_rules", []))
-        n_prefs = len(learned_ctx.get("learned_preferences", []))
-        is_cold = stable_formatted is not None and "Discovery Mode" in stable_formatted
-
-        # Report how many stable rules actually reached the model, so a
-        # budget-trimmed prompt never reports the full configured rule count as
-        # if the model had obeyed all of them.
-        configured_rules = memory_ctx.get("rules")
-        configured_rule_count = len(configured_rules) if isinstance(configured_rules, list) else 0
-        injected_rule_count = accepted_by_title.get(STABLE_RULES_TITLE, 0)
-        rules_truncated = injected_rule_count < configured_rule_count
-
-        # Expose memory budget to the runner state for UX progress bars (Item 7)
-        if hasattr(manager, "_config"):
-            base_budget = manager._config.max_learned_context_chars
-            if manager._config.model_context_tokens:
-                total_budget = max(base_budget, manager._config.model_context_tokens // 30)
-            else:
-                total_budget = base_budget
-            used_chars = len(stable_formatted or "") + len(untrusted_formatted or "")
-            state_extra["memory_budget_used"] = used_chars
-            state_extra["memory_budget_total"] = total_budget
-
-            # Store normalized telemetry for server-side SSE/persistence hooks.
-            from myrm_agent_harness.agent.skill_agent.context import (
-                set_memory_runtime_budget,
-            )
-
-            set_memory_runtime_budget(
-                {
-                    "used": used_chars,
-                    "total": total_budget,
-                    "rulesConfigured": configured_rule_count,
-                    "rulesInjected": injected_rule_count,
-                    "rulesTruncated": rules_truncated,
-                }
-            )
-
-        logger.info(
-            "Memory context injected for user %s: cold=%s, %d learned rules, %d learned preferences",
-            manager.user_id,
-            is_cold,
-            n_rules,
-            n_prefs,
-        )
-        _set_memory_injection_status(
-            manager,
-            state="applied",
-            source=injection_source,
-        )
-
+        new_messages = _with_memory_block(request.messages, block.text)
+        _publish_budget(block)
+        _set_memory_injection_status(state="applied", source=loaded.source)
         return await handler(request.override(messages=new_messages))
 
 

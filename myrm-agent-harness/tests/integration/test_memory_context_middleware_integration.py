@@ -25,7 +25,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.middlewares.memory_context.memory_context_format import (
     MEMORY_CONTEXT_MARKER,
-    MEMORY_UNTRUSTED_OPEN_MARKER,
+    _memory_context_message,
 )
 from myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware import (
     memory_context_middleware,
@@ -53,11 +53,7 @@ async def manager_factory(
     def _factory(recall_mode: RecallMode) -> MemoryManager:
         store = SQLiteRelationalStore(str(tmp_path / f"memory_{len(stores)}.db"))
         stores.append(store)
-        cfg = MemoryConfig(
-            embedding_model="test-model",
-            max_learned_context_chars=2000,
-            model_context_tokens=8000,
-        )
+        cfg = MemoryConfig(embedding_model="test-model")
         return MemoryManager(
             cfg,
             user_id="integration-user",
@@ -89,18 +85,13 @@ def memory_search_tool() -> object:
     return _MemorySearchTool()
 
 
-def _make_request(
-    *,
-    messages: list[object],
-    tools: list[object],
-    state_messages: list[object] | None = None,
-) -> ModelRequest:
+def _make_request(*, messages: list[object], tools: list[object]) -> ModelRequest:
     runtime = SimpleNamespace(context={"chat_id": "integration-chat"})
     return ModelRequest(
         model=AsyncMock(),
         messages=messages,
         tools=tools,
-        state={"messages": state_messages if state_messages is not None else []},
+        state={"messages": []},
         runtime=runtime,
     )
 
@@ -149,9 +140,7 @@ async def test_hybrid_real_assembly_injects_profile_with_guidance(
 
     assert status["state"] == "applied"
     assert status["source"] == "fallback"
-    stable_msgs = [
-        m for m in messages if isinstance(m, SystemMessage) and MEMORY_CONTEXT_MARKER in str(m.content)
-    ]
+    stable_msgs = [m for m in messages if isinstance(m, SystemMessage) and MEMORY_CONTEXT_MARKER in str(m.content)]
     assert len(stable_msgs) == 1
     stable = str(stable_msgs[0].content)
     assert "Alice Real" in stable
@@ -159,7 +148,6 @@ async def test_hybrid_real_assembly_injects_profile_with_guidance(
     assert "memory_search_tool" in stable
     assert "## Citation Requirements" in stable
     assert "<cite:MEMORY_ID>" in stable
-    assert MEMORY_UNTRUSTED_OPEN_MARKER not in stable
 
 
 @pytest.mark.asyncio
@@ -343,32 +331,27 @@ async def test_hybrid_real_assembly_is_idempotent(
     manager_factory: Callable[[RecallMode], MemoryManager],
     memory_search_tool: object,
 ) -> None:
-    """Second turn (marker already present in state) must not inject again."""
+    """A request that already carries the middleware's own block must not get a second one."""
     manager = manager_factory(RecallMode.HYBRID)
     await manager.set_profile_attribute("name", "Alice Real")
 
     set_memory_manager(manager)
-    seeded = [
-        SystemMessage(content="sys prefix"),
-        SystemMessage(content="<user_memory_context>\nname: Alice Real\n</user_memory_context>"),
-        HumanMessage(content="hello again"),
-    ]
     request = _make_request(
-        messages=[SystemMessage(content="sys prefix"), HumanMessage(content="hello again")],
+        messages=[
+            SystemMessage(content="sys prefix"),
+            _memory_context_message("<user_memory_context>\nname: Alice Real\n</user_memory_context>"),
+            HumanMessage(content="hello again"),
+        ],
         tools=[memory_search_tool],
-        state_messages=list(seeded),
     )
 
     messages, status = await _run_middleware(request)
 
     assert status["state"] == "not_applied"
     assert status["reason"] == "already_present"
-    # handler receives the untouched request: no extra memory block injected.
-    assert all(
-        isinstance(m, SystemMessage) is not True or MEMORY_CONTEXT_MARKER not in str(m.content)
-        for m in messages
-    )
-    assert len([m for m in messages if isinstance(m, SystemMessage)]) == 1
+    # handler receives the untouched request: still the one block it arrived with.
+    assert sum(MEMORY_CONTEXT_MARKER in str(m.content) for m in messages) == 1
+    assert len([m for m in messages if isinstance(m, SystemMessage)]) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -421,8 +404,7 @@ async def test_context_real_assembly_cold_start_skips_injection(
     assert status["state"] == "not_applied"
     assert status["reason"] == "empty_context"
     assert all(
-        isinstance(m, SystemMessage) is not True or MEMORY_CONTEXT_MARKER not in str(m.content)
-        for m in messages
+        isinstance(m, SystemMessage) is not True or MEMORY_CONTEXT_MARKER not in str(m.content) for m in messages
     )
 
 
@@ -446,6 +428,5 @@ async def test_tools_recall_mode_real_assembly_skips(
     assert status["state"] == "not_applied"
     assert status["reason"] == "recall_mode_tools"
     assert all(
-        isinstance(m, SystemMessage) is not True or MEMORY_CONTEXT_MARKER not in str(m.content)
-        for m in messages
+        isinstance(m, SystemMessage) is not True or MEMORY_CONTEXT_MARKER not in str(m.content) for m in messages
     )

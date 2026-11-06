@@ -1,12 +1,15 @@
 """Content boundary — anti-injection wrapping for untrusted data.
 
-Five-layer defense:
+Five-layer defense (layers 1 and 1.5 are implemented in ``structural_framing``):
 
 1. **Unicode Folding** — normalizes fullwidth ASCII and angle bracket
    homoglyphs to their ASCII equivalents, preventing visual spoofing.
 1.5. **Structural Framing Strip** — removes XML role tags, ChatML special
    tokens, CDATA blocks, and code fences that could confuse model role
-   boundaries. Only targets a strict whitelist of known framing tokens.
+   boundaries. Only targets a strict whitelist of known framing tokens,
+   fullwidth look-alikes of them included. A cut can splice the text around
+   it into a new tag, so the cut repeats while tags are left; after a bounded
+   number of rounds the remainder is replaced by a placeholder.
 2. **Marker Sanitization** — detects and neutralises spoofed boundary
    markers inside content (both native and folded forms).
 3. **Random Boundary** — wraps content with ``<<<TYPE id="hex">>>``
@@ -23,7 +26,7 @@ Additional utility:
   attacks or to hide injected content from human reviewers.
 
 [INPUT]
-- (none — self-contained, pure standard library)
+- core.security.detection.structural_framing::PLACEHOLDER, fold_unicode, replace_spans, strip_structural_framing (POS: Normalization stage — Unicode folding and structural framing strip.)
 
 [OUTPUT]
 - sanitize(): Unicode 折叠 + 结构化 token 剥离 + 标记消毒（层 1+1.5+2）
@@ -43,6 +46,13 @@ from __future__ import annotations
 import logging
 import re
 from secrets import token_hex
+
+from myrm_agent_harness.core.security.detection.structural_framing import (
+    PLACEHOLDER,
+    fold_unicode,
+    replace_spans,
+    strip_structural_framing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,90 +102,6 @@ def has_invisible_unicode(text: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Layer 1: Unicode homoglyph folding
-# ---------------------------------------------------------------------------
-
-_FULLWIDTH_ASCII_OFFSET = 0xFEE0
-
-_ANGLE_BRACKET_MAP: dict[int, str] = {
-    0xFF1C: "<",  # fullwidth <
-    0xFF1E: ">",  # fullwidth >
-    0x2329: "<",  # left-pointing angle bracket
-    0x232A: ">",  # right-pointing angle bracket
-    0x3008: "<",  # CJK left angle bracket
-    0x3009: ">",  # CJK right angle bracket
-    0x2039: "<",  # single left-pointing angle quotation mark
-    0x203A: ">",  # single right-pointing angle quotation mark
-    0x27E8: "<",  # mathematical left angle bracket
-    0x27E9: ">",  # mathematical right angle bracket
-    0xFE64: "<",  # small less-than sign
-    0xFE65: ">",  # small greater-than sign
-    0x00AB: "<",  # left-pointing double angle quotation mark
-    0x00BB: ">",  # right-pointing double angle quotation mark
-    0x300A: "<",  # left double angle bracket
-    0x300B: ">",  # right double angle bracket
-    0x27EA: "<",  # mathematical left double angle bracket
-    0x27EB: ">",  # mathematical right double angle bracket
-    0x27EC: "<",  # mathematical left white tortoise shell bracket
-    0x27ED: ">",  # mathematical right white tortoise shell bracket
-    0x27EE: "<",  # mathematical left flattened parenthesis
-    0x27EF: ">",  # mathematical right flattened parenthesis
-    0x276C: "<",  # medium left-pointing angle bracket ornament
-    0x276D: ">",  # medium right-pointing angle bracket ornament
-    0x276E: "<",  # heavy left-pointing angle quotation mark ornament
-    0x276F: ">",  # heavy right-pointing angle quotation mark ornament
-    0x02C2: "<",  # modifier letter left arrowhead
-    0x02C3: ">",  # modifier letter right arrowhead
-}
-
-_HOMOGLYPH_RE = re.compile(
-    r"[\uFF21-\uFF3A\uFF41-\uFF5A\uFF1C\uFF1E"
-    r"\u2329\u232A\u3008\u3009\u2039\u203A"
-    r"\u27E8-\u27EF\uFE64\uFE65\u00AB\u00BB"
-    r"\u300A\u300B\u276C-\u276F\u02C2\u02C3]"
-)
-
-
-def _fold_char(char: str) -> str:
-    code = ord(char)
-    if 0xFF21 <= code <= 0xFF3A or 0xFF41 <= code <= 0xFF5A:
-        return chr(code - _FULLWIDTH_ASCII_OFFSET)
-    bracket = _ANGLE_BRACKET_MAP.get(code)
-    return bracket if bracket else char
-
-
-def _fold_unicode(text: str) -> str:
-    """Normalize Unicode homoglyphs to ASCII equivalents."""
-    return _HOMOGLYPH_RE.sub(lambda m: _fold_char(m.group()), text)
-
-
-# ---------------------------------------------------------------------------
-# Layer 1.5: Structural framing token stripping
-# ---------------------------------------------------------------------------
-
-_STRUCTURAL_FRAMING_RE = re.compile(
-    r"</?(?:tool_call|function_call|result|response|output|input|system|assistant|user"
-    r"|skills_sop|skill_entry|data_boundary_rules|user_instructions|workspace_context|user_memory_context|bound_skills"
-    r"|system_notification|graph_patch|verification_evidence|handover|preserve_context|pre_compact_recall_context"
-    r"|sandbox_environment_snapshot|untrusted_objective)(?:[\s/][^>]*)?>"
-    r"|<\|(?:im_start|im_end|endoftext)\|>"
-    r"|<!\[CDATA\[.*?\]\]>"
-    r"|^\s*```(?:json|xml|html|markdown|python|bash|sh|javascript|typescript)?\s*$"
-    r"|^\s*```\s*$",
-    re.IGNORECASE | re.DOTALL | re.MULTILINE,
-)
-
-
-def _strip_structural_framing(text: str) -> str:
-    """Remove structural framing tokens that could confuse model role boundaries.
-
-    Strips XML role tags, ChatML special tokens, CDATA blocks, and code fences.
-    Only targets a strict whitelist — unrelated XML tags are preserved.
-    """
-    return _STRUCTURAL_FRAMING_RE.sub("", text)
-
-
-# ---------------------------------------------------------------------------
 # Layer 2: Marker sanitization
 # ---------------------------------------------------------------------------
 
@@ -201,18 +127,7 @@ def _sanitize_markers(content: str, folded: str) -> str:
 
     Single-pass: uses finditer directly (no separate search pre-check).
     """
-    parts: list[str] = []
-    cursor = 0
-    found = False
-    for m in _MARKER_RE.finditer(folded):
-        found = True
-        parts.append(content[cursor : m.start()])
-        parts.append("[[SANITIZED]]")
-        cursor = m.end()
-    if not found:
-        return content
-    parts.append(content[cursor:])
-    return "".join(parts)
+    return replace_spans(content, [m.span() for m in _MARKER_RE.finditer(folded)], PLACEHOLDER)
 
 
 # ---------------------------------------------------------------------------
@@ -270,8 +185,8 @@ def sanitize(content: str) -> str:
     """
     if not content:
         return content
-    content = _strip_structural_framing(content)
-    folded = _fold_unicode(content)
+    content = strip_structural_framing(content)
+    folded = fold_unicode(content)
     return _sanitize_markers(content, folded)
 
 

@@ -1,8 +1,8 @@
 """Memory context subsystem — user memory injection into model calls.
 
-Injects `<user_memory_context>` with scope boundary and untrusted data wrapping;
-reuses `memory_brief_snapshot` when available to avoid preview/execution drift;
-records injection/budget telemetry via API hooks for the server.
+Injects `<user_memory_context>` with a scope boundary; reuses `memory_brief_snapshot`
+when available to avoid preview/execution drift; records injection/budget telemetry
+via API hooks for the server.
 
 [INPUT]
 - agent.memory (memory manager)

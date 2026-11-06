@@ -13,7 +13,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `__init__.py` | Package | Public middleware exports. | ✅ |
 | `_session_context.py` | Internal | Shared ContextVars for the middleware chain; `isolated_terminal_errors()` gives a nested child run a registry of its own. | ✅ |
 | `_run_workspace.py` | Internal | `run_workspace`: the `workspace_path` in the LangGraph `Runtime` context a hook receives; shared by `progress_middleware` and `CompletionGuard`. | ✅ |
-| `_message_origin.py` | Internal | `is_user_authored_human_message`: tells a HumanMessage the user wrote from one the runtime injected (`is_system_synthetic`); shared by the approval and security middlewares. `runtime_human_message` builds the runtime-injected kind (stream-recovery hints, teammate notes). | ✅ |
+| `_message_origin.py` | Internal | `is_user_authored_human_message`: tells a HumanMessage the user wrote from one the runtime injected (`is_system_synthetic`); shared by the approval, security and memory-context middlewares. `runtime_human_message` builds the runtime-injected kind (stream-recovery hints, teammate notes). | ✅ |
 | `advisor_risk_trigger_router.py` | Core | Adaptive risk-triggered router for MoA advisor overlay — gates advisor fan-out based on ReplanMiddleware errors, LoopGuard telemetry, fatal error bypass, and immunity/quota gates. | ✅ |
 | `clarification_guard_middleware.py` | Core | Enforces single `ask_question_tool` call per turn; answers coexisting or duplicate tool calls with synthetic error ToolMessages (the calls stay in the AI message, so the model reads why they did not run). | ✅ |
 
@@ -36,7 +36,7 @@ Detailed design: [MIDDLEWARE_SYSTEM.md](MIDDLEWARE_SYSTEM.md)
 | `guardrails/` | Guardrail provider chain + GuardrailMiddleware. See [guardrails/_ARCH.md](guardrails/_ARCH.md). |
 | `tooling/` | Single interception point for all tool calls: interceptor, executor, history hygiene, dangling-call repair, skill attenuation, and their guards/helpers. See [tooling/_ARCH.md](tooling/_ARCH.md). |
 | `context_pipeline/` | Request-time context assembly and budget (compression intent, cache feedback, schema fingerprint). See [context_pipeline/_ARCH.md](context_pipeline/_ARCH.md). |
-| `memory_context/` | User memory injection into model calls (`<user_memory_context>`, scope boundary, untrusted wrapping, telemetry). See [memory_context/_ARCH.md](memory_context/_ARCH.md). |
+| `memory_context/` | User memory injection into model calls (`<user_memory_context>`, scope boundary, per-turn knowledge pack, telemetry). See [memory_context/_ARCH.md](memory_context/_ARCH.md). |
 | `concurrency/` | Subagent semaphore limits and the tool conflict gate (concurrency-safe calls share, every other call runs alone). See [concurrency/_ARCH.md](concurrency/_ARCH.md). |
 | `security/` | Security enforcement middleware: boundary rules injection + eight-layer guardrail defense. See [security/_ARCH.md](security/_ARCH.md). |
 
