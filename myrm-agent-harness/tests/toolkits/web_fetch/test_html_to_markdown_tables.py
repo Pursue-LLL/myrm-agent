@@ -23,13 +23,26 @@ class TestRenderMarkdownTable:
 
         assert rendered == "\n\n|  |  |\n| --- | --- |\n| a | b |\n| 1 | 2 |\n\n"
 
-    def test_short_rows_are_padded_to_the_widest_row_without_touching_the_input(self) -> None:
+    def test_header_and_delimiter_span_the_widest_row_without_touching_the_input(self) -> None:
         rows = [["a"], ["1", "2", "3"]]
 
         rendered = render_markdown_table(rows, has_header=True)
 
         assert rendered == "\n\n| a |  |  |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n\n"
         assert rows == [["a"], ["1", "2", "3"]]
+
+    def test_a_short_body_row_keeps_the_cells_it_has(self) -> None:
+        rendered = render_markdown_table([["a", "b", "c"], ["1"], ["x", "y"]], has_header=True)
+
+        assert rendered == "\n\n| a | b | c |\n| --- | --- | --- |\n| 1 |\n| x | y |\n\n"
+
+    def test_the_output_grows_with_the_cells_not_with_rows_times_the_widest_row(self) -> None:
+        wide, short_rows = 2000, 2000
+        rows = [["h"] * wide, *([["x"]] * short_rows)]
+
+        rendered = render_markdown_table(rows, has_header=True)
+
+        assert len(rendered) < 16 * (wide + short_rows)
 
 
 class TestFlatTables:
@@ -54,8 +67,8 @@ class TestFlatTables:
             ),
             pytest.param(
                 "<table><tr><td>a</td></tr><tr><td>1</td><td>2</td><td>3</td></tr></table>",
-                "|  |  |  |\n| --- | --- | --- |\n| a |  |  |\n| 1 | 2 | 3 |\n",
-                id="short-rows-padded",
+                "|  |  |  |\n| --- | --- | --- |\n| a |\n| 1 | 2 | 3 |\n",
+                id="short-body-rows-keep-their-cells",
             ),
             pytest.param("<table><td>a</td><td>b</td></table>", "ab\n", id="table-without-rows-is-plain-text"),
         ],
@@ -70,12 +83,12 @@ class TestNestedTables:
             "<table><tr><td>outer</td><td><table><tr><td>in-1</td></tr><tr><td>in-2</td></tr></table></td></tr></table>"
         )
 
-        assert _convert(html) == "|  |  |\n| --- | --- |\n| outer |  |\n| in-1 |  |\n| in-2 |  |\n"
+        assert _convert(html) == "|  |  |\n| --- | --- |\n| outer |  |\n| in-1 |\n| in-2 |\n"
 
     def test_text_around_a_nested_table_stays_in_its_cell(self) -> None:
         html = "<table><tr><td>before <table><tr><td>in</td></tr></table> after</td><td>side</td></tr></table>"
 
-        assert _convert(html) == "|  |  |\n| --- | --- |\n| before  after | side |\n| in |  |\n"
+        assert _convert(html) == "|  |  |\n| --- | --- |\n| before  after | side |\n| in |\n"
 
     def test_nested_table_without_rows_is_converted_in_place(self) -> None:
         html = "<table><tr><td>pre <table><td>x</td></table> post</td></tr></table>"
@@ -89,6 +102,18 @@ class TestNestedTables:
         converted = _convert(html)
 
         assert converted.count("cell") == depth
+        assert len(converted) <= len(html)
+
+
+class TestRowsOfUnequalWidth:
+    @pytest.mark.timeout(30)
+    def test_one_wide_row_and_many_short_rows_keep_the_output_shorter_than_the_input(self) -> None:
+        wide, short_rows = 1500, 1500
+        html = "<table><tr>" + "<td>h</td>" * wide + "</tr>" + "<tr><td>x</td></tr>" * short_rows + "</table>"
+
+        converted = _convert(html)
+
+        assert converted.count("| x |") == short_rows
         assert len(converted) <= len(html)
 
 
