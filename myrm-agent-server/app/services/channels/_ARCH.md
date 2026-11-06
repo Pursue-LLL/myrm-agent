@@ -19,5 +19,5 @@ Business-layer helpers for optional channel SDK installation and post-install ga
 - Optional capability extras (e.g. WeChat voice `platform.wechat-silk`) install via explicit Settings action; WARNING issues do not block channel enable.
 - `sdk_registration.py` → `app.channels.core.factory`, `app.core.channel_bridge`
 - `credential_reload.py` → `app.channels.providers.registry`, `app.channels.core.credentials`, `app.core.channel_bridge`
-- `api/channels/router.py` → both modules above
+- `api/channels/router/channels.py` → both modules above; `api/channels/router/common.py` → `sdk_registration.py`
 - `api/config/router.py`, `api/channels/instances_credentials.py` and `api/channels/feishu_register.py` → `credential_reload.py`
