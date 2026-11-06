@@ -14,7 +14,7 @@ ChannelGateway.
 - core.channel_bridge.locale_provider::resolve_user_locale (POS: the owner's language preference)
 
 [OUTPUT]
-- NotificationDispatcher: start()/stop() lifecycle, integrates with setup.py
+- NotificationDispatcher: start()/stop() lifecycle, integrates with `setup/gateway.py`
 
 [POS]
 Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint,

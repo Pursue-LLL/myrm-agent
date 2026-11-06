@@ -13,7 +13,7 @@ skipped (no channel info → no delivery target).
 - core.channel_bridge::channel_gateway
 
 [OUTPUT]
-- GoalTerminalNotifier: start()/stop() lifecycle, registered in setup.py
+- GoalTerminalNotifier: start()/stop() lifecycle, registered in `setup/gateway.py`
 
 [POS]
 Business-layer ServerEventBus subscriber. Mirrors BtwTaskNotifier pattern for

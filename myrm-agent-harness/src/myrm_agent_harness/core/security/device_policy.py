@@ -13,7 +13,7 @@ for batch operations across remote devices, cloud sandboxes, and multi-agent coo
 
 [POS]
 Foundation layer in core/security. Zero internal dependencies on agent runtime.
-Consumed by agent/middlewares/approval/batch_processor.py and server tool policy overlays.
+Consumed by agent/middlewares/approval/batch_processor/ and server tool policy overlays.
 """
 
 from __future__ import annotations

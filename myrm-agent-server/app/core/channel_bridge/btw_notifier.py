@@ -14,7 +14,7 @@ the "reply in the original conversation" use case.
 - core.channel_bridge::channel_gateway
 
 [OUTPUT]
-- BtwTaskNotifier: start()/stop() lifecycle, registered in setup.py
+- BtwTaskNotifier: start()/stop() lifecycle, registered in `setup/gateway.py`
 
 [POS]
 Business-layer ServerEventBus subscriber. Does NOT modify the Kanban pipeline,
