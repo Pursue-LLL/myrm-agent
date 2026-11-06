@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-06 · 新任务页选的工作目录只管第一轮：会话行没带目录、懒创建栅栏又给它写了私有目录，第二轮起 agent 回到私有目录；请求里的目录也从没经过路径策略
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**。修复前的行为由一次基线上的链路探针复现（见回归证据 [1]）。 |
+| **症状** | ① [实测，基线代码，真实数据库，会话私有目录的工作区服务用桩替身、不碰真实目录] 在新任务页选文件夹 `invoices` 后发两条消息：第一轮解析出的工作目录是 `invoices`；首个 assistant 事件触发懒创建栅栏后，库里存的 `workspace_dir` 变成会话私有目录 `…/private/chat_<id>`，并向工作区服务要了 1 个私有目录；第二条消息照样带着 `invoices`，第二轮解析出的却是 `…/private/chat_<id>`。② [代码] 客户端每条消息都带着它显示的目录：`messageManagement.ts:154` 把打开的会话已存的目录写进 store，`messageRequest.ts:713` 随每条消息发出，所以第二条消息带的是同一个目录，不是新选的。③ [代码] 请求里的目录不经过路径策略：`chat_context.py:81-82` 在会话没有目录时直接采用它，家目录、系统目录、不存在的路径都不会被拦；没有构造请求复现。 |
+| **根因** | [代码] ① 请求里的 `workspace_dir` 只在 `chat_context.py:81-82` 作为「会话没有目录时」的兜底被读，没有任何一步校验它，也没有任何一步把它写进会话行；② 新会话行在首个 assistant 事件时才创建（`lazy_session_gate.py`），创建时没有目录可写，栅栏随后无条件调用 `materialize_default_chat_workspace_dir`，它把私有目录写进会话行（`workspace_resolve.py` 里的 `update_chat_fields`）；③ 会话行有目录之后，解析顺序「项目 → 会话已存 → 请求」让已存的私有目录压过请求里再发的目录。 |
+| **修复** | ① 新增 `turn_workspace_bind.py`：回合在写用户行之前按路径策略处理请求里的目录，规范化后留在请求上。只在没有项目、会话也没存目录时才采用：会话行已存在就写入，尚未落库就由懒创建草稿带着、随会话行一起写（`ensure_chat_and_append_user_message` 新增 `workspace_dir`，只在新建会话行时生效）；属于项目、会话已存了目录、续跑的回合则丢弃请求里的目录且不校验，因为客户端每条消息都带它，已存目录消失或过宽不能挡住对话。被拒绝的目录让这一轮以错误事件结束，不写用户行。② 栅栏看草稿：草稿带着目录就不再创建会话私有目录。③ `AgentRequest.workspace_dir` 全空白按没有处理。④ 路由没有改：它不知道请求里的目录属于哪一种情形。 |
+| **行为变化** | ① 选了文件夹的新会话，每一轮都在这个文件夹里，不创建私有目录；没选文件夹的新会话不变，仍创建私有目录。② 选的目录是家目录、系统目录、不存在或不是文件夹：第一轮以错误结束，不写会话行与用户行（以前直接在该目录里运行）。③ 已存了目录的会话不受请求里目录的影响，已消失的目录也不会被校验挡住对话（原来同样不受影响）。 |
+| **回归证据** | [实测] [1] 基线探针（一次性测试，真实数据库，私有目录的工作区服务用桩替身）：turn1 解析出所选文件夹；栅栏之后库里的目录是 `…/private/chat_bind-77fc28c6`；turn2 解析出同一个私有目录；`private_dirs_made=['chat_bind-77fc28c6']`；断言 turn2 等于所选文件夹失败。修复后同一条链路的测试 `test_the_picked_folder_is_the_workspace_of_every_turn`：第二轮解析出所选文件夹，库里是所选文件夹，没有创建私有目录，通过。[2] 套件：`tests/unit/agent`、`tests/services/{agent/stream_session,chat,agent/params}`、`tests/api/{agents,chats}` 修复后 1620 通过 1 失败；失败的 `test_rich_media_preview_seed_fixture::test_seed_writes_all_fixture_files` 改前同样失败。[3] 变异：在源码副本上做 14 个变异（跳过路径策略、丢规范路径、对项目会话也校验、对已存目录的会话也校验、续跑保留目录、被忽略的目录留在请求上、不更新没有目录的已有会话行、栅栏照建私有目录、草稿提交丢目录、新会话行不带目录、草稿不带目录、空白目录不归一、被拒绝时不结束回合、被拒绝时不记失败回合），全部被新测试杀掉；未变异的基线通过。[4] `ruff check`、`ruff format --check` 对改动的文件通过；`mypy --strict` 对 6 个改动的源文件通过；分形文档门禁输出改前改后逐行相同（203 行，都是原有的）。 |
+| **仍然存在** | ① 没有在真实服务器加浏览器里端到端跑过「选目录 → 发两条消息」：链路测试在数据库一级，私有目录的工作区服务是桩替身；两个 Chrome E2E 脚本的选择器已改到现在的目录行，没有执行（需要整套服务与 Chrome）。② 同一条首轮请求既带目录又带迁移后的一次性项目绑定时，项目绑定发生在会话落库之后，会话行会同时有目录和项目，靠解析顺序让项目目录胜出；这个组合没有写测试。③ 被拒绝的目录的错误文案是路径策略的英文原文，没有本地化；失败原因借用遥测里的 `server_error`，那里没有「请求被策略拒绝」这一类。 |
+| **代码位置** | server：`app/services/agent/stream_session/{turn_workspace_bind.py,orchestrator_turn_body.py,lazy_session_gate.py,chat_history_bootstrap.py}`、`app/services/chat/chat_message.py`、`app/services/agent/params/models.py`；测试 `tests/unit/agent/{test_turn_workspace_bind.py,test_chat_context_workspace.py,test_lazy_session_gate.py}`、`tests/services/chat/test_first_turn_workspace_bind.py`、`tests/services/agent/stream_session/test_orchestrator_turn_workspace_refused.py`、`tests/services/agent/params/test_agent_request_wire_contract.py`；两个 Chrome E2E 脚本的选择器；相关 `_ARCH.md`。 |
+
 ## 2026-11-05 · 后端导入失败：params 重构后 5 处旧导入没改，API 路由一加载就 ModuleNotFoundError，冻结的桌面后端起不来、容器冒烟也红；其中 3 处在函数内，要到压缩或聊天记忆提取真的跑到才报错
 
 | 字段 | 内容 |
