@@ -31,4 +31,4 @@
 - `app/ai_agents/general_agent/stream_pipeline.py`：`execute_stream_pipeline` 中使用 `SleepInhibitor.hold(prevent_display_sleep=…)`——运行挂载了桌面会话时同时保持显示器常亮，避免空闲熄屏锁住屏幕、打断 CU 任务
 - `app/api/statistics/wiki_evidence.py`：治理告警写入系统通知
 - `app/api/system/sandbox_recreate.py`：重置环境请求写入/撤回 Python 环境重置标记
-- `app/server/lifespan.py`：启动最前置消费重置标记
+- `app/server/lifespan/app.py`：启动最前置消费重置标记

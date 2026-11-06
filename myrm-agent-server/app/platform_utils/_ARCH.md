@@ -37,7 +37,7 @@
 
 **创建**由框架包 `myrm_agent_harness.runtime.checkpointing.factory.create_checkpointer()` 完成（按 `settings.database.checkpointer_mode`、`sqlite_db_path`、`deploy_mode` 等参数）。
 
-**启动注入**：`app/server/lifespan.py` 在 `_phase_1b_parallel()` → `_init_checkpointer_task()` 中 `await create_checkpointer(...)`，随后调用 `app.platform_utils.set_checkpointer(checkpointer)` 写入全局单例。
+**启动注入**：`app/server/lifespan/startup.py` 在 `_phase_1b_parallel()` → `_init_checkpointer_task()` 中 `await create_checkpointer(...)`，随后调用 `app.platform_utils.set_checkpointer(checkpointer)` 写入全局单例。
 
 **读取**：业务与路由通过 `app.platform_utils.get_checkpointer()` 获取；若启动未完成初始化则 **raise RuntimeError**（禁止 silent MemorySaver fallback）。
 
@@ -57,7 +57,7 @@ LangGraph 官方 Saver (AsyncSqliteSaver)
 
 #### 生命周期管理
 
-- **启动**：`app/server/lifespan.py::optimized_lifespan` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
+- **启动**：`app/server/lifespan/startup.py::_phase_1b_parallel` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
 - **关闭**：调用 harness 返回的 cleanup 回调清理连接资源
 - **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据；truncate/rewind 通过 `session_continuity_service.invalidate_chat_checkpoint` 对齐 DB 与 checkpoint。调用点：永久删除 / 清空回收站 / 两个自动清除 / 安全清空 / 焦点刷新（均经 `services/chat/chat_disposal.clear_conversation_state`）、fork 回滚、Resume 失败恢复
 - **错误处理**：sqlite 模式 `create_checkpointer()` fail-fast（启动失败）；`get_checkpointer()` 未注入时 **RuntimeError**

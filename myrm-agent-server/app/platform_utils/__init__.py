@@ -150,7 +150,7 @@ def _reset_checkpointer_for_testing() -> None:
 def get_checkpointer() -> "BaseCheckpointSaver[str]":
     """获取 LangGraph checkpointer
 
-    正常情况下，checkpointer 由 `app/server/lifespan.py` 在启动阶段通过 `set_checkpointer()` 注入。
+    正常情况下，checkpointer 由 `app/server/lifespan/startup.py` 在启动阶段通过 `set_checkpointer()` 注入。
 
     Returns:
         BaseCheckpointSaver: LangGraph checkpointer 实例
@@ -161,7 +161,7 @@ def get_checkpointer() -> "BaseCheckpointSaver[str]":
     global _checkpointer
     if _checkpointer is None:
         raise RuntimeError(
-            "Checkpointer not initialized. App startup must inject via set_checkpointer() in app/server/lifespan.py."
+            "Checkpointer not initialized. App startup must inject via set_checkpointer() in app/server/lifespan/startup.py."
         )
 
     return _checkpointer
