@@ -51,9 +51,8 @@ Agent context["user_instructions"]
 [0] SystemMessage: system prompt          ← 固定，跨用户缓存
 [1] SystemMessage: <user_instructions>    ← 本中间件注入（per-user, stable）
 [2] SystemMessage: <workspace_context>    ← workspace_rules_middleware（per-thread, stable, 可无）
-[3] SystemMessage: Stable `<user_memory_context>` ← memory_context_middleware（Stable）
-[4] HumanMessage（可选）: Learned <<<UNTRUSTED_DATA>>> ← memory_context_middleware（在同用户 Stable 前缀之后）
-[5] HumanMessage: 用户消息               ← 每轮变化
+[3] SystemMessage: <user_memory_context>  ← memory_context_middleware（每次模型调用重建，只在请求里，不写回线程状态）
+[4] HumanMessage: 用户消息               ← 每轮变化
 ```
 """
 
@@ -98,7 +97,7 @@ def _find_system_insert_idx(messages: Sequence[object]) -> int:
     return 0
 
 
-class UserInstructionsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
+class UserInstructionsMiddleware(AgentMiddleware):
     """用户指令注入中间件
 
     在首次 LLM 调用时注入 user_instructions（从 context 获取）。

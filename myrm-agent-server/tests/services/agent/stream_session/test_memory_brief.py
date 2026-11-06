@@ -80,6 +80,7 @@ class TestBuildMemoryBriefSnapshot:
 
         assert bundle is not None
         preview, snapshot = bundle
+        assert set(snapshot) == {"snapshot_id", "memory_ctx"}
         assert preview["snapshot_id"] == snapshot["snapshot_id"]
         assert preview["namespaces"] == ["global", "agent:default"]
         assert preview["stable"]["instruction_count"] == 1
@@ -118,7 +119,7 @@ class TestBuildMemoryBriefSnapshot:
         preview, snapshot = bundle
         assert preview["learned"]["preference_count"] == 0
         assert preview["learned"]["rule_count"] == 0
-        assert snapshot["learned_ctx"] == {"learned_rules": [], "learned_preferences": []}
+        assert snapshot["memory_ctx"] == {"global_profile": {"name": "Ada"}}
 
 
 class TestKeywordMode:

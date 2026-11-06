@@ -408,7 +408,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 **心理安全 (Psychological Safety)：**
 1. **Harmful State Detector**: `memory_scanner.py` 内置了有害心理状态检测器，用于拦截可能导致 "AI Psychosis"（AI 精神病）的严重负面心理状态（如自残、重度抑郁、被害妄想等）。当检测到此类状态时，扫描器会返回 `BLOCKED`，防止 AI 永久存储和强化这些瞬态情绪。
 
-读取路径：`MemoryContextMiddleware` 注入时采用指令层级。**Stable（Profile/Rules/Self-Instructions/Corrections）**封装在 `<user_memory_context>` 的 **SystemMessage** 中。**Learned Preferences / Learned Rules**放入 **HumanMessage**，先 `sanitize()` 与逐项 `_escape_xml_item()`（降低伪造围栏标签风险），再由 `wrap_untrusted(..., source="memory_context")` 生成 `<<<UNTRUSTED_DATA id="…">>>` 信封，与同进程已注入的 `SECURITY_BOUNDARY_SYSTEM_RULES` 契约一致。
+读取路径：`MemoryContextMiddleware` 注入时采用指令层级。用户存储的记忆（Profile / Rules / Self-Instructions / 工作状态 / 工具指引）封装在 `<user_memory_context>` 的 **SystemMessage** 中，每个存储值先过 `defang_markup()`，存储值既关不掉记忆块，也开不出自己的高权限块。已学习的事实不进块，由模型经 `memory_search_tool` 检索。
 
 **工具 recall 路径**（`memory_search_tool` corpus=memory/sessions、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
 
@@ -580,7 +580,7 @@ final = semantic^w0 × recency^w1 × type_prior^w2 × importance^w3 × preferenc
 - collect 阶段用 `asyncio.wait(timeout, ALL_COMPLETED)`：已完成的 store 结果保留，超时未完成的 store 任务取消并标记降级（partial recall，非全失败）。
 - embed / claim graph 阶段各自用 `asyncio.wait_for` 走同一 deadline，超时则跳过该阶段继续后续（fail-open）。embed 阶段至多占用 deadline 的 75%（`deadline_budget.LOCAL_RECALL_RESERVE_FRACTION`），其余留给 BM25 与本地 store；embedding 端点挂起时降级为本地关键词召回，而不是耗尽整个预算后返回空。
 - 降级可观测：`MemoryRetrievalTrace.degraded` 顶层标记 + `SearchMetrics.record_degradation(timeout|error)` 独立计数（与普通 0 结果区分）+ 各阶段 `status="warning"`。
-- 注入侧一致化：`memory_context_middleware` 加载静态上下文同样套 wall-clock 超时，超时返回 `not_applied/load_timeout`，不阻塞首轮 LLM 调用。
+- 注入侧一致化：`memory_context_middleware` 加载静态上下文同样套 wall-clock 超时，超时返回 `not_applied/load_timeout`，这一轮不带记忆块、也不被阻塞；本轮后续的模型调用复用这个结果，不会各自再等一遍超时，下一轮重新加载。
 
 **时间范围硬剪枝**（`_internal/temporal_window.py`，`RetrievalConfig.enable_temporal_window`，默认开启）：
 
@@ -782,7 +782,7 @@ result = await extractor.extract(messages=messages)
 
 > 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：规则统一进入 stable 层的 `Behavioral Rules` 段（`priority=3`），items 按「用户背书（`is_user_locked`）优先」排序，契合 `PromptBudgetGuard` 从后截断的行为，使背书规则最后被丢。
 
-> 动作文本含 `never` / `forbidden` / `do not` / `禁止` / `严禁` / `不得` 等否定词（或显式标记 `is_veto`）的规则，渲染进优先级 0 的 `Mandatory Negative Constraints (VETO Rules)` 段，行格式 `[NEVER] {name} (Scope: {tool_name 或 *}) — Reason: {reason}`，按（`priority` 降序，`id` 升序）排序以保持前缀缓存的字节稳定。该段只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+> 动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配，`whenever`、`nevertheless` 不算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算），或显式标记 `is_veto` 的规则，渲染进优先级 0 的 `Mandatory Negative Constraints (VETO Rules)` 段，行格式 `[NEVER] {动作} (Scope: {适用范围})`，有理由时后接 `— Reason: {reason}`。适用范围依次取 `tool_name`、`veto_scope`、规则存入时的触发条件 `trigger`，都没有才是 `*`：规则只在存入时指定的场合生效，不会变成对所有任务的禁令。该段按（`priority` 降序，`id` 升序）排序；库里取出的规则没有 `id`，同优先级的保持取出的顺序（用户锁定的在前，其后新写入的在前），顺序固定以保持前缀缓存的字节稳定。该段只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
@@ -910,32 +910,43 @@ tools = create_memory_tools(manager=manager)
 
 ## 九、Agent 中间件
 
-`MemoryContextMiddleware` 在首次 LLM 调用时注入两类记忆上下文，采用**指令层级 + 特权分离**：稳定层为高特权系统侧说明，学习到的事实/规则在低特权不可信数据中呈现，以降低间接提示词注入成功率。
+`MemoryContextMiddleware` 在每次模型调用前，把用户存储的记忆作为一个 `<user_memory_context>` **SystemMessage** 注入，采用**指令层级**：块只含用户配置的、变化很慢的条目；已学习的事实不进块，模型需要时经 `memory_search_tool` 检索，所以提示词前缀跨轮稳定。
 
-注入内容拆分：
+块的内容（一份预算 `max_tokens=2500`，优先级数值小的段落先保留）：
 
-| 层级 | 内容 | 载体 | Prompt cache |
-|-----|------|------|--------------|
-| **Stable** | Profile、Self-Instructions、Behavioral Rules、Corrections | `SystemMessage`，包裹 `<user_memory_context>` | ✅ 与同用户前缀稳定对齐 |
-| **Learned（advisory）** | Learned Preferences / Learned Rules | `HumanMessage`，注入 `[Created: YYYY-MM-DD]` 绝对时间戳，并经 `wrap_untrusted(...)` 包裹（`<<<UNTRUSTED_DATA id="…">>>`），与 SECURITY_BOUNDARY 规则对齐 | ⚠️ 随机边界 id 前缀每请求变化；带静态绝对时间戳，保留 Prompt Caching |
+| 段落 | 内容 | 优先级 |
+|-----|------|--------|
+| Active Working Context | 跨会话的任务连续性（`working_state`） | 0 |
+| Mandatory Negative Constraints (VETO Rules) | 否定性规则（显式 veto，或动作含 never / 禁止 等词），适用范围取存入时的触发条件，按优先级降序排序，同优先级保持库里取出的顺序（有 `id` 时按 `id` 升序） | 0 |
+| Global User Profile、Our Relationship & Your Persona | 用户画像、对端关系与人设 | 1 |
+| Your Self-Instructions | Agent 自我指令 | 2 |
+| Behavioral Rules | 其余规则 | 3 |
+| Tool Execution Guidance | 工具执行指引，按本次调用绑定的工具挑选 | 3 |
+
+没有任何存储记忆、且 `memory_search_tool` 已绑定时，注入 cold-start Discovery Mode 块（引导 Agent 主动了解用户）。
 
 **统一 guidance tail（按工具绑定条件化）**：guidance tail 是否注入由 `memory_search_enabled` 决定（middleware 检测 `memory_search_tool` 是否绑定，HYBRID 模式为 True，CONTEXT 模式为 False）。
 
-- **HYBRID（memory_search_enabled=True）**：cold-start、stable-only、learned 三条注入路径末尾均携带同一份 `_memory_guidance_tail()`——包含 **Citation Requirements**（仅要求模型在引用带显式 `[ID: ...]` 标签的记忆或 `memory_search_tool` 检索结果时输出 `<cite:MEMORY_ID>` 标签，供业务层提取展示，并明确禁止为无 ID 条目编造标签）与 **Memory Search** 指引（何时用 `memory_search_tool`；不点名任何 corpus——哪些 corpus 可用取决于智能体的检索策略，由工具自身的 schema 与描述给出）。保证三条路径的引用行为一致。
+- **HYBRID（memory_search_enabled=True）**：cold-start 与有记忆的块末尾均携带同一份 `_memory_guidance_tail()`——包含 **Citation Requirements**（要求模型在引用带显式 `[ID: ...]` 标签的条目或 `memory_search_tool` 检索结果时输出 `<cite:MEMORY_ID>` 标签，供业务层提取展示，并明确禁止为无 ID 条目编造标签）与 **Memory Search** 指引（何时用 `memory_search_tool`；不点名任何 corpus——哪些 corpus 可用取决于智能体的检索策略，由工具自身的 schema 与描述给出）。块内条目本身不带 `[ID: ...]` 标签，可引用的 ID 来自 `memory_search_tool` 的检索结果。两条路径的引用行为一致。
 - **CONTEXT（memory_search_enabled=False）**：不注入 guidance tail，cold-start 也整体跳过注入——学习指引会指向未绑定的工具，避免模型幻觉调用不存在的 `memory_search_tool`。
 
-**一次性注入**：若消息前部已包含 `<user_memory_context` **或** `<<<UNTRUSTED_DATA`，则跳过，避免/learned-only 路径被重复写入。
+**请求局部注入**：记忆块只存在于发给模型的那份请求里。每次模型调用都按本轮的记忆上下文重新生成并插入，不写回线程状态，所以检查点与会话历史里没有这个块的文本。本轮的记忆上下文有两个来源：服务端在非恢复回合放进运行上下文的记忆快照（`memory_brief_snapshot`）；没有快照的运行（如审批后恢复）在本轮第一次模型调用时读一次 `manager.get_context`，结果留在运行上下文里供本轮后续调用复用（以线程里用户自己写的最后一条消息的 id 区分轮次，运行时追加的恢复提示、文件还原说明，以及外层中间件对请求做的局部改写（熔断约束、待办聚焦）都不算新的一轮；加载失败同样只记一次，本轮不再重试，下一轮重新加载）。所以本轮内保存的记忆下一轮才进块，同一轮的各次调用也不会看到不同的记忆。块只取决于这份上下文和本次调用绑定的工具：工具指引按本次调用绑定的工具挑选，挑选结果写进上下文的副本，上一次调用的挑选不会带到下一次，快照和已加载的上下文本身都不被改动。同一轮内绑定的工具不变时各次调用的字节相同，记忆未被编辑时各轮之间也相同，前缀缓存不被打破。
+
+**块的身份靠消息标记，不靠文本**：记忆块是带 `additional_kwargs["memory_context"]=True` 的 `SystemMessage`。请求里已有带标记的块时才跳过（`not_applied/already_present`，并记 WARNING）。不按文本判重：数据边界规则（`SECURITY_BOUNDARY_SYSTEM_RULES`）、用户粘贴的片段和工具结果都可能出现 `<user_memory_context` 或 `<<<UNTRUSTED_DATA` 字样，按文本判重会让整个运行的记忆注入被关掉。
+
+**存储值的消毒**：块里的所有条目（Profile、对端 Profile、Self-Instructions、规则与 VETO 规则、working_state、工具指引）进入预算前先过 `defang_markup()`：每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;`，`&`、`>`、URL 和代码围栏原样保留，预算按改写后的字符数计。块以 System 角色送达，存储值若能关闭记忆块，或开出自己的 `<user_instructions priority="highest">` 块，就能冒充高权限指令；改写之后没有任何标签能从存储值里开出来。这不能清除用纯文本写成的指令；写入侧的扫描（`memory_scanner.py`）与待审批队列才是主防线。
 
 前缀顺序（与其它中间件 stacking 对齐后）通常为：
 
 ```
 [0] System: core prompt
 [+] System: `<user_instructions>` …
-[+] System: `<user_memory_context>` … stable …
-Human: <<<UNTRUSTED_DATA>>> learned … （若有）
+[+] System: `<user_memory_context>` …
 Human: 用户第一轮输入 …
 System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在最新用户消息之后）
 ```
+
+记忆块的作用域说明点名了 `<user_instructions>`，而 server 的 `user_instructions_middleware` 在前 5 条消息的 System 消息里按 `<user_instructions` 标记判重：它必须挂在记忆中间件之前，反过来会把记忆块当成自己的块、不再注入用户指令。顺序由 server 的挂载测试守护（见 `myrm-agent-server/app/ai_agents/agent_middlewares/_ARCH.md`）。
 
 ---
 
@@ -1196,8 +1207,8 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 - **L0/L1/L2 渐进式披露**：
   - 字段位于 `BaseMemory`（`types.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
   - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
-  - 常驻注入（`_manager/retrieval_write.get_learned_context`）按重要度排序并受字符预算截断，不走 L0/L1 分层。
-- **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；始终注入预算见 `_manager/retrieval_write.get_learned_context`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
+  - `_manager/retrieval_write.get_learned_context` 按重要度排序并受 `max_learned_context_chars` 截断，不走 L0/L1 分层；它只供 server 的记忆简报预览使用，不进入 `<user_memory_context>`。
+- **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；注入块的预算见 `memory_context_budget.render_budgeted_sections`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
 - **服务端接口与前端双端自适应可视化闭环**：
   - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）；
   - 前端面板（`MemoryDomainMeshPanel.tsx`）采用现代响应式卡片看板设计，支持 PC 端多栏布局与移动端单列自适应折叠；零原生 emoji，遵循 Tailwind 色系标准，严密隔离内部工程元数据与用户友好展示文案。

@@ -234,12 +234,12 @@ Token 明细（tiktoken o200k_base）：
 | 组件 | Token (估算) | 来源 | 说明 |
 |------|------------:|------|------|
 | user_instructions | ~200 | `server/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户自定义指令（SystemMessage，注入在 system prompt 之后） |
-| Memory context | ~500 | `harness/agent/middlewares/memory_context/memory_context_middleware.py` | Stable：`<user_memory_context>` **SystemMessage**；Turn1 learned 为空（检索走 `memory_search_tool`）；Learned 历史形态经 `wrap_untrusted` → HumanMessage |
+| Memory context | ~500 | `harness/agent/middlewares/memory_context/memory_context_middleware.py` | `<user_memory_context>` **SystemMessage**，只含用户存储的记忆；已学习的事实不进块（检索走 `memory_search_tool`） |
 | Inline skills 列表 | ~500 | 技能系统 | `<skills>` 块内联展示可用技能名+描述（取决于已安装技能数量） |
 
 **缓存特性**：
 - `user_instructions` 同用户同会话内稳定，不破坏缓存
-- `Memory context` 同用户连续对话内 stable 段稳定；learned 不在 Turn1 注入（由 tool 检索）
+- `Memory context` 同用户连续对话内稳定；已学习的事实不进块（由 tool 检索）
 - `Inline skills` 同用户同技能配置内稳定
 
 ---

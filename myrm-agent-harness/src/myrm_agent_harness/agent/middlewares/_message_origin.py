@@ -12,7 +12,7 @@ them ``is_system_synthetic``. Middlewares that act on what the user said must sk
 - runtime_human_message: a HumanMessage the runtime writes on the user's behalf, marked so the predicate skips it
 
 [POS]
-Message-provenance predicate shared by the approval and security middlewares, and the constructor of the messages it skips.
+Message-provenance predicate shared by the approval, security and memory-context middlewares, and the constructor of the messages it skips.
 """
 
 from __future__ import annotations

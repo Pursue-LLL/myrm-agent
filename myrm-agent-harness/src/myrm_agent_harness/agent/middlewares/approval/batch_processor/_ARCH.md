@@ -9,9 +9,10 @@
 | 文件 | 职责 |
 |------|------|
 | `__init__.py` | 聚合导出 evaluate / apply / interrupt / reviewer 等公开与测试依赖名 |
-| `core.py` | `evaluate_tool_batch` 主决策流与自动模式判定 |
+| `core.py` | `evaluate_tool_batch` 入口、上下文组装与自动模式判定 |
+| `decide.py` | 逐工具判定循环（预检、策略、allowlist、HITL 分类） |
 | `yolo.py` | `_evaluate_yolo_batch`、YOLO 可用性与 operator-as-key 拒绝 |
 
 ## 已知遗留
 
-`core.py` 仍超过 400 行：主决策函数的单工具循环与安全分支深度耦合，进一步拆分需要把 700+ 行循环改成显式上下文对象，属于重写级改动；先由 `tests/agent/middlewares/approval/test_batch_processor_characterization.py` 锁定行为。
+`decide.py` 仍约 930 行：单工具循环的各安全分支共享顺序、拒绝计数与 `record_decision` 语义，再往下拆需要按阶段引入显式判定结果对象；当前由 3939 条 approval/security 测试与 characterization 用例锁定行为。

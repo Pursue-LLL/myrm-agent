@@ -61,9 +61,6 @@ def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
     return hashlib.blake2s(raw, digest_size=10).hexdigest()
 
 
-_EMPTY_LEARNED_CTX: LearnedMemoryPayload = {"learned_rules": [], "learned_preferences": []}
-
-
 def _build_preview(
     *,
     snapshot_id: str,
@@ -181,9 +178,5 @@ async def build_memory_brief_snapshot(
         memory_ctx=memory_payload,
         learned_ctx=learned_payload,
     )
-    snapshot: MemoryBriefSnapshot = {
-        "snapshot_id": snapshot_id,
-        "memory_ctx": memory_payload,
-        "learned_ctx": dict(_EMPTY_LEARNED_CTX),
-    }
+    snapshot: MemoryBriefSnapshot = {"snapshot_id": snapshot_id, "memory_ctx": memory_payload}
     return preview, snapshot

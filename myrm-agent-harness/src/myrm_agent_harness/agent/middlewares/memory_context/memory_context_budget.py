@@ -1,15 +1,19 @@
-"""Budget partitioning and prompt guidance helpers for memory context injection.
+"""Budget rendering and prompt guidance helpers for memory context injection.
 
-Applies token/char budgeting across stable and untrusted memory sections,
-and generates static search guidance and cold-start discovery prompts.
+Applies one token/char budget across the memory sections and renders them as a Markdown body,
+neutralizes the tag openers of stored text, and generates static search guidance and cold-start
+discovery prompts.
 
 [INPUT]
 - agent.security.guards.prompt_budget::CHARS_PER_TOKEN, BudgetedSection (POS: Prompt budgeting data models)
 - langchain.agents.middleware::ModelRequest (POS: Agent runtime request model)
 
 [OUTPUT]
-- partition_budget_sections: Apply unified budget and split into stable/untrusted Markdown bodies
+- render_budgeted_sections, RenderedSections: Apply the budget and render the sections as one Markdown body, with the item count each kept and the characters they use
+- MEMORY_BLOCK_MAX_TOKENS, MEMORY_BLOCK_BUDGET_CHARS: The memory block's budget, in tokens and in characters
 - escape_xml_item: XML item sanitization helper
+- defang_markup: Tag-opener neutralization for stored text in the system-privileged block
+- bound_tool_names: The one reader of the tool names a request binds (objects, name dicts, OpenAI function dicts)
 - memory_search_tool_bound: Check if memory_search_tool is bound to the request
 - memory_search_guidance: Retrieve guidance text for memory search
 - memory_guidance_tail: Retrieve citation and search guidance tail
@@ -17,12 +21,12 @@ and generates static search guidance and cold-start discovery prompts.
 - COLD_START_CONTEXT: Cached default cold-start context
 
 [POS]
-Internal helper module for memory_context_format.
+Internal helper module for memory_context_format: one budget over the memory sections, tag-opener neutralization, and the search-guidance and cold-start prompt texts.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from myrm_agent_harness.agent.security.guards.prompt_budget import (
     CHARS_PER_TOKEN,
@@ -38,40 +42,70 @@ def escape_xml_item(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def partition_budget_sections(
-    stable_sections: list[BudgetedSection],
-    escaped_untrusted_sections: list[BudgetedSection],
+# The characters whose NFKC form is "<": fullwidth and small brackets open a tag for the model just as ASCII does.
+_TAG_OPENERS = ("<", "\uff1c", "\ufe64")
+
+
+def defang_markup(text: str) -> str:
+    """Rewrite every tag opener in ``text`` to ``&lt;``, so a stored value can neither open nor close a tag.
+
+    Unlike ``escape_xml_item`` it leaves ``&`` and ``>`` alone: the block is Markdown for the model, not XML, and
+    escaping them would turn ordinary values such as ``a && b`` or ``?x=1&y=2`` into noise.
+
+    Runs for every stored value on every model call, hence ``str.replace`` (one native scan per opener) rather than
+    a ``str.translate`` table, which looks every character up in a Python dict.
+    """
+    for opener in _TAG_OPENERS:
+        text = text.replace(opener, "&lt;")
+    return text
+
+
+# Token budget of the memory block's sections, and the same limit in characters: the block's budget gauge reads
+# the characters the sections used against this limit.
+MEMORY_BLOCK_MAX_TOKENS = 2500
+MEMORY_BLOCK_BUDGET_CHARS = MEMORY_BLOCK_MAX_TOKENS * CHARS_PER_TOKEN
+
+
+class RenderedSections(NamedTuple):
+    """The rendered body, the item count each section kept, and the characters the kept sections use of the budget."""
+
+    body: str
+    accepted_by_title: dict[str, int]
+    used_chars: int
+
+
+def render_budgeted_sections(
+    sections: list[BudgetedSection],
     *,
     max_tokens: int,
     truncation_message: str,
-) -> tuple[str, str, dict[str, int]]:
-    """Apply a single combined char budget; split Markdown body into stable vs untrusted halves.
+) -> RenderedSections:
+    """Render ``sections`` as one Markdown body within a single char budget, lowest ``priority`` value first.
 
-    Mirrors ``PromptBudgetGuard.apply_budget`` priority ordering across both buckets so total
-    memory injection cannot exceed historical single-guard semantics.
+    Uses the priority ordering of ``PromptBudgetGuard.apply_budget``, so the whole block stays within one
+    budget. ``truncation_message`` closes the body when the budget cut anything.
 
-    Returns the accepted item count per section title (keyed by title) so callers can report
-    how many items actually reached the model instead of how many merely exist.
+    Reports the accepted item count per section title and the characters the kept sections use of the budget, so
+    callers can say how many items actually reached the model instead of how many merely exist, and how full the
+    budget is.
     """
-    tagged: list[tuple[str, BudgetedSection]] = [("stable", s) for s in stable_sections]
-    tagged.extend(("untrusted", s) for s in escaped_untrusted_sections)
-    tagged.sort(key=lambda t: t[1].priority)
-
     max_chars = max_tokens * CHARS_PER_TOKEN
     current_length = 0
+    # ``current_length`` also holds the header of a section none of whose items fit; this counts what is rendered.
+    used_chars = 0
     truncated = False
 
-    stable_blocks: list[str] = []
-    untrusted_blocks: list[str] = []
+    blocks: list[str] = []
     accepted_by_title: dict[str, int] = {}
 
-    for kind, section in tagged:
+    for section in sorted(sections, key=lambda s: s.priority):
         if not section.items:
             continue
         header = f"## {section.title}\n"
         if current_length + len(header) > max_chars:
             truncated = True
             break
+        section_start = current_length
         current_length += len(header)
 
         accepted_lines: list[str] = []
@@ -86,39 +120,42 @@ def partition_budget_sections(
         if not accepted_lines:
             continue
 
+        used_chars += current_length - section_start
         accepted_by_title[section.title] = accepted_by_title.get(section.title, 0) + len(accepted_lines)
-        block = header + "".join(accepted_lines).strip()
-        if kind == "stable":
-            stable_blocks.append(block)
-        else:
-            untrusted_blocks.append(block)
+        blocks.append(header + "".join(accepted_lines).strip())
 
         if truncated:
             break
 
-    stable_body = "\n\n".join(stable_blocks).strip()
-    untrusted_body = "\n\n".join(untrusted_blocks).strip()
+    body = "\n\n".join(blocks).strip()
+    if truncated and truncation_message and blocks:
+        body = f"{body}\n{truncation_message.strip()}"
 
-    if truncated and truncation_message:
-        trimmed = truncation_message.strip()
-        if untrusted_blocks:
-            untrusted_body = f"{untrusted_body}\n{trimmed}" if untrusted_body else trimmed
-        elif stable_blocks:
-            stable_body = f"{stable_body}\n{trimmed}" if stable_body else trimmed
+    return RenderedSections(body, accepted_by_title, used_chars)
 
-    return stable_body, untrusted_body, accepted_by_title
+
+def bound_tool_names(request: ModelRequest) -> frozenset[str]:
+    """Names of the tools the request binds: tool objects, ``{"name": ...}`` dicts and OpenAI-style function dicts."""
+    tools = getattr(request, "tools", None)
+    if not isinstance(tools, (list, tuple, set, frozenset)):
+        return frozenset()
+    names: set[str] = set()
+    for tool in tools:
+        if isinstance(tool, dict):
+            name = tool.get("name")
+            if not isinstance(name, str):
+                function = tool.get("function")
+                name = function.get("name") if isinstance(function, dict) else None
+        else:
+            name = getattr(tool, "name", None)
+        if isinstance(name, str):
+            names.add(name)
+    return frozenset(names)
 
 
 def memory_search_tool_bound(request: ModelRequest) -> bool:
     """Detect if memory_search_tool is bound to the agent request."""
-    tools = getattr(request, "tools", None) or []
-    for tool in tools:
-        name = getattr(tool, "name", None)
-        if name is None and isinstance(tool, dict):
-            name = tool.get("name")
-        if name == "memory_search_tool":
-            return True
-    return False
+    return "memory_search_tool" in bound_tool_names(request)
 
 
 def memory_search_guidance(*, memory_search_enabled: bool) -> str:
@@ -165,7 +202,7 @@ No memories yet. Actively learn about this user during the conversation:
 - Observe recurring patterns in their requests
 - Record explicit instructions about workflow, output format, or constraints
 
-Use memory_store_tool to save important facts as you learn them.
+Use memory_save_tool to save important facts as you learn them.
 {memory_guidance_tail(memory_search_enabled=memory_search_enabled)}
 </user_memory_context>"""
 

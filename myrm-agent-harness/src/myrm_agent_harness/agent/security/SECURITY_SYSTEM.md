@@ -990,17 +990,23 @@ do anything now | bypass safety | 忽略...之前...指令 | 你现在是...一�
 
 ## 八、数据边界 — Content Boundary
 
-**位置**：`detection/content_boundary.py`（规范实现 `core/security/detection/content_boundary.py`）
+**位置**：`detection/content_boundary.py`（规范实现 `core/security/detection/content_boundary.py`；Layer 1 与 Layer 1.5 在同目录的 `structural_framing.py`）
 
 ### 5 层纵深防护
 
 **Layer 1 — Unicode 折叠**：
 
-将全角 ASCII 字符和 20+ 种角括号同形字（homoglyphs）折叠为标准 ASCII。覆盖：
+将全角 ASCII 字符和 14 对角括号同形字（homoglyphs）折叠为标准 ASCII。覆盖：
 - 全角字母 `Ａ-Ｚ`, `ａ-ｚ`
-- 全角/CJK/数学/装饰性角括号（`＜`, `＞`, `〈`, `〉`, `⟨`, `⟩`, `《`, `》` 等共 20 对）
+- 全角/CJK/数学/装饰性角括号（`＜`, `＞`, `〈`, `〉`, `⟨`, `⟩`, `《`, `》` 等共 14 对）
 
 这防止攻击者使用 Unicode 视觉欺骗绕过标记检测。
+
+**Layer 1.5 — 结构性框架标签剥离**：
+
+剥掉文本里能混淆模型角色边界的标记：角色类 XML 标签（`<system>`、`<user>`、`<assistant>` 等）、本产品注入块的标签（`<user_instructions>`、`<user_memory_context>`、`<data_boundary_rules>`、`<workspace_context>` 等）、ChatML 特殊 token、CDATA 块与单独成行的代码围栏。只匹配这份白名单，白名单之外的标签（如 `List<String>`）原样保留；用全角字母和 `＜` `＞` 写成的同形标签按折叠后的形式识别（折叠范围只含这两类，全角的下划线、斜杠、竖线不折叠），排版引号 `«system»`、`《system》` 不动。
+
+剥掉一个标签可能把它两侧的文字拼成新标签（`</user_memo<system>ry_context>`），所以剥除最多重复 3 轮；3 轮之后仍有残留，就把残留替换为 `[[SANITIZED]]`，最坏输入也在有界时间内处理完。占位符拼不出角色标签、框架标签和 ChatML token，只可能与两侧的文字合成一个 CDATA 块（对模型没有角色含义）。
 
 **Layer 2 — 标记消毒**：
 
@@ -1476,7 +1482,7 @@ GeneralAgent → build_channel_security_config(agent_security_raw=...) → _merg
 
 - **审计日志**：每次非 CLEAN 的扫描结果通过 `record_decision()` 写入安全审计链（BLOCKED → DENY / 其他 → SCAN_FINDING）
 - **命中率指标**：`_ScanMetrics` 线程安全单例追踪 total_scans / blocked / redacted / warned / clean，通过 `get_scan_metrics().snapshot()` 获取
-- **读取路径防护**：`memory_context_middleware.py` Stable 上下文置于 `<user_memory_context>` **SystemMessage**；learned preferences/rules 经 `sanitize()`、逐项 XML 逃逸后由 `wrap_untrusted(...)` 生成 `<<<UNTRUSTED_DATA>>>` **HumanMessage**，与 `SECURITY_BOUNDARY_SYSTEM_RULES` 对齐；工具 recall 路径（`memory_search_tool` memory/sessions corpus、MCP `memory_recall`/`memory_list`）经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认）+ SemanticMemory `source_error` 后缀经 `format_recall_source_error_suffix()` + 静态 untrusted 前言；preference save 成功 ack 经 `format_preference_save_ack()` 同 SSOT
+- **读取路径防护**：`memory_context_middleware.py` 把存储的记忆置于 `<user_memory_context>` **SystemMessage**，每个存储值先过 `defang_markup()`（ASCII `<`、全角 `＜`、小号 `﹤` 三种标签起始符一律改写为 `&lt;`，`&`、`>`、URL 与代码围栏原样保留），存储值既关不掉记忆块，也开不出自己的 `<user_instructions>` 等高权限块；已学习的事实不进块，由模型经 `memory_search_tool` 检索；工具 recall 路径（`memory_search_tool` memory/sessions corpus、MCP `memory_recall`/`memory_list`）经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认）+ SemanticMemory `source_error` 后缀经 `format_recall_source_error_suffix()` + 静态 untrusted 前言；preference save 成功 ack 经 `format_preference_save_ack()` 同 SSOT
 
 ### 配置
 

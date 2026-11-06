@@ -216,7 +216,7 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
     tool_call = _make_shell_call("python run_migration.py")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor.core.is_threshold_breached",
+        "myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.is_threshold_breached",
         return_value=ThresholdBreach.CONSECUTIVE,
     ):
         _approved, _denied, pending = await evaluate_tool_batch(

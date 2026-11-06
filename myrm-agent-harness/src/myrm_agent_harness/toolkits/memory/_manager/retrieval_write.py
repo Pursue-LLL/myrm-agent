@@ -9,6 +9,7 @@ from datetime import datetime
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
+    CueFamily,
     MemorySearchResult,
     MemoryType,
     ProceduralMemory,
@@ -153,7 +154,7 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
         return ctx
 
     async def get_learned_context(self) -> dict[str, list[dict[str, str]]]:
-        """Retrieve auto-extracted memories for always-on injection.
+        """Retrieve auto-extracted memories for the memory-brief preview; they are not injected into the prompt.
 
         Returns preference-bearing SemanticMemories and active ProceduralMemories,
         sorted by importance and truncated to max_learned_context_chars.
@@ -196,7 +197,7 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
                     pref = SemanticMemory(
                         id=facet.id,
                         content=facet.value,
-                        preference_type=facet.cue.value,
+                        preference_type="explicit" if facet.cue == CueFamily.EXPLICIT else "implicit",
                         preference_strength=min(facet.stability / 2.0, 1.0),
                         importance=0.8,
                     )
@@ -210,9 +211,12 @@ class MemoryManagerRetrievalWriteMixin(MemoryManagerHost):
                     meta = d.metadata
                     if meta.get("preference_type") not in ("explicit", "implicit"):
                         continue
+                    raw_strength = meta.get("preference_strength", 0)
+                    if not isinstance(raw_strength, (int, float, str)):
+                        continue
                     try:
-                        strength = float(meta.get("preference_strength", 0))
-                    except (TypeError, ValueError):
+                        strength = float(raw_strength)
+                    except ValueError:
                         continue
                     if strength > 0:
                         preferences.append(doc_to_semantic(d))
