@@ -17,7 +17,7 @@
 - StreamRecoveryMixin: used by StreamExecutor via multiple inheritance
 
 [POS]
-StreamRecoveryMixin composes overflow, deferred failover (429 never failover unless quota exhausted; 529 after 3 consecutive; emits `model_failover_unconfigured` when failoverable but no fallback LLM), safety refusal fallback (HTTP 200 refusal/content_filter → safety_fallback_llm), provider-window recovery (exact in-turn wait / goal park / fail-fast on a stated reset, via ProviderWindowRecoveryMixin), transient retry (short-circuits on is_quota_exhausted; honors an in-turn Retry-After as the backoff floor), and the mixins that hold the other strategies: turn-end (iteration-limit with grace-call summary, empty-response), truncation, steering, subagent, and goal continuation.
+StreamRecoveryMixin composes overflow, deferred failover (429 never failover unless quota exhausted; 529 after 3 consecutive; emits `model_failover_unconfigured` when failoverable but no fallback LLM), safety refusal fallback (HTTP 200 refusal/content_filter → safety_fallback_llm), provider-window recovery (exact in-turn wait / goal park / fail-fast on a stated reset, via ProviderWindowRecoveryMixin), transient retry (short-circuits on is_quota_exhausted; honors an in-turn Retry-After as the backoff floor), and the mixins that hold the other strategies: one-shot (a single targeted fix per provider error), turn-end (iteration-limit with grace-call summary, empty-response), truncation, steering, subagent, and goal continuation.
 
 """
 
@@ -94,8 +94,8 @@ class StreamRecoveryMixin(
 ):
     """Error recovery strategy collection, used by StreamExecutor via multiple inheritance.
 
-    One-shot handlers (thinking_signature, image_shrink, long_context_tier)
-    are provided by OneshotRecoveryMixin.
+    One-shot handlers (thinking_signature, reasoning_mandatory, duplicate_tool_use_id, image_shrink,
+    media_rejected, allowed_tools_tool_choice_rejected, long_context_tier) are provided by OneshotRecoveryMixin.
 
     All methods access StreamExecutor attributes via self:
     _ctx, _compactor, _fallback_llm, _safety_fallback_llm,
