@@ -222,7 +222,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 | 向量记忆 | Qdrant embedded 或远程 URL | 语义记忆检索 |
 | 可选图存储 | `DATABASE_URL` 设置时 PostgreSQL+AGE | **仅** episodic graph 扩展，**非** LangGraph checkpoint |
 
-**状态根单一入口**：Server 的 Myrm 自有路径（技能目录、备份、渠道登录态、各类缓存等）都从状态根派生——`MYRM_DATA_DIR`，未设置时 `~/.myrm`。业务代码统一经 `myrm_agent_harness.api.resolve_data_dir()` / `resolve_workspace_state_dir()` 解析（配置层 `app/config/settings.py` 用同一个环境变量与默认值定义数据库等路径），禁止用 `Path.home()` 或 `"~/…"` 手拼 Myrm 目录。这是测试 / E2E 的隔离运行时与真实使用互不影响的前提；门禁：`tests/architecture/test_state_paths_follow_data_dir.py`（登记表里每一项都写明为何安全）。仍用 cwd 相对 `.myrm/…` 的目录登记在 harness `FRAMEWORK_DESIGN_PRINCIPLES.md` §8。
+**状态根单一入口**：Server 的 Myrm 自有路径（技能目录、备份、渠道登录态、各类缓存等）都从状态根派生——`MYRM_DATA_DIR`，未设置时 `~/.myrm`。业务代码统一经 `myrm_agent_harness.api.resolve_data_dir()` / `resolve_workspace_state_dir()` 解析（配置层 `app/config/settings/infra.py` 用同一个环境变量与默认值定义数据库等路径），禁止用 `Path.home()` 或 `"~/…"` 手拼 Myrm 目录。这是测试 / E2E 的隔离运行时与真实使用互不影响的前提；门禁：`tests/architecture/test_state_paths_follow_data_dir.py`（登记表里每一项都写明为何安全）。仍用 cwd 相对 `.myrm/…` 的目录登记在 harness `FRAMEWORK_DESIGN_PRINCIPLES.md` §8。
 
 Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `app/server/lifespan/startup.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
 

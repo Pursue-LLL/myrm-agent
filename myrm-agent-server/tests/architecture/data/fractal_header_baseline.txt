@@ -86,7 +86,6 @@ app/api/skills/permissions.py
 app/api/skills/router.py
 app/api/skills/schemas.py
 app/api/skills/sync.py
-app/api/statistics/router.py
 app/api/stt/router.py
 app/api/stt/ws_stream.py
 app/api/tts/router.py
@@ -105,7 +104,6 @@ app/channels/types/notification.py
 app/config/deploy_mode.py
 app/config/env.py
 app/config/logging.py
-app/config/settings.py
 app/core/channel_bridge/__init__.py
 app/core/channel_bridge/agent_executor/session.py
 app/core/channel_bridge/personality_adapter.py
