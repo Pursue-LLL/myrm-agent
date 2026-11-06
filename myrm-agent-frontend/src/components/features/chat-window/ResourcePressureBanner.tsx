@@ -159,7 +159,7 @@ export default function ResourcePressureBanner() {
         type="button"
         onClick={handleDismiss}
         aria-label={t('dismiss')}
-        className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex h-6 shrink-0 items-center rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground pointer-coarse:h-8 dark:hover:bg-white/6"
       >
         {t('dismiss')}
       </button>

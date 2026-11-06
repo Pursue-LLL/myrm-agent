@@ -3,7 +3,8 @@
 /**
  * [INPUT]
  * @/services/migrationDiscovery::discoverMigrationSources (POS: External assistant data auto-discovery client)
- * @/hooks/ui/useProactiveDismissal::dismissProactive, isProactiveDismissed (POS: per-device memory for closed cards)
+ * @/hooks/ui/useProactiveDismissal::OFFER_SNOOZE_DAYS, dismissProactive, isProactiveDismissed (POS: per-device memory for closed cards)
+ * @/hooks/ui/useNoticeSlot::useNoticeSlot (POS: one first-screen notice at a time)
  *
  * [OUTPUT]
  * MigrationDiscoveryBanner: one-click import prompt for detected external assistant data.
@@ -13,6 +14,7 @@
  * Renders nothing while scanning and when nothing is found, so users without external data never see a
  * placeholder card flash in and out. Routes user to migration wizard in settings for full preview and confirm flow.
  * Closing it snoozes the offer on this device for a week, and the disk scan is skipped while it is snoozed.
+ * It waits for the notice slot, so it never appears above or beside another notice that is already readable.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -20,7 +22,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
-import { dismissProactive, isProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
+import { useNoticeSlot } from '@/hooks/ui/useNoticeSlot';
+import { OFFER_SNOOZE_DAYS, dismissProactive, isProactiveDismissed } from '@/hooks/ui/useProactiveDismissal';
 import { isLocalMode } from '@/lib/deploy-mode';
 import {
   canDeepLinkMigrationSource,
@@ -33,14 +36,14 @@ import { IconArrowRight, IconDownload } from '@/components/features/icons/Premiu
 type BannerState = 'idle' | 'found' | 'dismissed';
 
 const DISMISS_KEY = 'migration-discovery';
-// Importing is a one-off decision: a closed offer stays quiet for a week instead of returning with every new chat.
-const SNOOZE_DAYS = 7;
 
 export default function MigrationDiscoveryBanner() {
   const t = useTranslations('chat.migrationDiscovery');
   const router = useRouter();
   const [state, setState] = useState<BannerState>('idle');
   const [sources, setSources] = useState<ExternalSource[]>([]);
+  const found = state === 'found' && sources.length > 0;
+  const holdsSlot = useNoticeSlot('migration-discovery', found);
 
   useEffect(() => {
     if (!isLocalMode()) {
@@ -48,7 +51,6 @@ export default function MigrationDiscoveryBanner() {
     }
 
     if (isProactiveDismissed(DISMISS_KEY)) {
-      setState('dismissed');
       return;
     }
 
@@ -78,7 +80,7 @@ export default function MigrationDiscoveryBanner() {
 
   const handleDismiss = useCallback(() => {
     setState('dismissed');
-    dismissProactive(DISMISS_KEY, { snoozeDays: SNOOZE_DAYS });
+    dismissProactive(DISMISS_KEY, { snoozeDays: OFFER_SNOOZE_DAYS });
   }, []);
 
   const handleNavigate = useCallback(() => {
@@ -94,7 +96,7 @@ export default function MigrationDiscoveryBanner() {
     router.push('/settings/memory?sub=migration');
   }, [router, sources]);
 
-  if (!isLocalMode() || state !== 'found' || sources.length === 0) {
+  if (!isLocalMode() || !found || !holdsSlot) {
     return null;
   }
 

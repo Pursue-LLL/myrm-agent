@@ -4,6 +4,7 @@
  * [INPUT]
  * - /api/v1/health/update-status (POS: stack update truth)
  * - lib/update-prefs (POS: deferral + quiet-hours preferences, read and written)
+ * - hooks/ui/useNoticeSlot::useNoticeSlot (POS: one first-screen notice at a time)
  *
  * [OUTPUT]
  * UpdateNudgeBanner: behind-notice entry to the Stack Update Panel.
@@ -13,7 +14,8 @@
  * is deferred, quiet hours are active, or the session dismissed it. Security
  * patches bypass deferral and quiet hours. Dismissing a regular update defers
  * that version, so it stays quiet until a newer one ships; dismissing a
- * security patch lasts for the session only.
+ * security patch lasts for the session only. It waits for the notice slot, so
+ * it never appears above or beside another notice that is already readable.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -21,6 +23,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
+import { useNoticeSlot } from '@/hooks/ui/useNoticeSlot';
 import { getDeferredVersion, getQuietHours, isQuietNow, setDeferredVersion } from '@/lib/update-prefs';
 import { IconArrowRight, IconDownload, IconShield } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -33,6 +36,7 @@ export default function UpdateNudgeBanner() {
   const [visible, setVisible] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   const [isSecurity, setIsSecurity] = useState(false);
+  const holdsSlot = useNoticeSlot('update-nudge', visible);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +96,7 @@ export default function UpdateNudgeBanner() {
     setVisible(false);
   }, [isSecurity, version]);
 
-  if (!visible) {
+  if (!visible || !holdsSlot) {
     return null;
   }
 
@@ -129,7 +133,7 @@ export default function UpdateNudgeBanner() {
           type="button"
           onClick={handleDismiss}
           aria-label={t('dismiss')}
-          className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex h-6 shrink-0 items-center rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground pointer-coarse:h-8 dark:hover:bg-white/6"
         >
           {t('dismiss')}
         </button>

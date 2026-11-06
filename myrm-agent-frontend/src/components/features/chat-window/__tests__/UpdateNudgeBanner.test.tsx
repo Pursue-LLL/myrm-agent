@@ -2,9 +2,16 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import UpdateNudgeBanner from '../UpdateNudgeBanner';
+import { useNoticeSlot } from '@/hooks/ui/useNoticeSlot';
 import * as updatePrefs from '@/lib/update-prefs';
 
 const mockPush = vi.fn();
+
+/** Stands in for another first-screen notice that is already readable. */
+function OtherNotice({ shown }: { shown: boolean }) {
+  useNoticeSlot('migration-discovery', shown);
+  return null;
+}
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -212,6 +219,38 @@ describe('UpdateNudgeBanner', () => {
 
     expect(container.firstElementChild).toHaveClass('w-full', 'flex-col', 'sm:flex-row');
     expect(screen.getByText('open').closest('div')).toHaveClass('shrink-0');
+  });
+
+  it('waits while another notice is on screen instead of stacking above it, then appears once that one closes', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        stale: true,
+        latest: { version: 'v0.2.0' },
+      }),
+    } as Response);
+
+    const { rerender } = render(
+      <>
+        <OtherNotice shown />
+        <UpdateNudgeBanner />
+      </>,
+    );
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalled();
+    });
+    await act(async () => {});
+    expect(screen.queryByText('open')).not.toBeInTheDocument();
+
+    rerender(
+      <>
+        <OtherNotice shown={false} />
+        <UpdateNudgeBanner />
+      </>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText('open')).toBeInTheDocument();
+    });
   });
 
   it('navigates to settings on click open button', async () => {

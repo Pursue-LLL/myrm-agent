@@ -84,11 +84,12 @@ const EmptyChat = React.memo(() => {
 
         <IncognitoNotice />
 
+        {/* Urgent first: the optional offers arrive later and slot in below it instead of pushing it down. */}
+        <ResourcePressureBanner />
+
         <MigrationDiscoveryBanner />
 
         <UpdateNudgeBanner />
-
-        <ResourcePressureBanner />
 
         <SamplePrompts />
       </div>
