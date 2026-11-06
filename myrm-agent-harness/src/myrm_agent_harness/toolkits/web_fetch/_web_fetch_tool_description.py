@@ -45,6 +45,7 @@ _FULL_CONTENT_WITH_EXTRACT_EN = """
 ### fetch_full_content
 
 Get the **full content** of known webpages (single or multiple URLs).
+Long pages come back shortened; if the full text was saved, the result says how to read the omitted parts.
 
 **Use cases:**
 - User explicitly requests full page content
@@ -55,19 +56,14 @@ Get the **full content** of known webpages (single or multiple URLs).
 - operation: "fetch_full_content"
 """
 
-_FULL_CONTENT_ONLY_EN = """
-Get full content from known webpage URLs (Markdown format). Supports single or multiple URLs, up to 5 per call.
+_PLAIN_EN = """Fetch the full content of known URLs as Markdown, including PDF, DOCX, XLSX and PPTX files.
+When you need several pages, pass their URLs together in one call (up to 5).
 Long pages come back shortened; if the full text was saved, the result says how to read the omitted parts.
+WeChat Official Account articles (mp.weixin.qq.com/s/...) are supported; use the article URL exactly as the user provided it."""
 
-**Parameters:**
-- urls: Known and real target webpage URL list, no fabrication allowed
-"""
-
-_HEADER_EN = """web_fetch_tool extracts detailed content from specific webpage URLs.
+_EXTRACT_HEADER_EN = """Reads the content of known URLs, including PDF, DOCX, XLSX and PPTX files. When you need several pages, pass their URLs together in one call.
 {sections}
-For read-only content retrieval (articles, docs, blog posts), always prefer this tool over browser_navigate — it's faster, cheaper, and handles JS rendering internally.
-WeChat Official Account article links (mp.weixin.qq.com/s/...) are supported{wechat_access}; use the real article URL the user provided.
-For JS-heavy or interactive pages (clicking, filling forms, scrolling), use browser tools. For many pages, call web_fetch with multiple URLs."""
+WeChat Official Account article links (mp.weixin.qq.com/s/...) are supported via fetch_full_content; use the real article URL the user provided."""
 
 _EXTRACT_SECTION_ZH = """
 ### fetch_and_extract
@@ -91,6 +87,7 @@ _FULL_CONTENT_WITH_EXTRACT_ZH = """
 ### fetch_full_content
 
 获取已知网页（单个或多个 URL）的**完整内容**。
+过长的页面会被截短返回；若完整内容已保存，结果中会说明如何读取被省略的部分。
 
 **适用场景：**
 - 用户明确要求获取完整页面内容
@@ -101,19 +98,13 @@ _FULL_CONTENT_WITH_EXTRACT_ZH = """
 - operation："fetch_full_content"
 """
 
-_FULL_CONTENT_ONLY_ZH = """
-从已知网页 URL 获取完整内容（Markdown 格式）。支持单个或多个 URL，每次最多 5 个。
+_PLAIN_ZH = """获取已知 URL 的完整内容（Markdown 格式），包括 PDF、DOCX、XLSX、PPTX 文件。需要读取多个页面时，请把 URL 合并到一次调用（最多 5 个）。
 过长的页面会被截短返回；若完整内容已保存，结果中会说明如何读取被省略的部分。
+支持微信公众号文章链接（mp.weixin.qq.com/s/...）；请原样使用用户提供的文章 URL。"""
 
-**参数：**
-- urls：已知且真实的目标网页 URL 列表，禁止编造
-"""
-
-_HEADER_ZH = """web_fetch_tool 从指定的网页 URL 提取详细内容。
+_EXTRACT_HEADER_ZH = """读取已知 URL 的内容，包括 PDF、DOCX、XLSX、PPTX 文件。需要读取多个页面时，请把 URL 合并到一次调用。
 {sections}
-对于只读内容检索（文章、文档、博客），始终优先使用本工具而非 browser_navigate——更快、更省，内部处理 JS 渲染。
-微信公众号文章链接（mp.weixin.qq.com/s/...）{wechat_access}；使用用户提供的真实文章 URL。
-对于 JS 重或交互式页面（点击、填表、滚动），请使用浏览器工具。页面较多时，可在一次调用中传入多个 URL。"""
+微信公众号文章链接（mp.weixin.qq.com/s/...）可通过 fetch_full_content 获取；使用用户提供的真实文章 URL。"""
 
 
 def resolve_web_fetch_tool_description(
@@ -126,22 +117,12 @@ def resolve_web_fetch_tool_description(
     the description documents both operations; otherwise the tool has no
     ``operation`` argument and the description only covers reading pages in full.
     """
-    if is_chinese(locale):
-        if enable_extract:
-            sections = _EXTRACT_SECTION_ZH + _FULL_CONTENT_WITH_EXTRACT_ZH
-            wechat_access = "可通过 fetch_full_content 获取"
-        else:
-            sections = _FULL_CONTENT_ONLY_ZH
-            wechat_access = "可直接获取"
-        return _HEADER_ZH.format(sections=sections, wechat_access=wechat_access).strip()
-
-    if enable_extract:
-        sections = _EXTRACT_SECTION_EN + _FULL_CONTENT_WITH_EXTRACT_EN
-        wechat_access = " via fetch_full_content"
-    else:
-        sections = _FULL_CONTENT_ONLY_EN
-        wechat_access = ""
-    return _HEADER_EN.format(sections=sections, wechat_access=wechat_access).strip()
+    chinese = is_chinese(locale)
+    if not enable_extract:
+        return _PLAIN_ZH if chinese else _PLAIN_EN
+    if chinese:
+        return _EXTRACT_HEADER_ZH.format(sections=_EXTRACT_SECTION_ZH + _FULL_CONTENT_WITH_EXTRACT_ZH)
+    return _EXTRACT_HEADER_EN.format(sections=_EXTRACT_SECTION_EN + _FULL_CONTENT_WITH_EXTRACT_EN)
 
 
 __all__ = [

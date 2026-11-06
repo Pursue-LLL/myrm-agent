@@ -10,10 +10,10 @@ _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _REPOSITORIES_ROOT = _SERVER_ROOT / "app" / "database" / "repositories"
 _CONVERSATION_RECALL_PACKAGE = _REPOSITORIES_ROOT / "conversation_recall"
 
-_REQUIRED_MODULE_FILES = (
+_REQUIRED_MODULE_PATHS = (
     "__init__.py",
     "_ARCH.md",
-    "repo.py",
+    "repo/__init__.py",
     "lookup_repo.py",
     "sql.py",
     "types.py",
@@ -32,8 +32,8 @@ def test_conversation_recall_subpackage_layout() -> None:
     assert _CONVERSATION_RECALL_PACKAGE.is_dir(), (
         f"Missing {_CONVERSATION_RECALL_PACKAGE}. See app/database/repositories/conversation_recall/_ARCH.md."
     )
-    for filename in _REQUIRED_MODULE_FILES:
-        path = _CONVERSATION_RECALL_PACKAGE / filename
+    for relative_path in _REQUIRED_MODULE_PATHS:
+        path = _CONVERSATION_RECALL_PACKAGE / relative_path
         assert path.is_file(), f"Missing required conversation_recall module file: {path}"
 
 

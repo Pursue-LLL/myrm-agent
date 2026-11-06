@@ -41,13 +41,12 @@ from myrm_agent_harness.toolkits.web_fetch._web_fetch_tool_description import re
 from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
 
 _MAX_URLS_PER_FULL_READ = 5
+_FULL_READ_URLS_DESCRIPTION = f"Real webpage URLs (up to {_MAX_URLS_PER_FULL_READ}); never invent URLs"
 _REASON_DESCRIPTION = "State your reasoning, express key info with minimal tokens, max 100 chars"
 
 
 class _FullContentInput(BaseModel):
-    urls: list[str] = Field(
-        description="Real webpage URL list (up to 5)", min_length=1, max_length=_MAX_URLS_PER_FULL_READ
-    )
+    urls: list[str] = Field(description=_FULL_READ_URLS_DESCRIPTION, min_length=1, max_length=_MAX_URLS_PER_FULL_READ)
     reason: str = Field(description=_REASON_DESCRIPTION)
 
 

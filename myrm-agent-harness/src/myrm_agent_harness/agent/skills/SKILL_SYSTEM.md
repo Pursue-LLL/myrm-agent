@@ -78,7 +78,7 @@
 | 内容转义器 | `agent/skills/runtime/registry.py`（`xml.sax.saxutils.escape` / `quoteattr`） | ironclaw |
 | 确定性选择器 | 未落地：由 `agent/meta_tools/skills/select/skill_select_tool.py`（模型选择技能并加载 SOP）承担 | ironclaw |
 | 依赖检查器 | `backends/skills/prerequisites/` | Nanobot + ironclaw |
-| Frontmatter 验证器 | `backends/skills/_utils.py`（`parse_skill_frontmatter`） | Deer-Flow |
+| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | Deer-Flow |
 | 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | Deer-Flow + nexu |
 | 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | Deer-Flow + nexu |
 | 使用与生命周期账本 | `backends/skills/stats_collector.py` | 本仓 |
@@ -927,7 +927,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 | 内容转义器 | `agent/skills/runtime/registry.py`（XML 转义） | **已实现** |
 | 确定性选择器 | `agent/meta_tools/skills/select/skill_select_tool.py` | **未落地**：由模型经元工具选择技能，见 §6 |
 | 依赖检查器 | `backends/skills/prerequisites/` | **已实现** |
-| Frontmatter 验证器 | `backends/skills/_utils.py`（`parse_skill_frontmatter`） | **已实现** |
+| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | **已实现** |
 | 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | **已实现** |
 | 安全提取器 | `backends/skills/scanning/zip_extract.py` | **已实现** |
 | 使用与生命周期账本 | `backends/skills/stats_collector.py` | **已实现** |

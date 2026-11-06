@@ -27,7 +27,7 @@ _ROOT_FROM_CALLER: dict[tuple[str, str], str] = {
     ("ai_agents/general_agent/mcp_vault_handler.py", "_handler"): (
         "writer inside an agent run; the run's workspace root is bound by the caller (tool_setup)"
     ),
-    ("ai_agents/general_agent/tool_setup.py", "_setup_browser_tools"): (
+    ("ai_agents/general_agent/tool_setup/browser.py", "_setup_browser_tools"): (
         "writer inside an agent run; uses the run's declared workspace root, the same one the harness resolver reads"
     ),
     ("core/artifacts/listener.py", "upsert_processor_artifact"): (

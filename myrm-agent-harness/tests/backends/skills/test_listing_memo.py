@@ -46,7 +46,7 @@ def derivations(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
     counts = {"scan": 0, "parse": 0, "tokens": 0}
     real_scan, real_parse, real_tokens = (
         scanner._scan_content,
-        _utils._parse_frontmatter_fields,
+        _utils.parsing._parse_frontmatter_fields,
         _runtime.get_token_count,
     )
 
@@ -63,7 +63,7 @@ def derivations(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
         return real_tokens(text)
 
     monkeypatch.setattr(scanner, "_scan_content", scan)
-    monkeypatch.setattr(_utils, "_parse_frontmatter_fields", parse)
+    monkeypatch.setattr(_utils.parsing, "_parse_frontmatter_fields", parse)
     monkeypatch.setattr(_runtime, "get_token_count", tokens)
     monkeypatch.delenv(_ENV_NAME, raising=False)
     return counts
