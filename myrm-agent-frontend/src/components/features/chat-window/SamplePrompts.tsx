@@ -271,7 +271,7 @@ const SamplePrompts = React.memo(() => {
             key={key}
             onClick={() => setInputMessage(text)}
             className="group flex w-[78%] shrink-0 snap-start items-start gap-3 p-3.5 sm:w-auto sm:shrink rounded-xl border border-border/60 bg-secondary/40
-                       hover:bg-secondary hover:border-border hover:shadow-sm
+                       hover:bg-secondary hover:border-border
                        transition-all duration-200 text-left cursor-pointer"
           >
             <Icon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />

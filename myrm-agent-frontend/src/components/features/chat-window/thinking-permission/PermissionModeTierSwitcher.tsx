@@ -67,7 +67,7 @@ export default function PermissionModeTierSwitcher({
             disabled={disabled}
             data-testid="permission-tier-trigger"
             className={cn(
-              'group inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md border transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed',
+              'group inline-flex h-8 items-center gap-1.5 px-2 text-xs font-medium rounded-lg border transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed',
               currentConfig.borderColorClass,
               currentConfig.badgeBgClass,
               currentConfig.colorClass,
@@ -110,7 +110,7 @@ export default function PermissionModeTierSwitcher({
                 data-testid={`permission-option-${tierKey}`}
                 onSelect={() => setTier(tierKey)}
                 className={cn(
-                  'cursor-pointer items-start gap-2 rounded-md p-2 text-left',
+                  'cursor-pointer items-start gap-2 rounded-lg p-2 text-left',
                   isSelected
                     ? 'bg-muted/80 text-foreground font-medium'
                     : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',

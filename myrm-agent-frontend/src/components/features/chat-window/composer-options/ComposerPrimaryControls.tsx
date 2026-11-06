@@ -62,7 +62,7 @@ export function ComposerPrimaryControls({
         type="button"
         data-testid="composer-editor-toggle"
         onClick={onToggleEditor}
-        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg pointer-coarse:size-10 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         aria-label={editorLabel}
         title={editorLabel}
       >
