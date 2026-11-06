@@ -97,7 +97,7 @@
 | **回归** | [实测] `tests/agent/meta_tools/bash` 997 通过；新增 5 个用例（带管道的回溯、脚本自己打印的错误、其他缺失模块与无关输出不触发、只读命令显示这段文字不触发、`format_result` 同时带伪成功提醒与说明且 `read_exit_code` 仍读成 0）；ruff、mypy 通过。 |
 | **行为变化（须知）** | 退出码为 0 且输出里出现 `skills` 导入失败文字时，工具结果末尾多一行 `[Auto-Hint] Python cannot import 'skills'. …`。 |
 | **仍然存在** | ① 没有降低模型「存成文件再启动」的概率，也没有让带管道的启动形态拿到 `skills`（BUG-184 仍只认无参数、无管道的 `[cd 根 &&] python file.py`）：改后仍有 4/8 次注入运行跑到 18–37 轮（18、21、30、37），这 4 次恰好是有「答案被拒」指令的 4 次，成因见 BUG-HARNESS-2026-11-06-198。② 效果只在 DeepSeek 上用注入验证；自然发生率没有重测：已知的是 BUG-184 记的整套 bench 604 次里 5 次、本轮未注入的 MiniMax 任务 B 12 次里 1 次（46 轮）；F1 冻结数据里 Myrm 的两次空答案（MiniMax 任务 A）没有留下请求记录，成因不明，不能算在内。MiniMax 配额恢复后再测。③ 注入把「模型存脚本」这一步换成了固定动作，所以这里量的是「出错之后的恢复」，不是「出错的频率」。 |
-| **代码位置** | `src/myrm_agent_harness/agent/meta_tools/bash/_tool/{terminal_hints.py,formatting.py}`；测试 `tests/agent/meta_tools/bash/test_terminal_hints.py`；证据 `temp-docs/temp-task-context/harness-ptc-bench/evidence/piped_script_fault/`（根仓库），注入代理 `fault_proxy.py` 的 `piped-script` 模式。 |
+| **代码位置** | `src/myrm_agent_harness/agent/meta_tools/bash/_tool/{terminal_hints.py,formatting.py}`；测试 `tests/agent/meta_tools/bash/test_terminal_hints.py`；注入代理 `fault_proxy.py` 的 `piped-script` 模式。 |
 
 ### BUG-HARNESS-2026-11-06-196 · 一行很宽、其余很多短行的表格让网页转 Markdown 的输出按「行数 × 最宽一行的列数」增长：4000 列 × 4000 行的 116 KB 网页转出 48 MB、占 1.15 s CPU 与 394 MB
 
