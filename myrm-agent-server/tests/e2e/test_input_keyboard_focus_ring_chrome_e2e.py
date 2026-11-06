@@ -2,7 +2,7 @@
 
 [INPUT]
 - tests.support.chrome_mcp_e2e (POS: Chrome MCP test framework)
-- myrm-agent-frontend NewTaskWorkContextCard (POS: empty-chat work context card with workspace path picker)
+- myrm-agent-frontend WorkspaceDirPicker (POS: the single workspace row under the composer)
 
 [OUTPUT]
 - test_workspace_path_input_has_visible_focus_ring_chrome_e2e: focused path input paints a ring and is not clipped
@@ -31,11 +31,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _OPEN_PICKER_JS = """(() => {
-  const card = document.querySelector('[data-testid="new-task-work-context-card"]');
-  if (!card) return { ready: false, reason: 'no-card' };
-  const local = card.querySelector('[data-testid="context-mode-local"]');
-  if (local) local.click();
-  const trigger = card.querySelector('[data-testid="workspace-picker-trigger"]');
+  const trigger = document.querySelector('[data-testid="workspace-dir-trigger"]');
   if (!trigger) return { ready: false, reason: 'no-trigger' };
   if (trigger.getAttribute('aria-expanded') !== 'true') trigger.click();
   const input = document.querySelector('[data-radix-popper-content-wrapper] input');

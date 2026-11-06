@@ -2,15 +2,13 @@
 
 [INPUT]
 - tests.support.chrome_mcp_e2e (POS: Chrome MCP test framework)
-- myrm-agent-frontend NewTaskWorkContextCard (POS: empty-chat work context card with workspace path picker)
-- myrm-agent-frontend WorkspaceDirPicker (POS: in-chat workspace path picker in the message input toolbar)
+- myrm-agent-frontend WorkspaceDirPicker (POS: the single workspace row under the composer, on every viewport)
 - myrm-agent-frontend locales/de.json chat.workspaceDir (POS: the copy under test)
 
 [OUTPUT]
-- test_german_workspace_path_placeholder_fits_empty_chat_card_chrome_e2e: the card popover shows the locale file's
-  placeholder unclipped in both states
-- test_german_workspace_path_placeholder_fits_chat_picker_chrome_e2e: the in-chat picker popover does the same on a
-  seeded chat
+- test_german_workspace_path_placeholder_fits_empty_chat_picker_chrome_e2e: the row's popover on the empty chat
+  shows the locale file's placeholder unclipped in both states
+- test_german_workspace_path_placeholder_fits_chat_picker_chrome_e2e: the same row does the same on a seeded chat
 
 [POS]
 Real-layout guard for localized copy in a fixed-width input. Rendered text width depends on the real font and the
@@ -57,21 +55,14 @@ _READ_BROWSER_STATE_JS = f"""(() => {{
   }};
 }})()"""
 
-# JS bodies returning the popover trigger, or null while its surface is not rendered.
-_CARD_TRIGGER_JS = """const card = document.querySelector('[data-testid="new-task-work-context-card"]');
-    if (!card) return null;
-    const trigger = card.querySelector('[data-testid="workspace-picker-trigger"]');
-    if (!trigger) {
-      const local = card.querySelector('[data-testid="context-mode-local"]');
-      if (local) local.click();
-    }
-    return trigger;"""
+# The workspace row has one render site on every viewport; the seeded chat only needs agent mode.
+_WORKSPACE_TRIGGER = "workspace-dir-trigger"
+_EMPTY_CHAT_TRIGGER_JS = f"""return document.querySelector('[data-testid="{_WORKSPACE_TRIGGER}"]');"""
 
 
-def _chat_picker_trigger_js(tooltip: str) -> str:
-    """The in-chat picker renders in agent mode only, and its trigger carries the localized tooltip as title."""
+def _chat_picker_trigger_js() -> str:
     return f"""window.__MYRM_E2E_CHAT__?.setActionMode?.('agent');
-    return Array.from(document.querySelectorAll('button')).find((b) => b.title === {json.dumps(tooltip)}) ?? null;"""
+    return document.querySelector('[data-testid="{_WORKSPACE_TRIGGER}"]');"""
 
 
 def _measure_js(*, bound: bool, find_trigger: str) -> str:
@@ -168,7 +159,7 @@ def _german_locale(client: ChromeMcpClient, page: McpPage) -> Iterator[None]:
 
 def _measure_both_states(client: ChromeMcpClient, page: McpPage, find_trigger: str) -> list[dict[str, object]]:
     """Bound first, unbound last: an opened chat starts bound and the server refuses to bind it again to the
-    browse root, while the empty-chat card starts unbound and so ends the way it began."""
+    browse root, while the empty chat starts unbound and so ends the way it began."""
     return [
         wait_for_state(client, page, _measure_js(bound=bound, find_trigger=find_trigger), timeout_sec=90.0)
         for bound in (True, False)
@@ -199,16 +190,16 @@ def _assert_placeholder_fits(states: list[dict[str, object]], *, expected: str, 
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_german_workspace_path_placeholder_fits_empty_chat_card_chrome_e2e() -> None:
-    """On the empty-chat card the German placeholder is fully visible with and without the clear button."""
+def test_german_workspace_path_placeholder_fits_empty_chat_picker_chrome_e2e() -> None:
+    """On the empty chat the German placeholder is fully visible with and without the clear button."""
     expected = _german_copy("placeholder")
     prepare_e2e_ui_session(get_e2e_api_url())
     warm_ui_route("/")
 
     with open_mcp_page(f"{get_e2e_ui_url()}/") as (client, page), _german_locale(client, page):
-        states = _measure_both_states(client, page, _CARD_TRIGGER_JS)
+        states = _measure_both_states(client, page, _EMPTY_CHAT_TRIGGER_JS)
 
-    _assert_placeholder_fits(states, expected=expected, trigger="workspace-picker-trigger")
+    _assert_placeholder_fits(states, expected=expected, trigger=_WORKSPACE_TRIGGER)
 
 
 _ATTACH_CHAT_JS = """(() => {{
@@ -275,7 +266,6 @@ def _seed_chat(api_url: str) -> str:
 def test_german_workspace_path_placeholder_fits_chat_picker_chrome_e2e() -> None:
     """In an open chat the German placeholder is fully visible with and without the clear button."""
     expected = _german_copy("placeholder")
-    tooltip = _german_copy("tooltip")
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
     chat_id = _seed_chat(api_url)
@@ -292,7 +282,7 @@ def test_german_workspace_path_placeholder_fits_chat_picker_chrome_e2e() -> None
                     client, page, _ATTACH_CHAT_JS.format(chat_id_json=json.dumps(chat_id)), timeout_sec=90.0, page_url=chat_url
                 )
                 assert attached.get("ready") is True, attached
-                states = _measure_both_states(client, page, _chat_picker_trigger_js(tooltip))
+                states = _measure_both_states(client, page, _chat_picker_trigger_js())
     finally:
         # Best-effort cleanup of the seeded chat on the backend it was created in.
         try:
@@ -300,4 +290,4 @@ def test_german_workspace_path_placeholder_fits_chat_picker_chrome_e2e() -> None
         except (RuntimeError, OSError, ValueError):
             pass
 
-    _assert_placeholder_fits(states, expected=expected, trigger=tooltip)
+    _assert_placeholder_fits(states, expected=expected, trigger=_WORKSPACE_TRIGGER)
