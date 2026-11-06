@@ -202,6 +202,14 @@ class TestLocalPolicy:
         with URLAllowlistGuard.apply(["example.com"]), pytest.raises(SSRFSecurityError):
             await guard.pin("http://localhost:3000/start")
 
+    async def test_the_skill_domain_allowlist_is_read_in_the_spelling_a_client_dials(self) -> None:
+        guard = _local("http://localhost:3000/start")
+
+        with URLAllowlistGuard.apply(["straße.de"]):
+            await guard.pin("https://STRAßE.de./x")
+            with pytest.raises(SSRFSecurityError):
+                await guard.pin("https://strasse.de/x")
+
     async def test_pin_never_adds_a_host_header(self) -> None:
         guard = _local("http://localhost:3000/start")
 

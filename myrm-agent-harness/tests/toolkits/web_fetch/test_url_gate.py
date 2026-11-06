@@ -68,6 +68,7 @@ def test_a_private_address_is_fetched_as_the_address_it_names() -> None:
         ("münchen.de", "https://xn--mnchen-3ya.de/"),
         ("*.example.org", "https://a.B.EXAMPLE.org./"),
         ("σασ.gr", "https://ΣΑΣ.gr/"),
+        ("aσ", "https://aΣ/x"),
     ],
 )
 def test_the_blocklist_reads_the_host_a_client_dials(entry: str, url: str) -> None:
