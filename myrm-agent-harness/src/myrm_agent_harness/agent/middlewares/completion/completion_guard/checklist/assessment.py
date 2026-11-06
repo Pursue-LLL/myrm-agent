@@ -2,7 +2,7 @@
 
 [INPUT]
 - agent.middlewares.completion.completion_guard.checklist.record_rules::code_changed_since_proof, failed_verification_types, is_proof, unresolved_failures (POS: the rules the verdict is made of)
-- agent.middlewares.completion.completion_guard.verification::without_skill_scripts (POS: leaves saved MCP skill scripts out of the records)
+- agent.middlewares.completion.completion_guard.skill_scripts::without_skill_scripts (POS: leaves saved MCP skill scripts out of the records)
 - agent.security.guards.loop_guard::CallRecord, ToolGroup, SuccessLevel (POS: loop guard types)
 
 [OUTPUT]
@@ -30,7 +30,7 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist.
     is_proof,
     unresolved_failures,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import without_skill_scripts
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.skill_scripts import without_skill_scripts
 from myrm_agent_harness.agent.security.guards.loop_guard import (
     CallRecord,
     SuccessLevel,

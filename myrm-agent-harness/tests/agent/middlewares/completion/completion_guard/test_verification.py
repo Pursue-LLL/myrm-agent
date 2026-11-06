@@ -184,6 +184,8 @@ class TestSkillScriptsAreToolCalls:
             'python3 -c "import skills.mcp_k8s_ops_skill as k; print(k)"',
             'python3 -c "import skills; print(skills.__file__)"',
             "python - <<'PY'\nimport importlib\nimport mcp_12306_skill\nPY",
+            "python3 - <<'PY'\nimport importlib\nimportlib.import_module('skills.mcp_k8s_ops_skill')\nPY",
+            "python3 -c \"__import__('skills.mcp_k8s_ops_skill')\"",
         ],
     )
     def test_skill_import_scripts_do_not_count(self, command: str) -> None:

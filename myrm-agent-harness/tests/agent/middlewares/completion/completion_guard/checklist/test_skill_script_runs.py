@@ -18,9 +18,9 @@ from myrm_agent_harness.agent.middlewares.completion.completion_guard.checklist 
     build_checklist,
     find_last_successful_verification_command,
 )
-from myrm_agent_harness.agent.middlewares.completion.completion_guard.verification import without_skill_scripts
+from myrm_agent_harness.agent.middlewares.completion.completion_guard.skill_scripts import without_skill_scripts
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, VerificationCategory
-from tests.support.call_records import FAIL, OK, call, shell, write
+from tests.support.call_records import FAIL, OK, call, edit, shell, write
 from tests.support.completion_guard_harness import LOOP_GUARD_PATCH, make_state, reasons_of
 
 TEST = VerificationCategory.TEST
@@ -68,6 +68,95 @@ class TestASavedSkillScriptIsNotJudgedAsCode:
 
         assert not critical
         assert "Files were modified" not in checklist
+
+
+class TestASkillImportedByNameIsTheSameScript:
+    """``importlib`` reaches the skill the way an ``import`` statement does; only the spelling differs."""
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            'import importlib\nmod = importlib.import_module("skills.mcp_kubernetes_skill")\n',
+            "from importlib import import_module\nmod = import_module('skills.mcp_kubernetes_skill')\n",
+            "mod = __import__('skills.mcp_kubernetes_skill')\n",
+            'import importlib\nmod = importlib.import_module(f"skills.{name}")\n',
+        ],
+    )
+    def test_a_script_that_loads_the_skill_by_name_is_left_out_with_its_runs(self, content: str) -> None:
+        records = [
+            write("/w/probe.py", content=content),
+            shell("cd /w && python3 probe.py 2>&1 | head -60", FAIL, TEST),
+            shell(INLINE_FETCH),
+        ]
+
+        assert assess_checklist(records).causes == frozenset()
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            'import importlib\nmod = importlib.import_module("json")\n',
+            'import importlib\nmod = importlib.import_module("myskills.tools")\n',
+            "print('skills.mcp_kubernetes_skill')\n",
+        ],
+    )
+    def test_loading_anything_else_is_still_the_run_s_own_code(self, content: str) -> None:
+        records = [write("/w/probe.py", content=content), shell("cd /w && python3 probe.py", FAIL, TEST)]
+
+        assert assess_checklist(records).causes == {CriticalCause.FAILED_VERIFICATION}
+
+
+class TestEditingASavedSkillScript:
+    """The probe is reworked with ``file_edit_tool`` as often as it is rewritten."""
+
+    def test_an_edit_that_keeps_the_skill_import_is_not_a_code_change(self) -> None:
+        records = [
+            shell("python3 -c 'print(1)'", OK, TEST),
+            probe_written(),
+            edit("/w/probe.py", "list_namespaces()", "list_namespaces(output='json')"),
+        ]
+
+        assert assess_checklist(records).causes == frozenset()
+
+    def test_an_edit_that_widens_the_skill_import_is_not_a_code_change(self) -> None:
+        records = [
+            shell("python3 -c 'print(1)'", OK, TEST),
+            probe_written(),
+            edit(
+                "/w/probe.py",
+                "from skills.mcp_kubernetes_skill import list_namespaces",
+                "from skills.mcp_kubernetes_skill import list_namespaces, list_deployments",
+            ),
+        ]
+
+        assert assess_checklist(records).causes == frozenset()
+
+    def test_runs_after_the_edit_are_still_the_skill_script(self) -> None:
+        run = shell("cd /w && python3 probe.py", FAIL, TEST)
+        change = edit("/w/probe.py", "list_namespaces()", "list_namespaces(output='json')")
+
+        assert without_skill_scripts([probe_written(), change, run]) == []
+
+    def test_an_edit_that_takes_the_skill_import_out_makes_it_the_run_s_own_code(self) -> None:
+        change = edit("/w/probe.py", "from skills.mcp_kubernetes_skill import list_namespaces", "def f(): pass")
+        run = shell("cd /w && python3 probe.py", FAIL, TEST)
+
+        assert without_skill_scripts([probe_written(), change, run]) == [change, run]
+
+    def test_an_edit_of_another_file_is_still_a_code_change(self) -> None:
+        change = edit("/w/app.py", "a + b", "a - b")
+
+        assert without_skill_scripts([probe_written(), change]) == [change]
+
+    def test_an_edit_of_a_file_the_run_did_not_save_is_still_a_code_change(self) -> None:
+        change = edit("/w/probe.py", "list_namespaces()", "list_namespaces(output='json')")
+
+        assert without_skill_scripts([change]) == [change]
+
+    def test_an_edit_that_cannot_be_read_changes_nothing(self) -> None:
+        broken = edit("/w/probe.py", level=FAIL, edits="{not json")
+        run = shell("cd /w && python3 probe.py", FAIL, TEST)
+
+        assert without_skill_scripts([probe_written(), broken, run]) == []
 
 
 class TestRealCodeIsStillHeldToItsChecks:

@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - OK / FAIL / EMPTY: the success levels a call ends with
-- call / write / shell / unit_tests / lint: a call by tool and target, a file write (optionally with its content), a shell command, a test run, a lint run
+- call / write / edit / shell / unit_tests / lint: a call by tool and target, a file write (optionally with its content), a file edit, a shell command, a test run, a lint run
 
 [POS]
 Pytest-only helper shared by the completion-guard rule, checklist and guard tests, so each test states the trace
@@ -47,6 +47,19 @@ def call(
 
 def write(path: str, level: SuccessLevel = OK, content: str | None = None) -> CallRecord:
     return call("file_write_tool", path, level, content=content)
+
+
+def edit(
+    path: str, old: str = "", new: str = "", level: SuccessLevel = OK, *, edits: object | None = None
+) -> CallRecord:
+    """One ``file_edit_tool`` call replacing ``old`` with ``new``; ``edits`` sets the raw payload instead."""
+    payload = edits if edits is not None else [{"old_str": old, "new_str": new}]
+    return CallRecord(
+        tool_name="file_edit_tool",
+        args_hash=f"file_edit_tool:{path}:{old}",
+        args={"path": path, "edits": payload},
+        success_level=level,
+    )
 
 
 def shell(
