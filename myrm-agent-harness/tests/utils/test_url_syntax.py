@@ -99,11 +99,21 @@ def test_rejects_urls_a_client_and_a_parser_could_read_differently(url: str, err
         "http://[::1]x/",
         "http://exa mple.com/",
         "http://example.com\x00/",
+        "http://example.com\x01/",
         "http://example.com\x7f/",
     ],
 )
 def test_an_authority_that_does_not_hold_exactly_one_host_is_malformed(url: str) -> None:
     assert parse_outbound_url(url) == (None, "Malformed URL")
+
+
+@pytest.mark.parametrize("tail", ["/a b", "?q=a b", "/?q=a b", "/#a b", "/a\x01b", "/a\x7fb", "/é", "/%zz"])
+def test_the_text_after_the_authority_is_kept_as_written(tail: str) -> None:
+    """Only the authority names the host; spaces, control characters and stray escapes after it are the caller's text."""
+    assert parse_outbound_url(f"https://example.com{tail}") == (
+        OutboundUrl(f"https://example.com{tail}", "example.com"),
+        "",
+    )
 
 
 @pytest.mark.parametrize(
