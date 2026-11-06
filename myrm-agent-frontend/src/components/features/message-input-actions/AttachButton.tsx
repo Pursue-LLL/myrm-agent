@@ -240,9 +240,9 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
             }}
             className={cn(
               'flex items-center justify-center w-8 h-8 rounded-full',
-              'bg-[#fdfdf8] dark:bg-muted/60',
+              'bg-background dark:bg-muted/60',
               'transition duration-200',
-              'hover:bg-[#e8e8e0] dark:hover:bg-muted/80 text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white',
+              'hover:bg-border dark:hover:bg-muted/80 text-foreground/70 hover:text-foreground',
             )}
           >
             {!isTauriRuntime() && (
