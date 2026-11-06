@@ -24,17 +24,9 @@ export interface MemoryBriefData {
   is_cold_start: boolean;
   stable: {
     working_state: boolean;
-    profile_keys: string[];
+    profile_count: number;
     instruction_count: number;
     rule_count: number;
-  };
-  /** Learned facts are reported for display only; the agent retrieves them on demand via memory_search_tool. */
-  learned: {
-    preference_count: number;
-    rule_count: number;
-    correction_count: number;
-    preference_ids: string[];
-    rule_ids: string[];
   };
 }
 

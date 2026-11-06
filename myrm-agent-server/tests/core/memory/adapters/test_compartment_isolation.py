@@ -112,7 +112,6 @@ async def test_group_turn_cannot_read_owner_private_memory(tmp_path: Path) -> No
     assert await _contents(group, "owner home address Maple Street") == []
     context = await group.get_context()
     assert "Maple" not in str(context)
-    assert "Maple" not in str(await group.get_learned_context())
 
 
 async def test_guest_dm_cannot_read_owner_private_memory(tmp_path: Path) -> None:
@@ -134,7 +133,6 @@ async def test_group_writes_stay_in_the_group_compartment(tmp_path: Path) -> Non
 
     owner = await _channel_turn_manager(tmp_path, _channel_msg(is_group=False), conversation_id="owner-dm", untrusted=False)
     assert await _contents(owner, "ShadyCorp products") == []
-    assert "ShadyCorp" not in str(await owner.get_learned_context())
 
 
 async def test_group_compartment_survives_session_reset_but_not_other_chats(tmp_path: Path) -> None:

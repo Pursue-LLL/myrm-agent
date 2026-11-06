@@ -7,8 +7,7 @@ import MemoryInsightPanel from '../MemoryInsightPanel';
 const SESSION_OVERRIDE_COPY: Record<string, string> = {
   sessionOverridePill: 'Updated in this chat',
   sessionOverrideTitle: 'Preference updates this chat',
-  sessionOverrideDescription:
-    'You changed something earlier in this conversation. This reply follows those updates.',
+  sessionOverrideDescription: 'You changed something earlier in this conversation. This reply follows those updates.',
 };
 
 const stableT = (key: string, values?: { count?: number }) => {
@@ -21,6 +20,10 @@ const stableT = (key: string, values?: { count?: number }) => {
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
+}));
+
+vi.mock('@/hooks/ui/useMediaQuery', () => ({
+  useMediaQuery: () => false,
 }));
 
 vi.mock('@/components/primitives/hover-card', () => ({
