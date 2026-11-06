@@ -9,6 +9,7 @@
 - core.security.hitl_decision::approval_guidance, is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
 
 [OUTPUT]
+- ActivePageSource: the one thing the guards need from a session, its active page (any session mixin host provides it)
 - enforce_semantic_interaction_guard: Gate click/dblclick on high-risk ARIA refs
 - enforce_js_eval_guard: Gate mutating browser_manage evaluate expressions
 
@@ -20,7 +21,7 @@ Single HITL approval path for browser_interact_tool, browser_execute_script
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.toolkits.browser.tools._semantic_risk import (
     SemanticRiskLevel,
@@ -29,15 +30,22 @@ from myrm_agent_harness.toolkits.browser.tools._semantic_risk import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.browser.session import BrowserSession
+    from patchright.async_api import Page
+
     from myrm_agent_harness.toolkits.browser.snapshot.aria_types import RefInfo
 
 logger = logging.getLogger(__name__)
 
 
+class ActivePageSource(Protocol):
+    """What an approval card needs from a session: the page whose URL it names."""
+
+    def get_active_page(self) -> Page: ...
+
+
 async def _require_hitl_approval(
     *,
-    session: BrowserSession,
+    session: ActivePageSource,
     tool_name: str,
     reason: str,
     tool_input: dict[str, object],
@@ -116,7 +124,7 @@ async def _require_hitl_approval(
 
 async def enforce_semantic_interaction_guard(
     *,
-    session: BrowserSession,
+    session: ActivePageSource,
     tool_name: str,
     action: str,
     ref: str,
@@ -147,7 +155,7 @@ async def enforce_semantic_interaction_guard(
 
 async def enforce_js_eval_guard(
     *,
-    session: BrowserSession,
+    session: ActivePageSource,
     tool_name: str,
     expression: str,
 ) -> str | None:

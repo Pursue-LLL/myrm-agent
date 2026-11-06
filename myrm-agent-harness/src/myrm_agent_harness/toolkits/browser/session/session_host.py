@@ -8,13 +8,14 @@
 - session.console_logger / network (NetworkLogger, NetworkIntelligence) / dialog_manager / device_emulator / consent_dismisser / vision_verifier (POS: per-page components owned by the aggregate root)
 - pool::GlobalBrowserPool, pool.extension_bridge::ExtensionBridge (POS: browser pool, user-browser extension bridge)
 - observability::BrowserObservability, recording_manager::RecordingManager, session.download_manager::DownloadManager, session.session_persistence::SessionPersistence (POS: optional per-session services owned by the aggregate root)
-- captcha::CaptchaCoordinator (POS: CAPTCHA detection and solving coordination)
+- captcha::CaptchaCoordinator, captcha.protocols::CaptchaHandleResult (POS: CAPTCHA detection and solving coordination, the structured result of one detection)
+- snapshot::RefInfo (POS: element reference metadata)
 - utils.runtime.user_control::UserControl, DEFAULT_WAIT_TIMEOUT_S (POS: control hold and wait budget the mixins' takeover wait is typed against)
 
 [OUTPUT]
-- SessionHost: base of the navigation, tab, CAPTCHA, network and lifecycle mixins; declares the attributes and
-  methods the BrowserSession aggregate root and its mixins provide to one another. Type-checking only: at
-  runtime it is `object`, so the MRO of BrowserSession is unchanged.
+- SessionHost: base of the interaction, download, navigation, tab, CAPTCHA, network and lifecycle mixins; declares the
+  attributes and methods the BrowserSession aggregate root and its mixins provide to one another. Type-checking only:
+  at runtime it is `object`, so the MRO of BrowserSession is unchanged.
 
 [POS]
 Single typed declaration of what a session mixin may rely on from its host, so a mixin does not
@@ -27,15 +28,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from patchright.async_api import Page
+
     from myrm_agent_harness.utils.runtime.user_control import DEFAULT_WAIT_TIMEOUT_S, UserControl
 
     from ..captcha import CaptchaCoordinator
+    from ..captcha.protocols import CaptchaHandleResult
     from ..navigation import Navigator
     from ..observability import BrowserObservability
     from ..pool import GlobalBrowserPool
     from ..pool.config import BrowserEngine, LaunchMode
     from ..pool.extension_bridge import ExtensionBridge
     from ..recording_manager import RecordingManager
+    from ..snapshot import RefInfo
     from .consent_dismisser import ConsentDismisser
     from .console_logger import ConsoleLogger
     from .device_emulator import DeviceEmulator
@@ -79,6 +84,7 @@ if TYPE_CHECKING:
         _snapshot_manager: SnapshotManager | None
         _interactor: Interactor | None
         _extractor: Extractor | None
+        _hitl_caller_tool: str | None
 
         async def _initialize_components(self) -> None: ...
         async def _ensure_components(self) -> None: ...
@@ -88,6 +94,10 @@ if TYPE_CHECKING:
         ) -> None: ...
         def _require_navigator(self) -> Navigator: ...
         def _require_snapshot_manager(self) -> SnapshotManager: ...
+        def _require_interactor(self) -> Interactor: ...
+        def get_active_page(self) -> Page: ...
+        def get_ref_info(self, ref_id: str) -> RefInfo | None: ...
+        async def _handle_captcha_if_detected(self) -> CaptchaHandleResult | None: ...
         def is_browser_managed(self) -> bool: ...
         async def navigate(self, url: str, verify_goal: str | None = None) -> str: ...
         async def new_tab(self, url: str | None = None) -> str: ...
