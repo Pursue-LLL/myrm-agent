@@ -314,9 +314,10 @@ def test_the_verifier_names_each_harness_data_file_the_bundle_lost(
 
     problems = _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory))
 
+    data_files = inventory.harness_data_files(build.HARNESS_SOURCE_DIR)
     assert len(problems) == 1
-    assert "harness data files are not in the bundle" in problems[0]
-    assert "model_catalog.json" in problems[0]
+    assert f"{len(data_files)} of {len(data_files)} harness data files are not in the bundle" in problems[0]
+    assert all(file.name in problems[0] for file in data_files)
 
 
 def test_the_verifier_names_only_the_data_file_that_is_missing(
