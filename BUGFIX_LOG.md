@@ -2,6 +2,19 @@
 
 本文件记录已发现和修复的 bug，方便追溯和避免再犯。条目里的 `文件:行号` 是写作时的行号，之后会随代码改动漂移；条目正文点名的语句可以用 `git log -S'<语句>'` 找回。
 
+## 2026-11-06 · 后端：装配中间件的一步在 cast() 里求值了只给类型检查器看的类型，每次构建智能体都抛 NameError；它被更早一步的 sandbox_base_dir 参数错误遮住了
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**。修复前的失败由新用例在未改动的代码上复现（见回归证据 [1]）。 |
+| **症状** | [实测] 在退役提交的树上跑全量服务端测试，16 个用例以 `NameError: name 'AgentMiddleware' is not defined` 失败，栈在 `middlewares.py:171`，调用方是 `builder.py:176` 的 `build_general_agent`。[实测] 直接导入该模块，运行时 `hasattr(module, 'AgentMiddleware')` 为 `False`。[代码] `build_general_agent` 无条件调用这一步（`builder.py:176-178`），聊天流水线（`stream_pipeline.py:141,175`）、预热（`prewarm/coordinator.py:284`）与流通道工厂（`stream_lane_factory.py:142`）都经过它。 |
+| **根因** | [代码] `cast(list[AgentMiddleware], middlewares_list)`（`middlewares.py:171`）的第一个参数是运行时表达式，而 `AgentMiddleware` 只在 `TYPE_CHECKING` 下导入（`middlewares.py:12-13`），运行时没有这个名字。该行由工厂拆分提交 `6f08f16433`（11-05 18:15）引入（`git log -S` 查得）。基线（`f066268d98`）的全量运行里，同一条构建路径更早就在 `agents.py:108` 因 `GeneralAgent.__init__() got an unexpected keyword argument 'sandbox_base_dir'` 失败（`agents.py` 仍在传 `GeneralAgent` 已不接受的参数，沙箱退役当时只提交了一部分），这个 NameError 被它遮住，退役提交补齐另一部分之后才露出来。 |
+| **修复** | `middlewares.py:171` 的类型改成字符串 `cast("list[AgentMiddleware]", …)`，`cast()` 不再求值它。新增 `tests/ai_agents/general_agent/test_build_agent_middlewares.py`：用生产工厂建出的 wrapper 真的调用这一步（执行资源与模型用替身），断言返回的栈以护栏中间件开头、以三个 Human-tail 块结尾。 |
+| **行为变化** | 构建通用智能体不再在这一步失败。其余行为不变：`cast()` 在运行时只是原样返回它的第二个参数。 |
+| **回归证据** | [实测] [1] 新用例在未修复的代码上以 `NameError` 失败（栈在 `middlewares.py:171`），修复后通过。[2] 之前同样报这个 NameError 的 `tests/services/agent/test_swarm_fission_real_agent.py`（通过生产工厂构建真实智能体，2 个用例）修复后通过。[3] `tests/ai_agents` 整个目录：646 passed、4 failed，4 个都是 `test_correction_propagation.py` 里修复前的全量运行就失败的用例。[4] ruff 与 ruff format 对两个改动的文件干净，`mypy`（项目配置，strict）对改动的源文件干净；`ruff --select TC004`（只给类型检查用的导入在运行时被用到）在 `app/` 与 `tests/` 里只命中这一处。 |
+| **仍然存在** | ① 那 16 个失败用例里，修复后我确认通过的有 3 个（上面的 `test_swarm_fission_real_agent.py` 那个，加 `test_llm_info_precision.py` 的 2 个）；单独跑过的 `test_complaint_up_integration.py::…::test_decision_log_carries_routing_latency`（搜索服务额度耗尽，`APIConnectionError`）与 `test_quote_injection.py::…::test_no_quote_still_works`（40 秒超时）仍失败，这两个依赖真实模型或搜索服务，这台机器连不上；其余 11 个没有跑完，没有验证。② 服务端的 ruff 配置没有开启 `TC004`（`pyproject.toml` 的 `select` 是 E、F、B、I、S），同类问题再出现不会被 lint 拦住；这次没有改配置。 |
+| **代码位置** | server：`app/ai_agents/general_agent/factory/middlewares.py:171`；测试 `tests/ai_agents/general_agent/test_build_agent_middlewares.py`。 |
+
 ## 2026-11-06 · 新任务页选的工作目录只管第一轮：会话行没带目录、懒创建栅栏又给它写了私有目录，第二轮起 agent 回到私有目录；请求里的目录也从没经过路径策略
 
 | 字段 | 内容 |
