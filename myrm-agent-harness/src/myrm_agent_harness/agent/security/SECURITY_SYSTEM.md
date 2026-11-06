@@ -142,7 +142,7 @@ Layer 2 由多个子模块组成，覆盖网络安全、命令安全、文件系
 
 ### 3.1 SSRF 防护 + DNS Pinning
 
-**位置**：`core/security/guards/ssrf.py`（IP/hostname 原语：`utils/url_utils.py`）
+**位置**：`core/security/guards/ssrf.py`（IP/hostname 原语：`utils/url_utils/`）
 
 **防御目标**：阻止 Agent 通过工具访问内网、回环地址、云元数据端点。
 
