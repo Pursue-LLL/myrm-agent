@@ -15,8 +15,9 @@ arguments), the finish reason, the token counts (cache reads and writes, reasoni
 the call raised at all. The cases are the shapes each wire really sends (tool use, cache usage, thinking blocks, blocked
 prompts, truncated outputs, a body that is no answer) in the form of a plain JSON body, a server-sent-event stream or
 an NDJSON stream. The committed ``golden_answers_baseline.json`` was recorded by serving each case from a loopback HTTP
-server to the previous chat adapter (litellm 1.106.0, the version main's uv.lock pinned, at main c0cbd9185d) and
-reducing the message it returned.
+server to the previous chat adapter (litellm 1.97.0, the version the server's uv.lock pins and the product runs, at
+main c0cbd9185d) and reducing the message it returned. The baseline's ``_meta.cross_check`` states how the harness
+lock's litellm 1.106.0 reads the same corpus.
 """
 
 from __future__ import annotations

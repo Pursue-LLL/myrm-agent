@@ -31,10 +31,30 @@ HTTP_ALLOWED: Final[Mapping[str, Allowed]] = {
         {"payload": True},
         "A 413 says the request is too large in bytes: the agent also drops historical images before it compacts text.",
     ),
+    "ollama.bad_request": Allowed(
+        {"reason": "format", "kind": "format_error"},
+        "A 400 from Ollama is a refused request, not a lost connection: the agent stops repeating a request the server "
+        "has already rejected.",
+    ),
+    "ollama.not_found": Allowed(
+        {"reason": "unknown", "kind": "unknown"},
+        "A 404 naming a model that is not pulled is the server answering, not a connection failure: the recovery is the "
+        "same transient retry, and the error card shows the server's own sentence instead of a timeout.",
+    ),
+    "ollama.server_500": Allowed(
+        {"reason": "overloaded", "kind": "overloaded"},
+        "A 500 from a runner that died is the provider failing, so the agent retries or switches provider; it is not a "
+        "timeout of the connection.",
+    ),
     "openai.ctx_groq_tpm_413": Allowed(
         {"ctx": True, "payload": True},
         "Groq answers a request bigger than its per-minute token budget with a 413 and asks to reduce the message: "
         "shrinking the request is the recovery, since waiting cannot make that request fit.",
+    ),
+    "openai.policy_moonshot": Allowed(
+        {"reason": "safety_block", "kind": "safety_block"},
+        "Moonshot's high-risk refusal is a content-policy block, so the agent hands the turn to its safety fallback "
+        "model instead of treating the refusal as a malformed request.",
     ),
     "openai.rl_503_capacity": Allowed(
         {"reason": "overloaded", "kind": "overloaded"},

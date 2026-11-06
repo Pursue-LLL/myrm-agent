@@ -1,8 +1,9 @@
 {
  "_meta": {
+  "cross_check": "The same corpus served to litellm 1.106.0 (the harness lock) reads the same in 36 of 36 streams and 121 of 121 answers and differs in 4 of 132 error replies: three Ollama replies (400, 404, 500) that 1.97.0 reports as a connection failure and one Moonshot policy refusal that 1.97.0 reads as a malformed request.",
   "method": "Each case was served by a loopback HTTP server to the previous adapter; the raised exception went through that stack's own errors package.",
   "recorded": "2026-11-06",
-  "stack": "litellm 1.106.0 (the version main's uv.lock pins) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
+  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
  },
  "http": {
   "anthropic.auth": {
@@ -548,10 +549,10 @@
    "headers": {},
    "old": {
     "ctx": false,
-    "kind": "format_error",
+    "kind": "timeout",
     "payload": false,
     "quota": false,
-    "reason": "format",
+    "reason": "timeout",
     "retry_after": null
    },
    "status": 400,
@@ -562,10 +563,10 @@
    "headers": {},
    "old": {
     "ctx": false,
-    "kind": "unknown",
+    "kind": "timeout",
     "payload": false,
     "quota": false,
-    "reason": "unknown",
+    "reason": "timeout",
     "retry_after": null
    },
    "status": 404,
@@ -590,10 +591,10 @@
    "headers": {},
    "old": {
     "ctx": false,
-    "kind": "overloaded",
+    "kind": "timeout",
     "payload": false,
     "quota": false,
-    "reason": "overloaded",
+    "reason": "timeout",
     "retry_after": null
    },
    "status": 500,
@@ -1556,10 +1557,10 @@
    "headers": {},
    "old": {
     "ctx": false,
-    "kind": "safety_block",
+    "kind": "format_error",
     "payload": false,
     "quota": false,
-    "reason": "safety_block",
+    "reason": "format",
     "retry_after": null
    },
    "status": 400,

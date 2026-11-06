@@ -1,8 +1,9 @@
 {
  "_meta": {
+  "cross_check": "The same corpus served to litellm 1.106.0 (the harness lock) reads the same in 36 of 36 streams and 121 of 121 answers and differs in 4 of 132 error replies: three Ollama replies (400, 404, 500) that 1.97.0 reports as a connection failure and one Moonshot policy refusal that 1.97.0 reads as a malformed request.",
   "method": "Each case was served by a loopback HTTP server to the previous adapter; the AIMessage it returned was reduced to the fields below.",
   "recorded": "2026-11-06",
-  "stack": "litellm 1.106.0 (the version main's uv.lock pins) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
+  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
  },
  "cases": {
   "anthropic.cache_usage": {
