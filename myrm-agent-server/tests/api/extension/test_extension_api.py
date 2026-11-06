@@ -104,7 +104,7 @@ class TestSSEBroadcast:
         bridge._ws.client_state = WebSocketState.DISCONNECTED
         bridge._tabs = []
 
-        with patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast:
+        with patch("app.services.extension.bridge.common._broadcast_extension_status") as mock_broadcast:
             await bridge.disconnect()
             mock_broadcast.assert_called_once_with(False)
 
@@ -112,7 +112,7 @@ class TestSSEBroadcast:
     async def test_broadcast_publishes_correct_event(self) -> None:
         from app.services.extension.bridge import _broadcast_extension_status
 
-        with patch("app.services.extension.bridge.get_event_bus") as mock_bus:
+        with patch("app.services.extension.bridge.common.get_event_bus") as mock_bus:
             mock_publisher = MagicMock()
             mock_bus.return_value = mock_publisher
 
@@ -127,7 +127,7 @@ class TestSSEBroadcast:
     async def test_broadcast_false_event(self) -> None:
         from app.services.extension.bridge import _broadcast_extension_status
 
-        with patch("app.services.extension.bridge.get_event_bus") as mock_bus:
+        with patch("app.services.extension.bridge.common.get_event_bus") as mock_bus:
             mock_publisher = MagicMock()
             mock_bus.return_value = mock_publisher
 
@@ -315,7 +315,7 @@ class TestConnectToDomainWildcard:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
@@ -353,7 +353,7 @@ class TestConnectToDomainWildcard:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
@@ -553,7 +553,7 @@ class TestDirectCdpRiskGovernance:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=True)
@@ -1338,7 +1338,7 @@ class TestConnectWithoutCdpEndpoint:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1362,7 +1362,7 @@ class TestConnectWithoutCdpEndpoint:
 
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1416,7 +1416,7 @@ class TestHandleWsConnectionLifecycle:
             side_effect=stop_receive_loop,
         ):
             with patch.object(bridge, "_heartbeat_loop", new_callable=AsyncMock):
-                with patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast:
+                with patch("app.services.extension.bridge.common._broadcast_extension_status") as mock_broadcast:
                     await bridge.handle_ws_connection(mock_ws)
 
         assert bridge._connected is False
@@ -1529,7 +1529,7 @@ class TestConnectToDomainWithoutCdp:
         with (
             patch.object(bridge, "_sync_relay_tabs", new_callable=AsyncMock),
             patch.object(bridge, "_refresh_tabs", new_callable=AsyncMock),
-            patch("app.services.extension.bridge.get_cdp_relay_manager") as mock_manager_factory,
+            patch("app.services.extension.bridge.common.get_cdp_relay_manager") as mock_manager_factory,
         ):
             manager = MagicMock()
             manager.relay_cdp_ready = AsyncMock(return_value=False)
@@ -1729,7 +1729,7 @@ class TestHeartbeatLoopPing:
             if sleep_calls >= 2:
                 bridge._connected = False
 
-        with patch("app.services.extension.bridge.asyncio.sleep", side_effect=fake_sleep):
+        with patch("app.services.extension.bridge.relay.asyncio.sleep", side_effect=fake_sleep):
             await bridge._heartbeat_loop()
 
         mock_ws.send_text.assert_awaited_once()

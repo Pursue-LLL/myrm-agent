@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `ExtensionBridgeService`、`get_extension_bridge` | — |
 | `access_policy.py` | 核心 | 统一 tab 访问策略评估（domain 白名单 / allow-all / pause / internal URL 过滤） | ✅ |
-| `bridge.py` | 核心 | WebSocket 生命周期、心跳、能力握手门禁、**CDP relay 编排**、浏览器连接、域名授权、CDP 探测缓存、Wiki 剪藏 agent WS 推送（`clip_agent_update`） | ✅ |
+| `bridge/` | 核心 | 扩展桥，按职责分 6 个 mixin（connection / access / relay / tabs / capability / clip_config）+ `service`（状态）+ `factory`（单例）+ `common`（常量、状态广播、relay manager、fallback 类型）：WebSocket 生命周期与心跳、能力握手门禁、CDP relay 编排、浏览器连接、域名授权、CDP 探测缓存、Wiki 剪藏 agent 推送。见 [bridge/_ARCH.md](bridge/_ARCH.md) | ✅ |
 | `pairing.py` | 辅助 | 一次性 WebUI ↔ 扩展配对码 + consume rate limit | ✅ |
 | `relay_check.py` | 辅助 | Browser Doctor 的 `extension_relay` 检查：进程内读取 bridge 的连接/访问策略/relay 状态（不经 HTTP 自探测），映射为 `DoctorCheckResult`；未连接是可选能力（`details.optional`），已连接但无授权站点、server 缺 token 是需处理的告警；由 `/health/browser/doctor` 作为 `run_doctor(extra_checks=...)` 传入，harness 不认识本 server 的 relay | ✅ |
 | `cdp_relay/` | 子包 | loopback DevTools façade + Target 合成 — 见 [cdp_relay/_ARCH.md](cdp_relay/_ARCH.md) | ✅ |
