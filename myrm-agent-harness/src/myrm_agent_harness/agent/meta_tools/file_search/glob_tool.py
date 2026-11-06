@@ -81,7 +81,6 @@ async def _list_files_with_ripgrep(
         "--files",
         "--null",
         "--color=never",
-        "--no-messages",
         *rg_traversal_args(search_root, include_ignored=include_ignored),
     ]
     cmd.extend(["--", "."])

@@ -112,6 +112,7 @@ async def run_rg(
     file name may itself hold a line feed.
 
     Raises:
+        OSError: ripgrep could not be started, for example because ``rg`` is not on the PATH.
         TimeoutError: ripgrep did not finish within ``timeout_seconds``; the process has been killed.
         ValueError: A stdout line exceeded ``_STREAM_LIMIT_BYTES``; the process has been killed.
         RuntimeError: The subprocess pipes could not be created.

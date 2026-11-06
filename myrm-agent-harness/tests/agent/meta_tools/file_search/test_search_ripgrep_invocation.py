@@ -3,7 +3,7 @@
 Covers:
 - ripgrep ignores the user's own configuration
 - A run that ended with status 2 after printing stands, an empty answer included (an unreadable directory), and is
-  logged once
+  logged once, in ripgrep's own words naming what it skipped
 - Any other failure (an unparseable pattern, flags it cannot run, a kill after printing), a timeout and a failure
   to start fall back to the Python tier, and the one log record names the cause (exit code or exception)
 """
@@ -87,17 +87,26 @@ class TestRipgrepFailureStands:
         assert await run_grep(plain_dir, "needle", max_files=10) == "No matches found for: needle"
 
     @pytest.mark.usefixtures("locked_dir")
-    async def test_a_failure_after_output_is_logged_once_and_says_the_output_stands(
-        self, plain_dir: Path, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
+    @pytest.mark.parametrize("tool", ["grep", "glob"])
+    async def test_a_failure_after_output_is_logged_once_and_names_what_ripgrep_skipped(
+        self,
+        tool: str,
+        plain_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+        run_glob: SearchRunner,
+        run_grep: SearchRunner,
     ) -> None:
         write_tree(plain_dir, {"ok/a.txt": "needle\n"})
+        tools = {"grep": (run_grep, "needle", grep_tool), "glob": (run_glob, "**/*.txt", glob_tool)}
+        run, pattern, module = tools[tool]
 
-        await run_grep(plain_dir, "needle")
+        await run(plain_dir, pattern)
 
         [message] = warnings_from(caplog, _rg_runner)
         assert "exit code 2" in message
         assert "stands" in message
-        assert warnings_from(caplog, grep_tool) == []
+        assert "locked" in message
+        assert warnings_from(caplog, module) == []
 
     async def test_glob_keeps_the_files_ripgrep_listed_before_it_failed(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
