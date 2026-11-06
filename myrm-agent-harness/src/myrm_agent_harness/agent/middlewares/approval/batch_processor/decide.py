@@ -1,4 +1,27 @@
-"""单工具安全判定循环。
+"""[INPUT]
+- myrm_agent_harness.agent.security.approval_flow::DEFAULT_USER_ID / get_allowlist (POS: Core component for "Always Allow" feature in Human-in-the-Loop approval system.)
+- myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
+- myrm_agent_harness.agent.security.engine::evaluate_tool_call / extract_url_domains (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation —)
+- myrm_agent_harness.agent.security.guards.skill_approval_hook::HookAction (POS: Integrated into tool_interceptor_middleware between the onion policy)
+- myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
+- myrm_agent_harness.agent.security.managed_approval_policy::ManagedApprovalPolicy (POS: Harness SSOT for org floor rules that constrain allowlist honor, YOLO, auto-review,)
+- myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines)
+- myrm_agent_harness.agent.security.tool_registry::resolve_permission_type / resolve_safety_metadata (POS: Tool safety registry — re-exported from core.security.tool_registry.)
+- myrm_agent_harness.agent.security.types::PermissionAction / RecentToolCall / ReviewDecision / SecurityConfig (POS: Security type definitions — re-exported from core.security.types.)
+- myrm_agent_harness.core.security.device_policy::BatchRiskAssessment (POS: Foundation layer in core/security. Zero internal dependencies on agent runtime.)
+- myrm_agent_harness.core.security.readonly_research_sandbox::get_readonly_research_sandbox_facade (POS: Entry of the read-only research lease package.)
+- myrm_agent_harness.core.security.remote_ops_ledger::derive_recovery_hint (POS: Foundation layer in core/security. Zero agent-internal dependencies.)
+- myrm_agent_harness.core.security.spend_governance::compute_action_digest / compute_script_content_hash / extract_script_file_target / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
+- myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
+- myrm_agent_harness.agent.middlewares.approval::_batch_review (POS: Tool approval subsystem — Human-in-the-Loop approval flow.)
+- myrm_agent_harness.agent.middlewares.approval._batch_review::_evaluate_skill_hooks_for_tool / _get_runtime_domains / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review, runtime domain tracking, skill hook evaluation.)
+- myrm_agent_harness.agent.middlewares.approval._cron_policy::resolve_cron_ask (POS: A cron run has nobody to answer an ASK, so a declared capability set stands in for the approval,)
+- myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-)
+- myrm_agent_harness.agent.middlewares.approval.helpers::ThresholdBreach / is_threshold_breached / record_approval / record_denial (POS: Approval middleware helper functions. Implements dual-threshold denial tracking)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor.yolo::operator_as_key_deny_message (POS: batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。)
+
+[OUTPUT]
+- evaluate_calls: evaluate_calls
 
 [POS]
 batch_processor 的逐工具决策；由 core 组装上下文后调用，输出 approved/denied/pending 三个列表。

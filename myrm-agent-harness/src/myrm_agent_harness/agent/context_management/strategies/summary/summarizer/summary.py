@@ -1,4 +1,15 @@
-"""结构化摘要生成、预算提示与结果裁剪。
+"""[INPUT]
+- myrm_agent_harness.agent.context_management.strategies.summary.summarizer.audit::_record_summarize_to_metrics / _summarize_full_with_audit / _summarize_incremental_with_audit (POS: 摘要策略子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.agent.context_management.strategies.summary.summarizer.budget::_cap_summary_if_needed (POS: 摘要策略子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
+- myrm_agent_harness.utils.token_estimation::estimate_messages_tokens (POS: Token estimation infrastructure. Covers message-level tokens and bind-tools overhead for)
+- myrm_agent_harness.agent.context_management.infra.schemas::ContextConfig / StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
+- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection)
+- myrm_agent_harness.agent.context_management.strategies.summary.summary_builder::TailExtractionResult / create_summary_message / extract_recent_messages_with_split_context (POS: Message reconstruction after summarisation.)
+- myrm_agent_harness.agent.context_management.strategies.summary.summary_parser::extract_existing_summary / extract_messages_after_summary (POS: Summary parsing and message formatting utilities.)
+
+[OUTPUT]
+- generate_structured_summary: Generate structured summary and rebuild message list (pure in-memory).
 
 [POS]
 摘要策略子包的一部分；由 __init__.py 聚合导出。

@@ -1,4 +1,11 @@
-"""SKILL.md 解析入口与字段组装。
+"""[INPUT]
+- myrm_agent_harness.backends.skills._utils.contract::_FRONTMATTER_MEMO / _extract_str_list / _parse_requires / _parse_skill_contract (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.backends.skills._utils.frontmatter::_MAX_COMPATIBILITY_LENGTH / _MAX_NAME_LENGTH / SkillFrontmatter / _parse_frontmatter_yaml / _validate_and_extract_description / _warn_unknown_fields (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.backends.skills.types::SkillPermission (POS: Framework generic skill system. The stable public entry point stays at)
+
+[OUTPUT]
+- parse_skill_frontmatter: Parse YAML frontmatter from SKILL.md (agentskills.io spec compliant).
+- _parse_frontmatter_fields: Build a SkillFrontmatter from SKILL.md text (uncached).
 
 [POS]
 skills _utils 子包的一部分；由 __init__.py 聚合导出。

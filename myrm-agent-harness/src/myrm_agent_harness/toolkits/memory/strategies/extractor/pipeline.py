@@ -1,4 +1,13 @@
-"""会话/目标执行轨迹的批量提取入口。
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory.strategies.extractor.models::ExtractedMemory / ExtractionConfig / ExtractionResult / LLMFunc (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.parse::_parse_response (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.prompt::detect_language (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.runner::MemoryExtractor (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.types::EvidenceReference (POS: Memory type system foundation. Provides type-safe schema definitions for all)
+
+[OUTPUT]
+- extract_memories_from_conversation: Convenience: extract memories from a conversation.
+- extract_goal_learnings: Extract forward-looking actionable learnings from a completed goal's execution trace.
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。

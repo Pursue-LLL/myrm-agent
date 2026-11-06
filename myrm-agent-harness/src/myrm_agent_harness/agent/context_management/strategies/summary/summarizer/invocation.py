@@ -1,4 +1,20 @@
-"""摘要模型的构造、调用、流式进度与消息前缀构造。
+"""[INPUT]
+- myrm_agent_harness.agent.config.llm_safety::normalize_messages (POS: Provider safety normalization. Pure function for direct LLM paths; agent middleware covers the primary runtime.)
+- myrm_agent_harness.agent.security.detection.leak_detector::redact_leaks (POS: Leak detector — re-exported from core.security.detection.leak_detector.)
+- myrm_agent_harness.agent.security.detection.pii_redactor::redact_pii (POS: PII redactor. Type-aware smart masking (phone numbers retain first 3 and last 4 digits, emails retain domain, cards)
+- myrm_agent_harness.utils.logger_utils::get_agent_logger (POS: Unified logging utilities. Provides consistent log format and convenience methods)
+- myrm_agent_harness.agent.context_management.infra.schemas::StructuredSummary (POS: Context management shared data structures. Defines compact format types, summary schemas, and configuration constants as)
+- myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout::ProgressClock / SummaryProgressTracker (POS: Progress-aware timeout primitives for summarization. Decouples timeout detection)
+- myrm_agent_harness.agent.context_management.strategies.summary.summary_parser::_build_summary_from_dict / parse_summary_response (POS: Summary parsing and message formatting utilities.)
+
+[OUTPUT]
+- _FallbackSummaryModel: _FallbackSummaryModel
+- _get_structured_llm_or_parser: _get_structured_llm_or_parser
+- _redact_summary_fields: Apply credential and PII redaction to all text fields of a StructuredSummary.
+- _coerce_to_structured_summary: Normalize ``with_structured_output``/parser output into a ``StructuredSummary``.
+- _invoke_summary: _invoke_summary
+- _stream_with_progress: Stream LLM response token-by-token, calling tracker.touch() on each chunk.
+- _build_summary_invocation_messages: _build_summary_invocation_messages
 
 [POS]
 摘要策略子包的一部分；由 __init__.py 聚合导出。

@@ -1,4 +1,8 @@
-"""路由关键词、简单指示词与 judge 系统提示。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

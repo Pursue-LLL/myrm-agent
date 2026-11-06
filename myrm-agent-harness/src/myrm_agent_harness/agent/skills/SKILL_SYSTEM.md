@@ -8,24 +8,24 @@
 
 ## 模块总览
 
-| 编号 | 模块 | 分类 | 核心来源 |
+| 编号 | 模块 | 分类 | 能力要点 |
 |------|------|------|----------|
 | 1 | 概述与设计目标 | — | 全部 14 项目共识 |
-| 2 | 技能定义规范 | **CORE** | OpenClaw + Deer-Flow + Nanobot |
-| 3 | 存储与发现 | **CORE** | ironclaw 三层目录 + 信任分离 |
-| 4 | 渐进式加载与 Prompt 生成 | **CORE** | ironclaw XML + LobsterAI 路由 + picoclaw 摘要 |
-| 5 | 信任模型与权限衰减 | **CORE** | ironclaw 信任衰减 + opencode 权限过滤 |
-| 6 | 确定性技能选择器 | **CORE** | ironclaw 评分 + 排除关键词 + Token 预算 |
-| 7 | 依赖检查与可用性 | **CORE** | Nanobot + ironclaw gating |
-| 8 | 安全扫描框架 | **CORE** | CoPaw 可扩展框架 + ironclaw 内容转义 |
-| 9 | 安装与卸载 | **CORE** | Deer-Flow 安全提取 + 隔离区安装流水线（评分门禁、事务式回滚） |
+| 2 | 技能定义规范 | **CORE** | 名称/描述/触发条件与 frontmatter 校验 |
+| 3 | 存储与发现 | **CORE** | 三层目录发现 + 信任分离 |
+| 4 | 渐进式加载与 Prompt 生成 | **CORE** | 渐进式加载 + XML prompt + 摘要 |
+| 5 | 信任模型与权限衰减 | **CORE** | 信任衰减 + 权限过滤 |
+| 6 | 确定性技能选择器 | **CORE** | 评分 + 排除关键词 + Token 预算 |
+| 7 | 依赖检查与可用性 | **CORE** | 依赖探测 + 可用性门控 |
+| 8 | 安全扫描框架 | **CORE** | 可扩展扫描规则 + 内容转义 |
+| 9 | 安装与卸载 | **CORE** | 安全提取 + 隔离区安装（评分门禁、事务式回滚） |
 | 10 | 状态管理 | **CORE** | 文件即真相：技能目录内的 `.stats.json` / `origin.json` / `receipt.json`；SQLite 快照 + 目录监听 |
 | 11 | 技能失败事件与可选隔离读取 | **CORE** | `SkillFailureEvent` 交给宿主处置；`QuarantineAwareSkillBackend` 仅过滤宿主置为 `is_active=False` 的技能 |
 | 12 | 搜索缓存 | **CORE** | 精确键 + TTL 的查询结果缓存 |
-| 13 | Marketplace 集成 | ENHANCE | NextClaw API + CoPaw 多源 |
-| 14 | 技能创建与评估 | ENHANCE | Deer-Flow AI 驱动 |
-| 15 | Skill Packs 技能集合 | ENHANCE | NanoClaw Flavor + Clawith Template |
-| 16 | Curated Skills 预安装 | ENHANCE | nexu |
+| 13 | Marketplace 集成 | ENHANCE | 多源 Marketplace 接入 |
+| 14 | 技能创建与评估 | ENHANCE | AI 驱动的创建与评估 |
+| 15 | Skill Packs 技能集合 | ENHANCE | 可组合技能集合 |
+| 16 | Curated Skills 预安装 | ENHANCE | 预安装 curated skills |
 
 > **CORE** = 必须实现（竞争力底线），**ENHANCE** = 可选增强。
 
@@ -71,20 +71,20 @@
 
 **新增模块**：
 
-| 新模块 | 包路径 | 核心来源 |
+| 新模块 | 包路径 | 能力基础 |
 |--------|--------|----------|
-| 信任衰减器 | `agent/skills/runtime/attenuator.py` | ironclaw |
-| 安全扫描器 | `backends/skills/scanning/scanner.py` | CoPaw |
-| 内容转义器 | `agent/skills/runtime/registry.py`（`xml.sax.saxutils.escape` / `quoteattr`） | ironclaw |
-| 确定性选择器 | 未落地：由 `agent/meta_tools/skills/select/skill_select_tool.py`（模型选择技能并加载 SOP）承担 | ironclaw |
-| 依赖检查器 | `backends/skills/prerequisites/` | Nanobot + ironclaw |
-| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | Deer-Flow |
-| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | Deer-Flow + nexu |
-| 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | Deer-Flow + nexu |
+| 信任衰减器 | `agent/skills/runtime/attenuator.py` | 使用频次/成功率驱动的能力衰减 |
+| 安全扫描器 | `backends/skills/scanning/scanner.py` | 多类别规则 + 严重级分类 |
+| 内容转义器 | `agent/skills/runtime/registry.py`（`xml.sax.saxutils.escape` / `quoteattr`） | XML 转义 |
+| 确定性选择器 | 未落地：由 `agent/meta_tools/skills/select/skill_select_tool.py`（模型选择技能并加载 SOP）承担 | 关键词/结构评分 |
+| 依赖检查器 | `backends/skills/prerequisites/` | 二进制/环境探测 |
+| Frontmatter 验证器 | `backends/skills/_utils/`（`parse_skill_frontmatter`） | YAML 解析 + 字段校验 |
+| 安装流水线 | `agent/skills/market/file_install.py`、`agent/skills/market/transaction.py` | 隔离区安装 + 事务回滚 |
+| 安全提取器 | `backends/skills/scanning/zip_extract.py`、`agent/skills/market/installers/zip_installer.py` | zip 路径/大小/符号链接校验 |
 | 使用与生命周期账本 | `backends/skills/stats_collector.py` | 本仓 |
 | 内容缓存 | `backends/skills/_content_memo.py` | 本仓 |
 | 搜索缓存 | `agent/skills/market/service.py`（`BaseSkillMarketService.search`） | 本仓 |
-| XML 摘要生成器 | `agent/skills/runtime/registry.py`（`get_metadata_summary`） | ironclaw + LobsterAI + picoclaw |
+| XML 摘要生成器 | `agent/skills/runtime/registry.py`（`get_metadata_summary`） | — |
 
 ---
 
@@ -133,34 +133,34 @@ max-context-tokens: 8000
 
 | 字段 | 类型 | 必需 | 说明 | 来源 |
 |------|------|------|------|------|
-| `name` | string | 推荐 | 技能名称（显示用，实际标识用目录名） | OpenClaw |
+| `name` | string | 推荐 | 技能名称（显示用，实际标识用目录名） | — |
 | `description` | string | **必需** | 简短描述（≤1024 字符），用于摘要和触发匹配 | 全部 |
-| `version` | string | 可选 | 语义化版本号 | OpenClaw + CoPaw |
-| `category` | enum | 可选 | `builtin` / `custom`，默认 `custom` | Deer-Flow |
-| `requires` | object | 可选 | 依赖声明（见 §7） | Nanobot + ironclaw |
-| `requires.bins` | string[] | 可选 | 需要的 CLI 工具 | Nanobot |
-| `requires.env` | string[] | 可选 | 需要的环境变量 | Nanobot |
-| `requires.config` | string[] | 可选 | 需要的配置文件路径 | ironclaw |
-| `tags` | string[] | 可选 | 分类标签（用于搜索、过滤、选择器匹配） | NextClaw + ironclaw |
-| `always` | boolean | 可选 | L1 token 预算内的优先排序；默认 `false`。**不保证一定出现，也不注入 SKILL.md 正文或 SystemMessage**（见 §4.3） | Nanobot |
+| `version` | string | 可选 | 语义化版本号 | — |
+| `category` | enum | 可选 | `builtin` / `custom`，默认 `custom` | — |
+| `requires` | object | 可选 | 依赖声明（见 §7） | — |
+| `requires.bins` | string[] | 可选 | 需要的 CLI 工具 | — |
+| `requires.env` | string[] | 可选 | 需要的环境变量 | — |
+| `requires.config` | string[] | 可选 | 需要的配置文件路径 | — |
+| `tags` | string[] | 可选 | 分类标签（用于搜索、过滤、选择器匹配） | — |
+| `always` | boolean | 可选 | L1 token 预算内的优先排序；默认 `false`。**不保证一定出现，也不注入 SKILL.md 正文或 SystemMessage**（见 §4.3） | — |
 | `hooks` | object[] | 可选 | Hook 定义（事件触发） | 现有架构 |
 | `allowed-tools` | string[] | 可选 | 允许使用的工具白名单（仅登记或已绑定的工具名生效，见下） | 现有架构 |
-| `patterns` | string[] | 可选 | 正则模式（精确匹配 URL/路径等格式） | ironclaw |
-| `exclude-keywords` | string[] | 可选 | 排除关键词（防止误触发） | ironclaw |
-| `max-context-tokens` | int | 可选 | 最大上下文 Token 数（默认 8000） | ironclaw |
+| `patterns` | string[] | 可选 | 正则模式（精确匹配 URL/路径等格式） | — |
+| `exclude-keywords` | string[] | 可选 | 排除关键词（防止误触发） | — |
+| `max-context-tokens` | int | 可选 | 最大上下文 Token 数（默认 8000） | — |
 | `license` | string | 可选 | 许可证 | agentskills.io |
 | `compatibility` | string | 可选 | 环境要求（≤500 字符） | agentskills.io |
 | `metadata` | object | 可选 | 扩展元数据（author、homepage 等） | agentskills.io |
 
-**命名规范**（来自 Deer-Flow 验证器）：
+**命名规范**：
 - 技能目录名：kebab-case，`^[a-z][a-z0-9-]*$`，最长 64 字符
 - description：禁止包含 `<` `>` 角括号，最长 1024 字符
 - Frontmatter 字段：白名单验证，未知字段产生警告
 
 **关键设计决策**：
-- `requires` 采用 Nanobot 的结构化格式 + ironclaw 的 `config` 扩展，支持自动化检查
-- `exclude-keywords` 和 `max-context-tokens` 来自 ironclaw，用于确定性选择器
-- `always` 来自 Nanobot，但**语义已收窄**：它只在技能数超过内联阈值时保住目录可见性，不注入正文、不进 SystemMessage（见 §4.3）
+- `requires` 采用结构化格式，包含 `config` 扩展，支持自动化检查
+- `exclude-keywords` 和 `max-context-tokens` 用于确定性选择器
+- `always` 的**语义已收窄**：它只在技能数超过内联阈值时保住目录可见性，不注入正文、不进 SystemMessage（见 §4.3）
 - `allowed-tools` 是独占白名单：技能加载期间只保留所列工具。名称只有已登记（`is_registered_action_tool`）或本轮已绑定（如 MCP 工具）时才参与收窄；其他生态写法（`Bash`、`Read`、`Bash(ls *)` 等）无法对应任何 Myrm 工具，被忽略并在日志中按技能提示一次，声明里没有任何可识别名称的技能等同未声明。信任级别上限不受影响
 
 ---
@@ -187,13 +187,13 @@ skills/
 
 **优先级规则**：workspace > builtin > installed（同名技能，高优先级覆盖低优先级）
 
-**信任分离**（来自 ironclaw）：
+**信任分离**：
 - `builtin/` 和 `workspace/` 中的技能自动获得 `Trusted` 信任级别
 - `installed/` 中的技能自动获得 `Installed` 信任级别（受限）
 - **物理目录决定信任级别**，无法通过 frontmatter 自行声明
 
 **设计决策**：
-- 采用 ironclaw 的三层方案 + 信任分离，比两层方案多一层安全保障
+- 采用三层方案 + 信任分离，比两层方案多一层安全保障
 - `installed/` 层的技能受权限衰减约束（见 §5），只能使用只读工具
 - 用户可以将 `installed/` 中信任的技能手动移到 `workspace/` 来提升信任
 - builtin 对应 `LocalSkillBackend`，workspace/installed 对应 `StorageSkillBackend`
@@ -252,7 +252,7 @@ Level 3: 资源（Resources）
 </skills>
 ```
 
-**关键安全措施**（来自 ironclaw）：
+**关键安全措施**：
 - 所有 XML 属性值经过转义（`<`, `>`, `&`, `"`, `'`）
 - `<skill>` 标签逃逸检测（大小写不敏感，处理空白和 NUL 字节）
 - 行尾规范化确保一致性哈希
@@ -313,7 +313,7 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 | `Trusted` | `builtin/`, `workspace/` | 用户明确信任的技能，可使用所有工具 |
 | `Installed` | `installed/` | 外部安装的技能，只能使用只读工具 |
 
-### 5.2 权限衰减机制（来自 ironclaw）
+### 5.2 权限衰减机制
 
 **核心规则**：当多个技能同时激活时，**最低信任级别决定工具上限**。
 
@@ -336,7 +336,7 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 - 信任级别由物理目录决定，技能自身无法声明更高信任
 - 用户可以通过移动技能目录来提升/降低信任
 
-### 5.3 Agent 级别权限过滤（来自 opencode）
+### 5.3 Agent 级别权限过滤
 
 除了信任衰减，还支持 Agent 级别的技能可见性过滤：
 
@@ -347,7 +347,7 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 **设计决策**：
 - 2 个信任级别足够覆盖所有场景（Trusted vs Installed）
 - 最低信任原则从根本上防止权限升级
-- 不采用更多级别（如 CoPaw 的 block/warn/off），因为硬限制比软警告更安全
+- 不采用更多级别（如  block/warn/off），因为硬限制比软警告更安全
 - Agent 权限过滤是额外的细粒度控制层
 
 ---
@@ -356,7 +356,7 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 
 > 落地状态：本章的评分选择器未实现。当前由模型经 `skill_select` 元工具选择技能并加载 SOP（`agent/meta_tools/skills/select/skill_select_tool.py`），可选技能目录的披露方式见 §4 与「L1/L2 缓存架构」。
 
-### 6.1 设计理念（来自 ironclaw）
+### 6.1 设计理念
 
 技能选择的第一阶段是**纯确定性的**，不依赖 LLM：
 - 防止 LLM 被 Prompt 注入操纵选择恶意技能
@@ -410,13 +410,13 @@ pattern_score（上限 0.3）：
 
 ## 7. 依赖检查与可用性 [CORE]
 
-### 7.1 依赖类型（融合 Nanobot + ironclaw）
+### 7.1 依赖类型
 
 | 类型 | 声明方式 | 检查方法 | 来源 |
 |------|----------|----------|------|
-| CLI 工具 | `requires.bins: [node, npm]` | `shutil.which()` | Nanobot |
-| 环境变量 | `requires.env: [API_KEY]` | `os.environ.get()` | Nanobot |
-| 配置文件 | `requires.config: [~/.tool/config.json]` | `Path.exists()` | ironclaw |
+| CLI 工具 | `requires.bins: [node, npm]` | `shutil.which()` | — |
+| 环境变量 | `requires.env: [API_KEY]` | `os.environ.get()` | — |
+| 配置文件 | `requires.config: [~/.tool/config.json]` | `Path.exists()` | — |
 
 ### 7.2 检查时机
 
@@ -424,7 +424,7 @@ pattern_score（上限 0.3）：
 - **Level 1（摘要）**：XML 摘要中标注 `available` 和 `unavailable_reason`
 - **Level 2（正文）**：不可用技能仍可加载正文（LLM 可引导用户安装依赖）
 
-### 7.3 异步检查（来自 ironclaw）
+### 7.3 异步检查
 
 所有检查异步执行，避免阻塞主流程：
 - `bins` 检查通过 `asyncio.to_thread(shutil.which, ...)` 执行
@@ -432,19 +432,19 @@ pattern_score（上限 0.3）：
 
 **设计决策**：
 - 不可用技能不会从列表中隐藏，而是标注原因（LLM 可引导用户安装依赖）
-- `config` 类型是 ironclaw 的独特贡献，用于检查配置文件是否存在
+- `config` 类型用于检查配置文件是否存在
 - 异步检查确保大量技能时不阻塞启动
 
 ---
 
 ## 8. 安全扫描框架 [CORE]
 
-### 8.1 架构（来自 CoPaw，精简版）
+### 8.1 架构
 
 ```
 Scanner（编排器）
   ├── PatternAnalyzer（正则模式分析）
-  ├── ContentSanitizer（内容转义，来自 ironclaw）
+  ├── ContentSanitizer（内容转义）
   └── ScanPolicy（可配置策略）
 ```
 
@@ -487,28 +487,28 @@ Scanner（编排器）
 - 扫描结果在进程内按「技能名 + 扩展名 + 内容 SHA-256」缓存（`ContentMemo`，见 §10.3）：内容一变就重新扫描，不跨进程持久化，重启进程后不会沿用旧扫描器的结论
 - LLM 审计为可选增强，无 LLM 时 graceful fallback 到纯正则
 
-### 8.3 内容转义（来自 ironclaw）
+### 8.3 内容转义
 
 所有技能内容在注入 Prompt 前经过转义：
 - XML 属性转义（`<`, `>`, `&`, `"`, `'`）
 - `<skill>` 标签逃逸检测（大小写不敏感，处理空白和 NUL 字节）
 - 行尾规范化（统一为 `\n`）确保一致性哈希
 
-### 8.4 安装前扫描 + 用户确认（来自 LobsterAI）
+### 8.4 安装前扫描 + 用户确认
 
 - 安装外部技能前自动执行安全扫描
 - 如果检测到风险，暂停安装并提示用户确认
 - 用户可选择：安装、安装但禁用、取消
 - 待确认的安装有 TTL（5 分钟），超时自动取消
 
-### 8.5 内容完整性哈希（来自 ironclaw）
+### 8.5 内容完整性哈希
 
 每个技能的 SKILL.md 计算 SHA-256 内容哈希：
 - 行尾规范化后计算（`\r\n` → `\n`），确保跨平台一致性
 - 用途：白名单精确匹配、篡改检测、缓存失效判断、变更检测
 - 哈希在加载时随 `SkillMetadata.content_hash` 一并计算（`backends/skills/_runtime.py::compute_content_hash`），不另存账本；预置技能同步、磁盘内容比对等需要判断变更的地方按当前内容重算后比较
 
-### 8.6 白名单机制（来自 CoPaw）
+### 8.6 白名单机制
 
 - 已确认安全的技能可加入白名单（技能名 + 内容 SHA-256 哈希）
 - 白名单中的技能跳过扫描
@@ -516,10 +516,10 @@ Scanner（编排器）
 
 **设计决策**：
 - 安全扫描是 CORE 而非 ENHANCE，因为这是生产级系统的底线
-- 不采用 CoPaw 的全部 17 种威胁类别，避免过度设计
+- 不采用全部 17 种威胁类别，避免过度设计
 - 内容转义是独立于扫描的必要措施（即使扫描通过，也要转义）
 - 白名单 + SHA-256 哈希确保效率和安全的平衡
-- 行尾规范化确保跨平台一致性哈希（ironclaw 验证有效）
+- 行尾规范化确保跨平台一致性哈希
 
 ---
 
@@ -529,10 +529,10 @@ Scanner（编排器）
 
 | 方式 | 场景 | 信任级别 | 来源 |
 |------|------|----------|------|
-| **目录复制** | 开发环境、本地技能 | Trusted（workspace） | Nanobot |
-| **.skill 归档** | Marketplace 分发 | Installed | Deer-Flow |
-| **Git URL** | GitHub/GitLab 仓库 | Installed | NextClaw + picoclaw |
-| **Marketplace API** | 在线商店 | Installed | NextClaw |
+| **目录复制** | 开发环境、本地技能 | Trusted（workspace） | — |
+| **.skill 归档** | Marketplace 分发 | Installed | — |
+| **Git URL** | GitHub/GitLab 仓库 | Installed | — |
+| **Marketplace API** | 在线商店 | Installed | — |
 
 ### 9.2 隔离区安装流水线
 
@@ -558,7 +558,7 @@ Scanner（编排器）
 - 评分通过但带有告警的技能照常安装，告警写入 `SkillInstallResult.scan_summary`，回执的 `security_verified` 记为 `false`
 - 安装根是 `<状态根>/skills`（`LOCAL_INSTALL_DIR`）；安装流水线不决定信任级别，由宿主载入技能时赋予（§5）
 
-### 9.3 安全提取（来自 Deer-Flow + nexu）
+### 9.3 安全提取
 
 `.skill` 文件是标准 ZIP 归档，由 `safe_extract_zip`（`backends/skills/scanning/zip_extract.py`）在内存中解压，所有业务层共用这一个入口：
 - 下载上限 50MB（`zip_installer.MAX_ZIP_SIZE`）
@@ -571,7 +571,7 @@ Scanner（编排器）
 
 技能含 `package.json` 且声明了非空的 `preinstall` / `install` / `postinstall` 脚本时，安装前由 `check_lifecycle_scripts`（`backends/skills/scanning/package_audit.py`）判为 high 并直接拒绝（§9.2 门禁 2）；其他可疑的脚本命令只产生 medium 发现，进入 §8 的扫描结果，不阻断。安装流程本身不执行任何依赖安装命令。
 
-### 9.5 版本比较与升级（来自 CoPaw）
+### 9.5 版本比较与升级
 
 - `backends/skills/versioning.py`：`compare_versions` 先按 `major.minor.patch` 比较，任一方不是语义化版本时退回字符串比较；`classify_version_bump` 把一次变更归为 initial / same / patch / minor / major / downgrade；`validate_version_guard` 在提升前拦截降级（§9.2 门禁 4）
 - 搜索结果带 `installed_version` 与 `upgrade_available`（`BaseSkillMarketService._enrich_results`）
@@ -673,16 +673,16 @@ Scanner（编排器）
 
 ## 13. Marketplace 集成 [ENHANCE]
 
-### 13.1 多源聚合搜索（来自 CoPaw + picoclaw）
+### 13.1 多源聚合搜索
 
 `BaseSkillMarketService` 聚合多个技能源的搜索。默认源：预置（prebuilt，宿主提供技能存储时才有）、静态索引（static_index）、ClawHub、GitHub、skills.sh、LobeHub、ModelScope、阿里云；宿主可用 `register_source` / `unregister_source` 增删自定义源。
 
-**并发策略**（来自 picoclaw）：
+**并发策略**：
 - 对所有源并发发起搜索（`asyncio.as_completed`），逐个等待先返回的源，每次最多等 20 秒（`SEARCH_TIMEOUT`）
 - 支持部分成功：超时或出错的源只记警告并跳过，已拿到的结果照常返回
 - 各源结果先按来源优先级排序（`SOURCE_PRIORITY`：prebuilt > static_index > clawhub > skills_sh > github > lobehub，未列出的源为 0），再去重（`deduplicate`）、按查询词评分排序（`rank_results`）并截到 `limit`
 
-### 13.2 统一 API（来自 NextClaw）
+### 13.2 统一 API
 
 宿主 server 的实现，挂载在 `/api` 下：
 
@@ -700,17 +700,17 @@ Scanner（编排器）
 | `/api/skills/{skill_id}/files/{filename}` | GET | 读取技能文件（含 `SKILL.md`） |
 | `/api/skills/local/toggle` | POST | 启用 / 禁用本地技能 |
 
-### 13.3 多语言支持（来自 NextClaw + nexu）
+### 13.3 多语言支持
 
 - 技能描述支持 `description`（英文）和 `descriptionZh`（中文）
-- 内置标签翻译表（110+ 标签，来自 nexu）
+- 内置标签翻译表（110+ 标签）
 - 前端根据用户语言偏好自动选择
 
-### 13.4 GitHub 智能安装（来自 picoclaw + CoPaw）
+### 13.4 GitHub 智能安装
 
 - 智能 URL 解析：完整 URL、`owner/repo`、`owner/repo/path`、分支/标签/commit 引用
 - 两级下载策略：GitHub Contents API（优先）→ `raw.githubusercontent.com`（降级）
-- 多分支/路径模糊匹配搜索 `SKILL.md`（来自 CoPaw）
+- 多分支/路径模糊匹配搜索 `SKILL.md`
 
 **设计决策**：
 - Marketplace 是增强模块，不影响核心功能
@@ -811,7 +811,7 @@ Scanner（编排器）
 
 ## 15. Skill Packs 技能集合 [ENHANCE]
 
-### 15.1 定义（来自 NanoClaw Flavor + Clawith Agent Template）
+### 15.1 定义
 
 Skill Pack 是一组预配置的技能组合，适用于特定场景：
 
@@ -849,14 +849,14 @@ skills:
 
 **设计决策**：
 - YAML 格式定义，简单直观
-- 类似 Clawith 的 Agent Template 和 NanoClaw 的 Flavor System
+- 类似的 Agent Template 与 Flavor System
 - 缺失技能自动安装，无需手动逐个安装
 
 ---
 
 ## 16. Curated Skills 预安装 [ENHANCE]
 
-### 16.1 设计（来自 nexu）
+### 16.1 设计
 
 定义一组推荐技能列表，首次启动时自动安装：
 
@@ -960,28 +960,7 @@ STATIC_SKILL_SLUGS: list[str] = [
 
 ---
 
-## 附录 D: 参考项目来源索引
-
-| 项目 | 核心贡献 |
-|------|----------|
-| **OpenClaw** | SKILL.md 格式规范、渐进式披露、多管理器安装、ClawHub 商店 |
-| **Clawith** | 数据库存储、多租户、可移植性分层、Agent Template |
-| **NanoClaw** | Git 分支即技能、容器技能、Flavor System |
-| **Nanobot** | XML 摘要格式、依赖检查机制、Always 技能、ContextBuilder |
-| **NextClaw** | 统一 Marketplace API、多语言支持、实时事件 |
-| **Deer-Flow** | .skill 归档安全安装、Frontmatter 白名单验证、AI 驱动技能创建与评估 |
-| **CoPaw** | 安全扫描框架（Scanner + Analyzer + Policy）、多源 Hub 安装、白名单机制 |
-| **LobsterAI** | XML 路由指令、安装前用户确认、Skill Service Manager |
-| **ironclaw** | **信任模型与权限衰减**、确定性选择器、内容安全转义、Token 预算 |
-| **nexu** | 目录监听与增量对账的思路、staging 目录安装；异步安装队列、集中 JSON 账本与 Rate Limit 处理未采用 |
-| **picoclaw** | 多注册表并发搜索、GitHub 智能安装；Trigram 搜索缓存未采用 |
-| **nullclaw** | SkillForge 自动发现管线（Scout → Evaluate → Integrate） |
-| **zeroclaw** | SkillForge Rust 版、GitHub PAT 支持 |
-| **opencode** | Effect-TS 函数式架构、Agent 级别权限过滤、多源发现 |
-
----
-
-## 附录 E: 为什么这个方案是完美的
+## 附录 D: 为什么这个方案是完美的
 
 ### 1. 安全性最强
 

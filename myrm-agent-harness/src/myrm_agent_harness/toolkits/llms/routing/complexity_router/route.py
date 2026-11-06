@@ -1,4 +1,15 @@
-"""route_task 入口。
+"""[INPUT]
+- myrm_agent_harness.core.config.llm::LLMConfig (POS: Framework-agnostic LLM configuration SSOT. Defines CustomModelDef and LLMConfig for agent/ and toolkits/ without runtime)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.dedup::_dedup_check / _dedup_store (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.judge::_cache_get / _cache_put / _hash_text / _llm_judge_classify / _select_model_for_tier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords::DEFAULT_JUDGE_SYSTEM_PROMPT / DEFAULT_REASONING_KEYWORDS / DEFAULT_SIMPLE_INDICATORS / DEFAULT_STANDARD_KEYWORDS (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.momentum::_apply_momentum (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.scoring::_rule_based_classify (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.signals::_normalize_query (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.types::_TIER_RANK / RoutingResult / RoutingTier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- route_task: Route a task to the appropriate model tier (3-tier).
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

@@ -1,4 +1,9 @@
-"""连续消息的动量调整。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.scoring::_MOMENTUM_LONG_THRESHOLD / _MOMENTUM_MAX_HISTORY / _MOMENTUM_SHORT_THRESHOLD / _TIER_SCORES (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.types::RoutingTier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _apply_momentum: Apply session momentum using weighted average (MR-17).
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

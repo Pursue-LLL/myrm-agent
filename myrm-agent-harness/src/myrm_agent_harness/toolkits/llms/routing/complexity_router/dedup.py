@@ -1,4 +1,11 @@
-"""路由结果去重缓存。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.judge::_hash_text (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.types::RoutingTier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _dedup_key: Build a content-dedup cache key scoped by image presence.
+- _dedup_check: Check if this exact text (with image flag) was recently routed.
+- _dedup_store: Store a context-free routing verdict for content dedup.
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

@@ -1,4 +1,10 @@
-"""提取配置与结果模型。
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory.types::EpisodicMemory / EvidenceReference / MemoryType / PreferenceType / ProceduralMemory / ProfileEntry / SemanticMemory (POS: Memory type system foundation. Provides type-safe schema definitions for all)
+
+[OUTPUT]
+- ExtractionConfig: ExtractionConfig
+- ExtractedMemory: ExtractedMemory
+- ExtractionResult: ExtractionResult
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。

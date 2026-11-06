@@ -75,7 +75,7 @@
 - `agent/security/`：与 agent 中间件编排绑定的部分（`engine.py`、`checks.py`、`config.py`、`approval_flow.py`、`channel_presets.py`、`session_access.py`、`workspace_trust/`、`guards/` 等）。其中 `detection/`、`redact.py`、`path_security.py`、`tool_registry.py`、`audit.py`、`types.py` 是 `core/security/` 的再导出，保持 `agent.security.*` 导入路径稳定。
 - `core/security/`：规范实现（`detection/`、`redact/`、`path/`、`tool_registry/`、`safe_exec.py`、`ephemeral_credentials/`、`http/`、`guards/ssrf.py` 等），见 [core/security/_ARCH.md](../../core/security/_ARCH.md)。
 - `toolkits/code_execution/security/`：沙箱侧验证（模块/环境变量黑名单、Shell Command Analyzer、`validator.py`、`archive_sanitizer.py`），见 [其 _ARCH.md](../../toolkits/code_execution/security/_ARCH.md)。
-- `agent/middlewares/approval/`、`agent/middlewares/security/`：审批中间件（`middleware.py`、`batch_processor.py`、`helpers.py`）与安全护栏中间件（`security_guardrail_middleware.py`）。
+- `agent/middlewares/approval/`、`agent/middlewares/security/`：审批中间件（`middleware.py`、`batch_processor/`、`helpers.py`）与安全护栏中间件（`security_guardrail_middleware.py`）。
 
 ---
 
@@ -432,7 +432,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。放行之后规则文件仍是仓库作者可控的输入：`workspace_rules/rule_read_guard.py` 让一次扫描（含信任前的 FolderGate 披露）只读真实路径落在边界之内的文件（边界是 git 根，没有 git 根时是工作区根；指向边界外的符号链接只得到占位文本，不读内容），单文件最多读 256,000 字符，一次扫描最多 512 个文件、2,000,000 字符；规则文件名经 `core/security/detection/display_name.py` 压成单行纯文本后才进入系统消息与工具结果。
 4. **信任前披露读取**：`workspace_trust/manifest.py` 在用户决定之前读取工作区内的 `mcp.json`（四个位置）与 `.myrm/config.toml`，大小与种类同样由仓库决定，所以同样经 `read_text_bounded`，上限 1,048,576 字符：超限的 MCP 配置按一个 server 计，超限的 `config.toml` 记 warning 并视为未声明前缀；披露对任何扫描失败降级为零计数，不阻塞弹窗。
 5. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
-6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor.py` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
+6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
 
 ### 持久化与 API（server）
 
@@ -1123,7 +1123,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor.py` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
 
 ### 本地模式浏览器放宽
 
@@ -1357,7 +1357,7 @@ Cron 是非交互式的，运行时无人可以审批。因此：
 1. **声明式能力围栏** — `CronJob.required_capabilities: tuple[str, ...]` 在创建时声明所需能力
 2. **声明式路径授权** — `CronJob.allowed_roots: tuple[str, ...]` 在创建时声明可访问的文件路径根目录
 3. **强制声明** — 每个 Cron Job 必须声明能力和路径，空声明 = 无能力 + 仅 workspace 内路径
-4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor.py` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
 
 ```python
 # channel_presets.py — Cron 构建声明式能力集; declared_allowed_roots 适用于所有渠道
@@ -1368,7 +1368,7 @@ if declared_allowed_roots:
     merged_roots = tuple(sorted(set(path_policy.allowed_roots) | set(declared_allowed_roots)))
     path_policy = PathPolicy(forbidden_paths=path_policy.forbidden_paths, allowed_roots=merged_roots)
 
-# batch_processor.py — Cron fail-closed 决策
+# batch_processor/ — Cron fail-closed 决策
 if is_cron:
     if config.capabilities == DEFAULT_CAPABILITIES:
         record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
@@ -1388,7 +1388,7 @@ if is_cron:
 |--------|------|--------|------|
 | `SecurityGuardrailMiddleware` | `AgentMiddleware` | `before_model` / `after_model` | 输入侧注入检测 + 工具结果脱敏 + 输出侧泄露检测 + 历史脱敏 |
 | `ToolApprovalMiddleware` | `AgentMiddleware` | `after_model` | 主协调器：调用批量处理器完成 Layer 1-4 评估 + 审批流 |
-| `approval/batch_processor.py` | 辅助模块 | - | 批量审批核心逻辑：评估/构建payload/应用决策 |
+| `approval/batch_processor/` | 辅助模块 | - | 批量审批核心逻辑：评估/构建payload/应用决策 |
 | `approval/helpers.py` | 辅助模块 | - | 拒绝计数 + allowlist 写入 |
 | `tool_interceptor_middleware`（含 LoopGuard） | `@wrap_tool_call` | 工具执行前后 | 工具拦截 + Layer 5 循环检测 |
 
@@ -1501,7 +1501,7 @@ MemoryConfig(
 
 ### 检查点 1 — 出站检查（Outbound）
 
-当 `auto_mode_enabled` 且 `permission_type == "invoke_external_agent"` 时，即使 Permission Engine 返回 ALLOW（默认规则 `PermissionRule("invoke_external_agent", "*", PermissionAction.ALLOW)`），`batch_processor.py` 仍强制进行 Transcript Classifier 审查：
+当 `auto_mode_enabled` 且 `permission_type == "invoke_external_agent"` 时，即使 Permission Engine 返回 ALLOW（默认规则 `PermissionRule("invoke_external_agent", "*", PermissionAction.ALLOW)`），`batch_processor/` 仍强制进行 Transcript Classifier 审查：
 
 - **DENY** → 自动拒绝委派，记录拒绝原因，返回引导消息
 - **UNCERTAIN** → 升级到 HITL 人工审批

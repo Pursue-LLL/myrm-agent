@@ -1,4 +1,20 @@
-"""skill contract（requires/steps/judgments/traps/verifications）解析。
+"""[INPUT]
+- myrm_agent_harness.backends.skills._content_memo::ContentMemo (POS: Listing skills re-derives the same facts (frontmatter, security scan, token count) from unchanged SKILL.md text on)
+- myrm_agent_harness.backends.skills._utils.frontmatter::SkillFrontmatter / SkillMetadataError (POS: skills _utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.backends.skills.types::SkillContract / SkillContractJudgment / SkillContractTrap / SkillContractVerification / SkillRequires (POS: Framework generic skill system. The stable public entry point stays at)
+
+[OUTPUT]
+- _parse_requires: Parse dependency requirements from frontmatter.
+- _extract_str_list: Extract a list of strings from a YAML value, tolerating various formats.
+- _require_contract_mapping: _require_contract_mapping
+- _parse_contract_steps: _parse_contract_steps
+- _parse_contract_dependencies: _parse_contract_dependencies
+- _parse_contract_success_criteria: _parse_contract_success_criteria
+- _parse_contract_duration: _parse_contract_duration
+- _parse_contract_judgments: _parse_contract_judgments
+- _parse_contract_traps: _parse_contract_traps
+- _parse_contract_verifications: _parse_contract_verifications
+- _parse_skill_contract: _parse_skill_contract
 
 [POS]
 skills _utils 子包的一部分；由 __init__.py 聚合导出。

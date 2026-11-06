@@ -1,4 +1,10 @@
-"""反馈与纠正信号检测。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- FeedbackSignal: Detected feedback polarity from user messages.
+- detect_feedback_signals: Detect user feedback signals from recent conversation turns.
+- detect_correction_signals: Detect explicit user correction signals in recent conversation turns.
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。

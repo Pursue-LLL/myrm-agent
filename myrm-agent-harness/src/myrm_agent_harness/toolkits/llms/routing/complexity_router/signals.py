@@ -1,4 +1,15 @@
-"""结构/上下文信号、查询归一化与文本特征判断。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords::_CODE_BLOCK_RE / _INLINE_CODE_RE / _LATEX_BLOCK_RE / _MATH_RE (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _score_structural_signals: Score structural signals: URLs, file paths, emails.
+- _score_contextual_signals: Score contextual signals: length, image, repetition requests.
+- _normalize_query: Extract text from query and detect multimodal media (image/video).
+- _has_code_content: _has_code_content
+- _has_keywords: _has_keywords
+- _has_math_content: _has_math_content
+- _is_simple_greeting: _is_simple_greeting
+- _word_count: _word_count
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

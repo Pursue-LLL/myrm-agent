@@ -1,4 +1,11 @@
-"""统一评分、阈值与规则分类。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.keywords::_TRACEBACK_RE (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.signals::_has_code_content / _has_math_content / _is_simple_greeting / _score_contextual_signals / _score_structural_signals / _word_count (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.llms.routing.complexity_router.types::RoutingTier (POS: complexity_router 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _compute_unified_score: Compute unified scores for all tiers using multi-dimensional signals.
+- _rule_based_classify: Phase 1: unified scoring classification. Returns None if ambiguous.
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

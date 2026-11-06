@@ -1,4 +1,11 @@
-"""RoutingTier / RoutingResult / WeightedKeyword。
+"""[INPUT]
+- myrm_agent_harness.core.config.llm::LLMConfig (POS: Framework-agnostic LLM configuration SSOT. Defines CustomModelDef and LLMConfig for agent/ and toolkits/ without runtime)
+
+[OUTPUT]
+- RoutingTier: RoutingTier
+- RoutingResult: RoutingResult
+- WeightedKeyword: A keyword with an associated weight for scoring.
+- _build_weighted_keywords: Build weighted keyword dict from a frozenset.
 
 [POS]
 complexity_router 子包的一部分；由 __init__.py 聚合导出。

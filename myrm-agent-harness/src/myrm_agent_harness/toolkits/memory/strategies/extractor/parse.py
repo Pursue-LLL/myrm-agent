@@ -1,4 +1,11 @@
-"""LLM 输出的 JSON 解析与规整。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.adapters.thinking_adapter::ThinkingModelReasoningAdapter (POS: Thinking model reasoning content unpacking and scrubbing adapter.)
+- myrm_agent_harness.toolkits.memory.strategies.extractor.models::ExtractedMemory (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.toolkits.memory.types::EvidenceReference / MemoryType (POS: Memory type system foundation. Provides type-safe schema definitions for all)
+- myrm_agent_harness.utils.json_parsing::parse_llm_json_list (POS: Robust LLM JSON extraction. Business-config-independent helpers shared by all verifier/semantic layers.)
+
+[OUTPUT]
+- _parse_response: _parse_response
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。

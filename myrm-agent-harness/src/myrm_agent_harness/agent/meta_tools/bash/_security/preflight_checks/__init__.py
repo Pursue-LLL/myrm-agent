@@ -19,12 +19,12 @@ from .destructive import (
 from .interactive import (
     check_interactive_command,
 )
-from .myrm_tools import (
-    _MAX_REFERENCED_PY_SCAN_BYTES,
-    check_myrm_tools_import,
-)
 from .packages import (
     check_install_packages,
+)
+from .tool_guard import (
+    _MAX_REFERENCED_PY_SCAN_BYTES,
+    check_myrm_tools_import,
 )
 from .url_guard import (
     check_command_url_exfiltration,

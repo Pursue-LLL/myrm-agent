@@ -1,4 +1,9 @@
-"""提取提示词、语言检测与系统提示构造。
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory.strategies.extractor.models::ExtractionConfig (POS: 记忆提取子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- detect_language: Detect primary language based on Chinese character percentage.
+- _build_system_prompt: Build dynamic system prompt based on extraction config and language.
 
 [POS]
 记忆提取子包的一部分；由 __init__.py 聚合导出。
