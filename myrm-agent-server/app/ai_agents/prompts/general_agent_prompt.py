@@ -14,7 +14,7 @@ get_citation_rules_if_needed: 条件返回引用规则
 GeneralAgent 核心系统提示词。支持四档 Prompt Mode（full/lean/naked/search）与中英双语（默认英文），
 同一 mode + locale 的 prompt 字符串跨用户稳定以最大化 KV Cache 命中率。
 通用防御规则（XML 防御、上下文优先、工具使用纪律等）由框架层
-model_discipline.py 的 AGENT_CORE_RULES 提供，此处仅包含业务层特有的
+agent_core_rules.py 的 AGENT_CORE_RULES 提供，此处仅包含业务层特有的
 身份定义和 answer_tool 自审规则。工具规则由各工具自身 Schema 自包含承载，
 核心系统提示词保持纯净解耦。
 """

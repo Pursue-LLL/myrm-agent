@@ -3,8 +3,8 @@
 Resolves channel-specific output format prompts that steer LLMs toward
 generating content appropriate for the current delivery platform.
 
-Architecture (symmetric with model_discipline.py):
-    model_discipline  → per-model behavior guidance (based on LLM family)
+Architecture (symmetric with agent_core_rules.py):
+    agent_core_rules  → core behavior rules (identical for every model)
     channel_output_hints → per-channel format guidance (based on delivery channel)
 
 Both are fixed text (determined at init time), fully KV-Cache-safe.
@@ -27,7 +27,7 @@ See: agent/context_management/PROMPT_CACHE_PRACTICE.md §2.2
 [POS]
 Per-channel output format hints. Provides channel-aware prompt guidance to help
 LLMs generate content that matches the delivery platform's rendering capabilities.
-Framework-level auto-injection, symmetric with execution discipline.
+Framework-level auto-injection, symmetric with the agent core rules.
 """
 
 from __future__ import annotations

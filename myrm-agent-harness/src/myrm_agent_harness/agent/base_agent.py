@@ -33,11 +33,11 @@ from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from ._internals.base_agent_modes_mixin import BaseAgentModesMixin
-from .streaming.channel_output_hints import resolve_channel_output_hint
-from .streaming.model_discipline import (
+from .streaming.agent_core_rules import (
+    AGENT_CORE_RULES,
     resolve_escalation_contract,
-    resolve_execution_discipline,
 )
+from .streaming.channel_output_hints import resolve_channel_output_hint
 from .streaming.utils import DATETIME_SYSTEM_RULES
 from .sub_agents.manager import SubagentManager, SubagentTask
 from .sub_agents.types import SubagentConfig, SubAgentResult
@@ -169,7 +169,7 @@ class BaseAgent(BaseAgentModesMixin):
             self._cached_system_prompt = (
                 (self.system_prompt or "")
                 + DATETIME_SYSTEM_RULES
-                + resolve_execution_discipline(self.llm)
+                + AGENT_CORE_RULES
                 + resolve_escalation_contract(self.llm, self.escalation_target_llm)
                 + resolve_channel_output_hint(self.config.channel_name)
                 + detect_platform().environment_prompt_line
