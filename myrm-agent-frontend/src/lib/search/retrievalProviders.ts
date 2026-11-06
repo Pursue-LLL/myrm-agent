@@ -2,6 +2,8 @@
  * Retrieval service provider catalog (Embedding + Reranker).
  *
  * Defines supported providers and models for Settings → Retrieval.
+ * Each provider lists its recommended model first: that entry is the preset used by the quick setup,
+ * by the store defaults and when the provider is switched.
  */
 
 export interface ModelOption {
@@ -73,14 +75,14 @@ export const EMBEDDING_PROVIDERS: ProviderConfig[] = [
     modelListUrl: 'https://docs.cohere.com/docs/embeddings',
     models: [
       {
-        value: 'embed-english-v3.0',
-        label: 'embed-english-v3.0',
-        description: 'English optimized',
-      },
-      {
         value: 'embed-multilingual-v3.0',
         label: 'embed-multilingual-v3.0',
         description: 'Supports 100+ languages',
+      },
+      {
+        value: 'embed-english-v3.0',
+        label: 'embed-english-v3.0',
+        description: 'English optimized',
       },
       {
         value: 'embed-english-light-v3.0',
@@ -140,6 +142,11 @@ export const EMBEDDING_PROVIDERS: ProviderConfig[] = [
     modelListUrl: 'https://cloud.siliconflow.cn/me/models?types=embedding',
     models: [
       {
+        value: 'BAAI/bge-m3',
+        label: 'BAAI/bge-m3',
+        description: '1024d, Multilingual, 8K tokens, Free',
+      },
+      {
         value: 'Qwen/Qwen3-Embedding-8B',
         label: 'Qwen/Qwen3-Embedding-8B',
         description: '4096d, 32K tokens, ¥0.28/M',
@@ -163,11 +170,6 @@ export const EMBEDDING_PROVIDERS: ProviderConfig[] = [
         value: 'Qwen/Qwen3-Embedding-4B',
         label: 'Qwen/Qwen3-Embedding-4B',
         description: '2560d, 32K tokens, ¥0.14/M',
-      },
-      {
-        value: 'BAAI/bge-m3',
-        label: 'BAAI/bge-m3',
-        description: '1024d, Multilingual, 8K tokens, Free',
       },
       {
         value: 'BAAI/bge-large-zh-v1.5',
@@ -299,6 +301,24 @@ export const RERANKER_PROVIDERS: ProviderConfig[] = [
     ],
   },
 ];
+
+// ==================== Presets ====================
+
+/** Provider that new retrieval configurations start on: a hosted service with a multilingual preset for both roles. */
+export const DEFAULT_PROVIDER_ID = 'siliconflow';
+
+/** The recommended model of a provider (its first catalog entry); empty where the user types the model name. */
+export function getPresetModel(providers: ProviderConfig[], providerId: string): string {
+  return providers.find((provider) => provider.id === providerId)?.models[0]?.value ?? '';
+}
+
+/**
+ * Providers that serve both roles with a preset model each, so one provider and one key set up both.
+ * Custom endpoints need their own model names and stay in the advanced configuration.
+ */
+export const QUICK_SETUP_PROVIDERS: ProviderConfig[] = EMBEDDING_PROVIDERS.filter(
+  ({ id }) => getPresetModel(EMBEDDING_PROVIDERS, id) !== '' && getPresetModel(RERANKER_PROVIDERS, id) !== '',
+);
 
 // ==================== Helper Functions ====================
 

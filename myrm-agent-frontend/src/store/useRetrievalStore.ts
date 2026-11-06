@@ -14,7 +14,13 @@
 
 import { create } from 'zustand';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
-import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
+import {
+  DEFAULT_PROVIDER_ID,
+  EMBEDDING_PROVIDERS,
+  RERANKER_PROVIDERS,
+  getPresetModel,
+  toLiteLLMFormat,
+} from '@/lib/search/retrievalProviders';
 import {
   getMemoryOrphanEstimate,
   getMemoryReindexStatus,
@@ -90,8 +96,8 @@ type RetrievalStore = RetrievalConfig & RetrievalActions & { isInitialized: bool
 
 const DEFAULT_CONFIG: RetrievalConfig = {
   embeddingConfig: {
-    provider: 'siliconflow',
-    model: 'BAAI/bge-m3',
+    provider: DEFAULT_PROVIDER_ID,
+    model: getPresetModel(EMBEDDING_PROVIDERS, DEFAULT_PROVIDER_ID),
     apiKey: '',
     apiBase: '',
   },
@@ -100,8 +106,8 @@ const DEFAULT_CONFIG: RetrievalConfig = {
   embeddingApplyStatus: 'idle',
   embeddingApplyMessage: undefined,
   rerankerConfig: {
-    provider: 'siliconflow',
-    model: 'BAAI/bge-reranker-v2-m3',
+    provider: DEFAULT_PROVIDER_ID,
+    model: getPresetModel(RERANKER_PROVIDERS, DEFAULT_PROVIDER_ID),
     apiKey: '',
     apiBase: '',
   },
