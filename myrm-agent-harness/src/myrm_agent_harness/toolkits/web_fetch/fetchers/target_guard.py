@@ -5,7 +5,7 @@
 - core.security.guards.url_allowlist::URLAllowlistGuard (POS: skill DLP domain allowlist)
 - core.security.redirect_hop_guard::RedirectHopEvaluator, PrivateOriginGrants (POS: private network and cloud metadata classification; local mode also judges a hostname by what it resolves to)
 - core.security.audit::record_decision (POS: security decision audit trail)
-- utils.url_syntax::parse_outbound_hostname (POS: outbound URL syntax check, no hostname blocklist)
+- utils.url_syntax::parse_outbound_url (POS: the canonical spelling of an outbound URL, or why it has none; no hostname blocklist)
 
 [OUTPUT]
 - FetchTargetGuard: pins every URL one fetch contacts (the requested URL and each redirect hop)
@@ -17,14 +17,14 @@ host as written and by its DNS answer, but only loopback, link-local and metadat
 user's own resolver is not otherwise second-guessed, the origin the fetch was aimed at may be
 private, any other private origin reached through a redirect may not, and cloud metadata endpoints
 never may. Exact hosts listed in ``MYRM_ALLOWED_INTERNAL_HOSTS`` stay reachable under
-both policies.
+both policies. The local policy judges, resolves and grants a URL in its canonical spelling, so a
+legacy-spelled address or a Unicode host is the host the client dials, and a URL with no canonical
+spelling is refused.
 """
 
 from __future__ import annotations
 
 import logging
-import socket
-from urllib.parse import urlsplit, urlunsplit
 
 from myrm_agent_harness.core.security.audit import record_decision
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError, async_pin_url
@@ -34,27 +34,9 @@ from myrm_agent_harness.core.security.redirect_hop_guard import (
     PrivateOriginGrants,
     RedirectHopEvaluator,
 )
-from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname
+from myrm_agent_harness.utils.url_syntax import parse_outbound_url
 
 logger = logging.getLogger(__name__)
-
-
-def _canonical_url(url: str) -> str:
-    """Spell a legacy numeric IPv4 host (``2130706433``, ``0x7f.1``) the way HTTP clients dial it.
-
-    Literal classification would otherwise read such a host as a public name while the client
-    connects to loopback.
-    """
-    parts = urlsplit(url)
-    host = parts.hostname
-    if host is None:
-        return url
-    try:
-        dotted = socket.inet_ntoa(socket.inet_aton(host))
-        port = f":{parts.port}" if parts.port else ""
-    except (OSError, ValueError):
-        return url
-    return url if dotted == host else urlunsplit(parts._replace(netloc=f"{dotted}{port}"))
 
 
 class FetchTargetGuard:
@@ -65,7 +47,9 @@ class FetchTargetGuard:
         self._local_policy: RedirectHopEvaluator | None = None
         if allow_private_networks:
             grants = PrivateOriginGrants()
-            grants.grant(_canonical_url(requested_url))
+            requested, _ = parse_outbound_url(requested_url)
+            if requested is not None:
+                grants.grant(requested.url)
             self._local_policy = RedirectHopEvaluator(grants=grants)
 
     async def pin(self, url: str) -> tuple[str, dict[str, str]]:
@@ -73,12 +57,12 @@ class FetchTargetGuard:
         if self._local_policy is None:
             return await async_pin_url(url, self._allowed_hosts)
 
-        hostname, error = parse_outbound_hostname(url)
-        if hostname is None:
+        target, error = parse_outbound_url(url)
+        if target is None:
             raise SSRFSecurityError(error)
-        URLAllowlistGuard.check(hostname)
-        if hostname not in self._allowed_hosts:
-            verdict = await self._local_policy.evaluate_hop_resolved(_canonical_url(url))
+        URLAllowlistGuard.check(target.hostname)
+        if target.hostname not in self._allowed_hosts:
+            verdict = await self._local_policy.evaluate_hop_resolved(target.url)
             if verdict.disposition != HopDisposition.ALLOW:
                 logger.warning("SSRF blocked request: %s — %s", url, verdict.reason)
                 record_decision("ssrf", "SSRF_BLOCKED", f"{url}: {verdict.reason}")

@@ -12,8 +12,9 @@ Contains:
 - toolkits.web_fetch.processing.spill::store_full_text, emit_web_fetch_evicted_ref (POS: Sandbox persistence of the full text) [lazy]
 - toolkits.web_fetch.processing.content_sanitize::strip_base64_images_from_markdown (POS: Inline image payload removal) [lazy]
 - utils.context_format::wrap_with_external_sources_tag (POS: UNTRUSTED_DATA boundary around fetched content) [lazy]
+- toolkits.web_fetch._url_gate::validate_urls (POS: canonical spelling, blocklist, SSRF and exfiltration gate before any request)
 - toolkits.web_fetch._web_fetch_tool_description::resolve_web_fetch_tool_description
-- utils.errors::ToolError, ToolErrorCategory
+- utils.errors::ToolError
 
 [OUTPUT]
 - create_web_fetch_tool: Create web fetch meta-tool
@@ -25,7 +26,6 @@ Web fetch meta-tool for known-URL full read and RAG extract modes.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 from langchain.tools import BaseTool, tool
 from pydantic import BaseModel, Field
@@ -37,8 +37,9 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
     from myrm_agent_harness.toolkits.web_fetch.processing.spill import StoredFullText
 
+from myrm_agent_harness.toolkits.web_fetch._url_gate import validate_urls
 from myrm_agent_harness.toolkits.web_fetch._web_fetch_tool_description import resolve_web_fetch_tool_description
-from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
+from myrm_agent_harness.utils.errors import ToolError
 
 _MAX_URLS_PER_FULL_READ = 5
 _FULL_READ_URLS_DESCRIPTION = f"Real webpage URLs (up to {_MAX_URLS_PER_FULL_READ}); never invent URLs"
@@ -90,8 +91,8 @@ def create_web_fetch_tool(
         reranker_config is not None and embedding_config is not None, description_locale
     )
 
-    def check_urls(urls: list[str]) -> None:
-        _validate_urls(urls, blocked_hostnames=blocked_hostnames, allow_private_networks=allow_private_networks)
+    def check_urls(urls: list[str]) -> list[str]:
+        return validate_urls(urls, blocked_hostnames=blocked_hostnames, allow_private_networks=allow_private_networks)
 
     async def read_in_full(urls: list[str]) -> dict[str, object]:
         return await _fetch_full_content(
@@ -103,8 +104,7 @@ def create_web_fetch_tool(
         @tool("web_fetch_tool", description=tool_description, args_schema=_FullContentInput)
         async def full_content_tool(urls: list[str], reason: str = "") -> dict[str, object]:
             """Read the pages in full."""
-            check_urls(urls)
-            return await read_in_full(urls)
+            return await read_in_full(check_urls(urls))
 
         return full_content_tool
 
@@ -116,7 +116,7 @@ def create_web_fetch_tool(
         reason: str = "",
     ) -> dict[str, object]:
         """Read the pages in full, or retrieve the snippets that answer ``questions``."""
-        check_urls(urls)
+        urls = check_urls(urls)
         if operation == "fetch_full_content":
             return await read_in_full(urls)
 
@@ -136,58 +136,6 @@ def create_web_fetch_tool(
         return result
 
     return fetch_or_extract_tool
-
-
-def _validate_urls(
-    urls: list[str],
-    *,
-    blocked_hostnames: tuple[str, ...] | None,
-    allow_private_networks: bool,
-) -> None:
-    """Refuse URLs that the host blocklist, SSRF guard or exfiltration check does not allow, before any request."""
-    if blocked_hostnames:
-        from myrm_agent_harness.toolkits.browser.domain_filter import DomainBlocklist
-
-        blocklist = DomainBlocklist.from_strings(blocked_hostnames)
-        for url in urls:
-            hostname = (urlparse(url).hostname or "").lower()
-            if blocklist.is_blocked(hostname):
-                raise ToolError(
-                    f"URL blocked: {url}",
-                    user_hint="The URL host is excluded from fetching. Use a different URL.",
-                    error_code="BENCHMARK_BLOCKED_HOST",
-                    diagnostic_info={
-                        "error_category": ToolErrorCategory.BENCHMARK_BLOCKED.value,
-                        "hostname": hostname,
-                    },
-                )
-
-    if allow_private_networks:
-        return
-
-    from myrm_agent_harness.core.security.guards.ssrf import validate_url_for_ssrf
-    from myrm_agent_harness.utils.logger_utils import get_agent_logger
-    from myrm_agent_harness.utils.url_utils import check_url_exfiltration, sanitize_url_for_error
-
-    for url in urls:
-        verdict = validate_url_for_ssrf(url)
-        if not verdict.safe:
-            raise ToolError(
-                f"URL blocked (SSRF protection): {verdict.error} — {url}",
-                user_hint="The URL is blocked for security reasons. Use a different, publicly accessible URL.",
-            )
-
-        exfiltration_warnings = check_url_exfiltration(url, allow_private_networks=allow_private_networks)
-        if exfiltration_warnings:
-            logger = get_agent_logger(__name__)
-            safe_url = sanitize_url_for_error(url)
-            logger.warning(" Potential data exfiltration detected in URL: %s", safe_url)
-            for warning in exfiltration_warnings:
-                logger.warning(" - %s", warning)
-            raise ToolError(
-                f"URL blocked (data exfiltration detection): {'; '.join(exfiltration_warnings)} — {safe_url}",
-                user_hint="The URL appears to contain sensitive data. Remove secrets from the URL.",
-            )
 
 
 async def _fetch_full_content(

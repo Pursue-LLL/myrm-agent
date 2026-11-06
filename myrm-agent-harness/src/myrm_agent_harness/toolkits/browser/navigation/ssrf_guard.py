@@ -3,11 +3,13 @@
 [INPUT]
 - core.security.guards.ssrf::async_pin_url (POS: DNS-validated URL checks + audit)
 - core.security.redirect_hop_guard::RedirectHopEvaluator, PrivateOriginGrants (POS: private network and cloud metadata classification; local mode also judges a hostname by what it resolves to)
+- utils.url_syntax::parse_outbound_url (POS: the canonical spelling of an outbound URL, or why it has none)
 - domain_filter.context_lists::DomainListPolicy, domain_lists_for (POS: the context's domain allow/block lists and the rule that applies them)
 - utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
 
 [OUTPUT]
 - BrowserNavigationBlockedError: a navigation URL failed SSRF or domain-list validation
+- canonical_navigation_url: the URL a browser is asked to load, in canonical spelling, or a BrowserNavigationBlockedError
 - assert_browser_navigation_allowed: Validate a navigation URL
 - assert_browser_redirect_chain_allowed: Walk redirect chain on a Playwright Request
 - goto_with_ssrf_guard: page.goto with temporary document-level route interception
@@ -19,6 +21,9 @@ patchright, so they are judged after the load; a document that violates policy i
 resetting the tab to ``about:blank`` before the error is raised. A failed navigation is stopped
 before the route handler is removed, and the removal itself is bounded, because a main frame
 stuck in a stalled navigation never answers `unroute`.
+
+A navigation is judged and loaded in the canonical spelling of its URL, so the host every check reads
+is the host Chromium dials; a URL with no canonical spelling is refused before anything loads.
 
 Two policies share this module. Without grants (cloud) every resolved address must be public.
 With grants (local mode) the host is classified as written and by what it resolves to, but only
@@ -42,6 +47,7 @@ from myrm_agent_harness.core.security.redirect_hop_guard import (
     PrivateOriginGrants,
     RedirectHopEvaluator,
 )
+from myrm_agent_harness.utils.url_syntax import parse_outbound_url
 
 from ..domain_filter.context_lists import domain_lists_for
 from ..utils.page_health import abort_pending_navigation
@@ -153,6 +159,25 @@ async def _discard_committed_document(page: Page) -> None:
         await asyncio.wait_for(page.goto("about:blank", wait_until="commit"), timeout=_BLANK_TIMEOUT_S)
 
 
+def canonical_navigation_url(url: str) -> str:
+    """The URL a browser is asked to load, in the one spelling every check and the client read it in.
+
+    A URL whose scheme the navigator refuses (``about:``, ``file:``) is returned as written; the scheme check judges it.
+    The scheme is read as ``urlparse`` reads it, the reader every later check uses, so no URL they take for a network
+    URL escapes the canonical spelling.
+    """
+    try:
+        scheme = urlparse(url).scheme.lower()
+    except ValueError as exc:
+        raise BrowserNavigationBlockedError(f"Navigation blocked: Malformed URL: {url}") from exc
+    if scheme not in _NETWORK_SCHEMES:
+        return url
+    target, error = parse_outbound_url(url)
+    if target is None:
+        raise BrowserNavigationBlockedError(f"Navigation blocked: {error}: {url}")
+    return target.url
+
+
 async def goto_with_ssrf_guard(
     page: Page,
     url: str,
@@ -166,6 +191,7 @@ async def goto_with_ssrf_guard(
     requested URL is checked before anything is loaded, so a rejected request leaves the tab on
     the page it was showing instead of on Chromium's error page.
     """
+    url = canonical_navigation_url(url)
     if grants is not None:
         grants.grant(url)
     await assert_browser_navigation_allowed(url, grants)

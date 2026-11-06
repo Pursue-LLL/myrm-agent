@@ -2,6 +2,7 @@
 
 [INPUT]
 - navigation::Navigator (POS: throttled page navigation)
+- navigation.ssrf_guard::canonical_navigation_url (POS: the canonical spelling of a navigation URL, the host every check and Chromium read)
 - session.browser_session_tab_mixin::BrowserSessionTabMixin (POS: tab-management APIs for BrowserSession, inherited)
 - session.browser_session_captcha_mixin::BrowserSessionCaptchaMixin (POS: CAPTCHA step of BrowserSession navigation, inherited)
 - captcha protocols (POS: CAPTCHA result type consumed by the navigate() escalation path)
@@ -12,7 +13,7 @@
 - utils.page_health::PageUnresponsiveError (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- BrowserSessionNavigationMixin: navigate, private-network extension routing, Stealth Ladder upgrade
+- BrowserSessionNavigationMixin: navigate (the URL is canonicalized first), private-network extension routing, Stealth Ladder upgrade
 
 [POS]
 Navigation API for BrowserSession. Calls lifecycle mixin for component initialization; must
@@ -33,6 +34,7 @@ from urllib.parse import urlparse
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.browser.captcha.protocols import CaptchaHandleResult
 from myrm_agent_harness.toolkits.browser.exceptions import BrowserLaunchError, EngineUnavailableError
+from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import canonical_navigation_url
 from myrm_agent_harness.toolkits.browser.session.browser_session_captcha_mixin import BrowserSessionCaptchaMixin
 from myrm_agent_harness.toolkits.browser.session.browser_session_tab_mixin import BrowserSessionTabMixin
 from myrm_agent_harness.toolkits.browser.utils.page_health import PageUnresponsiveError
@@ -115,6 +117,7 @@ class BrowserSessionNavigationMixin(BrowserSessionTabMixin, BrowserSessionCaptch
 
     async def navigate(self, url: str, verify_goal: str | None = None) -> str:
         """Navigate to URL (auto-injects site experience, auto-detects CAPTCHA)."""
+        url = canonical_navigation_url(url)
         await self._ensure_not_user_takeover()
         if not self._tab_controller.list_tabs():
             await self.new_tab()
