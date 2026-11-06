@@ -29,6 +29,7 @@ def _persist_request() -> SimpleNamespace:
         ephemeral_subagents=None,
         incognito_mode=False,
         active_moa_preset_id=None,
+        workspace_dir=None,
     )
 
 

@@ -125,6 +125,7 @@ async def persist_user_message(
         is_incognito=request.incognito_mode,
         active_moa_preset_id=request.active_moa_preset_id,
         persist_moa_preset=(request.action_mode == "agent" and not request.incognito_mode),
+        workspace_dir=request.workspace_dir,
     )
     logger.info(
         "E1 user persistence deferred for new chat_id=%s message_id=%s",

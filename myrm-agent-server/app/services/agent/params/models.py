@@ -328,6 +328,12 @@ class AgentRequest(BaseModel):
     sibling_group_id: str | None = None
     regenerate_instruction: str | None = None
 
+    @field_validator("workspace_dir")
+    @classmethod
+    def normalize_workspace_dir(cls, value: str | None) -> str | None:
+        """A blank folder is no folder, so nothing downstream validates or stores whitespace."""
+        return (value or "").strip() or None
+
     class Config:
         alias_generator = to_camel
         populate_by_name = True

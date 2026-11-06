@@ -92,7 +92,7 @@ ChatService
 
 | 方法 | 职责 |
 |------|------|
-| `ensure_chat_and_append_user_message()` | 确保 chat 存在并存储 user message（Agent 入口调用）；同 `chat_id + message_id + content` 的重试请求走幂等复用，不重复写入 user turn |
+| `ensure_chat_and_append_user_message()` | 确保 chat 存在并存储 user message（Agent 入口调用）；同 `chat_id + message_id + content` 的重试请求走幂等复用，不重复写入 user turn；首轮自带的 `workspace_dir` 随新会话行一起写入，已存在的会话不受它影响（改目录走 `PATCH /chats/{id}/workspace`） |
 | `load_web_chat_history()` | 从 DB 加载历史，返回框架层格式（带 `{ts}` 元数据） |
 | `persist_assistant_message_safe()` | 流结束后存储 assistant message，把 `citedMemoryRefs` 与 `memoryRetrievalTraces` 旁路写入记忆操作账本，并旁路调用 `sync_chat_usage` 重建 `Chat.total_*` 用量缓存；当传入 `request_message_id`（WebUI 回合的 `r-` 前缀请求 ID）时写入 `extra_data["request_message_id"]`，供前端刷新后 hydrate 恢复该回合标识（assistant 消息 DB 主键为 UUID，与文件快照的 `r-` key 对齐依赖此字段） |
 | `search_messages()` | FTS5 全文搜索历史消息（snippet 高亮 + 分页 + trigram 中文分词 + since/until 时间范围过滤） |

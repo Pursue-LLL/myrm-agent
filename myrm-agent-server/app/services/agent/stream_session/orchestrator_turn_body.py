@@ -5,11 +5,12 @@
 - app.services.agent.stream_session.orchestrator_turn_setup (POS: params, search gate, goal provider and runtime context of the turn)
 - app.services.agent.stream_session.pre_reply_compact_sse (POS: idle compact SSE)
 - app.services.agent.stream_session.turn_history_sync (POS: how the turn relates to the chat's agent thread)
+- app.services.agent.stream_session.turn_workspace_bind (POS: canonical first-turn workspace bind, validated before the chat row is written)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → persist → pre-reply compact → history → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background)
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
 - write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable
 
@@ -54,6 +55,10 @@ from app.services.agent.stream_session.turn_capability_terminal import (
     TurnCapabilityFailureReason,
 )
 from app.services.agent.stream_session.turn_history_sync import resolve_turn_history_mode
+from app.services.agent.stream_session.turn_workspace_bind import (
+    TurnWorkspaceRefused,
+    bind_turn_workspace,
+)
 from app.services.agent.streaming_support.sse_helpers import error_sse
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
@@ -95,6 +100,15 @@ async def execute_agent_turn_after_reserve(
     # Registered before the first await so a Stop that lands during setup finds this turn.
     cancel_token = CancellationToken(request_id=request.message_id)
     CancellationRegistry.register(cancel_token)
+
+    # Canonicalize the folder this turn was started with before the user row is persisted, so the
+    # draft chat row and the turn itself are written with the same path.
+    try:
+        await bind_turn_workspace(request)
+    except TurnWorkspaceRefused as exc:
+        await record_terminal_failure("server_error")
+        await fail_buffered_turn(buffer, request.message_id, exc.detail)
+        return
 
     # Commit the user row before any optional profile/model-window/compact work.
     # The HTTP response is already accepted at this point; API

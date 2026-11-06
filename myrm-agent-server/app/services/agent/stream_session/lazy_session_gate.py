@@ -89,6 +89,7 @@ class PendingSessionDraft:
     is_incognito: bool = False
     active_moa_preset_id: str | None = None
     persist_moa_preset: bool = False
+    workspace_dir: str | None = None
     committed: bool = field(default=False)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
@@ -122,6 +123,7 @@ class PendingSessionDraft:
                 active_moa_preset_id=self.active_moa_preset_id,
                 persist_moa_preset=self.persist_moa_preset,
                 mark_read=True,
+                workspace_dir=self.workspace_dir,
             )
 
 
@@ -133,8 +135,8 @@ async def commit_lazy_session_barrier(session: AgentStreamSession) -> None:
 
     await draft.commit_if_pending()
 
-    # Lazily materialize sandbox workspace directory now that session is committed
-    if session.request.chat_id:
+    # A draft that carries a folder wrote the chat row with it; a session-private directory would stay unused.
+    if session.request.chat_id and draft.workspace_dir is None:
         try:
             from app.services.agent.params.workspace_resolve import (
                 materialize_default_chat_workspace_dir,

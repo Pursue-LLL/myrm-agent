@@ -93,6 +93,7 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
         engine_params=None,
         sibling_group_id=None,
         action_mode="agent",
+        workspace_dir=None,
     )
 
     async def record_failure(_reason: object) -> None:
