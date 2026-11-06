@@ -120,13 +120,10 @@ async def _ripgrep_search(
         timeout_seconds=timeout_seconds,
         on_line=matches.feed,
     )
-    if outcome.failed:
-        logger.warning(f"ripgrep search failed (exit code {outcome.returncode}): {outcome.stderr}")
-        # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
-        # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
-        # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
-        if not outcome.answered:
-            raise RuntimeError("ripgrep failed")
+    # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
+    # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
+    # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
+    outcome.require_answer()
 
     return matches
 

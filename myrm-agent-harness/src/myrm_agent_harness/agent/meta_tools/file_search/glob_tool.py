@@ -100,12 +100,9 @@ async def _list_files_with_ripgrep(
     result = await run_rg(
         cmd, cwd=search_root, timeout_seconds=timeout_seconds, on_line=_collect, line_terminator=b"\0"
     )
-    if result.failed:
-        logger.warning(f"ripgrep files search failed (exit code {result.returncode}): {result.stderr}")
-        # An unreadable directory ends the run after ripgrep listed the rest of the tree, so that listing stands,
-        # empty or not; every other failure leaves a listing that cannot be trusted.
-        if not result.answered:
-            raise RuntimeError("ripgrep failed")
+    # An unreadable directory ends the run after ripgrep listed the rest of the tree, so that listing stands,
+    # empty or not; every other failure leaves a listing that cannot be trusted.
+    result.require_answer()
     return files
 
 

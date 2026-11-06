@@ -185,6 +185,6 @@ class TestRipgrepSearch:
                 "myrm_agent_harness.agent.meta_tools.file_search.grep_tool.asyncio.create_subprocess_exec",
                 return_value=fake_proc,
             ),
-            pytest.raises(RuntimeError, match="ripgrep failed"),
+            pytest.raises(RuntimeError, match="exit code 2: simulated error"),
         ):
             await _ripgrep_search("pattern", workspace, "**/*", False, 0, 10)

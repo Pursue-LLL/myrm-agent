@@ -2,9 +2,10 @@
 
 Covers:
 - ripgrep ignores the user's own configuration
-- ripgrep failures: a run that ended with status 2 after printing stands, an empty answer included (an unreadable
-  directory); any other failure (an unparseable pattern, flags it cannot run, a kill after printing), a timeout and
-  a failure to start fall back to the Python tier, and the log names the cause (exit code or exception)
+- A run that ended with status 2 after printing stands, an empty answer included (an unreadable directory), and is
+  logged once
+- Any other failure (an unparseable pattern, flags it cannot run, a kill after printing), a timeout and a failure
+  to start fall back to the Python tier, and the one log record names the cause (exit code or exception)
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.meta_tools.file_search import glob_tool, grep_tool
+from myrm_agent_harness.agent.meta_tools.file_search import _rg_runner, glob_tool, grep_tool
 from myrm_agent_harness.agent.meta_tools.file_search._rg_runner import RgRunResult
 from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_files, listed, warnings_from, write_tree
 
@@ -85,6 +86,19 @@ class TestRipgrepFailureStands:
         # The Python tier would stop at 10 files and say so; ripgrep searched all of them.
         assert await run_grep(plain_dir, "needle", max_files=10) == "No matches found for: needle"
 
+    @pytest.mark.usefixtures("locked_dir")
+    async def test_a_failure_after_output_is_logged_once_and_says_the_output_stands(
+        self, plain_dir: Path, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
+    ) -> None:
+        write_tree(plain_dir, {"ok/a.txt": "needle\n"})
+
+        await run_grep(plain_dir, "needle")
+
+        [message] = warnings_from(caplog, _rg_runner)
+        assert "exit code 2" in message
+        assert "stands" in message
+        assert warnings_from(caplog, grep_tool) == []
+
     async def test_glob_keeps_the_files_ripgrep_listed_before_it_failed(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
     ) -> None:
@@ -103,16 +117,19 @@ class TestRipgrepFailureStands:
 @pytest.mark.usefixtures("ripgrep_fallback")
 @pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)
 class TestRipgrepFailureFallsBack:
-    """ripgrep gave no answer: the Python tier serves the call and the log names why."""
+    """ripgrep gave no answer: the Python tier serves the call and one WARNING record names why."""
 
     async def test_pattern_ripgrep_cannot_parse_is_searched_by_the_python_tier(
-        self, plain_dir: Path, run_grep: SearchRunner
+        self, plain_dir: Path, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
     ) -> None:
         write_tree(plain_dir, {"a.py": "needle = 1\n", "b.py": "needle = 2\n"})
 
         output = await run_grep(plain_dir, r"needle(?= = 1)")
 
         assert hit_files(output, {"a.py", "b.py"}) == {"a.py"}
+        [message] = warnings_from(caplog, grep_tool)
+        assert "exit code 2" in message
+        assert "look-around" in message
 
     async def test_grep_falls_back_when_ripgrep_times_out(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
@@ -124,7 +141,8 @@ class TestRipgrepFailureFallsBack:
         write_tree(plain_dir, {"a.py": "needle\n"})
 
         assert hit_files(await run_grep(plain_dir, "needle"), {"a.py"}) == {"a.py"}
-        assert "TimeoutError" in warnings_from(caplog, grep_tool)
+        [message] = warnings_from(caplog, grep_tool)
+        assert "TimeoutError" in message
 
     async def test_grep_falls_back_when_ripgrep_cannot_run(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
@@ -136,7 +154,8 @@ class TestRipgrepFailureFallsBack:
         write_tree(plain_dir, {"a.py": "needle\n"})
 
         assert hit_files(await run_grep(plain_dir, "needle"), {"a.py"}) == {"a.py"}
-        assert "OSError('exec failed')" in warnings_from(caplog, grep_tool)
+        [message] = warnings_from(caplog, grep_tool)
+        assert "OSError('exec failed')" in message
 
     async def test_glob_falls_back_when_ripgrep_cannot_run(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_glob: SearchRunner
@@ -148,10 +167,11 @@ class TestRipgrepFailureFallsBack:
         write_tree(plain_dir, {"a.py": "needle\n"})
 
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
-        assert "OSError('exec failed')" in warnings_from(caplog, glob_tool)
+        [message] = warnings_from(caplog, glob_tool)
+        assert "OSError('exec failed')" in message
 
     async def test_glob_falls_back_when_ripgrep_fails_before_printing_anything(
-        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, run_glob: SearchRunner
+        self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_glob: SearchRunner
     ) -> None:
         async def fails(*_args: object, **_kwargs: object) -> RgRunResult:
             return RgRunResult(returncode=2, stderr="permission denied", stopped_early=False)
@@ -160,6 +180,8 @@ class TestRipgrepFailureFallsBack:
         write_tree(plain_dir, {"a.py": "needle\n"})
 
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
+        [message] = warnings_from(caplog, glob_tool)
+        assert "exit code 2: permission denied" in message
 
     async def test_glob_falls_back_when_ripgrep_is_killed_after_printing_names(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_glob: SearchRunner
@@ -175,7 +197,8 @@ class TestRipgrepFailureFallsBack:
 
         # The one name it printed says nothing about the names it never reached.
         assert listed(await run_glob(plain_dir, "**/*.py")) == {"a.py"}
-        assert "exit code -9" in warnings_from(caplog, glob_tool)
+        [message] = warnings_from(caplog, glob_tool)
+        assert "exit code -9" in message
 
     async def test_grep_falls_back_when_ripgrep_is_killed_after_printing(
         self, plain_dir: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, run_grep: SearchRunner
@@ -190,4 +213,5 @@ class TestRipgrepFailureFallsBack:
         write_tree(plain_dir, {"a.py": "needle\n", "b.py": "needle\n"})
 
         assert hit_files(await run_grep(plain_dir, "needle"), {"a.py", "b.py"}) == {"a.py", "b.py"}
-        assert "exit code -9" in warnings_from(caplog, grep_tool)
+        [message] = warnings_from(caplog, grep_tool)
+        assert "exit code -9" in message
