@@ -2219,6 +2219,9 @@
       "prev30days": "最近 30 天",
       "older": "更早"
     },
+    "historySearch": {
+      "clear": "清空搜索"
+    },
     "batch": {
       "enter": "批量选择",
       "exit": "退出批量模式",

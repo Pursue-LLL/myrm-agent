@@ -2219,6 +2219,9 @@
       "prev30days": "Previous 30 Days",
       "older": "Older"
     },
+    "historySearch": {
+      "clear": "Clear search"
+    },
     "batch": {
       "enter": "Batch Select",
       "exit": "Exit Batch Mode",

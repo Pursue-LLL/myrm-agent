@@ -2210,6 +2210,9 @@
       "prev30days": "最近 30 天",
       "older": "更早"
     },
+    "historySearch": {
+      "clear": "清空搜尋"
+    },
     "batch": {
       "enter": "批次選擇",
       "exit": "退出批次模式",

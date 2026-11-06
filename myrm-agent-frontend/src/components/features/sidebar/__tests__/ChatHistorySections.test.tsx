@@ -84,6 +84,13 @@ const rowProps = (item: ChatItem): HistoryRowProps => ({
   t: identityTranslator,
 });
 
+/** Opacity-tinted or sub-12px section titles fall below the contrast and size the sidebar needs to be readable. */
+const expectReadableHeading = (heading: HTMLElement) => {
+  expect(heading.className).toContain('text-xs');
+  expect(heading.className).toContain('text-muted-foreground');
+  expect(heading.className).not.toMatch(/text-\[\d+px\]|text-(?:black|white|primary)\//);
+};
+
 describe('PinnedSection', () => {
   const reorderPinnedChats = vi.fn();
   const pinned = [chat('a'), chat('b'), chat('c')];
@@ -110,12 +117,12 @@ describe('PinnedSection', () => {
     expect(rows.map((row) => row.getAttribute('data-active'))).toEqual(['false', 'true', 'false']);
   });
 
-  it('shrinks the heading on a phone', () => {
+  it('writes the heading at a readable size in the muted text color on every screen', () => {
     const { rerender } = render(<PinnedSection chats={pinned} isMobile={false} rowProps={rowProps} />);
-    expect(screen.getByText('chat.pin.section').className).not.toContain('text-[9px]');
+    expectReadableHeading(screen.getByText('chat.pin.section'));
 
     rerender(<PinnedSection chats={pinned} isMobile rowProps={rowProps} />);
-    expect(screen.getByText('chat.pin.section').className).toContain('text-[9px]');
+    expectReadableHeading(screen.getByText('chat.pin.section'));
   });
 
   it('saves the new order of all pinned chats when one is dropped on another', () => {
@@ -219,11 +226,30 @@ describe('DateGroupSection', () => {
     expect(baseProps.onToggleSelect).toHaveBeenCalledExactlyOnceWith('b');
   });
 
-  it('shrinks the heading on a phone', () => {
+  it('writes the group name at a readable size in the muted text color on every screen', () => {
     const { rerender } = render(<DateGroupSection {...baseProps} />);
-    expect(screen.getByText('chat.dateGroup.today').className).not.toContain('text-[9px]');
+    expectReadableHeading(screen.getByText('chat.dateGroup.today'));
 
     rerender(<DateGroupSection {...baseProps} isMobile />);
-    expect(screen.getByText('chat.dateGroup.today').className).toContain('text-[9px]');
+    expectReadableHeading(screen.getByText('chat.dateGroup.today'));
+  });
+
+  it('tells assistive tech whether the group is open', () => {
+    const { rerender } = render(<DateGroupSection {...baseProps} />);
+    const header = () => screen.getByRole('button', { name: 'chat.dateGroup.today' });
+    expect(header().getAttribute('aria-expanded')).toBe('true');
+
+    rerender(<DateGroupSection {...baseProps} collapsed />);
+    expect(header().getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('makes the header a finger-sized row on a phone and a compact one elsewhere', () => {
+    const { rerender } = render(<DateGroupSection {...baseProps} />);
+    const header = () => screen.getByRole('button', { name: 'chat.dateGroup.today' });
+    expect(header().className).toContain('min-h-7');
+    expect(header().className).not.toContain('min-h-11');
+
+    rerender(<DateGroupSection {...baseProps} isMobile />);
+    expect(header().className).toContain('min-h-11');
   });
 });

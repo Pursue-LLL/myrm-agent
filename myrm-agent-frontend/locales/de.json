@@ -2210,6 +2210,9 @@
       "prev30days": "Letzte 30 Tage",
       "older": "Älter"
     },
+    "historySearch": {
+      "clear": "Suche löschen"
+    },
     "batch": {
       "enter": "Mehrfachauswahl",
       "exit": "Mehrfachauswahl beenden",

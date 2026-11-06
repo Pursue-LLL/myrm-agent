@@ -8,7 +8,8 @@
  *
  * [POS]
  * 输入先回显在本地，停顿 `SEARCH_DEBOUNCE_MS` 后才把关键词交给调用方去筛选历史（避免每个按键一次请求）；
- * 打开搜索框时聚焦输入，关闭时若还留着关键词则一并清空。
+ * 打开搜索框时聚焦输入，关闭时若还留着关键词则一并清空；清空与卸载都会撤销尚未提交的关键词，
+ * 否则它会在清空之后才提交，让列表带着一个看不见的筛选词。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -20,32 +21,33 @@ export function useHistorySearch(appliedKeyword: string, applyKeyword: (keyword:
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
+  const cancelPendingApply = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
   }, []);
+
+  useEffect(() => cancelPendingApply, [cancelPendingApply]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
       setLocalKeyword(value);
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      cancelPendingApply();
       debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
         applyKeyword(value);
       }, SEARCH_DEBOUNCE_MS);
     },
-    [applyKeyword],
+    [applyKeyword, cancelPendingApply],
   );
 
   const handleClearSearch = useCallback(() => {
+    cancelPendingApply();
     setLocalKeyword('');
     applyKeyword('');
     setShowSearch(false);
-  }, [applyKeyword]);
+  }, [applyKeyword, cancelPendingApply]);
 
   const handleToggleSearch = useCallback(() => {
     const next = !showSearch;

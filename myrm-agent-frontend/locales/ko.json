@@ -2210,6 +2210,9 @@
       "prev30days": "지난 30일",
       "older": "이전"
     },
+    "historySearch": {
+      "clear": "검색 지우기"
+    },
     "batch": {
       "enter": "일괄 선택",
       "exit": "일괄 모드 종료",

@@ -212,6 +212,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
         loading={chatHistoryLoading}
         canEnterBatch={!batch.batchMode && unpinnedChats.length > 1}
         onEnterBatch={batch.handleEnterBatchMode}
+        isMobile={isMobile}
       />
 
       <ProjectBar isMobile={isMobile} />

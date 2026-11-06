@@ -15,7 +15,9 @@
  *
  * [POS]
  * 会话列表里的两种分区。置顶区自己持有拖拽的传感器、无障碍播报与排序提交，只在有置顶会话时挂载；
- * 日期分组的折叠状态由调用方保存，折叠时行高收到 0 而不卸载，展开收起带过渡。
+ * 日期分组的折叠状态由调用方保存，折叠时行高收到 0 而不卸载，展开收起带过渡，表头用 `aria-expanded` 报告开合。
+ * 分区标题用 12px 的 `text-muted-foreground`（带透明度的黑白字在浅色主题只有 4:1 以下的对比度）；
+ * 日期表头在手机上是 44px 高的整行点击区，其他设备 28px。
  */
 import {
   closestCenter,
@@ -78,10 +80,8 @@ export function PinnedSection({ chats, isMobile, rowProps }: PinnedSectionProps)
   return (
     <>
       <div className="flex items-center gap-1.5 px-2 py-1">
-        <Pin size={10} className="text-primary/60" />
-        <span
-          className={cn('text-[10px] font-medium text-primary/60 uppercase tracking-wider', isMobile && 'text-[9px]')}
-        >
+        <Pin size={isMobile ? 14 : 12} className="text-primary" />
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {t('chat.pin.section')}
         </span>
       </div>
@@ -129,24 +129,18 @@ export function DateGroupSection({
     <div>
       <button
         onClick={() => onToggle(group.key)}
+        aria-expanded={!collapsed}
         className={cn(
-          'flex items-center gap-1.5 w-full px-2 py-1 cursor-pointer select-none',
-          'hover:bg-black/3 dark:hover:bg-white/3 rounded transition-colors',
+          'flex w-full cursor-pointer select-none items-center gap-1.5 rounded-lg px-2 transition-colors',
+          'hover:bg-black/3 dark:hover:bg-white/3',
+          isMobile ? 'min-h-11' : 'min-h-7',
         )}
       >
         <ChevronDown
-          size={10}
-          className={cn(
-            'text-black/40 dark:text-white/40 flex-shrink-0 transition-transform duration-200',
-            collapsed && '-rotate-90',
-          )}
+          size={isMobile ? 14 : 12}
+          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', collapsed && '-rotate-90')}
         />
-        <span
-          className={cn(
-            'text-[10px] font-medium text-black/50 dark:text-white/50 uppercase tracking-wider',
-            isMobile && 'text-[9px]',
-          )}
-        >
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {t(`chat.dateGroup.${group.key}` as Parameters<typeof t>[0])}
         </span>
       </button>

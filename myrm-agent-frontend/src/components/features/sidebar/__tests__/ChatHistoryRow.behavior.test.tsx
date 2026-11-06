@@ -273,11 +273,10 @@ describe('ChatHistoryRow content', () => {
     expect(container.querySelector('kbd')).toBeNull();
   });
 
-  it('shrinks the text on a phone', () => {
+  it('shrinks the title on a phone', () => {
     renderRow({ isMobile: true });
 
     expect(screen.getByText('Quarterly review').className).toContain('text-xs');
-    expect(screen.getByText('last message text').className).toContain('text-[10px]');
   });
 });
 

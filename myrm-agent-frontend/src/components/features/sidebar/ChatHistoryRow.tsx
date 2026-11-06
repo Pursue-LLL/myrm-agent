@@ -150,15 +150,9 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
           {chat.source && chat.source !== 'web' ? (
             <ChannelIcon channelId={chat.source} size={isMobile ? 14 : 16} className="mt-0.5 flex-shrink-0" />
           ) : chat.actionMode === 'agent' ? (
-            <AiNetworkIcon
-              size={isMobile ? 14 : 16}
-              className="mt-0.5 text-black/40 dark:text-white/40 flex-shrink-0"
-            />
+            <AiNetworkIcon size={isMobile ? 14 : 16} className="mt-0.5 text-muted-foreground flex-shrink-0" />
           ) : (
-            <FastSearchIcon
-              size={isMobile ? 14 : 16}
-              className="mt-0.5 text-black/40 dark:text-white/40 flex-shrink-0"
-            />
+            <FastSearchIcon size={isMobile ? 14 : 16} className="mt-0.5 text-muted-foreground flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             {renameId === chat.id ? (
@@ -211,15 +205,9 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                 )}
               </div>
             )}
-            <p
-              className={cn('text-xs text-black/60 dark:text-white/60 truncate mt-1', isMobile && 'text-[10px] mt-0.5')}
-            >
-              {chat.lastMessage}
-            </p>
+            <p className="text-xs text-muted-foreground truncate mt-1">{chat.lastMessage}</p>
             <div className="flex items-center gap-2 mt-1">
-              <p className={cn('text-xs text-black/40 dark:text-white/40', isMobile && 'text-[10px] mt-0.5')}>
-                {formatTime(chat.updatedAt)}
-              </p>
+              <p className="text-xs text-muted-foreground">{formatTime(chat.updatedAt)}</p>
               {chat.isCompacted && (
                 <div className="flex items-center gap-0.5 text-[10px] px-1 py-[1px] rounded bg-primary/10 text-accent-warm font-medium">
                   <svg

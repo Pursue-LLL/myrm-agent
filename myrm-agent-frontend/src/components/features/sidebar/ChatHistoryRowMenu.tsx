@@ -105,12 +105,13 @@ export function ChatHistoryRowMenu({
       <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
         <button
           className={cn(
-            'transition-opacity p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded min-w-[32px] min-h-[32px] flex items-center justify-center',
+            'flex items-center justify-center rounded-lg transition-opacity hover:bg-black/10 dark:hover:bg-white/10',
+            isMobile ? 'min-h-11 min-w-11' : 'min-h-8 min-w-8',
             REVEAL_ON_HOVER,
           )}
           aria-label={t('common.more')}
         >
-          <MoreHorizontal size={isMobile ? 14 : 12} className="text-black/40 dark:text-white/40" />
+          <MoreHorizontal size={isMobile ? 16 : 14} className="text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

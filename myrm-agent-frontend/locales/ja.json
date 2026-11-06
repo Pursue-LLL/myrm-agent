@@ -2210,6 +2210,9 @@
       "prev30days": "最近 30 日",
       "older": "それ以前"
     },
+    "historySearch": {
+      "clear": "検索をクリア"
+    },
     "batch": {
       "enter": "一括選択",
       "exit": "一括モードを終",
