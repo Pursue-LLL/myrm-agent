@@ -19,6 +19,8 @@ binds wiki and conversation providers through MemorySearchBackends.
 
 from __future__ import annotations
 
+from langchain_core.tools import BaseTool
+
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
     build_memory_save_tool_description,
     build_memory_search_tool_description,
@@ -42,7 +44,7 @@ def create_memory_tools(
     search_policy: MemorySearchPolicy | None = None,
     search_backends: MemorySearchBackends | None = None,
     description_locale: str | None = None,
-) -> list[object]:
+) -> list[BaseTool]:
     """Create memory tools for the user bound to the manager.
 
     Args:
