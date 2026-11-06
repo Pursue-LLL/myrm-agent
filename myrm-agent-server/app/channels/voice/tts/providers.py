@@ -1,30 +1,7 @@
-"""Text-to-Speech synthesis for outbound Agent replies.
-
-Supports multiple providers with automatic fallback to Edge TTS or Piper when available:
-  1. OpenAI (gpt-4o-mini-tts)
-  2. ElevenLabs (eleven_multilingual_v2)
-  3. Fish Audio (s1 model, 2M+ community voices)
-  4. MiniMax (speech-2.8-hd, cost-effective Asian language support)
-  5. Edge TTS (Microsoft Neural, free, no API key)
-  6. Piper (local offline CPU ONNX neural TTS, zero-API)
-  7. Voicebox (local/remote loopback voice service)
-
-[INPUT]
-- channels.types::VoiceConfig, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- myrm_agent_harness.toolkits.llms.text_completion::acomplete_text (POS: one-shot chat completion as text)
-
-[OUTPUT]
-- synthesize(): Text -> audio file path (Path)
-- synthesize_stream(): Text -> AsyncGenerator[bytes] (streaming audio)
-- is_edge_tts_available(): Whether optional Edge TTS (voice-tts extra) is installed
-- is_piper_available(): Whether optional local Piper TTS is installed
-- is_local_tts_available(): Whether any fully offline local TTS provider is available
+"""各 TTS 提供方的请求构造与流式实现。
 
 [POS]
-Outbound text-to-speech. Called by Router based on TTSMode when sending Agent replies.
-Synthesizes text to audio and sends via MediaAttachment(AUDIO).
-Telegram uses Opus format (voice bubble); other platforms use default format. MP3。
-Web playback uses synthesize_stream() for streaming。
+voice tts 子包的一部分；由 __init__.py 聚合导出。
 """
 
 from __future__ import annotations
@@ -34,176 +11,23 @@ import logging
 import tempfile
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from types import ModuleType
 
 import httpx
-from myrm_agent_harness.toolkits.llms.text_completion import acomplete_text
 
 from app.channels.types import VoiceConfig
 
+from .common import (
+    _DEFAULT_VOICES,
+    _PIPER_INSTALL_HINT,
+    _STREAM_CHUNK_SIZE,
+    _TTS_TIMEOUT,
+    _import_edge_tts,
+    _resolve_base_url,
+    _write_temp,
+    is_piper_available,
+)
+
 logger = logging.getLogger(__name__)
-
-_DEFAULT_BASE_URLS: dict[str, str] = {
-    "openai": "https://api.openai.com/v1",
-    "elevenlabs": "https://api.elevenlabs.io",
-    "fish_audio": "https://api.fish.audio/v1",
-    "minimax": "https://api.minimax.io/v1",
-    "voicebox": "http://127.0.0.1:8000",
-}
-
-_DEFAULT_VOICES: dict[str, str] = {
-    "openai": "alloy",
-    "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
-    "fish_audio": "7f92f8afb8ec43bf81429cc1c9199cb1",
-    "minimax": "English_expressive_narrator",
-    "edge": "en-US-MichelleNeural",
-    "piper": "en_US-lessac-medium",
-    "voicebox": "default",
-}
-
-
-def _resolve_base_url(config: VoiceConfig, provider: str) -> str:
-    """Resolve the API base URL: config override (OpenAI & Voicebox) > provider default."""
-    if provider in ("openai", "voicebox") and config.tts_base_url:
-        return config.tts_base_url.rstrip("/")
-    return _DEFAULT_BASE_URLS.get(provider, "")
-
-
-_MIN_TEXT_LENGTH = 10
-_TTS_TIMEOUT = 30.0
-_STREAM_CHUNK_SIZE = 4096
-_EDGE_TTS_INSTALL_HINT = "uv sync --extra voice-tts"
-EDGE_TTS_INSTALL_HINT = _EDGE_TTS_INSTALL_HINT
-
-
-_PIPER_INSTALL_HINT = "uv sync --extra voice-tts-local"
-PIPER_INSTALL_HINT = _PIPER_INSTALL_HINT
-
-
-def is_piper_available() -> bool:
-    """Return whether the optional local Piper TTS engine is installed."""
-    try:
-        import piper  # noqa: F401
-    except ImportError:
-        return False
-    return True
-
-
-def is_local_tts_available() -> bool:
-    """Return whether any fully offline local TTS provider (Piper) is available."""
-    return is_piper_available()
-
-
-def is_edge_tts_available() -> bool:
-    """Return whether the optional Edge TTS (GPL-3.0) package is installed."""
-    try:
-        import edge_tts  # noqa: F401
-    except ImportError:
-        return False
-    return True
-
-
-def _import_edge_tts() -> ModuleType:
-    """Import edge_tts or raise with an install hint."""
-    try:
-        import edge_tts
-    except ImportError as exc:
-        raise ImportError(f"edge-tts is not installed. Install with: {_EDGE_TTS_INSTALL_HINT}") from exc
-    return edge_tts
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
-async def synthesize(
-    text: str,
-    config: VoiceConfig,
-    *,
-    output_format: str = "mp3",
-) -> Path | None:
-    """Synthesize text to an audio file. Falls back to Edge TTS on failure."""
-    if len(text) < _MIN_TEXT_LENGTH:
-        logger.warning("TTS: text too short (%d chars), skipping", len(text))
-        return None
-
-    if len(text) > config.tts_max_length:
-        logger.warning("TTS: text too long (%d > %d chars), skipping", len(text), config.tts_max_length)
-        return None
-
-    if config.tts_summary_enabled and len(text) > config.tts_summary_threshold:
-        summarized = await _summarize_for_tts(text, config)
-        if summarized:
-            text = summarized
-
-    provider = config.tts_provider.lower()
-    try:
-        if provider == "edge":
-            return await _synthesize_edge(text, config)
-        return await _synthesize_api(text, config, provider, output_format)
-    except ImportError:
-        logger.warning("TTS: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
-        return None
-    except Exception:
-        logger.exception("TTS: primary provider '%s' failed", provider)
-
-    if provider != "edge":
-        if not is_edge_tts_available():
-            logger.warning(
-                "TTS: Edge TTS fallback unavailable (install voice-tts extra: %s)",
-                _EDGE_TTS_INSTALL_HINT,
-            )
-        else:
-            try:
-                logger.warning("TTS: falling back to Edge TTS (free)")
-                return await _synthesize_edge(text, config)
-            except Exception:
-                logger.exception("TTS: Edge TTS fallback also failed")
-    return None
-
-
-async def synthesize_stream(
-    text: str,
-    config: VoiceConfig,
-) -> AsyncGenerator[bytes]:
-    """Stream-synthesize text to MP3 audio chunks. Falls back to Edge TTS."""
-    if len(text) < _MIN_TEXT_LENGTH:
-        logger.warning("TTS stream: text too short (%d chars), skipping", len(text))
-        return
-
-    provider = config.tts_provider.lower()
-    stream_fn = _STREAM_PROVIDERS.get(provider)
-
-    if stream_fn:
-        try:
-            async for chunk in stream_fn(text, config):
-                yield chunk
-            return
-        except ImportError:
-            logger.warning("TTS stream: edge-tts not installed (%s)", _EDGE_TTS_INSTALL_HINT)
-            return
-        except Exception:
-            logger.exception("TTS stream: provider '%s' failed, falling back", provider)
-
-    if provider != "edge":
-        if is_edge_tts_available():
-            try:
-                async for chunk in _stream_edge(text, config):
-                    yield chunk
-                return
-            except Exception:
-                logger.exception("TTS stream: edge fallback also failed")
-        else:
-            logger.warning(
-                "TTS stream: Edge TTS fallback unavailable (install voice-tts extra: %s)",
-                _EDGE_TTS_INSTALL_HINT,
-            )
-
-
-# ---------------------------------------------------------------------------
-# Request builders (shared between streaming and non-streaming)
-# ---------------------------------------------------------------------------
 
 
 def _openai_request(config: VoiceConfig, text: str, fmt: str):
@@ -481,40 +305,3 @@ _STREAM_PROVIDERS = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _write_temp(data: bytes, suffix: str) -> Path:
-    tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
-    tmp.write(data)
-    tmp.close()
-    return Path(tmp.name)
-
-
-_SUMMARY_PROMPT = (
-    "Summarize the following text for audio playback. "
-    "Keep key information, be concise, and stay under 300 words. "
-    "Output the summary directly without any preamble.\n\n"
-)
-
-_SUMMARY_TIMEOUT = 15.0
-
-
-async def _summarize_for_tts(text: str, config: VoiceConfig) -> str | None:
-    """Summarize long text using LLM before TTS synthesis."""
-    try:
-        model = config.tts_summary_model or "gpt-4o-mini"
-        summary = await acomplete_text(
-            model,
-            [{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
-            max_tokens=500,
-            temperature=0.3,
-            timeout=_SUMMARY_TIMEOUT,
-        )
-        if not summary:
-            return None
-
-        logger.warning("TTS: summarized %d → %d chars (model=%s)", len(text), len(summary), model)
-        return summary
-    except Exception:
-        logger.exception("TTS: summarization failed, using original text")
-        return None

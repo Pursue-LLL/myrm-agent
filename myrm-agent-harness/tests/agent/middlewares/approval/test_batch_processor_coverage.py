@@ -940,7 +940,7 @@ class TestSkillHooks:
         )
 
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.middlewares.approval.batch_processor._evaluate_skill_hooks_for_tool",
+            "myrm_agent_harness.agent.middlewares.approval.batch_processor.core._evaluate_skill_hooks_for_tool",
             lambda tool_name, tool_args: mock_verdict,
         )
 
@@ -983,7 +983,7 @@ class TestSkillHooks:
         )
 
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.middlewares.approval.batch_processor._evaluate_skill_hooks_for_tool",
+            "myrm_agent_harness.agent.middlewares.approval.batch_processor.core._evaluate_skill_hooks_for_tool",
             lambda tool_name, tool_args: mock_verdict,
         )
 

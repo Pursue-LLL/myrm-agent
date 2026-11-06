@@ -15,7 +15,7 @@ _FORBIDDEN_SSRF_PATTERNS = (
 
 _ALLOWED_SSRF_ROOTS = (
     _HARNESS_SRC / "core" / "security" / "guards",
-    _HARNESS_SRC / "utils" / "url_utils.py",
+    _HARNESS_SRC / "utils" / "url_utils",
 )
 
 _SCAN_ROOTS = (

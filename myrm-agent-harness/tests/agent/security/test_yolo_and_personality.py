@@ -1271,11 +1271,11 @@ class TestEvaluateToolBatchAdditionalPaths:
         ]
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor.evaluate_tool_call",
+                "myrm_agent_harness.agent.middlewares.approval.batch_processor.core.evaluate_tool_call",
                 return_value=(PermissionAction.ASK, "needs review"),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor._evaluate_skill_hooks_for_tool",
+                "myrm_agent_harness.agent.middlewares.approval.batch_processor.core._evaluate_skill_hooks_for_tool",
                 return_value=verdict,
             ),
         ):
@@ -1309,11 +1309,11 @@ class TestEvaluateToolBatchAdditionalPaths:
         ]
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor.evaluate_tool_call",
+                "myrm_agent_harness.agent.middlewares.approval.batch_processor.core.evaluate_tool_call",
                 return_value=(PermissionAction.ASK, "needs review"),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.approval.batch_processor._evaluate_skill_hooks_for_tool",
+                "myrm_agent_harness.agent.middlewares.approval.batch_processor.core._evaluate_skill_hooks_for_tool",
                 return_value=verdict,
             ),
         ):
