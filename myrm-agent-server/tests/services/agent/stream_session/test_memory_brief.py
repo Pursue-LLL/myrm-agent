@@ -18,6 +18,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware import memory_context_middleware
 from myrm_agent_harness.agent.skill_agent.context import set_memory_manager
 from myrm_agent_harness.toolkits.memory.config import RecallMode
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import increment_consolidation_count
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
 from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
 from pydantic import Field
@@ -123,7 +124,8 @@ class TestKeywordMode:
         self, saves_rule: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A profile fact saved in chat is scoped to the agent, not to ``global``: the brief still counts it, and a
-        user whose only memory is that fact is not reported as a cold start."""
+        user whose only memory is that fact is not reported as a cold start. The counter row the consolidation
+        strategy keeps in the same profile table is not a fact: it is neither counted nor handed to the model."""
         await clear_embedded_stores()
         monkeypatch.setattr(QdrantVectorStore, "RETRY_BASE_DELAY", 0.0)
         monkeypatch.setattr(
@@ -154,6 +156,7 @@ class TestKeywordMode:
         manager = await isolated_create(binding, None, approval_required=False)
         try:
             await manager.set_profile_attribute("language", "zh-CN")
+            await increment_consolidation_count(manager)
             if saves_rule:
                 await manager.add_rule("deploying", "run smoke tests first")
 
@@ -163,7 +166,7 @@ class TestKeywordMode:
             preview, snapshot = bundle
             expected = await manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True)
             assert snapshot["memory_ctx"] == expected
-            assert snapshot["memory_ctx"]["peer_profile"]["language"] == "zh-CN"
+            assert snapshot["memory_ctx"]["peer_profile"] == {"language": "zh-CN"}
             assert preview["stable"]["profile_count"] == 1
             assert preview["stable"]["rule_count"] == int(saves_rule)
             assert preview["is_cold_start"] is False

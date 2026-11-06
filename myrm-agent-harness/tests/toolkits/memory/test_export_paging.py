@@ -202,7 +202,7 @@ async def test_profile_walk_stops_on_rows_read_not_rows_shown() -> None:
     now = datetime.now(UTC)
     entries = [
         ProfileEntry(id=f"p{i}", key=key, value="v", created_at=now, updated_at=now)
-        for i, key in enumerate(["name", "_system_flag", "timezone", "language"])
+        for i, key in enumerate(["name", "_system.flag", "timezone", "language"])
     ]
     relational = FakeRelational(profiles=entries)
 

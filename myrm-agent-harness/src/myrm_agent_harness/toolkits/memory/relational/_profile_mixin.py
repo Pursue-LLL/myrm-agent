@@ -10,8 +10,9 @@
 - SQLiteProfileMixin: get_profile, get_profile_snapshot, set_profile, delete_profile, list_profiles, count_profiles
 
 [POS]
-Profile key-value persistence of SQLiteRelationalStore, scoped by namespace. ``get_profile_snapshot`` returns the
-value together with a revision hash of its key, value and update time.
+Profile key-value persistence of SQLiteRelationalStore, scoped by namespace. Listings and counts skip the
+maintenance code's ``_system.`` bookkeeping rows. ``get_profile_snapshot`` returns the value together with a
+revision hash of its key, value and update time.
 """
 
 import hashlib
@@ -134,12 +135,13 @@ class SQLiteProfileMixin(SQLiteStoreHost):
         conn = await self._get_connection()
         scope_sql, scope_params = self._scope_filter_sql(namespaces)
         try:
+            # Keys under "_system." are the maintenance code's own bookkeeping, never user data.
             async with conn.execute(
                 """SELECT id, user_id, key, value, primary_namespace, namespaces, agent_id,
                           channel_id, conversation_id, task_id, created_at, updated_at
                    FROM profiles
                    WHERE 1=1
-                     AND substr(key, 1, 8) != '_system_'"""
+                     AND substr(key, 1, 8) != '_system.'"""
                 + scope_sql
                 + " ORDER BY updated_at DESC LIMIT ? OFFSET ?",
                 (*scope_params, limit, offset),
@@ -153,8 +155,9 @@ class SQLiteProfileMixin(SQLiteStoreHost):
         conn = await self._get_connection()
         scope_sql, scope_params = self._scope_filter_sql(namespaces)
         try:
+            # Keys under "_system." are the maintenance code's own bookkeeping, never user data.
             async with conn.execute(
-                f"SELECT COUNT(*) FROM profiles WHERE 1=1 AND substr(key, 1, 8) != '_system_' {scope_sql}",
+                f"SELECT COUNT(*) FROM profiles WHERE 1=1 AND substr(key, 1, 8) != '_system.' {scope_sql}",
                 scope_params,
             ) as cursor:
                 row = await cursor.fetchone()

@@ -71,20 +71,6 @@ async def test_list_and_count_profiles(store: SQLiteRelationalStore) -> None:
 
 
 @pytest.mark.asyncio
-async def test_system_profiles_are_hidden_from_list_and_count(
-    store: SQLiteRelationalStore,
-) -> None:
-    await store.set_profile("_system_internal_key", '{"data": 1}')
-    await store.set_profile("language", "zh")
-
-    profiles = await store.list_profiles()
-    assert len(profiles) == 1
-    assert profiles[0].key == "language"
-    assert await store.count_profiles() == 1
-    assert await store.get_profile("_system_internal_key") == '{"data": 1}'
-
-
-@pytest.mark.asyncio
 async def test_list_profiles_pagination(store: SQLiteRelationalStore) -> None:
     for i in range(10):
         await store.set_profile(f"k{i}", f"v{i}")
