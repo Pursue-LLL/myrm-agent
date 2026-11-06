@@ -14,7 +14,7 @@ Skill content security scanning — regex patterns, Python AST analysis, package
 | llm_auditor.py | Core | LLM-based semantic threat detection beyond regex/AST coverage. Parses the finding object via `parse_llm_json_object` (robust against fences, prose, bare control chars, trailing commas). | ✅ |
 | osv_scanner.py | Core | Online OSV.dev batch vulnerability intelligence scanner with query batching and graceful offline fallback. | ✅ |
 | package_audit.py | Core | package.json supply-chain audit (install scripts, suspicious deps, in-memory lifecycle script gate, entry point artifact physical reachability & non-empty integrity verification). | ✅ |
-| patterns.py | Core | Regex pattern groups for 26 threat categories. | ✅ |
+| patterns/ | Core | 技能安全扫描模式子包：injection/exfiltration/filesystem/network/system 五组纯数据 + types；`__init__` 按原顺序汇总 `ALL_PATTERN_GROUPS`。详见 [patterns/_ARCH.md](patterns/_ARCH.md) | ✅ |
 | rescan_engine.py | Core | Installed skill multi-layer rescan orchestrator with AdvisoryAckRegistry governance and auto-quarantine disposition. | ✅ |
 | scanner.py | Core | Single-content scanner (regex patterns, invisible Unicode, Python AST), its result types, scan summary aggregation and report formatting. `scan_skill_content` is memoized per (skill name, extension, exact content): a hit returns a fresh `ScanResult` copy, and a result with more than 128 findings is never pinned. | ✅ |
 | directory_scanner.py | Core | Multi-file skill directory scan with file-count, file-size and wall-clock limits; each file goes through the memoized `scan_skill_content`. | ✅ |
