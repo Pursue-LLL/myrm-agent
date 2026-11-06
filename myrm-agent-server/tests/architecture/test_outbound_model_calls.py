@@ -16,7 +16,7 @@ _CHAT_CALLS = frozenset({"completion", "acompletion", "responses", "aresponses",
 
 # file -> why the text it sends is outside the privacy guard's scope
 _OUT_OF_SCOPE: dict[str, str] = {
-    "channels/voice/tts.py": (
+    "channels/voice/tts/common.py": (
         "voice output pipeline: the reply text goes on to the speech provider, and speech synthesis is a declared "
         "non-chat call outside the privacy scope"
     ),

@@ -57,7 +57,6 @@ app/channels/security/protocols.py
 app/channels/security/webhook_middleware.py
 app/channels/types/messages.py
 app/channels/voice/stt.py
-app/channels/voice/tts.py
 app/config/settings.py
 app/core/channel_bridge/config_parsers.py
 app/core/channel_bridge/model_resolver.py
