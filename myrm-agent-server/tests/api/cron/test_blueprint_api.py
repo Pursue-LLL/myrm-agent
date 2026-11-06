@@ -19,8 +19,8 @@ from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronSchedu
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 from app.api.cron.routes.blueprints import router as blueprint_router
-from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES
 from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
+from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES
 
 # Blueprints with required empty-default text slots need explicit values in fill tests.
 _FILL_VALUE_OVERRIDES: dict[str, dict[str, str]] = {

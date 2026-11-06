@@ -17,8 +17,8 @@ from app.channels.types import (
     MediaAttachment,
     MediaType,
     OutboundMessage,
+    SessionPolicy,
 )
-from app.channels.types import SessionPolicy
 from app.core.channel_bridge.executor_helpers import (
     ShareableArtifact,
     StreamAccumulator,
