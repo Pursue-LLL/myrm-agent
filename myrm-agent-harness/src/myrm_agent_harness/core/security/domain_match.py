@@ -14,6 +14,8 @@ exemption, so that one entry means the same thing to every layer: ``example.com`
 ``*.example.com`` and ``.example.com`` are that host and everything under it, and the scheme, path and port a
 person may paste along with an entry are ignored. An entry that names no host (``*``, ``*.*``) stays in its
 list and matches nothing, so a list made only of such entries still restricts instead of reading as unset.
+Text longer than a DNS name is never a host: it is read as written, so a page cannot make a check slow or
+keep memory by naming itself with a megabyte of characters.
 """
 
 from __future__ import annotations
@@ -22,6 +24,9 @@ from collections.abc import Iterable
 from functools import lru_cache
 
 _WILDCARD_PREFIX = "*."
+# A DNS name is at most 253 characters. Longer text skips the IDNA codec, whose preparation step costs seconds on a
+# megabyte of non-ASCII text, and stays out of the host cache, where distinct oversized strings would be kept alive.
+_MAX_NAME_LENGTH = 253
 
 
 def _host_text(raw: str) -> str:
@@ -36,17 +41,25 @@ def _host_text(raw: str) -> str:
 
 
 def _ascii(name: str) -> str:
-    """The Punycode spelling of *name*; a name the IDNA codec rejects stays as written."""
+    """The Punycode spelling of *name*; a name the IDNA codec rejects, or one too long to be a host, stays as written."""
+    if len(name) > _MAX_NAME_LENGTH:
+        return name
     try:
         return name.encode("idna").decode("ascii")
     except UnicodeError:
         return name
 
 
-@lru_cache(maxsize=2048)
+def _read_host(raw: str) -> str:
+    return _ascii(_host_text(raw).rstrip("."))
+
+
+_read_short_host = lru_cache(maxsize=2048)(_read_host)
+
+
 def canonical_host(raw: str) -> str:
     """The host *raw* names, as the HTTP client would dial it; empty when *raw* names none."""
-    return _ascii(_host_text(raw).rstrip("."))
+    return _read_short_host(raw) if len(raw) <= _MAX_NAME_LENGTH else _read_host(raw)
 
 
 @lru_cache(maxsize=1024)

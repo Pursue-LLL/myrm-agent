@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from myrm_agent_harness.core.security import domain_match
 from myrm_agent_harness.core.security.domain_match import canonical_entry, canonical_host, host_matches
 
 _ENTRIES = [
@@ -49,6 +50,20 @@ class TestCanonicalHost:
     def test_a_name_the_idna_codec_rejects_stays_as_written(self) -> None:
         assert canonical_host("a..b") == "a..b"
         assert canonical_host("A" * 70 + ".com") == "a" * 70 + ".com"
+
+    def test_text_longer_than_a_dns_name_is_read_as_written(self) -> None:
+        # Past 253 characters nothing can be dialed, so the IDNA codec (slow on a megabyte of non-ASCII text) is skipped.
+        too_long = ".".join(["é"] * 200) + ".com"
+
+        assert canonical_host(too_long) == too_long
+        assert canonical_host("é.com") == "xn--9ca.com"
+
+    def test_text_longer_than_a_dns_name_never_enters_the_cache(self) -> None:
+        cached = domain_match._read_short_host.cache_info().currsize
+
+        canonical_host("a" * 300 + ".com")
+
+        assert domain_match._read_short_host.cache_info().currsize == cached
 
 
 class TestCanonicalEntry:
