@@ -91,6 +91,7 @@ def _import_edge_tts() -> ModuleType:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def _write_temp(data: bytes, suffix: str) -> Path:
     tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
     tmp.write(data)

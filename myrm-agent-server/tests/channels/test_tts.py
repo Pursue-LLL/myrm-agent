@@ -288,7 +288,7 @@ class TestSummarizeForTTS:
 
         with (
             patch.dict("sys.modules", {"edge_tts": mock_edge}),
-            patch("app.channels.voice.tts.acomplete_text", mock_summarize),
+            patch("app.channels.voice.tts.common.acomplete_text", mock_summarize),
         ):
             result = await synthesize(long_text, config)
 
@@ -375,7 +375,7 @@ class TestSummarizeForTTS:
             tts_summary_threshold=100,
         )
 
-        with patch("app.channels.voice.tts.acomplete_text", AsyncMock(side_effect=RuntimeError("API error"))):
+        with patch("app.channels.voice.tts.common.acomplete_text", AsyncMock(side_effect=RuntimeError("API error"))):
             result = await _summarize_for_tts("A" * 200, config)
 
         assert result is None
