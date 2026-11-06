@@ -63,9 +63,11 @@ import WorkspaceDirPicker from './WorkspaceDirPicker';
 
 interface MessageInputProps {
   loading: boolean;
+  /** The empty chat's composer takes the cursor on mount, where a keyboard is at hand. */
+  focusOnMount?: boolean;
 }
 
-const MessageInput = ({ loading }: MessageInputProps) => {
+const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
   const commandsT = useTranslations('commands');
   const messages = useChatStore((s) => s.messages);
   const agentId = useChatStore((s) => s.agentConfig?.agentId);
@@ -301,6 +303,7 @@ const MessageInput = ({ loading }: MessageInputProps) => {
                   hasFiles={files.length > 0}
                   expanded={isExpanded}
                   ghostText={inputHistory.ghostText}
+                  focusOnMount={focusOnMount}
                   onChange={(e) => {
                     handleInputChange(e);
                     syncCaret();
