@@ -1,12 +1,13 @@
 """The chat.completion shape every chat wire hands the adapter.
 
 [INPUT]
-- transport.errors (POS: LLMResponseError for a choice without a message)
+- transport.errors (POS: LLMResponseError for an answer without a message)
 - transport.http (POS: Chunk and StreamDecoder)
 - utils.coercion (POS: parse_int for token counts a provider sends as text or null)
 
 [OUTPUT]
 - FINISH_REASONS: the finish words providers use, mapped onto OpenAI's
+- answered_without: the failure of a 2xx answer that holds no message, shared by every wire
 - shape_usage: ``usage`` with every token count an int
 - shape_completion: a non-streaming answer in the shape the adapter reads
 - shape_chunk / ShapedDecoder: the same for the chunks of a stream
@@ -117,12 +118,22 @@ def _shape_choice(provider: str, choice: Mapping[str, object], position: int) ->
     return {**choice, "index": _index(choice, position), "message": shaped, "finish_reason": finish}
 
 
+def answered_without(provider: str, what: str, payload: Mapping[str, object]) -> LLMResponseError:
+    """The failure of a 2xx answer that holds no ``what`` (a message, a choice): the reply is not an answer at all.
+
+    A status page, another API's reply or a gateway's relay of a broken upstream answer parses as JSON yet has nothing
+    to read, and reading it as an empty answer would report a dead endpoint as healthy. ``LLMResponseError`` carries
+    the status of a relayed broken answer, so the agent repeats the request; the start of the body goes into the text
+    so the log shows what answered.
+    """
+    excerpt = json.dumps(payload, ensure_ascii=False, default=str)[:_EXCERPT_LIMIT]
+    return LLMResponseError(provider, f"{provider} answered without {what}: {excerpt}")
+
+
 def shape_completion(provider: str, payload: dict[str, object]) -> dict[str, object]:
     """A non-streaming answer in the shape the adapter reads.
 
-    An answer without a choice, or with a choice that has no message, has nothing to read: the provider's reply is not
-    a completion, and the failure is the provider's (``LLMResponseError`` carries the status of a gateway relaying a
-    broken upstream answer, so the agent repeats the request).
+    An answer without a choice, or with a choice that has no message, has nothing to read (see ``answered_without``).
     """
     choices = payload.get("choices")
     shaped = [
@@ -131,8 +142,7 @@ def shape_completion(provider: str, payload: dict[str, object]) -> dict[str, obj
         if isinstance(choice, Mapping)
     ]
     if not shaped:
-        excerpt = json.dumps(payload, ensure_ascii=False, default=str)[:_EXCERPT_LIMIT]
-        raise LLMResponseError(provider, f"{provider} answered without a choice: {excerpt}")
+        raise answered_without(provider, "a choice", payload)
     payload["choices"] = shaped
     payload["usage"] = shape_usage(payload.get("usage"))
     return payload

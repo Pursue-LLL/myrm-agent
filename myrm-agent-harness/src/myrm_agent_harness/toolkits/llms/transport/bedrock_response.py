@@ -3,9 +3,9 @@
 [INPUT]
 - transport.profile (POS: Route — provider id and bare model)
 - transport.http (POS: Chunk, StreamDecoder)
-- transport.errors (POS: LLMAnswerError for an exception of an open stream, LLMResponseError for an answer with no message)
+- transport.errors (POS: LLMAnswerError for an exception of an open stream)
 - transport.frames (POS: the JSON payload of a stream event)
-- transport.chat_shape (POS: FINISH_REASONS, the finish words providers use)
+- transport.chat_shape (POS: FINISH_REASONS, the finish words providers use; answered_without, the failure of an answer with no message)
 - transport.bedrock_content (POS: decode_tool_name)
 - transport.bedrock_structured (POS: JSON_TOOL, the synthetic tool of a structured answer)
 
@@ -30,8 +30,8 @@ from typing import Final
 
 from myrm_agent_harness.toolkits.llms.transport.bedrock_content import Block, decode_tool_name
 from myrm_agent_harness.toolkits.llms.transport.bedrock_structured import JSON_TOOL
-from myrm_agent_harness.toolkits.llms.transport.chat_shape import FINISH_REASONS
-from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMResponseError
+from myrm_agent_harness.toolkits.llms.transport.chat_shape import FINISH_REASONS, answered_without
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.profile import Route
@@ -97,7 +97,7 @@ def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
     message = output.get("message") if isinstance(output, Mapping) else None
     blocks = message.get("content") if isinstance(message, Mapping) else None
     if not isinstance(blocks, list):
-        raise LLMResponseError(route.profile.id, f"{route.profile.id} answered without a message")
+        raise answered_without(route.profile.id, "a message", payload)
     texts: list[str] = []
     structured: list[str] = []
     reasoning: list[str] = []

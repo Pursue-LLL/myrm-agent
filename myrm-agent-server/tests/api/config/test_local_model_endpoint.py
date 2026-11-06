@@ -91,6 +91,16 @@ def test_provider_failure_is_classified() -> None:
     assert "Errno" not in data["message"]
 
 
+def test_an_address_that_answers_with_another_apis_reply_is_not_a_reachable_model() -> None:
+    """A mistyped address that lands on an OpenAI-compatible server answers 200 with JSON, which is no Ollama reply."""
+    with fake_chat_provider("sk-right") as provider:
+        response = client.post(_URL, json={"model": "ollama/llama3", "base_url": provider.base_url, "api_key": "sk-right"})
+
+    assert response.json()["success"] is False
+    # The server was reached and answered: what failed is the answer, not the connection.
+    assert provider.requests
+
+
 def test_a_wrong_key_is_judged_by_the_provider_after_the_right_key_was_accepted() -> None:
     """The real chat model asks the provider on every test; an answer given to the right key does not vouch for another."""
     with fake_chat_provider("sk-right") as provider:

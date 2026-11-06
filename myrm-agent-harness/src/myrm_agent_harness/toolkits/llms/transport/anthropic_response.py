@@ -4,6 +4,7 @@
 - transport.profile (POS: Route — provider id and bare model)
 - transport.http (POS: Chunk, StreamDecoder)
 - transport.errors (POS: LLMAnswerError for an error inside a 200 answer or stream)
+- transport.chat_shape (POS: answered_without, the failure of a 200 answer that holds no message)
 - transport.frames (POS: the JSON payload of a stream frame)
 
 [OUTPUT]
@@ -23,6 +24,7 @@ import json
 from collections.abc import Mapping
 from typing import Final
 
+from myrm_agent_harness.toolkits.llms.transport.chat_shape import answered_without
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, StreamDecoder
@@ -67,12 +69,14 @@ def _usage(raw: Mapping[str, object]) -> dict[str, object]:
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
     if payload.get("type") == "error":
         raise LLMAnswerError(route.profile.id, payload)
+    content = payload.get("content")
+    if not isinstance(content, list):
+        raise answered_without(route.profile.id, "a message", payload)
     texts: list[str] = []
     reasoning: list[str] = []
     thinking_blocks: list[Block] = []
     tool_calls: list[Block] = []
-    content = payload.get("content")
-    for block in content if isinstance(content, list) else []:
+    for block in content:
         if not isinstance(block, Mapping):
             continue
         kind = block.get("type")

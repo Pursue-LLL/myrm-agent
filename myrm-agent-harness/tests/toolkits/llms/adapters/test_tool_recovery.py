@@ -233,7 +233,7 @@ class TestDescribeWithheldToolCalls:
 
         assert len(description) < 600
         assert "TAIL-MARKER" in description
-        assert "raw_len=%d" % len(raw) in description
+        assert f"raw_len={len(raw)}" in description
 
     def test_secrets_in_the_arguments_are_redacted(self) -> None:
         secret = "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789ABCD"

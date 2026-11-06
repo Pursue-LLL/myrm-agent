@@ -6,6 +6,7 @@
 - transport.gemini_schema (POS: tool-parameter schema reduction to the Gemini subset)
 - transport.profile (POS: Route — endpoint root and credential)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
+- transport.chat_shape (POS: answered_without, the failure of a 200 answer that holds no candidate)
 - transport.http (POS: PreparedRequest, StreamDecoder)
 
 [OUTPUT]
@@ -36,6 +37,7 @@ from myrm_agent_harness.toolkits.llms.transport.capabilities import (
     gemini_thinking_level,
     gemini_thinks_by_level,
 )
+from myrm_agent_harness.toolkits.llms.transport.chat_shape import answered_without
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.gemini_contents import SIGNATURE_SEPARATOR, Part, to_contents
@@ -296,6 +298,9 @@ def _blocked(payload: Mapping[str, object]) -> bool:
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
     if payload.get("error") and not payload.get("candidates"):
         raise LLMAnswerError(route.profile.id, payload)
+    # A blocked prompt has no candidates, but its verdict is in promptFeedback; a body with neither is no answer.
+    if not isinstance(payload.get("candidates"), list) and not isinstance(payload.get("promptFeedback"), Mapping):
+        raise answered_without(route.profile.id, "a candidate", payload)
     candidate = _candidate(payload)
     texts: list[str] = []
     reasoning: list[str] = []

@@ -3,6 +3,7 @@
 [INPUT]
 - transport.profile (POS: Route — endpoint root and optional credential for hosted Ollama)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
+- transport.chat_shape (POS: answered_without, the failure of a 200 answer that holds no message)
 - transport.http (POS: PreparedRequest, StreamDecoder; NDJSON framing)
 
 [OUTPUT]
@@ -25,6 +26,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from typing import Final
 
+from myrm_agent_harness.toolkits.llms.transport.chat_shape import answered_without
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
@@ -238,8 +240,9 @@ def _finish(payload: Mapping[str, object], has_tool_calls: bool) -> str:
 def parse(route: Route, payload: dict[str, object]) -> dict[str, object]:
     if payload.get("error"):
         raise LLMAnswerError(route.profile.id, payload)
-    raw = payload.get("message")
-    source: Mapping[str, object] = raw if isinstance(raw, Mapping) else {}
+    source = payload.get("message")
+    if not isinstance(source, Mapping):
+        raise answered_without(route.profile.id, "a message", payload)
     calls = _calls_out(source)
     message: Message = {"role": "assistant", "content": str(source.get("content") or "") or None}
     if source.get("thinking"):
