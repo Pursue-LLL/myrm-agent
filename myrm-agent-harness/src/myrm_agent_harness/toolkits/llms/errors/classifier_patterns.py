@@ -120,6 +120,13 @@ _OVERFLOW_EXACT_RE = re.compile(
             # Bedrock Converse wordings (Claude, Llama and Mistral say the first, Nova the second)
             r"input is too long for requested model",
             r"too many input tokens",
+            # Overflow answers that carry no dedicated error code, so the sentence is the only signal: Gemini,
+            # Cohere, TGI servers (Together, Hugging Face) and other OpenAI-compatible hosts.
+            r"exceeds the maximum number of tokens allowed",
+            r"too many tokens: total number of tokens",
+            r"`?inputs`? tokens \+ `?max_new_tokens`? must be",
+            r"maximum context limit",
+            r"longer than the model.?s (?:maximum )?context length",
         ]
     ),
     re.IGNORECASE,
@@ -137,6 +144,10 @@ _OVERFLOW_COMPOUND_CHECKS: list[tuple[re.Pattern[str], ...]] = [
         re.compile(r"context", re.IGNORECASE),
     ),
     (re.compile(r"413", re.IGNORECASE), re.compile(r"too large", re.IGNORECASE)),
+    # Cerebras: "Current length is 20000 while limit is 8192"
+    (re.compile(r"current length is", re.IGNORECASE), re.compile(r"while limit is", re.IGNORECASE)),
+    # "Maximum input length is 32768 tokens, but got 40000 tokens." (a length in characters is not an overflow)
+    (re.compile(r"maximum input length is", re.IGNORECASE), re.compile(r"tokens", re.IGNORECASE)),
 ]
 
 _OVERFLOW_CN_KEYWORDS = (
