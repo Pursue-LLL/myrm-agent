@@ -1,8 +1,8 @@
 """The permission engine judges every URL a network tool names, whatever the argument is called.
 
 ``web_fetch_tool`` receives its pages in ``urls`` (a list, or the JSON text of one) and ``browser_navigate_tool`` its
-page in ``url``. The blocklist and the rule targets used to read ``url`` alone, so a fetch was never refused for a
-blocked host and never matched a host rule. Only a browser navigation asks about a domain outside the allowlist.
+page in ``url``. The blocklist and the rule targets read both spellings, so a fetch is refused for a blocked host and
+matches a host rule. Only a browser navigation asks about a domain outside the allowlist.
 """
 
 from __future__ import annotations
