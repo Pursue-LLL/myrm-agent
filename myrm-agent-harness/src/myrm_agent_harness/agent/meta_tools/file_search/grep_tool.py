@@ -114,23 +114,19 @@ async def _ripgrep_search(
     # Naming a sensitive file as the path is a deliberate read (approval-gated); walking a directory is not.
     matches = RgMatches(max_results, withhold_sensitive=search_path.is_dir())
 
-    try:
-        outcome = await run_rg(
-            cmd,
-            cwd=search_root,
-            timeout_seconds=timeout_seconds,
-            on_line=matches.feed,
-        )
-        if outcome.failed:
-            logger.warning(f"ripgrep error: {outcome.stderr}")
-            # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
-            # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
-            # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
-            if not outcome.answered:
-                raise RuntimeError("ripgrep failed")
-    except (TimeoutError, RuntimeError) as e:
-        logger.warning(f"ripgrep search failed: {e}, falling back to Python")
-        raise
+    outcome = await run_rg(
+        cmd,
+        cwd=search_root,
+        timeout_seconds=timeout_seconds,
+        on_line=matches.feed,
+    )
+    if outcome.failed:
+        logger.warning(f"ripgrep search failed (exit code {outcome.returncode}): {outcome.stderr}")
+        # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
+        # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
+        # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
+        if not outcome.answered:
+            raise RuntimeError("ripgrep failed")
 
     return matches
 
@@ -313,7 +309,7 @@ def create_grep_tool(
                         literal=literal,
                     )
                 except Exception as e:
-                    logger.debug(f"ripgrep fallback: {e}")
+                    logger.warning(f"ripgrep search error: {e!r}, falling back to Python")
 
             # Only the Python tier knows how many files it searched; ripgrep's own count is wrong before version 15.
             files_searched: int | None = None
