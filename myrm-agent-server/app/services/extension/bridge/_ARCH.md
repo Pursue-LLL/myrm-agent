@@ -20,4 +20,4 @@
 ## 依赖关系
 
 - 上游：`app.services.extension.access_policy`、`cdp_relay.manager` / `cdp_relay.protocol`、`app.services.event`、harness 扩展桥类型（可选）
-- 下游：`app/api/extension/*`、`app/lifecycle/browser.py`、`tool_setup.py`（浏览器工具按需取 bridge）
+- 下游：`app/api/extension/*`、`app/lifecycle/browser.py`、`tool_setup/browser.py`（浏览器工具按需取 bridge）
