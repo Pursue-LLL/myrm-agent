@@ -1,7 +1,9 @@
 import type { PermissionAction, PermissionRuleConfig, SecurityConfigValue } from '@/services/config/types';
 
+// A domain list entry as the harness reads it: `host`, `*.host` or `.host` (the host and every subdomain),
+// each with an optional `:port`.
 export const DOMAIN_PATTERN =
-  /^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(:\d{1,5})?$/;
+  /^(\*\.|\.)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(:\d{1,5})?$/;
 
 export const BUILTIN_BLACKLIST = ['rm -rf /', 'rm -rf /*', 'mkfs*', 'dd if=*', 'chmod 777 /*', ':(){ :|:& };:'];
 
