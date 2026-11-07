@@ -21,11 +21,10 @@ from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_fi
 
 
 @pytest.fixture
-def locked_dir(plain_dir: Path, restrict_mode: Callable[[Path, int], None]) -> Path:
+def locked_dir(plain_dir: Path, restrict_mode: Callable[[Path, int], None]) -> None:
     """A directory ripgrep cannot open: it walks on past it and exits with status 2 once it is done."""
     write_tree(plain_dir, {"locked/h.txt": "needle\n"})
     restrict_mode(plain_dir / "locked", 0)
-    return plain_dir / "locked"
 
 
 @pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)
