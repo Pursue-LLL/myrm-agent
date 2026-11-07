@@ -12,7 +12,7 @@
 
 ---
 
-## 一、System Prompt 层（`messages[0]` 拼装 + `messages[1]` 安全边界）
+## 一、System Prompt 层（`messages[0]` 拼装 + 跟随用户输入的 canary 与安全边界）
 
 > **口径**：tiktoken `o200k_base` 实测（`utils/text_utils.PLANNING_ENCODING`），宿主 macOS。
 > `messages[0]` 由框架层 `agent/base_agent.py:164-171` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 4 段；安全边界与 canary 是跟在用户输入之后的**独立 SystemMessage**，不计入 `messages[0]`。
@@ -43,7 +43,7 @@
 
 **`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，lean 模式 EN +76 / ZH +82，naked / search 模式**无差异**。server 默认 `False`（`server/ai_agents/agent_params.py:147`），上表已按 False 计量。
 
-**缓存特性**：`messages[0]` 与其后的工具块在参数组合内字节恒定，跨用户共享缓存；随机 hex 只出现在跟随用户输入的 canary 消息里。把它放进 `messages[0]` 时，前缀缓存在该 token 处就与其他会话分叉，其后的工具块（约 5k token）与整段历史每个会话、每一轮都要全价。实测见 `temp-docs/temp-task-context/harness-ptc-bench/cache_probe.py`：同一个首轮请求，canary 留在 system 消息里首轮缓存 0%，移到最后一条 system 消息后 90% 到 98%。
+**缓存特性**：`messages[0]` 与其后的工具块在参数组合内字节恒定，跨用户共享缓存；随机 hex 只出现在跟随用户输入的 canary 消息里。把它放进 `messages[0]` 时，前缀缓存在该 token 处就与其他会话分叉，其后的工具块（约 5k token）与整段历史每个会话、每一轮都要全价。同一个首轮请求的实测：canary 留在 system 消息里首轮缓存 0%，移到最后一条 system 消息后 90% 到 98%。
 
 ---
 
@@ -283,7 +283,7 @@ Token 明细（tiktoken o200k_base）：
 
 | 分类 | Token (tiktoken) | 明细 |
 |------|------------------:|------|
-| System Prompt 层 | **1,701** | `messages[0]` 1,402（ZH · full）+ `messages[1]` 299，固定，跨用户缓存 |
+| System Prompt 层 | **1,701** | `messages[0]` 1,349（ZH · full，跨用户缓存）+ 跟随用户输入的 canary ≈53 与安全边界 299 |
 | CORE 工具层 | **2,599** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
 | HIGH_PRIORITY 工具层 | **2,394** | web_search + memory×3 + skill_select |
 | EXTENDED 工具层 | **0** | 默认 profile 无附加（opt-in 按需挂载） |
@@ -333,8 +333,11 @@ Token 明细（tiktoken o200k_base）：
 [EXTENDED: 可选工具 (~0~6,075+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
-[System Prompt: messages[0] 1,402 (ZH·full) + messages[1] 299]
+[System Prompt: messages[0] 1,349 (ZH·full)]
   ↑ 冻结，跨用户共享缓存
+
+[跟随用户输入: canary ≈53 + 安全边界 299]
+  ↑ 位于最新用户消息之后，不进入共享前缀
 
 [Dynamic: user_instructions(~200) + memory_context(~500) + skills(~500)]
   ↑ 同用户会话内稳定
