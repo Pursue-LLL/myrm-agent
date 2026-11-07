@@ -8,7 +8,7 @@
 - utils.url_syntax::parse_outbound_url (POS: the canonical spelling of an outbound URL, or why it has none; no hostname blocklist)
 
 [OUTPUT]
-- FetchTargetGuard: pins every URL one fetch contacts (the requested URL and each redirect hop)
+- FetchTargetGuard: canonicalizes and pins every URL one fetch contacts (the requested URL and each redirect hop)
 
 [POS]
 Per-fetch SSRF policy for the web_fetch tiers that follow redirects. Cloud policy resolves the host
@@ -17,9 +17,9 @@ host as written and by its DNS answer, but only loopback, link-local and metadat
 user's own resolver is not otherwise second-guessed, the origin the fetch was aimed at may be
 private, any other private origin reached through a redirect may not, and cloud metadata endpoints
 never may. Exact hosts listed in ``MYRM_ALLOWED_INTERNAL_HOSTS`` stay reachable under
-both policies. The local policy judges, resolves and grants a URL in its canonical spelling, so a
-legacy-spelled address or a Unicode host is the host the client dials, and a URL with no canonical
-spelling is refused.
+both policies. ``canonical_url`` gives the spelling a hop is judged and dialed in, so a legacy-spelled
+address or a Unicode host is the host the client connects to, and a URL with no canonical spelling is
+refused.
 """
 
 from __future__ import annotations
@@ -34,13 +34,13 @@ from myrm_agent_harness.core.security.redirect_hop_guard import (
     PrivateOriginGrants,
     RedirectHopEvaluator,
 )
-from myrm_agent_harness.utils.url_syntax import parse_outbound_url
+from myrm_agent_harness.utils.url_syntax import OutboundUrl, parse_outbound_url
 
 logger = logging.getLogger(__name__)
 
 
 class FetchTargetGuard:
-    """Guard bound to one fetch; ``pin`` raises ``SSRFSecurityError`` for a URL the policy rejects."""
+    """Guard bound to one fetch; its methods raise ``SSRFSecurityError`` for a URL the policy rejects."""
 
     def __init__(self, *, requested_url: str, allow_private_networks: bool, allowed_hosts: list[str]) -> None:
         self._allowed_hosts = allowed_hosts
@@ -52,14 +52,23 @@ class FetchTargetGuard:
                 grants.grant(requested.url)
             self._local_policy = RedirectHopEvaluator(grants=grants)
 
+    def canonical_url(self, url: str) -> str:
+        """The spelling a URL is judged and dialed in: pass it to ``pin``, then request what ``pin`` returns."""
+        return self._canonical_target(url).url
+
+    @staticmethod
+    def _canonical_target(url: str) -> OutboundUrl:
+        target, error = parse_outbound_url(url)
+        if target is None:
+            raise SSRFSecurityError(error)
+        return target
+
     async def pin(self, url: str) -> tuple[str, dict[str, str]]:
         """Return the URL to request and the extra headers it needs (DNS-pinned under the cloud policy)."""
         if self._local_policy is None:
             return await async_pin_url(url, self._allowed_hosts)
 
-        target, error = parse_outbound_url(url)
-        if target is None:
-            raise SSRFSecurityError(error)
+        target = self._canonical_target(url)
         URLAllowlistGuard.check(target.hostname)
         if target.hostname not in self._allowed_hosts:
             verdict = await self._local_policy.evaluate_hop_resolved(target.url)

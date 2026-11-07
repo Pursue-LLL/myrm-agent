@@ -160,7 +160,7 @@ Layer 2 由多个子模块组成，覆盖网络安全、命令安全、文件系
 
 **阻断的主机名**：`localhost`, `169.254.169.254`(AWS), `metadata.google.internal`(GCP), `100.100.100.200`(阿里云), `metadata.tencentyun.com`(腾讯云)
 
-**规范写法（判什么就拨什么）**：出站 URL 先由 `utils/url_syntax.py::parse_outbound_url` 解析成唯一的规范写法：UTS 46 映射并把非 ASCII 标签写成 Punycode，旧式数字 IPv4（`2130706433`、`0x7f.1`、`0177.0.0.1`）写成点分十进制，IPv6 取压缩形式，去掉末尾的点，端口按数字写，凭据段保留。各层判定的是这一写法的主机（引擎的黑名单与域名审批、`web_fetch` 的主机黑名单与 SSRF 分类、外泄白名单、技能域名白名单），拨号点发出的也是这一写法（`web_fetch_tool` 取回 `_url_gate.validate_urls` 返回的规范 URL，浏览器导航前先过 `canonical_navigation_url`），所以被判定的主机就是客户端实际连接的主机。含反斜杠、制表符、换行、百分号编码的主机、畸形 authority（多个 `@`、未闭合的方括号）、非法主机或端口的 URL 没有规范写法，一律拒绝，不会让分类器和客户端各读出一个主机。
+**规范写法（判什么就拨什么）**：出站 URL 先由 `utils/url_syntax.py::parse_outbound_url` 解析成唯一的规范写法：UTS 46 映射并把非 ASCII 标签写成 Punycode，旧式数字 IPv4（`2130706433`、`0x7f.1`、`0177.0.0.1`）写成点分十进制，IPv6 取压缩形式，去掉末尾的点，端口按数字写，凭据段保留。各层判定的是这一写法的主机（引擎的黑名单与域名审批、`web_fetch` 的主机黑名单与 SSRF 分类、外泄白名单、技能域名白名单），拨号点发出的也是这一写法（`web_fetch_tool` 取回 `_url_gate.validate_urls` 返回的规范 URL，L1 HTTP 层的每一跳——入口 URL 与每个重定向的 `Location`——先过 `FetchTargetGuard.canonical_url` 再判定、再请求，浏览器导航前先过 `canonical_navigation_url`），所以被判定的主机就是客户端实际连接的主机。含反斜杠、制表符、换行、百分号编码的主机、畸形 authority（多个 `@`、未闭合的方括号）、非法主机或端口的 URL 没有规范写法，一律拒绝，不会让分类器和客户端各读出一个主机。
 
 **DNS Pinning 策略**：
 

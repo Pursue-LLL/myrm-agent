@@ -243,3 +243,31 @@ class TestCloudPolicy:
         url, _headers = await _cloud().pin("http://8.8.8.8/")
 
         assert "8.8.8.8" in url
+
+
+class TestCanonicalUrl:
+    """The spelling a hop is judged and dialed in, whichever policy is in force."""
+
+    @pytest.mark.parametrize(
+        ("written", "canonical"),
+        [
+            ("HTTP://EXAMPLE.com./a%2Fb?x=1&y=%7E#frag", "http://example.com/a%2Fb?x=1&y=%7E#frag"),
+            ("http://0x7f.1:8080/", "http://127.0.0.1:8080/"),
+            ("http://straße.test/", "http://xn--strae-oqa.test/"),
+            ("http://a\u200db.test/", "http://xn--ab-m1t.test/"),
+            ("https://user:pw@[0:0:0:0:0:0:0:1]:9000/p", "https://user:pw@[::1]:9000/p"),
+        ],
+    )
+    @pytest.mark.parametrize("guard", [_cloud(), _local("http://localhost:3000/")], ids=["cloud", "local"])
+    def test_only_the_scheme_and_the_host_are_rewritten(
+        self, guard: FetchTargetGuard, written: str, canonical: str
+    ) -> None:
+        assert guard.canonical_url(written) == canonical
+
+    @pytest.mark.parametrize(
+        "url", ["http://localhost:3000\\@evil.test/", "http://local%68ost:3000/", "http://localhost:99999/"]
+    )
+    @pytest.mark.parametrize("guard", [_cloud(), _local("http://localhost:3000/")], ids=["cloud", "local"])
+    def test_a_url_with_no_canonical_spelling_is_refused(self, guard: FetchTargetGuard, url: str) -> None:
+        with pytest.raises(SSRFSecurityError):
+            guard.canonical_url(url)
