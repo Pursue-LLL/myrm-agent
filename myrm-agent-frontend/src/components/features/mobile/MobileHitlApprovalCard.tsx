@@ -274,7 +274,7 @@ export const MobileHitlApprovalCard: React.FC<MobileHitlApprovalCardProps> = ({
             disabled={isProcessing}
             className="flex h-12 flex-col items-center justify-center rounded-2xl border border-border/80 bg-card text-foreground hover:bg-destructive/10 hover:border-destructive/30 active:scale-95 transition-all disabled:opacity-50"
           >
-            <Ban className="h-4 w-4 text-destructive mb-0.5" />
+            <Ban className="h-4 w-4 text-destructive-text mb-0.5" />
             <span className="text-[11px] font-semibold">{t('rejectNo')}</span>
           </button>
 

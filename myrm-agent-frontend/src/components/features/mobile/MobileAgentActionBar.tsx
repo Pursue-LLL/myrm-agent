@@ -75,7 +75,7 @@ export const MobileAgentActionBar: React.FC<MobileAgentActionBarProps> = ({
           disabled={!isRunning || isStopping}
           className={`flex h-12 flex-1 flex-col items-center justify-center rounded-2xl border transition-all active:scale-95 ${
             isRunning
-              ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 shadow-sm'
+              ? 'border-destructive/40 bg-destructive/10 text-destructive-text hover:bg-destructive/20 shadow-sm'
               : 'border-border/40 bg-muted/30 text-muted-foreground/40 cursor-not-allowed'
           }`}
         >
