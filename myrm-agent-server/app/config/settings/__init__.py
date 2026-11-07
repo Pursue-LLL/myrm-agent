@@ -27,6 +27,7 @@ from .infra import (
     DatabaseSettings,
     ExecutionCacheSettings,
     MemoryBriefStatusTelemetrySettings,
+    MemoryGuardianGuardTelemetrySettings,
     MessageFilterSettings,
     MonitoringSettings,
     ServiceSettings,
@@ -46,6 +47,7 @@ from .security import (
 from .singleton import get_settings, settings
 
 __all__ = [
+    "MemoryGuardianGuardTelemetrySettings",
     "AppSettings",
     "AgentGatewaySettings",
     "BrowserPoolSettings",

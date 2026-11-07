@@ -7,13 +7,6 @@ Source SSOT: harness_packaging/core_manifest.yaml
 from __future__ import annotations
 
 CORE_IP_IMPORTS: tuple[str, ...] = (
-    "myrm_agent_harness.agent.context_management.compression_flush.flush_protocol",
-    "myrm_agent_harness.agent.context_management.compression_flush.stateless_cron_guard",
-    "myrm_agent_harness.agent.context_management.compression_flush.subagent_memory_isolation",
-    "myrm_agent_harness.agent.context_management.compression_flush.types",
-    "myrm_agent_harness.agent.context_management.dependency_expansion.adaptive_complexity_governor",
-    "myrm_agent_harness.agent.context_management.dependency_expansion.dependency_graph_expander",
-    "myrm_agent_harness.agent.context_management.dependency_expansion.types",
     "myrm_agent_harness.agent.context_management.pipeline.base",
     "myrm_agent_harness.agent.context_management.pipeline.engine",
     "myrm_agent_harness.agent.context_management.pipeline.hierarchical_compaction.compaction_types",
@@ -135,13 +128,6 @@ CORE_IP_IMPORTS: tuple[str, ...] = (
     "myrm_agent_harness.toolkits.memory.tool_guidance.types",
 )
 CORE_IP_SOURCE_RELPATHS: tuple[str, ...] = (
-    "agent/context_management/compression_flush/flush_protocol.py",
-    "agent/context_management/compression_flush/stateless_cron_guard.py",
-    "agent/context_management/compression_flush/subagent_memory_isolation.py",
-    "agent/context_management/compression_flush/types.py",
-    "agent/context_management/dependency_expansion/adaptive_complexity_governor.py",
-    "agent/context_management/dependency_expansion/dependency_graph_expander.py",
-    "agent/context_management/dependency_expansion/types.py",
     "agent/context_management/pipeline/base.py",
     "agent/context_management/pipeline/engine.py",
     "agent/context_management/pipeline/hierarchical_compaction/compaction_types.py",

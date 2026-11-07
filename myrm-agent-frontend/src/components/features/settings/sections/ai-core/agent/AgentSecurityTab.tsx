@@ -6,139 +6,24 @@ import {
   IconBan,
   IconFolder,
   IconGlobe,
-  IconPlus,
   IconShieldAlert,
   IconShieldCheck,
-  IconX,
 } from '@/components/features/icons/PremiumIcons';
-import { DOMAIN_PATTERN } from '../../system/securityPolicyUtils';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { apiRequest } from '@/lib/api';
 import { HealthScoreCard, type AuditResult } from './HealthScoreCard';
-
-const KNOWN_CAPABILITIES = [
-  'web_search_tool',
-  'net_fetch',
-  'shell_exec',
-  'file_read',
-  'file_write',
-  'mcp_invoke',
-  'code_interpreter',
-] as const;
-
-interface SecurityOverridesData {
-  capabilities: string[];
-  allowedRoots: string[];
-  approvalTimeoutSeconds: number | null;
-  networkAllowlist: string[];
-  networkBlocklist: string[];
-  commandDenylist: string[];
-  domainHitlEnabled: boolean;
-  injectionPolicy: 'log_only' | 'fail_closed' | null;
-}
-
-const EMPTY_DATA: SecurityOverridesData = {
-  capabilities: [],
-  allowedRoots: [],
-  approvalTimeoutSeconds: null,
-  networkAllowlist: [],
-  networkBlocklist: [],
-  commandDenylist: [],
-  domainHitlEnabled: false,
-  injectionPolicy: null,
-};
-
-function normalizeDomainInput(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/\/.*$/, '');
-}
-
-function parseOverrides(raw: Record<string, unknown> | null): SecurityOverridesData {
-  if (!raw) {
-    return EMPTY_DATA;
-  }
-
-  const caps = Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [];
-
-  const pp = raw.pathPolicy as Record<string, unknown> | undefined;
-  const roots = Array.isArray(pp?.allowedRoots) ? (pp.allowedRoots as string[]) : [];
-
-  const timeout = typeof raw.approvalTimeoutSeconds === 'number' ? raw.approvalTimeoutSeconds : null;
-
-  const allowlist = Array.isArray(raw.networkAllowlist) ? (raw.networkAllowlist as string[]) : [];
-  const blocklist = Array.isArray(raw.networkBlocklist) ? (raw.networkBlocklist as string[]) : [];
-  const cmdDenylist = Array.isArray(raw.commandDenylist) ? (raw.commandDenylist as string[]) : [];
-
-  const domainHitl = raw.domainHitlEnabled === true;
-  const injPolicy =
-    raw.injectionPolicy === 'fail_closed'
-      ? ('fail_closed' as const)
-      : raw.injectionPolicy === 'log_only'
-        ? ('log_only' as const)
-        : null;
-
-  return {
-    capabilities: caps,
-    allowedRoots: roots,
-    approvalTimeoutSeconds: timeout,
-    networkAllowlist: allowlist,
-    networkBlocklist: blocklist,
-    commandDenylist: cmdDenylist,
-    domainHitlEnabled: domainHitl,
-    injectionPolicy: injPolicy,
-  };
-}
-
-function serializeOverrides(data: SecurityOverridesData): Record<string, unknown> | null {
-  const hasContent =
-    data.capabilities.length > 0 ||
-    data.allowedRoots.length > 0 ||
-    data.approvalTimeoutSeconds !== null ||
-    data.networkAllowlist.length > 0 ||
-    data.networkBlocklist.length > 0 ||
-    data.commandDenylist.length > 0 ||
-    data.domainHitlEnabled ||
-    data.injectionPolicy !== null;
-
-  if (!hasContent) {
-    return null;
-  }
-
-  const result: Record<string, unknown> = {};
-  if (data.capabilities.length > 0) {
-    result.capabilities = data.capabilities;
-  }
-  if (data.allowedRoots.length > 0) {
-    result.pathPolicy = { allowedRoots: data.allowedRoots };
-  }
-  if (data.approvalTimeoutSeconds !== null) {
-    result.approvalTimeoutSeconds = data.approvalTimeoutSeconds;
-  }
-  if (data.networkAllowlist.length > 0) {
-    result.networkAllowlist = data.networkAllowlist;
-  }
-  if (data.networkBlocklist.length > 0) {
-    result.networkBlocklist = data.networkBlocklist;
-  }
-  if (data.commandDenylist.length > 0) {
-    result.commandDenylist = data.commandDenylist;
-  }
-  if (data.domainHitlEnabled) {
-    result.domainHitlEnabled = true;
-  }
-  if (data.injectionPolicy !== null) {
-    result.injectionPolicy = data.injectionPolicy;
-  }
-  return result;
-}
+import { SecurityChipListEditor } from './SecurityChipListEditor';
+import { useSecurityListEditors } from './useSecurityListEditors';
+import {
+  KNOWN_CAPABILITIES,
+  type SecurityOverridesData,
+  parseOverrides,
+  serializeOverrides,
+} from './agentSecurityOverrides';
 
 interface AgentSecurityTabProps {
   value: Record<string, unknown> | null;
@@ -161,12 +46,6 @@ export function AgentSecurityTab({
 }: AgentSecurityTabProps) {
   const t = useTranslations('agent.security');
   const tCap = useTranslations('cron.capability');
-  const [newPath, setNewPath] = useState('');
-  const [newDomain, setNewDomain] = useState('');
-  const [newBlockedDomain, setNewBlockedDomain] = useState('');
-  const [newCommandPattern, setNewCommandPattern] = useState('');
-  const [blocklistError, setBlocklistError] = useState<string | null>(null);
-  const [cmdDenylistError, setCmdDenylistError] = useState<string | null>(null);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
 
@@ -216,85 +95,7 @@ export function AgentSecurityTab({
     [data.capabilities, update],
   );
 
-  const addRoot = useCallback(() => {
-    const trimmed = newPath.trim();
-    if (!trimmed || data.allowedRoots.includes(trimmed)) {
-      return;
-    }
-    update({ allowedRoots: [...data.allowedRoots, trimmed] });
-    setNewPath('');
-  }, [newPath, data.allowedRoots, update]);
-
-  const removeRoot = useCallback(
-    (idx: number) => {
-      update({ allowedRoots: data.allowedRoots.filter((_, i) => i !== idx) });
-    },
-    [data.allowedRoots, update],
-  );
-
-  const addDomain = useCallback(() => {
-    const trimmed = newDomain.trim().toLowerCase();
-    if (!trimmed || data.networkAllowlist.includes(trimmed)) {
-      return;
-    }
-    update({ networkAllowlist: [...data.networkAllowlist, trimmed] });
-    setNewDomain('');
-  }, [newDomain, data.networkAllowlist, update]);
-
-  const removeDomain = useCallback(
-    (idx: number) => {
-      update({ networkAllowlist: data.networkAllowlist.filter((_, i) => i !== idx) });
-    },
-    [data.networkAllowlist, update],
-  );
-
-  const addBlockedDomain = useCallback(() => {
-    const normalized = normalizeDomainInput(newBlockedDomain);
-    if (!normalized) {
-      return;
-    }
-    if (!DOMAIN_PATTERN.test(normalized)) {
-      setBlocklistError(t('invalidBlockedDomain'));
-      return;
-    }
-    if (data.networkBlocklist.includes(normalized)) {
-      setBlocklistError(t('duplicateBlockedDomain'));
-      return;
-    }
-    setBlocklistError(null);
-    update({ networkBlocklist: [...data.networkBlocklist, normalized] });
-    setNewBlockedDomain('');
-  }, [newBlockedDomain, data.networkBlocklist, update, t]);
-
-  const removeBlockedDomain = useCallback(
-    (idx: number) => {
-      setBlocklistError(null);
-      update({ networkBlocklist: data.networkBlocklist.filter((_, i) => i !== idx) });
-    },
-    [data.networkBlocklist, update],
-  );
-
-  const addCommandPattern = useCallback(() => {
-    const trimmed = newCommandPattern.trim();
-    if (!trimmed) {
-      return;
-    }
-    if (data.commandDenylist.includes(trimmed)) {
-      setCmdDenylistError(t('duplicateCommandPattern', { default: 'Pattern already exists.' }));
-      return;
-    }
-    setCmdDenylistError(null);
-    update({ commandDenylist: [...data.commandDenylist, trimmed] });
-    setNewCommandPattern('');
-  }, [newCommandPattern, data.commandDenylist, update, t]);
-
-  const removeCommandPattern = useCallback(
-    (idx: number) => {
-      setCmdDenylistError(null);
-      update({ commandDenylist: data.commandDenylist.filter((_, i) => i !== idx) });
-    },
-    [data.commandDenylist, update],
-  );
+  const { roots, allowlist, blocklist, denylist } = useSecurityListEditors({ data, update });
 
   const handleFixNavigate = useCallback(
     (targetId: string) => {
@@ -313,7 +114,7 @@ export function AgentSecurityTab({
   );
 
   return (
-    <div className={cn('space-y-5', 'animate-in fade-in-50 duration-300')}>
+    <div className="space-y-5 animate-in fade-in-50 duration-300">
       {/* 默认会话安全预设 */}
       <div className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300">
         <div>
@@ -384,118 +185,30 @@ export function AgentSecurityTab({
       </div>
 
       {/* Allowed Roots */}
-      <div
-        id="allowed-roots-section"
-        className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300"
-      >
-        <div>
-          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <IconFolder className="h-4 w-4 text-primary" />
-            {t('allowedRootsTitle')}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('allowedRootsDesc')}</p>
-        </div>
-
-        {data.allowedRoots.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {data.allowedRoots.map((root, idx) => (
-              <div
-                key={`${root}-${idx}`}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30"
-              >
-                <code className="text-xs text-primary font-mono">{root}</code>
-                <button
-                  type="button"
-                  onClick={() => removeRoot(idx)}
-                  className="text-primary/60 hover:text-destructive transition-colors"
-                >
-                  <IconX className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder={t('pathPlaceholder')}
-            value={newPath}
-            onChange={(e) => setNewPath(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addRoot();
-              }
-            }}
-            className="flex-1 text-sm"
-          />
-          <Button variant="outline" size="sm" onClick={addRoot} disabled={!newPath.trim()}>
-            <IconPlus className="h-4 w-4 mr-1" />
-            {t('addPath')}
-          </Button>
-        </div>
-
-        {data.allowedRoots.length === 0 && (
-          <p className="text-xs text-muted-foreground/70 italic">{t('noAllowedRoots')}</p>
-        )}
-      </div>
+      <SecurityChipListEditor
+        scrollTargetId="allowed-roots-section"
+        icon={<IconFolder className="h-4 w-4 text-primary" />}
+        title={t('allowedRootsTitle')}
+        description={t('allowedRootsDesc')}
+        tone="primary"
+        placeholder={t('pathPlaceholder')}
+        addLabel={t('addPath')}
+        emptyText={t('noAllowedRoots')}
+        {...roots}
+      />
 
       {/* Network Domain Allowlist */}
-      <div
-        id="network-allowlist-section"
-        className="rounded-xl border border-border bg-card p-4 space-y-3 transition-all duration-300"
+      <SecurityChipListEditor
+        scrollTargetId="network-allowlist-section"
+        icon={<IconGlobe className="h-4 w-4 text-primary" />}
+        title={t('networkAllowlistTitle')}
+        description={t('networkAllowlistDesc')}
+        tone="success"
+        placeholder={t('domainPlaceholder')}
+        addLabel={t('addDomain')}
+        emptyText={t('noNetworkAllowlist')}
+        {...allowlist}
       >
-        <div>
-          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <IconGlobe className="h-4 w-4 text-primary" />
-            {t('networkAllowlistTitle')}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('networkAllowlistDesc')}</p>
-        </div>
-
-        {data.networkAllowlist.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {data.networkAllowlist.map((domain, idx) => (
-              <div
-                key={`${domain}-${idx}`}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30"
-              >
-                <code className="text-xs text-emerald-700 dark:text-emerald-400 font-mono">{domain}</code>
-                <button
-                  type="button"
-                  onClick={() => removeDomain(idx)}
-                  className="text-emerald-500/60 hover:text-destructive transition-colors"
-                >
-                  <IconX className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder={t('domainPlaceholder')}
-            value={newDomain}
-            onChange={(e) => setNewDomain(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addDomain();
-              }
-            }}
-            className="flex-1 text-sm"
-          />
-          <Button variant="outline" size="sm" onClick={addDomain} disabled={!newDomain.trim()}>
-            <IconPlus className="h-4 w-4 mr-1" />
-            {t('addDomain')}
-          </Button>
-        </div>
-
-        {data.networkAllowlist.length === 0 && (
-          <p className="text-xs text-muted-foreground/70 italic">{t('noNetworkAllowlist')}</p>
-        )}
-
         {/* Domain HITL Switch */}
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
           <div className="space-y-0.5">
@@ -510,137 +223,35 @@ export function AgentSecurityTab({
             onCheckedChange={(checked) => update({ domainHitlEnabled: checked })}
           />
         </div>
-      </div>
+      </SecurityChipListEditor>
 
       {/* Network Domain Blocklist */}
-      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <IconBan className="h-4 w-4 text-destructive" />
-            {t('networkBlocklistTitle')}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('networkBlocklistDesc')}</p>
-        </div>
-
-        {data.networkBlocklist.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {data.networkBlocklist.map((domain, idx) => (
-              <div
-                key={`${domain}-${idx}`}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
-              >
-                <code className="text-xs text-destructive font-mono">{domain}</code>
-                <button
-                  type="button"
-                  onClick={() => removeBlockedDomain(idx)}
-                  className="text-destructive/60 hover:text-destructive transition-colors"
-                >
-                  <IconX className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Input
-            placeholder={t('blockedDomainPlaceholder')}
-            value={newBlockedDomain}
-            onChange={(e) => {
-              setNewBlockedDomain(e.target.value);
-              if (blocklistError) {
-                setBlocklistError(null);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addBlockedDomain();
-              }
-            }}
-            className="flex-1 text-sm"
-          />
-          <Button variant="outline" size="sm" onClick={addBlockedDomain} disabled={!newBlockedDomain.trim()}>
-            <IconPlus className="h-4 w-4 mr-1" />
-            {t('addBlockedDomain')}
-          </Button>
-        </div>
-
-        {blocklistError && <p className="text-xs text-destructive">{blocklistError}</p>}
-
-        {data.networkBlocklist.length === 0 && !blocklistError && (
-          <p className="text-xs text-muted-foreground/70 italic">{t('noNetworkBlocklist')}</p>
-        )}
-      </div>
+      <SecurityChipListEditor
+        icon={<IconBan className="h-4 w-4 text-destructive-text" />}
+        title={t('networkBlocklistTitle')}
+        description={t('networkBlocklistDesc')}
+        tone="danger"
+        placeholder={t('blockedDomainPlaceholder')}
+        addLabel={t('addBlockedDomain')}
+        emptyText={t('noNetworkBlocklist')}
+        stackOnMobile
+        {...blocklist}
+      />
 
       {/* Command Deny List */}
-      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-            <IconBan className="h-4 w-4 text-destructive" />
-            {t('commandDenylistTitle', { default: 'Command Deny List' })}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {t('commandDenylistDesc', {
-              default:
-                'Commands matching these patterns will be permanently blocked, even under YOLO mode. Uses glob syntax (e.g. git push --force*).',
-            })}
-          </p>
-        </div>
-
-        {data.commandDenylist.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {data.commandDenylist.map((pattern, idx) => (
-              <div
-                key={`${pattern}-${idx}`}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
-              >
-                <IconBan className="h-3 w-3 text-destructive shrink-0" />
-                <code className="text-xs text-destructive font-mono">{pattern}</code>
-                <button
-                  type="button"
-                  onClick={() => removeCommandPattern(idx)}
-                  className="text-destructive/60 hover:text-destructive transition-colors"
-                >
-                  <IconX className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Input
-            placeholder={t('commandPatternPlaceholder', { default: 'e.g. git push --force* or *DROP DATABASE*' })}
-            value={newCommandPattern}
-            onChange={(e) => {
-              setNewCommandPattern(e.target.value);
-              if (cmdDenylistError) {
-                setCmdDenylistError(null);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addCommandPattern();
-              }
-            }}
-            className="flex-1 text-sm font-mono"
-          />
-          <Button variant="outline" size="sm" onClick={addCommandPattern} disabled={!newCommandPattern.trim()}>
-            <IconPlus className="h-4 w-4 mr-1" />
-            {t('addCommandPattern', { default: 'Add' })}
-          </Button>
-        </div>
-
-        {cmdDenylistError && <p className="text-xs text-destructive">{cmdDenylistError}</p>}
-
-        {data.commandDenylist.length === 0 && !cmdDenylistError && (
-          <p className="text-xs text-muted-foreground/70 italic">
-            {t('noCommandDenylist', { default: 'No command restrictions — uses global policy only.' })}
-          </p>
-        )}
-      </div>
+      <SecurityChipListEditor
+        icon={<IconBan className="h-4 w-4 text-destructive-text" />}
+        title={t('commandDenylistTitle')}
+        description={t('commandDenylistDesc')}
+        tone="danger"
+        chipIcon={<IconBan className="h-3 w-3 text-destructive-text shrink-0" />}
+        placeholder={t('commandPatternPlaceholder')}
+        addLabel={t('addCommandPattern')}
+        emptyText={t('noCommandDenylist')}
+        monospaceInput
+        stackOnMobile
+        {...denylist}
+      />
 
       {/* Injection Policy */}
       <div className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -648,14 +259,9 @@ export function AgentSecurityTab({
           <div className="space-y-0.5">
             <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
               <IconShieldAlert className="h-4 w-4 text-amber-500" />
-              {t('injectionPolicyTitle', { default: 'Prompt Injection Guard' })}
+              {t('injectionPolicyTitle')}
             </h3>
-            <p className="text-xs text-muted-foreground">
-              {t('injectionPolicyDesc', {
-                default:
-                  'Block high-threat prompt injection patterns for this agent. Merges with global policy using OR semantics (either side enabling blocking wins).',
-              })}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('injectionPolicyDesc')}</p>
           </div>
           <Switch
             checked={data.injectionPolicy === 'fail_closed'}
