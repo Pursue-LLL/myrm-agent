@@ -3,7 +3,7 @@
 [INPUT]
 - core.security.safe_git::hardened_git_argv (POS: git argv that runs no program the repository chose)
 - subprocess (POS: git capability probe, git-aware file listing and ignore check)
-- os.walk (POS: bounded filesystem traversal fallback)
+- os.walk, os.path (POS: bounded traversal fallback; entry checks that answer False where pathlib raises)
 - pathspec (POS: gitignore pattern matching for the ignore files of a plain folder, or of a nested repository git cannot list)
 - pathlib::Path (POS: path normalization)
 - glob_match::glob_matches (POS: shared glob semantics for the ripgrep and Python tiers)
@@ -14,12 +14,12 @@
 - DEFAULT_PRUNED_DIR_NAMES: Dependency, build and cache directories skipped in plain folders
 
 [POS]
-Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control
-directories are never listed; ignore files apply unless the caller opts out; hidden files are searched;
-symbolic links are never followed) and implements it for the Python tier: git-aware listing where
-available (a repository nested in the checkout is listed by git in turn, and walked under its ignore files only when
-git cannot read it; a search root that git itself ignores is walked like a plain folder), the ignore files of every
-directory and default directory pruning in non-git directories, bounded traversal.
+Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control directories are never
+listed; ignore files apply unless the caller opts out; hidden files are searched; symbolic links are never followed; an
+entry the file system will not describe is skipped, not an error) and implements it for the Python tier: git-aware
+listing where available (a repository nested in the checkout is listed by git in turn, and walked under its ignore
+files only when git cannot read it; a search root that git itself ignores is walked like a plain folder), the ignore
+files of every directory and default directory pruning in non-git directories, bounded traversal.
 """
 
 from __future__ import annotations
@@ -153,10 +153,10 @@ def _list_git_entries(search_root: Path, timeout_seconds: float = 5.0) -> list[P
 def _list_nested_repository(repo_dir: Path, timeout_seconds: float = 5.0) -> list[Path] | None:
     """Return what git lists for the repository checked out in ``repo_dir``, or None when git cannot.
 
-    None means ``repo_dir`` holds no checkout (a submodule that was never initialised is an empty directory), or git
-    refuses its configuration or layout.
+    None means ``repo_dir`` holds no checkout (a submodule that was never initialised is an empty directory, and one
+    that cannot be searched shows none), or git refuses its configuration or layout.
     """
-    if not (repo_dir / ".git").exists():
+    if not os.path.exists(repo_dir / ".git"):
         return None
     try:
         return _git_listing(repo_dir, ".", timeout_seconds)
@@ -179,7 +179,7 @@ def _compile_ignore_file(ignore_file: Path) -> PathSpec[Pattern] | None:
     line changes what it matches. A file that is not a regular file, cannot be read or cannot be compiled never fails
     or stalls a search; it just does not filter.
     """
-    if not ignore_file.is_file():
+    if not os.path.isfile(ignore_file):
         return None  # reading a FIFO or a device would block for good
     try:
         # Imported on first use: the import costs ~18 ms, which searches that go through git or ripgrep never pay.
@@ -242,7 +242,10 @@ def _is_ignored(layers: tuple[_IgnoreLayer, ...], rel_path: str, *, is_dir: bool
 def _walk_files(root: Path, *, pruned: frozenset[str], honour_ignore_files: bool) -> Iterator[Path]:
     """Yield the regular files below ``root``, skipping ``pruned`` directory names and what its ignore files cover.
 
-    Version-control markers (the ``.git`` file of a submodule included) and symbolic links are never yielded.
+    Version-control markers (the ``.git`` file of a submodule included) and symbolic links are never yielded, and
+    neither is an entry the file system will not describe (a directory that can be listed but not searched, a path
+    beyond the platform's length limit): the ``os.path`` predicates answer False for it where ``Path`` raises, and one
+    such entry must not fail the whole search.
     """
     # The layers a directory inherits from its parent, keyed by its path and dropped when the walk enters it. A
     # symbolic link to a directory is never entered, so its entry lasts until the walk ends.
@@ -268,7 +271,7 @@ def _walk_files(root: Path, *, pruned: frozenset[str], honour_ignore_files: bool
             if filename in VCS_DIR_NAMES:
                 continue
             file_path = current_dir / filename
-            if file_path.is_symlink() or not file_path.is_file():
+            if os.path.islink(file_path) or not os.path.isfile(file_path):
                 continue
             if layers and _is_ignored(layers, f"{prefix}{filename}", is_dir=False):
                 continue
@@ -281,7 +284,7 @@ def _expand_git_entries(entries: Iterable[Path]) -> Iterator[Path]:
     A directory entry is a repository or submodule nested in the checkout, and git lists it in turn under the
     ignore files of its own tree, as ripgrep reads them. Only when git cannot list it is it walked under its ignore
     files: dependency and build directories are not skipped there, since inside a git checkout the ignore rules
-    decide.
+    decide. An entry the file system will not describe is skipped, as in ``_walk_files``.
     """
     pending = [iter(entries)]
     while pending:
@@ -289,11 +292,11 @@ def _expand_git_entries(entries: Iterable[Path]) -> Iterator[Path]:
         if entry is None:
             pending.pop()
             continue
-        if entry.is_symlink():
+        if os.path.islink(entry):
             continue
-        if entry.is_file():
+        if os.path.isfile(entry):
             yield entry
-        elif entry.is_dir():
+        elif os.path.isdir(entry):
             nested = _list_nested_repository(entry)
             if nested is None:
                 yield from _walk_files(entry, pruned=VCS_DIR_NAMES, honour_ignore_files=True)
