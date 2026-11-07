@@ -20,6 +20,10 @@ export const STATUS_DOT_COLOR: Record<JobStatus, string> = {
   completed: 'bg-blue-500',
 };
 
+/** Pill-shaped item of a single-select toggle group (job type and delivery channel pickers). */
+export const PILL_TOGGLE_CLASS =
+  'gap-1.5 text-xs h-8 px-3 rounded-full border border-border bg-muted/50 data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:border-primary/40';
+
 export function formatNextRun(
   nextRunAt: string | undefined,
   t: (key: string, values?: Record<string, string>) => string,
