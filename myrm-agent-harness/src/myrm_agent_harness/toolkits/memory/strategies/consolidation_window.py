@@ -132,7 +132,7 @@ def _decode(
     return memories
 
 
-# A library that fits in one page costs a single statement; a larger one takes one more per page.
+# N rules take N // _RULE_PAGE_SIZE + 1 reads: the walk ends at the first page that is not full.
 _RULE_PAGE_SIZE = 2000
 
 

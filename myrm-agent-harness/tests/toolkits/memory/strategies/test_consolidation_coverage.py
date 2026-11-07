@@ -16,6 +16,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.strategies import consolidation_window
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     ConsolidationResponse,
     MergeOp,
@@ -226,9 +227,27 @@ async def test_a_rule_is_a_candidate_only_when_created_after_the_stamp_and_by_th
     assert before_the_rule.memories == []
 
 
-async def test_every_rule_is_covered_however_many_the_library_holds(new_manager: NewManager) -> None:
+async def test_a_deactivated_rule_never_reaches_the_window(new_manager: NewManager) -> None:
     manager = new_manager()
-    # One read of rules returns at most a thousand, and the stamp must not move past a rule it left out.
+    active = ProceduralMemory(content="When: on → Do: act", trigger="on", action="act", scope=GLOBAL)
+    deactivated = ProceduralMemory(
+        content="When: off → Do: act", trigger="off", action="act", scope=GLOBAL, is_active=False
+    )
+    await manager._rel().create_rule(active)
+    await manager._rel().create_rule(deactivated)
+
+    window = await fetch_candidate_window(manager, BASE, 100, datetime.now(UTC) + timedelta(minutes=1))
+
+    assert [m.content for m in window.memories] == ["When: on → Do: act"]
+
+
+async def test_every_rule_is_covered_however_many_the_library_holds(
+    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = new_manager()
+    # The library outgrows both one capped read (a thousand rules) and one page, so neither a single read nor the
+    # first page alone covers it, and the stamp must not move past a rule they leave out.
+    monkeypatch.setattr(consolidation_window, "_RULE_PAGE_SIZE", 300)
     rules = [
         ProceduralMemory(content=f"When: ask {i:04d} → Do: answer", trigger=f"ask {i:04d}", action="answer")
         for i in range(1100)
