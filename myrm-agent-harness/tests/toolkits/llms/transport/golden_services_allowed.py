@@ -1,7 +1,7 @@
 """Registry of every intentional difference between the previous client library's service calls and the transport's.
 
 [INPUT]
-- golden_allowed (POS: AllowedDiff, the shape of one registered difference)
+- golden_allowed_types (POS: AllowedDiff, the shape of one registered difference)
 
 [OUTPUT]
 - SERVICE_RULES: the registry for the embedding, rerank, image generation/edit and web-search paths
@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from urllib.parse import parse_qsl
 
-from .golden_allowed import AllowedDiff
+from .golden_allowed_types import AllowedDiff
 
 _IMAGE_OPENAI_SDK = (
     "image/dall_e_2",

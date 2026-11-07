@@ -1,7 +1,8 @@
 """Registry of every intentional difference between the previous client library's Bedrock requests and the transport's.
 
 [INPUT]
-- golden_allowed (POS: AllowedDiff, the shape of one registered difference)
+- golden_allowed_types (POS: AllowedDiff, the shape of one registered difference)
+- golden_matrix::BEDROCK_VARIANTS (POS: the Bedrock model families of the capture matrix)
 
 [OUTPUT]
 - BEDROCK_RULES: the registry for the Bedrock Converse wire
@@ -19,8 +20,8 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Mapping
 
-from .golden_allowed import AllowedDiff
-from .golden_capture import BEDROCK_VARIANTS
+from .golden_allowed_types import AllowedDiff
+from .golden_matrix import BEDROCK_VARIANTS
 
 _BEDROCK = ("bedrock", *BEDROCK_VARIANTS)
 _CLAUDE = (

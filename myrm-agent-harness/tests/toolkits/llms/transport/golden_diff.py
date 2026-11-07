@@ -2,6 +2,7 @@
 
 [INPUT]
 - golden_allowed / golden_bedrock_allowed (POS: the registries of intentional differences)
+- golden_allowed_types (POS: AllowedDiff and the URLs the previous library fetched on its own)
 
 [OUTPUT]
 - Diff / diff_request / diff_case: the differences between a baseline and a current request
@@ -19,7 +20,8 @@ import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 
-from .golden_allowed import HIDDEN_FETCHES, RULES, AllowedDiff
+from .golden_allowed import RULES
+from .golden_allowed_types import HIDDEN_FETCHES, AllowedDiff
 from .golden_bedrock_allowed import BEDROCK_RULES
 
 CHAT_RULES: tuple[AllowedDiff, ...] = (*RULES, *BEDROCK_RULES)

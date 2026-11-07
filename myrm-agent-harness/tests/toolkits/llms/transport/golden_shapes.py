@@ -1,7 +1,7 @@
 """Records which endpoint each provider's chat, embedding, rerank and image calls reach for each shape of base URL.
 
 [INPUT]
-- golden_capture::PROVIDERS (POS: the model id and factory options of every chat provider)
+- golden_matrix::PROVIDERS (POS: the model id and factory options of every chat provider)
 - golden_services::capture_services (POS: the embedding, rerank and image entry points, driven through a base URL)
 - golden_recorder::install_request_recorder (POS: observes the final HTTP request)
 
@@ -35,8 +35,8 @@ import pytest
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 from . import golden_services
-from .golden_allowed import HIDDEN_FETCHES
-from .golden_capture import PROVIDERS
+from .golden_allowed_types import HIDDEN_FETCHES
+from .golden_matrix import PROVIDERS
 from .golden_recorder import Record, install_request_recorder
 
 _HOST = "shape.invalid"
