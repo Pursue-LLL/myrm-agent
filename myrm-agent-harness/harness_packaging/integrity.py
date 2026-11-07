@@ -120,6 +120,8 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "private_notebook",
                 "score_honesty",
                 "two_layer_dialectic",
+                # Schema-only type definitions: readable source, no algorithm body to compile.
+                "types",
             }
         ),
     ),
