@@ -18,7 +18,7 @@
 | `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + OTA 资产交叉校验 + 安装包 glob + 安装包 `.sha256`；`REQUIRE_MIN_OTA_PLATFORMS` + `REQUIRED_OTA_PLATFORM_KEYS` + `REQUIRED_INSTALLER_GLOBS` + `REQUIRE_BARE_LINUX_APPIMAGE` 分阶段门禁 |
 | `smoke_launch_shell.py` | 三个构建 job 在 `tauri-action` 之后对真实打包产物的整壳烟测：`--bundle <目录>`（macOS `.app` 或解压后的 updater 包、Windows 静默安装后的安装目录、Linux 的 AppImage `squashfs-root`）里的主程序以 Finder / 开始菜单启动时的工作目录与环境运行——工作目录在 macOS 是只读的 `/`、在 Windows 是安装目录（Linux 的 AppRun 自己切进镜像的只读 `usr`），PATH 里没有 Node.js，macOS 与 Linux 用全新的主目录（首次启动，最慢的一次）。要求壳自己拉起 Python 后端与随包 Node.js 起的 Next（`:8080/health` 与 `:13000`，180 s 预算，壳自己给后端 120 s、Next 45 s）、首页引用的 `/_next/static` 资源取得到、后端用随包数据构建的四个列表（技能、智能体模板、集成目录、搜索服务商）在全新主目录下非空（PyInstaller 只归档 Python，漏打的数据目录会让后端健康、列表却是空的；全新主目录下后端的第一次应答就带着这些数据，最多等 60 s 只是不让负载高的 runner 上一次偶发的慢请求或失败拖垮整轮）、渠道注册表里的每一种渠道类型都能创建（`smoke_channels.py`，下一行）、就绪后稳定运行 5 s；最后让壳退出：Unix 发 SIGTERM，壳必须自己退出且它的所有子孙进程一并消失；Windows 没有 SIGTERM，不走优雅退出，杀进程树后两个端口必须无人再服务（逃出进程树的幸存者会占着端口）；任何一步失败都附上壳的日志尾部与进程表。只用标准库；门禁：`tests/architecture/test_desktop_launch_smoke_script.py`（启动环境、启动工作目录与工作流接线）与 `test_desktop_launch_smoke_run.py`（对替身 bundle 里真实子进程的行为测试，替身由 `tests/support/stand_in_shell_bundle.py` 生成）；随包数据本身由 `test_desktop_sidecar_data.py` 在构建前钉住 |
 | `smoke_channels.py` | 整壳烟测的渠道创建检查，由 `smoke_launch_shell.py` 在随包数据检查之后调用（同目录导入）：对后端的 `POST /api/v1/channels/manage/instances` 把渠道注册表里的每一种类型各创建一次（不带凭据），再用 `DELETE` 删掉，不留实例（Windows 上壳用的是执行者自己的环境，删不掉只警告）。PyInstaller 只归档静态扫描到的导入，而渠道提供者按计算出的模块名加载，漏打的提供者让后端健康、`/health` 与随包数据都正常，该渠道却创建不了（v0.1.40 的 26 种类型里 20 种返回 400 `unavailable (missing SDK?)`），只有真创建一次才看得见。判定：201 通过；`UNAVAILABLE_WITHOUT_SDK`（现在只有 Discord：它的提供者在模块级导入 SDK，而安装包有意不带这个 SDK）被拒 400，并且 `GET /status` 把它列为 `unavailable`，才符合设计（被拒但状态里没列出也失败）；其余任何非 201 都点名类型并附上后端的原话，一次报出全部失败的类型。创建时后端自己的启动维护偶尔锁住 SQLite（HTTP 503），在一个所有类型共用的 60 s 窗口内重试，一个一直锁住的库只耗一个窗口；后端整个不应答就停止，不逐个等超时。只用标准库；类型清单与 `UNAVAILABLE_WITHOUT_SDK` 由 `test_desktop_sidecar_modules.py` 钉住注册表和 `CHANNEL_SDKS_NOT_SHIPPED`，行为由 `test_desktop_launch_smoke_channels.py` 对假后端测试 |
-| `export-apple-signing-env.sh` | 仅当 `APPLE_*` secret 非空时写入 `GITHUB_ENV`；已定义但为空的变量会让 bundler 尝试导入钥匙串而失败 |
+| `export-apple-signing-env.sh` | 仅当 `APPLE_*` secret 非空时写入 `GITHUB_ENV`；已定义但为空的变量会让 bundler 尝试导入钥匙串而失败，所以没有凭据时什么都不导出，bundler 沿用 `tauri.conf.json` 里 ad-hoc 的 `signingIdentity`（`-`），应用照样被封印；有凭据时由环境变量里的证书与身份取代（bundler 源码里环境变量优先，尚未实跑） |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
 | `finalize-fixture-test.sh` | 无网络 fixture：三个 OTA 平台的匹配 + `.sig`（Linux 含「压缩包与裸 AppImage 并存取压缩包」与「只有带签名的裸 AppImage」两种布局），旧 release 里的 Intel 包不被任何平台选中；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
@@ -32,13 +32,13 @@
 | Job | 职责 |
 |-----|------|
 | `prepare-frontend` | `bun run build:tauri` 一次；artifact 带 `.next/standalone`（服务端，其编译产物在隐藏的 `.next/` 里，须 `include-hidden-files`）与 `.next/static`，三个构建 job 还原到 `myrm-agent-frontend/.next`，与 `tauri.conf.json` 的 `bundle.resources` 一一对应（`test_desktop_release_inputs.py` 钉住） |
-| `build-macos-arm` | macOS 只发 Apple Silicon（Intel 为什么不发见 `DESKTOP_RELEASE_SYSTEM.md`）；主路径发 Release；构建后对 `.app` 与解压后的 updater tarball 各跑一次 `smoke_launch_shell.py`（解压出来的那份先设为只读：被 macOS 隔离运行的 `.app` 的目录不可写） |
+| `build-macos-arm` | macOS 只发 Apple Silicon（Intel 为什么不发见 `DESKTOP_RELEASE_SYSTEM.md`）；主路径发 Release；`tauri-action` 之后先跑 `myrm-agent-desktop/scripts/verify-signing.sh --level`：没有 `APPLE_ID` 时验封印（`sealed`，ad-hoc 签名即可，没有封印的包 Gatekeeper 报“已损坏”），配置了就要求公证（`notarized`）；再对 `.app` 与解压后的 updater tarball 各跑一次 `smoke_launch_shell.py`（解压出来的那份先设为只读：被 macOS 隔离运行的 `.app` 的目录不可写） |
 | `build-windows` | Windows 追加资产（finalize 门禁平台）；静默安装 NSIS 后对安装目录跑 `smoke_launch_shell.py` |
 | `build-linux` | Linux 仅 `--bundles appimage`（官网分发所需；不阻塞 finalize）；解出 AppImage 后设为只读（挂载的 AppImage 本来就不可写），在虚拟 X 服务（`xvfb-run`）下跑 `smoke_launch_shell.py`（壳是 GUI 程序，没有显示就起不来）；sidecar 目录树在 AppImage 的 `usr/share/<product>/` 下（见 `tauri.linux.conf.json`） |
 | `finalize-release` | Mac ARM + Win 完成后：`latest.json` + sha256 + verify；各道门（含 repair 工作流）要求的平台与构建 job 一致由 `test_desktop_release_gates.py` 钉住 |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
 
-三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在这些文件改动时运行。
+三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再装钉死版本的 Tauri CLI（composite action `.github/actions/install-tauri-cli`，`tauri-action` 以 `tauriScript: tauri` 调用它，不再现装浮动的 `@tauri-apps/cli@v2`），然后进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在这些文件改动时运行。
 
 **验证运行**：非 tag 的 `workflow_dispatch` 会构建并烟测各平台包，但不创建 Release、不上传任何资产（所有上传步骤均 `if: github.ref_type == 'tag'`），版本为 `0.0.0-<run_number>`；`v*` tag push 才发布。
 
@@ -51,12 +51,11 @@
 | Secret | 用途 |
 |--------|------|
 | `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 包签名；与 `tauri.conf.json#plugins.updater.pubkey` 成对 |
+| `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env（避免空证书触发 codesign 失败），应用由 `tauri.conf.json` 的 ad-hoc 身份封印；配置后改用 Developer ID 签名并公证；OTA 仍靠 minisign |
 
 ## OTA manifest 匹配规则
 
 `latest.json` 仅纳入 **updater 包**且存在配对 `.sig` 的平台：macOS `.app.tar.gz`、Windows `*-setup.exe`（上传前重命名为 `MyrmAgent_x64-setup.exe`）、Linux 的 AppImage updater 包（bundler 写了 `.AppImage.tar.gz` 就取压缩包，否则取带 `.sig` 的裸 `.AppImage`；客户端 `tauri-plugin-updater` 两种都会安装）。macOS 只有 Apple Silicon，包保留 Tauri 的 `MyrmAgent.app.tar.gz`；旧 release 里的 Intel 包 `MyrmAgent_x64.app.tar.gz` 不会被选作任何平台的更新。Tauri v2 的 `*.nsis.zip` 为 bundling 临时文件，不可作 OTA 资产。`pick-platform-asset.sh` 的 glob 必须加引号。不含裸 `.msi` / `.deb` 候选；裸 `.AppImage` 的 glob 以 `.AppImage` 结尾，不会匹配同名的 `.sig` / `.sha256`。Linux job：`prune-frontend-linuxmusl.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
-
-| `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖
 

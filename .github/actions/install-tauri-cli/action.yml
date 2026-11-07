@@ -1,0 +1,12 @@
+name: Install Tauri CLI
+description: >-
+  Install the Tauri CLI that every platform build job hands to tauri-action (`tauriScript: tauri`). The CLI carries
+  the bundler that signs and packages the app, so its version is fixed here and changes only when this file does,
+  not whenever `@tauri-apps/cli@v2` starts resolving to a newer release.
+
+runs:
+  using: composite
+  steps:
+    - name: Install the pinned Tauri CLI
+      shell: bash
+      run: npm install --global @tauri-apps/cli@2.12.4

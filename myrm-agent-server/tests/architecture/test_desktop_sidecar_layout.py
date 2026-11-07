@@ -203,7 +203,7 @@ class TestAppleEnvExport:
 
         assert completed.returncode == 0, completed.stderr
         assert env_text == ""
-        assert "unsigned" in completed.stdout
+        assert "ad-hoc" in completed.stdout
 
 
 def test_only_tag_runs_publish_to_a_release() -> None:

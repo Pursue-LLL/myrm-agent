@@ -43,10 +43,10 @@ jobs:
       # surface after the expensive platform builds.
       - name: Desktop CI shell script lint
         run: |
-          for script in scripts/ci/desktop-release/*.sh myrm-agent-desktop/scripts/ci/*.sh; do
+          for script in scripts/ci/desktop-release/*.sh myrm-agent-desktop/scripts/ci/*.sh myrm-agent-desktop/scripts/verify-signing.sh; do
             bash -n "$script"
           done
-          shellcheck --severity=error -x scripts/ci/desktop-release/*.sh myrm-agent-desktop/scripts/ci/*.sh
+          shellcheck --severity=error -x scripts/ci/desktop-release/*.sh myrm-agent-desktop/scripts/ci/*.sh myrm-agent-desktop/scripts/verify-signing.sh
 
       - name: Desktop CI PowerShell script syntax
         shell: pwsh

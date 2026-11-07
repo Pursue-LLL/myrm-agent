@@ -92,6 +92,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: bash scripts/ci/desktop-release/export-apple-signing-env.sh
 
+      - name: Install Tauri CLI
+        uses: ./.github/actions/install-tauri-cli
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -100,7 +103,17 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
+          tauriScript: tauri
           args: --target aarch64-apple-darwin
+
+      # tauri.conf.json seals every macOS build with an ad-hoc signature unless Apple credentials replace it; Gatekeeper
+      # reports a bundle without that seal as damaged and offers no way to open it. Credentials lift the bar to notarized.
+      - name: Verify bundle signature
+        run: |
+          level=sealed
+          [[ -z "${APPLE_ID:-}" ]] || level=notarized
+          echo "[verify-signing] level: $level"
+          bash myrm-agent-desktop/scripts/verify-signing.sh --level "$level" --search-root myrm-agent-desktop/src-tauri/target
 
       - name: Launch runtime smoke (.app)
         run: |
@@ -194,6 +207,9 @@ jobs:
       - name: Fetch Node.js runtime
         run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target x86_64-pc-windows-msvc
 
+      - name: Install Tauri CLI
+        uses: ./.github/actions/install-tauri-cli
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -202,6 +218,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
+          tauriScript: tauri
           args: ''
 
       - name: Rename Windows updater bundle (stable OTA asset name)
@@ -274,6 +291,9 @@ jobs:
       - name: Fetch Node.js runtime
         run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target x86_64-unknown-linux-gnu
 
+      - name: Install Tauri CLI
+        uses: ./.github/actions/install-tauri-cli
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -282,6 +302,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
+          tauriScript: tauri
           # Website distributes AppImage only; skip deb/rpm to cut Linux CI time ~40%.
           args: --bundles appimage --verbose
 
