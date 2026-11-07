@@ -34,15 +34,16 @@ def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:
     entries examined. A regular file is opened only for a search that reads it (``reads_a_file``); one that lists
     directories rejects a file whatever its permissions. Any other kind of entry (a pipe, a device) is left alone:
     opening it can block or act on the device. Permission is read from ``os.stat`` because ``Path.exists``
-    answers False for it from Python 3.14 on; any other failure of ``os.stat`` (a missing entry, a name with a NUL
-    byte) is left to ``Path.exists``, which decides what counts as not found.
+    answers False for it from Python 3.14 on. Any other failure of ``os.stat`` (a missing entry, a name with a NUL
+    byte, a name or path longer than the platform allows) means there is nothing to examine: ``os.path.exists``
+    answers False for each of them, where ``Path.exists`` raises for an over-long path on Python 3.13.
     """
     try:
         mode = os.stat(target).st_mode
     except PermissionError:
         raise
     except (OSError, ValueError):
-        return target.exists()
+        return os.path.exists(target)
     if stat.S_ISDIR(mode):
         os.scandir(target).close()  # listing the names needs read permission
         os.stat(os.path.join(target, "."))  # examining an entry needs search permission

@@ -13,6 +13,8 @@ Covers:
 - A directory that can be entered but not listed, one that can be listed but not entered, and one that is neither,
   as the path of either tool
 - A path beneath a directory without search permission, whether ``Path.exists`` raises for it or answers False
+- A path that cannot exist (absent, a NUL byte, a name or a whole path beyond what the platform allows) is reported as
+  not found, never as an unexpected error
 - The controls: a readable path of the same kind is searched, and a file named inside a directory that can be entered
   but not listed is still found
 """
@@ -63,6 +65,9 @@ class TestUnreadableFile:
 class TestTheRefusalIsExplained:
     """A refusal that carries EPERM, with a requested path that differs from the resolved one."""
 
+    resolved = "/private/privacy"
+    requested = "~/Library/Mail"
+
     @pytest.fixture
     def refusal(self, monkeypatch: pytest.MonkeyPatch) -> ToolError:
         def refuse(path: object, *args: object, **kwargs: object) -> os.stat_result:
@@ -71,7 +76,7 @@ class TestTheRefusalIsExplained:
         with monkeypatch.context() as patched:
             patched.setattr(os, "stat", refuse)
             with pytest.raises(ToolError) as caught:
-                require_examinable_target("/private/privacy", "~/Library/Mail", reads_a_file=True)
+                require_examinable_target(self.resolved, self.requested, reads_a_file=True)
         return caught.value
 
     def test_loop_guard_reads_it_as_permission_denied(self, refusal: ToolError) -> None:
@@ -81,12 +86,16 @@ class TestTheRefusalIsExplained:
         text = refusal.format_for_llm()
 
         assert os.strerror(errno.EPERM) in text
-        assert "~/Library/Mail" in text
-        assert "/private/privacy" not in text
+        assert self.requested in text
+        assert self.resolved not in text
 
 
 class TestAPathThatCannotExist:
-    @pytest.mark.parametrize("name", ["missing", "bad\x00name"], ids=["absent", "nul_byte"])
+    @pytest.mark.parametrize(
+        "name",
+        ["missing", "bad\x00name", "x" * 300, "d/" * 3000],
+        ids=["absent", "nul_byte", "name_too_long", "path_too_long"],
+    )
     def test_it_is_reported_as_not_found(self, tmp_path: Path, name: str) -> None:
         with pytest.raises(ToolError, match="Path not found"):
             require_examinable_target(str(tmp_path / name), name, reads_a_file=True)

@@ -198,9 +198,10 @@ def suggest_similar_paths(
     seen: set[str] = set()
 
     for directory in search_dirs:
-        dir_path = Path(directory)
-        if not dir_path.is_dir():
+        # os.path answers False for a path longer than the platform allows; Path.is_dir raises on Python 3.13.
+        if not os.path.isdir(directory):
             continue
+        dir_path = Path(directory)
         try:
             entries = [entry.name for entry in dir_path.iterdir()]
         except OSError:
