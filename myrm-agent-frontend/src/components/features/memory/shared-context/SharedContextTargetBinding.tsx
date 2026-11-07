@@ -272,7 +272,7 @@ export function SharedContextTargetBinding({
                     type="button"
                     onClick={() => handleUnbind(binding)}
                     disabled={actionId === binding.id}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive-text disabled:opacity-50"
                   >
                     {actionId === binding.id ? (
                       <IconLoader className="h-3 w-3 animate-spin" />

@@ -247,7 +247,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
           )}
 
           {loadFailed && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive-text">
               {t('commandCenter.evidence.loadFailed')}
             </div>
           )}
@@ -422,7 +422,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
               type="button"
               disabled={actionLoading}
               onClick={handleFalsePositive}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive-text hover:bg-destructive/20 transition-colors"
             >
               <ShieldAlert className="h-3.5 w-3.5" />
               {t('commandCenter.evidence.markFalsePositive')}

@@ -210,7 +210,7 @@ const ConversationRecallPanel = memo(() => {
                             : entry.source}
                       </span>
                       {entry.is_excluded && (
-                        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
+                        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive-text">
                           {t('excludedBadge')}
                         </span>
                       )}
@@ -232,7 +232,7 @@ const ConversationRecallPanel = memo(() => {
                         'inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors',
                         entry.is_excluded
                           ? 'text-primary hover:bg-primary/10'
-                          : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
+                          : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text',
                         'disabled:cursor-not-allowed disabled:opacity-50',
                       )}
                     >

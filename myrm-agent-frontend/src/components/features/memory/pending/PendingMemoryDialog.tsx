@@ -238,7 +238,7 @@ const PendingMemoryDialog = memo(() => {
                     <span>{t('conflict.title')}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-destructive/10 text-destructive-text border border-destructive/20">
                     <ShieldAlert size={10} />
                     <span>{t('manualReviewRequired')}</span>
                   </span>
@@ -316,7 +316,7 @@ const PendingMemoryDialog = memo(() => {
                   'flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg',
                   'text-sm font-medium transition-all duration-200',
                   'border border-destructive/30 hover:border-destructive/50',
-                  'text-destructive hover:bg-destructive/5',
+                  'text-destructive-text hover:bg-destructive/5',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
                 )}
               >

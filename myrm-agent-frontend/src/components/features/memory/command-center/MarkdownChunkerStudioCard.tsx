@@ -205,7 +205,7 @@ export const MarkdownChunkerStudioCard: React.FC<
       {errorMessage && (
         <div
           role="alert"
-          className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs"
+          className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive-text text-xs"
         >
           <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>{errorMessage}</span>

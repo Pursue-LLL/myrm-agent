@@ -29,7 +29,7 @@ const MemoryClearAllDialog = memo<MemoryClearAllDialogProps>(({ open, onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle className="text-destructive">{t('clearAllTitle')}</DialogTitle>
+          <DialogTitle className="text-destructive-text">{t('clearAllTitle')}</DialogTitle>
           <DialogDescription>{t('clearAllDescription')}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-0">

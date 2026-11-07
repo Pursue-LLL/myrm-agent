@@ -103,7 +103,7 @@ export function EphemeralDeltaLiveInspectorView({
         {formError && (
           <div
             role="alert"
-            className="flex items-center space-x-2 p-2 rounded bg-destructive/10 text-destructive text-xs"
+            className="flex items-center space-x-2 p-2 rounded bg-destructive/10 text-destructive-text text-xs"
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{formError}</span>

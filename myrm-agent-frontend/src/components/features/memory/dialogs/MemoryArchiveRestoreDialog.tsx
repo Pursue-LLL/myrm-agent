@@ -52,7 +52,7 @@ const sectionKeys: MemoryArchiveSectionName[] = ['memory', 'shared_context', 'co
 const planStatusClass: Record<MemoryArchiveRestoreDryRunResult['plan']['status'], string> = {
   ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  critical: 'border-destructive/30 bg-destructive/10 text-destructive',
+  critical: 'border-destructive/30 bg-destructive/10 text-destructive-text',
 };
 
 export const MemoryArchiveRestoreDialog = memo<MemoryArchiveRestoreDialogProps>(
@@ -167,7 +167,7 @@ export const MemoryArchiveRestoreDialog = memo<MemoryArchiveRestoreDialogProps>(
 
                 {securityFindings.length > 0 && (
                   <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
-                    <p className="text-xs font-medium text-destructive">{t('securityFindings')}</p>
+                    <p className="text-xs font-medium text-destructive-text">{t('securityFindings')}</p>
                     <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
                       {securityFindings.slice(0, 8).map((finding, index) => (
                         <div

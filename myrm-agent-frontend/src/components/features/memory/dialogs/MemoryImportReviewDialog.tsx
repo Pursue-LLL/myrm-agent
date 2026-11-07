@@ -38,7 +38,7 @@ interface MemoryImportReviewDialogProps {
 const statusClass: Record<MemoryImportDryRunResult['summary']['status'], string> = {
   ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  critical: 'border-destructive/30 bg-destructive/10 text-destructive',
+  critical: 'border-destructive/30 bg-destructive/10 text-destructive-text',
   missing: 'border-muted-foreground/20 bg-muted text-muted-foreground',
 };
 

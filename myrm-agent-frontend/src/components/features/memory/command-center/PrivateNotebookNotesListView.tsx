@@ -158,7 +158,7 @@ export function PrivateNotebookNotesListView({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 text-[10px] px-1.5 text-destructive hover:bg-destructive/10"
+                    className="h-6 text-[10px] px-1.5 text-destructive-text hover:bg-destructive/10"
                     onClick={() => onDeleteNote(selectedNote.title)}
                     data-testid="delete-note-btn"
                     aria-label={`删除笔记 ${selectedNote.title}`}

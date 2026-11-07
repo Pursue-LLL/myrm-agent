@@ -24,7 +24,7 @@ type HealthDimension = (typeof HEALTH_DIMENSIONS)[number];
 const STATUS_COLORS: Record<string, string> = {
   healthy: 'text-emerald-700 dark:text-emerald-300',
   degraded: 'text-amber-700 dark:text-amber-300',
-  critical: 'text-destructive',
+  critical: 'text-destructive-text',
   unknown: 'text-muted-foreground',
 };
 

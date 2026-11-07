@@ -36,7 +36,7 @@ export const GraphEmptyState = memo<GraphEmptyStateProps>(({ state, onRetry, cla
           className,
         )}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive-text mb-3">
           <Database className="h-5 w-5" />
         </div>
         <h4 className="text-sm font-semibold text-foreground">{t('commandCenter.graph.stateStorageDisabledTitle')}</h4>

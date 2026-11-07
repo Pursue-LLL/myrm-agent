@@ -162,7 +162,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
   if (pendingError) {
     return (
       <div className={cn('flex flex-col items-center justify-center py-12', className)}>
-        <p className="text-sm text-destructive">{pendingError}</p>
+        <p className="text-sm text-destructive-text">{pendingError}</p>
         <button onClick={() => fetchPendingMemories()} className="mt-3 text-sm text-primary hover:underline">
           {t('retry')}
         </button>
@@ -174,7 +174,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
 
   const conflictsRefreshFailed = conflictsError ? (
     <div className="mb-4 flex flex-col items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-center">
-      <p className="text-sm text-destructive">{t('conflict.fetchRefreshFailed')}</p>
+      <p className="text-sm text-destructive-text">{t('conflict.fetchRefreshFailed')}</p>
       <button
         type="button"
         onClick={() => void fetchConflicts()}
@@ -238,7 +238,7 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm',
                   'transition-colors duration-200',
                   'border border-destructive/30 hover:border-destructive/50',
-                  'text-destructive hover:bg-destructive/5',
+                  'text-destructive-text hover:bg-destructive/5',
                   'disabled:opacity-50 disabled:cursor-not-allowed',
                 )}
               >

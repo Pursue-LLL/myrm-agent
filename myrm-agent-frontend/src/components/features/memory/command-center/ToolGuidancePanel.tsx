@@ -131,7 +131,7 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
+        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive-text">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -289,7 +289,7 @@ const RuleItemCard: React.FC<RuleItemCardProps> = ({ item, onTogglePin, onDelete
           onClick={() => onDelete(item.id)}
           disabled={disabled}
           title="删除此规则"
-          className="inline-flex items-center justify-center rounded-md border border-destructive/20 bg-destructive/5 p-1 text-destructive hover:bg-destructive/10 transition-colors"
+          className="inline-flex items-center justify-center rounded-md border border-destructive/20 bg-destructive/5 p-1 text-destructive-text hover:bg-destructive/10 transition-colors"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
