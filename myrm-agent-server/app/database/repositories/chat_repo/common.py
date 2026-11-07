@@ -1,4 +1,9 @@
-"""[OUTPUT]
+"""[INPUT]
+- sqlalchemy and_ / func (POS: SQL 表达式)
+- app.database.dto::MessageDTO (POS: 消息 DTO)
+- app.database.models::Message (POS: ORM 模型)
+
+[OUTPUT]
 - logger / _DTO_COMPUTED_FIELDS / _INCOGNITO_BLANKED_FIELDS
 
 [POS]

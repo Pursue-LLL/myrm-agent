@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- pathlib.Path (POS: 仓库根路径推导)
+
+[OUTPUT]
 - BASE_DIR
 
 [POS]

@@ -1,4 +1,8 @@
-"""[OUTPUT]
+"""[INPUT]
+- pydantic BaseModel / Field / model_validator (POS: 模型基类)
+- .literals (POS: 存储值词表)
+
+[OUTPUT]
 - ModelSelection, AgentMemoryPolicyConfig, AgentSessionPolicyConfig, SkillConfig,
   CommandBindingConfig, ToolGatewayConfigDTO
 

@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- pathlib.Path (POS: 路径推导)
+
+[OUTPUT]
 - logger, path/version/threshold constants, _resolve_standalone_* and FrontendEnvironmentError
 
 [POS]

@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- fastapi.APIRouter (POS: 路由容器)
+
+[OUTPUT]
 - router / logger / constants / response models / shared path helpers
 
 [POS]
