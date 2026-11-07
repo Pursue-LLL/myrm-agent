@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SessionAnalytics } from '@/services/statistics';
@@ -157,5 +157,38 @@ describe('SessionAnalyticsDialog', () => {
     render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(/future_custom_mode/)).toBeInTheDocument());
+  });
+
+  it('shows the copied state after the markdown ledger is written to the clipboard', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByText('copyMarkdown'));
+
+    expect(await screen.findByText('copied')).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Audit Ledger'));
+  });
+
+  it('marks blocked and denied security audit kinds with the destructive text token', async () => {
+    getSessionAnalyticsMock.mockResolvedValue({
+      ...BASE_ANALYTICS,
+      security_audit: { total: 8, breakdown: { TOOL_BLOCKED: 2, NETWORK_DENY: 1, TAINT_FLAG: 5 } },
+    });
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    expect(await screen.findByText('TOOL_BLOCKED')).toHaveClass('text-destructive-text');
+    expect(screen.getByText('NETWORK_DENY')).toHaveClass('text-destructive-text');
+    expect(screen.getByText('TAINT_FLAG')).not.toHaveClass('text-destructive-text');
+  });
+
+  it('renders the load error with the destructive text token', async () => {
+    getSessionAnalyticsMock.mockRejectedValue(new Error('boom'));
+
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    expect((await screen.findByText('boom')).parentElement).toHaveClass('text-destructive-text');
   });
 });
