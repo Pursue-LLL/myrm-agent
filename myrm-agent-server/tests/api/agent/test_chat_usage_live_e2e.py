@@ -1,7 +1,7 @@
 """Real-LLM full-turn integration: agent stream persists tokenEconomics into the Chat usage ledger.
 
 Covers the canonical write path (no mocks):
-1. ``message_end`` carries ``token_economics`` (collected at stream_collector.py:668)
+1. ``message_end`` carries ``token_economics`` (collected in ``stream_collector/handlers.py``)
 2. ``stream_finalize`` persists it as ``extra_data.tokenEconomics``
 3. ``persist_assistant_message_safe`` triggers ``sync_chat_usage``
 4. ``Chat.total_calls/total_tokens/total_usd`` reflect the exact snapshot sum

@@ -13,6 +13,6 @@ Business-layer Run Observer + Session Advisor. Side Q&A does not enter the main 
 ## 依赖
 
 - Harness DTO：`myrm_agent_harness.agent.streaming.run_digest` (POS: 纯 reducer，无 I/O)
-- Stream hook：`app/services/agent/streaming_support/stream_collector.py::_sync_run_digest`
+- Stream hook：`app/services/agent/streaming_support/stream_collector/state.py::_sync_run_digest`
 - Approval hook：`app/services/approvals/registry.py::_sync_copilot_pending`
 - API：`app/api/chats/chat/copilot.py`
