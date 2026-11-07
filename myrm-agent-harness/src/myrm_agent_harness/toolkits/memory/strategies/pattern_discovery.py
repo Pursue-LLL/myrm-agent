@@ -13,7 +13,7 @@
 - run_pattern_discovery: Analyze memories and insights to surface cross-cycle patterns; returns a PatternReport.
 - should_run_pattern_discovery: Gate check based on memory maturity.
 - increment_consolidation_count: Track consolidation runs for gate check.
-- get_recent_patterns: Retrieve patterns for Heartbeat SituationSection injection.
+- get_recent_patterns: Retrieve the newest patterns for Heartbeat SituationSection injection.
 
 [POS]
 Cross-cycle pattern discovery strategy. Runs weekly (server-layer scheduling),
@@ -157,10 +157,12 @@ async def run_pattern_discovery(
 
     from myrm_agent_harness.toolkits.memory.types import MemoryType
 
+    # The newest 200 of each type: the prompt lists the 100 most recent, and the memory-set hash below
+    # must change when a memory arrives, which an arbitrary 200 of a larger store would not show.
     all_memories: list[AnyMemory] = []
     for mt in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         try:
-            mems = await manager.list_memories(mt, limit=200)
+            mems = await manager.list_memories(mt, limit=200, sort_by="created_at")
             all_memories.extend(mems)
         except Exception as exc:
             logger.warning("Pattern discovery: failed to list %s: %s", mt.value, exc)
@@ -346,10 +348,12 @@ async def _persist_patterns(
 
 
 async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[str]:
-    """Retrieve recently discovered patterns for Heartbeat injection.
+    """Retrieve the newest discovered patterns for Heartbeat injection.
 
     Filters episodic events by event_type=pattern_discovery via vector scroll,
-    avoiding unreliable semantic search.
+    avoiding unreliable semantic search. The scroll is ordered newest first: an
+    unordered one returns an arbitrary ``limit`` of the events, so a stale pattern
+    could stand in for the latest.
     """
     if not manager.has_vector:
         return []
@@ -364,6 +368,7 @@ async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[st
                 "event_type": "pattern_discovery",
                 "primary_namespace": manager.namespaces,
             },
+            order_by=("_created_ts", "desc"),
         )
         return [d.content for d in docs if d.content]
     except Exception:
