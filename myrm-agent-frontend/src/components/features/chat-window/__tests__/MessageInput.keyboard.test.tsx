@@ -91,6 +91,13 @@ describe('MessageInput keyboard routing', () => {
     expect(hookOf().handleSubmit).not.toHaveBeenCalled();
   });
 
+  it('leaves Escape to the page while the editor is not full-screen', () => {
+    const { textarea } = renderInput();
+
+    expect(fireEvent.keyDown(textarea, { key: 'Escape' })).toBe(true);
+    expect(stubProps('ComposerPrimaryControls').editorExpanded).toBe(false);
+  });
+
   it('removes the last removable context chip on Backspace in an empty input only', () => {
     const first = vi.fn();
     const last = vi.fn();

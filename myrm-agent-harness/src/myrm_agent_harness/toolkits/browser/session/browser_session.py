@@ -19,6 +19,8 @@
 - observability::BrowserObservability (POS: recording and profiling)
 - session.browser_session_extraction_mixin::BrowserSessionExtractionMixin (POS: content extraction and screenshot compare APIs)
 - session.browser_session_page_mixin::BrowserSessionPageMixin (POS: viewport/dialog/JS and other page-level APIs)
+- session.browser_session_interaction_mixin::BrowserSessionInteractionMixin (POS: ref-based and coordinate-based interaction APIs)
+- session.browser_session_download_mixin::BrowserSessionDownloadMixin (POS: file download APIs)
 - session.browser_session_persistence_mixin::BrowserSessionPersistenceMixin (POS: SessionVault persistence API)
 - session.browser_session_recording_mixin::BrowserSessionRecordingMixin (POS: trace/HAR recording API)
 - session.takeover::BrowserSessionTakeoverMixin (POS: the wait before every call that acts on the page; stops a script planned before a hand-back)
@@ -65,8 +67,8 @@ Browser session manager. As the aggregate root, composes single-responsibility c
 14. ConsentDismisser (cookie consent auto-accept after navigation, zero LLM cost)
 
 The aggregate root class combines mixins via multiple inheritance (View, Persistence, Recording, Takeover,
-Extraction, Page, Network, Navigation, Lifecycle). MRO order is fixed: Network before Navigation before Lifecycle
-so navigate() can call _initialize_components and restart().
+Extraction, Page, Interaction, Download, Network, Navigation, Lifecycle). MRO order is fixed: Network before
+Navigation before Lifecycle so navigate() can call _initialize_components and restart().
 """
 
 from __future__ import annotations
@@ -81,7 +83,9 @@ from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_S
 from myrm_agent_harness.utils.runtime.user_control import UserControl, get_user_control
 
 from ..navigation import Navigator
+from .browser_session_download_mixin import BrowserSessionDownloadMixin
 from .browser_session_extraction_mixin import BrowserSessionExtractionMixin, ContentVault
+from .browser_session_interaction_mixin import BrowserSessionInteractionMixin
 from .browser_session_lifecycle_mixin import BrowserSessionLifecycleMixin
 from .browser_session_navigation_mixin import BrowserSessionNavigationMixin
 from .browser_session_network_mixin import BrowserSessionNetworkMixin
@@ -92,7 +96,7 @@ from .browser_session_view_mixin import BrowserSessionViewMixin
 from .console_logger import ConsoleLogger
 from .device_emulator import DeviceEmulator
 from .dialog_manager import DialogManager, DialogPolicy
-from .download_manager import DownloadConfig, DownloadManager, DownloadResult
+from .download_manager import DownloadConfig, DownloadManager
 from .extractor import Extractor
 from .interactor import Interactor
 from .network import NetworkIntelligence, NetworkLogger
@@ -125,6 +129,8 @@ class BrowserSession(
     BrowserSessionTakeoverMixin,
     BrowserSessionExtractionMixin,
     BrowserSessionPageMixin,
+    BrowserSessionInteractionMixin,
+    BrowserSessionDownloadMixin,
     BrowserSessionNetworkMixin,
     BrowserSessionNavigationMixin,
     BrowserSessionLifecycleMixin,
@@ -364,149 +370,6 @@ class BrowserSession(
             SHA-256 hash of session state, or None if not cached
         """
         return self._session_hash_cache.get(domain)
-
-    async def interact(self, action: str, ref: str, text: str = "", verify_goal: str | None = None) -> str:
-        """Ref-based element interaction (15 action types) with optional visual verification."""
-        await self._ensure_not_user_takeover()
-        await self._ensure_components()
-        interactor = self._require_interactor()
-        page = self._tab_controller.get_active_page()
-
-        from myrm_agent_harness.toolkits.browser.tools.semantic_dom_hitl import (
-            enforce_semantic_interaction_guard,
-        )
-
-        ref_info = self.get_ref_info(ref)
-        caller_tool = self._hitl_caller_tool or "browser_interact_tool"
-        blocked = await enforce_semantic_interaction_guard(
-            session=self,
-            tool_name=caller_tool,
-            action=action,
-            ref=ref,
-            ref_info=ref_info,
-            text=text,
-        )
-        if blocked is not None:
-            return blocked
-
-        baseline_screenshot = None
-        if verify_goal:
-            try:
-                from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_SELECTOR
-
-                password_locator = page.locator(PASSWORD_FIELD_SELECTOR)
-                baseline_screenshot = await page.screenshot(type="png", full_page=False, mask=[password_locator])
-            except Exception as e:
-                logger.warning("Failed to take baseline screenshot for verification: %s", e)
-
-        result = await interactor.interact(action, ref, text)
-        self._tab_controller.clear_text_snapshot()
-
-        if action in ("click", "dblclick") and self._captcha_coordinator is not None:
-            captcha_result = await self._handle_captcha_if_detected()
-            if captcha_result is not None:
-                result = f"{result}\n{captcha_result.message}"
-
-        if verify_goal and baseline_screenshot:
-            await self.notify_progress(f"Verifying action goal: '{verify_goal}'...")
-            _success, verify_msg = await self._vision_verifier.verify_action(
-                page=page,
-                baseline_screenshot=baseline_screenshot,
-                verify_goal=verify_goal,
-            )
-            result = f"{result}\n\n{verify_msg}"
-            # We append the failure to the result so the LLM can reflect on it.
-            # The tool call itself doesn't raise an exception, it just reports the failure.
-
-        await self._publish_inspector_view()
-        return result
-
-    async def interact_at(
-        self,
-        action: str,
-        x: float,
-        y: float,
-        text: str = "",
-        target_x: float | None = None,
-        target_y: float | None = None,
-        verify_goal: str | None = None,
-    ) -> str:
-        """Coordinate-based interaction for canvas/rich-editor pages.
-
-        Bypasses ref resolution — operates directly at viewport (x, y).
-        Supports optional visual verification identical to ref-based interact().
-        """
-        await self._ensure_not_user_takeover()
-        await self._ensure_components()
-        interactor = self._require_interactor()
-        page = self._tab_controller.get_active_page()
-
-        baseline_screenshot = None
-        if verify_goal:
-            try:
-                from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_SELECTOR
-
-                password_locator = page.locator(PASSWORD_FIELD_SELECTOR)
-                baseline_screenshot = await page.screenshot(type="png", full_page=False, mask=[password_locator])
-            except Exception as e:
-                logger.warning("Failed to take baseline screenshot for coord verification: %s", e)
-
-        result = await interactor.interact_at(action, x, y, text, target_x, target_y)
-        self._tab_controller.clear_text_snapshot()
-
-        if verify_goal and baseline_screenshot:
-            await self.notify_progress(f"Verifying action goal: '{verify_goal}'...")
-            _success, verify_msg = await self._vision_verifier.verify_action(
-                page=page,
-                baseline_screenshot=baseline_screenshot,
-                verify_goal=verify_goal,
-            )
-            result = f"{result}\n\n{verify_msg}"
-
-        await self._publish_inspector_view()
-        return result
-
-    async def download_url(self, url: str, timeout: float | None = None) -> DownloadResult | None:
-        """Download a file from a URL.
-
-        Args:
-            url: URL to download
-            timeout: Timeout in seconds (defaults to config)
-
-        Returns:
-            DownloadResult if successful, None otherwise
-        """
-        if self._download_manager is None:
-            raise RuntimeError("Download support not enabled. Pass download_config to BrowserSession.")
-        await self._ensure_components()
-        page = self._tab_controller.get_active_page()
-        return await self._download_manager.download_url(page, url, timeout)
-
-    async def check_and_download_pdf(self) -> DownloadResult | None:
-        """Check if current page is a PDF and auto-download it."""
-        if self._download_manager is None:
-            return None
-        await self._ensure_components()
-        page = self._tab_controller.get_active_page()
-        return await self._download_manager.check_and_download_pdf(page)
-
-    def list_downloads(self) -> list[DownloadResult]:
-        """Get all download results."""
-        if self._download_manager is None:
-            return []
-        return self._download_manager.downloads
-
-    @property
-    def last_download(self) -> DownloadResult | None:
-        """Get the most recent download result, or None."""
-        if self._download_manager is None:
-            return None
-        return self._download_manager.last_download
-
-    @property
-    def download_enabled(self) -> bool:
-        """Whether download support is configured."""
-        return self._download_manager is not None
 
     async def notify_progress(self, message: str) -> None:
         """Send progress notification to observability hook and agent SSE stream."""

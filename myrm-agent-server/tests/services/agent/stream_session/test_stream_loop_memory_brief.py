@@ -44,16 +44,9 @@ def _make_session(
             "is_cold_start": False,
             "stable": {
                 "working_state": False,
-                "profile_keys": ["language"],
+                "profile_count": 1,
                 "instruction_count": 1,
                 "rule_count": 2,
-            },
-            "learned": {
-                "preference_count": 2,
-                "rule_count": 1,
-                "correction_count": 0,
-                "preference_ids": ["mem-p1"],
-                "rule_ids": ["mem-r1"],
             },
         }
     if brief_status is not None:

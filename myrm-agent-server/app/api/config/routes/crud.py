@@ -1,4 +1,19 @@
-"""单键配置的读取、写入、历史、回滚、删除与同步。
+"""[INPUT]
+- app.core.channel_bridge.config_cache::invalidate_user_configs_cache (POS: Business-layer config caching. Simple dict + timestamp implementation.)
+- app.core.infra.ingress_requirement::invalidate_ingress_requirement_cache (POS: Server-side single source of truth for System settings and channel Ingress badges.)
+- app.schemas.config::ConfigKey / ConfigRecord / ConfigSetRequest / ConfigSyncRequest / ConfigSyncResponse / ConflictErrorResponse (POS: 配置 API 数据模型)
+- app.services.channels::credential_reload (POS: Channel bridge business services.)
+- app.services.config.service::VersionConflictError / config_service (POS: 配置服务)
+- app.services.integrations.search_verify::invalidate_search_verify_cache (POS: Settings/API search provider verify endpoint and readiness gate backing service.)
+- app.api.config.routes.support::_VALID_CONFIG_KEYS / _hot_reload_browser_proxy / _hot_reload_cloud_browser / _validate_config_value (POS: 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。)
+
+[OUTPUT]
+- get_config: 获取单个配置
+- set_config: 设置配置（带乐观锁）
+- get_config_history: 获取配置历史记录 (Configuration Time-Machine)
+- rollback_config: 回滚配置到指定版本 (Configuration Time-Machine)
+- delete_config: 删除配置
+- sync_configs: 批量同步配置
 
 [POS]
 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。

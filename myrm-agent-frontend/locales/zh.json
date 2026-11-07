@@ -2219,6 +2219,9 @@
       "prev30days": "最近 30 天",
       "older": "更早"
     },
+    "historySearch": {
+      "clear": "清空搜索"
+    },
     "batch": {
       "enter": "批量选择",
       "exit": "退出批量模式",
@@ -4130,6 +4133,7 @@
     "media_rejected_recovery": "模型拒绝媒体输入 — 已移除并重试",
     "vision_fallback_recovery": "模型不支持图片 — 已转为文字描述并重试",
     "thinking_signature_recovery": "思考块已修复并重试",
+    "reasoning_mandatory_recovery": "模型要求开启推理 — 已调整推理强度并重试",
     "tool_history_recovery": "对话历史已自动修复并重试",
     "image_shrink_recovery": "图片已压缩至限制内并重试",
     "long_context_tier_recovery": "上下文层级已调整并重试",
@@ -13542,10 +13546,7 @@
     "briefTitle": "上下文快照",
     "briefColdStartDescription": "当前轮次未匹配到历史记忆，智能体将以探索模式启动。",
     "briefStableSummary": "稳定上下文：{instructions} 条指令，{rules} 条规则，{profiles} 个画像字段。",
-    "briefLearnedSummary": "学习上下文已就绪，按需检索而非自动注入：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。",
     "briefRulesApplied": "本次回复只采用了 {rules} 条规则中最相关的 {injected} 条。",
-    "briefPreferenceIdPrefix": "偏好",
-    "briefRuleIdPrefix": "规则",
     "briefUnavailablePill": "记忆简报暂不可用",
     "briefUnavailableTitle": "本轮记忆上下文不可用",
     "briefUnavailableDescription": "本次回复在未生成记忆简报的情况下完成，系统会在后续轮次自动重试。",

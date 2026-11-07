@@ -16,7 +16,7 @@ iMessage, **Mattermost**, **Matrix** — convert inbound emoji reactions into
 > would silently drop every group-chat approval. Pinned by
 > `tests/channels/test_reaction_inbound_policy.py::TestReactionConstructionSiteContract`.
 
-`parse_approval_command` (commands/commands.py) recognises a unified, three-tier
+`parse_approval_command` (commands/parsers.py) recognises a unified, three-tier
 approval alphabet (skin-tone modifiers and Unicode variation selectors are
 normalised away by `normalize_approval_emoji`):
 
@@ -231,7 +231,7 @@ before marking the peer for a fresh Chat:
    overrides (`_session_personality`) are cleared so the new session starts
    with default behaviour.
 
-Only after cleanup does `handle_new_session` (commands/commands.py) flag the peer and
+Only after cleanup does `handle_new_session` (commands/session.py) flag the peer and
 send the confirmation reply.
 
 ## Consume-Loop Resilience
@@ -366,7 +366,7 @@ Pinned by `tests/channels/routing/test_bot_loop_guard.py`,
 | bot_loop_guard.py | Core | BotLoopGuard: per-conversation sliding-window budget for bot-authored triggers (20 events/300s → 600s cooldown). Caps bot-to-bot reply loops that survive the explicit-mention gate; human messages never counted. | [OK] |
 | command_defs.py | Core | CommandDef data model (`any_sender` opt-in + `owner_only` property: system commands are owner-only unless confined to the sender's own conversation), CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, draft, goal, subgoal, steer, queue, background (aliases bg, btw), handoff, kanban, memory, learn, memo, review-week, design-image, status, quota, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. `help_lines(owner=…)` leaves owner-only commands out for other senders. | — |
-| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（reaction/button approval）、`router_commands_approval_end.py`（审批无人应答时的到点续跑与新回合收口）、`router_commands_stop.py`（`/stop` 与 `/new` 共用的会话中止）、`router_commands_delegation.py`（`/delegate` 后台任务的启动与审批交接）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）、`router_commands_draft.py`（`/draft`：在聊天里批准或拒绝被扣留的回复）、`router_commands_quota.py`（`/quota` 直出诊断与进度倒计时）。`commands/__init__.py` 为聚合门面 | [OK] |
+| commands/（子包） | Core | 命令域子包：`parsers.py`（参数解析）、`session.py`（/new、/compact）、`topic.py`（话题命令）、`turns.py`（/retry、/undo）；`router_commands/` 聚合 `RouterCommandsMixin` 与各命令族 mixin（approval、approval_end、delegation、draft、goals、memory、modes、quota、session、stop）。`commands/__init__.py` 为聚合门面 | [OK] |
 | context_buffer.py | Core | GroupContextBuffer：非触发群消息按 chat_id 累积，触发消息时排空并注入 `InboundMessage.context_messages`。`drain_async` 优先取持久化数据平面，**只有数据平面真的返回条目时才清内存**；数据平面返回空（无历史行或写入未落盘）时内核缓冲原样保留并作为兜底，避免群聊上下文被静默丢弃。两条路径都只发一次、只发未过期的：持久化路径取「该聊天上次取走的时刻」与 `max_age` 中较晚者作 `since`，且不取被点名的消息（`is_trigger`：起了回合的会话记录里已有，被拒的——超配额、队列满——其文字不该流入别人的回合）。 | [OK] |
 | context_document.py | Core | `enrich_context_document()`: asks the message's channel (`BaseChannel.read_context_document`) for the document the turn is about and puts it in `metadata[METADATA_CONTEXT_DOCUMENT_KEY]`, body clamped to `MAX_CONTEXT_DOCUMENT_CHARS`. Called by `RouterExecutionMixin._execute_prepared_context` right before the agent stream — the journal and the data-plane ledger serialize message metadata when they snapshot it, so the body must not exist earlier; the metadata is a new dict, never an in-place edit. A provider fault leaves the message unchanged. | — |
 | friendly_errors.py | Core | Member-safe error wording: `friendly_error_text(kind)` / `friendly_error_message(exc)` return one localized sentence per `ErrorKind` plus an 8-hex reference id (operators grep the logs by it); the provider's text, endpoints and diagnostic steps never reach the chat. Billing, auth and model-not-found additionally get account guidance (`error_*_owner` keys: top up, check the key, pick another model) only when the caller passes `account_guidance=True`, which the executor does for a trusted owner's direct message and never for guests, paired members or groups. `ERROR_TYPE_METADATA_KEY` / `is_error_reply` mark a reply as a failed turn (the delegation coordinator reads the marker). Shared by the router's exception path, the executor's failed-stream and exception replies, and the delegation coordinator (exception wording and the failed-turn marker). | [OK] |

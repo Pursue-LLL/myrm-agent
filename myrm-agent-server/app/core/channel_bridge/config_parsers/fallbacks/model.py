@@ -1,4 +1,16 @@
-"""轻量模型与视觉回退链解析。
+"""[INPUT]
+- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config / _extract_active_key (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.config_parsers.fallbacks.resolution::_resolve_slot_fallback (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- extract_lite_model_config: Extract the filter/summary model config from the frontend's providers config.
+- _resolve_vision_fallback_primary_config: Resolve visionFallbackModel primary selection to ModelConfig.
+- _resolve_base_primary_model_config: Resolve defaultModelConfig.baseModel.primary without raising.
+- build_vision_fallback_config_chain: Build ordered vision auxiliary provider chain.
+- resolve_vision_fallback_chain_for_agent: Resolve primary cfg and ordered chain for agent runtime injection.
+- build_vision_fallback_engine_from_providers: Build VisionFallbackEngine with ordered provider chain from WebUI settings.
+- extract_vision_fallback_model_configs: Extract ordered vision auxiliary provider chain from WebUI settings.
+- extract_vision_fallback_model_config: Extract the primary auxiliary vision model from defaultModelConfig.visionFallbackModel.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

@@ -16,6 +16,7 @@ import pytest
 from myrm_agent_harness.agent.security.engine import (
     _check_domain_blocklist,
     _check_domain_policy,
+    _check_url_syntax,
     _resolve_targets,
     evaluate_tool_call,
     extract_url_domains,
@@ -66,13 +67,12 @@ class TestCheckDomainBlocklist:
         assert action == PermissionAction.DENY
         assert "facebook.com" in reason
 
-    def test_a_backslash_does_not_move_the_blocked_host_out_of_the_url(self) -> None:
-        url = "https://facebook.com\\.example.com/"
+    def test_a_url_with_no_canonical_form_is_left_to_the_syntax_check(self) -> None:
+        """No host of such a URL is the one a client dials, so the blocklist has nothing to match."""
+        args: dict[str, object] = {"url": "https://facebook.com\\.example.com/"}
 
-        action, reason = _check_domain_blocklist("browser_navigate", {"url": url}, ("facebook.com",))
-
-        assert action == PermissionAction.DENY
-        assert "facebook.com" in reason
+        assert _check_domain_blocklist("browser_navigate", args, ("facebook.com",))[0] is None
+        assert _check_url_syntax("browser_navigate", args)[0] == PermissionAction.DENY
 
     @pytest.mark.parametrize("stop", ["。", "．", "｡"])
     def test_a_trailing_full_stop_of_any_kind_does_not_leave_the_blocklist(self, stop: str) -> None:
@@ -87,10 +87,22 @@ class TestCheckDomainBlocklist:
         [
             ("xn--strae-oqa.example", "https://straße.example/x"),
             ("straße.example", "https://xn--strae-oqa.example/x"),
+            ("xn--mxa9ab.example", "https://ΣΑΣ.example/x"),
+            ("ΣΑΣ.example", "https://xn--mxa9ab.example/x"),
+            ("127.0.0.1", "http://2130706433/x"),
+            ("127.0.0.1", "http://0x7f.1:8080/x"),
+            ("2130706433", "http://127.0.0.1/x"),
         ],
     )
-    def test_an_entry_and_a_url_name_one_idn_host_in_either_spelling(self, entry: str, url: str) -> None:
+    def test_an_entry_and_a_url_name_one_host_in_either_spelling(self, entry: str, url: str) -> None:
         assert _check_domain_blocklist("net_fetch", {"urls": [url]}, (entry,))[0] == PermissionAction.DENY
+
+    def test_a_final_sigma_host_is_not_the_host_its_capitals_name(self) -> None:
+        """``str.lower()`` reads ``ΣΑΣ`` as ``σας``; a client dials ``σασ``, and only that host is blocked."""
+        urls: dict[str, object] = {"urls": ["https://ΣΑΣ.example/"]}
+
+        assert _check_domain_blocklist("net_fetch", urls, ("σας.example",))[0] is None
+        assert _check_domain_blocklist("net_fetch", urls, ("σασ.example",))[0] == PermissionAction.DENY
 
     @pytest.mark.parametrize("entry", ["*.evil.net", ".evil.net", ".EVIL.net:8443", "https://*.evil.net/x"])
     def test_a_wildcard_entry_blocks_the_domain_and_its_subdomains_in_every_spelling(self, entry: str) -> None:
@@ -245,13 +257,13 @@ class TestEvaluateToolCallDomainHitl:
 
         assert action == PermissionAction.ALLOW
 
-    def test_a_backslash_url_is_judged_by_the_host_the_browser_dials(self) -> None:
+    def test_a_backslash_url_is_denied_and_never_asked_about(self) -> None:
         url = "http://attacker.test\\@example.com/x"
 
         action, reason = evaluate_tool_call("browser_navigate", {"url": url}, self._CONFIG)
 
-        assert action == PermissionAction.ASK
-        assert "attacker.test" in reason
+        assert action == PermissionAction.DENY
+        assert "parser-confusing" in reason
 
     def test_a_sharp_s_lookalike_of_an_allowed_host_asks(self) -> None:
         config = SecurityConfig(domain_hitl_enabled=True, network_allowlist=("wordpress.com",))
@@ -259,7 +271,7 @@ class TestEvaluateToolCallDomainHitl:
         action, reason = evaluate_tool_call("browser_navigate", {"url": "https://wordpreß.com/x"}, config)
 
         assert action == PermissionAction.ASK
-        assert "wordpreß.com" in reason
+        assert "xn--wordpre-6va.com" in reason
 
     def test_disabled_no_check(self) -> None:
         config = SecurityConfig(domain_hitl_enabled=False, network_allowlist=("example.com",))
@@ -291,13 +303,9 @@ class TestExtractUrlDomains:
     def test_hostname_is_lowercase_without_trailing_dot(self) -> None:
         assert extract_url_domains("browser_navigate", {"url": "https://Mail.Example.com./x"}) == ("mail.example.com",)
 
-    def test_a_backslash_ends_the_host_the_card_names(self) -> None:
-        url = "http://attacker.test\\@example.com/x?d=secret"
-
-        assert extract_url_domains("browser_navigate", {"url": url}) == ("attacker.test",)
-
-    def test_bare_hostname_with_port(self) -> None:
-        assert extract_url_domains("browser_navigate", {"url": "localhost:3000/api"}) == ("localhost",)
+    def test_the_card_names_the_host_a_client_dials(self) -> None:
+        assert extract_url_domains("browser_navigate", {"url": "http://2130706433:3000/api"}) == ("127.0.0.1",)
+        assert extract_url_domains("browser_navigate", {"url": "https://Straße.de/"}) == ("xn--strae-oqa.de",)
 
     def test_ip_address(self) -> None:
         assert extract_url_domains("browser_navigate", {"url": "http://192.168.1.1/api"}) == ("192.168.1.1",)
@@ -325,7 +333,7 @@ class TestResolveTargets:
 
     @pytest.mark.parametrize("permission", _FETCH_PERMISSIONS)
     def test_a_fetch_targets_every_host_of_its_urls(self, permission: str) -> None:
-        urls = ["https://api.example.com/v1", "localhost:3000", "https://api.example.com/v2"]
+        urls = ["https://api.example.com/v1", "http://localhost:3000", "https://api.example.com/v2"]
 
         assert _resolve_targets(permission, {"urls": urls}) == ("api.example.com", "localhost")
 

@@ -2210,6 +2210,9 @@
       "prev30days": "最近 30 日",
       "older": "それ以前"
     },
+    "historySearch": {
+      "clear": "検索をクリア"
+    },
     "batch": {
       "enter": "一括選択",
       "exit": "一括モードを終",
@@ -4115,6 +4118,7 @@
     "media_rejected_recovery": "モデルがメディア入力を拒否しました — 削除して再試行中",
     "vision_fallback_recovery": "モデルが画像に対応していません — テキストに変換して再試行中",
     "thinking_signature_recovery": "思考ブロックを修復して再試行",
+    "reasoning_mandatory_recovery": "モデルが推論を要求 — 推論強度を調整して再試行",
     "tool_history_recovery": "会話履歴を修復して再試行",
     "image_shrink_recovery": "画像を制限内に圧縮して再試行",
     "long_context_tier_recovery": "コンテキスト階層を調整して再試行",
@@ -13542,10 +13546,7 @@
     "briefTitle": "コンテキストスナップショット",
     "briefColdStartDescription": "このターンでは過去メモリに一致しませんでした。エージェントは探索モードで開始します。",
     "briefStableSummary": "安定コンテキスト: 指示 {instructions} 件、ルール {rules} 件、プロフィール項目 {profiles} 件。",
-    "briefLearnedSummary": "学習コンテキストは利用可能（自動注入ではなく必要時に検索）：嗜好 {preferences} 件、ルール {rules} 件、補正項目 {corrections} 件。",
     "briefRulesApplied": "この返信では {rules} 件のルールのうち特に関連する {injected} 件のみを使用しました。",
-    "briefPreferenceIdPrefix": "環境設定",
-    "briefRuleIdPrefix": "ルール",
     "briefUnavailablePill": "メモリ概要は利用できません",
     "briefUnavailableTitle": "メモリコンテキストを利用できません",
     "briefUnavailableDescription": "この応答は一時的な準備失敗により、メモリ概要なしで生成されました。",

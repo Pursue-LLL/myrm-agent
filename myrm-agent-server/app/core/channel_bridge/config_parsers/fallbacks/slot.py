@@ -1,4 +1,23 @@
-"""视频/槽位/后台进化模型回退链解析。
+"""[INPUT]
+- app.core.channel_bridge.config_parsers.common::_append_unique_model_config / _build_enriched_model_config / _extract_active_key (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.config_parsers.fallbacks.model::extract_vision_fallback_model_configs (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.config_parsers.fallbacks.resolution::_resolve_slot_fallback / extract_slot_fallback_chain (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- _resolve_video_fallback_primary_config: Resolve videoFallbackModel primary selection to ModelConfig.
+- build_video_fallback_config_chain: Build ordered video auxiliary provider chain from videoFallbackModel slot.
+- extract_video_fallback_model_configs: Extract ordered video auxiliary provider chain from WebUI settings.
+- extract_video_fallback_model_config: extract_video_fallback_model_config
+- build_video_fallback_probe_engine_from_providers: Build a VisionFallbackEngine for the video fallback chain connectivity probe.
+- extract_user_instructions: Extract global user instructions from personalSettings.
+- _filter_fallback_chain_for_tool_calling: Drop fallback nodes that explicitly lack function calling (agent-mode safety).
+- build_slot_fallback_config_chain: Build ordered ModelConfig chain from a WebUI ModelSlot.
+- resolve_slot_fallback_chain_for_agent: Resolve primary cfg and ordered chain for agent runtime injection.
+- resolve_chat_fallback_chains_from_providers: Resolve ordered baseModel and liteModel fallback chains from defaultModelConfig.
+- extract_fallback_model_configs: Extract primary fallback configs for baseModel and liteModel (chain heads).
+- _resolve_slot_primary_config: Resolve the primary selection in a ModelSlot to ModelConfig.
+- extract_background_evolution_model_configs: Extract ordered background evolution model chain with 3-tier adaptive fallback.
+- extract_background_evolution_model_config: Extract primary background evolution and maintenance model config.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

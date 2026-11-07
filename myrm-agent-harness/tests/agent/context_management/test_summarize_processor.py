@@ -31,22 +31,22 @@ from myrm_agent_harness.observability.metrics.circuit_breaker_metrics import (
 @pytest.fixture(autouse=True)
 def reset_circuit_breaker():
     _set_failures(0)
-    _sp._fallback_calls = 0
-    _sp._circuit_open_time = None
-    _sp._skip_next_api_token_check = False
+    _sp.circuit_breaker._fallback_calls = 0
+    _sp.circuit_breaker._circuit_open_time = None
+    _sp.processor._skip_next_api_token_check = False
     circuit_breaker_state.labels(component="summarize").set(0)
     yield
     _set_failures(0)
-    _sp._fallback_calls = 0
-    _sp._circuit_open_time = None
-    _sp._skip_next_api_token_check = False
+    _sp.circuit_breaker._fallback_calls = 0
+    _sp.circuit_breaker._circuit_open_time = None
+    _sp.processor._skip_next_api_token_check = False
     circuit_breaker_state.labels(component="summarize").set(0)
 
 
 class TestSummarizeProcessorCircuitBreaker:
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_auth_failure_trips_circuit_breaker_immediately(self, mock_generate):
         mock_generate.side_effect = Exception("401 Unauthorized")
@@ -70,9 +70,9 @@ class TestSummarizeProcessorCircuitBreaker:
         assert any("fallback" in m.content.lower() for m in result.messages)
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_cooldown_recovery(self, mock_generate, mock_time):
         mock_generate.side_effect = Exception("timeout")
@@ -283,7 +283,7 @@ class TestSummarizeProcessorShouldProcess:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_successful_llm_summary(self, mock_generate) -> None:
         summary = StructuredSummary(user_goal="目标", last_action="完成")
@@ -302,7 +302,7 @@ class TestSummarizeProcessorShouldProcess:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_transient_failure_increments_counter(self, mock_generate) -> None:
         mock_generate.side_effect = Exception("connection refused")
@@ -320,7 +320,7 @@ class TestSummarizeProcessorShouldProcess:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_focus_topic_passed_through(self, mock_generate) -> None:
         summary = StructuredSummary(user_goal="目标", last_action="完成")
@@ -344,19 +344,19 @@ class TestSetFailuresCooldown:
 
     def test_auth_cooldown(self) -> None:
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "auth")
-        assert _sp._circuit_cooldown_seconds == 1800
+        assert _sp.circuit_breaker._circuit_cooldown_seconds == 1800
 
     def test_permanent_cooldown(self) -> None:
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "permanent")
-        assert _sp._circuit_cooldown_seconds == 600
+        assert _sp.circuit_breaker._circuit_cooldown_seconds == 600
 
     def test_transient_cooldown(self) -> None:
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "transient")
-        assert _sp._circuit_cooldown_seconds == 60
+        assert _sp.circuit_breaker._circuit_cooldown_seconds == 60
 
     def test_below_threshold_no_open_time(self) -> None:
         _set_failures(1)
-        assert _sp._circuit_open_time is None or _sp._summarize_failures == 1
+        assert _sp.circuit_breaker._circuit_open_time is None or _sp.circuit_breaker._summarize_failures == 1
 
 
 class TestIsCircuitOpen:
@@ -366,27 +366,27 @@ class TestIsCircuitOpen:
         _set_failures(0)
         assert _is_circuit_open() is False
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
     def test_open_sets_time_on_first_call(self, mock_time) -> None:
         mock_time.return_value = 5000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES)
-        _sp._circuit_open_time = None
+        _sp.circuit_breaker._circuit_open_time = None
         assert _is_circuit_open() is True
-        assert _sp._circuit_open_time == 5000.0
+        assert _sp.circuit_breaker._circuit_open_time == 5000.0
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
     def test_within_cooldown_stays_open(self, mock_time) -> None:
         mock_time.return_value = 5000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "transient")
-        _sp._circuit_open_time = 4950.0
+        _sp.circuit_breaker._circuit_open_time = 4950.0
         assert _is_circuit_open() is True
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
     def test_past_cooldown_resets(self, mock_time) -> None:
         mock_time.return_value = 10000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "transient")
-        _sp._circuit_open_time = 5000.0
-        _sp._circuit_cooldown_seconds = 60
+        _sp.circuit_breaker._circuit_open_time = 5000.0
+        _sp.circuit_breaker._circuit_cooldown_seconds = 60
         assert _is_circuit_open() is False
         assert _get_failures() == 0
 
@@ -395,15 +395,15 @@ class TestIsHalfOpenProbe:
     """Cover _is_half_open_probe logic."""
 
     def test_zero_calls_not_probe(self) -> None:
-        _sp._fallback_calls = 0
+        _sp.circuit_breaker._fallback_calls = 0
         assert _is_half_open_probe() is False
 
     def test_odd_calls_not_probe(self) -> None:
-        _sp._fallback_calls = 1
+        _sp.circuit_breaker._fallback_calls = 1
         assert _is_half_open_probe() is False
 
     def test_even_calls_is_probe(self) -> None:
-        _sp._fallback_calls = 2
+        _sp.circuit_breaker._fallback_calls = 2
         assert _is_half_open_probe() is True
 
 
@@ -415,14 +415,14 @@ class TestShouldBypassForHotCache:
         context = ProcessorContext(messages=[], user_query="t", metadata={"last_activity_time": 0.0})
         assert processor._should_bypass_for_hot_cache(context, 120000) is False
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.time.time")
     def test_recent_activity_bypasses(self, mock_time) -> None:
         mock_time.return_value = 1000.0
         processor = SummarizeProcessor()
         context = ProcessorContext(messages=[], user_query="t", metadata={"last_activity_time": 999.0})
         assert processor._should_bypass_for_hot_cache(context, 50000) is True
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.time.time")
     def test_old_activity_no_bypass(self, mock_time) -> None:
         mock_time.return_value = 1000.0
         processor = SummarizeProcessor()
@@ -440,7 +440,7 @@ class TestShouldProcessBranches:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=False,
     )
     async def test_should_summarize_false_returns_false(self, _mock) -> None:
@@ -453,15 +453,15 @@ class TestShouldProcessBranches:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.estimate_processor_context_tokens",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.estimate_processor_context_tokens",
         return_value=50000,
     )
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=True,
     )
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.time.time",
         return_value=1000.0,
     )
     async def test_hot_cache_bypass_sets_debt(self, _t, _ss, _et) -> None:
@@ -477,11 +477,11 @@ class TestShouldProcessBranches:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=True,
     )
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.time.time",
         return_value=1000.0,
     )
     async def test_hot_cache_does_not_bypass_when_full_context_over_90_percent(self, _t, _ss) -> None:
@@ -500,15 +500,15 @@ class TestShouldProcessBranches:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.estimate_processor_context_tokens",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.estimate_processor_context_tokens",
         return_value=50000,
     )
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
         return_value=True,
     )
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.time.time",
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.time.time",
         return_value=10000.0,
     )
     async def test_cold_cache_triggers_summarize(self, _t, _ss, _et) -> None:
@@ -522,14 +522,14 @@ class TestShouldProcessBranches:
 
     @pytest.mark.asyncio
     async def test_skip_next_api_token_check_flag(self) -> None:
-        _sp._skip_next_api_token_check = True
+        _sp.processor._skip_next_api_token_check = True
         processor = SummarizeProcessor()
         context = ProcessorContext(
             messages=[HumanMessage(content="test")],
             user_query="test",
         )
         await processor.should_process(context)
-        assert _sp._skip_next_api_token_check is False
+        assert _sp.processor._skip_next_api_token_check is False
 
 
 class TestProcessNotifyCompaction:
@@ -537,7 +537,7 @@ class TestProcessNotifyCompaction:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     @patch("myrm_agent_harness.agent.context_management.infra.cache_break_detector.get_cache_break_detector")
     async def test_success_path_calls_notify_compaction(self, mock_detector_fn, mock_generate) -> None:
@@ -581,7 +581,7 @@ class TestProcessNotifyCompaction:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_success_path_sets_last_summarized_message_id(self, mock_generate) -> None:
         summary = StructuredSummary(user_goal="goal")
@@ -601,7 +601,7 @@ class TestProcessNotifyCompaction:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_success_path_sets_skip_flag(self, mock_generate) -> None:
         summary = StructuredSummary(user_goal="goal")
@@ -614,7 +614,7 @@ class TestProcessNotifyCompaction:
             llm=AsyncMock(),
         )
         await processor.process(context)
-        assert _sp._skip_next_api_token_check is True
+        assert _sp.processor._skip_next_api_token_check is True
 
 
 class TestProcessHITLSkip:
@@ -637,7 +637,7 @@ class TestProcessPermanentError:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_permanent_error_increments_counter(self, mock_generate) -> None:
         mock_generate.side_effect = Exception("model not found")
@@ -652,7 +652,7 @@ class TestProcessPermanentError:
 
     @pytest.mark.asyncio
     @patch(
-        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.generate_structured_summary"
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
     async def test_timeout_error_tracked_as_timeout(self, mock_generate) -> None:
         mock_generate.side_effect = Exception("request timeout")
@@ -670,7 +670,7 @@ class TestSummarizeProcessorSummarizerLLM:
     """Cover dedicated summarizer_llm invocation over primary llm."""
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_uses_summarizer_llm_when_provided(self, mock_guarded) -> None:
         primary_llm = AsyncMock()
         aux_compactor_llm = AsyncMock()
@@ -692,11 +692,11 @@ class TestSummarizeProcessorSummarizerLLM:
 
 class TestRecordFallbackCall:
     def test_increments(self) -> None:
-        _sp._fallback_calls = 0
+        _sp.circuit_breaker._fallback_calls = 0
         _record_fallback_call()
-        assert _sp._fallback_calls == 1
+        assert _sp.circuit_breaker._fallback_calls == 1
         _record_fallback_call()
-        assert _sp._fallback_calls == 2
+        assert _sp.circuit_breaker._fallback_calls == 2
 
 
 class TestProcessorName:
@@ -708,7 +708,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
     """Cover deterministic pre-compaction tool-result pruning short-circuit (DSH pattern)."""
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_pre_compaction_prune_bypasses_llm_summarize_when_tokens_reduced_below_ceiling(
         self, mock_guarded
     ) -> None:
@@ -760,7 +760,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.messages[6].content == "short"
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_pre_compaction_prune_falls_through_to_llm_when_tokens_still_exceed_ceiling(
         self, mock_guarded
     ) -> None:
@@ -797,7 +797,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.structured_summary is summary
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_pre_compaction_prune_disabled_via_metadata(self, mock_guarded) -> None:
         """When enable_pre_compact_tool_prune=False, proceed directly to LLM summarize without pruning."""
         cfg = ContextConfig(max_context_tokens=10000)
@@ -830,7 +830,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.metadata.get("deterministic_prune_bypassed_summarize") is None
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_pre_compaction_prune_with_offload_archives_to_persistent_storage(self, mock_guarded) -> None:
         """When on_prune_offload is provided, pruned tool results are archived with persistent references."""
         offload_mock = AsyncMock(return_value="/vault/archive/tool_output.gz")
@@ -878,7 +878,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert "[Tool result archived" in str(result.messages[2].content)
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_pre_compaction_prune_keep_recent_calls_hard_boundary_min_2(self, mock_guarded) -> None:
         """Even if caller sets pre_compact_keep_recent_calls=0, hard floor ensures last 2 calls are kept."""
         cfg = ContextConfig(max_context_tokens=10000)
@@ -929,7 +929,7 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.messages[6].content == large_3
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor._guarded_summarize")
+    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
     async def test_preflight_fence_bypasses_llm_on_oversized_payload(self, mock_guarded) -> None:
         """When total payload exceeds physical safe watermark, bypass LLM to prevent ContextLengthExceeded."""
         cfg = ContextConfig(max_context_tokens=10000)

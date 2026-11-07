@@ -5,7 +5,7 @@
 > |------|-----------|
 > | §2.1 工具分层排序 | `tool_management/tool_layers.py`, `tool_management/registry.py` |
 > | §2.2 时间戳注入 & Agent 行为规则 | `streaming/utils.py`, `base_agent.py` |
-> | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner.py` |
+> | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner/` |
 > | §2.4 安全边界与用户指令注入 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` |
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
@@ -13,7 +13,7 @@
 > | §4.2 compress_min_save | `infra/schemas.py` |
 > | §4.3 动态阈值 | `infra/context_budget.py` |
 > | §4.4 可逆压缩 | `strategies/compactor/compactor.py` |
-> | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer.py` |
+> | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer/` |
 > | §5.1 Cache-TTL 归档与恢复 | `pipeline/processors/cache_ttl_prune_processor.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
 > | §5 Pipeline | `pipeline/engine.py`, `middlewares/context_pipeline/context_pipeline_middleware.py` |
 > | §6.1-6.2 LLM 层 | `toolkits/llms/core/llm.py` |
@@ -179,7 +179,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 
 ### 2.3 Cron 定时任务场景的缓存分析
 
-`app/core/cron/adapters/agent_runner.py` 中的 `_SILENT_SUFFIX` 是一个典型的条件性内容注入：
+`app/core/cron/adapters/agent_runner/` 中的 `_SILENT_SUFFIX` 是一个典型的条件性内容注入：
 
 ```python
 _SILENT_SUFFIX = (
@@ -275,7 +275,7 @@ System: `<data_boundary_rules>` …               ← SecurityBoundary，state �
 - **单一预算**：块内所有段落共享一次 `render_budgeted_sections`（`max_tokens=2500`，按段落优先级截断），块外没有第二份预算。
 - **请求局部 + 标记判重**：块由消息标记 `additional_kwargs["memory_context"]` 识别，请求里已有带标记的块时才跳过（记 WARNING）；不按文本判重，因为数据边界规则、用户粘贴内容与工具结果都可能含 `<user_memory_context` / `<<<UNTRUSTED_DATA` 字样。块不写回线程状态，检查点里没有这个块的文本。
 - **存储值先消毒**：条目经 `defang_markup()` 把每个标签起始符（ASCII `<`、全角 `＜`、小号 `﹤`）改写为 `&lt;` 后再进预算，存储值不能关闭记忆块或开出自己的 `<user_instructions>` 块；`&`、`>`、URL 和代码原样保留。改写是确定的，同样的存储值每次得到同样的字节，缓存前缀不受影响。
-- **预算遥测**：`set_memory_runtime_budget` 的 `total` 是块预算折成的字符数（`max_tokens=2500` × 4，即 `MEMORY_BLOCK_BUDGET_CHARS`），`used` 是进入块的段落占用的字符数（被丢弃的段落不计），规则数含 VETO 与行为规则；`MemoryConfig.max_learned_context_chars` 只截断 `get_learned_context`（server 记忆简报预览的数据源），与块的预算无关。
+- **预算遥测**：`set_memory_runtime_budget` 的 `total` 是块预算折成的字符数（`max_tokens=2500` × 4，即 `MEMORY_BLOCK_BUDGET_CHARS`），`used` 是进入块的段落占用的字符数（被丢弃的段落不计），规则数含 VETO 与行为规则。
 
 **业务侧入账 Human 前缀（IM + pipeline）**：`myrm-agent-server/app/core/utils/delivery_provenance.py` 提供统一横幅与 `resolve_general_agent_pipeline_labels`。IM 仍由 `app/core/channel_bridge/agent_executor/helpers.py::build_channel_inbound_query` 调用 `prepend_plain_banner`（支持多模态图片+文本）。HTTP/SSE `/agent-stream` LangGraph 主路径在 `general_agent/stream_pipeline.py::execute_stream_pipeline` **进入 `SkillAgent.run` 之前**：先 **INFO `general_agent_delivery_labels`**（`channel_label`/`ingress_label`），再 **`apply_delivery_banner`**；其中 `GeneralAgent.channel_name=="web_chat"` 仍等价 `http_gui`/`browser_sse`，`cron`/`eval`/`headless_wakeup` 等由其映射。**Headless wakeup** 在 `app/services/agent/wakeup_handler.py` 显式改写 `channel_name=headless_wakeup` 并在 `memory_channel_id` 缺省时 **写回 `web_chat`**，以免记忆分区随投递前缀漂移。FastLane 在 `myrm-agent-server/app/api/agents/general_agent/streaming.py` 使用 `apply_general_agent_pipeline_banner` + `GeneralAgentParams.channel_name`；FastSearch（`action_mode=="fast"`）走同一 GeneralAgent 管线，`workspaces_storage_root` 由 `app/ai_agents/general_agent/agent.py` 在构建 runtime context 时统一写入。群组上下文块仍仅在 IM executor 拼接。
 
@@ -723,7 +723,6 @@ Pipeline 按 `max_context_tokens` 缓存实例，避免重复创建。
 **核心原则**：
 1. **只追加，不删除**：Resume时绝对不修改历史messages
 2. **HITL会话期间禁用Compress**：避免多次HITL交互时破坏cache
-3. **配置一致性验证**：防止system_prompt/tools改变破坏cache前缀
 
 **实现机制**：
 
@@ -796,7 +795,6 @@ if request.resume_value is not None:
 | Resume TTFT | 2000ms | 800ms | 60% ↓ |
 
 **配套工具**：
-- `infra/resume_validator.py`：配置一致性验证（agent_id, system_prompt, tools）
 - 错误恢复清理：Resume失败时自动清理checkpoint（业务层实现）
 
 ---
@@ -1270,7 +1268,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |
-| `app/core/cron/adapters/agent_runner.py` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |
+| `app/core/cron/adapters/agent_runner/` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |
 
 ### 显式缓存
 
@@ -1297,7 +1295,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `tracking/task_metrics.py` | `TaskMetrics` — 记录真实剪枝延期、归档预算延期、归档写入/复用、归档恢复读取成本、净节省和执行层恢复读取预算 |
 | `pipeline/processors/compress_processor.py` | `CompressProcessor` + `BatchCompactState` — 批量清理策略 |
 | `strategies/compactor/compactor.py` | 可逆压缩实现（紧凑格式 + 外部化到文件，减 tokens 不减 blocks） |
-| `strategies/summary/summarizer.py` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |
+| `strategies/summary/summarizer/` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |
 | `infra/context_budget.py` | `ContextBudget` — 动态阈值计算 |
 | `infra/schemas.py` | `ContextConfig` — 阈值定义、`COMPRESS_MIN_SAVE_DEFAULT`、`COMPACT_RULES` |
 
@@ -1309,7 +1307,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `pipeline/processors/media_filter.py` | 文本模型主动剥离 image/video/audio（避免 400） |
 | `pipeline/processors/vision_fallback_processor.py` | text-only 主模型 + visionFallbackModel 时将 image block 转为文本（MediaFilter 之前） |
 | `pipeline/processors/filter_processor.py` | 大型工具结果过滤（工具保护机制） |
-| `pipeline/processors/summarize_processor.py` | 结构化摘要（最后手段） |
+| `pipeline/processors/summarize_processor/` | 结构化摘要（最后手段） |
 | `pipeline/processors/thinking_cleaner.py` | Thinking Block 清理（减少无效 token） |
 | `middlewares/context_pipeline/context_pipeline_middleware.py` | 中间件集成入口 |
 | `toolkits/llms/core/llm.py` | LLM 层 cache_control 传递说明 |

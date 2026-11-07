@@ -1,4 +1,16 @@
-"""Wiki 批量导入的请求与响应模型。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- ImportFolderRequest: ImportFolderRequest
+- ImportResultResponse: ImportResultResponse
+- ImportUrlsRequest: ImportUrlsRequest
+- UrlImportItemResult: UrlImportItemResult
+- ImportUrlsResultResponse: ImportUrlsResultResponse
+- ImportVideoRequest: ImportVideoRequest
+- ImportVideoResponse: ImportVideoResponse
+- ObsidianImportRequest: ObsidianImportRequest
+- ObsidianImportResultResponse: ObsidianImportResultResponse
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

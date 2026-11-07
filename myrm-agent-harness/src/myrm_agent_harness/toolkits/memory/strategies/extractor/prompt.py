@@ -91,7 +91,7 @@ Pay special attention to what the agent got wrong, what the user corrected,
 and record the correct approach with confidence ≥ 0.95 and "source_error"
 describing the prior mistake."""
 
-# Anti-transliteration fidelity rule (Hindsight fact_extraction.py:1053 pattern):
+# Anti-transliteration fidelity rule:
 # BM25/FTS5 exact-token recall depends on entity spellings surviving extraction
 # byte-identical — a transliterated entity ("张伟" → "Zhang Wei") silently misses
 # every literal query for the original form.

@@ -2219,6 +2219,9 @@
       "prev30days": "Previous 30 Days",
       "older": "Older"
     },
+    "historySearch": {
+      "clear": "Clear search"
+    },
     "batch": {
       "enter": "Batch Select",
       "exit": "Exit Batch Mode",
@@ -4130,6 +4133,7 @@
     "media_rejected_recovery": "Model rejected media — removed and retrying",
     "vision_fallback_recovery": "Model can't see images — converted to text, retrying",
     "thinking_signature_recovery": "Thinking block repaired — retrying",
+    "reasoning_mandatory_recovery": "Model requires reasoning — effort adjusted and retrying",
     "tool_history_recovery": "Conversation history repaired — retrying",
     "image_shrink_recovery": "Images resized to fit limits — retrying",
     "long_context_tier_recovery": "Context tier adjusted — retrying",
@@ -13542,10 +13546,7 @@
     "briefTitle": "Context Snapshot",
     "briefColdStartDescription": "No prior memory was matched for this turn. The agent starts in discovery mode.",
     "briefStableSummary": "Stable context: {instructions} instructions, {rules} rules, {profiles} profile fields.",
-    "briefLearnedSummary": "Learned context available, not auto-injected: {preferences} preferences, {rules} rules, {corrections} correction items.",
     "briefRulesApplied": "Only the {injected} most relevant rules of {rules} were used for this reply.",
-    "briefPreferenceIdPrefix": "pref",
-    "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief Unavailable",
     "briefUnavailableTitle": "Memory context unavailable",
     "briefUnavailableDescription": "This response was generated without a memory brief due to a temporary preparation issue.",

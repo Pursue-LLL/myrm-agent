@@ -1,4 +1,14 @@
-"""搜索服务配置解析与可用性探测。
+"""[INPUT]
+- myrm_agent_harness.toolkits.web_search::SearchServiceConfig / SearchServiceConfig / SearchServiceConfig (POS: Web search toolkit entry point. Aggregates and re-exports search tools, result types,)
+- app.services.integrations.search_verify::verify_search_config_cached (POS: Settings/API search provider verify endpoint and readiness gate backing service.)
+- app.core.integrations.search_catalog.migration::migrate_search_service_configs (POS: One-time search catalog config migration for Omni searchServices schema.)
+- app.core.integrations.search_catalog.registry::SearchProviderCatalogRegistry (POS: Server-side search provider catalog SSOT for Settings UI and verify probes.)
+
+[OUTPUT]
+- is_search_user_configured: Check whether the user has explicitly configured and enabled a search service.
+- verify_search_service_available: Live probe of the configured search providers behind a short verdict cache.
+- extract_search_provider_chain: Extract enabled search configs sorted by priority (1 = highest).
+- extract_active_search_config: Extract active search config with priority provider chain attached.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

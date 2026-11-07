@@ -1,4 +1,8 @@
-"""蓝图补充文案：growth 组。
+"""[INPUT]
+- app.core.cron.blueprints.i18n.types::BlueprintLocaleSupplement (POS: 蓝图 i18n 子包共用类型；不包含任何具体文案。)
+
+[OUTPUT]
+- （仅导出常量/类型）
 
 [POS]
 蓝图 i18n 子包的一部分；由 __init__.py 合并。

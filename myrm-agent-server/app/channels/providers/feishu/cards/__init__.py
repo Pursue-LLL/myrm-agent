@@ -1,10 +1,26 @@
-"""飞书卡片门面。
+"""[INPUT]
+- app.channels.providers.feishu.cards.actions::build_card_actions / parse_card_action (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.providers.feishu.cards.builders::_format_cost_note / build_component_card / build_result_card / build_thinking_card / wrap_text_as_card (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.providers.feishu.cards.special::build_contact_disambiguation_card / build_deliverable_card (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.providers.feishu.cards.text::build_post_content / has_rich_text / merge_streaming_text / resolve_send_mode (POS: 飞书卡片子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
-卡片构造、动作解析、流式文本与特殊卡片函数。
+- build_card_actions
+- parse_card_action
+- _format_cost_note
+- build_component_card
+- build_result_card
+- build_thinking_card
+- wrap_text_as_card
+- build_contact_disambiguation_card
+- build_deliverable_card
+- build_post_content
+- has_rich_text
+- merge_streaming_text
+- resolve_send_mode
 
 [POS]
-`app.channels.providers.feishu.cards` 的唯一入口；实现按卡片职责拆分。
+`app.channels.providers.feishu.cards` 的唯一入口；实现按卡片职责分层。
 """
 
 from app.channels.providers.feishu.cards.actions import build_card_actions, parse_card_action

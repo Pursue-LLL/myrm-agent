@@ -20,7 +20,6 @@ def _make_parent_mock() -> MagicMock:
     type(parent).has_graph = PropertyMock(return_value=False)
     parent.search = AsyncMock(return_value=[])
     parent.get_context = AsyncMock(return_value={"key": "value"})
-    parent.get_learned_context = AsyncMock(return_value={"rules": [{"k": "v"}]})
     parent.get_memory = AsyncMock(return_value=None)
     parent.begin_session = MagicMock(return_value="session-ctx")
     parent.end_session = AsyncMock(return_value=[])
@@ -58,13 +57,6 @@ class TestReadOnlyMemoryViewReadDelegation:
         result = await view.get_context()
         parent.get_context.assert_awaited_once()
         assert result == {"key": "value"}
-
-    @pytest.mark.asyncio
-    async def test_get_learned_context_delegates(self):
-        view, parent = self._make_view()
-        result = await view.get_learned_context()
-        parent.get_learned_context.assert_awaited_once()
-        assert "rules" in result
 
     @pytest.mark.asyncio
     async def test_get_memory_delegates(self):

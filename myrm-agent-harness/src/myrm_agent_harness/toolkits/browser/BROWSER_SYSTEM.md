@@ -1183,13 +1183,15 @@ browser/
 │   ├── page_snapshot.py (222 行) — 多 Frame 聚合快照管理
 │   └── observer_scripts.py (196 行) — JavaScript 脚本
 ├── session/
-│   ├── browser_session.py — BrowserSession 聚合根（tab/navigate/snapshot/interact/网络/下载）
+│   ├── browser_session.py — BrowserSession 聚合根（组合各 mixin；自身承载 snapshot/inspect、ref 查询、进度通知、统计）
 │   ├── browser_session_navigation_mixin.py — navigate / 重试 / 引擎升级 / 卡死页面自愈衔接
 │   ├── browser_session_tab_mixin.py — new_tab / close_tab / recover_active_tab（卡死标签页替换）
 │   ├── browser_session_captcha_mixin.py — CAPTCHA 检测与人类接管等待
 │   ├── session_host.py — 会话 mixin 的类型化宿主契约（仅类型检查期存在，运行时为 object）
 │   ├── browser_session_extraction_mixin.py — 内容提取、vision fallback、截图对比
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
+│   ├── browser_session_interaction_mixin.py — interact（ref 操作）/ interact_at（坐标操作）及可选视觉校验
+│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定）/ PDF 自动下载 / 下载记录读取
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
 │   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误
@@ -1212,7 +1214,7 @@ browser/
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证
 │   ├── dialog_manager.py — JS dialog 生命周期
-│   ├── download_manager.py — 文件下载
+│   ├── download_manager.py — 文件下载（显式下载先核对最终地址再落盘）
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/

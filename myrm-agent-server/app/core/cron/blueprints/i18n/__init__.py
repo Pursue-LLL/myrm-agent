@@ -1,7 +1,17 @@
-"""蓝图 ja/de/ko 补充文案门面。
+"""[INPUT]
+- app.core.cron.blueprints.i18n.daily::_DAILY (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.finance::_FINANCE (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.growth::_GROWTH (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.knowledge::_KNOWLEDGE (POS: 蓝图 i18n 子包的一部分；由 __init__.py 合并。)
+- app.core.cron.blueprints.i18n.types::BLUEPRINT_UI_LOCALES / BlueprintLocaleSupplement (POS: 蓝图 i18n 子包共用类型；不包含任何具体文案。)
 
 [OUTPUT]
-SUPPLEMENTAL_BY_ID / BLUEPRINT_UI_LOCALES / BlueprintLocaleSupplement
+- _DAILY
+- _FINANCE
+- _GROWTH
+- _KNOWLEDGE
+- BLUEPRINT_UI_LOCALES
+- BlueprintLocaleSupplement
 
 [POS]
 `app.core.cron.blueprints.i18n` 的唯一入口；按主题分组的文案在子模块中定义。

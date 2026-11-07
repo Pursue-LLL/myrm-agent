@@ -35,7 +35,7 @@ class ZeroCostMemoryExtension(AgentExtension):
     and automatically extracts long-term memories using an LLM in the background.
 
     The eviction callback is built eagerly via ``build_eviction_callback()`` so that
-    ``factory.py`` can pass it to ``create_context_pipeline_middleware`` before the
+    ``general_agent/factory/middlewares.py`` can pass it to ``create_context_pipeline_middleware`` before the
     agent graph is created.
 
     Deep PII scan is resolved from the live ``PrivacyPolicy`` at extraction time

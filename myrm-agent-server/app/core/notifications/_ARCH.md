@@ -79,7 +79,7 @@ Notification targets are stored in `personalSettings.notificationDeliveries` (ar
 
 ## Lifecycle
 
-- Started in `app/core/channel_bridge/setup.py` after `channel_gateway.start()`
+- Started in `app/core/channel_bridge/setup/` after `channel_gateway.start()`
 - Stopped before `channel_gateway.stop()`
 
 ## Extensibility

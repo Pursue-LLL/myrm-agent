@@ -1,4 +1,11 @@
-"""反应策略、贴纸视觉与语音配置加载。
+"""[INPUT]
+- app.core.channel_bridge::channel_gateway (POS: Application-level channel gateway singleton.)
+
+[OUTPUT]
+- refresh_reaction_policy: Reload reaction policy from DB and apply to the running AgentRouter.
+- _load_reaction_policy: Load ReactionPolicy from the channels config.
+- _load_sticker_vision_service: Create StickerVisionService from user's visionFallbackModel config.
+- _load_voice_config: Load VoiceConfig from the admin user's UserConfig table.
 
 [POS]
 channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。

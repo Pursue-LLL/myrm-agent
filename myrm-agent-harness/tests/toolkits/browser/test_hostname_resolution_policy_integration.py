@@ -13,8 +13,7 @@ or VPN may hand out for public names (RFC 1918, 198.18/15) are not judged. Run w
 from __future__ import annotations
 
 import asyncio
-import socket
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 
 import pytest
@@ -22,9 +21,9 @@ import pytest
 from myrm_agent_harness.toolkits.browser import BrowserSession
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
-from myrm_agent_harness.toolkits.browser.pool.browser_pool import _DEFAULT_LAUNCH_OPTIONS
 from tests.toolkits.browser._browser_available import chromium_available
-from tests.toolkits.browser._redirect_servers import Reply, Site, page, redirect, serve
+from tests.toolkits.browser._fake_dns import launch_options_dialing_loopback, process_dns, url_on
+from tests.toolkits.browser._redirect_servers import Reply, page, redirect, serve
 
 pytestmark = [
     pytest.mark.integration,
@@ -43,47 +42,15 @@ _UNRESOLVABLE = "flaky.test"
 _CHROMIUM_MAPPED = (*_DNS_ANSWERS, _UNRESOLVABLE)
 
 
-type _AddrInfo = Sequence[
-    tuple[
-        socket.AddressFamily,
-        socket.SocketKind,
-        int,
-        str,
-        tuple[str, int] | tuple[str, int, int, int] | tuple[int, bytes],
-    ]
-]
-
-
 @pytest.fixture(autouse=True)
-def _process_dns(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Answer the fake hostnames from a table; every other lookup stays real."""
-    real = socket.getaddrinfo
-
-    def answer(
-        host: str | bytes | None,
-        port: str | bytes | int | None,
-        family: int = 0,
-        kind: int = 0,
-        proto: int = 0,
-        flags: int = 0,
-    ) -> _AddrInfo:
-        name = host.decode() if isinstance(host, bytes) else host
-        if name == _UNRESOLVABLE:
-            raise socket.gaierror(socket.EAI_NONAME, "unresolvable in the test")
-        if name in _DNS_ANSWERS:
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (_DNS_ANSWERS[name], 0))]
-        return real(host, port, family, kind, proto, flags)
-
-    monkeypatch.setattr(socket, "getaddrinfo", answer)
+def _process_dns() -> Iterator[None]:
+    with process_dns(_DNS_ANSWERS, unresolvable=(_UNRESOLVABLE,)):
+        yield
 
 
 @asynccontextmanager
 async def _local_session() -> AsyncIterator[BrowserSession]:
-    default_args = _DEFAULT_LAUNCH_OPTIONS["args"]
-    assert isinstance(default_args, list)
-    mapping = ", ".join(f"MAP {host} 127.0.0.1" for host in _CHROMIUM_MAPPED)
-    launch_options = {**_DEFAULT_LAUNCH_OPTIONS, "args": [*default_args, f"--host-resolver-rules={mapping}"]}
-    pool = GlobalBrowserPool(max_browsers=1, launch_options=launch_options)
+    pool = GlobalBrowserPool(max_browsers=1, launch_options=launch_options_dialing_loopback(_CHROMIUM_MAPPED))
     session = BrowserSession(pool, ContextType.AGENT, allow_private_networks=True)
     try:
         await session.new_tab()
@@ -93,11 +60,6 @@ async def _local_session() -> AsyncIterator[BrowserSession]:
         await pool.shutdown()
 
 
-def _as(host: str, site: Site, path: str = "/") -> str:
-    """``site`` (a loopback server) under the fake hostname ``host``."""
-    return f"http://{host}:{site.base_url.rsplit(':', 1)[1]}{path}"
-
-
 def _script_page(script: str) -> Reply:
     return Reply(body=f"<!DOCTYPE html><html><head></head><body>start<script>{script}</script></body></html>".encode())
 
@@ -105,7 +67,7 @@ def _script_page(script: str) -> Reply:
 async def test_redirect_to_a_hostname_that_resolves_to_loopback_is_blocked_and_the_tab_is_reset() -> None:
     with (
         serve({"/secret": page(_SECRET)}) as elsewhere,
-        serve({"/go": redirect(_as("rebind.test", elsewhere, "/secret"))}) as site,
+        serve({"/go": redirect(url_on("rebind.test", elsewhere, "/secret"))}) as site,
     ):
         async with _local_session() as session:
             with pytest.raises(BrowserNavigationBlockedError, match=r"resolves to 127\.0\.0\.1"):
@@ -125,7 +87,7 @@ async def _wait_for_blank_tab(session: BrowserSession, *, timeout_s: float = 5.0
 async def test_script_navigation_to_a_hostname_that_resolves_to_loopback_is_blocked_before_any_request() -> None:
     """Immediately (inside the navigation) and later (after it settled, where only the context filter acts)."""
     with serve({"/secret": page(_SECRET)}) as elsewhere:
-        target = _as("rebind.test", elsewhere, "/secret")
+        target = url_on("rebind.test", elsewhere, "/secret")
         immediate = _script_page(f"location = '{target}'")
         delayed = _script_page(f"setTimeout(() => {{ location = '{target}'; }}, 300)")
         with serve({"/immediate": immediate, "/delayed": delayed}) as site:
@@ -142,14 +104,14 @@ async def test_cloud_metadata_behind_a_hostname_is_blocked_even_when_navigated_t
     with serve({"/creds": page(_SECRET)}) as service:
         async with _local_session() as session:
             with pytest.raises(BrowserNavigationBlockedError, match="metadata"):
-                await session.navigate(_as("meta.test", service, "/creds"))
+                await session.navigate(url_on("meta.test", service, "/creds"))
         assert service.hits == []
 
 
 async def test_explicit_navigation_to_a_hostname_that_resolves_to_loopback_still_works() -> None:
     with serve({"/home": page("welcome")}) as service:
         async with _local_session() as session:
-            await session.navigate(_as("rebind.test", service, "/home"))
+            await session.navigate(url_on("rebind.test", service, "/home"))
             assert await session.get_active_page().inner_text("body") == "welcome"
 
 
@@ -157,7 +119,7 @@ async def test_explicit_navigation_to_a_hostname_that_resolves_to_loopback_still
 async def test_hostnames_a_users_proxy_or_network_may_hand_out_are_not_judged(host: str) -> None:
     with (
         serve({"/home": page("welcome")}) as destination,
-        serve({"/go": redirect(_as(host, destination, "/home"))}) as site,
+        serve({"/go": redirect(url_on(host, destination, "/home"))}) as site,
     ):
         async with _local_session() as session:
             await session.navigate(site.url("/go"))

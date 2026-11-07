@@ -19,5 +19,5 @@
 ## 模块依赖
 
 - `app/api/integrations/search.py` — `GET /providers`、`POST /verify`
-- `app/core/channel_bridge/config_parsers.py` — `extract_search_provider_chain`
+- `app/core/channel_bridge/config_parsers/` — `extract_search_provider_chain`
 - `app/api/config/router.py` — Omni-Config save 前 normalize

@@ -1,4 +1,9 @@
-"""Wiki 导出路由。
+"""[INPUT]
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- export_wiki_vault: Export the full wiki vault as an Obsidian-ready ZIP (raw + wiki + graph preset).
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

@@ -121,12 +121,13 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
                 config=self._config,
                 namespaces=self._namespaces,
             )
+            vector = self._vector
             for collection in collections:
-                if collection == current_collection(self._config, memory_type):
+                if vector is None or collection == current_collection(self._config, memory_type):
                     continue
                 try:
-                    deleted += await self._vector.delete_by_filter(collection, filters)
-                    await retire_if_drained(self._vector, collection)
+                    deleted += await vector.delete_by_filter(collection, filters)
+                    await retire_if_drained(vector, collection)
                 except Exception as e:
                     logger.warning("Error deleting %s: %s", collection, e)
                     failed.append(collection)
@@ -293,7 +294,7 @@ class MemoryManagerListingMaintenanceMixin(MemoryManagerHost):
         """Execute full preference stability rebuild during maintenance.
 
         After rebuild, writes back stability scores to SemanticMemory.preference_strength
-        so the existing retrieval pipeline (get_learned_context, ResultBooster) automatically
+        so the existing retrieval pipeline (ResultBooster) automatically
         benefits without any modifications.
         """
         if self._preference_strategy is None:

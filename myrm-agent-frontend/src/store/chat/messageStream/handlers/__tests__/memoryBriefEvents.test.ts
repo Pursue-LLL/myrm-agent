@@ -19,20 +19,13 @@ const briefPayload = {
   is_cold_start: false,
   stable: {
     working_state: false,
-    profile_keys: ['language'],
+    profile_count: 3,
     instruction_count: 1,
     rule_count: 2,
   },
-  learned: {
-    preference_count: 2,
-    rule_count: 1,
-    correction_count: 0,
-    preference_ids: ['mem-p1'],
-    rule_ids: ['mem-r1'],
-  },
 };
 
-function makeCtx(messages: Array<Record<string, unknown>>): StreamCtx {
+function makeCtx(messages: Array<Record<string, unknown>>, payload: object = briefPayload): StreamCtx {
   const state = {
     messages,
     messageAppeared: false,
@@ -42,7 +35,7 @@ function makeCtx(messages: Array<Record<string, unknown>>): StreamCtx {
     data: {
       type: 'memory_brief',
       messageId: 'msg-1',
-      data: briefPayload,
+      data: payload,
     } as never,
     input: '',
     sources: undefined,
@@ -102,6 +95,37 @@ describe('memoryBriefEvents', () => {
     expect(ctx.state.messages[0]).toMatchObject({
       memoryBriefSnapshotId: 'snap-1',
       memoryBrief: expect.objectContaining({ snapshot_id: 'snap-1' }),
+    });
+  });
+
+  it('keeps exactly the stable counts the panel renders', async () => {
+    const ctx = makeCtx([
+      { messageId: 'msg-1', chatId: 'chat-1', role: 'assistant', content: '', createdAt: new Date() },
+    ]);
+
+    await memoryBriefEvents(ctx);
+
+    expect(ctx.state.messages[0].memoryBrief?.stable).toEqual({
+      working_state: false,
+      profile_count: 3,
+      instruction_count: 1,
+      rule_count: 2,
+    });
+  });
+
+  it('treats missing or malformed stable counts as zero', async () => {
+    const ctx = makeCtx(
+      [{ messageId: 'msg-1', chatId: 'chat-1', role: 'assistant', content: '', createdAt: new Date() }],
+      { snapshot_id: 'snap-2', stable: { profile_count: 'many', rule_count: null } },
+    );
+
+    await memoryBriefEvents(ctx);
+
+    expect(ctx.state.messages[0].memoryBrief?.stable).toEqual({
+      working_state: false,
+      profile_count: 0,
+      instruction_count: 0,
+      rule_count: 0,
     });
   });
 });

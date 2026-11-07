@@ -363,10 +363,6 @@ class PreferenceStabilityStrategy:
 
         return promoted, demoted, dropped
 
-    async def get_active_preferences(self) -> list[PreferenceFacet]:
-        """Return all Active preferences for context injection."""
-        return await self._store.list_by_lifecycle(PreferenceLifecycle.ACTIVE)
-
     async def close(self) -> None:
         """Release storage resources."""
         await self._store.close()

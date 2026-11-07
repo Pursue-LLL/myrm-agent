@@ -30,7 +30,6 @@ _PARENT_READS = frozenset(
         "export_markdown",
         "export_rules_safe",
         "get_context",
-        "get_learned_context",
         "get_memory",
         "get_profile_attribute",
         "get_profile_attribute_snapshot",

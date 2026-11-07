@@ -1207,7 +1207,6 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 - **L0/L1/L2 渐进式披露**：
   - 字段位于 `BaseMemory`（`types.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
   - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
-  - `_manager/retrieval_write.get_learned_context` 按重要度排序并受 `max_learned_context_chars` 截断，不走 L0/L1 分层；它只供 server 的记忆简报预览使用，不进入 `<user_memory_context>`。
 - **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；注入块的预算见 `memory_context_budget.render_budgeted_sections`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
 - **服务端接口与前端双端自适应可视化闭环**：
   - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）；

@@ -104,7 +104,7 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
     assert "corpus=" not in save
     assert "do not set rule_trigger" in save
     assert "**CATEGORY GUIDE**" in save
-    assert "instruction-style, gets misinterpreted as a command" in save
+    assert "one standalone declarative fact per entry" in save
     assert "**ATTRIBUTION & TRANSIENT STATES**" in save
     assert "**WHEN TO USE**" in manage
     assert "memory_save_tool" in manage
@@ -113,7 +113,7 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
     assert "preserves history" in manage
     assert "preference_key" in manage
     assert "category" not in manage
-    assert "Parameter semantics are in the tool schema" in manage
+    assert "release the protection first" in manage
     assert "corpus=" not in manage
     assert "profile_key" in search
 
@@ -127,7 +127,7 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     assert "corpus=" not in save
     assert "不要设置 rule_trigger" in save
     assert "**类别指南**" in save
-    assert "指令式，易被误解为命令" in save
+    assert "一条可独立理解的陈述性事实" in save
     assert "**归属与短暂状态**" in save
     assert "长期或慢性状况" in save
     assert "**何时使用**" in manage
@@ -136,9 +136,32 @@ def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
     assert "保留历史记录" in manage
     assert "preference_key" in manage
     assert "category" not in manage
-    assert "参数说明见工具参数定义" in manage
+    assert "请先请用户解除保护" in manage
     assert "corpus=" not in manage
     assert "profile_key" in search
+
+
+@pytest.mark.parametrize("locale", ["en", "zh"])
+def test_write_tool_texts_never_point_at_the_schema(locale: str) -> None:
+    """A description states what the schema does not say; it never points at the schema or repeats its enum."""
+    texts = (
+        build_memory_save_tool_description(MemorySearchPolicy(), locale=locale),
+        resolve_memory_manage_tool_description(locale),
+    )
+    for text in texts:
+        assert "Parameter semantics" not in text
+        assert "参数说明见" not in text
+
+
+def test_write_tool_schemas_never_point_back_at_the_description() -> None:
+    from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.manage_tool import MemoryManageInput
+    from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.save_tool import MemorySaveInput
+
+    for model in (MemorySaveInput, MemoryManageInput):
+        for name, spec in model.model_json_schema()["properties"].items():
+            description = str(spec.get("description", ""))
+            assert "see tool description" not in description, name
+            assert "see description" not in description, name
 
 
 def test_memory_save_description_omits_wiki_boundary_when_disabled() -> None:

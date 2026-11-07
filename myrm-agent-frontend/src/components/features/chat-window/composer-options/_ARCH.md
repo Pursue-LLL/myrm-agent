@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-桌面输入框的操作栏分两层：每条消息都会用到的 5 个控件常驻主行（`ComposerPrimaryControls`），其余选项收在「+」展开的选项区（`ComposerOptionsRegion`，分「思考 / 模式 / 能力」三组）。主行不再横向滚动，原先 14 个控件里有 11 个藏在横滑之后；手机（<`sm`）不显示这两块，仍由 `MessageInput` 里的「+」打开 `MobileActionSheet`。
+桌面输入框的操作栏分两层：每条消息都会用到的 5 个控件常驻主行（`ComposerPrimaryControls`），其余选项收在「+」展开的选项区（`ComposerOptionsRegion`，分「思考 / 模式 / 能力」三组）。主行不再横向滚动，原先 14 个控件里有 11 个藏在横滑之后；手机（<`sm`）不显示这两块，由 `../composer/MobileComposerEntry` 的「+」打开 `../composer/MobileComposerSheet`。
 
 选项区关着时不能让改变下一条消息的模式（编排、长期目标、深度搜索、无痕）无声地留在看不见的地方：「+」按钮上的小圆点、它的无障碍名称与悬停提示都会说出「已启用：…」（`useActiveComposerOptions`）。
 
@@ -25,6 +25,6 @@
 
 - 选项区里的控件本身仍在 `message-input-actions/` 与同级目录（`ExpertSummonPopover`、`ForkButton`、`thinking-permission/`）；本目录只决定它们的分组与何时可达，不改它们的行为。
 - 选项区内的弹层必须走 Radix 门户：区内为动画高度而 `overflow-hidden`，会裁掉定位在框外的内联浮层（`ComposerToolbar.popupPortal.contract.test.ts` 扫描本目录）。
-- `MessageInput` 持有 `isTurnCapabilityOpen`（单轮能力弹层）：弹层锚在选项区内的控件上，所以它打开时选项区临时展开（`expanded = 已存选择 || 弹层开着`），不改写已存选择；再点「+」会同时关弹层与选项区。
+- `../composer/useComposerPanels` 持有 `isTurnCapabilityOpen`（单轮能力弹层）：弹层锚在选项区内的控件上，所以它打开时选项区临时展开（`expanded = 已存选择 || 弹层开着`），不改写已存选择；再点「+」会同时关弹层与选项区。
 - 开合记忆走 `@/hooks/ui/persistedStringStore`（与 `useProactiveDismissal` 共用的本机键值记忆）。
 - 浮动输入框的高度随选项区变化，消息列末尾的 `ComposerClearanceSpacer` 据此保持最后一条消息不被遮住。

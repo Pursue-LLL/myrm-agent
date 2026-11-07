@@ -86,10 +86,10 @@ def hit_files(output: str, candidates: set[str]) -> set[str]:
     return {candidate for candidate in candidates if candidate in output}
 
 
-def warnings_from(caplog: pytest.LogCaptureFixture, tool: types.ModuleType) -> str:
-    """What `tool` logged at WARNING level or above, the levels a production process keeps, as one text."""
-    return "\n".join(
+def warnings_from(caplog: pytest.LogCaptureFixture, module: types.ModuleType) -> list[str]:
+    """What `module` logged at WARNING level or above, the levels a production process keeps, one text per record."""
+    return [
         record.getMessage()
         for record in caplog.records
-        if record.name == tool.__name__ and record.levelno >= logging.WARNING
-    )
+        if record.name == module.__name__ and record.levelno >= logging.WARNING
+    ]

@@ -14,11 +14,12 @@ import pytest
 
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.guards.url_allowlist import URLAllowlistGuard
-from myrm_agent_harness.toolkits.web_fetch.fetchers.target_guard import FetchTargetGuard, _canonical_url
+from myrm_agent_harness.toolkits.web_fetch.fetchers.target_guard import FetchTargetGuard
 
 _PUBLIC_ADDRESS = "93.184.216.34"
 _DNS_ANSWERS: dict[str, str | None] = {
     "rebind.example": "127.0.0.1",
+    "xn--rbind-bsa.example": "127.0.0.1",
     "linklocal.example": "169.254.10.10",
     "creds.example": "169.254.169.254",
     "proxied.example": "198.18.0.7",
@@ -102,6 +103,31 @@ class TestLocalPolicy:
 
         await guard.pin("http://127.0.0.1:7000/other")
 
+    @pytest.mark.parametrize("granted", ["http://rébind.example:3000/start", "http://xn--rbind-bsa.example:3000/start"])
+    @pytest.mark.parametrize(
+        "same_origin",
+        ["http://rébind.example:3000/final", "http://RÉBIND.example.:3000/final", "http://xn--rbind-bsa.example:3000/"],
+    )
+    async def test_every_spelling_of_the_requested_origin_is_that_origin(self, granted: str, same_origin: str) -> None:
+        await _local(granted).pin(same_origin)
+
+    @pytest.mark.parametrize("other_port", ["http://rébind.example:4000/", "http://xn--rbind-bsa.example:4000/"])
+    async def test_a_unicode_host_is_resolved_under_the_name_a_client_dials(self, other_port: str) -> None:
+        """The table answers only for the Punycode name; a lookup under the Unicode text would find a public host."""
+        guard = _local("http://rébind.example:3000/start")
+
+        with pytest.raises(SSRFSecurityError, match="resolves to"):
+            await guard.pin(other_port)
+
+    @pytest.mark.parametrize(
+        "requested", ["http://localhost:3000\\@evil.test/", "http://localhost:99999/", "http://local%68ost:3000/"]
+    )
+    async def test_a_requested_url_with_no_canonical_form_is_never_reachable(self, requested: str) -> None:
+        guard = _local(requested)
+
+        with pytest.raises(SSRFSecurityError):
+            await guard.pin(requested)
+
     @pytest.mark.parametrize(
         "metadata",
         [
@@ -176,6 +202,14 @@ class TestLocalPolicy:
         with URLAllowlistGuard.apply(["example.com"]), pytest.raises(SSRFSecurityError):
             await guard.pin("http://localhost:3000/start")
 
+    async def test_the_skill_domain_allowlist_is_read_in_the_spelling_a_client_dials(self) -> None:
+        guard = _local("http://localhost:3000/start")
+
+        with URLAllowlistGuard.apply(["straße.de"]):
+            await guard.pin("https://STRAßE.de./x")
+            with pytest.raises(SSRFSecurityError):
+                await guard.pin("https://strasse.de/x")
+
     async def test_pin_never_adds_a_host_header(self) -> None:
         guard = _local("http://localhost:3000/start")
 
@@ -209,29 +243,3 @@ class TestCloudPolicy:
         url, _headers = await _cloud().pin("http://8.8.8.8/")
 
         assert "8.8.8.8" in url
-
-
-class TestCanonicalUrl:
-    @pytest.mark.parametrize(
-        ("spelled", "canonical"),
-        [
-            ("http://2130706433:80/x", "http://127.0.0.1:80/x"),
-            ("http://0x7f.1/", "http://127.0.0.1/"),
-            ("https://0177.0.0.1:8443/a?b=1", "https://127.0.0.1:8443/a?b=1"),
-        ],
-    )
-    def test_legacy_ipv4_hosts_are_rewritten(self, spelled: str, canonical: str) -> None:
-        assert _canonical_url(spelled) == canonical
-
-    @pytest.mark.parametrize(
-        "url",
-        [
-            "http://127.0.0.1:80/",
-            "https://example.com/a",
-            "http://[::1]:80/",
-            "http://localhost:3000/",
-            "http://x:99999/",
-        ],
-    )
-    def test_everything_else_is_left_alone(self, url: str) -> None:
-        assert _canonical_url(url) == url

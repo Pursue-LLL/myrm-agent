@@ -4,15 +4,16 @@
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
   core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
-  core.security.tool_registry::host_file_paths, url_arg_hosts (POS: the files a call names and the hosts of the URLs it names, read under every spelling)
+  core.security.tool_registry::host_file_paths, url_arg_error, url_arg_hosts (POS: the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
 - evaluate_tool_call(): deterministic evaluation (Layers 1–5)
-  (capability → shell_command_analyzer → command_denylist → URL scheme check → domain blocklist
-   → domain HITL → path_policy → target-aware ruleset → risk_classifier fallback).
-  The blocklist and the rule targets cover every URL a network tool names; a domain outside the allowlist
-  asks only when the browser navigates there, with a CodedReason.
+  (capability → shell_command_analyzer → command_denylist → URL scheme check → URL syntax check
+   → domain blocklist → domain HITL → path_policy → target-aware ruleset → risk_classifier fallback).
+  A URL with no canonical form is denied before any list reads its host; the blocklist and the rule targets
+  cover every URL a network tool names; a domain outside the allowlist asks only when the browser navigates there,
+  with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
 - check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)
@@ -49,7 +50,7 @@ from myrm_agent_harness.agent.security.types import (
     SecurityConfig,
 )
 from myrm_agent_harness.core.security.domain_match import host_matches
-from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_hosts
+from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_error, url_arg_hosts
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -108,6 +109,14 @@ _ACTION_SEVERITY: dict[PermissionAction, int] = {
     PermissionAction.ASK: 1,
     PermissionAction.DENY: 2,
 }
+
+
+def _check_url_syntax(permission: str, tool_input: dict[str, object]) -> tuple[PermissionAction | None, str]:
+    """Deny a URL-bearing tool when a URL it names has no canonical form: no list can judge the host a client would dial."""
+    if permission not in _URL_BEARING_PERMISSIONS:
+        return None, ""
+    error = url_arg_error(tool_input)
+    return (PermissionAction.DENY, f"URL not allowed: {error}") if error else (None, "")
 
 
 def _check_domain_blocklist(
@@ -288,6 +297,10 @@ def evaluate_tool_call(
     scheme_action, scheme_reason = check_navigate_scheme(permission, tool_input)
     if scheme_action is not None:
         return scheme_action, scheme_reason
+
+    syntax_action, syntax_reason = _check_url_syntax(permission, tool_input)
+    if syntax_action is not None:
+        return syntax_action, syntax_reason
 
     block_action, block_reason = _check_domain_blocklist(permission, tool_input, config.network_blocklist)
     if block_action is not None:

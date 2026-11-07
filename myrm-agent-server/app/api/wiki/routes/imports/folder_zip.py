@@ -1,4 +1,14 @@
-"""Wiki folder / zip 批量导入。
+"""[INPUT]
+- myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
+- app.api.wiki.routes.import_helpers::_build_import_message / _publish_import_raw / _schedule_post_import_dedup_scan / _track_import_publish_result / _validate_import_conflict_options (POS: folder/zip/obsidian/urls/video 五条导入路径共用；不感知具体来源。)
+- app.api.wiki.routes.schemas_import::ImportFolderRequest / ImportResultResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- import_folder: Batch import all text documents from a local folder into the wiki raw/ directory.
+- import_zip: Upload and import a ZIP archive of documents into the wiki.
 
 [POS]
 Wiki 批量导入子包的一部分；由 __init__.py 聚合为单一 router。

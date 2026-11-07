@@ -112,7 +112,7 @@ const SpeechInputButton = memo(
               'relative flex items-center justify-center rounded-full transition duration-200 select-none',
               isRecording
                 ? 'h-8 gap-1.5 px-2.5 bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/25 dark:hover:bg-red-500/30'
-                : 'w-8 h-8 bg-[#fdfdf8] dark:bg-muted/60 hover:bg-[#e8e8e0] dark:hover:bg-muted/80 text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white',
+                : 'w-8 h-8 bg-background dark:bg-muted/60 hover:bg-border dark:hover:bg-muted/80 text-foreground/70 hover:text-foreground',
               (disabled || isTranscribing) && 'opacity-50 cursor-not-allowed',
             )}
             aria-label={tooltipText}

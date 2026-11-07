@@ -33,7 +33,7 @@
 体积门禁：full 档与 harness 拼在它后面的静态块（时间规则、核心行为规则、渠道输出提示）合计，由 `tests/architecture/test_first_turn_static_prompt_budget.py` 按语言封顶；往里加字的改动须在同一 PR 抬高上限并说明理由。
 
 search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（deep）静态缓存，
-保证 Kv Cache 前缀稳定性。deep suffix 在 factory.py 中按 `search_depth` 动态追加。
+保证 Kv Cache 前缀稳定性。deep suffix 在 `general_agent/factory/prompt.py` 中按 `search_depth` 动态追加。
 
 通用防御规则（XML 工具调用防御、上下文优先检查、工具使用纪律等）由框架层
 `agent_core_rules.py` 的 `AGENT_CORE_RULES` 提供，业务层仅包含
@@ -45,7 +45,7 @@ search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（de
 
 架构决策记录（ADR）：对话人格双语 vs 工具契约统一英文单例
 - **双语对话人格**：业务层 System Prompt（`CORE_SYSTEM_PROMPT_*`）支持中英双语，保证大模型面向用户的回复语气、风格与语言习惯自然贴合用户设定。
-- **底层工具调用协议全局统一英文**：桌面控制（`DESKTOP_CONTROL_RULES`）等底层操作系统级调用指引，在 `factory.py` 中强制采用静态英文单例。
+- **底层工具调用协议全局统一英文**：桌面控制（`DESKTOP_CONTROL_RULES`）等底层操作系统级调用指引，在 `general_agent/factory/prompt.py` 中强制采用静态英文单例。
   1. **对齐大模型 Function Calling 训练先验**：大模型的工具调用 RLHF 数据集绝大多数基于英文代码与 API 语境，英文提示词能零翻译损耗直接映射参数（如 `ref`, `action`, `wait_seconds`），杜绝跨语言 Attention 折损引发的参数幻觉。
   2. **最大化 KV Cache 前缀复用**：桌面规则作为全局不可变静态常量追加，保证不同语言用户在同一沙箱/桌面服务中的该段前缀字节一致，避免动态分叉导致前缀命中率下降。
 

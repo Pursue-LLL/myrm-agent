@@ -1,4 +1,4 @@
-"""SQLiteRelationalStore unit tests — Profile, Procedural, Pending, lifecycle."""
+"""SQLiteRelationalStore unit tests — profile, snapshot, lifecycle, exact-fact search bounds."""
 
 from __future__ import annotations
 
@@ -7,22 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory.protocols.relational import (
-    RelationalStoreProtocol,
-)
+from myrm_agent_harness.toolkits.memory.protocols.relational import RelationalStoreProtocol
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
-from myrm_agent_harness.toolkits.memory.relational.exceptions import (
-    CorruptedMemoryIndexError,
-    RelationalNotFoundError,
-    RelationalQueryError,
-)
-from myrm_agent_harness.toolkits.memory.types import (
-    MemoryScope,
-    MemoryType,
-    PendingRecord,
-    PendingResolutionAction,
-    ProceduralMemory,
-)
+from myrm_agent_harness.toolkits.memory.types import MemoryScope
+from tests.support.relational_records import make_pending, make_rule
 
 
 @pytest.fixture
@@ -83,20 +71,6 @@ async def test_list_and_count_profiles(store: SQLiteRelationalStore) -> None:
 
 
 @pytest.mark.asyncio
-async def test_system_profiles_are_hidden_from_list_and_count(
-    store: SQLiteRelationalStore,
-) -> None:
-    await store.set_profile("_system_internal_key", '{"data": 1}')
-    await store.set_profile("language", "zh")
-
-    profiles = await store.list_profiles()
-    assert len(profiles) == 1
-    assert profiles[0].key == "language"
-    assert await store.count_profiles() == 1
-    assert await store.get_profile("_system_internal_key") == '{"data": 1}'
-
-
-@pytest.mark.asyncio
 async def test_list_profiles_pagination(store: SQLiteRelationalStore) -> None:
     for i in range(10):
         await store.set_profile(f"k{i}", f"v{i}")
@@ -132,268 +106,14 @@ async def test_profiles_are_isolated_by_namespace(store: SQLiteRelationalStore) 
     assert profiles[0].scope.channel_id == "telegram"
 
 
-# ── Procedural rules ────────────────────────────────────────────────
-
-
-def _make_rule(trigger: str = "user asks", action: str = "respond") -> ProceduralMemory:
-    return ProceduralMemory(
-        content=f"When: {trigger} → Do: {action}",
-        trigger=trigger,
-        action=action,
-        priority=1,
-    )
-
-
-@pytest.mark.asyncio
-async def test_create_and_get_rule(store: SQLiteRelationalStore) -> None:
-    rule = _make_rule()
-    created = await store.create_rule(rule)
-    assert created.id
-    fetched = await store.get_rule(created.id)
-    assert fetched is not None
-    assert fetched.trigger == "user asks"
-
-
-@pytest.mark.asyncio
-async def test_get_rule_not_found(store: SQLiteRelationalStore) -> None:
-    result = await store.get_rule("ghost")
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_search_rules(store: SQLiteRelationalStore) -> None:
-    await store.create_rule(_make_rule("file request", "use Excel"))
-    await store.create_rule(_make_rule("code review", "be strict"))
-    results = await store.search_rules("file")
-    assert len(results) == 1
-    assert results[0].trigger == "file request"
-
-
-@pytest.mark.asyncio
-async def test_list_rules(store: SQLiteRelationalStore) -> None:
-    await store.create_rule(_make_rule("a", "1"))
-    await store.create_rule(_make_rule("b", "2"))
-    rules = await store.list_rules()
-    assert len(rules) == 2
-
-
-@pytest.mark.asyncio
-async def test_count_rules(store: SQLiteRelationalStore) -> None:
-    await store.create_rule(_make_rule())
-    assert await store.count_rules() == 1
-
-
-@pytest.mark.asyncio
-async def test_update_rule(store: SQLiteRelationalStore) -> None:
-    created = await store.create_rule(_make_rule("old", "old_action"))
-    updated_rule = _make_rule("new", "new_action")
-    updated = await store.update_rule(created.id, updated_rule)
-    assert updated.trigger == "new"
-    fetched = await store.get_rule(created.id)
-    assert fetched is not None
-    assert fetched.action == "new_action"
-
-
-@pytest.mark.asyncio
-async def test_update_rule_not_found(store: SQLiteRelationalStore) -> None:
-    with pytest.raises(RelationalNotFoundError):
-        await store.update_rule("ghost", _make_rule())
-
-
-@pytest.mark.asyncio
-async def test_delete_rule(store: SQLiteRelationalStore) -> None:
-    created = await store.create_rule(_make_rule())
-    deleted = await store.delete_rule(created.id)
-    assert deleted is True
-    assert await store.get_rule(created.id) is None
-
-
-@pytest.mark.asyncio
-async def test_rules_are_filtered_by_namespace(store: SQLiteRelationalStore) -> None:
-    telegram_rule = _make_rule("telegram ask", "reply telegram")
-    telegram_rule.scope = MemoryScope(
-        primary_namespace="channel:telegram",
-        namespaces=["global", "channel:telegram"],
-        channel_id="telegram",
-    )
-    feishu_rule = _make_rule("feishu ask", "reply feishu")
-    feishu_rule.scope = MemoryScope(
-        primary_namespace="channel:feishu",
-        namespaces=["global", "channel:feishu"],
-        channel_id="feishu",
-    )
-
-    await store.create_rule(telegram_rule)
-    await store.create_rule(feishu_rule)
-
-    telegram_results = await store.search_rules("ask", namespaces=["channel:telegram"])
-    assert len(telegram_results) == 1
-    assert telegram_results[0].scope.channel_id == "telegram"
-    assert await store.count_rules(namespaces=["channel:feishu"]) == 1
-
-
-# ── Tool-scoped rules ────────────────────────────────────────────────
-
-
-def _make_tool_rule(
-    tool_name: str, priority: str = "normal", trigger: str = "t", action: str = "a"
-) -> ProceduralMemory:
-    from myrm_agent_harness.toolkits.memory.types import ToolRulePriority
-
-    return ProceduralMemory(
-        content=f"When: {trigger} → Do: {action}",
-        trigger=trigger,
-        action=action,
-        priority=1,
-        tool_name=tool_name,
-        tool_rule_priority=ToolRulePriority(priority),
-    )
-
-
-@pytest.mark.asyncio
-async def test_create_rule_with_tool_fields(store: SQLiteRelationalStore) -> None:
-    """tool_name and tool_rule_priority are persisted and retrievable."""
-    from myrm_agent_harness.toolkits.memory.types import ToolRulePriority
-
-    rule = _make_tool_rule("bash_code_execute_tool", "critical", "using sudo", "reject")
-    created = await store.create_rule(rule)
-    fetched = await store.get_rule(created.id)
-    assert fetched is not None
-    assert fetched.tool_name == "bash_code_execute_tool"
-    assert fetched.tool_rule_priority == ToolRulePriority.CRITICAL
-
-
-@pytest.mark.asyncio
-async def test_create_rule_persists_expected_valid_days(
-    store: SQLiteRelationalStore,
-) -> None:
-    """expected_valid_days round-trips through create/get/update."""
-    rule = _make_tool_rule(
-        "web_fetch_tool",
-        trigger="repeated timeout",
-        action="retry with fallback",
-    )
-    rule.expected_valid_days = 1
-    rule.metadata["origin"] = "tool_failure"
-    created = await store.create_rule(rule)
-    fetched = await store.get_rule(created.id)
-    assert fetched is not None
-    assert fetched.expected_valid_days == 1
-    assert fetched.metadata.get("origin") == "tool_failure"
-
-    fetched.expected_valid_days = 3
-    updated = await store.update_rule(fetched.id, fetched)
-    re_fetched = await store.get_rule(updated.id)
-    assert re_fetched is not None
-    assert re_fetched.expected_valid_days == 3
-
-    listed = await store.list_rules(active_only=True)
-    assert any(r.id == created.id and r.expected_valid_days == 3 for r in listed)
-
-
-@pytest.mark.asyncio
-async def test_update_rule_preserves_tool_fields(store: SQLiteRelationalStore) -> None:
-    """update_rule correctly persists tool_name and tool_rule_priority."""
-    from myrm_agent_harness.toolkits.memory.types import ToolRulePriority
-
-    created = await store.create_rule(_make_tool_rule("web_fetch_tool", "normal"))
-    updated_rule = _make_tool_rule("web_fetch_tool", "critical", "timeout retry", "use exponential backoff")
-    updated = await store.update_rule(created.id, updated_rule)
-    assert updated.tool_rule_priority == ToolRulePriority.CRITICAL
-
-    fetched = await store.get_rule(created.id)
-    assert fetched is not None
-    assert fetched.tool_rule_priority == ToolRulePriority.CRITICAL
-    assert fetched.tool_name == "web_fetch_tool"
-
-
-# ── Pending ──────────────────────────────────────────────────────────
-
-
-def _make_pending(content: str = "test memory") -> PendingRecord:
-    return PendingRecord(memory_type=MemoryType.SEMANTIC, content=content)
-
-
-@pytest.mark.asyncio
-async def test_submit_and_get_pending(store: SQLiteRelationalStore) -> None:
-    record = _make_pending()
-    pid = await store.submit_pending(record)
-    fetched = await store.get_pending(pid)
-    assert fetched is not None
-    assert fetched.content == "test memory"
-    assert fetched.status == "pending"
-
-
-@pytest.mark.asyncio
-async def test_pending_action_metadata_round_trips(store: SQLiteRelationalStore) -> None:
-    """resolution_action / target_memory_id / target_content survive persistence.
-
-    The approval dispatcher and review UI read these fields, so a column/order
-    regression in the pending table must fail loudly here.
-    """
-    record = PendingRecord(
-        memory_type=MemoryType.SEMANTIC,
-        content="User now works at Google",
-        resolution_action=PendingResolutionAction.CORRECT,
-        target_memory_id="mem-old",
-        target_content="User works at ByteDance",
-    )
-
-    pid = await store.submit_pending(record)
-    fetched = await store.get_pending(pid)
-
-    assert fetched is not None
-    assert fetched.resolution_action == PendingResolutionAction.CORRECT
-    assert fetched.target_memory_id == "mem-old"
-    assert fetched.target_content == "User works at ByteDance"
-
-
-@pytest.mark.asyncio
-async def test_pending_exists(store: SQLiteRelationalStore) -> None:
-    await store.submit_pending(_make_pending("unique content"))
-    assert await store.pending_exists("semantic", "unique content") is True
-    assert await store.pending_exists("semantic", "other") is False
-
-
-@pytest.mark.asyncio
-async def test_mark_pending(store: SQLiteRelationalStore) -> None:
-    record = _make_pending()
-    pid = await store.submit_pending(record)
-    await store.mark_pending(pid, "approved")
-    fetched = await store.get_pending(pid)
-    assert fetched is not None
-    assert fetched.status == "approved"
-    assert fetched.resolved_at is not None
-
-
-@pytest.mark.asyncio
-async def test_list_and_count_pending(store: SQLiteRelationalStore) -> None:
-    for i in range(3):
-        await store.submit_pending(_make_pending(f"mem_{i}"))
-    pending = await store.list_pending()
-    assert len(pending) == 3
-    assert await store.count_pending() == 3
-
-
-@pytest.mark.asyncio
-async def test_batch_mark_pending(store: SQLiteRelationalStore) -> None:
-    ids = []
-    for i in range(3):
-        pid = await store.submit_pending(_make_pending(f"batch_{i}"))
-        ids.append(pid)
-    count = await store.batch_mark_pending(ids[:2], "rejected")
-    assert count == 2
-    assert await store.count_pending() == 1
-
-
 # ── Delete all ───────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_delete_all(store: SQLiteRelationalStore) -> None:
     await store.set_profile("k", "v")
-    await store.create_rule(_make_rule())
-    await store.submit_pending(_make_pending())
+    await store.create_rule(make_rule())
+    await store.submit_pending(make_pending())
     count = await store.delete_all()
     assert count >= 3
     assert await store.count_profiles() == 0
@@ -433,55 +153,6 @@ async def test_get_profile_snapshot_not_found(store: SQLiteRelationalStore) -> N
     assert "missing" in snap.revision
 
 
-@pytest.mark.asyncio
-async def test_list_rules_active_only_false(store: SQLiteRelationalStore) -> None:
-    rule = _make_rule("trigger", "action")
-    rule.is_active = False
-    await store.create_rule(rule)
-    await store.create_rule(_make_rule("active trigger", "active action"))
-
-    all_rules = await store.list_rules(active_only=False)
-    assert len(all_rules) == 2
-
-    active_rules = await store.list_rules(active_only=True)
-    assert len(active_rules) == 1
-
-
-# ── Pending by source chat ──────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_delete_pending_by_source_chat_id(store: SQLiteRelationalStore) -> None:
-    """delete_pending_by_source_chat_id removes only matching records."""
-    record = _make_pending("chat-scoped")
-    record.source_chat_id = "chat-1"
-    await store.submit_pending(record)
-    await store.submit_pending(_make_pending("other"))
-
-    deleted = await store.delete_pending_by_source_chat_id("chat-1")
-    assert deleted == 1
-    assert await store.count_pending() == 1
-
-
-@pytest.mark.asyncio
-async def test_count_pending_by_source_chat_id(store: SQLiteRelationalStore) -> None:
-    """count_pending_by_source_chat_id counts only matching records."""
-    for i in range(3):
-        record = _make_pending(f"chat-{i}")
-        record.source_chat_id = "chat-1"
-        await store.submit_pending(record)
-    await store.submit_pending(_make_pending("other"))
-
-    assert await store.count_pending_by_source_chat_id("chat-1") == 3
-    assert await store.count_pending_by_source_chat_id("missing") == 0
-
-
-@pytest.mark.asyncio
-async def test_batch_mark_pending_empty_list(store: SQLiteRelationalStore) -> None:
-    """batch_mark_pending with empty list returns 0 without touching DB."""
-    assert await store.batch_mark_pending([], "rejected") == 0
-
-
 # ── Lifecycle edge cases ─────────────────────────────────────────────
 
 
@@ -504,135 +175,6 @@ async def test_close_is_idempotent(store: SQLiteRelationalStore) -> None:
     await store.close()
     await store.close()
     assert store._closed is True
-
-
-# ── Error branches ──────────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_query_error_branches_raise(store: SQLiteRelationalStore, monkeypatch) -> None:
-    """DB failures surface as RelationalQueryError across CRUD methods."""
-
-    class _ExplodingCursor:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_exc):
-            return False
-
-        async def execute(self, *_args, **_kwargs):
-            raise RuntimeError("db exploded")
-
-        async def commit(self):
-            raise RuntimeError("db exploded")
-
-        async def fetchone(self):
-            raise RuntimeError("db exploded")
-
-        async def fetchall(self):
-            raise RuntimeError("db exploded")
-
-    class _ExplodingConnection:
-        def execute(self, *_args, **_kwargs):
-            return _ExplodingCursor()
-
-        async def commit(self):
-            raise RuntimeError("db exploded")
-
-    async def _fake_connection():
-        return _ExplodingConnection()
-
-    monkeypatch.setattr(store, "_get_connection", _fake_connection)
-
-    for call in (
-        lambda: store.get_profile("k"),
-        lambda: store.get_profile_snapshot("k"),
-        lambda: store.set_profile("k", "v"),
-        lambda: store.delete_profile("k"),
-        lambda: store.list_profiles(),
-        lambda: store.count_profiles(),
-        lambda: store.create_rule(_make_rule()),
-        lambda: store.get_rule("r"),
-        lambda: store.search_rules("q"),
-        lambda: store.list_rules(),
-        lambda: store.count_rules(),
-        lambda: store.update_rule("r", _make_rule()),
-        lambda: store.delete_rule("r"),
-        lambda: store.delete_all(),
-        lambda: store.submit_pending(_make_pending()),
-        lambda: store.get_pending("p"),
-        lambda: store.pending_exists("semantic", "c"),
-        lambda: store.mark_pending("p", "approved"),
-        lambda: store.list_pending(),
-        lambda: store.count_pending(),
-        lambda: store.batch_mark_pending(["p"], "approved"),
-        lambda: store.delete_pending_by_source_chat_id("chat"),
-        lambda: store.count_pending_by_source_chat_id("chat"),
-    ):
-        with pytest.raises(RelationalQueryError):
-            await call()
-
-
-@pytest.mark.asyncio
-async def test_corrupted_memory_index_fail_fast(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    db_file = tmp_path / "corrupted_test.db"
-    store = SQLiteRelationalStore(str(db_file))
-    await store.set_profile("init_key", "init_val")
-
-    # Mock quick_check returning corruption
-    class _CorruptCursor:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_exc):
-            return False
-
-        async def fetchall(self):
-            return [("tree cell 17 out of order",)]
-
-    conn = await store._get_connection()
-    orig_execute = conn.execute
-
-    def _corrupt_execute(sql, *args, **kwargs):
-        if "PRAGMA quick_check" in str(sql):
-            return _CorruptCursor()
-        return orig_execute(sql, *args, **kwargs)
-
-    monkeypatch.setattr(conn, "execute", _corrupt_execute)
-
-    # A failure is only corruption when a fresh connection reproduces it (a stale
-    # long-lived connection alone is not), so the fresh check reports it too.
-    class _FreshCorruptConnection:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_exc):
-            return False
-
-        def execute(self, *_args, **_kwargs):
-            return _CorruptCursor()
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.memory.relational.sqlite_store.aiosqlite.connect",
-        lambda *_args, **_kwargs: _FreshCorruptConnection(),
-    )
-
-    # 1. Direct integrity check returns False
-    ok, detail = await store.check_integrity()
-    assert ok is False
-    assert "tree cell 17 out of order" in detail
-
-    # 2. assert_store_integrity and writes must Fail-Fast with CorruptedMemoryIndexError
-    with pytest.raises(CorruptedMemoryIndexError) as exc_info:
-        await store.assert_store_integrity()
-    assert "failed quick_check" in str(exc_info.value)
-    assert exc_info.value.index_type == "sqlite_relational"
-
-    with pytest.raises(CorruptedMemoryIndexError) as exc_write:
-        await store.set_profile("should_fail", "corrupt_data")
-    assert "failed quick_check" in str(exc_write.value)
-
-    await store.close()
 
 
 # ── Exact fact search time bounds ────────────────────────────────────

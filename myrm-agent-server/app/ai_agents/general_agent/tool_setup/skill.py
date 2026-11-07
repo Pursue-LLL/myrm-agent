@@ -1,4 +1,8 @@
-"""技能市场与技能管理工具。
+"""[INPUT]
+- app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
+
+[OUTPUT]
+- SkillToolsMixin: 技能市场与技能管理工具。
 
 [POS]
 ToolSetupMixin 的一个工具族；由 mixin.py 组合。

@@ -9,7 +9,7 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports secure fetch and redirect guard APIs. | — |
 | redirect_guard.py | Core | Outbound HTTP redirect sensitive header protection. `extract_origin` (default port 80/443 normalization), `is_same_origin`, `is_sensitive_header` (standard RFC keys + wildcard regex), `strip_sensitive_headers_on_redirect` (purges credentials on cross-origin redirect and blocks HTTPS->HTTP downgrade), and `create_mcp_redirect_guard_event_hooks` (httpx/httpx2 client hooks for MCP transports). | ✅ |
-| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. | ✅ |
+| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. `parse_allowed_internal_hosts` reads `MYRM_ALLOWED_INTERNAL_HOSTS` in canonical spelling, the form the SSRF guard compares hosts in; an entry that names no host stays as written and exempts nothing. | ✅ |
 
 ## Key Dependencies
 
@@ -36,4 +36,4 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `myrm-agent-server/app/services/kanban/kanban_attach_handler.py`
 
 Browser Playwright navigation uses `toolkits/browser/navigation/ssrf_guard.py` (`async_pin_url`, not httpx).
-`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers: `async_pin_url` under the cloud policy (scrapling with validated domain fallback on TLS SAN mismatch, security-equivalent), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers).
+`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers, judged in the canonical spelling of each hop URL: `async_pin_url` under the cloud policy (scrapling with validated domain fallback on TLS SAN mismatch, security-equivalent), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers).

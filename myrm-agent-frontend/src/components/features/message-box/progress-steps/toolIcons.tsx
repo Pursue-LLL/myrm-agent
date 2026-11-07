@@ -250,6 +250,7 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   memory_archived: 'thinking',
   allowed_tools_rejected_recovery: 'safety',
   thinking_signature_recovery: 'safety',
+  reasoning_mandatory_recovery: 'safety',
   tool_history_recovery: 'safety',
   image_shrink_recovery: 'safety',
   image_payload_recovery: 'safety',
@@ -266,24 +267,6 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
 
 // 默认类别
 export const DEFAULT_CATEGORY: ToolCategory = 'tool';
-
-/**
- * 获取步骤图标（基于分类系统）
- * @param step_key 步骤标识符
- * @param tool_name 工具名称（null 表示系统步骤）
- * @returns Hugeicons 图标组件
- */
-export const getStepIcon = (step_key: string, tool_name: string | null | undefined): HugeIconComponent => {
-  // 系统步骤（tool_name 为 null）
-  if (tool_name === null || tool_name === undefined) {
-    const category = SYSTEM_STEP_CATEGORY_MAP[step_key] || DEFAULT_CATEGORY;
-    return CATEGORY_ICON_MAP[category];
-  }
-
-  // 工具调用
-  const category = TOOL_CATEGORY_MAP[tool_name] || DEFAULT_CATEGORY;
-  return CATEGORY_ICON_MAP[category];
-};
 
 /**
  * 获取步骤类别
@@ -318,7 +301,7 @@ interface StepIconProps {
 }
 
 export const StepIcon: React.FC<StepIconProps> = ({ step_key, tool_name, size = 18, className = '' }) => {
-  const Icon = getStepIcon(step_key, tool_name);
+  const Icon = CATEGORY_ICON_MAP[getStepCategory(step_key, tool_name)];
   const isSystem = isSystemStep(tool_name);
 
   return <Icon size={size} className={className || (isSystem ? 'text-primary/70' : 'text-foreground/80')} />;

@@ -13,8 +13,8 @@
 | `settled_results.py` | ✅ 叶子 | `SettledResults`：每个会话记两样东西——下一个唤醒回合要交付的结算（`queue`）、智能体在自己的回合里已经读到的结果（`mark_read`，每会话最多留 200 个，最旧的先丢）。唤醒回合取得会话时 `take_all_read` 一次取走并清掉：交付的结算非空且全部已读才返回 `True`；之后落地的结算属于下一个唤醒回合 | ✅ |
 | `wake_turn_scheduler.py` | ✅ 叶子 | `schedule_wake_turn(chat_id, runner)`：唤醒回合的唯一发起处，只管排队与让路，不判断「该不该起」。同一会话已有排队唤醒时合并（只刷新完成时刻）；会话忙时有界等待（上限取网关的目标回合上限）：忙指应用网关占着会话（应用内回合、目标回合、其他唤醒回合），或 `chat_busy` 探针说所有者正在这条 IM 私聊里跑回合（IM 回合由路由的会话闸门串行，应用网关看不见），两者都空闲才取会话，取会话与上一次判断之间没有 `await`；轮到时在 `server_turn_lease` 下调用 runner，令牌即 Stop / 目标暂停 / E-Stop 翻转的那一个。排队项只由取得会话的那个唤醒移出，运行中到达的完成排成下一个唤醒 | ✅ |
 | `wake_turn_stream.py` | ✅ 核心 | `stream_wake_turn(chat_id, turn_id, cancel_token)`：用该会话自己的智能体（会话行的 `agent_id`）构建并流式执行一轮唤醒；事件按会话 id 发布到事件总线，已生成的内容照常落库。仅在「还没给用户看到任何内容」时重试（最多 3 次）；已有内容后失败、或重试用尽，则发布 `error_kind=wake_turn_failed` 的错误事件并把这轮回复标成失败，而不是静默；令牌被取消时发 `agent_cancelled`、不再重试。请求带着会话行的无痕标记（`incognito_mode=chat.is_incognito`），无痕会话的唤醒回合与它自己的回合一样不写记忆。回复已落库之后，函数把这轮说的话（去掉首尾空白）作为返回值交回调用方；被 Stop、以错误结束（`completionStatus` 或停止原因的类别是 `cancelled` / `error`）、重试用尽或回复为空的回合返回 `None` | ✅ |
-| `chat_busy.py` | ✅ 叶子 | 唤醒回合起之前问「这条会话是否有应用网关之外的回合占着」的端口：`ChatBusyProbe` 协议（一个同步方法 `is_busy(chat_id)`）、`set_chat_busy_probe`（注册 / 清除探针）、`is_chat_busy`（没有探针就是不忙；探针抛错只记警告并按不忙处理，等一个坏掉的探针只会丢掉这轮唤醒）。必须同步：调度器在得到答案的同一步里取会话，中间不能有 `await`。探针由渠道桥在网关运行期间注册（`core/channel_bridge/setup.py`） | ✅ |
-| `reply_return.py` | ✅ 叶子 | 唤醒回合回复的出口端口：`WakeReplyReturner` 协议（一个方法 `return_reply(chat_id, reply)`）、`set_wake_reply_returner`（注册 / 清除承载方）、`return_wake_reply`（没有承载方就什么都不做；承载方抛错只记警告，不影响已结束的回合）。承载方由渠道桥在网关运行期间注册（`core/channel_bridge/setup.py`） | ✅ |
+| `chat_busy.py` | ✅ 叶子 | 唤醒回合起之前问「这条会话是否有应用网关之外的回合占着」的端口：`ChatBusyProbe` 协议（一个同步方法 `is_busy(chat_id)`）、`set_chat_busy_probe`（注册 / 清除探针）、`is_chat_busy`（没有探针就是不忙；探针抛错只记警告并按不忙处理，等一个坏掉的探针只会丢掉这轮唤醒）。必须同步：调度器在得到答案的同一步里取会话，中间不能有 `await`。探针由渠道桥在网关运行期间注册（`core/channel_bridge/setup/`） | ✅ |
+| `reply_return.py` | ✅ 叶子 | 唤醒回合回复的出口端口：`WakeReplyReturner` 协议（一个方法 `return_reply(chat_id, reply)`）、`set_wake_reply_returner`（注册 / 清除承载方）、`return_wake_reply`（没有承载方就什么都不做；承载方抛错只记警告，不影响已结束的回合）。承载方由渠道桥在网关运行期间注册（`core/channel_bridge/setup/`） | ✅ |
 
 ## 边界
 

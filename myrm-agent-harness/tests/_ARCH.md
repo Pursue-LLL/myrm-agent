@@ -44,6 +44,8 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `infra/test_tls_compat_libraries.py` | 单元 | 同一策略在各第三方库一侧：urllib3 的构造函数与它实例化的上下文类都带上策略（系统证书库、环境 CA、去严格标志），持有构造函数的每个 urllib3 模块都被改绑、包外的同名绑定不动；`urllib.request` / `http.client` 用的 https 默认入口指向策略，宿主自己替换过的不动；aiohttp 默认上下文重建，aiohttp 未导入时不去导入，缺少内部构造函数时告警不报错；各库被策略伸手进去的内部（aiohttp 默认上下文与构造函数、urllib3 的类与构造函数、标准库 https 默认入口）各有契约用例，发布改动它们时先红 |
 | `infra/test_data_dir.py` | 单元 | 状态根解析入口 `resolve_data_dir()`：默认 `~/.myrm`、`MYRM_DATA_DIR` 重定位（含 `~` 展开与首尾空白）、空白值回落默认、解析时不创建目录、每次调用都重新读环境变量；沙箱感知入口 `resolve_workspace_state_dir()` 的优先级（显式根 > 沙箱 `/workspace/.myrm` > 默认根） |
 | `infra/test_state_paths_isolated.py` | 单元 | 进程拥有独立状态根时，十三处默认状态路径（域指标、站点经验、域技能、文件快照三处、技能配置版本、共享 venv、存储根、引擎亲和、急停状态、记忆 blob 两处）都落在状态根内，且不在另一档案的主目录里创建任何东西；与服务端 `test_state_paths_follow_data_dir.py`（守源码文本）互补，这里跑真实代码 |
+| `utils/test_url_syntax_chromium_integration.py` | 集成 | 真实 Chromium 拨的是规范 URL 所指的主机：Chromium 把所有主机名都解析到本机监听口，监听口收到的 Host 头就是它从 URL 推出的主机；写法表里的每个写法（大小写、尾点、各进制的 IPv4、UTS 46 映射、全角与不可见字符、IPv6 与方括号、凭据段）取规范 URL 拨号，收到的都是规范主机（IPv6 按地址比较）；按原写法拨号时与规范化器读法不同的写法是一组声明过的（保留尾点、判为无效 URL 而拒绝），多一个或少一个都变红。写法表来自 `support/host_spellings.py`，监听口与判定来自 `support/dial_probe.py` |
+| `utils/test_url_syntax_libcurl.py` | 单元 | 同一对照落在 libcurl（`curl_cffi`）上：用解析覆盖把规范主机名送到本机监听口，数字主机以连接到达监听口为证（libcurl 把数字主机原样写进 Host 头），IPv6 字面量因监听口只收 IPv4 而不测；规范 URL 的拨号逐个一致；按原写法拨号只对 ASCII 写法声明差异，非 ASCII 写法由平台的 IDN 库读出、读法随平台而异，只以规范写法拨号 |
 
 ## Test file placement
 
@@ -92,7 +94,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    验证 domain_filter 的 allow/block 行为时须在 `BrowserSession` 显式传 `allow_private_networks=True`：
    该标志让两层只放行「会话显式导航到的私网源」（经重定向 / 脚本到别的私网地址仍被拦，云元数据永远被拦），
    名单与资源规则照常生效；`test_private_network_policy_integration.py`、
-   `test_local_mode_navigation_policy_integration.py`、`test_document_redirect_integration.py`、`test_domain_lists_redirect_integration.py`（名单对重定向目标同样生效）、`test_hostname_resolution_policy_integration.py`（解析到环回 / 云元数据的主机名按该地址判定；用 `--host-resolver-rules` 把假域名映射到环回夹具，并替换进程内 `socket.getaddrinfo` 充当攻击者控制的 DNS）是端到端证据。
+   `test_local_mode_navigation_policy_integration.py`、`test_document_redirect_integration.py`、`test_domain_lists_redirect_integration.py`（名单对重定向目标同样生效）、`test_hostname_resolution_policy_integration.py`（解析到环回 / 云元数据的主机名按该地址判定；用 `--host-resolver-rules` 把假域名映射到环回夹具，并替换进程内 `socket.getaddrinfo` 充当攻击者控制的 DNS，二者由 `tests/toolkits/browser/_fake_dns.py` 提供）、`test_download_url_integration.py`（`download_url` 与导航同一套判定：重定向进环回的下载被拒且不落盘，落在内部页面的请求把标签页重置为空白，解析到云元数据的主机名从未被拨号（服务端命中数为证），`javascript:` 不在页面执行，页面的下载监听器让位，同一次下载只处理一次）是端到端证据。
    重定向链由 `tests/toolkits/browser/_redirect_servers.py`（逐请求记录 `(method, path)` 的多服务器夹具）搭建，
    断言服务端收到几次请求，而不是只信浏览器侧结果（`Reply.delay_s` 模拟慢业务端点，用来证明表单 POST 在响应慢于驱动请求超时的情况下仍只提交一次；`declared_length` / `hold_open_s` 脚本化被截断或读到一半的响应；`Gated` 按请求头区分页面自己的请求与裸重发）；web_fetch 侧见 `tests/toolkits/web_fetch/test_fetch_ssrf_terminal.py`。
    并用本地 `ThreadingHTTPServer` 做真实页面源，避免外部网络依赖。**禁止**用猴子补丁替换

@@ -1,4 +1,15 @@
-"""本地模型与代理连通性自检。
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms::create_chat_model (POS: myrm_agent_harness.toolkits.llms)
+- myrm_agent_harness.toolkits.llms.utils.proxy::probe_proxy_health / validate_proxy_url (POS: Network utility module for proxy URL normalization, validation, security masking,)
+
+[OUTPUT]
+- TestLocalModelRequest: TestLocalModelRequest
+- TestLocalModelResponse: TestLocalModelResponse
+- _classify_local_model_error: Map internal exceptions to user-friendly connection test messages.
+- test_local_model: Test connectivity to a local LLM (e.g. Ollama).
+- TestProxyRequest: TestProxyRequest
+- TestProxyResponse: TestProxyResponse
+- test_proxy: Test outbound connectivity of an egress proxy.
 
 [POS]
 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。

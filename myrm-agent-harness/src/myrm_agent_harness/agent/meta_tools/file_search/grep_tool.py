@@ -75,7 +75,8 @@ logger = logging.getLogger(__name__)
 def _has_ripgrep() -> bool:
     """True while ``rg`` is on PATH, looked up on every call so one installed later is used at once.
 
-    A ripgrep that cannot start or answer fails inside ``run_rg``, and both tools hand the search to the Python tier.
+    A ripgrep that cannot start (``run_rg`` raises) or gave no answer (``RgRunResult.require_answer`` raises) does
+    not end the call: both tools catch the error and hand the search to the Python tier.
     """
     return shutil.which("rg") is not None
 
@@ -91,7 +92,12 @@ async def _ripgrep_search(
     *,
     literal: bool = False,
 ) -> RgMatches:
-    """Execute search using ripgrep (fastest tier). Returns the rows it found."""
+    """Execute search using ripgrep (fastest tier). Returns the rows it found.
+
+    Raises:
+        RuntimeError: ripgrep gave no answer (``RgRunResult.answered``), so the Python tier must search. A failure
+            after output (an unreadable directory) stands, even when nothing matched.
+    """
     search_root = search_path if search_path.is_dir() else search_path.parent
     cmd = ["rg", "--json", *rg_traversal_args(search_root)]
 
@@ -120,13 +126,10 @@ async def _ripgrep_search(
         timeout_seconds=timeout_seconds,
         on_line=matches.feed,
     )
-    if outcome.failed:
-        logger.warning(f"ripgrep search failed (exit code {outcome.returncode}): {outcome.stderr}")
-        # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
-        # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
-        # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
-        if not outcome.answered:
-            raise RuntimeError("ripgrep failed")
+    # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
+    # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
+    # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
+    outcome.require_answer()
 
     return matches
 

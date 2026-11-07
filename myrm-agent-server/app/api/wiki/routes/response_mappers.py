@@ -1,4 +1,15 @@
-"""Wiki 响应的领域映射。
+"""[INPUT]
+- myrm_agent_harness.toolkits.wiki.core.types::WikiRetrievalTrace (POS: Wiki toolkit type definition center. Defines all core data models (concepts, articles,)
+- app.api.wiki.routes.schemas::CompileRunResponse / WikiClaimEvidenceItem / WikiClaimItem / WikiEditorSectionsResponse / WikiRetrievalSeedTraceItem / WikiRetrievalTraceIndexHit / WikiRetrievalTraceResponse / WikiSourceSnippet (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- _compile_run_response: _compile_run_response
+- _claims_to_response_items: _claims_to_response_items
+- _str_or_none: Return a trimmed string, or None when empty/missing.
+- _editor_sections_to_response: _editor_sections_to_response
+- _citation_sources_to_snippets: Map harness citation SSOT dicts to REST response models.
+- _retrieval_trace_to_response: _retrieval_trace_to_response
 
 [POS]
 把服务层结果转换成 API 响应模型；只做转换，不读写磁盘、不发请求。

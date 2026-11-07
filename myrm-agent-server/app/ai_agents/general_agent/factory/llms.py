@@ -1,4 +1,13 @@
-"""GeneralAgent 的 LLM 初始化：主模型、轻量模型与回退模型。
+"""[INPUT]
+- myrm_agent_harness.core.security.types::PrivacyRoutingConfig (POS: Foundation layer of the security type hierarchy. All other security modules)
+- app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现。管理 Agent 生命周期（初始化、流式执行、资源释放），)
+- app.ai_agents.general_agent.config_builders::build_privacy_routing_config / wrap_with_privacy_routing (POS: Config builders for General Agent)
+- app.ai_agents.general_agent.llm_factory::apply_lite_managed_fallback / create_agent_llms / apply_lite_context_downgrade (POS: LLM 实例工厂。负责把业务层 `ModelConfig` 转换为可执行的 LangChain 实例。)
+- app.services.org_model_policy.enforce::enforce_org_model_policy (POS: Server 业务层 org model policy 执行 SSOT。在 agent build 后校验 primary/fallback/MoA)
+
+[OUTPUT]
+- AgentLlmBundle: AgentLlmBundle
+- initialize_agent_llms: initialize_agent_llms
 
 [POS]
 装配第一阶段；只创建并包装 LLM，不碰工具与中间件。

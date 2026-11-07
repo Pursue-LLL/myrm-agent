@@ -1,4 +1,10 @@
-"""卡片动作按钮的构造与回调解析。
+"""[INPUT]
+- app.channels.types::ActionButton / QuickReply / SelectMenu / ActionButton (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.channels.types.components::ButtonStyle / SelectMenu (POS: UI component type definitions. Cross-channel interactive component abstractions for buttons, quick replies, and select m)
+
+[OUTPUT]
+- build_card_actions: Build Feishu card action elements from QuickReplies and Components.
+- parse_card_action: Parse a Feishu card.action.trigger event into structured callback data.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。

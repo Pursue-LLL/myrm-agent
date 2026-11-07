@@ -27,7 +27,7 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
         return ModelConfig(model=invalid_model, api_key="sk-invalid-test-key", base_url=None)
 
     with patch(
-        "app.core.channel_bridge.model_resolver._fallback_model_from_providers",
+        "app.core.channel_bridge.model_resolver.resolve._fallback_model_from_providers",
         side_effect=_mock_fallback,
     ):
         yield

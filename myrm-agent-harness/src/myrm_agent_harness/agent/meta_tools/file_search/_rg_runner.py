@@ -4,7 +4,7 @@
 - asyncio::create_subprocess_exec (POS: async subprocess with pipe streams)
 
 [OUTPUT]
-- RgRunResult: exit code, stderr text, early-stop flag, stdout line count and whether the run answered
+- RgRunResult: exit code, head of stderr, early-stop flag, stdout line count; ``answered`` says whether the output can be used and ``require_answer`` raises when it cannot
 - run_rg: Stream ripgrep stdout lines (line feed or NUL ended) with early stop, bounded runtime and guaranteed reaping
 
 [POS]
@@ -18,12 +18,18 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 _DRAIN_CHUNK_BYTES = 65536
 _REAP_TIMEOUT_SECONDS = 2.0
+# ripgrep writes one stderr line per unreadable entry, so a search over a system directory can print tens of
+# kilobytes; only the head reaches a log line or an exception message.
+_STDERR_KEEP_CHARS = 4096
 # ``rg --json`` puts a whole matching line into one event, so a hit inside a minified bundle or a lock file is a
 # single line far above asyncio's 64 KiB default, which would abort the run. Lines beyond this still fail.
 _STREAM_LIMIT_BYTES = 16 * 1024 * 1024
@@ -33,7 +39,8 @@ _STREAM_LIMIT_BYTES = 16 * 1024 * 1024
 class RgRunResult:
     """Outcome of one ripgrep run.
 
-    ``lines_read`` counts the stdout lines handed to ``on_line``. ``answered`` says whether those lines can be used:
+    ``stderr`` is the head of ripgrep's diagnostics (``_STDERR_KEEP_CHARS``). ``lines_read`` counts the stdout lines
+    handed to ``on_line``. ``answered`` says whether those lines can be used:
     status 2 after some output means ripgrep searched on past an entry it could not open (an unreadable directory),
     so what it printed stands, an empty result included. A failure before any output (a pattern or a flag ripgrep
     rejects) searched nothing, and a run that was killed or crashed cannot vouch for a partial result.
@@ -53,6 +60,11 @@ class RgRunResult:
     def answered(self) -> bool:
         """True when the run did not fail, or failed with status 2 after printing: see the class docstring."""
         return not self.failed or (self.returncode == 2 and self.lines_read > 0)
+
+    def require_answer(self) -> None:
+        """Raise unless the output can be used, so the caller falls back to the Python tier."""
+        if not self.answered:
+            raise RuntimeError(f"exit code {self.returncode}: {self.stderr}")
 
 
 async def _drain(stream: asyncio.StreamReader) -> None:
@@ -100,6 +112,7 @@ async def run_rg(
     file name may itself hold a line feed.
 
     Raises:
+        OSError: ripgrep could not be started, for example because ``rg`` is not on the PATH.
         TimeoutError: ripgrep did not finish within ``timeout_seconds``; the process has been killed.
         ValueError: A stdout line exceeded ``_STREAM_LIMIT_BYTES``; the process has been killed.
         RuntimeError: The subprocess pipes could not be created.
@@ -149,9 +162,14 @@ async def run_rg(
         await _reap(proc)
         raise
 
-    return RgRunResult(
+    result = RgRunResult(
         returncode=proc.returncode,
-        stderr=stderr_data.decode("utf-8", errors="replace"),
+        stderr=stderr_data.decode("utf-8", errors="replace")[:_STDERR_KEEP_CHARS],
         stopped_early=stopped_early,
         lines_read=lines_read,
     )
+    if result.failed and result.answered:
+        logger.warning(
+            f"ripgrep failed (exit code {result.returncode}) after printing; its output stands: {result.stderr}"
+        )
+    return result

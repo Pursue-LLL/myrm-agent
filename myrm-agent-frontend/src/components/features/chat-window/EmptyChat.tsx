@@ -78,7 +78,7 @@ const EmptyChat = React.memo(() => {
         <div className="flex items-end gap-2 w-full">
           {isCompanionEnabled && <CompanionWidget />}
           <div className="flex-1 min-w-0">
-            <MessageInput loading={false} />
+            <MessageInput loading={false} focusOnMount />
           </div>
         </div>
 

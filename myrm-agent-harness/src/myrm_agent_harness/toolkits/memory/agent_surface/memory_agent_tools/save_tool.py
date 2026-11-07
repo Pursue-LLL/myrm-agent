@@ -49,14 +49,8 @@ from myrm_agent_harness.toolkits.memory.types import MemoryType, RuleSource
 
 class MemorySaveInput(BaseModel):
     content: str = Field(description="Declarative fact text; concise and standalone.")
-    category: Literal["knowledge", "event", "preference", "rule", "instruction"] = Field(
-        default="knowledge",
-        description=("knowledge | event | preference | rule | instruction — see tool description for category guide"),
-    )
-    importance: float = Field(
-        default=0.5,
-        description="0–1 score; primarily for knowledge (see description guide).",
-    )
+    category: Literal["knowledge", "event", "preference", "rule", "instruction"] = Field(default="knowledge")
+    importance: float = Field(default=0.5, description="0–1 score; primarily for knowledge.")
     tags: list[str] | str | None = Field(
         default=None,
         description='Filter labels; knowledge category only (e.g. ["python", "auth"]).',
@@ -71,7 +65,7 @@ class MemorySaveInput(BaseModel):
     )
     rule_trigger: str | None = Field(
         default=None,
-        description="Required when category=rule; do not use for instruction.",
+        description="Required when category=rule.",
     )
     rule_priority: int = Field(
         default=0,

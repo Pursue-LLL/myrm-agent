@@ -162,7 +162,7 @@ class TestSummarizeCircuitBreaker:
         proc = SummarizeProcessor()
         ctx = _make_context()
         with patch(
-            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
             return_value=True,
         ):
             assert await proc.should_process(ctx) is True
@@ -175,7 +175,7 @@ class TestSummarizeCircuitBreaker:
 
         with patch(
             "myrm_agent_harness.agent.context_management.pipeline.processors"
-            ".summarize_processor.generate_structured_summary",
+            ".summarize_processor.guard.generate_structured_summary",
             side_effect=RuntimeError("API down"),
         ):
             result = await proc.process(ctx)
@@ -195,7 +195,7 @@ class TestSummarizeCircuitBreaker:
 
         with patch(
             "myrm_agent_harness.agent.context_management.pipeline.processors"
-            ".summarize_processor.generate_structured_summary",
+            ".summarize_processor.guard.generate_structured_summary",
             return_value=([HumanMessage(content="summarized")], mock_summary),
         ):
             await proc.process(ctx)
@@ -209,7 +209,7 @@ class TestSummarizeCircuitBreaker:
 
         with patch(
             "myrm_agent_harness.agent.context_management.pipeline.processors"
-            ".summarize_processor.generate_structured_summary",
+            ".summarize_processor.guard.generate_structured_summary",
             side_effect=RuntimeError("API down"),
         ):
             for _ in range(MAX_CONSECUTIVE_SUMMARIZE_FAILURES):
@@ -237,7 +237,7 @@ class TestSummarizeCircuitBreaker:
         proc = SummarizeProcessor()
         ctx = _make_context()
         with patch(
-            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
             return_value=True,
         ):
             assert await proc.should_process(ctx) is True
@@ -252,7 +252,7 @@ class TestSummarizeCircuitBreaker:
 
         with patch(
             "myrm_agent_harness.agent.context_management.pipeline.processors"
-            ".summarize_processor.generate_structured_summary",
+            ".summarize_processor.guard.generate_structured_summary",
             side_effect=ValueError("parse error"),
         ):
             result = await proc.process(ctx)
@@ -277,7 +277,7 @@ class TestSummarizeCircuitBreaker:
         with patch("time.time", return_value=time.time() + 3600):
             with patch(
                 "myrm_agent_harness.agent.context_management.pipeline.processors"
-                ".summarize_processor.generate_structured_summary",
+                ".summarize_processor.guard.generate_structured_summary",
                 return_value=([HumanMessage(content="summarized")], mock_summary),
             ):
                 result = await proc.process(ctx)
@@ -298,7 +298,7 @@ class TestSummarizeCircuitBreaker:
         with patch("time.time", return_value=time.time() + 3600):
             with patch(
                 "myrm_agent_harness.agent.context_management.pipeline.processors"
-                ".summarize_processor.generate_structured_summary",
+                ".summarize_processor.guard.generate_structured_summary",
                 side_effect=RuntimeError("still down"),
             ):
                 result = await proc.process(ctx)
@@ -319,7 +319,7 @@ class TestSummarizeCircuitBreaker:
         ctx = _make_context(llm=mock_llm, is_resume=True)
 
         with patch(
-            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.should_summarize",
+            "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor.should_summarize",
             return_value=True,
         ):
             assert await proc.should_process(ctx) is True
@@ -338,7 +338,7 @@ class TestSummarizeCircuitBreaker:
 
         with patch(
             "myrm_agent_harness.agent.context_management.pipeline.processors"
-            ".summarize_processor.generate_structured_summary",
+            ".summarize_processor.guard.generate_structured_summary",
             return_value=([HumanMessage(content="summarized")], mock_summary),
         ):
             result = await proc.process(ctx)
@@ -363,7 +363,7 @@ class TestSummarizeCircuitBreaker:
         with (
             patch(
                 "myrm_agent_harness.agent.context_management.pipeline.processors"
-                ".summarize_processor.generate_structured_summary",
+                ".summarize_processor.guard.generate_structured_summary",
                 side_effect=exc,
             ),
             patch("myrm_agent_harness.observability.auth_detector.detect_auth_failure", return_value=True),

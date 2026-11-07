@@ -11,7 +11,7 @@
 
 [POS]
 Server business layer. Maps Agent profile skill_configs.instance_name to persisted instances.
-Harness consumes the result via factory.py — no harness coupling to Agent DB.
+Harness consumes the result via `general_agent/factory/` — no harness coupling to Agent DB.
 """
 
 from __future__ import annotations

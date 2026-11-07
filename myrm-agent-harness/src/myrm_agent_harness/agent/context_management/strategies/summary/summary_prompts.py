@@ -9,7 +9,7 @@
 - SPLIT_TURN_PROMPT_SUFFIX: Guidance for extracting active turn prefix progress when a single turn exceeds budget
 
 [POS]
-Summarization prompt templates. Defines structured JSON output format (with Handoff fields) and merge rules for summarizer.py.
+Summarization prompt templates. Defines structured JSON output format (with Handoff fields) and merge rules for `summarizer/`.
 
 """
 

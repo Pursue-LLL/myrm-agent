@@ -107,9 +107,6 @@ class ReadOnlyMemoryView(DeniedMemoryWrites, MemoryManager):
             include_agent_instructions=include_agent_instructions,
         )
 
-    async def get_learned_context(self) -> dict[str, list[dict[str, str]]]:
-        return await self._parent.get_learned_context()
-
     async def get_memory(self, memory_id: str) -> AnyMemory | None:
         return await self._parent.get_memory(memory_id)
 

@@ -1,7 +1,7 @@
 """配置解析门面。
 
 [INPUT]
-app.core.channel_bridge.config_parsers.* (POS: 按配置域拆分的解析函数)
+app.core.channel_bridge.config_parsers.* (POS: 按配置域划分的解析函数)
 
 [OUTPUT]
 extract_* / build_* / resolve_* / merge_* / session_policy_from_agent_dict / is_search_user_configured /

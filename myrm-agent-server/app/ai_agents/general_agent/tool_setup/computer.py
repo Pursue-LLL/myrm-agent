@@ -1,4 +1,9 @@
-"""桌面控制工具。
+"""[INPUT]
+- app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
+- app.ai_agents.general_agent.tool_setup.common::_select_image_constraints (POS: 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。)
+
+[OUTPUT]
+- ComputerToolsMixin: 桌面控制工具。
 
 [POS]
 ToolSetupMixin 的一个工具族；由 mixin.py 组合。

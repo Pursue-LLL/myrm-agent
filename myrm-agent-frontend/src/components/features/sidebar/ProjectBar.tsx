@@ -1,39 +1,30 @@
 'use client';
 
 /**
- * [INPUT] @/store/useProjectStore, @/services/projects, @/components/features/project-workspace/ProjectWorkspaceMount
+ * [INPUT] @/store/useProjectStore, @/services/projects, ./ProjectChip, ./ProjectContextMenu,
+ *         @/components/features/project-workspace/ProjectWorkspaceMount
  * [OUTPUT] ProjectBar: 侧边栏项目过滤芯片栏
- * [POS] 在 source filter 下方渲染可选彩色项目芯片；右键「设置工作目录」打开 Mount Wizard。
+ * [POS] 在 source filter 下方渲染可选彩色项目芯片；右键 / 长按打开项目菜单，「设置工作目录」打开 Mount Wizard。
+ *       点击目标：指针设备 24px、手机 40px（芯片、新建与接纳按钮同高）。
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Plus, Pencil, Trash2, FolderOpen, FolderCog, Bot, FolderInput } from 'lucide-react';
+import { Plus, FolderOpen, FolderInput } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/services/projects';
 import { useTranslations } from 'next-intl';
 import ProjectWorkspaceMount from '@/components/features/project-workspace/ProjectWorkspaceMount';
 import ProjectWorkspaceAdoptDialog from '@/components/features/project-workspace/ProjectWorkspaceAdoptDialog';
+import { ProjectChip, ProjectChipInput } from './ProjectChip';
+import { PROJECT_COLORS, ProjectContextMenu } from './ProjectContextMenu';
 import { ProjectDefaultAgentDialog } from './ProjectDefaultAgentDialog';
-
-const PROJECT_COLORS = [
-  '#7cb9ff',
-  '#ff7eb3',
-  '#7afcb4',
-  '#ffd97c',
-  '#c4b5fd',
-  '#fb923c',
-  '#67e8f9',
-  '#f87171',
-  '#a3e635',
-  '#e879f9',
-];
 
 interface ProjectBarProps {
   isMobile?: boolean;
 }
 
-export default function ProjectBar({ isMobile }: ProjectBarProps) {
+export default function ProjectBar({ isMobile = false }: ProjectBarProps) {
   const t = useTranslations();
   const { projects, activeFilter, loaded, fetchProjects, setActiveFilter, addProject, updateProject, removeProject } =
     useProjectStore();
@@ -138,7 +129,10 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
       <div className="flex items-center px-2 pb-1">
         <button
           onClick={() => setShowInput(true)}
-          className="flex h-6 items-center gap-1.5 rounded-lg px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground pointer-coarse:h-8 dark:hover:bg-white/6"
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-1.5 text-muted-foreground transition-colors hover:bg-black/4 hover:text-foreground dark:hover:bg-white/6',
+            isMobile ? 'h-10 text-xs' : 'h-6 text-[11px] pointer-coarse:h-8',
+          )}
         >
           <FolderOpen size={12} />
           <span>{t('project.addFirst')}</span>
@@ -147,49 +141,51 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
     );
   }
 
+  const adderClass = cn(
+    'flex items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5',
+    isMobile ? 'size-10' : 'size-6',
+  );
+  const adderIconSize = isMobile ? 18 : 14;
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
+  };
+  const cancelAdd = () => {
+    setShowInput(false);
+    setInputValue('');
+  };
+
   return (
     <div className="px-2 pb-1.5">
       <div className="flex items-center gap-1 flex-wrap">
         {/* All filter chip */}
-        <ChipButton active={activeFilter === undefined} onClick={() => setActiveFilter(undefined)} isMobile={isMobile}>
+        <ProjectChip active={activeFilter === undefined} onClick={() => setActiveFilter(undefined)} isMobile={isMobile}>
           {t('project.all')}
-        </ChipButton>
+        </ProjectChip>
 
         {/* Unassigned filter */}
-        <ChipButton
+        <ProjectChip
           active={activeFilter === null}
           onClick={() => setActiveFilter(activeFilter === null ? undefined : null)}
           isMobile={isMobile}
         >
           {t('project.unassigned')}
-        </ChipButton>
+        </ProjectChip>
 
         {/* Project chips */}
         {projects.map((project) =>
           editingId === project.id ? (
-            <input
+            <ProjectChipInput
               key={project.id}
-              ref={editInputRef}
+              inputRef={editInputRef}
               value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              onBlur={handleEditSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleEditSubmit();
-                }
-                if (e.key === 'Escape') {
-                  setEditingId(null);
-                  setEditingName('');
-                }
-              }}
-              className={cn(
-                'h-5 px-1.5 text-[10px] rounded-full border border-primary/30 bg-transparent outline-none',
-                'w-16 min-w-0',
-                isMobile && 'text-[9px] h-4',
-              )}
+              isMobile={isMobile}
+              onChange={setEditingName}
+              onSubmit={handleEditSubmit}
+              onCancel={cancelEdit}
             />
           ) : (
-            <ChipButton
+            <ProjectChip
               key={project.id}
               active={activeFilter === project.id}
               color={project.color}
@@ -198,50 +194,32 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
               isMobile={isMobile}
             >
               {project.name}
-            </ChipButton>
+            </ProjectChip>
           ),
         )}
 
         {/* Add button or input */}
         {showInput ? (
-          <div className="flex items-center gap-0.5">
-            <input
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onBlur={handleAddSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleAddSubmit();
-                }
-                if (e.key === 'Escape') {
-                  setShowInput(false);
-                  setInputValue('');
-                }
-              }}
-              placeholder={t('project.namePlaceholder')}
-              className={cn(
-                'h-5 px-1.5 text-[10px] rounded-full border border-primary/30 bg-transparent outline-none placeholder:text-muted-foreground/40',
-                'w-16 min-w-0',
-                isMobile && 'text-[9px] h-4',
-              )}
-            />
-          </div>
+          <ProjectChipInput
+            inputRef={inputRef}
+            value={inputValue}
+            placeholder={t('project.namePlaceholder')}
+            isMobile={isMobile}
+            onChange={setInputValue}
+            onSubmit={handleAddSubmit}
+            onCancel={cancelAdd}
+          />
         ) : (
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowInput(true)}
-              title={t('project.newProject')}
-              className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            >
-              <Plus size={10} className="text-muted-foreground/50" />
+            <button onClick={() => setShowInput(true)} title={t('project.newProject')} className={adderClass}>
+              <Plus size={adderIconSize} />
             </button>
             <button
               onClick={() => setAdoptDialogOpen(true)}
               title={t('project.workspaceMount.adoptFolder')}
-              className="flex items-center justify-center w-5 h-5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-muted-foreground/50 hover:text-primary"
+              className={cn(adderClass, 'hover:text-primary')}
             >
-              <FolderInput size={11} />
+              <FolderInput size={adderIconSize} />
             </button>
           </div>
         )}
@@ -249,11 +227,12 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
 
       {/* Context menu */}
       {contextMenu && contextMenuProject && (
-        <ContextMenu
+        <ProjectContextMenu
           ref={menuRef}
           project={contextMenuProject}
           x={contextMenu.x}
           y={contextMenu.y}
+          isMobile={isMobile}
           onEdit={(p) => {
             setEditingId(p.id);
             setEditingName(p.name);
@@ -272,7 +251,6 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             setDefaultAgentProject(p);
             setContextMenu(null);
           }}
-          t={t}
         />
       )}
 
@@ -308,124 +286,3 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
     </div>
   );
 }
-
-function ChipButton({
-  active,
-  color,
-  onClick,
-  onContextMenu,
-  children,
-  isMobile,
-}: {
-  active: boolean;
-  color?: string;
-  onClick: () => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
-  children: React.ReactNode;
-  isMobile?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      className={cn(
-        'h-5 px-2 rounded-full text-[10px] font-medium transition-all whitespace-nowrap select-none',
-        'border border-transparent',
-        active
-          ? color
-            ? 'text-white'
-            : 'text-[var(--accent-warm-foreground)]'
-          : 'text-muted-foreground/70 hover:text-foreground bg-black/4 dark:bg-white/6 hover:bg-black/8 dark:hover:bg-white/10',
-        isMobile && 'text-[9px] h-4 px-1.5',
-      )}
-      style={
-        active && color
-          ? { backgroundColor: color, borderColor: color }
-          : active
-            ? { backgroundColor: 'var(--accent-warm)', borderColor: 'var(--accent-warm)' }
-            : undefined
-      }
-    >
-      {color && !active && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ backgroundColor: color }} />
-      )}
-      {children}
-    </button>
-  );
-}
-
-interface ContextMenuProps {
-  project: Project;
-  x: number;
-  y: number;
-  onEdit: (p: Project) => void;
-  onDelete: (p: Project) => void;
-  onChangeColor: (p: Project, color: string) => void;
-  onSetWorkspace: (p: Project) => void;
-  onSetDefaultAgent: (p: Project) => void;
-  t: ReturnType<typeof useTranslations>;
-}
-
-const ContextMenu = ({
-  project,
-  x,
-  y,
-  onEdit,
-  onDelete,
-  onChangeColor,
-  onSetWorkspace,
-  onSetDefaultAgent,
-  t,
-  ref,
-}: ContextMenuProps & { ref: React.Ref<HTMLDivElement> }) => {
-  return (
-    <div
-      ref={ref}
-      className="fixed z-50 min-w-[140px] rounded-lg border border-border/50 bg-popover/95 backdrop-blur-sm shadow-lg py-1 text-xs"
-      style={{ left: x, top: y }}
-    >
-      <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
-        onClick={() => onEdit(project)}
-      >
-        <Pencil size={12} /> {t('project.rename')}
-      </button>
-      <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
-        onClick={() => onSetWorkspace(project)}
-      >
-        <FolderCog size={12} /> {t('project.setWorkspace')}
-      </button>
-      <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
-        onClick={() => onSetDefaultAgent(project)}
-      >
-        <Bot size={12} /> {t('project.setDefaultAgent')}
-      </button>
-      <div className="px-3 py-1.5">
-        <div className="flex gap-1 flex-wrap">
-          {PROJECT_COLORS.map((c) => (
-            <button
-              key={c}
-              aria-label={c}
-              aria-pressed={project.color === c}
-              onClick={() => onChangeColor(project, c)}
-              className={cn(
-                'w-4 h-4 rounded-full transition-transform hover:scale-125',
-                project.color === c && 'ring-2 ring-offset-1 ring-foreground/30',
-              )}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="my-0.5 border-t border-border/30" />
-      <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-destructive/10 text-destructive transition-colors text-left"
-        onClick={() => onDelete(project)}
-      >
-        <Trash2 size={12} /> {t('project.delete')}
-      </button>
-    </div>
-  );
-};

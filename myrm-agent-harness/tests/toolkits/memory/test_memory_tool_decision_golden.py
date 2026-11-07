@@ -60,7 +60,7 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
     MemoryDecisionScenario(
         "task_progress_is_not_a_memory",
         "none",
-        save_fragments_en=("Task progress, session outcomes, or completed-work logs",),
+        save_fragments_en=("Task progress, session outcomes, completed-work logs",),
         save_fragments_zh=("任务进度、会话结果、已完成工作日志",),
         manage_fragments_en=("Task progress or chat history (not memories)",),
         manage_fragments_zh=("任务进度或聊天历史（不是记忆）",),
@@ -68,8 +68,8 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
     MemoryDecisionScenario(
         "new_preference",
         "memory_save_tool",
-        save_fragments_en=("preference:", "preference_key"),
-        save_fragments_zh=("preference", "preference_key"),
+        save_fragments_en=("preference:",),
+        save_fragments_zh=("preference",),
     ),
     MemoryDecisionScenario(
         "conditional_rule",
@@ -127,17 +127,13 @@ GOLDEN_MEMORY_DECISIONS: tuple[MemoryDecisionScenario, ...] = (
         "third_party_attribution",
         "memory_save_tool",
         save_fragments_en=("NEVER attribute a third party",),
-        save_fragments_zh=("绝不要把第三方的特质",),
+        save_fragments_zh=("绝不要把第三方",),
     ),
     MemoryDecisionScenario(
         "declarative_not_command",
         "memory_save_tool",
-        save_fragments_en=(
-            "write as declarative facts, not instructions",
-            "instruction-style, gets misinterpreted as a command",
-            "focused on durable facts",
-        ),
-        save_fragments_zh=("写陈述性事实，不要写指令", "指令式，易被误解为命令", "聚焦持久事实"),
+        save_fragments_en=("one standalone declarative fact per entry", "focused on durable facts"),
+        save_fragments_zh=("一条可独立理解的陈述性事实", "聚焦持久事实"),
     ),
     MemoryDecisionScenario(
         "manage_not_for_new_fact",
@@ -216,6 +212,14 @@ class TestMemoryToolDecisionGolden:
             text = MEMORY_MANAGE_TOOL_DESCRIPTION_ZH
             for fragment in scenario.manage_fragments_zh:
                 assert fragment in text, f"{scenario.scenario_id}: missing manage ZH fragment {fragment!r}"
+
+    def test_category_bound_fields_name_their_category_in_the_schema(self) -> None:
+        """The key a preference needs and the trigger a rule needs are stated once, next to the field."""
+        from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.save_tool import MemorySaveInput
+
+        properties = MemorySaveInput.model_json_schema()["properties"]
+        assert "category=preference" in properties["preference_key"]["description"]
+        assert "category=rule" in properties["rule_trigger"]["description"]
 
     def test_save_core_does_not_leak_manage_implementation_details(self) -> None:
         forbidden = ("demotes", "low confidence", "correction memory linked")

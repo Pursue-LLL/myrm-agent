@@ -98,7 +98,6 @@ def flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_Flow]:
 
     memory_manager = MagicMock()
     memory_manager.get_context = AsyncMock(return_value={"global_profile": {"name": "Ada"}})
-    memory_manager.get_learned_context = AsyncMock(return_value={})
     monkeypatch.setattr(
         "app.services.agent.stream_session.memory_brief.create_memory_manager", AsyncMock(return_value=memory_manager)
     )

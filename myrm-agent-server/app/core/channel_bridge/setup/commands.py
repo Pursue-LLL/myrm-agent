@@ -1,4 +1,10 @@
-"""Agent 路由命令与技能命令绑定。
+"""[INPUT]
+- app.core.channel_bridge::channel_gateway (POS: Application-level channel gateway singleton.)
+
+[OUTPUT]
+- _build_agent_route_commands: Build agent routing slash commands for this deployment.
+- _load_skill_command_bindings: Load skill command bindings from all agent profiles.
+- reload_skill_command_bindings: Reload skill command bindings from DB and update the live CommandRegistry.
 
 [POS]
 channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。

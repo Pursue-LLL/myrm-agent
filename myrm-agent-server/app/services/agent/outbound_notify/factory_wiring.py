@@ -8,7 +8,7 @@
 - append_channel_notify_tool(): Append tool to Turn1 tools when targets exist; returns allowed target count (0 = not loaded).
 
 [POS]
-Single SSOT for factory.py and integration tests — avoids duplicated wiring logic.
+Single SSOT for `general_agent/factory/` and integration tests — avoids duplicated wiring logic.
 """
 
 from __future__ import annotations

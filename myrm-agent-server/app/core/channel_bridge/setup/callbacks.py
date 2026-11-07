@@ -1,4 +1,11 @@
-"""频道状态、连接与群组变更回调。
+"""[INPUT]
+- app.channels.types::ChannelStatus (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.services.event.app_event_bus::AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus / AppEvent / AppEventType / get_event_bus (POS: Business-layer SSE bus (`ServerEventBus = PubSubBus[AppEvent]`). Kanban, memory, skills, channels publish AppEvent;)
+
+[OUTPUT]
+- _on_channel_status_change: Publish channel status change events to SSE.
+- _on_connection_change: Publish channel connection state change events to SSE.
+- _on_groups_change: Publish groups list update events to SSE.
 
 [POS]
 channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。

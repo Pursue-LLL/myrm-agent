@@ -81,7 +81,7 @@ SQLite table `web_push_subscriptions`:
 
 ## Lifecycle
 
-- Started in `app/core/channel_bridge/setup.py` after NotificationDispatcher and BtwTaskNotifier
+- Started in `app/core/channel_bridge/setup/` after NotificationDispatcher and BtwTaskNotifier
 - Stopped before BtwTaskNotifier during shutdown
 
 ## API Endpoints (app/api/web_push/)

@@ -1,4 +1,8 @@
-"""蓝图补充文案的类型。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- BlueprintLocaleSupplement: BlueprintLocaleSupplement
 
 [POS]
 蓝图 i18n 子包共用类型；不包含任何具体文案。

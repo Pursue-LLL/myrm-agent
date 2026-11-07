@@ -1,4 +1,23 @@
-"""Wiki 编译队列、待审编辑、修复与向量重建路由。
+"""[INPUT]
+- myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map::WikiMapEventType (POS: OKF 认知地图模块入口。提供 wiki/index.md, wiki/log.md, wiki/hot.md 与 wiki/SCHEMA.md 的确定性免 LLM 构建与刷新。)
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.routes::vault_effects (POS: Wiki API route submodules.)
+- app.api.wiki.routes.response_mappers::_compile_run_response (POS: 把服务层结果转换成 API 响应模型；只做转换，不读写磁盘、不发请求。)
+- app.api.wiki.routes.schemas::ApprovePendingEditRequest / OperationResult / PendingEditsResponse / QueueStatusResponse / ReindexVectorsResponse / RepairPublicationResponse / RepairTypesResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- get_queue_status: Get ingestion queue statistics and pending items.
+- cancel_queue: Cancel all pending ingestion jobs.
+- retry_queue_failed: Reset transient failed jobs back to pending.
+- retry_queue_failed_all: Reset all failed jobs back to pending.
+- resume_compile_circuit: Resume compile worker after a circuit pause.
+- get_pending_edits: Get stats and one page of pending Wiki edits (HITL); stats stay exact.
+- approve_pending_edit: Approve a pending edit and merge it to the wiki.
+- reject_pending_edit: Reject a pending edit.
+- repair_wiki_frontmatter_types: Repair missing or invalid frontmatter `type` across concept and raw markdown files.
+- repair_wiki_publication: Grandfather missing publish_status; preserve intentional draft/blocked pages and reindex.
+- reindex_wiki_vectors: Rebuild published concept, sidecar, and optional asset vectors with the current embedding model.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

@@ -48,7 +48,6 @@ class TestEndSession:
     @pytest.mark.asyncio
     async def test_a_failing_preference_rebuild_never_breaks_the_session_end(self, manager):
         strategy = AsyncMock()
-        strategy.get_active_preferences.return_value = []
         strategy.micro_rebuild.side_effect = RuntimeError("store unavailable")
         manager._preference_strategy = strategy
         manager.begin_session("chat-1")

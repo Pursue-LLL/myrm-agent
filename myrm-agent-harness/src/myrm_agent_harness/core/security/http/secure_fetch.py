@@ -3,12 +3,14 @@
 [INPUT]
 - myrm_agent_harness.core.security.guards.ssrf::async_pin_url (POS: DNS-pinned URL validation)
 - myrm_agent_harness.core.security.guards.ssrf::SSRFSecurityError (POS: blocked URL errors)
+- myrm_agent_harness.utils.url_syntax::canonical_hostname (POS: the canonical spelling of a host, the one the SSRF guard compares)
 
 [OUTPUT]
 - secure_get / secure_request: SSRF-safe HTTP with manual redirect loop
 - resolve_secure_http_target: pinned target for streaming callers
 - ContentTooLargeError: raised when a response body exceeds max_content_length
 - DEFAULT_MAX_CONTENT_LENGTH: secure-by-default response body cap (20 MB)
+- parse_allowed_internal_hosts: the MYRM_ALLOWED_INTERNAL_HOSTS entries in canonical spelling
 
 [POS]
 Shared outbound HTTP primitive for all harness and server paths that must not bypass SSRF guards.
@@ -32,6 +34,7 @@ from myrm_agent_harness.core.security.http.redirect_guard import (
     strip_sensitive_headers_on_redirect,
 )
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
+from myrm_agent_harness.utils.url_syntax import canonical_hostname
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +66,9 @@ def is_ssrf_shield_enabled() -> bool:
 def parse_allowed_internal_hosts() -> list[str]:
     """Parse MYRM_ALLOWED_INTERNAL_HOSTS env var into a host list."""
     raw = os.getenv("MYRM_ALLOWED_INTERNAL_HOSTS", "")
-    return [host.strip() for host in raw.split(",") if host.strip()]
+    # An entry that names no host stays as written and exempts nothing: the fallback of ``domain_match.canonical_name``
+    # would round ``example.com..`` to ``example.com`` and exempt a real host.
+    return [canonical_hostname(host.strip()) or host.strip() for host in raw.split(",") if host.strip()]
 
 
 async def _pin_or_passthrough(

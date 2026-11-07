@@ -1,4 +1,10 @@
-"""图像、视频与 TTS 工具。
+"""[INPUT]
+- app.ai_agents.general_agent.tool_setup::tool_setup_common (POS: `app.ai_agents.general_agent.tool_setup` 的唯一入口；实现按工具族分层。)
+- app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
+- app.ai_agents.general_agent.tool_setup.common::_is_media_credential_configured / _video_generation_credential_configured (POS: 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。)
+
+[OUTPUT]
+- MediaToolsMixin: 图像、视频与 TTS 工具。
 
 [POS]
 ToolSetupMixin 的一个工具族；由 mixin.py 组合。

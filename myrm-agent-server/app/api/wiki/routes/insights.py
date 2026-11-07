@@ -1,4 +1,23 @@
-"""Wiki 目的、图谱洞察、研究、artifact ingest 与图谱路由。
+"""[INPUT]
+- myrm_agent_harness.toolkits.memory::MemoryManager (POS: Pluggable memory system for AI agents.)
+- app.api.dependencies::get_optional_llm_for_user (POS: API 层统一依赖注入入口。所有 FastAPI 端点的依赖应从此模块导入。)
+- app.api.memory.utils::get_optional_memory_manager (POS: Memory API utilities — re-exports shared service-layer helpers for route modules.)
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.api.wiki.routes.schemas::GraphEdgeItem / GraphNodeItem / OperationResult / WikiGraphResponse (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- PurposeResponse: PurposeResponse
+- PurposeUpdateRequest: PurposeUpdateRequest
+- get_wiki_purpose: Get the knowledge base purpose/direction.
+- update_wiki_purpose: Update the knowledge base purpose/direction.
+- GraphInsightsResponse: GraphInsightsResponse
+- get_graph_insights: Get graph structure insights: unexpected connections, knowledge gaps, communities.
+- ResearchTopicRequest: ResearchTopicRequest
+- research_topic_into_wiki: Research a topic via web search and ingest results into the wiki.
+- IngestArtifactRequest: IngestArtifactRequest
+- ingest_artifact: Ingest an artifact's content into the wiki knowledge base.
+- get_wiki_graph: Fetch the full or progressive topology graph in O(1) DB read time.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

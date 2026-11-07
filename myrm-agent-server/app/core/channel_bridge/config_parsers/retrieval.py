@@ -1,4 +1,12 @@
-"""检索（embedding / reranker）配置解析。
+"""[INPUT]
+- app.core.channel_bridge.config_parsers.common::_PROVIDER_API_BASES (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
+- app.core.channel_bridge.model_resolver::_to_route_model_id (POS: Aggregate exit of the model resolver package; import path unchanged.)
+
+[OUTPUT]
+- extract_retrieval_models: Extract EmbeddingConfig and RerankerConfig from the frontend's retrieval config.
+- _build_embedding_config: Build EmbeddingConfig from retrieval dict.
+- _build_reranker_config: Build RerankerConfig from retrieval dict.
+- _parse_retrieval_params: Parse model/api_key/api_base from a single retrieval sub-config.
 
 [POS]
 channel_bridge 配置解析包的子模块；只服务 retrieval 配置。

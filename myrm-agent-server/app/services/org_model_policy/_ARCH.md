@@ -16,5 +16,5 @@ Server 业务层 org model policy SSOT：进程内 revision 供 execution cache 
 
 - 写入 revision：`app/api/internal/org_model_policy_sync.py`（CP POST sync）
 - 读取 revision：`app/services/agent/execution_cache/fingerprint.py`
-- 调用 enforce：`app/ai_agents/general_agent/factory.py`（agent build 薄委托）
+- 调用 enforce：`app/ai_agents/general_agent/factory/`（agent build 薄委托）
 - 测试：`tests/services/org_model_policy/test_enforce.py` · `test_normalize.py`

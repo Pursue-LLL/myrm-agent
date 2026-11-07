@@ -14,56 +14,36 @@ English half of the memory tool description SSOT; composed by ``_memory_agent_to
 MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across sessions and is injected into future conversations, so keep entries compact and focused on durable facts: one standalone declarative fact per entry.
 
 **WHEN TO SAVE** (do this proactively):
-- User explicitly says "remember this", "note this", "don't forget"
+- User says "remember this" or "don't forget", or sets a rule: "always do X" / "never do Y"
 - User corrects your behavior or output style (agent conduct — not a stored fact correction; see below)
-- User shares a stable preference, habit, or personal detail (name, role, timezone)
-- You discover something about the user's environment or project that won't change soon
-- User sets a rule: "always do X" / "never do Y"
+- User shares a stable preference, habit, or personal detail (name, role, timezone), or you discover a lasting fact about their environment or project
 
 **WHEN NOT TO USE THIS TOOL**:
 - An existing recalled memory fact is wrong → use memory_manage_tool with action=correct (do not save a duplicate)
-- Task progress, session outcomes, or completed-work logs
-- Temporary state: PR numbers, commit SHAs, current file paths, WIP items
+- Task progress, session outcomes, completed-work logs, or temporary state (PR numbers, commit SHAs, current file paths, WIP items)
 - Real-time business states: order/logistics tracking, live account balances, OTP/verification codes, temporary download or queue links — query live integrations instead
 - Information that will be stale within a week
-- Step-by-step procedures or workflows (not suitable for memory)
-- Raw data dumps, code snippets, or lengthy text
+- Step-by-step procedures or workflows, raw data dumps, code snippets, or lengthy text
 - Do not retry identical content if the tool reports a duplicate
 
-**CONTENT QUALITY** — write as declarative facts, not instructions:
-- GOOD: "User prefers dark themes" (declarative fact)
-- BAD: "Always use dark theme" (instruction-style, gets misinterpreted as a command)
-- One fact per memory entry; include enough context to be useful standalone
-
-**ATTRIBUTION & TRANSIENT STATES** (CRITICAL):
-- Strictly distinguish the user from third parties (family, friends, colleagues). NEVER attribute a third party's traits, illnesses, or preferences to the user (e.g., "User's boss prefers dark mode", NOT "User prefers dark mode").
-- DO NOT save transient emotional or psychological states (e.g., "User is feeling anxious today") unless explicitly stated as a chronic condition.
+**ATTRIBUTION & TRANSIENT STATES** (CRITICAL): NEVER attribute a third party's (family, friends, colleagues) traits, illnesses, or preferences to the user (e.g., "User's boss prefers dark mode", NOT "User prefers dark mode"). Do not save transient emotional states (e.g., "User is feeling anxious today") unless stated as a chronic condition.
 
 **CATEGORY GUIDE** (pick one):
-- knowledge: stable facts about user's world (project tech stack, environment details) — tags and importance apply here
+- knowledge: stable facts about user's world (project tech stack, environment details)
 - event: significant past occurrences worth recalling (e.g., user started new project) — do not specify importance or tags for events
-- preference: user likes/dislikes (requires preference_key)
+- preference: user likes/dislikes
 - rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority)
 - instruction: unconditional global rules that always apply (e.g., "always reply in Chinese") — do not set rule_trigger
 
-**IMPORTANCE SCORING** (0–1, primarily for knowledge):
-- 0.8–1.0: User explicitly asked to remember / correction of your behavior
-- 0.5–0.7: Inferred stable preference or environment fact
-- 0.2–0.4: Supplementary context, nice-to-have
+**IMPORTANCE** (0–1, primarily for knowledge): 0.8–1.0 the user explicitly asked to remember it, or corrected your behavior; 0.5–0.7 an inferred stable preference or environment fact; 0.2–0.4 supplementary context.
 
 **WRITE TARGET**:
 - "bound" (default): visible only to the current agent persona
-- "shared": cross-agent knowledge (user's name, timezone) — use sparingly
-
-Parameter semantics are in the tool schema."""
+- "shared": cross-agent knowledge (user's name, timezone) — use sparingly"""
 
 MEMORY_MANAGE_TOOL_DESCRIPTION_EN = """Update, delete, correct, or rate an existing memory from memory_search_tool results.
 
-**WHEN TO USE** (not memory_save_tool):
-- User says "forget that", "that's wrong", or "remove that memory"
-- A recalled memory is outdated or inaccurate → correct
-- A memory needs minor wording fix or weight change → update
-- User confirms a memory was helpful → rate (reinforces retrieval ranking)
+**WHEN TO USE** (not memory_save_tool): the user says "forget that", "that's wrong", or "remove that memory"; a recalled memory is outdated or inaccurate (correct) or needs only a wording fix (update); or the user confirms it was helpful (rate: reinforces retrieval ranking).
 
 **WHEN NOT TO USE**:
 - Storing new facts, preferences, or rules → memory_save_tool
@@ -71,9 +51,9 @@ MEMORY_MANAGE_TOOL_DESCRIPTION_EN = """Update, delete, correct, or rate an exist
 - A [preference] result: a profile attribute has no manageable id — change it by saving the same preference_key again with memory_save_tool; the agent cannot delete one
 
 **ACTION GUIDE**:
-- delete: remove a memory (memories the user protected cannot be deleted by the agent)
-- update: tweak wording or importance only — fact remains true (e.g., fix typo "Pyhton" -> "Python"); requires new_content; a memory the user protected cannot be updated by the agent — ask the user to release the protection first
-- correct: replace an outdated or wrong fact with the new truth (e.g., "User lives in Beijing" -> "User moved to Shanghai") — knowledge memories only; requires new_content; preserves history; use instead of memory_save_tool when correcting existing memories; a memory the user protected cannot be corrected by the agent — ask the user to release the protection first
+- delete: remove a memory
+- update: tweak wording or importance only — fact remains true (e.g., fix typo "Pyhton" -> "Python")
+- correct: replace an outdated or wrong fact with the new truth (e.g., "User lives in Beijing" -> "User moved to Shanghai") — knowledge memories only; preserves history; use instead of memory_save_tool when correcting existing memories
 - rate: record user feedback — knowledge or event memories only; requires rating_score 1-5 (1=poor, 5=excellent)
 
-Parameter semantics are in the tool schema."""
+A memory the user protected cannot be updated, corrected, or deleted by the agent — ask the user to release the protection first."""

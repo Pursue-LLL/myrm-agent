@@ -30,7 +30,7 @@ class MemoryManageInput(BaseModel):
     memory_id: str = Field(description="Memory ID from memory_search_tool results.")
     new_content: str | None = Field(
         default=None,
-        description=("Required for update (wording/importance) and correct (wrong fact, knowledge only)."),
+        description="Required for update and correct.",
     )
     new_importance: float | None = Field(
         default=None,

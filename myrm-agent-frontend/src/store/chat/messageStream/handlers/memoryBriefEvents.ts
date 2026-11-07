@@ -25,7 +25,6 @@ function normalizeMemoryBrief(raw: unknown): MemoryBriefData | null {
     return null;
   }
   const stableRaw = obj.stable && typeof obj.stable === 'object' ? (obj.stable as Record<string, unknown>) : {};
-  const learnedRaw = obj.learned && typeof obj.learned === 'object' ? (obj.learned as Record<string, unknown>) : {};
   return {
     snapshot_id: snapshotId,
     generated_at_ms: typeof obj.generated_at_ms === 'number' ? obj.generated_at_ms : Date.now(),
@@ -33,16 +32,9 @@ function normalizeMemoryBrief(raw: unknown): MemoryBriefData | null {
     is_cold_start: Boolean(obj.is_cold_start),
     stable: {
       working_state: Boolean(stableRaw.working_state),
-      profile_keys: _asStringArray(stableRaw.profile_keys),
+      profile_count: typeof stableRaw.profile_count === 'number' ? stableRaw.profile_count : 0,
       instruction_count: typeof stableRaw.instruction_count === 'number' ? stableRaw.instruction_count : 0,
       rule_count: typeof stableRaw.rule_count === 'number' ? stableRaw.rule_count : 0,
-    },
-    learned: {
-      preference_count: typeof learnedRaw.preference_count === 'number' ? learnedRaw.preference_count : 0,
-      rule_count: typeof learnedRaw.rule_count === 'number' ? learnedRaw.rule_count : 0,
-      correction_count: typeof learnedRaw.correction_count === 'number' ? learnedRaw.correction_count : 0,
-      preference_ids: _asStringArray(learnedRaw.preference_ids),
-      rule_ids: _asStringArray(learnedRaw.rule_ids),
     },
   };
 }

@@ -1,7 +1,20 @@
-"""蓝图核心：数据结构、能力常量与注册/填充逻辑。
+"""[INPUT]
+- app.core.cron.blueprints.core.registry::BUILTIN_BLUEPRINTS / fill_blueprint / get_blueprint / get_blueprints_for_tool_description (POS: Cron blueprint single-source-of-truth definitions.)
+- app.core.cron.blueprints.core.types::BlueprintFailureAlertDefaults / BlueprintFillError / BlueprintFillResult / BlueprintJobDefaults / BlueprintMonitorDefaults / BlueprintScheduleResult / BlueprintSlot / CronBlueprint (POS: 蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。)
 
 [OUTPUT]
-BUILTIN_BLUEPRINTS / get_blueprint / fill_blueprint / get_blueprints_for_tool_description 与 CronBlueprint 等蓝图数据类型
+- BUILTIN_BLUEPRINTS
+- fill_blueprint
+- get_blueprint
+- get_blueprints_for_tool_description
+- BlueprintFailureAlertDefaults
+- BlueprintFillError
+- BlueprintFillResult
+- BlueprintJobDefaults
+- BlueprintMonitorDefaults
+- BlueprintScheduleResult
+- BlueprintSlot
+- CronBlueprint
 
 [POS]
 `app.core.cron.blueprints.core` 的唯一入口；类型定义在 `types.py`，注册与填充校验在 `registry.py`。

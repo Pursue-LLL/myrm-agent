@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import MemoryInsightPanel from '../MemoryInsightPanel';
 
+vi.mock('@/hooks/ui/useMediaQuery', () => ({
+  useMediaQuery: () => false,
+}));
+
 let originalResizeObserver: typeof globalThis.ResizeObserver | undefined;
 
 describe('MemoryInsightPanel interaction', () => {

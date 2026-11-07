@@ -82,8 +82,6 @@ def memory_manager() -> Iterator[MagicMock]:
     manager = MagicMock()
     manager.recall_mode = RecallMode.HYBRID
     manager.user_id = "u1"
-    manager._config.max_learned_context_chars = 2000
-    manager._config.model_context_tokens = 8000
     set_memory_manager(manager)
     try:
         yield manager

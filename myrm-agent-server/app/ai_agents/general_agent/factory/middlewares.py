@@ -1,4 +1,8 @@
-"""GeneralAgent 的中间件组装。
+"""[INPUT]
+- app.ai_agents.general_agent.factory.runtime::SandboxRuntime (POS: 装配第三阶段；只创建执行资源，不组装中间件或提示词。)
+
+[OUTPUT]
+- build_agent_middlewares: build_agent_middlewares
 
 [POS]
 装配第四阶段；把记忆回调、护栏、上下文管线与 MoA 组装成有序中间件列表。

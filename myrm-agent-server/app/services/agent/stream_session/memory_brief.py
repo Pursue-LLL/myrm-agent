@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -25,34 +24,8 @@ from app.core.memory.adapters.setup import create_memory_manager, resolve_contex
 logger = logging.getLogger(__name__)
 
 MemoryContextPayload = dict[str, object]
-LearnedMemoryItem = dict[str, str]
-LearnedMemoryPayload = dict[str, list[LearnedMemoryItem]]
 MemoryBriefPreview = dict[str, object]
 MemoryBriefSnapshot = dict[str, object]
-
-
-def _normalize_learned_payload(raw: object) -> LearnedMemoryPayload:
-    if not isinstance(raw, dict):
-        return {"learned_rules": [], "learned_preferences": []}
-    learned_rules_raw = raw.get("learned_rules", [])
-    learned_prefs_raw = raw.get("learned_preferences", [])
-    learned_rules = [item for item in learned_rules_raw if isinstance(item, dict)]
-    learned_prefs = [item for item in learned_prefs_raw if isinstance(item, dict)]
-    return {
-        "learned_rules": learned_rules,
-        "learned_preferences": learned_prefs,
-    }
-
-
-def _safe_ids(items: list[dict[str, str]], *, limit: int = 3) -> list[str]:
-    output: list[str] = []
-    for item in items:
-        mem_id = item.get("id")
-        if isinstance(mem_id, str) and mem_id.strip():
-            output.append(mem_id.strip())
-        if len(output) >= limit:
-            break
-    return output
 
 
 def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
@@ -61,58 +34,39 @@ def _snapshot_id(memory_ctx: MemoryContextPayload) -> str:
     return hashlib.blake2s(raw, digest_size=10).hexdigest()
 
 
+def _entry_count(value: object) -> int:
+    """Entries in a profile mapping or a rule/instruction list; any other shape carries none."""
+    return len(value) if isinstance(value, (dict, list)) else 0
+
+
 def _build_preview(
     *,
     snapshot_id: str,
     namespaces: list[str],
     memory_ctx: MemoryContextPayload,
-    learned_ctx: LearnedMemoryPayload,
 ) -> MemoryBriefPreview:
-    global_profile = memory_ctx.get("global_profile")
-    if isinstance(global_profile, dict):
-        profile_keys = sorted(str(key) for key in global_profile.keys())[:5]
-    else:
-        profile_keys = []
+    # The model is given every profile fact whichever namespace holds it: "global_profile" holds the global namespace,
+    # "peer_profile" every other one (facts saved in chat land there). Counting one side would report an empty profile
+    # for a user whose memory is in use.
+    profile_count = _entry_count(memory_ctx.get("global_profile")) + _entry_count(memory_ctx.get("peer_profile"))
+    instructions_count = _entry_count(memory_ctx.get("agent_instructions"))
+    rules_count = _entry_count(memory_ctx.get("rules"))
+    working_state_text = memory_ctx.get("working_state")
+    working_state = isinstance(working_state_text, str) and bool(working_state_text)
 
-    instructions = memory_ctx.get("agent_instructions")
-    rules = memory_ctx.get("rules")
-    learned_prefs = learned_ctx.get("learned_preferences", [])
-    learned_rules = learned_ctx.get("learned_rules", [])
-
-    instructions_count = len(instructions) if isinstance(instructions, list) else 0
-    rules_count = len(rules) if isinstance(rules, list) else 0
-    correction_count = sum(1 for item in learned_prefs if item.get("source_error"))
-    working_state = bool(memory_ctx.get("working_state"))
-
-    is_cold_start = (
-        not working_state
-        and not profile_keys
-        and instructions_count == 0
-        and rules_count == 0
-        and len(learned_prefs) == 0
-        and len(learned_rules) == 0
-    )
-
-    preview_data: MemoryBriefPreview = {
+    return {
         "snapshot_id": snapshot_id,
         "generated_at_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
         "namespaces": namespaces,
-        "is_cold_start": is_cold_start,
+        # Same rule as the injected block: it falls back to discovery guidance only when no section has content.
+        "is_cold_start": not (working_state or profile_count or instructions_count or rules_count),
         "stable": {
             "working_state": working_state,
-            "profile_keys": profile_keys,
+            "profile_count": profile_count,
             "instruction_count": instructions_count,
             "rule_count": rules_count,
         },
-        "learned": {
-            "preference_count": len(learned_prefs),
-            "rule_count": len(learned_rules),
-            "correction_count": correction_count,
-            "preference_ids": _safe_ids(learned_prefs),
-            "rule_ids": _safe_ids(learned_rules),
-        },
     }
-    return preview_data
 
 
 async def build_memory_brief_snapshot(
@@ -147,35 +101,18 @@ async def build_memory_brief_snapshot(
         approval_required=params.memory_require_confirmation,
     )
 
-    gather_tasks = [
-        manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True),
-        manager.get_learned_context(),
-    ]
-    static_result, learned_result = await asyncio.gather(
-        *gather_tasks,
-        return_exceptions=True,
-    )
-
-    if isinstance(static_result, BaseException):
-        logger.warning("Memory brief static context failed: %s", static_result)
+    try:
+        static_context = await manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True)
+    except Exception as exc:
+        logger.warning("Memory brief static context failed: %s", exc)
         return None
-    if isinstance(learned_result, BaseException):
-        logger.warning("Memory brief learned context failed: %s", learned_result)
-        learned_payload: LearnedMemoryPayload = {"learned_rules": [], "learned_preferences": []}
-    else:
-        learned_payload = _normalize_learned_payload(learned_result)
 
-    if not isinstance(static_result, dict):
-        logger.warning("Memory brief static context has unexpected type: %s", type(static_result).__name__)
-        return None
-    memory_payload = dict(static_result)
-
+    memory_payload = dict(static_context)
     snapshot_id = _snapshot_id(memory_payload)
     preview = _build_preview(
         snapshot_id=snapshot_id,
         namespaces=list(binding.namespaces),
         memory_ctx=memory_payload,
-        learned_ctx=learned_payload,
     )
     snapshot: MemoryBriefSnapshot = {"snapshot_id": snapshot_id, "memory_ctx": memory_payload}
     return preview, snapshot

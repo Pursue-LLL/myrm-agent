@@ -2210,6 +2210,9 @@
       "prev30days": "Letzte 30 Tage",
       "older": "Älter"
     },
+    "historySearch": {
+      "clear": "Suche löschen"
+    },
     "batch": {
       "enter": "Mehrfachauswahl",
       "exit": "Mehrfachauswahl beenden",
@@ -4115,6 +4118,7 @@
     "media_rejected_recovery": "Modell hat Medien abgelehnt — entfernt und neuer Versuch",
     "vision_fallback_recovery": "Model kann keine Bilder verarbeiten — in Text umgewandelt, erneuter Versuch",
     "thinking_signature_recovery": "Denkblock repariert — erneuter Versuch",
+    "reasoning_mandatory_recovery": "Modell verlangt Schlussfolgerung — Stufe angepasst, erneuter Versuch",
     "tool_history_recovery": "Konversationsverlauf repariert — erneuter Versuch",
     "image_shrink_recovery": "Bilder an Limits angepasst — erneuter Versuch",
     "long_context_tier_recovery": "Kontextstufe angepasst — erneuter Versuch",
@@ -13542,10 +13546,7 @@
     "briefTitle": "Kontext-Snapshot",
     "briefColdStartDescription": "Für diese Runde wurde keine vorherige Erinnerung gefunden. Der Agent startet im Discovery-Modus.",
     "briefStableSummary": "Stabiler Kontext: {instructions} Anweisungen, {rules} Regeln, {profiles} Profilfelder.",
-    "briefLearnedSummary": "Gelernter Kontext verfügbar, nicht automatisch eingespeist: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturpunkte.",
     "briefRulesApplied": "Für diese Antwort wurden nur die {injected} relevantesten von {rules} Regeln verwendet.",
-    "briefPreferenceIdPrefix": "pref",
-    "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief nicht verfügbar",
     "briefUnavailableTitle": "Erinnerungskontext nicht verfügbar",
     "briefUnavailableDescription": "Diese Antwort wurde ohne Memory Brief erzeugt, da die Vorbereitung vorübergehend nicht möglich war.",

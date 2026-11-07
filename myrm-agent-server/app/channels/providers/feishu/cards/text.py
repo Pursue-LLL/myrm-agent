@@ -1,4 +1,12 @@
-"""流式文本合并、发送模式与富文本/Post 构造。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- merge_streaming_text: Merge streaming text fragments with correct precedence.
+- resolve_send_mode: Determine Feishu message send mode based on context.
+- has_rich_text: Detect if content has rich formatting that benefits from post type.
+- _parse_post_line: Parse a single line of Markdown into Feishu post elements.
+- build_post_content: Convert Markdown-like text to Feishu post (rich text) format.
 
 [POS]
 飞书卡片子包的一部分；由 __init__.py 聚合导出。

@@ -58,7 +58,7 @@ _SORT_FIELD_MAP: dict[str, str] = {
 
 
 def _profile_memories(entries: Sequence[ProfileEntry]) -> list[_Listed]:
-    """Profile entries as memories; internal ``_system_`` keys are never shown."""
+    """Profile entries as memories; internal ``_system.`` keys are never shown."""
     return [
         SemanticMemory(
             id=e.id,
@@ -70,7 +70,7 @@ def _profile_memories(entries: Sequence[ProfileEntry]) -> list[_Listed]:
             scope=e.scope,
         )
         for e in entries
-        if not e.key.startswith("_system_")
+        if not e.key.startswith("_system.")
     ]
 
 

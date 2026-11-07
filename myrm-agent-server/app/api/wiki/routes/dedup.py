@@ -1,4 +1,27 @@
-"""Wiki 重复条目扫描、分组处置与回收站路由。
+"""[INPUT]
+- app.api.wiki.archiver_dependency::_get_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault)
+- app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+
+[OUTPUT]
+- WikiDedupMemberResponse: WikiDedupMemberResponse
+- WikiDedupMemberSnippetResponse: WikiDedupMemberSnippetResponse
+- WikiDedupGroupResponse: WikiDedupGroupResponse
+- WikiDedupScanResponse: WikiDedupScanResponse
+- WikiDedupDispositionRequest: WikiDedupDispositionRequest
+- WikiDedupDispositionResponse: WikiDedupDispositionResponse
+- WikiDedupProgressResponse: WikiDedupProgressResponse
+- WikiDedupTrashedEntryResponse: WikiDedupTrashedEntryResponse
+- WikiDedupExcludedEntryResponse: WikiDedupExcludedEntryResponse
+- WikiDedupVaultHygieneResponse: WikiDedupVaultHygieneResponse
+- WikiDedupPathActionRequest: WikiDedupPathActionRequest
+- scan_wiki_duplicates: scan_wiki_duplicates
+- list_wiki_duplicate_groups: list_wiki_duplicate_groups
+- get_wiki_dedup_group_snippets: get_wiki_dedup_group_snippets
+- apply_wiki_duplicate_disposition: apply_wiki_duplicate_disposition
+- get_wiki_dedup_progress: get_wiki_dedup_progress
+- get_wiki_dedup_vault_hygiene: get_wiki_dedup_vault_hygiene
+- restore_wiki_dedup_trashed_raw: restore_wiki_dedup_trashed_raw
+- undo_wiki_dedup_excluded_raw: undo_wiki_dedup_excluded_raw
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。

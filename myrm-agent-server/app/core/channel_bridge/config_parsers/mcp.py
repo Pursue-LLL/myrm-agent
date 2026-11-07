@@ -1,4 +1,10 @@
-"""MCP 配置解析：用户与企业 MCP 服务器合并。
+"""[INPUT]
+- app.core.types::MCPServerConfig / MCPServerConfig / MCPServerConfig (POS: Core types package)
+
+[OUTPUT]
+- extract_mcp_configs: Extract enabled MCP server configs from the frontend's mcpServers config.
+- extract_org_mcp_configs: Extract org-managed MCP server configs pushed by the Control Plane.
+- merge_org_mcp_configs: Append org-managed MCP servers to the user MCP config list.
 
 [POS]
 channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。

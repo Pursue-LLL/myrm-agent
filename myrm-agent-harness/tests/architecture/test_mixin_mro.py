@@ -23,8 +23,14 @@ from myrm_agent_harness.toolkits.browser.session.browser_session import BrowserS
 from myrm_agent_harness.toolkits.browser.session.browser_session_captcha_mixin import (
     BrowserSessionCaptchaMixin,
 )
+from myrm_agent_harness.toolkits.browser.session.browser_session_download_mixin import (
+    BrowserSessionDownloadMixin,
+)
 from myrm_agent_harness.toolkits.browser.session.browser_session_extraction_mixin import (
     BrowserSessionExtractionMixin,
+)
+from myrm_agent_harness.toolkits.browser.session.browser_session_interaction_mixin import (
+    BrowserSessionInteractionMixin,
 )
 from myrm_agent_harness.toolkits.browser.session.browser_session_lifecycle_mixin import (
     BrowserSessionLifecycleMixin,
@@ -65,6 +71,8 @@ _EXPECTED_BROWSER_SESSION_MIXIN_MRO: tuple[type[object], ...] = (
     BrowserSessionTakeoverMixin,
     BrowserSessionExtractionMixin,
     BrowserSessionPageMixin,
+    BrowserSessionInteractionMixin,
+    BrowserSessionDownloadMixin,
     BrowserSessionNetworkMixin,
     BrowserSessionNavigationMixin,
     BrowserSessionTabMixin,
@@ -92,6 +100,9 @@ def test_browser_session_navigate_resolves_to_navigation_mixin() -> None:
         ("new_tab", BrowserSessionTabMixin),
         ("close_tab", BrowserSessionTabMixin),
         ("recover_active_tab", BrowserSessionTabMixin),
+        ("interact", BrowserSessionInteractionMixin),
+        ("interact_at", BrowserSessionInteractionMixin),
+        ("download_url", BrowserSessionDownloadMixin),
         ("_ensure_not_user_takeover", BrowserSessionTakeoverMixin),
         ("_handle_captcha_if_detected", BrowserSessionCaptchaMixin),
     ],

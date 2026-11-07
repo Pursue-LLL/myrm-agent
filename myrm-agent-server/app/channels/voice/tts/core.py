@@ -1,4 +1,11 @@
-"""TTS 单次/流式入口与文本摘要。
+"""[INPUT]
+- app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
+- app.channels.voice.tts.common::_EDGE_TTS_INSTALL_HINT / _MIN_TEXT_LENGTH / _summarize_for_tts / is_edge_tts_available (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
+- app.channels.voice.tts.providers::_STREAM_PROVIDERS / _stream_edge / _synthesize_api / _synthesize_edge (POS: voice tts 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- synthesize: Synthesize text to an audio file. Falls back to Edge TTS on failure.
+- synthesize_stream: Stream-synthesize text to MP3 audio chunks. Falls back to Edge TTS.
 
 [POS]
 voice tts 子包的一部分；由 __init__.py 聚合导出。

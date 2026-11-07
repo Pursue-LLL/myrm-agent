@@ -1,4 +1,15 @@
-"""配置路由共享的只读检查、锁与写入前校验。
+"""[INPUT]
+- app.schemas.config::OMNI_CONFIG_MODELS / ConfigKey (POS: 配置 API 数据模型)
+
+[OUTPUT]
+- _readiness_db_timeout_sec: Parallel E2E sqlite contention — 2.5s causes perpetual config_load_timeout.
+- _second_brain_apply_lock_path: _second_brain_apply_lock_path
+- _acquire_second_brain_cross_process_lock: _acquire_second_brain_cross_process_lock
+- _release_second_brain_cross_process_lock: _release_second_brain_cross_process_lock
+- _validate_config_value: _validate_config_value
+- _require_local_deploy_mode: _require_local_deploy_mode
+- _hot_reload_cloud_browser: Hot-reload the browser pool's remote endpoint after cloud browser config changes.
+- _hot_reload_browser_proxy: Hot-reload the browser pool's proxy pool after browser proxy config changes.
 
 [POS]
 配置 API 的域子模块；由 app/api/config/router.py 按原顺序挂载。
