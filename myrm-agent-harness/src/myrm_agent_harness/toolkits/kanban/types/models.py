@@ -1,156 +1,31 @@
-"""Kanban domain types.
-
-Pure data definitions — no I/O, safe to import anywhere.
-Consumed by dispatcher, store, tools, and application adapters.
-
-[INPUT]
-- (none)
+"""[INPUT]
+- .enums::TaskStatus / BlockKind / TaskPriority / TaskRunOutcome / TaskEventKind / TaskExecutionOutcome (POS: 看板枚举)
+- .enums::_ACTIVE_STATUSES / _TERMINAL_STATUSES / _PRIORITY_ORDER (POS: 派生状态集合)
+- （标准库 dataclasses / datetime）
 
 [OUTPUT]
-- TaskStatus: Kanban task lifecycle states.
-- TaskPriority: Task urgency levels.
-- BoardSettings: Tunable board-level knobs.
-- KanbanBoard: Top-level grouping entity.
-- KanbanTask: Unit of work on a board.
-- TaskClaim: Worker ownership record.
-- TaskRunOutcome: Outcome classification for a completed run.
-- TaskRun: Independent record per execution attempt.
-- TaskEventKind: Lifecycle event categories.
-- TaskEvent: Persistent lifecycle event.
-- TaskTimeoutError: Raised when a task exceeds its max_runtime_seconds.
-- KANBAN_COMPLETION_INTENT_KEY: Metadata flag set by kanban_complete before verifier runs.
-- has_completion_intent / clear_completion_intent: Completion gate helpers.
-- extract_source_chat_id: Read trimmed source_chat_id from task metadata.
-- inherit_source_chat_metadata: Build metadata patch for child task inheritance.
+- 任务、看板、边、声明、运行、事件与执行结果的数据模型
 
 [POS]
-Kanban domain types.
+`kanban/types/` 的值对象层；字段即持久化与 API 契约。
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import StrEnum
 
-KANBAN_SOURCE_CHAT_METADATA_KEY = "source_chat_id"
-KANBAN_COMPLETION_INTENT_KEY = "completion_intent"
-
-
-def extract_source_chat_id(metadata: dict[str, object] | None) -> str | None:
-    """Return trimmed source_chat_id from task metadata, or None."""
-    if not metadata:
-        return None
-    raw = metadata.get(KANBAN_SOURCE_CHAT_METADATA_KEY)
-    if not isinstance(raw, str):
-        return None
-    trimmed = raw.strip()
-    return trimmed or None
-
-
-def inherit_source_chat_metadata(
-    parent_metadata: dict[str, object] | None,
-) -> dict[str, object] | None:
-    """Build metadata patch copying source_chat_id from a parent task."""
-    source_chat_id = extract_source_chat_id(parent_metadata)
-    if source_chat_id is None:
-        return None
-    return {KANBAN_SOURCE_CHAT_METADATA_KEY: source_chat_id}
-
-
-def has_completion_intent(metadata: dict[str, object] | None) -> bool:
-    """True when the worker called kanban_complete and verification is pending."""
-    if not metadata:
-        return False
-    return metadata.get(KANBAN_COMPLETION_INTENT_KEY) is True
-
-
-def clear_completion_intent(metadata: dict[str, object]) -> dict[str, object]:
-    """Return metadata with completion_intent removed."""
-    if KANBAN_COMPLETION_INTENT_KEY not in metadata:
-        return metadata
-    return {key: value for key, value in metadata.items() if key != KANBAN_COMPLETION_INTENT_KEY}
-
-
-class TaskStatus(StrEnum):
-    """Kanban task lifecycle states.
-
-    State machine::
-
-        TRIAGE ──► BACKLOG ──► READY ──► RUNNING ──► IN_REVIEW ──► COMPLETED
-           │          │           │          │         │ (approve)
-           │          │           │          │         │
-           │          │           │          ├──► FAILED
-           │          │           │          │
-           │          │           │          └──► BLOCKED
-           │          │           │
-           └──────────┴───────────┴──► ARCHIVED
-
-    TRIAGE is the inbox for rough ideas pending LLM-driven Specifier rewrite.
-    A TRIAGE task is opaque to the dispatcher (never claimed) — it can only
-    transition to BACKLOG/READY (via specify) or to ARCHIVED (manual discard).
-
-    IN_REVIEW is the human-approval gate for tasks created with
-    ``require_approval=True``. The dispatcher lands a successfully verified
-    task in IN_REVIEW (never COMPLETED) until an operator approves it
-    (→ COMPLETED, then dependents are promoted) or rejects it (→ READY for
-    rework). Approval is operator-driven via REST/GUI — no LLM tool.
-    """
-
-    TRIAGE = "triage"
-    BACKLOG = "backlog"
-    READY = "ready"
-    RUNNING = "running"
-    BLOCKED = "blocked"
-    IN_REVIEW = "in_review"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    ARCHIVED = "archived"
-
-
-_TERMINAL_STATUSES: frozenset[TaskStatus] = frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED})
-
-_ACTIVE_STATUSES: frozenset[TaskStatus] = frozenset(
-    {TaskStatus.READY, TaskStatus.RUNNING, TaskStatus.BLOCKED, TaskStatus.IN_REVIEW}
+from .enums import (
+    _ACTIVE_STATUSES,
+    _PRIORITY_ORDER,
+    _TERMINAL_STATUSES,
+    BlockKind,
+    TaskEventKind,
+    TaskExecutionOutcome,
+    TaskPriority,
+    TaskRunOutcome,
+    TaskStatus,
 )
-
-# Allowed transitions out of TRIAGE — protects state-machine integrity.
-# TRIAGE → BACKLOG (after specify, if deps unmet) / READY (after specify, no deps) /
-# ARCHIVED (manual discard). Direct TRIAGE → RUNNING etc. is illegal.
-_TRIAGE_ALLOWED_TARGETS: frozenset[TaskStatus] = frozenset({TaskStatus.BACKLOG, TaskStatus.READY, TaskStatus.ARCHIVED})
-
-
-class BlockKind(StrEnum):
-    """Sub-type for BLOCKED tasks — distinguishes *why* a task is blocked.
-
-    HUMAN: waiting for a human decision (e.g. PR review, manual approval).
-    SCHEDULED: waiting for a specific time — dispatcher auto-unblocks when due.
-    EXTERNAL: waiting for an external event (e.g. CI/CD pipeline, webhook).
-    """
-
-    HUMAN = "human"
-    SCHEDULED = "scheduled"
-    EXTERNAL = "external"
-
-
-class TaskPriority(StrEnum):
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    URGENT = "urgent"
-
-
-_PRIORITY_ORDER: dict[TaskPriority, int] = {
-    TaskPriority.URGENT: 0,
-    TaskPriority.HIGH: 1,
-    TaskPriority.NORMAL: 2,
-    TaskPriority.LOW: 3,
-}
-
-
-# ---------------------------------------------------------------------------
-# Value objects
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +53,6 @@ class TaskAttachment:
             "content_ref": self.content_ref,
         }
 
-
 @dataclass(frozen=True, slots=True)
 class BoardSettings:
     """Tunable knobs for a KanbanBoard.
@@ -204,12 +78,6 @@ class BoardSettings:
     auto_specify_on_create: bool = False
     default_workdir: str | None = None
     block_recurrence_limit: int = 2
-
-
-# ---------------------------------------------------------------------------
-# Entities
-# ---------------------------------------------------------------------------
-
 
 @dataclass
 class KanbanBoard:
@@ -241,7 +109,6 @@ class KanbanBoard:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
-
 
 @dataclass
 class KanbanTask:
@@ -355,7 +222,6 @@ class KanbanTask:
             data["progress_note"] = self.progress_note
         return data
 
-
 @dataclass(frozen=True, slots=True)
 class TaskEdge:
     """Directed dependency edge: child depends on parent.
@@ -372,7 +238,6 @@ class TaskEdge:
             "child_task_id": self.child_task_id,
         }
 
-
 @dataclass(frozen=True, slots=True)
 class TaskClaim:
     """Worker ownership record for an in-progress task."""
@@ -380,22 +245,6 @@ class TaskClaim:
     task_id: str
     worker_id: str
     claimed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-
-
-# ---------------------------------------------------------------------------
-# Execution history & audit trail
-# ---------------------------------------------------------------------------
-
-
-class TaskRunOutcome(StrEnum):
-    """Outcome classification for a completed run."""
-
-    COMPLETED = "completed"
-    BLOCKED = "blocked"
-    CRASHED = "crashed"
-    TIMED_OUT = "timed_out"
-    RECLAIMED = "reclaimed"
-
 
 @dataclass
 class TaskRun:
@@ -444,39 +293,6 @@ class TaskRun:
             "cost_usd": self.cost_usd,
         }
 
-
-class TaskEventKind(StrEnum):
-    """Lifecycle event categories."""
-
-    CREATED = "created"
-    CLAIMED = "claimed"
-    ASSIGNED = "assigned"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
-    UNBLOCKED = "unblocked"
-    RETRYING = "retrying"
-    RECLAIMED = "reclaimed"
-    PROMOTED = "promoted"
-    ARCHIVED = "archived"
-    HEARTBEAT = "heartbeat"
-    USER_COMMENT = "user_comment"
-    VERIFICATION_FAILED = "verification_failed"
-    BRANCH_SWITCHED = "branch_switched"
-    MERGE_CONFLICT = "merge_conflict"
-    SPECIFIED = "specified"
-    DECOMPOSED = "decomposed"
-    TIMED_OUT = "timed_out"
-    COMPLETION_REQUESTED = "completion_requested"
-    EDITED = "edited"
-    REVIEW_REQUESTED = "review_requested"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    PLAN_REVISED = "plan_revised"
-    RACE_STARTED = "race_started"
-    RACE_DECIDED = "race_decided"
-
-
 @dataclass(frozen=True)
 class TaskEvent:
     """Persistent lifecycle event for audit and catch-up."""
@@ -498,7 +314,6 @@ class TaskEvent:
             "created_at": self.created_at.isoformat(),
         }
 
-
 @dataclass
 class VerificationResult:
     """The outcome of evaluating a single task-completion criterion."""
@@ -507,15 +322,6 @@ class VerificationResult:
     reason: str | None = None
     error_logs: str | None = None
     comments: list[dict[str, object]] = field(default_factory=list)
-
-
-class TaskExecutionOutcome(StrEnum):
-    """Structured outcome for TaskRunner execution."""
-
-    SUCCESS = "success"
-    BLOCKED = "blocked"
-    FAILURE = "failure"
-
 
 @dataclass(frozen=True, slots=True)
 class TaskExecutionResult:
@@ -574,7 +380,6 @@ class TaskExecutionResult:
             message=error,
             metadata_patch=metadata_patch or {},
         )
-
 
 class TaskTimeoutError(Exception):
     """Raised when a task exceeds its max_runtime_seconds.
