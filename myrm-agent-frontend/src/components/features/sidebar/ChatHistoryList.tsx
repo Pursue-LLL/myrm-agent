@@ -237,8 +237,8 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
       {chatHistoryError && chatHistoryItems.length === 0 ? (
         <div className="px-2 py-4">
           <div className="flex flex-col items-center justify-center gap-3 py-4">
-            <AlertCircle size={isMobile ? 20 : 24} className="text-destructive/70" />
-            <p className={cn('text-sm text-destructive/80 text-center', isMobile && 'text-xs')}>
+            <AlertCircle size={isMobile ? 20 : 24} className="text-destructive-text" />
+            <p className={cn('text-sm text-destructive-text text-center', isMobile && 'text-xs')}>
               {t('common.loadHistoryError')}
             </p>
             <button

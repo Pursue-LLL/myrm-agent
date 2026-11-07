@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -97,6 +98,21 @@ describe('ChatHistoryRow more button target', () => {
     const { className } = screen.getByRole('button', { name: 'common.more' });
     expect(className).toContain('min-h-11');
     expect(className).toContain('min-w-11');
+  });
+});
+
+describe('ChatHistoryRow delete item', () => {
+  it('writes the label in the readable destructive text color, since the fill color is 1.5:1 on the dark menu', async () => {
+    renderRow();
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'common.more' }));
+
+    const { className } = await screen.findByRole('menuitem', { name: 'common.delete' });
+    expect(className).toContain('text-destructive-text');
+    expect(className).toContain('focus:text-destructive-text');
+    // Neither the fill color itself nor a `/80`-style modifier that lets the menu show through the label.
+    expect(className).not.toMatch(/(?:^|\s)(?:focus:)?text-destructive(?:\s|$)/);
+    expect(className).not.toMatch(/text-destructive[\w-]*\/\d+/);
   });
 });
 

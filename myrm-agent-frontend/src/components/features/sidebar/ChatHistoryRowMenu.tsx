@@ -279,7 +279,7 @@ export function ChatHistoryRowMenu({
         )}
         <DropdownMenuItem
           onClick={() => onDelete(chat.id)}
-          className={cn('text-destructive focus:text-destructive', isMobile && 'py-3 text-xs min-h-[44px]')}
+          className={cn('text-destructive-text focus:text-destructive-text', isMobile && 'py-3 text-xs min-h-[44px]')}
         >
           <Trash2 size={isMobile ? 16 : 14} className="mr-2" />
           {t('common.delete')}

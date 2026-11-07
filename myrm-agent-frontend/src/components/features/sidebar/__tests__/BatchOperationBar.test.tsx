@@ -3,9 +3,11 @@ import { expectDefined } from '@/test-utils/expectDefined';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { BatchExportProgress } from '@/lib/utils/chat-export';
 import BatchOperationBar from '../BatchOperationBar';
 
 const batchMoveChats = vi.hoisted(() => vi.fn());
+const batchExportAsZip = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() =>
   Object.assign(vi.fn(), {
     success: vi.fn(),
@@ -18,6 +20,10 @@ const toastMock = vi.hoisted(() =>
 
 vi.mock('@/services/projects', () => ({
   batchMoveChats,
+}));
+
+vi.mock('@/lib/utils/chat-export', () => ({
+  batchExportAsZip,
 }));
 
 vi.mock('@/hooks/shared/useToast', () => ({
@@ -75,6 +81,41 @@ describe('BatchOperationBar', () => {
     expect(screen.getByText('chat.batch.selected:2')).toBeInTheDocument();
     expect(screen.getByText('project.moveTo')).toBeInTheDocument();
     expect(screen.getByText('chat.batch.delete')).toBeInTheDocument();
+  });
+
+  it('writes the delete button in the readable destructive text color only while chats are selected', () => {
+    const { rerender } = render(<BatchOperationBar {...defaultProps} />);
+
+    const enabled = screen.getByRole('button', { name: 'chat.batch.delete' });
+    expect(enabled.className).toContain('text-destructive-text');
+    expect(enabled.className).not.toMatch(/(?:^|\s)text-destructive(?:\s|$)/);
+    expect(enabled.className).not.toMatch(/text-destructive[\w-]*\/\d+/);
+
+    rerender(<BatchOperationBar {...defaultProps} selectedCount={0} selectedIds={new Set()} />);
+
+    const disabled = screen.getByRole('button', { name: 'chat.batch.delete' });
+    expect(disabled).toBeDisabled();
+    expect(disabled.className).not.toContain('text-destructive-text');
+  });
+
+  it('writes the cancel-export hover color in the readable destructive text color', async () => {
+    // Progress arrives and the export then stays pending, which keeps the cancel button on screen.
+    batchExportAsZip.mockImplementationOnce(
+      (_ids: string[], _format: string, options: { onProgress: (progress: BatchExportProgress) => void }) => {
+        options.onProgress({ current: 1, total: 2, currentTitle: 'Chat A', skipped: 0, failed: 0 });
+        return new Promise<never>(() => {});
+      },
+    );
+    const user = userEvent.setup();
+    render(<BatchOperationBar {...defaultProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'chat.batch.export' }));
+    await user.click(await screen.findByRole('button', { name: 'chat.batch.exportFormatMarkdown' }));
+
+    const { className } = await screen.findByRole('button', { name: 'chat.batch.exportCancel' });
+    expect(className).toContain('hover:text-destructive-text');
+    expect(className).not.toMatch(/hover:text-destructive(?:\s|$)/);
+    expect(className).not.toMatch(/text-destructive[\w-]*\/\d+/);
   });
 
   it('shows project picker when moveTo is clicked', async () => {

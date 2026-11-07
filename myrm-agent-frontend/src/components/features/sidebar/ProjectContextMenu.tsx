@@ -112,7 +112,7 @@ export function ProjectContextMenu({
         ))}
       </div>
       <div className="my-0.5 border-t border-border/30" />
-      <button className={cn(item, 'hover:bg-destructive/10 text-destructive')} onClick={() => onDelete(project)}>
+      <button className={cn(item, 'hover:bg-destructive/10 text-destructive-text')} onClick={() => onDelete(project)}>
         <Trash2 size={12} /> {t('project.delete')}
       </button>
     </div>

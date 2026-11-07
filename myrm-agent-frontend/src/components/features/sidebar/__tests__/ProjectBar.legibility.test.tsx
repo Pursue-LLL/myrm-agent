@@ -274,6 +274,17 @@ describe('ProjectBar context menu', () => {
     }
   });
 
+  it('writes the delete item in the readable destructive text color, not the fill color', () => {
+    render(<ProjectBar />);
+    openMenu();
+
+    const { className } = chip('project.delete');
+    expect(className).toContain('text-destructive-text');
+    // Neither the fill color itself nor a `/80`-style modifier that lets the menu show through the label.
+    expect(className).not.toMatch(/(?:^|\s)text-destructive(?:\s|$)/);
+    expect(className).not.toMatch(/text-destructive[\w-]*\/\d+/);
+  });
+
   it('opens at the pointer and pulls itself back inside the viewport on the right and bottom edges', () => {
     render(<ProjectBar />);
 
