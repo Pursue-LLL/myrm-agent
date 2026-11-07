@@ -79,57 +79,8 @@ NON_RETRYABLE_ERRORS = (
 )
 
 
-def smart_truncate_output(text: str, max_lines: int = 20) -> str:
-    """Keep first N/2 and last N/2 lines, truncate middle.
-
-    Prevents token inflation when including large tool outputs in error messages.
-    """
-    lines = text.split("\n")
-    if len(lines) <= max_lines:
-        return text
-
-    keep = max_lines // 2
-    truncated_count = len(lines) - max_lines
-    return "\n".join(
-        [
-            *lines[:keep],
-            f"... [truncated {truncated_count} lines for token optimization] ...",
-            *lines[-keep:],
-        ]
-    )
 
 
-def get_tool_timeout(tool_name: str, tool_args: dict[str, object] | None = None) -> float:
-    """Get timeout for tool based on name pattern matching (zero-config).
-
-    When a tool's input schema declares an explicit ``timeout`` argument (e.g.
-    ``bash_code_execute_tool``), the caller supplies ``tool_args`` so the executor
-    honors it for long-running commands instead of silently killing them at the
-    zero-config default.
-
-    Returns:
-        Timeout in seconds: 300s for media generation, 120s for shell/browser/mcp,
-        30s for file I/O, 60s default. An explicit ``tool_args["timeout"]`` on
-        shell/browser/mcp floats the floor up to it (clamped to 600s, matching the
-        ``BashInput.timeout`` max).
-    """
-    base = 60.0
-    if tool_name.startswith(("image_tool", "video_tool")):
-        base = 300.0
-    elif tool_name.startswith(("bash", "browser", "mcp_")):
-        base = 120.0
-    elif tool_name.startswith(("file_read", "file_write", "file_edit", "glob", "grep")):
-        base = 30.0
-
-    explicit = tool_args and tool_args.get("timeout")
-    if (
-        tool_name.startswith(("bash", "browser", "mcp_"))
-        and isinstance(explicit, int)
-        and not isinstance(explicit, bool)
-        and explicit > 0
-    ):
-        return min(float(explicit), 600.0)
-    return base
 
 
 def is_non_retryable(e: Exception, tool_name: str) -> bool:
@@ -358,13 +309,6 @@ def check_trust_attenuation(tool_name: str) -> str | None:
     )
 
 
-def extract_text_content(content: str | list[str | dict[str, object]]) -> str:
-    """Extract plain text from ToolMessage content (str or list of content blocks)."""
-    if isinstance(content, str):
-        return content
-    return "".join(
-        str(block.get("text") or "") for block in content if isinstance(block, dict) and block.get("type") == "text"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -496,104 +440,7 @@ def run_content_validation(result_text: str, tool_name: str) -> ValidationResult
 # ---------------------------------------------------------------------------
 
 
-def build_hook_failure_result(
-    result: ToolMessage,
-    post_hook_result: Any,
-    tool_name: str,
-    tool_call_id: str,
-    post_result_text: str,
-) -> ToolMessage:
-    """Build error ToolMessage from hook validation failure."""
-    error_details = []
-    for hook_result in post_hook_result.results:
-        if hook_result.blocked or not hook_result.success:
-            if hook_result.output:
-                error_details.append(hook_result.output)
-            elif hook_result.reason:
-                error_details.append(hook_result.reason)
-
-    hook_error_msg = "\n".join(error_details) if error_details else "Hook validation failed"
-    truncated_output = smart_truncate_output(post_result_text, max_lines=20)
-    error_content = (
-        f"[HOOK_VALIDATION_FAILED] Post-execution hook detected critical issues:\n\n"
-        f"{hook_error_msg}\n\n"
-        f"Original tool output:\n{truncated_output}"
-    )
-
-    record_decision(tool_name, "POST_HOOK_BLOCKED", post_hook_result.reason)
-    logger.warning("POST_TOOL_USE hook blocked: %s -- %s", tool_name, post_hook_result.reason)
-
-    return ToolMessage(
-        content=error_content,
-        name=tool_name,
-        tool_call_id=result.tool_call_id,
-        status="error",
-        additional_kwargs={"error_category": ToolErrorCategory.POST_HOOK_BLOCKED},
-    )
 
 
-async def emit_hook_failure_event(tool_name: str, post_hook_result: Any, agent_event_type: Any) -> None:
-    """Emit observability events for hook failures."""
-    try:
-        from myrm_agent_harness.observability.metrics.registry import (
-            metrics_registry,
-        )
-
-        if metrics_registry and metrics_registry.enabled:
-            metrics_registry.record_hook_failure(agent_id="base_agent", tool_name=tool_name, hook_event="post_tool_use")
-    except ImportError:
-        pass
-
-    try:
-        from myrm_agent_harness.utils.runtime.progress_sink import (
-            get_tool_progress_sink,
-        )
-
-        sink = get_tool_progress_sink()
-        if sink:
-            await sink.emit(
-                {
-                    "type": agent_event_type.TOOL_FAILURE.value,
-                    "data": {
-                        "tool_name": tool_name,
-                        "hook_event": "post_tool_use",
-                        "error": post_hook_result.reason or "Hook validation failed",
-                        "reason": post_hook_result.reason,
-                        "blocked": post_hook_result.blocked,
-                    },
-                }
-            )
-    except (ImportError, AttributeError):
-        pass
 
 
-async def emit_archive_restore_block_status(result_text: str, tool_name: str) -> None:
-    """Emit status event when archive restore is blocked."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.core.archive_restore_guard import (
-        parse_archive_restore_block_payload,
-    )
-
-    payload = parse_archive_restore_block_payload(result_text)
-    if payload is None:
-        return
-
-    suggested_action = payload.get("suggested_action")
-    items: list[dict[str, str]] = []
-    if isinstance(suggested_action, str) and suggested_action:
-        items.append({"text": suggested_action})
-
-    try:
-        from myrm_agent_harness.utils.event_utils import dispatch_custom_event
-
-        await dispatch_custom_event(
-            "agent_status",
-            {
-                "step_key": "archive_restore_blocked",
-                "tool_name": tool_name,
-                "status": "warning",
-                "items": items,
-                "archive_restore_block": payload,
-            },
-        )
-    except Exception as exc:
-        logger.debug("Failed to emit archive restore block status: %s", exc)

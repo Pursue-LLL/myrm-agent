@@ -212,7 +212,7 @@ class TestToolInterceptorMiddleware:
                 return_value=None,
             ) as self.mock_steering,
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_helpers.validate_tool_result",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_helpers.helpers.validate_tool_result",
                 return_value=ValidationResult(is_valid=True),
             ) as self.mock_validate,
             patch("myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker") as self.mock_taint,
