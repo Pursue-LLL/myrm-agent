@@ -21,6 +21,26 @@
 | **仍然存在** | ① 外部渠道里用户明说「所有 Agent 都应该知道」时，请求依旧无法满足（外部渠道不写共享区是设计）：改前模型会选 `shared` 并得到 `stored`，改后模型没有这个选项、写进当前 Agent 角色的命名空间；模型对用户的最终回复是否因此更准确，没有测（验证只到工具调用）。② `write_target` 对 preference / instruction / rule 本来就不起作用——`save_tool.py:129,145` 只有 `_save_knowledge`、`_save_event` 把它交给 manager，这条没有动：英文、中文消融数据里模型共发出 270 次 `shared`，其中 161 次的类别是这三类，默认渠道的描述仍把 `shared` 写成对所有类别通用的选项。③ 模型仍传 `shared`（沿用历史调用、别的提供方）时，工具照旧压成 `bound`，回执仍是 `Knowledge stored`，没有「已改写」的提示：保留这条路径是为了不让调用因校验失败而重试，没有改回执。④ 真实模型验证范围：候选面只在本地网关的 deepseek v4.1 flash 上跑了 30 次（英文、单步、检索已预先回答「无相关记忆」），协议与产生 10/10 `shared` 的 MiniMax 对照（短轨迹）不同；没有同一模型的对照臂，不能区分「选项被藏起来」与「这个模型本来就不传」；候选面没有在 MiniMax 上跑（服务商套餐额度用尽，错误码 2056，3 次被拒加 1 次探测，没有买额度、没有换 key）；中文没有跑；token 门禁只覆盖英文。⑤ 没有核实：隔间（compartment）链下 `shared` 的真实落点（只读代码推断）、同一会话中途切换渠道、外部渠道里 `shared` 写入的生产频率、压回逻辑当初的设计意图。 |
 | **代码位置** | `toolkits/memory/agent_surface/_memory_agent_tool_descriptions.py:136`、`_memory_tool_texts_{en,zh}.py`、`memory_search_policy.py:43`、`memory_agent_tools/save_tool.py:78-87,209,231-233` · server `app/ai_agents/general_agent/tool_setup/memory.py:92-97,128` · 测试 `tests/toolkits/memory/{test_memory_save_input,test_memory_tool_surface_contract,test_memory_agent_tool_descriptions_static,test_memory_tool_decision_golden}.py`、server `tests/ai_agents/general_agent/test_memory_tool_write_policy.py` · 文档 `toolkits/memory/MEMORY_SYSTEM.md`、`agent_surface/_ARCH.md`、`memory_agent_tools/_ARCH.md`。 |
 
+### BUG-HARNESS-2026-11-07-210 · 完成闸门把回答里没人要求保存的 YAML / JSON / CSV 片段当成「未落盘的交付物」：15 行的 YAML 修复建议让 agent 被拦下、转去写文件，26 轮、723k Token 后给出错误的最终答案
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（子仓 `69fe078f35`） |
+| **发现时间** | 2026-11-07（BUG-HARNESS-2026-11-07-208 的 A/B 里，实验臂 A 的一次运行 26 轮，其余中位数 8 轮；读该运行的请求记录，第 18 条消息起是完成闸门的拦截指令） |
+| **修复时间** | 2026-11-07 |
+| **严重程度** | P2：让一个本来已经答完的回合变成几十轮的写文件弯路，最终答案被改坏；不丢数据、不越权。k8s、CI、配置类排障的回答里带一段 ≥ 14 行的 YAML 是常态，触发面不限于台架。 |
+| **关联产品** | harness `agent/middlewares/completion/deliverable/write_verifier.py`（`detect_unwritten_deliverables`）；`CompletionGuard` 的 `check_unwritten_deliverables` 调用点（`completion_guard/guard.py`）；所有能保存文件的产品。 |
+| **症状** | [实测，台架 `CQnew__myrm-auto__deepseek-v4.1-flash__k8s100_A__8`，用户只说「排查根因，并给出修复建议」] 模型第 17 条消息已给出完整答案（4007 字，含一段 15 行的 `yaml` 修复建议）；完成闸门回复 `Substantial unpersisted deliverables detected ... [unnamed_yaml_deliverable.yaml (15 lines)]`，要求先调用 `file_write_tool`。之后 18 条工具消息：模型反复写 `payments-api-remediation.yaml`、写校验脚本、装 `pyyaml`，其中 6 次「写入后校验失败，文件被删除 / 改动被回滚」，最后一次写入才成功；运行 26 轮、总 722,967 Token、耗时 300 s，最终答案 450 字，判为错误。同一批次 A 实验臂的其余运行：中位 8 轮、128k Token，11 / 12 答对。 |
+| **根因** | [代码，改前] `write_verifier.py:238-244`：没有文件名提示、用户文字里也没有「写 / 生成 / 导出 / 保存」这类意图时，结构化数据（`csv`、`json`、`yaml`）只要 `line_count >= 14`（或 6 行且 ≥ 280 字节）就算「实质交付物」。这一档的前提是「用户要一个产物」，但判定里并没有这个前提：[实测] 用户原文与去掉技能块后的任务句都没有意图词，仍被判中。回答里的配置示意、结果表格因此都可能被当成该存的文件；而完成闸门一旦拦下，模型只能照指令写文件，写文件又有自己的校验链，一个本来对的回答被拖成长尾。 |
+| **修复** | 结构化数据只在两种情况下算交付物：块里带文件名提示（≥ 5 行，原有分支不变），或用户文字有产出意图（≥ 10 行，或 ≥ 5 行且 ≥ 180 字节，原有阈值不变）；删掉「无任何信号、仅凭行数」的那一档（`write_verifier.py:238-242`）。代码块（`python`、`bash` 等）的判定不动。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | ① 第一反应是把 14 行抬高；任何行数阈值都是猜的，信号本身（用户要不要产物）才是判据，所以直接去掉无信号的那一档。② 变异测试的第一次尝试在临时目录里没生效：`pyproject.toml` 的 `pythonpath = ["src"]` 相对 rootdir，要把 `src`、`tests/support`、`conftest.py` 与各级 `__init__.py` 一起复制过去再跑。③ 台架里这个运行的「用户文字」带 `<bound_skills>` 技能块，对原文与去块后的任务句各重放一次，两种都复现，排除了「技能块里的英文词触发意图」的解释。 |
+| **回归** | [1] `tests/agent/middlewares/completion/deliverable/test_write_verifier.py` +4 例（35 例）：修复建议里的 15 行 YAML 在中文问句、英文问句、无用户文字下都不判为交付物；20 行 CSV 与 21 行 JSON 在「看一下各节点状态」下不判；同一段 YAML 在「请生成修复用的 YAML 配置」下仍判为交付物；块首带 `# deployment-patch.yaml` 时无意图词仍判。[2] 变异（导出到临时目录，各改一处，只跑该文件）：把「无信号 ≥ 14 行」加回去 2 个失败；去掉意图要求 2 个失败；意图也不够（恒为假）3 个失败；忽略文件名提示 6 个失败；未改动 35 通过。[3] `tests/agent/middlewares/completion` 798 通过、9 个预期失败；ruff、格式、mypy 通过。[4] [实测，真实数据重放] 把出问题的那条真实回答原样交给检测函数：改前判中 `yaml` 15 行，改后为空。[5] [实测，影响面] 台架里 `myrm-*` 全部运行的 72 条不同的长回答（> 800 字、无工具调用的 assistant 消息）：改前判中 1 条（就是上面这条），改后 0 条。 |
+| **真实模型受控对照** | 没有。重放证明的是闸门对这一条真实回答的判定变了；没有在修复后的代码上重跑 A 看模型行为（上游解码速度低于健康门，A 的这条长尾只在 24 次里出现过 1 次，不可能靠几次重跑证实或证伪）。 |
+| **行为变化（须知）** | ① 用户没有要文件、块里也没有文件名时，回答里的 YAML / JSON / CSV 不再触发「先落盘」的拦截，不论多长；用户说「生成 / 导出 / 保存」之类时规则与改前相同。② 模型把一段无文件名、无意图词的长 YAML 当最终产物交给用户、却没有存盘时，不再被拦；这类回答原样交付。 |
+| **仍然存在** | ① 代码块（`python`、`js` 等）无信号时仍按 ≥ 16 行判为交付物（`write_verifier.py:256`），同一类误伤在代码上没有量过，没有动。② 拦截指令的开头写的是「Deliverable write claim without tool evidence」，在「未落盘」分支里与事实不符，没有改。③ 写文件后的校验链会在无关的校验命令失败时删除刚写的文件（症状里 6 次），没有查那条链为什么在这个沙箱里失败（`yaml` 模块缺失一类），是另一个问题。④ 判定「用户要产物」的是一份关键词表（`_DELIVERABLE_INTENT_PATTERNS`），「帮我生成修复建议」这类句子仍会被当成要产物。⑤ 影响面只扫了台架里的 72 条回答，没有扫生产会话。 |
+| **代码位置** | `src/myrm_agent_harness/agent/middlewares/completion/deliverable/write_verifier.py:238-242` · 测试 `tests/agent/middlewares/completion/deliverable/test_write_verifier.py` |
+
 ### BUG-HARNESS-2026-11-07-208 · 每个 agent 的随机金丝雀令牌写在系统提示词的第一条消息里，使该会话的提示词从最前面起与其他会话不同：提供方的前缀缓存对每个新会话的第一次请求都不命中，工具声明和其后的全部内容跟着失去缓存（DeepSeek F2：第一次请求缓存占比 ≥ 50% 的运行，`myrm-auto` 0 / 36，对手 `dsh-native` 22 / 36、`dsh-ptc` 17 / 35、`oc-codemode` 22 / 36、`oc-direct` 23 / 36）
 
 | 字段 | 内容 |
