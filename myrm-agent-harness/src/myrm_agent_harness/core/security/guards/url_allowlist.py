@@ -1,7 +1,7 @@
 """Context-based URL allowlist for skill-level DLP domain restrictions.
 
 [INPUT]
-- utils.url_syntax::canonical_hostname (POS: the one ASCII spelling of a host, the one the outbound URL gates dial)
+- core.security.domain_match::canonical_name (POS: the canonical host a host text names, the spelling the outbound URL gates dial)
 
 [OUTPUT]
 - SSRFSecurityError: raised when hostname violates skill allowed-domains
@@ -20,7 +20,7 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from myrm_agent_harness.utils.url_syntax import canonical_hostname
+from myrm_agent_harness.core.security.domain_match import canonical_name
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +33,8 @@ _allowed_domains_var: contextvars.ContextVar[list[str] | None] = contextvars.Con
 
 
 def _spell(text: str) -> str:
-    """The host *text* names in the spelling the outbound URL gates dial; text that names no host stands for itself."""
-    return canonical_hostname(text.strip()) or text.strip().lower().rstrip(".")
+    """The host *text* names in the spelling the outbound URL gates dial, ignoring surrounding whitespace."""
+    return canonical_name(text.strip())
 
 
 class URLAllowlistGuard:

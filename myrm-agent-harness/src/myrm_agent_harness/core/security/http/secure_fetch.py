@@ -66,6 +66,8 @@ def is_ssrf_shield_enabled() -> bool:
 def parse_allowed_internal_hosts() -> list[str]:
     """Parse MYRM_ALLOWED_INTERNAL_HOSTS env var into a host list."""
     raw = os.getenv("MYRM_ALLOWED_INTERNAL_HOSTS", "")
+    # An entry that names no host stays as written and exempts nothing: the fallback of ``domain_match.canonical_name``
+    # would round ``example.com..`` to ``example.com`` and exempt a real host.
     return [canonical_hostname(host.strip()) or host.strip() for host in raw.split(",") if host.strip()]
 
 

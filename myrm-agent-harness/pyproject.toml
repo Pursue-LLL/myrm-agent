@@ -38,7 +38,7 @@ dependencies = [
   # --- HTTP 与异步 I/O ---
   "httpx>=0.28.1",        # 异步 HTTP 客户端（统一网络栈；SOCKS 由 server/渠道层按需安装）
   "httpx2>=2.13.1",        # MCP SDK v2 传输层 HTTP 客户端（TLS/mTLS、auth headers）
-  "idna>=3.7",            # UTS 46 域名映射（core/security/domain_match.py 把域名折成浏览器拨号时的写法；httpx 亦依赖）
+  "idna>=3.7",            # UTS 46 域名映射（utils/url_syntax.py 把域名折成浏览器拨号时的写法；httpx 亦依赖）
   "truststore>=0.10",     # 企业 TLS 兼容：连接按操作系统信任库校验服务端证书链（infra/tls_compat.py）
   "aiofiles>=25.1.0",     # 异步文件 I/O
   # --- 图片处理 (7 模块跨 4 层使用) ---

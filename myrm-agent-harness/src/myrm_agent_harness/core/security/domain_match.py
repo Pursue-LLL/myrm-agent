@@ -4,6 +4,7 @@
 - utils.url_syntax::canonical_hostname (POS: the one ASCII spelling of a host, the one the outbound URL gates dial)
 
 [OUTPUT]
+- canonical_name(): the canonical host a host text names; text that names no host stands for itself, lowercased
 - canonical_host(): the host a string names, without scheme, path, port or trailing dot
 - canonical_entry(): a list entry in canonical form, ``example.com`` or ``*.example.com``
 - host_matches(): whether a host equals an entry or lies under a wildcard entry
@@ -39,14 +40,14 @@ def _host_text(raw: str) -> str:
     return text.split(":", 1)[0] if text.count(":") == 1 else text
 
 
-def _name(text: str) -> str:
+def canonical_name(text: str) -> str:
     """The canonical host *text* names; text that names no host stands for itself and matches nothing."""
     return canonical_hostname(text) or text.lower().rstrip(".")
 
 
 def canonical_host(raw: str) -> str:
     """The host *raw* names, as the outbound URL gates dial it; empty when *raw* names none."""
-    return _name(_host_text(raw))
+    return canonical_name(_host_text(raw))
 
 
 @lru_cache(maxsize=1024)
@@ -54,10 +55,10 @@ def canonical_entry(raw: str) -> str:
     """*raw* as a list entry: ``example.com``, or ``*.example.com`` when it also covers the subdomains."""
     text = _host_text(raw)
     if text.startswith(_WILDCARD_PREFIX):
-        return _WILDCARD_PREFIX + _name(text[2:])
+        return _WILDCARD_PREFIX + canonical_name(text[2:])
     if text.startswith("."):
-        return _WILDCARD_PREFIX + _name(text[1:])
-    return _name(text)
+        return _WILDCARD_PREFIX + canonical_name(text[1:])
+    return canonical_name(text)
 
 
 def host_matches(host: str, entries: Iterable[str]) -> bool:
