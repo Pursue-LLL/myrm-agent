@@ -32,5 +32,5 @@ Parent index: [../_ARCH.md](../_ARCH.md). System design: [../MEMORY_SYSTEM.md](.
 
 ## Key Dependencies
 
-- `../manager.py`, `../types.py`, `../conversation_search/`
+- `../manager.py`, `../types/`, `../conversation_search/`
 - `core`, `infra`, `utils`

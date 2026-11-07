@@ -23,4 +23,4 @@ LangChain tools the agent uses to read and write memory: `memory_search_tool` (m
 - `../memory_search_policy.py`, `../memory_search_execution.py`, `../memory_recall_*.py`, `../tool_result_sources.py`
 - `../wiki_memory_boundary.py`, `../transient_fact_boundary.py`, `../write_failure_feedback.py`
 - `../_memory_agent_tool_descriptions.py` (LLM-visible descriptions, injected by `factory.py`)
-- `../../manager.py`, `../../session.py`, `../../types.py`
+- `../../manager.py`, `../../session.py`, `../../types/`
