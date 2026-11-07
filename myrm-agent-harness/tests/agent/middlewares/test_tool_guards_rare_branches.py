@@ -74,37 +74,37 @@ def _base_pre_patches():
             return_value=MagicMock(blocked=False, updated_input=None),
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
             return_value=1,
         ),
     )
@@ -126,11 +126,11 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=estop,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
         ):
             result = await run_pre_call_guards(_request(), "bash_code_execute_tool", "c1", {})
@@ -152,7 +152,7 @@ class TestPreCallRareBranches:
                 return_value=registry,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
         ):
             result = await run_pre_call_guards(_request(), "web_search_tool", "c2", {})
@@ -176,27 +176,27 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=budget_guard,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
         ):
             result = await run_pre_call_guards(
@@ -228,38 +228,38 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=tracker,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=budget_guard,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
         ):
@@ -288,23 +288,23 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
         ):
             result = await run_pre_call_guards(
@@ -336,19 +336,19 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             pytest.raises(RuntimeError),
         ):
@@ -369,41 +369,41 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=MagicMock(
                     check=MagicMock(return_value=MagicMock(action=TurnBudgetAction.ALLOW)),
                     record=MagicMock(),
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value="Trust attenuated: agent changed",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
         ):
@@ -426,41 +426,41 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=MagicMock(
                     check=MagicMock(return_value=MagicMock(action=TurnBudgetAction.ALLOW)),
                     record=MagicMock(),
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value="PII detected in params",
             ),
         ):
@@ -485,41 +485,41 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=MagicMock(
                     check=MagicMock(return_value=MagicMock(action=TurnBudgetAction.ALLOW)),
                     record=MagicMock(),
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=steering,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
         ):
@@ -544,41 +544,41 @@ class TestPreCallRareBranches:
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=MagicMock(
                     check=MagicMock(return_value=MagicMock(action=TurnBudgetAction.ALLOW)),
                     record=MagicMock(),
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.resolve_turn_budget_units",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.resolve_turn_budget_units",
                 return_value=1,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
         ):
@@ -601,21 +601,21 @@ class TestPostCallRareBranches:
         budget_verdict.content = "truncated content"
         return (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard",
                 return_value=MagicMock(check_and_truncate=MagicMock(return_value=budget_verdict)),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_archive_restore_block_status",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_archive_restore_block_status",
                 new_callable=AsyncMock,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation",
                 return_value=None,
             ),
             patch(
@@ -623,7 +623,7 @@ class TestPostCallRareBranches:
                 return_value=MagicMock(record_tool_output=MagicMock()),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
             ),
             patch(
                 "myrm_agent_harness.agent.workspace_rules.tracker.check_and_append_rules",
@@ -668,7 +668,7 @@ class TestPostCallRareBranches:
         loop_guard.record_result.return_value = post_verdict
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="(no output)", name="t", tool_call_id="c"),
                     "(no output)",
@@ -695,7 +695,7 @@ class TestPostCallRareBranches:
         loop_guard.record_result.return_value = post_verdict
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="output", name="t", tool_call_id="c"),
                     "output",
@@ -729,11 +729,11 @@ class TestPostCallRareBranches:
         mock_emit = AsyncMock()
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="o", name="t", tool_call_id="c"),
                     "o",
@@ -777,11 +777,11 @@ class TestPostCallRareBranches:
         mock_emit = AsyncMock()
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(ToolMessage(content="o", name="t", tool_call_id="c"), "o"),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call._emit_loop_guard_event",
                 mock_emit,
             ),
         ):
@@ -809,7 +809,7 @@ class TestPostCallRareBranches:
         loop_guard.record_result.return_value = post_verdict
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(ToolMessage(content="o", name="t", tool_call_id="c"), "o"),
             ),
         ):
@@ -835,7 +835,7 @@ class TestPostCallRareBranches:
         loop_guard.record_result.return_value = post_verdict
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="o", name="t", tool_call_id="c"),
                     "o",
@@ -863,7 +863,7 @@ class TestPostCallRareBranches:
         call_record = CallRecord(tool_name="bash_code_execute_tool", args_hash="h", args={})
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="o", name="bash_code_execute_tool", tool_call_id="c"),
                     "o",
@@ -899,7 +899,7 @@ class TestPostCallRareBranches:
         assert verifying is not None and other is not None
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="3 passed", name="bash_code_execute_tool", tool_call_id="c"),
                     "3 passed",
@@ -943,7 +943,7 @@ class TestPostCallRareBranches:
         message = ToolMessage(content=content, name="skill_select_tool", tool_call_id="c", status=status)
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(message, content),
             ),
         ):
@@ -979,7 +979,7 @@ class TestPostCallRareBranches:
 
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="o", name="t", tool_call_id="c"),
                     "o",
@@ -991,7 +991,7 @@ class TestPostCallRareBranches:
                 return_value=hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_hook_failure_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_hook_failure_event",
                 mock_emit,
             ),
         ):
@@ -1043,7 +1043,7 @@ class TestPostCallRareBranches:
 
         with self._enter_patches(
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(
                     ToolMessage(content="o", name="t", tool_call_id="c"),
                     "o",

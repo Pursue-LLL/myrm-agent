@@ -208,7 +208,7 @@ class TestToolInterceptorMiddleware:
         token = _loop_guard_var.set(LoopGuard())
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ) as self.mock_steering,
             patch(

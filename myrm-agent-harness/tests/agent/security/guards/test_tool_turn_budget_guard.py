@@ -117,11 +117,11 @@ class TestToolTurnBudgetPreCallIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
@@ -130,11 +130,11 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=guard,
             ),
             patch(
@@ -142,15 +142,15 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value="msg-attempt",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
         ):
@@ -193,11 +193,11 @@ class TestToolTurnBudgetPreCallIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
@@ -206,11 +206,11 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=guard,
             ),
             patch(
@@ -218,15 +218,15 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value="msg-units",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
         ):
@@ -269,11 +269,11 @@ class TestToolTurnBudgetPreCallIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
@@ -282,11 +282,11 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_tool_turn_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_tool_turn_budget_guard",
                 return_value=guard,
             ),
             patch(
@@ -294,15 +294,15 @@ class TestToolTurnBudgetPreCallIntegration:
                 return_value="msg-limit",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
         ):

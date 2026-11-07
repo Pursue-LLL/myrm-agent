@@ -126,15 +126,15 @@ class TestPreCallGuardsEmitEvent:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
@@ -143,11 +143,11 @@ class TestPreCallGuardsEmitEvent:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
         ):
             from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
@@ -199,15 +199,15 @@ class TestPreCallGuardsEmitEvent:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker",
                 return_value=None,
             ),
             patch(
@@ -216,22 +216,22 @@ class TestPreCallGuardsEmitEvent:
                 return_value=mock_hook_result,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_steering_token",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_steering_token",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_trust_attenuation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_trust_attenuation",
                 return_value=None,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
                 return_value=None,
             ),
         ):
@@ -279,16 +279,16 @@ class TestPreCallGuardsModelRound:
         from myrm_agent_harness.agent.middlewares.tooling._tool_guards import run_pre_call_guards
 
         with (
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event", AsyncMock()),
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop", return_value=None),
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_token_tracker", return_value=None),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call._emit_loop_guard_event", AsyncMock()),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop", return_value=None),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.get_token_tracker", return_value=None),
             patch(
                 "myrm_agent_harness.agent.hooks.executor.fire_hook",
                 new_callable=AsyncMock,
                 return_value=MagicMock(blocked=False, updated_input=None),
             ),
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker", return_value=None),
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision"),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker", return_value=None),
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.record_decision"),
         ):
             for call_id, command in (("call_b", "pwd"), ("call_a", "ls")):
                 request.tool_call = {"args": {"command": command}, "id": call_id}
@@ -340,27 +340,27 @@ class TestPostCallGuardsEmitEvent:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_archive_restore_block_status",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_archive_restore_block_status",
                 new_callable=AsyncMock,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard",
                 return_value=MagicMock(
                     check_and_truncate=MagicMock(return_value=MagicMock(action=MagicMock(__eq__=lambda s, o: False)))
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation",
                 return_value=None,
             ),
             patch(
@@ -368,7 +368,7 @@ class TestPostCallGuardsEmitEvent:
                 return_value=MagicMock(record_tool_output=MagicMock()),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(result_msg, "some output"),
             ),
             patch(
@@ -431,27 +431,27 @@ class TestPostCallGuardsEmitEvent:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_archive_restore_block_status",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_archive_restore_block_status",
                 new_callable=AsyncMock,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard",
                 return_value=MagicMock(
                     check_and_truncate=MagicMock(return_value=MagicMock(action=MagicMock(__eq__=lambda s, o: False)))
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation",
                 return_value=None,
             ),
             patch(
@@ -459,7 +459,7 @@ class TestPostCallGuardsEmitEvent:
                 return_value=MagicMock(record_tool_output=MagicMock()),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(result_msg, "error: permission denied"),
             ),
             patch(
@@ -521,27 +521,27 @@ class TestPostCallGuardsEmitEvent:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards._emit_loop_guard_event",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call._emit_loop_guard_event",
                 mock_emit,
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.record_decision",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.record_decision",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_archive_restore_block_status",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_archive_restore_block_status",
                 new_callable=AsyncMock,
             ),
             patch(
                 "myrm_agent_harness.agent.middlewares.tooling._mutation_verifier.record_mutation_result",
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard",
                 return_value=MagicMock(
                     check_and_truncate=MagicMock(return_value=MagicMock(action=MagicMock(__eq__=lambda s, o: False)))
                 ),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation",
                 return_value=None,
             ),
             patch(
@@ -549,7 +549,7 @@ class TestPostCallGuardsEmitEvent:
                 return_value=MagicMock(record_tool_output=MagicMock()),
             ),
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii",
                 return_value=(result_msg, "success"),
             ),
             patch(

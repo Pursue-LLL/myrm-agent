@@ -153,7 +153,7 @@ class TestPostCallGuardsIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_archive_restore_block_status",
+                "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_archive_restore_block_status",
                 new_callable=AsyncMock,
             ),
         ):

@@ -23,12 +23,13 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
 from myrm_agent_harness.agent._internals._agent_helpers import isolated_run_guards, reset_all_guards
-from myrm_agent_harness.agent.middlewares.tooling import _tool_guards
+from myrm_agent_harness.agent.middlewares.tooling._tool_guards import post_call, pre_call
 from myrm_agent_harness.agent.security.guards.tool_turn_budget_guard import DEFAULT_WEB_SEARCH_TURN_LIMIT
 from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
 from tests.support.shipped_graph import shipped_agent, shipped_session
 
 GUARD_GETTERS = ("get_tool_turn_budget_guard", "get_context_budget_guard")
+_GUARD_MODULES = {"get_tool_turn_budget_guard": pre_call, "get_context_budget_guard": post_call}
 TURNS = 2
 CALLS_PER_TURN = 15
 # Every round of the shipped graph costs about a dozen steps, so the default limit would end the run first.
@@ -75,7 +76,8 @@ def _guards_got_by_a_run(monkeypatch: pytest.MonkeyPatch, workspace: Path) -> di
     """The guard each tool call of a two-turn run was given, by the name of the getter."""
     got: dict[str, list[object]] = {name: [] for name in GUARD_GETTERS}
     for name in GUARD_GETTERS:
-        monkeypatch.setattr(_tool_guards, name, _recording(getattr(_tool_guards, name), got[name]))
+        module = _GUARD_MODULES[name]
+        monkeypatch.setattr(module, name, _recording(getattr(module, name), got[name]))
     monkeypatch.setitem(TOOL_SAFETY_METADATA, "read_source", SAFE_TO_RUN_TOGETHER)
     script = [_turn(0), _turn(CALLS_PER_TURN), AIMessage(content="done")]
     _, agent = shipped_agent(script, [read_source])
