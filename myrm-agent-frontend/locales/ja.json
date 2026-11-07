@@ -21045,6 +21045,9 @@
         "server_side_break": "サーバーサイドのキャッシュミス"
       },
       "activityTitle": "アクティビティパターン",
+      "timeRange7Days": "7日間",
+      "timeRange30Days": "30日間",
+      "timeRangeAll": "すべて",
       "activeDays": "アクティブ日数",
       "maxStreak": "最大連続",
       "busiestDay": "最も忙しい曜日",

@@ -142,7 +142,9 @@
 
 | 文件                             | 职责                                                                                                                                   |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
+| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）：持有数据加载、时间范围与 Top 会话指标状态，组装各区块；加载失败显示可重试的错误态     |
+| `UsageOverviewPanels.tsx`        | 总览区块：`UsageOverviewCards`（总览 / 次级统计卡 + 全局 Prompt Cache 雷达，仅在有追踪会话时显示）与 `UsageWikiEvidenceSection`（Wiki 证据治理卡片：deep verification / requery / dwell / dropped telemetry / negative outcome rate） |
+| `UsageActivityPanels.tsx`        | 活跃度区块：`UsageActivitySection`（7 / 30 天 / 全部时间范围切换，标签取自 `settings.usageStatistics.timeRange*`；无活跃数据时只显示空态）与 `UsageTopSessionsSection`（Top 会话榜与指标切换） |
 | `UsageStatisticsCharts.tsx`      | 用量图表 barrel 导出                                                                                                                   |
 | `UsageStatCard.tsx`              | 统计卡片                                                                                                                               |
 | `UsageCacheBreakTimeline.tsx`    | 缓存击穿时间线                                                                                                                         |
@@ -152,6 +154,7 @@
 | `UsagePrivacyRoutePanel.tsx`     | 隐私路由 local/cloud 占比                                                                                                              |
 | `UsageModelBreakdown.tsx`        | 模型用量明细                                                                                                                           |
 | `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
+| `__tests__/UsageStatisticsSection.test.tsx` | 用量统计面板单测：默认 30 天窗口的全量加载、雷达 / Wiki 证据的显示条件（Wiki 加载失败只隐藏该区块）、时间范围与 Top 会话指标切换后的重新加载参数、空态、CSV 导出、会话分析对话框开合、加载失败的错误态（文字色走 `text-destructive-text`）与重试 |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
 | `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
