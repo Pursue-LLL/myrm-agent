@@ -1,9 +1,10 @@
 """Consolidation covers every memory once, oldest first, and never skips one it could not see.
 
 Mock stores ignore filters and ordering, so they cannot show a backlog drained across runs, a stamp that
-jumps over memories a source did not return, or consolidation's own output re-entering the window. Each
-case drives a real manager over SQLite and an embedded Qdrant. A document that cannot be decoded is the one
-thing the window skips, and it must hide neither its neighbours nor the memories beyond it.
+jumps over memories a source did not return, consolidation's own output re-entering the window, or another
+scope's memories reaching it. Each case drives a real manager over SQLite and an embedded Qdrant. A document
+that cannot be decoded is the one thing the window skips, and it must hide neither its neighbours nor the
+memories beyond it.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
-from myrm_agent_harness.toolkits.memory.types import ProceduralMemory
+from myrm_agent_harness.toolkits.memory.types import ProceduralMemory, SemanticMemory
 from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from tests.support.consolidation_seeds import (
     BASE,
@@ -223,6 +224,42 @@ async def test_a_rule_is_a_candidate_only_when_created_after_the_stamp_and_by_th
     assert [m.content for m in since_before.memories] == ["When: asked → Do: answer"]
     assert since_after.memories == []
     assert before_the_rule.memories == []
+
+
+async def test_every_rule_is_covered_however_many_the_library_holds(new_manager: NewManager) -> None:
+    manager = new_manager()
+    # One read of rules returns at most a thousand, and the stamp must not move past a rule it left out.
+    rules = [
+        ProceduralMemory(content=f"When: ask {i:04d} → Do: answer", trigger=f"ask {i:04d}", action="answer")
+        for i in range(1100)
+    ]
+    await manager.store_batch(rules, _bypass_approval=True, _skip_dedup=True)
+    horizon = datetime.now(UTC) + timedelta(minutes=1)
+
+    covered: list[str] = []
+    since: datetime | None = None
+    while (window := await fetch_candidate_window(manager, since, 100, horizon)).memories:
+        covered.extend(m.content for m in window.memories)
+        assert window.advance_to is not None
+        since = window.advance_to
+
+    assert sorted(covered) == sorted(rule.content for rule in rules)
+
+
+async def test_a_run_covers_only_the_memories_and_rules_of_its_own_scope(new_manager: NewManager) -> None:
+    mine, other = new_manager(), new_manager(["agent:other"])
+    await mine.store(SemanticMemory(content="fact of mine"), _bypass_approval=True)
+    await mine.store(
+        ProceduralMemory(content="When: mine → Do: act", trigger="mine", action="act"), _bypass_approval=True
+    )
+    await other.store(SemanticMemory(content="fact of the other agent"), _bypass_approval=True)
+    await other.store(
+        ProceduralMemory(content="When: other → Do: act", trigger="other", action="act"), _bypass_approval=True
+    )
+
+    window = await fetch_candidate_window(mine, None, 100, datetime.now(UTC) + timedelta(minutes=1))
+
+    assert [m.content for m in window.memories] == ["fact of mine", "When: mine → Do: act"]
 
 
 async def test_consecutive_runs_drain_a_backlog_and_leave_the_stamp_at_the_latest_settled_instant(
