@@ -13,6 +13,7 @@
 
 [OUTPUT]
 - MemorySaveInput: pydantic args schema of memory_save_tool
+- memory_save_input: the args schema under a policy (``write_target`` is offered only when shared writes are allowed)
 - build_memory_save_tool: bind memory_save_tool to a manager and policy
 
 [POS]
@@ -26,6 +27,7 @@ from typing import Literal
 
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 from myrm_agent_harness.toolkits.memory._internal.scope import MemoryWriteTarget
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import parse_string_list
@@ -71,6 +73,18 @@ class MemorySaveInput(BaseModel):
         default=0,
         description="Rule override strength when category=rule; higher wins.",
     )
+
+
+# Shared writes are blocked: ``write_target`` is accepted but never offered, so a caller that still sends ``shared``
+# is demoted to ``bound`` by the tool instead of failing validation. A comment, not a docstring: a docstring would
+# become the schema description the provider receives.
+class _BoundOnlySaveInput(MemorySaveInput):
+    write_target: SkipJsonSchema[MemoryWriteTarget] = "bound"
+
+
+def memory_save_input(policy: MemorySearchPolicy) -> type[MemorySaveInput]:
+    """The args schema memory_save_tool exposes under ``policy``: ``write_target`` only when shared writes are allowed."""
+    return MemorySaveInput if policy.allow_shared_write else _BoundOnlySaveInput
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,7 +206,7 @@ def build_memory_save_tool(
 ) -> BaseTool:
     """Create memory_save_tool bound to ``manager`` under the given write policy."""
 
-    @tool("memory_save_tool", description=description, args_schema=MemorySaveInput)
+    @tool("memory_save_tool", description=description, args_schema=memory_save_input(policy))
     async def memory_save(
         content: str,
         category: Literal["knowledge", "event", "preference", "rule", "instruction"] = "knowledge",

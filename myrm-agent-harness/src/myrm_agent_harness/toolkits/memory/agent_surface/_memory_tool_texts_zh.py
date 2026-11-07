@@ -7,6 +7,7 @@ Must stay semantically aligned with ``_memory_tool_texts_en``.
 
 [OUTPUT]
 - MEMORY_SAVE_CORE_ZH: memory_save_tool description core (Chinese)
+- MEMORY_SAVE_WRITE_TARGET_ZH: the write-target block of the save description, offered only under a shared-write policy
 - MEMORY_MANAGE_TOOL_DESCRIPTION_ZH: memory_manage_tool description (Chinese)
 
 [POS]
@@ -36,9 +37,10 @@ MEMORY_SAVE_CORE_ZH = """为用户存储新记忆。记忆跨会话持久化并�
 - rule：条件性行为规则（需 rule_trigger 如「写代码时」；可选 rule_priority）
 - instruction：全局无条件指令（如「始终用中文回复」）— 不要设置 rule_trigger
 
-**重要性**（0–1，主要用于 knowledge）：0.8–1.0 用户明确要求记住，或纠正你的行为；0.5–0.7 推断的稳定偏好或环境事实；0.2–0.4 补充上下文。
+**重要性**（0–1，主要用于 knowledge）：0.8–1.0 用户明确要求记住，或纠正你的行为；0.5–0.7 推断的稳定偏好或环境事实；0.2–0.4 补充上下文。"""
 
-**写入目标**：
+# Appended to the save description only while the write policy allows shared writes.
+MEMORY_SAVE_WRITE_TARGET_ZH = """**写入目标**：
 - "bound"（默认）：仅当前 Agent 角色可见
 - "shared"：跨 Agent 共享知识（姓名、时区等）"""
 
