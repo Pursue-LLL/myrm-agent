@@ -5,8 +5,9 @@ its body is still arriving and deleted once it finished, and so is one whose jud
 a bounded time for that, and the work goes on when the caller stops waiting (it is cancelled, or the browser is slow).
 Once a download is processed the browser keeps nothing of it, whichever way the processing ended. A request that stops
 waiting stops the navigation it started, even when it is cancelled again while stopping, so the answer still on its
-way is not left to land unjudged. The real-Chromium proof is ``test_download_url_integration`` (requests) and
-``test_download_page_started_integration`` (downloads a page starts itself).
+way is not left to land unjudged, and a download it had claimed but not taken goes to the page path. The
+real-Chromium proof is ``test_download_url_integration`` (requests) and ``test_download_page_started_integration``
+(downloads a page starts itself).
 """
 
 from __future__ import annotations
@@ -103,7 +104,30 @@ class TestGivingUp:
             await request
 
         abort_navigation.assert_awaited_once_with(page)
-        assert manager._requesting_pages == {}
+
+    @pytest.mark.asyncio
+    async def test_a_cancelled_request_hands_the_download_it_claimed_to_the_page_path(
+        self, manager: DownloadManager
+    ) -> None:
+        """A download the page started for the request to take must not go unjudged when the request is gone."""
+        page = waiting_page()
+        claimed = download_of(page, "https://cdn.example/claimed.txt")
+        navigating = asyncio.Event()
+
+        def start_the_download(*_args: object) -> None:
+            manager._on_download(claimed)
+            navigating.set()
+
+        page.evaluate.side_effect = start_the_download
+        request = asyncio.create_task(manager.download_url(page, _REQUEST_URL))
+        await asyncio.wait_for(navigating.wait(), timeout=1.0)
+
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+        await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+
+        assert [result.url for result in manager.downloads] == [claimed.url]
 
     @pytest.mark.asyncio
     async def test_a_second_cancellation_does_not_cut_the_stop_short(
@@ -129,7 +153,6 @@ class TestGivingUp:
 
         release.set()
         await asyncio.wait_for(stopped.wait(), timeout=1.0)
-        assert manager._requesting_pages == {}
 
     @pytest.mark.asyncio
     async def test_a_request_that_got_its_download_leaves_the_navigation_alone(

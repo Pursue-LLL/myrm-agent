@@ -5,8 +5,8 @@
 - navigation.ssrf_guard::BrowserNavigationBlockedError (POS: the refusal a download address verifier raises)
 - utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
 - session.download_config::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
-- core.security.redact::redact_sensitive_text (POS: credential redaction for the text a log line quotes)
-- utils.url_utils::sanitize_url_for_error (POS: scheme, host and path of a URL without its query and fragment)
+- session.network::safe_preview (POS: credential-masked text cut to a limit)
+- utils.url_utils::sanitize_url_for_error (POS: a URL as an error or log line may show it: scheme, host and path, no credentials, query or fragment)
 
 [OUTPUT]
 - DownloadManager: file download manager; judges every download, requested or page-started, before saving it
@@ -18,10 +18,12 @@ Integrated into BrowserSession as an optional component. It holds no URL policy:
 verifier that judges the address a download came from, and a download that is refused, cut short while it is
 judged, or not kept is cancelled and deleted (the caller waits a bounded time for that; the cleanup carries on after
 the caller stops waiting). A page-started download is judged at once, without waiting for a free slot. Once a
-download is processed the browser keeps nothing of it: the saved copy is the only one left. While a download_url
-request waits on a page it is the only processor of the page's downloads, and a request that gives up stops the
-navigation it started (one bounded, best-effort protocol command), so an answer still on its way does not land
-after the request has returned. Log lines name a download's URL without its query, fragment or credentials.
+download is processed the browser keeps nothing of it: the saved copy is the only one left. A download_url request
+takes the first download its page starts; every other download of that page goes through the page path, and one the
+request claimed but never took goes there when the request ends, so no download is kept without a verdict. A request
+that gives up stops the navigation it started (one bounded, best-effort protocol command), so an answer still on its
+way does not land after the request has returned. Log lines name a download's URL without its query, fragment or
+credentials.
 """
 
 from __future__ import annotations
@@ -36,12 +38,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.utils.url_utils import sanitize_url_for_error
 
 from ..navigation.ssrf_guard import BrowserNavigationBlockedError
 from ..utils.page_health import abort_pending_navigation
 from .download_config import DownloadConfig
+from .network import safe_preview
 
 if TYPE_CHECKING:
     from patchright.async_api import Download, Page
@@ -60,13 +62,26 @@ _UNADDRESSED_SCHEMES = ("blob:", "data:")
 _DISCARD_TIMEOUT_S = 2.0
 
 _LOGGED_URL_LENGTH = 80
+_LOGGED_REASON_LENGTH = 200
+# A hostile page chooses the URL, so it is cut to this before it is masked: masking costs the event loop as long as
+# the redactor takes on the text. Wider than the logged length, so a credential that starts inside the logged part
+# is masked whole before the logged cut.
+_MASKED_URL_LENGTH = 256
 
 _FILENAME_SANITIZE_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
 def _loggable_url(url: str) -> str:
-    """A download URL as a log line may carry it: no query or fragment, credentials masked before the cut."""
-    return sanitize_url_for_error(redact_sensitive_text(url), max_length=_LOGGED_URL_LENGTH)
+    """A download URL as a log line may show it: scheme, host and path, nothing a URL can carry as a secret."""
+    return safe_preview(sanitize_url_for_error(url, max_length=_MASKED_URL_LENGTH), _LOGGED_URL_LENGTH)
+
+
+def _loggable_reason(refusal: BrowserNavigationBlockedError, url: str, logged_url: str) -> str:
+    """A refusal's reason as a log line may show it: the whole URL the guard quotes in it becomes ``logged_url``."""
+    reason = str(refusal)
+    if url:  # an empty URL would match between every two characters
+        reason = reason.replace(url, logged_url)
+    return safe_preview(reason, _LOGGED_REASON_LENGTH)
 
 
 @dataclass(frozen=True)
@@ -78,6 +93,15 @@ class DownloadResult:
     file_name: str
     file_size: int
     file_type: str | None = None
+
+
+@dataclass(eq=False)
+class _DownloadRequest:
+    """A ``download_url`` call waiting for the first download its page starts."""
+
+    page_key: int
+    claimed: Download | None = None  # the download the page listener left to this request
+    taken: Download | None = None  # the download the request itself received, and judges
 
 
 class DownloadManager:
@@ -95,7 +119,7 @@ class DownloadManager:
         self._semaphore = asyncio.Semaphore(self._config.max_concurrent_downloads)
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._attached_page_ids: set[int] = set()
-        self._requesting_pages: dict[int, int] = {}
+        self._requests: list[_DownloadRequest] = []
 
         self._config.downloads_dir.mkdir(parents=True, exist_ok=True)
 
@@ -120,11 +144,11 @@ class DownloadManager:
     async def download_url(self, page: Page, url: str, timeout: float | None = None) -> DownloadResult | None:
         """Actively download a file from a URL.
 
-        While the request waits, the page's own download listener stands down, so this call alone decides what
-        is saved. The address the download came from (the final one, after redirects) is judged before any byte
-        is kept; a refusal discards the download and propagates. A request that gives up stops the navigation it
-        started (one bounded, best-effort protocol command, also when the caller is cancelled again), so an
-        answer still on its way does not land after the request has returned.
+        While the request waits it takes the first download its page starts; every other download of the page
+        goes through the page path as usual. The address the download came from (the final one, after redirects)
+        is judged before any byte is kept; a refusal discards the download and propagates. A request that gives up
+        stops the navigation it started (one bounded, best-effort protocol command, also when the caller is
+        cancelled again), so an answer still on its way does not land after the request has returned.
 
         Args:
             page: Page to initiate download from
@@ -146,8 +170,9 @@ class DownloadManager:
 
         try:
             async with self._semaphore:
-                with self._owning_downloads_of(page):
+                with self._waiting_for_a_download(page) as request:
                     download = await self._request_download(page, url, effective_timeout)
+                    request.taken = download
                     await self._judge(download)
                     return await self._process_download(download)
         except BrowserNavigationBlockedError:
@@ -157,18 +182,19 @@ class DownloadManager:
             return None
 
     @contextlib.contextmanager
-    def _owning_downloads_of(self, page: Page) -> Iterator[None]:
-        """Make the caller the only processor of the page's downloads for the duration of the block."""
-        key = id(page)
-        self._requesting_pages[key] = self._requesting_pages.get(key, 0) + 1
+    def _waiting_for_a_download(self, page: Page) -> Iterator[_DownloadRequest]:
+        """Let a request take the first download ``page`` starts.
+
+        A download the request claimed but never took (it ended first) goes to the page path.
+        """
+        request = _DownloadRequest(page_key=id(page))
+        self._requests.append(request)
         try:
-            yield
+            yield request
         finally:
-            remaining = self._requesting_pages[key] - 1
-            if remaining:
-                self._requesting_pages[key] = remaining
-            else:
-                del self._requesting_pages[key]
+            self._requests.remove(request)
+            if request.claimed is not None and request.claimed is not request.taken:
+                self._spawn(self._handle_download_async(request.claimed))
 
     @staticmethod
     async def _request_download(page: Page, url: str, timeout_ms: float) -> Download:
@@ -229,9 +255,15 @@ class DownloadManager:
         self._pending_tasks.clear()
 
     def _on_download(self, download: Download) -> None:
-        """Handle download event from page (sync callback → async task)."""
-        if id(download.page) in self._requesting_pages:
-            return  # the download_url call waiting on this page judges the download, then saves it
+        """Handle download event from page (sync callback → async task).
+
+        The first download of a page a request waits on is left to that request: the browser reports the same
+        download to the request, which judges and saves it. Every other download takes the page path.
+        """
+        waiting = next((r for r in self._requests if r.page_key == id(download.page) and r.claimed is None), None)
+        if waiting is not None:
+            waiting.claimed = download
+            return
         self._spawn(self._handle_download_async(download))
 
     def _spawn(self, work: Coroutine[None, None, None]) -> asyncio.Task[None]:
@@ -248,10 +280,9 @@ class DownloadManager:
             async with self._semaphore:
                 await self._process_download(download)
         except BrowserNavigationBlockedError as refusal:
+            logged_url = _loggable_url(download.url)
             logger.warning(
-                "Refused a download from %s: %s",
-                _loggable_url(download.url),
-                redact_sensitive_text(str(refusal))[:200],
+                "Refused a download from %s: %s", logged_url, _loggable_reason(refusal, download.url, logged_url)
             )
         except Exception as e:
             logger.warning("Download handler error: %s", e)

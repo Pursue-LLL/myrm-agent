@@ -3,16 +3,18 @@
 The context's request filter is never handed a redirect hop, so the address a download finally came from is the only
 place its origin can be judged. These tests pin the manager's side of that: the address of a download the agent asked
 for and of one the page started itself is judged before anything is saved, a page-started download is judged at once
-whatever else is downloading, a refused download is cancelled and deleted, and the page's own listener stands down
-while a request waits so it cannot save what the verifier refuses. What a refused or abandoned download leaves behind
-is pinned in ``test_download_manager_discard``; the real-Chromium proof is ``test_download_url_integration``
-(requests) and ``test_download_page_started_integration`` (downloads a page starts itself).
+whatever else is downloading, a refused download is cancelled and deleted, and a waiting request takes only the first
+download its page starts, so every other download of that page is judged by the page path. What a refused or abandoned
+download leaves behind is pinned in ``test_download_manager_discard``; the real-Chromium proof is
+``test_download_url_integration`` (requests) and ``test_download_page_started_integration`` (downloads a page starts
+itself).
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -34,6 +36,16 @@ async def _let_listener_tasks_finish(manager: DownloadManager) -> None:
 async def _until_discarded(download: MagicMock) -> None:
     while not download.delete.await_count:
         await asyncio.sleep(0.01)
+
+
+def _page_starts(manager: DownloadManager, *downloads: MagicMock) -> Callable[..., None]:
+    """What a page does when a request navigates it: it starts these downloads, in this order."""
+
+    def start(*_args: object) -> None:
+        for download in downloads:
+            manager._on_download(download)
+
+    return start
 
 
 @pytest.fixture
@@ -205,13 +217,18 @@ class TestPageStartedDownloads:
         assert [result.url for result in manager.downloads] == [url]
 
 
-class TestListenerStandDown:
+class TestRequestClaim:
+    """A request takes the first download its page starts, the one ``page.expect_download`` resolves with.
+
+    Every other download of the page goes through the page path, so none is saved or kept without a verdict.
+    """
+
     @pytest.mark.asyncio
-    async def test_the_page_listener_leaves_the_download_to_the_waiting_request(
+    async def test_the_request_takes_the_first_download_its_page_starts(
         self, manager: DownloadManager, verify: AsyncMock
     ) -> None:
         page, download = requesting_page("https://cdn.example/a.txt")
-        page.evaluate.side_effect = lambda *_args: manager._on_download(download)  # the event the listener sees
+        page.evaluate.side_effect = _page_starts(manager, download)
 
         result = await manager.download_url(page, _REQUEST_URL)
         await _let_listener_tasks_finish(manager)
@@ -222,10 +239,50 @@ class TestListenerStandDown:
         assert len(manager.downloads) == 1
 
     @pytest.mark.asyncio
+    async def test_a_second_download_of_the_page_is_judged_and_saved_by_the_page_path(
+        self, manager: DownloadManager, verify: AsyncMock
+    ) -> None:
+        page, first = requesting_page("https://cdn.example/a.txt")
+        second = download_of(page, "https://cdn.example/b.txt")
+        page.evaluate.side_effect = _page_starts(manager, first, second)
+
+        await manager.download_url(page, _REQUEST_URL)
+        await _let_listener_tasks_finish(manager)
+
+        assert sorted(call.args[0] for call in verify.await_args_list) == [first.url, second.url]
+        assert sorted(result.url for result in manager.downloads) == [first.url, second.url]
+        assert first.save_as.await_count == 1
+        assert second.save_as.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_a_second_download_of_the_page_is_refused_like_any_other(
+        self, manager: DownloadManager, verify: AsyncMock, downloads_dir: Path
+    ) -> None:
+        page, first = requesting_page("https://cdn.example/a.txt")
+        second = download_of(page, DEFAULT_FINAL_URL)
+        page.evaluate.side_effect = _page_starts(manager, first, second)
+
+        async def refuse_the_second(url: str) -> None:
+            if url == second.url:
+                raise BrowserNavigationBlockedError("SSRF blocked: 127.0.0.1 is loopback")
+
+        verify.side_effect = refuse_the_second
+
+        result = await manager.download_url(page, _REQUEST_URL)
+        await _let_listener_tasks_finish(manager)
+
+        assert result is not None
+        second.cancel.assert_awaited_once()
+        second.delete.assert_awaited_once()
+        second.save_as.assert_not_awaited()
+        assert [saved.url for saved in manager.downloads] == [first.url]
+        assert len(list(downloads_dir.iterdir())) == 1
+
+    @pytest.mark.asyncio
     async def test_a_download_of_another_page_is_still_saved_by_its_listener(self, manager: DownloadManager) -> None:
         page, _ = requesting_page("https://cdn.example/a.txt")
         elsewhere = download_of(MagicMock(), "https://cdn.example/elsewhere.txt")
-        page.evaluate.side_effect = lambda *_args: manager._on_download(elsewhere)
+        page.evaluate.side_effect = _page_starts(manager, elsewhere)
 
         await manager.download_url(page, _REQUEST_URL)
         await _let_listener_tasks_finish(manager)
@@ -236,7 +293,9 @@ class TestListenerStandDown:
         ]
 
     @pytest.mark.asyncio
-    async def test_the_listener_resumes_once_the_request_has_ended(self, manager: DownloadManager) -> None:
+    async def test_the_page_path_handles_every_download_once_the_request_has_ended(
+        self, manager: DownloadManager
+    ) -> None:
         page, _ = requesting_page("https://cdn.example/a.txt")
         await manager.download_url(page, _REQUEST_URL)
 
@@ -249,7 +308,9 @@ class TestListenerStandDown:
         ]
 
     @pytest.mark.asyncio
-    async def test_the_stand_down_ends_when_the_request_times_out(self, manager: DownloadManager) -> None:
+    async def test_the_page_path_handles_every_download_once_a_request_has_timed_out(
+        self, manager: DownloadManager
+    ) -> None:
         page = MagicMock()
         page.evaluate = AsyncMock()
         page.expect_download = MagicMock(side_effect=TimeoutError("no download started"))
@@ -260,22 +321,16 @@ class TestListenerStandDown:
         await _let_listener_tasks_finish(manager)
         assert [result.url for result in manager.downloads] == ["https://cdn.example/later.txt"]
 
-    def test_overlapping_requests_on_one_page_stand_down_until_the_last_one_ends(
-        self, manager: DownloadManager
+    @pytest.mark.asyncio
+    async def test_the_page_path_handles_every_download_once_a_request_has_been_refused(
+        self, manager: DownloadManager, verify: AsyncMock
     ) -> None:
-        page = MagicMock()
+        page, _ = requesting_page("https://cdn.example/a.txt")
+        verify.side_effect = [BrowserNavigationBlockedError("SSRF blocked"), None]
 
-        with manager._owning_downloads_of(page):
-            with manager._owning_downloads_of(page):
-                pass
-            assert manager._requesting_pages == {id(page): 1}
+        with pytest.raises(BrowserNavigationBlockedError):
+            await manager.download_url(page, _REQUEST_URL)
 
-        assert manager._requesting_pages == {}
-
-    def test_the_stand_down_ends_even_when_the_block_raises(self, manager: DownloadManager) -> None:
-        page = MagicMock()
-
-        with pytest.raises(RuntimeError), manager._owning_downloads_of(page):
-            raise RuntimeError("request failed")
-
-        assert manager._requesting_pages == {}
+        manager._on_download(download_of(page, "https://cdn.example/later.txt"))
+        await _let_listener_tasks_finish(manager)
+        assert [result.url for result in manager.downloads] == ["https://cdn.example/later.txt"]

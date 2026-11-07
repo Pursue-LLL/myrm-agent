@@ -2,12 +2,14 @@
 
 A download from a script or a link reaches the page's listener, which judges it like one the agent asked for: a refused
 one is cancelled and deleted, also while its body is still arriving, and nothing of it is kept; one that passes is
-saved once and the browser keeps nothing of it afterwards. A session without download support has nothing to judge a
-download with, so its browser cancels the download. The hosts are fake: the process resolver answers ``public.test``
-with a public address and ``meta.test`` with the metadata address while Chromium connects both to the loopback test
-servers, so a request the policy lets through lands for real and one it refuses is proven by the server never hearing
-of it (see ``test_download_url_integration`` for the requests the agent makes). What the browser still holds of a
-download is read from the temp dir its driver keeps downloads in, which each test points at its own directory.
+saved once and the browser keeps nothing of it afterwards. A request the agent makes takes only the first download its
+page starts, so a second one that starts while the request waits is judged like any other. A session without download
+support has nothing to judge a download with, so its browser cancels the download. The hosts are fake: the process
+resolver answers ``public.test`` with a public address and ``meta.test`` with the metadata address while Chromium
+connects both to the loopback test servers, so a request the policy lets through lands for real and one it refuses is
+proven by the server never hearing of it (see ``test_download_url_integration`` for the requests the agent makes). What
+the browser still holds of a download is read from the temp dir its driver keeps downloads in, which each test points at
+its own directory.
 Run with: `pytest -m integration tests/toolkits/browser/test_download_page_started_integration.py`.
 """
 
@@ -15,12 +17,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator
+from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser import BrowserSession, enhancers
+from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadResult
 from tests.toolkits.browser._browser_available import chromium_available
 from tests.toolkits.browser._download_integration import (
     DNS_ANSWERS,
@@ -84,15 +88,42 @@ async def _until_judged(session: BrowserSession, caplog: pytest.LogCaptureFixtur
     await until(lambda: "Refused a download" in caplog.text or bool(session.list_downloads()))
 
 
-def _delay_verdicts(monkeypatch: pytest.MonkeyPatch, seconds: float) -> None:
-    """Hold back the verdict on where a download came from; what the verdict says is unchanged."""
+def _delay_verdicts(monkeypatch: pytest.MonkeyPatch, seconds: float) -> list[str]:
+    """Hold back the verdict on where a download came from; what the verdict says is unchanged.
+
+    Returns the addresses asked about so far, in order, so a test can tell which download is being judged.
+    """
     judge = BrowserSession._assert_download_final_url_allowed
+    asked: list[str] = []
 
     async def verdict_after_a_while(session: BrowserSession, url: str) -> None:
+        asked.append(url)
         await asyncio.sleep(seconds)
         await judge(session, url)
 
     monkeypatch.setattr(BrowserSession, "_assert_download_final_url_allowed", verdict_after_a_while)
+    return asked
+
+
+async def _page_starts_a_download_while_a_request_waits(
+    session: BrowserSession, asked: list[str], requested_url: str, started_url: str
+) -> DownloadResult | None:
+    """Request ``requested_url``; while it waits on its verdict, the page starts a download from ``started_url``.
+
+    Returns the request's result once the second download has got its verdict request too.
+    """
+    started: list[str] = []
+    session.get_active_page().on("download", lambda download: started.append(download.url))
+    request = asyncio.create_task(session.download_url(requested_url))
+    await until(lambda: len(asked) == 1)  # the request's download is being judged: the request still waits
+    await start_page_navigation(session, started_url)
+    await until(lambda: len(started) == 2)
+    assert not request.done(), "the second download started after the request had ended"
+    result = await request
+    with suppress(TimeoutError):
+        await until(lambda: len(asked) == 2)
+    assert len(asked) == 2, "the second download of the page got no verdict"
+    return result
 
 
 class TestDownloadsThePageStartsItself:
@@ -196,6 +227,60 @@ class TestDownloadsThePageStartsItself:
                 await until(lambda: bool(session.list_downloads()))
 
                 assert [Path(saved.path).read_bytes() for saved in session.list_downloads()] == [b"made-in-page"]
+
+
+class TestDownloadsWhileARequestWaits:
+    """A request takes the first download its page starts; a second one still gets its verdict."""
+
+    async def test_a_second_public_download_is_saved_next_to_the_requested_one(
+        self, downloads_dir: Path, browser_tmp: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = _delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        with (
+            serve({"/home": page("home"), "/first": attachment("first.txt", b"first")}) as site,
+            serve({"/second": attachment("second.txt", b"second")}) as other,
+        ):
+            async with open_session(downloads_dir, local=False, filtered=False) as session:
+                await session.navigate(url_on("public.test", site, "/home"))
+
+                result = await _page_starts_a_download_while_a_request_waits(
+                    session, asked, url_on("public.test", site, "/first"), url_on("public.test", other, "/second")
+                )
+                await until(lambda: len(session.list_downloads()) == 2)
+
+                assert result is not None
+                assert sorted(Path(saved.path).read_bytes() for saved in session.list_downloads()) == [
+                    b"first",
+                    b"second",
+                ]
+                assert await kept_by_browser_once_settled(browser_tmp) == []
+            assert saved_names(downloads_dir) == ["first.txt", "second.txt"]
+
+    async def test_a_second_download_from_a_metadata_hostname_is_discarded_and_nothing_is_kept(
+        self,
+        downloads_dir: Path,
+        browser_tmp: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        asked = _delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        with (
+            serve({"/home": page("home"), "/first": attachment("first.txt", b"first")}) as site,
+            serve({"/creds": SECRET_FILE}) as service,
+        ):
+            async with open_session(downloads_dir, local=False, filtered=False) as session:
+                await session.navigate(url_on("public.test", site, "/home"))
+
+                result = await _page_starts_a_download_while_a_request_waits(
+                    session, asked, url_on("public.test", site, "/first"), url_on("meta.test", service, "/creds")
+                )
+                await until(lambda: "Refused a download" in caplog.text)
+
+                assert result is not None
+                assert [Path(saved.path).read_bytes() for saved in session.list_downloads()] == [b"first"]
+                assert await kept_by_browser_once_settled(browser_tmp) == []
+            assert saved_names(downloads_dir) == ["first.txt"]
+            assert service.hits == [("GET", "/creds")]  # only keeping the body is refused; the request was made
 
 
 class TestWithoutDownloadSupport:

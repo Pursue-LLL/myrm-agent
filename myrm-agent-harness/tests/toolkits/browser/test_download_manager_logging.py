@@ -1,9 +1,11 @@
 """Download logs say where a download came from and never the credentials its URL carries.
 
 A download URL is untrusted input and often a signed one: the query holds the signature, the authority may hold a
-password. Every line the manager logs about a download names the scheme, host and path, and nothing a URL can carry
-as a secret; a password is masked before the URL is cut to the logged length, so a long one cannot slip through half
-cut off.
+password, an opaque ``filesystem:`` URL the whole secret. Every line the manager logs about a download names the
+scheme, host and path, and nothing a URL can carry as a secret: the credentials before the host are dropped, the
+query and fragment are replaced by a marker, and what remains is masked before it is cut to the logged length, so a
+token that straddles the cut is not left half shown. The reason a refusal gives quotes the URL too, so the URL is
+replaced in it by the logged form. A hostile page chooses the URL, so logging it is bounded work however long it is.
 """
 
 from __future__ import annotations
@@ -16,10 +18,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
+from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import (
+    BrowserNavigationBlockedError,
+    assert_browser_navigation_allowed,
+)
 from myrm_agent_harness.toolkits.browser.session import download_manager
 from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
 from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager
+from myrm_agent_harness.toolkits.browser.session.network import RAW_PREVIEW_WINDOW
+from myrm_agent_harness.toolkits.browser.session.network import logger as network_logger
+from tests.support.fake_secrets import github_token
 from tests.toolkits.browser._download_doubles import download_of
 
 _MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download_manager"
@@ -53,10 +61,14 @@ async def _never_finishes(_path: str) -> None:
     await asyncio.sleep(3600)
 
 
-def _assert_names_the_address_only(caplog: pytest.LogCaptureFixture, line: str, *secrets: str) -> None:
+def _logged_lines(caplog: pytest.LogCaptureFixture, line: str) -> list[str]:
     messages = [record.getMessage() for record in caplog.records if line in record.getMessage()]
     assert messages, f"no log line with {line!r}; logged: {caplog.text!r}"
-    for message in messages:
+    return messages
+
+
+def _assert_names_the_address_only(caplog: pytest.LogCaptureFixture, line: str, *secrets: str) -> None:
+    for message in _logged_lines(caplog, line):
         assert _ADDRESS in message
         for secret in ("hunter2", _SIGNATURE, "sv=2024-01-01", _FRAGMENT, *secrets):
             assert secret not in message
@@ -110,7 +122,7 @@ class TestDownloadLogs:
         _assert_names_the_address_only(caplog, "Download failed for")
 
     @pytest.mark.asyncio
-    async def test_a_long_password_is_masked_before_the_url_is_cut(
+    async def test_a_password_longer_than_the_logged_url_is_never_shown(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         download = download_of(MagicMock(), _signed(f"user:{_LONG_PASSWORD}"))
@@ -119,3 +131,67 @@ class TestDownloadLogs:
         await _manager(tmp_path)._process_download(download)
 
         _assert_names_the_address_only(caplog, "Download failed for", "S3CRET")
+
+    @pytest.mark.asyncio
+    async def test_a_token_that_straddles_the_cut_is_masked_whole(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        token = github_token("Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0dF3hJ6")
+        # The cut falls four characters into the token: too few for any redactor to recognise it once the text is cut.
+        download = download_of(MagicMock(), f"https://files.example/{'x' * 49}/{token}")
+        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+
+        await _manager(tmp_path)._process_download(download)
+
+        (message,) = _logged_lines(caplog, "Download failed for")
+        assert token[:8] not in message
+        assert "files.example" in message
+
+    @pytest.mark.asyncio
+    async def test_a_long_address_is_cut_to_the_logged_length(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        download = download_of(MagicMock(), f"https://files.example/{'p' * 500}")
+        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+
+        await _manager(tmp_path)._process_download(download)
+
+        (message,) = _logged_lines(caplog, "Download failed for")
+        logged_url = message.removeprefix("Download failed for ").split(": ")[0]
+        assert len(logged_url) == download_manager._LOGGED_URL_LENGTH
+        assert logged_url.endswith("\u2026")
+
+
+class TestRefusalOfAHostileUrl:
+    """The navigation guard quotes the whole URL in its refusal, and a hostile page chooses that URL."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "url",
+        [f"filesystem:https://{_ADDRESS}?sig={_SIGNATURE}", f"ftp://deploy:hunter2@{_ADDRESS}?sig={_SIGNATURE}"],
+        ids=["opaque-scheme", "ftp-with-password"],
+    )
+    async def test_the_refusal_quotes_no_part_of_the_url_that_can_carry_a_secret(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture, url: str
+    ) -> None:
+        manager = _manager(tmp_path, assert_browser_navigation_allowed)
+
+        manager._on_download(download_of(MagicMock(), url))
+        await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+
+        assert "Unsupported navigation scheme" in caplog.text
+        assert _SIGNATURE not in caplog.text
+        assert "hunter2" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_redaction_never_sees_more_than_its_window_of_a_huge_url(self, tmp_path: Path) -> None:
+        manager = _manager(tmp_path, assert_browser_navigation_allowed)
+
+        with patch.object(
+            network_logger, "redact_sensitive_text", wraps=network_logger.redact_sensitive_text
+        ) as redact:
+            manager._on_download(download_of(MagicMock(), "filesystem:" + "A" * 200_000))
+            await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+
+        assert redact.call_args_list, "the refusal was logged without masking"
+        assert max(len(call.args[0]) for call in redact.call_args_list) <= RAW_PREVIEW_WINDOW
