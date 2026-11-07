@@ -122,7 +122,7 @@ class MemoryBackendProtocol(Protocol):
 如果 Protocol 实现需要复杂的数据访问逻辑，可以创建对应的 Repository：
 
 ```python
-# app/adapters/memory/sqlite_backend.py
+# app/adapters/<domain>/sqlite_backend.py   # 示意
 from app.repositories.memory import MemoryRepository  # 如果需要
 
 class SQLiteMemoryBackend:

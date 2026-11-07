@@ -311,7 +311,7 @@ agent = SkillAgent(
 **Backend API（GeneralAgent）：**
 
 ```python
-# app/api/agents/general_agent.py
+# app/api/agents/general_agent/
 class GeneralAgentRequest(BaseModel):
     enable_memory_auto_extraction: bool = True  # 默认开启（开箱即用）
 ```
