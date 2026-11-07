@@ -85,7 +85,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "archive_checkpoint",
                 "capability_matrix",
                 "desktop_repl",
-                "downshift",
                 "infra",
                 "prefix_caching_ledger",
                 "scratchpad_promotion",
