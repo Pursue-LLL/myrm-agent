@@ -29,5 +29,5 @@
 - `app/api/files/organize.py`：workspace organize HITL apply/rollback/latest-job
 - `app/api/files/workspace_text.py`：文本编辑读取/保存/另存副本（via `text_edit_io`）
 - `app/core/channel_bridge/turn_handler.py`：channel /undo·/retry 文件 revert cleanup + Agent restore_inbox 通知
-- `app/services/kanban/task_runner.py`：任务附件上下文注入
+- `app/services/kanban/task_runner/`：任务附件上下文注入
 - `app/channels/media/document_enrichment.py`：渠道入站文档提取

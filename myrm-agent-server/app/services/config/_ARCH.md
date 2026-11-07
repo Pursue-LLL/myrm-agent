@@ -91,7 +91,7 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 ## 依赖关系
 
 ### 内部依赖
-- `app/database/models.py`：UserConfig 模型
+- `app/database/models/`：UserConfig 模型
 - `app/platform_utils`：数据库 session 工厂等平台单例入口
 - `app/api/config/schemas`：API 请求/响应模型
 

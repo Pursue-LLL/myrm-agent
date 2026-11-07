@@ -61,7 +61,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## General Agent tool loading（非 fast Web、Channel/IM）
 
 - **轨道**：默认 Saved Agent、Channel/IM/Cron/Kanban/Eval/Voice 等非 fast Web 入口。
-- **CORE file/bash**：Harness `tool_layers.py` CORE 层 Turn1 eager；前端无开关。
+- **CORE file/bash**：Harness `myrm-agent-harness/src/myrm_agent_harness/agent/tool_management/tool_layers.py` CORE 层 Turn1 eager；前端无开关。
 - **Server 执行层**：`resolve_builtin_tool_flags()` 后调用 `tool_mount.resolve_agent_mount()`，再传入 harness `get_meta_tools`。
 - **Web Search 动态配置与弹性激活**：当 `enabled_builtin_tools` 包含 `web_search` 且初始未拿到搜索配置时，`conversion/tool_surface.py` 主动触发 `invalidate_user_configs_cache()` 与 `reload_user_configs()` 刷新配置；一旦存在有效搜索配置，保障 `search_available=True` 注入，避免因即时网络探测延迟或 TTL 探针抖动导致 `web_search_tool` 被误剥离。
 - **Channel/IM**：仅绑定 General Agent（`SqlTopicManager.bind_topic` 拒绝 `prompt_mode=search`；`resolve_topic` / `get_all_topics` 读时清除 legacy Search 绑定）；未绑定时 `DEFAULT_ENABLED_BUILTIN_TOOLS` + baseline。
@@ -80,7 +80,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## 隐身会话（incognito）
 
 - `converter.py`（装配阶段）在 `incognito_mode` 下把 `enable_wiki` 置为 False，与会话检索、记忆自动提取的隐身归一在同一处完成。Wiki 工具、长回复自动归档、压缩后归档都以 `params.enable_wiki` 为开关，转换器是这几个开关在隐身下归一的唯一收口点。
-- 隐身会话的消息与普通会话一样落本地库：标题与消息预览不存（`chat_repo.py`），侧栏、搜索、召回、追赶收件箱与记忆导出都排除它，闲置满 1 小时由 `services/chat/chat_retention.py` 永久删除。
+- 隐身会话的消息与普通会话一样落本地库：标题与消息预览不存（`chat_repo/`），侧栏、搜索、召回、追赶收件箱与记忆导出都排除它，闲置满 1 小时由 `services/chat/chat_retention.py` 永久删除。
 
 ## Smart Routing（routing/turn_routing.py）
 

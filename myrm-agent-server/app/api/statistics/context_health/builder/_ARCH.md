@@ -19,5 +19,5 @@
 
 ## 说明
 
-- 原 `context_health.py` 中的 247 行 `_build_pruning_health` 原样保留在 `pruning.py`（未做函数级重写，只解决文件过长/定位问题）；
-- `context_health.py` 现在是 39 行门面：转导出构建入口、DTO 以及外部从这里取用的 `CacheHealth` / `RetentionObservationState`。
+- 原 `../context_health.py` 中的 247 行 `_build_pruning_health` 原样保留在 `pruning.py`（未做函数级重写，只解决文件过长/定位问题）；
+- `../context_health.py` 现在是 39 行门面：转导出构建入口、DTO 以及外部从这里取用的 `CacheHealth` / `RetentionObservationState`。

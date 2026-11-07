@@ -74,8 +74,8 @@ security/
 | 权限策略引擎 | 框架层 | `myrm_agent_harness.agent.security` |
 | MasterKey 管理 | 业务层 | `app/core/security/master_key.py` |
 | 加密策略决策 | 业务层 | `app/services/config/encryption.py` |
-| 分享链接 HMAC + 密码门 | 业务层 | `app/core/security/share_hmac.py` |
-| 分享解锁 cookie 机制 | 业务层 | `app/core/security/share_unlock.py` |
+| 分享链接 HMAC + 密码门 | 业务层 | `app/core/security/share/share_hmac.py` |
+| 分享解锁 cookie 机制 | 业务层 | `app/core/security/share/share_unlock.py` |
 | 内部服务认证 | 业务层 | `app/api/dependencies.py` |
 
 ---
@@ -91,5 +91,4 @@ security/
 ### 被依赖
 - `app/services/config/encryption.py`: 配置存储透明加解密
 - `app/core/channel_bridge/config_loader.py`: 频道配置加载解密
-- `app/core/cron/crypto.py`: 定时任务配置加密（委托）
 - `app/api/dependencies.py`: 内部服务密钥验证

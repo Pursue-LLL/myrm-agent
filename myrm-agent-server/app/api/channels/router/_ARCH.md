@@ -15,4 +15,4 @@ Channel 管理路由。按资源分模块，共享一个 `APIRouter`；`app.api.
 ## 依赖关系
 
 - 上游：`app.api.channels.schemas`、`app.channels.*`、`app.database.*`
-- 下游：前端渠道设置页；`feishu_register.py` / `instances.py` 复用 `channel_credentials_key`
+- 下游：前端渠道设置页；`app/api/channels/feishu_register.py` / `app/api/channels/instances.py` 复用 `channel_credentials_key`

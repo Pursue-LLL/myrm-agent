@@ -20,4 +20,4 @@
 ## 依赖关系
 
 - 上游：`app.database.connection.get_session`、`app.database.models.kanban`、`app.core.kanban.adapters.sqlalchemy_mapping`、harness `toolkits.kanban.{protocols,types}`
-- 下游：`app/services/kanban/**`、`app/api/kanban/**`、`app/core/kanban/adapters/registry.py`
+- 下游：`app/services/kanban/**`、`app/api/kanban/**`；`app/core/kanban/adapters/__init__.py` 负责 re-export

@@ -23,7 +23,7 @@
 | 层 | 位置 | 用途 |
 |----|------|------|
 | Server REST | `myrm-agent-server/app/api/files/suggest.py` | `GET /api/v1/files/suggest` — 聊天框 `@` 引用补全 |
-| Server REST | `myrm-agent-server/app/api/files/browse.py` | `GET /api/v1/files/browse/search` — 文件浏览搜索 |
+| Server REST | `myrm-agent-server/app/api/files/browse/` | `GET /api/v1/files/browse/search` — 文件浏览搜索 |
 | Frontend | `services/chat.ts` | 调用上述 API |
 
 **非 Agent 工具**：无 `*_agent_tools.py`，不进 tool registry，零 LLM token 占用。

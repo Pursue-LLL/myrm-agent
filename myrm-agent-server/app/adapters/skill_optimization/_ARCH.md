@@ -21,5 +21,5 @@
 
 ## 依赖关系
 
-- `app/database/models.py`：SQLAlchemy ORM 模型
+- `app/database/models/`：SQLAlchemy ORM 模型
 - `myrm_agent_harness`：`SkillOptimizationStorage` Protocol 定义

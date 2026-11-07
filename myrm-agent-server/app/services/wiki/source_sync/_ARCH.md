@@ -52,6 +52,6 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 - `app/services/wiki/dedup_runner` — `run_post_sync_dedup_scan`（post-sync 增量扫描，不因 compile 进行中而 skip，返回是否真正完成）；`deferred_enqueue` 经 harness `CorpusDedupGovernor` 的暂扣账本（`hold_for_compile` / `release_held` / `release_unguarded`）读写暂扣状态
 - `app/api/integrations/oauth/google_workspace.py` — OAuth 成功默认开 Gmail sync
 - `app/services/onboarding/second_brain_preset` — preset Gmail 默认 + cron id remap
-- `app/api/wiki/sources.py` — REST（agent_id query）+ manual sync + state
+- `app/api/wiki/routes/sources.py` — REST（agent_id query）+ manual sync + state
 - `app/core/cron/adapters/wiki_router_job_runner.py` — Cron router 执行体（source sync + ima sync + maintain）
 - `app/api/wiki/routes/ima.py` — ima REST（`/sources/ima/*`）

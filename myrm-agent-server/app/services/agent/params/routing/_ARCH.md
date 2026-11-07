@@ -14,4 +14,4 @@
 
 - 上游：`params/conversion/model_plan.py`（槽位）、`params/models.py`
 - 下游：harness `toolkits.llms.routing`（引擎）、`app.database.repositories.chat_repo`（档位历史）
-- 外部调用方：`app/services/agent/stream_session/orchestrator_turn_setup.py`（记忆写入）、`app/database/repositories/chat_repo.py`（历史读取）
+- 外部调用方：`app/services/agent/stream_session/orchestrator_turn_setup.py`（记忆写入）、`app/database/repositories/chat_repo/`（历史读取）
