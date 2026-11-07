@@ -1,10 +1,12 @@
 """What the manager does with a download it will not keep, and with a request that stops waiting.
 
 Judging an address is pinned in ``test_download_manager_verification``. Here: a refused download is cancelled while
-its body is still arriving and deleted once it finished; the caller waits a bounded time for that, and the work goes
-on when the caller stops waiting (it is cancelled, or the browser is slow). A request that stops waiting stops the
-navigation it started, even when it is cancelled again while stopping, so the answer still on its way is not left to
-land unjudged. The real-Chromium proof is ``test_download_url_integration``.
+its body is still arriving and deleted once it finished, and so is one whose judgement was cut short; the caller waits
+a bounded time for that, and the work goes on when the caller stops waiting (it is cancelled, or the browser is slow).
+Once a download is processed the browser keeps nothing of it, whichever way the processing ended. A request that stops
+waiting stops the navigation it started, even when it is cancelled again while stopping, so the answer still on its
+way is not left to land unjudged. The real-Chromium proof is ``test_download_url_integration`` (requests) and
+``test_download_page_started_integration`` (downloads a page starts itself).
 """
 
 from __future__ import annotations
@@ -20,7 +22,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
 from myrm_agent_harness.toolkits.browser.session import download_manager
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadConfig, DownloadManager
+from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager
 from tests.toolkits.browser._download_doubles import DEFAULT_FINAL_URL, download_of, requesting_page, waiting_page
 
 _REQUEST_URL = "https://public.example/go"
@@ -43,6 +46,22 @@ def verify() -> AsyncMock:
 def manager(tmp_path: Path, verify: AsyncMock) -> DownloadManager:
     config = DownloadConfig(downloads_dir=tmp_path / "downloads", download_timeout_s=5.0)
     return DownloadManager(config, verify_final_url=verify)
+
+
+def _verifier_that_never_answers(verify: AsyncMock) -> asyncio.Event:
+    """Make the verifier take for ever; the returned event is set once it has been asked."""
+    asked = asyncio.Event()
+
+    async def never_answers(_url: str) -> None:
+        asked.set()
+        await asyncio.sleep(3600)
+
+    verify.side_effect = never_answers
+    return asked
+
+
+async def _never_finishes(_path: str) -> None:
+    await asyncio.sleep(3600)
 
 
 class TestGivingUp:
@@ -215,3 +234,78 @@ class TestDiscard:
             await discarding
 
         await asyncio.wait_for(deleted.wait(), timeout=1.0)
+
+
+class TestCancelledJudgement:
+    """A judgement that is cut short leaves the download undecided, and an undecided download is not kept."""
+
+    @pytest.mark.asyncio
+    async def test_a_page_started_download_is_discarded_when_its_judgement_is_cancelled(
+        self, manager: DownloadManager, verify: AsyncMock
+    ) -> None:
+        download = download_of(MagicMock(), DEFAULT_FINAL_URL)
+        asked = _verifier_that_never_answers(verify)
+
+        manager._on_download(download)
+        await asyncio.wait_for(asked.wait(), timeout=1.0)
+        handlers = list(manager._pending_tasks)
+        for handler in handlers:
+            handler.cancel()
+        await asyncio.gather(*handlers, return_exceptions=True)
+
+        download.cancel.assert_awaited_once()
+        download.delete.assert_awaited_once()
+        download.save_as.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_requested_download_is_discarded_when_its_judgement_is_cancelled(
+        self, manager: DownloadManager, verify: AsyncMock
+    ) -> None:
+        page, download = requesting_page()
+        asked = _verifier_that_never_answers(verify)
+
+        request = asyncio.create_task(manager.download_url(page, _REQUEST_URL))
+        await asyncio.wait_for(asked.wait(), timeout=1.0)
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+        download.cancel.assert_awaited_once()
+        download.delete.assert_awaited_once()
+        download.save_as.assert_not_awaited()
+
+
+class TestWhatTheBrowserKeepsOfAProcessedDownload:
+    """Once a download is processed the browser keeps nothing of it, whichever way the processing ended."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "outcome",
+        ["saved", "disallowed-extension", "save-timeout", "save-failure", "too-large", "nothing-written"],
+    )
+    async def test_the_browsers_copy_is_released_exactly_once(
+        self, tmp_path: Path, verify: AsyncMock, outcome: str
+    ) -> None:
+        download = download_of(MagicMock(), DEFAULT_FINAL_URL)
+        timeout_s, limit_mb = 5.0, 100
+        match outcome:
+            case "disallowed-extension":
+                download.suggested_filename = "tool.exe"
+            case "save-timeout":
+                timeout_s = 0.05
+                download.save_as = AsyncMock(side_effect=_never_finishes)
+            case "save-failure":
+                download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+            case "too-large":
+                limit_mb = 0
+            case "nothing-written":
+                download.save_as = AsyncMock()
+        config = DownloadConfig(
+            downloads_dir=tmp_path / "downloads", download_timeout_s=timeout_s, max_file_size_mb=limit_mb
+        )
+        manager = DownloadManager(config, verify_final_url=verify)
+
+        await manager._process_download(download)
+
+        download.cancel.assert_awaited_once()
+        download.delete.assert_awaited_once()

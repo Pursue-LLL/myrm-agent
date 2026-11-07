@@ -29,7 +29,8 @@
 - session.browser_session_view_mixin::BrowserSessionViewMixin (POS: Browser Live Co-View SSE mixin)
 - session.view_update_payload::capture_browser_view_update_data (POS: shared browser inspector payload builder)
 - session.browser_session_network_mixin::BrowserSessionNetworkMixin (POS: console and network log APIs)
-- session.download_manager::DownloadManager, DownloadConfig (POS: file download management)
+- session.download_manager::DownloadManager (POS: file download management; judges every download before keeping it)
+- session.download_config::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
 - session.dialog_manager::DialogManager, DialogPolicy (POS: JS dialog lifecycle management)
 
 [OUTPUT]
@@ -61,7 +62,8 @@ Browser session manager. As the aggregate root, composes single-responsibility c
 8. NetworkLogger (network request logging)
 9. NetworkIntelligence (CDP-based API request outcomes and lazy response bodies)
 10. SessionVault (encrypted session storage, optional)
-11. DownloadManager (file download management, optional; every download is judged with the navigator's address policy)
+11. DownloadManager (file download management, optional; every download is judged with the navigator's address policy;
+    without a ``download_config`` the session has none and its browser context accepts no download)
 12. CaptchaCoordinator (CAPTCHA detection and solving coordination, optional)
 13. DialogManager (JS dialog lifecycle handling with configurable policy)
 14. ConsentDismisser (cookie consent auto-accept after navigation, zero LLM cost)
@@ -96,7 +98,8 @@ from .browser_session_view_mixin import BrowserSessionViewMixin
 from .console_logger import ConsoleLogger
 from .device_emulator import DeviceEmulator
 from .dialog_manager import DialogManager, DialogPolicy
-from .download_manager import DownloadConfig, DownloadManager
+from .download_config import DownloadConfig
+from .download_manager import DownloadManager
 from .extractor import Extractor
 from .interactor import Interactor
 from .network import NetworkIntelligence, NetworkLogger
@@ -219,13 +222,14 @@ class BrowserSession(
             "allow_private_networks": allow_private_networks,
         }
         context_kwargs.update({key: value for key, value in policy_kwargs.items() if value})
-        if download_config is not None:
-            context_kwargs["accept_downloads"] = True
+        # Without a download manager nothing judges a download, so the browser must keep none: by default it
+        # saves every one a page starts to disk and holds it until the context closes.
+        context_kwargs["accept_downloads"] = download_config is not None
         self._device_emulator = DeviceEmulator()
         self._tab_controller = TabController(
             browser_pool,
             context_type,
-            context_kwargs if context_kwargs else None,
+            context_kwargs,
             # Clear per-page device emulation when a tab leaves the session
             # through any path (close/evict/popup-close), not just explicit
             # close_tab, so pool-recycled pages never keep mobile overrides.

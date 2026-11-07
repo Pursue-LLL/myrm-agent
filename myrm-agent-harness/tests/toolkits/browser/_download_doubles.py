@@ -14,7 +14,7 @@
 Test support for the download manager's unit tests: the manager only talks to ``page.expect_download``,
 ``page.evaluate`` and the ``Download`` surface (``url``, ``page``, ``suggested_filename``, ``save_as``, ``failure``,
 ``cancel``, ``delete``), so these doubles script exactly that surface. The real-Chromium proof is
-``test_download_url_integration``.
+``test_download_url_integration`` and ``test_download_page_started_integration``.
 """
 
 from __future__ import annotations

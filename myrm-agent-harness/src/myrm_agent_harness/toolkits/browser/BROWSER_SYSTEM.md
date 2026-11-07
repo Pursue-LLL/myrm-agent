@@ -1214,7 +1214,8 @@ browser/
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证
 │   ├── dialog_manager.py — JS dialog 生命周期
-│   ├── download_manager.py — 文件下载（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，放弃的请求中止其导航）
+│   ├── download_manager.py — 文件下载（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）
+│   ├── download_config.py — DownloadConfig（下载目录、体积上限、超时、并发、扩展名白名单）；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/

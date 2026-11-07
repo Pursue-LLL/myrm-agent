@@ -9,12 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.download_manager import (
-    _DEFAULT_ALLOWED_EXTENSIONS,
-    DownloadConfig,
-    DownloadManager,
-    DownloadResult,
-)
+from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager, DownloadResult
 from tests.toolkits.browser._download_doubles import ExpectDownload
 
 # =============================================================================
@@ -78,35 +74,6 @@ def _make_page_mock() -> MagicMock:
     page.evaluate = AsyncMock(return_value=None)
     page.on = MagicMock()
     return page
-
-
-# =============================================================================
-# DownloadConfig tests
-# =============================================================================
-
-
-class TestDownloadConfig:
-    def test_default_config(self) -> None:
-        cfg = DownloadConfig()
-        assert cfg.max_file_size_mb == 100
-        assert cfg.download_timeout_s == 60.0
-        assert cfg.max_concurrent_downloads == 3
-        assert cfg.allowed_extensions is _DEFAULT_ALLOWED_EXTENSIONS
-
-    def test_custom_config(self, tmp_downloads: Path) -> None:
-        cfg = DownloadConfig(
-            downloads_dir=tmp_downloads,
-            max_file_size_mb=50,
-            allowed_extensions=frozenset({"pdf", "csv"}),
-        )
-        assert cfg.downloads_dir == tmp_downloads
-        assert cfg.max_file_size_mb == 50
-        assert cfg.allowed_extensions == frozenset({"pdf", "csv"})
-
-    def test_config_frozen(self) -> None:
-        cfg = DownloadConfig()
-        with pytest.raises(AttributeError):
-            cfg.max_file_size_mb = 999  # type: ignore[misc]
 
 
 # =============================================================================
@@ -357,6 +324,19 @@ class TestBrowserSessionDownloadIntegration:
         session = BrowserSession(pool, "AGENT", download_config=cfg)
         assert session.list_downloads() == []
         assert session._download_manager is not None
+
+    @pytest.mark.parametrize("configured", [True, False], ids=["with-manager", "without-manager"])
+    def test_the_browser_context_accepts_downloads_only_when_a_manager_judges_them(
+        self, tmp_downloads: Path, configured: bool
+    ) -> None:
+        from myrm_agent_harness.toolkits.browser.session import BrowserSession
+
+        config = DownloadConfig(downloads_dir=tmp_downloads) if configured else None
+        session = BrowserSession(MagicMock(), "AGENT", download_config=config)
+
+        context_kwargs = session._tab_controller._context_kwargs
+        assert context_kwargs is not None
+        assert context_kwargs["accept_downloads"] is configured
 
     @pytest.mark.asyncio
     async def test_download_url_no_manager_raises(self) -> None:

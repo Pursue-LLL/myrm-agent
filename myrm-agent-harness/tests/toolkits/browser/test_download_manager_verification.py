@@ -2,10 +2,11 @@
 
 The context's request filter is never handed a redirect hop, so the address a download finally came from is the only
 place its origin can be judged. These tests pin the manager's side of that: the address of a download the agent asked
-for and of one the page started itself is judged before anything is saved, a refused download is cancelled and
-deleted, and the page's own listener stands down while a request waits so it cannot save what the verifier refuses.
-What a refused or abandoned download leaves behind is pinned in ``test_download_manager_discard``; the real-Chromium
-proof is ``test_download_url_integration``.
+for and of one the page started itself is judged before anything is saved, a page-started download is judged at once
+whatever else is downloading, a refused download is cancelled and deleted, and the page's own listener stands down
+while a request waits so it cannot save what the verifier refuses. What a refused or abandoned download leaves behind
+is pinned in ``test_download_manager_discard``; the real-Chromium proof is ``test_download_url_integration``
+(requests) and ``test_download_page_started_integration`` (downloads a page starts itself).
 """
 
 from __future__ import annotations
@@ -18,11 +19,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
-from myrm_agent_harness.toolkits.browser.session.download_manager import (
-    _START_NAVIGATION_JS,
-    DownloadConfig,
-    DownloadManager,
-)
+from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download_manager import _START_NAVIGATION_JS, DownloadManager
 from tests.toolkits.browser._download_doubles import DEFAULT_FINAL_URL, download_of, requesting_page
 
 _REQUEST_URL = "https://public.example/go"
@@ -31,6 +29,11 @@ _MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download_manager"
 
 async def _let_listener_tasks_finish(manager: DownloadManager) -> None:
     await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+
+
+async def _until_discarded(download: MagicMock) -> None:
+    while not download.delete.await_count:
+        await asyncio.sleep(0.01)
 
 
 @pytest.fixture
@@ -171,6 +174,24 @@ class TestPageStartedDownloads:
         download.save_as.assert_not_awaited()
         assert manager.downloads == []
         assert "Download handler error" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_a_refused_download_does_not_wait_for_a_free_slot(
+        self, downloads_dir: Path, verify: AsyncMock
+    ) -> None:
+        """Judging needs no slot, so a download to refuse is discarded at once even while every slot is taken."""
+        manager = DownloadManager(
+            DownloadConfig(downloads_dir=downloads_dir, max_concurrent_downloads=1), verify_final_url=verify
+        )
+        verify.side_effect = BrowserNavigationBlockedError("SSRF blocked: 127.0.0.1 is loopback")
+        download = download_of(MagicMock(), DEFAULT_FINAL_URL)
+
+        async with manager._semaphore:  # the only slot belongs to another download
+            manager._on_download(download)
+            await asyncio.wait_for(_until_discarded(download), timeout=1.0)
+
+        await _let_listener_tasks_finish(manager)
+        download.save_as.assert_not_awaited()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("url", ["blob:https://app.example/6f1c", "data:text/plain;base64,aGk="])
