@@ -372,7 +372,10 @@ const SkillCard = memo(
                   </>
                 )}
                 {showDeleteButton && (
-                  <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onClick={handleDelete}
+                    className="text-destructive-text focus:text-destructive-text"
+                  >
                     <Trash2 size={16} className="mr-2" />
                     {t('card.delete')}
                   </DropdownMenuItem>

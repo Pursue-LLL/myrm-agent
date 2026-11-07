@@ -42,7 +42,7 @@ const STATUS_BADGE_MAP: Record<DiffChangeStatus, { label: string; badgeClass: st
   },
   removed: {
     label: '移除节点',
-    badgeClass: 'bg-destructive/10 text-destructive border-destructive/30',
+    badgeClass: 'bg-destructive/10 text-destructive-text border-destructive/30',
   },
   unchanged: {
     label: '原样保留',
@@ -195,7 +195,7 @@ export const DeliverableSnapshotDiffModal: React.FC<DeliverableSnapshotDiffModal
                     {isModified && item.beforeContent && item.afterContent && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
                         <div className="rounded border border-destructive/20 bg-destructive/5 p-2 space-y-1">
-                          <span className="font-mono text-destructive text-[10px] block">
+                          <span className="font-mono text-destructive-text text-[10px] block">
                             修改前：
                           </span>
                           <p className="line-clamp-3 text-muted-foreground font-mono text-[10px] whitespace-pre-wrap">

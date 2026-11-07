@@ -201,7 +201,9 @@ const BrandStudioSection = () => {
                     onChange={(e) => updateRow(row.field, e.target.value)}
                   />
                 )}
-                {row.error && <p className="text-xs text-destructive sm:col-start-2">{t(`errors.${row.error}`)}</p>}
+                {row.error && (
+                  <p className="text-xs text-destructive-text sm:col-start-2">{t(`errors.${row.error}`)}</p>
+                )}
               </div>
             ))
           )}

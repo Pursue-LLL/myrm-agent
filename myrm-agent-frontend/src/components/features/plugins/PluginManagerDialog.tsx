@@ -185,7 +185,7 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="h-8 shrink-0 text-destructive-text hover:text-destructive-text hover:bg-destructive/10"
                         disabled={uninstalling !== null}
                         aria-label={t('actions.uninstall')}
                         onClick={() => setPendingUninstall(plugin)}
@@ -219,7 +219,7 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <IconAlertTriangle className="h-5 w-5 text-destructive" />
+              <IconAlertTriangle className="h-5 w-5 text-destructive-text" />
               {t('confirm.title')}
             </AlertDialogTitle>
             <AlertDialogDescription>

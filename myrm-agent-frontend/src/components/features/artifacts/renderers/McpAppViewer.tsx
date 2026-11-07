@@ -156,7 +156,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
     return (
       <div
         className={cn(
-          'rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive',
+          'rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-text',
           className,
         )}
       >

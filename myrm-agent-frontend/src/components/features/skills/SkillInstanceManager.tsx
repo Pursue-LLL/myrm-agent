@@ -364,7 +364,7 @@ export const SkillInstanceManager = memo<SkillInstanceManagerProps>(({ skillName
                   <Edit className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(name)} disabled={loading}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash2 className="h-4 w-4 text-destructive-text" />
                 </Button>
               </div>
             </div>

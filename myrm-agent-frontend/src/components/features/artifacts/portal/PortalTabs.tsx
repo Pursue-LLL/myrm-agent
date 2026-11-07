@@ -106,7 +106,7 @@ const PortalTabs: React.FC<PortalTabsProps> = ({
               {labels.closeOthers}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onCloseAllTabs} className="text-destructive">
+            <DropdownMenuItem onClick={onCloseAllTabs} className="text-destructive-text">
               {labels.closeAll}
             </DropdownMenuItem>
           </DropdownMenuContent>

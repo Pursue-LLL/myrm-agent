@@ -329,7 +329,7 @@ export function PendingEvolutionsDashboard() {
       )}
 
       {user?.id && !isLoading && error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive-text">
           {error}
         </div>
       )}

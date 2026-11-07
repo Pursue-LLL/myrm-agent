@@ -36,10 +36,10 @@ export const CompileErrorDisplay = ({ error, onRetry, labels }: CompileErrorDisp
     <div className="h-full flex flex-col bg-destructive/5 p-4 overflow-auto">
       <div className="flex items-start gap-3 mb-4">
         <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-5 h-5 text-destructive" />
+          <AlertTriangle className="w-5 h-5 text-destructive-text" />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-destructive text-sm">{labels.renderError}</h4>
+          <h4 className="font-medium text-destructive-text text-sm">{labels.renderError}</h4>
           {line && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Line {line}
@@ -54,7 +54,7 @@ export const CompileErrorDisplay = ({ error, onRetry, labels }: CompileErrorDisp
       </div>
 
       <div className="flex-1 bg-background rounded-lg border border-destructive/20 p-3 overflow-auto">
-        <pre className="text-xs text-destructive/90 whitespace-pre-wrap font-mono">{mainError}</pre>
+        <pre className="text-xs text-destructive-text whitespace-pre-wrap font-mono">{mainError}</pre>
       </div>
 
       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">

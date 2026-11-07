@@ -82,7 +82,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">{step.seq}.</span>
           <span className="text-sm font-medium">{label}</span>
-          {step.isPassword && <Lock size={12} className="text-destructive" />}
+          {step.isPassword && <Lock size={12} className="text-destructive-text" />}
         </div>
 
         {step.elementText && <p className="text-xs text-muted-foreground truncate mt-0.5">{step.elementText}</p>}
@@ -90,7 +90,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
         {displayValue && !step.isPassword && (
           <p className="text-xs text-muted-foreground/70 truncate mt-0.5 font-mono">{displayValue}</p>
         )}
-        {step.value && step.isPassword && <p className="text-xs text-destructive/70 mt-0.5 font-mono">***</p>}
+        {step.value && step.isPassword && <p className="text-xs text-destructive-text mt-0.5 font-mono">***</p>}
 
         {step.screenshotB64 && (
           <div className="mt-1.5 rounded overflow-hidden border border-border max-h-24">
@@ -111,7 +111,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
           className={cn(
             'flex-shrink-0 p-1 rounded',
             REVEAL_ON_HOVER,
-            'text-muted-foreground hover:text-destructive transition-all',
+            'text-muted-foreground hover:text-destructive-text transition-all',
           )}
           aria-label={t('deleteStep')}
         >

@@ -269,7 +269,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
         {/* Content Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive-text text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -373,7 +373,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                       <button
                         type="button"
                         onClick={() => handleDeleteStep(idx)}
-                        className="text-muted-foreground hover:text-destructive p-1 rounded transition"
+                        className="text-muted-foreground hover:text-destructive-text p-1 rounded transition"
                         aria-label={t('deleteStep')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

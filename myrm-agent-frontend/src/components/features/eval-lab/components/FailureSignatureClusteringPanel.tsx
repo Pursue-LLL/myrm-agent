@@ -157,7 +157,7 @@ export function FailureSignatureClusteringPanel({ clusters, profileId }: Failure
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-xs font-medium text-destructive px-2 py-1 rounded bg-destructive/10">
+                  <span className="text-xs font-medium text-destructive-text px-2 py-1 rounded bg-destructive/10">
                     {cluster.case_count} {t('cases')}
                   </span>
                 </div>

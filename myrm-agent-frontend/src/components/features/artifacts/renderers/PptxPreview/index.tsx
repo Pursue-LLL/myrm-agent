@@ -116,7 +116,7 @@ const PptxPreview: React.FC<PptxPreviewProps> = memo(({ previewUrl }) => {
   if (error) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
-        <p className="text-sm text-destructive">{t('pptxLoadError')}</p>
+        <p className="text-sm text-destructive-text">{t('pptxLoadError')}</p>
         <p className="text-xs text-muted-foreground">{error}</p>
       </div>
     );

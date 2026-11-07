@@ -119,7 +119,7 @@ export const BrowserAnnotationPinMarker: React.FC<BrowserAnnotationPinMarkerProp
                   type="button"
                   data-testid={`delete-pin-${pin.id}`}
                   onClick={() => onDeletePin(pin.id)}
-                  className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
+                  className="p-1 text-muted-foreground hover:text-destructive-text rounded transition-colors"
                   aria-label="Delete annotation"
                   title="Delete annotation"
                 >

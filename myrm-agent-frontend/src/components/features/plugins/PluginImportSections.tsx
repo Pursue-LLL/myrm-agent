@@ -22,7 +22,7 @@ import {
 export function getCapabilityTierBadgeStyle(tier: string): string {
   switch (tier) {
     case 'destructive':
-      return 'border-destructive/40 text-destructive bg-destructive/10';
+      return 'border-destructive/40 text-destructive-text bg-destructive/10';
     case 'shell_exec':
       return 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10';
     case 'network':

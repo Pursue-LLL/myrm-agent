@@ -280,7 +280,7 @@ export default function SkillGrowthCaseCard({
       )}
 
       {showContentPanel && detailError && (
-        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-text">
           {detailError}
         </div>
       )}

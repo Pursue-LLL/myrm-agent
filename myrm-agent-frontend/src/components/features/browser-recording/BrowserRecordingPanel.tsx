@@ -206,8 +206,8 @@ const BrowserRecordingPanel: React.FC = () => {
       {/* Error */}
       {error && (
         <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 border-t border-destructive/20">
-          <AlertTriangle size={14} className="text-destructive flex-shrink-0" />
-          <span className="text-xs text-destructive">{error}</span>
+          <AlertTriangle size={14} className="text-destructive-text flex-shrink-0" />
+          <span className="text-xs text-destructive-text">{error}</span>
         </div>
       )}
 
@@ -230,7 +230,7 @@ const BrowserRecordingPanel: React.FC = () => {
             )}
             pattern="^[a-zA-Z][a-zA-Z0-9_-]*$"
           />
-          {skillNameError && <p className="text-xs text-destructive">{skillNameError}</p>}
+          {skillNameError && <p className="text-xs text-destructive-text">{skillNameError}</p>}
           <input
             type="text"
             value={skillDesc}

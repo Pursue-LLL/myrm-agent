@@ -168,10 +168,10 @@ function SkillPermissionCard({ skill, disabled, onTogglePermission }: SkillPermi
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={cn('h-4 w-4', isDangerous ? 'text-destructive' : 'text-muted-foreground')} />
+                  <Icon className={cn('h-4 w-4', isDangerous ? 'text-destructive-text' : 'text-muted-foreground')} />
                   <div>
                     <div className="text-sm font-medium">{permissionLabel(permission)}</div>
-                    {isDangerous && <div className="text-xs text-destructive">{t('dangerousPermission')}</div>}
+                    {isDangerous && <div className="text-xs text-destructive-text">{t('dangerousPermission')}</div>}
                   </div>
                 </div>
                 <Switch
