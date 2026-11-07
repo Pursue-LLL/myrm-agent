@@ -45,7 +45,7 @@ Harness test suite: unit, integration, architecture gates, and performance bench
 | `infra/test_data_dir.py` | 单元 | 状态根解析入口 `resolve_data_dir()`：默认 `~/.myrm`、`MYRM_DATA_DIR` 重定位（含 `~` 展开与首尾空白）、空白值回落默认、解析时不创建目录、每次调用都重新读环境变量；沙箱感知入口 `resolve_workspace_state_dir()` 的优先级（显式根 > 沙箱 `/workspace/.myrm` > 默认根） |
 | `infra/test_state_paths_isolated.py` | 单元 | 进程拥有独立状态根时，十三处默认状态路径（域指标、站点经验、域技能、文件快照三处、技能配置版本、共享 venv、存储根、引擎亲和、急停状态、记忆 blob 两处）都落在状态根内，且不在另一档案的主目录里创建任何东西；与服务端 `test_state_paths_follow_data_dir.py`（守源码文本）互补，这里跑真实代码 |
 | `utils/test_url_syntax_chromium_integration.py` | 集成 | 真实 Chromium 拨的是规范 URL 所指的主机：Chromium 把所有主机名都解析到本机监听口，监听口收到的 Host 头就是它从 URL 推出的主机；写法表里的每个写法（大小写、尾点、各进制的 IPv4、UTS 46 映射、全角与不可见字符、IPv6 与方括号、凭据段）取规范 URL 拨号，收到的都是规范主机（IPv6 按地址比较）；按原写法拨号时与规范化器读法不同的写法是一组声明过的（保留尾点、判为无效 URL 而拒绝），多一个或少一个都变红。写法表来自 `support/host_spellings.py`，监听口与判定来自 `support/dial_probe.py` |
-| `utils/test_url_syntax_libcurl.py` | 单元 | 同一对照落在 libcurl（`curl_cffi`）上：用解析覆盖把规范主机名送到本机监听口，数字主机以连接到达监听口为证（libcurl 把数字主机原样写进 Host 头），IPv6 字面量因监听口只收 IPv4 而不测；规范 URL 的拨号逐个一致，按原写法拨号的差异是一组声明过的 |
+| `utils/test_url_syntax_libcurl.py` | 单元 | 同一对照落在 libcurl（`curl_cffi`）上：用解析覆盖把规范主机名送到本机监听口，数字主机以连接到达监听口为证（libcurl 把数字主机原样写进 Host 头），IPv6 字面量因监听口只收 IPv4 而不测；规范 URL 的拨号逐个一致；按原写法拨号只对 ASCII 写法声明差异，非 ASCII 写法由平台的 IDN 库读出、读法随平台而异，只以规范写法拨号 |
 
 ## Test file placement
 

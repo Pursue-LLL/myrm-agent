@@ -6,9 +6,9 @@
 [OUTPUT]
 - host_recorder: context manager yielding a ``HostRecorder`` (the listener's port and the Host header received per path)
 - Sent: what a client did with one URL (the host the listener saw, or that the client refused the URL)
-- Dial: one spelling dialed as its canonical URL and as written
+- Dial: one spelling dialed as its canonical URL and, when its reading as written matters, as written
 - misdialed_canonical_urls: the spellings whose canonical URL did not reach the canonical host
-- readings_that_differ: how a client read each spelling as written, for the spellings it did not read as the canonical host
+- readings_that_differ: how a client read each spelling dialed as written, for those it did not read as the canonical host
 
 [POS]
 A client told to connect to 127.0.0.1 whatever name it derives (Chromium's host resolver rules, libcurl's resolve
@@ -52,12 +52,12 @@ class Sent:
 
 @dataclass(frozen=True, slots=True)
 class Dial:
-    """One spelling, dialed as its canonical URL and as written."""
+    """One spelling, dialed as its canonical URL and, when its reading as written matters, as written."""
 
     spelling: str
     canonical_host: str
     canonical_url: Sent
-    written_url: Sent
+    written_url: Sent | None = None
 
 
 def _same_host(sent: str, canonical: str) -> bool:
@@ -74,15 +74,14 @@ def _same_host(sent: str, canonical: str) -> bool:
     return sent.lower() == canonical
 
 
-def _reading_as_written(dial: Dial) -> str:
-    sent = dial.written_url
+def _reading_as_written(sent: Sent, canonical_host: str) -> str:
     if sent.refused:
         return REFUSES_IT
     if sent.host is None:
         return _SENDS_NOTHING
-    if _same_host(sent.host, dial.canonical_host):
+    if _same_host(sent.host, canonical_host):
         return _SAME_HOST
-    if _same_host(sent.host.removesuffix("."), dial.canonical_host):
+    if _same_host(sent.host.removesuffix("."), canonical_host):
         return KEEPS_THE_TRAILING_DOT
     return f"sends {sent.host}"
 
@@ -97,8 +96,13 @@ def misdialed_canonical_urls(dials: Sequence[Dial]) -> dict[str, str | None]:
 
 
 def readings_that_differ(dials: Sequence[Dial]) -> dict[str, str]:
-    """How the client read each spelling as written, for those it did not read as the canonical host."""
-    return {dial.spelling: reading for dial in dials if (reading := _reading_as_written(dial)) != _SAME_HOST}
+    """How the client read each spelling dialed as written, for those it did not read as the canonical host."""
+    return {
+        dial.spelling: reading
+        for dial in dials
+        if dial.written_url is not None
+        and (reading := _reading_as_written(dial.written_url, dial.canonical_host)) != _SAME_HOST
+    }
 
 
 @contextmanager
