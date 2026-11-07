@@ -80,7 +80,7 @@ function WorkspaceRulesSection() {
 
       {error && (
         <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
-          <p className="text-sm text-destructive">{error}</p>
+          <p className="text-sm text-destructive-text">{error}</p>
         </div>
       )}
 

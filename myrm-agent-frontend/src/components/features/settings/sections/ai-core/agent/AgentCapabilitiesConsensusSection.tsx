@@ -34,7 +34,10 @@ export function ConsensusRefModels({
             <span className="text-foreground/80 max-w-[120px] truncate">{sel.model}</span>
             <button
               type="button"
-              className={cn('ml-0.5 transition-opacity text-muted-foreground hover:text-destructive', REVEAL_ON_HOVER)}
+              className={cn(
+                'ml-0.5 transition-opacity text-muted-foreground hover:text-destructive-text',
+                REVEAL_ON_HOVER,
+              )}
               onClick={() => {
                 const next = [...refs];
                 next.splice(idx, 1);

@@ -26,7 +26,7 @@ const RISK_LEVEL_STYLES: Record<string, { bg: string; text: string; border: stri
   low: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
   medium: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
   high: { bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/30' },
-  critical: { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
+  critical: { bg: 'bg-destructive/10', text: 'text-destructive-text', border: 'border-destructive/30' },
 };
 
 const SEVERITY_BORDER: Record<string, string> = {

@@ -381,7 +381,7 @@ export default function AgentsSection() {
                           )}
                           title={t('agent.delete')}
                         >
-                          <IconTrash className="w-3.5 h-3.5 text-destructive" />
+                          <IconTrash className="w-3.5 h-3.5 text-destructive-text" />
                         </button>
                       )}
                     </div>

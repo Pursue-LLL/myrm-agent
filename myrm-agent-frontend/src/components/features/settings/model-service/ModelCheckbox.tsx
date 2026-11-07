@@ -129,7 +129,7 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                         <div
                           className={cn(
                             'flex items-center gap-1.5 text-xs flex-shrink-0',
-                            status.success ? 'text-green-600' : 'text-destructive',
+                            status.success ? 'text-green-600' : 'text-destructive-text',
                           )}
                         >
                           {status.success ? (
@@ -169,7 +169,7 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                       />
                       <button
                         onClick={() => onRemoveModel(model.name)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors"
                         title={t('removeModel')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />

@@ -60,7 +60,7 @@ const WorkflowTemplateScriptPreview = memo(({ templateId, className }: WorkflowT
               {t('previewLoading')}
             </div>
           ) : null}
-          {!loading && error ? <p className="text-xs text-destructive">{error}</p> : null}
+          {!loading && error ? <p className="text-xs text-destructive-text">{error}</p> : null}
           {!loading && !error && scriptCode ? (
             <pre className="max-h-64 overflow-auto text-[11px] leading-relaxed font-mono text-foreground/90 whitespace-pre-wrap break-all">
               {scriptCode}

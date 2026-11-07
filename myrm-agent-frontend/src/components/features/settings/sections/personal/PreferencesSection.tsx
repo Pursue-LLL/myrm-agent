@@ -168,7 +168,7 @@ const PreferencesSection = memo(() => {
                   <p className="text-xs text-muted-foreground">
                     {t('linkEmbedsAllowed')}: {allowedProviders.join(', ')}
                   </p>
-                  <button onClick={clearAllowed} className="text-xs text-destructive hover:underline">
+                  <button onClick={clearAllowed} className="text-xs text-destructive-text hover:underline">
                     {t('linkEmbedsClear')}
                   </button>
                 </div>

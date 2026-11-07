@@ -300,7 +300,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-destructive hover:text-destructive"
+                  className="text-destructive-text hover:text-destructive-text"
                   onClick={() => setDeleteTarget(server)}
                   aria-label={t('mcpDeleteTitle')}
                 >

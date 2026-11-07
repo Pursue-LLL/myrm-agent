@@ -68,7 +68,7 @@ export function MCPJsonImporter({
 
           {importError && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <p className="text-sm text-destructive">{importError}</p>
+              <p className="text-sm text-destructive-text">{importError}</p>
             </div>
           )}
         </div>

@@ -95,7 +95,7 @@ export function AgentBasicInfoTab({
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground flex items-center gap-2">
             {t('agent.name')}
-            <span className="text-destructive">*</span>
+            <span className="text-destructive-text">*</span>
           </label>
           <Input
             value={name}
@@ -147,7 +147,7 @@ export function AgentBasicInfoTab({
                     <button
                       type="button"
                       onClick={() => handleRemovePrompt(idx)}
-                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      className="text-muted-foreground hover:text-destructive-text transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>

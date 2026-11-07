@@ -218,7 +218,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                   <p className="text-xs text-muted-foreground truncate">{tunnel.upstream_url}</p>
                   {tunnel.description && <p className="text-xs text-muted-foreground">{tunnel.description}</p>}
                   {tunnel.status === 'degraded' && tunnel.last_upstream_error && (
-                    <p className="text-xs text-destructive/90 break-words">
+                    <p className="text-xs text-destructive-text break-words">
                       {t('tunnelLastUpstreamError', { error: tunnel.last_upstream_error })}
                     </p>
                   )}
@@ -244,7 +244,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive-text hover:text-destructive-text"
                     onClick={() => void handleDelete(tunnel)}
                     title={t('tunnelDelete')}
                   >
@@ -366,7 +366,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-destructive font-medium">{t('tunnelTokenWarning')}</p>
+            <p className="text-xs text-destructive-text font-medium">{t('tunnelTokenWarning')}</p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button

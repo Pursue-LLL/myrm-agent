@@ -30,7 +30,7 @@ const StateIcon = memo(({ state }: { state: PushSubscriptionState }) => {
     case 'subscribed':
       return <BellRing className="h-4 w-4 text-emerald-500" />;
     case 'denied':
-      return <BellOff className="h-4 w-4 text-destructive" />;
+      return <BellOff className="h-4 w-4 text-destructive-text" />;
     default:
       return <Bell className="h-4 w-4 text-muted-foreground" />;
   }
@@ -105,9 +105,9 @@ const WebPushCard = memo(function WebPushCard() {
         />
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive-text">{error}</p>}
 
-      {state === 'denied' && <p className="text-xs text-destructive">{t('webPushDenied')}</p>}
+      {state === 'denied' && <p className="text-xs text-destructive-text">{t('webPushDenied')}</p>}
 
       {state === 'subscribed' && (
         <Button variant="outline" size="sm" className="text-xs" onClick={() => void handleTest()} disabled={testing}>

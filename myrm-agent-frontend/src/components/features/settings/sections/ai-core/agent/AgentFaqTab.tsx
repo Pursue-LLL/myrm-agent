@@ -407,7 +407,7 @@ export function AgentFaqTab({ agentId }: AgentFaqTabProps) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 w-7 p-0 text-destructive"
+                    className="h-7 w-7 p-0 text-destructive-text"
                     onClick={() => void handleDeleteEntry(entry.id)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

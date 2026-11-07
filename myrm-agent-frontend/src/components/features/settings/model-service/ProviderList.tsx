@@ -110,7 +110,7 @@ const SortableProviderItem = memo<{
             className={cn('p-1 hover:bg-destructive/10 rounded transition-all', REVEAL_ON_HOVER)}
             title={t('removeProvider')}
           >
-            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            <Trash2 className="w-3.5 h-3.5 text-destructive-text" />
           </button>
         )}
       </div>
