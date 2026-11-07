@@ -77,15 +77,10 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 |-----------|-------------|
 | multiplexer/ | 持久化多智能体会话多路复用器（多会话切片管理、无头工作者标记、互视快照与指令队列原语；不暴露 LLM 工具）。详见 [multiplexer/_ARCH.md](multiplexer/_ARCH.md)。 |
 | todo_store/ | 跨进程/跨插件共享 Todo 计划声明存储与控制字符安全清洗 HUD 只读投影子系统（支持严格 20 项与字符上限门禁、双向 C0/C1 与 ANSI 剥离清洗、只读 HUD 投射与标准元工具）。详见 [todo_store/_ARCH.md](todo_store/_ARCH.md)。 |
-| ralph_loop/ | Ralph 式 Fresh-Agent 多轮循环与极简五字段强交接系统（支持长任务每轮启动无历史全新子代理、共享工作区物理文件协同、五字段容量硬顶与尝试满三轮阻断防御规则）。详见 [ralph_loop/_ARCH.md](ralph_loop/_ARCH.md)。 |
-| advisor_channel/ | 双模型实时旁路军师评审通道（为智能体挂载独立模型与 Context 窗口的 Advisor 军师角色，按 aside/concern/blocker 三级分层实时审查与硬阻断熔断）。详见 [advisor_channel/_ARCH.md](advisor_channel/_ARCH.md)。 |
 | supervision_hub/ | 子代理实时监管抽屉引擎（提供并发 Worker 实时花名册聚合、环形 Live Transcript 执行轨迹缓冲区与 Steer/Kill/Revive 三大生命周期干预调度）。详见 [supervision_hub/_ARCH.md](supervision_hub/_ARCH.md)。 |
 | conflict_gate/ | 多 Bot 并行产出冲突对账与合并前拦截门（聚合写集指纹、检测 Hash 碰撞并触发 conflict_pending 阻断、提供四策略对账解决器）。详见 [conflict_gate/_ARCH.md](conflict_gate/_ARCH.md)。 |
 | mcp_scope_gate/ | MCP 发现工具按数字员工/Agent 作用域严格隔离门禁（对标 StaffDeck，支持 Profile 级 MCP Server/工具白名单绑定、动态发现候选集 Fail-Closed 过滤与越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
-| agent_operations/ | Agent-Owned 多智能体协同操作体系（对标 OpenClaw，收敛并隔离多 Agent 协同中的 Provider 设置、模型参数、能力解析 Resolver、白名单 Allowlist 与操作级错误堆栈 Error Stack，维护标准 List-form Agent 花名册）。详见 [agent_operations/_ARCH.md](agent_operations/_ARCH.md)。 |
 | durable_dispatch/ | Hermes Fabric 确定性远程分发与持久化对等日志内核（对标 Hermes GPT，支持 WorkContract 契约、Fail-Closed 执行前策略重校验、单调递增双向对等日志 Durable Journals、有界证据准入门禁与崩溃后幂等自愈恢复）。详见 [durable_dispatch/_ARCH.md](durable_dispatch/_ARCH.md)。 |
-| report_fifo/ | 子智能体回报路径实时唤醒、Step 边界报告结算保序与无人值守多命名实例体系（对标 DeepSeek Harness，支持 next-step steer 唤醒、Report-before-Settlement FIFO 严格保序队列与 permissionMode 无人值守策略）。详见 [report_fifo/_ARCH.md](report_fifo/_ARCH.md)。 |
-| failure_facts/ | 子智能体脱敏结构化失败事实与安全归因诊断协议（对标 DeepSeek Harness，提供单行安全诊断 Header、4096 字节有界限制、六大生命周期阶段、九大故障分类、敏感凭证脱敏与自愈建议）。详见 [failure_facts/_ARCH.md](failure_facts/_ARCH.md)。 |
 | debate/ | 多智能体动态协同工作间与辩论流任务看板联动引擎（对标扣子桌面端项目工作群，支持 Leader 任务拆解、专员辩论质询、防无效车轮战自动收敛与 Kanban 任务双向状态绑定）。详见 [debate/_ARCH.md](debate/_ARCH.md)。 |
 | cli_adapter/ | 多源异构 Agent 外部进程桥接与 CLI 工具标准化适配器（对标扣子桌面端与 Hermes Conductor，支持 Claude Code/Codex/OpenClaw/Stdio CLI 进程挂载、生命周期调度、超时熔断与 ANSI 清洗凭证）。详见 [cli_adapter/_ARCH.md](cli_adapter/_ARCH.md)。 |
 | checkpoint/ | Subagent checkpoint utilities package. Includes orphan recovery for automatic resumption after restart. |
@@ -94,22 +89,10 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | budget_scaling/ | 子任务并发度弹性提升与工具调用预算自动无损迁移体系（对标 Hermes Agent v0.20.2，默认并发提升至 10、单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
 | review_loop/ | 多视角并发子智能体评审与有界自愈复审闭环体系（对标 Pi / oh-my-pi 与 dsh-agent-teams 质量门禁，三视角正确性/测试/反过度设计并发聚焦会诊、有界 N 轮自愈循环状态机、收敛检测与退出判定）。 |
 | failure_policy/ | 子智能体 mid-task 失败 per-role 声明式自愈策略与自适应重启/规格重部署/升级/跳过决策引擎（对标 Hermes 社区最佳实践，支持 RESTART_FRESH、REDEPLOY_SPECS、ESCALATE_PARENT、SKIP 四大决策及有界重试熔断防线）。 |
-| mcp_summarizer/ | 重 Payload MCP/大文档获取专用子 Agent 预置与结构化摘要防污染引擎（支持重型 Payload 自动判定、结构化摘要工件提取提取-38.4% Token、与未隔离主会话污染审计诊断 Doctor）。 |
-| lifecycle_toolchain/ | 原生 Subagent 细粒度生命周期管控工具链（支持 spawn/wait/list/send_input/kill 原子原语、线程安全任务状态机、动态纠偏注入、异步等待聚合与超时自动熔断防线）。 |
-| mixed_fleet/ | 混合舰队预置（支持本地隐私记忆脑 Local Brain 与远端 24/7 常驻沙箱执行器 Remote Executor 协同、结构化 Markdown 交接契约流转与双向心跳监控）。 |
-| zero_token_contract/ | 舰队可视化零 Token 契约引擎（对标 Hermes3D，针对 Fleet Canvas、3D Office、虚拟宠物等可视化视图实行 100% 确定性运行时事件订阅镜像，Doctor 硬拦截任何违规 LLM 调用，严格保证可视化层 0 Token 消耗）。 |
-| cross_surface_bridge/ | 跨界面智能体活动对话汇入桥引擎（对标 Hermes3D office-conversation-bridge，支持 Tauri 桌面端、CLI 终端、Cron 计划任务与远端只读办公室克隆活动的轻量汇入与有界最近投影，避免全量 transcript 冗余同步）。 |
-| multi_lane/ | Pi Harness v2 会话内多 Lane 并行执行与共享追加树引擎（对标 pi harness-v2.md §2/§3/§8，同会话支持多 Lane 并行执行如 Slack Channel 下多 Thread，共享 append-only tree，每 Lane 独立维护 leaf 与 op log，严格保证单 Lane 最多 1 个 open operation，单写入协调器保障线程安全与无损并发）。 |
 | session_fork/ | Pi Harness v2 确定性子会话派生与安全重放重接原语（对标 pi harness-v2.md §17，基于 f(parentSessionId, toolCallId) 纯确定性派生 childSessionId，崩溃/重放 Safe Replay 时自动 reattach 现有 child 杜绝 twin 孪生子会话污染；支持 repo.fork(scope=branch|tree) 仅复制历史节点且保持新子会话初始 IDLE 纯净状态）。 |
 | pipeline_integrity/ | 开源可 inspect 工作流 · Handoff/Approval/Delivery 断点 Lint 与 Doctor 告警诊断包（对标 simplydt 与 BkashJosi 多 Agent 流水线断点治理，提供交接元数据缺失、无审批门禁直通 Delivery、交付产物缺失与无验证步骤四大断点规则 Lint 审计、可审查决策链提取与一键 Auto-Heal 自动补全自愈）。 |
 | workspace_inheritance/ | 子智能体工作区根规则与项目上下文自动继承体系（对标 Hermes Agent，在构建子智能体系统提示词时自动继承父级已解析的工作区绝对路径，严格遵循 .rules > AGENTS.md > README.md 优先级链条动态抽取架构红线与安全规范，实施 2K Token 上限控制与差分摘要裁剪，杜绝子 Agent 违背架构规范与越界违规）。 |
-| `replay_dedup/` | 多智能体历史工具调用回放合并与状态机同步增强机制（对标 jiuwenclaw PR #5274，提供连续等幂/只读工具调用紧凑批处理聚合与 Token 节省率核算、写操作绝对隔离保护、单调递增子智能体状态机流转、以及心跳租约看门狗防假死自愈）。 |
-| `cloud_edge_relay/` | 云端-本地混合沙箱双向工件接力与网络受限爬取调度包（对标 jiuwenclaw PR #5289，支持 CAS 乐观版本校验与 Append-Only Chunk 链式增量更新、跨节点工件双向同步、SSRF 安全防护与本地网络出口受限资源调度接力）。 |
 | `virtual_room/` | 多人多 Agent 实时协作虚拟空间、文件系统级协同与能力借用套件（对标 Tutti·VM，支持身份/执行/空间三权分立、细粒度文件块写租约锁与冲突自动消解、跨用户 Agent 零凭据借用网关与沙箱服务全员即时 Live 端口预览）。 |
-| `swarm_offload/` | 高并发子智能体集群调度与透明云沙箱算力卸载套件（对标 OpenAI Tibo 访谈算力瓶颈转移，支持 10-15 并发子智能体高吞吐扇出、宿主机 CPU/内存/活跃任务物理资源水位实时监控、水位超限自动透明卸载至云端沙箱与 vault:// 零拷贝工件指针）。 |
-| `visual_timeline/` | 多智能体可视化时间轴与单 Agent 节点精准 Cherry-Pick 撤销引擎（对标 Tutti·VM，支持多维时间轴日志检索、单节点原子精准反向补丁撤销、重叠依赖冲突检测与无损协作保护）。 |
-| `clean_code_pipeline/` | Clean-Code 装配流水线与架构依赖关系 Lint 检查引擎（对标 Clean-Code Assembly Pipeline，提供 Specifier->Coder->Cleaner->Hardener->QA 五阶段单向步进工件交接、AST 静态 import 解析分层架构与循环依赖校验门禁、以及自动 DIP 依赖倒置重构修复建议推导）。 |
-| `fusen/` | 多智能体轻量级 Fusen 便签看板与共享状态同步协议（对标 DojoAgents #139，提供无中心轻量状态便签发布与解决、blocker/ready_for_review/cache_hint 分类检索、亚毫秒级阻塞判定与自动过期清理）。 |
 | `vertical_presets/` | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试引擎（对标 Hermes 行业最佳实践，提供 Life Admin、Office Manager、Clipper、Chief of Staff、Sales Team 五大预置角色，支持单 Agent 隔离沙箱执行、指标与日志捕获，以及 Agent 通信流向追踪与成环死循环检测）。 |
 | `council/` | 高阶决策多模型审议委员会与交叉仲裁共识协议引擎（对标 council-of-high-intelligence，提供 3+ 异构模型盲审提案收集、匿名交叉质询与反驳答辩轮次推进、置信度加权共识裁决合成器与少数派异见归档）。 |
 | `kanban_dispatcher/` | 可视化看板多智能体任务分发与卡片级自动交接流引擎（对标 hermes-agent 看板编排实践，提供 Backlog/Researching/Developing/Reviewing/Done 五泳道卡片生命周期治理、泳道跃迁跨 Agent 自动打包交接与工件继承、微型进度条追踪以及阻塞判定与自愈调度）。 |
@@ -120,8 +103,6 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | `socket_mesh/` | 基于 Unix Socket / 命名管道的极简去中心化同机多 Agent 协同网格与原子信封协议（对标 Pi coms.ts & coms-net.ts，提供基于本地文件系统的零 Broker 注册自发现、跨平台 IPC 端点、标准原子信封通信协议、Hops 严格防环路熔断机制、In-flight Pending Reply 异步 Future 追踪与 coms_list/send/await/ping 内置协同工具链）。 |
 | `bot_forge/` | 对话式智能体与团队工厂、确定性创建流水线与建造者权限安全边界套件（对标 Pi specs/pi-pi.md 与 Hermes Bot Forge 出货形态，提供 Anti-recursion 防递归繁衍守卫、Permission Attenuation 权限收敛边界门禁、名称唯一性与语义职责重叠分析、Zero-model 干跑就绪核验、以及原子化 Transactional Rollback 状态机事务回滚中枢）。 |
 | `external_bundle/` | 异构外部第三方 Agent 容器化收编与子代理 Profile Bundle 调度桥接器（对标 DeepSeek Harness RC.8 subagent-claude-code 与 subagent-codex 调度层，提供 Claude Code/Codex/Gemini CLI 规范封装、工作区沙箱目录继承与防越权校验、破除单一 backend 锁的无锁高并发多实例多路复用调度器、终端 ANSI 格式清洗与结构化工件统一重塑）。 |
-| `kanban_orchestrator/` | 多智能体持久任务看板调度中枢与卡片 DAG 依赖拓扑分发器（对标 Hermes Kanban 编排生产实践，提供 Backlog/Todo/In Progress/Review/Done/Blocked 六泳道状态机、DFS 无环依赖拓扑计算、卡片依赖完成自动解锁级联 Auto-Unblock Cascade、卡片级沙箱隔离目录 tasks/{card_id} 与工件原子挂载）。 |
-| `fleet_router/` | 跨机分布式舰队 Profile Rail 全景导航轨、多网关拓扑自愈、离线缓冲与跨机工件中继中枢（对标 Hermes Desktop PROFILE RAIL 舰队级扩展实践，提供 Darwin/Linux/Cloud 多网关连接池、心跳遥测与健康度自感知、断网离线指令 FIFO 缓冲与自愈排空重连 Auto-Healing Flush、Agent 宿主拓扑上下文自动注入、以及 SHA-256 跨网关安全工件中继验证）。 |
 | `graph_triage/` | 图工程自适应适用性评估门禁与并发 Token 预算熔断套件（对标 Graph Engineering 行业实践与成本失控治理规范，提供单步/探索对话/纯时序流水线/多路重型并行启发式准入评估门禁 `GraphApplicabilityTriageGate`、扇出前置 Token 预估与硬上限预算熔断器 `PredictiveBudgetGuard`、以及基于剩余预算的动态自适应并发节流与危急状态提前局部优雅归约引擎 `ElasticConcurrencyReducer`）。 |
 | `orthogonal_reviewer/` | 正交双视角审查门禁与零偏见盲审子代理（对标 Codex 双审查子代理实践，彻底终结大模型自我合理化偏见；提供注入完整设计意图的 Reviewer A、物理隔离历史 CoT 纯看 Diff 与契约的盲态 Reviewer B、以及缺陷语义去重、严重度裁决与定向自动修复闭环仲裁器 `OrthogonalReviewArbiter`）。 |
 | `live_transcript/` | 子 Agent 实时透明 Live Transcript 轨迹流、后台委派任务持久化恢复账本、单次命令绑定 Smart Approvals 与 /deny 交互反馈、以及 MoA 角色细粒度推理强度动态分配套件（对标 Hermes v0.19 委托透明与持久化体系，消除多 Agent 协作盲区与后台任务丢失风险）。 |
