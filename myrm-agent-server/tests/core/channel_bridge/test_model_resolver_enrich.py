@@ -14,7 +14,7 @@ from app.core.channel_bridge.model_resolver import (
 )
 from app.core.types import ModelConfig
 
-_MOD = "app.core.channel_bridge.model_resolver"
+_MOD = "app.core.channel_bridge.model_resolver.enrich"
 
 
 class TestResolveModelMaxInputTokens:
