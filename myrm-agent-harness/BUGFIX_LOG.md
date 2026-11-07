@@ -137,6 +137,25 @@
 | **仍然存在** | ① 存量没清：harness 与 server 里仍有没有生产调用方的文件（计数见症状 ②；server 里含 `channels/` 下 4 个），全量模式列出，差分不计。② 回放窗口里每约 21 次改动 harness 或 server 的推送红 1 次（3/62），拆分大文件时红得最多；清理动作变成同一次推送里的事。③ 基线取推送前的提交：第一次推送引入的死文件只在那一次的运行里红，之后的推送（基线已含该文件）不再报；不做 baseline 文件与白名单是刻意的，所以没有「存量清零」机制。④ 只管文件，不管文件里没人用的函数或类。⑤ 静态分析看不见按字符串拼出的模块名与反射加载；这类只能写成字面量 `module:Class` 引用，或把目录加入根目录。字面量引用只证明「被写在某处」：整段是点路径（或 `module:attr`）的字符串常量，只要出现在有消费者的单元里，被指的单元就算有消费者（`scripts/module_reachability_facts.py` 的 `_string_targets`），门禁不看那一行会不会被执行；字符串写了却没人去加载的单元因此不会被点名，这一类靠失败提示对修法的要求（接到有测试驱动真实入口的生产调用点）与评审来挡。 |
 | **代码位置** | `scripts/{check_module_reachability,module_reachability_engine,module_reachability_facts,module_reachability_diff}.py`；`src/myrm_agent_harness/toolkits/llms/video/providers/registry.py`；测试 `tests/scripts/test_{module_reachability_engine,module_reachability_scope,module_reachability_star,module_reachability_diff,check_module_reachability}.py`、`tests/support/reachability_trees.py`、`tests/toolkits/llms/video/test_provider_registry.py`；`myrm-agent-server/scripts/ci/run_architecture_gates.sh`、`myrm-agent-server/tests/architecture/test_architecture_gates_order.py`；`.github/workflows/server-architecture.yml`。 |
 
+### BUG-HARNESS-2026-11-06-203 · OpenAI Responses 原生压缩桥接（`native_compaction_bridge.py` 与 `adapters/native_compaction.py`）和 `ResumeValidator` 没有任何生产调用方，架构表与 `PROMPT_CACHE_PRACTICE.md` 却把它们写成已有的缓存保护与恢复校验
+
+| 字段 | 内容 |
+| --- | --- |
+| **状态** | **FIXED**（提交哈希待补：改动在工作树，尚未提交） |
+| **发现时间** | 2026-11-06（评估「原生压缩桥接是接线还是删除」时，逐个核对生产调用方） |
+| **修复时间** | 2026-11-06 |
+| **严重程度** | P3：两处代码没人调用，运行时行为没有变化；问题在文档，把没接线的东西写成已有能力，误导选型与后续开发。 |
+| **关联产品** | harness `agent/context_management/infra/`、`toolkits/llms/adapters/`、`agent/context_management/PROMPT_CACHE_PRACTICE.md`。 |
+| **症状** | [实测，修复前提交上对 harness `src` 与 server `app` 做 `git grep`] `NativeCompactionCoordinator`、`NativeCompactionSidecarStore`、`NativeCompactionItem`、`is_eligible_native_compaction_route`、`build_responses_compaction_params`、`on_native_compaction_detected` 只出现在 `native_compaction_bridge.py` 与 `adapters/native_compaction.py` 两个文件自身，没有第三个文件导入它们；`ResumeValidator` 只出现在 `resume_validator.py` 自身；两份 `_ARCH.md` 与 `PROMPT_CACHE_PRACTICE.md` 里只写了文件名与功能描述，没有这些符号名。文档却写成已有的能力：`PROMPT_CACHE_PRACTICE.md` §5.5 的「配套工具」列表把 `resume_validator.py`（配置一致性验证）列为一条，同节的核心原则又把「配置一致性验证」写成原则之一，实现机制里却没有对应的实现。 |
+| **根因** | [代码] 两处代码各带单测、单测全绿，但没有任何生产模块导入它们，也没有机器检查拦下：模块可达性门禁当时以顶层目录的直接子项为单元（`agent/context_management`、`toolkits/llms` 各算一个，包里别的文件有人用，里面的死文件就看不见），harness 一侧也没有 CI 步骤（见 BUG-HARNESS-2026-11-06-199）。原生压缩桥接随 `8cd833f413`（2026-08-21，多级回退与流恢复）加入；`ResumeValidator` 自 2026-06-02 的初始导入就在。[实测] 用改前的门禁回放 `8cd833f413`，新增死单元只报 `eval/retrieval_assertions`，不含这两个文件；改后的门禁两个都报。 |
+| **修复** | 删除 `native_compaction_bridge.py`（164 行）、`adapters/native_compaction.py`（142 行）、`resume_validator.py`（159 行）与测试 `test_native_compaction_bridge.py`（186 行）、`test_resume_validator.py`（174 行，16 个用例）；删除两份 `_ARCH.md` 里对应的行、`scripts/fractal_header_baseline.txt` 里 `resume_validator.py` 的一行、`PROMPT_CACHE_PRACTICE.md` §5.5「配套工具」列表里 `resume_validator.py` 的一条与同节核心原则里的「配置一致性验证」。 |
+| **反复次数** | 第 1 次。 |
+| **踩坑** | 同一个说法有多种写法，只搜类名会漏：`PROMPT_CACHE_PRACTICE.md` §5.5 的核心原则只写了「配置一致性验证」，没有类名也没有文件名；按类名、文件名与这类措辞一起扫整个仓库才扫干净。 |
+| **回归** | [实测，`3ca1acfaa5` 加本条改动的干净检出] `tests/scripts`、`tests/support`、`tests/toolkits/llms`、`tests/agent/context_management` 选中 4615 个用例，4573 通过、42 失败；42 个失败在 tests/toolkits/llms 下 adapters、core、errors、fallback 四个子目录的 7 个文件里，在没有本条改动的 `3ca1acfaa5` 上逐条相同地失败，本条改动不涉及这些文件。另有 9 个未选：7 个被默认标记过滤（`pyproject.toml` 的 `addopts` 里 `-m 'not integration and not e2e and not performance'`），2 个是 `tests/toolkits/llms/core/test_reasoning_timeout_integration.py::TestReasoningTimeoutRealAPI`（其中 `test_real_call_uses_default_timeout` 真实调用外部模型网关，产生费用）。`validate_arch_inventory`（含 `--md-refs`）、`check_fractal_docs`（含 `--strict-headers`）、`boundary_check`、`check_import_resolvability` 对本改动触及的文件没有报告。删除后代码、架构表与现行文档里已没有这三个名字的引用，仅剩 `BUGFIX_LOG.md` 里的历史提及。 |
+| **行为变化（须知）** | 无运行时行为变化：被删代码没有生产调用方。`PROMPT_CACHE_PRACTICE.md` 不再把配置一致性验证写成缓存保护措施与核心原则。 |
+| **仍然存在** | 无。 |
+| **代码位置** | 删除 `src/myrm_agent_harness/agent/context_management/infra/{native_compaction_bridge,resume_validator}.py`、`src/myrm_agent_harness/toolkits/llms/adapters/native_compaction.py`、`tests/toolkits/llms/adapters/test_native_compaction_bridge.py`、`tests/agent/context_management/test_resume_validator.py`；改 `infra/_ARCH.md`、`adapters/_ARCH.md`、`scripts/fractal_header_baseline.txt`、`agent/context_management/PROMPT_CACHE_PRACTICE.md`。 |
+
 ### BUG-HARNESS-2026-11-06-197 · 模型把脚本存成文件、用 `python file.py 2>&1 | head -60` 这类带管道的形式启动，脚本里 `from skills.<技能>` 导入失败时命令退出码是 0，工具不告诉模型「`skills` 是虚拟命名空间、不是要装的包」：模型转去磁盘上找包、读环境变量、翻源码，一次运行 27–56 轮
 
 | 字段 | 内容 |

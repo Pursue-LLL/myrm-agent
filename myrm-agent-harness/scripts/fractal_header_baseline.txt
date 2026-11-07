@@ -14,7 +14,6 @@ myrm_agent_harness/agent/context_management/archive_checkpoint/__init__.py
 myrm_agent_harness/agent/context_management/archive_checkpoint/store.py
 myrm_agent_harness/agent/context_management/archive_checkpoint/summary_service.py
 myrm_agent_harness/agent/context_management/archive_checkpoint/types.py
-myrm_agent_harness/agent/context_management/infra/resume_validator.py
 myrm_agent_harness/agent/context_management/pipeline/__init__.py
 myrm_agent_harness/agent/context_management/pipeline/processors/__init__.py
 myrm_agent_harness/agent/context_management/strategies/filters/__init__.py
