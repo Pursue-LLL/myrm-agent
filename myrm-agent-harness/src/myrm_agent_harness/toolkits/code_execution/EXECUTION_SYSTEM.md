@@ -192,7 +192,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 
 - 执行次数（总数、成功、失败）
 - 执行时间（总计、平均、最大）
-- 错误分布（按 `ErrorCategory` 分类）
+- 错误分布（按 `ExecutionResult.error_category` 分类）
 - 支持 `.to_dict()` 结构化导出
 
 ### 7. ExecutionInterceptor（执行拦截器）

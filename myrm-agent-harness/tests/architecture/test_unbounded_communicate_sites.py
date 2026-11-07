@@ -20,7 +20,6 @@ _SRC = Path(__file__).resolve().parent.parent.parent / "src" / "myrm_agent_harne
 # file -> (number of calls, why the command's output and run time are bounded already)
 _BOUNDED_BY_THE_COMMAND: dict[str, tuple[int, str]] = {
     "agent/file_snapshot/factory.py": (1, "`git --version`; both pipes are discarded"),
-    "runtime/doctor/capability_verifier.py": (1, "runs a fixed `echo`; the output is one word"),
     "toolkits/acp/core/backend_detector.py": (
         1,
         "`<binary> --version` of an installed agent CLI, 10 s deadline; only the first line is used",
