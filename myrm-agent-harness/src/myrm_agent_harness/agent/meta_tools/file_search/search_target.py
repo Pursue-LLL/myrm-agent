@@ -38,8 +38,8 @@ _ABSENT_WINERRORS = frozenset({123, 1921})
 
 
 def _says_absent(error: OSError) -> bool:
-    winerror = getattr(error, "winerror", None)  # only Windows sets it
-    return error.errno in _ABSENT_ERRNOS or (isinstance(winerror, int) and winerror in _ABSENT_WINERRORS)
+    # Only Windows sets ``winerror``.
+    return error.errno in _ABSENT_ERRNOS or getattr(error, "winerror", None) in _ABSENT_WINERRORS
 
 
 def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:

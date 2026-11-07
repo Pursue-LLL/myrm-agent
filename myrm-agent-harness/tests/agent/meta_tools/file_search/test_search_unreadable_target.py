@@ -54,7 +54,7 @@ class UnresolvableLinkError(OSError):
 
 
 class DriveNotReadyError(PermissionError):
-    """What ``os.stat`` raises on Windows for a drive without media: errno EACCES carrying WinError 21."""
+    """What ``os.stat`` raises on Windows for a drive that exists but is not accessible: errno EACCES, WinError 21."""
 
     winerror = 21
 
