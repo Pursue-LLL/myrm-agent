@@ -6,15 +6,14 @@
 - session.download_manager::DownloadResult (POS: one saved download)
 
 [OUTPUT]
-- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), check_and_download_pdf, list_downloads, last_download, download_enabled
+- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), list_downloads, last_download, download_enabled
 
 [POS]
 Download API of BrowserSession over the optional DownloadManager. An explicit download is a request the browser
 makes for the agent, so it is judged as a navigation to the same URL is: canonical spelling, URL blocklist and SSRF
 policy before the request, the address the download finally came from afterwards, and the page the tab landed on
-when the request ended on a page instead of a file. The PDF auto-download acts on the active page; the read-side
-accessors answer from the manager and stay empty when download support is not configured. Listed after the
-interaction mixin and before the network mixin.
+when the request ended on a page instead of a file. The read-side accessors answer from the manager and stay
+empty when download support is not configured. Listed after the interaction mixin and before the network mixin.
 """
 
 from __future__ import annotations
@@ -65,14 +64,6 @@ class BrowserSessionDownloadMixin(SessionHost):
         if result is None and page.url != url_before and page.url.startswith(_NETWORK_URL_PREFIXES):
             await navigator.assert_landed_allowed(page.url, discard_document=True)
         return result
-
-    async def check_and_download_pdf(self) -> DownloadResult | None:
-        """Check if current page is a PDF and auto-download it."""
-        if self._download_manager is None:
-            return None
-        await self._ensure_components()
-        page = self._tab_controller.get_active_page()
-        return await self._download_manager.check_and_download_pdf(page)
 
     def list_downloads(self) -> list[DownloadResult]:
         """Get all download results."""

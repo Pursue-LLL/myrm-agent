@@ -25,10 +25,12 @@ from .common import mark_untrusted
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
     from ..session import BrowserSession
 
 
-def create_manage_tool(session: BrowserSession):
+def create_manage_tool(session: BrowserSession) -> BaseTool:
     """Create browser_manage tool bound to session."""
 
     class ManageInput(BaseModel):
@@ -212,8 +214,7 @@ def create_manage_tool(session: BrowserSession):
                     return "No files downloaded yet."
                 lines = [f"Downloaded files ({len(downloads)}):"]
                 for dl in downloads:
-                    auto_tag = " [auto]" if dl.auto_download else ""
-                    lines.append(f" - {dl.file_name} ({dl.file_size} bytes){auto_tag}: {dl.path}")
+                    lines.append(f" - {dl.file_name} ({dl.file_size} bytes): {dl.path}")
                 return "\n".join(lines)
             case "run_site_tool":
                 return await _handle_run_site_tool(session, value)
