@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  findFillColorAsTextSites,
   findUndefinedSemanticColorSites,
   findWrappedThemeColorSites,
   isCompleteColorValue,
@@ -104,5 +105,34 @@ describe('findUndefinedSemanticColorSites', () => {
   it('reports the 1-based line and the matched class text', () => {
     const sites = findUndefinedSemanticColorSites(['a', `b: 'bg-error/20'`].join('\n'), declared);
     expect(sites).toEqual([{ line: 2, text: 'bg-error', token: 'error' }]);
+  });
+});
+
+describe('findFillColorAsTextSites', () => {
+  const fillTexts = (source: string): string[] => findFillColorAsTextSites(source).map((site) => site.text);
+
+  it('flags the fill color used as text, with any variant prefix', () => {
+    expect(fillTexts(`className="text-destructive"`)).toEqual(['text-destructive']);
+    expect(fillTexts(`'hover:text-destructive focus:text-destructive dark:text-destructive'`)).toHaveLength(3);
+    expect(fillTexts(`'[&>svg]:text-destructive !text-destructive'`)).toHaveLength(2);
+  });
+
+  it('flags it with an opacity modifier too, since the modifier only weakens the contrast', () => {
+    expect(fillTexts(`'text-destructive/80 hover:text-destructive/60'`)).toHaveLength(2);
+  });
+
+  it('accepts the text token, the foreground token and the fill utilities', () => {
+    expect(fillTexts(`'text-destructive-text text-destructive-text/60 hover:text-destructive-text'`)).toEqual([]);
+    expect(fillTexts(`'bg-destructive text-destructive-foreground'`)).toEqual([]);
+    expect(fillTexts(`'border-destructive/30 bg-destructive/10 ring-destructive stroke-destructive'`)).toEqual([]);
+  });
+
+  it('does not match a longer class or word that merely contains the name', () => {
+    expect(fillTexts(`'no-text-destructive context-text-destructive text-destructive_x'`)).toEqual([]);
+  });
+
+  it('reports the 1-based line of every match', () => {
+    const source = ['a', `b: 'text-destructive'`, '', `c: 'text-destructive/70 hover:text-destructive'`].join('\n');
+    expect(findFillColorAsTextSites(source).map((site) => site.line)).toEqual([2, 4, 4]);
   });
 });
