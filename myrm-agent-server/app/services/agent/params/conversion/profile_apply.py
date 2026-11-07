@@ -49,7 +49,7 @@ class ProfileContext:
     kanban_default_board_id: str | None = None
     mcp_configs: list[MCPServerConfig] | None = None
     agent_skill_ids: list[str] = field(default_factory=list)
-    agent_skill_configs: dict[str, dict] | None = None
+    agent_skill_configs: dict[str, dict[str, object]] | None = None
     agent_subagent_ids: list[str] | None = None
     agent_security_raw: dict[str, object] | None = None
     agent_max_iterations: int | None = None
@@ -90,11 +90,12 @@ async def apply_agent_profile(
         resolved = await get_agent_profile_resolver().resolve(request.agent_id)
         profile.resolved = resolved
         if resolved:
-            if not request.agent_config and resolved.system_prompt:
+            # The persona follows the client's instructions; a chat-level prompt, even an empty one, replaces the saved one.
+            chat_prompt = request.agent_config.system_prompt if request.agent_config else None
+            agent_prompt = resolved.system_prompt if chat_prompt is None else chat_prompt
+            if agent_prompt:
                 profile.user_instructions = (
-                    f"{profile.user_instructions}\n\n{resolved.system_prompt}"
-                    if profile.user_instructions
-                    else resolved.system_prompt
+                    f"{profile.user_instructions}\n\n{agent_prompt}" if profile.user_instructions else agent_prompt
                 )
             # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
             if (

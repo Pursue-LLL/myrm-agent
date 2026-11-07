@@ -729,10 +729,12 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `ai_agents/general_agent/test_skill_tool_mount.py` | 模块 | `skill_manage` / `skill_market` 经 ToolSetupMixin 真实挂载：启用或 `/learn` 强制挂载的判定、挂载后的工具经真实创建服务落盘并在写入前拦截危险内容、撤销快照取自写入根而非轮次技能后端（轮次后端看不到该技能时，改写前的内容仍被记下）、factory 只经 tool_setup 挂载 |
 | `core/skills/test_draft_skill_name.py` | 模块 | `slugify_draft_skill_name`：技能名成为目录名的各种写法（空格、连续空白、结尾句号、首尾空白、首尾连字符、非 ASCII 字母、路径、NUL、Kelvin 符号、超长、清洗后什么都不剩、空名字）各一例；对敌意输入逐一确认结果恒为一个由 `a-zA-Z0-9_-` 组成、不超过 64 字符的目录项名 |
 | `core/skills/test_managed_skill_reader.py` | 模块 | `ManagedSkillSnapshotReader`：读服务根下的 SKILL.md 与资源字节、缺失技能/资源抛 `FileNotFoundError`、根在每次调用时读取（服务根被改后跟随）、技能名与资源路径越界（`..`、绝对路径）被拒 |
+| `ai_agents/general_agent/test_instructions_resume_continuity.py` | 模块 | 真实 `create_agent` + 检查点 + `interrupt` 工具：审批续跑的调用不带指令时沿用被打断那一段的指令（一次），下一条不带指令的消息没有该块，再下一条消息只含自己的指令 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
 | `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |
 | `services/skills/test_evolution_review_apply.py` | 模块 | 演化评审落盘：FIX/DERIVED/CAPTURED 写入进化内容并以对应类型记录谱系；已退役的进化类型、加载器会跳过的内容、提案创建后被改动或删除的技能文件（换行符差异、重复 apply、无基线哈希的提案不算过期）在技能文件被改动之前即被拒绝；fork 被拒绝时提案保持原样、成功后 payload 取得 fork 身份；apply 后进化存储里保存的是实际写入的文本（新建、既有与 fork 的带作用域技能各一例） |
 | `services/skills/test_skill_file_differs.py` | 模块 | `skill_file_differs`：SKILL.md 与给定文本的比较不计换行写法；没有路径、文件缺失、路径是目录时不算不同 |
+| `services/agent/test_converter_agent_prompt_delivery.py` | 模块 | 真实转换器按 Web 请求形状（含 `agent_config`）交付智能体人设：保存的人设追加在客户端全局指令之后且只出现一次；会话级 `agent_config.system_prompt` 整体替换、空串清空；无 `agent_config` 的请求照用保存的人设 |
 | `api/evolution/test_evolution_base_drift.py` | 模块 | 审批流对过期提案的处理（真实存储与审核表）：提案基于的文本已不是磁盘上的 SKILL.md 时被丢弃且不入审核队列、存储副本不被改动；基于当前文件的提案进入审核，记录的原文与基线哈希取自文件；文件已不存在或提案没有原文时照常进入审核 |
 | `api/evolution/test_evolution_decision_lock.py` | 模块 | 同一提案的 payload 写入串行（真实审核表，应用被闸门挂住）：批准的应用进行中发起拒绝，拒绝要等到应用结束、读到已应用后以「只有未落地的提案能被拒绝」失败，记录仍是已批准且已应用、账本里没有拒绝事件；运行时失败计数更新的写回被挂住时发起批准，批准要等它写完，终态仍是已批准且已应用、失败计数为 2，回滚可用；两个批准同时作用于一条提案时应用从不并发；批准、拒绝、修订、回滚、计数更新五个写入各自都等同一提案上进行中的写入，不等别的提案 |
 | `api/evolution/test_evolution_row_identity.py` | 模块 | 页面技能按「存放它 SKILL.md 的进化行」定位（页面技能来自真实本地扫描）：改过名的技能 `/derive` 作用于旧名之下的行、锁开关写到该行；路径经符号链接记录的行同样命中；同名而在不同目录的两个技能各用各的行；锁开关只标记自己的行；对话里创建的技能（没有行）可解锁、优化、再上锁 |
