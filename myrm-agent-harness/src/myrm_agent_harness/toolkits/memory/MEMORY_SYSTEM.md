@@ -112,7 +112,7 @@ myrm_agent_harness/
 │   │   ├── approval.py                 # 审批序列化辅助
 │   │   ├── scope.py                    # namespace 派生、作用域绑定、写入目标裁剪、namespace 校验、渠道亲和力
 │   │   ├── write_service.py            # 写入编排（扫描、审批、分桶、批量去重、convenience memory 构造、写入 scope 栅栏）
-│   │   ├── search_service.py           # 搜索编排（sanitize、typed recall 路由、RRF 前后编排、graph enrich、raw 裁剪、retrieval trace）
+│   │   ├── search_service/           # 搜索编排（sanitize、typed recall 路由、RRF 前后编排、graph enrich、raw 裁剪、retrieval trace）
 │   │   ├── governance_service.py       # 治理编排（审批流、profile 写入、安全扫描）
 │   │   ├── maintenance_service.py      # 维护编排（health、snapshot、maintenance cycle）
 │   │   ├── embedding_cache.py          # EmbeddingCache（L1+L2）
@@ -177,7 +177,7 @@ myrm_agent_harness/
 >
 > **去重、遗忘、蒸发与编译作用域安全**：三层去重 Layer 2 候选检索、`dedup_semantics` 兜底、`run_forgetting` 向量遗忘、`evaporate_task_digests` 消化蒸发与 `compile_claim_graph` 图谱编译均按 `primary_namespace ∈ 内存自身 namespaces` **精确过滤**（`_user_filter` 中央函数），保证同 scope 内去重/合并/删除/消化/编译，绝不跨 scope 抑制、清理或消费他人记忆；Hash 缓存键绑定 namespaces 防串台；Qdrant 为 `primary_namespace`/`namespaces` payload 建 KEYWORD 索引保证过滤性能。
 >
-> **Façade 编排边界**：`MemoryManager` 负责统一 façade，不再内联 `namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权，这些纯逻辑统一收敛到 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造统一收敛到 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪统一收敛到 `_internal/search_service.py`；审批流、profile 写入和安全扫描统一收敛到 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 统一收敛到 `_internal/maintenance_service.py`。
+> **Façade 编排边界**：`MemoryManager` 负责统一 façade，不再内联 `namespace` 派生、scope 绑定、写入目标裁剪和渠道亲和力重加权，这些纯逻辑统一收敛到 `_internal/scope.py`；扫描、审批路由、分桶、批量去重以及 convenience memory 构造统一收敛到 `_internal/write_service.py`；sanitize、typed recall 路由、RRF 前后编排、graph enrich 与 raw 裁剪统一收敛到 `_internal/search_service/`；审批流、profile 写入和安全扫描统一收敛到 `_internal/governance_service.py`；health、snapshot 和 maintenance cycle 统一收敛到 `_internal/maintenance_service.py`。
 >
 > **Digest 生命周期**：`task_digest` 会以 `EpisodicMemory(event_type='task_digest')` 存储，并通过 `MemoryLifecycle` 建模为 `tier='l2'`、`evaporation_state='pending'`、`claim_graph_state='pending'`。向量层会将它扁平化持久化为 metadata 字段，但业务逻辑统一基于 typed lifecycle 推进。
 >
@@ -743,7 +743,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。
 - **Class-First Rubric 评分与短 ID 映射**：在系统提示词与执行前置过滤中固化准确性、防碎片化、冗余度三维标准，以短 ID 压缩减少 Token 开销并捍卫 Prompt Cache 静态前缀。
 - **跨子阶段毫秒级协作避让 (`check_cooperative_yield`)**：在 `maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、遗忘、摘要蒸发、因果图编译、陈旧审查、偏好重建、健康体检）入口处注入协作让出检查。当高优先级交互触发 `CooperativePauseSignal` 时，维护任务在毫秒内优雅退出并安全释放锁，保留已执行阶段的指标于 `MaintenanceReport.interrupted_by_pause`，确保前台交互零延迟。
-- **批次熔断与时间戳脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断或全量操作失败时跳过更新 `last_consolidated_at` 时间戳，保障未完成项在后续周期可被重新抓取。
+- **批次熔断与时间戳脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断或全量操作失败时跳过更新 `last_consolidated_at` 时间戳，保障未完成项在后续周期可被重新抓取。读取侧同样设防：`get_last_consolidated_at` 丢弃无时区或晚于当前时间的存量值（视同从未整合），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆。
 - **单机沙箱确定性审计与回滚通道**：巩固周期生成的 `EpisodicMemory` 审计日志由存储管理器统一路由持久化，单机 SQLite 模式与混合向量存储模式均可完整记录 `[affected_ids:...]` 拓扑关系，保障 `consolidation_rollback.py` 可精准反转最近周期的记忆变更。
 - **全生命周期完成回调**：主编排门面确保在所有退出路径（包含 0 操作早退与正常完成）均触发 `on_complete` 回调并回传 `ConsolidationStats`，为前端状态通知与 WebSocket 管道提供可靠的生命周期事件流。
 - **受保护条目豁免**：自动化合并与纠错传递 `allow_protected=False`，用户主动锁定的关键记忆永不被覆写或合并。
@@ -866,7 +866,7 @@ tools = create_memory_tools(manager=manager)
 
 `memory_search_tool` 的 `limit` 在 memory corpus 下收敛到 `1..15`；sessions corpus 下收敛到 `1..8`。空查询或 `*` 在 `corpus=sessions` 时表示浏览最近会话。wiki/sessions corpus 由 Server policy 控制，runtime 无法扩 scope。模型可见面（`memory_search_tool` 的 schema、三个工具的描述、记忆检索指引）与该 policy 同源，只描述当前策略下真实可用的能力；`tests/toolkits/memory/test_memory_tool_surface_contract.py` 对 policy × 语言 × 审批全矩阵校验：描述点名的标识符都是某个记忆工具的 schema 字段，描述写出的 `字段=取值`（`corpus=`、`action=`、`category=`）⊆ 该字段的 schema 枚举，save 类别指南与 schema 类别逐项一致，save 参数集固定，wiki / 会话检索措辞只在 policy 启用时出现。
 
-**检索墙钟超时（fail-open）**：`memory_search_tool` 各 corpus 共用 `RetrievalConfig.timeout_seconds`（默认 10s）作为检索墙钟上限——memory corpus 在 `_internal/search_service.py` 内部分配给 embedding / collection / graph enrichment 三阶段共享 deadline；wiki/sessions corpus 统一经 `agent_surface/memory_search_execution.py::_run_with_timeout` 以 `asyncio.wait_for` 截止。任一 corpus 超时均 fail-open：返回降级提示而非阻塞 Agent turn（测试见 `tests/toolkits/memory/test_search_timeout.py`）。**MCP `memory_recall`** 在空结果 + `last_retrieval_trace.degraded` 时返回同一降级提示（`agent_surface/mcp_server/`），与 GUI corpus 契约一致（测试见 `tests/toolkits/memory/test_mcp_server.py::TestMemoryRecallTool`）。
+**检索墙钟超时（fail-open）**：`memory_search_tool` 各 corpus 共用 `RetrievalConfig.timeout_seconds`（默认 10s）作为检索墙钟上限——memory corpus 在 `_internal/search_service/` 内部分配给 embedding / collection / graph enrichment 三阶段共享 deadline；wiki/sessions corpus 统一经 `agent_surface/memory_search_execution.py::_run_with_timeout` 以 `asyncio.wait_for` 截止。任一 corpus 超时均 fail-open：返回降级提示而非阻塞 Agent turn（测试见 `tests/toolkits/memory/test_search_timeout.py`）。**MCP `memory_recall`** 在空结果 + `last_retrieval_trace.degraded` 时返回同一降级提示（`agent_surface/mcp_server/`），与 GUI corpus 契约一致（测试见 `tests/toolkits/memory/test_mcp_server.py::TestMemoryRecallTool`）。
 
 **Memory MCP HTTP**（`agent_surface/mcp_server/`）：对外暴露 `memory_recall` / `memory_list` / `memory_store` / `memory_manage` 四工具；**`memory_manage` 与 `memory_store` 描述** import `agent_surface/_memory_agent_tool_descriptions` SSOT（`surface=mcp` 工具名映射；store 默认不含 wiki boundary 文案——MCP 面无 wiki 工具、运行时 wiki 拦截由 server 按 agent 经 ContextVar 控制，静态描述不声称 wiki enabled，显式启用场景下 MCP 面也不泄漏 GUI 内部工具名 `wiki_ingest_tool`）；wiki 启用时 `memory_store` 运行时硬拒 document-like 内容（与 GUI `memory_save_tool` 一致，server middleware 传 ContextVar，拒绝消息同样不引用 GUI 内部工具）。recall/list 仍为 MCP 专用 inline 描述。
 

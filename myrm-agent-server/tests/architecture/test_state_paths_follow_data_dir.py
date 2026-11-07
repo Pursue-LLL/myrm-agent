@@ -39,9 +39,6 @@ _ALLOWED: dict[str, str] = {
         "the settings field that reads MYRM_DATA_DIR through its alias: the literal is its documented default, "
         "pinned by test_data_dir_contract"
     ),
-    "myrm_agent_harness/agent/creator_mode/roaming_gateway.py": (
-        "canonical path labels recorded in sync records (one is a cloud:// URL); the gateway never opens them as files"
-    ),
     "app/server/stack_epoch.py": (
         "developer supervisor state under the login home (~/.local/state/myrm-dev), not product data; "
         "it is deliberately read from the real user home"

@@ -4569,6 +4569,8 @@
     "lastUsedAt": "最終使用：{time}",
     "createdAt": "作成時間",
     "updatedAt": "更新日時",
+    "sortAscending": "昇順",
+    "sortDescending": "降順",
     "loginRequired": "メモリを表示するにはログインが必要です",
     "loginRequiredDesc": "AI が学習したメモリを表示・管理するにはログインしてください",
     "enableMemory": "メモリを有効化",

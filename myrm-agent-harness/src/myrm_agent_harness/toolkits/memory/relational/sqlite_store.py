@@ -63,8 +63,8 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
     Example::
 
         async with SQLiteRelationalStore("~/.app/relational.db") as store:
-            await store.set_profile("u1", "language", "zh")
-            lang = await store.get_profile("u1", "language")
+            await store.set_profile("language", "zh")
+            lang = await store.get_profile("language")
     """
 
     def __init__(self, db_path: str) -> None:

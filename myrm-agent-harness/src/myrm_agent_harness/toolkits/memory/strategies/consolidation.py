@@ -65,16 +65,24 @@ _record_consolidation_event = record_consolidation_event
 
 
 async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
-    """Read the last consolidation timestamp from Profile store."""
+    """Read the last consolidation timestamp from Profile store.
+
+    This module only writes timezone-aware times that are not ahead of the clock. A stored value
+    that is naive or in the future came from another writer; it is ignored so it cannot make the
+    time gates raise or hold consolidation back indefinitely.
+    """
     if not manager.has_relational:
         return None
     raw = await manager.get_profile_attribute(_PROFILE_KEY_LAST_CONSOLIDATED)
     if not raw:
         return None
     try:
-        return datetime.fromisoformat(raw)
+        last = datetime.fromisoformat(raw)
     except (ValueError, TypeError):
         return None
+    if last.tzinfo is None or last > datetime.now(UTC):
+        return None
+    return last
 
 
 async def should_consolidate(manager: MemoryManager, config: ConsolidationConfig) -> bool:

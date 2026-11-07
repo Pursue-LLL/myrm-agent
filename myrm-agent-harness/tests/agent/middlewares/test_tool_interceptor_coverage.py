@@ -50,7 +50,7 @@ async def test_tool_interceptor_coverage_estop():
             "myrm_agent_harness.agent.hooks.executor.fire_hook",
             return_value=MagicMock(blocked=False, updated_input=None),
         ),
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop") as mock_estop,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop") as mock_estop,
     ):
         mock_estop_state = MagicMock()
         mock_estop_state.level = "KILL_ALL"
@@ -79,7 +79,7 @@ async def test_tool_interceptor_coverage_loop_break():
             return_value=MagicMock(blocked=False, updated_input=None),
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard") as mock_guard,
@@ -116,12 +116,12 @@ async def test_tool_interceptor_coverage_pii_block():
             return_value=MagicMock(blocked=False, updated_input=None),
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard") as mock_guard,
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
             return_value="pii block",
         ),
     ):
@@ -220,7 +220,7 @@ async def test_handle_execution_error():
 
         with (
             patch("myrm_agent_harness.agent.hooks.executor.fire_hook") as mock_fire,
-            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii") as mock_pii,
+            patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii") as mock_pii,
             patch("myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker"),
         ):
             mock_hook_result = MagicMock()
@@ -360,16 +360,16 @@ async def test_run_pre_call_guards_updated_input():
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook") as mock_fire,
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
             return_value=False,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch("myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware.get_loop_guard") as mock_guard,
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_params_pii",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_tool_params_pii",
             return_value=None,
         ),
     ):
@@ -634,11 +634,11 @@ async def test_run_post_call_guards_full():
 
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook") as mock_fire,
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii") as mock_pii,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii") as mock_pii,
         patch("myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker"),
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard") as mock_budget,
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation") as mock_validation,
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.emit_hook_failure_event"),
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard") as mock_budget,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation") as mock_validation,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.emit_hook_failure_event"),
     ):
         mock_hook_result = MagicMock()
         mock_hook_result.blocked = True
@@ -659,7 +659,7 @@ async def test_run_post_call_guards_full():
         mock_validation.return_value = MagicMock(reason="poisoned")
 
         with patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.apply_validation_result",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.apply_validation_result",
             return_value=result,
         ):
             mock_guard_inst = MagicMock()
@@ -699,11 +699,11 @@ async def test_run_post_call_guards_budget_persisted():
 
     with (
         patch("myrm_agent_harness.agent.hooks.executor.fire_hook") as mock_fire,
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_tool_result_pii") as mock_pii,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.check_tool_result_pii") as mock_pii,
         patch("myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker"),
-        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.get_context_budget_guard") as mock_budget,
+        patch("myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.get_context_budget_guard") as mock_budget,
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.run_content_validation",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.post_call.run_content_validation",
             return_value=None,
         ),
         patch(
@@ -936,11 +936,11 @@ async def test_pre_check_tool_stuck_triggers_interrupt_via_pre_call_guards():
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
             return_value=None,
         ),
         patch("langgraph.types.interrupt") as mock_interrupt,
@@ -996,11 +996,11 @@ async def test_pre_check_tool_stuck_fallthrough_returns_error_msg():
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_estop",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_estop",
             return_value=None,
         ),
         patch(
-            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.check_circuit_breaker",
+            "myrm_agent_harness.agent.middlewares.tooling._tool_guards.pre_call.check_circuit_breaker",
             return_value=None,
         ),
         patch("langgraph.types.interrupt", return_value=None),
