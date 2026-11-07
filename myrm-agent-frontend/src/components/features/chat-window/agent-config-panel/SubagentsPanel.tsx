@@ -253,7 +253,7 @@ export const SubagentsPanel = ({
                   className={cn(newSubagentIdError && 'border-destructive focus-visible:ring-destructive')}
                 />
                 {newSubagentIdError && (
-                  <div className="flex items-center gap-1.5 text-xs text-destructive">
+                  <div className="flex items-center gap-1.5 text-xs text-destructive-text">
                     <AlertCircle size={12} />
                     {newSubagentIdError}
                   </div>
@@ -290,8 +290,8 @@ export const SubagentsPanel = ({
 
       {hasValidationErrors && (
         <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-2">
-          <AlertCircle size={16} className="text-destructive mt-0.5 shrink-0" />
-          <p className="text-sm text-destructive">{t('fixValidationErrors')}</p>
+          <AlertCircle size={16} className="text-destructive-text mt-0.5 shrink-0" />
+          <p className="text-sm text-destructive-text">{t('fixValidationErrors')}</p>
         </div>
       )}
     </div>

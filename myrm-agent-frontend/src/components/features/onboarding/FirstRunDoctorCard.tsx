@@ -96,7 +96,7 @@ const FirstRunDoctorCard = memo(() => {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 text-sm font-bold text-foreground">
                 {state === 'ok' && <IconCheck className="w-4 h-4 text-emerald-400" />}
-                {state === 'fail' && <IconAlertCircle className="w-4 h-4 text-destructive" />}
+                {state === 'fail' && <IconAlertCircle className="w-4 h-4 text-destructive-text" />}
                 {state === 'pending' && (
                   <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 )}

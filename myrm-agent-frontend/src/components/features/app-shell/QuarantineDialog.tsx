@@ -52,14 +52,14 @@ export function QuarantineDialog() {
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
+          <DialogTitle className="flex items-center gap-2 text-destructive-text">
             <ShieldAlert className="h-5 w-5" />
             {t('title')}
           </DialogTitle>
           <DialogDescription className="pt-4 text-base" dangerouslySetInnerHTML={{ __html: t('description') }} />
         </DialogHeader>
 
-        {errorMsg && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-full">{errorMsg}</div>}
+        {errorMsg && <div className="text-sm text-destructive-text bg-destructive/10 p-3 rounded-full">{errorMsg}</div>}
 
         {isSuccess && (
           <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-full">

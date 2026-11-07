@@ -35,7 +35,7 @@ const STATUS_ICONS: Record<string, { icon: string; className: string }> = {
   sleeping: { icon: 'z', className: 'text-muted-foreground opacity-60' },
   dizzy: { icon: '~', className: 'text-accent-warm animate-spin' },
   celebrating: { icon: '*', className: 'text-accent-warm animate-bounce' },
-  panting: { icon: '!', className: 'text-destructive animate-pulse' },
+  panting: { icon: '!', className: 'text-destructive-text animate-pulse' },
 };
 
 const MOOD_ANIM: Record<Mood, string> = {

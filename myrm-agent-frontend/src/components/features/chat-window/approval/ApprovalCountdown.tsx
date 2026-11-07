@@ -35,8 +35,8 @@ export default function ApprovalCountdown({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Clock className={`h-3 w-3 ${isUrgent ? 'text-destructive animate-pulse' : ''}`} />
-        <span className={isUrgent ? 'text-destructive font-medium' : ''}>
+        <Clock className={`h-3 w-3 ${isUrgent ? 'text-destructive-text animate-pulse' : ''}`} />
+        <span className={isUrgent ? 'text-destructive-text font-medium' : ''}>
           {isExpired ? t('expired') : t('expiresIn', { seconds: remainingSeconds })}
         </span>
       </div>

@@ -32,7 +32,7 @@ function statusIcon(status: MemoryLifecyclePhaseStatus) {
     case 'success':
       return <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />;
     case 'error':
-      return <X className="h-3 w-3 text-destructive" />;
+      return <X className="h-3 w-3 text-destructive-text" />;
     case 'skipped':
       return <Minus className="h-3 w-3 text-muted-foreground" />;
     default:

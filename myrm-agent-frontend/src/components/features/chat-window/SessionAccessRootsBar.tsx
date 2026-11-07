@@ -101,7 +101,7 @@ export default function SessionAccessRootsBar() {
               type="button"
               disabled={busy}
               onClick={() => void handleRevoke(root)}
-              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text disabled:opacity-50"
               title={t('revoke')}
               aria-label={t('revoke')}
             >

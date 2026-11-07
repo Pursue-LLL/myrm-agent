@@ -412,7 +412,7 @@ const PetOverlay = memo(function PetOverlay() {
           <button
             type="button"
             onClick={handleHide}
-            className="w-full rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10 transition-colors"
+            className="w-full rounded px-2 py-1.5 text-left text-xs text-destructive-text hover:bg-destructive/10 transition-colors"
           >
             {t('sprite.hide')}
           </button>

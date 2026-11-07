@@ -86,7 +86,7 @@ export function MobileTaskSpawnForm({
       {formOpen && (
         <div className="mt-4 space-y-3 pt-3 border-t">
           {slotsFull && (
-            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive-text">
               {t('slotsFull')}
             </p>
           )}

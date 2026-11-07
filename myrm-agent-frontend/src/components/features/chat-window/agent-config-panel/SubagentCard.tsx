@@ -86,7 +86,7 @@ export const SubagentCard = memo(function SubagentCard({
           onClick={onDelete}
           variant="ghost"
           size="sm"
-          className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+          className="h-7 px-2 text-destructive-text hover:text-destructive-text hover:bg-destructive/10 cursor-pointer"
         >
           <Trash2 size={14} />
         </Button>
@@ -105,7 +105,7 @@ export const SubagentCard = memo(function SubagentCard({
           className={cn('h-9 text-sm', displayNameError && 'border-destructive focus-visible:ring-destructive')}
         />
         {displayNameError && (
-          <div className="flex items-center gap-1.5 text-xs text-destructive">
+          <div className="flex items-center gap-1.5 text-xs text-destructive-text">
             <AlertCircle size={12} />
             {displayNameError}
           </div>

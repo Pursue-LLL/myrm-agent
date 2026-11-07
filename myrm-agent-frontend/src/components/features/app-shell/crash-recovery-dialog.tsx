@@ -89,7 +89,7 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
     <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-background/95 p-6 backdrop-blur-sm">
       <div className="w-full max-w-lg overflow-hidden rounded-xl border border-destructive/30 bg-card shadow-2xl">
         <div className="flex items-start gap-3 border-b border-border/50 px-5 py-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive-text" />
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight">{t('title')}</h2>
             <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{t('description')}</p>
@@ -98,7 +98,7 @@ export default function CrashRecoveryDialog({ visible, errorMessage, onDismiss }
 
         <div className="space-y-3 p-5">
           {errorMessage ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive-text">
               {errorMessage}
             </div>
           ) : null}

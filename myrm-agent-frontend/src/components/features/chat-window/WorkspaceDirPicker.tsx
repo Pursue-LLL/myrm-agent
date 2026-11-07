@@ -280,7 +280,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 rounded-lg text-destructive"
+                className="h-6 w-6 shrink-0 rounded-lg text-destructive-text"
                 onClick={() => applyDir(null)}
                 title={t('clear')}
               >

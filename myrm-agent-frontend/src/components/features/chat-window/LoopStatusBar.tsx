@@ -138,7 +138,7 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
               onClick={() => void stopLoop('user_stopped')}
               disabled={isStopping}
               data-testid="stop-session-loop-btn"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-text transition-colors hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
             >
               <Square className="h-3 w-3 fill-current" />
               <span>{isStopping ? t('loopScheduler.stopping') : t('loopScheduler.stop')}</span>

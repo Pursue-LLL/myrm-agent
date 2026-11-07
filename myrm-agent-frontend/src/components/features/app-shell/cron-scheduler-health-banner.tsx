@@ -101,7 +101,7 @@ export default function CronSchedulerHealthBanner({ className }: CronSchedulerHe
       className={cn(
         'mb-4 flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-[13px] leading-relaxed',
         isRed
-          ? 'border-destructive/30 bg-destructive/10 text-destructive/90 dark:border-destructive/40 dark:bg-destructive/15'
+          ? 'border-destructive/30 bg-destructive/10 text-destructive-text dark:border-destructive/40 dark:bg-destructive/15'
           : 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200',
         className,
       )}
@@ -109,7 +109,7 @@ export default function CronSchedulerHealthBanner({ className }: CronSchedulerHe
       <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-medium">{t(isRed ? 'stoppedTitle' : 'degradedTitle')}</p>
-        <p className={cn(isRed ? 'text-destructive/80' : 'text-amber-700/90 dark:text-amber-200/80')}>
+        <p className={cn(isRed ? 'text-destructive-text' : 'text-amber-700/90 dark:text-amber-200/80')}>
           {t(isRed ? 'stoppedDescription' : 'degradedDescription')}
         </p>
         <Link
@@ -125,7 +125,7 @@ export default function CronSchedulerHealthBanner({ className }: CronSchedulerHe
         className={cn(
           'flex-shrink-0 rounded p-1 transition-colors',
           isRed
-            ? 'text-destructive/70 hover:bg-destructive/10 hover:text-destructive'
+            ? 'text-destructive-text/70 hover:bg-destructive/10 hover:text-destructive-text'
             : 'text-amber-700/70 hover:bg-amber-500/10 hover:text-amber-800 dark:text-amber-200/70',
         )}
         aria-label={tCommon('close')}

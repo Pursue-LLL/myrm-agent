@@ -221,7 +221,7 @@ export function QueuedMessagesList({
               type="button"
               onClick={onClearQueue}
               data-testid="queue-clear-all"
-              className="p-1 text-muted-foreground transition-colors hover:text-destructive"
+              className="p-1 text-muted-foreground transition-colors hover:text-destructive-text"
               title={t('queue.clearAll')}
               aria-label={t('queue.clearAll')}
             >

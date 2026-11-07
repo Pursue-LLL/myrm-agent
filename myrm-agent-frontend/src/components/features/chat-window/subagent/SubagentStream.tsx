@@ -41,7 +41,7 @@ const STREAM_GLYPH: Record<StreamEntry['kind'], { char: string; color: string }>
   tool: { char: '●', color: 'text-foreground/60' },
   progress: { char: '›', color: 'text-muted-foreground/70' },
   thinking: { char: '…', color: 'text-muted-foreground/50' },
-  error: { char: '✕', color: 'text-destructive' },
+  error: { char: '✕', color: 'text-destructive-text' },
 };
 
 const StreamLine = ({ entry, expanded }: { entry: StreamEntry; expanded?: boolean }) => {
@@ -50,7 +50,7 @@ const StreamLine = ({ entry, expanded }: { entry: StreamEntry; expanded?: boolea
     <div className="flex items-baseline gap-1.5 text-[11px] leading-relaxed min-w-0">
       <span className={`shrink-0 font-mono text-[10px] ${glyph.color}`}>{glyph.char}</span>
       <span
-        className={`min-w-0 ${expanded ? 'break-words' : 'truncate'} ${entry.isError ? 'text-destructive' : 'text-muted-foreground/80'}`}
+        className={`min-w-0 ${expanded ? 'break-words' : 'truncate'} ${entry.isError ? 'text-destructive-text' : 'text-muted-foreground/80'}`}
       >
         {entry.text}
       </span>

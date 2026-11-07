@@ -234,7 +234,7 @@ export function QueuedMessageItem({
             <button
               type="button"
               onClick={() => onRemove(message.id)}
-              className={`${ICON_BUTTON_CLASS} text-muted-foreground hover:bg-destructive/10 hover:text-destructive`}
+              className={`${ICON_BUTTON_CLASS} text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text`}
               aria-label={t('queue.cancel')}
               title={t('queue.cancel')}
             >

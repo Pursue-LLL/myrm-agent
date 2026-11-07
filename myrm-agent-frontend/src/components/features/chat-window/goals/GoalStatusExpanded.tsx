@@ -197,14 +197,14 @@ export function GoalStatusExpanded({
         {/* Constraints */}
         {goal.constraints && goal.constraints.length > 0 && (
           <div className="mt-3 border-t border-border/50 pt-3">
-            <span className="text-xs font-medium text-destructive/80">{t('constraintsLabel')}</span>
+            <span className="text-xs font-medium text-destructive-text">{t('constraintsLabel')}</span>
             <ul className="mt-1.5 space-y-1">
               {goal.constraints.map((c: string, idx: number) => (
                 <li
                   key={idx}
                   className="flex items-start gap-2 text-xs bg-destructive/5 p-1.5 rounded-lg border border-destructive/10"
                 >
-                  <span className="flex-shrink-0 mt-0.5 text-destructive/60">
+                  <span className="flex-shrink-0 mt-0.5 text-destructive-text">
                     <svg
                       className="h-3 w-3"
                       viewBox="0 0 24 24"
@@ -218,7 +218,7 @@ export function GoalStatusExpanded({
                       <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                     </svg>
                   </span>
-                  <span className="text-destructive/80 break-words leading-relaxed">{c}</span>
+                  <span className="text-destructive-text break-words leading-relaxed">{c}</span>
                 </li>
               ))}
             </ul>

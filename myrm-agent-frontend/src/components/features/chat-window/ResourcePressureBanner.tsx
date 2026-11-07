@@ -147,7 +147,7 @@ export default function ResourcePressureBanner() {
       className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4"
       role="alert"
     >
-      <IconAlertCircle className="w-5 h-5 shrink-0 text-destructive" />
+      <IconAlertCircle className="w-5 h-5 shrink-0 text-destructive-text" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-foreground">{t(`trigger.${trigger}.title`)}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">{t(`trigger.${trigger}.description`)}</p>

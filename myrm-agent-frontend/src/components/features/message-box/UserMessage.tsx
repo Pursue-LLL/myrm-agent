@@ -232,7 +232,7 @@ const UserMessage = React.memo(
                   <h2
                     className={cn(
                       'font-medium text-2xl lg:w-9/12 flex-1',
-                      sendFailed ? 'text-destructive dark:text-destructive' : 'text-black dark:text-white',
+                      sendFailed ? 'text-destructive-text' : 'text-black dark:text-white',
                     )}
                   >
                     {parts.map((part, index) => {

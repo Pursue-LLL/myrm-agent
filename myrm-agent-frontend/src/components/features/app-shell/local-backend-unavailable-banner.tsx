@@ -225,7 +225,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       role="alert"
       className={cn(
         'mb-4 flex w-full items-start gap-3 rounded-lg border border-destructive/30',
-        'bg-destructive/10 px-4 py-3 text-[13px] leading-relaxed text-destructive/90',
+        'bg-destructive/10 px-4 py-3 text-[13px] leading-relaxed text-destructive-text',
         'dark:border-destructive/40 dark:bg-destructive/15',
         className,
       )}
@@ -246,7 +246,7 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
       <button
         type="button"
         onClick={handleDismiss}
-        className="flex-shrink-0 rounded p-1 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+        className="flex-shrink-0 rounded p-1 text-destructive-text/70 transition-colors hover:bg-destructive/10 hover:text-destructive-text"
         aria-label={tCommon('close')}
       >
         <X className="h-4 w-4" />

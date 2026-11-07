@@ -239,7 +239,7 @@ export default function MobileSessionHub() {
         ) : null}
 
         {error ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-text">
             {error}
           </div>
         ) : null}
@@ -261,7 +261,7 @@ export default function MobileSessionHub() {
                 {slots ? (
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
-                      slotsFull ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground'
+                      slotsFull ? 'bg-destructive/10 text-destructive-text' : 'bg-secondary text-muted-foreground'
                     }`}
                   >
                     <IconUsers className="h-3 w-3" />
@@ -308,7 +308,7 @@ export default function MobileSessionHub() {
                             type="button"
                             onClick={() => void stopSession(session.chatId)}
                             disabled={stoppingChatId === session.chatId}
-                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-destructive-text transition-colors hover:bg-destructive/10 disabled:opacity-60"
                           >
                             <IconX className="h-3 w-3" />
                             {stoppingChatId === session.chatId ? t('stopping') : t('stop')}

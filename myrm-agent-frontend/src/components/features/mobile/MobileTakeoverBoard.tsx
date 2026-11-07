@@ -250,7 +250,7 @@ export default function MobileTakeoverBoard({ chatId }: { chatId: string }) {
         </section>
 
         {!takeoverMessageId ? (
-          <section className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <section className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-text">
             {t('takeoverResumeFailed')}
           </section>
         ) : null}

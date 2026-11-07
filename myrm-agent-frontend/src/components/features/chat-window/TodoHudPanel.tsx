@@ -174,7 +174,7 @@ export const TodoHudPanel: React.FC<TodoHudPanelProps> = ({
               type="button"
               data-testid="clear-all-todo-btn"
               onClick={() => void onClearAll()}
-              className="px-2 py-1 text-xs text-muted-foreground hover:text-destructive transition-colors rounded hover:bg-destructive/10"
+              className="px-2 py-1 text-xs text-muted-foreground hover:text-destructive-text transition-colors rounded hover:bg-destructive/10"
               title="清空所有计划项"
             >
               清空
@@ -263,7 +263,7 @@ export const TodoHudPanel: React.FC<TodoHudPanelProps> = ({
                       type="button"
                       data-testid={`remove-todo-${item.itemId}`}
                       onClick={() => void onRemoveItem(item.itemId)}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors rounded"
+                      className="p-1 text-muted-foreground hover:text-destructive-text transition-colors rounded"
                       title="删除条目"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

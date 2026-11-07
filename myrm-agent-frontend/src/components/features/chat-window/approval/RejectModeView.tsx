@@ -28,7 +28,7 @@ export default function RejectModeView({
   return (
     <div className="space-y-3 rounded-lg border p-4">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <MessageSquareX className="h-4 w-4 text-destructive" />
+        <MessageSquareX className="h-4 w-4 text-destructive-text" />
         {t('rejectTitle')}
       </div>
       <Textarea
@@ -39,7 +39,7 @@ export default function RejectModeView({
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- focus follows the user action that revealed this field
         autoFocus
       />
-      {isExpired && <p className="text-xs font-medium text-destructive">{t('expired')}</p>}
+      {isExpired && <p className="text-xs font-medium text-destructive-text">{t('expired')}</p>}
       <div className="flex gap-2">
         <Button size="sm" variant="destructive" onClick={onConfirm} disabled={isLoading || isExpired}>
           {t('confirmReject')}

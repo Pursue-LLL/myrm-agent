@@ -160,7 +160,7 @@ const MCPToolSelector = ({
 
           {!loading && loadError && (
             <div className="flex items-center gap-2 py-2 pl-1">
-              <span className="text-xs text-destructive/80">{t('loadFailed')}</span>
+              <span className="text-xs text-destructive-text">{t('loadFailed')}</span>
               <button
                 type="button"
                 onClick={handleRetry}
@@ -185,7 +185,7 @@ const MCPToolSelector = ({
                     return null;
                   }
                   return (
-                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive/80">
+                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive-text">
                       <AlertTriangle size={11} />
                       <span>{t('dangerDisabled', { count: disabledDangerous.length })}</span>
                     </div>

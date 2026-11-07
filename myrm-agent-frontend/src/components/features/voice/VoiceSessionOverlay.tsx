@@ -282,7 +282,7 @@ const VoiceSessionOverlay = memo(
         <button
           type="button"
           onClick={onClose}
-          className="mt-12 flex items-center gap-2 px-6 py-3 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+          className="mt-12 flex items-center gap-2 px-6 py-3 rounded-full bg-destructive/10 text-destructive-text hover:bg-destructive/20 transition-colors"
         >
           <CallEnd01Icon size={18} />
           <span className="text-sm font-medium">{t('stopSession')}</span>

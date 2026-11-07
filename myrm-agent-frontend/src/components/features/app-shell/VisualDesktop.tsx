@@ -97,7 +97,8 @@ export const VisualDesktop: React.FC<VisualDesktopProps> = ({ wsUrl, className, 
               </>
             ) : (
               <>
-                <span className="text-sm text-destructive">{t('disconnected')}</span>
+                {/* The overlay is black in both themes; the theme-aware text red darkens in the light theme and would sink into it. */}
+                <span className="text-sm text-red-400">{t('disconnected')}</span>
                 {onReconnect ? (
                   <button
                     onClick={onReconnect}

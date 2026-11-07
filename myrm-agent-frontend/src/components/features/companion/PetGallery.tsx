@@ -310,7 +310,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
   }
 
   if (showHardError) {
-    return <div className="py-6 text-center text-sm text-destructive">{t('gallery.error')}</div>;
+    return <div className="py-6 text-center text-sm text-destructive-text">{t('gallery.error')}</div>;
   }
 
   return (
@@ -332,10 +332,10 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
         </p>
       )}
 
-      {installError && <div className="text-xs text-destructive">{installError}</div>}
+      {installError && <div className="text-xs text-destructive-text">{installError}</div>}
 
       {uninstallError && (
-        <div className="text-xs text-destructive" data-testid="pet-gallery-uninstall-error">
+        <div className="text-xs text-destructive-text" data-testid="pet-gallery-uninstall-error">
           {uninstallError}
         </div>
       )}
@@ -352,7 +352,7 @@ export default function PetGallery({ reloadInstalledWhen = true }: PetGalleryPro
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
+              <Trash2 className="h-5 w-5 text-destructive-text" />
               {t('gallery.uninstall')}
             </AlertDialogTitle>
             <AlertDialogDescription>
