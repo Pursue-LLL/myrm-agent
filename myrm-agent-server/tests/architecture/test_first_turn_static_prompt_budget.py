@@ -7,8 +7,9 @@
 Every cap is the size measured after the last deliberate prompt change plus 5%. A change that adds text
 must raise the cap in the same PR and say why, so the first turn cannot grow unnoticed.
 
-Left out on purpose: the host environment line and the cache canary (they vary per host / process) and
-the CLI tool section (mounted at runtime); none of them is decided by prompt text.
+Left out on purpose: the host environment line (it varies per host) and the CLI tool section (mounted at
+runtime); neither is decided by prompt text. The session canary and the security boundary rules are separate
+system messages behind the user's input, not part of ``messages[0]``.
 """
 
 from __future__ import annotations

@@ -358,7 +358,7 @@ Token 明细（tiktoken o200k_base）：
 | harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,781**，余量 719：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:193-230`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
-| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE full + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按 zh-CN / en 封顶，上限 = 实测 +5%（zh-CN **1,369**（实测 1,303）/ en **1,163**（实测 1,107））；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行与 canary，故低于上表 `messages[0]` |
+| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE full + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按 zh-CN / en 封顶，上限 = 实测 +5%（zh-CN **1,369**（实测 1,303）/ en **1,163**（实测 1,107））；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行，故低于上表 `messages[0]` |
 
 
 ---
