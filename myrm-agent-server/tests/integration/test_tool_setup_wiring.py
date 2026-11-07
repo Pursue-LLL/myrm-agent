@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -184,9 +185,8 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
     assert len(tools) == 1
 
 
-@pytest.mark.asyncio
-async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None:
-    """Browser tools setup runs before BaseAgent init; blocklist must not depend on self.agent."""
+def _browser_mixin(*, agent_security_raw: dict[str, object], allowed_roots: tuple[str, ...] = ()) -> object:
+    """A tool-setup host as it is before BaseAgent init (``agent`` is still None)."""
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
@@ -195,17 +195,21 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
     mixin.approval_session_key = None
     mixin.channel_name = "web_chat"
     mixin.security_config_raw = {}
-    mixin.agent_security_raw = {"networkBlocklist": ["integration-closure.test"]}
+    mixin.agent_security_raw = agent_security_raw
     mixin.declared_capabilities = ()
-    mixin.declared_allowed_roots = ()
+    mixin.declared_allowed_roots = allowed_roots
     mixin.auto_restore_domains = []
     mixin.browser_source = None
     mixin.dialog_policy = None
     mixin.session_recording = None
-    tools: list[object] = []
-    captured: dict[str, object] = {}
+    return mixin
 
-    mock_pool = MagicMock()
+
+async def _browser_session_kwargs(mixin: object, chat_id: str, tools: list[object]) -> dict[str, object]:
+    """Run the browser tool setup into ``tools`` with the browser itself replaced; the arguments the session got."""
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+
+    captured: dict[str, object] = {}
     mock_session = MagicMock()
 
     async def _fake_build_captcha_solver(_self: object) -> MagicMock:
@@ -214,7 +218,7 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
     with (
         patch(
             "myrm_agent_harness.toolkits.browser.pool.get_global_browser_pool",
-            return_value=mock_pool,
+            return_value=MagicMock(),
         ),
         patch(
             "app.config.browser.get_browser_pool_config",
@@ -242,7 +246,17 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
         ),
         patch.object(ToolSetupMixin, "_build_captcha_solver", _fake_build_captcha_solver),
     ):
-        await mixin._setup_browser_tools(tools, "chat-blocklist-wiring")
+        await mixin._setup_browser_tools(tools, chat_id)
+    return captured
+
+
+@pytest.mark.asyncio
+async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None:
+    """Browser tools setup runs before BaseAgent init; blocklist must not depend on self.agent."""
+    mixin = _browser_mixin(agent_security_raw={"networkBlocklist": ["integration-closure.test"]})
+    tools: list[object] = []
+
+    captured = await _browser_session_kwargs(mixin, "chat-blocklist-wiring", tools)
 
     blocklist = captured.get("domain_blocklist")
     assert blocklist is not None
@@ -250,6 +264,20 @@ async def test_browser_setup_injects_blocklist_from_agent_security_raw() -> None
     assert blocklist.is_allowed("integration-closure.test")
     assert captured.get("extension_bridge") is not None
     assert len(tools) == 1
+
+
+@pytest.mark.asyncio
+async def test_browser_setup_gives_the_session_download_support_in_the_chat_workspace(tmp_path: Path) -> None:
+    """A chat's browser saves downloads under the workspace the agent works in, judged by the chat's own policy."""
+    mixin = _browser_mixin(agent_security_raw={}, allowed_roots=(str(tmp_path),))
+
+    captured = await _browser_session_kwargs(mixin, "chat-download-wiring", [])
+
+    download_config = captured.get("download_config")
+    assert download_config is not None
+    assert download_config.downloads_dir == tmp_path.resolve() / ".agent" / "downloads"
+    assert download_config.admit_page_started is not None
+    assert not download_config.downloads_dir.exists()
 
 
 @pytest.mark.asyncio
