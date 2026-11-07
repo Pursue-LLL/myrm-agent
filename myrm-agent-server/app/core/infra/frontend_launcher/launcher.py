@@ -1,293 +1,33 @@
-"""Next.js standalone frontend launcher for WebUI mode.
+"""[INPUT]
+- .common / .checks / .assets / .ports (POS: launcher collaborators)
 
-Manages the Next.js standalone server as a subprocess alongside FastAPI,
-providing:
-- Environment detection (Node.js version, build artifacts)
-- Port coordination (auto-detect available ports, pass API_PORT to Next.js)
-- Process lifecycle (cleanup via FastAPI lifespan shutdown, crash restart)
-- Unified logging ([Frontend] prefix)
-- Startup sequencing (wait for health before opening browser)
+[OUTPUT]
+- FrontendLauncher, launch_frontend, _LogPrefixPipe
+
+[POS]
+Frontend launcher: process lifecycle, log piping and the public entrypoint.
 """
+
+from __future__ import annotations
 
 import atexit
 import logging
 import os
-import shutil
 import signal
-import socket
 import subprocess
 import threading
 import time
-from pathlib import Path
 from typing import TextIO
-from urllib.error import URLError
-from urllib.request import urlopen
 
-logger = logging.getLogger(__name__)
-
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_FRONTEND_DIR = _PROJECT_ROOT.parent / "myrm-agent-frontend"
-_STANDALONE_DIR = _FRONTEND_DIR / ".next" / "standalone"
-_STANDALONE_SERVER = _STANDALONE_DIR / "server.js"
-
-
-def _resolve_standalone_dir() -> Path:
-    """Resolve the directory containing server.js in .next/standalone.
-
-    In a monorepo setup with outputFileTracingRoot, Next.js generates
-    .next/standalone/myrm-agent-frontend/server.js. In flat setups, it generates
-    .next/standalone/server.js.
-    """
-    nested = _FRONTEND_DIR / ".next" / "standalone" / "myrm-agent-frontend"
-    if (nested / "server.js").is_file():
-        return nested
-    flat = _FRONTEND_DIR / ".next" / "standalone"
-    if (flat / "server.js").is_file():
-        return flat
-    return nested if nested.is_dir() else flat
-
-
-def _resolve_standalone_server() -> Path:
-    """Return path to server.js in resolved standalone directory."""
-    return _resolve_standalone_dir() / "server.js"
-
-_MIN_NODE_VERSION = 18
-_MAX_RESTART_ATTEMPTS = 3
-_HEALTH_CHECK_TIMEOUT = 30
-_HEALTH_CHECK_INTERVAL = 0.5
-
-_TOXIC_NODE_ENV_VARS = (
-    "NODE_OPTIONS",
-    "NODE_PATH",
-    "NODE_TLS_REJECT_UNAUTHORIZED",
-    "NODE_EXTRA_CA_CERTS",
-    "LD_PRELOAD",
-    "LD_LIBRARY_PATH",
-    "DYLD_INSERT_LIBRARIES",
-    "DYLD_LIBRARY_PATH",
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
-    "SSLKEYLOGFILE",
+from . import assets, checks, ports
+from .common import (
+    _HEALTH_CHECK_TIMEOUT,
+    _MAX_RESTART_ATTEMPTS,
+    _TOXIC_NODE_ENV_VARS,
+    FrontendEnvironmentError,
+    _resolve_standalone_dir,
+    logger,
 )
-
-
-class FrontendEnvironmentError(RuntimeError):
-    """Raised when the frontend environment is not ready."""
-
-
-def check_node_environment() -> str:
-    """Verify Node.js is installed and meets minimum version requirement.
-
-    Returns:
-        Node.js version string (e.g. "20.11.0")
-
-    Raises:
-        FrontendEnvironmentError: If Node.js is missing or version is too old.
-    """
-    node_bin = shutil.which("node")
-    if not node_bin:
-        raise FrontendEnvironmentError(
-            f"Node.js is not installed. Please install Node.js >= {_MIN_NODE_VERSION}: https://nodejs.org/"
-        )
-
-    try:
-        result = subprocess.run(
-            [node_bin, "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        version_str = result.stdout.strip().lstrip("v")
-        major = int(version_str.split(".")[0])
-        if major < _MIN_NODE_VERSION:
-            raise FrontendEnvironmentError(
-                f"Node.js {version_str} is too old. Please upgrade to >= {_MIN_NODE_VERSION}: https://nodejs.org/"
-            )
-        return version_str
-    except (subprocess.TimeoutExpired, ValueError, IndexError) as exc:
-        raise FrontendEnvironmentError(f"Failed to detect Node.js version: {exc}") from exc
-
-
-def check_build_artifacts(*, auto_build: bool = True) -> Path:
-    """Verify Next.js standalone build artifacts exist.
-
-    If missing and auto_build is True, attempts to run bun run build automatically.
-
-    Returns:
-        Path to the standalone server.js
-
-    Raises:
-        FrontendEnvironmentError: If build artifacts are missing or incomplete.
-    """
-    standalone_dir = _resolve_standalone_dir()
-    server_js = standalone_dir / "server.js"
-
-    if not server_js.is_file() and auto_build:
-        bun_bin = shutil.which("bun")
-        if not bun_bin:
-            for candidate in [
-                Path.home() / ".bun" / "bin" / "bun",
-                Path("/opt/homebrew/bin/bun"),
-                Path("/usr/local/bin/bun"),
-            ]:
-                if candidate.is_file() and os.access(candidate, os.X_OK):
-                    bun_bin = str(candidate)
-                    break
-
-        package_json = _FRONTEND_DIR / "package.json"
-        if bun_bin and package_json.is_file():
-            logger.info("[Frontend] Standalone build missing. Auto-building via %s...", bun_bin)
-            print("⏳ 前端构建产物不存在，正在自动执行 bun run build 构建 Standalone 服务（首次约需 20~30 秒）...")
-            try:
-                subprocess.run(
-                    [bun_bin, "run", "build"],
-                    cwd=str(_FRONTEND_DIR),
-                    check=True,
-                    timeout=300,
-                )
-                standalone_dir = _resolve_standalone_dir()
-                server_js = standalone_dir / "server.js"
-            except Exception as e:
-                logger.warning("[Frontend] Auto-build failed: %s", e)
-
-    if not server_js.is_file():
-        raise FrontendEnvironmentError(
-            f"Frontend build not found at {standalone_dir}\n"
-            "Please build the frontend first:\n"
-            "  cd myrm-agent-frontend && bun run build"
-        )
-    static_dir = _FRONTEND_DIR / ".next" / "static"
-    if not static_dir.is_dir():
-        raise FrontendEnvironmentError(
-            f"Frontend static assets not found at {static_dir}\n"
-            "The build appears incomplete. Please rebuild:\n"
-            "  cd myrm-agent-frontend && bun run build"
-        )
-    return server_js
-
-
-def _ensure_symlink(link: Path, target: Path) -> None:
-    """Create a relative symlink, replacing broken ones.
-
-    Raises:
-        FrontendEnvironmentError: If the symlink cannot be created.
-    """
-    try:
-        if link.is_symlink():
-            if link.resolve() == target.resolve():
-                return
-            link.unlink()
-        elif link.exists():
-            return
-
-        rel_target = os.path.relpath(target, link.parent)
-        link.symlink_to(rel_target)
-    except OSError as exc:
-        raise FrontendEnvironmentError(f"Cannot create symlink {link} -> {target}: {exc}") from exc
-
-
-def ensure_standalone_assets() -> None:
-    """Symlink static assets and public files into the standalone directory.
-
-    Next.js standalone output only contains server.js; CSS/JS chunks and
-    public files must be linked separately.
-    """
-    standalone_dir = _resolve_standalone_dir()
-    static_src = _FRONTEND_DIR / ".next" / "static"
-    static_dst = standalone_dir / ".next" / "static"
-    if static_src.is_dir():
-        static_dst.parent.mkdir(parents=True, exist_ok=True)
-        _ensure_symlink(static_dst, static_src)
-        logger.info("[Frontend] Static assets linked: %s", static_dst)
-
-    public_src = _FRONTEND_DIR / "public"
-    public_dst = standalone_dir / "public"
-    if public_src.is_dir():
-        _ensure_symlink(public_dst, public_src)
-        logger.info("[Frontend] Public files linked: %s", public_dst)
-    else:
-        logger.info("[Frontend] No public/ directory found, skipping")
-
-
-def patch_nextjs_rewrites(api_host: str, api_port: int) -> None:
-    """Patch the hardcoded API port in Next.js build artifacts."""
-    standalone_dir = _resolve_standalone_dir()
-    target_files = [
-        standalone_dir / ".next" / "routes-manifest.json",
-        standalone_dir / ".next" / "required-server-files.json",
-        standalone_dir / "server.js",
-    ]
-    if standalone_dir != _STANDALONE_DIR:
-        for extra in [
-            _STANDALONE_DIR / ".next" / "routes-manifest.json",
-            _STANDALONE_DIR / ".next" / "required-server-files.json",
-            _STANDALONE_DIR / "server.js",
-        ]:
-            if extra.exists() and extra not in target_files:
-                target_files.append(extra)
-
-    for file_path in target_files:
-        if file_path.exists():
-            try:
-                content = file_path.read_text(encoding="utf-8")
-                import re
-
-                # Match both 127.0.0.1 and localhost (Next rewrites may bake in either).
-                new_content = re.sub(
-                    r"http://(?:127\.0\.0\.1|localhost):\d+",
-                    f"http://{api_host}:{api_port}",
-                    content,
-                )
-                if new_content != content:
-                    file_path.write_text(new_content, encoding="utf-8")
-                    logger.info(
-                        "[Frontend] Patched %s with API port %d",
-                        file_path.name,
-                        api_port,
-                    )
-            except Exception as e:
-                logger.warning("[Frontend] Failed to patch %s: %s", file_path.name, e)
-
-
-def find_available_port(preferred: int, host: str = "127.0.0.1") -> int:
-    """Find an available port, preferring the given one.
-
-    Args:
-        preferred: Preferred port number.
-        host: Host to bind to.
-
-    Returns:
-        Available port number.
-    """
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, preferred))
-            return preferred
-    except OSError:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, 0))
-            addr = s.getsockname()
-            return int(addr[1])
-
-
-def _wait_for_health(url: str, timeout: float = _HEALTH_CHECK_TIMEOUT) -> bool:
-    """Poll a URL until it returns 200 or timeout expires."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            with urlopen(url, timeout=2) as resp:  # noqa: S310
-                if resp.status == 200:
-                    return True
-        except (URLError, OSError, TimeoutError):
-            pass
-        time.sleep(_HEALTH_CHECK_INTERVAL)
-    return False
 
 
 class _LogPrefixPipe(threading.Thread):
@@ -346,11 +86,11 @@ class FrontendLauncher:
         Returns:
             True if the server started and passed health check.
         """
-        check_build_artifacts()
-        ensure_standalone_assets()
-        patch_nextjs_rewrites(self._api_host, self._api_port)
+        checks.check_build_artifacts()
+        assets.ensure_standalone_assets()
+        assets.patch_nextjs_rewrites(self._api_host, self._api_port)
 
-        actual_port = find_available_port(self._frontend_port, self._bind_host)
+        actual_port = ports.find_available_port(self._frontend_port, self._bind_host)
         if actual_port != self._frontend_port:
             print(f"\n⚠️  前端端口 {self._frontend_port} 已被占用，已自动切换到 {actual_port}")
             print(f"💡 前端实际端口: http://{self._bind_host}:{actual_port}\n")
@@ -437,7 +177,7 @@ class FrontendLauncher:
             self._process.pid,
         )
 
-        if _wait_for_health(self.url):
+        if ports._wait_for_health(self.url):
             logger.info("[Frontend] Ready at %s", self.url)
             return True
 
@@ -549,14 +289,14 @@ def launch_frontend(
         FrontendLauncher instance if successful, None on failure.
     """
     try:
-        node_version = check_node_environment()
+        node_version = checks.check_node_environment()
         logger.info("[Frontend] Node.js %s detected", node_version)
     except FrontendEnvironmentError as exc:
         print(f"⚠️  {exc}")
         return None
 
     try:
-        check_build_artifacts()
+        checks.check_build_artifacts()
     except FrontendEnvironmentError as exc:
         print(f"⚠️  {exc}")
         return None
