@@ -5,7 +5,7 @@
 > |------|-----------|
 > | §2.1 工具分层排序 | `tool_management/tool_layers.py`, `tool_management/registry.py` |
 > | §2.2 时间戳注入 & Agent 行为规则 | `streaming/utils.py`, `base_agent.py` |
-> | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner.py` |
+> | §2.3 Cron 场景 | `app/core/cron/adapters/agent_runner/` |
 > | §2.4 安全边界与用户指令注入 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` |
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
@@ -13,7 +13,7 @@
 > | §4.2 compress_min_save | `infra/schemas.py` |
 > | §4.3 动态阈值 | `infra/context_budget.py` |
 > | §4.4 可逆压缩 | `strategies/compactor/compactor.py` |
-> | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer.py` |
+> | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer/` |
 > | §5.1 Cache-TTL 归档与恢复 | `pipeline/processors/cache_ttl_prune_processor.py`, `infra/archive_reference.py`, `tracking/task_metrics.py`, `meta_tools/file_ops/core/file_operation_service.py` |
 > | §5 Pipeline | `pipeline/engine.py`, `middlewares/context_pipeline/context_pipeline_middleware.py` |
 > | §6.1-6.2 LLM 层 | `toolkits/llms/core/llm.py` |
@@ -179,7 +179,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 
 ### 2.3 Cron 定时任务场景的缓存分析
 
-`app/core/cron/adapters/agent_runner.py` 中的 `_SILENT_SUFFIX` 是一个典型的条件性内容注入：
+`app/core/cron/adapters/agent_runner/` 中的 `_SILENT_SUFFIX` 是一个典型的条件性内容注入：
 
 ```python
 _SILENT_SUFFIX = (
@@ -723,7 +723,6 @@ Pipeline 按 `max_context_tokens` 缓存实例，避免重复创建。
 **核心原则**：
 1. **只追加，不删除**：Resume时绝对不修改历史messages
 2. **HITL会话期间禁用Compress**：避免多次HITL交互时破坏cache
-3. **配置一致性验证**：防止system_prompt/tools改变破坏cache前缀
 
 **实现机制**：
 
@@ -796,7 +795,6 @@ if request.resume_value is not None:
 | Resume TTFT | 2000ms | 800ms | 60% ↓ |
 
 **配套工具**：
-- `infra/resume_validator.py`：配置一致性验证（agent_id, system_prompt, tools）
 - 错误恢复清理：Resume失败时自动清理checkpoint（业务层实现）
 
 ---
@@ -819,7 +817,7 @@ ExplicitCacheProcessor                    LiteLLM / Anthropic SDK
 
 ```python
 # 显式缓存（Claude/Qwen）完全由 Pipeline 的 ExplicitCacheProcessor 控制
-# 不再使用 LiteLLM 的 cache_control_injection_points 配置
+# 显式缓存不使用 LiteLLM 的 cache_control_injection_points 配置
 # 这样可以实现更智能的多断点策略
 ```
 
@@ -1268,7 +1266,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |
-| `app/core/cron/adapters/agent_runner.py` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |
+| `app/core/cron/adapters/agent_runner/` | `_SILENT_SUFFIX` 条件性内容注入（确定性常量，缓存安全） |
 
 ### 显式缓存
 
@@ -1295,7 +1293,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `tracking/task_metrics.py` | `TaskMetrics` — 记录真实剪枝延期、归档预算延期、归档写入/复用、归档恢复读取成本、净节省和执行层恢复读取预算 |
 | `pipeline/processors/compress_processor.py` | `CompressProcessor` + `BatchCompactState` — 批量清理策略 |
 | `strategies/compactor/compactor.py` | 可逆压缩实现（紧凑格式 + 外部化到文件，减 tokens 不减 blocks） |
-| `strategies/summary/summarizer.py` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |
+| `strategies/summary/summarizer/` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |
 | `infra/context_budget.py` | `ContextBudget` — 动态阈值计算 |
 | `infra/schemas.py` | `ContextConfig` — 阈值定义、`COMPRESS_MIN_SAVE_DEFAULT`、`COMPACT_RULES` |
 
@@ -1307,7 +1305,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `pipeline/processors/media_filter.py` | 文本模型主动剥离 image/video/audio（避免 400） |
 | `pipeline/processors/vision_fallback_processor.py` | text-only 主模型 + visionFallbackModel 时将 image block 转为文本（MediaFilter 之前） |
 | `pipeline/processors/filter_processor.py` | 大型工具结果过滤（工具保护机制） |
-| `pipeline/processors/summarize_processor.py` | 结构化摘要（最后手段） |
+| `pipeline/processors/summarize_processor/` | 结构化摘要（最后手段） |
 | `pipeline/processors/thinking_cleaner.py` | Thinking Block 清理（减少无效 token） |
 | `middlewares/context_pipeline/context_pipeline_middleware.py` | 中间件集成入口 |
 | `toolkits/llms/core/llm.py` | LLM 层 cache_control 传递说明 |

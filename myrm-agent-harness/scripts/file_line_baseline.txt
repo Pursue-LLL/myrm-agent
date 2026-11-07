@@ -8,7 +8,6 @@ myrm_agent_harness/agent/_internals/run_lifecycle.py	509
 myrm_agent_harness/agent/base_agent.py	585
 myrm_agent_harness/agent/context_management/infra/schemas.py	715
 myrm_agent_harness/agent/context_management/pipeline/processors/cache_ttl_prune_processor.py	721
-myrm_agent_harness/agent/context_management/pipeline/processors/summarize_processor.py	845
 myrm_agent_harness/agent/context_management/tracking/task_metrics_model.py	570
 myrm_agent_harness/agent/dynamic_workflow/__init__.py	671
 myrm_agent_harness/agent/dynamic_workflow/tools.py	740

@@ -648,7 +648,7 @@ class TestSessionNotesProcessor:
 
 
 # ---------------------------------------------------------------------------
-# summarize_processor.py - double compression protection
+# summarize_processor/ - double compression protection
 # ---------------------------------------------------------------------------
 
 
