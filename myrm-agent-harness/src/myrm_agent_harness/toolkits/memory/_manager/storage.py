@@ -9,6 +9,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage_converters import (
     episodic_to_doc,
     semantic_to_doc,
 )
+from myrm_agent_harness.toolkits.memory._internal.store_stamp import persisting
 from myrm_agent_harness.toolkits.memory._manager.host import MemoryManagerHost
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     AnyMemory,
@@ -66,60 +67,67 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
     def _apply_channel_affinity(self, results: list[MemorySearchResult]) -> list[MemorySearchResult]:
         return apply_channel_affinity(results, current_channel_id=self._scope.channel_id)
 
-    async def _store_semantic(self, memory: SemanticMemory) -> SemanticMemory:
-        if self._sparse_authoritative:
-            return await self._store_semantic_sparse_only(memory)
-        v, e = self._vec()
-        bound = self._bind_scope(memory)
-        stored = await store_semantic(bound, v, self._config, e, self._cache)
-        from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
-            record_ephemeral_memory_delta,
-        )
+    # Every path that creates a new document persists under ``persisting``: it stamps the memory with its
+    # arrival and registers the write until it is visible, which is what consolidation's cursor relies on.
 
-        record_ephemeral_memory_delta(key=f"memory:{stored.id}", value=stored.content)
-        await self._record_exact_fact_if_needed(stored)
-        return stored
+    async def _store_semantic(self, memory: SemanticMemory) -> SemanticMemory:
+        with persisting([memory]):
+            if self._sparse_authoritative:
+                return await self._store_semantic_sparse_only(memory)
+            v, e = self._vec()
+            bound = self._bind_scope(memory)
+            stored = await store_semantic(bound, v, self._config, e, self._cache)
+            from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
+                record_ephemeral_memory_delta,
+            )
+
+            record_ephemeral_memory_delta(key=f"memory:{stored.id}", value=stored.content)
+            await self._record_exact_fact_if_needed(stored)
+            return stored
 
     async def _store_semantics_batch(self, memories: list[SemanticMemory]) -> list[SemanticMemory]:
-        if self._sparse_authoritative:
-            return await self._store_semantics_sparse_only(memories)
-        v, e = self._vec()
-        bound_memories = [self._bind_scope(memory) for memory in memories]
-        stored_list = await store_semantics_batch(
-            bound_memories,
-            v,
-            self._config,
-            e,
-            self._cache,
-        )
-        from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
-            record_ephemeral_memory_delta,
-        )
+        with persisting(memories):
+            if self._sparse_authoritative:
+                return await self._store_semantics_sparse_only(memories)
+            v, e = self._vec()
+            bound_memories = [self._bind_scope(memory) for memory in memories]
+            stored_list = await store_semantics_batch(
+                bound_memories,
+                v,
+                self._config,
+                e,
+                self._cache,
+            )
+            from myrm_agent_harness.toolkits.memory.ephemeral_delta.notify import (
+                record_ephemeral_memory_delta,
+            )
 
-        for stored in stored_list:
-            record_ephemeral_memory_delta(key=f"memory:{stored.id}", value=stored.content)
-        for stored in stored_list:
-            await self._record_exact_fact_if_needed(stored)
-        return stored_list
+            for stored in stored_list:
+                record_ephemeral_memory_delta(key=f"memory:{stored.id}", value=stored.content)
+            for stored in stored_list:
+                await self._record_exact_fact_if_needed(stored)
+            return stored_list
 
     async def _store_episodic(self, memory: EpisodicMemory) -> EpisodicMemory:
-        if self._sparse_authoritative:
-            return await self._store_episodic_sparse_only(memory)
-        v, e = self._vec()
-        return await store_episodic(self._bind_scope(memory), v, self._config, e, self._cache, self._graph)
+        with persisting([memory]):
+            if self._sparse_authoritative:
+                return await self._store_episodic_sparse_only(memory)
+            v, e = self._vec()
+            return await store_episodic(self._bind_scope(memory), v, self._config, e, self._cache, self._graph)
 
     async def _store_episodics_batch(self, memories: list[EpisodicMemory]) -> list[EpisodicMemory]:
-        if self._sparse_authoritative:
-            return await self._store_episodics_sparse_only(memories)
-        v, e = self._vec()
-        return await store_episodics_batch(
-            [self._bind_scope(memory) for memory in memories],
-            v,
-            self._config,
-            e,
-            self._cache,
-            self._graph,
-        )
+        with persisting(memories):
+            if self._sparse_authoritative:
+                return await self._store_episodics_sparse_only(memories)
+            v, e = self._vec()
+            return await store_episodics_batch(
+                [self._bind_scope(memory) for memory in memories],
+                v,
+                self._config,
+                e,
+                self._cache,
+                self._graph,
+            )
 
     async def _record_exact_fact_if_needed(self, memory: SemanticMemory) -> None:
         """Mirror identifier-bearing memories into the relational exact-fact index (fail-open)."""
@@ -214,10 +222,12 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
         )
 
     async def _store_procedural(self, memory: ProceduralMemory) -> ProceduralMemory:
-        return await self._rel().create_rule(memory)
+        with persisting([memory]):
+            return await self._rel().create_rule(memory)
 
     async def _store_procedurals_batch(self, memories: list[ProceduralMemory]) -> list[ProceduralMemory]:
-        return [await self._rel().create_rule(m) for m in memories]
+        with persisting(memories):
+            return [await self._rel().create_rule(m) for m in memories]
 
     async def _run_consolidation_safe(self, cfg: ConsolidationConfig) -> None:
         """Run consolidation in background, swallowing all exceptions."""

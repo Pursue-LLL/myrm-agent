@@ -6,14 +6,14 @@ qdrant_client (POS: Qdrant SDK, optional dependency)
 
 [OUTPUT]
 QdrantCollectionMixin: create / ensure / inspect / delete collections, payload indexes,
-and epoch-timestamp backfill for QdrantVectorStore
+epoch-timestamp backfill and payload-field copy backfill for QdrantVectorStore
 is_missing_collection: classifier for the "collection does not exist" read failure,
 shared by the dense and sparse read paths
 
 [POS]
 Collection-lifecycle layer for the Qdrant backend. Hosts every operation that only
 touches collection shape (single-vector and named-vector creation, existence probes,
-metadata, payload indexes, timestamp backfill) so the store core stays about data.
+metadata, payload indexes, timestamp and payload-copy backfill) so the store core stays about data.
 Mixins are hosted by QdrantVectorStore, which supplies ``_client`` / ``_config`` /
 ``_default_dimension`` / ``_execute`` / ``_with_retry``.
 """
@@ -23,11 +23,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from myrm_agent_harness.toolkits.vector.base import CollectionInfo
 
 if TYPE_CHECKING:
+    from qdrant_client.http.models import Record
+
     from myrm_agent_harness.toolkits.vector.config import VectorStoreConfig
 
 logger = logging.getLogger(__name__)
@@ -219,6 +221,7 @@ class QdrantCollectionMixin:
         index_specs: list[tuple[str, PayloadSchemaType]] = [
             ("_created_ts", PayloadSchemaType.FLOAT),
             ("_updated_ts", PayloadSchemaType.FLOAT),
+            ("stored_ts", PayloadSchemaType.FLOAT),
             ("importance", PayloadSchemaType.FLOAT),
             ("tags", PayloadSchemaType.KEYWORD),
             ("namespaces", PayloadSchemaType.KEYWORD),
@@ -293,4 +296,59 @@ class QdrantCollectionMixin:
                 updated,
                 collection,
             )
+        return updated
+
+    async def backfill_payload_copy(self, collection: str, field: str, from_field: str, batch_size: int = 100) -> int:
+        """Copy ``from_field`` into ``field`` on points that carry the former but lack the latter.
+
+        Returns the number of points updated; a collection that does not exist has none.
+        """
+        from qdrant_client.http.models import Filter, IsEmptyCondition, PayloadField, SetPayload, SetPayloadOperation
+
+        pending = Filter(
+            must=[IsEmptyCondition(is_empty=PayloadField(key=field))],
+            must_not=[IsEmptyCondition(is_empty=PayloadField(key=from_field))],
+        )
+        updated = 0
+        offset: str | None = None
+
+        while True:
+            try:
+                page = cast(
+                    "tuple[list[Record], str | int | None]",
+                    await self._with_retry(
+                        self._client.scroll,  # type: ignore[attr-defined]
+                        collection_name=collection,
+                        scroll_filter=pending,
+                        limit=batch_size,
+                        offset=offset,
+                        with_payload=[from_field],
+                        with_vectors=False,
+                    ),
+                )
+            except Exception as exc:
+                if is_missing_collection(exc):
+                    break
+                raise
+            points, next_offset = page
+            if not points:
+                break
+            # Every point carries its own value, which one set_payload call cannot express; a page is one request.
+            await self._with_retry(
+                self._client.batch_update_points,  # type: ignore[attr-defined]
+                collection_name=collection,
+                update_operations=[
+                    SetPayloadOperation(
+                        set_payload=SetPayload(payload={field: (point.payload or {})[from_field]}, points=[point.id])
+                    )
+                    for point in points
+                ],
+            )
+            updated += len(points)
+            if next_offset is None:
+                break
+            offset = str(next_offset)
+
+        if updated:
+            logger.info("Copied %s into %s on %d points of %s", from_field, field, updated, collection)
         return updated

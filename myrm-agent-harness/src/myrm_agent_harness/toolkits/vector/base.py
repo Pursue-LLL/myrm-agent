@@ -270,6 +270,15 @@ class VectorStore(ABC):
         except Exception:
             return False
 
+    async def backfill_payload_copy(self, collection: str, field: str, from_field: str) -> int:
+        """Copy ``from_field`` into ``field`` on documents that carry the former but lack the latter.
+
+        Lets a payload field that scrolls filter or order on start out populated on documents written
+        before it existed. Returns the number of documents updated. A backend that cannot rewrite a
+        payload in place keeps this default and updates none.
+        """
+        return 0
+
     async def batch_upsert(
         self,
         collection: str,

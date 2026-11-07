@@ -1,12 +1,13 @@
 """Manager and document doubles of the consolidation unit tests.
 
 [INPUT]
+- toolkits.memory._internal.store_stamp::STORED_TS_KEY (POS: Payload key of the store stamp)
 - toolkits.memory.types::SemanticMemory (POS: Memory type definitions)
 - toolkits.vector.base::VectorDocument (POS: Vector store document contract)
 
 [OUTPUT]
 - make_manager: a memory-manager double with async primitives, plain backend accessors and an empty vector and relational store behind it
-- semantic_doc: the vector document of a semantic memory created a number of days ago
+- semantic_doc: the vector document of a semantic memory that was created, and reached the store, a number of days ago
 
 [POS]
 Harness pytest-only doubles shared by the consolidation unit tests (the run, the cursor and the steps it is
@@ -18,6 +19,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
+from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_KEY
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 from myrm_agent_harness.toolkits.vector.base import VectorDocument
 
@@ -55,9 +57,10 @@ def make_manager() -> AsyncMock:
 
 
 def semantic_doc(mem_id: str, content: str, *, days_ago: int = 2) -> VectorDocument:
+    created_at = datetime.now(UTC) - timedelta(days=days_ago)
     return VectorDocument(
         id=mem_id,
         content=content,
-        metadata={"user_id": "test-user", "importance": 0.8, "confidence": 0.9},
-        created_at=datetime.now(UTC) - timedelta(days=days_ago),
+        metadata={"user_id": "test-user", "importance": 0.8, "confidence": 0.9, STORED_TS_KEY: created_at.timestamp()},
+        created_at=created_at,
     )

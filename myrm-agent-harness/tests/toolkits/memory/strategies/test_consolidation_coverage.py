@@ -9,13 +9,10 @@ thing the window skips, and it must hide neither its neighbours nor the memories
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.memory._internal.storage import store_episodics_batch, store_semantics_batch
 from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
@@ -27,75 +24,20 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
-from myrm_agent_harness.toolkits.memory.types import (
-    AnyMemory,
-    EpisodicMemory,
-    MemoryScope,
-    ProceduralMemory,
-    SemanticMemory,
-)
+from myrm_agent_harness.toolkits.memory.types import ProceduralMemory
 from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
-
-# Memories are seeded far in the past so the one-hour soft lock never gates a run.
-BASE = datetime.now(UTC).replace(microsecond=0) - timedelta(days=30)
-HORIZON = BASE + timedelta(days=1)
-
-NewManager = Callable[..., MemoryManager]
-# Memories written below a manager (not through it) carry the scope the manager would have bound.
-GLOBAL = MemoryScope(primary_namespace="global", namespaces=["global"])
-
-
-def at(offset_s: int) -> datetime:
-    return BASE + timedelta(seconds=offset_s)
-
-
-def semantic(
-    content: str, offset_s: int, *, tags: list[str] | None = None, correction_of: str | None = None
-) -> SemanticMemory:
-    return SemanticMemory(
-        content=content,
-        user_id="u1",
-        scope=GLOBAL,
-        created_at=at(offset_s),
-        tags=tags or [],
-        correction_of=correction_of,
-    )
-
-
-def episodic(content: str, offset_s: int) -> EpisodicMemory:
-    return EpisodicMemory(content=content, user_id="u1", scope=GLOBAL, created_at=at(offset_s))
-
-
-def _llm(response: ConsolidationResponse) -> MagicMock:
-    structured = AsyncMock()
-    structured.ainvoke = AsyncMock(return_value=response)
-    llm = MagicMock()
-    llm.with_structured_output.return_value = structured
-    return llm
-
-
-async def seed(manager: MemoryManager, memories: Sequence[AnyMemory]) -> None:
-    vector, embedding = manager._vec()
-    semantics = [m for m in memories if isinstance(m, SemanticMemory)]
-    episodics = [m for m in memories if isinstance(m, EpisodicMemory)]
-    if semantics:
-        await store_semantics_batch(semantics, vector, manager.config, embedding, None)
-    if episodics:
-        await store_episodics_batch(episodics, vector, manager.config, embedding, None)
-
-
-async def seed_undecodable(manager: MemoryManager, offset_s: int) -> str:
-    """Store a document whose importance lies outside the model's 0-1 range, so decoding it raises; return its id."""
-    vector, _ = manager._vec()
-    document = VectorDocument(
-        content="private note",
-        vector=[1.0, 0.5, 0.5, 0.5],
-        metadata={"user_id": "u1", "primary_namespace": "global", "importance": 8.0},
-        created_at=at(offset_s),
-        updated_at=at(offset_s),
-    )
-    await vector.upsert(manager.config.semantic_collection, [document])
-    return document.id
+from tests.support.consolidation_seeds import (
+    BASE,
+    GLOBAL,
+    HORIZON,
+    NewManager,
+    at,
+    episodic,
+    llm_returning,
+    seed,
+    seed_undecodable,
+    semantic,
+)
 
 
 def make_episodic_unreadable(manager: MemoryManager, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,15 +99,16 @@ async def test_the_window_stops_where_a_source_was_cut_short_so_an_unread_memory
     assert second.advance_to == HORIZON
 
 
-async def test_a_memory_dated_after_the_run_never_pushes_the_stamp_past_the_run(new_manager: NewManager) -> None:
+async def test_a_memory_stored_after_the_horizon_waits_for_the_next_run(new_manager: NewManager) -> None:
     manager = new_manager()
     day = 86_400
-    await seed(manager, [semantic("ahead 1", 2 * day), semantic("ahead 2", 3 * day)])
+    await seed(manager, [semantic("settled", 1), semantic("ahead 1", 2 * day), semantic("ahead 2", 3 * day)])
 
     window = await fetch_candidate_window(manager, None, 1, HORIZON)
 
-    # A stamp in the future is ignored by the time gates, so a drain would restart from the oldest memory.
-    assert [m.content for m in window.memories] == ["ahead 1"]
+    # A stamp past the run's own horizon would be ignored by the time gates, so a drain would restart from
+    # the oldest memory: what arrives after the horizon is left for the run that comes after it.
+    assert [m.content for m in window.memories] == ["settled"]
     assert window.advance_to == HORIZON
 
 
@@ -182,7 +125,7 @@ async def test_consolidations_own_output_never_re_enters_the_window(new_manager:
     )
     response = ConsolidationResponse(operations=[merge], insights=["The user is a tea drinker overall"])
 
-    stats = await run_consolidation(manager, _llm(response), ConsolidationConfig())
+    stats = await run_consolidation(manager, llm_returning(response), ConsolidationConfig())
 
     # The run wrote a merged memory, an insight and an audit event; the user's memories, including the
     # correction a user made, are all that is left to analyze.
@@ -265,24 +208,29 @@ async def test_a_source_that_was_never_written_is_empty_not_unreadable(new_manag
     assert window.advance_to == HORIZON
 
 
-async def test_a_rule_is_a_candidate_only_when_created_after_the_stamp(new_manager: NewManager) -> None:
+async def test_a_rule_is_a_candidate_only_when_created_after_the_stamp_and_by_the_horizon(
+    new_manager: NewManager,
+) -> None:
     manager = new_manager()
     rule = ProceduralMemory(content="When: asked → Do: answer", trigger="asked", action="answer", scope=GLOBAL)
     await manager._rel().create_rule(rule)
+    after_the_rule = datetime.now(UTC) + timedelta(minutes=1)
 
-    since_before = await fetch_candidate_window(manager, BASE, 100, HORIZON)
-    since_after = await fetch_candidate_window(manager, datetime.now(UTC) + timedelta(minutes=1), 100, HORIZON)
+    since_before = await fetch_candidate_window(manager, BASE, 100, after_the_rule)
+    since_after = await fetch_candidate_window(manager, after_the_rule, 100, after_the_rule + timedelta(minutes=1))
+    before_the_rule = await fetch_candidate_window(manager, BASE, 100, HORIZON)
 
     assert [m.content for m in since_before.memories] == ["When: asked → Do: answer"]
     assert since_after.memories == []
+    assert before_the_rule.memories == []
 
 
-async def test_consecutive_runs_drain_a_backlog_and_leave_the_stamp_at_the_run_start(
+async def test_consecutive_runs_drain_a_backlog_and_leave_the_stamp_at_the_latest_settled_instant(
     new_manager: NewManager,
 ) -> None:
     manager = new_manager()
     await seed(manager, [semantic(f"fact {i}", i) for i in range(250)])
-    llm, config = _llm(ConsolidationResponse()), ConsolidationConfig(max_memories=100)
+    llm, config = llm_returning(ConsolidationResponse()), ConsolidationConfig(max_memories=100)
 
     analyzed, stamps = [], []
     for _ in range(3):
@@ -300,7 +248,7 @@ async def test_a_run_that_could_not_read_a_source_leaves_the_stamp_where_it_was(
 ) -> None:
     manager = new_manager()
     await seed(manager, [semantic("a fact", 1), semantic("another fact", 2)])
-    llm, config = _llm(ConsolidationResponse()), ConsolidationConfig()
+    llm, config = llm_returning(ConsolidationResponse()), ConsolidationConfig()
 
     with monkeypatch.context() as degraded:
         make_episodic_unreadable(manager, degraded)
@@ -321,7 +269,7 @@ async def test_one_undecodable_document_does_not_stall_consolidation(
     await seed(manager, [semantic("fact 4", 4), semantic("fact 5", 5)])
 
     with caplog.at_level(logging.WARNING):
-        stats = await run_consolidation(manager, _llm(ConsolidationResponse()), ConsolidationConfig())
+        stats = await run_consolidation(manager, llm_returning(ConsolidationResponse()), ConsolidationConfig())
 
     assert stats.input_count == 4
     assert await get_last_consolidated_at(manager) is not None
@@ -336,7 +284,7 @@ async def test_each_owner_namespace_keeps_its_own_stamp(new_manager: NewManager)
     global_manager = new_manager(["global"])
     project_manager = new_manager(["project:p1", "global"])
 
-    await run_consolidation(project_manager, _llm(ConsolidationResponse()), ConsolidationConfig())
+    await run_consolidation(project_manager, llm_returning(ConsolidationResponse()), ConsolidationConfig())
 
     assert await get_last_consolidated_at(project_manager) is not None
     assert await get_last_consolidated_at(global_manager) is None

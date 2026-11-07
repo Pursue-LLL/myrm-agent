@@ -2,6 +2,7 @@
 
 [INPUT]
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
+- memory._internal.store_stamp::settled_through (POS: arrival stamp of a stored memory and the writes still in flight)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.types::AnyMemory (POS: memory data models)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Persistence of maintenance counters, hashes and timestamps)
@@ -19,8 +20,9 @@
 Cross-session memory consolidation strategy. Analyzes the oldest memories not yet covered via LLM to
 detect contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights
 at near-zero marginal cost. Triggered by end_session() on configured intervals. The stored timestamp
-is a covered-through mark that advances only as far as the analyzed window reached, so a backlog
-larger than one run is drained over consecutive runs.
+is a covered-through mark over the order in which memories reached the store; it advances only as far as
+the analyzed window reached and never past a write still being persisted, so a backlog larger than one run
+is drained over consecutive runs and no memory is skipped for arriving late.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
+from myrm_agent_harness.toolkits.memory._internal.store_stamp import settled_through
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     _PROFILE_KEY_LAST_CONSOLIDATED,
@@ -137,7 +140,7 @@ async def run_consolidation(
             )
             return ConsolidationStats()
 
-    window = await fetch_candidate_window(manager, last, config.max_memories, start)
+    window = await fetch_candidate_window(manager, last, config.max_memories, settled_through())
     new_ids: frozenset[str] | None = None
 
     enriched_count = 0

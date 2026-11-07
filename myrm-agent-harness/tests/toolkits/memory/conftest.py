@@ -10,6 +10,7 @@ import pytest_asyncio
 
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores, create_embedded_store
 from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
@@ -169,15 +170,21 @@ async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterato
     relational = SQLiteRelationalStore(str(tmp_path / "memory.db"))
     config = MemoryConfig(embedding_model="test", collection_prefix=f"cv{uuid4().hex[:8]}", blob_storage_enabled=False)
 
-    def build(namespaces: list[str] | None = None) -> MemoryManager:
+    def build(
+        namespaces: list[str] | None = None,
+        *,
+        embedding: EmbeddingProtocol | None = None,
+        approval_required: bool = False,
+    ) -> MemoryManager:
         return MemoryManager(
             config,
             user_id="u1",
             vector=qdrant,
-            embedding=_ConstantEmbedder(),
+            embedding=embedding or _ConstantEmbedder(),
             relational=relational,
             namespaces=namespaces or ["global"],
             auto_warmup=False,
+            approval_required=approval_required,
         )
 
     yield build

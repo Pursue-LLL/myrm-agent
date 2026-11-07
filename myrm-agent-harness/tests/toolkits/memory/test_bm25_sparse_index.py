@@ -98,6 +98,17 @@ class _ScrollOnlyStub:
         return [], None
 
 
+class _PayloadCopyRecorder:
+    """Backend stub that records which collection a payload backfill was addressed to."""
+
+    def __init__(self) -> None:
+        self.copies: list[tuple[str, str, str]] = []
+
+    async def backfill_payload_copy(self, collection: str, field: str, from_field: str) -> int:
+        self.copies.append((collection, field, from_field))
+        return 3
+
+
 # ── Tokenization primitives ──────────────────────────────────────────
 
 
@@ -177,6 +188,27 @@ class TestWrapperDegradation:
         results = await search_bm25("litellm", wrapped, CONFIG)  # type: ignore[arg-type]
         assert results == []
         assert set(stub.scrolled) == {CONFIG.semantic_collection, CONFIG.episodic_collection}
+
+
+class TestWrapperPayloadBackfill:
+    @pytest.mark.asyncio
+    async def test_dense_deployment_backfills_the_dense_collection(self) -> None:
+        recorder = _PayloadCopyRecorder()
+        wrapped = BM25SparseIndexStore(recorder)  # type: ignore[arg-type]
+
+        copied = await wrapped.backfill_payload_copy(CONFIG.semantic_collection, "stored_ts", "_created_ts")
+
+        assert copied == 3
+        assert recorder.copies == [(CONFIG.semantic_collection, "stored_ts", "_created_ts")]
+
+    @pytest.mark.asyncio
+    async def test_sparse_authoritative_deployment_backfills_the_mirror_that_holds_the_payload(self) -> None:
+        recorder = _PayloadCopyRecorder()
+        wrapped = BM25SparseIndexStore(recorder, sparse_authoritative=True)  # type: ignore[arg-type]
+
+        await wrapped.backfill_payload_copy(CONFIG.semantic_collection, "stored_ts", "_created_ts")
+
+        assert recorder.copies == [(bm25_collection_for(CONFIG.semantic_collection), "stored_ts", "_created_ts")]
 
 
 # ── E2E on embedded Qdrant ───────────────────────────────────────────

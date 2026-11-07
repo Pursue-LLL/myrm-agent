@@ -2,8 +2,9 @@
 
 Covers:
 - get_last_consolidated_at / should_consolidate time gates
-- fetch_candidate_window: vector scroll (consolidation-event skip), relational rules, truncation,
-  per-store error tolerance and the stamp each outcome allows
+- fetch_candidate_window: the arrival-ordered read of each source and the stamp that precedes it,
+  consolidation-event skip, relational rules, truncation (never through one instant), per-store error
+  tolerance and the stamp each outcome allows
 - _advance_stamp persistence guards
 """
 
@@ -14,6 +15,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_KEY
 from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     _advance_stamp,
@@ -28,12 +30,17 @@ from tests.support.consolidation_manager import make_manager, semantic_doc
 
 
 def _episodic_doc(mem_id: str, content: str, *, event_type: str = "conversation") -> VectorDocument:
+    created_at = datetime.now(UTC) - timedelta(days=1)
     return VectorDocument(
         id=mem_id,
         content=content,
-        metadata={"user_id": "test-user", "event_type": event_type},
-        created_at=datetime.now(UTC) - timedelta(days=1),
+        metadata={"user_id": "test-user", "event_type": event_type, STORED_TS_KEY: created_at.timestamp()},
+        created_at=created_at,
     )
+
+
+def _rule(content: str, created_at: datetime) -> ProceduralMemory:
+    return ProceduralMemory(content=content, trigger="t", action="a", created_at=created_at)
 
 
 class TestLastConsolidatedAt:
@@ -126,7 +133,7 @@ class TestFetchCandidateWindow:
         assert len(window.memories) == 2
         assert all(hasattr(m, "created_at") for m in window.memories)
         # More candidates than one window holds: only what the window reached is covered.
-        assert window.advance_to == window.memories[-1].created_at
+        assert window.advance_to == window.memories[-1].stored_at
 
     @pytest.mark.asyncio
     async def test_consolidation_event_skipped(self) -> None:
@@ -173,6 +180,92 @@ class TestFetchCandidateWindow:
         window = await fetch_candidate_window(manager, since=None, max_count=5, horizon=datetime.now(UTC))
         assert len(window.memories) == 1
         assert window.advance_to is None
+
+    @pytest.mark.asyncio
+    async def test_each_source_is_read_in_arrival_order_between_the_stamp_and_the_horizon(self) -> None:
+        manager = make_manager()
+        since, horizon = datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 2, tzinfo=UTC)
+
+        await fetch_candidate_window(manager, since=since, max_count=5, horizon=horizon)
+        await fetch_candidate_window(manager, since=None, max_count=5, horizon=horizon)
+
+        reads = manager._vec_store.scroll.await_args_list
+        assert [call.args[0] for call in reads] == ["test_semantic", "test_episodic"] * 2
+        assert {(call.kwargs["order_by"], call.kwargs["limit"]) for call in reads} == {((STORED_TS_KEY, "asc"), 6)}
+        arrivals = [call.kwargs["filters"][STORED_TS_KEY] for call in reads]
+        assert (
+            arrivals == [{"gt": since.timestamp(), "lte": horizon.timestamp()}] * 2 + [{"lte": horizon.timestamp()}] * 2
+        )
+
+    @pytest.mark.asyncio
+    async def test_documents_stored_before_stamps_existed_are_stamped_before_each_read(self) -> None:
+        manager = make_manager()
+        vector = manager._vec_store
+        events: list[str] = []
+
+        async def stamp(collection: str, field: str, from_field: str) -> int:
+            events.append(f"stamp {collection} {field}<-{from_field}")
+            return 0
+
+        async def read(collection: str, **_: object) -> tuple[list[VectorDocument], None]:
+            events.append(f"read {collection}")
+            return [], None
+
+        vector.backfill_payload_copy = AsyncMock(side_effect=stamp)
+        vector.scroll = AsyncMock(side_effect=read)
+
+        await fetch_candidate_window(manager, since=None, max_count=5, horizon=datetime.now(UTC))
+
+        assert events == [
+            "stamp test_semantic stored_ts<-_created_ts",
+            "read test_semantic",
+            "stamp test_episodic stored_ts<-_created_ts",
+            "read test_episodic",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_a_source_that_cannot_be_stamped_holds_the_stamp_and_is_not_read(self) -> None:
+        manager = make_manager()
+        vector = manager._vec_store
+        vector.backfill_payload_copy = AsyncMock(side_effect=RuntimeError("payload write failed"))
+
+        window = await fetch_candidate_window(manager, since=None, max_count=5, horizon=datetime.now(UTC))
+
+        assert (window.memories, window.advance_to) == ([], None)
+        vector.scroll.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_cut_without_a_readable_stamp_holds_the_stamp(self) -> None:
+        manager = make_manager()
+        unstamped = [
+            VectorDocument(id=f"s-{i}", content="fact", metadata={"user_id": "test-user"}, created_at=datetime.now(UTC))
+            for i in range(3)
+        ]
+        manager._vec_store.scroll = AsyncMock(side_effect=[(unstamped, None), ([], None)])
+
+        window = await fetch_candidate_window(manager, since=None, max_count=2, horizon=datetime.now(UTC))
+
+        # Where the source was cut is unknown, so nothing it showed may count as covered.
+        assert (window.memories, window.advance_to) == ([], None)
+
+    @pytest.mark.asyncio
+    async def test_rules_that_arrived_at_one_instant_are_never_split_by_the_window(self) -> None:
+        manager = make_manager()
+        earlier, tied, horizon = (datetime(2026, 1, day, tzinfo=UTC) for day in (1, 2, 3))
+        rules = [_rule("earlier", earlier), *(_rule(f"tied {i}", tied) for i in range(4))]
+        manager._rel_store.list_rules = AsyncMock(return_value=rules)
+
+        first = await fetch_candidate_window(manager, None, 3, horizon)
+        second = await fetch_candidate_window(manager, first.advance_to, 3, horizon)
+        third = await fetch_candidate_window(manager, second.advance_to, 3, horizon)
+
+        # A cut through the tied instant would lose the rules beyond it, because the stamp is an instant.
+        assert ([m.content for m in first.memories], first.advance_to) == (["earlier"], earlier)
+        assert (sorted(m.content for m in second.memories), second.advance_to) == (
+            [f"tied {i}" for i in range(4)],
+            tied,
+        )
+        assert (third.memories, third.advance_to) == ([], horizon)
 
 
 class TestAdvanceStamp:
