@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- pydantic BaseModel / Field (POS: 请求/响应模型基类)
+
+[OUTPUT]
 BoardCreate, BoardUpdate, BoardResponse, AgentTaskCounts, BoardSummaryResponse, BoardListResponse
 
 [POS]

@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- pydantic BaseModel / Field (POS: 请求/响应模型基类)
+
+[OUTPUT]
 AttachmentInfo, TaskResponse, TaskListResponse, ReclaimResponse, RunResponse, EventResponse, RunListResponse, EventListResponse, BoardEventResponse, BoardEventListResponse
 
 [POS]

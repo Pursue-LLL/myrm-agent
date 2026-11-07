@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- sqlalchemy (POS: SQL 表达式与结果类型)
+
+[OUTPUT]
 - TaskCardStats / BoardEventRow / _exec_rowcount
 
 [POS]
