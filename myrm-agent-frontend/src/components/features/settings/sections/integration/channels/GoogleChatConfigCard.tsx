@@ -69,7 +69,7 @@ export function GoogleChatConfigCard() {
           onChange={(e) => handleJsonChange(e.target.value)}
           rows={6}
         />
-        {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+        {jsonError && <p className="text-xs text-destructive-text">{jsonError}</p>}
       </div>
 
       <div className="flex items-center gap-3 pt-2">

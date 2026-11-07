@@ -136,7 +136,7 @@ function RawTreeNode({
       <span className="min-w-0 flex-1 truncate font-mono text-xs">{displayPath}</span>
       <button
         type="button"
-        className={cn('shrink-0 rounded px-2 py-0.5 text-xs text-destructive transition-opacity', REVEAL_ON_HOVER)}
+        className={cn('shrink-0 rounded px-2 py-0.5 text-xs text-destructive-text transition-opacity', REVEAL_ON_HOVER)}
         onClick={() => onRequestForget(displayPath)}
         aria-label={t('rawForgetConfirm')}
       >

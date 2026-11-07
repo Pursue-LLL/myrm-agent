@@ -100,7 +100,7 @@ export default function MeetingNotesImportCard() {
         </div>
 
         {error && (
-          <p className="text-sm text-destructive" data-testid="meeting-notes-error">
+          <p className="text-sm text-destructive-text" data-testid="meeting-notes-error">
             {error}
           </p>
         )}

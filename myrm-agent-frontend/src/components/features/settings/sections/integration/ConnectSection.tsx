@@ -344,7 +344,7 @@ const ConnectSection = memo(() => {
                         variant="ghost"
                         onClick={() => setRevokeTarget(connector.profile_id)}
                         disabled={isLoading}
-                        className="text-xs h-7 text-destructive hover:text-destructive"
+                        className="text-xs h-7 text-destructive-text hover:text-destructive-text"
                       >
                         <Unplug className="mr-1 h-3 w-3" />
                         {t('revoke')}
@@ -464,7 +464,7 @@ const ConnectSection = memo(() => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-destructive" />
+              <XCircle className="h-5 w-5 text-destructive-text" />
               {t('revoke')}
             </AlertDialogTitle>
             <AlertDialogDescription>{t('revokeConfirm')}</AlertDialogDescription>

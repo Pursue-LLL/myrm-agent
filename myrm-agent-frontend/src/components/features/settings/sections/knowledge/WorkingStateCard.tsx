@@ -107,7 +107,7 @@ const WorkingStateCard = memo(() => {
               </button>
               <button
                 onClick={handleClear}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text transition-colors"
                 title={t('clear')}
               >
                 <IconTrash className="h-3.5 w-3.5" />

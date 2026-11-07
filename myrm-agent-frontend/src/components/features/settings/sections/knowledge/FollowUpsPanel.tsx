@@ -210,7 +210,7 @@ const FollowUpCard = memo<FollowUpCardProps>(function FollowUpCard({ item, t, on
             </button>
             <button
               onClick={() => onDismiss(item.id)}
-              className="rounded-full px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              className="rounded-full px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text transition-colors"
               title={t('dismissAction')}
             >
               {t('dismissAction')}

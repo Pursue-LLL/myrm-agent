@@ -148,7 +148,7 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
                   {isSyncing ? t('syncing') : t('syncDelta')}
                 </Button>
                 <Button variant="ghost" size="sm" disabled={isSaving} onClick={() => void handleUnbind()}>
-                  <IconTrash className="w-3.5 h-3.5 text-destructive" />
+                  <IconTrash className="w-3.5 h-3.5 text-destructive-text" />
                 </Button>
               </div>
             </div>

@@ -30,7 +30,7 @@ const STATUS_STYLES: Record<string, { className: string; key: string }> = {
     key: 'statusPending',
   },
   blocked: {
-    className: 'bg-destructive/10 text-destructive border-destructive/30',
+    className: 'bg-destructive/10 text-destructive-text border-destructive/30',
     key: 'statusBlocked',
   },
 };
@@ -220,7 +220,7 @@ export function PairingItem({
                       {isOver && (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30"
+                          className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive-text border-destructive/30"
                         >
                           {t('quotaExceeded')}
                         </Badge>
@@ -347,7 +347,7 @@ export function PairingItem({
           size="icon"
           variant="ghost"
           title={t('deleteHint')}
-          className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+          className="h-8 w-8 text-destructive-text hover:text-destructive-text shrink-0"
           onClick={() => onDeleteRequest(p)}
         >
           <IconTrash className="h-4 w-4" />

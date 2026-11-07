@@ -299,7 +299,7 @@ for chunk in response:
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-2 text-destructive hover:text-destructive"
+                      className="h-7 px-2 text-destructive-text hover:text-destructive-text"
                       onClick={() => setDeleteTarget(key.id)}
                     >
                       <IconTrash className="h-3.5 w-3.5" />

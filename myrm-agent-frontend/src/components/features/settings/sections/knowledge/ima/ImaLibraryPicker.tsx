@@ -97,7 +97,7 @@ export default function ImaLibraryPicker({
 
       {state.kind === 'failed' ? (
         <div className="space-y-2">
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-text">
             {t(state.errorKey)}
           </p>
           <Button type="button" size="sm" variant="outline" onClick={() => void load()}>
@@ -140,7 +140,7 @@ export default function ImaLibraryPicker({
       <p className="text-xs text-muted-foreground">{t('libraries.supported')}</p>
 
       {errorKey ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {t(errorKey)}
         </p>
       ) : null}

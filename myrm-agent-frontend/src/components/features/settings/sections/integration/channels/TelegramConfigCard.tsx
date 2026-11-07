@@ -138,7 +138,7 @@ export function TelegramConfigCard() {
           />
           <p className="text-xs text-muted-foreground">{t('telegramWebhookHint')}</p>
           {creds.webhookUrl && !creds.webhookUrl.startsWith('https://') && (
-            <p className="text-xs text-destructive">{t('telegramWebhookHttpsRequired')}</p>
+            <p className="text-xs text-destructive-text">{t('telegramWebhookHttpsRequired')}</p>
           )}
         </div>
       )}
@@ -153,7 +153,7 @@ export function TelegramConfigCard() {
             onChange={(e) => handleChange('proxy', e.target.value)}
           />
           <p className="text-xs text-muted-foreground">{t('telegramProxyHint')}</p>
-          {proxyInvalid && <p className="text-xs text-destructive">{t('telegramProxyInvalid')}</p>}
+          {proxyInvalid && <p className="text-xs text-destructive-text">{t('telegramProxyInvalid')}</p>}
         </div>
       )}
 
@@ -188,12 +188,12 @@ export function TelegramConfigCard() {
                   variant="ghost"
                   size="sm"
                   onClick={() => removeCommand(i)}
-                  className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 shrink-0 p-0 text-muted-foreground hover:text-destructive-text"
                 >
                   <IconTrash className="h-3.5 w-3.5" />
                 </Button>
               </div>
-              {errKey && <p className="text-xs text-destructive pl-1">{t(errKey)}</p>}
+              {errKey && <p className="text-xs text-destructive-text pl-1">{t(errKey)}</p>}
             </div>
           );
         })}

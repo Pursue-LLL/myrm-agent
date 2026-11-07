@@ -179,7 +179,7 @@ export const RemoteFileList = memo(function RemoteFileList({
                   <ConfirmAction
                     trigger={
                       <Button variant="ghost" size="sm" className="rounded-xl" aria-label={t('deleteFromCloud')}>
-                        <Trash className="h-4 w-4 text-destructive" />
+                        <Trash className="h-4 w-4 text-destructive-text" />
                       </Button>
                     }
                     title={t('deleteFromCloud')}

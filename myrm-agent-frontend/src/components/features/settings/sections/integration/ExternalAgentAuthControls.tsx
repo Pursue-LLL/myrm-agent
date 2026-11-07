@@ -89,7 +89,9 @@ const InstallDialog = memo(({ open, onOpenChange, command, onInstalled }: Instal
             {events.map((ev, i) => (
               <div
                 key={i}
-                className={ev.type === 'error' ? 'text-destructive' : ev.type === 'success' ? 'text-green-500' : ''}
+                className={
+                  ev.type === 'error' ? 'text-destructive-text' : ev.type === 'success' ? 'text-green-500' : ''
+                }
               >
                 {ev.message}
               </div>

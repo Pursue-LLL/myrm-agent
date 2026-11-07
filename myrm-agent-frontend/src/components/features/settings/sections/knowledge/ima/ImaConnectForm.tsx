@@ -86,7 +86,7 @@ export default function ImaConnectForm({ reconnect, busy, errorKey, onSubmit }: 
         </div>
       </div>
       {errorKey ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive-text">
           {t(errorKey)}
         </p>
       ) : null}

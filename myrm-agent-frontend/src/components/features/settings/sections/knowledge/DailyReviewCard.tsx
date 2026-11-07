@@ -105,7 +105,7 @@ export default function DailyReviewCard() {
         </Button>
 
         {error && (
-          <p className="text-sm text-destructive" data-testid="daily-review-error">
+          <p className="text-sm text-destructive-text" data-testid="daily-review-error">
             {error}
           </p>
         )}

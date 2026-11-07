@@ -94,7 +94,7 @@ export function WeChatOfficialConfigCard() {
             {egressLoading ? (
               <p className="mt-1 text-sm text-muted-foreground">{t('wechatOfficialEgressLoading')}</p>
             ) : egressError || !egressIp ? (
-              <p className="mt-1 text-sm text-destructive">{t('wechatOfficialEgressUnavailable')}</p>
+              <p className="mt-1 text-sm text-destructive-text">{t('wechatOfficialEgressUnavailable')}</p>
             ) : (
               <p className="mt-1 font-mono text-sm text-foreground" data-testid="wechat-official-egress-ip">
                 {egressIp}

@@ -247,7 +247,7 @@ export default function MemoryBackupSection() {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm">
-                          <IconTrash className="h-4 w-4 text-destructive" />
+                          <IconTrash className="h-4 w-4 text-destructive-text" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>

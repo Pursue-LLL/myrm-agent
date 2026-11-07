@@ -243,7 +243,7 @@ export function WeChatAccountCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-destructive/60 hover:text-destructive"
+                  className="h-6 w-6 text-destructive-text/60 hover:text-destructive-text"
                   aria-label={`delete-${channelName}`}
                   title={t('channelDeleteInstanceTitle')}
                 >
@@ -285,7 +285,7 @@ export function WeChatAccountCard({
                 : t('wechatConnectionError')}
             </p>
             {cardStatus?.error && (
-              <p className="text-[10px] text-destructive/80 max-w-sm mx-auto break-all">{cardStatus.error}</p>
+              <p className="text-[10px] text-destructive-text max-w-sm mx-auto break-all">{cardStatus.error}</p>
             )}
           </div>
         )}

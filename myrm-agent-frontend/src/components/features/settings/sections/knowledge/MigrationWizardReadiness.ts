@@ -20,7 +20,7 @@ export type ImportReadinessStatus = 'ready' | 'warning' | 'critical';
 export const IMPORT_READINESS_STYLES: Record<ImportReadinessStatus, string> = {
   ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
   warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  critical: 'border-destructive/30 bg-destructive/10 text-destructive',
+  critical: 'border-destructive/30 bg-destructive/10 text-destructive-text',
 };
 
 export function getImportReadinessStatus(result: MemoryImportConfirmResponse): ImportReadinessStatus {

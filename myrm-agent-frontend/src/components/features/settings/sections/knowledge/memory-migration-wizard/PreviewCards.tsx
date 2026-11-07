@@ -68,7 +68,7 @@ export function CoverageMatrix({ items, t }: { items: MemoryImportCoverageItem[]
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     review: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
     manual: 'border-border/60 bg-secondary/30 text-muted-foreground',
-    missing: 'border-destructive/30 bg-destructive/10 text-destructive',
+    missing: 'border-destructive/30 bg-destructive/10 text-destructive-text',
   };
 
   return (
@@ -100,9 +100,9 @@ export function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewI
     ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     review: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
     manual: 'border-border/60 bg-secondary/30 text-muted-foreground',
-    missing: 'border-destructive/30 bg-destructive/10 text-destructive',
+    missing: 'border-destructive/30 bg-destructive/10 text-destructive-text',
     warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    critical: 'border-destructive/30 bg-destructive/10 text-destructive',
+    critical: 'border-destructive/30 bg-destructive/10 text-destructive-text',
     pending: 'border-border/60 bg-secondary/30 text-muted-foreground',
   };
 

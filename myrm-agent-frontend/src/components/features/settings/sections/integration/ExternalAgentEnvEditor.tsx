@@ -105,7 +105,7 @@ const ExternalAgentEnvEditor = memo(({ rows, authMode, onChange }: ExternalAgent
                 <IconTrash className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
             </div>
-            {problem && <p className="text-[11px] text-destructive">{t(PROBLEM_MESSAGE_KEYS[problem])}</p>}
+            {problem && <p className="text-[11px] text-destructive-text">{t(PROBLEM_MESSAGE_KEYS[problem])}</p>}
           </div>
         );
       })}
