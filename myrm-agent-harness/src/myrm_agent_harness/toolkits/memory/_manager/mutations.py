@@ -14,6 +14,7 @@ from myrm_agent_harness.toolkits.memory._manager.shared import (
     MemoryError,
     MemoryNotFoundError,
     MemoryProtectedError,
+    MemoryRejectedError,
     MemoryStatus,
     ProceduralMemory,
     SemanticMemory,
@@ -30,6 +31,14 @@ from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactCl
 from myrm_agent_harness.toolkits.memory.strategies.sparse_mutation import (
     apply_sparse_mutation,
 )
+
+
+def _require_unit_interval(name: str, value: float | None) -> None:
+    """Refuse a score outside 0.0-1.0, which the memory models cannot read back once it is stored."""
+    if value is not None and not 0.0 <= value <= 1.0:
+        raise MemoryRejectedError(
+            f"Not updated: {name} must be between 0.0 and 1.0 (got {value}). Retry with a value in that range."
+        )
 
 
 class MemoryManagerMutationsMixin(MemoryManagerHost):
@@ -77,7 +86,8 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
             if stored_uid and stored_uid != self._user_id:
                 continue
 
-            old_rating = float(doc.metadata.get("user_rating", 0.5))
+            stored_rating = doc.metadata.get("user_rating", 0.5)
+            old_rating = float(stored_rating) if isinstance(stored_rating, (int, float, str)) else 0.5
             alpha = alpha_negative if normalized < old_rating else alpha_positive
             new_rating = old_rating + alpha * (normalized - old_rating)
             new_rating = max(0.0, min(1.0, round(new_rating, 4)))
@@ -272,7 +282,13 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
         touch a memory the user protected, so the guard lives in one place
         instead of being re-implemented at every call site. The WebUI keeps the
         default ``True`` because the user is entitled to edit their own data.
+
+        ``importance`` and ``confidence`` must lie in 0.0-1.0 and content that reads as a
+        transient business fact is refused; both raise ``MemoryRejectedError`` before
+        anything is written.
         """
+        _require_unit_interval("importance", importance)
+        _require_unit_interval("confidence", confidence)
         existing = await self.get_memory(memory_id)
         if existing is None:
             raise MemoryNotFoundError(f"Memory {memory_id} not found")
@@ -283,7 +299,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
 
         updated = existing.model_copy(deep=True)
 
-        if content_changed:
+        if content is not None:
             updated.metadata = {
                 **updated.metadata,
                 "previous_content": existing.content,
@@ -296,7 +312,7 @@ class MemoryManagerMutationsMixin(MemoryManagerHost):
                 )
 
                 if looks_like_transient_business_fact(content):
-                    raise MemoryError(transient_fact_save_rejection_message())
+                    raise MemoryRejectedError(transient_fact_save_rejection_message())
         if importance is not None and isinstance(updated, (SemanticMemory, EpisodicMemory, ConversationMemory)):
             updated.importance = importance
         if confidence is not None and isinstance(updated, SemanticMemory):
