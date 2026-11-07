@@ -13,8 +13,10 @@
 [POS]
 Selects what a consolidation run analyzes. The stamp is a covered-through mark: every memory created at or before
 it was analyzed or deliberately skipped. The window therefore walks forward in creation order and never past a
-point some source was not read to, so a backlog larger than one run is drained batch by batch with nothing
-skipped, and an unreadable source holds the stamp instead of letting it jump over memories it could not show.
+point some source was not read to, so a backlog larger than one run is drained batch by batch. The only memories
+it skips are consolidation's own output and documents that cannot be decoded, and such a document never hides its
+neighbours. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting it jump
+over memories the run could not see.
 """
 
 from __future__ import annotations
@@ -77,6 +79,22 @@ async def _scroll_oldest_first(
     return documents
 
 
+def _decode(
+    collection: str, documents: list[VectorDocument], to_memory: Callable[[VectorDocument], AnyMemory]
+) -> list[AnyMemory]:
+    """Decode each document on its own, so one that cannot be decoded does not hide the rest of its source."""
+    memories: list[AnyMemory] = []
+    for document in documents:
+        try:
+            memories.append(to_memory(document))
+        except Exception as exc:
+            # The id and the failure type identify the document; its content is the user's, not a log line.
+            logger.warning(
+                "Consolidation skipped undecodable document %s in %s (%s)", document.id, collection, type(exc).__name__
+            )
+    return memories
+
+
 async def fetch_candidate_window(
     manager: MemoryManager, since: datetime | None, max_count: int, horizon: datetime
 ) -> CandidateWindow:
@@ -86,7 +104,9 @@ async def fetch_candidate_window(
     be missing, so the stamp may advance to it. A source holding more than ``max_count`` documents is read
     only up to the last one kept, so the window must stop at the earliest such point (``bound``); otherwise
     a later memory from another source would be analyzed while an earlier one this source did not show
-    would be skipped for good.
+    would be skipped for good. The point is taken from the documents read, not from those that decoded, so a
+    document that cannot be decoded still marks where the source was cut. When none of a source's documents
+    decodes, the converter is more likely broken than the data, and the stamp holds.
     """
     candidates: list[AnyMemory] = []
     readable = True
@@ -101,14 +121,17 @@ async def fetch_candidate_window(
         for collection, to_memory in sources:
             try:
                 documents = await _scroll_oldest_first(manager, collection, since, max_count + 1)
-                memories = [to_memory(document) for document in documents]
             except Exception as exc:
                 logger.warning("Consolidation fetch from %s failed: %s", collection, exc)
                 readable = False
                 continue
-            if len(memories) > max_count:
-                memories = memories[:max_count]
-                bound = memories[-1].created_at if bound is None else min(bound, memories[-1].created_at)
+            if len(documents) > max_count:
+                documents = documents[:max_count]
+                cut = documents[-1].created_at
+                bound = cut if bound is None else min(bound, cut)
+            memories = _decode(collection, documents, to_memory)
+            if documents and not memories:
+                readable = False
             candidates.extend(memory for memory in memories if not _is_consolidation_product(memory))
 
     if manager.has_relational:

@@ -2,11 +2,13 @@
 
 Mock stores ignore filters and ordering, so they cannot show a backlog drained across runs, a stamp that
 jumps over memories a source did not return, or consolidation's own output re-entering the window. Each
-case drives a real manager over SQLite and an embedded Qdrant.
+case drives a real manager over SQLite and an embedded Qdrant. A document that cannot be decoded is the one
+thing the window skips, and it must hide neither its neighbours nor the memories beyond it.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator, Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -36,8 +38,9 @@ from myrm_agent_harness.toolkits.memory.types import (
     ProceduralMemory,
     SemanticMemory,
 )
-from myrm_agent_harness.toolkits.vector.base import VectorStore
+from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores, create_embedded_store
+from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
 
 # Memories are seeded far in the past so the one-hour soft lock never gates a run.
 BASE = datetime.now(UTC).replace(microsecond=0) - timedelta(days=30)
@@ -88,7 +91,7 @@ def _llm(response: ConsolidationResponse) -> MagicMock:
 
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
-async def qdrant() -> AsyncIterator[VectorStore]:
+async def qdrant() -> AsyncIterator[QdrantVectorStore]:
     """One embedded Qdrant for the module (cold start dominates); tests isolate by collection prefix."""
     await clear_embedded_stores()
     embedded = await create_embedded_store(path=":memory:")
@@ -100,7 +103,7 @@ async def qdrant() -> AsyncIterator[VectorStore]:
 
 
 @pytest_asyncio.fixture
-async def new_manager(qdrant: VectorStore, tmp_path: Path) -> AsyncIterator[NewManager]:
+async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterator[NewManager]:
     """Factory of managers that share one SQLite file and one set of collections."""
     relational = SQLiteRelationalStore(str(tmp_path / "memory.db"))
     config = MemoryConfig(embedding_model="test", collection_prefix=f"cv{uuid4().hex[:8]}", blob_storage_enabled=False)
@@ -130,14 +133,35 @@ async def seed(manager: MemoryManager, memories: Sequence[AnyMemory]) -> None:
         await store_episodics_batch(episodics, vector, manager.config, embedding, None)
 
 
+async def seed_undecodable(manager: MemoryManager, offset_s: int) -> str:
+    """Store a document whose importance lies outside the model's 0-1 range, so decoding it raises; return its id."""
+    vector, _ = manager._vec()
+    document = VectorDocument(
+        content="private note",
+        vector=[1.0, 0.5, 0.5, 0.5],
+        metadata={"user_id": "u1", "primary_namespace": "global", "importance": 8.0},
+        created_at=at(offset_s),
+        updated_at=at(offset_s),
+    )
+    await vector.upsert(manager.config.semantic_collection, [document])
+    return document.id
+
+
 def make_episodic_unreadable(manager: MemoryManager, monkeypatch: pytest.MonkeyPatch) -> None:
     vector, _ = manager._vec()
     scroll = vector.scroll
 
-    async def flaky(collection: str, **kwargs: object) -> object:
+    async def flaky(
+        collection: str,
+        *,
+        limit: int = 100,
+        offset: str | None = None,
+        filters: FilterDict | None = None,
+        order_by: tuple[str, str] | None = None,
+    ) -> tuple[list[VectorDocument], str | None]:
         if collection == manager.config.episodic_collection:
             raise RuntimeError("episodic collection unreachable")
-        return await scroll(collection, **kwargs)
+        return await scroll(collection, limit=limit, offset=offset, filters=filters, order_by=order_by)
 
     monkeypatch.setattr(vector, "scroll", flaky)
 
@@ -229,6 +253,40 @@ async def test_an_unreadable_source_holds_the_stamp_but_still_yields_the_other_s
     assert window.advance_to is None
 
 
+async def test_an_undecodable_document_is_skipped_even_where_a_source_is_cut_short(new_manager: NewManager) -> None:
+    manager = new_manager()
+    # The semantic source is read up to its third document, which cannot be decoded; its later memories lie
+    # beyond that cut, and the episodic memory is newer than the cut.
+    await seed(manager, [semantic("fact 1", 1), semantic("fact 2", 2)])
+    await seed_undecodable(manager, 3)
+    await seed(manager, [semantic("fact 4", 4), semantic("fact 5", 5), episodic("event 6", 6)])
+
+    first = await fetch_candidate_window(manager, None, 3, HORIZON)
+    assert [m.content for m in first.memories] == ["fact 1", "fact 2"]
+    assert first.advance_to == at(3)
+
+    second = await fetch_candidate_window(manager, first.advance_to, 3, HORIZON)
+    assert [m.content for m in second.memories] == ["fact 4", "fact 5", "event 6"]
+    assert second.advance_to == HORIZON
+
+
+async def test_a_batch_that_decodes_to_nothing_holds_the_stamp_until_a_memory_can_be_read(
+    new_manager: NewManager,
+) -> None:
+    manager = new_manager()
+    await seed_undecodable(manager, 1)
+    await seed_undecodable(manager, 2)
+
+    stuck = await fetch_candidate_window(manager, None, 100, HORIZON)
+    # When nothing decodes, the converter is more likely broken than the data: the stamp must not move on.
+    assert (stuck.memories, stuck.advance_to) == ([], None)
+
+    await seed(manager, [semantic("fact 3", 3)])
+    recovered = await fetch_candidate_window(manager, None, 100, HORIZON)
+    assert [m.content for m in recovered.memories] == ["fact 3"]
+    assert recovered.advance_to == HORIZON
+
+
 async def test_unreadable_rules_hold_the_stamp_but_still_yield_the_memories(
     new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -301,6 +359,26 @@ async def test_a_run_that_could_not_read_a_source_leaves_the_stamp_where_it_was(
 
     await run_consolidation(manager, llm, config)
     assert await get_last_consolidated_at(manager) is not None
+
+
+async def test_one_undecodable_document_does_not_stall_consolidation(
+    new_manager: NewManager, caplog: pytest.LogCaptureFixture
+) -> None:
+    manager = new_manager()
+    await seed(manager, [semantic("fact 1", 1), semantic("fact 2", 2)])
+    undecodable_id = await seed_undecodable(manager, 3)
+    await seed(manager, [semantic("fact 4", 4), semantic("fact 5", 5)])
+
+    with caplog.at_level(logging.WARNING):
+        stats = await run_consolidation(manager, _llm(ConsolidationResponse()), ConsolidationConfig())
+
+    assert stats.input_count == 4
+    assert await get_last_consolidated_at(manager) is not None
+    # The skip is reported by document id and failure type, never by the memory's content.
+    reports = [r.getMessage() for r in caplog.records if undecodable_id in r.getMessage()]
+    assert len(reports) == 1
+    assert "ValidationError" in reports[0]
+    assert "private note" not in reports[0]
 
 
 async def test_each_owner_namespace_keeps_its_own_stamp(new_manager: NewManager) -> None:

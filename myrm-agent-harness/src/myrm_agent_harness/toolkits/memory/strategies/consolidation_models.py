@@ -103,7 +103,7 @@ class UpdateContentOp(BaseModel):
     action: str = ConsolidationAction.UPDATE_CONTENT
     memory_id: str
     new_content: str
-    importance: float | None = None
+    importance: float | None = Field(default=None, ge=0.0, le=1.0)
     accuracy_score: float = Field(default=1.0, ge=0.0, le=1.0)
     anti_fragmentation_score: float = Field(default=1.0, ge=0.0, le=1.0)
     redundancy_score: float = Field(default=1.0, ge=0.0, le=1.0)

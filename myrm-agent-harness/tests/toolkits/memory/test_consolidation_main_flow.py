@@ -493,6 +493,25 @@ class TestRunConsolidation:
         assert stats.input_count == 2
 
     @pytest.mark.asyncio
+    async def test_out_of_range_importance_fails_the_run_before_anything_is_written(self) -> None:
+        manager = _make_manager()
+        manager._vec_store.scroll = AsyncMock(
+            side_effect=[
+                ([_semantic_doc("s-1", "a"), _semantic_doc("s-2", "b")], None),
+                ([], None),
+            ]
+        )
+        update = {"action": "update_content", "memory_id": "s-1", "new_content": "better", "importance": 8}
+        structured = AsyncMock()
+        structured.ainvoke = AsyncMock(return_value={"operations": [update], "insights": []})
+        llm = MagicMock()
+        llm.with_structured_output.return_value = structured
+        stats = await run_consolidation(manager, llm, ConsolidationConfig())
+        assert stats.errors == 1
+        manager.update_memory.assert_not_called()
+        manager._rel_store.set_profile.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_no_operations_returns_empty(self) -> None:
         manager = _make_manager()
         manager._vec_store.scroll = AsyncMock(
