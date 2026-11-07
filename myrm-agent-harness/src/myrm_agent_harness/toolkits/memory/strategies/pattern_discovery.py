@@ -189,12 +189,19 @@ async def run_pattern_discovery(
         from langchain_core.messages import HumanMessage, SystemMessage
 
         structured_llm = llm.with_structured_output(PatternDiscoveryResponse)
-        response: PatternDiscoveryResponse = await structured_llm.ainvoke(
+        raw_response = await structured_llm.ainvoke(
             [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=user_prompt),
             ]
         )
+        # A pydantic schema normally yields an instance and a JSON-mode parser a dict; anything else is a provider fault.
+        if isinstance(raw_response, dict):
+            response = PatternDiscoveryResponse.model_validate(raw_response)
+        elif isinstance(raw_response, PatternDiscoveryResponse):
+            response = raw_response
+        else:
+            raise TypeError(f"Unexpected response type from structured LLM: {type(raw_response)}")
     except Exception as exc:
         logger.warning("Pattern discovery LLM call failed: %s", exc)
         elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
