@@ -5,7 +5,7 @@
 - path_hint::format_path_not_found_hint, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
 
 [OUTPUT]
-- require_examinable_target: raise a ToolError unless the search path exists and this process can open it
+- require_examinable_target: raise a ToolError when the search path is missing or this process is refused access
 
 [POS]
 Preflight that names a missing or unreadable search path instead of searching it. It runs in front of both tools and
@@ -18,6 +18,7 @@ error the caller can act on, as ``file_read_tool`` does for a file it may not re
 
 from __future__ import annotations
 
+import errno
 import os
 import stat
 from pathlib import Path
@@ -26,6 +27,19 @@ from myrm_agent_harness.utils.errors import ToolError
 
 from .path_hint import format_path_not_found_hint, suggest_similar_paths
 
+# What ``os.stat`` answers for a name that resolves to nothing: absent, below a file, a link that loops, or longer than
+# the platform allows. EBADF is on the list because ``pathlib`` guards against macOS ``stat`` throwing it. Any other
+# failure means the file system did not answer, which is not the same as absent.
+_ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP, errno.ENAMETOOLONG})
+# The Windows errors ``pathlib`` also reads as absent: a drive that is not ready, an invalid name, a link that cannot be
+# resolved.
+_ABSENT_WINERRORS = frozenset({21, 123, 1921})
+
+
+def _says_absent(error: OSError) -> bool:
+    winerror = getattr(error, "winerror", None)  # only Windows sets it
+    return error.errno in _ABSENT_ERRNOS or (isinstance(winerror, int) and winerror in _ABSENT_WINERRORS)
+
 
 def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:
     """Return whether ``target`` exists, after opening it the way a search will: list and enter it, or read it.
@@ -33,17 +47,22 @@ def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:
     A directory needs both permissions: without the search permission its names can be listed and none of its
     entries examined. A regular file is opened only for a search that reads it (``reads_a_file``); one that lists
     directories rejects a file whatever its permissions. Any other kind of entry (a pipe, a device) is left alone:
-    opening it can block or act on the device. Permission is read from ``os.stat`` because ``Path.exists``
-    answers False for it from Python 3.14 on. Any other failure of ``os.stat`` (a missing entry, a name with a NUL
-    byte, a name or path longer than the platform allows) means there is nothing to examine: ``os.path.exists``
-    answers False for each of them, where ``Path.exists`` raises for an over-long path on Python 3.13.
+    opening it can block or act on the device. The answer is read from the errors of ``os.stat`` itself because
+    ``Path.exists`` raises for an over-long path on Python 3.13 and, from Python 3.14 on, answers False for every
+    failure, permission included. A name that cannot exist (a missing entry, a NUL byte, a name or path longer than
+    the platform allows) means there is nothing to examine. Any other failure is the file system not answering, not
+    an absent entry: it propagates as the error it is.
     """
     try:
         mode = os.stat(target).st_mode
     except PermissionError:
         raise
-    except (OSError, ValueError):
-        return os.path.exists(target)
+    except ValueError:  # a NUL byte
+        return False
+    except OSError as error:
+        if _says_absent(error):
+            return False
+        raise
     if stat.S_ISDIR(mode):
         os.scandir(target).close()  # listing the names needs read permission
         os.stat(os.path.join(target, "."))  # examining an entry needs search permission

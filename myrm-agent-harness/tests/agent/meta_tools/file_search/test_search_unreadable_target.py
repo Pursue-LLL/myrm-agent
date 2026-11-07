@@ -13,8 +13,10 @@ Covers:
 - A directory that can be entered but not listed, one that can be listed but not entered, and one that is neither,
   as the path of either tool
 - A path beneath a directory without search permission, whether ``Path.exists`` raises for it or answers False
-- A path that cannot exist (absent, a NUL byte, a name or a whole path beyond what the platform allows) is reported as
-  not found, never as an unexpected error
+- A path that cannot exist (absent, below a file, a link that loops, a NUL byte, a name or a whole path beyond what the
+  platform allows) is reported as not found, never as an unexpected error
+- A file system that does not answer (an I/O error, a stale or timed-out network mount, a dropped FUSE mount) is
+  reported as that error, never as a path that does not exist
 - The controls: a readable path of the same kind is searched, and a file named inside a directory that can be entered
   but not listed is still found
 """
@@ -35,6 +37,26 @@ from myrm_agent_harness.utils.errors import ToolError
 from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_files, listed, write_tree
 
 Restrict = Callable[[Path, int], None]
+
+
+class InvalidNameError(OSError):
+    """What ``os.stat`` raises on Windows for a name such as ``*.py``: errno EINVAL carrying WinError 123."""
+
+    winerror = 123
+
+
+def fail_stat_for(monkeypatch: pytest.MonkeyPatch, target: str, error: OSError) -> None:
+    """Make ``os.stat`` raise ``error`` for ``target`` only; every other path gets the real answer."""
+    real_stat = os.stat
+
+    def stat(
+        path: str | os.PathLike[str], *, dir_fd: int | None = None, follow_symlinks: bool = True
+    ) -> os.stat_result:
+        if str(path) == target:
+            raise error
+        return real_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(os, "stat", stat)
 
 
 class TestUnreadableFile:
@@ -99,6 +121,55 @@ class TestAPathThatCannotExist:
     def test_it_is_reported_as_not_found(self, tmp_path: Path, name: str) -> None:
         with pytest.raises(ToolError, match="Path not found"):
             require_examinable_target(str(tmp_path / name), name, reads_a_file=True)
+
+    def test_a_name_below_a_file_is_not_found(self, tmp_path: Path) -> None:
+        write_tree(tmp_path, {"file.txt": "x\n"})
+
+        with pytest.raises(ToolError, match="Path not found"):
+            require_examinable_target(str(tmp_path / "file.txt" / "child"), "file.txt/child", reads_a_file=True)
+
+    def test_a_link_that_loops_is_not_found(self, tmp_path: Path) -> None:
+        try:
+            (tmp_path / "loop").symlink_to("loop")
+        except OSError:
+            pytest.skip("symbolic links are not available")
+
+        with pytest.raises(ToolError, match="Path not found"):
+            require_examinable_target(str(tmp_path / "loop"), "loop", reads_a_file=True)
+
+    def test_ebadf_reads_as_absent_as_pathlib_does(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        target = str(tmp_path / "gone")
+        fail_stat_for(monkeypatch, target, OSError(errno.EBADF, os.strerror(errno.EBADF)))
+
+        with pytest.raises(ToolError, match="Path not found"):
+            require_examinable_target(target, "gone", reads_a_file=True)
+
+    def test_a_windows_invalid_name_reads_as_absent_as_pathlib_does(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = str(tmp_path / "*.py")
+        fail_stat_for(monkeypatch, target, InvalidNameError(errno.EINVAL, "The filename is invalid"))
+
+        with pytest.raises(ToolError, match="Path not found"):
+            require_examinable_target(target, "*.py", reads_a_file=True)
+
+
+class TestAFileSystemThatDoesNotAnswer:
+    @pytest.mark.parametrize(
+        "code",
+        [errno.EIO, errno.ESTALE, errno.ETIMEDOUT, errno.ENOTCONN, errno.EINVAL],
+        ids=["io_error", "stale_handle", "timed_out", "not_connected", "invalid_argument"],
+    )
+    def test_it_is_not_reported_as_an_absent_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: int
+    ) -> None:
+        target = str(tmp_path / "mount")
+        fail_stat_for(monkeypatch, target, OSError(code, os.strerror(code)))
+
+        with pytest.raises(OSError) as caught:
+            require_examinable_target(target, "mount", reads_a_file=True)
+
+        assert caught.value.errno == code
 
 
 class TestUnusableDirectory:
