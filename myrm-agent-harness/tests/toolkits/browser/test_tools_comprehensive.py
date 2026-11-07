@@ -33,6 +33,7 @@ def mock_session() -> Any:
     comparison_result.to_llm_message = MagicMock(return_value="Similarity: 95%")
     session.compare_screenshots = AsyncMock(return_value=comparison_result)
     session.close = AsyncMock()
+    session.download_enabled = False
     session.evaluate = AsyncMock(return_value="42")
     session.new_tab = AsyncMock(return_value="tab1")
     session.switch_tab = AsyncMock(return_value="Switched to tab1")
@@ -735,8 +736,6 @@ async def test_browser_manage_wait_for_user_removed(mock_session: Any) -> None:
 async def test_browser_interact_batch_steps(mock_session: Any) -> None:
     """batch steps[] runs multiple interacts in one tool call."""
     mock_session.interact = AsyncMock(side_effect=["clicked", "filled"])
-    mock_session.list_downloads = MagicMock(return_value=[])
-    mock_session.download_enabled = False
 
     tools = create_browser_tools(mock_session)
     interact_tool = next(t for t in tools if t.name == "browser_interact_tool")
@@ -753,23 +752,6 @@ async def test_browser_interact_batch_steps(mock_session: Any) -> None:
     assert "Step 1" in result
     assert "Step 2" in result
     assert mock_session.interact.await_count == 2
-
-
-@pytest.mark.asyncio
-async def test_browser_interact_click_download_notice(mock_session: Any) -> None:
-    """click in single mode appends download notice when a new file appears."""
-    mock_session.interact = AsyncMock(return_value="Clicked element e0")
-    mock_session.list_downloads = MagicMock(side_effect=[[], ["file.pdf"]])
-    mock_session.download_enabled = True
-    mock_session.last_download = MagicMock(file_name="file.pdf", file_size=42, path="/tmp/file.pdf")
-
-    tools = create_browser_tools(mock_session)
-    interact_tool = next(t for t in tools if t.name == "browser_interact_tool")
-
-    result = await interact_tool.ainvoke({"action": "click", "ref": "e0"})
-
-    assert "File downloaded" in result
-    assert "file.pdf" in result
 
 
 @pytest.mark.asyncio

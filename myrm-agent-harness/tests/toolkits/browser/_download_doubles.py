@@ -5,10 +5,11 @@
 
 [OUTPUT]
 - DEFAULT_FINAL_URL: the address a scripted download comes from unless a test names another
-- download_of: a download double that reports an address and saves a fixed body
+- download_of: a download double that reports an address and a file name, and saves a body
 - requesting_page: a page whose download request ends in a download from a given address, and that download
 - waiting_page: a page whose download request is still waiting for a download
 - ExpectDownload / NeverDownloads: stand-ins for ``page.expect_download`` of a request that got, or never gets, its download
+- kept_files: the names of the files a downloads directory holds
 
 [POS]
 Test support for the download manager's unit tests: the manager only talks to ``page.expect_download``,
@@ -24,6 +25,13 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 DEFAULT_FINAL_URL = "http://127.0.0.1:9/secret.txt"
+
+
+def kept_files(directory: Path) -> list[str]:
+    """The files a downloads directory holds: none before it exists; the file that makes it ignore itself is no download."""
+    if not directory.exists():
+        return []
+    return sorted(entry.name for entry in directory.iterdir() if entry.name != ".gitignore")
 
 
 class ExpectDownload:
@@ -47,17 +55,17 @@ class NeverDownloads(ExpectDownload):
         self.value = asyncio.get_running_loop().create_future()
 
 
-def download_of(page: MagicMock, url: str) -> MagicMock:
+def download_of(page: MagicMock, url: str, *, name: str = "secret.txt", body: bytes = b"payload") -> MagicMock:
     download = MagicMock()
     download.url = url
     download.page = page
-    download.suggested_filename = "secret.txt"
+    download.suggested_filename = name
     download.failure = AsyncMock(return_value=None)
     download.cancel = AsyncMock()
     download.delete = AsyncMock()
 
     async def save_as(path: str) -> None:
-        Path(path).write_bytes(b"payload")
+        Path(path).write_bytes(body)
 
     download.save_as = AsyncMock(side_effect=save_as)
     return download

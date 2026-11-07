@@ -1,4 +1,4 @@
-"""Unit tests for workspace artifact vault path resolution."""
+"""Unit tests for workspace artifact vault and downloads path resolution."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from myrm_agent_harness.core.artifacts.paths import (
     ARTIFACT_VAULT_DIR_NAME,
     WORKSPACE_AGENT_DIR_NAME,
     resolve_workspace_artifact_vault_dir,
+    resolve_workspace_downloads_dir,
     workspace_vault_relative_parts,
 )
 
@@ -18,6 +19,15 @@ from myrm_agent_harness.core.artifacts.paths import (
 def test_default_vault_dir_under_agent(tmp_path: Path) -> None:
     assert resolve_workspace_artifact_vault_dir(tmp_path) == tmp_path / ".agent" / "vault"
     assert workspace_vault_relative_parts() == (WORKSPACE_AGENT_DIR_NAME, ARTIFACT_VAULT_DIR_NAME)
+
+
+def test_downloads_dir_sits_next_to_the_vault_under_agent(tmp_path: Path) -> None:
+    assert resolve_workspace_downloads_dir(tmp_path) == tmp_path / ".agent" / "downloads"
+
+
+def test_downloads_dir_does_not_follow_the_vault_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AGENT_WORKSPACE_VAULT_RELATIVE", "runtime/vault")
+    assert resolve_workspace_downloads_dir(tmp_path) == tmp_path / ".agent" / "downloads"
 
 
 def test_artifact_vault_uses_same_vault_dir(tmp_path: Path) -> None:

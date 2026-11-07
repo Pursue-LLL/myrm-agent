@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.download_config import _DEFAULT_ALLOWED_EXTENSIONS, DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download.config import _DEFAULT_ALLOWED_EXTENSIONS, DownloadConfig
 
 
 class TestDownloadConfig:
@@ -16,6 +16,9 @@ class TestDownloadConfig:
         assert cfg.download_timeout_s == 60.0
         assert cfg.max_concurrent_downloads == 3
         assert cfg.allowed_extensions is _DEFAULT_ALLOWED_EXTENSIONS
+        assert cfg.max_files == 200
+        assert cfg.max_total_mb == 1024
+        assert cfg.admit_page_started is None
 
     def test_custom_config(self, tmp_path: Path) -> None:
         cfg = DownloadConfig(

@@ -23,6 +23,9 @@ Dedicated to BrowserContext creation and configuration, including:
 7. Forwarding the session's ``allow_private_networks`` policy to the installed HTTP filter, so private-address
    handling follows the session's choice whether or not a domain list or resource blocking is attached
 8. STEALTH mode delivery of 13 anti-detection JS scripts (dual-layer defense: patchright CDP + document-response script injection via enhancers.inject_route)
+9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
+   every file a page starts in its temp dir until the context closes, so only a context whose owner passes
+   ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
 """
 
 from __future__ import annotations
@@ -51,6 +54,9 @@ _POLICY_KWARGS = frozenset({"domain_allowlist", "domain_blocklist", "resource_bl
 _DEFAULT_CONTEXT_OPTIONS: dict[str, object] = {
     "viewport": {"width": 1920, "height": 1080},
     "ignore_https_errors": True,
+    # The browser's own default saves every download a page starts and holds it until the context closes. A
+    # context keeps downloads only when its owner, who has a download manager to judge them, asks for it.
+    "accept_downloads": False,
     "extra_http_headers": {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",

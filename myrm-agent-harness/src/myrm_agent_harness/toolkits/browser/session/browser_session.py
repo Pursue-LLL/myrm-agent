@@ -29,8 +29,8 @@
 - session.browser_session_view_mixin::BrowserSessionViewMixin (POS: Browser Live Co-View SSE mixin)
 - session.view_update_payload::capture_browser_view_update_data (POS: shared browser inspector payload builder)
 - session.browser_session_network_mixin::BrowserSessionNetworkMixin (POS: console and network log APIs)
-- session.download_manager::DownloadManager (POS: file download management; judges every download before keeping it)
-- session.download_config::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
+- session.download::DownloadManager (POS: file download management; judges every download before keeping it)
+- session.download::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
 - session.dialog_manager::DialogManager, DialogPolicy (POS: JS dialog lifecycle management)
 
 [OUTPUT]
@@ -98,8 +98,7 @@ from .browser_session_view_mixin import BrowserSessionViewMixin
 from .console_logger import ConsoleLogger
 from .device_emulator import DeviceEmulator
 from .dialog_manager import DialogManager, DialogPolicy
-from .download_config import DownloadConfig
-from .download_manager import DownloadManager
+from .download import DownloadConfig, DownloadManager
 from .extractor import Extractor
 from .interactor import Interactor
 from .network import NetworkIntelligence, NetworkLogger
@@ -178,10 +177,10 @@ class BrowserSession(
             debug_mode: Enable debug mode
             domain_allowlist: Domain allowlist
             domain_blocklist: Domain blocklist (blocked domains)
-            download_config: Download configuration
+            download_config: Turns download support on (without one the session keeps no download); sets where files go and the limits
             auto_restore_domains: Domains to auto-restore session for
             captcha_solver: CAPTCHA solver
-            content_vault: Content vault for storing downloads/screenshots
+            content_vault: Content vault for long extracted text and long response bodies
             vision_llm: Vision LLM for visual tasks
             extension_bridge: Extension bridge for private URL fallback in sandbox mode
             allow_private_networks: Allow loopback/private-network targets (navigation and the context's request filter)

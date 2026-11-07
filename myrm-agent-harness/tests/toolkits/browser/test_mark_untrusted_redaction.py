@@ -124,7 +124,7 @@ async def test_navigate_redacted_and_wrapped() -> None:
 @pytest.mark.asyncio
 async def test_interact_redacted_and_wrapped() -> None:
     session = MagicMock()
-    session.list_downloads.return_value = []
+    session.download_enabled = False
     session.interact = AsyncMock(return_value="Clicked element with key sk-proj-abcdefghijklmnop1234567890")
     tool = create_interact_tool(session)  # type: ignore[arg-type]
 

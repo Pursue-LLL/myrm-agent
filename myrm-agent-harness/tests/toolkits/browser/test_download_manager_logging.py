@@ -2,9 +2,9 @@
 
 A download URL is untrusted input and often a signed one: the query holds the signature, the authority may hold a
 password, an opaque ``filesystem:`` URL the whole secret. Every line the manager logs about a download names the
-scheme, host and path, and nothing a URL can carry as a secret: the credentials before the host are dropped, the
-query and fragment are replaced by a marker, and what remains is masked before it is cut to the logged length, so a
-token that straddles the cut is not left half shown. The reason a refusal gives quotes the URL too, so the URL is
+scheme, host and path, and none of the parts of a URL that carry a secret: the credentials before the host are
+dropped, the query and fragment are replaced by a marker, and what remains is masked before it is cut to the logged
+length, so a token that straddles the cut is not left half shown. The reason a refusal gives quotes the URL too, so the URL is
 replaced in it by the logged form. A hostile page chooses the URL, so logging it is bounded work however long it is.
 """
 
@@ -22,15 +22,16 @@ from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import (
     BrowserNavigationBlockedError,
     assert_browser_navigation_allowed,
 )
-from myrm_agent_harness.toolkits.browser.session import download_manager
-from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager
+from myrm_agent_harness.toolkits.browser.session.download import manager as download_manager
+from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
+from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
 from myrm_agent_harness.toolkits.browser.session.network import RAW_PREVIEW_WINDOW
 from myrm_agent_harness.toolkits.browser.session.network import logger as network_logger
 from tests.support.fake_secrets import github_token
 from tests.toolkits.browser._download_doubles import download_of
 
-_MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download_manager"
+_MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download.manager"
 _SIGNATURE = "SIGNATURE-VALUE"
 _FRAGMENT = "frag-9f3"
 _LONG_PASSWORD = "S3CRET" + "x" * 90  # longer than the logged URL, so the cut falls inside it
@@ -61,6 +62,12 @@ async def _never_finishes(_path: str) -> None:
     await asyncio.sleep(3600)
 
 
+async def _page_starts(manager: DownloadManager, download: MagicMock) -> None:
+    """A page starts ``download`` by itself; return once the manager has dealt with it."""
+    manager._on_download(download)
+    await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+
+
 def _logged_lines(caplog: pytest.LogCaptureFixture, line: str) -> list[str]:
     messages = [record.getMessage() for record in caplog.records if line in record.getMessage()]
     assert messages, f"no log line with {line!r}; logged: {caplog.text!r}"
@@ -83,7 +90,8 @@ class TestDownloadLogs:
         page.evaluate = AsyncMock()
         page.expect_download = MagicMock(side_effect=RuntimeError("browser gone"))
 
-        assert await _manager(tmp_path).download_url(page, _signed()) is None
+        with pytest.raises(DownloadError):
+            await _manager(tmp_path).download_url(page, _signed())
 
         _assert_names_the_address_only(caplog, "Failed to download URL")
 
@@ -92,10 +100,7 @@ class TestDownloadLogs:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         verify = AsyncMock(side_effect=BrowserNavigationBlockedError("SSRF blocked: files.example is private"))
-        manager = _manager(tmp_path, verify)
-
-        manager._on_download(download_of(MagicMock(), _signed()))
-        await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
+        await _page_starts(_manager(tmp_path, verify), download_of(MagicMock(), _signed()))
 
         _assert_names_the_address_only(caplog, "Refused a download from")
 
@@ -106,9 +111,9 @@ class TestDownloadLogs:
         download = download_of(MagicMock(), _signed())
         download.save_as = AsyncMock(side_effect=_never_finishes)
 
-        assert await _manager(tmp_path, timeout_s=0.05)._process_download(download) is None
+        await _page_starts(_manager(tmp_path, timeout_s=0.05), download)
 
-        _assert_names_the_address_only(caplog, "Download timed out")
+        _assert_names_the_address_only(caplog, "not saved: saving did not finish")
 
     @pytest.mark.asyncio
     async def test_a_download_that_cannot_be_saved_logs_no_credentials(
@@ -117,9 +122,9 @@ class TestDownloadLogs:
         download = download_of(MagicMock(), _signed())
         download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
 
-        assert await _manager(tmp_path)._process_download(download) is None
+        await _page_starts(_manager(tmp_path), download)
 
-        _assert_names_the_address_only(caplog, "Download failed for")
+        _assert_names_the_address_only(caplog, "not saved: the browser could not save the file")
 
     @pytest.mark.asyncio
     async def test_a_password_longer_than_the_logged_url_is_never_shown(
@@ -128,9 +133,9 @@ class TestDownloadLogs:
         download = download_of(MagicMock(), _signed(f"user:{_LONG_PASSWORD}"))
         download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
 
-        await _manager(tmp_path)._process_download(download)
+        await _page_starts(_manager(tmp_path), download)
 
-        _assert_names_the_address_only(caplog, "Download failed for", "S3CRET")
+        _assert_names_the_address_only(caplog, "not saved", "S3CRET")
 
     @pytest.mark.asyncio
     async def test_a_token_that_straddles_the_cut_is_masked_whole(
@@ -141,9 +146,9 @@ class TestDownloadLogs:
         download = download_of(MagicMock(), f"https://files.example/{'x' * 49}/{token}")
         download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
 
-        await _manager(tmp_path)._process_download(download)
+        await _page_starts(_manager(tmp_path), download)
 
-        (message,) = _logged_lines(caplog, "Download failed for")
+        (message,) = _logged_lines(caplog, "not saved")
         assert token[:8] not in message
         assert "files.example" in message
 
@@ -154,10 +159,10 @@ class TestDownloadLogs:
         download = download_of(MagicMock(), f"https://files.example/{'p' * 500}")
         download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
 
-        await _manager(tmp_path)._process_download(download)
+        await _page_starts(_manager(tmp_path), download)
 
-        (message,) = _logged_lines(caplog, "Download failed for")
-        logged_url = message.removeprefix("Download failed for ").split(": ")[0]
+        (message,) = _logged_lines(caplog, "not saved")
+        logged_url = message.removeprefix("Download from ").split(" not saved")[0]
         assert len(logged_url) == download_manager._LOGGED_URL_LENGTH
         assert logged_url.endswith("\u2026")
 

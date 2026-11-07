@@ -2,6 +2,7 @@
 
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
+- tools.download_actions::run_download_url, list_downloads_report (POS: agent-facing text of the download actions)
 - domain_skills::DomainSkillStore (POS: executable-layer domain skill registry)
 
 [OUTPUT]
@@ -21,6 +22,7 @@ from langchain.tools import tool
 from pydantic import BaseModel, Field
 
 from .common import mark_untrusted
+from .download_actions import list_downloads_report, run_download_url
 
 logger = logging.getLogger(__name__)
 
@@ -199,23 +201,9 @@ def create_manage_tool(session: BrowserSession) -> BaseTool:
             case "delete_site_experience":
                 return _handle_delete_site_experience(value)
             case "download_url":
-                if not value.strip():
-                    return "Error: 'value' must be a URL to download"
-                result = await session.download_url(value.strip())
-                if result is None:
-                    return f"Download failed for: {value.strip()}"
-                return (
-                    f"Downloaded: {result.file_name} ({result.file_size} bytes)\n"
-                    f"Path: {result.path}\nType: {result.file_type or 'unknown'}"
-                )
+                return await run_download_url(session, value)
             case "list_downloads":
-                downloads = session.list_downloads()
-                if not downloads:
-                    return "No files downloaded yet."
-                lines = [f"Downloaded files ({len(downloads)}):"]
-                for dl in downloads:
-                    lines.append(f" - {dl.file_name} ({dl.file_size} bytes): {dl.path}")
-                return "\n".join(lines)
+                return list_downloads_report(session)
             case "run_site_tool":
                 return await _handle_run_site_tool(session, value)
             case "list_site_tools":

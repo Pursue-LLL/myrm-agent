@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.session.download import DownloadError
 from myrm_agent_harness.toolkits.browser.tools.manage import create_manage_tool
 
 
@@ -25,6 +26,7 @@ def _make_session() -> MagicMock:
     session.get_recording_status = MagicMock(return_value="idle")
     session.download_url = AsyncMock()
     session.list_downloads = MagicMock(return_value=[])
+    session.download_refusals = ()
     return session
 
 
@@ -177,10 +179,10 @@ class TestDownloadActions:
     @pytest.mark.asyncio
     async def test_download_url_failure(self) -> None:
         session = _make_session()
-        session.download_url = AsyncMock(return_value=None)
+        session.download_url = AsyncMock(side_effect=DownloadError("no download started within 60 s"))
         tool = create_manage_tool(session)
         result = await tool.ainvoke({"action": "download_url", "value": "https://example.com/bad"})
-        assert "failed" in result.lower()
+        assert "Download failed: no download started within 60 s" in result
 
     @pytest.mark.asyncio
     async def test_download_url_empty(self, manage_tool) -> None:

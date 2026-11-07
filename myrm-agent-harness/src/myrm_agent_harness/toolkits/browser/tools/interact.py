@@ -2,6 +2,7 @@
 
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
+- tools.download_actions::describe_download_activity (POS: agent-facing text of the download actions)
 - session.browser_session::BrowserSession (POS: browser session aggregate root; semantic guard in interact)
 
 [OUTPUT]
@@ -24,11 +25,17 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import RefNotFoundError
 from .common import mark_untrusted
+from .download_actions import describe_download_activity
 
 if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
     from ..session import BrowserSession
 
 logger = logging.getLogger(__name__)
+
+# A click starts its download a moment after it returns; the report then waits for the downloads in flight.
+_DOWNLOAD_START_GRACE_S = 0.5
 
 
 class InteractStep(BaseModel):
@@ -113,7 +120,7 @@ def _build_interact_input_model(*, labels_str: str) -> type[BaseModel]:
     return InteractInput
 
 
-def create_interact_tool(session: BrowserSession):
+def create_interact_tool(session: BrowserSession) -> BaseTool:
     """Create browser_interact tool bound to session."""
 
     from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
@@ -124,17 +131,13 @@ def create_interact_tool(session: BrowserSession):
     InteractInput = _build_interact_input_model(labels_str=labels_str)  # noqa: N806  # dynamically built model class
 
     async def _run_single(action: str, ref: str, text: str, verify_goal: str | None) -> str:
-        count_before = len(session.list_downloads())
+        mark = session.download_mark()
         result = await session.interact(action, ref, text, verify_goal=verify_goal)
 
         if action in ("click", "dblclick") and session.download_enabled:
-            await asyncio.sleep(0.5)
-            if len(session.list_downloads()) > count_before:
-                latest = session.last_download
-                if latest:
-                    result = (
-                        f"{result}\nFile downloaded: {latest.file_name} ({latest.file_size} bytes)\nPath: {latest.path}"
-                    )
+            await asyncio.sleep(_DOWNLOAD_START_GRACE_S)
+            if notes := describe_download_activity(await session.downloads_since(mark)):
+                result = f"{result}\n{notes}"
         return result
 
     @tool("browser_interact_tool", args_schema=InteractInput)

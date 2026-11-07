@@ -16,7 +16,6 @@ def mock_session() -> MagicMock:
     mock_page.url = "https://example.com/form"
     session.get_active_page.return_value = mock_page
     session.download_enabled = False
-    session.list_downloads.return_value = []
     session.interact = AsyncMock(return_value="Action executed successfully")
     return session
 

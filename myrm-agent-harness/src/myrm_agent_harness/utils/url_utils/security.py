@@ -174,12 +174,13 @@ _UNREADABLE_URL = "invalid_or_redacted_url"
 
 
 def sanitize_url_for_error(url: str, max_length: int = 50) -> str:
-    """Sanitize a URL for error messages and logs: where it points, and nothing it can carry as a secret.
+    """Sanitize a URL for error messages and logs: where it points, without the parts that usually carry a secret.
 
     Shows the scheme, host and path. The credentials before the ``@`` of the authority are dropped, the query and
     fragment are replaced by a marker, a URL with no ``//`` after its scheme (``blob:``, ``data:``, ``filesystem:``,
     ``javascript:``) is opaque and shows its scheme alone, and a text that is no URL shows a fixed placeholder.
-    Never raises.
+    The path is shown as it is: a secret a service puts in its path (a token segment) is shown too, so a caller
+    that logs a URL it did not write masks the result as well. Never raises.
 
     Args:
         url: Original URL

@@ -4,7 +4,8 @@
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- DownloadConfig: frozen settings of a download manager (directory, size limit, timeout, concurrency, allowed extensions)
+- DownloadConfig: frozen settings of a download manager (directory, size limits, quota, timeout, concurrency, allowed extensions, the policy for downloads a page starts)
+- PageStartedPolicy: decides whether a download a page started by itself may be kept
 
 [POS]
 Download settings, kept apart from the manager that applies them. ``BrowserSession`` takes a ``DownloadConfig`` to turn
@@ -14,6 +15,7 @@ accept no download at all.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -79,12 +81,27 @@ _DEFAULT_ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
 )
 
 
+# Called with the address a download the page started by itself came from (the page's own address for one it built
+# itself); only a True answer lets it be kept. A page starts downloads without any call the agent made, so there is no
+# moment to ask anybody: the policy has to decide beforehand.
+type PageStartedPolicy = Callable[[str], bool]
+
+
 @dataclass(frozen=True)
 class DownloadConfig:
-    """Download configuration."""
+    """Download configuration.
+
+    ``max_files`` and ``max_total_mb`` cap what the downloads directory holds. They are read from the directory
+    itself, so they hold across sessions that share it; downloads saving at the same moment can overshoot them by
+    what they save together. ``admit_page_started`` left ``None`` lets every download that passes the address check
+    be kept.
+    """
 
     downloads_dir: Path = field(default_factory=lambda: resolve_data_dir() / "downloads")
     max_file_size_mb: int = 100
     download_timeout_s: float = 60.0
     max_concurrent_downloads: int = 3
     allowed_extensions: frozenset[str] = _DEFAULT_ALLOWED_EXTENSIONS
+    max_files: int = 200
+    max_total_mb: int = 1024
+    admit_page_started: PageStartedPolicy | None = None

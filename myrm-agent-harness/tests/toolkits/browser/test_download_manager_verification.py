@@ -21,12 +21,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
-from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
-from myrm_agent_harness.toolkits.browser.session.download_manager import _START_NAVIGATION_JS, DownloadManager
-from tests.toolkits.browser._download_doubles import DEFAULT_FINAL_URL, download_of, requesting_page
+from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
+from myrm_agent_harness.toolkits.browser.session.download.manager import _START_NAVIGATION_JS, DownloadManager
+from tests.toolkits.browser._download_doubles import DEFAULT_FINAL_URL, download_of, kept_files, requesting_page
 
 _REQUEST_URL = "https://public.example/go"
-_MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download_manager"
+_MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download.manager"
 
 
 async def _let_listener_tasks_finish(manager: DownloadManager) -> None:
@@ -110,7 +111,7 @@ class TestFinalAddressVerification:
         download.delete.assert_awaited_once()
         download.save_as.assert_not_awaited()
         assert manager.downloads == []
-        assert list(downloads_dir.iterdir()) == []
+        assert kept_files(downloads_dir) == []
 
     @pytest.mark.asyncio
     async def test_a_verifier_that_cannot_judge_fails_closed(
@@ -119,12 +120,13 @@ class TestFinalAddressVerification:
         page, download = requesting_page()
         verify.side_effect = RuntimeError("resolver unavailable")
 
-        assert await manager.download_url(page, _REQUEST_URL) is None
+        with pytest.raises(DownloadError, match="could not complete the download"):
+            await manager.download_url(page, _REQUEST_URL)
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
         download.save_as.assert_not_awaited()
-        assert list(downloads_dir.iterdir()) == []
+        assert kept_files(downloads_dir) == []
 
 
 class TestPageStartedDownloads:
@@ -165,7 +167,7 @@ class TestPageStartedDownloads:
         download.delete.assert_awaited_once()
         download.save_as.assert_not_awaited()
         assert manager.downloads == []
-        assert list(downloads_dir.iterdir()) == []
+        assert kept_files(downloads_dir) == []
         assert "Refused a download from" in caplog.text
         assert "127.0.0.1:9/secret.txt" in caplog.text
         assert "hunter2" not in caplog.text
@@ -276,7 +278,7 @@ class TestRequestClaim:
         second.delete.assert_awaited_once()
         second.save_as.assert_not_awaited()
         assert [saved.url for saved in manager.downloads] == [first.url]
-        assert len(list(downloads_dir.iterdir())) == 1
+        assert len(kept_files(downloads_dir)) == 1
 
     @pytest.mark.asyncio
     async def test_a_download_of_another_page_is_still_saved_by_its_listener(self, manager: DownloadManager) -> None:
@@ -315,7 +317,8 @@ class TestRequestClaim:
         page.evaluate = AsyncMock()
         page.expect_download = MagicMock(side_effect=TimeoutError("no download started"))
 
-        assert await manager.download_url(page, _REQUEST_URL) is None
+        with pytest.raises(DownloadError, match="no download started within"):
+            await manager.download_url(page, _REQUEST_URL)
 
         manager._on_download(download_of(page, "https://cdn.example/later.txt"))
         await _let_listener_tasks_finish(manager)

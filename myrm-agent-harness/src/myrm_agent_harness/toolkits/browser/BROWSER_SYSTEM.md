@@ -802,7 +802,7 @@ navigate(url="localhost:3000")       → DENY (Sandbox) / ALLOW (Local)
 
 ### 信任边界标记
 
-浏览器工具返回的所有外部内容（snapshot / extract / inspect / navigate / interact / evaluate / execute_script / console / network / web_vitals / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，提供 5 层安全防护：
+浏览器工具返回的所有外部内容（snapshot / extract / inspect / navigate / interact / evaluate / execute_script / console / network / web_vitals / download_url / list_downloads / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，提供 5 层安全防护：
 
 ```
 [SECURITY NOTICE: UNTRUSTED external content below...]
@@ -1151,6 +1151,7 @@ browser/
 │   ├── interact.py — browser_interact_tool（含 Semantic DOM Guard）
 │   ├── extract.py — browser_extract_tool
 │   ├── manage.py — browser_manage_tool
+│   ├── download_actions.py — download_url / list_downloads 的结果与点击之后的下载汇总（文件名与原因按不可信内容包装）
 │   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
@@ -1163,7 +1164,7 @@ browser/
 │   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
 │   ├── browser_launcher.py (~580 行) — BrowserLauncher（Chromium + Camoufox 启动前 sanitize_env + Zero-config Chromium 自动安装 with CDN mirror fallback + Camoufox 指纹持久化 + 损坏自愈 + Camoufox 启动前就绪闸门）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
-│   ├── context_factory.py (156 行) — ContextFactory（Context 工厂）
+│   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
 │   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；页面崩溃只为在用页面归还许可）
@@ -1191,7 +1192,7 @@ browser/
 │   ├── browser_session_extraction_mixin.py — 内容提取、vision fallback、截图对比
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
 │   ├── browser_session_interaction_mixin.py — interact（ref 操作）/ interact_at（坐标操作）及可选视觉校验
-│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定）/ 下载记录读取
+│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定；返回保存结果，不保留则抛带原因的 DownloadError）/ 下载记录与页面发起下载的拒绝记录读取
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
 │   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误
@@ -1214,8 +1215,7 @@ browser/
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证
 │   ├── dialog_manager.py — JS dialog 生命周期
-│   ├── download_manager.py — 文件下载（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）
-│   ├── download_config.py — DownloadConfig（下载目录、体积上限、超时、并发、扩展名白名单）；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载
+│   ├── download/ — 文件下载：DownloadConfig（下载目录、体积上限、配额、超时、并发、扩展名白名单、页面发起下载的放行策略；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载）、DownloadManager（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）、DownloadStorage（独占创建的唯一文件名、目录配额）、记录与 DownloadError
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/

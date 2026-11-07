@@ -1,10 +1,11 @@
-"""``sanitize_url_for_error`` shows where a URL points and nothing it can carry as a secret.
+"""``sanitize_url_for_error`` shows where a URL points, without the parts that usually carry a secret.
 
 A URL that reaches an error message or a log line is untrusted input, often a credentialed one: the authority holds a
 password, the query a signature, an opaque ``data:`` or ``filesystem:`` URL the whole secret. What is shown is the
 scheme, host and path. The query and fragment are replaced by a marker, the credentials before the ``@`` are dropped,
-an opaque URL is shown as its scheme alone, and a text that is no URL is shown as a fixed placeholder. The function
-never raises, whatever it is given.
+an opaque URL is shown as its scheme alone, and a text that is no URL is shown as a fixed placeholder. The path is
+shown as it is, so a secret a service puts in its path is the caller's to mask. The function never raises, whatever it
+is given.
 """
 
 from __future__ import annotations
@@ -32,6 +33,12 @@ _SECRET = "SIGSECRET9f3a"
 )
 def test_an_ordinary_url_shows_its_scheme_host_and_path(url: str, shown: str) -> None:
     assert sanitize_url_for_error(url, max_length=100) == shown
+
+
+def test_a_secret_in_the_path_is_shown_for_the_caller_to_mask() -> None:
+    url = f"https://api.example.com/bot123456:{_SECRET}/getMe"
+
+    assert sanitize_url_for_error(url, max_length=100) == url
 
 
 @pytest.mark.parametrize(

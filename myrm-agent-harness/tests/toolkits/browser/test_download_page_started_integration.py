@@ -24,19 +24,20 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.toolkits.browser import BrowserSession, enhancers
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadResult
+from myrm_agent_harness.toolkits.browser.session.download import DownloadResult
 from tests.toolkits.browser._browser_available import chromium_available
+from tests.toolkits.browser._download_doubles import kept_files
 from tests.toolkits.browser._download_integration import (
     DNS_ANSWERS,
     DOWNLOAD_TIMEOUT_S,
     SECRET_FILE,
     SETTLE_S,
     attachment,
+    delay_verdicts,
     kept_by_browser,
     kept_by_browser_once_settled,
     open_session,
     point_browser_tmpdir,
-    saved_names,
     start_page_navigation,
     until,
 )
@@ -88,26 +89,9 @@ async def _until_judged(session: BrowserSession, caplog: pytest.LogCaptureFixtur
     await until(lambda: "Refused a download" in caplog.text or bool(session.list_downloads()))
 
 
-def _delay_verdicts(monkeypatch: pytest.MonkeyPatch, seconds: float) -> list[str]:
-    """Hold back the verdict on where a download came from; what the verdict says is unchanged.
-
-    Returns the addresses asked about so far, in order, so a test can tell which download is being judged.
-    """
-    judge = BrowserSession._assert_download_final_url_allowed
-    asked: list[str] = []
-
-    async def verdict_after_a_while(session: BrowserSession, url: str) -> None:
-        asked.append(url)
-        await asyncio.sleep(seconds)
-        await judge(session, url)
-
-    monkeypatch.setattr(BrowserSession, "_assert_download_final_url_allowed", verdict_after_a_while)
-    return asked
-
-
 async def _page_starts_a_download_while_a_request_waits(
     session: BrowserSession, asked: list[str], requested_url: str, started_url: str
-) -> DownloadResult | None:
+) -> DownloadResult:
     """Request ``requested_url``; while it waits on its verdict, the page starts a download from ``started_url``.
 
     Returns the request's result once the second download has got its verdict request too.
@@ -141,7 +125,7 @@ class TestDownloadsThePageStartsItself:
 
                 assert session.list_downloads() == []
                 assert await kept_by_browser_once_settled(browser_tmp) == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
             assert service.hits == [("GET", "/creds")]  # only keeping the body is refused; the request was made
 
     @pytest.mark.parametrize(
@@ -160,7 +144,7 @@ class TestDownloadsThePageStartsItself:
     ) -> None:
         # A verdict that comes after the body is complete finds nothing to cancel: the refusal has to delete it.
         if verdict_delay_s:
-            _delay_verdicts(monkeypatch, verdict_delay_s)
+            delay_verdicts(monkeypatch, verdict_delay_s)
         with (
             serve({"/secret.txt": SECRET_FILE}) as internal,
             serve({"/home": page("home"), "/go": redirect(internal.url("/secret.txt"))}) as site,
@@ -173,7 +157,7 @@ class TestDownloadsThePageStartsItself:
 
                 assert session.list_downloads() == []
                 assert await kept_by_browser_once_settled(browser_tmp) == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
             assert internal.paths() == ["/secret.txt"]
 
     async def test_a_refused_download_whose_body_is_still_arriving_is_stopped_and_nothing_is_kept(
@@ -187,7 +171,7 @@ class TestDownloadsThePageStartsItself:
         # in front of the browser while the route is in place. Deleting waits for a download to finish: only
         # cancelling gets rid of a body that never does.
         monkeypatch.setattr(enhancers, "get_dom_enhancer_script", lambda: "")
-        _delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        delay_verdicts(monkeypatch, _LATE_VERDICT_S)
         stalled_secret = replace(
             attachment("secret.txt", _STALLED_BODY), declared_length=_STALLED_BODY_LENGTH, hold_open_s=_STALL_S
         )
@@ -201,7 +185,7 @@ class TestDownloadsThePageStartsItself:
 
                 assert session.list_downloads() == []
                 assert await kept_by_browser_once_settled(browser_tmp) == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
 
     @pytest.mark.parametrize("filtered", [True, False], ids=["filtered", "unfiltered"])
     async def test_a_public_download_is_saved_once_and_the_browser_keeps_nothing_of_it(
@@ -216,7 +200,7 @@ class TestDownloadsThePageStartsItself:
 
                 assert [Path(saved.path).read_bytes() for saved in session.list_downloads()] == [b"hello"]
                 assert await kept_by_browser_once_settled(browser_tmp) == []  # the saved copy is the only one
-            assert saved_names(downloads_dir) == ["a.txt"]
+            assert kept_files(downloads_dir) == ["a.txt"]
 
     async def test_a_download_the_page_builds_itself_names_no_address_and_is_saved(self, downloads_dir: Path) -> None:
         with serve({"/home": page("home")}) as site:
@@ -235,7 +219,7 @@ class TestDownloadsWhileARequestWaits:
     async def test_a_second_public_download_is_saved_next_to_the_requested_one(
         self, downloads_dir: Path, browser_tmp: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        asked = _delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        asked = delay_verdicts(monkeypatch, _LATE_VERDICT_S)
         with (
             serve({"/home": page("home"), "/first": attachment("first.txt", b"first")}) as site,
             serve({"/second": attachment("second.txt", b"second")}) as other,
@@ -254,7 +238,7 @@ class TestDownloadsWhileARequestWaits:
                     b"second",
                 ]
                 assert await kept_by_browser_once_settled(browser_tmp) == []
-            assert saved_names(downloads_dir) == ["first.txt", "second.txt"]
+            assert kept_files(downloads_dir) == ["first.txt", "second.txt"]
 
     async def test_a_second_download_from_a_metadata_hostname_is_discarded_and_nothing_is_kept(
         self,
@@ -263,7 +247,7 @@ class TestDownloadsWhileARequestWaits:
         caplog: pytest.LogCaptureFixture,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        asked = _delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        asked = delay_verdicts(monkeypatch, _LATE_VERDICT_S)
         with (
             serve({"/home": page("home"), "/first": attachment("first.txt", b"first")}) as site,
             serve({"/creds": SECRET_FILE}) as service,
@@ -279,7 +263,7 @@ class TestDownloadsWhileARequestWaits:
                 assert result is not None
                 assert [Path(saved.path).read_bytes() for saved in session.list_downloads()] == [b"first"]
                 assert await kept_by_browser_once_settled(browser_tmp) == []
-            assert saved_names(downloads_dir) == ["first.txt"]
+            assert kept_files(downloads_dir) == ["first.txt"]
             assert service.hits == [("GET", "/creds")]  # only keeping the body is refused; the request was made
 
 

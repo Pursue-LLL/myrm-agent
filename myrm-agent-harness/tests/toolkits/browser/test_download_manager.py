@@ -9,8 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager, DownloadResult
+from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
+from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
+from myrm_agent_harness.toolkits.browser.session.download.records import DownloadResult
 from tests.toolkits.browser._download_doubles import ExpectDownload
 
 # =============================================================================
@@ -101,18 +103,18 @@ class TestDownloadResult:
 
 
 class TestDownloadManagerInit:
-    def test_init_creates_directory(self, tmp_path: Path) -> None:
+    def test_init_touches_no_disk(self, tmp_path: Path) -> None:
+        """A workspace whose chats never download gets no downloads directory."""
         dl_dir = tmp_path / "new_dir" / "nested"
-        cfg = DownloadConfig(downloads_dir=dl_dir)
-        DownloadManager(cfg, verify_final_url=_allow_every_address)
-        assert dl_dir.exists()
+        DownloadManager(DownloadConfig(downloads_dir=dl_dir), verify_final_url=_allow_every_address)
+        assert not dl_dir.exists()
 
     def test_init_default_config(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             cfg = DownloadConfig(downloads_dir=Path(d))
             dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
             assert dm.downloads == []
-            assert dm.last_download is None
+            assert dm.refusals == ()
 
 
 class TestDownloadManagerAttach:
@@ -145,12 +147,10 @@ class TestDownloadManagerProcessDownload:
         dl = _make_download_mock()
         result = await manager._process_download(dl)
 
-        assert result is not None
         assert result.file_name == "file.pdf"
         assert result.file_type == "pdf"
         assert Path(result.path).exists()
         assert manager.downloads == [result]
-        assert manager.last_download is result
 
     @pytest.mark.asyncio
     async def test_disallowed_extension_rejected(self, tmp_downloads: Path) -> None:
@@ -163,8 +163,8 @@ class TestDownloadManagerProcessDownload:
             url="https://x.com/malware.exe",
             suggested_filename="malware.exe",
         )
-        result = await dm._process_download(dl)
-        assert result is None
+        with pytest.raises(DownloadError, match=r'file type "\.exe" is not allowed'):
+            await dm._process_download(dl)
         dl.cancel.assert_awaited_once()
         dl.delete.assert_awaited_once()  # a body that already finished is not left in the browser's temp dir
 
@@ -176,59 +176,24 @@ class TestDownloadManagerProcessDownload:
         )
         dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
         dl = _make_download_mock(save_content=b"some content")
-        result = await dm._process_download(dl)
-        assert result is None
+        with pytest.raises(DownloadError, match="larger than 0 MB"):
+            await dm._process_download(dl)
 
     @pytest.mark.asyncio
     async def test_save_failure(self, manager: DownloadManager) -> None:
         dl = _make_download_mock(failure_msg="network error")
-        result = await manager._process_download(dl)
-        assert result is None
+        with pytest.raises(DownloadError, match="could not save"):
+            await manager._process_download(dl)
         assert manager.downloads == []
 
     @pytest.mark.asyncio
-    async def test_url_deduplication(self, manager: DownloadManager) -> None:
-        dl1 = _make_download_mock()
-        dl2 = _make_download_mock()
+    async def test_downloads_with_one_name_are_saved_under_distinct_names(self, manager: DownloadManager) -> None:
+        r1 = await manager._process_download(_make_download_mock())
+        r2 = await manager._process_download(_make_download_mock())
 
-        r1 = await manager._process_download(dl1)
-        r2 = await manager._process_download(dl2)
-
-        assert r1 is not None
-        assert r2 is not None
         assert r1.file_name == "file.pdf"
         assert r2.file_name == "file (1).pdf"
         assert len(manager.downloads) == 2
-
-
-class TestDownloadManagerSanitize:
-    @pytest.mark.parametrize(
-        ("input_name", "expected"),
-        [
-            ("normal.pdf", "normal.pdf"),
-            ("../../etc/passwd", "passwd"),
-            ("file<name>.txt", "file_name_.txt"),
-            (" . . ", "download"),
-            ("file:with:colons.doc", "file_with_colons.doc"),
-        ],
-    )
-    def test_sanitize_filename(self, input_name: str, expected: str) -> None:
-        assert DownloadManager._sanitize_filename(input_name) == expected
-
-
-class TestDownloadManagerUniqueFilename:
-    def test_no_conflict(self, manager: DownloadManager) -> None:
-        assert manager._generate_unique_filename("report.pdf") == "report.pdf"
-
-    def test_with_conflict(self, manager: DownloadManager, tmp_downloads: Path) -> None:
-        (tmp_downloads / "report.pdf").touch()
-        assert manager._generate_unique_filename("report.pdf") == "report (1).pdf"
-
-    def test_multiple_conflicts(self, manager: DownloadManager, tmp_downloads: Path) -> None:
-        (tmp_downloads / "report.pdf").touch()
-        (tmp_downloads / "report (1).pdf").touch()
-        (tmp_downloads / "report (2).pdf").touch()
-        assert manager._generate_unique_filename("report.pdf") == "report (3).pdf"
 
 
 # =============================================================================
@@ -244,26 +209,40 @@ class TestDownloadUrl:
         page.expect_download = lambda **_kw: ExpectDownload(download_mock)
 
         result = await manager.download_url(page, "https://x.com/data.csv")
-        assert result is not None
         assert result.file_name == "data.csv"
 
     @pytest.mark.asyncio
-    async def test_download_url_dedup(self, manager: DownloadManager) -> None:
-        dl = _make_download_mock(url="https://x.com/f.pdf")
-        await manager._process_download(dl)
-
+    async def test_download_url_asks_the_page_again_for_a_url_it_saved_before(self, manager: DownloadManager) -> None:
+        """What a URL serves can change: a file kept from an earlier request must not stand in for the new one."""
         page = _make_page_mock()
-        result = await manager.download_url(page, "https://x.com/f.pdf")
-        assert result is not None
-        assert result.url == "https://x.com/f.pdf"
+        served = [
+            _make_download_mock(url="https://x.com/f.pdf", suggested_filename="f.pdf", save_content=b"first"),
+            _make_download_mock(url="https://x.com/f.pdf", suggested_filename="f.pdf", save_content=b"second"),
+        ]
+        page.expect_download = lambda **_kw: ExpectDownload(served.pop(0))
+
+        first = await manager.download_url(page, "https://x.com/f.pdf")
+        second = await manager.download_url(page, "https://x.com/f.pdf")
+
+        assert page.evaluate.await_count == 2
+        assert (Path(first.path).read_bytes(), Path(second.path).read_bytes()) == (b"first", b"second")
+        assert second.file_name == "f (1).pdf"
 
     @pytest.mark.asyncio
-    async def test_download_url_failure(self, manager: DownloadManager) -> None:
+    async def test_download_url_failure_says_why(self, manager: DownloadManager) -> None:
         page = _make_page_mock()
         page.expect_download = MagicMock(side_effect=Exception("error"))
 
-        result = await manager.download_url(page, "https://x.com/broken")
-        assert result is None
+        with pytest.raises(DownloadError, match="could not complete the download"):
+            await manager.download_url(page, "https://x.com/broken")
+
+    @pytest.mark.asyncio
+    async def test_download_url_that_starts_no_download_says_it_timed_out(self, manager: DownloadManager) -> None:
+        page = _make_page_mock()
+        page.expect_download = MagicMock(side_effect=TimeoutError("no download started"))
+
+        with pytest.raises(DownloadError, match=r"no download started within 5 s \(the address may open a page"):
+            await manager.download_url(page, "https://x.com/page", timeout=5.0)
 
 
 class TestCleanup:

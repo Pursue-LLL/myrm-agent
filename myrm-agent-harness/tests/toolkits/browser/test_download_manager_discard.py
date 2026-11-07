@@ -22,9 +22,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
-from myrm_agent_harness.toolkits.browser.session import download_manager
-from myrm_agent_harness.toolkits.browser.session.download_config import DownloadConfig
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadManager
+from myrm_agent_harness.toolkits.browser.session.download import manager as download_manager
+from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
+from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
+from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
 from tests.toolkits.browser._download_doubles import DEFAULT_FINAL_URL, download_of, requesting_page, waiting_page
 
 _REQUEST_URL = "https://public.example/go"
@@ -76,7 +77,8 @@ class TestGivingUp:
         page.evaluate = AsyncMock()
         page.expect_download = MagicMock(side_effect=TimeoutError("no download started"))
 
-        assert await manager.download_url(page, _REQUEST_URL) is None
+        with pytest.raises(DownloadError, match="no download started within"):
+            await manager.download_url(page, _REQUEST_URL)
 
         abort_navigation.assert_awaited_once_with(page)
 
@@ -87,7 +89,8 @@ class TestGivingUp:
         page = waiting_page()
         page.evaluate.side_effect = RuntimeError("page crashed")
 
-        assert await manager.download_url(page, _REQUEST_URL) is None
+        with pytest.raises(DownloadError, match="could not complete the download"):
+            await manager.download_url(page, _REQUEST_URL)
 
         abort_navigation.assert_awaited_once_with(page)
 
@@ -304,7 +307,7 @@ class TestWhatTheBrowserKeepsOfAProcessedDownload:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "outcome",
-        ["saved", "disallowed-extension", "save-timeout", "save-failure", "too-large", "nothing-written"],
+        ["saved", "disallowed-extension", "save-timeout", "save-failure", "too-large", "file-vanished"],
     )
     async def test_the_browsers_copy_is_released_exactly_once(
         self, tmp_path: Path, verify: AsyncMock, outcome: str
@@ -321,14 +324,18 @@ class TestWhatTheBrowserKeepsOfAProcessedDownload:
                 download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
             case "too-large":
                 limit_mb = 0
-            case "nothing-written":
-                download.save_as = AsyncMock()
+            case "file-vanished":
+                download.save_as = AsyncMock(side_effect=lambda path: Path(path).unlink())
         config = DownloadConfig(
             downloads_dir=tmp_path / "downloads", download_timeout_s=timeout_s, max_file_size_mb=limit_mb
         )
         manager = DownloadManager(config, verify_final_url=verify)
 
-        await manager._process_download(download)
+        if outcome == "saved":
+            await manager._process_download(download)
+        else:
+            with pytest.raises(DownloadError):
+                await manager._process_download(download)
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()

@@ -26,6 +26,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser import BrowserSession
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
 from tests.toolkits.browser._browser_available import chromium_available
+from tests.toolkits.browser._download_doubles import kept_files
 from tests.toolkits.browser._download_integration import (
     DNS_ANSWERS,
     SECRET_FILE,
@@ -35,7 +36,6 @@ from tests.toolkits.browser._download_integration import (
     kept_by_browser_once_settled,
     open_session,
     point_browser_tmpdir,
-    saved_names,
     start_page_navigation,
     until,
 )
@@ -93,7 +93,7 @@ class TestRedirectOutOfThePublicInternet:
                 await asyncio.sleep(SETTLE_S)
 
                 assert session.list_downloads() == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
 
     async def test_a_redirect_that_lands_on_an_internal_page_leaves_the_tab_blank(self, downloads_dir: Path) -> None:
         internal_page = page("INTERNAL-PAGE-CONTENT")
@@ -121,7 +121,7 @@ class TestRedirectOutOfThePublicInternet:
                 assert Path(result.path).read_bytes() == b"hello"
                 assert len(session.list_downloads()) == 1
                 assert await kept_by_browser_once_settled(browser_tmp) == []  # the saved copy is the only one
-            assert saved_names(downloads_dir) == ["a.txt"]
+            assert kept_files(downloads_dir) == ["a.txt"]
 
 
 class TestLocalMode:
@@ -138,7 +138,7 @@ class TestLocalMode:
 
                 assert result is not None
                 assert len(session.list_downloads()) == 1
-                assert saved_names(downloads_dir) == ["a.txt"]
+                assert kept_files(downloads_dir) == ["a.txt"]
 
                 # a download the page starts itself is still the listener's to save
                 await start_page_navigation(session, site.url("/file"))
@@ -157,7 +157,7 @@ class TestLocalMode:
                 await asyncio.sleep(SETTLE_S)
 
                 assert session.list_downloads() == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
 
     async def test_a_hostname_that_resolves_to_cloud_metadata_is_never_dialed(self, downloads_dir: Path) -> None:
         with serve({"/creds": SECRET_FILE}) as service:
@@ -201,7 +201,7 @@ class TestAbandonedRequests:
 
                 assert session.list_downloads() == []
                 assert kept_by_browser(browser_tmp) == []
-            assert saved_names(downloads_dir) == []
+            assert kept_files(downloads_dir) == []
             assert site.paths() == ["/slow"]
 
     async def test_a_page_that_would_arrive_after_the_request_is_gone_never_replaces_the_tab(
