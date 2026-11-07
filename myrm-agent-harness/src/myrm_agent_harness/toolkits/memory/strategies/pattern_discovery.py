@@ -4,6 +4,8 @@
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
+- strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
+- strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
 [OUTPUT]
 - PatternReport: Immutable result of a pattern discovery cycle.
@@ -29,14 +31,21 @@ import contextlib
 import hashlib
 import logging
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import AliasChoices, BaseModel, Field
 
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
+    PatternReport,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import (
+    _SYSTEM_PROMPT,
+    _build_discovery_prompt,
+)
 from myrm_agent_harness.utils.coercion import parse_int
 
 if TYPE_CHECKING:
@@ -53,73 +62,6 @@ _MIN_CONSOLIDATION_COUNT = 3
 # Gate thresholds for promoting a pattern to a ProceduralRule.
 # Only "established" patterns with high confidence become actionable rules.
 _RULE_PROMOTION_MIN_CONFIDENCE = 0.8
-
-
-class PatternDurability(StrEnum):
-    """How stable a discovered pattern is over time."""
-
-    EMERGING = "emerging"
-    ESTABLISHED = "established"
-    DECLINING = "declining"
-
-
-class DiscoveredPattern(BaseModel):
-    """A single behavioral or knowledge pattern found across memory cycles."""
-
-    title: str = Field(
-        validation_alias=AliasChoices("title", "category"),
-        description="Short pattern name (< 60 chars)",
-    )
-    description: str = Field(description="What this pattern means for the user")
-    evidence_summary: str = Field(
-        validation_alias=AliasChoices("evidence_summary", "evidence"),
-        description="Key memories or events supporting this pattern",
-    )
-    durability: PatternDurability = Field(default=PatternDurability.EMERGING)
-    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
-    actionable_suggestion: str = Field(
-        default="",
-        validation_alias=AliasChoices("actionable_suggestion", "suggestion"),
-        description="Optional proactive suggestion the agent can surface to the user",
-    )
-
-
-class PatternDiscoveryResponse(BaseModel):
-    """Structured LLM output for pattern discovery."""
-
-    patterns: list[DiscoveredPattern] = Field(default_factory=list)
-    meta_observation: str = Field(
-        default="",
-        description="High-level observation about the user's overall behavior trajectory",
-    )
-
-
-@dataclass(frozen=True)
-class PatternReport:
-    """Immutable result of a pattern discovery cycle."""
-
-    patterns: tuple[DiscoveredPattern, ...] = ()
-    meta_observation: str = ""
-    memory_count: int = 0
-    insight_count: int = 0
-    duration_ms: float = 0.0
-    skipped: bool = False
-    skip_reason: str = ""
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "patterns": [p.model_dump() for p in self.patterns],
-            "meta_observation": self.meta_observation,
-            "memory_count": self.memory_count,
-            "insight_count": self.insight_count,
-            "duration_ms": self.duration_ms,
-            "skipped": self.skipped,
-            "skip_reason": self.skip_reason,
-        }
-
-    @property
-    def has_patterns(self) -> bool:
-        return len(self.patterns) > 0
 
 
 async def should_run_pattern_discovery(manager: MemoryManager) -> bool:
@@ -156,78 +98,6 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
     raw = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
     current = parse_int(raw, 0, min_val=0)
     await manager.set_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
-
-
-_SYSTEM_PROMPT = """You are a behavioral pattern analyst. Given a user's accumulated memories, consolidation insights, and knowledge claims, identify cross-cycle behavioral patterns the user may not be aware of.
-
-Focus on:
-1. **Recurring work habits** — repeated actions, schedules, or routines visible across multiple sessions
-2. **Knowledge evolution** — topics where the user's understanding has shifted over time
-3. **Unresolved threads** — questions, concerns, or tasks that appear repeatedly without closure
-4. **Preference drift** — changes in tool choices, frameworks, or approaches over time
-5. **Blind spots** — important areas that appear in context but the user never directly addresses
-
-## Rules
-- Only report patterns supported by multiple memories (not single observations).
-- Be specific: cite time ranges, frequencies, or concrete examples from the evidence.
-- Mark durability: "emerging" (seen in recent 1-2 cycles), "established" (3+ cycles), "declining" (was active, now fading).
-- Provide actionable suggestions where appropriate (the agent will present these proactively).
-- Keep the original language of the memories (Chinese stays Chinese, English stays English).
-- Maximum 5 patterns per analysis.
-- Do NOT invent patterns not supported by the evidence.
-
-## Output
-Return a JSON object only (no markdown fences) with these exact fields:
-
-```json
-{
-  "patterns": [
-    {
-      "title": "short pattern name under 60 characters",
-      "description": "what this pattern means for the user",
-      "evidence_summary": "key memories or events supporting this pattern",
-      "durability": "emerging | established | declining",
-      "confidence": 0.7,
-      "actionable_suggestion": "optional proactive suggestion (empty string if none)"
-    }
-  ],
-  "meta_observation": "one-sentence overall trajectory"
-}
-```
-
-Important:
-- Use the field names above exactly — `title` (not category), `evidence_summary` (not evidence), `actionable_suggestion` (not suggestion).
-"""
-
-
-def _build_discovery_prompt(
-    memories: Sequence[AnyMemory],
-    insights: Sequence[str],
-    claims: Sequence[str],
-    today: str,
-) -> str:
-    lines = [f"Analysis date: {today}", ""]
-
-    lines.append("## Recent Memories (sorted by recency)")
-    for mem in memories[:100]:
-        created = mem.created_at.strftime("%Y-%m-%d")
-        lines.append(f"- [{created}] ({mem.memory_type}) {mem.content[:200]}")
-    lines.append("")
-
-    if insights:
-        lines.append("## Consolidation Insights (from past maintenance cycles)")
-        for ins in insights:
-            lines.append(f"- {ins}")
-        lines.append("")
-
-    if claims:
-        lines.append("## Knowledge Claims (from claim graph)")
-        for cl in claims[:30]:
-            lines.append(f"- {cl}")
-        lines.append("")
-
-    lines.append("Analyze these memories and identify cross-cycle behavioral patterns.")
-    return "\n".join(lines)
 
 
 async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
