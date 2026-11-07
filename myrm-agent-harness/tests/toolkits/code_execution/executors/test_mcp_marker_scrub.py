@@ -17,6 +17,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.common.mcp_markers imp
     scrub_outside_markers,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult, scrub_sensitive_info
+from tests.support.fake_secrets import jwt_shaped
 
 NONCE = "0123456789abcdef0123456789abcdef"
 SECRET = "sk-proj-" + "a1B2c3D4" * 4
@@ -51,7 +52,11 @@ class TestExecutionResultStdout:
         assert "/Users/someone" not in result.stdout
 
     def test_a_real_jwt_outside_a_marker_is_still_masked(self) -> None:
-        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        jwt = jwt_shaped(
+            "hbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+            "zdWIiOiIxMjM0NTY3ODkwIn0",
+            "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+        )
 
         result = ExecutionResult(success=True, stdout=f"{_marker()}\nAuthorization: {jwt}\n")
 

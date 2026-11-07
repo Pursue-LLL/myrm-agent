@@ -25,6 +25,7 @@ from myrm_agent_harness.agent.meta_tools.file_ops.core.parked_file_view import (
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.core.result_formatter import FileContent, ResultFormatter
 from myrm_agent_harness.utils.text_utils import get_token_count
+from tests.support.fake_secrets import github_token
 
 _PARKED = ".myrm/pastes/payload_0123456789abcdef.md"
 _ROW_NUMBER = re.compile(r"^\s*(\d+)\|", re.MULTILINE)
@@ -101,7 +102,7 @@ def test_a_line_of_exactly_the_width_is_not_split() -> None:
     assert [len(row) for row in rows] == [2000, 2000, 1]
 
 
-_SECRET = "ghp_Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6"
+_SECRET = github_token("Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6")
 _SECRET_MASKED = "ghp_Ab...3hJ6"
 
 

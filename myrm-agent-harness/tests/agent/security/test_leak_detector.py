@@ -12,6 +12,7 @@ Covers:
 from __future__ import annotations
 
 from myrm_agent_harness.agent.security.detection.leak_detector import redact_leaks, scan_for_leaks
+from tests.support.fake_secrets import jwt_shaped, openai_style_key
 
 # ===================================================================
 # 1. Prefix-based API key detection
@@ -144,7 +145,7 @@ class TestStructuralPatterns:
     """JWT, PEM, database URL detection."""
 
     def test_jwt_token(self) -> None:
-        assert "jwt_token" in scan_for_leaks("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abc123def456")
+        assert "jwt_token" in scan_for_leaks(jwt_shaped("hbGciOiJIUzI1NiJ9", "zdWIiOiIxMjM0In0", "abc123def456"))
 
     def test_pem_rsa_key(self) -> None:
         assert "pem_private_key" in scan_for_leaks("-----BEGIN RSA PRIVATE KEY-----")
@@ -422,7 +423,7 @@ class TestOpenAINewFormat:
         assert "openai_key" in scan_for_leaks(key)
 
     def test_sk_proj_mixed_case(self) -> None:
-        key = "sk-proj-aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cGaB3xK9mW2pQ7vL4n"
+        key = openai_style_key("proj-aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cGaB3xK9mW2pQ7vL4n")
         assert "openai_key" in scan_for_leaks(key)
 
     def test_sk_proj_with_underscores(self) -> None:
