@@ -75,35 +75,9 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 
 | Submodule | Description |
 |-----------|-------------|
-| multiplexer/ | 持久化多智能体会话多路复用器（多会话切片管理、无头工作者标记、互视快照与指令队列原语；不暴露 LLM 工具）。详见 [multiplexer/_ARCH.md](multiplexer/_ARCH.md)。 |
-| todo_store/ | 跨进程/跨插件共享 Todo 计划声明存储与控制字符安全清洗 HUD 只读投影子系统（支持严格 20 项与字符上限门禁、双向 C0/C1 与 ANSI 剥离清洗、只读 HUD 投射与标准元工具）。详见 [todo_store/_ARCH.md](todo_store/_ARCH.md)。 |
-| supervision_hub/ | 子代理实时监管抽屉引擎（提供并发 Worker 实时花名册聚合、环形 Live Transcript 执行轨迹缓冲区与 Steer/Kill/Revive 三大生命周期干预调度）。详见 [supervision_hub/_ARCH.md](supervision_hub/_ARCH.md)。 |
-| conflict_gate/ | 多 Bot 并行产出冲突对账与合并前拦截门（聚合写集指纹、检测 Hash 碰撞并触发 conflict_pending 阻断、提供四策略对账解决器）。详见 [conflict_gate/_ARCH.md](conflict_gate/_ARCH.md)。 |
-| mcp_scope_gate/ | MCP 发现工具按数字员工/Agent 作用域严格隔离门禁（对标 StaffDeck，支持 Profile 级 MCP Server/工具白名单绑定、动态发现候选集 Fail-Closed 过滤与越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
-| durable_dispatch/ | Hermes Fabric 确定性远程分发与持久化对等日志内核（对标 Hermes GPT，支持 WorkContract 契约、Fail-Closed 执行前策略重校验、单调递增双向对等日志 Durable Journals、有界证据准入门禁与崩溃后幂等自愈恢复）。详见 [durable_dispatch/_ARCH.md](durable_dispatch/_ARCH.md)。 |
-| debate/ | 多智能体动态协同工作间与辩论流任务看板联动引擎（对标扣子桌面端项目工作群，支持 Leader 任务拆解、专员辩论质询、防无效车轮战自动收敛与 Kanban 任务双向状态绑定）。详见 [debate/_ARCH.md](debate/_ARCH.md)。 |
-| cli_adapter/ | 多源异构 Agent 外部进程桥接与 CLI 工具标准化适配器（对标扣子桌面端与 Hermes Conductor，支持 Claude Code/Codex/OpenClaw/Stdio CLI 进程挂载、生命周期调度、超时熔断与 ANSI 清洗凭证）。详见 [cli_adapter/_ARCH.md](cli_adapter/_ARCH.md)。 |
+| mcp_scope_gate/ | MCP 发现工具按数字员工/Agent 作用域严格隔离门禁（支持 Profile 级 MCP Server/工具白名单绑定、动态发现候选集 Fail-Closed 过滤与越权调用拦截）。详见 [mcp_scope_gate/_ARCH.md](mcp_scope_gate/_ARCH.md)。 |
 | checkpoint/ | Subagent checkpoint utilities package. Includes orphan recovery for automatic resumption after restart. |
-| cross_examination/ | Omni-agent unified single-entry dispatch and split cross-examination subsystem (Item 314). See [cross_examination/_ARCH.md](cross_examination/_ARCH.md). |
-| teams/ | Durable Agent Teams 会话内自组网、去中心化 Peer Mailbox、CAS 版本化共享任务板与实时看板引擎（对标 DeepSeek Harness，支持隐式 Root Lead、kebab-case 具名 Roster、CAS 乐观锁与严格 DAG Blocker 依赖拓扑校验、断电冷恢复对等邮箱）。详见 [teams/](teams/)。 |
-| budget_scaling/ | 子任务并发度弹性提升与工具调用预算自动无损迁移体系（对标 Hermes Agent v0.20.2，默认并发提升至 10、单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
-| review_loop/ | 多视角并发子智能体评审与有界自愈复审闭环体系（对标 Pi / oh-my-pi 与 dsh-agent-teams 质量门禁，三视角正确性/测试/反过度设计并发聚焦会诊、有界 N 轮自愈循环状态机、收敛检测与退出判定）。 |
-| failure_policy/ | 子智能体 mid-task 失败 per-role 声明式自愈策略与自适应重启/规格重部署/升级/跳过决策引擎（对标 Hermes 社区最佳实践，支持 RESTART_FRESH、REDEPLOY_SPECS、ESCALATE_PARENT、SKIP 四大决策及有界重试熔断防线）。 |
-| pipeline_integrity/ | 开源可 inspect 工作流 · Handoff/Approval/Delivery 断点 Lint 与 Doctor 告警诊断包（对标 simplydt 与 BkashJosi 多 Agent 流水线断点治理，提供交接元数据缺失、无审批门禁直通 Delivery、交付产物缺失与无验证步骤四大断点规则 Lint 审计、可审查决策链提取与一键 Auto-Heal 自动补全自愈）。 |
-| workspace_inheritance/ | 子智能体工作区根规则与项目上下文自动继承体系（对标 Hermes Agent，在构建子智能体系统提示词时自动继承父级已解析的工作区绝对路径，严格遵循 .rules > AGENTS.md > README.md 优先级链条动态抽取架构红线与安全规范，实施 2K Token 上限控制与差分摘要裁剪，杜绝子 Agent 违背架构规范与越界违规）。 |
-| `vertical_presets/` | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试引擎（对标 Hermes 行业最佳实践，提供 Life Admin、Office Manager、Clipper、Chief of Staff、Sales Team 五大预置角色，支持单 Agent 隔离沙箱执行、指标与日志捕获，以及 Agent 通信流向追踪与成环死循环检测）。 |
-| `council/` | 高阶决策多模型审议委员会与交叉仲裁共识协议引擎（对标 council-of-high-intelligence，提供 3+ 异构模型盲审提案收集、匿名交叉质询与反驳答辩轮次推进、置信度加权共识裁决合成器与少数派异见归档）。 |
-| `kanban_dispatcher/` | 可视化看板多智能体任务分发与卡片级自动交接流引擎（对标 hermes-agent 看板编排实践，提供 Backlog/Researching/Developing/Reviewing/Done 五泳道卡片生命周期治理、泳道跃迁跨 Agent 自动打包交接与工件继承、微型进度条追踪以及阻塞判定与自愈调度）。 |
-| `cli_passthrough/` | 外部 CLI 子代理适配桥梁与官方订阅无感穿透调度器引擎（对标 DeepSeek Harness dsh v0.1.0-rc.8 Profile Bundle 规范，提供 Claude Code/Codex/Cursor CLI 可插拔非交互静默执行、BYOS 用户自有官方订阅复用、委派前如实隐私披露门禁、工作区文件访问边界防越权继承与不可篡改 SHA-256 出站账本记录）。 |
-| `kanban_queue/` | 多智能体持久任务看板队列与 12 路大规模并行 Dogfooding 运行器套件（对标 Hermes Kanban 与 batch_runner 规范，提供 5 态流转状态机、编排者与 Worker 九大协同工具链、4 小时僵死心跳自动回收、Swarm 四阶段拓扑与 `[swarm:blackboard]` 结构化共享黑板、自动 Triage 细化与 Fan-out DAG 分解、Git Worktree 独立工作区隔离与防失控热熔断、Goal-Mode 验收标准循环、12 路多进程并行调度与 `--resume` 检查点恢复、以及 HuggingFace 兼容标准 JSONL 轨迹沉淀）。 |
-| `diamond_graph/` | 图工程钻石拓扑模式并行调度与盲审对抗式交叉审计套件（对标 Graph Engineering 工业级图工程规范，提供 Fan-out -> Reduce -> Synthesize 钻石三段式执行引擎、静态分析剔除伪因果箭头的假依赖修剪器、Dead-Node Census 容灾哨兵 N 派发 N 回收保障、CoT 绝对物理剥离的独立上下文盲审对抗团多数表决机制、以及 Exit Code 0 / SHA-256 哈希匹配客观不可篡改真实事实锚点校验门禁）。 |
-| `coauthoring_ledger/` | 人机多方围绕单一动态文档协同编辑的状态机账本与冲突仲裁中枢（提供人类用户与绑定 AI Agent 的三层协作关系模型、细粒度文档块生命周期与租约锁、携带意图原因的不可变增量账本状态机、作者贡献度透视追溯、以及人类优先/时间戳/隔离暂存提议的多策略冲突仲裁引擎）。 |
-| `socket_mesh/` | 基于 Unix Socket / 命名管道的极简去中心化同机多 Agent 协同网格与原子信封协议（对标 Pi coms.ts & coms-net.ts，提供基于本地文件系统的零 Broker 注册自发现、跨平台 IPC 端点、标准原子信封通信协议、Hops 严格防环路熔断机制、In-flight Pending Reply 异步 Future 追踪与 coms_list/send/await/ping 内置协同工具链）。 |
-| `bot_forge/` | 对话式智能体与团队工厂、确定性创建流水线与建造者权限安全边界套件（对标 Pi specs/pi-pi.md 与 Hermes Bot Forge 出货形态，提供 Anti-recursion 防递归繁衍守卫、Permission Attenuation 权限收敛边界门禁、名称唯一性与语义职责重叠分析、Zero-model 干跑就绪核验、以及原子化 Transactional Rollback 状态机事务回滚中枢）。 |
-| `external_bundle/` | 异构外部第三方 Agent 容器化收编与子代理 Profile Bundle 调度桥接器（对标 DeepSeek Harness RC.8 subagent-claude-code 与 subagent-codex 调度层，提供 Claude Code/Codex/Gemini CLI 规范封装、工作区沙箱目录继承与防越权校验、破除单一 backend 锁的无锁高并发多实例多路复用调度器、终端 ANSI 格式清洗与结构化工件统一重塑）。 |
-| `graph_triage/` | 图工程自适应适用性评估门禁与并发 Token 预算熔断套件（对标 Graph Engineering 行业实践与成本失控治理规范，提供单步/探索对话/纯时序流水线/多路重型并行启发式准入评估门禁 `GraphApplicabilityTriageGate`、扇出前置 Token 预估与硬上限预算熔断器 `PredictiveBudgetGuard`、以及基于剩余预算的动态自适应并发节流与危急状态提前局部优雅归约引擎 `ElasticConcurrencyReducer`）。 |
-| `orthogonal_reviewer/` | 正交双视角审查门禁与零偏见盲审子代理（对标 Codex 双审查子代理实践，彻底终结大模型自我合理化偏见；提供注入完整设计意图的 Reviewer A、物理隔离历史 CoT 纯看 Diff 与契约的盲态 Reviewer B、以及缺陷语义去重、严重度裁决与定向自动修复闭环仲裁器 `OrthogonalReviewArbiter`）。 |
-| `live_transcript/` | 子 Agent 实时透明 Live Transcript 轨迹流、后台委派任务持久化恢复账本、单次命令绑定 Smart Approvals 与 /deny 交互反馈、以及 MoA 角色细粒度推理强度动态分配套件（对标 Hermes v0.19 委托透明与持久化体系，消除多 Agent 协作盲区与后台任务丢失风险）。 |
+| budget_scaling/ | 子任务并发度弹性提升与工具调用预算自动无损迁移体系（默认并发提升至 10、单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
 | `dag_plan.py` | Core | DAG plan schemas for sub-agent orchestration (not main-agent progress). — PlanStep, Plan: sub-agent DAG plan models with dependency resolution; GraphPatch, GraphPatchResult: declarative graph mutation DTOs for mid-run graph compiler gate | ✅ |
 | `role_chain_schema.py` | Core | Subagent Role Chain Presets and Guidance Compiler. — RoleChainStage: Single stage within an orchestrated subagent role chain; RoleChainPreset: Immutable specification for a multi-agent role chain preset; BUILTIN_ROLE_CHAIN_PRESETS: Dict of official golden role chain presets; get_role_chain_preset: Resolver for role chain preset by ID (+1 more) | ✅ |
 
@@ -113,4 +87,4 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 ## Key Dependencies
 
 - `utils`
-- `infra.data_dir` (state root of the shared checkpointer database and the socket-mesh registry)
+- `infra.data_dir` (state root of the shared checkpointer database)

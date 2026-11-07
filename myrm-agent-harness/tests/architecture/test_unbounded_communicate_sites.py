@@ -78,10 +78,6 @@ _UNBOUNDED_PENDING_DECISION: dict[str, tuple[int, str]] = {
         1,
         "git over the whole workspace (`add --all`, `diff`, `ls-tree`): no deadline, all output held in memory",
     ),
-    "agent/sub_agents/cli_adapter/adapter.py": (
-        3,
-        "external CLI agent: all output held in memory until `timeout_seconds`; the deadline signals only the leader",
-    ),
     "toolkits/ssh_remote/executor.py": (
         1,
         "remote command: all output held in memory until the deadline, which does not stop the process",
