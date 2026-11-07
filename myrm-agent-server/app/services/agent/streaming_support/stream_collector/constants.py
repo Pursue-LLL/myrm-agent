@@ -1,4 +1,9 @@
-"""流式收集器的共享常量。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- _SSE_DATA_PREFIX / _MAX_REASONING_CHARS / _PERSISTED_STATUS_STEP_KEYS
+- _FAILOVER_REASON_TO_STEP_KEY / _INTERRUPT_REPLAY_TYPES
 
 [POS]
 handlers / state / core 共用的限制与事件映射。

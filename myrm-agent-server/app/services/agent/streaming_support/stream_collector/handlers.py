@@ -1,4 +1,13 @@
-"""SSE / 事件流的分发处理。
+"""[INPUT]
+- app.services.agent.streaming_support.evicted_output::attach_evicted_to_step / find_step_for_evicted / parse_evicted_ref_payload / step_accepts_pending_evicted (POS: Stateless helpers for stream_collector. Evicted output arrives as its own event, before or after the tool step it)
+- app.services.agent.streaming_support.stream_collector_helpers::collect_clarification_required / collect_cron_job_result / collect_file_mutation_failures / collect_kanban_task_created / collect_plan_confirmation_status / is_memory_citation_tool / iteration_limit_message / merge_sources_list / merge_tasks_step / string_keyed_dict / string_keyed_dicts (POS: Stateless parsing helpers for stream_collector; they hold no collector state, so each can be read and tested alone.)
+- app.services.skills.mutation_batch_stream::link_batch_to_step (POS: Dependency-free contract module shared by the hook (producer) and stream_collector (consumer).)
+- app.services.agent.streaming_support.stream_collector.base::StreamCollectorBase (POS: handlers 与 state 两个 mixin 共用的实例属性类型，集中一处避免重复注解。)
+- app.services.agent.streaming_support.stream_collector.constants::_FAILOVER_REASON_TO_STEP_KEY / _PERSISTED_STATUS_STEP_KEYS (POS: handlers / state / core 共用的限制与事件映射。)
+- app.services.agent.streaming_support.stream_collector.state::_sync_run_digest (POS: StreamContentCollector 的状态更新 mixin；只改内存状态，不读事件流。)
+
+[OUTPUT]
+- StreamEventHandlersMixin
 
 [POS]
 StreamContentCollector 的事件处理 mixin；每个 _on_<type> 负责一类事件。

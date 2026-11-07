@@ -1,7 +1,14 @@
-"""SSRF 黑名单与动态主机名注册。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- register_blocked_hostnames
+- unregister_blocked_hostnames
+- clear_dynamic_blocked_hostnames
+- is_blocked_ip
 
 [POS]
-url_utils 子包的一部分；由 __init__.py 聚合导出。
+SSRF 黑名单、动态主机名注册与 IP 拦截；持有进程内可变黑名单状态。
 """
 
 from __future__ import annotations

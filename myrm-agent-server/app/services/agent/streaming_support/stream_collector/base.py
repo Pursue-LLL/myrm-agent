@@ -1,4 +1,8 @@
-"""流式收集器的共享状态声明。
+"""[INPUT]
+- myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: 增量回复文本与中断重放语义)
+
+[OUTPUT]
+- StreamCollectorBase
 
 [POS]
 handlers 与 state 两个 mixin 共用的实例属性类型，集中一处避免重复注解。

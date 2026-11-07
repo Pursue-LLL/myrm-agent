@@ -1,7 +1,12 @@
-"""DNS pin 映射与解析规则构造。
+"""[INPUT]
+- myrm_agent_harness.utils.url_utils.blocking::_SSRFResultLike (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- create_dns_pin_map
+- build_host_resolver_rules
 
 [POS]
-url_utils 子包的一部分；由 __init__.py 聚合导出。
+把已校验的 SSRF 结果转成 hostname→IP 映射与 resolver 规则，供请求层钉扎。
 """
 
 from __future__ import annotations
