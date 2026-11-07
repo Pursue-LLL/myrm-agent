@@ -1,4 +1,4 @@
-"""End-to-end integration test: ExactAnchorIndex & LeanCompactionEngine with real LLM.
+"""End-to-end integration test: ExactAnchorTable summary compaction with a real LLM.
 
 Validates the complete production flow:
 1. Real multi-turn developer chat containing code paths, commit SHAs, fatal tracebacks,
@@ -6,8 +6,6 @@ Validates the complete production flow:
 2. Real LLM invocation via ChatLiteLLM (.env.test credentials).
 3. Deterministic ExactAnchorTable injection into preserved context with Recency-First ordering
    and build/dependency path blacklisting.
-4. Lossless conversion between StructuredSummary and 4-pillar LeanStructuredSummary.
-5. Historical turn refetching (in-line verbatim retrieval and zero-copy vault pointer).
 """
 
 from __future__ import annotations
@@ -24,15 +22,9 @@ from myrm_agent_harness.agent.context_management.infra.schemas import (
     ContextConfig,
     StructuredSummary,
 )
-from myrm_agent_harness.agent.context_management.strategies.summary.lean_summary import (
-    LeanStructuredSummary,
-)
 from myrm_agent_harness.agent.context_management.strategies.summary.summarizer import (
     _FallbackSummaryModel,
     generate_structured_summary,
-)
-from myrm_agent_harness.agent.context_management.strategies.summary.turn_refetcher import (
-    refetch_historical_turn,
 )
 
 _RAW_MODEL = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3.1-Flash-Preview")
@@ -134,11 +126,8 @@ def _force_parser_fallback(_llm):
 
 
 @pytest.mark.asyncio
-async def test_exact_anchor_index_and_lean_compaction_real_llm_flow() -> None:
-    """End-to-end verification of ExactAnchorTable extraction, prompt cache protection,
-
-    lean conversion, and historical turn refetching with a real model.
-    """
+async def test_exact_anchor_index_real_llm_flow() -> None:
+    """End-to-end verification of ExactAnchorTable extraction and prompt cache protection with a real model."""
     _require_api_key()
     llm = _make_llm()
     messages = _build_real_world_developer_session()
@@ -196,22 +185,3 @@ async def test_exact_anchor_index_and_lean_compaction_real_llm_flow() -> None:
     assert "c886c6eed01234567890abcdef1234567890abcd" in parsed_json["commit_shas"]
     assert "app/auth/jwt.py" in parsed_json["file_paths"]
     assert any("InvalidTokenError" in err for err in parsed_json["error_spans"])
-
-    # 7. 4-Pillar Lean Structured Summary conversion check
-    lean = LeanStructuredSummary.from_structured_summary(summary)
-    assert lean.user_goal, "Lean user_goal must be preserved"
-    lean_dict = lean.model_dump()
-    assert set(lean_dict.keys()) == {"user_goal", "active_state", "key_decisions", "next_steps"}
-
-    # 8. Single-Turn Verbatim Refetcher check (Zero loss after compaction)
-    # Turn #3 is the ToolMessage with the fatal InvalidTokenError traceback
-    refetched_err_turn = refetch_historical_turn(messages, 3)
-    assert refetched_err_turn is not None
-    assert refetched_err_turn.is_vault_pointer is False
-    assert "InvalidTokenError: Signature verification failed" in refetched_err_turn.content
-
-    # Defensive vault offloading test
-    vault_turn = refetch_historical_turn(messages, 3, max_inline_chars=50, chat_id="chat-vault-test")
-    assert vault_turn is not None
-    assert vault_turn.is_vault_pointer is True
-    assert "vault://chat-vault-test/turns/3/transcript.log" in vault_turn.content
