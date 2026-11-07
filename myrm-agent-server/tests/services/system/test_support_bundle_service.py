@@ -33,9 +33,10 @@ from app.services.system.support_bundle_service import (
     _newest_whole_events,
 )
 from tests.support.event_log_lines import event_line, jsonl_pad
+from tests.support.fake_secrets import openai_style_key
 
 _MODULE = "app.services.system.support_bundle_service"
-_SECRET = "sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL"
+_SECRET = openai_style_key("proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL")
 _PROMPT = "PRIVATE-PROMPT-TEXT"
 _PLAIN_WORD_VALUE = "Summer2024!"  # no token shape, no entropy: only the option name before it marks it a credential
 

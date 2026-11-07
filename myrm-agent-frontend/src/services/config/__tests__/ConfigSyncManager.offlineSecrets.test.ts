@@ -3,6 +3,7 @@ import { ConfigSyncManager, resetConfigSyncManager } from '@/services/config/Con
 import { OFFLINE_PERSISTABLE_CONFIG_KEYS } from '@/services/config/offlinePersistableKeys';
 import { ALL_CONFIG_KEYS, DEFAULT_PERSONAL_SETTINGS } from '@/services/config/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
+import { openAiStyleKey } from '@/test-utils/fakeSecrets';
 
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: vi.fn(() => true),
@@ -23,7 +24,7 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 const OFFLINE_QUEUE_KEY = 'config-offline-queue';
-const SECRET = 'sk-local-model-offline-sentinel-7f3a';
+const SECRET = openAiStyleKey('local-model-offline-sentinel-7f3a');
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

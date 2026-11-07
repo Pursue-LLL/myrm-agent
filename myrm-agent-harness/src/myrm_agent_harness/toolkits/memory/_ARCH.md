@@ -8,7 +8,7 @@ Agent-visible I/O implementations live strictly under ``agent_surface/`` (tools,
 
 Detailed design: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)
 
-Bug ledgers: `memory_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
+Bug ledgers (local-only: git-ignored and excluded from the wheel): `memory_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
 
 ## File & Submodule Index
 

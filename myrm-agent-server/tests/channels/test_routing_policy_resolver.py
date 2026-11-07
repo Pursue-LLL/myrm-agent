@@ -20,6 +20,7 @@ from app.channels.routing.context_buffer import GroupContextBuffer
 from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver import PolicyResolver
 from app.channels.types import METADATA_EXPLICIT_MENTION_KEY, InboundMessage
+from tests.support.fake_secrets import github_token
 
 
 def _msg(
@@ -698,7 +699,7 @@ class TestBotSenderGate:
     @pytest.mark.asyncio
     async def test_buffered_chatter_has_credentials_masked(self) -> None:
         """The in-memory fallback reaches a later prompt like the ledger rows do, so it never keeps a raw credential."""
-        token = "ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
+        token = github_token("a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8")
         r = _make_resolver(policy=self._group_policy(free_response=set()))
         with patch(
             "app.channels.routing.channel_data_plane.ChannelDataPlaneService.record_inbound",

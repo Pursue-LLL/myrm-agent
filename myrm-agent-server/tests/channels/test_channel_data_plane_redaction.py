@@ -14,6 +14,7 @@ from myrm_agent_harness.api import redact_sensitive_text
 
 from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 from app.channels.types import InboundMessage
+from tests.support.fake_secrets import github_token
 
 _PEM_BODY = "MIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gun"
 
@@ -22,7 +23,7 @@ _LEAKING_SECRETS: tuple[tuple[str, str], ...] = (
     ("Here is the test key: sk-live-1234567890abcdef12345678", "1234567890abcdef"),
     ("use postgres://admin:S3cr3tPassw0rd@db.internal:5432/app for prod", "S3cr3tPassw0rd"),
     ("my key is AKIAIOSFODNN7EXAMPLE ok", "SFODNN7EXA"),
-    ("token ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6"),
+    (f"token {github_token('a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8')}", "B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6"),
     (f"-----BEGIN RSA PRIVATE KEY-----\n{_PEM_BODY}\n-----END RSA PRIVATE KEY-----", _PEM_BODY),
 )
 _SECRET_IDS = ("sk-key", "db-url-password", "aws-key-id", "github-token", "pem-block")

@@ -3,7 +3,7 @@
 ## Overview
 Toolkits Llms module.
 
-Bug ledgers: `llms_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
+Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
 
 ## File & Submodule Index
 

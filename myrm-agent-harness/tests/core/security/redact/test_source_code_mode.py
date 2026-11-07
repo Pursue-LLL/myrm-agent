@@ -12,6 +12,10 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from tests.support.fake_secrets import hex_secret, jwt_shaped
+
+_HEX_KEY = hex_secret("source-code-mode")
+_JWT = jwt_shaped("hbGciOiJIUzI1NiJ9", "zdWIiOiJ1c2VyMSJ9", "c2lnbmF0dXJlMTIzNDU2")
 
 _CODE_LINES = (
     "total_api_tokens = 0",
@@ -32,7 +36,7 @@ _CODE_LINES = (
 _LITERAL_SECRETS = (
     ('password = "Xk9$mP2vLq8"', "Xk9$mP2vLq8"),
     ('DB_PASSWORD = "hunter2hunter2"', "hunter2hunter2"),
-    ('API_KEY = "a8f5f167f44f4964e6c998dee827110c"', "a8f5f167f44f4964e6c998dee827110c"),
+    (f'API_KEY = "{_HEX_KEY}"', _HEX_KEY),
     ("const apiKey = 'AbCdEf123456GhIjKl';", "AbCdEf123456GhIjKl"),
     ('cfg = {"password": "p4ssw0rdValue1"}', "p4ssw0rdValue1"),
     ('client_secret="Zm9vYmFyYmF6cXV4MTIzNDU2"', "Zm9vYmFyYmF6cXV4MTIzNDU2"),
@@ -60,7 +64,7 @@ def test_full_mode_is_unchanged(line: str) -> None:
     [
         ("# leaked: sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789", "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"),
         ("# remote https://deploy:s3cr3tValue99@git.example.com/org/repo.git", "s3cr3tValue99"),
-        ("# eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.c2lnbmF0dXJlMTIzNDU2", "c2lnbmF0dXJlMTIzNDU2"),
+        (f"# {_JWT}", "c2lnbmF0dXJlMTIzNDU2"),
     ],
 )
 def test_value_shape_passes_run_on_every_line(line: str, secret: str) -> None:

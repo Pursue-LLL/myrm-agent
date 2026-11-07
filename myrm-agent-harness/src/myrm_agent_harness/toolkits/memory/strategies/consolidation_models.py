@@ -7,9 +7,11 @@
 - ConsolidationAction, MergeOp, CorrectOp, UpdateContentOp, ConsolidationOp
 - ConsolidationStats, ConsolidationResponse
 - ConflictContext, ConflictCallback, ConsolidationCompleteCallback
+- CONSOLIDATION_EVENT_TYPE, CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY: markers of consolidation's own output
 
 [POS]
-Domain models, DTOs, and protocol callback types for cross-session memory consolidation.
+Domain models, DTOs, and protocol callback types for cross-session memory consolidation, plus the markers that
+identify what consolidation itself wrote (its audit event, its insights and its merged memories).
 """
 
 from __future__ import annotations
@@ -28,6 +30,13 @@ if TYPE_CHECKING:
     )
 
 _PROFILE_KEY_LAST_CONSOLIDATED = "_system.last_consolidated_at"
+
+# Markers on what consolidation writes: the episodic audit event, a semantic insight, and the metadata key of a
+# merged semantic memory. Writers stamp them and readers (rollback, pattern discovery, the candidate window)
+# recognize them through these names.
+CONSOLIDATION_EVENT_TYPE = "consolidation"
+CONSOLIDATION_INSIGHT_TAG = "consolidation-insight"
+CONSOLIDATION_SOURCE_KEY = "consolidation_source"
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +137,9 @@ class ConsolidationResponse(BaseModel):
 
 
 __all__ = [
+    "CONSOLIDATION_EVENT_TYPE",
+    "CONSOLIDATION_INSIGHT_TAG",
+    "CONSOLIDATION_SOURCE_KEY",
     "ConflictCallback",
     "ConflictContext",
     "ConsolidationAction",

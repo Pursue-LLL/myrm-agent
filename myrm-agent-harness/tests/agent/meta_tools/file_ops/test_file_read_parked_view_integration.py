@@ -32,6 +32,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import reset_exec
 from myrm_agent_harness.toolkits.code_execution.executors.local import LocalExecutor
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 from myrm_agent_harness.utils.text_utils import get_token_count
+from tests.support.fake_secrets import github_token
 
 _CHAT_ID = "chat-parked-view"
 _CONTINUE_HINT = re.compile(r"Use (\S+?:\d+-) to continue")
@@ -200,7 +201,7 @@ async def test_a_paste_without_a_line_break_is_read_back_to_its_last_character(w
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_a_secret_on_a_row_boundary_of_a_wrapped_paste_is_masked(workspace: str) -> None:
-    secret = "ghp_Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6"
+    secret = github_token("Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6")
     text = "a" * 1981 + f" {secret} " + "b" * 63_000 + _END_MARKER
     path = _park(workspace, text)
     with _session(workspace):

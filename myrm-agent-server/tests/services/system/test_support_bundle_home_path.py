@@ -26,9 +26,10 @@ from app.services.system.support_bundle_service import (
     _safe_json_dumps,
     _scrub,
 )
+from tests.support.fake_secrets import openai_style_key
 
 _MODULE = "app.services.system.support_bundle_service"
-_SECRET = "sk-proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL"
+_SECRET = openai_style_key("proj-Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4zA7bC0dE3fG6hJ9kL")
 
 
 def _home_is(monkeypatch: pytest.MonkeyPatch, home: PurePath) -> None:

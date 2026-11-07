@@ -19,8 +19,9 @@ from myrm_agent_harness.toolkits.code_execution.session.stream_output_processor 
     _SSE_HOLD_MAX_CHARS,
     StreamOutputProcessor,
 )
+from tests.support.fake_secrets import openai_style_key
 
-_KEY = "sk-ant-api03-Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv1Wx2Yz3"
+_KEY = openai_style_key("ant-api03-Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv1Wx2Yz3")
 _KEY_BODY = "Kl6Mn7Op8Qr9St0Uv"
 _PEM_BODY = "MIIEowIBAAKCAQEAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 _PEM = (

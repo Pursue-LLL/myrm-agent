@@ -5,6 +5,7 @@
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)
+- strategies.consolidation_models::CONSOLIDATION_INSIGHT_TAG (POS: markers of consolidation's own output)
 - strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
 - strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
@@ -38,6 +39,7 @@ from typing import TYPE_CHECKING
 from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
     DiscoveredPattern,
     PatternDiscoveryResponse,
@@ -103,14 +105,14 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
 
 
 async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
-    """Collect consolidation insights stored as semantic memories tagged 'consolidation-insight'."""
+    """Collect the insights consolidation stored as semantic memories (tagged ``CONSOLIDATION_INSIGHT_TAG``)."""
     try:
         results = await manager.search(
             "consolidation insight pattern observation",
             limit=limit,
             track_access=False,
         )
-        return [r.memory.content for r in results if "consolidation-insight" in getattr(r.memory, "tags", [])]
+        return [r.memory.content for r in results if CONSOLIDATION_INSIGHT_TAG in getattr(r.memory, "tags", [])]
     except Exception as exc:
         logger.warning("Pattern discovery: failed to collect insights: %s", exc)
         return []

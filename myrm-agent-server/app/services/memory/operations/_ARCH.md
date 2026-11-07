@@ -21,4 +21,4 @@
 - `app/schemas/memory/crud.py` — CRUD 请求/响应 Schema
 - `app/schemas/memory/archive.py` — 归档/导入 Schema
 - `app/services/memory/archive/archive.py` — 归档服务
-- `app/services/memory/imports/import_sessions.py` — 导入会话服务
+- `app/services/memory/imports/import_sessions/` — 导入会话服务

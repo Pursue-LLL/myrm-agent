@@ -2,7 +2,7 @@
 
 检索增强卡：语义搜索（嵌入模型）与重排序共用一个提供商和密钥，默认页 `sections/ai-core/DefaultModelSection.tsx` 挂载 `RetrievalCard`。
 
-两项能力相互独立：嵌入模型只有「启用」（store 没有停用动作）；重排序是真开关，即 `useRetrievalStore.enableAdvancedRetrieval`，聊天请求（`store/chat/messageRequest.ts`）与 IM 渠道读取它。开关打开时若重排模型尚未生效，先校验并应用预设模型，成功后才置为开。
+两项能力相互独立：嵌入模型只有「启用」（store 没有停用动作）；重排序是真开关，即 `useRetrievalStore.enableAdvancedRetrieval`，聊天请求（`store/chat/createMessageRequest.ts`）与 IM 渠道读取它。开关打开时若重排模型尚未生效，先校验并应用预设模型，成功后才置为开。
 
 | 文件                        | 职责                                                                                                                              |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
