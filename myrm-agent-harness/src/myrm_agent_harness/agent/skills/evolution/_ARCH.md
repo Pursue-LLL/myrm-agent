@@ -18,7 +18,6 @@ Skill Evolution System - Framework Layer.
 | infra/ | Infra submodule. |
 | pipeline/ | Pipeline submodule. |
 | review/ | Background silent review and skill distillation system. Asynchronously reviews conversation history  |
-| safety/ | Safety submodule. |
 | utils/ | Utils submodule. |
 
 ## Key Dependencies

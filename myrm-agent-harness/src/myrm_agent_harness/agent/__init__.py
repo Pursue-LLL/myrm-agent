@@ -13,10 +13,7 @@ if TYPE_CHECKING:
         SpilloverPayload,
         SpilloverResult,
     )
-    from myrm_agent_harness.agent.context_management import (
-        InvalidGeneratedTitleRecoverySuite,
-        TwoStageRankedSnippetAndSelectiveDeepExtractSuite,
-    )
+    from myrm_agent_harness.agent.context_management import InvalidGeneratedTitleRecoverySuite
     from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
     from myrm_agent_harness.agent.hooks import HookEvent, HookExecutor, HookRegistry, fire_hook
@@ -112,10 +109,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.agent.context_guard",
         "SpilloverPayload",
     ),
-    "TwoStageRankedSnippetAndSelectiveDeepExtractSuite": (
-        "myrm_agent_harness.agent.context_management",
-        "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
-    ),
     "InvalidGeneratedTitleRecoverySuite": (
         "myrm_agent_harness.agent.context_management",
         "InvalidGeneratedTitleRecoverySuite",
@@ -124,7 +117,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 __all__ = [
     "InvalidGeneratedTitleRecoverySuite",
-    "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
     "SUBAGENT_CONFIGS",
     "AgentEventType",
     "AgentRunStatistics",
