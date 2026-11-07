@@ -4569,6 +4569,8 @@
     "lastUsedAt": "Last used: {time}",
     "createdAt": "Created",
     "updatedAt": "Updated",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending",
     "loginRequired": "Login to view memories",
     "loginRequiredDesc": "Login to view and manage memories AI learned about you",
     "enableMemory": "Enable Memory",

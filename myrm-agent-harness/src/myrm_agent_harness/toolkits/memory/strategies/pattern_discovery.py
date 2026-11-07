@@ -3,6 +3,10 @@
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
+- utils.coercion::parse_int (POS: defensive numeric coercion utilities)
+- strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)
+- strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
+- strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
 [OUTPUT]
 - PatternReport: Immutable result of a pattern discovery cycle.
@@ -28,13 +32,23 @@ import contextlib
 import hashlib
 import logging
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime
-from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import AliasChoices, BaseModel, Field
+
+from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
+    PatternReport,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import (
+    _SYSTEM_PROMPT,
+    _build_discovery_prompt,
+)
+from myrm_agent_harness.utils.coercion import parse_int
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -42,7 +56,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_PROFILE_KEY_LAST_PATTERN_DISCOVERY = "_system.last_pattern_discovery_at"
 _PROFILE_KEY_CONSOLIDATION_COUNT = "_system.consolidation_count"
 _PROFILE_KEY_MEMORY_SET_HASH = "_system.pattern_discovery_memory_hash"
 _MIN_MEMORY_COUNT = 50
@@ -51,73 +64,6 @@ _MIN_CONSOLIDATION_COUNT = 3
 # Gate thresholds for promoting a pattern to a ProceduralRule.
 # Only "established" patterns with high confidence become actionable rules.
 _RULE_PROMOTION_MIN_CONFIDENCE = 0.8
-
-
-class PatternDurability(StrEnum):
-    """How stable a discovered pattern is over time."""
-
-    EMERGING = "emerging"
-    ESTABLISHED = "established"
-    DECLINING = "declining"
-
-
-class DiscoveredPattern(BaseModel):
-    """A single behavioral or knowledge pattern found across memory cycles."""
-
-    title: str = Field(
-        validation_alias=AliasChoices("title", "category"),
-        description="Short pattern name (< 60 chars)",
-    )
-    description: str = Field(description="What this pattern means for the user")
-    evidence_summary: str = Field(
-        validation_alias=AliasChoices("evidence_summary", "evidence"),
-        description="Key memories or events supporting this pattern",
-    )
-    durability: PatternDurability = Field(default=PatternDurability.EMERGING)
-    confidence: float = Field(default=0.7, ge=0.0, le=1.0)
-    actionable_suggestion: str = Field(
-        default="",
-        validation_alias=AliasChoices("actionable_suggestion", "suggestion"),
-        description="Optional proactive suggestion the agent can surface to the user",
-    )
-
-
-class PatternDiscoveryResponse(BaseModel):
-    """Structured LLM output for pattern discovery."""
-
-    patterns: list[DiscoveredPattern] = Field(default_factory=list)
-    meta_observation: str = Field(
-        default="",
-        description="High-level observation about the user's overall behavior trajectory",
-    )
-
-
-@dataclass(frozen=True)
-class PatternReport:
-    """Immutable result of a pattern discovery cycle."""
-
-    patterns: tuple[DiscoveredPattern, ...] = ()
-    meta_observation: str = ""
-    memory_count: int = 0
-    insight_count: int = 0
-    duration_ms: float = 0.0
-    skipped: bool = False
-    skip_reason: str = ""
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "patterns": [p.model_dump() for p in self.patterns],
-            "meta_observation": self.meta_observation,
-            "memory_count": self.memory_count,
-            "insight_count": self.insight_count,
-            "duration_ms": self.duration_ms,
-            "skipped": self.skipped,
-            "skip_reason": self.skip_reason,
-        }
-
-    @property
-    def has_patterns(self) -> bool:
-        return len(self.patterns) > 0
 
 
 async def should_run_pattern_discovery(manager: MemoryManager) -> bool:
@@ -140,8 +86,9 @@ async def should_run_pattern_discovery(manager: MemoryManager) -> bool:
     if total < _MIN_MEMORY_COUNT:
         return False
 
-    raw_count = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
-    consolidation_count = int(raw_count) if raw_count else 0
+    # The counter is a plain profile row that any writer can overwrite; a malformed value counts as zero.
+    raw_count = await read_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT)
+    consolidation_count = parse_int(raw_count, 0, min_val=0)
     return consolidation_count >= _MIN_CONSOLIDATION_COUNT
 
 
@@ -149,81 +96,10 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
     """Increment the persistent consolidation counter after a successful consolidation."""
     if not manager.has_relational:
         return
-    raw = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
-    current = int(raw) if raw else 0
-    await manager.set_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
-
-
-_SYSTEM_PROMPT = """You are a behavioral pattern analyst. Given a user's accumulated memories, consolidation insights, and knowledge claims, identify cross-cycle behavioral patterns the user may not be aware of.
-
-Focus on:
-1. **Recurring work habits** — repeated actions, schedules, or routines visible across multiple sessions
-2. **Knowledge evolution** — topics where the user's understanding has shifted over time
-3. **Unresolved threads** — questions, concerns, or tasks that appear repeatedly without closure
-4. **Preference drift** — changes in tool choices, frameworks, or approaches over time
-5. **Blind spots** — important areas that appear in context but the user never directly addresses
-
-## Rules
-- Only report patterns supported by multiple memories (not single observations).
-- Be specific: cite time ranges, frequencies, or concrete examples from the evidence.
-- Mark durability: "emerging" (seen in recent 1-2 cycles), "established" (3+ cycles), "declining" (was active, now fading).
-- Provide actionable suggestions where appropriate (the agent will present these proactively).
-- Keep the original language of the memories (Chinese stays Chinese, English stays English).
-- Maximum 5 patterns per analysis.
-- Do NOT invent patterns not supported by the evidence.
-
-## Output
-Return a JSON object only (no markdown fences) with these exact fields:
-
-```json
-{
-  "patterns": [
-    {
-      "title": "short pattern name under 60 characters",
-      "description": "what this pattern means for the user",
-      "evidence_summary": "key memories or events supporting this pattern",
-      "durability": "emerging | established | declining",
-      "confidence": 0.7,
-      "actionable_suggestion": "optional proactive suggestion (empty string if none)"
-    }
-  ],
-  "meta_observation": "one-sentence overall trajectory"
-}
-```
-
-Important:
-- Use the field names above exactly — `title` (not category), `evidence_summary` (not evidence), `actionable_suggestion` (not suggestion).
-"""
-
-
-def _build_discovery_prompt(
-    memories: Sequence[AnyMemory],
-    insights: Sequence[str],
-    claims: Sequence[str],
-    today: str,
-) -> str:
-    lines = [f"Analysis date: {today}", ""]
-
-    lines.append("## Recent Memories (sorted by recency)")
-    for mem in memories[:100]:
-        created = mem.created_at.strftime("%Y-%m-%d")
-        lines.append(f"- [{created}] ({mem.memory_type}) {mem.content[:200]}")
-    lines.append("")
-
-    if insights:
-        lines.append("## Consolidation Insights (from past maintenance cycles)")
-        for ins in insights:
-            lines.append(f"- {ins}")
-        lines.append("")
-
-    if claims:
-        lines.append("## Knowledge Claims (from claim graph)")
-        for cl in claims[:30]:
-            lines.append(f"- {cl}")
-        lines.append("")
-
-    lines.append("Analyze these memories and identify cross-cycle behavioral patterns.")
-    return "\n".join(lines)
+    # A malformed stored value restarts the count, and the write below replaces it.
+    raw = await read_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT)
+    current = parse_int(raw, 0, min_val=0)
+    await write_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
 
 
 async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
@@ -271,7 +147,7 @@ async def run_pattern_discovery(
     2. Collect recent memories; skip if memory set unchanged since last run
     3. Collect consolidation insights, claims
     4. LLM analysis → structured patterns
-    5. Persist patterns as episodic events + update timestamp + hash
+    5. Persist patterns as episodic events + record the memory-set hash
     """
     start = datetime.now(UTC)
 
@@ -293,7 +169,7 @@ async def run_pattern_discovery(
 
     current_hash = _compute_memory_set_hash(all_memories)
     if manager.has_relational:
-        prev_hash = await manager.get_profile_attribute(_PROFILE_KEY_MEMORY_SET_HASH)
+        prev_hash = await read_bookkeeping(manager, _PROFILE_KEY_MEMORY_SET_HASH)
         if prev_hash and prev_hash == current_hash:
             logger.info("Pattern discovery: memory set unchanged, skipping LLM call")
             return PatternReport(
@@ -334,10 +210,9 @@ async def run_pattern_discovery(
     if valid_patterns:
         await _persist_patterns(manager, valid_patterns, response.meta_observation)
 
-    await _update_discovery_timestamp(manager, start)
     if manager.has_relational:
         with contextlib.suppress(Exception):
-            await manager.set_profile_attribute(_PROFILE_KEY_MEMORY_SET_HASH, current_hash)
+            await write_bookkeeping(manager, _PROFILE_KEY_MEMORY_SET_HASH, current_hash)
 
     elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
     report = PatternReport(
@@ -460,29 +335,6 @@ async def _persist_patterns(
     promoted = await _promote_patterns_to_rules(manager, patterns)
     if promoted:
         logger.info("Pattern discovery: %d pattern(s) queued for ProceduralRule promotion", promoted)
-
-
-async def _update_discovery_timestamp(manager: MemoryManager, ts: datetime) -> None:
-    """Record when pattern discovery last ran."""
-    if not manager.has_relational:
-        return
-    try:
-        await manager.set_profile_attribute(_PROFILE_KEY_LAST_PATTERN_DISCOVERY, ts.isoformat())
-    except Exception as exc:
-        logger.warning("Failed to update pattern discovery timestamp: %s", exc)
-
-
-async def get_last_pattern_discovery_at(manager: MemoryManager) -> datetime | None:
-    """Read the last pattern discovery timestamp."""
-    if not manager.has_relational:
-        return None
-    raw = await manager.get_profile_attribute(_PROFILE_KEY_LAST_PATTERN_DISCOVERY)
-    if not raw:
-        return None
-    try:
-        return datetime.fromisoformat(raw)
-    except (ValueError, TypeError):
-        return None
 
 
 async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[str]:

@@ -4569,6 +4569,8 @@
     "lastUsedAt": "最近使用：{time}",
     "createdAt": "创建时间",
     "updatedAt": "更新时间",
+    "sortAscending": "升序",
+    "sortDescending": "降序",
     "loginRequired": "登录后查看记忆",
     "loginRequiredDesc": "登录后即可查看和管理 AI 学习到的记忆",
     "enableMemory": "启用记忆",

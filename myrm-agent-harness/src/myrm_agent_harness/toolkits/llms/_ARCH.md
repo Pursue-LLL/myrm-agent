@@ -3,6 +3,8 @@
 ## Overview
 Toolkits Llms module.
 
+Bug ledgers: `llms_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |

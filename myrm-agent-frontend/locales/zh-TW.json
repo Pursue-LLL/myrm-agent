@@ -4569,6 +4569,8 @@
     "lastUsedAt": "最近使用：{time}",
     "createdAt": "建立時間",
     "updatedAt": "更新時間",
+    "sortAscending": "升冪",
+    "sortDescending": "降冪",
     "loginRequired": "登入後檢視記憶",
     "loginRequiredDesc": "登入後即可檢視和管理 AI 學習到的記憶",
     "enableMemory": "啟用記憶",

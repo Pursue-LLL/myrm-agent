@@ -111,3 +111,21 @@ def mock_graph_store():
     store.health_check = AsyncMock(return_value=True)
     store.close = AsyncMock()
     return store
+
+
+@pytest.fixture
+def bookkeeping_rows(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    """Back pattern discovery's bookkeeping rows with a plain dict, for tests whose manager is a mock."""
+    from myrm_agent_harness.toolkits.memory.strategies import pattern_discovery
+
+    rows: dict[str, str] = {}
+
+    async def read(_manager: object, key: str) -> str | None:
+        return rows.get(key)
+
+    async def write(_manager: object, key: str, value: str) -> None:
+        rows[key] = value
+
+    monkeypatch.setattr(pattern_discovery, "read_bookkeeping", read)
+    monkeypatch.setattr(pattern_discovery, "write_bookkeeping", write)
+    return rows

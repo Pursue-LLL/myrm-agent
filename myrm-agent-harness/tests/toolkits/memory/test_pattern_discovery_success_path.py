@@ -2,27 +2,26 @@
 
 Complements the gate/schema tests by exercising the full successful cycle —
 persistence of discovered patterns as episodic events, ProceduralRule
-promotion, discovery timestamp + memory-hash bookkeeping — plus every
+promotion, memory-hash bookkeeping — plus every
 non-fatal error branch that must degrade to a warning log instead of raising.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-    _PROFILE_KEY_LAST_PATTERN_DISCOVERY,
+    _PROFILE_KEY_CONSOLIDATION_COUNT,
     _PROFILE_KEY_MEMORY_SET_HASH,
     _build_discovery_prompt,
     _collect_claims,
     _collect_insights,
+    _compute_memory_set_hash,
     _persist_patterns,
     _promote_patterns_to_rules,
-    _update_discovery_timestamp,
     get_recent_patterns,
     run_pattern_discovery,
 )
@@ -39,8 +38,6 @@ def _mature_manager(**overrides: object) -> AsyncMock:
     manager.has_vector = True
     manager.has_graph = False
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60)
-    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5")
-    manager.set_profile_attribute = AsyncMock()
     manager.search = AsyncMock(return_value=[])
     manager.add_event = AsyncMock()
     manager.store = AsyncMock(return_value=SimpleNamespace(id="stored-rule"))
@@ -51,10 +48,7 @@ def _mature_manager(**overrides: object) -> AsyncMock:
 
 
 def _memories(count: int) -> list[SemanticMemory]:
-    return [
-        SemanticMemory(content=f"reference note {i}: design rationale", tags=["reference"])
-        for i in range(count)
-    ]
+    return [SemanticMemory(content=f"reference note {i}: design rationale", tags=["reference"]) for i in range(count)]
 
 
 def _pattern(*, title: str, confidence: float, durability: str = "emerging") -> object:
@@ -162,7 +156,7 @@ class TestBuildDiscoveryPrompt:
 
 class TestRunPatternDiscoverySuccess:
     @pytest.mark.asyncio
-    async def test_full_cycle_persists_and_bookkeeps(self) -> None:
+    async def test_full_cycle_persists_and_bookkeeps(self, bookkeeping_rows: dict[str, str]) -> None:
         from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
             PatternDiscoveryResponse,
         )
@@ -170,9 +164,7 @@ class TestRunPatternDiscoverySuccess:
         memories = _memories(5)
         manager = _mature_manager()
         manager.list_memories = AsyncMock(return_value=memories)
-        manager.get_profile_attribute = AsyncMock(
-            side_effect=lambda key: None if key == _PROFILE_KEY_MEMORY_SET_HASH else "5"
-        )
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
         response = PatternDiscoveryResponse(
             patterns=[
                 _pattern(title="habit", confidence=0.9, durability="established"),
@@ -194,13 +186,8 @@ class TestRunPatternDiscoverySuccess:
         store_args = manager.store.await_args.args[0]
         assert isinstance(store_args, ProceduralMemory)
         assert store_args.source.value == "agent_self"
-        # Discovery timestamp + memory-set hash recorded.
-        manager.set_profile_attribute.assert_any_await(
-            _PROFILE_KEY_LAST_PATTERN_DISCOVERY, ANY
-        )
-        manager.set_profile_attribute.assert_any_await(
-            _PROFILE_KEY_MEMORY_SET_HASH, ANY
-        )
+        # Memory-set hash recorded (SEMANTIC + EPISODIC passes list the same memories).
+        assert bookkeeping_rows[_PROFILE_KEY_MEMORY_SET_HASH] == _compute_memory_set_hash(memories + memories)
 
 
 class TestPersistPatternsFailure:
@@ -254,29 +241,6 @@ class TestPromotePatternsToRules:
         assert promoted == 1
         stored = manager.store.await_args.args[0]
         assert stored.content == "good"
-
-
-class TestUpdateDiscoveryTimestamp:
-    @pytest.mark.asyncio
-    async def test_skips_without_relational(self) -> None:
-        manager = _mature_manager(has_relational=False)
-        await _update_discovery_timestamp(manager, datetime.now(UTC))
-        manager.set_profile_attribute.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_writes_iso_timestamp(self) -> None:
-        manager = _mature_manager()
-        ts = datetime(2026, 8, 16, 12, 0, 0, tzinfo=UTC)
-        await _update_discovery_timestamp(manager, ts)
-        manager.set_profile_attribute.assert_awaited_once_with(
-            _PROFILE_KEY_LAST_PATTERN_DISCOVERY, ts.isoformat()
-        )
-
-    @pytest.mark.asyncio
-    async def test_failure_swallowed(self) -> None:
-        manager = _mature_manager()
-        manager.set_profile_attribute = AsyncMock(side_effect=RuntimeError("write down"))
-        await _update_discovery_timestamp(manager, datetime.now(UTC))  # No raise.
 
 
 class TestGetRecentPatternsFilter:

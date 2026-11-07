@@ -7,7 +7,7 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Re-exports the four recovery mixins, the disconnection-recovery manager, the event replay buffer and their domain types | ✅ |
+| __init__.py | Package | Re-exports the four recovery mixins | ✅ |
 | context_pressure_gate.py | Gate | Pre-flight context pressure gate, token budget compaction, and presumed-overflow recovery handler (a 400 that states the model's own output ceiling is never presumed to be an overflow) | ✅ |
 | goal_session.py | Core | `goal_session_id(ctx)`: the goal lookup key of a run (chat id, else session id, else message id); shared by goal continuation and provider-window parking so both address the same goal | ✅ |
 | stream_recovery.py | Core | StreamRecoveryMixin — composes overflow, LLM failover (with fast-failover on is_quota_exhausted), safety refusal fallback, transient retry (short-circuited on quota exhaustion), and the mixins that hold the other strategies (turn-end, truncation, one-shot, provider-window, continuation) | ✅ |
@@ -20,9 +20,6 @@ Streaming error-recovery strategies. **`stream_recovery.py`** composes the recov
 | stream_recovery_window.py | Core | ProviderWindowRecoveryMixin — `_handle_provider_window` for RATE_LIMIT / BILLING / OVERLOADED errors after model failover and before blind transient backoff: reads the provider-stated retry boundary once (`extract_provider_window`), then serves a ≤300 s wait exactly in-turn (`WindowAction.RETRY`), parks the running goal until the reset (`park_goal_for_provider_window`, `WindowAction.HELD`), or ends the turn at once with the real reset time (`WindowAction.FAIL`; `cooldown_remaining_ms` rides the error context). Also owns the cancel-aware sleep shared with transient retry | ✅ |
 | turn_retry_state.py | Core | `TurnRetryState` — per-attempt one-shot recovery guards (format/payload, reasoning effort, PAAS 1305) and restart signals, bound fresh to StreamContext per API attempt so a guard fires at most once and prompt cache keys survive | — |
 | stream_recovery_truncation.py | Core | StreamTruncationRecoveryMixin — length/max-token continuation, retry of truncated or withheld tool calls (one retry with a larger output budget from `StreamOutputBudgetMixin`), reasoning-only retry with a raised budget, and a log line per withheld call (`describe_withheld_tool_calls`); every retry re-runs through `StreamRedriveMixin`; `reset_ephemeral_max_output_tokens` | ✅ |
-| `disconnection_recovery.py` | Core | Resilient disconnection recovery manager with offline action staging. | ✅ |
-| `recovery_types.py` | Core | Domain types for event replay buffer and resilient disconnection recovery. | ✅ |
-| `replay_buffer.py` | Core | Circular event replay buffer with monotonic sequence ordering and gap detection. | ✅ |
 
 ## Invariants
 

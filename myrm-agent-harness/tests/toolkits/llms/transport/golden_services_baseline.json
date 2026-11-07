@@ -3,7 +3,8 @@
   "client_library": "litellm 1.97.0",
   "configuration": "production (LITELLM_LOCAL_MODEL_COST_MAP, drop_params, modify_params, custom providers registered; response cache off)",
   "matrix": "golden_services.py",
-  "recorded_at_commit": "b218e6f1d7"
+  "recorded_at_commit": "b218e6f1d7",
+  "voyage_default_base_cases": "recorded at 8dbc4c4af6 against litellm 1.97.0, the caller having stopped sending encoding_format to Voyage; all other cases at b218e6f1d7"
  },
  "embedding/azure|custom_base|batch": {
   "error": "",
@@ -1882,7 +1883,6 @@
   "requests": [
    {
     "body": {
-     "encoding_format": "float",
      "input": [
       "alpha",
       " ",
@@ -1921,7 +1921,6 @@
   "requests": [
    {
     "body": {
-     "encoding_format": "float",
      "input": [
       "hello"
      ],

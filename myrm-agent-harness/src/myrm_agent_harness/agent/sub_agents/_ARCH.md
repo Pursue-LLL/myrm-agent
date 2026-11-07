@@ -89,10 +89,8 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | budget_scaling/ | 子任务并发度弹性提升与工具调用预算自动无损迁移体系（对标 Hermes Agent v0.20.2，默认并发提升至 10、单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
 | review_loop/ | 多视角并发子智能体评审与有界自愈复审闭环体系（对标 Pi / oh-my-pi 与 dsh-agent-teams 质量门禁，三视角正确性/测试/反过度设计并发聚焦会诊、有界 N 轮自愈循环状态机、收敛检测与退出判定）。 |
 | failure_policy/ | 子智能体 mid-task 失败 per-role 声明式自愈策略与自适应重启/规格重部署/升级/跳过决策引擎（对标 Hermes 社区最佳实践，支持 RESTART_FRESH、REDEPLOY_SPECS、ESCALATE_PARENT、SKIP 四大决策及有界重试熔断防线）。 |
-| session_fork/ | Pi Harness v2 确定性子会话派生与安全重放重接原语（对标 pi harness-v2.md §17，基于 f(parentSessionId, toolCallId) 纯确定性派生 childSessionId，崩溃/重放 Safe Replay 时自动 reattach 现有 child 杜绝 twin 孪生子会话污染；支持 repo.fork(scope=branch|tree) 仅复制历史节点且保持新子会话初始 IDLE 纯净状态）。 |
 | pipeline_integrity/ | 开源可 inspect 工作流 · Handoff/Approval/Delivery 断点 Lint 与 Doctor 告警诊断包（对标 simplydt 与 BkashJosi 多 Agent 流水线断点治理，提供交接元数据缺失、无审批门禁直通 Delivery、交付产物缺失与无验证步骤四大断点规则 Lint 审计、可审查决策链提取与一键 Auto-Heal 自动补全自愈）。 |
 | workspace_inheritance/ | 子智能体工作区根规则与项目上下文自动继承体系（对标 Hermes Agent，在构建子智能体系统提示词时自动继承父级已解析的工作区绝对路径，严格遵循 .rules > AGENTS.md > README.md 优先级链条动态抽取架构红线与安全规范，实施 2K Token 上限控制与差分摘要裁剪，杜绝子 Agent 违背架构规范与越界违规）。 |
-| `virtual_room/` | 多人多 Agent 实时协作虚拟空间、文件系统级协同与能力借用套件（对标 Tutti·VM，支持身份/执行/空间三权分立、细粒度文件块写租约锁与冲突自动消解、跨用户 Agent 零凭据借用网关与沙箱服务全员即时 Live 端口预览）。 |
 | `vertical_presets/` | 五大垂直角色 Persona 预设与单 Bot 隔离沙箱测试引擎（对标 Hermes 行业最佳实践，提供 Life Admin、Office Manager、Clipper、Chief of Staff、Sales Team 五大预置角色，支持单 Agent 隔离沙箱执行、指标与日志捕获，以及 Agent 通信流向追踪与成环死循环检测）。 |
 | `council/` | 高阶决策多模型审议委员会与交叉仲裁共识协议引擎（对标 council-of-high-intelligence，提供 3+ 异构模型盲审提案收集、匿名交叉质询与反驳答辩轮次推进、置信度加权共识裁决合成器与少数派异见归档）。 |
 | `kanban_dispatcher/` | 可视化看板多智能体任务分发与卡片级自动交接流引擎（对标 hermes-agent 看板编排实践，提供 Backlog/Researching/Developing/Reviewing/Done 五泳道卡片生命周期治理、泳道跃迁跨 Agent 自动打包交接与工件继承、微型进度条追踪以及阻塞判定与自愈调度）。 |

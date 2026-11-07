@@ -243,16 +243,16 @@ def _guard_environment(budget_verdict: MagicMock) -> Iterator[None]:
     tooling = "myrm_agent_harness.agent.middlewares.tooling"
     budget = MagicMock(check_and_truncate=MagicMock(return_value=budget_verdict))
     patches = (
-        patch(f"{tooling}._tool_guards.get_context_budget_guard", return_value=budget),
-        patch(f"{tooling}._tool_guards.record_decision"),
-        patch(f"{tooling}._tool_guards.emit_archive_restore_block_status", new_callable=AsyncMock),
+        patch(f"{tooling}._tool_guards.post_call.get_context_budget_guard", return_value=budget),
+        patch(f"{tooling}._tool_guards.post_call.record_decision"),
+        patch(f"{tooling}._tool_guards.post_call.emit_archive_restore_block_status", new_callable=AsyncMock),
         patch(f"{tooling}._mutation_verifier.record_mutation_result"),
-        patch(f"{tooling}._tool_guards.run_content_validation", return_value=None),
+        patch(f"{tooling}._tool_guards.post_call.run_content_validation", return_value=None),
         patch(
             "myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker",
             return_value=MagicMock(record_tool_output=MagicMock()),
         ),
-        patch(f"{tooling}._tool_guards.check_tool_result_pii", side_effect=lambda result, text, _name: (result, text)),
+        patch(f"{tooling}._tool_guards.post_call.check_tool_result_pii", side_effect=lambda result, text, _name: (result, text)),
         patch("myrm_agent_harness.agent.workspace_rules.tracker.check_and_append_rules", return_value=None),
         patch(
             "myrm_agent_harness.agent.hooks.executor.fire_hook",

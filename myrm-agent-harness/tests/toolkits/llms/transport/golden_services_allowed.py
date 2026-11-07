@@ -100,14 +100,6 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
         providers=("embedding/azure",),
     ),
     AllowedDiff(
-        "voyage-no-encoding-format",
-        "Voyage defines `encoding_format` as null (float arrays) or base64, so the explicit 'float' is outside its "
-        "documented values; omitting the field returns the same float vectors.",
-        "-",
-        r"/body/encoding_format",
-        providers=("embedding/voyage",),
-    ),
-    AllowedDiff(
         "ollama-openai-endpoint",
         "Ollama serves the OpenAI-shaped `/v1/embeddings` next to its native `/api/embed`, so the transport uses one "
         "request shape for every OpenAI-compatible provider (and sends the optional bearer key, which the native call "

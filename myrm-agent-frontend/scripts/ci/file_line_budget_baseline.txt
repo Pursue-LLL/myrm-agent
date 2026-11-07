@@ -39,7 +39,6 @@ src/components/features/companion/sprite/PetOverlay.tsx
 src/components/features/cron/CronAdvancedEditors.tsx
 src/components/features/cron/CronDeliveryEditors.tsx
 src/components/features/cron/CronJobCard.tsx
-src/components/features/cron/CronJobCreateDialog.tsx
 src/components/features/eval-lab/EvalLabDashboard.tsx
 src/components/features/eval-lab/components/BenchmarkSources.tsx
 src/components/features/eval-lab/components/MatrixResultView.tsx
@@ -105,7 +104,6 @@ src/components/features/settings/sections/integration/channels/useChannelsState.
 src/components/features/settings/sections/integration/credentials/CredentialsDialogs.tsx
 src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.test.tsx
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
-src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx

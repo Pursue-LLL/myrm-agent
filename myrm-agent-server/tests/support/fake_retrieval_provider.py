@@ -4,7 +4,7 @@
 - `status`, `refusal`, `dimension` and `rerank_results` of the provider: what it answers to the next call
 
 [OUTPUT]
-- FakeRetrievalProvider: serves POST {api_base}/embeddings and POST {api_base}/rerank, every call lands in `requests`
+- FakeRetrievalProvider: serves POST {api_base}/embeddings, POST {api_base}/embed (Cohere's own shape) and POST {api_base}/rerank, every call lands in `requests`
 - ProviderRequest: path, Authorization header and JSON body of one call
 - fake_retrieval_provider(): context manager running one provider on an ephemeral loopback port
 - unreachable_api_base(): an api_base nothing listens on
@@ -65,6 +65,8 @@ class FakeRetrievalProvider:
             key = (request.authorization or "").removeprefix("Bearer ")
             text = self.refusal or _REFUSALS.get(self.status, _FAILURE).format(key=key, model=request.body.get("model"))
             return self.status, {"error": {"message": text, "type": "invalid_request_error", "code": str(self.status)}}
+        if request.path.endswith("/embed"):
+            return 200, {"embeddings": {"float": [[0.1] * self.dimension]}}
         if request.path.endswith("/embeddings"):
             vector = [0.1] * self.dimension
             return 200, {

@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
+    _PROFILE_KEY_CONSOLIDATION_COUNT,
     _PROFILE_KEY_MEMORY_SET_HASH,
     _SYSTEM_PROMPT,
     DiscoveredPattern,
@@ -119,18 +120,16 @@ class TestRunPatternDiscoveryGate:
 class TestMemorySetHashSkip:
     """Memory set unchanged short-circuits the LLM call."""
 
-    async def test_skips_when_hash_unchanged(self) -> None:
+    async def test_skips_when_hash_unchanged(self, bookkeeping_rows: dict[str, str]) -> None:
         mem = SemanticMemory(content="some memory")
 
         async def _list(*_args: object, **_kwargs: object) -> list[SemanticMemory]:
             return [mem]
 
-        async def _get_profile(key: str) -> object:
-            if key == _PROFILE_KEY_MEMORY_SET_HASH:
-                # Two lists (SEMANTIC + EPISODIC) each return [mem].
-                duplicated = sorted([mem.id, mem.id])
-                return hashlib.sha256("|".join(duplicated).encode()).hexdigest()[:16]
-            return "5"
+        # Two lists (SEMANTIC + EPISODIC) each return [mem].
+        duplicated = sorted([mem.id, mem.id])
+        bookkeeping_rows[_PROFILE_KEY_MEMORY_SET_HASH] = hashlib.sha256("|".join(duplicated).encode()).hexdigest()[:16]
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
 
         manager = AsyncMock()
         manager.has_relational = True
@@ -138,8 +137,6 @@ class TestMemorySetHashSkip:
         manager.has_graph = False
         manager.count_memories = AsyncMock(return_value=60)
         manager.list_memories = _list
-        manager.get_profile_attribute = _get_profile
-        manager.set_profile_attribute = AsyncMock()
         manager.search = AsyncMock(return_value=[])
 
         llm = AsyncMock()
