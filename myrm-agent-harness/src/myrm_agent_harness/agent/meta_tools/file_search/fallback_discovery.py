@@ -16,10 +16,10 @@
 [POS]
 Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control directories are never
 listed; ignore files apply unless the caller opts out; hidden files are searched; symbolic links are never followed; an
-entry the file system will not describe is skipped, not an error) and implements it for the Python tier: git-aware
-listing where available (a repository nested in the checkout is listed by git in turn, and walked under its ignore
-files only when git cannot read it; a search root that git itself ignores is walked like a plain folder), the ignore
-files of every directory and default directory pruning in non-git directories, bounded traversal.
+entry below the search root that the file system will not describe is skipped, not an error) and implements it for the
+Python tier: git-aware listing where available (a repository nested in the checkout is listed by git in turn, and walked
+under its ignore files only when git cannot read it; a search root that git itself ignores is walked like a plain
+folder), the ignore files of every directory and default directory pruning in non-git directories, bounded traversal.
 """
 
 from __future__ import annotations
