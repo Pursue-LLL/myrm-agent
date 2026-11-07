@@ -35,7 +35,7 @@ import {
 } from '@/services/memory/commandCenter';
 import { canDeepLinkMigrationSource } from '@/services/migrationDiscovery';
 import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
-import type { DoctorExecutableAction } from '../command-center/MemoryCommandCenterDoctorPanel';
+import type { DoctorExecutableAction } from '../command-center/memoryDoctorModel';
 
 const totalArchiveItems = (sections: MemoryArchiveSection[]): number =>
   sections.reduce((total, section) => total + section.item_count, 0);
