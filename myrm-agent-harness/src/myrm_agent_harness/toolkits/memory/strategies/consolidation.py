@@ -4,9 +4,11 @@
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.types::AnyMemory (POS: memory data models)
+- strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Persistence of maintenance counters, hashes and timestamps)
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
 - strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
 - strategies.consolidation_ops_executor::* (POS: Executes operations against memory primitives with transactional care, conflict routing, and deterministic three-state merge arbitration)
+- strategies.consolidation_window::fetch_candidate_window (POS: Oldest-first window of memories a consolidation run has not covered yet)
 - strategies.named_entity_guard::NamedEntityGuard (POS: 确定性命名实体与关键技术标识符守卫)
 
 [OUTPUT]
@@ -14,9 +16,11 @@
 - ConsolidationStats: Consolidation result statistics
 
 [POS]
-Cross-session memory consolidation strategy. Analyzes recent memories via LLM to detect
-contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights
-at near-zero marginal cost. Triggered by end_session() on configured intervals.
+Cross-session memory consolidation strategy. Analyzes the oldest memories not yet covered via LLM to
+detect contradictions and redundancies. Executes merge/correct/update and generates 0-3 insights
+at near-zero marginal cost. Triggered by end_session() on configured intervals. The stored timestamp
+is a covered-through mark that advances only as far as the analyzed window reached, so a backlog
+larger than one run is drained over consecutive runs.
 """
 
 from __future__ import annotations
@@ -27,8 +31,10 @@ from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
+from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     _PROFILE_KEY_LAST_CONSOLIDATED,
+    CONSOLIDATION_INSIGHT_TAG,
     ConflictCallback,
     ConflictContext,
     ConsolidationAction,
@@ -50,11 +56,11 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import 
     _build_id_map,
     _build_user_prompt,
 )
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-    from myrm_agent_harness.toolkits.memory.protocols.vector import FilterDict
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 logger = logging.getLogger(__name__)
@@ -65,7 +71,7 @@ _record_consolidation_event = record_consolidation_event
 
 
 async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
-    """Read the last consolidation timestamp from Profile store.
+    """Read the covered-through timestamp from the manager's bookkeeping row.
 
     This module only writes timezone-aware times that are not ahead of the clock. A stored value
     that is naive or in the future came from another writer; it is ignored so it cannot make the
@@ -73,7 +79,7 @@ async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     """
     if not manager.has_relational:
         return None
-    raw = await manager.get_profile_attribute(_PROFILE_KEY_LAST_CONSOLIDATED)
+    raw = await read_bookkeeping(manager, _PROFILE_KEY_LAST_CONSOLIDATED)
     if not raw:
         return None
     try:
@@ -121,7 +127,7 @@ async def run_consolidation(
     on_conflict: ConflictCallback | None = None,
     on_complete: ConsolidationCompleteCallback | None = None,
 ) -> ConsolidationStats:
-    """Execute a full consolidation cycle."""
+    """Execute one consolidation cycle over the oldest memories not covered yet."""
     start = datetime.now(UTC)
 
     last = await get_last_consolidated_at(manager)
@@ -135,20 +141,20 @@ async def run_consolidation(
             )
             return ConsolidationStats()
 
-    incremental = await _fetch_incremental_memories(manager, last, config.max_memories)
+    window = await fetch_candidate_window(manager, last, config.max_memories, start)
     new_ids: frozenset[str] | None = None
 
     enriched_count = 0
-    if len(incremental) == 1:
-        new_ids = frozenset(m.id for m in incremental)
-        memories = await _enrich_with_similar(incremental[0], manager, max_similar=config.enrich_max_similar)
+    if len(window.memories) == 1:
+        new_ids = frozenset(m.id for m in window.memories)
+        memories = await _enrich_with_similar(window.memories[0], manager, max_similar=config.enrich_max_similar)
         enriched_count = len(memories) - 1
     else:
-        memories = incremental
+        memories = window.memories
 
     if len(memories) < 2:
         logger.info("Consolidation skipped: insufficient memories (%d)", len(memories))
-        await _update_timestamp(manager, start)
+        await _advance_stamp(manager, window.advance_to)
         return ConsolidationStats()
 
     input_count = len(memories)
@@ -182,7 +188,7 @@ async def run_consolidation(
             input_count,
             enriched_count,
         )
-        await _update_timestamp(manager, start)
+        await _advance_stamp(manager, window.advance_to)
         empty_stats = ConsolidationStats(input_count=input_count, enriched_count=enriched_count)
         if on_complete is not None:
             try:
@@ -211,7 +217,7 @@ async def run_consolidation(
         stats.errors > 0 and (stats.merged + stats.corrected + stats.updated == 0)
     )
     if should_advance_timestamp:
-        await _update_timestamp(manager, start)
+        await _advance_stamp(manager, window.advance_to)
     else:
         logger.warning(
             "Consolidation skipped timestamp advancement (aborted=%s, errors=%d)",
@@ -239,70 +245,12 @@ async def run_consolidation(
     return stats
 
 
-_SCROLL_MULTIPLIER = 3
-
-
-async def _fetch_incremental_memories(
-    manager: MemoryManager, since: datetime | None, max_count: int
-) -> list[AnyMemory]:
-    """Fetch memories created after `since`, up to `max_count`."""
-    from myrm_agent_harness.toolkits.memory._internal.storage import (
-        doc_to_episodic,
-        doc_to_semantic,
-    )
-
-    all_memories: list[AnyMemory] = []
-    scroll_limit = max_count * _SCROLL_MULTIPLIER
-
-    if manager.has_vector:
-        v, _ = manager._vec()
-        cfg = manager.config
-        for collection, converter in (
-            (cfg.semantic_collection, doc_to_semantic),
-            (cfg.episodic_collection, doc_to_episodic),
-        ):
-            try:
-                scroll_filters: FilterDict = {
-                    "primary_namespace": manager.namespaces,
-                }
-                if manager.user_id is not None:
-                    scroll_filters["user_id"] = manager.user_id
-                docs, _ = await v.scroll(
-                    collection,
-                    limit=scroll_limit,
-                    filters=scroll_filters,
-                )
-                for doc in docs:
-                    mem = converter(doc)
-                    if hasattr(mem, "event_type") and mem.event_type == "consolidation":
-                        continue
-                    if since is None or mem.created_at > since:
-                        all_memories.append(mem)
-            except Exception as e:
-                logger.warning("Consolidation fetch from %s failed: %s", collection, e)
-
-    if manager.has_relational:
-        try:
-            rules = await manager._rel().list_rules(
-                active_only=True, limit=scroll_limit, namespaces=manager._namespaces
-            )
-            for rule in rules:
-                if since is None or rule.created_at > since:
-                    all_memories.append(rule)
-        except Exception as e:
-            logger.warning("Consolidation fetch procedural rules failed: %s", e)
-
-    all_memories.sort(key=lambda m: m.created_at)
-    return all_memories[:max_count]
-
-
-async def _update_timestamp(manager: MemoryManager, ts: datetime) -> None:
-    """Persist the consolidation timestamp as a Profile attribute."""
-    if not manager.has_relational:
+async def _advance_stamp(manager: MemoryManager, advance_to: datetime | None) -> None:
+    """Persist the covered-through stamp; ``None`` means a source was unreadable, so the stamp stays put."""
+    if advance_to is None or not manager.has_relational:
         return
     try:
-        rel = manager._rel()
-        await rel.set_profile(_PROFILE_KEY_LAST_CONSOLIDATED, ts.isoformat())
+        await write_bookkeeping(manager, _PROFILE_KEY_LAST_CONSOLIDATED, advance_to.isoformat())
     except Exception as e:
         logger.warning("Failed to update consolidation timestamp: %s", e)
 
@@ -330,7 +278,7 @@ async def _persist_insights(manager: MemoryManager, insights: list[str]) -> None
             confidence=0.8,
             preference_type="implicit",
             preference_strength=0.6,
-            tags=["consolidation-insight"],
+            tags=[CONSOLIDATION_INSIGHT_TAG],
         )
         try:
             await manager.store(mem, _bypass_approval=True)

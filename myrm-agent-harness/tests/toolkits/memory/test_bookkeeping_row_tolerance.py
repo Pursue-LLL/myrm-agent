@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     should_consolidate,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import _PROFILE_KEY_LAST_CONSOLIDATED
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import CandidateWindow
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
     increment_consolidation_count,
@@ -96,8 +97,8 @@ async def test_recent_timestamp_still_holds_consolidation_back(manager: MemoryMa
 async def test_run_consolidation_gets_past_the_soft_lock_with_an_unusable_timestamp(
     manager: MemoryManager, monkeypatch: pytest.MonkeyPatch, raw: str
 ) -> None:
-    fetch = AsyncMock(return_value=[])
-    monkeypatch.setattr(consolidation, "_fetch_incremental_memories", fetch)
+    fetch = AsyncMock(return_value=CandidateWindow(memories=[], advance_to=None))
+    monkeypatch.setattr(consolidation, "fetch_candidate_window", fetch)
     await manager.set_profile_attribute(_PROFILE_KEY_LAST_CONSOLIDATED, raw)
 
     assert await run_consolidation(manager, AsyncMock(), ConsolidationConfig()) == ConsolidationStats()

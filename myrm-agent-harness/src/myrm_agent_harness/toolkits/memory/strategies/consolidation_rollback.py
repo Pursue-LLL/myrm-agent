@@ -3,6 +3,7 @@
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.types::{EpisodicMemory, SemanticMemory, MemoryType} (POS: memory data models)
+- strategies.consolidation_models::{CONSOLIDATION_EVENT_TYPE, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
 
 [OUTPUT]
 - get_last_consolidation_summary: Fetch summary of last consolidation for UI display
@@ -21,6 +22,11 @@ import re
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
+    CONSOLIDATION_EVENT_TYPE,
+    CONSOLIDATION_SOURCE_KEY,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -54,7 +60,9 @@ async def get_last_consolidation_summary(manager: MemoryManager) -> dict[str, ob
     from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, MemoryType
 
     events = await manager.list_memories(MemoryType.EPISODIC, limit=50)
-    consolidation_events = [e for e in events if isinstance(e, EpisodicMemory) and e.event_type == "consolidation"]
+    consolidation_events = [
+        e for e in events if isinstance(e, EpisodicMemory) and e.event_type == CONSOLIDATION_EVENT_TYPE
+    ]
     if not consolidation_events:
         return None
 
@@ -93,7 +101,9 @@ async def rollback_last_consolidation(manager: MemoryManager) -> ConsolidationRo
     result = ConsolidationRollbackResult()
 
     events = await manager.list_memories(MemoryType.EPISODIC, limit=50)
-    consolidation_events = [e for e in events if isinstance(e, EpisodicMemory) and e.event_type == "consolidation"]
+    consolidation_events = [
+        e for e in events if isinstance(e, EpisodicMemory) and e.event_type == CONSOLIDATION_EVENT_TYPE
+    ]
     if not consolidation_events:
         return result
 
@@ -115,7 +125,7 @@ async def rollback_last_consolidation(manager: MemoryManager) -> ConsolidationRo
                 continue
 
             if isinstance(mem, SemanticMemory):
-                if mem.metadata.get("consolidation_source") or mem.correction_of:
+                if mem.metadata.get(CONSOLIDATION_SOURCE_KEY) or mem.correction_of:
                     await manager.delete_memory(manager.config.semantic_collection, [aid])
                     result.rolled_back += 1
 

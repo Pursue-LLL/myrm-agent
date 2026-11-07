@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.scope import resolve_primary_namespace
 from myrm_agent_harness.toolkits.memory.types import MemoryScope
 
 if TYPE_CHECKING:
@@ -31,6 +30,9 @@ if TYPE_CHECKING:
 
 def _owner_namespace(manager: MemoryManager) -> str:
     """The broadest durable namespace the manager owns, never a write-policy target such as a conversation."""
+    # Deferred: `_internal.scope` needs `memory.config`, and `memory.config` imports this package while loading.
+    from myrm_agent_harness.toolkits.memory._internal.scope import resolve_primary_namespace
+
     return resolve_primary_namespace(manager.namespaces)
 
 
