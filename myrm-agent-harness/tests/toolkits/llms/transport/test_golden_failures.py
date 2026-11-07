@@ -1,4 +1,4 @@
-"""Golden failures test: every recorded failure is classified as the previous stack classified it, except where registered.
+"""Golden failures test: every recorded failure is classified and carded as the previous stack did, except where registered.
 
 [INPUT]
 - golden_failures (POS: replays the recorded failures through the chat adapter on the installed stack)
@@ -11,10 +11,12 @@
   entry that matches nothing
 
 [POS]
-Safety net for the agent's recovery. 132 error replies (status, headers, body of OpenAI, Azure, Anthropic, Gemini and
-Ollama endpoints and the vendors behind them) and 36 streams (an error event first or after text, an empty or garbage
-body, a connection cut off on the way) must lead to the same failover reason, error kind, overflow and quota verdicts,
-and the same wait the provider asked for, as before the stack was replaced.
+Safety net for the agent's recovery and for the card a user reads. 190 error replies (status, headers, body of OpenAI,
+Azure, Anthropic, Gemini and Ollama endpoints and the vendors behind them; 40 of them with a body that holds no
+sentence, 18 that name the cause only in a kind or code field, a plain-text body or a status number) and 36 streams
+(an error event first or after text, an empty or garbage body, a connection cut off on the way) must lead to the same
+failover reason, error kind, overflow and quota verdicts, the same wait the provider asked for and the same error
+card, with and without a custom local endpoint, as before the stack was replaced.
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ def stream_report(baseline: FailureBaseline) -> Report:
 
 def test_the_recording_keeps_every_case(baseline: FailureBaseline) -> None:
     """A case cannot leave the contract unnoticed: removing one from the file changes these counts."""
-    assert (len(baseline["http"]), len(baseline["stream"])) == (132, 36)
+    assert (len(baseline["http"]), len(baseline["stream"])) == (190, 36)
 
 
 def test_every_error_reply_is_classified_as_before_or_registered(http_report: Report) -> None:

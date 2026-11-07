@@ -4,6 +4,7 @@
 - golden_failures_baseline.json (POS: every served failure with the previous stack's verdict on it)
 - golden_replay (POS: the in-memory provider and the adapter a replay goes through)
 - errors (POS: the classifiers the agent's recovery reads)
+- agent.errors.diagnostics::LLMErrorDiagnostic (POS: the error card a user is shown)
 
 [OUTPUT]
 - HttpCase / StreamCase / FailureBaseline: the shapes of the baseline entries; load_baseline reads the committed file
@@ -11,13 +12,15 @@
 
 [POS]
 The failures a settings screen, a gateway or a provider outage really produce: an error status with its body, an error
-event inside a 200 stream, a stream cut off on the way, an empty one. What the agent does next (repeat, switch key,
-compact, give up) is decided by five facts, so those are what is compared: the failover reason, the error kind, whether
-the context window or the request size is exhausted, whether the quota is spent and how long the provider asked to
-wait. The committed ``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP server to
-the previous chat adapter (litellm 1.97.0, the version the server's uv.lock pins and the product runs, at main
-c0cbd9185d) and reducing the exception it raised with the classifiers of that stack's own errors package. The baseline's
-``_meta.cross_check`` states how the harness lock's litellm 1.106.0 reads the same corpus.
+event inside a 200 stream, a stream cut off on the way, an empty one, a reply whose body holds no sentence so that
+only its status says what happened, and a reply whose cause is named only in a kind or code field. What the agent does next (repeat, switch key, compact, give up) is decided by five
+facts: the failover reason, the error kind, whether the context window or the request size is exhausted, whether the
+quota is spent and how long the provider asked to wait. What the user is told is the error card (its type, without a
+context and with a custom local endpoint). Those are what is compared. The committed
+``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP server to the previous chat
+adapter (litellm 1.97.0, the version the server's uv.lock pins and the product runs) and reducing the exception it raised
+with the classifiers and the diagnostics of that stack's own packages; ``_meta`` states at which main, and how the
+harness lock's litellm 1.106.0 reads the same corpus.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from typing import Literal, TypedDict, cast
 
 import httpx
 
+from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms import errors
 
 from .golden_compare import Verdict
@@ -74,6 +78,9 @@ class _CutOff(httpx.AsyncByteStream):
         raise httpx.RemoteProtocolError("peer closed connection without sending complete message body")
 
 
+_LOCAL_SERVICE = ErrorContext(model_name="m", is_custom_endpoint=True, base_url="http://127.0.0.1:11434")
+
+
 def _plain(value: object) -> object:
     return value.value if isinstance(value, Enum) else value
 
@@ -85,6 +92,8 @@ def failure_facts(exc: Exception) -> Verdict:
         "ctx": errors.is_context_overflow(exc),
         "payload": errors.is_payload_overflow(exc),
         "quota": errors.is_quota_exhausted(exc),
+        "card": LLMErrorDiagnostic.diagnose(exc, locale="en").error_type,
+        "card_custom": LLMErrorDiagnostic.diagnose(exc, _LOCAL_SERVICE, locale="en").error_type,
     }
 
 
