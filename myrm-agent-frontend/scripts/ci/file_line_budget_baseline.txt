@@ -105,7 +105,6 @@ src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx
-src/components/features/settings/sections/knowledge/WikiSection.tsx
 src/components/features/settings/sections/knowledge/wiki/useWikiConceptsList.ts
 src/components/features/settings/sections/system/AboutSection.tsx
 src/components/features/settings/sections/system/AccessCard.tsx
