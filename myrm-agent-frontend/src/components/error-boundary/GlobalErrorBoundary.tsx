@@ -203,7 +203,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-6 rounded-lg border border-destructive/50 bg-card p-6 shadow-lg">
-          <div className="flex items-center gap-3 text-destructive">
+          <div className="flex items-center gap-3 text-destructive-text">
             <AlertIcon />
             <h1 className="text-2xl font-bold">{t.title}</h1>
           </div>
@@ -213,7 +213,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="rounded bg-muted p-3 text-sm">
-                <summary className="cursor-pointer font-mono text-destructive">{t.devDetails}</summary>
+                <summary className="cursor-pointer font-mono text-destructive-text">{t.devDetails}</summary>
                 <pre className="mt-2 overflow-auto text-xs">
                   {this.state.error.toString()}
                   {'\n\n'}

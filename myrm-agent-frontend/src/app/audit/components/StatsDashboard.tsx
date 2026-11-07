@@ -151,7 +151,7 @@ const StatsDashboard = () => {
       <Card className="md:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <XCircle className="size-5 text-destructive" />
+            <XCircle className="size-5 text-destructive-text" />
             Top Errors / 常见错误
           </CardTitle>
           <CardDescription>Most common error messages / 最常见的错误消息</CardDescription>
@@ -198,7 +198,7 @@ const StatsDashboard = () => {
             })}
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <AlertTriangle className="size-4 text-destructive" />
+            <AlertTriangle className="size-4 text-destructive-text" />
             <span>Red bars indicate abnormal hours (2-6 AM) / 红色条表示异常时间（凌晨2-6点）</span>
           </div>
         </CardContent>

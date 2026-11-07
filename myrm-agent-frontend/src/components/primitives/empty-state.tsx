@@ -49,10 +49,10 @@ const EmptyState = React.forwardRef<HTMLDivElement, EmptyStateProps>(
           <div
             className={cn(
               'mb-4 flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 hover:scale-105',
-              variant === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-muted/80 text-muted-foreground',
+              variant === 'error' ? 'bg-destructive/10 text-destructive-text' : 'bg-muted/80 text-muted-foreground',
             )}
           >
-            <Icon className={cn('h-7 w-7', variant === 'error' ? 'text-destructive' : 'text-primary/80')} />
+            <Icon className={cn('h-7 w-7', variant === 'error' ? 'text-destructive-text' : 'text-primary/80')} />
           </div>
         )}
         <h3 className="text-base font-semibold tracking-tight text-foreground">{title}</h3>

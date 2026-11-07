@@ -177,7 +177,7 @@ export default function AgentsPage() {
           <GovernancePanel agentNames={agentNames} onReview={handleReview} onChanged={mutate} />
 
           {error ? (
-            <div className="p-4 rounded-xl border bg-destructive/10 text-destructive">
+            <div className="p-4 rounded-xl border bg-destructive/10 text-destructive-text">
               {t('list.error', { fallback: 'Failed to load agents.' })}
             </div>
           ) : isLoading ? (

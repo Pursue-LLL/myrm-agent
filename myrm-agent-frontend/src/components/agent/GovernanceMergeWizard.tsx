@@ -225,9 +225,9 @@ export function MergeWizard({
               )}
             </div>
           )}
-          {preview && !preview.ok && <p className="text-sm text-destructive">{preview.reason}</p>}
+          {preview && !preview.ok && <p className="text-sm text-destructive-text">{preview.reason}</p>}
 
-          {result && <p className="text-sm text-destructive">{result}</p>}
+          {result && <p className="text-sm text-destructive-text">{result}</p>}
 
           <div className="space-y-2">
             <Label htmlFor="merge-confirm">

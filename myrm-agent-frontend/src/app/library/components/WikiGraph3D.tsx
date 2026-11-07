@@ -268,7 +268,7 @@ export default function WikiGraph3D({
   if (error) {
     return (
       <div className="w-full min-h-[600px] rounded-xl bg-black/5 flex flex-col items-center justify-center gap-4">
-        <p className="text-destructive text-sm">{error}</p>
+        <p className="text-destructive-text text-sm">{error}</p>
         <button
           onClick={() => setRefreshTrigger((prev) => prev + 1)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 transition-opacity"

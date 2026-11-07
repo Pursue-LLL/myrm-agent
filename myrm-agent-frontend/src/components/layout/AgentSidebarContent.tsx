@@ -273,7 +273,7 @@ export const AgentSidebarContent = memo<AgentSidebarContentProps>(
                           {t('agent.edit')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
+                          className="text-destructive-text focus:text-destructive-text"
                           onClick={() => handleDeleteRequest(agent)}
                         >
                           <Trash2 className="w-4 h-4 mr-2" />

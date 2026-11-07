@@ -343,7 +343,9 @@ export default function PricingPage() {
               )
             : null}
         </div>
-        {catalogError ? <p className="mt-6 text-center text-sm text-destructive">{t('catalogLoadFailed')}</p> : null}
+        {catalogError ? (
+          <p className="mt-6 text-center text-sm text-destructive-text">{t('catalogLoadFailed')}</p>
+        ) : null}
       </div>
     </div>
   );
