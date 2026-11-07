@@ -23,7 +23,7 @@ SaaS（`NEXT_PUBLIC_DEPLOY_MODE=sandbox`）与控制平面认证相关的 UI：�
 
 ## Locale 接力
 
-营销站 CTA 附 `?locale=en|zh`。App `middleware.ts` 首请求写 `NEXT_LOCALE` cookie 并 302 去掉 query。登录/OAuth 成功后 `lib/locale-personal-sync.ts` 将 cookie 同步至 `personalSettings.locale`，与 `messageRequest.ts` 优先级对齐。
+营销站 CTA 附 `?locale=en|zh`。App `middleware.ts` 首请求写 `NEXT_LOCALE` cookie 并 302 去掉 query。登录/OAuth 成功后 `lib/locale-personal-sync.ts` 将 cookie 同步至 `personalSettings.locale`，与 `store/chat/createMessageRequest.ts` 优先级对齐。
 
 ## 依赖
 

@@ -16,14 +16,18 @@ export const createSaveConfigHandler = (
   setCurrentBuiltinTools: (tools: BuiltinToolId[]) => void,
 ) => {
   return (data: Partial<AgentConfig>) => {
+    // 只有指令内容真的变了才算会话级改写；原样保存不能让服务端放弃智能体已保存的指令
+    const promptRewritten = data.systemPrompt !== undefined && data.systemPrompt !== (agentConfig?.systemPrompt ?? '');
+
     if (agentConfig) {
-      updateAgentConfig(data);
+      updateAgentConfig(promptRewritten ? { ...data, systemPromptEdited: true } : data);
     } else {
       setAgentConfig({
         selectedSkillIds: data.selectedSkillIds || [],
         skillConfigs: data.skillConfigs || {},
         selectedMcpNames: data.selectedMcpNames || [],
         systemPrompt: data.systemPrompt || '',
+        systemPromptEdited: promptRewritten,
         useGlobalInstruction: data.useGlobalInstruction ?? true,
         enabledBuiltinTools: data.enabledBuiltinTools ?? [...DEFAULT_ENABLED_BUILTIN_TOOLS],
         autoRestoreDomains: data.autoRestoreDomains || [],

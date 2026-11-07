@@ -1,6 +1,6 @@
 """Chrome LIVE E2E: real agent-stream request body carries correctly-filtered mention references.
 
-Covers the messageRequest.ts `isReferenceTokenAlive` + `@wiki:` inline parsing fixes:
+Covers the mentionReferences.ts `isReferenceTokenAlive` + `@wiki:` inline parsing fixes:
 - kept reference: `@chat:Alpha` selected and left in the composer must still reach the
   agent-stream `mention_references` payload as `prior_chat`;
 - zombie reference: the same selected reference, once its text is wiped from the composer,

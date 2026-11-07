@@ -178,7 +178,6 @@ src/services/statistics.ts
 src/services/wiki/service.ts
 src/store/builtinActions.ts
 src/store/chat/messageManagement.ts
-src/store/chat/messageRequest.ts
 src/store/chat/messageStream/handlers/statusStreamProgressSteps.ts
 src/store/chat/messageStream/handlers/toolsProgressEvents.ts
 src/store/chat/types/agentStream/part1.ts
