@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Export the Apple signing / notarization secrets to later steps only when they are configured.
 # Tauri treats a defined-but-empty APPLE_* variable as "signing requested" and fails the bundle on its
-# keychain import, so an unsigned build must not define them at all.
+# keychain import, so a build without credentials must not define them at all: it keeps the ad-hoc
+# `signingIdentity` of tauri.conf.json.
 set -euo pipefail
 
 : "${GITHUB_ENV:?must run inside GitHub Actions}"
@@ -19,7 +20,7 @@ for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY 
 done
 
 if [[ "$exported" -eq 0 ]]; then
-  echo "[apple-signing-env] no Apple signing secrets configured; building unsigned"
+  echo "[apple-signing-env] no Apple signing secrets configured; the app is sealed with the ad-hoc identity of tauri.conf.json"
 else
   echo "[apple-signing-env] exported ${exported} Apple signing variable(s)"
 fi
