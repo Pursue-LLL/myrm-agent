@@ -263,7 +263,7 @@ const AllowlistSection = memo(() => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <IconAlertTriangle className="h-5 w-5 text-destructive" />
+              <IconAlertTriangle className="h-5 w-5 text-destructive-text" />
               {t('clearConfirm.title')}
             </AlertDialogTitle>
             <AlertDialogDescription>{t('clearConfirm.description', { count: entries.length })}</AlertDialogDescription>

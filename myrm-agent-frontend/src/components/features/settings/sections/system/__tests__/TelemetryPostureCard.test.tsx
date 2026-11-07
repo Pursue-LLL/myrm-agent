@@ -173,7 +173,7 @@ describe('TelemetryPostureCard', () => {
     await waitFor(() => {
       expect(screen.getByText('Failing')).toBeInTheDocument();
       expect(screen.getByRole('status')).toHaveTextContent('The last export attempt failed.');
-      expect(screen.getByText('3')).toHaveClass('text-destructive');
+      expect(screen.getByText('3')).toHaveClass('text-destructive-text');
       expect(screen.getByText('30 seconds ago')).toBeInTheDocument();
     });
     expect(container.querySelector('.animate-pulse')).toBeNull();
@@ -212,7 +212,7 @@ describe('TelemetryPostureCard', () => {
     await waitFor(() => {
       expect(metricsValue().getByText(label)).toBeInTheDocument();
     });
-    expect(metricsValue().getByText(label)).not.toHaveClass('text-destructive');
+    expect(metricsValue().getByText(label)).not.toHaveClass('text-destructive-text');
     expect(screen.queryByText(METRICS_NOTICE)).toBeNull();
   });
 
@@ -224,7 +224,7 @@ describe('TelemetryPostureCard', () => {
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent(METRICS_NOTICE);
     });
-    expect(metricsValue().getByText('Failing')).toHaveClass('text-destructive');
+    expect(metricsValue().getByText('Failing')).toHaveClass('text-destructive-text');
     expect(screen.getAllByText('Active')).toHaveLength(1);
   });
 

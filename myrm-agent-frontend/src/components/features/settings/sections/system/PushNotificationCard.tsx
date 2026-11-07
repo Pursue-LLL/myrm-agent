@@ -110,9 +110,9 @@ const PushNotificationCard = memo(() => {
           </div>
         </div>
 
-        {state === 'denied' && <p className="text-xs text-destructive">{t('push.deniedHint')}</p>}
+        {state === 'denied' && <p className="text-xs text-destructive-text">{t('push.deniedHint')}</p>}
 
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive-text">{error}</p>}
       </div>
     </section>
   );

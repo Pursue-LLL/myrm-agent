@@ -249,7 +249,7 @@ export const DualTrackAuditDashboard = memo(() => {
                         <span className="text-foreground">{entry.sessionId}</span>
                       </div>
                       {entry.errorMessage && (
-                        <div className="text-destructive">
+                        <div className="text-destructive-text">
                           <span className="text-muted-foreground">{t('detailReason')} </span>
                           {entry.errorMessage}
                         </div>

@@ -73,7 +73,7 @@ function RiskRuleRow({ rule, name, description, onToggle, onEdit, onDuplicate, o
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0 text-destructive"
+            className="h-7 w-7 p-0 text-destructive-text"
             title={t('deleteRule')}
             aria-label={t('deleteRule')}
             onClick={() => onDelete(rule.rule_id)}

@@ -363,7 +363,7 @@ export default function KanbanSection() {
                   <button
                     type="button"
                     onClick={() => startDelete(board)}
-                    className="text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    className="text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive-text transition-colors"
                   >
                     &times;
                   </button>

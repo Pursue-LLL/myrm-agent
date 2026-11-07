@@ -49,10 +49,10 @@ const TONE_CLASSES: Record<Tone, { badge: string; dot: string; notice: string; i
     icon: 'text-warning',
   },
   danger: {
-    badge: 'border-destructive/30 bg-destructive/10 text-destructive dark:text-red-400',
+    badge: 'border-destructive/30 bg-destructive/10 text-destructive-text dark:text-red-400',
     dot: 'bg-destructive dark:bg-red-400',
     notice: 'border-destructive/30 bg-destructive/5',
-    icon: 'text-destructive dark:text-red-400',
+    icon: 'text-destructive-text dark:text-red-400',
   },
   idle: {
     badge: 'border-border bg-muted text-muted-foreground',
@@ -131,7 +131,7 @@ function Counter({ label, value, tone }: { label: string; value: number; tone?: 
       <span
         className={cn(
           'font-mono text-base font-semibold tabular-nums',
-          value > 0 && tone === 'danger' && 'text-destructive dark:text-red-400',
+          value > 0 && tone === 'danger' && 'text-destructive-text dark:text-red-400',
           value > 0 && tone === 'warn' && 'text-warning',
         )}
       >
@@ -198,7 +198,7 @@ function PostureBody({ posture, view }: { posture: TelemetryPosture; view: Statu
           </span>
         </Field>
         <Field label={t('metrics')}>
-          <span className={cn(metricsFailing && 'text-destructive dark:text-red-400')}>
+          <span className={cn(metricsFailing && 'text-destructive-text dark:text-red-400')}>
             {t(METRICS_LABEL_KEY[posture.metrics_status] ?? METRICS_LABEL_KEY.off)}
           </span>
         </Field>

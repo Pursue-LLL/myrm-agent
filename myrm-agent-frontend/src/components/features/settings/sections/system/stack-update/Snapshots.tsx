@@ -69,7 +69,7 @@ export default function StackUpdateSnapshots({
       </div>
       {backupError && (
         <div className="space-y-1">
-          <p className="text-xs text-destructive/90">{t('backupFailed')}</p>
+          <p className="text-xs text-destructive-text">{t('backupFailed')}</p>
           <p className="text-xs text-muted-foreground leading-relaxed">{t('backupManualGuide')}</p>
         </div>
       )}

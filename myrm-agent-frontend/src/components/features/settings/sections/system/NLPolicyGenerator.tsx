@@ -143,7 +143,7 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
               {result.is_valid ? (
                 <IconShieldCheck className="h-4 w-4 text-emerald-500" />
               ) : (
-                <IconShieldAlert className="h-4 w-4 text-destructive" />
+                <IconShieldAlert className="h-4 w-4 text-destructive-text" />
               )}
               <span className="text-sm font-medium">{result.is_valid ? t('resultValid') : t('resultDanger')}</span>
             </div>
@@ -192,7 +192,7 @@ const NLPolicyGenerator = memo(({ currentConfig, onApply }: NLPolicyGeneratorPro
                   key={i}
                   className={`flex items-start gap-2 p-2 rounded-full text-xs ${
                     w.severity === 'danger'
-                      ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                      ? 'bg-destructive/10 text-destructive-text border border-destructive/20'
                       : w.severity === 'warning'
                         ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50'
                         : 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50'

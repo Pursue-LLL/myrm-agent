@@ -162,7 +162,7 @@ const LockedUseCard = memo<LockedUseCardProps>(({ enabled, onToggle }) => {
                     className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
                     title={t('deletePassword')}
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-destructive/70" />
+                    <Trash2 className="w-3.5 h-3.5 text-destructive-text" />
                   </button>
                 </div>
               ) : showPasswordInput ? (

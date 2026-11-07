@@ -50,13 +50,13 @@ const AppshotExcludedAppsEditor = memo<{
         {apps.map((app, idx) => (
           <span
             key={`${app}-${idx}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive border border-destructive/20"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-destructive/10 text-destructive-text border border-destructive/20"
           >
             {app}
             <button
               type="button"
               onClick={() => handleRemove(idx)}
-              className="ml-0.5 hover:text-destructive/80 transition-colors"
+              className="ml-0.5 hover:text-destructive-text/80 transition-colors"
             >
               ×
             </button>

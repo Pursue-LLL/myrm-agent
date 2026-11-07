@@ -49,7 +49,7 @@ const TrustBadgeCard = memo(() => {
   }
 
   const tone =
-    state === 'safe' ? 'text-emerald-400' : state === 'unknown' ? 'text-muted-foreground' : 'text-destructive';
+    state === 'safe' ? 'text-emerald-400' : state === 'unknown' ? 'text-muted-foreground' : 'text-destructive-text';
 
   return (
     <section className="space-y-6">
@@ -61,7 +61,7 @@ const TrustBadgeCard = memo(() => {
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
         <div className="flex items-center gap-2">
           {state === 'safe' && <IconCheck className="w-4 h-4 text-emerald-400" />}
-          {state !== 'safe' && state !== 'unknown' && <IconAlertCircle className="w-4 h-4 text-destructive" />}
+          {state !== 'safe' && state !== 'unknown' && <IconAlertCircle className="w-4 h-4 text-destructive-text" />}
           <p className={cn('text-sm font-bold text-foreground', tone)}>{t(`state.${state}`)}</p>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">{t(`hint.${state}`)}</p>

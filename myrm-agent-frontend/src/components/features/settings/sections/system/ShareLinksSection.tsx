@@ -133,7 +133,7 @@ export default function ShareLinksSection() {
 
         {loadState === 'error' && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
-            <p className="text-sm text-destructive">{t('loadError')}</p>
+            <p className="text-sm text-destructive-text">{t('loadError')}</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => void load()}>
               {t('retry')}
             </Button>
