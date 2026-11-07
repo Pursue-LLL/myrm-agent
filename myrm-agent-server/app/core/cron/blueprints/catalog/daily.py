@@ -1,13 +1,10 @@
 """[INPUT]
-- app.core.cron.blueprints.core.types::_CAP_DEVOPS / _CAP_RESEARCH / _CAP_WEB / _TOOLS_DEVOPS / _TOOLS_RESEARCH / _TOOLS_WEB / BlueprintSlot / CronBlueprint (POS: 蓝图目录（blueprints/catalog/）与注册表（blueprints/core/registry.py）共用的类型和纯函数；不包含任何具体蓝图。)
-
+- app.core.cron.blueprints.core.types (POS: 蓝图类型与共享常量)
 [OUTPUT]
-- （仅导出常量/类型）
-
+- BLUEPRINTS: 日常节奏蓝图定义
 [POS]
-Cron 蓝图目录的一部分；由 app/core/cron/blueprints/ 的注册表按声明顺序拼成内置清单。
+Cron 蓝图目录的一部分；由 core/registry.py 按声明顺序拼成内置清单。
 """
-
 from app.core.cron.blueprints.core.types import (
     _CAP_DEVOPS,
     _CAP_RESEARCH,
