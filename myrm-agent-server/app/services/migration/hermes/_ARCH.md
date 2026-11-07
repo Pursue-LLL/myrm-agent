@@ -10,7 +10,6 @@
 | --- | --- | --- | --- |
 | `hermes_cron_converter.py` | 核心 | Hermes `jobs.json` → Myrm CronJob 映射 + dry-run plan + skipped preview rows（无 model 字段，agent SSOT） | ✅ |
 | `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
-| `hermes_moa_migrator.py` | 辅助 | Hermes `moa.presets` → 目标 Agent `engine_params.moa_overlay`（ref 模型 + fanout/隐私参数；不迁移 aggregator） | ✅ |
 
 ## 依赖边界
 

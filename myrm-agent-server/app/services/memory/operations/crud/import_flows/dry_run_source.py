@@ -143,6 +143,8 @@ def build_side_channels(loaded: LoadedSource) -> SideChannels:
         auxiliary = hermes_cfg.get("auxiliary")
         if isinstance(auxiliary, dict) and auxiliary:
             model_migration_payload["hermes_auxiliary"] = auxiliary
+        # MoA presets are not migrated (Hermes/Myrm semantics differ); the raw block is
+        # kept only so the post-import readiness check can hint the user to configure MoA.
         moa_block = hermes_cfg.get("moa")
         if isinstance(moa_block, dict) and moa_block:
             model_migration_payload["hermes_moa"] = moa_block

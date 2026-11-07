@@ -93,32 +93,56 @@ async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> i
     return inserted_count
 
 
+def _agent_has_moa_overlay_refs(engine_params: dict[str, object] | None) -> bool:
+    """True when the agent profile already defines MoA reference models."""
+    if not engine_params:
+        return False
+    overlay = engine_params.get("moa_overlay")
+    if not isinstance(overlay, dict):
+        return False
+    from app.services.agent.moa_preset_resolver import (
+        VALID_MOA_PRESET_IDS,
+        resolve_preset_reference_selections,
+    )
+
+    for preset_id in VALID_MOA_PRESET_IDS:
+        if len(resolve_preset_reference_selections(overlay, preset_id)) > 0:
+            return True
+    refs = overlay.get("reference_model_selections")
+    return isinstance(refs, list) and len(refs) > 0
+
+
+def _hermes_source_has_moa(moa: object) -> bool:
+    """True when the Hermes source carries a usable MoA declaration."""
+    if not isinstance(moa, dict):
+        return False
+    presets = moa.get("presets")
+    if isinstance(presets, dict):
+        return any(isinstance(preset, dict) for preset in presets.values())
+    return isinstance(moa.get("reference_models"), (list, dict))
+
+
 async def _resolve_post_import_moa_overlay_configured(
     target_agent_id: str | None,
     model_migration_data: object,
 ) -> bool:
-    """Return whether the migrated agent has MoA overlay refs after import."""
+    """Return whether the migrated agent has MoA overlay refs after import.
+
+    MoA presets are deliberately not migrated (Hermes and Myrm presets are not
+    fully compatible); when the source declared them and the target has none,
+    readiness surfaces a hint to configure them manually.
+    """
     if target_agent_id:
         from app.services.agent.agent_service import AgentService
-        from app.services.migration.hermes.hermes_moa_migrator import (
-            agent_has_moa_overlay_refs,
-        )
 
         agent = await AgentService.get_agent_by_id(target_agent_id)
-        if agent is not None and agent_has_moa_overlay_refs(
+        if agent is not None and _agent_has_moa_overlay_refs(
             agent.engine_params if isinstance(agent.engine_params, dict) else None
         ):
             return True
 
-    if isinstance(model_migration_data, dict):
-        hermes_moa = model_migration_data.get("hermes_moa")
-        if isinstance(hermes_moa, dict):
-            from app.services.migration.hermes.hermes_moa_migrator import (
-                build_moa_overlay_from_hermes_config,
-            )
-
-            if build_moa_overlay_from_hermes_config(hermes_moa) is not None:
-                return False
+    if isinstance(model_migration_data, dict) and _hermes_source_has_moa(model_migration_data.get("hermes_moa")):
+        return False
 
     return True
 
@@ -145,27 +169,6 @@ async def _apply_model_migration(
                 )
         except Exception as exc:
             logger.warning("Hermes auxiliary model migration failed (non-fatal): %s", exc)
-
-    hermes_moa = model_data.get("hermes_moa")
-    if isinstance(hermes_moa, dict) and target_agent_id:
-        try:
-            from app.services.migration.hermes.hermes_moa_migrator import (
-                migrate_hermes_moa_overlay,
-            )
-
-            moa_result = await migrate_hermes_moa_overlay(
-                {"moa": hermes_moa},
-                target_agent_id,
-            )
-            if moa_result.configured and moa_result.reference_count:
-                logger.info(
-                    "Model migration: Hermes MoA preset=%s refs=%d → agent %s",
-                    moa_result.preset_name,
-                    moa_result.reference_count,
-                    target_agent_id,
-                )
-        except Exception as exc:
-            logger.warning("Hermes MoA overlay migration failed (non-fatal): %s", exc)
 
     openclaw_defaults = model_data.get("openclaw_agents_defaults")
     if isinstance(openclaw_defaults, dict):
