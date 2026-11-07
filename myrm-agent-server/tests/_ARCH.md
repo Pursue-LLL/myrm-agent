@@ -705,7 +705,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_phase_stepper.py` | 模块 | 阶段步进器 `PhaseTransitionTracker`：初始规划阶段、工具开始进执行泳道、推理切到 LLM 泳道、验证与完成转场；loop guard 暂停（真实 harness 事件）不进「等待审批」节点、此后 `message_end` 照常收尾，真正等待回答的事件（审批、带 `actionRequests` 的审批、澄清）仍进用户泳道的审批节点 |
 | `services/agent/stream_session/test_stream_exception_chunks.py` | 模块 | `yield_stream_exception_chunks` 各分支的用户可见错误 chunk：并发上限的结构化错误（三态原因、占用者截断、中英文案）、Resume 失败清理 checkpoint、配置缺失与 LLM 错误的本地化载荷；10 种错误逐个核对：是否标记回合与收集器、是否记失败终态（繁忙拒绝不记）；繁忙/排空错误的形状；取消的任务把收集器标为已取消；不带诊断的 LLM 错误展示诊断后的文案而不是带错误码的原始文本 |
 | `services/agent/stream_session/test_stream_exception_chunks_payload_fields.py` | 模块 | 结构化错误载荷的字段：繁忙、配置缺失、LLM 错误三种都沿用本回合的消息 id（回合没有 id 时生成新的）、恢复动作按会话语言生成（缺省用 en）、上下文里没有冷却时长就不带冷却字段、不带诊断（缺省或空对象）的 LLM 错误按会话语言（en/zh-TW/ja 各不相同）得到完整诊断、自带的诊断原样发送且不再重诊断、诊断失败时不带 `diagnostic_result` 字段 |
-| `services/agent/stream_session/test_turn_capability_terminal.py` | 模块 | 能力遥测终态锚点：载荷判定、异常归类到 `failure_reason`、`send_completed/send_failed` 写入形状；一回合只落一次终态（已记录、无遥测都跳过，写入失败不置位以便重试） |
+| `services/agent/stream_session/test_turn_capability_terminal.py` | 模块 | 能力遥测终态锚点：载荷判定、异常归类到 `failure_reason`（服务商状态、断开的连接、措辞）、`send_completed/send_failed` 写入形状；一回合只落一次终态（已记录、无遥测都跳过，写入失败不置位以便重试） |
 | `services/agent/stream_session/test_stream_finalize_teardown.py` | 模块 | 回合结束时留下的东西：答案带首 token 耗时与兄弟分组落库、崩溃恢复标记只在答案落库之后清除、归还 Stop 句柄与引导注册、用户停止的回合记为已停止（run digest 为 CANCELLED、能力遥测为 abort） |
 | `services/agent/test_stream_exception_chunks_cancelled_kills_bg.py` | 模块 | 取消（`CancelledError`）分支结束会话的后台作业：按 chat id 调 `kill_session_jobs`，注册表失败时不向外抛 |
 | `services/agent/test_stream_finalize_persistence.py` | 模块 | `finalize_agent_stream_session` 收尾持久化单测（记忆预算与引用顺序、brief 状态载荷、无效预算载荷跳过、未应用原因、brief 缺失时仍发注入状态、预算钩子失败时保留注入状态） |
