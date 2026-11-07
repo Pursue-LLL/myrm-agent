@@ -145,7 +145,7 @@ class TestCompletionGuardUnwrittenDeliverablesAndAutoStaging:
         with patch(LOOP_GUARD_PATCH, return_value=mock_loop_guard):
             res = await self.guard.aafter_model(state, runtime)
 
-        assert "Substantial unpersisted deliverables detected" in reasons_of(res).deliverable_write
+        assert "Substantial unpersisted deliverables detected" in reasons_of(res).unwritten_deliverable
 
     @pytest.mark.asyncio
     async def test_forced_finish_triggers_auto_staging(self, tmp_path: Path) -> None:

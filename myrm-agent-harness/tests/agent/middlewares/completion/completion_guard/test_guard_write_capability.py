@@ -72,7 +72,8 @@ class TestGuardDecision:
     async def test_a_run_that_can_save_files_is_asked_to_save_the_file(self, tmp_path: Path) -> None:
         result = await verdict(_saving(True), _asked(), runtime(tmp_path))
 
-        assert "Substantial unpersisted deliverables" in reasons_of(result).deliverable_write
+        assert "Substantial unpersisted deliverables" in reasons_of(result).unwritten_deliverable
+        assert reasons_of(result).deliverable_write == ""
 
     @pytest.mark.asyncio
     async def test_a_run_that_cannot_save_files_is_not_asked(self, tmp_path: Path) -> None:

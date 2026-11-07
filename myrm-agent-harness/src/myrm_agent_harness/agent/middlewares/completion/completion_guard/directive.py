@@ -38,6 +38,7 @@ class BlockReasons:
     evidence: str = ""
     evidence_unreachable: bool = False
     deliverable_write: str = ""
+    unwritten_deliverable: str = ""
     execution_claim: str = ""
     query_grounding: str = ""
     verification: bool = False
@@ -49,6 +50,7 @@ class BlockReasons:
         fired = (
             ("evidence_unreachable" if self.evidence_unreachable else "evidence", self.evidence),
             ("deliverable_write", self.deliverable_write),
+            ("unwritten_deliverable", self.unwritten_deliverable),
             ("execution_claim", self.execution_claim),
             ("query_grounding", self.query_grounding),
         )
@@ -81,7 +83,12 @@ def _forced_finish_directive(reasons: BlockReasons) -> str:
             "\nNOTICE: Your draft claimed work that this run's execution record does not support. "
             "The warning in your final response must state that explicitly."
         )
-    for unresolved in (reasons.evidence, reasons.deliverable_write, reasons.query_grounding):
+    for unresolved in (
+        reasons.evidence,
+        reasons.deliverable_write,
+        reasons.unwritten_deliverable,
+        reasons.query_grounding,
+    ):
         if unresolved.strip():
             text += (
                 f"\nNOTICE: Still unresolved ({unresolved.strip()}). The warning in your final response must state it."
@@ -123,6 +130,13 @@ def render_completion_directive(
             f"Reason: {reasons.deliverable_write}\n"
             "Before finishing, call file_write_tool or file_edit_tool to persist the file, "
             "or revise the response to remove the false write claim."
+        )
+
+    if reasons.unwritten_deliverable.strip():
+        return (
+            "CRITICAL COMPLETION CHECK: Deliverable content was written into the reply but never saved.\n"
+            f"Reason: {reasons.unwritten_deliverable}\n"
+            "Before finishing, call file_write_tool to save each file, then tell the user where it is."
         )
 
     if reasons.execution_claim.strip():

@@ -252,7 +252,10 @@ def _guard_environment(budget_verdict: MagicMock) -> Iterator[None]:
             "myrm_agent_harness.agent.security.guards.taint_tracker.get_taint_tracker",
             return_value=MagicMock(record_tool_output=MagicMock()),
         ),
-        patch(f"{tooling}._tool_guards.post_call.check_tool_result_pii", side_effect=lambda result, text, _name: (result, text)),
+        patch(
+            f"{tooling}._tool_guards.post_call.check_tool_result_pii",
+            side_effect=lambda result, text, _name: (result, text),
+        ),
         patch("myrm_agent_harness.agent.workspace_rules.tracker.check_and_append_rules", return_value=None),
         patch(
             "myrm_agent_harness.agent.hooks.executor.fire_hook",

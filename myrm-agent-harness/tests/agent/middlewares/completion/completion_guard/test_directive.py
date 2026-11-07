@@ -50,7 +50,7 @@ class TestCompletionDirective:
 
     @pytest.mark.parametrize(
         "reason",
-        ["evidence", "deliverable_write", "query_grounding"],
+        ["evidence", "deliverable_write", "unwritten_deliverable", "query_grounding"],
     )
     def test_forced_finish_states_what_is_still_unresolved(self, reason: str) -> None:
         result = render_completion_directive(
@@ -87,6 +87,10 @@ class TestCompletionDirective:
                 "Deliverable write claim without tool evidence",
             ),
             (
+                BlockReasons(unwritten_deliverable="code in the reply without a file"),
+                "Deliverable content was written into the reply but never saved",
+            ),
+            (
                 BlockReasons(execution_claim="claim without execution"),
                 "Completion claim without executed evidence",
             ),
@@ -99,6 +103,16 @@ class TestCompletionDirective:
     def test_directive_reports_each_block_reason(self, reasons: BlockReasons, marker: str) -> None:
         result = render_completion_directive(reasons, records=[], workspace_root=None)
         assert marker in result
+
+    def test_an_unsaved_deliverable_is_asked_to_be_saved_not_to_retract_a_claim_it_never_made(self) -> None:
+        result = render_completion_directive(
+            BlockReasons(unwritten_deliverable="code in the reply without a file"), records=[], workspace_root=None
+        )
+        assert "file_write_tool" in result
+        assert "claim" not in result
+
+    def test_an_unsaved_deliverable_alone_names_its_own_check(self) -> None:
+        assert BlockReasons(unwritten_deliverable="x").names() == ("unwritten_deliverable",)
 
     def test_a_directive_is_not_padded_with_a_leading_space(self) -> None:
         result = render_completion_directive(BlockReasons(evidence="x"), records=[], workspace_root=None)
