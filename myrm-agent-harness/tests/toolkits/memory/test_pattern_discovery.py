@@ -15,11 +15,13 @@ import pytest
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
     _PROFILE_KEY_MEMORY_SET_HASH,
-    _SYSTEM_PROMPT,
-    DiscoveredPattern,
-    PatternDurability,
     run_pattern_discovery,
 )
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDurability,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import _SYSTEM_PROMPT
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 

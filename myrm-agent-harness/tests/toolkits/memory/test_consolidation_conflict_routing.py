@@ -1,4 +1,4 @@
-"""Tests for consolidation conflict routing in _execute_operations.
+"""Tests for consolidation conflict routing in execute_operations.
 
 Covers:
 - ConflictResolution enum values
@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     ConsolidationStats,
     CorrectOp,
     MergeOp,
-    _execute_operations,
+    execute_operations,
 )
 from myrm_agent_harness.toolkits.memory.types import (
     ConflictResolution,
@@ -203,7 +203,7 @@ class TestConflictRoutingDecision:
         """Without on_conflict, corrections execute directly."""
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=None)
+        stats = await execute_operations(ops, manager, on_conflict=None)
         assert stats.routed_to_user == 0
         assert stats.corrected == 1
 
@@ -213,7 +213,7 @@ class TestConflictRoutingDecision:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.3, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.corrected == 1
 
@@ -223,7 +223,7 @@ class TestConflictRoutingDecision:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.95)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.corrected == 1
 
@@ -233,7 +233,7 @@ class TestConflictRoutingDecision:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.6)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_called_once()
         assert stats.routed_to_user == 1
         assert stats.corrected == 0
@@ -245,7 +245,7 @@ class TestConflictRoutingDecision:
         manager = _make_manager_mock()
         manager.get_memory = AsyncMock(return_value=EpisodicMemory(content="old event"))
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.6)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_called_once()
         ctx = callback.call_args[0][0]
         assert ctx.memory_type == MemoryType.EPISODIC
@@ -260,7 +260,7 @@ class TestConflictResolutionBranches:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.routed_to_user == 1
         assert stats.corrected == 0
         manager.correct_memory.assert_not_called()
@@ -271,7 +271,7 @@ class TestConflictResolutionBranches:
         callback = AsyncMock(return_value=ConflictResolution.KEEP_OLD)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.routed_to_user == 0
         assert stats.corrected == 0
         manager.correct_memory.assert_not_called()
@@ -281,7 +281,7 @@ class TestConflictResolutionBranches:
         callback = AsyncMock(return_value=ConflictResolution.KEEP_NEW)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.corrected == 1
         manager.correct_memory.assert_called_once()
 
@@ -290,7 +290,7 @@ class TestConflictResolutionBranches:
         callback = AsyncMock(return_value=ConflictResolution.MERGE)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="merged", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.corrected == 1
         manager.correct_memory.assert_called_once()
 
@@ -299,7 +299,7 @@ class TestConflictResolutionBranches:
         callback = AsyncMock(return_value=ConflictResolution.DISCARD_BOTH)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         assert stats.corrected == 1
         manager.update_memory.assert_called_once_with("mem-1", importance=0.01, allow_protected=False)
         manager.correct_memory.assert_not_called()
@@ -328,7 +328,7 @@ class TestConflictCallbackContext:
                 accuracy_score=0.6,
             )
         ]
-        await _execute_operations(ops, manager, on_conflict=capture_callback)
+        await execute_operations(ops, manager, on_conflict=capture_callback)
 
         assert len(captured_ctx) == 1
         ctx = captured_ctx[0]
@@ -351,7 +351,7 @@ class TestCustomThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback, config=config)
+        stats = await execute_operations(ops, manager, on_conflict=callback, config=config)
         callback.assert_not_called()
         assert stats.corrected == 1
 
@@ -363,7 +363,7 @@ class TestCustomThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.8, accuracy_score=0.6)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback, config=config)
+        stats = await execute_operations(ops, manager, on_conflict=callback, config=config)
         callback.assert_not_called()
         assert stats.corrected == 1
 
@@ -376,7 +376,7 @@ class TestMergeOpUnaffectedByConflictCallback:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [MergeOp(source_ids=["a", "b"], merged_content="merged")]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.merged == 1
         assert stats.routed_to_user == 0
@@ -394,7 +394,7 @@ class TestLockedRuleSkipsConflict:
         locked.content = "locked rule"
         manager.get_memory = AsyncMock(return_value=locked)
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.corrected == 0
         assert stats.routed_to_user == 0
@@ -409,7 +409,7 @@ class TestIdMapResolution:
         manager = _make_manager_mock()
         id_map = {"short-id": "full-uuid-1234-5678-abcd"}
         ops = [CorrectOp(memory_id="short-id", corrected_content="new", importance=0.9, accuracy_score=0.5)]
-        await _execute_operations(ops, manager, id_map, on_conflict=callback)
+        await execute_operations(ops, manager, id_map, on_conflict=callback)
 
         ctx = callback.call_args[0][0]
         assert ctx.old_memory_id == "full-uuid-1234-5678-abcd"
@@ -426,7 +426,7 @@ class TestNonSemanticMemoryCorrection:
         non_semantic.is_user_protected = False
         manager.get_memory = AsyncMock(return_value=non_semantic)
         ops = [CorrectOp(memory_id="mem-1", corrected_content="updated rule", importance=0.3, accuracy_score=0.95)]
-        stats = await _execute_operations(ops, manager, on_conflict=None)
+        stats = await execute_operations(ops, manager, on_conflict=None)
         assert stats.updated == 1
         assert stats.corrected == 0
         manager.update_memory.assert_called_once_with("mem-1", content="updated rule", allow_protected=False)
@@ -443,7 +443,7 @@ class TestCallbackExceptionHandling:
 
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=failing_callback)
+        stats = await execute_operations(ops, manager, on_conflict=failing_callback)
         assert stats.errors == 1
         assert stats.corrected == 0
         assert stats.routed_to_user == 0
@@ -467,7 +467,7 @@ class TestMultipleOpsInBatch:
             CorrectOp(memory_id="mem-2", corrected_content="new2", importance=0.3, accuracy_score=0.5),
             CorrectOp(memory_id="mem-3", corrected_content="new3", importance=0.8, accuracy_score=0.6),
         ]
-        stats = await _execute_operations(ops, manager, on_conflict=alternating_callback)
+        stats = await execute_operations(ops, manager, on_conflict=alternating_callback)
         assert stats.routed_to_user == 1
         assert stats.corrected == 2
         assert call_count == 2
@@ -482,7 +482,7 @@ class TestBoundaryThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.6, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_called_once()
         assert stats.routed_to_user == 1
 
@@ -492,7 +492,7 @@ class TestBoundaryThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.85)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.corrected == 1
 
@@ -502,7 +502,7 @@ class TestBoundaryThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.9, accuracy_score=0.84)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_called_once()
         assert stats.routed_to_user == 1
 
@@ -512,7 +512,7 @@ class TestBoundaryThresholds:
         callback = AsyncMock(return_value=ConflictResolution.PENDING)
         manager = _make_manager_mock()
         ops = [CorrectOp(memory_id="mem-1", corrected_content="new", importance=0.59, accuracy_score=0.5)]
-        stats = await _execute_operations(ops, manager, on_conflict=callback)
+        stats = await execute_operations(ops, manager, on_conflict=callback)
         callback.assert_not_called()
         assert stats.corrected == 1
 

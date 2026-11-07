@@ -21,6 +21,11 @@ from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     run_pattern_discovery,
     should_run_pattern_discovery,
 )
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
+)
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 
@@ -121,10 +126,6 @@ class TestRunPatternDiscoveryLLMFailure:
 class TestRunPatternDiscoveryFiltering:
     @pytest.mark.asyncio
     async def test_low_confidence_patterns_filtered_out(self, bookkeeping_rows: dict[str, str]) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDiscoveryResponse,
-        )
-
         bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
         memories = _memories(5)
         manager = _mature_manager()
@@ -143,10 +144,6 @@ class TestRunPatternDiscoveryFiltering:
 
 
 def _pattern(*, title: str, confidence: float) -> object:
-    from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-        DiscoveredPattern,
-    )
-
     return DiscoveredPattern(
         title=title,
         description="desc",
@@ -158,10 +155,6 @@ def _pattern(*, title: str, confidence: float) -> object:
 
 class TestIsPromotableToRule:
     def test_established_high_confidence_with_suggestion_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDurability,
-        )
-
         pattern = _pattern(title="habit", confidence=0.9)
         pattern.durability = PatternDurability.ESTABLISHED
         assert _is_promotable_to_rule(pattern) is True
@@ -171,20 +164,11 @@ class TestIsPromotableToRule:
         assert _is_promotable_to_rule(pattern) is False
 
     def test_low_confidence_never_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDurability,
-        )
-
         pattern = _pattern(title="weak", confidence=0.7)
         pattern.durability = PatternDurability.ESTABLISHED
         assert _is_promotable_to_rule(pattern) is False
 
     def test_empty_suggestion_never_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            DiscoveredPattern,
-            PatternDurability,
-        )
-
         pattern = DiscoveredPattern(
             title="no-action",
             description="knowledge evolution",

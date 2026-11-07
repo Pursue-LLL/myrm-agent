@@ -5,7 +5,7 @@ Covers:
 - ConsolidationRollbackResult model
 - get_last_consolidation_summary: no events, with events, conflict detection
 - rollback_last_consolidation: MergeOp, CorrectOp, UpdateContentOp rollback paths
-- affected_ids collection in _execute_operations
+- affected_ids collection in execute_operations
 - Edge cases: deleted memories, empty affected_ids
 """
 
@@ -371,7 +371,7 @@ class TestAffectedIdsCollection:
         """MergeOp should collect both the new merged id and all demoted source ids."""
         from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
             MergeOp,
-            _execute_operations,
+            execute_operations,
         )
         from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
@@ -384,7 +384,7 @@ class TestAffectedIdsCollection:
         manager.update_memory = AsyncMock()
 
         ops = [MergeOp(source_ids=["s1", "s2"], merged_content="merged", importance=0.9)]
-        stats = await _execute_operations(ops, manager)
+        stats = await execute_operations(ops, manager)
 
         assert "new-merged-id" in stats.affected_ids
         assert "s1" in stats.affected_ids
@@ -396,7 +396,7 @@ class TestAffectedIdsCollection:
         """CorrectOp should collect both original id and new correction id."""
         from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
             CorrectOp,
-            _execute_operations,
+            execute_operations,
         )
         from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
@@ -409,7 +409,7 @@ class TestAffectedIdsCollection:
         manager.correct_memory = AsyncMock(return_value=correction)
 
         ops = [CorrectOp(memory_id="original-id", corrected_content="right")]
-        stats = await _execute_operations(ops, manager, id_map={"original-id": "original-id"})
+        stats = await execute_operations(ops, manager, id_map={"original-id": "original-id"})
 
         assert "original-id" in stats.affected_ids
         assert "correction-id" in stats.affected_ids
@@ -420,7 +420,7 @@ class TestAffectedIdsCollection:
         """UpdateContentOp should collect the updated memory id."""
         from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
             UpdateContentOp,
-            _execute_operations,
+            execute_operations,
         )
         from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
@@ -430,7 +430,7 @@ class TestAffectedIdsCollection:
         manager.update_memory = AsyncMock()
 
         ops = [UpdateContentOp(memory_id="mem-1", new_content="new", importance=0.8)]
-        stats = await _execute_operations(ops, manager, id_map={"mem-1": "mem-1"})
+        stats = await execute_operations(ops, manager, id_map={"mem-1": "mem-1"})
 
         assert "mem-1" in stats.affected_ids
         assert len(stats.affected_ids) == 1

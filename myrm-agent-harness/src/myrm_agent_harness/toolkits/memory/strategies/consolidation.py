@@ -65,10 +65,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Aliases for backward-compatibility with tests / internal references
-_execute_operations = execute_operations
-_record_consolidation_event = record_consolidation_event
-
 
 async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     """Read the covered-through timestamp from the manager's bookkeeping row.
@@ -301,12 +297,6 @@ __all__ = [
     "CorrectOp",
     "MergeOp",
     "UpdateContentOp",
-    "_PROFILE_KEY_LAST_CONSOLIDATED",
-    "_SYSTEM_PROMPT",
-    "_build_id_map",
-    "_build_user_prompt",
-    "_execute_operations",
-    "_record_consolidation_event",
     "execute_operations",
     "filter_and_guard_operations",
     "get_last_consolidated_at",

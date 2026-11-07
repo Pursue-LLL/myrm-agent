@@ -10,8 +10,7 @@
 - strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
 [OUTPUT]
-- PatternReport: Immutable result of a pattern discovery cycle.
-- run_pattern_discovery: Analyze memories and insights to surface cross-cycle patterns.
+- run_pattern_discovery: Analyze memories and insights to surface cross-cycle patterns; returns a PatternReport.
 - should_run_pattern_discovery: Gate check based on memory maturity.
 - increment_consolidation_count: Track consolidation runs for gate check.
 - get_recent_patterns: Retrieve patterns for Heartbeat SituationSection injection.

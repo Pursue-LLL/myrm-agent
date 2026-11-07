@@ -3,12 +3,12 @@
 Covers:
 - _build_user_prompt: procedural trigger/action, source_error, plain content
 - _build_id_map: short-id collision extension
-- _execute_operations: MergeOp demote failure, UpdateContentOp locked rule
+- execute_operations: MergeOp demote failure, UpdateContentOp locked rule
 - get_last_consolidated_at / should_consolidate time gates
 - _enrich_with_similar candidate search + error fallback
 - fetch_candidate_window: vector scroll (consolidation-event skip), relational rules, truncation,
   per-store error tolerance and the stamp each outcome allows
-- _advance_stamp / _record_consolidation_event persistence guards
+- _advance_stamp / record_consolidation_event persistence guards
 - run_consolidation: soft-lock, insufficient memories, LLM failure, no-ops, full success
 """
 
@@ -28,17 +28,16 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     MergeOp,
     UpdateContentOp,
     _advance_stamp,
-    _build_id_map,
-    _build_user_prompt,
     _enrich_with_similar,
-    _execute_operations,
     _persist_insights,
-    _record_consolidation_event,
+    execute_operations,
     get_last_consolidated_at,
+    record_consolidation_event,
     run_consolidation,
     should_consolidate,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import _PROFILE_KEY_LAST_CONSOLIDATED
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import _build_id_map, _build_user_prompt
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
 from myrm_agent_harness.toolkits.memory.types import (
     MemoryType,
@@ -195,7 +194,7 @@ class TestExecuteOperationsExtraBranches:
         manager.update_memory = AsyncMock(side_effect=RuntimeError("demote failed"))
         id_map = {"m1": "m1", "m2": "m2"}
         ops = [MergeOp(source_ids=["m1", "m2"], merged_content="merged", importance=0.8)]
-        stats = await _execute_operations(ops, manager, id_map)
+        stats = await execute_operations(ops, manager, id_map)
         assert stats.merged == 1
         assert stats.errors == 0
 
@@ -207,7 +206,7 @@ class TestExecuteOperationsExtraBranches:
         manager = _make_manager()
         manager.update_memory = AsyncMock(side_effect=MemoryProtectedError("protected"))
         ops = [UpdateContentOp(memory_id="mem-1", new_content="new", importance=0.3)]
-        stats = await _execute_operations(ops, manager)
+        stats = await execute_operations(ops, manager)
         assert stats.updated == 0
         assert stats.errors == 0
         manager.update_memory.assert_awaited_once_with("mem-1", content="new", importance=0.3, allow_protected=False)
@@ -217,7 +216,7 @@ class TestExecuteOperationsExtraBranches:
         manager = _make_manager()
         manager.get_memory = AsyncMock(return_value=SemanticMemory(content="old"))
         ops = [UpdateContentOp(memory_id="mem-1", new_content="new", importance=0.3)]
-        stats = await _execute_operations(ops, manager)
+        stats = await execute_operations(ops, manager)
         manager.update_memory.assert_awaited_once()
         assert stats.updated == 1
 
@@ -428,14 +427,14 @@ class TestRecordConsolidationEvent:
     async def test_no_vector_still_records_event(self) -> None:
         manager = _make_manager()
         manager.has_vector = False
-        await _record_consolidation_event(manager, ConsolidationStats())
+        await record_consolidation_event(manager, ConsolidationStats())
         manager.add_event.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_summary_includes_affected_ids(self) -> None:
         manager = _make_manager()
         stats = ConsolidationStats(merged=1, affected_ids=["a-1", "a-2"], input_count=3, duration_ms=12.5)
-        await _record_consolidation_event(manager, stats)
+        await record_consolidation_event(manager, stats)
         manager.add_event.assert_awaited_once()
         kwargs = manager.add_event.call_args.kwargs
         assert kwargs["event_type"] == "consolidation"
@@ -446,7 +445,7 @@ class TestRecordConsolidationEvent:
     async def test_add_event_error_is_tolerated(self) -> None:
         manager = _make_manager()
         manager.add_event = AsyncMock(side_effect=RuntimeError("event store down"))
-        await _record_consolidation_event(manager, ConsolidationStats())  # must not raise
+        await record_consolidation_event(manager, ConsolidationStats())  # must not raise
 
 
 def _make_llm(response: ConsolidationResponse) -> MagicMock:
