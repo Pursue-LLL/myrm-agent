@@ -675,7 +675,7 @@ class TestSearchOperations:
         )
 
         with patch(
-            "myrm_agent_harness.toolkits.memory._internal.search_service.enrich_with_graph",
+            "myrm_agent_harness.toolkits.memory._internal.search_service.orchestrator.enrich_with_graph",
             new_callable=AsyncMock,
         ) as mock_enrich:
             mock_enrich.return_value = [
