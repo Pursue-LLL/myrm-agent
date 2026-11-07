@@ -14,7 +14,6 @@ from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     PatternReport,
     _build_discovery_prompt,
     _compute_memory_set_hash,
-    get_last_pattern_discovery_at,
     get_recent_patterns,
     increment_consolidation_count,
     run_pattern_discovery,
@@ -340,30 +339,6 @@ class TestRunPatternDiscovery:
         report = await run_pattern_discovery(mock_manager, mock_llm)
         assert report.skipped is True
         assert "LLM call failed" in report.skip_reason
-
-
-class TestGetLastPatternDiscoveryAt:
-    @pytest.mark.asyncio
-    async def test_no_relational(self, mock_manager: AsyncMock):
-        mock_manager.has_relational = False
-        assert await get_last_pattern_discovery_at(mock_manager) is None
-
-    @pytest.mark.asyncio
-    async def test_no_value(self, mock_manager: AsyncMock):
-        mock_manager.get_profile_attribute = AsyncMock(return_value=None)
-        assert await get_last_pattern_discovery_at(mock_manager) is None
-
-    @pytest.mark.asyncio
-    async def test_valid_timestamp(self, mock_manager: AsyncMock):
-        mock_manager.get_profile_attribute = AsyncMock(return_value="2026-05-19T12:00:00+00:00")
-        result = await get_last_pattern_discovery_at(mock_manager)
-        assert result is not None
-        assert result.year == 2026
-
-    @pytest.mark.asyncio
-    async def test_invalid_timestamp(self, mock_manager: AsyncMock):
-        mock_manager.get_profile_attribute = AsyncMock(return_value="not-a-date")
-        assert await get_last_pattern_discovery_at(mock_manager) is None
 
 
 class TestGetRecentPatterns:

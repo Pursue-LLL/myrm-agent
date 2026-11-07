@@ -7,6 +7,7 @@ below are the writers' own constants, not copies of their text.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -15,22 +16,20 @@ from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import _PROFILE_KEY_LAST_CONSOLIDATED
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
-    _PROFILE_KEY_LAST_PATTERN_DISCOVERY,
     _PROFILE_KEY_MEMORY_SET_HASH,
 )
 
 BOOKKEEPING_KEYS = (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
     _PROFILE_KEY_LAST_CONSOLIDATED,
-    _PROFILE_KEY_LAST_PATTERN_DISCOVERY,
     _PROFILE_KEY_MEMORY_SET_HASH,
 )
 
 
 @pytest.fixture
-async def store(tmp_path: Path) -> SQLiteRelationalStore:
+async def store(tmp_path: Path) -> AsyncIterator[SQLiteRelationalStore]:
     s = SQLiteRelationalStore(str(tmp_path / "internal_keys.db"))
-    yield s  # type: ignore[misc]
+    yield s
     await s.close()
 
 

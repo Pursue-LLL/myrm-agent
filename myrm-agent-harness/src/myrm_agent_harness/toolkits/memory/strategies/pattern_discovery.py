@@ -3,6 +3,7 @@
 [INPUT]
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
+- utils.coercion::parse_int (POS: defensive numeric coercion utilities)
 
 [OUTPUT]
 - PatternReport: Immutable result of a pattern discovery cycle.
@@ -36,13 +37,14 @@ from typing import TYPE_CHECKING
 from langchain_core.language_models import BaseChatModel
 from pydantic import AliasChoices, BaseModel, Field
 
+from myrm_agent_harness.utils.coercion import parse_int
+
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 logger = logging.getLogger(__name__)
 
-_PROFILE_KEY_LAST_PATTERN_DISCOVERY = "_system.last_pattern_discovery_at"
 _PROFILE_KEY_CONSOLIDATION_COUNT = "_system.consolidation_count"
 _PROFILE_KEY_MEMORY_SET_HASH = "_system.pattern_discovery_memory_hash"
 _MIN_MEMORY_COUNT = 50
@@ -140,8 +142,9 @@ async def should_run_pattern_discovery(manager: MemoryManager) -> bool:
     if total < _MIN_MEMORY_COUNT:
         return False
 
+    # The counter is a plain profile row that any writer can overwrite; a malformed value counts as zero.
     raw_count = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
-    consolidation_count = int(raw_count) if raw_count else 0
+    consolidation_count = parse_int(raw_count, 0, min_val=0)
     return consolidation_count >= _MIN_CONSOLIDATION_COUNT
 
 
@@ -149,8 +152,9 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
     """Increment the persistent consolidation counter after a successful consolidation."""
     if not manager.has_relational:
         return
+    # A malformed stored value restarts the count, and the write below replaces it.
     raw = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
-    current = int(raw) if raw else 0
+    current = parse_int(raw, 0, min_val=0)
     await manager.set_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
 
 
@@ -271,7 +275,7 @@ async def run_pattern_discovery(
     2. Collect recent memories; skip if memory set unchanged since last run
     3. Collect consolidation insights, claims
     4. LLM analysis → structured patterns
-    5. Persist patterns as episodic events + update timestamp + hash
+    5. Persist patterns as episodic events + record the memory-set hash
     """
     start = datetime.now(UTC)
 
@@ -334,7 +338,6 @@ async def run_pattern_discovery(
     if valid_patterns:
         await _persist_patterns(manager, valid_patterns, response.meta_observation)
 
-    await _update_discovery_timestamp(manager, start)
     if manager.has_relational:
         with contextlib.suppress(Exception):
             await manager.set_profile_attribute(_PROFILE_KEY_MEMORY_SET_HASH, current_hash)
@@ -460,29 +463,6 @@ async def _persist_patterns(
     promoted = await _promote_patterns_to_rules(manager, patterns)
     if promoted:
         logger.info("Pattern discovery: %d pattern(s) queued for ProceduralRule promotion", promoted)
-
-
-async def _update_discovery_timestamp(manager: MemoryManager, ts: datetime) -> None:
-    """Record when pattern discovery last ran."""
-    if not manager.has_relational:
-        return
-    try:
-        await manager.set_profile_attribute(_PROFILE_KEY_LAST_PATTERN_DISCOVERY, ts.isoformat())
-    except Exception as exc:
-        logger.warning("Failed to update pattern discovery timestamp: %s", exc)
-
-
-async def get_last_pattern_discovery_at(manager: MemoryManager) -> datetime | None:
-    """Read the last pattern discovery timestamp."""
-    if not manager.has_relational:
-        return None
-    raw = await manager.get_profile_attribute(_PROFILE_KEY_LAST_PATTERN_DISCOVERY)
-    if not raw:
-        return None
-    try:
-        return datetime.fromisoformat(raw)
-    except (ValueError, TypeError):
-        return None
 
 
 async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[str]:
