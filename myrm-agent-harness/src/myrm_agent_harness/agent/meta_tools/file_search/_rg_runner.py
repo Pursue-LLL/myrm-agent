@@ -42,8 +42,10 @@ class RgRunResult:
     ``stderr`` is the head of ripgrep's diagnostics (``_STDERR_KEEP_CHARS``). ``lines_read`` counts the stdout lines
     handed to ``on_line``. ``answered`` says whether those lines can be used:
     status 2 after some output means ripgrep searched on past an entry it could not open (an unreadable directory),
-    so what it printed stands, an empty result included. A failure before any output (a pattern or a flag ripgrep
-    rejects) searched nothing, and a run that was killed or crashed cannot vouch for a partial result.
+    so what it printed stands, an empty result included. That holds for entries below the search root: a root ripgrep
+    cannot open also ends with status 2 after the closing summary event of ``--json``, which is why the tools open the
+    root themselves first (``search_target``). A failure before any output (a pattern or a flag ripgrep rejects)
+    searched nothing, and a run that was killed or crashed cannot vouch for a partial result.
     """
 
     returncode: int | None

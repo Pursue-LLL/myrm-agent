@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
-from collections.abc import Iterator, Sequence
+import sys
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import NoReturn
 from unittest.mock import AsyncMock, MagicMock
@@ -176,3 +177,22 @@ def run_grep(engine: str, monkeypatch: pytest.MonkeyPatch) -> SearchRunner:
         return str(output).replace(str(root) + "/", "")
 
     return invoke
+
+
+@pytest.fixture
+def restrict_mode() -> Iterator[Callable[[Path, int], None]]:
+    """Give a path a permission mode until the test ends, then restore the mode it had.
+
+    Skips where permission bits do not bind the process: Windows, and root, which reads every file and directory.
+    """
+    if sys.platform == "win32" or os.geteuid() == 0:
+        pytest.skip("permission bits are not enforced here (Windows, or root reads everything)")
+    changed: list[tuple[Path, int]] = []
+
+    def restrict(path: Path, mode: int) -> None:
+        changed.append((path, path.stat().st_mode & 0o777))
+        path.chmod(mode)
+
+    yield restrict
+    for path, original in reversed(changed):
+        path.chmod(original)

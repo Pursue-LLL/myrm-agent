@@ -18,7 +18,8 @@
 - rg_traversal::rg_traversal_args (POS: ripgrep 档遍历策略，与 Python 档遵循同一套选文件策略)
 - glob_match::compile_glob, is_match_all, normalize_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
-- path_hint::format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- path_hint::mcp_namespace_error (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- search_target::require_examinable_target (POS: Preflight that names a missing or unreadable search path instead of searching it)
 - skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]
@@ -60,10 +61,11 @@ from ._rg_runner import run_rg
 from .fallback_discovery import collect_candidate_files
 from .fallback_search import search_files
 from .glob_match import compile_glob, is_match_all, normalize_glob
-from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
+from .path_hint import mcp_namespace_error
 from .regex_validator import RegexValidator
 from .rg_matches import RgMatches
 from .rg_traversal import rg_traversal_args
+from .search_target import require_examinable_target
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
 if TYPE_CHECKING:
@@ -126,8 +128,8 @@ async def _ripgrep_search(
         timeout_seconds=timeout_seconds,
         on_line=matches.feed,
     )
-    # An unreadable directory fails the run after ripgrep searched on, so what it printed stands, no match
-    # included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
+    # An unreadable directory below the root fails the run after ripgrep searched on, so what it printed stands, no
+    # match included; a pattern it cannot parse fails before it prints, and the Python tier (look-around,
     # back-references) may still be able to search it. A killed or crashed run vouches for nothing.
     outcome.require_answer()
 
@@ -232,10 +234,7 @@ def create_grep_tool(
             匹配的行及其位置
 
         Raises:
-            FileNotFoundError: 搜索路径不存在
-            PermissionError: 权限不足
-            ValueError: 路径不安全或参数错误
-            ToolError: 正则表达式错误或安全问题
+            ToolError: 搜索路径不存在或读不了、路径不安全、正则表达式或参数错误，以及未预期的失败
         """
         try:
             executor = ensure_executor(config)
@@ -260,13 +259,7 @@ def create_grep_tool(
                     user_hint="This path belongs to a disabled skill and cannot be searched.",
                 )
 
-            # 验证路径存在
-            if not search_path_obj.exists():
-                suggestions = suggest_similar_paths(search_path)
-                raise ToolError(
-                    message=f"Path not found: {path}",
-                    user_hint=format_path_not_found_hint(path, suggestions),
-                )
+            require_examinable_target(search_path, path, reads_a_file=True)
 
             if not pattern.strip():
                 raise ToolError(
