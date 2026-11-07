@@ -735,15 +735,16 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 **模型来源**：整理、陈旧复审与复发检测共用同一个 consolidation LLM。工厂 `create_local_memory_manager` 以显式传入的 `consolidation_llm` 为准，未传入时回落到 `dedup_llm`；两者都缺省时整理与陈旧复审不运行，复发检测退化为取最近一条对话片段作为合并结果。
 
-### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `named_entity_guard.py`)
+### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `consolidation_window.py`, `bookkeeping.py`, `named_entity_guard.py`)
 
-跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成。
+跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
 
 **核心机制与安全边界**：
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。
 - **Class-First Rubric 评分与短 ID 映射**：在系统提示词与执行前置过滤中固化准确性、防碎片化、冗余度三维标准，以短 ID 压缩减少 Token 开销并捍卫 Prompt Cache 静态前缀。
 - **跨子阶段毫秒级协作避让 (`check_cooperative_yield`)**：在 `maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、遗忘、摘要蒸发、因果图编译、陈旧审查、偏好重建、健康体检）入口处注入协作让出检查。当高优先级交互触发 `CooperativePauseSignal` 时，维护任务在毫秒内优雅退出并安全释放锁，保留已执行阶段的指标于 `MaintenanceReport.interrupted_by_pause`，确保前台交互零延迟。
-- **批次熔断与时间戳脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断或全量操作失败时跳过更新 `last_consolidated_at` 时间戳，保障未完成项在后续周期可被重新抓取。读取侧同样设防：`get_last_consolidated_at` 丢弃无时区或晚于当前时间的存量值（视同从未整合），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆。
+- **覆盖水位线与候选窗口**：`_system.last_consolidated_at` 是「已覆盖到哪里」的水位线，记在记账行里（`bookkeeping.py`：按管理器的归属命名空间分行，不经画像治理，确认模式下不进待审队列、不向聊天上下文追加增量）。每次整理只分析水位线之后最早的 `max_memories` 条记忆（`consolidation_window.py`）：语义与情节向量源按创建时间升序读取、水位线下推到存储层，规则按创建时间过滤；水位线只推进到该窗口实际覆盖的位置，大于一批的积压在连续几次整理中按创建时间依次消化；水位线按创建时间推进，因此创建时间早于水位线却晚到的记忆（如带历史时间戳的导入）不会被后续窗口读到。窗口不越过任何一个被截断的源已读到的位置，否则另一个源里更晚的记忆会被分析、而该源没展示的更早记忆被永久跳过；整理自己的产物（审计事件、洞察、合并结果）不进入窗口。任一来源读取失败时其余来源照常分析，但水位线不动，读不到的记忆留给下一次；集合不存在（从未写入）按空处理。积压消化期间水位线落后于当前时间，24 小时门槛与 1 小时软锁据此更早放行下一批。
+- **批次熔断与水位线脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断、全量操作失败或模型调用失败时不推进水位线，保障未完成项在后续周期可被重新抓取。读取侧同样设防：`get_last_consolidated_at` 丢弃无时区或晚于当前时间的存量值（视同从未整理），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆；窗口推进的目标不会超过本次整理的开始时间，因此水位线不会被写成未来值。
 - **单机沙箱确定性审计与回滚通道**：巩固周期生成的 `EpisodicMemory` 审计日志由存储管理器统一路由持久化，单机 SQLite 模式与混合向量存储模式均可完整记录 `[affected_ids:...]` 拓扑关系，保障 `consolidation_rollback.py` 可精准反转最近周期的记忆变更。
 - **全生命周期完成回调**：主编排门面确保在所有退出路径（包含 0 操作早退与正常完成）均触发 `on_complete` 回调并回传 `ConsolidationStats`，为前端状态通知与 WebSocket 管道提供可靠的生命周期事件流。
 - **受保护条目豁免**：自动化合并与纠错传递 `allow_protected=False`，用户主动锁定的关键记忆永不被覆写或合并。
