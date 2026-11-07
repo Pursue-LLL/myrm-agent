@@ -15,8 +15,11 @@ import { describe, expect, it } from 'vitest';
 const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 
 const MIN_TEXT_CONTRAST = 4.5;
-/** 危险项的悬停 / 聚焦底：`hover:bg-destructive/10`。 */
-const DESTRUCTIVE_TINT = 0.1;
+/**
+ * 代码里与危险色文字叠在一起的静态着色底：`bg-destructive/5`、`/10`、`/15`、`/20`。
+ * 悬停时升到 `/30` 是瞬时态（浅色 4.3:1），不计入。
+ */
+const DESTRUCTIVE_TINTS: readonly number[] = [0.05, 0.1, 0.15, 0.2];
 /** 弹层底：`bg-popover/95`。 */
 const POPOVER_OPACITY = 0.95;
 
@@ -96,6 +99,13 @@ function failures(css: string): string[] {
     const page = color('background').rgb;
     const popover = color('popover').rgb;
     const fill = color('destructive').rgb;
+    const tinted = DESTRUCTIVE_TINTS.flatMap((tint): Array<readonly [string, Rgb]> => {
+      const percent = Math.round(tint * 100);
+      return [
+        [`destructive/${percent} on background`, blend(fill, tint, page)],
+        [`destructive/${percent} on popover`, blend(fill, tint, popover)],
+      ];
+    });
     const surfaces: ReadonlyArray<readonly [string, Rgb]> = [
       ['background', page],
       ['card', color('card').rgb],
@@ -104,8 +114,7 @@ function failures(css: string): string[] {
       ['secondary', blend(color('secondary').rgb, color('secondary').alpha, page)],
       ['muted', blend(color('muted').rgb, color('muted').alpha, page)],
       ['accent', blend(color('accent').rgb, color('accent').alpha, page)],
-      ['destructive/10 on background', blend(fill, DESTRUCTIVE_TINT, page)],
-      ['destructive/10 on popover', blend(fill, DESTRUCTIVE_TINT, popover)],
+      ...tinted,
     ];
     const text = color('destructive-text').rgb;
     return surfaces
@@ -125,10 +134,17 @@ describe('--destructive-text', () => {
   });
 
   it.each([
-    ['light', /(:root[\s\S]*?--destructive-text:\s*)#c62828/, '#ee4343', 'light popover '],
-    ['dark', /(\.dark[\s\S]*?--destructive-text:\s*)#f87171/, '#801d1d', 'dark popover '],
-  ])('rejects the %s fill color used as text', (_theme, pattern, fillColor, failurePrefix) => {
-    const mutated = GLOBALS_CSS.replace(pattern, `$1${fillColor}`);
+    ['the light fill color used as text', /(:root[\s\S]*?--destructive-text:\s*)#b91c1c/, '#ee4343', 'light popover '],
+    ['the dark fill color used as text', /(\.dark[\s\S]*?--destructive-text:\s*)#f87171/, '#801d1d', 'dark popover '],
+    // #c62828 reads 5.5:1 on the page but only 4.2:1 on the 20% tint of kanban badges and quick actions.
+    [
+      'a light red too pale for 20% tints',
+      /(:root[\s\S]*?--destructive-text:\s*)#b91c1c/,
+      '#c62828',
+      'light destructive/20 ',
+    ],
+  ])('rejects %s', (_name, pattern, replacement, failurePrefix) => {
+    const mutated = GLOBALS_CSS.replace(pattern, `$1${replacement}`);
 
     expect(mutated).not.toBe(GLOBALS_CSS);
     expect(failures(mutated).some((failure) => failure.startsWith(failurePrefix))).toBe(true);

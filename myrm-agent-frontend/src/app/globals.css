@@ -361,8 +361,8 @@
 
   --destructive: #ee4343;
   --destructive-foreground: #fbfbf8;
-  /* 危险红作文字色（--destructive 是实心填充色，作文字只有 3.8:1）：页面底 5.5:1、弹层 5.6:1、10% 着色底不低于 4.8:1 */
-  --destructive-text: #c62828;
+  /* 危险红作文字色（--destructive 是实心填充色，作文字只有 3.8:1）：页面底 6.4:1、弹层 6.5:1、直到 20% 着色底都不低于 4.8:1 */
+  --destructive-text: #b91c1c;
 
   /* 警示琥珀：作文字色时在页面底 5.5:1、在 10% 着色底 4.8:1，作实心底时配 --warning-foreground 5.5:1 */
   --warning: #915c00;
@@ -449,7 +449,7 @@
 
   --destructive: #801d1d;
   --destructive-foreground: #fbfbf8;
-  /* 深色下提亮：文字色页面底 7.2:1、弹层 5.4:1、10% 着色底 5.3:1（--destructive 作文字在弹层只有 1.5:1） */
+  /* 深色下提亮：文字色页面底 7.2:1、弹层 5.4:1、直到 20% 着色底都不低于 5.1:1（--destructive 作文字在弹层只有 1.5:1） */
   --destructive-text: #f87171;
 
   /* 深色下琥珀提亮：文字色 9.3:1（页面底）/ 8.2:1（10% 着色底），实心底配 --warning-foreground 8.7:1 */
