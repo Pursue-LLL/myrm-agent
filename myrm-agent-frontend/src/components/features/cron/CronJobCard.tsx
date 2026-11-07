@@ -1,62 +1,22 @@
 'use client';
 
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
-import {
-  Timer,
-  Terminal,
-  FileCode2,
-  Clock,
-  Pause,
-  Play,
-  Trash2,
-  RotateCw,
-  Copy,
-  AlertTriangle,
-  Cpu,
-  Hourglass,
-  Webhook,
-  SunMoon,
-  BarChart3,
-  Hash,
-  Bell,
-  Bot,
-  CalendarClock,
-  Zap,
-  Link2,
-  MessageCircle,
-  Wrench,
-  History,
-} from 'lucide-react';
-import { Button } from '@/components/primitives/button';
+import { Timer, Terminal, FileCode2, Clock, AlertTriangle, Cpu } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
-import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
-import { updateCronJob, duplicateCronJob } from '@/services/cron';
-import {
-  formatNextRun,
-  formatRelativeTime,
-  formatTime,
-  formatTimeoutSeconds,
-  isCronOverdue,
-  statusBorderColor,
-  STATUS_BADGE_STYLE,
-  STATUS_DOT_COLOR,
-} from './cron-utils';
-import { humanizeSchedule, type ScheduleT } from './cron-blueprints';
+import { updateCronJob } from '@/services/cron';
+import { formatTime, isCronOverdue, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';
-import useChatStore from '@/store/useChatStore';
-import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
-import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
+import { CronJobMetaBadges } from './CronJobCardMeta';
+import { CronJobCardActions } from './CronJobCardActions';
+import { useCronJobActions } from './useCronJobActions';
 import { useDeployMode } from '@/hooks/shared/useDeployMode';
 
 interface CronJobCardProps {
@@ -73,68 +33,14 @@ function parseLiteLLM(model: string): { providerId: string; model: string } {
   return { providerId: 'openai', model };
 }
 
-function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale: string }) {
-  const s = job.schedule;
-  if (!s) {
-    return null;
-  }
-  const label = humanizeSchedule(s, t, locale);
-  return label ? <span>{label}</span> : null;
-}
-
-function AgentLabel({ agentId }: { agentId?: string | null }) {
-  const agents = useAgentStore((s) => s.agents);
-  const locale = useLocale();
-  if (!agentId) {
-    return null;
-  }
-  const agent = agents.find((a) => a.id === agentId);
-  const name = agent ? getBuiltinAgentName(agent.id, agent.name, locale) : agentId;
-  return (
-    <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400">
-      <Bot className="h-3 w-3" />
-      <span className="truncate max-w-[100px]">{name}</span>
-    </span>
-  );
-}
-
-function ThreadBadge({ chatId, t }: { chatId?: string; t: (key: string) => string }) {
-  const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
-  if (!chatId) {
-    return null;
-  }
-  const chat = chatHistoryItems.find((c) => c.id === chatId);
-  const label = chat?.title || chatId.slice(0, 8);
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link href={`/${chatId}`} onClick={(e) => e.stopPropagation()}>
-          <span className="inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-400 hover:underline">
-            <MessageCircle className="h-3 w-3" />
-            <span className="truncate max-w-[100px]">{label}</span>
-          </span>
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent>{t('threadAutomationTooltip')}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) => {
   const t = useTranslations('cron');
-  const tCommon = useTranslations('common');
   const locale = useLocale();
   const deployMode = useDeployMode();
   const isCloud = deployMode.isSandbox && !deployMode.isLocal && !deployMode.isLoading;
   const overdue = isCronOverdue(job);
   const overdueTime = overdue && job.next_run_at ? formatTime(job.next_run_at, locale) : null;
-  const lastRunColor =
-    job.last_status === 'error'
-      ? 'text-rose-600 dark:text-rose-400'
-      : job.last_status === 'skipped'
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-muted-foreground';
-  const { pauseJob, resumeJob, triggerJob, fetchJobs, jobs: allJobs } = useCronStore();
+  const fetchJobs = useCronStore((s) => s.fetchJobs);
   const { providers, defaultModelConfig } = useProviderStore(
     useShallow((s) => ({
       providers: s.providers,
@@ -183,71 +89,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
   const isReminderJob = job.job_type === 'reminder';
   const TypeIcon = job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : isReminderJob ? Clock : Timer;
 
-  const canResume = useMemo(() => {
-    if (job.status === 'active') {
-      return true;
-    }
-    if (job.status === 'completed') {
-      return false;
-    }
-    if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {
-      return false;
-    }
-    if (job.max_fires !== null && job.max_fires !== undefined && job.fire_count >= job.max_fires) {
-      return false;
-    }
-    return true;
-  }, [job.status, job.expires_at, job.max_fires, job.fire_count]);
-
-  const handleToggle = useCallback(async () => {
-    try {
-      if (job.status === 'active') {
-        await pauseJob(job.id);
-        toast.success(t('pauseSuccess', { name: job.name }));
-      } else {
-        await resumeJob(job.id);
-        toast.success(t('resumeSuccess', { name: job.name }));
-      }
-    } catch {
-      toast.error(t('actionFail'));
-    }
-  }, [job, pauseJob, resumeJob, t]);
-
-  const [triggering, setTriggering] = useState(false);
-
-  const handleTrigger = useCallback(async () => {
-    if (triggering) {
-      return;
-    }
-    setTriggering(true);
-    try {
-      await triggerJob(job.id);
-      toast.success(t('triggerSuccess', { name: job.name }));
-    } catch {
-      toast.error(t('triggerFail'));
-      setTriggering(false);
-      return;
-    }
-    setTimeout(() => setTriggering(false), 5_000);
-  }, [triggering, job, triggerJob, t]);
-
-  const [duplicating, setDuplicating] = useState(false);
-
-  const handleDuplicate = useCallback(async () => {
-    if (duplicating) {
-      return;
-    }
-    setDuplicating(true);
-    try {
-      await duplicateCronJob(job.id);
-      toast.success(t('duplicateSuccess', { name: job.name }));
-      fetchJobs(true);
-    } catch {
-      toast.error(t('duplicateFail'));
-    } finally {
-      setDuplicating(false);
-    }
-  }, [duplicating, job, fetchJobs, t]);
+  const { canResume, triggering, duplicating, handleToggle, handleTrigger, handleDuplicate } = useCronJobActions(job);
 
   return (
     // Card is clickable but contains nested action buttons, so a real <button>
@@ -331,249 +173,20 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               onSelect={handleModelChange}
             />
           )}
-          <ScheduleLabel job={job} t={t} locale={locale} />
-          <AgentLabel agentId={job.agent_id} />
-          <CronWorkflowTemplateBadge job={job} />
-          {job.session_target === 'main' && <ThreadBadge chatId={job.chat_id} t={t} />}
-          {job.delivery?.channel && job.delivery.channel !== 'chat' && job.delivery.channel !== 'none' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
-                  {job.delivery.channel === 'webhook' ? (
-                    <Webhook className="h-3 w-3" />
-                  ) : (
-                    <ChannelIcon channelId={job.delivery.channel} size={12} />
-                  )}
-                  <span className="truncate max-w-[80px]">{job.delivery.channel}</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{job.delivery.target ?? job.delivery.channel}</TooltipContent>
-            </Tooltip>
-          )}
-          {job.failure_delivery && job.failure_delivery.channel !== 'chat' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-rose-600 dark:text-rose-400">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span className="truncate max-w-[80px]">{t('failureDeliveryTag')}</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('failureDeliveryTooltip', { channel: job.failure_delivery.channel })}</TooltipContent>
-            </Tooltip>
-          )}
-          {job.active_hours && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-violet-600 dark:text-violet-400">
-                  <SunMoon className="h-3 w-3" />
-                  <span>
-                    {job.active_hours.start}–{job.active_hours.end}
-                  </span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('activeHoursTooltip', {
-                  start: job.active_hours.start,
-                  end: job.active_hours.end,
-                  tz: job.active_hours.tz,
-                })}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {job.monitor_config?.enabled && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
-                  <BarChart3 className="h-3 w-3" />
-                  <span>{t('incrementalMonitorBadge')}</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('incrementalMonitorTooltip', { ttl: String(job.monitor_config.ttl_days) })}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {typeof job.max_fires === 'number' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
-                  <Hash className="h-3 w-3" />
-                  <span>
-                    {t('fireCountValue', {
-                      count: String(job.fire_count),
-                      max: String(job.max_fires),
-                    })}
-                  </span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('maxFiresLabel')}</TooltipContent>
-            </Tooltip>
-          )}
-          {typeof job.failure_alert === 'object' && job.failure_alert?.enabled && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-rose-600 dark:text-rose-400">
-                  <Bell className="h-3 w-3" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('failureAlertLabel')}</TooltipContent>
-            </Tooltip>
-          )}
-          {job.triggers &&
-            (job.triggers.webhooks.length > 0 ||
-              job.triggers.events.length > 0 ||
-              job.triggers.system_events.length > 0) && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-0.5 text-cyan-600 dark:text-cyan-400">
-                    <Zap className="h-3 w-3" />
-                    <span>{t('triggersLabel')}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {[
-                    job.triggers.webhooks.length > 0 && `${job.triggers.webhooks.length} webhook`,
-                    job.triggers.events.length > 0 && `${job.triggers.events.length} event`,
-                    job.triggers.system_events.length > 0 && `${job.triggers.system_events.length} system`,
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          {job.context_from?.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-teal-600 dark:text-teal-400">
-                  <Link2 className="h-3 w-3" />
-                  <span>{t('contextFromBadge', { count: String(job.context_from.length) })}</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('contextFromTooltip', {
-                  ids: job.context_from.map((id) => allJobs.find((j) => j.id === id)?.name ?? id).join(', '),
-                })}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {job.skill_ids && job.skill_ids.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400">
-                  <Wrench className="h-3 w-3" />
-                  <span>{job.skill_ids.length === 1 ? job.skill_ids[0] : `${job.skill_ids.length} skills`}</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{job.skill_ids.join(', ')}</TooltipContent>
-            </Tooltip>
-          )}
-          {job.expires_at && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400">
-                  <CalendarClock className="h-3 w-3" />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('expiresAtLabel')}: {formatTime(job.expires_at, locale)}
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {job.timeout_seconds && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-0.5">
-                  <Hourglass className="h-3 w-3" />
-                  {formatTimeoutSeconds(job.timeout_seconds)}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('timeoutLabel')}</TooltipContent>
-            </Tooltip>
-          )}
-          {job.next_run_at && (
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {formatNextRun(job.next_run_at, t)}
-            </span>
-          )}
-          {job.last_run_at && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className={cn('inline-flex items-center gap-0.5 cursor-default', lastRunColor)}>
-                  <History className="h-3 w-3" />
-                  {t('lastRunLabel')}: {formatRelativeTime(job.last_run_at, tCommon, locale)}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {job.last_status && job.last_status !== 'ok' && (
-                  <span className="mr-1 font-medium">
-                    {t(job.last_status === 'error' ? 'runError' : 'runSkipped')}
-                    {' · '}
-                  </span>
-                )}
-                {t('lastRunTooltip', { time: formatTime(job.last_run_at, locale) })}
-              </TooltipContent>
-            </Tooltip>
-          )}
+          <CronJobMetaBadges job={job} />
         </div>
       </div>
 
-      <div role="presentation" className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={handleTrigger}
-              disabled={job.status !== 'active' || triggering}
-            >
-              <RotateCw className={cn('h-3.5 w-3.5', triggering && 'animate-spin')} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('trigger')}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleDuplicate} disabled={duplicating}>
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('duplicate')}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={handleToggle}
-              disabled={job.status !== 'active' && !canResume}
-            >
-              {job.status === 'active' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {job.status === 'active' ? t('pause') : canResume ? t('resume') : t('resumeBlocked')}
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              onClick={() => onRequestDelete(job)}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('delete')}</TooltipContent>
-        </Tooltip>
-      </div>
+      <CronJobCardActions
+        job={job}
+        triggering={triggering}
+        duplicating={duplicating}
+        canResume={canResume}
+        onTrigger={handleTrigger}
+        onDuplicate={handleDuplicate}
+        onToggle={handleToggle}
+        onRequestDelete={onRequestDelete}
+      />
     </div>
   );
 });
