@@ -94,6 +94,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_kanban_attachment_storage_ssot.py` | Kanban 附件字节读取必须使用 `files_service.get_content`，禁止误用 `get_file_content(file_id)` |
 | `test_nas_docker_compose_template.py` | NAS / HomeLab Docker Compose 覆盖编排契约与三卷持久化挂载验证 |
 | `test_docker_compose_hardening.py` | 本地 Docker 栈的加固不得被悄悄删掉：后端去掉 `NET_RAW`/`NET_ADMIN`/`SYS_ADMIN`/`MKNOD` 并禁止提权、以 init 进程运行、停止宽限期不短于回合排空预算 + 30 秒；前端丢弃全部能力、禁止提权、根文件系统只读、仅 `/tmp` 为 `noexec,nosuid` 的 tmpfs |
+| `test_architecture_gates_order.py` | 门禁脚本 `scripts/ci/run_architecture_gates.sh` 先判推送区间、再装依赖：用只记录调用的桩 `python3`、`uv`、`promtool` 跑脚本副本，模块可达性的 harness 差分与 server 差分必须排在依赖安装与整树门禁之前，一次差分失败不遮住另一次并停下本次运行，依赖安装失败也不能让可达性判定被跳过；两次差分的基线取 `MYRM_REACHABILITY_BASE`：GitHub Actions 里缺基线则不跑任何差分就失败，本地缺省 `origin/main`（只设 `CI=true` 的本地运行也一样） |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` 的超标模块台账（本地自查用，非 CI 阻断） |
 

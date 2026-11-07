@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """Module-reachability gate: every unit must have a production consumer.
 
-Every direct child (file or sub-package) of a top-level directory of the harness package
-(the public ``api/`` surface excluded) must be used by production code, in this package or by
-live code of the server tree. ``--server`` audits the server tree's own units the same way. A
-unit that exists, passes its own tests and is re-exported from an ``__init__.py`` but is called
-by nothing is a dead feature path and fails the gate. There is no allowlist: wire the unit into
-a production call site (covered by a test that drives the real entry point) or delete it.
+Every Python file below a top-level directory of the harness package must be used by production
+code, in this package or by live code of the server tree, except the files under
+``HARNESS_ROOT_DIRS`` (the public ``api/`` surface and the browser domain-skill scripts), which
+are roots rather than units. ``--server`` audits the server tree's own files the same way, with
+``SERVER_ROOT_DIRS`` as its roots. A unit that exists, passes its
+own tests and is re-exported from an ``__init__.py`` but is called by nothing is a dead feature
+path and fails the gate. There is no allowlist: wire the unit into a production call site (covered
+by a test that drives the real entry point) or delete it.
 
 With ``--base REV`` the gate switches to diff mode: only units that are dead now and were not dead at
-the merge-base with ``REV`` fail (see ``module_reachability_diff``). It still has no baseline or
-allowlist, and it fails closed when the base cannot be established.
+the merge-base with ``REV`` fail (see ``module_reachability_diff``). The harness package, the server
+tree and ``pyproject.toml`` are all read at that merge-base, so a unit orphaned by deleting its last
+server consumer is caught too. It still has no baseline or allowlist, and it fails closed when the
+base cannot be established.
 
 Usage:
     python scripts/check_module_reachability.py                  # Harness units (absolute mode)
     python scripts/check_module_reachability.py --base origin/main  # Only units a change leaves unwired (CI mode)
     python scripts/check_module_reachability.py --server         # Server units
-    python scripts/check_module_reachability.py --incremental    # Pre-commit mode (harness)
     python scripts/check_module_reachability.py --require-server # Fail when the server tree is absent
     python scripts/check_module_reachability.py --server-root DIR  # Server ``app`` package (default: monorepo sibling)
     python scripts/check_module_reachability.py --json           # Machine-readable output
@@ -32,26 +35,35 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 import time
 import tomllib
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_REPO_ROOT))
+_HARNESS_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_HARNESS_ROOT))
 
-from scripts.module_reachability_diff import Analyse, BaseUnavailableError, DiffResult, diff_against  # noqa: E402
-from scripts.module_reachability_engine import Consumer, Report, Unit, analyze  # noqa: E402
+from scripts.module_reachability_diff import (  # noqa: E402
+    Analyse,
+    BaseUnavailableError,
+    DiffResult,
+    Locate,
+    diff_against,
+)
+from scripts.module_reachability_engine import PUBLIC_SURFACE, Consumer, Report, Unit, analyze  # noqa: E402
 from scripts.tool_registry_config import HARNESS_SRC, SERVER_SRC  # noqa: E402
 
-_SOURCE_PREFIX = "src/myrm_agent_harness/"
+HARNESS_PYPROJECT = _HARNESS_ROOT / "pyproject.toml"
+
+# Harness directories whose files are roots rather than units: the browser domain-skill scripts are
+# run from the directory listing of ``DomainSkillStore`` (domain_skills/store.py), never imported.
+HARNESS_ROOT_DIRS = (PUBLIC_SURFACE, "toolkits/browser/domain_skills/builtin")
 
 # Server directories whose files are roots rather than units, because the engine cannot see how
 # they are loaded: channel providers are imported by module name from the provider registry
 # (channels/providers/registry.py) and startup/ is imported by the ``run.py`` entry point, which
 # lives outside the ``app`` tree.
-SERVER_ROOT_DIRS = ("channels", "startup")
+SERVER_ROOT_DIRS = ("channels/providers", "startup")
 
 
 def project_entry_points(pyproject: Path) -> tuple[str, ...]:
@@ -62,37 +74,24 @@ def project_entry_points(pyproject: Path) -> tuple[str, ...]:
     return tuple(str(target) for target in scripts.values())
 
 
-def _git_paths(*args: str) -> set[str] | None:
-    try:
-        result = subprocess.run(["git", *args], capture_output=True, text=True, timeout=10, cwd=_REPO_ROOT, check=False)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
-        return None
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+def _working_tree(path: Path) -> Path:
+    return path
 
 
-def harness_sources_changed() -> bool:
-    """True when staged/unstaged changes touch harness Python sources (or git is unavailable)."""
-    staged = _git_paths("diff", "--cached", "--name-only")
-    unstaged = _git_paths("diff", "--name-only")
-    if staged is None or unstaged is None:
-        return True
-    return any(
-        (path.startswith(_SOURCE_PREFIX) and path.endswith(".py")) or path == "pyproject.toml"
-        for path in staged | unstaged
-    )
-
-
-def _server_analyser() -> Analyse:
-    return lambda root, _repo: analyze(root, root_dirs=SERVER_ROOT_DIRS)
+def _server_analyser(server_root: Path) -> Analyse:
+    return lambda locate: analyze(locate(server_root), root_dirs=SERVER_ROOT_DIRS)
 
 
 def _harness_analyser(server_root: Path) -> Analyse:
-    """Harness analysis whose entry points come from the ``pyproject.toml`` of the tree being analysed."""
+    """Harness analysis whose consumer tree and entry points come from the tree being analysed."""
 
-    def analyse(root: Path, repo: Path) -> Report:
-        return analyze(root, [Consumer(server_root, SERVER_ROOT_DIRS)], project_entry_points(repo / "pyproject.toml"))
+    def analyse(locate: Locate) -> Report:
+        return analyze(
+            locate(HARNESS_SRC),
+            [Consumer(locate(server_root), SERVER_ROOT_DIRS)],
+            project_entry_points(locate(HARNESS_PYPROJECT)),
+            root_dirs=HARNESS_ROOT_DIRS,
+        )
 
     return analyse
 
@@ -139,7 +138,6 @@ def _print_report(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Every unit must have a production consumer.")
-    parser.add_argument("--incremental", action="store_true", help="Skip unless harness sources changed in git")
     parser.add_argument("--require-server", action="store_true", help="Fail when the server tree is absent")
     parser.add_argument("--server", action="store_true", help="Audit the server tree's own units")
     parser.add_argument("--server-root", type=Path, default=SERVER_SRC, help="Server `app` package directory")
@@ -151,12 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="Machine-readable output")
     parser.add_argument("--verbose", action="store_true", help="Also list server-only units")
     args = parser.parse_args(argv)
-    if args.server and args.incremental:
-        parser.error("--incremental applies to the harness tree only")
 
-    if args.incremental and not harness_sources_changed():
-        print("module reachability: skipped (no harness source change).")
-        return 0
     server_root: Path = args.server_root
     if not server_root.is_dir():
         if args.server or args.require_server:
@@ -170,12 +163,12 @@ def main(argv: list[str] | None = None) -> int:
 
     started = time.process_time()
     if args.server:
-        label, package_root, sibling_files, analyse = "server", server_root, (), _server_analyser()
+        label, inputs, analyse = "server", [server_root], _server_analyser(server_root)
     else:
-        label, package_root, sibling_files = "harness", HARNESS_SRC, ("pyproject.toml",)
+        label, inputs = "harness", [HARNESS_SRC, HARNESS_PYPROJECT, server_root]
         analyse = _harness_analyser(server_root)
 
-    report = analyse(package_root, _REPO_ROOT)
+    report = analyse(_working_tree)
     elapsed = time.process_time() - started
     if not report.units:
         print("ERROR: no engine units found, nothing was scanned.", file=sys.stderr)
@@ -185,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     failing = report.dead
     if args.base:
         try:
-            diff = diff_against(report, package_root, args.base, analyse, sibling_files=sibling_files)
+            diff = diff_against(report, inputs, args.base, analyse)
         except BaseUnavailableError as exc:
             print(f"ERROR: cannot compare against --base {args.base}: {exc}", file=sys.stderr)
             return 2

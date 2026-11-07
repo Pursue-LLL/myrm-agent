@@ -37,6 +37,7 @@ def trees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
     )
     server = _write(tmp_path / "server", {"service.py": "VALUE = 1\n"})
     monkeypatch.setattr(cli, "HARNESS_SRC", harness)
+    monkeypatch.setattr(cli, "HARNESS_PYPROJECT", tmp_path / "pyproject.toml")
     monkeypatch.setattr(cli, "SERVER_SRC", server)
     return harness, server
 
@@ -109,14 +110,15 @@ def test_server_mode_audits_server_units_and_honours_root_dirs(
             "main.py": "from server.svc.live import go\n\ngo()\n",
             "svc/live.py": "def go() -> None: ...\n",
             "svc/orphan.py": "def lost() -> None: ...\n",
-            "channels/provider.py": "def load() -> None: ...\n",
+            "channels/providers/slack.py": "def load() -> None: ...\n",
+            "channels/helpers/orphan.py": "def lost() -> None: ...\n",
             "startup/runner.py": "def run() -> None: ...\n",
         },
     )
     assert cli.main(["--server", "--json"]) == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["tree"] == "server"
-    assert [item["unit"] for item in payload["dead"]] == ["svc/orphan"]
+    assert sorted(item["unit"] for item in payload["dead"]) == ["channels/helpers/orphan", "svc/orphan"]
 
 
 def test_server_root_option_overrides_the_default_tree(
@@ -134,22 +136,14 @@ def test_server_mode_fails_when_the_server_tree_is_missing(
     assert "server tree not found" in capsys.readouterr().err
 
 
-def test_server_mode_rejects_incremental(trees: tuple[Path, Path]) -> None:
-    with pytest.raises(SystemExit) as exit_info:
-        cli.main(["--server", "--incremental"])
-    assert exit_info.value.code == 2
-
-
-def test_incremental_skips_without_harness_changes(
-    trees: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_console_script_target_is_a_root(trees: tuple[Path, Path], tmp_path: Path) -> None:
     harness, _ = trees
-    _write(harness, {"agent/engine/orphan.py": "def lost() -> None: ...\n"})
-    monkeypatch.setattr(cli, "harness_sources_changed", lambda: False)
-    assert cli.main(["--incremental"]) == 0
-    assert "skipped" in capsys.readouterr().out
-    monkeypatch.setattr(cli, "harness_sources_changed", lambda: True)
-    assert cli.main(["--incremental"]) == 1
+    _write(harness, {"agent/engine/tool.py": "def main() -> None: ...\n"})
+    assert cli.main([]) == 1
+    (tmp_path / "pyproject.toml").write_text(
+        '[project.scripts]\ntool = "pkg.agent.engine.tool:main"\n', encoding="utf-8"
+    )
+    assert cli.main([]) == 0
 
 
 def test_project_entry_points_reads_console_scripts(tmp_path: Path) -> None:

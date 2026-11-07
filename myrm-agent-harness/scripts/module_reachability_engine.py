@@ -1,14 +1,18 @@
 """Static engine behind the module-reachability gate.
 
-A *unit* is a direct child (file or sub-package) of a top-level directory of the package, plus the
-top-level files of that directory. The files of ``root_dirs`` (default: the public surface ``api/``)
-are not units but consumers by definition. A unit is *reachable* when production code outside the
-unit uses it, directly or through another reachable unit.
+A *unit* is one Python file below a top-level directory of the package; package-root files,
+``__init__.py`` hubs and ``__main__.py`` files are never units. The files under ``root_dirs``
+(default: the public surface ``api/``; entries are ``/``-separated path prefixes) are not units but
+consumers by definition. ``_generated/`` directories are skipped entirely: a generator lists every
+module of a directory, so counting its output as evidence would keep each of them alive. A unit is
+*reachable* when production code outside the unit uses it, directly or through another reachable
+unit.
 
 Per-file evidence (dotted references, hub re-export bindings, the facade rule) comes from
 ``module_reachability_facts``. A reference resolves to a unit through the module it names; a name
 imported from a hub (``__init__.py``) is followed through the hub's re-export bindings and, when the
-hub does not bind the name, through the exporters inside the hub's own subtree.
+hub does not bind the name, through the exporters inside the hub's own subtree; a name imported from
+a module that star-imports another one (``from X import *``) is followed into X.
 
 Roots: package-root modules, the files of ``root_dirs``, ``__main__.py`` files, modules with an
 ``if __name__ == "__main__"`` block (``python -m`` runs them) and ``[project.scripts]`` entries. A
@@ -28,6 +32,8 @@ from typing import Final
 from scripts.module_reachability_facts import FileFacts, Role, analyze_source
 
 PUBLIC_SURFACE: Final[str] = "api"
+_ENTRY_FILES: Final = frozenset({"__init__.py", "__main__.py"})
+_SKIPPED_DIRS: Final = frozenset({"__pycache__", "_generated"})
 
 
 @dataclass(frozen=True)
@@ -52,19 +58,19 @@ class Report:
     files_scanned: int
 
 
+def _under(parts: tuple[str, ...], root_dirs: Sequence[str]) -> bool:
+    return any(parts[: len(prefix)] == prefix for prefix in (tuple(root.split("/")) for root in root_dirs))
+
+
 def classify(parts: tuple[str, ...], root_dirs: Sequence[str] = (PUBLIC_SURFACE,)) -> tuple[str, str | None]:
     """Return ``(kind, unit_key)`` for a package-relative path; kind is ``unit`` or ``root``."""
-    if parts[-1] == "__main__.py" or len(parts) == 1 or parts[0] in root_dirs:
+    if parts[-1] in _ENTRY_FILES or len(parts) == 1 or _under(parts, root_dirs):
         return "root", None
-    if len(parts) == 2:
-        return ("root", None) if parts[1] == "__init__.py" else ("unit", f"{parts[0]}/{parts[1][:-3]}")
-    if len(parts) == 3:
-        return ("root", None) if parts[2] == "__init__.py" else ("unit", f"{parts[0]}/{parts[1]}/{parts[2][:-3]}")
-    return "unit", f"{parts[0]}/{parts[1]}/{parts[2]}"
+    return "unit", "/".join(parts).removesuffix(".py")
 
 
 def _python_files(root: Path) -> Iterable[Path]:
-    return (path for path in sorted(root.rglob("*.py")) if "__pycache__" not in path.parts)
+    return (path for path in sorted(root.rglob("*.py")) if _SKIPPED_DIRS.isdisjoint(path.relative_to(root).parts))
 
 
 def _module_name(package: str, rel: tuple[str, ...]) -> str:
@@ -82,20 +88,29 @@ class _Resolver:
         self.hub_bindings: dict[str, Mapping[str, str]] = {}
         self.hub_defs: dict[str, frozenset[str]] = {}
         self.exporters: dict[str, set[str]] = defaultdict(set)
+        self.star_sources: dict[str, frozenset[str]] = {}
         self._cache: dict[str, frozenset[str]] = {}
 
     def add_module(self, rel: tuple[str, ...], facts: FileFacts) -> None:
         module = _module_name(self.package, rel)
         self.module_unit[module] = classify(rel, self.root_dirs)[1]
         for depth in range(1, len(rel)):
-            ancestor = ".".join([self.package, *rel[:depth]])
-            self.module_unit.setdefault(ancestor, classify((*rel[:depth], "__init__.py"), self.root_dirs)[1])
+            self.module_unit.setdefault(".".join([self.package, *rel[:depth]]), None)
         if rel[-1] == "__init__.py":
             self.hub_bindings[module] = facts.bindings
             self.hub_defs[module] = facts.exports
+        if facts.stars:
+            self.star_sources[module] = facts.stars
 
     def _scope_prefix(self, module: str) -> str:
         return module.removeprefix(self.package).removeprefix(".").replace(".", "/")
+
+    def _through_star(self, module: str, rest: Sequence[str], seen: frozenset[str]) -> frozenset[str]:
+        """Units reached by a name of ``module`` through its star imports, which re-export the source's names."""
+        if not rest:
+            return frozenset()
+        forwarded = (".".join([source, *rest]) for source in self.star_sources.get(module, ()))
+        return frozenset().union(*(self.resolve(target, seen) for target in forwarded if target not in seen))
 
     def resolve(self, target: str, _seen: frozenset[str] = frozenset()) -> frozenset[str]:
         if not _seen and (cached := self._cache.get(target)) is not None:
@@ -108,7 +123,7 @@ class _Resolver:
                 continue
             unit, rest = self.module_unit[module], parts[width:]
             if unit:
-                result = frozenset({unit})
+                result = frozenset({unit}) | self._through_star(module, rest, _seen | {target})
             elif rest and (bound := self.hub_bindings.get(module, {}).get(rest[0])) and bound not in _seen:
                 result = self.resolve(".".join([bound, *rest[1:]]), _seen | {target})
             elif rest and rest[0] not in self.hub_defs.get(module, ()):

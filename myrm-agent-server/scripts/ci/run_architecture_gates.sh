@@ -11,7 +11,10 @@ source "${SERVER_ROOT}/scripts/ci/lib_harness_deps.sh"
 
 _run_pytest() {
   local num_workers="${PYTEST_ARCH_WORKERS:-4}"
-  local pytest_args=(tests/architecture/ -m architecture --tb=short ${PYTEST_ARCH_ARGS:--n ${num_workers}})
+  # One read splits fixed and user options, so the array is never empty (bash 3.2 rejects expanding
+  # an empty array under `set -u`); -d '' keeps newline-separated values and makes read return 1.
+  local -a pytest_args
+  read -r -d '' -a pytest_args <<<"tests/architecture/ -m architecture --tb=short ${PYTEST_ARCH_ARGS:--n ${num_workers}}" || true
   local monorepo_safe="${SERVER_ROOT}/../../scripts/dev/run-pytest-safe.sh"
   if [[ -x "${monorepo_safe}" && -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     bash "${monorepo_safe}" "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
@@ -63,21 +66,34 @@ _run_import_resolvability() {
     --scan app
 }
 
-# Diff mode: only server units that are dead in the working tree and were not dead at the merge-base
-# fail, so units already unwired on the base branch cannot block an unrelated change. Untracked files
-# count as part of the working tree; the verdict covers committed changes only on a clean checkout (CI).
-# An unresolvable base revision is an error.
+# Diff mode: only units that are dead in the working tree and were not dead at the merge-base fail, so
+# units already unwired on the base branch cannot block an unrelated change. The harness run counts the
+# server tree as a consumer of harness units, the server run audits the server's own units; both read
+# every input at the merge-base and both always run, so one verdict never hides the other. Untracked
+# files count as part of the working tree; the verdict covers committed changes only on a clean checkout
+# (CI). An unresolvable base revision is an error. The base comes from MYRM_REACHABILITY_BASE; only a
+# local run falls back to origin/main, because on a GitHub Actions push origin/main is HEAD and every diff
+# would be empty.
 _run_module_reachability() {
-  local harness_root py
+  local harness_root py checker base status=0
   if ! harness_root="$(myrm_ci_resolve_harness_root)"; then
     echo "CI module-reachability: harness source unavailable (PyPI mode); skipping module reachability check"
     return 0
   fi
   py="${SERVER_ROOT}/.venv/bin/python"
   [[ -x "${py}" ]] || py="python3"
-  "${py}" "${harness_root}/scripts/check_module_reachability.py" \
-    --server --server-root "${SERVER_ROOT}/app" \
-    --base "${MYRM_REACHABILITY_BASE:-origin/main}"
+  checker="${harness_root}/scripts/check_module_reachability.py"
+  base="${MYRM_REACHABILITY_BASE:-}"
+  if [[ -z "${base}" ]]; then
+    if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+      echo "ERROR: CI module-reachability: MYRM_REACHABILITY_BASE is not set (origin/main is HEAD after a push, so the diff would be empty)." >&2
+      return 1
+    fi
+    base="origin/main"
+  fi
+  "${py}" "${checker}" --require-server --server-root "${SERVER_ROOT}/app" --base "${base}" || status=1
+  "${py}" "${checker}" --server --server-root "${SERVER_ROOT}/app" --base "${base}" || status=1
+  return "${status}"
 }
 
 _run_ruff() {
@@ -138,11 +154,15 @@ _run_prometheus_rules_semantic_check() {
   promtool check rules "${SERVER_ROOT}/deployments/prometheus/rules.yml"
 }
 
+# The reachability verdict covers one push range and is never re-judged: the next push's base already
+# contains whatever this push left unwired. It therefore runs before the dependency install and the
+# whole-tree gates (re-evaluated in full on every run) so a failure there cannot skip it. It needs only
+# git and the stdlib-only checker on the runner's python3.
+_run_module_reachability
 myrm_ci_install_server_deps --reuse-venv
 _run_fractal_docs
 _run_md_refs
 _run_import_resolvability
-_run_module_reachability
 _run_profile_capability_gate
 _run_dependency_vuln_gate
 _run_ruff

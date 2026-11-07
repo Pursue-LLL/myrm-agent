@@ -3,7 +3,9 @@
 Evidence is expressed as fully-qualified dotted references. A file yields the references it
 really uses: imported module paths, names bound by an import and then loaded, attribute chains on
 imported modules, dotted-path strings and ``module:attr`` strings, plus the names a hub
-(``__init__.py``) re-exports so the engine can follow a name through the hub.
+(``__init__.py``) re-exports so the engine can follow a name through the hub. The modules a file
+star-imports (``from X import *``) are reported as well, so a name imported from the shim can be
+followed to the module that defines it.
 
 Facade rule: in a hub, ``from .x import Y`` imports, ``X = Y`` aliases and lazy
 ``{"Name": ("module", "attr")}`` tables are re-exports, not uses; only real uses (calls, attribute
@@ -44,6 +46,7 @@ class FileFacts:
     exports: frozenset[str]
     lines: int
     runnable: bool = False
+    stars: frozenset[str] = frozenset()
 
 
 def _resolve_relative(level: int, module: str | None, package: str) -> str:
@@ -99,6 +102,17 @@ def _import_bindings(nodes: Iterable[ast.AST], package: str) -> tuple[dict[str, 
                 if alias.name != "*":
                     bound[alias.asname or alias.name] = f"{base}.{alias.name}"
     return bound, imported
+
+
+def _star_sources(nodes: Iterable[ast.AST], package: str) -> frozenset[str]:
+    """Modules the file star-imports; every name the file re-exports that way is defined there."""
+    return frozenset(
+        base
+        for node in nodes
+        if isinstance(node, ast.ImportFrom)
+        and any(alias.name == "*" for alias in node.names)
+        and (base := _resolve_relative(node.level, node.module, package))
+    )
 
 
 def _runs_as_script(tree: ast.Module) -> bool:
@@ -272,4 +286,5 @@ def analyze_source(text: str, package: str, roots: Sequence[str], *, role: Role)
         targets |= _bare_imports(scan.imports) | _function_local_imports(tree, scan, package)
     else:
         targets |= imported | _string_targets(scan.strings) | set(bindings.values())
-    return FileFacts(frozenset(targets), bindings, _exports(tree), lines, _runs_as_script(tree))
+    stars = _star_sources(scan.imports, package) if role is Role.MODULE else frozenset()
+    return FileFacts(frozenset(targets), bindings, _exports(tree), lines, _runs_as_script(tree), stars)

@@ -35,8 +35,11 @@ on:
       - '.github/workflows/server-architecture.yml'
 
 concurrency:
-  group: server-architecture-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # The module-reachability gate compares a push with the commit main pointed at before that push, so a run
+  # cancelled by the next push would leave the first push's changes unchecked forever. Only a pull request is
+  # superseded by a newer run.
+  group: server-architecture-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   architecture:
@@ -52,8 +55,9 @@ jobs:
       run:
         working-directory: myrm-agent-server
     steps:
-      # Full history: the module-reachability gate runs in diff mode against origin/main and needs the merge-base
-      # with it; a shallow pull request checkout has neither that ref nor the history to compute the merge-base.
+      # Full history: the module-reachability gate runs in diff mode and needs the merge-base with its base (the
+      # targeted branch of a pull request, the commit main pointed at before a push); a shallow checkout has neither
+      # that ref nor the history to compute the merge-base.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
@@ -67,6 +71,8 @@ jobs:
         run: bash scripts/ci/install_promtool.sh
 
       - name: Run architecture gates
+        env:
+          MYRM_REACHABILITY_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: bash scripts/ci/run_architecture_gates.sh
 
   docker-image:
