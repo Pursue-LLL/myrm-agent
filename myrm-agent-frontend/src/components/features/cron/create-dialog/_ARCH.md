@@ -21,7 +21,7 @@
 
 ## 测试
 
-`__tests__/createDialogTestKit.tsx` 提供共用的模块 mock、夹具与交互 helper（含可被 Testing Library 驱动的假时钟）；`cronCreateModel` 覆盖纯逻辑，`CronCreateContentAndTarget` / `CronCreateScheduleAndPolicy` 覆盖各字段区块的可见行为，`CronCreateRequest` 断言每种任务提交给 `createJob` 的请求体，`CronCreateOutcome` 覆盖创建结果、失败、关闭与模板页签，`CronCreatePrerequisiteAndWorkflow` 覆盖去抖的前置验证与工作流模板参数流程。
+`__tests__/createDialogTestKit.tsx` 提供共用的模块 mock、夹具与交互 helper（假时钟来自 `@/test-utils/fakeClock`）；`cronCreateModel` 覆盖纯逻辑，`CronCreateContentAndTarget` / `CronCreateScheduleAndPolicy` 覆盖各字段区块的可见行为，`CronCreateRequest` 断言每种任务提交给 `createJob` 的请求体，`CronCreateOutcome` 覆盖创建结果、失败、关闭与模板页签，`CronCreatePrerequisiteAndWorkflow` 覆盖去抖的前置验证与工作流模板参数流程。
 
 ## 依赖
 

@@ -4569,6 +4569,8 @@
     "lastUsedAt": "마지막 사용: {time}",
     "createdAt": "생성일",
     "updatedAt": "수정일",
+    "sortAscending": "오름차순",
+    "sortDescending": "내림차순",
     "loginRequired": "메모리를 보려면 로그인하세요",
     "loginRequiredDesc": "AI가 회원님에 대해 학습한 메모리를 보거나 관리하려면 로그인하세요",
     "enableMemory": "메모리 활성화",

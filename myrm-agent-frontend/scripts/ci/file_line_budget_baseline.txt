@@ -104,7 +104,6 @@ src/components/features/settings/sections/integration/channels/useChannelsState.
 src/components/features/settings/sections/integration/credentials/CredentialsDialogs.tsx
 src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.test.tsx
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
-src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx

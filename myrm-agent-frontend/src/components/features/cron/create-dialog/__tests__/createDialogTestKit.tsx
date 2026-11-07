@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, type RenderResult } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, vi, type Mock } from 'vitest';
 
 import type { CronJob, CreateCronJobRequest, PrerequisiteCheckResponse } from '@/services/cron.types';
 import type { WorkflowTemplateSummary } from '@/services/workflowTemplates';
+import { settle } from '@/test-utils/fakeClock';
 import CronJobCreateDialog from '../../CronJobCreateDialog';
 
 /**
@@ -115,6 +116,8 @@ export interface DialogProps {
   presetChatTitle?: string | null;
 }
 
+export { elapse, settle, startFakeClock, stopFakeClock } from '@/test-utils/fakeClock';
+
 export const state = hoisted.state;
 export const toast = hoisted.toast;
 export const fetchAgents: Mock = hoisted.fetchAgents;
@@ -174,36 +177,6 @@ export function resetKit(): void {
   createJob.mockImplementation(async () => createdJobOf('job-1'));
   prepareAudit.mockImplementation(async (job: CronJob) => job);
 }
-
-/** Lets queued promise callbacks and the React updates they trigger land (also under fake timers). */
-export const settle = () =>
-  act(async () => {
-    if (vi.isFakeTimers()) {
-      await vi.advanceTimersByTimeAsync(0);
-    } else {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-  });
-
-/**
- * Fake timers that Testing Library can drive: its `asyncWrapper` / `waitFor` only advance a clock
- * they recognise as Jest's, so vitest's clock is announced through a minimal `jest` global.
- */
-export function startFakeClock(): void {
-  vi.useFakeTimers();
-  vi.stubGlobal('jest', { advanceTimersByTime: (ms: number) => vi.advanceTimersByTime(ms) });
-}
-
-export function stopFakeClock(): void {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-}
-
-/** Moves a fake clock forward and lets everything it triggers land. */
-export const elapse = (ms: number) =>
-  act(async () => {
-    await vi.advanceTimersByTimeAsync(ms);
-  });
 
 const pointer = () =>
   userEvent.setup({

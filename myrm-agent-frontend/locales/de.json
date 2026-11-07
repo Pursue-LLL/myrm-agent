@@ -4569,6 +4569,8 @@
     "lastUsedAt": "Zuletzt verwendet: {time}",
     "createdAt": "Erstellt",
     "updatedAt": "Aktualisiert",
+    "sortAscending": "Aufsteigend",
+    "sortDescending": "Absteigend",
     "loginRequired": "Melden Sie sich an, um Erinnerungen anzuzeigen",
     "loginRequiredDesc": "Melden Sie sich an, um die Erinnerungen anzuzeigen und zu verwalten, die die KI über Sie erfahren hat",
     "enableMemory": "Speicher aktivieren",
