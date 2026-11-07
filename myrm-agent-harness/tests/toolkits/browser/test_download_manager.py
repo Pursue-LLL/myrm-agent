@@ -15,10 +15,15 @@ from myrm_agent_harness.toolkits.browser.session.download_manager import (
     DownloadManager,
     DownloadResult,
 )
+from tests.toolkits.browser._download_doubles import ExpectDownload
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
+
+async def _allow_every_address(_url: str) -> None:
+    """The verifier of a manager that is under test for something other than address policy."""
 
 
 @pytest.fixture
@@ -40,7 +45,7 @@ def config(tmp_downloads: Path) -> DownloadConfig:
 
 @pytest.fixture
 def manager(config: DownloadConfig) -> DownloadManager:
-    return DownloadManager(config)
+    return DownloadManager(config, verify_final_url=_allow_every_address)
 
 
 def _make_download_mock(
@@ -56,6 +61,7 @@ def _make_download_mock(
     dl.suggested_filename = suggested_filename
     dl.failure = AsyncMock(return_value=failure_msg)
     dl.cancel = AsyncMock()
+    dl.delete = AsyncMock()
 
     async def _save_as(path: str) -> None:
         if failure_msg:
@@ -131,13 +137,13 @@ class TestDownloadManagerInit:
     def test_init_creates_directory(self, tmp_path: Path) -> None:
         dl_dir = tmp_path / "new_dir" / "nested"
         cfg = DownloadConfig(downloads_dir=dl_dir)
-        DownloadManager(cfg)
+        DownloadManager(cfg, verify_final_url=_allow_every_address)
         assert dl_dir.exists()
 
     def test_init_default_config(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             cfg = DownloadConfig(downloads_dir=Path(d))
-            dm = DownloadManager(cfg)
+            dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
             assert dm.downloads == []
             assert dm.last_download is None
 
@@ -185,14 +191,15 @@ class TestDownloadManagerProcessDownload:
             downloads_dir=tmp_downloads,
             allowed_extensions=frozenset({"pdf"}),
         )
-        dm = DownloadManager(cfg)
+        dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
         dl = _make_download_mock(
             url="https://x.com/malware.exe",
             suggested_filename="malware.exe",
         )
         result = await dm._process_download(dl)
         assert result is None
-        dl.cancel.assert_called_once()
+        dl.cancel.assert_awaited_once()
+        dl.delete.assert_awaited_once()  # a body that already finished is not left in the browser's temp dir
 
     @pytest.mark.asyncio
     async def test_file_size_exceeded(self, tmp_downloads: Path) -> None:
@@ -200,7 +207,7 @@ class TestDownloadManagerProcessDownload:
             downloads_dir=tmp_downloads,
             max_file_size_mb=0,  # 0 MB limit — any file exceeds
         )
-        dm = DownloadManager(cfg)
+        dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
         dl = _make_download_mock(save_content=b"some content")
         result = await dm._process_download(dl)
         assert result is None
@@ -267,30 +274,7 @@ class TestDownloadUrl:
     async def test_download_url_success(self, manager: DownloadManager) -> None:
         page = _make_page_mock()
         download_mock = _make_download_mock(url="https://x.com/data.csv", suggested_filename="data.csv")
-
-        class _DownloadInfoValue:
-            """Mimic Playwright's EventInfoType that holds an awaitable .value."""
-
-            def __init__(self, dl: MagicMock) -> None:
-                self._dl = dl
-
-            def __await__(self):
-                return self._resolve().__await__()
-
-            async def _resolve(self) -> MagicMock:
-                return self._dl
-
-        class _FakeExpectDownload:
-            def __init__(self, **_kw: object) -> None:
-                self.value = _DownloadInfoValue(download_mock)
-
-            async def __aenter__(self) -> _FakeExpectDownload:
-                return self
-
-            async def __aexit__(self, *_a: object) -> bool:
-                return False
-
-        page.expect_download = _FakeExpectDownload
+        page.expect_download = lambda **_kw: ExpectDownload(download_mock)
 
         result = await manager.download_url(page, "https://x.com/data.csv")
         assert result is not None
@@ -315,11 +299,6 @@ class TestDownloadUrl:
         assert result is None
 
 
-# =============================================================================
-# cleanup tests
-# =============================================================================
-
-
 class TestCleanup:
     @pytest.mark.asyncio
     async def test_cleanup_cancels_pending(self, manager: DownloadManager) -> None:
@@ -338,11 +317,6 @@ class TestCleanup:
     async def test_cleanup_empty(self, manager: DownloadManager) -> None:
         await manager.cleanup()
         assert len(manager._pending_tasks) == 0
-
-
-# =============================================================================
-# _on_download (sync → async bridge) tests
-# =============================================================================
 
 
 class TestOnDownload:
@@ -392,6 +366,22 @@ class TestBrowserSessionDownloadIntegration:
         session = BrowserSession(pool, "AGENT")
         with pytest.raises(RuntimeError, match="Download support not enabled"):
             await session.download_url("https://x.com/f.pdf")
+
+    @pytest.mark.asyncio
+    async def test_the_manager_judges_every_download_with_the_navigator_of_the_session(
+        self, tmp_downloads: Path
+    ) -> None:
+        from myrm_agent_harness.toolkits.browser.session import BrowserSession
+
+        session = BrowserSession(MagicMock(), "AGENT", download_config=DownloadConfig(downloads_dir=tmp_downloads))
+        navigator = MagicMock()
+        navigator.assert_landed_allowed = AsyncMock()
+        session._navigator = navigator
+        assert session._download_manager is not None
+
+        await session._download_manager._verify_final_url("https://cdn.example/a.pdf")
+
+        navigator.assert_landed_allowed.assert_awaited_once_with("https://cdn.example/a.pdf")
 
     def test_stats_includes_downloads(self, tmp_downloads: Path) -> None:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession

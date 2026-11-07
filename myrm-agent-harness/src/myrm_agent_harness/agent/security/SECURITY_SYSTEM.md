@@ -183,7 +183,7 @@ class SSRFResult:
 
 **浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时改用私网源授权策略：会话显式导航到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝。
 
-`browser_manage_tool` 的 `download_url` 与导航走同一套判定：先规范化并过 URL 黑名单，再由 `Navigator.admit_download` 按同一策略放行（本地模式下被点名的源获得授权，仅限该源），之后才让页面发起请求；下载实际来自的地址（重定向之后）、以及请求落在页面而非文件时标签页所在的地址，由 `assert_landed_url_allowed` 复核，被拒的下载取消、被拒的页面重置为 `about:blank`，`javascript:`、`file:` 等非网络 scheme 直接拒绝。重定向的中间跳在 patchright 下不可路由，请求仍会到达重定向目标，但响应既不保存也不返回；下载期间页面自带的下载监听器让位给这次调用，不会把被拒的下载另存一份。
+`browser_manage_tool` 的 `download_url` 与导航走同一套判定：先规范化并过 URL 黑名单，再由 `Navigator.admit_download` 按同一策略放行（本地模式下被点名的源获得授权，仅限该源），之后才让页面发起请求；下载实际来自的地址（重定向之后）由下载管理器对它保存的每一个下载复核（含页面自己通过脚本或链接发起的下载；`blob:`、`data:` 是页面自己生成的、没有网络地址可判，不在其列），请求落在页面而非文件时标签页所在的地址由 `assert_landed_url_allowed` 复核；被拒或无法判定的下载取消并删除（调用方至多等 2 s，之后清理仍在后台继续）、被拒的页面重置为 `about:blank`，`javascript:`、`file:` 等非网络 scheme 直接拒绝。判定发生在拨号之后，下载只复核最终来自的地址：重定向的中间跳在 patchright 下不可路由，也不会被逐跳重放，请求照常发出，被拒下载的响应体既不保存也不返回（没有请求过滤器的上下文 `BrowserPoolConfig.minimal()` 里，连页面直接发起的请求也不被拦在请求层）；判定时的域名解析在 Python 侧进行，与实际拨号方的解析相互独立（页面的文档请求由 `enhancers/inject_route.py` 交给驱动进程取回，取回失败才由 Chromium 自己发出），DNS 重绑定可使两者不一致；下载期间页面自带的下载监听器让位给这次调用，不会把被拒的下载另存一份；页面自己发起的下载被拒时只记一条警告日志，不通知模型；放弃等待的请求（超时、页面故障、取消）会中止它发起的导航（一条有界、尽力而为的协议命令），使仍在途中的下载或页面不在请求返回之后落地。
 
 ### 3.2 命令/模块黑名单
 
@@ -1151,9 +1151,9 @@ _LOCAL_BROWSER_RELAXATION = (
 )
 ```
 
-本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 同步跳过 SSRF Guard 检查（保留 URL scheme 检查与 URL 规范化）。
+本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 按私网源授权策略判定：会话显式导航（含 `download_url`）到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝；URL scheme 检查与 URL 规范化照常执行。
 
-**web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 同样跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
+**web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
 
 ### 配置合并优先级
 

@@ -87,9 +87,7 @@ class TestSessionFlow:
         await BrowserSessionDownloadMixin.download_url(rig.session, "HTTP://2130706433:8080/a.pdf", 7.0)
 
         rig.navigator.admit_download.assert_awaited_once_with("http://127.0.0.1:8080/a.pdf")
-        rig.request.assert_awaited_once_with(
-            rig.page, "http://127.0.0.1:8080/a.pdf", 7.0, verify_final_url=rig.navigator.assert_landed_allowed
-        )
+        rig.request.assert_awaited_once_with(rig.page, "http://127.0.0.1:8080/a.pdf", 7.0)
         assert rig.order == ["admit", "request"]
 
     @pytest.mark.asyncio

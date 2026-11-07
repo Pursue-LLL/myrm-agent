@@ -6,14 +6,16 @@
 - session.download_manager::DownloadResult (POS: one saved download)
 
 [OUTPUT]
-- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), list_downloads, last_download, download_enabled
+- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), _assert_download_final_url_allowed (the verifier the download manager judges every download with), list_downloads, last_download, download_enabled
 
 [POS]
 Download API of BrowserSession over the optional DownloadManager. An explicit download is a request the browser
 makes for the agent, so it is judged as a navigation to the same URL is: canonical spelling, URL blocklist and SSRF
 policy before the request, the address the download finally came from afterwards, and the page the tab landed on
-when the request ended on a page instead of a file. The read-side accessors answer from the manager and stay
-empty when download support is not configured. Listed after the interaction mixin and before the network mixin.
+when the request ended on a page instead of a file. The address check is the navigator's, applied by the manager
+to every download it saves, the ones a page starts itself included. The read-side accessors answer from the
+manager and stay empty when download support is not configured. Listed after the interaction mixin and before
+the network mixin.
 """
 
 from __future__ import annotations
@@ -33,9 +35,9 @@ class BrowserSessionDownloadMixin(SessionHost):
     async def download_url(self, url: str, timeout: float | None = None) -> DownloadResult | None:
         """Download a file from a URL.
 
-        The URL is judged before the browser is asked for it and again at the address the download finally came
-        from. A request that ends on a page instead of a file leaves the tab there, so that page is judged too and
-        a refused one is discarded.
+        The URL is judged before the browser is asked for it and again, by the download manager, at the address
+        the download finally came from. A request that ends on a page instead of a file leaves the tab there, so
+        that page is judged too and a refused one is discarded.
 
         Args:
             url: Absolute http(s) URL to download
@@ -58,12 +60,14 @@ class BrowserSessionDownloadMixin(SessionHost):
 
         page = self._tab_controller.get_active_page()
         url_before = page.url
-        result = await self._download_manager.download_url(
-            page, target, timeout, verify_final_url=navigator.assert_landed_allowed
-        )
+        result = await self._download_manager.download_url(page, target, timeout)
         if result is None and page.url != url_before and page.url.startswith(_NETWORK_URL_PREFIXES):
             await navigator.assert_landed_allowed(page.url, discard_document=True)
         return result
+
+    async def _assert_download_final_url_allowed(self, url: str) -> None:
+        """Judge the address a download came from, whichever page started it, with the navigator's policy."""
+        await self._require_navigator().assert_landed_allowed(url)
 
     def list_downloads(self) -> list[DownloadResult]:
         """Get all download results."""

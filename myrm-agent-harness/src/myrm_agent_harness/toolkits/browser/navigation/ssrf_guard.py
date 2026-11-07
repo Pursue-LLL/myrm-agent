@@ -12,11 +12,12 @@
 - canonical_navigation_url: the URL a browser is asked to load, in canonical spelling, or a BrowserNavigationBlockedError
 - assert_browser_navigation_allowed: Validate a navigation URL
 - assert_browser_redirect_chain_allowed: Walk redirect chain on a Playwright Request
-- assert_landed_url_allowed: Judge the URL a download request ended on (final address or the page the tab landed on), discarding a refused document
+- assert_landed_url_allowed: Judge the address a download came from, or the page a download request left the tab on, discarding a refused document
 - goto_with_ssrf_guard: page.goto with temporary document-level route interception
 
 [POS]
-Playwright-specific SSRF guard for document navigation and for the downloads a session starts by URL.
+Playwright-specific SSRF guard for document navigation and for the downloads of a session, the ones it
+starts by URL and the ones a page starts itself.
 Reuses core SSRF guards; does not duplicate IP blocklists. Redirect hops are not routable under
 patchright, so they are judged after the load; a document that violates policy is discarded by
 resetting the tab to ``about:blank`` before the error is raised. A failed navigation is stopped
@@ -132,7 +133,7 @@ async def assert_landed_url_allowed(
     *,
     discard_document: bool = False,
 ) -> None:
-    """Judge the URL a request ended on, the way a navigation judges the hops of its redirect chain.
+    """Judge the URL a request ended on or a download came from, the way a navigation judges its redirect hops.
 
     ``url`` gets the SSRF check and the context's domain lists. ``discard_document`` resets the tab to a blank page
     when ``url`` is a document the tab already shows, so a refused page can no longer be read.

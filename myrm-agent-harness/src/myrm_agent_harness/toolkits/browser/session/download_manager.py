@@ -1,20 +1,24 @@
-"""Download manager — file download detection and processing.
+"""Download manager — file download detection, judging and processing.
 
 [INPUT]
 - patchright.async_api::Page, Download (POS: Patchright page and download objects)
 - navigation.ssrf_guard::BrowserNavigationBlockedError (POS: the refusal a download address verifier raises)
+- utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- DownloadManager: file download manager; an explicit download_url is verified at the address it came from before anything is saved
+- DownloadManager: file download manager; judges every download, requested or page-started, before saving it
 - DownloadConfig: download configuration
 - DownloadResult: immutable download result
 
 [POS]
-Browser file download manager. Single responsibility: listen for, process, and record file downloads.
-Integrated into BrowserSession as an optional component. It holds no URL policy: the caller of
-download_url passes the verifier that judges the final address, and while that request waits on a page it
-is the only processor of the page's downloads, so the listener cannot save what the verifier refuses.
+Browser file download manager. Single responsibility: listen for, judge, process, and record file downloads.
+Integrated into BrowserSession as an optional component. It holds no URL policy: the session hands it the
+verifier that judges the address a download came from, and a refused download is cancelled and deleted
+instead of saved (the caller waits a bounded time for that; the cleanup carries on after the caller stops waiting).
+While a download_url request waits on a page it is the only processor of the page's downloads, and a request
+that gives up stops the navigation it started (one bounded, best-effort protocol command), so an answer still
+on its way does not land after the request has returned.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ import contextlib
 import logging
 import os
 import re
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Coroutine, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -33,6 +37,7 @@ from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 from ..navigation.ssrf_guard import BrowserNavigationBlockedError
+from ..utils.page_health import abort_pending_navigation
 
 if TYPE_CHECKING:
     from patchright.async_api import Download, Page
@@ -41,6 +46,14 @@ logger = logging.getLogger(__name__)
 
 # The address travels as an argument, never spliced into the script, so it cannot be read as code.
 _START_NAVIGATION_JS = "(target) => { window.location.href = target; }"
+
+# Raises ``BrowserNavigationBlockedError`` for an address a download must not be saved from.
+type AddressVerifier = Callable[[str], Awaitable[None]]
+
+# The page produced these itself, so they name no network address to judge.
+_UNADDRESSED_SCHEMES = ("blob:", "data:")
+
+_DISCARD_TIMEOUT_S = 2.0
 
 _DEFAULT_ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -129,12 +142,13 @@ class DownloadResult:
 class DownloadManager:
     """File download manager.
 
-    Monitors page download events and processes files with safety checks; an explicit ``download_url`` request
-    is verified at the address it came from before anything is saved.
+    Monitors page download events and processes files with safety checks. ``verify_final_url`` judges the
+    address every download came from (the final one, after redirects) before any byte is kept.
     """
 
-    def __init__(self, config: DownloadConfig | None = None) -> None:
+    def __init__(self, config: DownloadConfig | None = None, *, verify_final_url: AddressVerifier) -> None:
         self._config = config or DownloadConfig()
+        self._verify_final_url = verify_final_url
         self._downloads: list[DownloadResult] = []
         self._downloaded_urls: set[str] = set()
         self._semaphore = asyncio.Semaphore(self._config.max_concurrent_downloads)
@@ -162,31 +176,25 @@ class DownloadManager:
         """Get the most recent download result."""
         return self._downloads[-1] if self._downloads else None
 
-    async def download_url(
-        self,
-        page: Page,
-        url: str,
-        timeout: float | None = None,
-        *,
-        verify_final_url: Callable[[str], Awaitable[None]] | None = None,
-    ) -> DownloadResult | None:
+    async def download_url(self, page: Page, url: str, timeout: float | None = None) -> DownloadResult | None:
         """Actively download a file from a URL.
 
         While the request waits, the page's own download listener stands down, so this call alone decides what
-        is saved. ``verify_final_url`` judges the address the download came from (the final one, after redirects)
-        before any byte is kept; a refusal cancels the download and propagates.
+        is saved. The address the download came from (the final one, after redirects) is judged before any byte
+        is kept; a refusal discards the download and propagates. A request that gives up stops the navigation it
+        started (one bounded, best-effort protocol command, also when the caller is cancelled again), so an
+        answer still on its way does not land after the request has returned.
 
         Args:
             page: Page to initiate download from
             url: URL to download (admitted by the caller before it gets here)
             timeout: Download timeout in seconds (defaults to config)
-            verify_final_url: Raises ``BrowserNavigationBlockedError`` for an address that must not be saved
 
         Returns:
             DownloadResult if successful, None otherwise
 
         Raises:
-            BrowserNavigationBlockedError: the download came from an address ``verify_final_url`` refused.
+            BrowserNavigationBlockedError: the download came from an address the verifier refused.
         """
         if url in self._downloaded_urls:
             for result in reversed(self._downloads):
@@ -198,12 +206,8 @@ class DownloadManager:
         try:
             async with self._semaphore:
                 with self._owning_downloads_of(page):
-                    async with page.expect_download(timeout=effective_timeout) as download_info:
-                        await page.evaluate(_START_NAVIGATION_JS, url)
-
-                    download = await download_info.value
-                    if verify_final_url is not None:
-                        await self._cancel_unless_verified(download, verify_final_url)
+                    download = await self._request_download(page, url, effective_timeout)
+                    await self._judge(download)
                     return await self._process_download(download)
         except BrowserNavigationBlockedError:
             raise
@@ -226,14 +230,48 @@ class DownloadManager:
                 del self._requesting_pages[key]
 
     @staticmethod
-    async def _cancel_unless_verified(download: Download, verify_final_url: Callable[[str], Awaitable[None]]) -> None:
-        """Cancel the download when its final address is refused or cannot be judged; the error propagates."""
+    async def _request_download(page: Page, url: str, timeout_ms: float) -> Download:
+        """Navigate the page to ``url`` and wait for the download that starts; giving up stops the navigation."""
         try:
-            await verify_final_url(download.url)
+            async with page.expect_download(timeout=timeout_ms) as download_info:
+                await page.evaluate(_START_NAVIGATION_JS, url)
+            return await download_info.value
+        except BaseException:
+            # Shielded: a second cancellation must not cut the stop short, or the navigation carries on and its
+            # answer lands after nobody is waiting for it.
+            await asyncio.shield(abort_pending_navigation(page))
+            raise
+
+    async def _judge(self, download: Download) -> None:
+        """Raise unless the download's address may be saved; a refused or unjudgeable download is discarded first."""
+        if download.url.startswith(_UNADDRESSED_SCHEMES):
+            return
+        try:
+            await self._verify_final_url(download.url)
         except Exception:
+            await self._discard(download)
+            raise
+
+    async def _discard(self, download: Download) -> None:
+        """Cancel a download and delete what it already wrote, so a refused body does not outlive the refusal.
+
+        Cancelling stops a body still arriving and does nothing once it has finished; deleting removes a finished
+        body and fails once the download was cancelled. The caller waits at most ``_DISCARD_TIMEOUT_S`` but the
+        work carries on when the wait ends: cancelling a call to the browser aborts it there and leaves the body behind.
+        """
+
+        async def cancel_and_delete() -> None:
             with contextlib.suppress(Exception):
                 await download.cancel()
-            raise
+            with contextlib.suppress(Exception):
+                await download.delete()
+
+        _, unfinished = await asyncio.wait({self._spawn(cancel_and_delete())}, timeout=_DISCARD_TIMEOUT_S)
+        if unfinished:
+            logger.warning(
+                "Discarding a refused download is taking longer than %.0f s; it carries on in the background",
+                _DISCARD_TIMEOUT_S,
+            )
 
     async def cleanup(self) -> None:
         """Cancel pending tasks and clean up resources."""
@@ -247,16 +285,28 @@ class DownloadManager:
     def _on_download(self, download: Download) -> None:
         """Handle download event from page (sync callback → async task)."""
         if id(download.page) in self._requesting_pages:
-            return  # the download_url call waiting on this page verifies the final address, then saves
-        task = asyncio.create_task(self._handle_download_async(download))
+            return  # the download_url call waiting on this page judges the download, then saves it
+        self._spawn(self._handle_download_async(download))
+
+    def _spawn(self, work: Coroutine[None, None, None]) -> asyncio.Task[None]:
+        """Run ``work`` as a task held in ``_pending_tasks``: it is not collected midway, and cleanup cancels it."""
+        task = asyncio.create_task(work)
         self._pending_tasks.add(task)
         task.add_done_callback(self._pending_tasks.discard)
+        return task
 
     async def _handle_download_async(self, download: Download) -> None:
-        """Process a download event asynchronously."""
+        """Judge a download the page started itself, then process it."""
         try:
             async with self._semaphore:
+                await self._judge(download)
                 await self._process_download(download)
+        except BrowserNavigationBlockedError as refusal:
+            logger.warning(
+                "Refused a download from %s: %s",
+                redact_sensitive_text(download.url)[:80],
+                redact_sensitive_text(str(refusal))[:200],
+            )
         except Exception as e:
             logger.warning("Download handler error: %s", e)
 
@@ -276,8 +326,7 @@ class DownloadManager:
         ext = Path(sanitized).suffix.lower().lstrip(".")
         if ext and ext not in self._config.allowed_extensions:
             logger.info("Skipping download with disallowed extension: .%s", ext)
-            with contextlib.suppress(Exception):
-                await download.cancel()
+            await self._discard(download)
             return None
 
         unique_name = self._generate_unique_filename(sanitized)

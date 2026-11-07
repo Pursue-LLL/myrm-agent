@@ -61,7 +61,7 @@ Browser session manager. As the aggregate root, composes single-responsibility c
 8. NetworkLogger (network request logging)
 9. NetworkIntelligence (CDP-based API request outcomes and lazy response bodies)
 10. SessionVault (encrypted session storage, optional)
-11. DownloadManager (file download management, optional)
+11. DownloadManager (file download management, optional; every download is judged with the navigator's address policy)
 12. CaptchaCoordinator (CAPTCHA detection and solving coordination, optional)
 13. DialogManager (JS dialog lifecycle handling with configurable policy)
 14. ConsentDismisser (cookie consent auto-accept after navigation, zero LLM cost)
@@ -245,7 +245,9 @@ class BrowserSession(
         self._persistence: SessionPersistence | None = SessionPersistence(session_vault) if session_vault else None
         self._recording_manager: RecordingManager | None = None
         self._download_manager: DownloadManager | None = (
-            DownloadManager(download_config) if download_config is not None else None
+            DownloadManager(download_config, verify_final_url=self._assert_download_final_url_allowed)
+            if download_config is not None
+            else None
         )
         self._session_hash_cache: dict[str, str] = {}
         self._hitl_caller_tool: str | None = None

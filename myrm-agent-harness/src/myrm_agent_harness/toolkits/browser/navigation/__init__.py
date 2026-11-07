@@ -9,14 +9,14 @@
 - .pool.throttle::ThrottleStrategy (POS: throttle strategy protocol)
 - .pool.config::BrowserMode, NavigationWaitConfig (POS: browser configuration)
 - .wait::wait_for_page_ready, WaitStrategy, WaitMetrics (POS: smart wait strategies)
-- .ssrf_guard::goto_with_ssrf_guard, assert_browser_navigation_allowed, assert_landed_url_allowed (POS: Playwright document navigation SSRF guard and the judgement of where a download request ended)
+- .ssrf_guard::goto_with_ssrf_guard, assert_browser_navigation_allowed, assert_landed_url_allowed (POS: Playwright document navigation SSRF guard and the judgement of where a download came from)
 - ..utils.private_origins::private_origin_grants (POS: per-context registry of explicitly navigated private origins)
 - .session.consent_dismisser::ConsentDismisser (POS: cookie consent auto-dismiss)
 - ..exceptions::BrowserNavigationError (POS: intelligent navigation failure diagnostics)
 - ..utils.page_health::abort_pending_navigation, probe_alive, PageUnresponsiveError (POS: bounded browser and page health primitives)
 
 [OUTPUT]
-- Navigator: page navigation manager (with throttling, smart wait, and consent dismissal) and the SSRF policy of the URLs a session downloads
+- Navigator: page navigation manager (with throttling, smart wait, and consent dismissal) and the SSRF policy of the downloads of a session
 
 [POS]
 Page navigation utility module. Responsibilities:
@@ -26,8 +26,9 @@ Page navigation utility module. Responsibilities:
 4. Timeout control + full metrics exposure; a navigation that outlives its budget is stopped and
    settled (committed document kept, nothing committed or an unresponsive page raises)
 5. Cookie consent auto-dismiss (optional, for BrowserFetcher path)
-6. The SSRF and domain-list judgement of a URL download: admission before the request and the address it
-   ended on, with the same policy and private-origin grants as goto
+6. The SSRF and domain-list judgement of downloads: admission of a URL the agent asks to download, and the
+   address any download came from (a page-started one included), with the same policy and
+   private-origin grants as goto
 
 Design principles:
 - Independent utility module, reusable by BrowserSession and BrowserFetcher
@@ -75,7 +76,8 @@ class Navigator:
     2. History navigation (back/forward/reload)
     3. Smart wait (hybrid detection: DOM + network dual guarantee)
     4. Domain-level learning (SMART strategy tuned by historical data)
-    5. The URL policy of downloads started by URL (``admit_download``, ``assert_landed_allowed``)
+    5. The URL policy of downloads (``admit_download`` for a URL the agent asks to download,
+       ``assert_landed_allowed`` for the address any download came from)
 
     Not involved: tab management, snapshot generation, element interaction.
     """
@@ -308,11 +310,11 @@ class Navigator:
         await assert_browser_navigation_allowed(url, grants)
 
     async def assert_landed_allowed(self, url: str, *, discard_document: bool = False) -> None:
-        """Judge where a download request ended: the final address after redirects, or the page the tab landed on.
+        """Judge the address a download came from, or the page a download request left the tab on.
 
-        The request filter is never handed a redirect hop, so the address the request finally reached
-        gets the SSRF policy and the domain lists here. ``discard_document`` resets the tab when the
-        refused URL is already loaded in it.
+        The request filter is never handed a redirect hop, so the address a request finally reached (after
+        redirects) gets the SSRF policy and the domain lists here, whoever started the download.
+        ``discard_document`` resets the tab when the refused URL is already loaded in it.
 
         Raises:
             BrowserNavigationBlockedError: the final URL is refused.
