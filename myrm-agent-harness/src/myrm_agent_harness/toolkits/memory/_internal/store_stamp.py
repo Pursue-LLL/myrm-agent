@@ -12,7 +12,7 @@
 [POS]
 Gives consolidation an arrival order that business time cannot. ``created_at`` is when a fact was proposed or
 true, and a late approval, an import and a correction each carry their own, so a cursor over it loses whatever
-arrives behind it. The stamp comes from a clock that never repeats within a process, so no two memories tie at
+arrives behind it. The stamp comes from a clock that never repeats within a process, so no two stamped memories tie at
 a window's cut. The registry covers the span between stamping and visibility: a cursor never moves past a write
 that another task is still persisting. Stamps are per process; writers in other processes are not covered.
 """

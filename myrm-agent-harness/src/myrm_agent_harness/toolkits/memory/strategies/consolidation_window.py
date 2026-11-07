@@ -17,9 +17,10 @@ stored at or before it was analyzed or deliberately skipped. Arrival is the stor
 memory approved late, imported with its source's timestamp or corrected is still seen; a rule has no stamp and
 arrives when it is inserted. The window walks forward in arrival order, never past the run's horizon and never
 past a point some source was not read to, so a backlog larger than one run is drained batch by batch. The only
-memories it skips are consolidation's own output and documents that cannot be decoded, and such a document never
-hides its neighbours. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting
-it jump over memories the run could not see.
+memories it skips are consolidation's own output, documents that cannot be decoded (one never hides its neighbours)
+and, when a source is cut inside a group of documents stored before stamps existed that share one creation instant,
+the rest of that group. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of
+letting it jump over memories the run could not see.
 """
 
 from __future__ import annotations
@@ -77,9 +78,9 @@ def _arrived_at(memory: AnyMemory) -> datetime:
 def _without_split_instant(pool: list[AnyMemory], max_count: int) -> list[AnyMemory]:
     """The first ``max_count`` of an arrival-ordered pool that is longer, never cutting through one instant.
 
-    The stamp is an instant, so memories that arrived at the same one must stay on the same side of it. Store
-    stamps are unique; rules created at one identical instant, as an import produces, are not. The cut moves
-    back to the previous instant, or takes the whole instant when the first ``max_count`` all share it.
+    The stamp is an instant, so memories that arrived at the same one must stay on the same side of it. A rule
+    carries only its insert time, which two rules can share. The cut moves back to the previous instant, or takes
+    the whole instant when the first ``max_count`` all share it.
     """
     last = _arrived_at(pool[max_count - 1])
     if _arrived_at(pool[max_count]) != last:
