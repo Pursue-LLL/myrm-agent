@@ -31,9 +31,10 @@ from .path_hint import format_path_not_found_hint, suggest_similar_paths
 # the platform allows. EBADF is on the list because ``pathlib`` guards against macOS ``stat`` throwing it. Any other
 # failure means the file system did not answer, which is not the same as absent.
 _ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP, errno.ENAMETOOLONG})
-# The Windows errors ``pathlib`` also reads as absent: a drive that is not ready, an invalid name, a link that cannot be
-# resolved.
-_ABSENT_WINERRORS = frozenset({21, 123, 1921})
+# Windows reports an invalid name (123) and a link that cannot be resolved (1921) as EINVAL, and ``pathlib`` reads both
+# as absent. It reads a drive that is not ready (21) as absent too, but that error is a ``PermissionError``, which is a
+# refusal, and it stays one.
+_ABSENT_WINERRORS = frozenset({123, 1921})
 
 
 def _says_absent(error: OSError) -> bool:
@@ -49,14 +50,12 @@ def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:
     directories rejects a file whatever its permissions. Any other kind of entry (a pipe, a device) is left alone:
     opening it can block or act on the device. The answer is read from the errors of ``os.stat`` itself because
     ``Path.exists`` raises for an over-long path on Python 3.13 and, from Python 3.14 on, answers False for every
-    failure, permission included. A name that cannot exist (a missing entry, a NUL byte, a name or path longer than
-    the platform allows) means there is nothing to examine. Any other failure is the file system not answering, not
-    an absent entry: it propagates as the error it is.
+    failure, permission included. A name that cannot exist (a missing entry, a name below a file, a link that loops, a
+    NUL byte, a name or path longer than the platform allows) means there is nothing to examine. Any other failure is
+    the file system not answering, not an absent entry: it propagates as the error it is.
     """
     try:
         mode = os.stat(target).st_mode
-    except PermissionError:
-        raise
     except ValueError:  # a NUL byte
         return False
     except OSError as error:
@@ -73,9 +72,11 @@ def _examine_as_a_search_does(target: Path, *, reads_a_file: bool) -> bool:
 
 
 def require_examinable_target(resolved_path: str, requested_path: str, *, reads_a_file: bool) -> None:
-    """Raise ``ToolError`` when the path a search is aimed at is missing or cannot be opened.
+    """Raise ``ToolError`` when the path a search is aimed at is missing or this process is refused access.
 
     ``resolved_path`` is what the executor made of ``requested_path``; the errors name the path as the caller wrote it.
+    A file system that does not answer (an I/O error, a stale or dropped mount) is not an absent path: its ``OSError``
+    propagates.
     """
     try:
         found = _examine_as_a_search_does(Path(resolved_path), reads_a_file=reads_a_file)

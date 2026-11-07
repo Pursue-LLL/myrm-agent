@@ -10,11 +10,13 @@ Covers:
   not a directory
 - A refusal that carries EPERM, as macOS privacy folders do, still reads as permission denied to the loop guard,
   and says why in the operating system's words, naming the path as the caller wrote it
+- A drive that is not ready on Windows (WinError 21) is a refusal with the system's reason, not an absent path
 - A directory that can be entered but not listed, one that can be listed but not entered, and one that is neither,
   as the path of either tool
 - A path beneath a directory without search permission, whether ``Path.exists`` raises for it or answers False
 - A path that cannot exist (absent, below a file, a link that loops, a NUL byte, a name or a whole path beyond what the
-  platform allows) is reported as not found, never as an unexpected error
+  platform allows, and on Windows an invalid name or a link that cannot be resolved) is reported as not found, never as
+  an unexpected error
 - A file system that does not answer (an I/O error, a stale or timed-out network mount, a dropped FUSE mount) is
   reported as that error, never as a path that does not exist
 - The controls: a readable path of the same kind is searched, and a file named inside a directory that can be entered
@@ -40,9 +42,21 @@ Restrict = Callable[[Path, int], None]
 
 
 class InvalidNameError(OSError):
-    """What ``os.stat`` raises on Windows for a name such as ``*.py``: errno EINVAL carrying WinError 123."""
+    """What ``os.stat`` raises on Windows for an invalid name: errno EINVAL carrying WinError 123."""
 
     winerror = 123
+
+
+class UnresolvableLinkError(OSError):
+    """What ``os.stat`` raises on Windows for a link that cannot be resolved: errno EINVAL carrying WinError 1921."""
+
+    winerror = 1921
+
+
+class DriveNotReadyError(PermissionError):
+    """What ``os.stat`` raises on Windows for a drive without media: errno EACCES carrying WinError 21."""
+
+    winerror = 21
 
 
 def fail_stat_for(monkeypatch: pytest.MonkeyPatch, target: str, error: OSError) -> None:
@@ -112,6 +126,19 @@ class TestTheRefusalIsExplained:
         assert self.resolved not in text
 
 
+class TestADriveThatIsNotReady:
+    def test_it_is_a_refusal_that_gives_the_systems_reason(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = str(tmp_path / "E:")
+        fail_stat_for(monkeypatch, target, DriveNotReadyError(errno.EACCES, "The device is not ready"))
+
+        with pytest.raises(ToolError, match=r"Permission denied: cannot read E:") as caught:
+            require_examinable_target(target, "E:", reads_a_file=True)
+
+        assert "The device is not ready" in caught.value.format_for_llm()
+
+
 class TestAPathThatCannotExist:
     @pytest.mark.parametrize(
         "name",
@@ -144,14 +171,19 @@ class TestAPathThatCannotExist:
         with pytest.raises(ToolError, match="Path not found"):
             require_examinable_target(target, "gone", reads_a_file=True)
 
-    def test_a_windows_invalid_name_reads_as_absent_as_pathlib_does(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize(
+        ("error_type", "name"),
+        [(InvalidNameError, "*.py"), (UnresolvableLinkError, "loop")],
+        ids=["invalid_name", "unresolvable_link"],
+    )
+    def test_a_windows_error_that_pathlib_reads_as_absent_is_not_found(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error_type: type[OSError], name: str
     ) -> None:
-        target = str(tmp_path / "*.py")
-        fail_stat_for(monkeypatch, target, InvalidNameError(errno.EINVAL, "The filename is invalid"))
+        target = str(tmp_path / name)
+        fail_stat_for(monkeypatch, target, error_type(errno.EINVAL, "The name cannot be used"))
 
         with pytest.raises(ToolError, match="Path not found"):
-            require_examinable_target(target, "*.py", reads_a_file=True)
+            require_examinable_target(target, name, reads_a_file=True)
 
 
 class TestAFileSystemThatDoesNotAnswer:
