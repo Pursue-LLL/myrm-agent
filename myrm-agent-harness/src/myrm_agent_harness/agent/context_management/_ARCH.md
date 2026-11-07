@@ -22,8 +22,6 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 |-----------|-------------|
 | archive_checkpoint/ | Lite-LLM archive summary checkpoints: Protocol store, EpisodicMemory persistence, bounded async `ArchiveSummaryService`. |
 | capability_matrix/ | 情境感知型渐进式能力即时推荐与交互式快捷指令全景面板核心引擎（Item 38 P0）。 See [capability_matrix/_ARCH.md](capability_matrix/_ARCH.md). |
-| compression_flush/ | 多智能体与长会话上下文压缩即时持久化刷盘协议与内存沙箱套件。 See [compression_flush/_ARCH.md](compression_flush/_ARCH.md). |
-| dependency_expansion/ | 全链路跨栈架构依赖展开图谱与任务复杂度自适应双轨调度套件。 See [dependency_expansion/_ARCH.md](dependency_expansion/_ARCH.md). |
 | desktop_repl/ | In-process scripted REPL over a mock desktop SDK that only records actions; it does not drive a real desktop and is not wired to `DesktopSession` or any agent tool. See [desktop_repl/_ARCH.md](desktop_repl/_ARCH.md). |
 | infra/ | Context management infrastructure: shared types, token estimation, budget management, session locks, archive references, cache policy. |
 | pipeline/ | Ordered context processors for filtering, active per-step tool-result pruning, cache-TTL pruning, pre-compaction recall, compression, session notes, summarization, post-compaction refetch guard, normalization, and explicit cache markers. Filter and Compress consume compression_intent via retention_helpers. |

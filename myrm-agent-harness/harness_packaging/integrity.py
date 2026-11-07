@@ -66,7 +66,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
         frozenset(
             {
                 "autonomous_visualization",
-                "bundle_warmup",
                 "curator",
                 "market",
                 "mcp",
