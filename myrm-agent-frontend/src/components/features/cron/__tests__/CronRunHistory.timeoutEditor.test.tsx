@@ -32,15 +32,17 @@ vi.mock('../CronAcceptanceCriteriaEditor', () => ({ AcceptanceCriteriaEditor: ()
 vi.mock('../CronDeliveryEditors', () => ({ DeliveryEditor: () => null, FailureDeliveryEditor: () => null }));
 vi.mock('../CronMonitorEditors', () => ({ IncrementalMonitorEditor: () => null }));
 vi.mock('../CronAdvancedEditors', () => ({
+  SessionTargetEditor: () => null,
+  FailureAlertEditor: () => null,
+  ContextFromEditor: () => null,
+  PreConditionEditor: () => null,
+}));
+vi.mock('../CronLimitEditors', () => ({
   CooldownEditor: () => null,
   MaxFiresEditor: () => null,
   ExpiresAtEditor: () => null,
-  SessionTargetEditor: () => null,
-  FailureAlertEditor: () => null,
   RunRetentionEditor: () => null,
   SkipIfActiveEditor: () => null,
-  ContextFromEditor: () => null,
-  PreConditionEditor: () => null,
 }));
 vi.mock('../ActiveHoursEditor', () => ({ ActiveHoursEditor: () => null }));
 vi.mock('../CapabilityEditor', () => ({ CapabilityEditor: () => null }));
