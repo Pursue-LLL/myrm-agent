@@ -213,6 +213,7 @@ exclude = [
   "**/.DS_Store",
   "**/*.swp",
   "**/*~",
+  "**/*_BUGFIX_LOG.md",
 ]
 
 [tool.ruff]

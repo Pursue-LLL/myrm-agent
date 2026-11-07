@@ -37,5 +37,5 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 - 框架层禁止 import `app.*` 或任何 server 业务模块
 - 公开 API 变更须同步 `tests/api/` 与 [DISTRIBUTION_SYSTEM.md](harness_packaging/DISTRIBUTION_SYSTEM.md)
 - 性能基准仅放在 `benchmarks/`
-- bug 台账放在所属模块的目录下（如 memory 模块在 `src/myrm_agent_harness/toolkits/memory/`），命名 `<模块>_<起>_<止>_BUGFIX_LOG.md`，每 7 天一份；每条含发现 / 修复时间与版本、根因、遗漏、踩坑、反复次数。harness 根目录不放台账
+- bug 台账仅本地开发使用：放在所属模块的目录下（如 memory 模块在 `src/myrm_agent_harness/toolkits/memory/`），命名 `<模块>_<起>_<止>_BUGFIX_LOG.md`，每 7 天一份；被 `.gitignore` 忽略、被 `pyproject.toml` 的 `exclude` 排除，不提交、不进 wheel；harness 根目录不放台账
 - 运行时目录 `.myrm/`、`.agent/` 仅本地/workspace，已 gitignore，禁止提交
