@@ -10,9 +10,7 @@ Covers:
 
 from __future__ import annotations
 
-import os
-import sys
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
@@ -23,15 +21,11 @@ from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_fi
 
 
 @pytest.fixture
-def locked_dir(plain_dir: Path) -> Iterator[Path]:
+def locked_dir(plain_dir: Path, restrict_mode: Callable[[Path, int], None]) -> Path:
     """A directory ripgrep cannot open: it walks on past it and exits with status 2 once it is done."""
-    if sys.platform == "win32" or os.geteuid() == 0:
-        pytest.skip("directory permissions are not enforced here (Windows, or root reads every directory)")
     write_tree(plain_dir, {"locked/h.txt": "needle\n"})
-    locked = plain_dir / "locked"
-    locked.chmod(0)
-    yield locked
-    locked.chmod(0o755)
+    restrict_mode(plain_dir / "locked", 0)
+    return plain_dir / "locked"
 
 
 @pytest.mark.parametrize("engine", ["ripgrep"], indirect=True)

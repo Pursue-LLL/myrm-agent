@@ -8,7 +8,8 @@ never looked.
 Covers:
 - A file that cannot be opened, named as the path of grep_tool; glob_tool, which lists directories, still rejects it as
   not a directory
-- A refusal that carries EPERM, as macOS privacy folders do, still reads as permission denied to the loop guard
+- A refusal that carries EPERM, as macOS privacy folders do, still reads as permission denied to the loop guard,
+  and says why in the operating system's words, naming the path as the caller wrote it
 - A directory that can be entered but not listed, one that can be listed but not entered, and one that is neither,
   as the path of either tool
 - A path beneath a directory without search permission, whether ``Path.exists`` raises for it or answers False
@@ -59,17 +60,29 @@ class TestUnreadableFile:
         assert hit_files(await run_grep(tmp_path, "needle", path="open.txt"), {"open.txt"}) == {"open.txt"}
 
 
-class TestTheRefusalReadsAsPermissionDenied:
-    def test_loop_guard_classifies_an_eperm_refusal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+class TestTheRefusalIsExplained:
+    """A refusal that carries EPERM, with a requested path that differs from the resolved one."""
+
+    @pytest.fixture
+    def refusal(self, monkeypatch: pytest.MonkeyPatch) -> ToolError:
         def refuse(path: object, *args: object, **kwargs: object) -> os.stat_result:
             raise PermissionError(errno.EPERM, os.strerror(errno.EPERM))
 
-        monkeypatch.setattr(os, "stat", refuse)
+        with monkeypatch.context() as patched:
+            patched.setattr(os, "stat", refuse)
+            with pytest.raises(ToolError) as caught:
+                require_examinable_target("/private/privacy", "~/Library/Mail", reads_a_file=True)
+        return caught.value
 
-        with pytest.raises(ToolError) as caught:
-            require_examinable_target("/private/privacy", "~/Library/Mail", reads_a_file=True)
+    def test_loop_guard_reads_it_as_permission_denied(self, refusal: ToolError) -> None:
+        assert analyze_error_pattern(refusal.format_for_llm()) is ErrorPattern.PERMISSION_DENIED
 
-        assert analyze_error_pattern(caught.value.format_for_llm()) is ErrorPattern.PERMISSION_DENIED
+    def test_it_gives_the_systems_reason_and_names_only_the_requested_path(self, refusal: ToolError) -> None:
+        text = refusal.format_for_llm()
+
+        assert os.strerror(errno.EPERM) in text
+        assert "~/Library/Mail" in text
+        assert "/private/privacy" not in text
 
 
 class TestAPathThatCannotExist:
