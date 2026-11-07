@@ -16,6 +16,8 @@ from myrm_agent_harness.toolkits.llms.fallback.health_check import HealthProbeRe
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="integrations")
+# Any key must reach the provider: no value, however key-shaped, short-circuits verification or the probe.
+_ARBITRARY_KEY = "sk-test-an-arbitrary-key-never-short-circuits-the-probe"
 
 
 @pytest.fixture
@@ -97,7 +99,7 @@ class TestVerifyLLMConnection:
                 "/api/v1/integrations/llm/verify",
                 json={
                     "model": "gpt-4o-mini",
-                    "api_key": "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz",
+                    "api_key": _ARBITRARY_KEY,
                 },
             )
         assert response.status_code == 200
@@ -258,7 +260,7 @@ class TestCheckModelReachability:
                 "/api/v1/integrations/llm/check-reachability",
                 json={
                     "model": "gpt-4o-mini",
-                    "api_key": "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz",
+                    "api_key": _ARBITRARY_KEY,
                 },
             )
         assert response.status_code == 200
