@@ -3,9 +3,9 @@
 A URL is judged and dialed in its canonical spelling (``utils.url_syntax``), so the host a policy classifies is the host
 a client connects to only if the client reads that spelling the way the canonicalizer does. Chromium is asked about every
 spelling in ``DIAL_SPELLINGS``: its resolver connects every name to the loopback listener, so the Host header the
-listener receives is the host Chromium derived from the URL. The same spellings are also dialed as written, which shows
-where a hop that is still dialed as written would be read differently. Run with:
-`pytest -m integration tests/utils/test_url_syntax_chromium_integration.py`.
+listener receives is the host Chromium derived from the URL. The same spellings are also dialed as written, because the
+browser tiers hand Chromium the URL as given: it must read each spelling as the same host or refuse it, never as another
+host. Run with: `pytest -m integration tests/utils/test_url_syntax_chromium_integration.py`.
 """
 
 from __future__ import annotations
