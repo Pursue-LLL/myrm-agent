@@ -32,7 +32,6 @@ def tmp_downloads(tmp_path: Path) -> Path:
 def config(tmp_downloads: Path) -> DownloadConfig:
     return DownloadConfig(
         downloads_dir=tmp_downloads,
-        auto_download_pdf=True,
         max_file_size_mb=1,
         download_timeout_s=5.0,
         max_concurrent_downloads=2,
@@ -83,7 +82,6 @@ def _make_page_mock() -> MagicMock:
 class TestDownloadConfig:
     def test_default_config(self) -> None:
         cfg = DownloadConfig()
-        assert cfg.auto_download_pdf is True
         assert cfg.max_file_size_mb == 100
         assert cfg.download_timeout_s == 60.0
         assert cfg.max_concurrent_downloads == 3
@@ -120,19 +118,8 @@ class TestDownloadResult:
             file_type="pdf",
         )
         assert result.url == "https://x.com/f.pdf"
-        assert result.auto_download is False
         with pytest.raises(AttributeError):
             result.file_name = "other"  # type: ignore[misc]
-
-    def test_result_auto_download(self) -> None:
-        result = DownloadResult(
-            url="u",
-            path="p",
-            file_name="f",
-            file_size=0,
-            auto_download=True,
-        )
-        assert result.auto_download is True
 
 
 # =============================================================================
@@ -183,22 +170,14 @@ class TestDownloadManagerProcessDownload:
     @pytest.mark.asyncio
     async def test_successful_download(self, manager: DownloadManager) -> None:
         dl = _make_download_mock()
-        result = await manager._process_download(dl, auto=False)
+        result = await manager._process_download(dl)
 
         assert result is not None
         assert result.file_name == "file.pdf"
         assert result.file_type == "pdf"
-        assert result.auto_download is False
         assert Path(result.path).exists()
         assert manager.downloads == [result]
         assert manager.last_download is result
-
-    @pytest.mark.asyncio
-    async def test_auto_download_flag(self, manager: DownloadManager) -> None:
-        dl = _make_download_mock()
-        result = await manager._process_download(dl, auto=True)
-        assert result is not None
-        assert result.auto_download is True
 
     @pytest.mark.asyncio
     async def test_disallowed_extension_rejected(self, tmp_downloads: Path) -> None:
@@ -211,7 +190,7 @@ class TestDownloadManagerProcessDownload:
             url="https://x.com/malware.exe",
             suggested_filename="malware.exe",
         )
-        result = await dm._process_download(dl, auto=False)
+        result = await dm._process_download(dl)
         assert result is None
         dl.cancel.assert_called_once()
 
@@ -223,13 +202,13 @@ class TestDownloadManagerProcessDownload:
         )
         dm = DownloadManager(cfg)
         dl = _make_download_mock(save_content=b"some content")
-        result = await dm._process_download(dl, auto=False)
+        result = await dm._process_download(dl)
         assert result is None
 
     @pytest.mark.asyncio
     async def test_save_failure(self, manager: DownloadManager) -> None:
         dl = _make_download_mock(failure_msg="network error")
-        result = await manager._process_download(dl, auto=False)
+        result = await manager._process_download(dl)
         assert result is None
         assert manager.downloads == []
 
@@ -238,8 +217,8 @@ class TestDownloadManagerProcessDownload:
         dl1 = _make_download_mock()
         dl2 = _make_download_mock()
 
-        r1 = await manager._process_download(dl1, auto=False)
-        r2 = await manager._process_download(dl2, auto=False)
+        r1 = await manager._process_download(dl1)
+        r2 = await manager._process_download(dl2)
 
         assert r1 is not None
         assert r2 is not None
@@ -276,65 +255,6 @@ class TestDownloadManagerUniqueFilename:
         (tmp_downloads / "report (1).pdf").touch()
         (tmp_downloads / "report (2).pdf").touch()
         assert manager._generate_unique_filename("report.pdf") == "report (3).pdf"
-
-
-class TestDownloadManagerPdfDetection:
-    @pytest.mark.parametrize(
-        ("url", "expected"),
-        [
-            ("https://x.com/file.pdf", True),
-            ("https://x.com/file.PDF", True),
-            ("https://x.com/file.pdf?v=1", True),
-            ("https://x.com/page?content-type=application/pdf", True),
-            ("https://x.com/page?content-type=application%2fpdf", True),
-            ("https://x.com/file.txt", False),
-            ("https://x.com/page", False),
-        ],
-    )
-    def test_is_pdf_url(self, url: str, expected: bool) -> None:
-        assert DownloadManager._is_pdf_url(url) is expected
-
-    @pytest.mark.asyncio
-    async def test_check_pdf_viewer_embed(self) -> None:
-        page = _make_page_mock()
-        page.url = "https://x.com/doc"
-        page.evaluate = AsyncMock(return_value=True)
-        assert await DownloadManager._check_pdf_viewer(page) is True
-
-    @pytest.mark.asyncio
-    async def test_check_pdf_viewer_chrome_extension(self) -> None:
-        page = _make_page_mock()
-        page.url = "chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html?pdf=1"
-        assert await DownloadManager._check_pdf_viewer(page) is True
-
-    @pytest.mark.asyncio
-    async def test_check_pdf_viewer_none(self) -> None:
-        page = _make_page_mock()
-        page.url = "https://example.com"
-        page.evaluate = AsyncMock(return_value=False)
-        assert await DownloadManager._check_pdf_viewer(page) is False
-
-    @pytest.mark.asyncio
-    async def test_check_pdf_viewer_error(self) -> None:
-        page = _make_page_mock()
-        page.url = "https://example.com"
-        page.evaluate = AsyncMock(side_effect=Exception("timeout"))
-        assert await DownloadManager._check_pdf_viewer(page) is False
-
-
-class TestExtractFilenameFromUrl:
-    @pytest.mark.parametrize(
-        ("url", "default_ext", "expected"),
-        [
-            ("https://x.com/file.pdf", "", "file.pdf"),
-            ("https://x.com/file.pdf?v=2#sec", "", "file.pdf"),
-            ("https://x.com/", ".pdf", "document.pdf"),
-            ("https://x.com/noext", "", "download"),
-            ("https://x.com/noext", ".pdf", "document.pdf"),
-        ],
-    )
-    def test_extract(self, url: str, default_ext: str, expected: str) -> None:
-        assert DownloadManager._extract_filename_from_url(url, default_ext=default_ext) == expected
 
 
 # =============================================================================
@@ -379,7 +299,7 @@ class TestDownloadUrl:
     @pytest.mark.asyncio
     async def test_download_url_dedup(self, manager: DownloadManager) -> None:
         dl = _make_download_mock(url="https://x.com/f.pdf")
-        await manager._process_download(dl, auto=False)
+        await manager._process_download(dl)
 
         page = _make_page_mock()
         result = await manager.download_url(page, "https://x.com/f.pdf")
@@ -392,83 +312,6 @@ class TestDownloadUrl:
         page.expect_download = MagicMock(side_effect=Exception("error"))
 
         result = await manager.download_url(page, "https://x.com/broken")
-        assert result is None
-
-
-# =============================================================================
-# check_and_download_pdf tests
-# =============================================================================
-
-
-class TestCheckAndDownloadPdf:
-    @pytest.mark.asyncio
-    async def test_disabled(self, tmp_downloads: Path) -> None:
-        cfg = DownloadConfig(downloads_dir=tmp_downloads, auto_download_pdf=False)
-        dm = DownloadManager(cfg)
-        page = _make_page_mock()
-        assert await dm.check_and_download_pdf(page) is None
-
-    @pytest.mark.asyncio
-    async def test_non_http_url(self, manager: DownloadManager) -> None:
-        page = _make_page_mock()
-        page.url = "about:blank"
-        assert await manager.check_and_download_pdf(page) is None
-
-    @pytest.mark.asyncio
-    async def test_already_downloaded(self, manager: DownloadManager) -> None:
-        dl = _make_download_mock(url="https://x.com/report.pdf")
-        await manager._process_download(dl, auto=True)
-
-        page = _make_page_mock()
-        page.url = "https://x.com/report.pdf"
-        assert await manager.check_and_download_pdf(page) is None
-
-    @pytest.mark.asyncio
-    async def test_not_pdf_page(self, manager: DownloadManager) -> None:
-        page = _make_page_mock()
-        page.url = "https://example.com/page"
-        page.evaluate = AsyncMock(return_value=False)
-        assert await manager.check_and_download_pdf(page) is None
-
-    @pytest.mark.asyncio
-    async def test_pdf_fallback_to_fetch(self, manager: DownloadManager, tmp_downloads: Path) -> None:
-        page = _make_page_mock()
-        page.url = "https://x.com/doc.pdf"
-
-        page.expect_download = MagicMock(side_effect=Exception("no print dialog"))
-        page.evaluate = AsyncMock(return_value=list(b"%PDF-1.4 fake"))
-
-        result = await manager.check_and_download_pdf(page)
-        assert result is not None
-        assert result.file_type == "pdf"
-        assert result.auto_download is True
-
-    @pytest.mark.asyncio
-    async def test_pdf_fetch_size_exceeded(self, tmp_downloads: Path) -> None:
-        """PDF fetched via JS that exceeds max_file_size_mb should be deleted."""
-        cfg = DownloadConfig(
-            downloads_dir=tmp_downloads,
-            max_file_size_mb=0,  # 0 MB limit
-        )
-        dm = DownloadManager(cfg)
-        page = _make_page_mock()
-        page.url = "https://x.com/huge.pdf"
-
-        page.expect_download = MagicMock(side_effect=Exception("no print"))
-        page.evaluate = AsyncMock(return_value=list(b"%PDF-big-content"))
-
-        result = await dm.check_and_download_pdf(page)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_pdf_both_methods_fail(self, manager: DownloadManager) -> None:
-        page = _make_page_mock()
-        page.url = "https://x.com/doc.pdf"
-
-        page.expect_download = MagicMock(side_effect=Exception("fail"))
-        page.evaluate = AsyncMock(side_effect=Exception("fetch fail"))
-
-        result = await manager.check_and_download_pdf(page)
         assert result is None
 
 

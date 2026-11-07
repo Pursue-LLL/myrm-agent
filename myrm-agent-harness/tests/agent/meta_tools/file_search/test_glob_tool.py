@@ -9,7 +9,7 @@ Covers:
 - Sorted output
 - Nested directory search
 - Invalid pattern handling
-- Python-tier selection under git's ignore rules and under the root ignore files of a plain folder
+- Python-tier selection under git's ignore rules and under the ignore files of a plain folder
 """
 
 from __future__ import annotations

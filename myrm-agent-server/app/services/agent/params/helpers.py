@@ -1,3 +1,14 @@
+"""[INPUT]
+- app.core.security.privacy_settings::PrivacyAgentParams (POS: 隐私参数契约)
+- .models::AgentRequest, MultimodalQuery (POS: 请求模型)
+
+[OUTPUT]
+- _requested_privacy_params / _extract_code_execution_network / _declared_capabilities / _extract_text_from_query
+
+[POS]
+参数转换辅助函数：提取请求自带的隐私字段，合并多份安全配置声明的能力名，并从多模态 query 中取纯文本。
+"""
+
 from __future__ import annotations
 
 import logging

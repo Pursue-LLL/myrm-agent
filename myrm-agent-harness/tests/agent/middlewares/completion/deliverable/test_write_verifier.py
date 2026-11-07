@@ -278,3 +278,60 @@ class TestCheckUnwrittenDeliverables:
         assert len(items) == 1
         assert items[0].filename_hint == "src/gateway/server.py"
         assert items[0].suggested_ext == ".py"
+
+
+_FIX_SUGGESTION_YAML = (
+    "## Fix suggestion\n\n"
+    "```yaml\n"
+    "spec:\n"
+    "  template:\n"
+    "    spec:\n"
+    "      containers:\n"
+    "      - name: payments\n"
+    "        resources:\n"
+    "          requests: {cpu: 200m, memory: 512Mi}\n"
+    "          limits: {cpu: 500m, memory: 1Gi}\n"
+    "        startupProbe:\n"
+    "          tcpSocket:\n"
+    "            port: 8080\n"
+    "          failureThreshold: 30\n"
+    "          periodSeconds: 5\n"
+    "        env:\n"
+    "        - name: DB_POOL_SIZE\n"
+    '          value: "20"\n'
+    "```\n"
+)
+
+
+class TestStructuredDataInAnAnswer:
+    """A config sketch inside an answer is an illustration; only a requested or named file is an artifact."""
+
+    def test_yaml_in_a_fix_suggestion_is_not_an_unwritten_deliverable(self) -> None:
+        for user_text in (
+            "prod 里 payments-api 一直在重启，帮我排查根因，并给出修复建议。",
+            "why does payments-api restart?",
+            None,
+        ):
+            reason, items = check_unwritten_deliverables(
+                content=_FIX_SUGGESTION_YAML, records=[], latest_user_text=user_text
+            )
+            assert (reason, items) == (None, []), user_text
+
+    def test_long_json_and_csv_without_a_file_request_are_part_of_the_answer(self) -> None:
+        rows = "".join(f"{i},node-{i},Ready,8,32Gi\n" for i in range(20))
+        csv_block = f"```csv\nid,name,status,cpu,memory\n{rows}```"
+        json_block = "```json\n{\n" + "".join(f'  "key_{i}": "value_{i}",\n' for i in range(20)) + '  "end": 1\n}\n```'
+        for block in (csv_block, json_block):
+            assert detect_unwritten_deliverables(block, latest_user_text="看一下各节点状态") == []
+
+    def test_the_same_yaml_is_an_artifact_when_the_user_asks_for_a_file(self) -> None:
+        reason, items = check_unwritten_deliverables(
+            content=_FIX_SUGGESTION_YAML, records=[], latest_user_text="请生成修复用的 YAML 配置"
+        )
+        assert reason is not None
+        assert [(i.language, i.suggested_ext) for i in items] == [("yaml", ".yaml")]
+
+    def test_a_named_yaml_block_stays_an_artifact_without_a_file_request(self) -> None:
+        content = _FIX_SUGGESTION_YAML.replace("```yaml\n", "```yaml\n# deployment-patch.yaml\n")
+        _, items = check_unwritten_deliverables(content=content, records=[], latest_user_text="帮我看看这个服务")
+        assert [i.filename_hint for i in items] == ["deployment-patch.yaml"]

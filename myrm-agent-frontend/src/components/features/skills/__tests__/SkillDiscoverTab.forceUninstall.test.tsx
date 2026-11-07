@@ -80,8 +80,8 @@ const discoveryHookMock = vi.hoisted(() => ({
   isPreviewing: null,
   isUninstalling: null,
   previewResult: null,
-  searchError: null,
-  installError: null,
+  searchError: null as string | null,
+  installError: null as string | null,
   installSuccess: null,
   search: vi.fn(),
   preview: vi.fn(),
@@ -119,6 +119,8 @@ describe('SkillDiscoverTab force-uninstall flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     discoveryHookMock.results = [installedSkill];
+    discoveryHookMock.searchError = null;
+    discoveryHookMock.installError = null;
     uninstallMock.mockReset();
   });
 
@@ -171,5 +173,29 @@ describe('SkillDiscoverTab force-uninstall flow', () => {
     });
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Uninstalled GitHub Helper' }));
     expect(onInstalled).toHaveBeenCalled();
+  });
+});
+
+describe('SkillDiscoverTab error messages', () => {
+  beforeEach(() => {
+    discoveryHookMock.results = [];
+    discoveryHookMock.searchError = null;
+    discoveryHookMock.installError = null;
+  });
+
+  it('shows search and install errors in the destructive text colour', () => {
+    discoveryHookMock.searchError = 'Search exploded';
+    discoveryHookMock.installError = 'Install exploded';
+
+    render(<SkillDiscoverTab />);
+
+    expect(screen.getByText('Search exploded')).toHaveClass('text-destructive-text');
+    expect(screen.getByText('Install exploded')).toHaveClass('text-destructive-text');
+  });
+
+  it('shows no error text when nothing failed', () => {
+    render(<SkillDiscoverTab />);
+
+    expect(screen.queryByText(/exploded/)).not.toBeInTheDocument();
   });
 });

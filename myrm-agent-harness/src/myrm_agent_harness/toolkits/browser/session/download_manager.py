@@ -1,4 +1,4 @@
-"""Download manager — file download detection, processing, and PDF auto-download.
+"""Download manager — file download detection and processing.
 
 [INPUT]
 - patchright.async_api::Page, Download (POS: Patchright page and download objects)
@@ -109,7 +109,6 @@ class DownloadConfig:
     """Download configuration."""
 
     downloads_dir: Path = field(default_factory=lambda: resolve_data_dir() / "downloads")
-    auto_download_pdf: bool = True
     max_file_size_mb: int = 100
     download_timeout_s: float = 60.0
     max_concurrent_downloads: int = 3
@@ -125,15 +124,13 @@ class DownloadResult:
     file_name: str
     file_size: int
     file_type: str | None = None
-    mime_type: str | None = None
-    auto_download: bool = False
 
 
 class DownloadManager:
-    """File download manager with PDF auto-detection.
+    """File download manager.
 
-    Monitors page download events, processes files with safety checks,
-    and provides PDF auto-detection and download capabilities.
+    Monitors page download events and processes files with safety checks; an explicit ``download_url`` request
+    is verified at the address it came from before anything is saved.
     """
 
     def __init__(self, config: DownloadConfig | None = None) -> None:
@@ -207,7 +204,7 @@ class DownloadManager:
                     download = await download_info.value
                     if verify_final_url is not None:
                         await self._cancel_unless_verified(download, verify_final_url)
-                    return await self._process_download(download, auto=False)
+                    return await self._process_download(download)
         except BrowserNavigationBlockedError:
             raise
         except Exception as e:
@@ -238,40 +235,6 @@ class DownloadManager:
                 await download.cancel()
             raise
 
-    async def check_and_download_pdf(self, page: Page) -> DownloadResult | None:
-        """Check if current page is a PDF and auto-download it.
-
-        Args:
-            page: Current page to check
-
-        Returns:
-            DownloadResult if PDF was downloaded, None otherwise
-        """
-        if not self._config.auto_download_pdf:
-            return None
-
-        url = page.url
-        if not url or not url.startswith("http"):
-            return None
-
-        if url in self._downloaded_urls:
-            return None
-
-        if not self._is_pdf_url(url):
-            is_pdf = await self._check_pdf_viewer(page)
-            if not is_pdf:
-                return None
-
-        try:
-            async with self._semaphore:
-                async with page.expect_download(timeout=self._config.download_timeout_s * 1000) as download_info:
-                    await page.evaluate("() => window.print()")
-
-                download = await download_info.value
-                return await self._process_download(download, auto=True)
-        except Exception:
-            return await self._download_pdf_via_fetch(page, url)
-
     async def cleanup(self) -> None:
         """Cancel pending tasks and clean up resources."""
         for task in list(self._pending_tasks):
@@ -293,16 +256,15 @@ class DownloadManager:
         """Process a download event asynchronously."""
         try:
             async with self._semaphore:
-                await self._process_download(download, auto=False)
+                await self._process_download(download)
         except Exception as e:
             logger.warning("Download handler error: %s", e)
 
-    async def _process_download(self, download: Download, *, auto: bool) -> DownloadResult | None:
+    async def _process_download(self, download: Download) -> DownloadResult | None:
         """Process a Patchright Download object.
 
         Args:
             download: Patchright Download object
-            auto: Whether this is an auto-download (PDF)
 
         Returns:
             DownloadResult if successful, None otherwise
@@ -361,73 +323,12 @@ class DownloadManager:
             file_name=unique_name,
             file_size=file_size,
             file_type=ext or None,
-            auto_download=auto,
         )
         self._downloads.append(result)
         self._downloaded_urls.add(url)
 
         logger.info("Downloaded: %s (%d bytes) → %s", unique_name, file_size, target_path)
         return result
-
-    async def _download_pdf_via_fetch(self, page: Page, url: str) -> DownloadResult | None:
-        """Fallback: download PDF via JS fetch (uses browser cache)."""
-        try:
-            filename = self._extract_filename_from_url(url, default_ext=".pdf")
-            sanitized = self._sanitize_filename(filename)
-            unique_name = self._generate_unique_filename(sanitized)
-            target_path = self._config.downloads_dir / unique_name
-
-            escaped_url = url.replace("\\", "\\\\").replace("`", "\\`")
-            js = f"""
-            (async () => {{
-                const r = await fetch(`{escaped_url}`, {{cache: 'force-cache'}});
-                if (!r.ok) throw new Error(`HTTP ${{r.status}}`);
-                const buf = await r.arrayBuffer();
-                return Array.from(new Uint8Array(buf));
-            }})()
-            """
-            data = await asyncio.wait_for(
-                page.evaluate(js),
-                timeout=self._config.download_timeout_s,
-            )
-
-            if not data:
-                return None
-
-            target_path.write_bytes(bytes(data))
-            file_size = target_path.stat().st_size
-
-            max_bytes = self._config.max_file_size_mb * 1024 * 1024
-            if file_size > max_bytes:
-                logger.warning(
-                    "PDF fetch exceeds size limit (%d MB > %d MB), removing: %s",
-                    file_size // (1024 * 1024),
-                    self._config.max_file_size_mb,
-                    unique_name,
-                )
-                target_path.unlink(missing_ok=True)
-                return None
-
-            result = DownloadResult(
-                url=url,
-                path=str(target_path),
-                file_name=unique_name,
-                file_size=file_size,
-                file_type="pdf",
-                mime_type="application/pdf",
-                auto_download=True,
-            )
-            self._downloads.append(result)
-            self._downloaded_urls.add(url)
-            logger.info("PDF fetched: %s (%d bytes)", unique_name, file_size)
-            return result
-        except Exception as e:
-            logger.warning(
-                "PDF fetch fallback failed for %s: %s",
-                redact_sensitive_text(url)[:80],
-                e,
-            )
-            return None
 
     @staticmethod
     def _sanitize_filename(name: str) -> str:
@@ -445,47 +346,3 @@ class DownloadManager:
         while (self._config.downloads_dir / f"{base} ({counter}){ext}").exists():
             counter += 1
         return f"{base} ({counter}){ext}"
-
-    @staticmethod
-    def _is_pdf_url(url: str) -> bool:
-        """Check if URL indicates a PDF file."""
-        url_lower = url.lower()
-        path_part = url_lower.split("?")[0]
-        if path_part.endswith(".pdf"):
-            return True
-        pdf_params = (
-            "content-type=application/pdf",
-            "content-type=application%2fpdf",
-            "mimetype=application/pdf",
-            "type=application/pdf",
-        )
-        return any(p in url_lower for p in pdf_params)
-
-    @staticmethod
-    async def _check_pdf_viewer(page: Page) -> bool:
-        """Check if current page is Chrome's PDF viewer."""
-        try:
-            url = page.url
-            if "chrome-extension://" in url.lower() and "pdf" in url.lower():
-                return True
-            if url.lower().startswith("chrome://") and "pdf" in url.lower():
-                return True
-            result = await asyncio.wait_for(
-                page.evaluate(
-                    '() => !!document.querySelector(\'embed[type="application/pdf"], '
-                    'embed[type="application/x-google-chrome-pdf"]\')'
-                ),
-                timeout=3.0,
-            )
-            return bool(result)
-        except Exception:
-            return False
-
-    @staticmethod
-    def _extract_filename_from_url(url: str, *, default_ext: str = "") -> str:
-        """Extract filename from URL."""
-        path = url.split("?")[0].split("#")[0]
-        name = os.path.basename(path)
-        if not name or "." not in name:
-            return f"document{default_ext}" if default_ext else "download"
-        return name

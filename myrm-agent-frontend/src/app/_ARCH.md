@@ -42,7 +42,7 @@
 ## 约束
 
 - 新页面优先复用 `features/` 组件，不在 `app/` 堆业务逻辑。
-- 单文件 page >600 行应下沉到 `features/`（如 `batch-directories/page.tsx`）。
+- 单文件 page >600 行应下沉到 `features/`（如 `batch-directories/` 两个 page 只做装配，实现在 `features/batch-directory/`）。
 - `layout.tsx`：构建期静态 `metadata`（`lib/metadata/static-metadata.ts`）；`<body suppressHydrationWarning>` 压制浏览器扩展注入属性导致的 hydration warning；`LocalizedProviders` 仍在 Suspense 内（cookie locale）。
 - `focus-ring.css`（由 `globals.css` 引入）：键盘焦点环基线，只作用于自身无 `focus`/`focus-visible` 样式的可交互元素（`@layer base`，任何 Tailwind utility 与组件样式都可覆盖；不匹配文本输入）；复用主题 token `--ring`，鼠标/触摸不触发。 组件若写 `outline-none` 就会覆盖它，须自带 `focus-visible:ring-*`，由 `scripts/check-a11y-ratchet.mjs`（`focus-visibility-scan.ts`）在 lint 阶段强制。
 - `numbered-code.css`（由 `globals.css` 引入）：只读代码视图 `LineNumberedCode`（`features/workspace-browser/WorkspaceTextViews.tsx`）的行号样式，`@layer components`。行号是每个块级行 `::before` 上的 CSS 计数器，不在 DOM 文本里，所以不会被选中复制，替代文本 `/ ''` 让读屏跳过它；字号与行高（`--numbered-code-line-height`）由本文件设置，行高、行号与槽宽都由它派生，元素上不能再叠 `text-xs`/`leading-*`（utilities 层优先于 components 层，会把行高改掉、行号随之错位）。`.numbered-code-lazy`（组件在超过 2,000 行时才加）用 `content-visibility: auto` 跳过屏外行，以滚动条长度在行被看过前是估算值为代价换面板缩放时的布局开销；契约由 `src/app/__tests__/numbered-code-css.test.ts` 钉住。

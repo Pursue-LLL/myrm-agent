@@ -6,7 +6,7 @@ Covers:
 - An untracked clone is searched with the ignore rules of its own repository, its subdirectories' ignore files included
 - A directory the parent repository ignores hides a clone inside it
 - A submodule, and a recorded gitlink, are searched without their ``.git`` marker; a gitlink with no checkout lists nothing
-- A nested repository that git refuses to read is still searched, under the ignore files at its root
+- A nested repository that git refuses to read is still searched, under its ignore files and its subdirectories' ones
 - The result cap holds across nested repositories
 """
 
@@ -22,6 +22,15 @@ PARENT_FILES = {".gitignore": "*.log\n", "app.py": "needle\n", "debug.log": "nee
 # ``build/`` is not ignored by the nested repository, so it is searched there like in any checkout.
 NESTED_FILES = {".gitignore": "*.tmp\n", "main.py": "needle\n", "skip.tmp": "needle\n", "build/out.js": "needle\n"}
 NESTED_VISIBLE = {".gitignore", "main.py", "build/out.js"}
+# A clone whose subdirectory has an ignore file of its own.
+NESTED_WITH_SUBDIRECTORY_IGNORE = {
+    ".gitignore": "*.tmp\n",
+    "main.py": "needle\n",
+    "pkg/.gitignore": "generated/\n",
+    "pkg/mod.py": "needle\n",
+    "pkg/generated/out.py": "needle\n",
+}
+NESTED_WITH_SUBDIRECTORY_IGNORE_VISIBLE = {".gitignore", "main.py", "pkg/.gitignore", "pkg/mod.py"}
 
 
 def _repository(root: Path, files: dict[str, str], *, committed: bool = False) -> Path:
@@ -31,6 +40,12 @@ def _repository(root: Path, files: dict[str, str], *, committed: bool = False) -
         git(root, "add", "-A")
         git(root, "commit", "-qm", "initial")
     return root
+
+
+def _make_unreadable_to_git(clone: Path) -> None:
+    # A conditional include is the one repository setting hardened git refuses to run under.
+    with (clone / ".git" / "config").open("a", encoding="utf-8") as config:
+        config.write('[includeIf "gitdir:/"]\n\tpath = elsewhere\n')
 
 
 @pytest.fixture
@@ -54,18 +69,10 @@ class TestUntrackedClone:
     async def test_honours_the_ignore_files_of_its_subdirectories(
         self, parent: Path, run_glob: SearchRunner, run_grep: SearchRunner
     ) -> None:
-        files = {
-            ".gitignore": "*.tmp\n",
-            "main.py": "needle\n",
-            "pkg/.gitignore": "generated/\n",
-            "pkg/mod.py": "needle\n",
-            "pkg/generated/out.py": "needle\n",
-        }
-        _repository(parent / "vendor" / "clone", files)
-        visible = {".gitignore", "main.py", "pkg/.gitignore", "pkg/mod.py"}
+        _repository(parent / "vendor" / "clone", NESTED_WITH_SUBDIRECTORY_IGNORE)
 
         assert listed(await run_glob(parent, "**/*")) == {"app.py", ".gitignore"} | {
-            f"vendor/clone/{name}" for name in visible
+            f"vendor/clone/{name}" for name in NESTED_WITH_SUBDIRECTORY_IGNORE_VISIBLE
         }
 
         output = await run_grep(parent, "needle")
@@ -111,14 +118,22 @@ class TestSubmodules:
 @pytest.mark.parametrize("engine", ["python"], indirect=True)
 class TestNestedRepositoryGitRefusesToRead:
     async def test_is_walked_under_the_ignore_files_at_its_root(self, parent: Path, run_glob: SearchRunner) -> None:
-        clone = _repository(parent / "vendor" / "clone", NESTED_FILES)
-        # A conditional include is the one repository setting hardened git refuses to run under.
-        with (clone / ".git" / "config").open("a", encoding="utf-8") as config:
-            config.write('[includeIf "gitdir:/"]\n\tpath = elsewhere\n')
+        _make_unreadable_to_git(_repository(parent / "vendor" / "clone", NESTED_FILES))
 
         files = listed(await run_glob(parent, "**/*"))
 
         assert files == {"app.py", ".gitignore"} | {f"vendor/clone/{name}" for name in NESTED_VISIBLE}
+
+    async def test_is_walked_under_the_ignore_files_of_its_subdirectories(
+        self, parent: Path, run_glob: SearchRunner
+    ) -> None:
+        _make_unreadable_to_git(_repository(parent / "vendor" / "clone", NESTED_WITH_SUBDIRECTORY_IGNORE))
+
+        files = listed(await run_glob(parent, "**/*"))
+
+        assert files == {"app.py", ".gitignore"} | {
+            f"vendor/clone/{name}" for name in NESTED_WITH_SUBDIRECTORY_IGNORE_VISIBLE
+        }
 
 
 class TestResultCap:

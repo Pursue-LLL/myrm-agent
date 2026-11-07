@@ -235,13 +235,11 @@ def detect_unwritten_deliverables(
         if filename_hint is not None:
             # Explicit filename comment is a strong indicator of a file deliverable
             is_substantive = line_count >= 5
-        elif not is_code and is_explicit_deliverable:
-            # Structured data (csv, json, yaml) under explicit deliverable intent:
-            # Wide tables or compact JSON configs might have fewer lines but substantial payload
-            is_substantive = line_count >= 10 or (line_count >= 5 and byte_count >= 180)
         elif not is_code:
-            # Standard structured data deliverable
-            is_substantive = line_count >= 14 or (line_count >= 6 and byte_count >= 280)
+            # Structured data (csv, json, yaml) without a filename or a request to produce a file is part of
+            # the answer (a config sketch in a fix suggestion, a result table), not an artifact to persist.
+            # Wide tables or compact JSON configs might have fewer lines but substantial payload.
+            is_substantive = is_explicit_deliverable and (line_count >= 10 or (line_count >= 5 and byte_count >= 180))
         elif is_explicit_deliverable:
             # User specifically requested writing/implementing a code artifact
             is_substantive = line_count >= 12

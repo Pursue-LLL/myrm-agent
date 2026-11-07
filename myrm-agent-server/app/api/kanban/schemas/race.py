@@ -1,4 +1,7 @@
-"""[OUTPUT]
+"""[INPUT]
+- pydantic BaseModel / Field (POS: 请求/响应模型基类)
+
+[OUTPUT]
 RaceLaneSpec, RaceStartRequest, RaceEstimateResponse, RaceStartResponse, RaceLaneResponse, RaceLanesResponse, RaceDecideRequest, RaceDecideResponse, RaceFileChange, RaceLaneChangesResponse, RaceLaneFileResponse
 
 [POS]

@@ -40,7 +40,7 @@
 
 ### 内部依赖
 - `pre_flight.py` → `myrm_agent_harness.agent.config.validator.check_config_health`（框架层配置健康检查）
-- 所有文件 → `settings.py`（应用配置）
+- 所有文件 → `settings/`（应用配置包）
 
 ### 被依赖方
 - `run.py`（项目根目录）：启动时调用 `check_and_migrate_config()`, `preflight_check_config()`, `track_config_changes()`

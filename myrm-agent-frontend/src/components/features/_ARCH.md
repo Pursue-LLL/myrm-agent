@@ -70,6 +70,7 @@
 | `mobile-companion/` | 组件 `MobileRemoteSteeringBar`、`MobileTaskCompanionView`、`QrCodePairingModal`；状态仓库 `useMobileCompanionStore` | [_ARCH.md](mobile-companion/_ARCH.md) |
 | `three-mode-switcher/` | 组件 `ThreeModeCapsuleSwitcher`、`ThreeModeIntentGuidanceToast`、`ThreeModePermissionMatrixDeck`；状态仓库 `useThreeModeStore` | [_ARCH.md](three-mode-switcher/_ARCH.md) |
 | `threejs-sandbox/` | 组件 `ThreeJsCanvasViewer`、`ThreeJsConsoleDrawer`、`ThreeJsPerformancePanel`；状态仓库 `useThreeJsSandboxStore` | [_ARCH.md](threejs-sandbox/_ARCH.md) |
+| `batch-directory/` | 批量目录并行项目：列表页（统计、项目表、创建向导与目录选择器）与详情页（概览、范围、任务表、动作栏）及其数据 / 动作 hooks | [_ARCH.md](batch-directory/_ARCH.md) |
 
 上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。
 

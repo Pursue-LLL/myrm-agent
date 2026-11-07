@@ -198,19 +198,16 @@ class TestDownloadActions:
         dl1 = MagicMock()
         dl1.file_name = "a.pdf"
         dl1.file_size = 512
-        dl1.auto_download = False
         dl1.path = "/tmp/a.pdf"
         dl2 = MagicMock()
         dl2.file_name = "b.zip"
         dl2.file_size = 2048
-        dl2.auto_download = True
         dl2.path = "/tmp/b.zip"
         session.list_downloads = MagicMock(return_value=[dl1, dl2])
         tool = create_manage_tool(session)
         result = await tool.ainvoke({"action": "list_downloads"})
-        assert "a.pdf" in result
-        assert "b.zip" in result
-        assert "[auto]" in result
+        assert " - a.pdf (512 bytes): /tmp/a.pdf" in result
+        assert " - b.zip (2048 bytes): /tmp/b.zip" in result
 
 
 _SITE_EXP_STORE = "myrm_agent_harness.toolkits.web_fetch.router.get_global_site_experience_store"

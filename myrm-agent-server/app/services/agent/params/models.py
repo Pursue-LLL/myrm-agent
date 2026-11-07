@@ -1,3 +1,14 @@
+"""[INPUT]
+- myrm_agent_harness.core.config.gateway::ToolGatewayConfig (POS: 工具网关配置契约)
+- app.services.agent.builtin_specs.builtin_tool_ids / builtin_tool_validation (POS: 内置工具清单与必选校验)
+
+[OUTPUT]
+- ModelSelection, AgentConfigRequest, AgentRequest, GoalBudgetRequest, MentionReferenceRequest 等请求模型
+
+[POS]
+Agent 参数转换的请求模型 SSOT：前端请求体到内部参数的唯一契约。
+"""
+
 from __future__ import annotations
 
 import logging

@@ -22,7 +22,6 @@ Session-scoped in-memory queues with optional workspace JSONL persistence (`team
 | `scope_guardrails/` | 核心 | Orchestrator 越权防护与安全建队模式收敛审核引擎 (types, guardrails_engine) | ✅ |
 | `autonomous_loop/` | 核心 | Goal/Kanban 驱动自主编排循环与安全步数看门狗引擎 (types, loop_controller) | ✅ |
 | `tri_role/` | 核心 | 规划-执行-可扩展评估三权分立与跨会话工件无损交接管线 (types, pipeline_coordinator) | ✅ |
-| `multi_bot_focus/` | 核心 | 多Bot协同会话Mention焦点动态绑定与长会话防抖压实引擎 (types, focus_compactor) | ✅ |
 | `wave_orchestrator/` | 核心 | 编码型 Agent Profile 可选预置与多阶段 Wave 波次流水线编排引擎 (types, wave_engine) | ✅ |
 | `__init__.py` | 导出 | Public API surface | ✅ |
 

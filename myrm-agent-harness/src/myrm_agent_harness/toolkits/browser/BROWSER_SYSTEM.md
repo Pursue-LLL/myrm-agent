@@ -1191,7 +1191,7 @@ browser/
 │   ├── browser_session_extraction_mixin.py — 内容提取、vision fallback、截图对比
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
 │   ├── browser_session_interaction_mixin.py — interact（ref 操作）/ interact_at（坐标操作）及可选视觉校验
-│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定）/ PDF 自动下载 / 下载记录读取
+│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定）/ 下载记录读取
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
 │   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误

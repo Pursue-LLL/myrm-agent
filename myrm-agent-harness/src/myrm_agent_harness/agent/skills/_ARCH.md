@@ -22,7 +22,6 @@ Detailed design: [SKILL_SYSTEM.md](SKILL_SYSTEM.md)
 | runtime/ | Runtime — skill execution runtime. |
 | security/ | Export-time content sanitization for skill privacy protection. |
 | autonomous_visualization/ | Autonomous Zero-Prompt Visualization & Dynamic Web Dashboard Engine (Item 49 P1). |
-| bundle_warmup/ | 技能包清单化一键批量加载与运行时生命周期预热管理器 (Item 41 P1). |
 
 ## Key Dependencies
 

@@ -1,3 +1,14 @@
+"""[INPUT]
+- app.ai_agents::ImageGenerationParams, TTSParams, VideoGenerationParams (POS: 媒体生成参数契约)
+- .model_config (POS: providerId 规范化与 API key 查找)
+
+[OUTPUT]
+- _extract_media_generation_params / _resolve_xai_oauth_api_key / _is_xai_provider
+
+[POS]
+参数转换媒体层：把请求中的 image / video / TTS 选择解析成 provider 可用的生成参数。
+"""
+
 from __future__ import annotations
 
 import logging

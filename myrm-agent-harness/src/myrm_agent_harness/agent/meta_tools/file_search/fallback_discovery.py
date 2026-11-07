@@ -4,7 +4,7 @@
 - core.security.safe_git::hardened_git_argv (POS: git argv that runs no program the repository chose)
 - subprocess (POS: git capability probe, git-aware file listing and ignore check)
 - os.walk (POS: bounded filesystem traversal fallback)
-- pathspec (POS: gitignore pattern matching for the ignore files at the root of a plain folder or of a nested repository git cannot list)
+- pathspec (POS: gitignore pattern matching for the ignore files of a plain folder, or of a nested repository git cannot list)
 - pathlib::Path (POS: path normalization)
 - glob_match::glob_matches (POS: shared glob semantics for the ripgrep and Python tiers)
 
@@ -17,18 +17,19 @@
 Shared discovery layer for file-search tools. Holds the policy both tiers follow (version-control
 directories are never listed; ignore files apply unless the caller opts out; hidden files are searched;
 symbolic links are never followed) and implements it for the Python tier: git-aware listing where
-available (a repository nested in the checkout is listed by git in turn, and walked under the ignore files at its
-root only when git cannot read it; a search root that git itself ignores is walked like a plain folder),
-root-level ignore files and default directory pruning in non-git directories, bounded traversal.
+available (a repository nested in the checkout is listed by git in turn, and walked under its ignore files only when
+git cannot read it; a search root that git itself ignores is walked like a plain folder), the ignore files of every
+directory and default directory pruning in non-git directories, bounded traversal.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
-from collections.abc import Iterable, Iterator
+from collections.abc import Collection, Iterable, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from myrm_agent_harness.core.security.safe_git import hardened_git_argv
 
@@ -37,6 +38,8 @@ from .glob_match import glob_matches, is_match_all
 if TYPE_CHECKING:
     from pathspec import PathSpec
     from pathspec.pattern import Pattern
+
+logger = logging.getLogger(__name__)
 
 # Version-control internals hold no searchable project content, so no listing includes them,
 # not even when the caller asks for ignored files.
@@ -63,7 +66,8 @@ DEFAULT_PRUNED_DIR_NAMES = VCS_DIR_NAMES | frozenset(
         "venv",
     }
 )
-_ROOT_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".rgignore")
+# Ascending rank: ripgrep lets a .rgignore outrank a .ignore, which outranks a .gitignore.
+_IGNORE_FILE_NAMES = (".gitignore", ".ignore", ".rgignore")
 # What a git invocation can fail with: not installed, unreadable, hardened git refusing a repository, too slow.
 _GIT_FAILURES = (subprocess.TimeoutExpired, OSError)
 
@@ -160,22 +164,104 @@ def _list_nested_repository(repo_dir: Path, timeout_seconds: float = 5.0) -> lis
         return None
 
 
-def _walk_files(root: Path, *, pruned: frozenset[str], spec: PathSpec[Pattern] | None) -> Iterator[Path]:
-    """Yield the regular files below ``root``, skipping ``pruned`` directory names and what ``spec`` ignores.
+class _IgnoreLayer(NamedTuple):
+    """One ignore file, which applies below the directory that holds it."""
+
+    rank: int  # index into _IGNORE_FILE_NAMES
+    prefix: str  # that directory relative to the walk root, with a trailing slash ("" for the root itself)
+    spec: PathSpec[Pattern]
+
+
+def _compile_ignore_file(ignore_file: Path) -> PathSpec[Pattern] | None:
+    """Compile ``ignore_file`` the way git and ripgrep read it, or None when it is unusable.
+
+    Lines go to pathspec as written: git keeps leading whitespace and honours an escaped trailing space, so trimming a
+    line changes what it matches. A file that is not a regular file, cannot be read or cannot be compiled never fails
+    or stalls a search; it just does not filter.
+    """
+    if not ignore_file.is_file():
+        return None  # reading a FIFO or a device would block for good
+    try:
+        # Imported on first use: the import costs ~18 ms, which searches that go through git or ripgrep never pay.
+        import pathspec
+    except ImportError:
+        # A build that lacks the dependency keeps searching, unfiltered, rather than failing every directory search.
+        return None
+
+    try:
+        # utf-8-sig: editors on Windows write a byte order mark, which ripgrep drops and which would otherwise stay
+        # glued to the first pattern.
+        lines = ignore_file.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+    except OSError as error:
+        logger.warning(f"Cannot read ignore file {ignore_file}: {error}")
+        return None
+    try:
+        return pathspec.PathSpec.from_lines("gitignore", lines)
+    except Exception as error:
+        # The file is user-authored, and what pathspec raises for a line it cannot compile is not a stable contract (its
+        # own pattern error, the regex compiler's, or a warning a host turns into an error), so any failure costs the
+        # file, never the search.
+        logger.warning(f"Ignoring unusable ignore file {ignore_file}: {error}")
+        return None
+
+
+def _extend_layers(
+    layers: tuple[_IgnoreLayer, ...], directory: Path, prefix: str, filenames: Collection[str]
+) -> tuple[_IgnoreLayer, ...]:
+    """``layers`` plus the ignore files ``directory`` holds, highest priority first.
+
+    ripgrep asks the kinds in order (.rgignore, .ignore, .gitignore) and, within a kind, the deepest file first; the
+    first file with an opinion on a path decides, so that is the order the layers are kept in.
+    """
+    own: list[_IgnoreLayer] = []
+    for rank, name in enumerate(_IGNORE_FILE_NAMES):
+        if name not in filenames:
+            continue
+        spec = _compile_ignore_file(directory / name)
+        if spec is not None:
+            own.append(_IgnoreLayer(rank, prefix, spec))
+    if not own:
+        return layers
+    return tuple(sorted((*layers, *own), key=lambda layer: (layer.rank, len(layer.prefix)), reverse=True))
+
+
+def _is_ignored(layers: tuple[_IgnoreLayer, ...], rel_path: str, *, is_dir: bool) -> bool:
+    """Whether the first layer with an opinion on ``rel_path`` (relative to the walk root) ignores it.
+
+    A directory is asked with a trailing slash, the way git and ripgrep ask: a pattern for directories only (``dir/``)
+    must match it, and a negated one takes it back.
+    """
+    for layer in layers:
+        relative = rel_path[len(layer.prefix) :]
+        verdict = layer.spec.check_file(f"{relative}/" if is_dir else relative).include
+        if verdict is not None:
+            return verdict
+    return False
+
+
+def _walk_files(root: Path, *, pruned: frozenset[str], honour_ignore_files: bool) -> Iterator[Path]:
+    """Yield the regular files below ``root``, skipping ``pruned`` directory names and what its ignore files cover.
 
     Version-control markers (the ``.git`` file of a submodule included) and symbolic links are never yielded.
     """
+    # The layers a directory inherits from its parent, keyed by its path and dropped when the walk enters it. A
+    # symbolic link to a directory is never entered, so its entry lasts until the walk ends.
+    inherited: dict[str, tuple[_IgnoreLayer, ...]] = {str(root): ()}
     for dirpath, dirnames, filenames in os.walk(root, topdown=True):
         current_dir = Path(dirpath)
+        layers: tuple[_IgnoreLayer, ...] = ()
+        prefix = ""
+        if honour_ignore_files:
+            prefix = "" if current_dir == root else f"{current_dir.relative_to(root).as_posix()}/"
+            layers = _extend_layers(inherited.pop(dirpath), current_dir, prefix, filenames)
+
         kept_dirs: list[str] = []
         for dirname in dirnames:
-            if dirname in pruned:
+            if dirname in pruned or (layers and _is_ignored(layers, f"{prefix}{dirname}", is_dir=True)):
                 continue
-            if spec is not None:
-                rel_dir = (current_dir / dirname).relative_to(root).as_posix()
-                if spec.match_file(rel_dir) or spec.match_file(f"{rel_dir}/"):
-                    continue
             kept_dirs.append(dirname)
+            if honour_ignore_files:
+                inherited[os.path.join(dirpath, dirname)] = layers
         dirnames[:] = kept_dirs
 
         for filename in filenames:
@@ -184,7 +270,7 @@ def _walk_files(root: Path, *, pruned: frozenset[str], spec: PathSpec[Pattern] |
             file_path = current_dir / filename
             if file_path.is_symlink() or not file_path.is_file():
                 continue
-            if spec is not None and spec.match_file(file_path.relative_to(root).as_posix()):
+            if layers and _is_ignored(layers, f"{prefix}{filename}", is_dir=False):
                 continue
             yield file_path
 
@@ -193,9 +279,9 @@ def _expand_git_entries(entries: Iterable[Path]) -> Iterator[Path]:
     """Yield the files behind the entries git listed.
 
     A directory entry is a repository or submodule nested in the checkout, and git lists it in turn under the
-    ignore files of its own tree, as ripgrep reads them. Only when git cannot list it is it walked under the
-    ignore files at its root: dependency and build directories are not skipped there, since inside a git
-    checkout the ignore rules decide.
+    ignore files of its own tree, as ripgrep reads them. Only when git cannot list it is it walked under its ignore
+    files: dependency and build directories are not skipped there, since inside a git checkout the ignore rules
+    decide.
     """
     pending = [iter(entries)]
     while pending:
@@ -210,39 +296,9 @@ def _expand_git_entries(entries: Iterable[Path]) -> Iterator[Path]:
         elif entry.is_dir():
             nested = _list_nested_repository(entry)
             if nested is None:
-                yield from _walk_files(entry, pruned=VCS_DIR_NAMES, spec=_load_root_ignore_spec(entry))
+                yield from _walk_files(entry, pruned=VCS_DIR_NAMES, honour_ignore_files=True)
             else:
                 pending.append(iter(nested))
-
-
-def _load_root_ignore_spec(search_root: Path) -> PathSpec[Pattern] | None:
-    """Load root ignore patterns for non-git fallback, or None."""
-    try:
-        import pathspec
-    except ImportError:
-        return None
-
-    patterns: list[str] = []
-    for filename in _ROOT_IGNORE_FILE_NAMES:
-        ignore_file = search_root / filename
-        if not ignore_file.is_file():
-            continue
-        try:
-            for raw_line in ignore_file.read_text(encoding="utf-8", errors="replace").splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                patterns.append(line)
-        except OSError:
-            continue
-
-    if not patterns:
-        return None
-
-    try:
-        return pathspec.PathSpec.from_lines("gitignore", patterns)
-    except Exception:
-        return None
 
 
 def collect_candidate_files(
@@ -267,9 +323,9 @@ def collect_candidate_files(
             files = _expand_git_entries(entries)
     if files is None:
         if include_ignored:
-            files = _walk_files(search_root, pruned=VCS_DIR_NAMES, spec=None)
+            files = _walk_files(search_root, pruned=VCS_DIR_NAMES, honour_ignore_files=False)
         else:
-            files = _walk_files(search_root, pruned=DEFAULT_PRUNED_DIR_NAMES, spec=_load_root_ignore_spec(search_root))
+            files = _walk_files(search_root, pruned=DEFAULT_PRUNED_DIR_NAMES, honour_ignore_files=True)
 
     candidates: list[Path] = []
     for file_path in files:
