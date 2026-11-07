@@ -9,15 +9,12 @@ Performs stateless sweeps: evaluates skills against CuratorConfig thresholds, ap
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports SkillCurator, CuratorRunResult, CuratorTransition. | — |
-| anti_sycophancy_adversarial_engine.py | Core | Detects sycophantic alignment traps and generates adversarial critique exemplars. | ✅ |
-| anti_sycophancy_types.py | Types | Types and models for anti sycophancy. | ✅ |
 | engine.py | Core | SkillCurator: stateless curator engine that orchestrates lifecycle sweeps and consolidation. `run_async` sweeps and proposes a consolidation plan (executes nothing); `apply_consolidation_plan` carries a plan out later. Skills named in `protected_names` are exempt from all of it. | ✅ |
 | types.py | Core | CuratorTransition, CuratorRunResult data types. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
 | consolidation/ | Skill consolidation (umbrella merge). See [consolidation/_ARCH.md](consolidation/_ARCH.md). |
-| `self_dismantling_curator_engine.py` | Core | Performs self-distillation sweeps over memory and skill artifacts. — SelfDismantlingCuratorEngine: Performs self-distillation sweeps over memory and skill artifacts. | ✅ |
 
 ## Key Dependencies
 
