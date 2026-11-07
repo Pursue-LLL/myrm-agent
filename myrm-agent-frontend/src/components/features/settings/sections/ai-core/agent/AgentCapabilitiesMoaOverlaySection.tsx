@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
@@ -17,13 +16,8 @@ import {
   presetBlocksFromOverlay,
   resolvePresetReferenceSelections,
 } from '@/lib/moaPresetUtils';
-import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
+import type { CapabilitiesSectionProps } from './AgentCapabilitiesTab';
 import { ConsensusRefModels } from './AgentCapabilitiesConsensusSection';
-
-type SectionProps = {
-  editor: AgentCapabilitiesTabProps['editor'];
-  t: ReturnType<typeof useTranslations>;
-};
 
 const FANOUT_OPTIONS = [
   { value: 'user_turn', labelKey: 'moaOverlayFanoutUserTurn' },
@@ -71,7 +65,7 @@ function readOverlayPresets(overlay: Record<string, unknown>): Record<MoaPresetI
   return merged;
 }
 
-export function MoaOverlaySection({ editor, t }: SectionProps) {
+export function MoaOverlaySection({ editor, t }: CapabilitiesSectionProps) {
   const ep = editor.engineParams ?? {};
   const overlay = (ep.moa_overlay as Record<string, unknown>) ?? {};
   const isEnabled = !!overlay.enabled;

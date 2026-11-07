@@ -15,17 +15,17 @@ import { AgentBrowserConfigSection } from './AgentBrowserConfigSection';
 import {
   ModelBindingSection,
   ModelParamsSection,
-  RoutingOverrideSection,
   MaxIterationsSection,
   WorkspacePolicySection,
   ParallelFissionSection,
   IdleCompactSection,
   AdvancedEngineParamsSection,
-  MoaOverlaySection,
-  SessionPolicySection,
-  DeliveryAssuranceSection,
   BusyInputModeSection,
 } from './AgentCapabilitiesTabSections';
+import { RoutingOverrideSection } from './AgentCapabilitiesRoutingSection';
+import { MoaOverlaySection } from './AgentCapabilitiesMoaOverlaySection';
+import { SessionPolicySection } from './AgentCapabilitiesSessionSection';
+import { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import type {
   AgentModelSelection,
@@ -83,6 +83,11 @@ export interface AgentCapabilitiesTabProps {
   agentId: string | null;
   isNew: boolean;
 }
+
+export type CapabilitiesSectionProps = {
+  editor: AgentCapabilitiesTabProps['editor'];
+  t: ReturnType<typeof useTranslations>;
+};
 
 export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabilitiesTabProps) {
   const t = useTranslations();

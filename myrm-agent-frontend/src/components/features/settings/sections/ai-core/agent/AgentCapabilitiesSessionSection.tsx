@@ -1,17 +1,11 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
-import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
+import type { CapabilitiesSectionProps } from './AgentCapabilitiesTab';
 
-type SectionProps = {
-  editor: AgentCapabilitiesTabProps['editor'];
-  t: ReturnType<typeof useTranslations>;
-};
-
-export function SessionPolicySection({ editor, t }: SectionProps) {
+export function SessionPolicySection({ editor, t }: CapabilitiesSectionProps) {
   const sessionPolicy = editor.sessionPolicy;
 
   return (
