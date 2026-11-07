@@ -6,7 +6,8 @@
 
 [OUTPUT]
 - Tests that the saved persona follows the client's instructions, that a chat-level ``agent_config.system_prompt`` replaces it,
-  that an empty one clears it, and that a request without ``agent_config`` keeps the saved persona.
+  that an empty one clears it, that it still applies when the saved agent is gone, and that a request without
+  ``agent_config`` keeps the saved persona.
 
 [POS]
 The web client sends ``agent_config`` with every agent-mode message. The fixtures carry it, so the branch real traffic takes
@@ -55,7 +56,7 @@ def _request(*, agent_config: dict[str, object] | None) -> AgentRequest:
 
 
 @contextmanager
-def _converter_env() -> Iterator[None]:
+def _converter_env(*, agent_exists: bool) -> Iterator[None]:
     """Everything the converter reads from outside: the saved profile, the user configs, the live search probe."""
     profile = ResolvedAgentProfile(
         agent_id="builtin-developer",
@@ -67,7 +68,7 @@ def _converter_env() -> Iterator[None]:
         engine_params={},
     )
     resolver = AsyncMock()
-    resolver.resolve = AsyncMock(return_value=profile)
+    resolver.resolve = AsyncMock(return_value=profile if agent_exists else None)
     with (
         patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=resolver),
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=_build_mock_user_configs())),
@@ -76,8 +77,8 @@ def _converter_env() -> Iterator[None]:
         yield
 
 
-async def _instructions(request: AgentRequest) -> str:
-    with _converter_env():
+async def _instructions(request: AgentRequest, *, agent_exists: bool = True) -> str:
+    with _converter_env(agent_exists=agent_exists):
         params, *_ = await convert_to_general_agent_params(request, [])
     assert params.user_instructions is not None
     return params.user_instructions
@@ -103,6 +104,18 @@ async def test_an_empty_chat_level_prompt_clears_the_persona() -> None:
 
     assert _PERSONA not in text
     assert _GLOBAL_INSTRUCTION in text
+
+
+async def test_a_chat_level_prompt_survives_a_deleted_agent() -> None:
+    """The chat-level text exists only in the request; losing the saved agent must not make it vanish."""
+    text = await _instructions(
+        _request(agent_config={**_WEB_AGENT_CONFIG, "system_prompt": _OVERRIDE}),
+        agent_exists=False,
+    )
+
+    assert text.count(_OVERRIDE) == 1
+    assert _PERSONA not in text
+    assert text.index(_GLOBAL_INSTRUCTION) < text.index(_OVERRIDE)
 
 
 async def test_a_request_without_agent_config_keeps_the_saved_persona() -> None:
