@@ -9887,6 +9887,7 @@
       "pathLabel": "脚本文件"
     },
     "clarificationRequired": "需要错误澄清",
+    "toolExecutionFailed": "工具执行失败",
     "fixParameters": "修复参数（JSON）",
     "visualContextAlt": "待审批操作的目标截图",
     "humanAttentionEscHint": "智能体运行中按 Esc 可立即停止桌面自动化。",

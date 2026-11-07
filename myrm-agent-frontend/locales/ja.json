@@ -9887,6 +9887,7 @@
       "pathLabel": "スクリプトファイル"
     },
     "clarificationRequired": "エラーの明確化が必要です",
+    "toolExecutionFailed": "ツール実行に失敗しました",
     "fixParameters": "パラメータを修正（JSON）",
     "visualContextAlt": "承認待ちの操作の対象スクリーンショット",
     "humanAttentionEscHint": "エージェント実行中は Esc でデスクトップ自動化をすぐ停止できます。",

@@ -9887,6 +9887,7 @@
       "pathLabel": "Skriptdatei"
     },
     "clarificationRequired": "Fehlerklärung erforderlich",
+    "toolExecutionFailed": "Tool-Ausführung fehlgeschlagen",
     "fixParameters": "Parameter korrigieren (JSON)",
     "visualContextAlt": "Screenshot der Aktion, die auf Genehmigung wartet",
     "humanAttentionEscHint": "Esc stoppt laufende Desktop-Automatisierung sofort.",

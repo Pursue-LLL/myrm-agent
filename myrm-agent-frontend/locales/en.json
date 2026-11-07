@@ -9887,6 +9887,7 @@
       "pathLabel": "Script File"
     },
     "clarificationRequired": "Error Clarification Required",
+    "toolExecutionFailed": "Tool execution failed",
     "fixParameters": "Fix Parameters (JSON)",
     "visualContextAlt": "Screenshot of the action awaiting approval",
     "humanAttentionEscHint": "Press Esc to stop desktop automation while the agent is running.",

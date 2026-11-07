@@ -9887,6 +9887,7 @@
       "pathLabel": "스크립트 파일"
     },
     "clarificationRequired": "오류 명확화 필요",
+    "toolExecutionFailed": "도구 실행 실패",
     "fixParameters": "매개변수 수정(JSON)",
     "visualContextAlt": "승인 대기 중인 작업 대상 스크린샷",
     "humanAttentionEscHint": "에이전트 실행 중 Esc 키로 데스크톱 자동화를 즉시 중지할 수 있습니다.",

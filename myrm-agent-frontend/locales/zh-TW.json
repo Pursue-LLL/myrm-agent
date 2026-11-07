@@ -9887,6 +9887,7 @@
       "pathLabel": "指令碼檔案"
     },
     "clarificationRequired": "需要錯誤釐清",
+    "toolExecutionFailed": "工具執行失敗",
     "fixParameters": "修正參數（JSON）",
     "visualContextAlt": "待審批操作的目標截圖",
     "humanAttentionEscHint": "智能體執行中按 Esc 可立即停止桌面自動化。",
