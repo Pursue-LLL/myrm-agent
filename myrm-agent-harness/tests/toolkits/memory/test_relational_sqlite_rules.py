@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -16,9 +17,9 @@ from tests.support.relational_records import make_rule
 
 
 @pytest.fixture
-async def store(tmp_path: Path) -> SQLiteRelationalStore:
+async def store(tmp_path: Path) -> AsyncIterator[SQLiteRelationalStore]:
     s = SQLiteRelationalStore(str(tmp_path / "test_rel.db"))
-    yield s  # type: ignore[misc]
+    yield s
     await s.close()
 
 

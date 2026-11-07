@@ -35,14 +35,14 @@ class RelationalStore(ABC):
 
         store = SQLiteRelationalStore(db_path="~/.app/relational.db")
 
-        await store.set_profile("user-1", "language", "zh")
-        lang = await store.get_profile("user-1", "language")
+        await store.set_profile("language", "zh")
+        lang = await store.get_profile("language")
 
         rule = ProceduralMemory(
             user_id="user-1", content="...",
             trigger="user asks for file", action="use Excel format"
         )
-        await store.create_rule("user-1", rule)
+        await store.create_rule(rule)
         await store.close()
     """
 
