@@ -11,7 +11,6 @@
   "src/components/features/settings/sections/ai-core/agent/AgentOpenAPIServicesTab.tsx": 1,
   "src/components/features/settings/sections/ai-core/agent/AgentSecurityTab.tsx": 13,
   "src/components/features/settings/sections/integration/ExtensionBridgeSection.tsx": 4,
-  "src/components/features/settings/sections/integration/channels/ChannelsSection.tsx": 1,
   "src/components/features/settings/sections/knowledge/MemorySection.tsx": 1,
   "src/components/features/settings/sections/knowledge/WikiSection.tsx": 1,
   "src/components/features/settings/sections/system/SessionAnalyticsDialog.tsx": 2,
