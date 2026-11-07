@@ -62,11 +62,11 @@ class TestFrontendLauncherEnvIntegration:
 
         with (
             patch.dict(os.environ, fake_environ, clear=True),
-            patch("app.core.infra.frontend_launcher.check_build_artifacts"),
-            patch("app.core.infra.frontend_launcher.ensure_standalone_assets"),
-            patch("app.core.infra.frontend_launcher.patch_nextjs_rewrites"),
-            patch("app.core.infra.frontend_launcher.find_available_port", return_value=13000),
-            patch("app.core.infra.frontend_launcher._wait_for_health", return_value=True),
+            patch("app.core.infra.frontend_launcher.checks.check_build_artifacts"),
+            patch("app.core.infra.frontend_launcher.assets.ensure_standalone_assets"),
+            patch("app.core.infra.frontend_launcher.assets.patch_nextjs_rewrites"),
+            patch("app.core.infra.frontend_launcher.ports.find_available_port", return_value=13000),
+            patch("app.core.infra.frontend_launcher.ports._wait_for_health", return_value=True),
             patch("subprocess.Popen", side_effect=fake_popen),
         ):
             launcher.start()

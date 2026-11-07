@@ -21045,6 +21045,9 @@
         "server_side_break": "서버 측 캐시 누락"
       },
       "activityTitle": "활동 패턴",
+      "timeRange7Days": "7일",
+      "timeRange30Days": "30일",
+      "timeRangeAll": "전체",
       "activeDays": "활동 일수",
       "maxStreak": "최대 연속",
       "busiestDay": "가장 바쁜 날",

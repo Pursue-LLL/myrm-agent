@@ -193,7 +193,7 @@ export function AgentSubagentBinding({
                 <button
                   type="button"
                   onClick={() => handleRemove(item.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  className="text-muted-foreground hover:text-destructive-text transition-colors shrink-0"
                   title={t('removeSubagent')}
                 >
                   <IconX className="w-3.5 h-3.5" />

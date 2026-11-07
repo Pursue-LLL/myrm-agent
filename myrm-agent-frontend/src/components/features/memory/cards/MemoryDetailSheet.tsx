@@ -185,7 +185,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
                         className={cn(
                           'ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium align-middle',
                           memory.tool_rule_priority === 'critical'
-                            ? 'bg-destructive/10 text-destructive'
+                            ? 'bg-destructive/10 text-destructive-text'
                             : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
                         )}
                       >

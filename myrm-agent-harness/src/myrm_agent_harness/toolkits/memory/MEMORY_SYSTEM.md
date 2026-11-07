@@ -85,7 +85,7 @@
 myrm_agent_harness/
 ├── toolkits/memory/                    # 核心记忆能力
 │   ├── config.py                       # MemoryConfig + RetrievalConfig
-│   ├── types.py                        # 枚举 + Pydantic 数据模型（含 PendingRecord、MemoryMutationResult、ProfileAttributeSnapshot）
+│   ├── types/                          # 枚举 + Pydantic 数据模型（含 PendingRecord、MemoryMutationResult、ProfileAttributeSnapshot）
 │   ├── manager.py                      # MemoryManager 公开 import 路径
 │   ├── _manager/                       # MemoryManager 组合实现（core / governance / deletion / maintenance 等 mixin）
 │   ├── session.py                      # MemorySession（对话级缓冲）
@@ -311,7 +311,7 @@ agent = SkillAgent(
 **Backend API（GeneralAgent）：**
 
 ```python
-# app/api/agents/general_agent.py
+# app/api/agents/general_agent/
 class GeneralAgentRequest(BaseModel):
     enable_memory_auto_extraction: bool = True  # 默认开启（开箱即用）
 ```
@@ -854,7 +854,7 @@ tools = create_memory_tools(manager=manager)
 | 工具            | 功能                                                                  |
 | --------------- | --------------------------------------------------------------------- |
 | `memory_search_tool` | HIGH_PRIORITY 层统一读工具；可检索的 corpus（memory / wiki / sessions）由 Server 传入的 `MemorySearchPolicy` 单源决定：`enabled_search_corpora(policy)` 同时驱动 ACL（`resolve_search_corpora`）、参数 schema（`memory_agent_tools/search_input.py`）、LLM 描述（`_memory_search_description.py`）与语音工具枚举。启用的 corpus ≥2 个时 schema 才带 `corpus`（含 `all`），`expand_*` 只在会话检索可用时出现；仅 memory 时 `corpus` 对模型隐藏但仍校验，传入未启用的 corpus 得到显式拒绝而不是静默改查 memory |
-| `memory_save_tool`   | 存储新记忆，支持 knowledge/event/preference/rule/instruction 五种类别；LLM description 由 `build_memory_save_tool_description(policy, approval_required, locale)` 组装（EN/ZH core + 可选 wiki 边界 + 可选审批提示）；参数语义在 `MemorySaveInput` Pydantic schema；当 `MemorySearchPolicy.allow_wiki=True` 时，≥800 字或 ≥3 个 markdown 标题的 knowledge/event 会被硬拒并指向 `wiki_ingest_tool` |
+| `memory_save_tool`   | 存储新记忆，支持 knowledge/event/preference/rule/instruction 五种类别；LLM description 由 `build_memory_save_tool_description(policy, approval_required, locale)` 组装（EN/ZH core + 写入目标块 + 可选 wiki 边界 + 可选审批提示；写入目标块只在 `allow_shared_write=True` 时出现）；参数语义在 `MemorySaveInput` Pydantic schema，`write_target` 参数由 `memory_save_input(policy)` 同样只在 `allow_shared_write=True` 时对模型可见——外部渠道（server 以 `channel_name` 非空且不是 `web_chat` 判定）只写绑定命名空间，模型看不到 `shared`，传入的 `shared` 仍被校验接受并在工具内降为 `bound`；当 `MemorySearchPolicy.allow_wiki=True` 时，≥800 字或 ≥3 个 markdown 标题的 knowledge/event 会被硬拒并指向 `wiki_ingest_tool` |
 | `memory_manage_tool` | 更新/删除/纠正/评分已有记忆；LLM description 与 save 对称分流（新事实→save；过时/错误事实→correct preserves history；措辞微调→update；rate→knowledge/event）；仅以 `memory_id` 寻址：记忆类型由已存记忆决定，没有 `category` 参数，id 只在管理器绑定的命名空间内解析（范围外的 id 视为不存在），Agent 工具与 MCP `memory_manage` 共用 `agent_surface/memory_manage_core.py`；`[preference]` 召回项没有可管理的 id，改值需以相同 `preference_key` 重新 `memory_save_tool`；工具返回用户向文案（不含内部 demote 术语）；参数语义在 `MemoryManageInput` Pydantic schema；Memory MCP HTTP（`agent_surface/mcp_server/`）的 `memory_manage` 同样 import `resolve_memory_manage_tool_description()` SSOT |
 
 #### Wiki vs Memory 写入边界

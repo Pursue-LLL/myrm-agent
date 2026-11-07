@@ -257,7 +257,7 @@ const ConflictCard = memo<ConflictCardProps>(({ conflict, onResolve, className }
           className={cn(
             'flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg',
             'text-xs font-medium transition-all duration-200',
-            'text-muted-foreground/60 hover:text-destructive',
+            'text-muted-foreground/60 hover:text-destructive-text',
             'hover:bg-destructive/5',
           )}
           title={t('conflict.discardBoth')}

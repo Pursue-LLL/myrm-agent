@@ -167,7 +167,7 @@ export default function ImaSourceCard({ onGoToDuplicateReview }: ImaSourceCardPr
 
         {status === null && ima.loadFailed ? (
           <div className="space-y-2">
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-text">
               {t('loadError')}
             </p>
             <Button type="button" size="sm" variant="outline" onClick={() => void ima.refresh()}>

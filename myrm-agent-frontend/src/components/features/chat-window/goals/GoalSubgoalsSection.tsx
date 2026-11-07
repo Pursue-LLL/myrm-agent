@@ -68,7 +68,10 @@ export function GoalSubgoalsSection({ goal, isTerminal, onAddSubgoal, onRemoveSu
                     e.stopPropagation();
                     onRemoveSubgoal(idx);
                   }}
-                  className={cn('text-muted-foreground hover:text-destructive transition-opacity', REVEAL_ON_HOVER)}
+                  className={cn(
+                    'text-muted-foreground hover:text-destructive-text transition-opacity',
+                    REVEAL_ON_HOVER,
+                  )}
                   aria-label={t('removeSubgoal')}
                 >
                   <XCircleIcon className="h-3.5 w-3.5" />

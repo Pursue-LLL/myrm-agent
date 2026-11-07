@@ -101,10 +101,14 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
 
       {/* Error state */}
       {loadFailed && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-text">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{t('loadFailed')}</span>
-          <button type="button" onClick={loadData} className="ml-auto underline font-medium hover:text-destructive/80">
+          <button
+            type="button"
+            onClick={loadData}
+            className="ml-auto underline font-medium hover:text-destructive-text/80"
+          >
             {t('retry')}
           </button>
         </div>

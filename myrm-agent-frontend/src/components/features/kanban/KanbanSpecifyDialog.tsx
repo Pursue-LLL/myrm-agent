@@ -173,7 +173,7 @@ export default function KanbanSpecifyDialog({ task, open, onOpenChange, onApplie
           )}
 
           {!loading && outcome && !outcome.ok && (
-            <div className="rounded border border-destructive/30 bg-destructive/5 p-2 text-sm text-destructive">
+            <div className="rounded border border-destructive/30 bg-destructive/5 p-2 text-sm text-destructive-text">
               {t('specifyFailedDetail', { reason: outcome.reason || '' })}
             </div>
           )}

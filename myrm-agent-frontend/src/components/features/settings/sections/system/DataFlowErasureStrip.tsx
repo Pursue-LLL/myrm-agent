@@ -72,7 +72,7 @@ export const DataFlowErasureStrip = memo(() => {
               type="button"
               size="sm"
               variant="outline"
-              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="border-destructive/40 text-destructive-text hover:bg-destructive/10 hover:text-destructive-text"
             >
               <IconTrash className="h-3.5 w-3.5 mr-1.5" />
               {t('eraseButton')}

@@ -15,6 +15,6 @@ Video generation providers — pluggable backends for video generation.
 | minimax_provider.py | Core | MiniMax (Hailuo Hailuo) video generation provider. | ✅ |
 | openai_provider.py | Core | OpenAI Sora video generation provider. | ✅ |
 | qwen_provider.py | Core | Qwen (Tongyi Wanxiang) video generation provider. | ✅ |
-| registry.py | Core | Global provider registry with lazy initialization of built-in providers. | ✅ |
+| registry.py | Core | Global provider registry with lazy initialization of built-in providers; each is referenced as a literal `module:Class` string so static reachability analysis sees it. | ✅ |
 | volcengine_provider.py | Core | Volcengine (ByteDance Ark) Seedance 2.0 video generation provider. | ✅ |
 | xai_provider.py | Core | xAI Grok Imagine video generation provider. | ✅ |

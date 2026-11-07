@@ -289,7 +289,7 @@ const EnterpriseMembersTab = memo(() => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive-text hover:text-destructive-text"
                     title={t('removeMember')}
                     aria-label={t('removeMember')}
                     onClick={() => {

@@ -245,7 +245,7 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
             <IconLoader className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-destructive text-sm bg-destructive/10 rounded-xl">{error}</div>
+          <div className="text-center py-8 text-destructive-text text-sm bg-destructive/10 rounded-xl">{error}</div>
         ) : secrets.length === 0 && !isFormOpen ? (
           <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-xl">
             <IconKey className="mx-auto h-8 w-8 text-muted-foreground/30 mb-3" />
@@ -281,7 +281,7 @@ export function AgentSecretsTab({ agentId, isNew }: AgentSecretsTabProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="h-8 w-8 text-destructive-text hover:text-destructive-text hover:bg-destructive/10"
                     onClick={() => setDeleteTarget(key)}
                   >
                     <IconTrash className="h-4 w-4" />

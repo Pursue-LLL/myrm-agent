@@ -58,7 +58,7 @@ export const JsonEditor = memo<JsonEditorProps>(({ value, onChange, disabled, cl
         className={cn('font-mono text-xs resize-y', error && 'border-destructive focus-visible:ring-destructive')}
         placeholder='{ "key": "value" }'
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive-text">{error}</p>}
     </div>
   );
 });

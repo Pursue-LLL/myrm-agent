@@ -129,7 +129,7 @@ export const MobileVoiceStagedInput: React.FC<MobileVoiceStagedInputProps> = ({
         </div>
 
         {unsupportedError ? (
-          <div className="my-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+          <div className="my-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-text">
             {t('unsupported')}
           </div>
         ) : null}

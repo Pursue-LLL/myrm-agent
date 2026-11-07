@@ -178,7 +178,7 @@ export default function KanbanTaskCard({
             )}
             {decisionFrame.safetyTier === 'hitl_guarded' && (
               <span
-                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20 font-medium"
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-destructive/10 text-destructive-text border border-destructive/20 font-medium"
                 title={t('decisionHitlGuarded')}
               >
                 <ShieldAlert className="w-3 h-3" />
@@ -287,7 +287,7 @@ export default function KanbanTaskCard({
               </span>
             )}
             {task.status === 'blocked' && task.blocked_reason && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive line-clamp-1">
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-destructive-text line-clamp-1">
                 {task.block_kind === 'scheduled' && <Clock className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'external' && <ExternalLink className="w-3 h-3 shrink-0" />}
                 {task.block_kind === 'human' && <User className="w-3 h-3 shrink-0" />}

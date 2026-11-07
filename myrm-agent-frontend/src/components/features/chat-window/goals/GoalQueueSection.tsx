@@ -122,7 +122,7 @@ function SortableQueueItem({
         onClick={() => onCancel(goal.goal_id)}
         title={t('cancelQueued')}
       >
-        <XIcon className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+        <XIcon className="w-3 h-3 text-muted-foreground hover:text-destructive-text" />
       </Button>
     </div>
   );

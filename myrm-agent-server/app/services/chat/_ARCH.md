@@ -112,8 +112,8 @@ ChatService
 
 ### 内部依赖
 - `app/database/repositories/uow.py`：使用 UnitOfWork 管理 Chat/Message 主表事务，确保主表失败自动回滚；派生 recall 索引不再阻塞主表提交。
-- `app/database/repositories/chat_repo.py`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
-- `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo.py` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
+- `app/database/repositories/chat_repo/`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
+- `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo/` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
 - `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 prior_chat mention 文档查找与 `expand_message_id` 窗口读取（统一 scope/exclusion 可见性过滤）。
 - `app/services/chat/conversation_recall_index_service.py`：Conversation Recall 生命周期边界，供 ChatService、Compaction、Fork 与管理 API 统一调用。
 - `app/database/`：Chat、Message 模型
@@ -125,7 +125,7 @@ ChatService
 - `app/api/agents/general_agent/streaming.py`：Web Agent 统一入口（user message 持久化 + 历史加载，支持 fast/agent；legacy `consensus` 由 orchestrator 返回 400）
 - `app/core/channel_bridge/agent_executor/`：频道 Agent 执行器（持久化 + 历史加载 + 流式出站）
 - `app/core/channel_bridge/compact_handler.py`：IM `/compact` 命令业务实现（实现 CompactHandler 协议）
-- `app/ai_agents/general_agent/tool_setup/memory.py`：将 `ConversationHistorySearchProvider` 绑定为 `memory_search_tool` 的 sessions corpus 后端（opt-in `memoryEnableConversationSearch`）。
+- `app/ai_agents/general_agent/tool_setup/`：将 `ConversationHistorySearchProvider` 绑定为 `memory_search_tool` 的 sessions corpus 后端（opt-in `memoryEnableConversationSearch`）。
 
 ---
 

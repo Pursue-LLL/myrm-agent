@@ -82,7 +82,7 @@ export function GovernancePanel({ agentNames, onReview, onChanged }: GovernanceP
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-destructive hover:text-destructive"
+                    className="h-8 text-destructive-text hover:text-destructive-text"
                     onClick={() => setDeletingId(orphan.id)}
                     aria-label={tAgent('delete.button', { fallback: 'Delete' })}
                   >

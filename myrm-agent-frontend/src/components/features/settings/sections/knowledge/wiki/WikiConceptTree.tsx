@@ -138,7 +138,7 @@ export function WikiConceptTree({
               <button
                 type="button"
                 aria-label={t('delete')}
-                className="h-8 w-8 min-h-[32px] min-w-[32px] flex items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                className="h-8 w-8 min-h-[32px] min-w-[32px] flex items-center justify-center rounded-full text-destructive-text hover:bg-destructive/10"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

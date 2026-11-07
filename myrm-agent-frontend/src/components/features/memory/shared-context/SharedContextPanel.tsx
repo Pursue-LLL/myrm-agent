@@ -280,7 +280,7 @@ const SharedContextPanel = memo(() => {
                         aria-label={t('actions.removeBinding')}
                         onClick={() => panel.handleDeleteBinding(binding)}
                         disabled={panel.actionId === binding.id}
-                        className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                        className="text-muted-foreground hover:text-destructive-text disabled:opacity-50"
                       >
                         <IconX className="h-3 w-3" />
                       </button>
@@ -386,7 +386,7 @@ const SharedContextPanel = memo(() => {
                                 aria-label={t('actions.rejectProposal')}
                                 onClick={() => panel.handleRejectProposal(proposal.id)}
                                 disabled={panel.actionId === proposal.id}
-                                className="rounded-full p-1.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                                className="rounded-full p-1.5 text-destructive-text hover:bg-destructive/10 disabled:opacity-50"
                               >
                                 <IconX className="h-3.5 w-3.5" />
                               </button>

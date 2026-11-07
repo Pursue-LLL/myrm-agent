@@ -308,7 +308,7 @@ const AuditLogTable = () => {
 
                 {selectedLog.stderr && (
                   <div>
-                    <span className="text-sm font-semibold text-destructive">Standard Error: / 标准错误:</span>
+                    <span className="text-sm font-semibold text-destructive-text">Standard Error: / 标准错误:</span>
                     <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto max-h-60">
                       {selectedLog.stderr}
                     </pre>
@@ -317,7 +317,7 @@ const AuditLogTable = () => {
 
                 {selectedLog.error_message && (
                   <div>
-                    <span className="text-sm font-semibold text-destructive">Error Message: / 错误信息:</span>
+                    <span className="text-sm font-semibold text-destructive-text">Error Message: / 错误信息:</span>
                     <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto">
                       {selectedLog.error_message}
                     </pre>

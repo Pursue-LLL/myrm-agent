@@ -31,7 +31,7 @@ export function DomainBlocklistEditor({ domains, onAddDomain, onRemoveDomain }: 
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
-            <IconBan className="h-3.5 w-3.5 text-destructive" />
+            <IconBan className="h-3.5 w-3.5 text-destructive-text" />
             <span className="text-sm font-medium text-foreground">{t('listLabel')}</span>
           </div>
           <p className="text-xs text-muted-foreground">{t('listDesc')}</p>
@@ -43,11 +43,11 @@ export function DomainBlocklistEditor({ domains, onAddDomain, onRemoveDomain }: 
                   key={`${domain}-${idx}`}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
                 >
-                  <code className="text-xs text-destructive font-mono">{domain}</code>
+                  <code className="text-xs text-destructive-text font-mono">{domain}</code>
                   <button
                     type="button"
                     onClick={() => onRemoveDomain(idx)}
-                    className="text-destructive/60 hover:text-destructive transition-colors"
+                    className="text-destructive-text/60 hover:text-destructive-text transition-colors"
                   >
                     <IconX className="h-3 w-3" />
                   </button>

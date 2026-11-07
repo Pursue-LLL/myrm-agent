@@ -77,3 +77,27 @@ export function findUndefinedSemanticColorSites(
   }
   return sites;
 }
+
+/**
+ * `--destructive` 是实心填充色（按钮底、着色底），不是文字色：浅色作文字只有 3.8:1，深色（#801d1d）在页面底只有 2.0:1、
+ * 弹层上只有 1.5:1。错误提示、危险按钮的文字与线性图标要用 `text-destructive-text`（`globals.css` 的
+ * `--destructive-text`，两套主题都 ≥4.5:1，有契约测试钉住）。浏览器不报错、单测与 jsdom 看不见，只有深色真实渲染才暴露。
+ *
+ * 命中 `text-destructive`，不论带不带变体前缀（`hover:`、`dark:`、`[&>svg]:` …）和 `/NN` 透明度；
+ * `text-destructive-text`、`text-destructive-foreground` 后面紧跟 `-`，不命中；`bg-` / `border-` / `ring-destructive` 是填充类，也不命中。
+ */
+const FILL_COLOR_AS_TEXT = /(?<![\w-])text-destructive(?![\w-])/g;
+
+export interface FillColorAsTextSite {
+  line: number;
+  text: string;
+}
+
+export function findFillColorAsTextSites(source: string): FillColorAsTextSite[] {
+  const sites: FillColorAsTextSite[] = [];
+  for (const match of source.matchAll(FILL_COLOR_AS_TEXT)) {
+    const line = source.slice(0, match.index).split('\n').length;
+    sites.push({ line, text: match[0] });
+  }
+  return sites;
+}

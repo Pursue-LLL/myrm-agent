@@ -21,7 +21,7 @@ const ACTION_OPTIONS = [
   { value: 'warn', labelKey: 'actionWarn', Icon: IconShieldAlert, iconClass: 'text-amber-500' },
   { value: 'pseudonymize', labelKey: 'actionPseudonymize', Icon: IconRefresh, iconClass: 'text-emerald-500' },
   { value: 'redact', labelKey: 'actionRedact', Icon: IconEyeOff, iconClass: 'text-blue-500' },
-  { value: 'block', labelKey: 'actionBlock', Icon: IconBan, iconClass: 'text-destructive' },
+  { value: 'block', labelKey: 'actionBlock', Icon: IconBan, iconClass: 'text-destructive-text' },
 ] as const satisfies ReadonlyArray<{ value: PIIAction; labelKey: string; Icon: typeof IconBan; iconClass: string }>;
 
 interface PrivacyActionRowProps {

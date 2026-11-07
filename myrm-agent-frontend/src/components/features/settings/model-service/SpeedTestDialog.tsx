@@ -142,7 +142,7 @@ const SpeedTestDialog = memo<SpeedTestDialogProps>(({ open, onOpenChange, modelC
                             </span>
                           </>
                         ) : (
-                          <span className="text-xs text-destructive truncate">{item.result.error}</span>
+                          <span className="text-xs text-destructive-text truncate">{item.result.error}</span>
                         )}
                       </div>
                     )}
@@ -156,7 +156,7 @@ const SpeedTestDialog = memo<SpeedTestDialogProps>(({ open, onOpenChange, modelC
                             'text-xs font-medium px-1.5 py-0.5 rounded',
                             item.result?.status === 'ok'
                               ? 'bg-emerald-500/10 text-emerald-600'
-                              : 'bg-destructive/10 text-destructive',
+                              : 'bg-destructive/10 text-destructive-text',
                           )}
                         >
                           {item.result?.status === 'ok' ? t('statusOk') : t('statusError')}

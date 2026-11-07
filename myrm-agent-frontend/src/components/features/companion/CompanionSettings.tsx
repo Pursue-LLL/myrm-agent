@@ -270,7 +270,7 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
                       type="button"
                       onClick={handleClearPet}
                       disabled={!enabled}
-                      className="shrink-0 text-xs text-destructive hover:underline disabled:opacity-50"
+                      className="shrink-0 text-xs text-destructive-text hover:underline disabled:opacity-50"
                     >
                       {t('sprite.clear')}
                     </button>

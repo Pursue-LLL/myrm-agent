@@ -41,7 +41,7 @@ const PendingTargetHint = memo<PendingTargetHintProps>(({ memory, clamp = false,
       className={cn(
         'rounded-lg border px-3 py-2 text-xs',
         isDelete
-          ? 'border-destructive/20 bg-destructive/5 text-destructive'
+          ? 'border-destructive/20 bg-destructive/5 text-destructive-text'
           : 'border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400',
         className,
       )}

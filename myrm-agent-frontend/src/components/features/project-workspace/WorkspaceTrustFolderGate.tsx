@@ -121,7 +121,7 @@ const WorkspaceTrustFolderGate = memo(
                   </p>
                 )}
                 {loading && <p className="text-xs">{t('loading')}</p>}
-                {error && <p className="text-xs text-destructive">{error}</p>}
+                {error && <p className="text-xs text-destructive-text">{error}</p>}
                 {manifest && !loading && (
                   <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
                     <p className="text-xs font-medium text-foreground">{t('disclosureTitle')}</p>

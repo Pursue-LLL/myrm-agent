@@ -182,7 +182,7 @@ export function WorkflowTemplateEditor({ job, onUpdated }: EditorProps) {
 
       {templatesLoadFailed ? (
         <div className="flex flex-col gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-destructive">{t('workflowTemplateLoadFailed')}</p>
+          <p className="text-xs text-destructive-text">{t('workflowTemplateLoadFailed')}</p>
           <Button
             type="button"
             variant="outline"

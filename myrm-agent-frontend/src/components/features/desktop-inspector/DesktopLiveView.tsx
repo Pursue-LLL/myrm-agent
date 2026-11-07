@@ -69,12 +69,12 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
   const message = missingParts.length > 0 ? missingParts.join(' ') : t('permissionDenied');
 
   return (
-    <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/20 flex items-center gap-2 flex-wrap">
+    <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive-text border-b border-destructive/20 flex items-center gap-2 flex-wrap">
       <span className="flex-1 min-w-0">{message}</span>
       {pickSettingsDeepLink(details?.settings_deeplinks) && (
         <button
           type="button"
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive-text font-medium transition-colors whitespace-nowrap"
           onClick={() => {
             const link = pickSettingsDeepLink(details?.settings_deeplinks);
             if (link) {
@@ -88,7 +88,7 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
       )}
       <button
         type="button"
-        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive-text font-medium transition-colors whitespace-nowrap"
         onClick={fetchPermissions}
         disabled={checking}
       >

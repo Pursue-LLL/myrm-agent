@@ -134,7 +134,7 @@ describe('AgentNotifyTargets', () => {
     });
 
     const trashButton =
-      container.querySelector('button.text-destructive, button .text-destructive')?.closest('button') ??
+      container.querySelector('button.text-destructive-text, button .text-destructive-text')?.closest('button') ??
       container.querySelector('button[class*="destructive"]');
     expect(trashButton).toBeTruthy();
     expectNonNull(trashButton, 'trashButton');

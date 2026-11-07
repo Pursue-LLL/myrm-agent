@@ -63,7 +63,9 @@ function FallbackHealthRow({ health, copy }: { health: FallbackHealth; copy: Fal
       </button>
       {state === 'done' && result && (
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className={`text-xs ${result.healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+          <span
+            className={`text-xs ${result.healthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive-text'}`}
+          >
             {result.healthy
               ? copy.ok(result.latency_ms ?? 0)
               : result.configured

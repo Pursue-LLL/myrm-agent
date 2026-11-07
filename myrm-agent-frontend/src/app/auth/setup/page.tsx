@@ -252,8 +252,8 @@ export default function SetupPasswordPage() {
                     </>
                   ) : (
                     <>
-                      <XCircle className="w-4 h-4 text-destructive" />
-                      <span className="text-destructive">{t('setup.passwordsNoMatch')}</span>
+                      <XCircle className="w-4 h-4 text-destructive-text" />
+                      <span className="text-destructive-text">{t('setup.passwordsNoMatch')}</span>
                     </>
                   )}
                 </div>
@@ -263,7 +263,7 @@ export default function SetupPasswordPage() {
             {/* Error Message */}
             {error && (
               <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-sm text-destructive-text">{error}</p>
               </div>
             )}
 

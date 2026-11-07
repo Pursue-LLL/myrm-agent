@@ -41,7 +41,7 @@ export function BatchHighRiskConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-destructive mb-1">
+          <div className="flex items-center gap-2 text-destructive-text mb-1">
             <ShieldAlert className="h-5 w-5" />
             <DialogTitle>{t('dialogTitle')}</DialogTitle>
           </div>
@@ -59,7 +59,7 @@ export function BatchHighRiskConfirmDialog({
               key={item.itemId}
               className="flex items-start gap-2 text-xs rounded border border-destructive/20 bg-destructive/5 p-2"
             >
-              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-destructive-text shrink-0 mt-0.5" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <span className="font-semibold text-foreground truncate">{item.toolName || item.actionType}</span>
                 <span className="text-muted-foreground break-words">{item.riskReason}</span>

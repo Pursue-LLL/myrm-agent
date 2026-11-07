@@ -43,12 +43,12 @@ export function CommandDenylistEditor({ patterns, onAddPattern, onRemovePattern 
                   key={`${pattern}-${idx}`}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/30"
                 >
-                  <IconBan className="h-3 w-3 text-destructive shrink-0" />
-                  <code className="text-xs text-destructive font-mono">{pattern}</code>
+                  <IconBan className="h-3 w-3 text-destructive-text shrink-0" />
+                  <code className="text-xs text-destructive-text font-mono">{pattern}</code>
                   <button
                     type="button"
                     onClick={() => onRemovePattern(idx)}
-                    className="text-destructive/60 hover:text-destructive transition-colors"
+                    className="text-destructive-text/60 hover:text-destructive-text transition-colors"
                   >
                     <IconX className="h-3 w-3" />
                   </button>

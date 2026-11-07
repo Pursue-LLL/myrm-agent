@@ -23,6 +23,7 @@ from langgraph.types import Command
 from pydantic import Field
 
 from myrm_agent_harness.agent._internals._agent_build import build_middlewares, create_registry
+from myrm_agent_harness.agent._internals._agent_helpers import graph_recursion_limit
 from myrm_agent_harness.agent.middlewares._session_context import (
     set_approval_session,
     set_approval_user_id,
@@ -199,11 +200,14 @@ async def test_a_job_that_keeps_retrying_a_denied_call_is_told_to_stop_and_is_bo
     set_approval_session("cron:job-2")
     model, agent = _agent([_calls(("s1", "step", {"text": "a"}))])
 
+    # A model round costs the graph's nodes plus one step per hook of the chain, so the limit is stated in rounds.
+    rounds = 8
+    limit = graph_recursion_limit(rounds, agent)
     with pytest.raises(GraphRecursionError):
-        await agent.ainvoke({"messages": [HumanMessage(content="run the job")]}, {**THREAD, "recursion_limit": 40})
+        await agent.ainvoke({"messages": [HumanMessage(content="run the job")]}, {**THREAD, "recursion_limit": limit})
 
     assert RAN == []
-    assert 3 <= len(model.calls) <= 40
+    assert 3 <= len(model.calls) <= rounds + 1  # the limit may cut the round after the last full one
     assert "consecutive denials for this scheduled job" in _tool_texts(model.calls[-1])[-1]
     assert "explicit human approval" not in _tool_texts(model.calls[-1])[-1]
 

@@ -95,7 +95,7 @@ export const AddModelInput = memo<AddModelInputProps>(({ onAdd, existingModels }
           <X className="w-4 h-4" />
         </button>
       </div>
-      {error && <p className="text-xs text-destructive pl-3">{error}</p>}
+      {error && <p className="text-xs text-destructive-text pl-3">{error}</p>}
     </div>
   );
 });

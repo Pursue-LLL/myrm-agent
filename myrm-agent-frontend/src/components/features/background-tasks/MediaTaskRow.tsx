@@ -59,7 +59,7 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
     task.status === 'succeeded' ? (
       <IconCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
     ) : (
-      <IconXCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+      <IconXCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-text" />
     )
   ) : (
     <IconLoader
@@ -108,7 +108,7 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
           )}
 
           {isTerminal && task.status === 'failed' && task.error?.message && (
-            <p className="mt-1 line-clamp-2 text-xs text-destructive/80">
+            <p className="mt-1 line-clamp-2 text-xs text-destructive-text">
               {task.error.error_type === 'interrupted' ? tCard('interrupted') : redactErrorMessage(task.error.message)}
             </p>
           )}

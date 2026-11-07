@@ -109,7 +109,7 @@ const CompoundingChecklistSection = memo(({ className }: CompoundingChecklistSec
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive-text">{error}</p> : null}
 
       {status ? (
         <>

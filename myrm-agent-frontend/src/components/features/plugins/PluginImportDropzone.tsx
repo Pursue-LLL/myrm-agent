@@ -51,7 +51,9 @@ export const PluginImportDropzone = memo(
         {isParsing ? (
           <IconLoader className="mx-auto mb-4 h-10 w-10 animate-spin text-primary" />
         ) : (
-          <IconUpload className={cn('mx-auto mb-4 h-10 w-10', error ? 'text-destructive' : 'text-muted-foreground')} />
+          <IconUpload
+            className={cn('mx-auto mb-4 h-10 w-10', error ? 'text-destructive-text' : 'text-muted-foreground')}
+          />
         )}
 
         <p className="text-base font-medium">{isParsing ? t('upload.parsing') : t('upload.dropHint')}</p>

@@ -125,7 +125,7 @@ const ModelBreakdownItem = memo<ModelBreakdownItemProps>(
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
               </div>
             ) : error ? (
-              <div className="flex items-center justify-between py-2 text-[10px] text-destructive">
+              <div className="flex items-center justify-between py-2 text-[10px] text-destructive-text">
                 <span>{error}</span>
                 <button onClick={() => setExpanded(false)} className="text-xs text-primary hover:underline">
                   {t('retry')}

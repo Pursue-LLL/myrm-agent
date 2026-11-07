@@ -9,7 +9,8 @@
 - agent.streaming.recovery.context_pressure_gate::PreflightGateMixin (POS: Deterministic send-gate owned by the streaming recovery layer)
 - agent.streaming.stream_fatal_error::StreamFatalErrorMixin (POS: Fatal-error reporting for StreamExecutor)
 - agent.streaming.recovery.stream_recovery_truncation::reset_ephemeral_max_output_tokens (POS: ephemeral output token cleanup)
-- agent.types::AgentEventType, AgentRunStatistics (POS: 类型定义)
+- agent.streaming.types::AgentEventType (POS: Framework-agnostic streaming event types)
+- agent.types::AgentRunStatistics (POS: Agent core runtime type definitions: completion status, run statistics, quote attachments, workspace bindings, and runtime specs)
 
 [OUTPUT]
 - StreamContext: execution context dataclass (optional callbacks: drain_subagent_notifications, on_loop_restart, on_goal_hold, file_content_reader for media/vision recovery)

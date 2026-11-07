@@ -255,7 +255,7 @@ function FeishuAppCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-destructive/60 hover:text-destructive shrink-0"
+                className="h-6 w-6 text-destructive-text/60 hover:text-destructive-text shrink-0"
                 aria-label={`delete-${channelName}`}
                 title={t('channelDeleteInstanceTitle')}
               >

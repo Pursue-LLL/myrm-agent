@@ -97,7 +97,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
   if (error && !detail) {
     return (
       <div className="flex flex-col items-center py-8 space-y-3">
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-text">
           {error}
         </div>
         <button onClick={onCancel} className="text-sm text-primary hover:underline">
@@ -146,7 +146,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
             <div key={ev.name} className="space-y-1">
               <label className="flex items-center gap-1 text-xs font-medium text-foreground">
                 {ev.name}
-                {ev.required && <span className="text-destructive">*</span>}
+                {ev.required && <span className="text-destructive-text">*</span>}
               </label>
               {ev.description && <p className="text-[11px] text-muted-foreground">{ev.description}</p>}
               <input
@@ -162,7 +162,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
       )}
 
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-text">
           {error}
         </div>
       )}

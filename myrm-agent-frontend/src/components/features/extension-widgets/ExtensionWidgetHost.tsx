@@ -203,7 +203,7 @@ export const ExtensionWidgetHost = memo(function ExtensionWidgetHost({
                     onClick={() => {
                       handleDeleteTodo(todo.id);
                     }}
-                    className={cn('text-muted-foreground hover:text-destructive p-0.5 transition-opacity', REVEAL_ON_HOVER)}
+                    className={cn('text-muted-foreground hover:text-destructive-text p-0.5 transition-opacity', REVEAL_ON_HOVER)}
                     aria-label="Delete todo"
                   >
                     <Trash2 className="h-3 w-3" />

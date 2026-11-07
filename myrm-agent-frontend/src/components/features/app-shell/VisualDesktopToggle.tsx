@@ -288,7 +288,7 @@ export const VisualDesktopToggle = ({ hideLauncher = false }: VisualDesktopToggl
               </div>
             ) : null}
             {sandboxMode && loadError ? (
-              <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center px-6 text-center text-sm text-destructive">
+              <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center px-6 text-center text-sm text-destructive-text">
                 <p>{loadError}</p>
                 <button
                   onClick={handleReconnect}

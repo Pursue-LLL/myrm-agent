@@ -152,7 +152,7 @@ export default function EditModeView({
                       {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
                     </span>
                   ) : (
-                    <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
+                    <span className="text-destructive-text">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
                   )}
                 </p>
               )}
@@ -185,7 +185,7 @@ export default function EditModeView({
           )}
         </div>
       )}
-      {isExpired && <p className="text-xs font-medium text-destructive">{t('expired')}</p>}
+      {isExpired && <p className="text-xs font-medium text-destructive-text">{t('expired')}</p>}
       <div className="flex gap-2">
         <Button size="sm" onClick={onConfirm} disabled={isLoading || isExpired || patternConfirmBlocked}>
           {t('confirmEdit')}

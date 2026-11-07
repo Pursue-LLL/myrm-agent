@@ -161,7 +161,7 @@ export function SkillPermissionApprovalDialog({
             <div
               className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-full',
-                hasDangerousPermissions ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
+                hasDangerousPermissions ? 'bg-destructive/10 text-destructive-text' : 'bg-primary/10 text-primary',
               )}
             >
               {hasDangerousPermissions ? <ShieldAlert className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
@@ -211,7 +211,7 @@ export function SkillPermissionApprovalDialog({
             {/* 危险权限组 */}
             {dangerousPermissions.length > 0 && (
               <div>
-                <label className="text-sm font-medium text-destructive flex items-center gap-2">
+                <label className="text-sm font-medium text-destructive-text flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   {t('dangerousPermissions')}
                 </label>
@@ -225,7 +225,7 @@ export function SkillPermissionApprovalDialog({
                         key={permission}
                         className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-3"
                       >
-                        <Icon className="mt-0.5 h-4 w-4 text-destructive" />
+                        <Icon className="mt-0.5 h-4 w-4 text-destructive-text" />
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{info.label}</span>

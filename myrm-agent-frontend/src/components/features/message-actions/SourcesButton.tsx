@@ -347,7 +347,7 @@ export function SourceItem({ source }: { source: Source }) {
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-destructive/30 px-2 py-1 text-xs text-destructive-text hover:bg-destructive/10"
                     disabled={!chatId || busy}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

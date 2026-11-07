@@ -54,7 +54,7 @@ export function StreamTriggerSection({ drafts, onChange }: StreamTriggerSectionP
             </Select>
             <button
               onClick={() => onChange(drafts.filter((_, j) => j !== i))}
-              className="text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive-text"
             >
               <Trash2 className="h-3 w-3" />
             </button>

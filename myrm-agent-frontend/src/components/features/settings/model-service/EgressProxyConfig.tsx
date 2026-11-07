@@ -102,7 +102,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({ value, onChange
           data-testid="egress-proxy-result"
           className={cn(
             'flex items-center gap-1.5 text-xs pt-0.5',
-            testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive',
+            testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive-text',
           )}
         >
           {testResult.success ? (

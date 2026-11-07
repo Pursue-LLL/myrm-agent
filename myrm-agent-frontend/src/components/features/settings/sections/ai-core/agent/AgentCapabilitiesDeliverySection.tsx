@@ -1,15 +1,9 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
-import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
+import type { CapabilitiesSectionProps } from './AgentCapabilitiesTab';
 
-type SectionProps = {
-  editor: AgentCapabilitiesTabProps['editor'];
-  t: ReturnType<typeof useTranslations>;
-};
-
-export function DeliveryAssuranceSection({ editor, t }: SectionProps) {
+export function DeliveryAssuranceSection({ editor, t }: CapabilitiesSectionProps) {
   return (
     <div className="rounded-xl bg-card/60 border border-border/50 p-4">
       <div className="flex items-center justify-between gap-4">

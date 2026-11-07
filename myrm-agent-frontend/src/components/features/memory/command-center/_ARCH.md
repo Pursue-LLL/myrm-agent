@@ -18,7 +18,11 @@
 | `MemoryCommandCenterPrimitives.tsx`     | 辅助 | 分区面板共用原子组件：版块、指标块、运行时行与空态               | ✅    |
 | `memoryCommandCenterFormat.ts`          | 辅助 | 分区面板共用枚举守卫与文案格式化（memory 命名空间翻译、时间与事件描述） | ✅    |
 | `MemoryCommandCenterAdvancedPanels.tsx` | 核心 | 高级面板集合（容量剧场、偏好雷达、检索诊断等进阶视图）           | ✅    |
-| `MemoryCommandCenterDoctorPanel.tsx`    | 核心 | 记忆医生面板：诊断项、自动修复动作与修复结果趋势                 | ✅    |
+| `MemoryCommandCenterDoctorPanel.tsx`    | 核心 | 记忆医生面板：诊断项与可执行诊断入口                       | ✅    |
+| `MemoryDoctorRunSection.tsx`            | 组件 | 单次诊断运行视图：运行摘要、benchmark 指标、探针结果与 probe 级修复计划| ✅    |
+| `MemoryDoctorTrend.tsx`                 | 组件 | 诊断历史趋势：recall / ndcg / mrr / 延迟走势、较上次变化与类别通过率| ✅    |
+| `MemoryDoctorStatusPill.tsx`            | 组件 | 就绪度状态徽章，趋势区、运行摘要与检查项共用                   | ✅    |
+| `memoryDoctorModel.ts`                  | 辅助 | 医生面板共用的动作联合类型、取值守卫与展示格式化                 | ✅    |
 | `MemoryCommandCenterChrome.tsx`         | 辅助 | 命令中心外壳（标题、工具栏、tab 切换与操作区）                   | ✅    |
 | `MemoryRecallBoundaryPanel.tsx`         | 辅助 | 召回边界面板：注入预算与截断披露                                 | ✅    |
 | `CognitiveClockPanel.tsx`               | 核心 | 多频认知时钟状态面板：T0-T3 状态指示、前台打字让步指示与手动提炼 | ✅    |

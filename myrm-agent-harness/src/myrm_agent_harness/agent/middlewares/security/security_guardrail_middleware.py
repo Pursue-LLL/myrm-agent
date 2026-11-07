@@ -24,8 +24,8 @@ before_model (runs before each LLM call):
        text blocks of a text + image result, so the LLM never sees raw secrets
 
 after_model (runs after each LLM call):
-    3.5 Canary Guard — checks if the session canary token leaked into AI
-        output or tool call arguments. Deterministic detection of prompt
+    3.5 Canary Guard — checks if a canary token (the agent's own, or one the thread's
+        history carries) leaked into AI output or tool call arguments. Deterministic detection of prompt
         injection success (zero false positives). Scrubs leaked token from
         output and records CANARY_LEAKED security decision.
     4. Leak Detector — scans AI response for 30+ credential patterns
@@ -75,6 +75,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
     get_privacy_policy,
     get_terminal_errors,
 )
+from myrm_agent_harness.agent.middlewares.security.canary_middleware import carried_canaries
 from myrm_agent_harness.agent.middlewares.security.outbound_privacy_guard import privacy_enforced_by_loop
 from myrm_agent_harness.agent.middlewares.security.pii_actions import apply_privacy_policy
 from myrm_agent_harness.agent.middlewares.security.text_blocks import map_text_blocks
@@ -134,14 +135,18 @@ def _redact_recent_tool_results(messages: Sequence[BaseMessage]) -> list[BaseMes
     return redacted
 
 
-def _guard_canary(text: str, tool_calls: list[ToolCall]) -> str:
+def _session_canaries(messages: Sequence[BaseMessage]) -> list[str]:
+    """The token this agent holds and those the thread's history shows the model (a thread keeps its first one)."""
+    return [canary for canary in dict.fromkeys([get_canary_token(), *carried_canaries(messages)]) if canary]
+
+
+def _guard_canary(text: str, tool_calls: list[ToolCall], canaries: Sequence[str]) -> str:
     """Layer ③.5: record a session canary token that leaked into the AI text or its tool call arguments.
 
-    Returns *text* with the token scrubbed. The arguments are checked on their own: a model that writes no text next
-    to a tool call can still carry the token out through it.
+    Returns *text* with the tokens scrubbed. The arguments are checked on their own: a model that writes no text next
+    to a tool call can still carry a token out through it.
     """
-    canary = get_canary_token()
-    if not canary:
+    if not canaries:
         return text
 
     from myrm_agent_harness.agent.security.detection.canary_guard import (
@@ -150,9 +155,10 @@ def _guard_canary(text: str, tool_calls: list[ToolCall]) -> str:
         scrub_canary,
     )
 
-    text_leaked = check_canary(text, canary)
+    text_leaked = any(check_canary(text, canary) for canary in canaries)
     # ToolCall is a TypedDict of JSON values, which the recursive StructuredValue alias cannot express.
-    args_leaked = bool(tool_calls) and check_canary(cast("StructuredValue", tool_calls), canary)
+    args = cast("StructuredValue", tool_calls)
+    args_leaked = bool(tool_calls) and any(check_canary(args, canary) for canary in canaries)
     if not (text_leaked or args_leaked):
         return text
 
@@ -161,7 +167,9 @@ def _guard_canary(text: str, tool_calls: list[ToolCall]) -> str:
     channel = "text+tool_args" if text_leaked and args_leaked else "text" if text_leaked else "tool_args"
     record_decision("canary_guard", "CANARY_LEAKED", f"channel={channel}", tainted=True)
     logger.warning("[CANARY] Prompt injection detected: canary leaked via %s", channel)
-    return scrub_canary(text, canary)
+    for canary in canaries:
+        text = scrub_canary(text, canary)
+    return text
 
 
 def _redact_ai_text(text: str) -> str:
@@ -234,7 +242,9 @@ class SecurityGuardrailMiddleware(AgentMiddleware):
             return None
 
         content = last_ai_msg.content
-        modified = _guard_canary(content if isinstance(content, str) else "", last_ai_msg.tool_calls)
+        modified = _guard_canary(
+            content if isinstance(content, str) else "", last_ai_msg.tool_calls, _session_canaries(messages)
+        )
         if modified:
             modified = _redact_ai_text(modified)
 

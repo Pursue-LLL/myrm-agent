@@ -168,7 +168,7 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 - **仅最后一条消息（新内容）无法缓存**——这是不可避免的
 - **System Prompt 永远不包含动态内容**——完全冻结
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
-- **核心行为规则**：`AGENT_CORE_RULES`（`streaming/agent_core_rules.py`）追加在 `DATETIME_SYSTEM_RULES` 之后、`canary_instruction` 之前。输出固定文本（反叙述 + 工具诚实 + 搜索与上下文复用），所有模型字节相同、与模型名无关，session 内不变，完全缓存安全。模型特有的失败模式不靠分厂商的提示词文本，由代码兜底（工具调用解析器、流恢复、CompletionGuard）
+- **核心行为规则**：`AGENT_CORE_RULES`（`streaming/agent_core_rules.py`）追加在 `DATETIME_SYSTEM_RULES` 之后。输出固定文本（反叙述 + 工具诚实 + 搜索与上下文复用），所有模型字节相同、与模型名无关，session 内不变，完全缓存安全。模型特有的失败模式不靠分厂商的提示词文本，由代码兜底（工具调用解析器、流恢复、CompletionGuard）
 - **环境感知注入**：`detect_platform().environment_prompt_line`（`toolkits/code_execution/platform.py`）追加在 `resolve_channel_output_hint` 之后。输出一个 `<environment>` XML 标签，包含 OS 类型/版本/架构、Shell 类型/工具链差异、Python 工具链状态（pip/PEP-668/uv）。由 `detect_platform()` 的 `@lru_cache(maxsize=1)` 保证进程生命周期内不变，Python 探测由 `env_probe.get_environment_probe_line()` 的 `threading.Lock` 保证一次性探测。正常环境省略 Python 部分（零额外 token），异常环境增加 <50 tokens。完全缓存安全
 
 这与 Claude Code 的官方策略一致：动态信息通过 `<system-reminder>` 标签放在 user message 中。
@@ -1264,7 +1264,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `streaming/utils.py` | `get_datetime_prompt()` 生成时间标签 + `DATETIME_SYSTEM_RULES` 系统规则常量 |
 | `streaming/agent_core_rules.py` | 核心行为规则：`AGENT_CORE_RULES` 是所有模型共用的固定文本 |
 | `streaming/message_builder.py` | `inject_datetime_tags()` 时间戳注入逻辑（当前消息 + 历史消息确定性注入） |
-| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + environment_prompt_line + canary 到 system_prompt |
+| `base_agent.py` | `_ensure_initialized()` 中追加 DATETIME_SYSTEM_RULES + AGENT_CORE_RULES + environment_prompt_line 到 system_prompt（canary 不进 system prompt：每会话随机的 token 会让前缀缓存在该处分叉，改由 `CanaryMiddleware` 作为跟在用户输入之后的独立 SystemMessage 注入） |
 | `app/ai_agents/agent_middlewares/user_instructions_middleware.py` | 用户指令注入到 System Prompt 之后（跨用户缓存感知） |
 | `workspace_rules/middleware.py` | Workspace 规则注入（user_instructions 之后、memory_context 之前） |
 | `middlewares/memory_context/memory_context_middleware.py` | 记忆上下文注入位置的缓存感知设计 |

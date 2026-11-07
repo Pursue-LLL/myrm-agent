@@ -188,7 +188,7 @@ export function MaskedCredentialInputCard({
             size="sm"
             onClick={handleRevoke}
             disabled={disabled}
-            className="h-7 text-xs text-muted-foreground hover:text-destructive"
+            className="h-7 text-xs text-muted-foreground hover:text-destructive-text"
           >
             <Trash2 className="mr-1 h-3.5 w-3.5" />
             {t('revoke')}
@@ -239,7 +239,7 @@ export function MaskedCredentialInputCard({
                         size="sm"
                         onClick={() => handleRemoveRow(draft.id)}
                         aria-label={t('removeCredential')}
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive-text"
                         disabled={disabled}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -265,7 +265,7 @@ export function MaskedCredentialInputCard({
                         className="h-8 font-mono text-xs"
                       />
                       {!keyValidation.isValid && (
-                        <p className="mt-1 flex items-center gap-1 text-[10px] text-destructive">
+                        <p className="mt-1 flex items-center gap-1 text-[10px] text-destructive-text">
                           <AlertTriangle className="h-3 w-3 shrink-0" />
                           {keyErrorMessage(keyValidation.error, draft.key)}
                         </p>

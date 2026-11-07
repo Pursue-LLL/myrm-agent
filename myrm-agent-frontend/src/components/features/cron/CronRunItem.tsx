@@ -72,7 +72,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
     run.delivery_status === 'delivered' ? (
       <Send className="h-3 w-3 text-green-500" />
     ) : run.delivery_status === 'failed' ? (
-      <CircleX className="h-3 w-3 text-destructive" />
+      <CircleX className="h-3 w-3 text-destructive-text" />
     ) : null;
 
   return (
@@ -104,7 +104,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                   : isCircuitBreak
                     ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                    : 'bg-destructive/10 text-destructive border-destructive/20',
+                    : 'bg-destructive/10 text-destructive-text border-destructive/20',
             )}
           >
             <span
@@ -147,7 +147,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             >
               {deliveryIcon}
               {run.delivery_status === 'failed' && (
-                <span className="text-[10px] text-destructive">{deliveryLabel}</span>
+                <span className="text-[10px] text-destructive-text">{deliveryLabel}</span>
               )}
             </span>
           )}
@@ -179,7 +179,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                 verification?.status === 'pass'
                   ? 'text-green-600 dark:text-green-400 bg-green-500/10'
                   : verification?.status === 'fail'
-                    ? 'text-destructive bg-destructive/10'
+                    ? 'text-destructive-text bg-destructive/10'
                     : 'text-muted-foreground bg-muted',
               )}
               title={verification?.summary ?? verificationLabel}
@@ -226,7 +226,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
           <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">{t('circuitBreakBanner')}</p>
         )}
         {!expanded && !run.output && run.error && !isCircuitBreak && (
-          <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
+          <p className="text-xs text-destructive-text mt-1 line-clamp-1">{run.error}</p>
         )}
 
         {expanded && (
@@ -259,21 +259,21 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               </pre>
             )}
             {run.error && !isCircuitBreak && (
-              <pre className="text-xs text-destructive bg-destructive/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+              <pre className="text-xs text-destructive-text bg-destructive/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
                 {run.error}
               </pre>
             )}
             {run.delivery_error && (
               <div className="space-y-1">
-                <p className="text-[10px] text-destructive">
+                <p className="text-[10px] text-destructive-text">
                   {t('deliveryError')}: {run.delivery_error}
                 </p>
                 {run.metadata?.connector_failure && (
                   <div className="flex items-start gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5">
-                    <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <ShieldAlert className="h-3.5 w-3.5 text-destructive-text shrink-0 mt-0.5" />
                     <div className="space-y-0.5 text-[11px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-destructive">{t('connectorDegradedBadge')}</span>
+                        <span className="font-medium text-destructive-text">{t('connectorDegradedBadge')}</span>
                         <span className="font-mono text-[10px] text-muted-foreground bg-background/50 px-1 py-0.5 rounded">
                           {run.metadata.connector_failure.category}
                         </span>

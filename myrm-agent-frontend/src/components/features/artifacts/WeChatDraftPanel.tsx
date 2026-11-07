@@ -284,7 +284,7 @@ export function WeChatDraftPanel({
           <p
             className={cn(
               'text-xs font-medium',
-              complianceSeverity === 'warning' ? 'text-amber-700 dark:text-amber-400' : 'text-destructive',
+              complianceSeverity === 'warning' ? 'text-amber-700 dark:text-amber-400' : 'text-destructive-text',
             )}
           >
             {complianceSeverity === 'warning' ? t('complianceSuccessTitle') : t('complianceTitle')}

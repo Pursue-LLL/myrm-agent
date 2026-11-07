@@ -124,7 +124,7 @@
 
 - **路由 SSOT**：`app/core/vision/media_router.py` — 图/视频降级槽决策（native / frame / vlm）；`pick_video_fallback_configs` 委托 harness `pick_video_fallback_model_cfgs`
 - **配置解析**：`app/core/channel_bridge/config_parsers/` — `visionFallbackModel` + `videoFallbackModel` 链
-- **预处理**：`app/core/utils/chat_utils.py` — `_process_image_item` / `_process_video_item` + SSE `vision_backend`
+- **预处理**：`app/core/utils/chat_utils/` — `_process_image_item` / `_process_video_item` + SSE `vision_backend`
 - **Agent 运行时**：`GeneralAgent._build_runtime_context` 注入 `video_fallback_model_cfgs` + `supports_video` → harness `file_read_tool` / `video_reader`
 - **探活**：`POST /api/v1/config/vision-health` · `POST /api/v1/config/video-health`
 - **Harness 引擎**：`myrm-agent-harness/toolkits/llms/vision/` — fallback / video 分析与多模态降级基础设施（`file_read_tool` 多模态直读与自适应降级）
@@ -172,7 +172,7 @@
 
 - **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
 - **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接（`chrome-extension://` origin 守卫；remote 模式强制 token）；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
-- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
+- **服务层**：`app/services/extension/bridge/` — 连接生命周期、`hello.capabilities` 四动作合同门禁（`navigate_url|list_tabs|attach_debugger|detach_debugger`）、`ExtensionStatus.handshake_ready` 握手可见性、extension 模式 CDP relay fail-closed（无 local direct CDP fallback）、域名授权（`*.example.com` 匹配根域+子域）、私网 `navigate_url` relay 与浏览器连接；实现 harness `ExtensionBridge` Protocol。
 - **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验，remote 模式未配置 token 时拒绝连接。
 - **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制、Token/CDP 状态、握手三态与 relay 能力矩阵）；API 客户端 `src/services/extension.ts`（**`apiRequest('/extension/...')` 相对路径**，禁止 `getApiUrl()` 二次前缀）。Tab 路由 SSOT：前端 `settingsRoutes.ts`（`SETTINGS_TABS` / `SETTINGS_TAB_REDIRECTS`），`page.tsx`、`SettingsLayout.tsx`、`SettingsMenu` 均由它派生；`locales/*` 的 `metadata.settingsTabs` / `settings.menu` 由 `verify-i18n` 对账，服务端写死的 `/settings/<tab>` 深链由 `tests/architecture/test_settings_deep_links.py` 守门。
 
@@ -238,7 +238,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 为了极致降低持续进化的 LLM 调用成本（减少 90%+ 成本及延迟）：
 
 - **稳定前缀架构**：遵循「指令首发、数据居中、采样垫后」的 Prompt 构建原则，确保 Agent 优化指令等高频、大体积文本在 LLM 侧被高效识别为 **Prompt Cache Prefix**。
-- **Context Health 聚合**：`app/api/statistics/context_health.py` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
+- **Context Health 聚合**：`app/api/statistics/context_health/` 将 Chat 压缩元数据、Message usage 与 Harness task metrics 聚合为 Session Analytics 的 context health，包含 cache-TTL 剪枝、归档写入/复用、恢复 requested/allowed/blocked outcome、blocked ratio、恢复范围提示、自适应剪枝退让和 provider-aware cache retention。
 - **入账 Human 路由一致性**：`app/core/utils/delivery_provenance.py`。Server 在 GeneralAgent **`stream_pipeline`：INFO 记下 `general_agent_delivery_labels`** 后以 `apply_delivery_banner` 落横幅；FastLane（`general_agent/streaming`，`apply_general_agent_pipeline_banner`/`params.channel_name`）；Fast Search 通过 `prompt_mode="search"` 统一走 GeneralAgent 路径（等价 `web_chat`→GUI 横幅）；IM `prepend_plain_banner`；Headless wakeup（`services/agent/wakeup_handler.py` 将 **`channel_name=headless_wakeup`** 且 **`memory_channel_id` 缺省时锁 `web_chat`**，防记忆命名空间漂移）。`web_chat` 仍映射 http_gui/browser_sse；`cron`/`eval`/其它见 `resolve_general_agent_pipeline_labels`。用户以 `[use skill]` 显式调用技能时，横幅落在该标签之后（`decorate_behind_skill_tag`，harness 只认位于文本最开头的标签）。
 
 ### 0.4 进化驱动型技能观测 (Evolution-Driven Skill Observation)

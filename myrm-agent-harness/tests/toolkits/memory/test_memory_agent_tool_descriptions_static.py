@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -13,8 +14,8 @@ from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descrip
     MEMORY_MANAGE_TOOL_DESCRIPTION_ZH,
     MEMORY_SAVE_CORE_EN,
     MEMORY_SAVE_CORE_ZH,
-    MEMORY_SAVE_TOOL_DESCRIPTION,
-    MEMORY_SAVE_TOOL_DESCRIPTION_EN,
+    MEMORY_SAVE_WRITE_TARGET_EN,
+    MEMORY_SAVE_WRITE_TARGET_ZH,
     build_memory_save_tool_description,
     build_memory_search_tool_description,
     resolve_memory_manage_tool_description,
@@ -28,6 +29,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.wiki_memory_boundary impor
     WIKI_MEMORY_SAVE_MAX_CHARS,
     WIKI_MEMORY_SAVE_MIN_HEADINGS,
 )
+from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 
 _FULL_POLICY = MemorySearchPolicy(allow_wiki=True, allow_sessions=True)
 _POLICIES = [
@@ -45,13 +47,26 @@ _GUIDE_TITLE = {"en": "**Corpus guide**", "zh": "**Corpus 指南**"}
 
 def test_default_locale_is_english() -> None:
     assert DEFAULT_MEMORY_TOOL_DESCRIPTION_LOCALE == "en"
-    assert MEMORY_SAVE_TOOL_DESCRIPTION is MEMORY_SAVE_TOOL_DESCRIPTION_EN
-    assert MEMORY_SAVE_TOOL_DESCRIPTION_EN is MEMORY_SAVE_CORE_EN
     assert MEMORY_MANAGE_TOOL_DESCRIPTION is MEMORY_MANAGE_TOOL_DESCRIPTION_EN
     assert resolve_memory_save_tool_description() == build_memory_save_tool_description(
         MemorySearchPolicy(), locale="en"
     )
     assert resolve_memory_manage_tool_description() == MEMORY_MANAGE_TOOL_DESCRIPTION_EN
+
+
+@pytest.mark.parametrize(
+    ("locale", "core", "write_target"),
+    [
+        pytest.param("en", MEMORY_SAVE_CORE_EN, MEMORY_SAVE_WRITE_TARGET_EN, id="en"),
+        pytest.param("zh", MEMORY_SAVE_CORE_ZH, MEMORY_SAVE_WRITE_TARGET_ZH, id="zh"),
+    ],
+)
+def test_write_target_block_follows_the_core_only_while_shared_writes_are_allowed(
+    locale: str, core: str, write_target: str
+) -> None:
+    assert build_memory_save_tool_description(MemorySearchPolicy(), locale=locale) == f"{core}\n\n{write_target}"
+    blocked = MemorySearchPolicy(allow_shared_write=False)
+    assert build_memory_save_tool_description(blocked, locale=locale) == core
 
 
 def test_mcp_surface_maps_gui_tool_names() -> None:
@@ -95,7 +110,7 @@ def test_mcp_surface_zh_never_leaks_gui_wiki_tool() -> None:
 
 
 def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
-    save = MEMORY_SAVE_CORE_EN
+    save = build_memory_save_tool_description(MemorySearchPolicy(), locale="en")
     manage = MEMORY_MANAGE_TOOL_DESCRIPTION_EN
     search = build_memory_search_tool_description(MemorySearchPolicy(), locale="en")
     assert "**WHEN TO SAVE**" in save
@@ -119,7 +134,7 @@ def test_memory_tool_descriptions_preserve_guardrails_en() -> None:
 
 
 def test_memory_tool_descriptions_preserve_guardrails_zh() -> None:
-    save = MEMORY_SAVE_CORE_ZH
+    save = build_memory_save_tool_description(MemorySearchPolicy(), locale="zh")
     manage = MEMORY_MANAGE_TOOL_DESCRIPTION_ZH
     search = build_memory_search_tool_description(MemorySearchPolicy(), locale="zh")
     assert "**何时保存**" in save
@@ -189,7 +204,9 @@ def test_memory_save_description_includes_approval_when_required() -> None:
     assert "submitted for approval" in desc
 
 
-def test_create_memory_tools_uses_description_ssot(memory_config, mock_vector_store, mock_embedding) -> None:
+def test_create_memory_tools_uses_description_ssot(
+    memory_config: MemoryConfig, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import (
         create_memory_tools,
     )
@@ -271,7 +288,9 @@ def test_memory_tool_descriptions_support_zh_cn_locale() -> None:
     assert "**Corpus 指南**" in search
 
 
-def test_create_memory_tools_supports_chinese_locale(memory_config, mock_vector_store, mock_embedding) -> None:
+def test_create_memory_tools_supports_chinese_locale(
+    memory_config: MemoryConfig, mock_vector_store: AsyncMock, mock_embedding: AsyncMock
+) -> None:
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import (
         create_memory_tools,
     )

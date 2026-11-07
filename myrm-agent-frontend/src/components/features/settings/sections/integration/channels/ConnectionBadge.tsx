@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<ConnectionStatus, { icon: React.ReactNode; className
   },
   error: {
     icon: <IconWifiOff className="h-3.5 w-3.5" />,
-    className: 'bg-destructive/10 text-destructive border-destructive/20',
+    className: 'bg-destructive/10 text-destructive-text border-destructive/20',
   },
   unconfigured: {
     icon: <IconAlertCircle className="h-3.5 w-3.5" />,

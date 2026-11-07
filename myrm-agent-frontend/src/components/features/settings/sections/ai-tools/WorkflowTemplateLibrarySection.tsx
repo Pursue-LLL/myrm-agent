@@ -236,7 +236,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
         </div>
       )}
 
-      {!loading && error && <p className="text-sm text-destructive">{error}</p>}
+      {!loading && error && <p className="text-sm text-destructive-text">{error}</p>}
 
       {!loading && !error && sortedTemplates.length === 0 && (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
@@ -310,7 +310,7 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-destructive hover:text-destructive"
+                className="gap-1.5 text-destructive-text hover:text-destructive-text"
                 onClick={() => void handleDeleteRequest(template)}
                 disabled={deleteDetailLoading && deleteTarget?.template_id === template.template_id}
               >

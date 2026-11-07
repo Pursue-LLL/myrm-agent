@@ -69,7 +69,7 @@ export default function RemoteBackupSection() {
                 ) : connection === 'success' ? (
                   <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" weight="fill" />
                 ) : connection === 'failed' ? (
-                  <XCircle className="h-4 w-4 text-destructive" weight="fill" />
+                  <XCircle className="h-4 w-4 text-destructive-text" weight="fill" />
                 ) : (
                   <PlugsConnected className="h-4 w-4" />
                 )}

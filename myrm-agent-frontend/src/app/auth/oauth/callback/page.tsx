@@ -78,7 +78,7 @@ export default function OAuthCallbackPage() {
         <CardContent className="flex flex-col items-center gap-4 py-6">
           {error ? (
             <>
-              <p className="text-sm text-destructive text-center px-2">{error}</p>
+              <p className="text-sm text-destructive-text text-center px-2">{error}</p>
               <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/auth/login">{t('backToLogin')}</Link>
               </Button>

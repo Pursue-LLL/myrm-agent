@@ -74,7 +74,7 @@ export function PreviewStep({
   const statusColors: Record<string, string> = {
     ready: 'text-emerald-600 dark:text-emerald-400',
     warning: 'text-amber-600 dark:text-amber-400',
-    critical: 'text-destructive',
+    critical: 'text-destructive-text',
     missing: 'text-muted-foreground',
   };
 
@@ -150,7 +150,7 @@ export function PreviewStep({
       )}
 
       {dryRun.providers_configured === false && source.has_api_keys && (
-        <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+        <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive-text">
           <p>{t('preview.providersMissingHint')}</p>
           <Button asChild size="sm" variant="outline" className="h-7 text-xs">
             <Link href="/settings/models">{t('preview.configureProvidersLink')}</Link>

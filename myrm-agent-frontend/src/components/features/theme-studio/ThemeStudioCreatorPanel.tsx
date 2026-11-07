@@ -276,10 +276,10 @@ const ThemeStudioCreatorPanel = () => {
                   </div>
                   <p>{t('installCount', { count: row.installCount })}</p>
                   {row.status === 'rejected' && row.reviewReason ? (
-                    <p className="text-destructive/90">{row.reviewReason}</p>
+                    <p className="text-destructive-text">{row.reviewReason}</p>
                   ) : null}
                   {row.status === 'suspended' && row.reviewReason ? (
-                    <p className="text-destructive/90">{row.reviewReason}</p>
+                    <p className="text-destructive-text">{row.reviewReason}</p>
                   ) : null}
                 </li>
               ))}

@@ -43,6 +43,7 @@ CANARY = "canary-0123456789abcdef"
 BEFORE_MODEL_NODES = {
     "BudgetBoundaryMiddleware",
     "SecurityBoundaryMiddleware",
+    "CanaryMiddleware",
     "SessionAccessMiddleware",
     "SecurityGuardrailMiddleware",
 }

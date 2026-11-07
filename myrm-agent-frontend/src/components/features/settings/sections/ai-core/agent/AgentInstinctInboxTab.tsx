@@ -144,7 +144,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
                     data-testid="instinct-dismiss-btn"
                     onClick={() => handleReject(draft)}
                     disabled={processingId === draft.id}
-                    className="h-8 gap-1.5 text-muted-foreground hover:text-destructive"
+                    className="h-8 gap-1.5 text-muted-foreground hover:text-destructive-text"
                   >
                     <X className="w-3.5 h-3.5" />
                     {t('dismissBtn')}

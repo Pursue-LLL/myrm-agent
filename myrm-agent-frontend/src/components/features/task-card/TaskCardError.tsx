@@ -43,7 +43,7 @@ export const TaskCardError: React.FC<TaskCardErrorProps> = ({
     <div className={cn('rounded-lg border border-destructive/50 bg-destructive/5 p-4 space-y-3', className)}>
       {/* Error icon */}
       <div className="flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+        <AlertCircle className="w-5 h-5 text-destructive-text mt-0.5" />
         <div className="flex-1 space-y-1">
           <p className="text-sm font-medium text-foreground">{t('failedTitle')}</p>
           <p className="text-sm text-foreground/70">{message}</p>
@@ -57,7 +57,7 @@ export const TaskCardError: React.FC<TaskCardErrorProps> = ({
           {isRetrying ? t('retrying') : t('retryTask')}
         </Button>
       )}
-      {retryErrorMessage ? <p className="text-xs text-destructive">{retryErrorMessage}</p> : null}
+      {retryErrorMessage ? <p className="text-xs text-destructive-text">{retryErrorMessage}</p> : null}
     </div>
   );
 };

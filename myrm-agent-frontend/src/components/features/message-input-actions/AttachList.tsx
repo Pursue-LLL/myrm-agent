@@ -217,7 +217,7 @@ export const FilePill = ({ file, onRemove }: { file: FileType; onRemove?: () => 
         {isUploading ? (
           <LoaderCircle size={12} className="text-primary animate-spin" />
         ) : isError ? (
-          <AlertCircle size={12} className="text-destructive" />
+          <AlertCircle size={12} className="text-destructive-text" />
         ) : (
           getFileIcon(file.fileExtension)
         )}

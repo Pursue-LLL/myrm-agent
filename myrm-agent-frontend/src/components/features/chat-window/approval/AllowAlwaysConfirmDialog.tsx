@@ -107,7 +107,7 @@ export default function AllowAlwaysConfirmDialog({
                         {t('allowAlwaysConfirm.scopePatternPreview', { pattern: patternPreview })}
                       </span>
                     ) : (
-                      <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
+                      <span className="text-destructive-text">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
                     )}
                   </span>
                 )}

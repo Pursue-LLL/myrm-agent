@@ -178,7 +178,7 @@ const EnterpriseModelPolicyTab = memo(() => {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleRemove(entry.id)}
-                className="text-destructive hover:text-destructive/80"
+                className="text-destructive-text hover:text-destructive-text/80"
                 aria-label={t('modelPolicy.removePattern', { default: 'Remove pattern' })}
                 title={t('modelPolicy.removePattern', { default: 'Remove pattern' })}
               >

@@ -256,7 +256,7 @@ const ChannelBudgetSection = memo(() => {
                 <button
                   onClick={() => handleDelete(st.channel_key)}
                   disabled={saving === st.channel_key}
-                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive-text transition-colors"
                   title={t('delete')}
                 >
                   {saving === st.channel_key ? (

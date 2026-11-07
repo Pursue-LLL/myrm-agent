@@ -131,7 +131,7 @@ const SkillSourcesPanel = memo(() => {
                 {source.healthy ? (
                   <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
                 ) : (
-                  <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 text-destructive-text shrink-0" />
                 )}
                 <div className="overflow-hidden">
                   <p className="text-sm font-medium truncate">{source.label || source.url}</p>
@@ -141,7 +141,7 @@ const SkillSourcesPanel = memo(() => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="shrink-0 text-muted-foreground hover:text-destructive"
+                className="shrink-0 text-muted-foreground hover:text-destructive-text"
                 onClick={() => handleRemove(source.url)}
                 disabled={removingUrl === source.url}
               >

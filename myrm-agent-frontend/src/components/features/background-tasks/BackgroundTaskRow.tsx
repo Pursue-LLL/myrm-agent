@@ -133,7 +133,7 @@ export function BackgroundTaskRow({
           </div>
 
           {task.error_category && (
-            <p className="mt-1 text-xs text-destructive/90">
+            <p className="mt-1 text-xs text-destructive-text">
               {translateOrRaw(tErrorCategory, task.error_category, task.error_category)}
             </p>
           )}
@@ -210,7 +210,7 @@ export function BackgroundTaskRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                className="h-6 px-2 text-xs text-destructive-text hover:text-destructive-text"
                 data-testid="background-task-cancel"
                 onClick={() => onCancel(task.task_id)}
               >

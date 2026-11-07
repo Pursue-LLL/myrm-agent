@@ -21045,6 +21045,9 @@
         "server_side_break": "服务端未命中"
       },
       "activityTitle": "活动模式",
+      "timeRange7Days": "7天",
+      "timeRange30Days": "30天",
+      "timeRangeAll": "全部",
       "activeDays": "活跃天数",
       "maxStreak": "最大连续",
       "busiestDay": "最忙星期",

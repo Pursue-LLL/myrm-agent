@@ -254,7 +254,7 @@ export const BrowserPreviewAnnotationOverlay: React.FC<BrowserPreviewAnnotationO
                   type="button"
                   data-testid="clear-pins-btn"
                   onClick={onClearAllPins}
-                  className="p-1.5 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted transition-colors"
+                  className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-full hover:bg-muted transition-colors"
                   title="Clear all pins"
                   aria-label="Clear all pins"
                 >

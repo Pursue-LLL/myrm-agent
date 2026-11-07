@@ -21045,6 +21045,9 @@
         "server_side_break": "Serverseitiger Cache-Miss"
       },
       "activityTitle": "Aktivitätsmuster",
+      "timeRange7Days": "7 Tage",
+      "timeRange30Days": "30 Tage",
+      "timeRangeAll": "Alle",
       "activeDays": "Aktive Tage",
       "maxStreak": "Max. Serie",
       "busiestDay": "Der geschäftigste Tag",

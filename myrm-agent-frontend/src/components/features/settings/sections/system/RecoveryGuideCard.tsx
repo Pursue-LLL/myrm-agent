@@ -95,8 +95,8 @@ const RecoveryGuideCard = memo(() => {
       <div className="space-y-4 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
         {failure && (
           <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
-            <IconAlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
-            <p className="text-xs text-destructive/90 leading-relaxed break-all">{failure}</p>
+            <IconAlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive-text" />
+            <p className="text-xs text-destructive-text leading-relaxed break-all">{failure}</p>
           </div>
         )}
         <p className="text-xs text-muted-foreground leading-relaxed">{t('description')}</p>

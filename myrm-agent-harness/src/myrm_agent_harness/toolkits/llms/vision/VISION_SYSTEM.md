@@ -80,7 +80,7 @@ async def describe_image_b64(
 
 ### 2. _process_image_item (Server Layer)
 
-**位置**: `myrm-agent-server/app/core/utils/chat_utils.py`
+**位置**: `myrm-agent-server/app/core/utils/chat_utils/`
 
 **职责**:
 - 判断是否需要 vision fallback

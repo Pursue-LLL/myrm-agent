@@ -121,7 +121,7 @@ export function InstalledPetRow({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[140px]">
                   <DropdownMenuItem
-                    className="gap-2 text-destructive focus:text-destructive"
+                    className="gap-2 text-destructive-text focus:text-destructive-text"
                     data-testid={`installed-pet-uninstall-${pet.slug}`}
                     onClick={() => onRequestUninstall(pet)}
                   >

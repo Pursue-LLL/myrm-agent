@@ -245,7 +245,7 @@ const MemoryCard = memo<MemoryCardProps>(
                                 setShowActions(false);
                                 onDelete(true);
                               }}
-                              className="w-full px-3 py-1.5 text-sm text-left hover:bg-destructive/10 flex items-center gap-2 text-destructive font-medium"
+                              className="w-full px-3 py-1.5 text-sm text-left hover:bg-destructive/10 flex items-center gap-2 text-destructive-text font-medium"
                             >
                               <ShieldAlert size={14} />
                               {t('trash.permanentDelete')}
@@ -365,7 +365,7 @@ const MemoryCard = memo<MemoryCardProps>(
                     'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg',
                     'text-sm font-medium transition-all duration-200',
                     'border border-border/50 hover:border-destructive/50',
-                    'text-muted-foreground hover:text-destructive',
+                    'text-muted-foreground hover:text-destructive-text',
                     'hover:bg-destructive/5',
                   )}
                 >

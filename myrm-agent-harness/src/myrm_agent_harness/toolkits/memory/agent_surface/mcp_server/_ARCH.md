@@ -23,5 +23,5 @@ MCP adapter exposing `MemoryManager` to external agents as `memory_recall`, `mem
 
 - `../_memory_agent_tool_descriptions.py` (store/manage descriptions, `surface="mcp"`)
 - `../memory_recall_formatting.py`, `../memory_recall_budget.py`, `../wiki_memory_boundary.py`, `../write_failure_feedback.py`
-- `../../manager.py`, `../../types.py`
+- `../../manager.py`, `../../types/`
 - External libraries: `mcp`, `starlette`

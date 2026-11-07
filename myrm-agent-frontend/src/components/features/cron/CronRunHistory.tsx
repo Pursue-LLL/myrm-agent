@@ -29,17 +29,14 @@ import { AcceptanceCriteriaEditor } from './CronAcceptanceCriteriaEditor';
 import { needsSettingsAuditGate } from '@/lib/cron/cronCreateAuditGate';
 import { DeliveryEditor, FailureDeliveryEditor } from './CronDeliveryEditors';
 import { IncrementalMonitorEditor } from './CronMonitorEditors';
+import { SessionTargetEditor, FailureAlertEditor, ContextFromEditor, PreConditionEditor } from './CronAdvancedEditors';
 import {
   CooldownEditor,
   MaxFiresEditor,
   ExpiresAtEditor,
-  SessionTargetEditor,
-  FailureAlertEditor,
   RunRetentionEditor,
   SkipIfActiveEditor,
-  ContextFromEditor,
-  PreConditionEditor,
-} from './CronAdvancedEditors';
+} from './CronLimitEditors';
 import { CronTimeoutEditor } from './CronTimeoutEditor';
 import { ActiveHoursEditor } from './ActiveHoursEditor';
 import { CapabilityEditor } from './CapabilityEditor';
@@ -227,7 +224,7 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
       {job.job_type === 'agent' && <AllowedRootsEditor job={job} onUpdated={handleEditorUpdated} />}
 
       {job.last_error && (
-        <div className="rounded-full border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <div className="rounded-full border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text">
           {t('lastError')}: {job.last_error}
         </div>
       )}

@@ -18,4 +18,4 @@ Health checking infrastructure layer. Provides abstract interfaces and coordinat
 
 **Used By:**
 - `app/core/infra/health/` — Business-level health checker implementations
-- `app/run.py` — Startup health check integration
+- `app/main.py` — Startup health check integration

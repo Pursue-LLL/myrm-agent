@@ -324,7 +324,7 @@ export const LifecycleWebhookSection = memo(() => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive-text"
                       onClick={() => handleDelete(hook.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -353,7 +353,7 @@ export const LifecycleWebhookSection = memo(() => {
                       'mt-3 rounded-lg border p-2.5 text-xs flex items-center justify-between',
                       pingResult.result.success
                         ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'border-destructive/30 bg-destructive/10 text-destructive',
+                        : 'border-destructive/30 bg-destructive/10 text-destructive-text',
                     )}
                   >
                     <div className="flex items-center gap-2">

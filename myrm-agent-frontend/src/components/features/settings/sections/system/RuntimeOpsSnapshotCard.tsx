@@ -74,7 +74,7 @@ const RuntimeOpsSnapshotCard = memo(() => {
           <p className="text-sm text-muted-foreground">{t('loading')}</p>
         ) : null}
         {error ? (
-          <p className="text-sm text-destructive">{t('unreachable', { error })}</p>
+          <p className="text-sm text-destructive-text">{t('unreachable', { error })}</p>
         ) : null}
         {data ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">

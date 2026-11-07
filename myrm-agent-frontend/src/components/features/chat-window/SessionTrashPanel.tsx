@@ -156,7 +156,7 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
             <button
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                'bg-destructive/10 text-destructive hover:bg-destructive/20',
+                'bg-destructive/10 text-destructive-text hover:bg-destructive/20',
               )}
             >
               {t('emptyAll')} ({total})
@@ -206,7 +206,7 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
                     <button
                       className={cn(
                         'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
-                        'bg-destructive/10 text-destructive hover:bg-destructive/20',
+                        'bg-destructive/10 text-destructive-text hover:bg-destructive/20',
                       )}
                     >
                       {t('permanentDelete')}

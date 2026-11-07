@@ -107,7 +107,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           key={label}
           className={cn(
             'flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-muted transition-colors',
-            danger && 'text-destructive hover:text-destructive',
+            danger && 'text-destructive-text hover:text-destructive-text',
           )}
           onClick={(e) => {
             e.stopPropagation();

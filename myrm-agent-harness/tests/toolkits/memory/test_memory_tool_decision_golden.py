@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
     MEMORY_MANAGE_TOOL_DESCRIPTION_EN,
     MEMORY_MANAGE_TOOL_DESCRIPTION_ZH,
-    MEMORY_SAVE_CORE_EN,
-    MEMORY_SAVE_CORE_ZH,
     build_memory_save_tool_description,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
@@ -221,9 +219,10 @@ class TestMemoryToolDecisionGolden:
         assert "category=preference" in properties["preference_key"]["description"]
         assert "category=rule" in properties["rule_trigger"]["description"]
 
-    def test_save_core_does_not_leak_manage_implementation_details(self) -> None:
+    def test_save_description_does_not_leak_manage_implementation_details(self) -> None:
         forbidden = ("demotes", "low confidence", "correction memory linked")
-        for desc in (MEMORY_SAVE_CORE_EN, MEMORY_SAVE_CORE_ZH):
+        for locale in ("en", "zh"):
+            desc = build_memory_save_tool_description(MemorySearchPolicy(), locale=locale)
             for fragment in forbidden:
                 assert fragment not in desc
 

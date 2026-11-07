@@ -148,8 +148,8 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
         ) : (
           <p className="text-xs text-muted-foreground">{t('lastSyncNever')}</p>
         )}
-        {syncIssue ? <p className="text-xs text-destructive/90">{t('syncIssue', { detail: syncIssue })}</p> : null}
-        {needsDriveReconnect ? <p className="text-xs text-destructive/90">{t('googleDriveReconnectHint')}</p> : null}
+        {syncIssue ? <p className="text-xs text-destructive-text">{t('syncIssue', { detail: syncIssue })}</p> : null}
+        {needsDriveReconnect ? <p className="text-xs text-destructive-text">{t('googleDriveReconnectHint')}</p> : null}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between gap-3">

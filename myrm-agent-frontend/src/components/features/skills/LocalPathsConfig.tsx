@@ -327,7 +327,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
                         variant="ghost"
                         size="icon"
                         className={cn(
-                          'h-8 w-8 transition-opacity text-destructive hover:text-destructive',
+                          'h-8 w-8 transition-opacity text-destructive-text hover:text-destructive-text',
                           REVEAL_ON_HOVER,
                         )}
                         onClick={() => handleRemovePath(path)}

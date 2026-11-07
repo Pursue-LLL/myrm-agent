@@ -220,7 +220,7 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
                         >
                           <span className="truncate flex-1 text-left">{model}</span>
                           {capabilities && <CapabilityIcons capabilities={capabilities} />}
-                          {restricted && <span className="text-xs text-destructive/70 font-medium">×</span>}
+                          {restricted && <span className="text-xs text-destructive-text font-medium">×</span>}
                         </button>
                       );
                     })}

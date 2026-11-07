@@ -1,7 +1,14 @@
-"""scheme/hostname 校验、外泄检测与错误信息脱敏。
+"""[INPUT]
+- myrm_agent_harness.utils.url_syntax::parse_outbound_hostname / parse_outbound_url (POS: Shared by every outbound-URL policy, including the ones that admit private hosts (local mode) and)
+- myrm_agent_harness.utils.url_utils.blocking::_BLOCKED_HOSTNAME_SUFFIXES / _DYNAMIC_BLOCKED_HOSTNAMES / SSRF_BLOCKED_HOSTNAMES (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+
+[OUTPUT]
+- validate_scheme_and_hostname
+- check_url_exfiltration
+- sanitize_url_for_error
 
 [POS]
-url_utils 子包的一部分；由 __init__.py 聚合导出。
+scheme/主机名校验、外泄检测与错误信息脱敏；读取 blocking 的黑名单状态。
 """
 
 from __future__ import annotations

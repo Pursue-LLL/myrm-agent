@@ -156,7 +156,7 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive-text shrink-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       removeBinding(index);

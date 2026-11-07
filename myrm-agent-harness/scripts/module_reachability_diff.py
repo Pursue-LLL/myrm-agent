@@ -6,9 +6,11 @@ merge-base with a reference revision, so it names exactly the units a change orp
 "Now" is the working tree as it lies on disk, untracked files included: the verdict covers committed
 changes only on a clean checkout, which is what CI runs.
 
-There is no baseline file and no allowlist. The comparison tree is rebuilt from git on every run, so a
-unit is "already dead" only because it really was dead at the merge-base. Whatever cannot be established
-(not a git tree, unknown revision, no common ancestor, package missing at the base) raises
+There is no baseline file and no allowlist. The comparison tree is rebuilt from git on every run, from
+every input of the analysis (the package, the downstream trees it counts as consumers, its
+``pyproject.toml``), so a unit is "already dead" only because it really was dead at the merge-base, and a
+consumer the change removes is gone at the head only. Whatever cannot be established (not a git tree,
+unknown revision, no common ancestor, an input missing at the base or outside the git tree) raises
 ``BaseUnavailableError``; callers must fail closed instead of passing silently.
 """
 
@@ -26,9 +28,10 @@ from scripts.module_reachability_engine import Report, Unit
 
 _GIT_TIMEOUT_SECONDS = 120
 
-# Builds the report of one tree: ``(package_root, repository_root)``. The repository root is where files
-# that sit next to the package in that revision (``pyproject.toml``) can be read.
-Analyse = Callable[[Path, Path], Report]
+# Maps a path of the working tree to the same path inside the tree being analysed.
+Locate = Callable[[Path], Path]
+# Builds the report of one tree; every input is read through ``Locate``.
+Analyse = Callable[[Locate], Report]
 
 
 class BaseUnavailableError(RuntimeError):
@@ -53,7 +56,15 @@ def _git(repo: Path, *args: str) -> bytes:
 
 
 def _repository_root(path: Path) -> Path:
-    return Path(_git(path, "rev-parse", "--show-toplevel").decode().strip())
+    directory = path if path.is_dir() else path.parent
+    return Path(_git(directory, "rev-parse", "--show-toplevel").decode().strip())
+
+
+def _repo_relative(repo: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo).as_posix()
+    except ValueError as exc:
+        raise BaseUnavailableError(f"{path} is outside the git tree {repo}") from exc
 
 
 def _merge_base(repo: Path, rev: str) -> str:
@@ -74,28 +85,20 @@ def introduced_dead(head: Report, base: Report) -> tuple[Unit, ...]:
     return tuple(unit for unit in head.dead if unit.key not in already_dead)
 
 
-def diff_against(
-    head: Report,
-    package_root: Path,
-    rev: str,
-    analyse: Analyse,
-    *,
-    sibling_files: Sequence[str] = (),
-) -> DiffResult:
-    """Compare ``head`` with the same package at the merge-base of ``HEAD`` and ``rev``.
+def diff_against(head: Report, inputs: Sequence[Path], rev: str, analyse: Analyse) -> DiffResult:
+    """Compare ``head`` with the analysis of the same ``inputs`` at the merge-base of ``HEAD`` and ``rev``.
 
-    ``sibling_files`` are repository-root files the analysis reads next to the package; they are
-    taken from the base revision as well, so base and head are analysed under the same rules.
+    ``inputs`` are every file and directory the analysis reads. They are extracted from the base revision
+    into a scratch tree that keeps their repository-relative layout, and ``analyse`` reads them through
+    its ``Locate`` argument, so base and head are analysed under the same rules.
     """
-    package_root = package_root.resolve()
-    repo = _repository_root(package_root)
-    relative = package_root.relative_to(repo).as_posix()
+    repo = _repository_root(inputs[0].resolve())
     base = _merge_base(repo, rev)
     with tempfile.TemporaryDirectory(prefix="reachability-base-") as scratch:
         scratch_root = Path(scratch)
-        _extract(repo, base, [relative, *sibling_files], scratch_root)
-        base_report = analyse(scratch_root / relative, scratch_root)
+        _extract(repo, base, [_repo_relative(repo, path) for path in inputs], scratch_root)
+        base_report = analyse(lambda path: scratch_root / _repo_relative(repo, path))
     if not base_report.units:
-        raise BaseUnavailableError(f"no engine units found in {relative} at {base[:10]}")
+        raise BaseUnavailableError(f"no engine units found at {base[:10]}")
     introduced = introduced_dead(head, base_report)
     return DiffResult(base=base, introduced=introduced, preexisting=len(head.dead) - len(introduced))

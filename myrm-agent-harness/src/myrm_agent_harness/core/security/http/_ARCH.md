@@ -32,8 +32,8 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `myrm-agent-server/app/ai_agents/media_tools/image_agent_tool.py`
 - `myrm-agent-server/app/channels/media/image_enrichment.py`
 - `myrm-agent-server/app/channels/providers/feishu/sdk/client.py` (`download_url`)
-- `myrm-agent-server/app/api/integrations/llms.py` (model discovery)
+- `myrm-agent-server/app/api/integrations/llms/` (model discovery)
 - `myrm-agent-server/app/services/kanban/kanban_attach_handler.py`
 
 Browser Playwright navigation uses `toolkits/browser/navigation/ssrf_guard.py` (`async_pin_url`, not httpx).
-`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers, judged in the canonical spelling of each hop URL: `async_pin_url` under the cloud policy (scrapling with validated domain fallback on TLS SAN mismatch, security-equivalent), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers).
+`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers, judged in the canonical spelling of each hop URL: `async_pin_url` under the cloud policy (the HTTP tier requests the resolved address and, when that request fails, the canonical name, which resolves again), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers). The HTTP tier requests every hop, the entry URL included, in the spelling it judged (`FetchTargetGuard.canonical_url`).

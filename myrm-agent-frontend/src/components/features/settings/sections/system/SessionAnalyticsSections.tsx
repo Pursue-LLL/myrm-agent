@@ -1,0 +1,296 @@
+'use client';
+
+/**
+ * [INPUT] @/services/statistics::SessionAnalytics (POS: 会话分析 DTO), ./RoutingAnalyticsPanel::formatCost, formatTokenCount
+ * [OUTPUT] SessionStatCards / TokenEconomicsSection / ResponseSpeedSection / LlmBreakdownSection / ToolBreakdownSection / SecurityAuditSection / EventsTimelineSection: 会话分析对话框正文的各统计区块，数据缺失或为空时不渲染
+ * [POS] SessionAnalyticsDialog 的纯展示区块，只读入同一份 SessionAnalytics，无自身状态与请求。
+ */
+
+import { memo } from 'react';
+import { useTranslations } from 'next-intl';
+import type { SessionAnalytics } from '@/services/statistics';
+import { IconClock, IconChat, IconChart, IconZap, IconShieldAlert } from '@/components/features/icons/PremiumIcons';
+import { formatCost, formatTokenCount } from './RoutingAnalyticsPanel';
+import { cn } from '@/lib/utils/classnameUtils';
+
+interface SessionSectionProps {
+  data: SessionAnalytics;
+}
+
+export function SessionStatCards({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+  const durationSeconds = Math.round(data.duration_ms / 1000);
+  const durationText =
+    durationSeconds >= 60 ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s` : `${durationSeconds}s`;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard icon={IconClock} label={t('duration')} value={durationText} colorClass="bg-blue-500/10 text-blue-500" />
+      <StatCard
+        icon={IconChat}
+        label={t('messages')}
+        value={data.message_count.toString()}
+        subValue={`${data.user_messages}/${data.assistant_messages}`}
+        colorClass="bg-green-500/10 text-green-500"
+      />
+      <StatCard
+        icon={IconChart}
+        label={t('tokens')}
+        value={formatTokenCount(data.totalTokens)}
+        subValue={`${(data.cacheHitRate * 100).toFixed(1)}% ${t('cached')}`}
+        colorClass="bg-purple-500/10 text-purple-500"
+      />
+      <StatCard
+        icon={IconZap}
+        label={t('cost')}
+        value={formatCost(data.costUsd)}
+        colorClass="bg-orange-500/10 text-orange-500"
+      />
+    </div>
+  );
+}
+
+export function TokenEconomicsSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.token_economics && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('performance')}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">{t('tokenTtftAvg')}</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.token_economics.latency.avg_ttft_ms)}
+              </span>
+              <span className="text-xs text-muted-foreground">ms</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">{t('p95')}</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.token_economics.latency.p95_ms)}
+              </span>
+              <span className="text-xs text-muted-foreground">ms</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">{t('tps')}</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.token_economics.latency.avg_tokens_per_second)}
+              </span>
+              <span className="text-xs text-muted-foreground">/s</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">{t('avgLatency')}</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.token_economics.latency.avg_ms)}
+              </span>
+              <span className="text-xs text-muted-foreground">ms</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  );
+}
+
+export function ResponseSpeedSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.streamTtft &&
+    data.streamTtft.sampleCount > 0 && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('responseSpeed')}</h3>
+        <p className="text-xs text-muted-foreground">{t('responseSpeedHint')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <span className="text-xs text-muted-foreground font-medium">{t('ttftAvg')}</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.streamTtft.avgMs)}
+              </span>
+              <span className="text-xs text-muted-foreground">ms</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <span className="text-xs text-muted-foreground font-medium">{t('ttftP95')}</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">
+                {Math.round(data.streamTtft.p95Ms)}
+              </span>
+              <span className="text-xs text-muted-foreground">ms</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+            <span className="text-xs text-muted-foreground font-medium">{t('samples')}</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold tabular-nums text-foreground">{data.streamTtft.sampleCount}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  );
+}
+
+export function LlmBreakdownSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.llm_breakdown &&
+    data.llm_breakdown.length > 0 && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('llmBreakdown')}</h3>
+        <div className="space-y-2">
+          {data.llm_breakdown.map((llm, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
+            >
+              <span className="text-sm font-medium text-foreground">{llm.model_name}</span>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>
+                  {llm.call_count} {t('calls')}
+                </span>
+                <span>
+                  {Math.round(llm.total_duration_ms)}ms {t('total')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  );
+}
+
+export function ToolBreakdownSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.tool_breakdown &&
+    data.tool_breakdown.length > 0 && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('toolBreakdown')}</h3>
+        <div className="space-y-2">
+          {data.tool_breakdown.map((tool, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
+            >
+              <span className="text-sm font-medium text-foreground">{tool.tool_name}</span>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>
+                  {tool.call_count} {t('calls')}
+                </span>
+                <span>
+                  {Math.round(tool.total_duration_ms)}ms {t('total')}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  );
+}
+
+export function SecurityAuditSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.security_audit &&
+    data.security_audit.total > 0 && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+          <IconShieldAlert className="h-4 w-4 text-amber-500" />
+          {t('securityAudit')}
+        </h3>
+        <div className="space-y-2">
+          {Object.entries(data.security_audit.breakdown).map(([kind, count]) => (
+            <div
+              key={kind}
+              className="flex items-center justify-between p-3 bg-background/60 border border-border/40 rounded-lg"
+            >
+              <span
+                className={cn(
+                  'text-sm font-medium',
+                  kind.includes('BLOCKED') || kind.includes('DENY')
+                    ? 'text-destructive-text'
+                    : kind.includes('WARN') || kind.includes('DETECTED')
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-foreground',
+                )}
+              >
+                {kind}
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  );
+}
+
+export function EventsTimelineSection({ data }: SessionSectionProps) {
+  const t = useTranslations('settings.sessionAnalytics');
+
+  return (
+    data.events_timeline &&
+    data.events_timeline.length > 0 && (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{t('eventsTimeline')}</h3>
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {data.events_timeline.slice(0, 50).map((event, idx) => (
+            <div key={idx} className="flex items-start gap-3 p-2 text-xs hover:bg-muted/50 rounded transition-colors">
+              <span className="text-muted-foreground font-mono shrink-0">
+                {new Date(event.timestamp * 1000).toLocaleTimeString()}
+              </span>
+              <span className="font-medium text-foreground">{event.type}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  );
+}
+
+interface StatCardProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  subValue?: string;
+  colorClass: string;
+}
+
+const StatCard = memo<StatCardProps>(({ icon: Icon, label, value, subValue, colorClass }) => (
+  <div className="flex flex-col gap-2 p-4 rounded-xl bg-background/60 border border-border/40">
+    <div className="flex items-center gap-2">
+      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', colorClass)}>
+        <Icon className="w-4 h-4 text-inherit" />
+      </div>
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+    </div>
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-xl font-bold tabular-nums text-foreground">{value}</span>
+      {subValue && <span className="text-xs text-muted-foreground">{subValue}</span>}
+    </div>
+  </div>
+));
+StatCard.displayName = 'StatCard';

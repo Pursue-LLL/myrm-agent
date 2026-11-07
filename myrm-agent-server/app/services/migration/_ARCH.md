@@ -36,7 +36,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `source/`（子包） | 核心 | 迁移源处理子域：发现、SSOT 清单、探针、payload 加载与拆分、迁移 DTO、凭证导入、模型迁移。9 个 `source_*` 模块聚合于此，`source/__init__.py` 为聚合门面统一 re-export | ✅ |
-| `hermes/`（子包） | 核心 | Hermes 迁移子域：cron 迁移（jobs.json → Myrm CronJob 映射 + dry-run plan + confirm 写入 CronManager 默认 paused + batch rollback）与 MoA 迁移（`moa.presets` → 目标 Agent `moa_overlay`）。3 个 `hermes_*` 模块聚合于此，`hermes/__init__.py` 为聚合门面统一 re-export | ✅ |
+| `hermes/`（子包） | 核心 | Hermes 迁移子域：cron 迁移（jobs.json → Myrm CronJob 映射 + dry-run plan + confirm 写入 CronManager 默认 paused + batch rollback）。MoA 预设**不迁移**（Hermes 与 Myrm 的 preset 语义不能完全兼容），仅在导入 readiness 中提示用户到智能体设置手动开启。2 个 `hermes_*` 模块聚合于此，`hermes/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
 | `_loaders_claude.py` | 核心 | Claude Code 车道：CLAUDE.md/CLAUDE.local.md 规则、`projects/*/memory` 自动记忆（索引仅作兜底）、settings/MCP 配置、skills 与 transcripts | ✅ |

@@ -260,7 +260,7 @@ export function AgentSetupWizard({
             {step === 'readiness' && (
               <>
                 {isBlocked && (
-                  <p className="text-xs text-destructive self-center mr-auto">
+                  <p className="text-xs text-destructive-text self-center mr-auto">
                     {t('readiness.blockedHint', {
                       fallback: 'Resolve blocked items first, or adjust the configuration.',
                     })}

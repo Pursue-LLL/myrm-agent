@@ -21045,6 +21045,9 @@
         "server_side_break": "Server-side Cache Miss"
       },
       "activityTitle": "Activity Patterns",
+      "timeRange7Days": "7 Days",
+      "timeRange30Days": "30 Days",
+      "timeRangeAll": "All",
       "activeDays": "Active Days",
       "maxStreak": "Max Streak",
       "busiestDay": "Busiest Day",

@@ -86,7 +86,7 @@ export default function KanbanTaskCardDetails({ details, progressPill }: KanbanT
                     </div>
                     <button
                       onClick={() => handleRemoveDep(parent.task_id)}
-                      className="text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0 opacity-0 group-hover/dep:opacity-100 group-focus-within/dep:opacity-100 pointer-coarse:opacity-100"
+                      className="text-[9px] text-destructive-text/60 hover:text-destructive-text transition-opacity shrink-0 opacity-0 group-hover/dep:opacity-100 group-focus-within/dep:opacity-100 pointer-coarse:opacity-100"
                       title={t('removeDep')}
                     >
                       &times;
@@ -181,7 +181,7 @@ export default function KanbanTaskCardDetails({ details, progressPill }: KanbanT
                       {run.worker_id.slice(0, 12)}
                     </span>
                     {run.error && (
-                      <span className="text-destructive truncate max-w-[100px]" title={run.error}>
+                      <span className="text-destructive-text truncate max-w-[100px]" title={run.error}>
                         {run.error.slice(0, 40)}
                       </span>
                     )}
@@ -234,7 +234,7 @@ export default function KanbanTaskCardDetails({ details, progressPill }: KanbanT
                       </p>
                     )}
                     {ev.kind === 'merge_conflict' && ev.payload && (
-                      <p className="ml-[52px] text-[10px] text-destructive/80 mt-0.5">
+                      <p className="ml-[52px] text-[10px] text-destructive-text mt-0.5">
                         {t('mergeConflictDetail', {
                           branch: String(ev.payload.branch || 'unknown'),
                         })}

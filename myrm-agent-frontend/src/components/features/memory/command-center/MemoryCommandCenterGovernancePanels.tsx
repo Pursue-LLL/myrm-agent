@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::MemoryCommandCenterResponse (POS: Frontend Personal Brain Command Center client)
- * ./MemoryCommandCenterDoctorPanel::DoctorExecutableAction (POS: 个人大脑指挥中心 Memory Doctor 面板)
+ * ./memoryDoctorModel::DoctorExecutableAction (POS: Memory Doctor 面板可派发的医生动作)
  * ./memoryCommandCenterFormat::translateRecordStatus (POS: 个人大脑指挥中心面板共用的枚举守卫与文案格式化)
  *
  * [OUTPUT]
@@ -21,7 +21,7 @@ import type {
   MemoryCommandCenterResponse,
   MemoryCommandGovernanceItem,
 } from '@/services/memory/commandCenter';
-import type { DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
+import type { DoctorExecutableAction } from './memoryDoctorModel';
 import {
   isCoverageStatus,
   translateMemoryType,
@@ -180,7 +180,7 @@ export const MigrationPanel = ({
                 type="button"
                 onClick={() => onRollbackImport(importBatchId)}
                 disabled={rollbackBusy}
-                className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+                className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs font-medium text-destructive-text transition-colors hover:bg-destructive/10 disabled:opacity-60"
               >
                 {rollbackBusy ? t('commandCenter.rollingBackImport') : t('commandCenter.rollbackImport')}
               </button>

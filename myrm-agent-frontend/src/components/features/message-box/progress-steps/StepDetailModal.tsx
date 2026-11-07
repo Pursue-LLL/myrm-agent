@@ -124,7 +124,7 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
               <span
                 className={cn(
                   'text-xs font-medium flex items-center gap-1.5',
-                  isWarning ? WARNING_NOTICE.text : 'text-destructive',
+                  isWarning ? WARNING_NOTICE.text : 'text-destructive-text',
                 )}
               >
                 <AlertCircle className="w-3.5 h-3.5" />
@@ -135,7 +135,7 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
                   'p-3 rounded-lg border text-xs leading-relaxed whitespace-pre-wrap',
                   isWarning
                     ? cn(WARNING_NOTICE.box, WARNING_NOTICE.text)
-                    : 'bg-destructive/10 border-destructive/20 text-destructive',
+                    : 'bg-destructive/10 border-destructive/20 text-destructive-text',
                 )}
               >
                 {step.error_hint || String(step.error)}

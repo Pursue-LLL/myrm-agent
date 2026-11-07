@@ -3,7 +3,7 @@
 # The citation ends the line: `(file:line)` or `(file:first-last)`, relative to the open-source repository or, for the other
 # repositories, to the directory holding them. The cited lines must spell the route's last static segment as a whole word;
 # a caller that does not spell the path (an HTML form posting to its own URL) adds the text it shows as `(file:line `anchor`)`.
-GET /memory/head | documented read-only probe for external clients and plugins (myrm-agent-brand/myrm-docs/docs/getting-started/competitor-comparison.mdx:1979)
+GET /memory/head | read-only sequence probe; exercised by the route contract test (myrm-agent-server/tests/api/memory/test_memory_head_probe_api.py:1)
 GET /memory/search | documented memory search API (myrm-agent-brand/myrm-docs/docs/api-reference/memory.mdx:48)
 POST /system/drain | control plane sandbox recycler drains in-flight turns before recycling (myrm-control-plane/src/myrm_control_plane/orchestration/sandbox_recycler/actions.py:120-128)
 POST /system/shutdown | desktop shell stops the bundled backend (myrm-agent-desktop/src-tauri/src/runtime/python_backend_stop.rs:41)
@@ -24,4 +24,4 @@ GET /wiki/clip/{job_id} | browser extension polls the clip job (myrm-agent-exten
 POST /cron/trigger/event | documented external webhook trigger (myrm-agent-brand/myrm-docs/docs/api-reference/webhooks.mdx:26)
 POST /cron/trigger/system-event | documented external webhook trigger (myrm-agent-brand/myrm-docs/docs/api-reference/webhooks.mdx:34)
 POST /cron/{job_id}/verify-integrity | documented audit-chain verification API (myrm-agent-brand/myrm-docs/docs/guides/scheduled-tasks.mdx:263)
-POST /browser/domain-skills/distill | documented skill distillation API (myrm-agent-brand/myrm-docs/docs/guides/browser-automation.mdx:651)
+POST /browser/domain-skills/distill | documented skill distillation API (myrm-agent-brand/myrm-docs/docs/guides/browser-automation.mdx:639)

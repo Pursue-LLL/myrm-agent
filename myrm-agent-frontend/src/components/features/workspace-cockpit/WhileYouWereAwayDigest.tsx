@@ -143,7 +143,7 @@ export const WhileYouWereAwayDigest: React.FC<WhileYouWereAwayDigestProps> = ({
           className={cn(
             'flex flex-col p-2.5 rounded-lg border transition-all',
             summary.failedTasksCount > 0
-              ? 'border-destructive/40 bg-destructive/10 text-destructive'
+              ? 'border-destructive/40 bg-destructive/10 text-destructive-text'
               : 'border-border/40 bg-muted/20 text-muted-foreground',
           )}
         >
@@ -174,7 +174,7 @@ export const WhileYouWereAwayDigest: React.FC<WhileYouWereAwayDigestProps> = ({
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {h.type === 'decision' && <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />}
-                  {h.type === 'failure' && <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-destructive" />}
+                  {h.type === 'failure' && <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-destructive-text" />}
                   {h.type === 'success' && <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-500" />}
                   <span className="truncate text-foreground font-medium">{h.title}</span>
                 </div>

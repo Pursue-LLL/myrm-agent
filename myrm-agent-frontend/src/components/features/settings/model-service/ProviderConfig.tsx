@@ -363,7 +363,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
           <div
             className={cn(
               'flex items-start gap-1.5 text-xs',
-              reachabilityResult.reachable ? 'text-green-600' : 'text-destructive',
+              reachabilityResult.reachable ? 'text-green-600' : 'text-destructive-text',
             )}
           >
             {reachabilityResult.reachable ? (

@@ -55,7 +55,7 @@ const SEVERITY_CONFIG: Record<
   critical: {
     icon: AlertCircle,
     badgeBg: 'bg-destructive/10',
-    badgeText: 'text-destructive',
+    badgeText: 'text-destructive-text',
     border: 'border-destructive/30',
     labelKey: 'reviewSeverityCritical',
   },
@@ -142,7 +142,7 @@ export function ReviewCommentThread({ results, t, onInitiateFix, className }: Re
                 <span
                   className={cn(
                     'text-[10px] shrink-0 font-medium',
-                    item.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive',
+                    item.passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive-text',
                   )}
                 >
                   {item.passed ? t('acceptancePassed') : t('acceptanceFailed')}
@@ -187,8 +187,8 @@ export function ReviewCommentThread({ results, t, onInitiateFix, className }: Re
                   className={cn(
                     'text-[9px] px-1.5 py-0.5 rounded-full border transition-colors',
                     selectedSeverity === 'critical'
-                      ? 'bg-destructive/15 text-destructive font-semibold border-destructive/40'
-                      : 'text-destructive/80 border-transparent hover:bg-destructive/10',
+                      ? 'bg-destructive/15 text-destructive-text font-semibold border-destructive/40'
+                      : 'text-destructive-text border-transparent hover:bg-destructive/10',
                   )}
                 >
                   {t('reviewSeverityCritical')} ({criticalTotal})

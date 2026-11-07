@@ -51,7 +51,7 @@ export function ProbeDiagnostics({
     <>
       {failed && probeError && (
         <div className="bg-destructive/10 border-destructive/20 rounded-md border p-3">
-          <p className="text-destructive text-sm">{probeError}</p>
+          <p className="text-destructive-text text-sm">{probeError}</p>
         </div>
       )}
       {failed && probeRecommendedMode && recommendedMessage && (

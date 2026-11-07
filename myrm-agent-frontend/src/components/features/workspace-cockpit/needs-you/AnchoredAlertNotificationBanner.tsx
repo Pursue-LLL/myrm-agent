@@ -42,7 +42,7 @@ export const AnchoredAlertNotificationBanner: React.FC<AnchoredAlertNotification
         <div
           className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
             summary.urgentCount > 0
-              ? 'bg-red-500/15 text-destructive animate-pulse'
+              ? 'bg-red-500/15 text-destructive-text animate-pulse'
               : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
           }`}
         >
@@ -58,7 +58,7 @@ export const AnchoredAlertNotificationBanner: React.FC<AnchoredAlertNotification
         </span>
 
         {summary.urgentCount > 0 && (
-          <span className="px-1.5 py-0.2 rounded-full bg-red-500/15 text-destructive font-mono text-[10px] font-semibold">
+          <span className="px-1.5 py-0.2 rounded-full bg-red-500/15 text-destructive-text font-mono text-[10px] font-semibold">
             {summary.urgentCount} 紧急
           </span>
         )}

@@ -77,71 +77,61 @@ async def test_mcp_config_writer_skips_existing_and_unnamed_servers() -> None:
 
 
 @pytest.mark.asyncio
-async def test_moa_overlay_prefers_the_migrated_agent_then_the_payload() -> None:
-    agent = SimpleNamespace(engine_params={"moa": {"models": ["a"]}})
-    with (
-        patch(
-            "app.services.agent.agent_service.AgentService.get_agent_by_id",
-            AsyncMock(return_value=agent),
-        ),
-        patch(
-            "app.services.migration.hermes.hermes_moa_migrator.agent_has_moa_overlay_refs",
-            return_value=True,
-        ),
+async def test_moa_overlay_resolution_prefers_the_migrated_agent_then_the_source_payload() -> None:
+    agent = SimpleNamespace(
+        engine_params={
+            "moa_overlay": {
+                "reference_model_selections": [{"providerId": "openai", "model": "gpt-5.2"}],
+            }
+        }
+    )
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        AsyncMock(return_value=agent),
     ):
         assert await _resolve_post_import_moa_overlay_configured("agent-1", {}) is True
 
-    with patch(
-        "app.services.migration.hermes.hermes_moa_migrator.build_moa_overlay_from_hermes_config",
-        return_value=object(),
-    ):
-        assert await _resolve_post_import_moa_overlay_configured(None, {"hermes_moa": {"models": ["a"]}}) is False
-
-    with patch(
-        "app.services.migration.hermes.hermes_moa_migrator.build_moa_overlay_from_hermes_config",
-        return_value=None,
-    ):
-        assert await _resolve_post_import_moa_overlay_configured(None, {"hermes_moa": {"models": []}}) is True
+    assert (
+        await _resolve_post_import_moa_overlay_configured(
+            None,
+            {"hermes_moa": {"reference_models": [{"provider": "openai", "model": "gpt-5.2"}]}},
+        )
+        is False
+    )
+    assert await _resolve_post_import_moa_overlay_configured(None, {"hermes_moa": {}}) is True
 
 
 @pytest.mark.asyncio
-async def test_model_migration_applies_every_lane_and_swallows_failures() -> None:
+async def test_model_migration_applies_the_remaining_lanes_and_swallows_failures() -> None:
     auxiliary = AsyncMock(return_value=SimpleNamespace(migrated_slots=["aux"]))
-    moa = AsyncMock(return_value=SimpleNamespace(configured=True, reference_count=2, preset_name="preset"))
     openclaw = AsyncMock(return_value="openai/gpt")
 
     with (
         patch("app.services.migration.source.source_model_migrator.migrate_hermes_auxiliary_models", auxiliary),
-        patch("app.services.migration.hermes.hermes_moa_migrator.migrate_hermes_moa_overlay", moa),
         patch("app.services.migration.source.source_model_migrator.migrate_openclaw_default_model", openclaw),
     ):
         await _apply_model_migration(
             {
                 "hermes_auxiliary": {"x": "y"},
-                "hermes_moa": {"models": ["a"]},
                 "openclaw_agents_defaults": {"model": "openai/gpt"},
             },
             target_agent_id="agent-1",
         )
 
     auxiliary.assert_awaited_once()
-    moa.assert_awaited_once()
     openclaw.assert_awaited_once()
 
     failing = AsyncMock(side_effect=RuntimeError("provider down"))
-    failing_moa = AsyncMock(side_effect=RuntimeError("overlay rejected"))
     with (
         patch("app.services.migration.source.source_model_migrator.migrate_hermes_auxiliary_models", failing),
         patch("app.services.migration.source.source_model_migrator.migrate_openclaw_default_model", failing),
-        patch("app.services.migration.hermes.hermes_moa_migrator.migrate_hermes_moa_overlay", failing_moa),
     ):
         await _apply_model_migration(
             {
                 "hermes_auxiliary": {"x": "y"},
-                "hermes_moa": {"models": ["a"]},
                 "openclaw_agents_defaults": {"model": "x"},
             },
             target_agent_id="agent-1",
         )
 
-    failing_moa.assert_awaited_once()
+    assert failing.await_count == 2

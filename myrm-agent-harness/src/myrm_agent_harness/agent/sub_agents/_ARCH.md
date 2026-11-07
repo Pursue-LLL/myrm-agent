@@ -101,7 +101,6 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | cross_surface_bridge/ | 跨界面智能体活动对话汇入桥引擎（对标 Hermes3D office-conversation-bridge，支持 Tauri 桌面端、CLI 终端、Cron 计划任务与远端只读办公室克隆活动的轻量汇入与有界最近投影，避免全量 transcript 冗余同步）。 |
 | multi_lane/ | Pi Harness v2 会话内多 Lane 并行执行与共享追加树引擎（对标 pi harness-v2.md §2/§3/§8，同会话支持多 Lane 并行执行如 Slack Channel 下多 Thread，共享 append-only tree，每 Lane 独立维护 leaf 与 op log，严格保证单 Lane 最多 1 个 open operation，单写入协调器保障线程安全与无损并发）。 |
 | session_fork/ | Pi Harness v2 确定性子会话派生与安全重放重接原语（对标 pi harness-v2.md §17，基于 f(parentSessionId, toolCallId) 纯确定性派生 childSessionId，崩溃/重放 Safe Replay 时自动 reattach 现有 child 杜绝 twin 孪生子会话污染；支持 repo.fork(scope=branch|tree) 仅复制历史节点且保持新子会话初始 IDLE 纯净状态）。 |
-| token_budget_governance/ | 单模型多 Agent 共享上下文 Token 预算治理与路由开销可视化引擎（对标 BkashJosi 与 RepoAvcisi 多 Agent 路由实践，提供共享模型配额管控、扇出前预检 fail-closed 拦截、Routing Overhead 与 Execution Payload 精准归因核算、以及重复 handoff 烧 Token 的 Doctor Nudge 智能预警防线）。 |
 | pipeline_integrity/ | 开源可 inspect 工作流 · Handoff/Approval/Delivery 断点 Lint 与 Doctor 告警诊断包（对标 simplydt 与 BkashJosi 多 Agent 流水线断点治理，提供交接元数据缺失、无审批门禁直通 Delivery、交付产物缺失与无验证步骤四大断点规则 Lint 审计、可审查决策链提取与一键 Auto-Heal 自动补全自愈）。 |
 | specialist_summoning/ | 对话流自然语言/@召唤子专家协同与上下文结构化汇聚包（垂直专家随时唤醒协同，支持输入框 @ 显式召唤与自然语言意图感知、轻量独立沙箱子会话执行避免主会长上下文污染、以及结构化产物工件卡回流主对话流）。 |
 | swarm_mesh/ | SwarmForge 动态 Agent 集群拓扑编排器与多智能体网格通信拓扑（支持声明式 Star/Hierarchical Tree/Peer Mesh/Pipeline/Ring 五大拓扑编排、平滑无损运行时拓扑切换、弹性扩缩容、单节点带状态热迁移、P2P 单播/组播/广播消息总线、以及共享黑板乐观版本自增治理）。 |

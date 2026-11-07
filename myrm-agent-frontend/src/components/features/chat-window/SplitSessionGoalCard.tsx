@@ -417,7 +417,7 @@ export const SplitSessionGoalCard: React.FC<SplitSessionGoalCardProps> = ({
               data-testid="abandon-goal-button"
               disabled={isSubmitting || isLoading}
               onClick={handleAbandon}
-              className="text-muted-foreground hover:text-destructive text-[11px] flex items-center gap-1 transition-colors"
+              className="text-muted-foreground hover:text-destructive-text text-[11px] flex items-center gap-1 transition-colors"
             >
               <Ban className="w-3.5 h-3.5" />
               终止流转

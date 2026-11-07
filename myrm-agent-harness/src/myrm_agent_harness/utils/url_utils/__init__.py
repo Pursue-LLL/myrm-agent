@@ -1,10 +1,28 @@
-"""URL 工具门面。
+"""[INPUT]
+- myrm_agent_harness.utils.url_utils.blocking::SSRF_BLOCKED_HOSTNAMES / clear_dynamic_blocked_hostnames / is_blocked_ip / register_blocked_hostnames / unregister_blocked_hostnames (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.utils.url_utils.dns::build_host_resolver_rules / create_dns_pin_map (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.utils.url_utils.parsing::extract_domain / is_file_url / is_image_url / is_valid_image_url / normalize_url (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.utils.url_utils.security::check_url_exfiltration / sanitize_url_for_error / validate_scheme_and_hostname (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
-URL 规范化/判断、SSRF 黑名单、scheme 校验、外泄检测、错误脱敏与 DNS pin 规则。
+- SSRF_BLOCKED_HOSTNAMES
+- clear_dynamic_blocked_hostnames
+- is_blocked_ip
+- register_blocked_hostnames
+- unregister_blocked_hostnames
+- build_host_resolver_rules
+- create_dns_pin_map
+- extract_domain
+- is_file_url
+- is_image_url
+- is_valid_image_url
+- normalize_url
+- check_url_exfiltration
+- sanitize_url_for_error
+- validate_scheme_and_hostname
 
 [POS]
-`myrm_agent_harness.utils.url_utils` 的唯一入口；实现按解析/拦截/安全/DNS 拆分。
+`myrm_agent_harness.utils.url_utils` 的唯一门面；解析、黑名单、安全校验与 DNS 钉扎按职责分层。
 """
 
 from myrm_agent_harness.utils.url_utils.blocking import (

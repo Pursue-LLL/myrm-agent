@@ -23,13 +23,13 @@ type HealthTone = 'ready' | 'warning' | 'error';
 const toneClasses: Record<HealthTone, string> = {
   ready: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   warning: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  error: 'border-destructive/30 bg-destructive/10 text-destructive',
+  error: 'border-destructive/30 bg-destructive/10 text-destructive-text',
 };
 
 const iconClasses: Record<HealthTone, string> = {
   ready: 'text-emerald-600 dark:text-emerald-300',
   warning: 'text-amber-600 dark:text-amber-300',
-  error: 'text-destructive',
+  error: 'text-destructive-text',
 };
 
 const getTone = (health: SharedContextMemoryHealthResponse): HealthTone => {

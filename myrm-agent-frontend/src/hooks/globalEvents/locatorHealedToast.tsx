@@ -26,7 +26,7 @@ export function showLocatorHealedToast(data: Record<string, unknown>, { t }: Loc
           <span className="text-[10px] bg-background px-1.5 py-0.5 rounded border">Δ {distance}px</span>
         </div>
         <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-          <span className="text-destructive/80 line-through truncate max-w-[120px]" title={oldName}>
+          <span className="text-destructive-text line-through truncate max-w-[120px]" title={oldName}>
             {oldName}
           </span>
           <span className="text-emerald-600 dark:text-emerald-400 truncate font-medium max-w-[120px]" title={newName}>

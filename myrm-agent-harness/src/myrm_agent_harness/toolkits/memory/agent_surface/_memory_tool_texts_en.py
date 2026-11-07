@@ -5,6 +5,7 @@
 
 [OUTPUT]
 - MEMORY_SAVE_CORE_EN: memory_save_tool description core (English)
+- MEMORY_SAVE_WRITE_TARGET_EN: the write-target block of the save description, offered only under a shared-write policy
 - MEMORY_MANAGE_TOOL_DESCRIPTION_EN: memory_manage_tool description (English)
 
 [POS]
@@ -35,9 +36,10 @@ MEMORY_SAVE_CORE_EN = """Store a new memory for the user. Memory persists across
 - rule: conditional behavioral rules with a specific condition (requires rule_trigger, e.g., "when writing code"; optional rule_priority)
 - instruction: unconditional global rules that always apply (e.g., "always reply in Chinese") — do not set rule_trigger
 
-**IMPORTANCE** (0–1, primarily for knowledge): 0.8–1.0 the user explicitly asked to remember it, or corrected your behavior; 0.5–0.7 an inferred stable preference or environment fact; 0.2–0.4 supplementary context.
+**IMPORTANCE** (0–1, primarily for knowledge): 0.8–1.0 the user explicitly asked to remember it, or corrected your behavior; 0.5–0.7 an inferred stable preference or environment fact; 0.2–0.4 supplementary context."""
 
-**WRITE TARGET**:
+# Appended to the save description only while the write policy allows shared writes.
+MEMORY_SAVE_WRITE_TARGET_EN = """**WRITE TARGET**:
 - "bound" (default): visible only to the current agent persona
 - "shared": cross-agent knowledge (user's name, timezone) — use sparingly"""
 

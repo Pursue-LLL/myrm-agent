@@ -25,7 +25,7 @@ export function KanbanTaskBlockedNotice({ task, t }: KanbanTaskBlockedNoticeProp
   }
 
   return (
-    <div className="text-xs text-destructive bg-destructive/5 rounded px-2 py-1 mt-1 space-y-0.5">
+    <div className="text-xs text-destructive-text bg-destructive/5 rounded px-2 py-1 mt-1 space-y-0.5">
       <p className="flex items-center gap-1">
         {task.block_kind === 'scheduled' && <Clock className="w-3.5 h-3.5 shrink-0" />}
         {task.block_kind === 'external' && <ExternalLink className="w-3.5 h-3.5 shrink-0" />}

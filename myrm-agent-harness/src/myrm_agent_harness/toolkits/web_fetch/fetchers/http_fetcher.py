@@ -8,7 +8,7 @@
 - toolkits.browser.pool.proxy::ProxyPool (POS: Proxy rotation pool for FetchEngine)
 
 [OUTPUT]
-- HttpFetcher: L1 tier fetcher with HTTP/2 default and HTTP/3 retry on antibot/403/empty failure (not 429; skipped when proxy pool active); a hop rejected by the SSRF policy raises SSRFSecurityError instead of degrading to the next tier
+- HttpFetcher: L1 tier fetcher with HTTP/2 default and HTTP/3 retry on antibot/403/empty failure (not 429; skipped when proxy pool active); every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy rejects raises SSRFSecurityError instead of degrading to the next tier
 
 [POS]
 L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults; retries once with QUIC when enabled.
@@ -41,6 +41,8 @@ from .protocols import FetcherType, FetchResult
 from .target_guard import FetchTargetGuard
 
 if TYPE_CHECKING:
+    from scrapling.engines._browsers._types import GetRequestParams  # type: ignore[import-untyped, unused-ignore]
+
     from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
     from myrm_agent_harness.toolkits.browser.session_vault import SessionVault
 
@@ -238,7 +240,7 @@ class HttpFetcher:
         allowed_hosts: list[str],
         use_http3: bool,
     ) -> FetchResult | None:
-        from scrapling.fetchers import AsyncFetcher  # type: ignore[import-untyped]
+        from scrapling.fetchers import AsyncFetcher  # type: ignore[import-untyped, unused-ignore]
 
         current_url = url
         redirect_count = 0
@@ -258,7 +260,9 @@ class HttpFetcher:
 
             if guard is not None:
                 # A rejected hop raises SSRFSecurityError: returning None would let the browser tiers
-                # fetch the same URL.
+                # fetch the same URL. The hop is judged and dialed in its canonical spelling, because
+                # libcurl may read another spelling as a different host than the one the policy classified.
+                current_url = guard.canonical_url(current_url)
                 request_url, host_header = await guard.pin(current_url)
                 request_headers.pop("Host", None)  # the previous hop's pinned Host must not leak onto this hop
                 request_headers.update(host_header)
@@ -312,8 +316,8 @@ class HttpFetcher:
         cookie_jar: http.cookiejar.CookieJar | None,
         *,
         use_http3: bool,
-    ) -> dict[str, object]:
-        kwargs: dict[str, object] = {
+    ) -> GetRequestParams:
+        kwargs: GetRequestParams = {
             "timeout": self._timeout,
             "follow_redirects": False,
             "retries": 1,

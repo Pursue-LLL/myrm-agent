@@ -93,7 +93,7 @@ export function DependenciesSection({
                 <button
                   onClick={() => handleRemoveDep(parent.task_id)}
                   className={cn(
-                    'text-[9px] text-destructive/50 hover:text-destructive transition-opacity shrink-0',
+                    'text-[9px] text-destructive-text/60 hover:text-destructive-text transition-opacity shrink-0',
                     REVEAL_ON_HOVER,
                   )}
                 >

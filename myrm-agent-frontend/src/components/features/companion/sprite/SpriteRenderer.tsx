@@ -152,11 +152,11 @@ export default function SpriteRenderer({
         >
           {loadState === 'error' && (
             <div className="flex flex-col items-center gap-0.5 px-1">
-              <span className="text-xs text-destructive">!</span>
+              <span className="text-xs text-destructive-text">!</span>
               {onHealthCheckRequest && (
                 <button
                   type="button"
-                  className="text-[9px] text-destructive underline-offset-2 hover:underline"
+                  className="text-[9px] text-destructive-text underline-offset-2 hover:underline"
                   onClick={(event) => {
                     event.stopPropagation();
                     onHealthCheckRequest();

@@ -142,7 +142,9 @@
 
 | 文件                             | 职责                                                                                                                                   |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
+| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）：持有数据加载、时间范围与 Top 会话指标状态，组装各区块；加载失败显示可重试的错误态     |
+| `UsageOverviewPanels.tsx`        | 总览区块：`UsageOverviewCards`（总览 / 次级统计卡 + 全局 Prompt Cache 雷达，仅在有追踪会话时显示）与 `UsageWikiEvidenceSection`（Wiki 证据治理卡片：deep verification / requery / dwell / dropped telemetry / negative outcome rate） |
+| `UsageActivityPanels.tsx`        | 活跃度区块：`UsageActivitySection`（7 / 30 天 / 全部时间范围切换，标签取自 `settings.usageStatistics.timeRange*`；无活跃数据时只显示空态）与 `UsageTopSessionsSection`（Top 会话榜与指标切换） |
 | `UsageStatisticsCharts.tsx`      | 用量图表 barrel 导出                                                                                                                   |
 | `UsageStatCard.tsx`              | 统计卡片                                                                                                                               |
 | `UsageCacheBreakTimeline.tsx`    | 缓存击穿时间线                                                                                                                         |
@@ -152,6 +154,7 @@
 | `UsagePrivacyRoutePanel.tsx`     | 隐私路由 local/cloud 占比                                                                                                              |
 | `UsageModelBreakdown.tsx`        | 模型用量明细                                                                                                                           |
 | `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
+| `__tests__/UsageStatisticsSection.test.tsx` | 用量统计面板单测：默认 30 天窗口的全量加载、雷达 / Wiki 证据的显示条件（Wiki 加载失败只隐藏该区块）、时间范围与 Top 会话指标切换后的重新加载参数、空态、CSV 导出、会话分析对话框开合、加载失败的错误态（文字色走 `text-destructive-text`）与重试 |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
 | `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
@@ -165,7 +168,10 @@
 | `ExecutionTraceTimeline.tsx`           | 执行 Trace 时间轴（LLM/Tool 调用链、Replay 入口）；`showEvalCase` prop 控制「保存为评测用例」按钮（kanban 任务无 Chat 记录，RunsHub/看板 Drawer 复用传 `false`）；`pollMs` prop 在任务运行中轮询刷新 trace（展开时实时看到执行过程）；ToolCallItem 渲染 `security_labels`（tainted/deny 徽标 + 展开明细） |
 | `TraceLLMCallItem.tsx` | 时间轴中的单次 LLM 调用卡片（模型、Token、TTFT/生成耗时条、Model Viewport 展开）；文案取自 `settings.sessionAnalytics.trace.llm*`，`__tests__/TraceLLMCallItem.test.tsx` 覆盖标签与重试徽标 |
 | `TraceGanttWaterfall.tsx` | Trace 的 span 甘特瀑布图：按起止时间排布 LLM / 工具 span，显示缓存命中率与缓存 Token，点选 span 查看耗时、TTFT、重试次数与错误；隐私模式把 span 名称遮成 LLM / Tool；文案取自 `settings.sessionAnalytics.trace`（`__tests__/TraceGanttWaterfall.test.tsx`） |
-| `SessionAnalyticsDialog.tsx`           | 会话分析对话框（嵌入 ExecutionTraceTimeline + 上下文健康）                                                                                                                                                                                                                                                |
+| `SessionAnalyticsDialog.tsx`           | 会话分析对话框（加载与错误态、头部复制 / 下载动作、正文组装；嵌入 ExecutionTraceTimeline + 上下文健康）                                                                                                                                                                                                                                                |
+| `SessionAnalyticsSections.tsx`         | 对话框正文的纯展示区块（统计卡、Token 经济、响应速度、LLM / 工具明细、安全审计、事件时间线），读入同一份 `SessionAnalytics`，数据缺失时不渲染 |
+| `sessionAuditExport.ts`                | 审计账本导出：Markdown / CSV 文本生成，剪贴板写入（异步 API 失败回退 execCommand）与 CSV 下载 |
+| `__tests__/sessionAuditExport.test.ts` | 导出单测：CSV 带 BOM 表头且引号转义、Markdown 行首不带缩进且空明细写占位行、剪贴板三条路径（异步 API / 被拒后回退 / 缺失后回退）与回退失败返回 false、CSV 下载带文件名并释放对象 URL |
 | `RuntimeOpsSnapshotCard.tsx`             | 运行快照只读卡片（`GET /api/v1/ops/snapshot`：负载、内存、渠道）                                                                                                                                                                                                                                          |
 | `SessionContextHealthPanel.tsx`        | 会话上下文健康面板（压缩/裁剪/缓存命中）                                                                                                                                                                                                                                                                  |
 | `SessionContextHealthPanelRestore.tsx` | 上下文健康恢复面板                                                                                                                                                                                                                                                                                        |

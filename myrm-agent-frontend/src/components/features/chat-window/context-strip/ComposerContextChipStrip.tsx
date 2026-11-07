@@ -102,7 +102,7 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
             e.stopPropagation();
             chip.onRemove?.();
           }}
-          className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-xs text-muted-foreground/70 transition-colors hover:bg-destructive/15 hover:text-destructive focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+          className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-xs text-muted-foreground/70 transition-colors hover:bg-destructive/15 hover:text-destructive-text focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
           aria-label={`${onRemoveLabel}: ${chip.label}`}
         >
           <X size={10} />
@@ -178,7 +178,7 @@ export function ComposerContextChipStrip({
                       <button
                         type="button"
                         onClick={() => chip.onRemove?.()}
-                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
+                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-muted-foreground hover:bg-destructive/15 hover:text-destructive-text"
                         aria-label={`${t('remove')}: ${chip.label}`}
                       >
                         <X size={12} />

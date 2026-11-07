@@ -130,7 +130,7 @@ const IntegrationMemorySection = memo(() => {
 
         {/* Error display */}
         {error && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+          <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive-text">
             {error}
           </div>
         )}
@@ -256,7 +256,7 @@ const TreeCard = memo(({ tree, onSync, onRemove, syncing, t }: TreeCardProps) =>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive-text"
               onClick={() => setConfirmRemove(true)}
             >
               <Trash2 className="h-3 w-3" />

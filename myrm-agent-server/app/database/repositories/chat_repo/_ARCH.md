@@ -18,7 +18,7 @@ Chat / Message 仓储。类不持有实例状态：43 个方法全部是 `@stati
 
 - 跨模块调用使用 mixin 限定：`MessagesMixin._fts_matching_chat_ids` / `MessagesMixin.get_last_user_message` / `SiblingsMixin._batch_sibling_counts`（均为同一 staticmethod，原实现不依赖多态）。
 - `_answers_of_turn` 同时被 siblings 与 routing 使用，收敛到 `common.py`，避免两个业务模块互相 import。
-- 消息级 FTS5 SQL 仍委托 `chat_message_search_repo.py`（既有边界）。
+- 消息级 FTS5 SQL 仍委托 `app/database/repositories/chat_message_search_repo.py`（既有边界）。
 
 ## 依赖关系
 

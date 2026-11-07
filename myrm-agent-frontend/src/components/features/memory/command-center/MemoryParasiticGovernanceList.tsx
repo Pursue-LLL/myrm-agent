@@ -50,7 +50,7 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
         {parasitic.length > 0 ? (
           confirmArchiveAll ? (
             <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
-              <span className="text-[11px] text-destructive font-medium hidden sm:inline">确认全部归档?</span>
+              <span className="text-[11px] text-destructive-text font-medium hidden sm:inline">确认全部归档?</span>
               <button
                 onClick={() => onArchiveAll(parasitic)}
                 disabled={archivingAll || archivingId !== null}
@@ -123,7 +123,7 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
                   <button
                     onClick={() => onArchive(item)}
                     disabled={archivingAll || archivingId === item.memory_id || pinningId === item.memory_id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-destructive/10 hover:text-destructive-text text-muted-foreground transition-colors"
                   >
                     <Archive className="w-3 h-3" />
                     {archivingId === item.memory_id ? '归档中...' : '归档'}

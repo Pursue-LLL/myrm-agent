@@ -80,7 +80,7 @@ export default function ToolStabilitySection() {
         icon: IconXCircle,
         label: t('failureRate'),
         value: data ? formatPercent(locale, data.global_failure_rate) : '—',
-        className: 'bg-destructive/10 text-destructive',
+        className: 'bg-destructive/10 text-destructive-text',
       },
       {
         icon: IconClock,
@@ -127,7 +127,7 @@ export default function ToolStabilitySection() {
         {error && (
           <div
             role="alert"
-            className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive-text"
           >
             <div className="flex items-center gap-2 min-w-0">
               <IconAlertCircle className="h-4 w-4 shrink-0" aria-hidden />
@@ -233,7 +233,7 @@ export default function ToolStabilitySection() {
                           <td className="p-3 tabular-nums text-emerald-600 dark:text-emerald-400">
                             {formatCount(locale, row.success_count)}
                           </td>
-                          <td className="p-3 tabular-nums text-destructive/90">
+                          <td className="p-3 tabular-nums text-destructive-text">
                             {formatCount(locale, row.failure_count)}
                           </td>
                           <td className="p-3 tabular-nums">{formatPercent(locale, row.failure_rate)}</td>

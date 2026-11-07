@@ -181,7 +181,7 @@ export function AppUpdatePrompt() {
 
           {phase === 'error' && (
             <>
-              <p className="text-xs text-destructive leading-relaxed">{error ?? t('errorGeneric')}</p>
+              <p className="text-xs text-destructive-text leading-relaxed">{error ?? t('errorGeneric')}</p>
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={handleRetry}

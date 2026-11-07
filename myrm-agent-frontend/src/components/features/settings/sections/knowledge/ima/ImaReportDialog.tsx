@@ -113,7 +113,7 @@ export default function ImaReportDialog({
             </div>
           ) : null}
           {state.kind === 'failed' ? (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-text">
               {t(state.errorKey)}
             </p>
           ) : null}

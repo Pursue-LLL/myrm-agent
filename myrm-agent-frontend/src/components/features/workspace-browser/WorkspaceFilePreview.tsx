@@ -262,7 +262,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
             </div>
           ) : loadFailed ? (
             <div className="flex flex-col items-center justify-center h-full px-4 text-muted-foreground">
-              <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
+              <AlertTriangle className="h-6 w-6 mb-2 text-destructive-text" />
               <span className="text-sm text-center">{t('previewLoadError')}</span>
             </div>
           ) : showDiff && snapshot !== null ? (

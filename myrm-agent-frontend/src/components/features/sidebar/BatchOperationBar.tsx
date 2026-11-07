@@ -203,7 +203,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
               selectedCount > 0
-                ? 'text-destructive hover:bg-destructive/10'
+                ? 'text-destructive-text hover:bg-destructive/10'
                 : 'text-muted-foreground/40 cursor-not-allowed',
               isMobile && 'text-[11px]',
             )}
@@ -235,7 +235,7 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
             </div>
             <button
               onClick={handleCancelExport}
-              className="text-[10px] text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+              className="text-[10px] text-muted-foreground hover:text-destructive-text transition-colors flex-shrink-0"
             >
               {t('chat.batch.exportCancel')}
             </button>

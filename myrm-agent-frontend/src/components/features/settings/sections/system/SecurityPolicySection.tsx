@@ -142,7 +142,7 @@ const SecurityPolicySection = memo(() => {
               <SelectContent>
                 <SelectItem value="deny">
                   <span className="flex items-center gap-1.5">
-                    <IconBan className="h-3.5 w-3.5 text-destructive" />
+                    <IconBan className="h-3.5 w-3.5 text-destructive-text" />
                     {t('timeoutDeny')}
                   </span>
                 </SelectItem>
@@ -188,8 +188,8 @@ const SecurityPolicySection = memo(() => {
               key={pattern}
               className="flex items-center gap-2 px-3 py-2 rounded-full bg-destructive/5 border border-destructive/10"
             >
-              <IconBan className="h-3.5 w-3.5 text-destructive shrink-0" />
-              <code className="text-xs text-destructive font-mono truncate">{pattern}</code>
+              <IconBan className="h-3.5 w-3.5 text-destructive-text shrink-0" />
+              <code className="text-xs text-destructive-text font-mono truncate">{pattern}</code>
             </div>
           ))}
         </div>
@@ -325,18 +325,18 @@ const SecurityPolicySection = memo(() => {
 
           {policy.yoloModeEnabled && (
             <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/20 bg-destructive/5">
-              <IconAlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <IconAlertTriangle className="h-5 w-5 text-destructive-text shrink-0 mt-0.5" />
               <div className="flex-1 space-y-2">
-                <p className="text-sm font-medium text-destructive">
+                <p className="text-sm font-medium text-destructive-text">
                   {t('yoloMode.warning.title', { default: 'Security Warning' })}
                 </p>
-                <p className="text-sm text-destructive/90">
+                <p className="text-sm text-destructive-text">
                   {t('yoloMode.warning.message', {
                     default:
                       'YOLO mode bypasses all security checks. Ensure you trust the AI model and environment before enabling this feature.',
                   })}
                 </p>
-                <div className="text-xs text-destructive/80 space-y-1 mt-2">
+                <div className="text-xs text-destructive-text space-y-1 mt-2">
                   <p>
                     •{' '}
                     {t('yoloMode.warning.point1', { default: 'All file operations will execute without confirmation' })}

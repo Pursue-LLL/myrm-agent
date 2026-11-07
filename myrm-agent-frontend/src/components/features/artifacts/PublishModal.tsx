@@ -399,7 +399,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
                 </p>
               )}
               {errorMsg && (
-                <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-xl border border-destructive/20">
+                <p className="text-sm text-destructive-text bg-destructive/10 p-2 rounded-xl border border-destructive/20">
                   {errorMsg}
                 </p>
               )}
@@ -445,7 +445,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               <Button
                 onClick={() => setStatus('IDLE')}
                 variant="outline"
-                className="w-full rounded-xl hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30"
+                className="w-full rounded-xl hover:bg-destructive/5 hover:text-destructive-text hover:border-destructive/30"
               >
                 {t('tryAgain')}
               </Button>

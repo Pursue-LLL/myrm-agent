@@ -265,13 +265,13 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
                     />
                     <button
                       onClick={() => setEventDrafts(eventDrafts.filter((_, j) => j !== i))}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive-text"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
                   {draft.pattern && !valid && (
-                    <p className="text-[10px] text-destructive pl-0.5">{t('triggerEventPatternInvalid')}</p>
+                    <p className="text-[10px] text-destructive-text pl-0.5">{t('triggerEventPatternInvalid')}</p>
                   )}
                 </div>
               );
@@ -355,7 +355,7 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
                 />
                 <button
                   onClick={() => setSystemDrafts(systemDrafts.filter((_, j) => j !== i))}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive-text"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>

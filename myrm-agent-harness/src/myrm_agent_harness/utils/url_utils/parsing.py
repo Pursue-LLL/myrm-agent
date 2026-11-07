@@ -1,7 +1,15 @@
-"""URL 规范化、域名提取与图片/文件 URL 判断。
+"""[INPUT]
+- （无跨模块依赖）
+
+[OUTPUT]
+- normalize_url
+- extract_domain
+- is_valid_image_url
+- is_image_url
+- is_file_url
 
 [POS]
-url_utils 子包的一部分；由 __init__.py 聚合导出。
+URL 规范化、域名提取与图片/文件 URL 判断；不做安全校验。
 """
 
 from __future__ import annotations

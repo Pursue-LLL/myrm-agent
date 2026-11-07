@@ -341,7 +341,7 @@ const ServerConnectionCard = memo(() => {
               </div>
             )}
             {testState === 'failed' && (
-              <div className="flex items-center gap-2 text-destructive text-xs">
+              <div className="flex items-center gap-2 text-destructive-text text-xs">
                 <IconAlertCircle className="w-4 h-4" />
                 {t('testFailed')}
               </div>

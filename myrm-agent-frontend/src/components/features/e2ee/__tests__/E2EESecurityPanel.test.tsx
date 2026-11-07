@@ -27,7 +27,7 @@ describe('E2EESecurityPanel', () => {
     const status = screen.getByRole('status');
     expect(status).toHaveAttribute('aria-label', 'handshakeFailed');
     expect(status).toHaveTextContent('handshakeFailed');
-    expect(status.classList.contains('text-destructive')).toBe(true);
+    expect(status.classList.contains('text-destructive-text')).toBe(true);
   });
 
   it('renders established state with secured badge', () => {

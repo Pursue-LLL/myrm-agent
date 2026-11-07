@@ -92,14 +92,14 @@ export default function KanbanTaskCardActions({
         ))}
         {task.status === 'running' && onReclaim && (
           <DropdownMenuItem
-            className={cn(ITEM_CLASS, 'text-destructive focus:text-destructive')}
+            className={cn(ITEM_CLASS, 'text-destructive-text focus:text-destructive-text')}
             onSelect={() => onReclaim(task.task_id)}
           >
             {t('reclaimAction')}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
-          className={cn(ITEM_CLASS, 'text-destructive focus:text-destructive')}
+          className={cn(ITEM_CLASS, 'text-destructive-text focus:text-destructive-text')}
           onSelect={() => onDelete(task.task_id)}
         >
           {t('deleteAction')}

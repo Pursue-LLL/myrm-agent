@@ -220,7 +220,7 @@ export const WorkspaceFileBrowser: React.FC<WorkspaceFileBrowserProps> = memo(
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-muted-foreground">
-              <AlertTriangle className="h-6 w-6 mb-2 text-destructive" />
+              <AlertTriangle className="h-6 w-6 mb-2 text-destructive-text" />
               <span className="text-sm text-center">{t('folderLoadFailed')}</span>
             </div>
           ) : files.length === 0 ? (

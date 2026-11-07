@@ -86,7 +86,7 @@ const DocxPreview: React.FC<DocxPreviewProps> = memo(({ previewUrl, artifactId }
   if (error) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
-        <p className="text-sm text-destructive">{t('docxLoadError')}</p>
+        <p className="text-sm text-destructive-text">{t('docxLoadError')}</p>
         <p className="text-xs text-muted-foreground">{error}</p>
       </div>
     );

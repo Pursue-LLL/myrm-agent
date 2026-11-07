@@ -19,5 +19,5 @@ Project vault 工作区辅助服务。Epic #1 P1：服务端目录变更检测�
 - `myrm_agent_harness.agent.security.path_security` — 危险路径校验（`is_dangerous_path` / `covers_dangerous_path`，与沙箱策略工厂同一判据）
 
 ### 被依赖方
-- `app/services/project/workspace_path_resolve.py`、`app/api/chats/chat/core.py`（PATCH `/chats/{id}/workspace`）、`app/api/chats/chat/import_session.py`、`app/services/chat/effective_workspace.py`、`app/core/channel_bridge/topic_workspace_bind.py` · `executor_helpers/topic_workspace_sync.py` — 工作区路径校验
+- `app/services/project/workspace_path_resolve.py`、`app/api/chats/chat/core/`（PATCH `/chats/{id}/workspace`）、`app/api/chats/chat/import_session.py`、`app/services/chat/effective_workspace.py`、`app/core/channel_bridge/topic_workspace_bind.py` · `executor_helpers/topic_workspace_sync.py` — 工作区路径校验
 - `app/api/files/browse_watch.py` — POST/DELETE `/files/browse/watch` 注册/释放监听

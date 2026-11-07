@@ -111,7 +111,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
                           ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
                           : currentAction === 'ask'
                             ? 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10'
-                            : 'border-destructive/40 text-destructive bg-destructive/10'
+                            : 'border-destructive/40 text-destructive-text bg-destructive/10'
                       }`}
                     >
                       {currentAction}
@@ -170,7 +170,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
                     onClick={() => handleActionSelect(surface.key, 'deny')}
                     className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded text-xs font-medium transition-colors ${
                       currentAction === 'deny'
-                        ? 'bg-destructive/15 text-destructive ring-1 ring-destructive/40'
+                        ? 'bg-destructive/15 text-destructive-text ring-1 ring-destructive/40'
                         : 'text-muted-foreground hover:bg-muted/40'
                     }`}
                     title={t('modeDeny', { default: 'Strictly Deny execution' })}

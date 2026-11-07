@@ -187,7 +187,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                     >
                       {tag}
                       {canEdit && (
-                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive-text">
                           <X size={10} />
                         </button>
                       )}

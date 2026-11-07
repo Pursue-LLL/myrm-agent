@@ -29,7 +29,7 @@ export const STATUS_CONFIG = {
   },
   failed: {
     icon: IconXCircle,
-    className: 'text-destructive',
+    className: 'text-destructive-text',
     dotColor: 'bg-destructive',
   },
   timed_out: {

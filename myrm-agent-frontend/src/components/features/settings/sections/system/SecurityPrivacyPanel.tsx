@@ -110,7 +110,7 @@ const SecurityPrivacyPanel = memo(() => {
               onChange={setPrivacyS2Action}
             />
             <PrivacyActionRow
-              icon={<IconEyeOff className="h-3.5 w-3.5 text-destructive" />}
+              icon={<IconEyeOff className="h-3.5 w-3.5 text-destructive-text" />}
               label={t('privacy.s3Label')}
               value={privacyS3Action}
               onChange={setPrivacyS3Action}

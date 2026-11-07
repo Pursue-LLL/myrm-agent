@@ -115,7 +115,7 @@ export const CustomRulesListEditor = memo<CustomRulesListEditorProps>(
                     </SelectItem>
                     <SelectItem value="deny">
                       <div className="flex items-center gap-2">
-                        <IconBan className="h-3.5 w-3.5 text-destructive" />
+                        <IconBan className="h-3.5 w-3.5 text-destructive-text" />
                         {t('modeDeny')}
                       </div>
                     </SelectItem>
@@ -126,7 +126,7 @@ export const CustomRulesListEditor = memo<CustomRulesListEditorProps>(
                   variant="ghost"
                   size="icon"
                   onClick={() => onRemoveRule(idx)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="shrink-0 text-muted-foreground hover:text-destructive-text"
                 >
                   <IconTrash className="h-4 w-4" />
                 </Button>

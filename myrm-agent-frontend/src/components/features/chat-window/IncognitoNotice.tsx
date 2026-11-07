@@ -31,7 +31,7 @@ export default function IncognitoNotice() {
       data-testid="incognito-notice"
       className="flex w-full items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 dark:border-destructive/25 dark:bg-destructive/15"
     >
-      <IncognitoIcon size={18} className="mt-0.5 text-destructive" />
+      <IncognitoIcon size={18} className="mt-0.5 text-destructive-text" />
       <span className="min-w-0">
         <span className="block text-sm font-medium text-foreground">{t('incognitoMode')}</span>
         <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{t('incognitoModeDesc')}</span>

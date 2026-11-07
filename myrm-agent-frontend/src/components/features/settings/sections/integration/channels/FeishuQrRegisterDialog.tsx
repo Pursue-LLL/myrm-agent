@@ -177,7 +177,7 @@ export function FeishuQrRegisterDialog({
                     onChange={(e) => setAppLabel(e.target.value)}
                     maxLength={50}
                   />
-                  {!appLabel.trim() && <p className="text-xs text-destructive">{t('feishuAppLabelRequired')}</p>}
+                  {!appLabel.trim() && <p className="text-xs text-destructive-text">{t('feishuAppLabelRequired')}</p>}
                 </div>
               )}
               <Button

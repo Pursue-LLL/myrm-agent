@@ -60,7 +60,7 @@ function renderField(
       <div key={key} className="space-y-1.5">
         <Label className="text-sm font-medium">
           {label}
-          {isRequired && <span className="text-destructive ml-0.5">*</span>}
+          {isRequired && <span className="text-destructive-text ml-0.5">*</span>}
         </Label>
         {prop.description && <p className="text-xs text-muted-foreground">{prop.description}</p>}
         <Select
@@ -82,7 +82,7 @@ function renderField(
             ))}
           </SelectContent>
         </Select>
-        {hasError && <p className="text-xs text-destructive">{requiredErrorText}</p>}
+        {hasError && <p className="text-xs text-destructive-text">{requiredErrorText}</p>}
       </div>
     );
   }
@@ -109,7 +109,7 @@ function renderField(
         <div key={key} className="space-y-1.5">
           <Label className="text-sm font-medium">
             {label}
-            {isRequired && <span className="text-destructive ml-0.5">*</span>}
+            {isRequired && <span className="text-destructive-text ml-0.5">*</span>}
           </Label>
           {prop.description && <p className="text-xs text-muted-foreground">{prop.description}</p>}
           <Input
@@ -132,7 +132,7 @@ function renderField(
             disabled={disabled}
             className={cn('font-mono text-xs', errorBorder)}
           />
-          {hasError && <p className="text-xs text-destructive">{requiredErrorText}</p>}
+          {hasError && <p className="text-xs text-destructive-text">{requiredErrorText}</p>}
         </div>
       );
 
@@ -145,7 +145,7 @@ function renderField(
           <div key={key} className="space-y-1.5">
             <Label className="text-sm font-medium">
               {label}
-              {isRequired && <span className="text-destructive ml-0.5">*</span>}
+              {isRequired && <span className="text-destructive-text ml-0.5">*</span>}
             </Label>
             {prop.description && <p className="text-xs text-muted-foreground">{prop.description}</p>}
             <Textarea
@@ -156,7 +156,7 @@ function renderField(
               rows={4}
               className={cn('font-mono text-xs resize-y', errorBorder)}
             />
-            {hasError && <p className="text-xs text-destructive">{requiredErrorText}</p>}
+            {hasError && <p className="text-xs text-destructive-text">{requiredErrorText}</p>}
           </div>
         );
       }
@@ -165,7 +165,7 @@ function renderField(
         <div key={key} className="space-y-1.5">
           <Label className="text-sm font-medium">
             {label}
-            {isRequired && <span className="text-destructive ml-0.5">*</span>}
+            {isRequired && <span className="text-destructive-text ml-0.5">*</span>}
           </Label>
           {prop.description && <p className="text-xs text-muted-foreground">{prop.description}</p>}
           <Input
@@ -176,7 +176,7 @@ function renderField(
             disabled={disabled}
             className={cn('font-mono text-xs', errorBorder)}
           />
-          {hasError && <p className="text-xs text-destructive">{requiredErrorText}</p>}
+          {hasError && <p className="text-xs text-destructive-text">{requiredErrorText}</p>}
         </div>
       );
     }

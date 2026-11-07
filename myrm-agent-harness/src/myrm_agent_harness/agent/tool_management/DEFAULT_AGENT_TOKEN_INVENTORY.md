@@ -12,38 +12,39 @@
 
 ---
 
-## 一、System Prompt 层（`messages[0]` 拼装 + `messages[1]` 安全边界）
+## 一、System Prompt 层（`messages[0]` 拼装 + 跟随用户输入的 canary 与安全边界）
 
 > **口径**：tiktoken `o200k_base` 实测（`utils/text_utils.PLANNING_ENCODING`），宿主 macOS。
-> `messages[0]` 由框架层 `agent/base_agent.py:169-177` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 6 段；安全边界是 `messages[1]` 的**独立 SystemMessage**，不计入 `messages[0]`。
+> `messages[0]` 由框架层 `agent/base_agent.py:162-168` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 4 段；widget 能力声明、安全边界与 canary 都是**独立 SystemMessage**（widget 在前导 system 消息之后，安全边界与 canary 跟在用户输入之后），不计入 `messages[0]`。
 
 | # | 组件 | Token (o200k_base) | 来源文件 | 说明 |
 |---|------|-------------------:|----------|------|
 | 1 | CORE_SYSTEM_PROMPT | **662** (EN) / **858** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 738 / 940。组成 = identity + ABSOLUTE_OBEDIENCE + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
-| 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:61` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
-| 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束 |
+| 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:55` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
+| 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束、因缺能力拒绝前先用发现/搜索工具查找技能与工具 |
 | 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
 | 5 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
-| 6 | canary 指令 | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57，**非字节恒定**但差异可忽略 |
-| 7 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:421`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
+| 6 | canary 指令（独立 SystemMessage，追加在最新用户消息之后） | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:54` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57。由 CanaryMiddleware 每个对话线程注入一次（`agent/middlewares/security/canary_middleware.py` 的 `before_model`），线程已带 canary 指令就沿用；**不占用 `messages[0]`**，system prompt 因此在所有会话里字节相同 |
+| 7 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:300`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
+| 8 | widget 能力声明（独立 SystemMessage，插在前导 system 消息之后、用户输入之前） | **348** | `server/ai_agents/agent_middlewares/widget_capability_middleware.py:23` | `<widget_capability>` 标签；WidgetCapabilityMiddleware 在每次模型调用的请求里插入（不写入对话状态），位置与字节恒定；仅 `prompt_mode=naked` 跳过 |
 
-**`messages[0]` 合计（实测，含上表 1~7，不含运行时条件追加）**：
+**`messages[0]` 合计（实测，含上表 1~5，不含运行时条件追加）**：
 
 | 模型 | full-ZH | full-EN | lean-ZH | lean-EN |
 |------|--------:|--------:|--------:|--------:|
-| 所有模型（核心规则与模型名无关） | **1,402** | 1,206 | 842 | 801 |
+| 所有模型（核心规则与模型名无关） | **1,349** | 1,153 | 789 | 748 |
 
-> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat) + env 行 43(macOS) + canary 均值 53，各分量分别计数后相加。
-> canary 为随机 hex，实测 50~57 tok（均值 53），故上表存在 **±4** 抖动；其余分量在参数组合内字节恒定。
+> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat) + env 行 43(macOS)，各分量分别计数后相加。
+> `messages[0]` 的各分量在参数组合内字节恒定；canary 的随机 hex（50~57 tok）在独立消息里，不进 `messages[0]`。
 >
-> 默认组合（中文用户 + full）：`messages[0]` 1,402 + `messages[1]` 299 = **1,701 tokens**。
+> 默认组合（中文用户 + full）：`messages[0]` 1,349 + widget 能力声明 348 + 跟随用户输入的两条独立 SystemMessage（canary ≈53 + 安全边界 299）= **2,049 tokens**。
 >
-> **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory.py` 的 `system_prompt +=` 分支）：
+> **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory/` 的 `system_prompt +=` 分支）：
 > `DESKTOP_CONTROL_RULES` 424 EN / 517 ZH（`:535`，`mount_desktop_prompt`）· `SEARCH_DEEP_SUFFIX`（`:507`，search 深研模式）· unattended 声明 ~55（`:510`）· `get_worker_lifecycle_guidance()`（`:527`，kanban worker 模式）· `get_cli_tools_context()`（`:545`，`mount_cli_context`）· `CHANNEL_NOTIFY_SYSTEM_APPENDIX`（`:554`，通知工具挂载）· `[Mounted Workspace Directories]` 清单（`:568`，session roots）· `user_instructions`（`stream_lane_factory.py:484`）。
 
 **`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，lean 模式 EN +76 / ZH +82，naked / search 模式**无差异**。server 默认 `False`（`server/ai_agents/agent_params.py:147`），上表已按 False 计量。
 
-**缓存特性**：`messages[0]` 与 `messages[1]` 除 canary 随机 hex（±4 tok 抖动）外均为参数组合内字节恒定，跨用户共享缓存。
+**缓存特性**：`messages[0]` 与其后的工具块在参数组合内字节恒定，跨用户共享缓存；随机 hex 只出现在跟随用户输入的 canary 消息里。把它放进 `messages[0]` 时，前缀缓存在该 token 处就与其他会话分叉，其后的工具块（约 5k token）与整段历史每个会话、每一轮都要全价。同一个首轮请求的实测：canary 留在 system 消息里首轮缓存 0%，移到最后一条 system 消息后 90% 到 98%。
 
 ---
 
@@ -283,7 +284,7 @@ Token 明细（tiktoken o200k_base）：
 
 | 分类 | Token (tiktoken) | 明细 |
 |------|------------------:|------|
-| System Prompt 层 | **1,701** | `messages[0]` 1,402（ZH · full）+ `messages[1]` 299，固定，跨用户缓存 |
+| System Prompt 层 | **2,049** | `messages[0]` 1,349（ZH · full，跨用户缓存）+ widget 能力声明 348 + 跟随用户输入的 canary ≈53 与安全边界 299 |
 | CORE 工具层 | **2,599** | 8 工具描述（含 bash_process；`measure_turn1_token_inventory.py` 实测，o200k_base） |
 | HIGH_PRIORITY 工具层 | **2,394** | web_search + memory×3 + skill_select |
 | EXTENDED 工具层 | **0** | 默认 profile 无附加（opt-in 按需挂载） |
@@ -291,31 +292,31 @@ Token 明细（tiktoken o200k_base）：
 | 动态注入 | ~1,200 | user_instructions + memory_context + inline_skills |
 | 消息格式 | ~500 | role tags, boundaries 等 |
 | 用户消息 | ~32 | 短消息 + datetime 标签 |
-| **tiktoken 小计** | **~9,270** | |
+| **tiktoken 小计** | **~9,620** | |
 
 ### 最小 Turn 1 场景（仅 CORE 8 工具，无 HIGH_PRIORITY/EXTENDED）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
-| System Prompt 层 | **1,701** |
+| System Prompt 层 | **2,049** |
 | CORE 工具层 | **2,599** |
 | schema wrapper 包装 | **520** (8 工具 × 65) |
 | 用户消息 | ~32 |
 | 消息格式 | ~300 |
-| **tiktoken 小计** | **~5,150** |
+| **tiktoken 小计** | **~5,500** |
 
 ### 满载场景（全部已登记 LLM 工具同轮 bind：浏览器+Cron+Wiki+子Agent+看板+桌面控制+IM 通知+媒体生成+发布）
 
 | 分类 | Token (tiktoken) |
 |------|------------------:|
-| System Prompt 层 | **1,701** |
+| System Prompt 层 | **2,049** |
 | CORE 工具层 | **2,599** |
 | HIGH_PRIORITY 工具层 | **2,394** |
 | EXTENDED + EXTERNAL（38 + 5 = 43 工具） | ~6,601（**粗估**：§四 各行描述值求和，EXTENDED 38 个 ~6,075 + EXTERNAL 5 个 ~526；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,640** (56 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~18,640（粗估）** |
+| **tiktoken 小计** | **~18,980（粗估）** |
 
 > 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 56 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 38 + EXTERNAL 5）。本场景假设全部 56 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入；`image_tool` / `video_tool` 的描述含运行期模型名，按引擎默认配置计。
 
@@ -333,8 +334,14 @@ Token 明细（tiktoken o200k_base）：
 [EXTENDED: 可选工具 (~0~6,075+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
-[System Prompt: messages[0] 1,402 (ZH·full) + messages[1] 299]
+[System Prompt: messages[0] 1,349 (ZH·full)]
   ↑ 冻结，跨用户共享缓存
+
+[widget 能力声明 348]
+  ↑ 紧随前导 system 消息，字节恒定（prompt_mode=naked 不注入）
+
+[跟随用户输入: canary ≈53 + 安全边界 299]
+  ↑ 位于最新用户消息之后，不进入共享前缀
 
 [Dynamic: user_instructions(~200) + memory_context(~500) + skills(~500)]
   ↑ 同用户会话内稳定
@@ -351,7 +358,7 @@ Token 明细（tiktoken o200k_base）：
 | harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,781**，余量 719：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:193-230`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
-| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE full + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按 zh-CN / en 封顶，上限 = 实测 +5%（zh-CN **1,369**（实测 1,303）/ en **1,163**（实测 1,107））；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行与 canary，故低于上表 `messages[0]` |
+| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE full + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按 zh-CN / en 封顶，上限 = 实测 +5%（zh-CN **1,369**（实测 1,303）/ en **1,163**（实测 1,107））；`<widget_capability>` ≤ **366**（实测 348）。不含 env 行，故低于上表 `messages[0]` |
 
 
 ---

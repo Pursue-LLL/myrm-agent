@@ -44,7 +44,7 @@ function statusClass(status: DoctorCheckStatus): string {
     case 'warn':
       return 'text-amber-600 dark:text-amber-400';
     case 'fail':
-      return 'text-destructive';
+      return 'text-destructive-text';
     default:
       return 'text-muted-foreground';
   }
@@ -164,7 +164,7 @@ export function CompanionPetDoctorPanel({ expanded, onExpandedChange }: Companio
             </div>
           )}
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-xs text-destructive-text">{error}</p>}
 
           {!loading && checks.length > 0 && (
             <ul className="space-y-1.5">

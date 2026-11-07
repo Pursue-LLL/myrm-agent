@@ -1,22 +1,18 @@
 """Widget 能力声明中间件 (Widget Capability Middleware)
 
-在首次 LLM 调用时注入 widget 能力声明，告知 AI 可以生成交互式 HTML widget。
-声明只注入一次，持久化到对话历史中。
+在每次 LLM 调用的请求里插入 widget 能力声明，告知 AI 可以生成交互式 HTML widget。
+声明不写入对话状态；内容与插入位置恒定。
 
 设计原则：
-1. 最小声明（~150 token）始终注入，不浪费 token
+1. 声明约 350 token（o200k_base，CI 门禁封顶 366），除 naked 模式外始终插入
 2. 声明包含格式规范、CDN 白名单、设计指南
-3. 注入位置在 user_instructions 之后
+3. 插入位置：请求里前导连续 SystemMessage 之后、第一条非 system 消息之前
 """
 
-import logging
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.messages import SystemMessage
-
-logger = logging.getLogger(__name__)
 
 WIDGET_CAPABILITY_MARKER = "<widget_capability"
 
@@ -66,7 +62,7 @@ def _find_insert_idx(messages: Sequence[object]) -> int:
 
 
 class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
-    """Inject widget capability declaration on first LLM call.
+    """Insert the widget capability declaration into every LLM request.
 
     Adds a SystemMessage with widget generation guidelines so the AI
     knows it can create interactive HTML artifacts.
@@ -78,7 +74,7 @@ class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         self,
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
-    ) -> ModelResponse | Any:
+    ) -> ModelResponse:
         return handler(request)
 
     async def awrap_model_call(
@@ -92,28 +88,12 @@ class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             if isinstance(ctx, dict) and ctx.get("prompt_mode") == "naked":
                 return await handler(request)
 
-        state = request.state
-        raw_state_messages = state.get("messages", [])
-        state_messages: list[object] = list(raw_state_messages) if isinstance(raw_state_messages, list) else []
+        if _has_widget_capability_injected(request.messages):
+            return await handler(request)
 
-        already_injected = _has_widget_capability_injected(state_messages) or _has_widget_capability_injected(request.messages)
-
-        if not already_injected:
-            capability_msg = SystemMessage(content=WIDGET_CAPABILITY_PROMPT)
-
-            new_messages = list(request.messages)
-            insert_idx = _find_insert_idx(new_messages)
-            new_messages.insert(insert_idx, capability_msg)
-
-            state_insert_idx = _find_insert_idx(state_messages)
-            state_messages.insert(state_insert_idx, capability_msg)
-
-            request = request.override(messages=new_messages)
-            logger.info("Widget capability declaration injected at position %d", insert_idx)
-        else:
-            logger.debug("Widget capability already present, skipping injection")
-
-        return await handler(request)
+        messages = list(request.messages)
+        messages.insert(_find_insert_idx(messages), SystemMessage(content=WIDGET_CAPABILITY_PROMPT))
+        return await handler(request.override(messages=messages))
 
 
 widget_capability_middleware = WidgetCapabilityMiddleware()

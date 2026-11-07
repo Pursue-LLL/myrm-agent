@@ -217,7 +217,7 @@ const healthClassName = (status: string): string => {
     return 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-300';
   }
   if (status === 'critical') {
-    return 'bg-destructive/10 text-destructive border-destructive/20';
+    return 'bg-destructive/10 text-destructive-text border-destructive/20';
   }
   return 'bg-muted text-muted-foreground border-border';
 };

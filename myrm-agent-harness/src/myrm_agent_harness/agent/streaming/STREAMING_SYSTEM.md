@@ -86,7 +86,7 @@ dispatcher  handlers      events         recovery*
 
 ---
 
-## 清洗与纪律
+## 清洗与核心规则
 
 | 模块 | 职责 |
 |------|------|
@@ -103,7 +103,7 @@ dispatcher  handlers      events         recovery*
 |------|------|
 | `message_builder.py` | 消息准备与时间戳注入 |
 | `step_builder.py` | 前端步骤 UI 数据（tool name + args） |
-| `utils.py` | 上下文校验、行为规则、tool name 规范化 |
+| `utils.py` | 上下文校验、时间戳规则、tool name 规范化 |
 | `source_tracker.py` | 来源引用转发 |
 
 ---

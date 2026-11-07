@@ -25,7 +25,7 @@ from tests.support.chrome_mcp_e2e import (
 _CALLBACK_ERROR_JS = """(() => {
   const bodyText = document.body ? (document.body.innerText || '') : '';
   const bodyHtml = document.body ? (document.body.innerHTML || '') : '';
-  const hasError = !!document.querySelector('.text-destructive') || bodyText.length > 20;
+  const hasError = !!document.querySelector('.text-destructive-text') || bodyText.length > 20;
   return {
     ready: hasError,
     hasLoginLink: !!document.querySelector('a[href="/auth/login"]'),

@@ -107,7 +107,9 @@ export const OutcomeNotifier = memo(function OutcomeNotifier() {
     <Dialog open onOpenChange={(open) => !open && dismiss()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className={restored ? 'flex items-center gap-2' : 'flex items-center gap-2 text-destructive'}>
+          <DialogTitle
+            className={restored ? 'flex items-center gap-2' : 'flex items-center gap-2 text-destructive-text'}
+          >
             {restored ? (
               <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" weight="fill" />
             ) : (

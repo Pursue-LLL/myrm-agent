@@ -26,7 +26,8 @@ import type {
   MemoryCommandTraceStep,
   MemoryCommandWaterfallStep,
 } from '@/services/memory/commandCenter';
-import { MemoryDoctorPanel, type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
+import { MemoryDoctorPanel } from './MemoryCommandCenterDoctorPanel';
+import type { DoctorExecutableAction } from './memoryDoctorModel';
 
 type MemoryTranslation = ReturnType<typeof useTranslations<'memory'>>;
 

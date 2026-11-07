@@ -71,7 +71,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
       data-testid="lease-progress-capsule"
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs shadow-2xs backdrop-blur-sm transition-all ${
         isExhausted
-          ? 'border-destructive/40 bg-destructive/10 text-destructive'
+          ? 'border-destructive/40 bg-destructive/10 text-destructive-text'
           : isNearLimit
             ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
             : 'border-border/80 bg-muted/60 text-muted-foreground'
@@ -79,7 +79,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
     >
       <div className="flex items-center gap-1.5 font-medium">
         {isExhausted ? (
-          <AlertTriangle className="h-3.5 w-3.5 text-destructive animate-pulse" />
+          <AlertTriangle className="h-3.5 w-3.5 text-destructive-text animate-pulse" />
         ) : isNearLimit ? (
           <Clock className="h-3.5 w-3.5 text-amber-500" />
         ) : (
@@ -112,7 +112,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onEx
           data-testid="pause-lease-btn"
           disabled={isPausing}
           onClick={() => void handlePause()}
-          className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive hover:bg-destructive/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive-text hover:bg-destructive/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
           title={t('pauseTitle')}
         >
           <Pause className="h-3 w-3" />

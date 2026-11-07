@@ -284,7 +284,7 @@ const ThemeStudioAdminPanel = () => {
                             type="button"
                             disabled={busyId !== null}
                             onClick={() => startModeration(listing.id, 'suspend')}
-                            className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive disabled:opacity-50"
+                            className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive-text disabled:opacity-50"
                           >
                             {t('suspend')}
                           </button>

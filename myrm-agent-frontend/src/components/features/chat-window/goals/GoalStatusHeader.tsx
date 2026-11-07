@@ -172,7 +172,7 @@ export function GoalStatusHeader({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
+              className="h-8 w-8 text-destructive-text hover:text-destructive-text"
               aria-label={t('cancel')}
               disabled={isActionPending}
               onClick={() => onAction('cancel')}

@@ -96,7 +96,7 @@ const SentenceVerdict = memo(({ preview }: { preview: PrivacyPreview }) => {
         </span>
       </div>
       {preview.model_sees === null ? (
-        <p className="flex items-start gap-1.5 text-xs text-destructive">
+        <p className="flex items-start gap-1.5 text-xs text-destructive-text">
           <IconBan className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           {t('tester.blocked')}
         </p>
@@ -203,7 +203,7 @@ const PrivacyRuleTester = memo(() => {
       />
       {deepScan && <p className="text-xs text-muted-foreground">{t('tester.deepScanNote')}</p>}
 
-      {state.status === 'failed' && <p className="text-xs text-destructive">{t('tester.failed')}</p>}
+      {state.status === 'failed' && <p className="text-xs text-destructive-text">{t('tester.failed')}</p>}
 
       {preview && (
         <div className={`space-y-2 transition-opacity ${checking ? 'opacity-60' : ''}`}>

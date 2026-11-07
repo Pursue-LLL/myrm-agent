@@ -240,7 +240,7 @@ const FacetRow = memo<{
           </button>
           <button
             onClick={() => onForget(facet.id)}
-            className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+            className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive-text transition-colors"
             title={t('forget')}
           >
             <Delete02Icon size={11} />

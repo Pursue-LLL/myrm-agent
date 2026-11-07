@@ -1015,6 +1015,31 @@ class TestAfterModel:
         finally:
             set_canary_token("")
 
+    def test_canary_the_history_carries_is_scrubbed_when_the_session_token_is_another(self) -> None:
+        """A thread keeps the canary instruction it first got; a later agent's token is not the one the model saw."""
+        from langchain_core.messages import SystemMessage
+
+        from myrm_agent_harness.agent.middlewares._session_context import (
+            set_canary_token,
+        )
+        from myrm_agent_harness.agent.security.detection.canary_guard import build_canary_instruction
+
+        seen, renewed = "CANARY-AAAAAAAAAAAA", "CANARY-BBBBBBBBBBBB"
+        set_canary_token(renewed)
+        try:
+            state = _make_state(
+                [
+                    HumanMessage(content="q"),
+                    SystemMessage(content=build_canary_instruction(seen)),
+                    AIMessage(content=f"the token is {seen}"),
+                ]
+            )
+            result = self.mw.after_model(state, None)
+            assert result is not None
+            assert seen not in result["messages"][-1].content
+        finally:
+            set_canary_token("")
+
     def test_canary_clean_output_no_change(self, monkeypatch) -> None:
         """No canary leak → after_model returns None (no content mutation)."""
         from myrm_agent_harness.agent.middlewares._session_context import (

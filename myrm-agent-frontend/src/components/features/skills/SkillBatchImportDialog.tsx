@@ -272,7 +272,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                 ) : (
                   <Upload
                     size={40}
-                    className={cn('mx-auto mb-4', parseError ? 'text-destructive' : 'text-muted-foreground')}
+                    className={cn('mx-auto mb-4', parseError ? 'text-destructive-text' : 'text-muted-foreground')}
                   />
                 )}
 
@@ -364,7 +364,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                           </div>
                           <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
                           {item.security_issues && (
-                            <p className="text-[11px] text-destructive mt-1 line-clamp-1 flex items-center gap-1">
+                            <p className="text-[11px] text-destructive-text mt-1 line-clamp-1 flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" /> {item.security_issues}
                             </p>
                           )}

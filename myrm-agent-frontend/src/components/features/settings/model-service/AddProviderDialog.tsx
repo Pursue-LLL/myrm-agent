@@ -77,7 +77,7 @@ const AddProviderDialog = memo<AddProviderDialogProps>(({ open, onOpenChange, on
         <div className="space-y-5 pt-4 pb-4">
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground block">
-              {t('providerName')} <span className="text-destructive">*</span>
+              {t('providerName')} <span className="text-destructive-text">*</span>
             </label>
             <input
               type="text"
@@ -95,7 +95,7 @@ const AddProviderDialog = memo<AddProviderDialogProps>(({ open, onOpenChange, on
           {/* 提供商类型 */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground block">
-              {t('providerType')} <span className="text-destructive">*</span>
+              {t('providerType')} <span className="text-destructive-text">*</span>
             </label>
             <div className="relative">
               <button
@@ -128,7 +128,7 @@ const AddProviderDialog = memo<AddProviderDialogProps>(({ open, onOpenChange, on
             <p className="text-xs text-muted-foreground">{t('providerTypeHint')}</p>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive-text">{error}</p>}
         </div>
 
         <div className="flex justify-end gap-3">

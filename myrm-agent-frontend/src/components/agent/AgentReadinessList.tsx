@@ -17,7 +17,7 @@ import { useReadinessText } from './useReadinessText';
 const LEVEL_PRESENTATION: Record<ReadinessLevel, { icon: ComponentType<IconProps>; tone: string }> = {
   ready: { icon: IconCheckCircle, tone: 'text-emerald-600 dark:text-emerald-400' },
   warning: { icon: IconAlertTriangle, tone: 'text-amber-600 dark:text-amber-400' },
-  blocked: { icon: IconXCircle, tone: 'text-destructive' },
+  blocked: { icon: IconXCircle, tone: 'text-destructive-text' },
 };
 
 interface AgentReadinessListProps {

@@ -39,12 +39,12 @@ const IncognitoModeToggle = () => {
             className={cn(
               'relative flex shrink-0 items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 cursor-pointer select-none',
               incognitoMode
-                ? 'bg-destructive/10 dark:bg-destructive/15 text-destructive border border-destructive/30 dark:border-destructive/25'
+                ? 'bg-destructive/10 dark:bg-destructive/15 text-destructive-text border border-destructive/30 dark:border-destructive/25'
                 : 'bg-black/[0.04] dark:bg-white/[0.06] text-black/40 dark:text-white/40 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.1]',
             )}
           >
             <IncognitoIcon
-              className={cn('transition-colors duration-300', incognitoMode ? 'text-destructive' : 'text-current')}
+              className={cn('transition-colors duration-300', incognitoMode ? 'text-destructive-text' : 'text-current')}
             />
             <span className="hidden xl:inline">{t('incognitoMode')}</span>
           </button>

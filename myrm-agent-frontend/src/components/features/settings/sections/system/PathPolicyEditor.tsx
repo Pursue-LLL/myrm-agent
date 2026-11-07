@@ -45,7 +45,7 @@ export function PathPolicyEditor({ allowedRoots, onAdd, onRemove }: PathPolicyEd
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center gap-1.5">
-          <IconLock className="h-3.5 w-3.5 text-destructive" />
+          <IconLock className="h-3.5 w-3.5 text-destructive-text" />
           <span className="text-sm font-medium text-foreground">{t('forbiddenPathsLabel')}</span>
         </div>
         <p className="text-xs text-muted-foreground">{t('forbiddenPathsDesc')}</p>
@@ -55,8 +55,8 @@ export function PathPolicyEditor({ allowedRoots, onAdd, onRemove }: PathPolicyEd
               key={p}
               className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive/5 border border-destructive/10"
             >
-              <IconLock className="h-3 w-3 text-destructive shrink-0" />
-              <code className="text-xs text-destructive font-mono truncate">{p}</code>
+              <IconLock className="h-3 w-3 text-destructive-text shrink-0" />
+              <code className="text-xs text-destructive-text font-mono truncate">{p}</code>
             </div>
           ))}
         </div>
@@ -80,7 +80,7 @@ export function PathPolicyEditor({ allowedRoots, onAdd, onRemove }: PathPolicyEd
                 <button
                   type="button"
                   onClick={() => onRemove(idx)}
-                  className="text-primary/60 hover:text-destructive transition-colors"
+                  className="text-primary/60 hover:text-destructive-text transition-colors"
                 >
                   <IconX className="h-3 w-3" />
                 </button>

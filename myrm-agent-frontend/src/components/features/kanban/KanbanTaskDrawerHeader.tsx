@@ -89,7 +89,7 @@ export function StatusActionsBar({
             onClick={() => setShowRejectDialog(true)}
             disabled={rejecting}
             data-testid="kanban-task-reject"
-            className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive font-medium transition-colors disabled:opacity-50"
+            className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive-text font-medium transition-colors disabled:opacity-50"
           >
             {t('reject')}
           </button>
@@ -111,7 +111,7 @@ export function StatusActionsBar({
           {task.status === 'running' && (
             <button
               onClick={() => setShowReclaimDialog(true)}
-              className="text-[10px] px-2 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive font-medium transition-colors"
+              className="text-[10px] px-2 py-1 rounded-full bg-destructive/10 hover:bg-destructive/20 text-destructive-text font-medium transition-colors"
             >
               {t('reclaimAction')}
             </button>
@@ -121,7 +121,7 @@ export function StatusActionsBar({
 
       {showRejectDialog && (
         <div className="mt-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
-          <p className="text-[11px] font-medium text-destructive">{t('rejectTitle')}</p>
+          <p className="text-[11px] font-medium text-destructive-text">{t('rejectTitle')}</p>
           <p className="text-[10px] text-muted-foreground">{t('rejectDesc')}</p>
           <textarea
             value={rejectReason}
@@ -136,7 +136,7 @@ export function StatusActionsBar({
               onClick={handleReject}
               disabled={rejecting}
               data-testid="kanban-task-reject-confirm"
-              className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium disabled:opacity-50"
+              className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive-text font-medium disabled:opacity-50"
             >
               {t('rejectConfirm')}
             </button>
@@ -155,7 +155,7 @@ export function StatusActionsBar({
 
       {showReclaimDialog && (
         <div className="mt-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/5 space-y-2">
-          <p className="text-[11px] font-medium text-destructive">{t('reclaimTitle')}</p>
+          <p className="text-[11px] font-medium text-destructive-text">{t('reclaimTitle')}</p>
           <p className="text-[10px] text-muted-foreground">{t('reclaimDesc')}</p>
           <input
             type="text"
@@ -185,7 +185,7 @@ export function StatusActionsBar({
             <button
               onClick={handleReclaim}
               disabled={reclaiming}
-              className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium disabled:opacity-50"
+              className="text-[10px] px-2.5 py-1 rounded-full bg-destructive/20 hover:bg-destructive/30 text-destructive-text font-medium disabled:opacity-50"
             >
               {t('reclaimAction')}
             </button>

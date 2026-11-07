@@ -133,7 +133,7 @@ export const LocalSkillPreviewCard = memo(
 
         {/* Conflict Alert Banner */}
         {skill.conflict_reason && (
-          <div className="mt-2 text-[11px] text-destructive bg-destructive/10 rounded px-2 py-1 flex items-center gap-1.5 ml-6">
+          <div className="mt-2 text-[11px] text-destructive-text bg-destructive/10 rounded px-2 py-1 flex items-center gap-1.5 ml-6">
             <AlertTriangle className="h-3 w-3 shrink-0" />
             <span>{skill.conflict_reason}</span>
           </div>
@@ -143,7 +143,7 @@ export const LocalSkillPreviewCard = memo(
         {isSecurityBlocked && (
           <div
             data-testid="security-blocked-notice"
-            className="mt-2 text-[11px] font-medium text-destructive bg-destructive/15 border border-destructive/30 rounded px-2 py-1.5 flex items-center gap-1.5 ml-6"
+            className="mt-2 text-[11px] font-medium text-destructive-text bg-destructive/15 border border-destructive/30 rounded px-2 py-1.5 flex items-center gap-1.5 ml-6"
           >
             <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
             <span>{t('previewDialog.securityBlockedTooltip')}</span>
@@ -195,10 +195,10 @@ export const LocalSkillPreviewCard = memo(
                     key={`${finding.threat_type}-${idx}`}
                     className="flex items-start gap-1.5 text-[11px] leading-snug"
                   >
-                    <FileCode className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                    <FileCode className="h-3 w-3 text-destructive-text shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-destructive">
+                        <span className="font-medium text-destructive-text">
                           {scanText.threatLabel(finding.threat_type)}
                         </span>
                         <Badge variant="outline" className="text-[9px] px-1 py-0 uppercase">

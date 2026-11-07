@@ -1,19 +1,19 @@
 """What the memory tool descriptions say about the tools' own surface is true under the active policy.
 
 A description is prompt text the model acts on: naming an argument, tool or corpus it cannot use sends it into a dead
-end. The matrix builds the real tools for every corpus policy, locale and approval mode and holds each description
-against the schemas the provider receives (the MCP surface against the MCP server's own tool schemas).
+end. The matrix builds the real tools for every corpus policy, write policy, locale and approval mode and holds each
+description against the schemas the provider receives (the MCP surface against the MCP server's own tool schemas).
 """
 
 from __future__ import annotations
 
 import itertools
 import re
+from dataclasses import replace
 from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
-from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.binding import tool_bind_kwargs
 from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server.server import MemoryMCPServer
@@ -30,7 +30,8 @@ _SESSIONS_SEARCH = re.compile(r"corpus=sessions|expand_\w+|\bmessage_id\b|^- ses
 _AGENT_TOOL_NAMES = {"memory_search_tool", "memory_save_tool", "memory_manage_tool", "wiki_ingest_tool"}
 # A field of the sessions hit the model reads, not an argument it passes.
 _RESULT_FIELDS = {"message_id"}
-# Every argument memory_save_tool sends to the provider is read by the save path; one nothing reads is text without a reader.
+# Every argument memory_save_tool can send to the provider is read by the save path; one nothing reads is text without
+# a reader. write_target goes out only while the policy allows shared writes.
 _SAVE_ARGUMENTS = {
     "content",
     "category",
@@ -42,15 +43,23 @@ _SAVE_ARGUMENTS = {
     "rule_priority",
 }
 
-_POLICIES = [
-    pytest.param(MemorySearchPolicy(), id="memory-only"),
-    pytest.param(MemorySearchPolicy(allow_wiki=True), id="wiki"),
-    pytest.param(MemorySearchPolicy(allow_sessions=True), id="sessions"),
-    pytest.param(MemorySearchPolicy(allow_wiki=True, allow_sessions=True), id="wiki-and-sessions"),
-]
+_CORPUS_POLICIES = {
+    "memory-only": MemorySearchPolicy(),
+    "wiki": MemorySearchPolicy(allow_wiki=True),
+    "sessions": MemorySearchPolicy(allow_sessions=True),
+    "wiki-and-sessions": MemorySearchPolicy(allow_wiki=True, allow_sessions=True),
+}
+_WRITE_POLICIES = {"shared-write": True, "bound-only": False}
 _MATRIX = [
-    pytest.param(policy.values[0], locale, approval, id=f"{policy.id}-{locale}-{'approval' if approval else 'direct'}")
-    for policy, locale, approval in itertools.product(_POLICIES, ("en", "zh"), (False, True))
+    pytest.param(
+        replace(corpus_policy, allow_shared_write=allow_shared_write),
+        locale,
+        approval,
+        id=f"{corpus_id}-{write_id}-{locale}-{'approval' if approval else 'direct'}",
+    )
+    for (corpus_id, corpus_policy), (write_id, allow_shared_write), locale, approval in itertools.product(
+        _CORPUS_POLICIES.items(), _WRITE_POLICIES.items(), ("en", "zh"), (False, True)
+    )
 ]
 
 type WireFunction = dict[str, object]
@@ -60,7 +69,7 @@ def _wire_functions(policy: MemorySearchPolicy, locale: str, approval_required: 
     """The memory tools as ``tool_bind_kwargs`` hands them to the provider, by tool name."""
     manager = MagicMock()
     manager.approval_required = approval_required
-    tools = cast(list[BaseTool], create_memory_tools(manager, search_policy=policy, description_locale=locale))
+    tools = create_memory_tools(manager, search_policy=policy, description_locale=locale)
     bound = tool_bind_kwargs(
         tools,
         model_id="gpt-5",
@@ -141,7 +150,20 @@ def test_save_category_guide_lists_exactly_the_categories_the_schema_accepts(
 def test_save_offers_exactly_the_arguments_the_save_path_reads(
     policy: MemorySearchPolicy, locale: str, approval: bool
 ) -> None:
-    assert _fields(_wire_functions(policy, locale, approval)["memory_save_tool"]) == _SAVE_ARGUMENTS
+    expected = _SAVE_ARGUMENTS if policy.allow_shared_write else _SAVE_ARGUMENTS - {"write_target"}
+    assert _fields(_wire_functions(policy, locale, approval)["memory_save_tool"]) == expected
+
+
+@pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)
+def test_shared_write_target_is_offered_only_when_the_policy_allows_it(
+    policy: MemorySearchPolicy, locale: str, approval: bool
+) -> None:
+    save = _wire_functions(policy, locale, approval)["memory_save_tool"]
+    assert ("write_target" in _fields(save)) is policy.allow_shared_write
+    # The block offers the value in quotes; prose such as "shares a preference" is not an offer.
+    assert ('"shared"' in _description(save)) is policy.allow_shared_write
+    if policy.allow_shared_write:
+        assert _enum_values(save)["write_target"] == {"bound", "shared"}
 
 
 @pytest.mark.parametrize(("policy", "locale", "approval"), _MATRIX)

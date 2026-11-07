@@ -10,6 +10,8 @@
 | ---------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `MemoryHealthDashboard.tsx`  | 核心 | 记忆健康仪表盘：容量、召回质量与医生诊断指标可视化                                                                                      | ✅    |
 | `MemoryKnowledgeGraph.tsx`   | 核心 | 记忆知识图谱（节点/边关系探索）                                                                                                         | ✅    |
+| `KnowledgeGraphPanels.tsx`   | 辅助 | 图谱浮层：关系图例与节点详情卡片，数据与回调由 `MemoryKnowledgeGraph.tsx` 传入                                                          | ✅    |
+| `knowledgeGraphModel.ts`     | 辅助 | 图谱纯数据层：力导向图类型、节点与关系配色、API 响应转换                                                                                | ✅    |
 | `RankedHubSidebar.tsx`       | 辅助 | 图谱枢纽侧栏：按连接度排序的中心节点列表；侧栏地标名称取自翻译键（`__tests__/RankedHubSidebar.test.tsx`）                               | ✅    |
 | `GraphEmptyState.tsx`        | 辅助 | 图谱空态与引导                                                                                                                          | ✅    |
 | `MemoryContextPanel.tsx`     | 辅助 | Shared Context 编辑预览面板；全局/专属画像卡片的标题、副标题与空态文案取自 `memory.context*`（`__tests__/MemoryContextPanel.test.tsx`） | ✅    |

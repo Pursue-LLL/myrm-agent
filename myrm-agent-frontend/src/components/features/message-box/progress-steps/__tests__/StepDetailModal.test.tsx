@@ -40,7 +40,7 @@ describe('StepDetailModal outcome', () => {
 
     const badge = screen.getByText('progressSteps.statusLabels.error');
     expect(badge.className).toContain('bg-destructive');
-    expect(screen.getByText(REASON).className).toContain('text-destructive');
+    expect(screen.getByText(REASON).className).toContain('text-destructive-text');
     expect(screen.getByText(REASON).className).not.toContain('text-amber-700');
   });
 

@@ -25,7 +25,7 @@ import type {
   MemoryCommandTimelineEvent,
 } from '@/services/memory/commandCenter';
 import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels';
-import type { DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
+import type { DoctorExecutableAction } from './memoryDoctorModel';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { ToolGuidancePanel } from './ToolGuidancePanel';
 import { CognitiveClockPanel } from './CognitiveClockPanel';

@@ -228,7 +228,7 @@ export function SystemAssistantModal({ isOpen, onClose }: SystemAssistantModalPr
 
         {/* Error notification */}
         {errorMessage && (
-          <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-2.5 border border-destructive/20">
+          <div className="rounded-lg bg-destructive/10 text-destructive-text text-xs p-2.5 border border-destructive/20">
             {errorMessage}
           </div>
         )}

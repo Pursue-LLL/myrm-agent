@@ -167,7 +167,7 @@ export function AgentCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-destructive hover:text-destructive"
+            className="h-8 text-destructive-text hover:text-destructive-text"
             onClick={() => onDelete(agent.id)}
           >
             <Trash2 className="h-4 w-4" />

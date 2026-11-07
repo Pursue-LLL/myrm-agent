@@ -39,7 +39,7 @@ export const SandpackErrorBoundary = ({ children, labels }: SandpackErrorBoundar
     return (
       <div className="h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
-          <AlertCircle className="w-8 h-8 text-destructive" />
+          <AlertCircle className="w-8 h-8 text-destructive-text" />
         </div>
         <div>
           <p className="font-medium text-foreground">{labels.renderError}</p>

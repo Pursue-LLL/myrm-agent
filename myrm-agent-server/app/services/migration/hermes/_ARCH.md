@@ -2,15 +2,15 @@
 
 ## 架构概述
 
-`hermes/` 是迁移服务的 **Hermes 专用转换器聚合子目录**：把 Hermes 的 cron（`jobs.json`）与 MOA preset 配置转换为 Myrm 的 CronJob 与 Agent 引擎参数，由上层 `migration` 服务按来源分派调用。
+`hermes/` 是迁移服务的 **Hermes 专用转换器聚合子目录**：把 Hermes 的 cron（`jobs.json`）转换为 Myrm CronJob，由上层 `migration` 服务按来源分派调用。MoA 预设不迁移（语义不兼容），导入后仅由 readiness 提示用户手动配置。
 
 ## 文件清单
 
 | 文件 | 类型 | 职责 | 状态 |
 | --- | --- | --- | --- |
+| `__init__.py` | 门面 | 聚合导出 cron 转换/写入/回滚 API | ✅ |
 | `hermes_cron_converter.py` | 核心 | Hermes `jobs.json` → Myrm CronJob 映射 + dry-run plan + skipped preview rows（无 model 字段，agent SSOT） | ✅ |
 | `hermes_cron_migration.py` | 核心 | confirm 写入 CronManager（默认 paused，model=None）+ batch rollback | ✅ |
-| `hermes_moa_migrator.py` | 辅助 | Hermes `moa.presets` → 目标 Agent `engine_params.moa_overlay`（ref 模型 + fanout/隐私参数；不迁移 aggregator） | ✅ |
 
 ## 依赖边界
 

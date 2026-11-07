@@ -42,7 +42,7 @@ function getStatusIcon(status: string) {
     case 'HEALTHY':
       return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />;
     case 'AT_RISK':
-      return <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />;
+      return <AlertTriangle className="h-3.5 w-3.5 text-destructive-text shrink-0" />;
     case 'UNPROVEN':
       return <CircleDashed className="h-3.5 w-3.5 text-sky-500 shrink-0" />;
     default:
@@ -100,7 +100,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
         >
           <span>{t('filterAttention')}</span>
           {attentionItems.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/15 text-destructive border border-destructive/20">
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-destructive/15 text-destructive-text border border-destructive/20">
               {attentionItems.length}
             </span>
           )}

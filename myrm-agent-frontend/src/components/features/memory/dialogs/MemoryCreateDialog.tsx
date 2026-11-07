@@ -280,7 +280,7 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-xs font-medium text-primary"
                     >
                       {tag}
-                      <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                      <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive-text">
                         <X size={10} />
                       </button>
                     </span>

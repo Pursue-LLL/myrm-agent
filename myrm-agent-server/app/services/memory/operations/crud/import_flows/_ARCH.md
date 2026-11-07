@@ -12,7 +12,7 @@
 | `dry_run_preview.py` | 辅助 | 预览行组装：instruction/memory/skill/credential/cron/session 车道（含 `detail_parts` 本地化片段）、会话样例、指令预览（persona 截断 1200）、token 经济估算、cron 跳过原因 | ✅ |
 | `paste_lane.py` | 辅助 | 粘贴文本的模型车道：40k 字符预算内单次抽取，未配置模型/超预算/抽取失败一律回退确定性解析；不写库也不跳过审查 | ✅ |
 | `confirm_flow.py` | 核心 | 导入 confirm 编排：写入记忆 → 按审阅顺序重放车道 → 诊断 → readiness → 响应（`workspace_bind_candidates` 与账本条目供回滚重放） | ✅ |
-| `instruction_lane.py` | 核心 | confirm 写入车道：指令计划（persona/全局/规则）+ MCP 配置 + 模型迁移（Hermes `moa`→Agent `moa_overlay`，经 `hermes_moa_migrator`）+ `instruction_rollback` 账本；MCP 写入失败不推翻已生效的指令车道 | ✅ |
+| `instruction_lane.py` | 核心 | confirm 写入车道：指令计划（persona/全局/规则）+ MCP 配置 + 模型迁移（Hermes auxiliary / OpenClaw 默认模型；MoA 预设不迁移，仅 readiness 提示）+ `instruction_rollback` 账本；MCP 写入失败不推翻已生效的指令车道 | ✅ |
 | `confirm_followups.py` | 辅助 | confirm 后续车道：cron 暂停导入、会话落库、导入后诊断（失败降级）、readiness 聚合与持久化（含 recheck facts） | ✅ |
 | `side_effects.py` | 辅助 | confirm 之后的副作用：MCP 配置迁移、模型迁移搬运、`POST /import/readiness-recheck` 用当前 provider 状态重算 readiness | ✅ |
 | `rollback_flow.py` | 核心 | 导入回滚预演与执行（读 confirm 写入的账本条目） | ✅ |

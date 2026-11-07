@@ -86,7 +86,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_prebuilt_skill_voice_memo_synthesizer.py` | `voice-memo-synthesizer` skill 契约防漂移：四维解构/Actionability 门禁/唯一幂等键/UTF-8-SIG 规程 |
 | `test_prebuilt_skill_voice_corpus_review.py` | `voice-corpus-review` skill 契约防漂移：跨会话多素材聚合/看板真实验收/阻碍归因/周度复盘工件规程 |
 | `test_prebuilt_skills_frontmatter_keys.py` | 出厂 prebuilt `SKILL.md` 的 frontmatter 只能声明运行时认识的键（loader 对未知键只告警，写错的键会静默失效）；`pipeline_spec` 为看板流水线专用豁免；自带反向对照防空转 |
-| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 核心行为规则（所有模型共用）+ web_chat 渠道提示，按中英文各设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行、缓存暗号与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
+| `test_first_turn_static_prompt_budget.py` | 首轮静态 system 消息的体积门禁：核心提示词（full 模式）+ 时间规则 + 核心行为规则（所有模型共用）+ web_chat 渠道提示，按中英文各设上限（= 最近一次有意改动后的实测 +5%，`o200k_base`），另给 `<widget_capability>` 设上限；主机环境行与运行时挂载的 CLI 工具段随主机或进程变化，不在范围内；自带「组装含全部块」校验，防止量到空串而永远通过；往里增字的改动须在同一 PR 里抬高上限并写明理由 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `test_no_core_services_api_imports.py` | `app/{core,services,lifecycle}/` 禁止 import `app.api` |
 | `test_telegram_channel_mixin_mro.py` | `TelegramChannel._pre_emit_hook` 必须来自 hooks mixin；inbound、inbound_message、inbound_poll 三个 mixin 不得定义同名方法（源码里 `TYPE_CHECKING` 下给类型检查器的声明不算）；MRO 中话题 mixin 先于 hooks mixin；`collect_issues` 必须来自诊断 mixin，而不是 `BaseChannel` 的默认实现 |
@@ -94,6 +94,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_kanban_attachment_storage_ssot.py` | Kanban 附件字节读取必须使用 `files_service.get_content`，禁止误用 `get_file_content(file_id)` |
 | `test_nas_docker_compose_template.py` | NAS / HomeLab Docker Compose 覆盖编排契约与三卷持久化挂载验证 |
 | `test_docker_compose_hardening.py` | 本地 Docker 栈的加固不得被悄悄删掉：后端去掉 `NET_RAW`/`NET_ADMIN`/`SYS_ADMIN`/`MKNOD` 并禁止提权、以 init 进程运行、停止宽限期不短于回合排空预算 + 30 秒；前端丢弃全部能力、禁止提权、根文件系统只读、仅 `/tmp` 为 `noexec,nosuid` 的 tmpfs |
+| `test_architecture_gates_order.py` | 门禁脚本 `scripts/ci/run_architecture_gates.sh` 先判推送区间、再装依赖：用只记录调用的桩 `python3`、`uv`、`promtool` 跑脚本副本，模块可达性的 harness 差分与 server 差分必须排在依赖安装与整树门禁之前，一次差分失败不遮住另一次并停下本次运行，依赖安装失败也不能让可达性判定被跳过；两次差分的基线取 `MYRM_REACHABILITY_BASE`：GitHub Actions 里缺基线则不跑任何差分就失败，本地缺省 `origin/main`（只设 `CI=true` 的本地运行也一样） |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` 的超标模块台账（本地自查用，非 CI 阻断） |
 

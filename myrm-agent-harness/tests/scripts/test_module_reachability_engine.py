@@ -13,35 +13,12 @@ _repo_root = Path(__file__).resolve().parent.parent.parent
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from scripts.module_reachability_engine import Consumer, Report, analyze, classify
-
-_HUB = "agent/engine/__init__.py"
-
-
-def _package(tmp_path: Path, files: dict[str, str]) -> Path:
-    root = tmp_path / "pkg"
-    for rel, text in {"__init__.py": "", "agent/__init__.py": "", _HUB: "", **files}.items():
-        target = root / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
-    return root
-
-
-def _server(tmp_path: Path, files: dict[str, str]) -> Path:
-    root = tmp_path / "server"
-    for rel, text in files.items():
-        target = root / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
-    return root
-
-
-def _dead(report: Report) -> set[str]:
-    return {unit.key for unit in report.dead}
+from scripts.module_reachability_engine import Consumer, analyze
+from tests.support.reachability_trees import HUB, dead, package, server_tree
 
 
 def test_unit_without_consumer_is_dead(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/used.py": "class Used: ...\n",
@@ -49,54 +26,54 @@ def test_unit_without_consumer_is_dead(tmp_path: Path) -> None:
             "api/consumer.py": "from pkg.agent.engine.used import Used\n\nUsed()\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_pure_reexport_in_hub_is_not_a_consumer(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: 'from .orphan import Orphan\n\n__all__ = ["Orphan"]\n',
+            HUB: 'from .orphan import Orphan\n\n__all__ = ["Orphan"]\n',
             "agent/engine/orphan.py": "class Orphan: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_alias_assignment_in_hub_is_not_a_use(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
-        {_HUB: "from .orphan import Orphan\n\nAlias = Orphan\n", "agent/engine/orphan.py": "class Orphan: ...\n"},
+        {HUB: "from .orphan import Orphan\n\nAlias = Orphan\n", "agent/engine/orphan.py": "class Orphan: ...\n"},
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_real_use_inside_hub_function_makes_unit_live(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: "from .helper import build\n\n\ndef make() -> object:\n    return build()\n",
+            HUB: "from .helper import build\n\n\ndef make() -> object:\n    return build()\n",
             "agent/engine/helper.py": "def build() -> object: ...\n",
         },
     )
-    assert _dead(analyze(root)) == set()
+    assert dead(analyze(root)) == set()
 
 
 def test_consumer_import_through_hub_binding_is_live(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: "from .used import Used\n",
+            HUB: "from .used import Used\n",
             "agent/engine/used.py": "class Used: ...\n",
             "agent/engine/other.py": "class Other: ...\n",
             "api/consumer.py": "from pkg.agent.engine import Used\n\nUsed()\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/other"}
+    assert dead(analyze(root)) == {"agent/engine/other"}
 
 
 def test_same_name_without_an_import_is_not_a_consumer(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/orphan.py": "class Orphan: ...\n\n\nSTOP_WORDS = frozenset()\n",
@@ -105,11 +82,11 @@ def test_same_name_without_an_import_is_not_a_consumer(tmp_path: Path) -> None:
             "api/attr.py": "def f(obj: object) -> None:\n    obj.Orphan()\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_relative_import_chain_keeps_dependencies_live(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/first.py": "from .second import Second\n\nSecond()\n",
@@ -118,22 +95,22 @@ def test_relative_import_chain_keeps_dependencies_live(tmp_path: Path) -> None:
             "api/consumer.py": "from pkg.agent.engine.first import First\n",
         },
     )
-    assert _dead(analyze(root)) == set()
+    assert dead(analyze(root)) == set()
 
 
 def test_unit_referenced_only_by_a_dead_unit_is_dead(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/dead_a.py": "from .dead_b import B\n\nB()\n",
             "agent/engine/dead_b.py": "class B: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/dead_a", "agent/engine/dead_b"}
+    assert dead(analyze(root)) == {"agent/engine/dead_a", "agent/engine/dead_b"}
 
 
 def test_main_module_and_entry_points_are_roots(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/__main__.py": "from .tool import run\n\nrun()\n",
@@ -142,11 +119,11 @@ def test_main_module_and_entry_points_are_roots(tmp_path: Path) -> None:
             "agent/engine/unwired.py": "def main() -> None: ...\n",
         },
     )
-    assert _dead(analyze(root, entry_points=["pkg.agent.engine.cli:main"])) == {"agent/engine/unwired"}
+    assert dead(analyze(root, entry_points=["pkg.agent.engine.cli:main"])) == {"agent/engine/unwired"}
 
 
 def test_module_with_a_main_block_is_a_root_for_what_it_imports(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/cli.py": (
@@ -158,14 +135,14 @@ def test_module_with_a_main_block_is_a_root_for_what_it_imports(tmp_path: Path) 
             "agent/engine/other_guard.py": 'if __name__ == "other":\n    pass\n',
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/no_guard", "agent/engine/other_guard"}
+    assert dead(analyze(root)) == {"agent/engine/no_guard", "agent/engine/other_guard"}
 
 
 def test_attribute_chain_on_module_alias_counts(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: "from .used import Used\n",
+            HUB: "from .used import Used\n",
             "agent/engine/used.py": "class Used: ...\n",
             "agent/engine/via_module.py": "def run() -> None: ...\n",
             "agent/engine/orphan.py": "class Orphan: ...\n",
@@ -174,14 +151,14 @@ def test_attribute_chain_on_module_alias_counts(tmp_path: Path) -> None:
             "api/c.py": "import pkg\n\npkg.agent.engine.used.Used()\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_lazy_hub_table_resolves_absolute_and_relative_entries(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: (
+            HUB: (
                 "_EXPORTS = {\n"
                 '    "Absolute": ("pkg.agent.engine.absolute", "Absolute"),\n'
                 '    "Relative": (".relative", "Relative"),\n'
@@ -194,25 +171,25 @@ def test_lazy_hub_table_resolves_absolute_and_relative_entries(tmp_path: Path) -
             "api/consumer.py": "from pkg.agent.engine import Absolute, Relative\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/unused"}
+    assert dead(analyze(root)) == {"agent/engine/unused"}
 
 
 def test_hub_without_binding_falls_back_to_exporters_in_its_subtree(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: "def __getattr__(name: str) -> object: ...\n",
+            HUB: "def __getattr__(name: str) -> object: ...\n",
             "agent/engine/dyn.py": "class Dyn: ...\n",
             "agent/elsewhere/__init__.py": "",
             "agent/elsewhere/twin.py": "class Dyn: ...\n",
             "api/consumer.py": "from pkg.agent.engine import Dyn\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/elsewhere/twin"}
+    assert dead(analyze(root)) == {"agent/elsewhere/twin"}
 
 
 def test_public_surface_reexports_count_but_other_hubs_do_not(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "api/__init__.py": "from pkg.agent.engine.exposed import Exposed\n",
@@ -221,11 +198,11 @@ def test_public_surface_reexports_count_but_other_hubs_do_not(tmp_path: Path) ->
             "agent/engine/hidden.py": "class Hidden: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/hidden"}
+    assert dead(analyze(root)) == {"agent/engine/hidden"}
 
 
 def test_dotted_strings_count_as_references(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/plain.py": "class Plain: ...\n",
@@ -238,11 +215,11 @@ def test_dotted_strings_count_as_references(tmp_path: Path) -> None:
             ),
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/prose"}
+    assert dead(analyze(root)) == {"agent/engine/prose"}
 
 
 def test_server_tree_is_a_consumer_and_reported_separately(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/shared.py": "class Shared: ...\n",
@@ -251,7 +228,7 @@ def test_server_tree_is_a_consumer_and_reported_separately(tmp_path: Path) -> No
             "api/consumer.py": "from pkg.agent.engine.shared import Shared\n",
         },
     )
-    server = _server(
+    server = server_tree(
         tmp_path,
         {
             "service.py": "from pkg.agent.engine.server_only import ServerOnly\nfrom .internal import Internal\n",
@@ -259,12 +236,12 @@ def test_server_tree_is_a_consumer_and_reported_separately(tmp_path: Path) -> No
         },
     )
     report = analyze(root, [Consumer(server)])
-    assert _dead(report) == {"agent/engine/internal"}
+    assert dead(report) == {"agent/engine/internal"}
     assert {unit.key for unit in report.server_only} == {"agent/engine/server_only"}
 
 
 def test_dead_server_unit_is_not_a_consumer(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
             "agent/engine/served.py": "class Served: ...\n",
@@ -272,7 +249,7 @@ def test_dead_server_unit_is_not_a_consumer(tmp_path: Path) -> None:
             "agent/engine/chained.py": "class Chained: ...\n",
         },
     )
-    server = _server(
+    server = server_tree(
         tmp_path,
         {
             "main.py": "from server.svc.live import go\n\ngo()\n",
@@ -282,31 +259,31 @@ def test_dead_server_unit_is_not_a_consumer(tmp_path: Path) -> None:
         },
     )
     report = analyze(root, [Consumer(server)])
-    assert _dead(report) == {"agent/engine/ghost", "agent/engine/chained"}
+    assert dead(report) == {"agent/engine/ghost", "agent/engine/chained"}
     assert {unit.key for unit in report.server_only} == {"agent/engine/served"}
 
 
 def test_server_root_dirs_are_consumers_without_being_reached(tmp_path: Path) -> None:
-    root = _package(tmp_path, {"agent/engine/loaded.py": "class Loaded: ...\n"})
-    server = _server(tmp_path, {"providers/plugin.py": "from pkg.agent.engine.loaded import Loaded\n\nLoaded()\n"})
-    assert _dead(analyze(root, [Consumer(server)])) == {"agent/engine/loaded"}
-    assert _dead(analyze(root, [Consumer(server, root_dirs=("providers",))])) == set()
+    root = package(tmp_path, {"agent/engine/loaded.py": "class Loaded: ...\n"})
+    server = server_tree(tmp_path, {"providers/plugin.py": "from pkg.agent.engine.loaded import Loaded\n\nLoaded()\n"})
+    assert dead(analyze(root, [Consumer(server)])) == {"agent/engine/loaded"}
+    assert dead(analyze(root, [Consumer(server, root_dirs=("providers",))])) == set()
 
 
 def test_server_hub_reexport_of_a_harness_name_counts(tmp_path: Path) -> None:
-    root = _package(tmp_path, {"agent/engine/shared.py": "class Shared: ...\n"})
-    server = _server(
+    root = package(tmp_path, {"agent/engine/shared.py": "class Shared: ...\n"})
+    server = server_tree(
         tmp_path,
         {
             "main.py": "from server.svc import Shared\n\nShared()\n",
             "svc/__init__.py": "from pkg.agent.engine.shared import Shared\n",
         },
     )
-    assert _dead(analyze(root, [Consumer(server)])) == set()
+    assert dead(analyze(root, [Consumer(server)])) == set()
 
 
 def test_server_tree_is_audited_with_the_same_engine(tmp_path: Path) -> None:
-    server = _server(
+    server = server_tree(
         tmp_path,
         {
             "main.py": "from server.svc.live import go\n\ngo()\n",
@@ -315,33 +292,17 @@ def test_server_tree_is_audited_with_the_same_engine(tmp_path: Path) -> None:
             "providers/plugin.py": "def load() -> None: ...\n",
         },
     )
-    assert _dead(analyze(server, root_dirs=("providers",))) == {"svc/orphan"}
-
-
-def test_sub_package_unit_aggregates_inner_modules(tmp_path: Path) -> None:
-    root = _package(
-        tmp_path,
-        {
-            "agent/engine/bundle/__init__.py": "",
-            "agent/engine/bundle/inner.py": "def run() -> None: ...\n",
-            "agent/standalone.py": "def go() -> None: ...\n",
-            "api/consumer.py": "from pkg.agent.engine.bundle.inner import run\n",
-        },
-    )
-    report = analyze(root)
-    assert set(report.units) >= {"agent/engine/bundle", "agent/standalone"}
-    assert report.units["agent/engine/bundle"].lines >= 2
-    assert _dead(report) == {"agent/standalone"}
+    assert dead(analyze(server, root_dirs=("providers",))) == {"svc/orphan"}
 
 
 def test_unparsable_file_is_ignored(tmp_path: Path) -> None:
-    root = _package(tmp_path, {"agent/engine/broken.py": "def (:\n", "agent/engine/fine.py": "X = 1\n"})
-    assert _dead(analyze(root)) == {"agent/engine/broken", "agent/engine/fine"}
+    root = package(tmp_path, {"agent/engine/broken.py": "def (:\n", "agent/engine/fine.py": "X = 1\n"})
+    assert dead(analyze(root)) == {"agent/engine/broken", "agent/engine/fine"}
 
 
 def test_hub_bare_import_is_a_side_effect_consumer(tmp_path: Path) -> None:
     """Probes register through ``import a.b.c`` in the hub; nothing imports their symbols."""
-    root = _package(
+    root = package(
         tmp_path,
         {
             "observability/diagnostics/__init__.py": (
@@ -353,15 +314,15 @@ def test_hub_bare_import_is_a_side_effect_consumer(tmp_path: Path) -> None:
             "observability/diagnostics/orphan.py": "class Orphan: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"observability/diagnostics/orphan"}
+    assert dead(analyze(root)) == {"observability/diagnostics/orphan"}
 
 
 def test_function_local_import_in_hub_is_a_consumer(tmp_path: Path) -> None:
     """A hub that imports a module inside a function runs it; a re-export can only be a module-level binding."""
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: (
+            HUB: (
                 "def __getattr__(name: str) -> object:\n"
                 "    from pkg.agent.engine import config as _config  # noqa: F401  # side-effect: apply defaults\n"
                 "    return name\n"
@@ -372,41 +333,15 @@ def test_function_local_import_in_hub_is_a_consumer(tmp_path: Path) -> None:
             "agent/engine/orphan.py": "class Orphan: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/orphan"}
+    assert dead(analyze(root)) == {"agent/engine/orphan"}
 
 
 def test_aliased_import_in_hub_is_a_binding_not_a_consumer(tmp_path: Path) -> None:
-    root = _package(
+    root = package(
         tmp_path,
         {
-            _HUB: "import pkg.agent.engine.thing as thing\n",
+            HUB: "import pkg.agent.engine.thing as thing\n",
             "agent/engine/thing.py": "class Thing: ...\n",
         },
     )
-    assert _dead(analyze(root)) == {"agent/engine/thing"}
-
-
-def test_every_top_level_directory_is_in_scope_except_root_dirs(tmp_path: Path) -> None:
-    files = {
-        "toolkits/lonely.py": "X = 1\n",
-        "backends/__init__.py": "",
-        "backends/used.py": "def run() -> None: ...\n",
-        "api/consumer.py": "from pkg.backends.used import run\n\nrun()\n",
-        "plugins/loader.py": "from pkg.toolkits.lonely import X\n\nprint(X)\n",
-    }
-    root = _package(tmp_path, files)
-    assert _dead(analyze(root)) == {"toolkits/lonely", "plugins/loader"}
-    assert _dead(analyze(root, root_dirs=("api", "plugins"))) == set()
-
-
-def test_scope_classification() -> None:
-    assert classify(("agent", "__init__.py")) == ("root", None)
-    assert classify(("agent", "engine", "__init__.py")) == ("root", None)
-    assert classify(("agent", "engine", "__main__.py")) == ("root", None)
-    assert classify(("cli.py",)) == ("root", None)
-    assert classify(("api", "routes", "chat.py")) == ("root", None)
-    assert classify(("toolkits", "memory", "store.py")) == ("unit", "toolkits/memory/store")
-    assert classify(("core", "standalone.py")) == ("unit", "core/standalone")
-    assert classify(("runtime", "context", "engine.py")) == ("unit", "runtime/context/engine")
-    assert classify(("runtime", "context", "bundle", "deep", "mod.py")) == ("unit", "runtime/context/bundle")
-    assert classify(("channels", "providers", "slack.py"), root_dirs=("channels",)) == ("root", None)
+    assert dead(analyze(root)) == {"agent/engine/thing"}

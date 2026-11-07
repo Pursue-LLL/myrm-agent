@@ -184,7 +184,7 @@ const DatasetExportCard = memo(() => {
               </span>
             </div>
             {lastReport.errors.length > 0 && (
-              <p className="text-destructive text-xs mt-1">
+              <p className="text-destructive-text text-xs mt-1">
                 {t('datasetExport.errors')}: {lastReport.errors.join('; ')}
               </p>
             )}

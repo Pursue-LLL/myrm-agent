@@ -95,14 +95,14 @@ export default function EStopBanner() {
           <span
             className={cn(
               'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-              'bg-destructive/15 text-destructive ring-1 ring-destructive/25',
-              'dark:bg-destructive/20 dark:text-destructive dark:ring-destructive/30',
+              'bg-destructive/15 text-destructive-text ring-1 ring-destructive/25',
+              'dark:bg-destructive/20 dark:ring-destructive/30',
             )}
           >
             <OctagonPause className="h-3.5 w-3.5" aria-hidden />
           </span>
           <div className="min-w-0 space-y-0.5">
-            <p className="text-sm font-semibold leading-tight text-destructive dark:text-destructive">{t('message')}</p>
+            <p className="text-sm font-semibold leading-tight text-destructive-text">{t('message')}</p>
             <p className="text-xs leading-snug text-muted-foreground">{reasonText || t('hint')}</p>
           </div>
         </div>

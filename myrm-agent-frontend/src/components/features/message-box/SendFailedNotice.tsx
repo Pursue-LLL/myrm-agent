@@ -22,7 +22,7 @@ export function SendFailedNotice({ onRetry }: SendFailedNoticeProps) {
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-      <span className="text-sm text-destructive/80">{t('messageFailed.networkError')}</span>
+      <span className="text-sm text-destructive-text">{t('messageFailed.networkError')}</span>
       <button
         onClick={onRetry}
         className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1 text-sm font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"

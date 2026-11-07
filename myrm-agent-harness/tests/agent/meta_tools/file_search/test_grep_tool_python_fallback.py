@@ -4,7 +4,7 @@ Covers:
 - Basic search, the result cap and the file cap
 - Binary files and undecodable lines are skipped
 - A ripgrep search that raises (a run that gave no answer) falls back to the Python tier
-- Hidden files are searched, and ignore files at the root apply outside a git repository
+- Hidden files are searched, and ignore files apply outside a git repository
 - An invalid file pattern is rejected, and the time budget is respected
 """
 

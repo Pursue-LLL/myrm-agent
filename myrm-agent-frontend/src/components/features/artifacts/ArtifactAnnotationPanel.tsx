@@ -321,7 +321,7 @@ export function ArtifactAnnotationPanel({
                     <button
                       type="button"
                       onClick={() => removeAnnotation(artifactId, a.id)}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive-text"
                       aria-label={t('annotation.remove', { fallback: 'Remove comment' })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

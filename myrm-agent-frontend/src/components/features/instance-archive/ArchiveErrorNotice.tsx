@@ -26,7 +26,7 @@ export const ArchiveErrorNotice = memo(function ArchiveErrorNotice({ code }: Arc
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"
+      className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive-text"
     >
       <WarningCircle className="mt-0.5 h-4 w-4 shrink-0" weight="fill" />
       <span className="leading-relaxed">{t(archiveErrorMessageKey(code))}</span>

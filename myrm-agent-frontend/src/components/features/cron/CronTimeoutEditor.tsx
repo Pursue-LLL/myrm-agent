@@ -61,7 +61,7 @@ export function TimeoutInput({ value, onChange, invalid, disabled }: TimeoutInpu
         />
         <span className="text-xs text-muted-foreground">s</span>
       </div>
-      <p id={hintId} className={cn('text-[11px]', invalid ? 'text-destructive' : 'text-muted-foreground')}>
+      <p id={hintId} className={cn('text-[11px]', invalid ? 'text-destructive-text' : 'text-muted-foreground')}>
         {t('timeoutRangeHint', { min: String(CRON_TIMEOUT_MIN_SECONDS), max: String(CRON_TIMEOUT_MAX_SECONDS) })}
       </p>
     </div>

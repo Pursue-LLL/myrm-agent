@@ -56,7 +56,7 @@ const ProfileLibraryPanel = ({ profiles, activeProfileId, onEdit, onApply, onDel
             <button
               type="button"
               aria-label={t('delete')}
-              className="rounded-md p-1.5 text-muted-foreground hover:text-destructive"
+              className="rounded-md p-1.5 text-muted-foreground hover:text-destructive-text"
               onClick={() => onDelete(profile.id)}
             >
               <Trash2 className="h-4 w-4" />

@@ -42,7 +42,7 @@ function getSourceIcon(source: InterruptionSource) {
     case 'commitment_due':
       return <Clock className="w-3.5 h-3.5 text-blue-500" />;
     case 'task_failed_retry':
-      return <RotateCcw className="w-3.5 h-3.5 text-destructive" />;
+      return <RotateCcw className="w-3.5 h-3.5 text-destructive-text" />;
     case 'budget_threshold':
       return <DollarSign className="w-3.5 h-3.5 text-amber-600" />;
     case 'unattended_clarification':
@@ -231,7 +231,7 @@ export const NeedsYouQueueDrawer: React.FC<NeedsYouQueueDrawerProps> = ({
                       <span>{getSourceBadgeLabel(item.source)}</span>
                     </span>
                     {item.urgency === 'urgent' && (
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-red-500/15 text-destructive">
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-red-500/15 text-destructive-text">
                         紧急
                       </span>
                     )}
@@ -320,7 +320,7 @@ export const NeedsYouQueueDrawer: React.FC<NeedsYouQueueDrawerProps> = ({
               className="mt-3 w-full p-2.5 rounded-lg border border-border text-xs bg-muted/40 focus:outline-none focus:ring-1 focus:ring-primary"
               data-testid="dismiss-reason-textarea"
             />
-            {reasonError && <p className="mt-1 text-[11px] text-destructive">{reasonError}</p>}
+            {reasonError && <p className="mt-1 text-[11px] text-destructive-text">{reasonError}</p>}
 
             <div className="mt-4 flex items-center justify-end gap-2">
               <button

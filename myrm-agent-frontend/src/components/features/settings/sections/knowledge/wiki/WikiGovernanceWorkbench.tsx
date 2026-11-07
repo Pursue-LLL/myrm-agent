@@ -259,7 +259,7 @@ export function WikiGovernanceWorkbench({
       {actionMessage ? (
         <output className="flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground">
           {actionMessage.kind === 'error' ? (
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive-text" />
           ) : (
             <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
           )}
@@ -316,7 +316,7 @@ export function WikiGovernanceWorkbench({
                         variant="secondary"
                         size="sm"
                         onClick={() => handleArchive(concept.concept_name)}
-                        className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10"
+                        className="h-6 px-2 text-[11px] text-destructive-text hover:bg-destructive/10"
                       >
                         {t('archiveButton')}
                       </Button>

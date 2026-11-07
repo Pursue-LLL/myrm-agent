@@ -61,7 +61,7 @@ const variantConfig: Record<
 > = {
   destructive: {
     icon: Trash2,
-    iconColor: 'text-destructive',
+    iconColor: 'text-destructive-text',
     buttonClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   },
   warning: {

@@ -282,7 +282,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
                 />
                 {!readonly && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => handleRemove(idx)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    <Trash2 className="h-3.5 w-3.5 text-destructive-text" />
                   </Button>
                 )}
               </div>

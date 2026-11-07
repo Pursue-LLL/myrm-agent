@@ -34,6 +34,7 @@ from myrm_agent_harness.agent.middlewares.concurrency.tool_conflict_gate import 
 )
 from myrm_agent_harness.agent.middlewares.model_call_cancel import ModelCallCancelMiddleware
 from myrm_agent_harness.agent.middlewares.parallel_tool_calls import ParallelToolCallsMiddleware
+from myrm_agent_harness.agent.middlewares.security.canary_middleware import CanaryMiddleware
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import (
     SecurityBoundaryMiddleware,
 )
@@ -169,6 +170,7 @@ def build_middlewares(
         [
             BudgetBoundaryMiddleware(),
             SecurityBoundaryMiddleware(),
+            CanaryMiddleware(),
             SessionAccessMiddleware(),
             SecurityGuardrailMiddleware(),
         ]

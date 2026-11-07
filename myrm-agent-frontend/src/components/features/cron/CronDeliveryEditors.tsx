@@ -228,7 +228,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
             className={cn(
               'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium',
               job.consecutive_failures >= 3
-                ? 'bg-destructive/10 text-destructive border-destructive/20'
+                ? 'bg-destructive/10 text-destructive-text border-destructive/20'
                 : job.consecutive_failures > 0
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                   : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',

@@ -1,27 +1,21 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import TemperatureSlider from '@/components/features/settings/default-model/TemperatureSlider';
-import { ShieldAlert, X } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { IconChevronDown } from '@/components/features/icons/PremiumIcons';
 import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
 import { managedPolicyConstraintsForModel } from '@/lib/managedPolicyMatch';
 import useProviderStore from '@/store/useProviderStore';
 import { ModelSwapContinuityCard } from './ModelSwapContinuityCard';
-import type { AgentCapabilitiesTabProps } from './AgentCapabilitiesTab';
+import type { CapabilitiesSectionProps } from './AgentCapabilitiesTab';
 
-type SectionProps = {
-  editor: AgentCapabilitiesTabProps['editor'];
-  t: ReturnType<typeof useTranslations>;
-};
-
-export function ModelBindingSection({ editor, t }: SectionProps) {
+export function ModelBindingSection({ editor, t }: CapabilitiesSectionProps) {
   const { policy, active } = useManagedPolicyEffective();
   const defaultModelConfig = useProviderStore((state) => state.defaultModelConfig);
   const boundModelSlug = editor.modelSelection?.model?.trim() ?? '';
@@ -113,7 +107,7 @@ export function ModelBindingSection({ editor, t }: SectionProps) {
   );
 }
 
-export function ModelParamsSection({ editor, t }: SectionProps) {
+export function ModelParamsSection({ editor, t }: CapabilitiesSectionProps) {
   const ms = editor.modelSelection;
   if (!ms) {
     return null;
@@ -170,7 +164,7 @@ export function ModelParamsSection({ editor, t }: SectionProps) {
   );
 }
 
-export function MaxIterationsSection({ editor, t }: SectionProps) {
+export function MaxIterationsSection({ editor, t }: CapabilitiesSectionProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3">
@@ -193,7 +187,7 @@ export function MaxIterationsSection({ editor, t }: SectionProps) {
   );
 }
 
-export function WorkspacePolicySection({ editor, t }: SectionProps) {
+export function WorkspacePolicySection({ editor, t }: CapabilitiesSectionProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3">
@@ -223,7 +217,7 @@ export function WorkspacePolicySection({ editor, t }: SectionProps) {
   );
 }
 
-export function ParallelFissionSection({ editor, t }: SectionProps) {
+export function ParallelFissionSection({ editor, t }: CapabilitiesSectionProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3">
@@ -249,7 +243,7 @@ export function ParallelFissionSection({ editor, t }: SectionProps) {
   );
 }
 
-export function IdleCompactSection({ editor, t }: SectionProps) {
+export function IdleCompactSection({ editor, t }: CapabilitiesSectionProps) {
   const ep = editor.engineParams ?? {};
   const idleSeconds = typeof ep.idle_compact_after_seconds === 'number' ? ep.idle_compact_after_seconds : 0;
   const enabled = idleSeconds > 0;
@@ -306,7 +300,7 @@ export function IdleCompactSection({ editor, t }: SectionProps) {
   );
 }
 
-export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
+export function AdvancedEngineParamsSection({ editor, t }: CapabilitiesSectionProps) {
   const ep = editor.engineParams ?? {};
   const setEP = (key: string, val: unknown) => editor.setEngineParams({ ...ep, [key]: val });
 
@@ -382,158 +376,13 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
   );
 }
 
-type RoutingMode = 'global' | 'custom' | 'disabled';
-
-function getRoutingMode(ms: AgentCapabilitiesTabProps['editor']['modelSelection']): RoutingMode {
-  if (!ms || ms.routingEnabled === undefined) {
-    return 'global';
-  }
-  return ms.routingEnabled ? 'custom' : 'disabled';
-}
-
-export function RoutingOverrideSection({ editor, t }: SectionProps) {
-  const ms = editor.modelSelection;
-  const mode = getRoutingMode(ms);
-
-  const setMode = (next: RoutingMode) => {
-    if (!ms) {
-      return;
-    }
-    if (next === 'global') {
-      const {
-        routingEnabled: _,
-        lightProviderId: _lp,
-        lightModel: _lm,
-        reasoningProviderId: _rp,
-        reasoningModel: _rm,
-        ...rest
-      } = ms;
-      editor.setModelSelection(rest);
-    } else {
-      editor.setModelSelection({ ...ms, routingEnabled: next === 'custom' });
-    }
-  };
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-3">
-        <h3 className="text-sm font-medium text-foreground">{t('agent.routingOverride')}</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">{t('agent.routingOverrideDesc')}</p>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        {(['global', 'custom', 'disabled'] as const).map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            className={cn(
-              'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
-              mode === opt
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border bg-background text-muted-foreground hover:bg-muted',
-            )}
-            onClick={() => setMode(opt)}
-          >
-            {t(`agent.routing${opt === 'global' ? 'UseGlobal' : opt === 'custom' ? 'Custom' : 'Disabled'}`)}
-          </button>
-        ))}
-      </div>
-
-      {mode === 'custom' && ms && (
-        <div className="space-y-3 pt-2 border-t border-border/50">
-          <RoutingModelSlot
-            label={t('agent.routingLightModel')}
-            providerId={ms.lightProviderId}
-            model={ms.lightModel}
-            placeholder={t('agent.routingSelectModel')}
-            onSelect={(pid, m) => editor.setModelSelection({ ...ms, lightProviderId: pid, lightModel: m })}
-            onClear={() => editor.setModelSelection({ ...ms, lightProviderId: undefined, lightModel: undefined })}
-          />
-          <RoutingModelSlot
-            label={t('agent.routingReasoningModel')}
-            providerId={ms.reasoningProviderId}
-            model={ms.reasoningModel}
-            placeholder={t('agent.routingSelectModel')}
-            onSelect={(pid, m) => editor.setModelSelection({ ...ms, reasoningProviderId: pid, reasoningModel: m })}
-            onClear={() =>
-              editor.setModelSelection({ ...ms, reasoningProviderId: undefined, reasoningModel: undefined })
-            }
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RoutingModelSlot({
-  label,
-  providerId,
-  model,
-  placeholder,
-  onSelect,
-  onClear,
-}: {
-  label: string;
-  providerId?: string;
-  model?: string;
-  placeholder: string;
-  onSelect: (providerId: string, model: string) => void;
-  onClear: () => void;
-}) {
-  const selection = providerId && model ? { providerId, model } : null;
-
-  return (
-    <div>
-      <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{label}</label>
-      <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <ModelPickerPopover
-            currentSelection={selection}
-            onSelect={onSelect}
-            trigger={
-              <button
-                type="button"
-                className={cn(
-                  'flex h-9 w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors',
-                  selection
-                    ? 'border-primary/20 bg-primary/5'
-                    : 'border-input bg-secondary/50 text-muted-foreground hover:bg-secondary/80',
-                )}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  {selection && <ProviderIcon providerId={selection.providerId} size={14} />}
-                  <span className="truncate">{selection?.model ?? placeholder}</span>
-                </div>
-                <IconChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
-              </button>
-            }
-          />
-        </div>
-        {selection && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="flex items-center justify-center w-9 h-9 rounded-lg border border-border bg-secondary/50 hover:bg-destructive/10 hover:border-destructive/30 transition-colors flex-shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <X size={14} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export { MoaOverlaySection } from './AgentCapabilitiesMoaOverlaySection';
-export { SessionPolicySection } from './AgentCapabilitiesSessionSection';
-export { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';
-
 const BUSY_INPUT_OPTIONS: { value: 'redirect' | 'steer' | 'queue'; labelKey: string }[] = [
   { value: 'redirect', labelKey: 'agent.busyInputRedirect' },
   { value: 'steer', labelKey: 'agent.busyInputSteer' },
   { value: 'queue', labelKey: 'agent.busyInputQueue' },
 ];
 
-export function BusyInputModeSection({ editor, t }: SectionProps) {
+export function BusyInputModeSection({ editor, t }: CapabilitiesSectionProps) {
   return (
     <div className="rounded-xl bg-card/60 border border-border/50 p-4">
       <div className="mb-3">

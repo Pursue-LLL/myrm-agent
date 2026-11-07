@@ -62,7 +62,7 @@ function ResourceItem({ resource, onToggle, onRemove }: ResourceItemProps) {
       </div>
 
       <button
-        className={cn('shrink-0 text-muted-foreground hover:text-destructive transition-all', REVEAL_ON_HOVER)}
+        className={cn('shrink-0 text-muted-foreground hover:text-destructive-text transition-all', REVEAL_ON_HOVER)}
         onClick={(e) => {
           e.stopPropagation();
           onRemove(resource.id);

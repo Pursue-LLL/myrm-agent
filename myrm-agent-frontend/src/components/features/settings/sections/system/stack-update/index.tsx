@@ -351,12 +351,12 @@ export default function StackUpdatePanel() {
               )}
             </div>
           )}
-          {isTauriRuntime() && desktopError && <p className="text-xs text-destructive/90">{desktopError}</p>}
+          {isTauriRuntime() && desktopError && <p className="text-xs text-destructive-text">{desktopError}</p>}
         </div>
 
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('webTitle')}</p>
-          {statusError && <p className="text-xs text-destructive/90">{t('webUnknown')}</p>}
+          {statusError && <p className="text-xs text-destructive-text">{t('webUnknown')}</p>}
           {status && (
             <div className="text-xs text-muted-foreground leading-relaxed">
               <p>
@@ -365,7 +365,7 @@ export default function StackUpdatePanel() {
               </p>
               <p className="mt-1 flex flex-wrap items-center gap-2">
                 {status.stale === true && (
-                  <span className={cn('font-bold', staleBadge ? 'text-destructive' : 'text-muted-foreground')}>
+                  <span className={cn('font-bold', staleBadge ? 'text-destructive-text' : 'text-muted-foreground')}>
                     {t('staleBadge', { version: latestVersion ?? '?' })}
                   </span>
                 )}
@@ -424,7 +424,7 @@ export default function StackUpdatePanel() {
             {isDoctoring ? `${t('doctorRun')}...` : t('doctorRun')}
           </button>
           {doctorResult === 'pass' && <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>}
-          {doctorResult === 'fail' && <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>}
+          {doctorResult === 'fail' && <p className="text-xs text-destructive-text self-center">{t('doctorFail')}</p>}
         </div>
 
         <StackUpdateSnapshots

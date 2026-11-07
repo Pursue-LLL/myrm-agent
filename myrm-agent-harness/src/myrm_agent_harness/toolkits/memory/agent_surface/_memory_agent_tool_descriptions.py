@@ -16,7 +16,7 @@ Default locale is English; callers pass BCP-47 locale strings (e.g. ``zh-CN``).
 - build_memory_search_tool_description: Dynamic memory_search_tool description builder
 - build_memory_save_tool_description: Dynamic memory_save_tool description (policy + approval)
 - resolve_memory_save_tool_description / resolve_memory_manage_tool_description
-- MEMORY_SAVE_CORE_* / MEMORY_*_TOOL_DESCRIPTION_EN / _ZH: locale-specific SSOT constants
+- MEMORY_SAVE_CORE_* / MEMORY_SAVE_WRITE_TARGET_* / MEMORY_MANAGE_TOOL_DESCRIPTION_EN / _ZH: locale-specific SSOT constants
 
 [POS]
 Prompt SSOT for memory agent tools. Imported by memory_agent_tools/, mcp_server/ (memory_manage/memory_store with surface=mcp), and static tests.
@@ -33,10 +33,12 @@ from myrm_agent_harness.toolkits.memory.agent_surface._memory_search_description
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_tool_texts_en import (
     MEMORY_MANAGE_TOOL_DESCRIPTION_EN,
     MEMORY_SAVE_CORE_EN,
+    MEMORY_SAVE_WRITE_TARGET_EN,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface._memory_tool_texts_zh import (
     MEMORY_MANAGE_TOOL_DESCRIPTION_ZH,
     MEMORY_SAVE_CORE_ZH,
+    MEMORY_SAVE_WRITE_TARGET_ZH,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
     MemorySearchPolicy,
@@ -68,10 +70,7 @@ def _apply_tool_surface_names(description: str, *, surface: MemoryToolDescriptio
     return result
 
 
-# Locale aliases of the save core and the default (English) aliases.
-MEMORY_SAVE_TOOL_DESCRIPTION_EN = MEMORY_SAVE_CORE_EN
-MEMORY_SAVE_TOOL_DESCRIPTION_ZH = MEMORY_SAVE_CORE_ZH
-MEMORY_SAVE_TOOL_DESCRIPTION = MEMORY_SAVE_TOOL_DESCRIPTION_EN
+# The save description is composed per runtime policy; only the manage description is a plain constant.
 MEMORY_MANAGE_TOOL_DESCRIPTION = MEMORY_MANAGE_TOOL_DESCRIPTION_EN
 
 
@@ -131,13 +130,15 @@ def build_memory_save_tool_description(
     locale: str | None = DEFAULT_MEMORY_TOOL_DESCRIPTION_LOCALE,
     surface: MemoryToolDescriptionSurface = "agent",
 ) -> str:
-    """Build memory_save_tool description (wiki boundary + approval vary by runtime)."""
-    parts: list[str] = [MEMORY_SAVE_CORE_ZH if is_chinese(locale) else MEMORY_SAVE_CORE_EN]
+    """Build memory_save_tool description (write target, wiki boundary and approval vary by runtime)."""
+    chinese = is_chinese(locale)
+    parts: list[str] = [MEMORY_SAVE_CORE_ZH if chinese else MEMORY_SAVE_CORE_EN]
+    if policy.allow_shared_write:
+        parts.append(MEMORY_SAVE_WRITE_TARGET_ZH if chinese else MEMORY_SAVE_WRITE_TARGET_EN)
     if policy.allow_wiki:
-        fragment = _wiki_boundary_fragment_zh(surface) if is_chinese(locale) else _wiki_boundary_fragment_en(surface)
-        parts.append(fragment)
+        parts.append(_wiki_boundary_fragment_zh(surface) if chinese else _wiki_boundary_fragment_en(surface))
     if approval_required:
-        parts.append(_approval_fragment_zh() if is_chinese(locale) else _approval_fragment_en())
+        parts.append(_approval_fragment_zh() if chinese else _approval_fragment_en())
     return _apply_tool_surface_names("\n\n".join(parts), surface=surface)
 
 
@@ -192,9 +193,8 @@ __all__ = [
     "MEMORY_MANAGE_TOOL_DESCRIPTION_ZH",
     "MEMORY_SAVE_CORE_EN",
     "MEMORY_SAVE_CORE_ZH",
-    "MEMORY_SAVE_TOOL_DESCRIPTION",
-    "MEMORY_SAVE_TOOL_DESCRIPTION_EN",
-    "MEMORY_SAVE_TOOL_DESCRIPTION_ZH",
+    "MEMORY_SAVE_WRITE_TARGET_EN",
+    "MEMORY_SAVE_WRITE_TARGET_ZH",
     "MemoryToolDescriptionSurface",
     "build_mcp_memory_store_tool_description",
     "build_memory_save_tool_description",

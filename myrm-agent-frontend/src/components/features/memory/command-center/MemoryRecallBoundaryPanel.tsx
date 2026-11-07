@@ -50,7 +50,7 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
     return (
       <div
         className={cn(
-          'p-6 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive space-y-3',
+          'p-6 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive-text space-y-3',
           className,
         )}
       >
@@ -118,7 +118,7 @@ export const MemoryRecallBoundaryPanel = memo<MemoryRecallBoundaryPanelProps>(({
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
               {data.budget_overflow_risk === 'overflow' && (
-                <span className="text-destructive font-medium flex items-center gap-1">
+                <span className="text-destructive-text font-medium flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   {t('budgetRiskOverflow')}
                 </span>

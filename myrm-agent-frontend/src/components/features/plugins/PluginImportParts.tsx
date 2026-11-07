@@ -67,7 +67,7 @@ type NoteTone = 'neutral' | 'caution' | 'danger';
 const NOTE_TONES: Record<NoteTone, string> = {
   neutral: 'text-muted-foreground',
   caution: 'text-amber-600 dark:text-amber-400',
-  danger: 'text-destructive',
+  danger: 'text-destructive-text',
 };
 
 /** One short explanatory line under a row; tone carries the severity. */
