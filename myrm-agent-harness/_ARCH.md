@@ -13,6 +13,7 @@ MIT 开源 Agent 执行引擎（PyPI 包 `myrm-agent-harness`）。**GUI-first �
 | `pyproject.toml` / `uv.lock` | 包元数据与依赖锁 |
 | `LICENSE` | MIT 开源许可 |
 | `README.md` | PyPI / GitHub 入口（安装与快速开始） |
+| `<模块>_<起>_<止>_BUGFIX_LOG.md` | bug 台账：按模块、每 7 天一份（如 `memory_20261107_20261113_BUGFIX_LOG.md`）；每条含发现 / 修复时间与版本、根因、遗漏、踩坑、反复次数 |
 | `docs/PROMPT_CACHE_PLACEMENT.md` | L2：动态上下文相对前缀缓存的放置 SSOT（实现见 `context_management/PROMPT_CACHE_PRACTICE.md`） |
 | `_ARCH.md` | 本文件：子目录职责表 |
 
