@@ -143,7 +143,7 @@ export const CronJobAuditPanel = memo<CronJobAuditPanelProps>(
     }
 
     if (error || !job) {
-      return <div className={cn('text-sm text-destructive py-2', className)}>{error ?? t('loadFailed')}</div>;
+      return <div className={cn('text-sm text-destructive-text py-2', className)}>{error ?? t('loadFailed')}</div>;
     }
 
     const showPausedHint = enforceSettingsGate && job.status === 'paused' && !confirmed;

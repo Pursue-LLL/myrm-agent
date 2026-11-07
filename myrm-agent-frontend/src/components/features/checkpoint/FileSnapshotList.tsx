@@ -306,7 +306,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
         </div>
       )}
 
-      {error && <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">{error}</div>}
+      {error && <div className="mb-4 p-3 bg-destructive/10 text-destructive-text rounded-lg text-sm">{error}</div>}
 
       {loading && snapshots.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">{t('loading')}</div>

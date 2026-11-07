@@ -56,7 +56,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({ node, 
       >
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 rounded-full bg-destructive/10">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertTriangle className="h-5 w-5 text-destructive-text" />
           </div>
           <div>
             <h3 className="font-semibold text-sm">{t('deleteConfirmTitle')}</h3>

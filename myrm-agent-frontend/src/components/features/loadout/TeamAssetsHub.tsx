@@ -122,7 +122,7 @@ export function TeamAssetsHub({ className }: { className?: string }) {
           {t('teamHub.summaryLoading')}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-text">
           {error}
         </div>
       ) : summary ? (
@@ -130,7 +130,7 @@ export function TeamAssetsHub({ className }: { className?: string }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-foreground">{t('teamHub.overviewTitle')}</h3>
             {blockedAgents.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-medium text-destructive">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-medium text-destructive-text">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 {t('teamHub.blockedCount', { count: blockedAgents.length })}
               </span>

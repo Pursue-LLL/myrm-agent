@@ -63,7 +63,7 @@ export function KanbanRunHistory({ runs }: KanbanRunHistoryProps) {
               )}
               {run.error && (
                 <p
-                  className="text-[10px] font-mono text-destructive mt-0.5 line-clamp-2 whitespace-pre-wrap"
+                  className="text-[10px] font-mono text-destructive-text mt-0.5 line-clamp-2 whitespace-pre-wrap"
                   title={run.error}
                 >
                   {run.error}
@@ -125,7 +125,7 @@ export function KanbanEventTimeline({ events }: KanbanEventTimelineProps) {
                 </p>
               )}
               {ev.kind === 'merge_conflict' && ev.payload && (
-                <p className="ml-[52px] text-[10px] text-destructive/80 mt-0.5">
+                <p className="ml-[52px] text-[10px] text-destructive-text mt-0.5">
                   {t('mergeConflictDetail', {
                     branch: String(ev.payload.branch || 'unknown'),
                   })}

@@ -208,7 +208,7 @@ export const GlobalFourSwimlanesDeck: React.FC<GlobalFourSwimlanesDeckProps> = (
                           <button
                             type="button"
                             onClick={() => onRejectDecision(task.id)}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-destructive-text hover:bg-destructive/10 transition-colors"
                           >
                             <X className="w-3 h-3" />
                             Reject

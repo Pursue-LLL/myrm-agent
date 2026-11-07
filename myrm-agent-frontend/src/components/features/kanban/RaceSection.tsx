@@ -311,7 +311,7 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
       <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('raceTitle')}</h4>
 
       {loading && <p className="text-xs text-muted-foreground mt-2">{t('loading')}</p>}
-      {error && <p className="text-xs text-destructive mt-2">{error}</p>}
+      {error && <p className="text-xs text-destructive-text mt-2">{error}</p>}
 
       {!loading && lanes !== null && lanes.length > 0 && (
         <div className="mt-2 space-y-2">

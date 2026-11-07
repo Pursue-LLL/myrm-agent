@@ -77,7 +77,7 @@ function InlineConfirm({ message, tone, loading, onConfirm, onCancel }: InlineCo
   const destructive = tone === 'destructive';
   return (
     <div className="flex items-center gap-1">
-      <span className={cn('text-xs', destructive && 'text-destructive')}>{message}</span>
+      <span className={cn('text-xs', destructive && 'text-destructive-text')}>{message}</span>
       <button
         onClick={onConfirm}
         disabled={loading}
@@ -214,7 +214,7 @@ export default function KanbanBulkActionBar({
           <BarButton
             onClick={() => setPendingConfirm('delete')}
             disabled={loading}
-            className="text-destructive hover:bg-destructive/10"
+            className="text-destructive-text hover:bg-destructive/10"
             icon={<Trash2 className="w-3.5 h-3.5" />}
             label={t('bulkDelete')}
           />

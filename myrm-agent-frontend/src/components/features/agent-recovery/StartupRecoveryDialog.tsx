@@ -156,7 +156,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
                   {report.quarantined_components.map((c) => (
                     <div
                       key={`${c.component_type}-${c.component_id}`}
-                      className="flex items-start gap-2 rounded bg-background p-2 border border-destructive/20 text-destructive text-[11px]"
+                      className="flex items-start gap-2 rounded bg-background p-2 border border-destructive/20 text-destructive-text text-[11px]"
                     >
                       <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
                       <div>

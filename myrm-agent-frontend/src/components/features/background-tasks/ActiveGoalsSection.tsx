@@ -95,7 +95,7 @@ export function ActiveGoalsSection({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                      className="h-6 px-2 text-xs text-destructive-text hover:text-destructive-text"
                       disabled={isPending}
                       onClick={() => onGoalAction(goal.session_id, 'cancel')}
                     >

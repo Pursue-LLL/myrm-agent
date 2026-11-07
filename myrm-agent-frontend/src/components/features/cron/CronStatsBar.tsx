@@ -40,7 +40,7 @@ const STAT_CARDS: StatCard[] = [
     key: 'error',
     icon: AlertCircle,
     labelKey: 'statsError',
-    colorClass: 'text-destructive',
+    colorClass: 'text-destructive-text',
     bgClass: 'bg-destructive/10',
   },
 ];

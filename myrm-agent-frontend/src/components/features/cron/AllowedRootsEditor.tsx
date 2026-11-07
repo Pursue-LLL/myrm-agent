@@ -98,7 +98,7 @@ export function AllowedRootsEditor({ job, onUpdated }: EditorProps) {
                 type="button"
                 onClick={() => removePath(idx)}
                 disabled={saving}
-                className="hover:text-destructive transition-colors"
+                className="hover:text-destructive-text transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>

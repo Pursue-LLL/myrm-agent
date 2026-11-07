@@ -117,7 +117,7 @@ export function AgentLoadoutSummary({
     return (
       <div
         className={cn(
-          'rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive',
+          'rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-text',
           className,
         )}
       >

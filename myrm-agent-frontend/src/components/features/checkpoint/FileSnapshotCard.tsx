@@ -135,7 +135,7 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
         </button>
         {showConfirmDelete ? (
           <div className="flex flex-col gap-1.5">
-            <p className="text-xs text-destructive">{t('deleteConfirm')}</p>
+            <p className="text-xs text-destructive-text">{t('deleteConfirm')}</p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -167,7 +167,7 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
             disabled={isLoading}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
-              'bg-destructive/10 hover:bg-destructive/20 text-destructive disabled:opacity-50',
+              'bg-destructive/10 hover:bg-destructive/20 text-destructive-text disabled:opacity-50',
             )}
           >
             <Trash className="w-3 h-3" />

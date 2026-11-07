@@ -34,7 +34,7 @@ export const APPROVAL_EDITABLE_STATUSES: readonly TaskStatus[] = ['triage', 'bac
 export const OUTCOME_STYLES: Record<string, string> = {
   completed: 'text-chart-2',
   blocked: 'text-chart-5',
-  crashed: 'text-destructive',
+  crashed: 'text-destructive-text',
   timed_out: 'text-chart-5',
   reclaimed: 'text-muted-foreground',
 };
@@ -43,7 +43,7 @@ export const EVENT_KIND_STYLES: Record<string, string> = {
   created: 'bg-primary/20 text-primary',
   claimed: 'bg-chart-4/20 text-chart-4',
   completed: 'bg-chart-2/20 text-chart-2',
-  failed: 'bg-destructive/20 text-destructive',
+  failed: 'bg-destructive/20 text-destructive-text',
   blocked: 'bg-chart-5/20 text-chart-5',
   unblocked: 'bg-primary/20 text-primary',
   retrying: 'bg-chart-4/20 text-chart-4',
@@ -54,7 +54,7 @@ export const EVENT_KIND_STYLES: Record<string, string> = {
   user_comment: 'bg-primary/10 text-primary',
   verification_failed: 'bg-chart-5/20 text-chart-5',
   branch_switched: 'bg-blue-500/20 text-blue-500',
-  merge_conflict: 'bg-destructive/20 text-destructive',
+  merge_conflict: 'bg-destructive/20 text-destructive-text',
   specified: 'bg-purple-500/20 text-purple-500',
   decomposed: 'bg-blue-500/20 text-blue-500',
   timed_out: 'bg-chart-5/20 text-chart-5',
@@ -72,7 +72,7 @@ export const PRIORITY_INDICATORS: Record<TaskPriority, string> = {
 };
 
 export const PRIORITY_STYLES: Record<TaskPriority, string> = {
-  urgent: 'bg-destructive/10 text-destructive border-destructive/20',
+  urgent: 'bg-destructive/10 text-destructive-text border-destructive/20',
   high: 'bg-chart-5/10 text-chart-5 border-chart-5/20',
   normal: 'bg-primary/10 text-primary border-primary/20',
   low: 'bg-muted text-muted-foreground border-muted-foreground/20',
@@ -92,8 +92,8 @@ export const STATUS_DOT: Record<string, string> = {
 
 export const DIAGNOSTIC_SEVERITY_STYLES: Record<string, { badge: string; text: string }> = {
   critical: {
-    badge: 'bg-destructive/10 text-destructive border-destructive/20',
-    text: 'text-destructive',
+    badge: 'bg-destructive/10 text-destructive-text border-destructive/20',
+    text: 'text-destructive-text',
   },
   error: {
     badge: 'bg-chart-5/10 text-chart-5 border-chart-5/20',

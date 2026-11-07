@@ -117,7 +117,7 @@ export function AcceptanceCriteriaEditor({ job, onUpdated }: AcceptanceCriteriaE
           <button
             type="button"
             onClick={() => setCriteria(criteria.filter((_, i) => i !== idx))}
-            className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive shrink-0"
+            className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive-text shrink-0"
           >
             <Trash2 className="h-3 w-3" />
           </button>
