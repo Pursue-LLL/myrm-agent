@@ -10,7 +10,7 @@ Embedding Service Toolkit.
 | `__init__.py` | Package | Embedding 模块门面入口：导出 `EmbeddingService` 与工厂方法 | ✅ |
 | base.py | Core | Embedding contract layer. Declares the abstract interface that every embedding backend | ✅ |
 | cache.py | Core | Embedding cache layer. Provides a two-tier caching mechanism (memory + SQLite) that sits | ✅ |
-| cloud_embedding.py | Core | Cloud embedding backend. Translates EmbeddingService into LiteLLM API calls with auto batch splitting (count + chars dual protection), retry, dimension detection, and embed-window preflight. Supports Ollama via api_base | ✅ |
+| cloud_embedding.py | Core | Cloud embedding backend. Translates EmbeddingService into LiteLLM API calls with auto batch splitting (count + chars dual protection), retry, dimension detection, and embed-window preflight. Supports Ollama via api_base. Sends `encoding_format="float"` to every provider except Voyage (`voyage/` models; its API takes only null or base64) | ✅ |
     | window_policy.py | Core | EmbedWindowPolicy SSOT: model max input tokens, effective chunk budget, EmbedInputTooLargeError, token_counter_for_model（wordpiece 家族 bge/bce/nomic/minilm/e5/gte/paraphrase/jina→estimate、BPE→o200k 统一计数出口） | ✅ |
 | factory.py | Core | Embedding factory. CloudEmbedding only (api_key required). Process-wide singleton | ✅ |
 
@@ -19,4 +19,6 @@ Embedding Service Toolkit.
 | File | Coverage |
 |------|----------|
 | `tests/toolkits/retriever/test_embed_window_policy.py` | window_policy/embed_budget 100%、vector_chunks 100% |
+| `tests/toolkits/retriever/test_cloud_embedding_request_params.py` | 交给 `litellm.aembedding` 的参数：Voyage 不带 `encoding_format`，OpenAI 系 / OpenAI 兼容端点 / Cohere / Jina 保持 `float`，带自定义 `api_base` 的 Voyage 型号按 OpenAI 兼容请求处理 |
+| `myrm-agent-server/tests/api/integrations/test_embedding_provider_wire_contract.py` | 真实 CloudEmbedding + LiteLLM 打到回环假上游，断言各服务商线上收到的嵌入请求体（Voyage 无 `encoding_format`、OpenAI 系 `float`、Cohere `embedding_types=["float"]`、Jina 在服务端默认 `drop_params` 下无该键） |
 | `tests/integration/test_embed_window_real_embedding_integration.py` | 真实 HTTP 全链路 10 例（wordpiece 字符预算 / BPE token 预算 / 小窗口 0.5 margin / 韩文不超窗 / 中英韩混合 / 超窗 fail-loud / memory 截断 / wiki ingest，关键路径零 mock，本地 OpenAI 兼容端点打通产品自托管 api_base 用法） |

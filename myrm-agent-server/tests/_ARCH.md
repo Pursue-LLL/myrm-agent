@@ -829,6 +829,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - `tests/api/integrations/test_model_switch_preflight.py`：`POST /api/v1/integrations/llm/model-switch-preflight`（tier 推断 / 显式比例 clamp / prompt_mode 回退 / 多模型）
 - `tests/api/integrations/test_models_dev.py`：`GET /api/v1/integrations/models-dev`（成功信封、5 分钟缓存、并发请求（含上游失败时）共享同一次下载、上游失败一律 502 且不缓存）
 - `tests/api/integrations/test_retrieval_validation.py`：`POST /api/v1/integrations/retrieval/{embedding,reranker}`（真实 CloudEmbedding / CloudReranker 打到回环假上游：成功报维度 / 命中数；Key 被拒、额度耗尽、模型或端点未知、限流、端点不可达各点名原因；上游回显的 Key 被抹掉；缺 Key 不打上游；换了 Key 或端点后的再次探测问的是现在配置的上游）
+- `tests/api/integrations/test_embedding_provider_wire_contract.py`：真实 CloudEmbedding 与 LiteLLM（带服务端运行时的默认配置）打到回环假上游，断言各服务商线上收到的嵌入请求体（Voyage 不含 `encoding_format`；OpenAI 与 OpenAI 兼容端点带 `float`；Cohere 为 `embedding_types: ["float"]`；Jina 在 `drop_params` 下无该键）
 - `tests/api/notifications/conftest.py`：in-memory DB + loopback auth（通知 API 集成测）
 - `tests/api/config/test_readiness_e2e.py`、`tests/api/security/test_generate_policy_e2e.py`：`@pytest.mark.e2e`（默认套件不收集）
 

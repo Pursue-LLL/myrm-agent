@@ -55,6 +55,9 @@ DEFAULT_RETRY_WAIT_MAX = 4.0
 _MAX_TEXTS_PER_BATCH = 32
 _MAX_CHARS_PER_BATCH = 100_000
 
+# Voyage takes `encoding_format` as null or "base64" and answers HTTP 400 to "float"; with the field absent it returns floats.
+_NO_ENCODING_FORMAT_PREFIXES = ("voyage/",)
+
 KNOWN_MODEL_DIMENSIONS: dict[str, int] = {
     # OpenAI
     "text-embedding-3-small": 1536,
@@ -310,8 +313,9 @@ class CloudEmbedding(EmbeddingService):
         kwargs: dict[str, str | list[str] | None] = {
             "model": model_name,
             "input": [t if t.strip() else " " for t in texts],
-            "encoding_format": "float",
         }
+        if not model_name.startswith(_NO_ENCODING_FORMAT_PREFIXES):
+            kwargs["encoding_format"] = "float"
         if self._api_key:
             kwargs["api_key"] = self._api_key
         if self._api_base:
