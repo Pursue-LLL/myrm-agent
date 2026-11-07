@@ -123,11 +123,7 @@ async def _assemble_system_prompt(model_name: str) -> str:
         system_prompt="BASE",
         config=AgentRuntimeConfig(channel_name="web_chat"),
     )
-    with (
-        patch("myrm_agent_harness.agent.base_agent.create_agent", return_value=MagicMock()),
-        # The canary is random per agent; fixing it leaves model-dependent text as the only source of a difference.
-        patch("myrm_agent_harness.agent.security.detection.canary_guard.generate_canary", return_value="canary"),
-    ):
+    with patch("myrm_agent_harness.agent.base_agent.create_agent", return_value=MagicMock()):
         await agent._ensure_initialized()
     assert agent._cached_system_prompt is not None
     return agent._cached_system_prompt
@@ -142,3 +138,9 @@ class TestSystemPromptIsModelAgnostic:
         differing = [name for name, prompt in prompts.items() if prompt != reference]
         assert not differing, f"system prompt depends on the model name: {differing}"
         assert AGENT_CORE_RULES in reference
+
+    async def test_prompt_is_the_same_bytes_for_every_agent_and_carries_no_session_token(self) -> None:
+        """A per-session token in the prompt would end the prefix the provider caches across sessions at that token."""
+        first, second = await _assemble_system_prompt(_MODEL_NAMES[0]), await _assemble_system_prompt(_MODEL_NAMES[0])
+        assert first == second
+        assert "CANARY" not in first

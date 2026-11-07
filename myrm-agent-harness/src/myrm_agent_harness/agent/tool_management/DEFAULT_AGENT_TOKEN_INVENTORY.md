@@ -15,7 +15,7 @@
 ## 一、System Prompt 层（`messages[0]` 拼装 + `messages[1]` 安全边界）
 
 > **口径**：tiktoken `o200k_base` 实测（`utils/text_utils.PLANNING_ENCODING`），宿主 macOS。
-> `messages[0]` 由框架层 `agent/base_agent.py:169-177` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 6 段；安全边界是 `messages[1]` 的**独立 SystemMessage**，不计入 `messages[0]`。
+> `messages[0]` 由框架层 `agent/base_agent.py:164-171` **一次拼装**完成——业务层 CORE prompt 只是其中一段，框架层在其后追加 4 段；安全边界与 canary 是跟在用户输入之后的**独立 SystemMessage**，不计入 `messages[0]`。
 
 | # | 组件 | Token (o200k_base) | 来源文件 | 说明 |
 |---|------|-------------------:|----------|------|
@@ -24,26 +24,26 @@
 | 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束、因缺能力拒绝前先用发现/搜索工具查找技能与工具 |
 | 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
 | 5 | environment 行 | 43 (macOS) · 29 (Linux) · 31 (Windows/powershell) | `harness/toolkits/code_execution/platform.py:138` | `<environment>` 标签；含 OS/shell/可选 python-toolchain 与 VNC 探测行（干净环境为 0） |
-| 6 | canary 指令 | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57，**非字节恒定**但差异可忽略 |
+| 6 | canary 指令（独立 SystemMessage，追加在最新用户消息之后） | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:51` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57。由 CanaryMiddleware 每个对话线程注入一次（`agent/middlewares/security/canary_middleware.py` 的 `before_model`），线程已带 canary 指令就沿用；**不占用 `messages[0]`**，system prompt 因此在所有会话里字节相同 |
 | 7 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:421`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
 
-**`messages[0]` 合计（实测，含上表 1~7，不含运行时条件追加）**：
+**`messages[0]` 合计（实测，含上表 1~5，不含运行时条件追加）**：
 
 | 模型 | full-ZH | full-EN | lean-ZH | lean-EN |
 |------|--------:|--------:|--------:|--------:|
-| 所有模型（核心规则与模型名无关） | **1,402** | 1,206 | 842 | 801 |
+| 所有模型（核心规则与模型名无关） | **1,349** | 1,153 | 789 | 748 |
 
-> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat) + env 行 43(macOS) + canary 均值 53，各分量分别计数后相加。
-> canary 为随机 hex，实测 50~57 tok（均值 53），故上表存在 **±4** 抖动；其余分量在参数组合内字节恒定。
+> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat) + env 行 43(macOS)，各分量分别计数后相加。
+> `messages[0]` 的各分量在参数组合内字节恒定；canary 的随机 hex（50~57 tok）在独立消息里，不进 `messages[0]`。
 >
-> 默认组合（中文用户 + full）：`messages[0]` 1,402 + `messages[1]` 299 = **1,701 tokens**。
+> 默认组合（中文用户 + full）：`messages[0]` 1,349 + 跟随用户输入的两条独立 SystemMessage（canary ≈53 + 安全边界 299）= **1,701 tokens**。
 >
-> **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory.py` 的 `system_prompt +=` 分支）：
+> **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory/` 的 `system_prompt +=` 分支）：
 > `DESKTOP_CONTROL_RULES` 424 EN / 517 ZH（`:535`，`mount_desktop_prompt`）· `SEARCH_DEEP_SUFFIX`（`:507`，search 深研模式）· unattended 声明 ~55（`:510`）· `get_worker_lifecycle_guidance()`（`:527`，kanban worker 模式）· `get_cli_tools_context()`（`:545`，`mount_cli_context`）· `CHANNEL_NOTIFY_SYSTEM_APPENDIX`（`:554`，通知工具挂载）· `[Mounted Workspace Directories]` 清单（`:568`，session roots）· `user_instructions`（`stream_lane_factory.py:484`）。
 
 **`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，lean 模式 EN +76 / ZH +82，naked / search 模式**无差异**。server 默认 `False`（`server/ai_agents/agent_params.py:147`），上表已按 False 计量。
 
-**缓存特性**：`messages[0]` 与 `messages[1]` 除 canary 随机 hex（±4 tok 抖动）外均为参数组合内字节恒定，跨用户共享缓存。
+**缓存特性**：`messages[0]` 与其后的工具块在参数组合内字节恒定，跨用户共享缓存；随机 hex 只出现在跟随用户输入的 canary 消息里。把它放进 `messages[0]` 时，前缀缓存在该 token 处就与其他会话分叉，其后的工具块（约 5k token）与整段历史每个会话、每一轮都要全价。实测见 `temp-docs/temp-task-context/harness-ptc-bench/cache_probe.py`：同一个首轮请求，canary 留在 system 消息里首轮缓存 0%，移到最后一条 system 消息后 90% 到 98%。
 
 ---
 

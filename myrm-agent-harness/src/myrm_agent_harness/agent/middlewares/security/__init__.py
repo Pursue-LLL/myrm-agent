@@ -7,9 +7,11 @@
 
 [OUTPUT]
 - SecurityBoundaryMiddleware: SECURITY_BOUNDARY_SYSTEM_RULES injection
+- CanaryMiddleware: session canary instruction, behind the user's input
 - SecurityGuardrailMiddleware: eight-layer defense middleware
 """
 
+from myrm_agent_harness.agent.middlewares.security.canary_middleware import CanaryMiddleware
 from myrm_agent_harness.agent.middlewares.security.security_boundary_middleware import (
     SecurityBoundaryMiddleware,
 )
@@ -17,4 +19,4 @@ from myrm_agent_harness.agent.middlewares.security.security_guardrail_middleware
     SecurityGuardrailMiddleware,
 )
 
-__all__ = ["SecurityBoundaryMiddleware", "SecurityGuardrailMiddleware"]
+__all__ = ["CanaryMiddleware", "SecurityBoundaryMiddleware", "SecurityGuardrailMiddleware"]

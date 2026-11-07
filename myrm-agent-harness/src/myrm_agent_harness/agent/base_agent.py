@@ -150,13 +150,11 @@ class BaseAgent(BaseAgentModesMixin):
             from myrm_agent_harness.agent.middlewares._session_context import (
                 set_canary_token,
             )
-            from myrm_agent_harness.agent.security.detection.canary_guard import (
-                build_canary_instruction,
-                generate_canary,
-            )
+            from myrm_agent_harness.agent.security.detection.canary_guard import generate_canary
 
-            canary = generate_canary()
-            set_canary_token(canary)
+            # The token reaches the model through CanaryMiddleware, behind the user's input; a per-session token
+            # in this prompt would end the prefix a provider shares across sessions at the token.
+            set_canary_token(generate_canary())
             from myrm_agent_harness.toolkits.code_execution.platform import (
                 detect_platform,
             )
@@ -167,7 +165,6 @@ class BaseAgent(BaseAgentModesMixin):
                 + AGENT_CORE_RULES
                 + resolve_channel_output_hint(self.config.channel_name)
                 + detect_platform().environment_prompt_line
-                + build_canary_instruction(canary)
             )
 
         self._cached_middlewares = self._build_middlewares()
