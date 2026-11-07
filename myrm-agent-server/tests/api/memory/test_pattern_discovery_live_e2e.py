@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from myrm_agent_harness.toolkits.llms import ChatLiteLLM
@@ -75,8 +75,10 @@ def _make_mature_manager() -> AsyncMock:
 
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60 if str(mt) == "semantic" else 0)
     manager.list_memories = AsyncMock(return_value=memories)
-    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5" if "consolidation" in key else None)
-    manager.set_profile_attribute = AsyncMock()
+    # Maintenance counters live in bookkeeping rows read straight from the relational store.
+    relational = AsyncMock()
+    relational.get_profile = AsyncMock(side_effect=lambda key, namespaces=None: "5" if "consolidation" in key else None)
+    manager._rel = MagicMock(return_value=relational)
     manager.search = AsyncMock(
         return_value=[
             SimpleNamespace(
