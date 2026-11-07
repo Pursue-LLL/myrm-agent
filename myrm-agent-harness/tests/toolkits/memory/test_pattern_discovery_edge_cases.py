@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
+    _PROFILE_KEY_CONSOLIDATION_COUNT,
     _is_promotable_to_rule,
     get_recent_patterns,
     increment_consolidation_count,
@@ -30,8 +31,6 @@ def _mature_manager(**overrides: object) -> AsyncMock:
     manager.has_vector = True
     manager.has_graph = False
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60)
-    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5")
-    manager.set_profile_attribute = AsyncMock()
     manager.search = AsyncMock(return_value=[])
     manager.add_event = AsyncMock()
     manager.store = AsyncMock(return_value=SimpleNamespace(id="stored-rule"))
@@ -70,44 +69,41 @@ class TestShouldRunPatternDiscovery:
         assert await should_run_pattern_discovery(manager) is False
 
     @pytest.mark.asyncio
-    async def test_skips_when_consolidation_count_low(self) -> None:
-        manager = _mature_manager()
-        assert await should_run_pattern_discovery(manager) is True
+    async def test_skips_when_consolidation_count_low(self, bookkeeping_rows: dict[str, str]) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        assert await should_run_pattern_discovery(_mature_manager()) is True
 
-        low = _mature_manager()
-        low.get_profile_attribute = AsyncMock(side_effect=lambda key: "2")
-        assert await should_run_pattern_discovery(low) is False
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "2"
+        assert await should_run_pattern_discovery(_mature_manager()) is False
 
     @pytest.mark.asyncio
-    async def test_passes_when_mature(self) -> None:
-        manager = _mature_manager()
-        assert await should_run_pattern_discovery(manager) is True
+    async def test_passes_when_mature(self, bookkeeping_rows: dict[str, str]) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        assert await should_run_pattern_discovery(_mature_manager()) is True
 
 
 class TestIncrementConsolidationCount:
     @pytest.mark.asyncio
-    async def test_skips_without_relational(self) -> None:
-        manager = _mature_manager(has_relational=False)
-        await increment_consolidation_count(manager)
-        manager.set_profile_attribute.assert_not_called()
+    async def test_skips_without_relational(self, bookkeeping_rows: dict[str, str]) -> None:
+        await increment_consolidation_count(_mature_manager(has_relational=False))
+        assert bookkeeping_rows == {}
 
     @pytest.mark.asyncio
-    async def test_increments_existing_count(self) -> None:
-        manager = _mature_manager()
-        await increment_consolidation_count(manager)
-        manager.set_profile_attribute.assert_awaited_once_with("_system.consolidation_count", "6")
+    async def test_increments_existing_count(self, bookkeeping_rows: dict[str, str]) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        await increment_consolidation_count(_mature_manager())
+        assert bookkeeping_rows == {_PROFILE_KEY_CONSOLIDATION_COUNT: "6"}
 
     @pytest.mark.asyncio
-    async def test_starts_at_one_when_no_count(self) -> None:
-        manager = _mature_manager()
-        manager.get_profile_attribute = AsyncMock(return_value=None)
-        await increment_consolidation_count(manager)
-        manager.set_profile_attribute.assert_awaited_once_with("_system.consolidation_count", "1")
+    async def test_starts_at_one_when_no_count(self, bookkeeping_rows: dict[str, str]) -> None:
+        await increment_consolidation_count(_mature_manager())
+        assert bookkeeping_rows == {_PROFILE_KEY_CONSOLIDATION_COUNT: "1"}
 
 
 class TestRunPatternDiscoveryLLMFailure:
     @pytest.mark.asyncio
-    async def test_llm_exception_becomes_skipped_report(self) -> None:
+    async def test_llm_exception_becomes_skipped_report(self, bookkeeping_rows: dict[str, str]) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
         memories = _memories(5)
         manager = _mature_manager()
         manager.list_memories = AsyncMock(return_value=memories)
@@ -124,11 +120,12 @@ class TestRunPatternDiscoveryLLMFailure:
 
 class TestRunPatternDiscoveryFiltering:
     @pytest.mark.asyncio
-    async def test_low_confidence_patterns_filtered_out(self) -> None:
+    async def test_low_confidence_patterns_filtered_out(self, bookkeeping_rows: dict[str, str]) -> None:
         from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
             PatternDiscoveryResponse,
         )
 
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
         memories = _memories(5)
         manager = _mature_manager()
         manager.list_memories = AsyncMock(return_value=memories)

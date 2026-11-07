@@ -4,6 +4,7 @@
 - memory.manager::MemoryManager (POS: unified memory manager facade)
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
+- strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)
 - strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
 - strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
@@ -36,6 +37,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
+from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
     DiscoveredPattern,
     PatternDiscoveryResponse,
@@ -85,7 +87,7 @@ async def should_run_pattern_discovery(manager: MemoryManager) -> bool:
         return False
 
     # The counter is a plain profile row that any writer can overwrite; a malformed value counts as zero.
-    raw_count = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
+    raw_count = await read_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT)
     consolidation_count = parse_int(raw_count, 0, min_val=0)
     return consolidation_count >= _MIN_CONSOLIDATION_COUNT
 
@@ -95,9 +97,9 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
     if not manager.has_relational:
         return
     # A malformed stored value restarts the count, and the write below replaces it.
-    raw = await manager.get_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT)
+    raw = await read_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT)
     current = parse_int(raw, 0, min_val=0)
-    await manager.set_profile_attribute(_PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
+    await write_bookkeeping(manager, _PROFILE_KEY_CONSOLIDATION_COUNT, str(current + 1))
 
 
 async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
@@ -167,7 +169,7 @@ async def run_pattern_discovery(
 
     current_hash = _compute_memory_set_hash(all_memories)
     if manager.has_relational:
-        prev_hash = await manager.get_profile_attribute(_PROFILE_KEY_MEMORY_SET_HASH)
+        prev_hash = await read_bookkeeping(manager, _PROFILE_KEY_MEMORY_SET_HASH)
         if prev_hash and prev_hash == current_hash:
             logger.info("Pattern discovery: memory set unchanged, skipping LLM call")
             return PatternReport(
@@ -210,7 +212,7 @@ async def run_pattern_discovery(
 
     if manager.has_relational:
         with contextlib.suppress(Exception):
-            await manager.set_profile_attribute(_PROFILE_KEY_MEMORY_SET_HASH, current_hash)
+            await write_bookkeeping(manager, _PROFILE_KEY_MEMORY_SET_HASH, current_hash)
 
     elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
     report = PatternReport(

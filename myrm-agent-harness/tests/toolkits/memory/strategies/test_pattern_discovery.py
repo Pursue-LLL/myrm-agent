@@ -131,45 +131,41 @@ class TestShouldRunPatternDiscovery:
         assert await should_run_pattern_discovery(mock_manager) is False
 
     @pytest.mark.asyncio
-    async def test_below_consolidation_threshold(self, mock_manager: AsyncMock):
+    async def test_below_consolidation_threshold(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
         mock_manager.count_memories = AsyncMock(return_value=60)
-        mock_manager.get_profile_attribute = AsyncMock(return_value="1")
+        bookkeeping_rows["_system.consolidation_count"] = "1"
         assert await should_run_pattern_discovery(mock_manager) is False
 
     @pytest.mark.asyncio
-    async def test_all_conditions_met(self, mock_manager: AsyncMock):
+    async def test_all_conditions_met(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
         mock_manager.count_memories = AsyncMock(return_value=60)
-        mock_manager.get_profile_attribute = AsyncMock(return_value="5")
+        bookkeeping_rows["_system.consolidation_count"] = "5"
         assert await should_run_pattern_discovery(mock_manager) is True
 
     @pytest.mark.asyncio
-    async def test_no_consolidation_count(self, mock_manager: AsyncMock):
+    async def test_no_consolidation_count(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
         mock_manager.count_memories = AsyncMock(return_value=60)
-        mock_manager.get_profile_attribute = AsyncMock(return_value=None)
+        assert bookkeeping_rows == {}
         assert await should_run_pattern_discovery(mock_manager) is False
 
 
 class TestIncrementConsolidationCount:
     @pytest.mark.asyncio
-    async def test_increment_from_zero(self, mock_manager: AsyncMock):
-        mock_manager.get_profile_attribute = AsyncMock(return_value=None)
-        mock_manager.set_profile_attribute = AsyncMock()
+    async def test_increment_from_zero(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
         await increment_consolidation_count(mock_manager)
-        mock_manager.set_profile_attribute.assert_called_once_with("_system.consolidation_count", "1")
+        assert bookkeeping_rows == {"_system.consolidation_count": "1"}
 
     @pytest.mark.asyncio
-    async def test_increment_existing(self, mock_manager: AsyncMock):
-        mock_manager.get_profile_attribute = AsyncMock(return_value="3")
-        mock_manager.set_profile_attribute = AsyncMock()
+    async def test_increment_existing(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
+        bookkeeping_rows["_system.consolidation_count"] = "3"
         await increment_consolidation_count(mock_manager)
-        mock_manager.set_profile_attribute.assert_called_once_with("_system.consolidation_count", "4")
+        assert bookkeeping_rows == {"_system.consolidation_count": "4"}
 
     @pytest.mark.asyncio
-    async def test_skip_no_relational(self, mock_manager: AsyncMock):
+    async def test_skip_no_relational(self, mock_manager: AsyncMock, bookkeeping_rows: dict[str, str]):
         mock_manager.has_relational = False
-        mock_manager.get_profile_attribute = AsyncMock()
         await increment_consolidation_count(mock_manager)
-        mock_manager.get_profile_attribute.assert_not_called()
+        assert bookkeeping_rows == {}
 
 
 class TestComputeMemorySetHash:
@@ -229,19 +225,15 @@ class TestRunPatternDiscovery:
         assert "mature" in report.skip_reason
 
     @pytest.mark.asyncio
-    async def test_skip_unchanged_hash(self, mock_manager: AsyncMock, mock_llm: AsyncMock):
+    async def test_skip_unchanged_hash(
+        self, mock_manager: AsyncMock, mock_llm: AsyncMock, bookkeeping_rows: dict[str, str]
+    ):
         memories = [_make_memory(f"m{i}") for i in range(60)]
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
 
-        all_memories = memories + memories
-        prev_hash = _compute_memory_set_hash(all_memories)
-        mock_manager.get_profile_attribute = AsyncMock(
-            side_effect=lambda key: {
-                "_system.consolidation_count": "5",
-                "_system.pattern_discovery_memory_hash": prev_hash,
-            }.get(key)
-        )
+        bookkeeping_rows["_system.consolidation_count"] = "5"
+        bookkeeping_rows["_system.pattern_discovery_memory_hash"] = _compute_memory_set_hash(memories + memories)
 
         report = await run_pattern_discovery(mock_manager, mock_llm)
         assert report.skipped is True
@@ -249,17 +241,13 @@ class TestRunPatternDiscovery:
         mock_llm.with_structured_output.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_successful_discovery(self, mock_manager: AsyncMock, mock_llm: AsyncMock):
+    async def test_successful_discovery(
+        self, mock_manager: AsyncMock, mock_llm: AsyncMock, bookkeeping_rows: dict[str, str]
+    ):
         memories = [_make_memory(f"m{i}") for i in range(60)]
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
-        mock_manager.get_profile_attribute = AsyncMock(
-            side_effect=lambda key: {
-                "_system.consolidation_count": "5",
-                "_system.pattern_discovery_memory_hash": None,
-            }.get(key)
-        )
-        mock_manager.set_profile_attribute = AsyncMock()
+        bookkeeping_rows["_system.consolidation_count"] = "5"
         mock_manager.add_event = AsyncMock()
         mock_manager.search = AsyncMock(return_value=[])
 
@@ -285,19 +273,18 @@ class TestRunPatternDiscovery:
         assert report.patterns[0].title == "Late night coding"
         assert report.meta_observation == "Active developer"
         mock_manager.add_event.assert_called_once()
+        assert bookkeeping_rows["_system.pattern_discovery_memory_hash"] == _compute_memory_set_hash(
+            memories + memories
+        )
 
     @pytest.mark.asyncio
-    async def test_low_confidence_filtered(self, mock_manager: AsyncMock, mock_llm: AsyncMock):
+    async def test_low_confidence_filtered(
+        self, mock_manager: AsyncMock, mock_llm: AsyncMock, bookkeeping_rows: dict[str, str]
+    ):
         memories = [_make_memory(f"m{i}") for i in range(60)]
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
-        mock_manager.get_profile_attribute = AsyncMock(
-            side_effect=lambda key: {
-                "_system.consolidation_count": "5",
-                "_system.pattern_discovery_memory_hash": None,
-            }.get(key)
-        )
-        mock_manager.set_profile_attribute = AsyncMock()
+        bookkeeping_rows["_system.consolidation_count"] = "5"
         mock_manager.add_event = AsyncMock()
         mock_manager.search = AsyncMock(return_value=[])
 
@@ -320,16 +307,11 @@ class TestRunPatternDiscovery:
         mock_manager.add_event.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_llm_failure(self, mock_manager: AsyncMock, mock_llm: AsyncMock):
+    async def test_llm_failure(self, mock_manager: AsyncMock, mock_llm: AsyncMock, bookkeeping_rows: dict[str, str]):
         memories = [_make_memory(f"m{i}") for i in range(60)]
         mock_manager.count_memories = AsyncMock(return_value=60)
         mock_manager.list_memories = AsyncMock(return_value=memories)
-        mock_manager.get_profile_attribute = AsyncMock(
-            side_effect=lambda key: {
-                "_system.consolidation_count": "5",
-                "_system.pattern_discovery_memory_hash": None,
-            }.get(key)
-        )
+        bookkeeping_rows["_system.consolidation_count"] = "5"
         mock_manager.search = AsyncMock(return_value=[])
 
         structured_llm = MagicMock()
