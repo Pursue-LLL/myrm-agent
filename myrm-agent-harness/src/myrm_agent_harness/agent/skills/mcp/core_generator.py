@@ -44,6 +44,7 @@ from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
     build_tool_name_map,
     resolve_mcp_tool_name,
 )
+from myrm_agent_harness.agent.skills.runtime.ptc_calling import CALL_SYNTAX, CALL_WORKFLOW
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.mcp import MCPConfig
 from myrm_agent_harness.toolkits.mcp.config import mcp_config_to_runtime_dict
@@ -54,17 +55,13 @@ logger = logging.getLogger(__name__)
 type JsonDict = dict[str, object]
 
 
-SKILL_USAGE_TEMPLATE = """
-## Calling
-
-Import: `from skills.{skill_name} import <func_name>` (`skills.*` = MCP; `tools.*` = built-in; NOT interchangeable).
-Import every function you call before awaiting it. MCP functions are async: always `await` every call; a call without `await` returns a coroutine, not data.
-Args: **always call with keyword arguments** — `func(param=value)`.
-Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is abbreviated (`…`) or the return shape matters.
-
-Use ONE `bash_code_execute_tool` per task by default. Batch every call that can run in that block, including independent calls and calls whose exact return shape is unknown: await them, print each real result as `[OBSERVATION]`, then continue inside the same block. Split into a second bash ONLY when a later call's arguments genuinely cannot be written without first seeing an earlier result; then print the actual returned value and continue. Do not split merely because a return shape is undocumented, and do not call a lookup tool just to discover a value the target already accepts. Results are parsed Python objects — do NOT `json.loads()`; only access fields explicitly documented. If a call fails, read the error and fix the arguments; do not repeat a call that already succeeded. Emit `[RESULT]` only after the last dependent call; use `[OBSERVATION]` for intermediate outputs.
-Python literals `None`/`True`/`False` (not null/true/false). If the tool signature lists `timeout`, pass `timeout=120`. This skill is already selected; do not call `skill_select_tool` for it again.
-"""
+SKILL_USAGE_TEMPLATE = (
+    "\n## Calling\n\n"
+    f"{CALL_SYNTAX}\n"
+    "Docs: `/mcp/{skill_name}/<function_name>.md` — read with `file_read_tool` only when a signature above is "
+    "abbreviated (`…`) or the return shape matters.\n\n"
+    f"{CALL_WORKFLOW} This skill is already selected; do not call `skill_select_tool` for it again.\n"
+)
 
 
 class MCPSkillGenerator:
@@ -354,7 +351,17 @@ class MCPSkillGenerator:
 
         tool_schemas["__instructions__"] = {"content": instructions or ""}
 
-        mcp_data = MCPSkillData(server=server_name, tools=tool_names, config=[], tool_schemas=tool_schemas)
+        # Server instructions live only in the L2 document, which a model that calls a listed function never
+        # loads; a server that ships instructions therefore keeps the select-first path.
+        name_map = build_tool_name_map(tool_names)
+        inline_functions = [] if (instructions or "").strip() else [name_map[name] for name in tool_names]
+        mcp_data = MCPSkillData(
+            server=server_name,
+            tools=tool_names,
+            config=[],
+            tool_schemas=tool_schemas,
+            inline_functions=inline_functions,
+        )
 
         # always=True gives MCP servers first claim on the L1 token budget: they are opaque
         # integrations, so dropping them before the budget is exhausted would force a

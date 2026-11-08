@@ -263,6 +263,14 @@ Level 3: 资源（Resources）
 - L1 仅在有技能未内联（`hidden_count > 0`）时输出 search/hidden 动态规则；
 - L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整 `name + description` 条目，不再按技能个数截断；
 - 预算外的技能不再只是一个数字：目录末尾的 `<hidden_skill_names>` 一行按字母序列出它们的名字（上限 `L1_HIDDEN_NAMES_MAX_TOKENS = 1,500`，超出时以 `and N more not listed` 收尾）。名字在目录里，模型直接 select；只知能力、不知名字才 search。
+- 走 PTC 的 MCP 技能（服务器没有自带 instructions）在自己的条目里多一行 `<functions>`，按名字列出它的全部函数；目录里另有一个 `<function_index_rules>` 块，写明这类条目无需先 select，并给出调用约定（与 L2 正文共用 `agent/skills/runtime/ptc_calling.py` 的文本）。函数覆盖请求时，模型直接在 `bash_code_execute_tool` 里 `from skills.<name> import <函数>`，省掉一轮 `skill_select_tool`；需要全部签名时仍可 select。清单的预算 `L1_FUNCTION_INDEX_MAX_TOKENS = 1,200` 与条目预算分开计，不会挤掉其他技能的条目；一张清单要么整张列出要么不列（放不下时该服务器保持先 select）。服务器自带 instructions 时同样保持先 select，因为 instructions 只在 L2 正文里。
+
+```xml
+<skill name="mcp_kubernetes_skill" available="true" trust="trusted" always="true">
+  <description>Kubernetes cluster operations: …</description>
+  <functions>list_namespaces, get_namespace, list_pods, get_pod_logs, …</functions>
+</skill>
+```
 
 ### 4.3 Always 技能
 

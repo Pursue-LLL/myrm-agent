@@ -4,11 +4,12 @@
 
 [INPUT]
 - backends.skills.types::SkillMetadata (POS: skill metadata type definition)
+- agent.skills.runtime.function_index::fit_function_indexes / FUNCTION_INDEX_RULES (POS: ``<functions>`` lines of PTC-routed MCP entries and the rules for them)
 
 [OUTPUT]
 - SkillRegistry: Skill registry class (manages registration, lookup, updates)
 - skill_registry: Global skill registry singleton
-- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; the hidden skill names drive the dynamic listed/select vs search rules and the ``<hidden_skill_names>`` line)
+- get_metadata_summary(): XML-format skill summary (embedded in first HumanMessage ``<bound_skills>``, not tool schema; the hidden skill names drive the dynamic listed/select vs search rules and the ``<hidden_skill_names>`` line; an MCP entry that lists its functions adds a ``<functions>`` line and the one ``<function_index_rules>`` block)
 
 [POS]
 Skill registry. Manages runtime caches and lookups, primarily for MCP-based skills.
@@ -22,6 +23,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from xml.sax.saxutils import escape, quoteattr
 
+from myrm_agent_harness.agent.skills.runtime.function_index import FUNCTION_INDEX_RULES, fit_function_indexes
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.utils.text_utils import get_token_count
 
@@ -159,8 +161,12 @@ def _routing_rules(hidden_skill_count: int) -> list[str]:
     ]
 
 
-def _render_skill_entry(skill: SkillMetadata) -> list[str]:
-    """Render one XML skill entry shared by the catalog and its token estimate."""
+def _render_skill_entry(skill: SkillMetadata, function_index: str = "") -> list[str]:
+    """Render one XML skill entry shared by the catalog and its token estimate.
+
+    ``function_index`` is the entry's ``<functions>`` line; the token estimate leaves it out because it is budgeted
+    apart (``function_index.L1_FUNCTION_INDEX_MAX_TOKENS``).
+    """
     attrs = f"name={quoteattr(skill.name)} available={quoteattr(str(skill.available).lower())} trust={quoteattr(skill.trust.name.lower())}"
     if not skill.available and skill.unavailable_reason:
         attrs += f" reason={quoteattr(skill.unavailable_reason)}"
@@ -173,6 +179,8 @@ def _render_skill_entry(skill: SkillMetadata) -> list[str]:
         f" <skill {attrs}>",
         f" <description>{escape(skill.description)}</description>",
     ]
+    if function_index:
+        lines.append(function_index)
     _append_contract_summary(lines, skill)
     lines.append(" </skill>")
     return lines
@@ -228,7 +236,8 @@ def get_metadata_summary(
     ``L1_CATALOG_MAX_TOKENS``; every other model-visible skill arrives as ``hidden_skill_names``
     and is rendered as one name line (alphabetical, within ``L1_HIDDEN_NAMES_MAX_TOKENS``), so
     a known name goes straight to ``skill_select_tool`` and an unknown capability goes to
-    ``skill_search_tool``.
+    ``skill_search_tool``. A PTC-routed MCP entry also carries its ``<functions>`` line (budgeted apart in
+    ``function_index``), so a task those functions cover needs no ``skill_select_tool`` round.
 
     Cache impact: stable catalog bytes keep tool schema bytes stable; catalog
     size still counts toward the cached conversation prefix when present.
@@ -237,9 +246,10 @@ def get_metadata_summary(
     if not skills and not names:
         return "<skills>No skills available.</skills>"
 
-    lines = ["<skills>", *_routing_rules(len(names))]
+    function_indexes = fit_function_indexes(skills)
+    lines = ["<skills>", *_routing_rules(len(names)), *(FUNCTION_INDEX_RULES if function_indexes else ())]
     for skill in skills:
-        lines.extend(_render_skill_entry(skill))
+        lines.extend(_render_skill_entry(skill, function_indexes.get(skill.name, "")))
     lines.extend(_render_hidden_names(names))
     lines.append("</skills>")
     return "\n".join(lines)
