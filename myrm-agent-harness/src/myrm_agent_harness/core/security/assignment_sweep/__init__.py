@@ -1,14 +1,13 @@
 """
 [POS] src/myrm_agent_harness/core/security/assignment_sweep/__init__.py
 Quoted-Key and Separator-Prefix Secret Assignment Sweep Hardening Suite.
-Exports domain types, sweep engine, database URL auditor, and facade.
+Exports domain types, sweep engine and database URL auditor.
 Strict typing applied: No `Any` types allowed.
 """
 
 from __future__ import annotations
 
 from .database_url_auditor import DatabaseUrlAuditor
-from .facade import QuotedKeySecretAssignmentSweepFacade
 from .quoted_sweep_engine import AssignmentMatch, QuotedKeySecretAssignmentSweepEngine, find_assignment_matches
 from .types import (
     AssignmentFormat,
@@ -29,6 +28,5 @@ __all__ = [
     "DatabaseUrlAuditResult",
     "DatabaseUrlAuditor",
     "QuotedKeySecretAssignmentSweepEngine",
-    "QuotedKeySecretAssignmentSweepFacade",
     "find_assignment_matches",
 ]

@@ -1,14 +1,9 @@
-"""Unit tests for Five-Layer Wiki structure, SourceCardContract, and RadarRationaleContract."""
+"""Unit tests for Five-Layer Wiki structure and SourceCardContract."""
 
 import tempfile
 
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WikiPageType,
-)
-from myrm_agent_harness.toolkits.wiki.core.radar_rationale_contract import (
-    ZeroYieldRationaleReport,
-    format_zero_yield_report,
-    parse_zero_yield_report,
 )
 from myrm_agent_harness.toolkits.wiki.core.source_card_contract import (
     SourceCardContract,
@@ -77,27 +72,3 @@ def test_source_card_serialization_and_parsing():
     assert parsed.provenance_class == "author_claim"
     assert "five_layer_wiki" in parsed.covered_concepts
     assert "这是正文中的备注内容" in parsed.verification_notes
-
-
-def test_radar_zero_yield_report():
-    report = ZeroYieldRationaleReport(
-        batch_id="batch_20260923_01",
-        query_topic="量子计算实用化常温超导进展",
-        executed_at="2026-09-23T10:00:00Z",
-        deep_research_candidates=12,
-        report_candidates=5,
-        web_baseline_candidates=30,
-        yield_decision="zero_yield_suppressed",
-        rationale="所检索到的 47 项候选结果均为营销号与无对照实验之个人揣测，缺乏可复现实验依据。",
-        suggested_next_probe="等待权威期刊 Nature / Science 发文后再行探测。",
-    )
-
-    markdown = format_zero_yield_report(report)
-    assert "宁缺毋滥，拦截入库 (zero_yield_suppressed)" in markdown
-    assert "量子计算实用化常温超导进展" in markdown
-
-    parsed = parse_zero_yield_report(markdown)
-    assert parsed.batch_id == "batch_20260923_01"
-    assert parsed.yield_decision == "zero_yield_suppressed"
-    assert parsed.deep_research_candidates == 12
-    assert "营销号" in parsed.rationale

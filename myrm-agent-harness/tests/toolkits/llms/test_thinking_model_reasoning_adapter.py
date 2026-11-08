@@ -1,82 +1,13 @@
-"""Unit tests for LanEndpointNoProxyManager and ThinkingModelReasoningAdapter.
+"""Unit tests for ThinkingModelReasoningAdapter.
 
-Validates RFC 1918 LAN/local proxy bypass detection, thinking model CoT token
-scrubbing, reasoning content fallback extraction, and MemoryExtractor integration.
+Validates thinking model CoT token scrubbing, reasoning content fallback extraction,
+and MemoryExtractor integration.
 """
 
 from __future__ import annotations
 
-import pytest
-
-from myrm_agent_harness.toolkits.llms import (
-    LanEndpointNoProxyManager,
-    ThinkingModelReasoningAdapter,
-)
+from myrm_agent_harness.toolkits.llms import ThinkingModelReasoningAdapter
 from myrm_agent_harness.toolkits.memory.strategies.extractor.parse import _parse_response
-
-
-class TestLanEndpointNoProxyManager:
-    """Test suite for local and LAN endpoint detection and proxy bypass configuration."""
-
-    @pytest.mark.parametrize(
-        "endpoint, expected",
-        [
-            ("http://localhost:11434/v1", True),
-            ("http://127.0.0.1:8000/api", True),
-            ("http://[::1]:11434", True),
-            ("http://0.0.0.0:8080", True),
-            ("localhost", True),
-            ("127.0.0.1", True),
-            ("127.0.0.1:11434", True),
-            ("http://192.168.1.100:11434/v1", True),
-            ("http://10.0.4.15:8000", True),
-            ("http://172.16.0.2:11434", True),
-            ("http://172.31.255.255:11434", True),
-            ("192.168.0.1:8080", True),
-            ("ollama-service.local", True),
-            ("http://cluster-node.internal:8000", True),
-            ("http://my-nas.lan:5000", True),
-            ("http://router.home.arpa:80", True),
-            # Public endpoints (should be False)
-            ("https://api.openai.com/v1", False),
-            ("https://api.anthropic.com/v1", False),
-            ("http://8.8.8.8:53", False),
-            ("http://1.1.1.1:80", False),
-            ("https://172.32.0.1:8000", False),  # Outside RFC 1918 172.16.0.0/12
-            ("", False),
-            ("   ", False),
-        ],
-    )
-    def test_is_local_or_lan_endpoint(self, endpoint: str, expected: bool) -> None:
-        assert LanEndpointNoProxyManager.is_local_or_lan_endpoint(endpoint) is expected
-
-    def test_build_recommended_no_proxy_entries(self) -> None:
-        entries = LanEndpointNoProxyManager.build_recommended_no_proxy_entries()
-        assert "localhost" in entries
-        assert "127.0.0.1" in entries
-        assert "10.0.0.0/8" in entries
-        assert "172.16.0.0/12" in entries
-        assert "192.168.0.0/16" in entries
-
-        custom = LanEndpointNoProxyManager.build_recommended_no_proxy_entries(["192.168.0.0/16", "custom.domain"])
-        assert "custom.domain" in custom
-        # Verify deduplication
-        assert custom.count("192.168.0.0/16") == 1
-
-    def test_configure_bypass_client_kwargs(self) -> None:
-        # Local endpoint injects trust_env=False
-        kwargs = LanEndpointNoProxyManager.configure_bypass_client_kwargs(
-            "http://localhost:11434", {"timeout": 30}
-        )
-        assert kwargs["trust_env"] is False
-        assert kwargs["timeout"] == 30
-
-        # Public endpoint does not modify trust_env
-        public_kwargs = LanEndpointNoProxyManager.configure_bypass_client_kwargs(
-            "https://api.openai.com", {"timeout": 30}
-        )
-        assert "trust_env" not in public_kwargs
-        assert public_kwargs["timeout"] == 30
 
 
 class TestThinkingModelReasoningAdapter:
