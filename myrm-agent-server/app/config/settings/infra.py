@@ -1,5 +1,5 @@
 """[INPUT]
-- .constants (POS: BASE_DIR)
+- pydantic / pydantic_settings (POS: validated, env-backed settings)
 
 [OUTPUT]
 - MessageFilterSettings, MonitoringSettings, DatabaseSettings, ServiceSettings, ControlPlaneSettings, ContextCompactionTelemetrySettings, MemoryBriefStatusTelemetrySettings, ExecutionCacheSettings, MemoryGuardianGuardTelemetrySettings

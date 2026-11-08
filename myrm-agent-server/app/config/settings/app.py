@@ -1,5 +1,6 @@
 """[INPUT]
-- .constants (POS: BASE_DIR)
+- .channels / .infra / .llm / .security (POS: settings groups composed into AppSettings)
+- pydantic_settings (POS: env and dotenv sources)
 
 [OUTPUT]
 - _AppSettingsEnvSource, _AppSettingsDotEnvSource, AppSettings
