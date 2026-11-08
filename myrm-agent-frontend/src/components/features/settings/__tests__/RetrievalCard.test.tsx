@@ -13,7 +13,8 @@ vi.mock('@/components/features/memory/settings/MemoryMigrationNotice', () => ({
   default: () => <div data-testid="migration-notice" />,
 }));
 
-import useRetrievalStore, { type RetrievalConfig } from '@/store/useRetrievalStore';
+import type { RetrievalConfig } from '@/store/retrieval/types';
+import useRetrievalStore from '@/store/useRetrievalStore';
 
 import RetrievalCard from '../retrieval/RetrievalCard';
 

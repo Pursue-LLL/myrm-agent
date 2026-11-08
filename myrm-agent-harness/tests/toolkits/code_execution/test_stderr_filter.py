@@ -74,7 +74,7 @@ DeprecationWarning: test warning
 
 
 def test_filter_mixed_chunk_prevents_silent_drop_of_fatal_error() -> None:
-    """Core regression test against Molio bb06966:
+    """Core regression test:
     When a chunk contains informational banners, warnings, AND a real traceback,
     the real error must NEVER be dropped or swallowed.
     """

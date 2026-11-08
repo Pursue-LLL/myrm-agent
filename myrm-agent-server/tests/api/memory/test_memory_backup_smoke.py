@@ -23,6 +23,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.memory._manager.reindex import OrphanCollectionInfo
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
 
 from app.api.memory.operations.backup import get_backup_store
@@ -148,6 +149,27 @@ async def test_an_incomplete_snapshot_is_reported_and_nothing_is_saved(
     assert body["success"] is False
     assert body["backup_id"] is None
     assert "incomplete" in body["error"]
+    assert backup_api.store.list_backups() == []
+
+
+async def test_memories_left_under_a_previous_embedding_model_are_reported_and_nothing_is_saved(
+    backup_api: BackupApi, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, manager = backup_api.client, backup_api.manager
+    await manager.add_knowledge("Written under the current model.")
+
+    async def left_behind() -> list[OrphanCollectionInfo]:
+        return [OrphanCollectionInfo(collection_name="old_semantic", memory_type="semantic", document_count=3)]
+
+    monkeypatch.setattr(manager, "detect_orphan_collections", left_behind)
+
+    response = await client.post("/memory/backup/create", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["backup_id"] is None
+    assert "previous embedding model (3)" in body["error"]
     assert backup_api.store.list_backups() == []
 
 

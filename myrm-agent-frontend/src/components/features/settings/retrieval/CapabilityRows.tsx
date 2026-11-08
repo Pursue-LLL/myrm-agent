@@ -6,7 +6,7 @@ import { Sorting01Icon } from 'hugeicons-react';
 import { IconLoader, IconSearch } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
-import type { ApplyStatus } from '@/store/useRetrievalStore';
+import type { ApplyStatus } from '@/store/retrieval/types';
 import ApplyOutcome from './ApplyOutcome';
 
 interface CapabilityRowProps {

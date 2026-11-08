@@ -58,6 +58,10 @@ dependencies = [
   "mcp>=2.3.0",        # MCP 协议 SDK 2.x (2026-07-28 spec: stateless HTTP, Client API)
   "pdfplumber>=0.11.10", # PDF 文本+表格提取 (file_read_tool CORE; pypdfium2 由 pdfplumber 传递依赖)
   "pathspec>=1.1.1", # 非 git 目录与 git 读不了的嵌套仓库里各级忽略文件的解析 (file_search/fallback_discovery.py)
+  # 非 UTF-8 文本（GBK/Big5/Shift-JIS/EUC/cp1252）的编码识别 (file_parsers/text_decoding.py；pdfminer-six、requests 亦依赖)。
+  # 下限 3.5.0：3.4.x 对 CJK 文本的识别明显更差（同一批样本 128 字节以上的错判与拒绝多出数倍）；上限 <3.6：识别结果随小版本变化，
+  # 升级前须重跑 tests/toolkits/file_parsers/test_text_decoding.py。
+  "charset-normalizer>=3.5.0,<3.6",
 ]
 
 [project.urls]

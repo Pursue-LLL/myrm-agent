@@ -3,9 +3,6 @@
 When essential content (CRITICAL + HIGH priority) alone exceeds budget,
 this module provides a fallback strategy to gracefully degrade compression.
 
-Inspired by OpenSpace conversation_formatter.py:_assemble_essential_only
-but adapted for our token-based architecture.
-
 Fallback策略（当HIGH-priority内容超预算）：
 1. 保留所有Priority 0 (human messages) 完整
 2. Budget-allocate Priority 2 (tool calls/errors)

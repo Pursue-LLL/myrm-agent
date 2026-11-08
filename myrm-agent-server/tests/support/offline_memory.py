@@ -53,8 +53,9 @@ async def offline_memory_manager(
     *,
     user_id: str = "offline-user",
     approval_required: bool = False,
-    embedding_model: str = "local/deterministic",
+    embedding_model: str | None = "local/deterministic",
 ) -> AsyncIterator[MemoryManager]:
+    """``embedding_model=None`` is a keyword-only manager, the state before any embedding model is configured."""
     monkeypatch.setattr(
         memory_setup,
         "get_embedding_service",
@@ -63,7 +64,7 @@ async def offline_memory_manager(
     monkeypatch.setattr(QdrantVectorStore, "RETRY_BASE_DELAY", 0.0)
     manager = await create_local_memory_manager(
         base_path=base_path,
-        embedding_config=EmbeddingConfig(model=embedding_model),
+        embedding_config=EmbeddingConfig(model=embedding_model) if embedding_model else None,
         user_id=user_id,
         approval_required=approval_required,
     )

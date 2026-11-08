@@ -48,6 +48,12 @@ describe('RemoteBackupStatus', () => {
     expect(screen.getByText('statusLastBackup')).toBeInTheDocument();
   });
 
+  it('names the reason when memories still wait for the new embedding model to be migrated', () => {
+    render(<RemoteBackupStatus status={{ ...FAILING, last_error_code: 'previous_model' }} autoSync />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('errorCodes.previous_model');
+  });
+
   it('reads a reason it does not know as an internal error', () => {
     render(<RemoteBackupStatus status={{ ...FAILING, last_error_code: 'somethingNew' }} autoSync />);
 

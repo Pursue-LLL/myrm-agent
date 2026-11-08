@@ -2,9 +2,10 @@
 
 [INPUT]
 - app.services.files.content_extraction (POS: pdf/docx/text byte extractors)
+- myrm_agent_harness.toolkits.file_parsers::TextDecodingError, decode_text_bytes (POS: text bytes to str: UTF-8, Unicode BOM or an identifiable legacy encoding such as GBK)
 
 [OUTPUT]
-- bytes_to_wiki_markdown: normalize Drive/Feishu/RSS bytes to markdown body
+- bytes_to_wiki_markdown: normalize Drive/Feishu/RSS bytes to markdown body; text whose encoding cannot be identified yields None instead of replacement-character garbage
 
 [POS]
 Shared zero-LLM conversion layer for wiki source sync connectors.
@@ -12,6 +13,7 @@ Shared zero-LLM conversion layer for wiki source sync connectors.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,6 +24,8 @@ from app.services.files.content_extraction import (
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+logger = logging.getLogger(__name__)
 
 _TEXT_EXTENSIONS = (".md", ".txt", ".markdown", ".csv", ".rtf")
 _DOCX_EXTENSIONS = (".docx",)
@@ -42,6 +46,7 @@ async def bytes_to_wiki_markdown(
     lowered_name = filename.lower()
     lowered_mime = mime_type.lower()
 
+    from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, decode_text_bytes
     from myrm_agent_harness.toolkits.file_parsers.content_format_sniff import (
         sniff_content_format_from_bytes,
     )
@@ -58,7 +63,11 @@ async def bytes_to_wiki_markdown(
             return await _parse_with_tempfile(content, effective_name)
         if lowered_name.endswith(".rtf") or sniffed_ext == ".rtf":
             return await _parse_with_tempfile(content, effective_name)
-        text = content.decode("utf-8", errors="replace").strip()
+        try:
+            text = decode_text_bytes(content).strip()
+        except TextDecodingError:
+            logger.warning("Skipped %s: not UTF-8 text and its encoding could not be identified reliably", filename)
+            return None
         return text or None
 
     if "wordprocessingml.document" in lowered_mime or lowered_name.endswith(_DOCX_EXTENSIONS):
@@ -127,7 +136,7 @@ async def _parse_docx_bytes(
 
 
 async def _parse_with_tempfile(content: bytes, filename: str) -> str | None:
-    from myrm_agent_harness.toolkits.file_parsers import get_parser, is_supported
+    from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, get_parser, is_supported
     from myrm_agent_harness.toolkits.file_parsers.gfm_normalize import (
         normalize_to_gfm_markdown,
     )
@@ -143,5 +152,8 @@ async def _parse_with_tempfile(content: bytes, filename: str) -> str | None:
         parser = get_parser(tmp_path)
         text = normalize_to_gfm_markdown(await parser.parse(tmp_path))
         return text or None
+    except TextDecodingError:
+        logger.warning("Skipped %s: not UTF-8 text and its encoding could not be identified reliably", filename)
+        return None
     finally:
         Path(tmp_path).unlink(missing_ok=True)

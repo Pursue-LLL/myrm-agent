@@ -1,7 +1,6 @@
 """Background async evolution queue (收益6/10).
 
-Defers non-critical evolutions to background queue to avoid blocking main flow.
-Inspired by OpenSpace's async processor but simplified using asyncio.Queue.
+Defers non-critical evolutions to a background asyncio.Queue to avoid blocking the main flow.
 
 [INPUT]
 - agent.skills.evolution.core.types::EvolutionRequest, (POS: Data types for skill evolution system.)

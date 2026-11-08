@@ -36,8 +36,8 @@ class CubeScopeType(StrEnum):
 class MemoryCube(BaseModel):
     """First-class isolated memory space container.
 
-    Inspired by MemOS MemCube architecture: groups memories into distinct,
-    isolated compartments to eliminate cross-agent interference and noisy crosstalk.
+    Groups memories into distinct, isolated compartments to eliminate cross-agent
+    interference and noisy crosstalk.
     """
 
     cube_id: str = Field(..., description="Unique deterministic identifier of the cube.")

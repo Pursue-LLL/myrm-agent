@@ -46,7 +46,7 @@ class HealthReport(BaseModel):
     ``detail`` carries the raw technical context (exception text, metric
     values, etc.) that developers can expand to inspect.
     ``measured`` / ``expected`` / ``cause`` provide structured issue metadata
-    for actionable diagnostics (inspired by codex-cli DoctorIssue).
+    for actionable diagnostics.
     """
 
     component_name: str = Field(..., description="Component name, e.g. 'BrowserToolkit'")

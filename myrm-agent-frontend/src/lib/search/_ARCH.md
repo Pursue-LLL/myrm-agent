@@ -16,7 +16,7 @@
 ## 依赖
 
 - `searxngPresets.ts` 的消费方：`SearchServiceEditDialog.tsx`、`store/config/quickSearchSetup.ts`
-- `retrievalProviders.ts` 的消费方：`useRetrievalStore.ts` 与 `settings/retrieval/` 下的 `RetrievalCard.tsx`、`QuickSetup.tsx`、`AdvancedSetup.tsx`、`ProviderModelSelector.tsx`、`retrievalSetup.ts`
+- `retrievalProviders.ts` 的消费方：`useRetrievalStore.ts`、`store/retrieval/defaults.ts` 与 `settings/retrieval/` 下的 `RetrievalCard.tsx`、`QuickSetup.tsx`、`AdvancedSetup.tsx`、`ProviderModelSelector.tsx`、`retrievalSetup.ts`
 - Server 侧 SearXNG 静态配置：`myrm-agent-server/searxng/_ARCH.md`
 
 ## 约束
