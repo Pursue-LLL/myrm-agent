@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * [INPUT]
+ * fetch /api/v1/memory/backup/{list,create,restore} and DELETE /api/v1/memory/backup/{id} (POS: local memory backup API on the server's persistent volume)
+ * useTranslations('settings.memoryBackup') (POS: i18n locale namespace)
+ * @/components/primitives/{button,card,alert-dialog,input,label,checkbox} (POS: UI primitives)
+ *
+ * [OUTPUT]
+ * MemoryBackupSection: create, list, restore and delete backups of the user's memories. A create the server refuses with
+ * error_code=previous_model (memories still under a previous embedding model) shows its own message; any other failure shows the generic one.
+ *
+ * [POS]
+ * Memory Center "backup" tab: the local backup kept on the server's persistent volume (remote backup is RemoteBackupSection).
+ */
+
 import { useState, useEffect, useEffectEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -85,6 +99,8 @@ export default function MemoryBackupSection() {
         toast.success(t('createSuccess'));
         setDescription('');
         await loadBackups();
+      } else if (data.error_code === 'previous_model') {
+        toast.error(t('createErrorPreviousModel'));
       } else {
         throw new Error(data.error || 'Unknown error');
       }

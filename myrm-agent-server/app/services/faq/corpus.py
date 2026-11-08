@@ -1,4 +1,4 @@
-"""FAQ corpus CRUD and embedding index management.
+"""FAQ corpus CRUD and embedding index rebuild.
 
 [INPUT]
 - app.database.models.faq::FaqCorpus, FaqEntry (POS: FAQ 语义缓存域模型)
@@ -7,11 +7,11 @@
 - myrm_agent_harness.toolkits.vector.base::VectorStore (POS: vector store 抽象)
 
 [OUTPUT]
-- FaqCorpusService: FAQ corpus CRUD + embedding index rebuild
+- FaqCorpusService: FAQ corpus CRUD, bulk import, and an index rebuild that embeds every question before touching the index
 
 [POS]
-Business-layer FAQ corpus management. Provides CRUD for per-agent FAQ Q&A pairs
-and synchronizes the Qdrant embedding index when entries change.
+Business-layer FAQ corpus management. Provides CRUD for per-agent FAQ Q&A pairs. The embedding index is built only by
+``rebuild_index``: adding, editing, deleting or importing entries leaves the index as it was until the next rebuild.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _collection_name(agent_id: str) -> str:
 
 
 class FaqCorpusService:
-    """Manages per-agent FAQ corpus CRUD and vector index sync."""
+    """Manages per-agent FAQ corpus CRUD and builds the vector index on request."""
 
     async def get_or_create_corpus(self, agent_id: str, db: AsyncSession | None = None) -> FaqCorpus:
         async def _inner(session: AsyncSession) -> FaqCorpus:
@@ -147,27 +147,19 @@ class FaqCorpusService:
         embedding_service: "EmbeddingService",
         vector_store: "VectorStore",
     ) -> int:
-        """Rebuild the Qdrant index for all entries in the agent's FAQ corpus."""
+        """Rebuild the Qdrant index for all entries in the agent's FAQ corpus.
+
+        Every vector is computed before the index is touched: a refused or failed embedding call leaves the index that
+        is serving matches in place, and the vector size is the one the provider answered (an embedding service learns
+        the size of a model it has no preset for only from its first answer).
+        """
         from myrm_agent_harness.toolkits.vector.base import VectorDocument
 
         entries = await self.list_entries(agent_id)
         if not entries:
             return 0
 
-        collection = _collection_name(agent_id)
-        try:
-            await vector_store.delete_collection(collection)
-        except Exception:
-            pass
-
-        await vector_store.create_collection(
-            collection,
-            dimension=embedding_service.dimension,
-        )
-
-        questions = [e.question for e in entries]
-        embeddings = await embedding_service.embed_batch(questions)
-
+        embeddings = await embedding_service.embed_batch([e.question for e in entries])
         docs = [
             VectorDocument(
                 id=entry.id,
@@ -177,6 +169,14 @@ class FaqCorpusService:
             )
             for entry, emb in zip(entries, embeddings, strict=True)
         ]
+
+        collection = _collection_name(agent_id)
+        try:
+            await vector_store.delete_collection(collection)
+        except Exception:
+            pass
+
+        await vector_store.create_collection(collection, dimension=len(embeddings[0]))
         await vector_store.upsert(collection, docs)
         logger.info("FAQ index rebuilt for agent=%s, entries=%d", agent_id, len(docs))
         return len(docs)
