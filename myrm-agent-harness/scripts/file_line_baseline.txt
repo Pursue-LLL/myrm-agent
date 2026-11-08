@@ -39,7 +39,7 @@ myrm_agent_harness/toolkits/cron/engine/executor.py	523
 myrm_agent_harness/toolkits/cron/manager.py	582
 myrm_agent_harness/toolkits/kanban/_orchestrator_tools.py	575
 myrm_agent_harness/toolkits/kanban/dispatcher.py	687
-myrm_agent_harness/toolkits/kanban/protocols.py	539
+myrm_agent_harness/toolkits/kanban/protocols.py	538
 myrm_agent_harness/toolkits/llms/fallback/manager.py	609
 myrm_agent_harness/toolkits/llms/image/generator.py	553
 myrm_agent_harness/toolkits/llms/video/generator.py	532

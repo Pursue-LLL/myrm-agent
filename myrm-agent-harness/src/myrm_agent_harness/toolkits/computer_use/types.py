@@ -194,7 +194,7 @@ class PermissionStatus:
 
     @property
     def all_granted(self) -> bool:
-        """OS grants only (Hermes-style ready). Capture probe is separate."""
+        """OS grants only. Capture probe is separate."""
         return self.accessibility and self.screen_recording
 
     @property

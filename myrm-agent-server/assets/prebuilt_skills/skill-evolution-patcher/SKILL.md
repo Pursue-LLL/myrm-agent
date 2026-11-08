@@ -9,7 +9,6 @@ tags:
   - rule-patching
   - feedback-learning
   - dynamic-skills
-  - hermes-agent
 allowed-tools:
   - file_write_tool
   - file_read_tool
@@ -25,7 +24,7 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 
 ## Overview
 
-Based on lessons from the Hermes Agent skill lifecycle patterns (Chapter 4, Case 5), this skill establishes an automated, safe **Self-Evolution & Rule Patching Pipeline**.
+This skill establishes an automated, safe **Self-Evolution & Rule Patching Pipeline**.
 It allows an Agent to continuously absorb explicit conversational corrections (e.g. *"Remember: always generate tables with currency symbols"*, *"Never use raw pointers in generated C++"*) and compile them directly into persistent `SKILL.md` rule sets without manual file editing by human operators.
 
 ---

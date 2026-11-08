@@ -39,8 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Strings longer than this are never parsed as JSON/AST container literals.
 # A degenerate LLM output (multi-hundred-KB "object") would otherwise burn
-# CPU on json.loads/ast.literal_eval for nothing. Mirrors openclaw's
-# MAX_JSON_COERCE_LENGTH (64 * 1024).
+# CPU on json.loads/ast.literal_eval for nothing.
 _MAX_JSON_COERCE_LENGTH = 64 * 1024
 
 _SCHEMA_COERCION_STAT_KEYS = (
@@ -316,13 +315,11 @@ def coerce_value(schema: dict[str, Any], value: Any) -> Any:
                         value = float(clean_value)
                         if not math.isfinite(value):
                             # "inf" / "-inf" / "nan" are not valid JSON numbers
-                            # — keep the string (mirrors openclaw's
-                            # Number.isFinite guard).
+                            # — keep the string.
                             value = clean_value
                     else:
                         # "integer" expectation with a genuinely fractional
-                        # literal: keep the string (mirrors openclaw's
-                        # Number.isInteger check which rejects non-integers).
+                        # literal: keep the string.
                         raise ValueError(f"{clean_value!r} is not an integer")
             except ValueError:
                 pass
@@ -348,8 +345,7 @@ def coerce_value(schema: dict[str, Any], value: Any) -> Any:
     # a list is required (e.g. {"urls": "https://a.com"} for urls: array).
     # Wrapping repairs the call instead of failing it; skip when the value is
     # already a list or when the schema already accepts its current type.
-    # Mirrors hermes-agent's coerce_tool_args wrapping (with its warning when
-    # a JSON-array-looking string could not be parsed).
+    # A warning is logged when a JSON-array-looking string could not be parsed.
     if (
         expected_type == "array"
         and value is not None
@@ -372,8 +368,7 @@ def coerce_value(schema: dict[str, Any], value: Any) -> Any:
     # Numeric 1/0 ↔ boolean bidirectional coercion. LLMs sometimes emit 1/0
     # for a boolean field (or True/False for a number field) — convert only
     # when the current type is not already accepted by the schema.
-    # Mirrors openclaw validation.ts coercePrimitiveByType (which treats any
-    # number — including float forms like 1.0/0.0 — as a boolean candidate).
+    # Any number — including float forms like 1.0/0.0 — is a boolean candidate.
     if expected_type == "boolean" and not _value_conforms_to_schema_types(schema, value):
         if isinstance(value, (int, float)) and not isinstance(value, bool) and value in (0, 1):
             value = bool(value)

@@ -112,7 +112,7 @@ class HttpHookDefinition(_HookBase):
 
     When *secret* is set, every request includes an ``X-Webhook-Signature``
     header (``sha256=<hex-digest>``) computed over the raw JSON body — the
-    same convention used by GitHub / Stripe / Hermes webhooks.
+    same convention used by GitHub / Stripe webhooks.
 
     When *fire_and_forget* is ``True`` the HTTP call is scheduled via
     ``asyncio.create_task`` and never awaited by the executor, so

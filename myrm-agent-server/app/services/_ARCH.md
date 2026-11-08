@@ -56,7 +56,7 @@
 | `audit/` | ✅ 辅助 | 审计日志业务服务 | [_ARCH.md](audit/_ARCH.md) |
 | `integrations/` | ✅ 核心 | 集成连接编排与用户配置 | [_ARCH.md](integrations/_ARCH.md) |
 | `providers/` | ✅ 核心 | 服务提供商与实时余额探测业务服务 | [_ARCH.md](providers/_ARCH.md) |
-| `machines/` | ✅ 核心 | 自托管机群全局监控看板与远程人机同屏接管服务（对标 Cursor My Machines & Live Takeover） | [_ARCH.md](machines/_ARCH.md) |
+| `machines/` | ✅ 核心 | 自托管机群全局监控看板与远程人机同屏接管服务 | [_ARCH.md](machines/_ARCH.md) |
 | `providers/` | ✅ 核心 | LLM 供应商服务（多供应商余额实时探活、并发缓存、Fail-open 本地流水兜底） | [_ARCH.md](providers/_ARCH.md) |
 | `webui/` | ✅ 辅助 | WebUI 专用服务（Remote 模式认证、二维码） | [_ARCH.md](webui/_ARCH.md) |
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |

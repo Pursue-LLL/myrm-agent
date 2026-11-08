@@ -1,6 +1,5 @@
-"""Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
+"""Budget Greedy Marginal Value Recall Packing Suite.
 
-Benchmarked against FrankHu-HK/mnemosyne brain.py _budget_recall knapsack algorithm:
 Packs highest marginal-value density memory fragments within token budget,
 suppresses semantic redundancy, and separates Billed Tokens from Storage Tokens.
 

@@ -1,4 +1,4 @@
-"""Query analysis for memory retrieval boosting (MemPalace enhancement).
+"""Query analysis for memory retrieval boosting.
 
 Detects special patterns in queries to apply targeted scoring boosts:
 - Quoted phrases: "exact match" → boost memories containing this phrase
@@ -243,7 +243,7 @@ def contains_person_name(content: str, name: str) -> bool:
     return bool(re.search(pattern, content, re.IGNORECASE))
 
 
-# Assistant-reference query detection (MemPalace enhancement)
+# Assistant-reference query detection
 ASSISTANT_REF_TRIGGERS = [
     r"\byou suggested\b",
     r"\byou told me\b",
@@ -276,7 +276,7 @@ ASSISTANT_REF_TRIGGERS = [
 ]
 
 
-# Preference query detection (MemPalace enhancement)
+# Preference query detection
 PREFERENCE_QUERY_TRIGGERS = [
     r"\bwhat (?:do|did) i (?:like|love|enjoy|prefer)\b",
     r"\bmy (?:favorite|preference)\b",

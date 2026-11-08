@@ -18,7 +18,7 @@ def should_extract_document_text(
 ) -> bool:
     """Return whether PDF/Office attachments should be parsed into LLM text.
 
-    Default True when unset (matches nanobot ``extract_document_text`` default).
+    Default True when unset.
     """
     if not personal_settings_dict:
         return True

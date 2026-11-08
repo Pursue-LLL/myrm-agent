@@ -118,8 +118,7 @@ class ResilientStreamBuffer:
         while True:
             # Take the payload under the lock, then yield OUTSIDE it: a slow
             # consumer suspended at the yield point must not hold the Condition
-            # lock and stall append()/other subscribers (hermes "slow tab pins
-            # thread" Defect A equivalent for asyncio shared-condition fans).
+            # lock and stall append()/other subscribers.
             payload: str | None = None
             is_heartbeat = False
             async with self._condition:

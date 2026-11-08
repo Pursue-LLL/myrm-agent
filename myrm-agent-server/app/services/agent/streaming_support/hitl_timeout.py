@@ -68,7 +68,7 @@ class HitlAnswerRecord(TypedDict):
     value: object
 
 
-# Web structured clarify: auto-resume when user leaves the form open (OpenClaw default 900s).
+# Web structured clarify: auto-resume when user leaves the form open (900 s).
 CLARIFICATION_TIMEOUT_SECONDS = 900.0
 
 # Empty dict is falsy in _on_ask_question and triggers best-judgment continuation.

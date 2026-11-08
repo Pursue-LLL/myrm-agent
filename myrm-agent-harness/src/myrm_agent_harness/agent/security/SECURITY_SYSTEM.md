@@ -421,7 +421,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 **位置**：`agent/security/workspace_trust/`（harness）· `app/services/security/workspace_trust_store.py` + `/security/workspace-trust/*`（server）· Settings + FolderGate UI（frontend）
 
-**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。VS Code/Cursor Workspace Trust、Claude Code `hasTrustDialogAccepted`、Codex `projects.trust_level` 均采用 **FolderGate + 默认 Restricted** 模式。Myrm 对齐该语义：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
+**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。Myrm 采用 **FolderGate + 默认 Restricted** 模式：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
 
 ### 信任级别
 
@@ -1294,7 +1294,7 @@ MCP annotations 映射规则：`readOnlyHint` → `is_read_only` + `is_concurren
 1. PTC 路径（`bash_code_execute_tool` 包装的 MCP 调用）：通过 `get_ptc_safety_metadata` 查询
 2. 直接 MCP 路径（`mcp__server__tool` 格式的直接调用）：通过 `resolve_safety_metadata` 查询
 
-两条路径使用相同判断条件：`is_read_only=True && !is_open_world && !is_destructive` 时自动放行（ASK → ALLOW），跳过 HITL 弹窗。`!is_destructive` 防御矛盾标注（buggy MCP server 同时声明 readOnlyHint=True + destructiveHint=True），与 Claude Code 的 `permission_mode_for_mcp_tool` 逻辑对齐。未注册 annotations 的工具 fail-closed（is_read_only=False），行为不变。用户配置的 DENY 规则优先级高于 Fast-Path（evaluate_tool_call 先执行，DENY 不进入 Fast-Path 判断）。
+两条路径使用相同判断条件：`is_read_only=True && !is_open_world && !is_destructive` 时自动放行（ASK → ALLOW），跳过 HITL 弹窗。`!is_destructive` 防御矛盾标注（buggy MCP server 同时声明 readOnlyHint=True + destructiveHint=True）。未注册 annotations 的工具 fail-closed（is_read_only=False），行为不变。用户配置的 DENY 规则优先级高于 Fast-Path（evaluate_tool_call 先执行，DENY 不进入 Fast-Path 判断）。
 
 ### 权限分离的关键意义
 

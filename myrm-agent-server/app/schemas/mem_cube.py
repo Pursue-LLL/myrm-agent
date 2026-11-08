@@ -1,5 +1,5 @@
 """[INPUT]
-None (external API payload models and types for MemOS Memory Cube scoped isolation).
+None (external API payload models and types for Memory Cube scoped isolation).
 
 [OUTPUT]
 MemoryCubeDTO, MountPolicyDTO, CubeQueryRequestDTO, CubeQueryResultDTO, CubeWriteRequestDTO, etc.
@@ -104,9 +104,7 @@ class CubeWriteRequestDTO(BaseModel):
     agent_id: str = Field(..., description="Author agent ID.")
     content: str = Field(..., description="Memory record content.")
     target_cube_id: str | None = Field(None, description="Explicit target cube (defaults to policy default).")
-    metadata: dict[str, str | int | float | bool] = Field(
-        default_factory=dict, description="Metadata tags."
-    )
+    metadata: dict[str, str | int | float | bool] = Field(default_factory=dict, description="Metadata tags.")
 
 
 class CubeWriteResultDTO(BaseModel):

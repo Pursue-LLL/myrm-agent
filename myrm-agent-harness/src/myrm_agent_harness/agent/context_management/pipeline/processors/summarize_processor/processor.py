@@ -193,7 +193,7 @@ class SummarizeProcessor(BaseProcessor):
             )
             return context
 
-        # Pre-compaction deterministic transient eviction & tool-result pruning (DSH short-circuit pattern)
+        # Pre-compaction deterministic transient eviction & tool-result pruning
         from ....strategies.compactor.selective_eviction import evict_messages_by_marks
 
         evicted_msgs, evict_stats = evict_messages_by_marks(context.messages)
@@ -279,7 +279,6 @@ class SummarizeProcessor(BaseProcessor):
         pre_compact_message = get_pre_compact_message(context)
 
         runnable_config = context.metadata.get("runnable_config")
-
 
         fence = CompactorPreflightFence(safe_watermark_ratio=0.85)
         # Physical model capacity limit: defaults to 128k tokens (or higher if configured),

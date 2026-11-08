@@ -1,7 +1,7 @@
 """Eviction marks package.
 
 [INPUT]
-- context_management.eviction_marks.marks::EvictionMark (POS: Core memory abstraction layer for message metadata tags, aligned with AgentScope MemoryBase contract while maintaining zero-LLM overhead and Prompt Cache safety.)
+- context_management.eviction_marks.marks::EvictionMark (POS: Core memory abstraction layer for message metadata tags, maintaining zero-LLM overhead and Prompt Cache safety.)
 
 [OUTPUT]
 - EvictionMark / IMMUNE_MARKS 及 mark 读写与驱逐免疫原语

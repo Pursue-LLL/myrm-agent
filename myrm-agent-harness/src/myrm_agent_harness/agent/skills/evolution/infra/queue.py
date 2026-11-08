@@ -1,4 +1,4 @@
-"""Background async evolution queue (收益6/10).
+"""Background async evolution queue.
 
 Defers non-critical evolutions to a background asyncio.Queue to avoid blocking the main flow.
 

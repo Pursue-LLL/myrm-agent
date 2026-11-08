@@ -1,4 +1,4 @@
-"""Three-domain memory persona and experience partitions for OpenViking-style hierarchy.
+"""Three-domain memory persona and experience partitions for hierarchical retrieval.
 
 [INPUT]
 - None (Self-contained domain primitives and taxonomy definitions)

@@ -9,7 +9,7 @@
  * ManagerConversationTray: Floating drawer tray for prompt interactions with the Workspace Manager Agent.
  *
  * [POS]
- * Manager conversation companion tray for Personal Workspace Cockpit. Aligns with LoopX dashboard companion tray.
+ * Manager conversation companion tray for Personal Workspace Cockpit.
  */
 
 import React, { useState, useCallback } from 'react';

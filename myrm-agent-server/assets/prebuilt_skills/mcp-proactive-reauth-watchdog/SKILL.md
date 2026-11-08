@@ -9,7 +9,6 @@ tags:
   - token-refresh
   - credential-watchdog
   - proactive-reauth
-  - hermes-agent
 allowed-tools:
   - bash_code_execute_tool
   - file_read_tool
@@ -25,7 +24,7 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 
 ## Overview
 
-Based on architecture principles from Hermes Agent v0.21.0 Pantheon ("Pantheon Release: MCP Command Center & Proactive Reauth"), this skill eliminates **mid-execution credential failures** (the "Passive 401 Unauthorized Trap").
+This skill eliminates **mid-execution credential failures** (the "Passive 401 Unauthorized Trap").
 Rather than waiting for an MCP tool call to fail mid-turn with expired OAuth tokens, this watchdog actively audits credential TTLs, performs automated silent refreshes before expiration thresholds, and triggers structured user re-authorization gates before tasks start.
 
 ---

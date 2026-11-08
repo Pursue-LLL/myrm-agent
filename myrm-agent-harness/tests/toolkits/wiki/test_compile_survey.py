@@ -1,4 +1,4 @@
-"""Tests for compile structure survey (AutoWiki-style pass 1)."""
+"""Tests for compile structure survey (pass 1)."""
 
 from pathlib import Path
 

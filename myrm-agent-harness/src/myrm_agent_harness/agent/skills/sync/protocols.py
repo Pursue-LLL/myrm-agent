@@ -108,7 +108,6 @@ class SkillQualityGateProtocol(Protocol):
     """Pluggable quality gate for skill push validation.
 
     Evaluated before pushing a skill to the shared repository.
-    A Protocol, so different implementations can be plugged in.
 
     Default framework implementation: threshold-based (effective_rate >= 0.7).
     Business layer can provide LLM-based multi-dimension verification.

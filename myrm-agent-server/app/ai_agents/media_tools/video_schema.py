@@ -66,8 +66,8 @@ def _build_dynamic_video_input_schema(capabilities: object | None) -> type[BaseM
     """Dynamically construct a trimmed VideoToolInput schema based on active provider capabilities.
 
     If a provider does NOT support audio, aspect_ratio, or reference_videos, those fields
-    are omitted from the schema. This implements the Dynamic Schema Diet pattern from
-    Hermes-Agent, preventing LLM parameter hallucinations (400 Bad Request).
+    are omitted from the schema (a dynamic schema diet), preventing LLM parameter
+    hallucinations (400 Bad Request).
     """
     from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
 

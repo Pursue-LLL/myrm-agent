@@ -39,7 +39,7 @@ export interface ToolCompositionSummary {
 
 /**
  * 纯确定性聚合计算工具周期构成比率。
- * 遵循 Hermes insights 原则：前 3 项高亮展示，其余折叠收纳。
+ * 前 3 项高亮展示，其余折叠收纳。
  */
 export function computeToolComposition(
   dailyRecords: ToolStabilityDaily[],

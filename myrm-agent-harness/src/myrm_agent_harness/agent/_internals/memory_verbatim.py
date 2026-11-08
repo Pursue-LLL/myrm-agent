@@ -38,7 +38,7 @@ def create_conversation_memories(
 ) -> list[ConversationMemory]:
     """Create verbatim ConversationMemory chunks from messages.
 
-    Uses exchange-pair chunking (MemPalace strategy) to preserve completeness.
+    Uses exchange-pair chunking to preserve completeness.
 
     Args:
         messages: List of dicts with 'role' and 'content' keys

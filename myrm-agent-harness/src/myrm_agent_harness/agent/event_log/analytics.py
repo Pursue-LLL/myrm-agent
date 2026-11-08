@@ -228,7 +228,7 @@ class EventLogAnalytics:
         """Get top sessions ranked by specified metric.
 
         Supports flexible ranking by duration, messages, tokens, or tool calls.
-        Enables Top N analysis (superior to Hermes Agent's Top 1 only).
+        Enables Top N analysis.
 
         Args:
             metric: Ranking metric - "duration", "messages", "tokens", or "tool_calls"

@@ -9,7 +9,7 @@
 - myrm_agent_harness...compression_anti_thrash_guard (POS: streak guard + outcome record)
 
 [OUTPUT]
-- compact_chat: transactional compaction entry (``for_idle_stale`` Hermes idle predicate; ``request_tokens_for_guard`` aligns idle anti-thrash with gate)
+- compact_chat: transactional compaction entry (``for_idle_stale`` idle predicate; ``request_tokens_for_guard`` aligns idle anti-thrash with gate)
 
 [POS]
 Server compaction orchestration; called by stale gate, /compact API, channel handler, idle worker.

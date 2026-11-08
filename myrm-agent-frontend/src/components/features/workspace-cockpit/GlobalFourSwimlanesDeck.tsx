@@ -11,7 +11,7 @@
  * GlobalFourSwimlanesDeck: 4-swimlanes task orchestrator grid with live streaming output tails.
  *
  * [POS]
- * Four-swimlane mission control deck for digital agent workspace. Aligns with LoopX & Hermes v0.21.5.
+ * Four-swimlane mission control deck for digital agent workspace.
  */
 
 import React, { useMemo } from 'react';
@@ -189,7 +189,7 @@ export const GlobalFourSwimlanesDeck: React.FC<GlobalFourSwimlanesDeckProps> = (
                       )}
                     </div>
 
-                    {/* Inline Streaming Output Tail (Hermes v0.21.5 #117464) */}
+                    {/* Inline Streaming Output Tail */}
                     {task.latestOutputTail && (
                       <div
                         data-testid={`task-tail-${task.id}`}

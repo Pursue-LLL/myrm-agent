@@ -9,11 +9,11 @@
 - PetStore: list/install/remove installed pets for WebUI Companion
 
 [POS]
-Server persistence for GUI Petdex installs; mirrors Hermes pet store boundaries without CLI coupling.
+Server persistence for GUI Petdex installs, without CLI coupling.
 
 Pets live under ``<state root>/companion/pets/<slug>/`` with ``pet.json`` and
-a local spritesheet copy. Mirrors Hermes ``agent/pet/store.py`` boundaries
-(profile-scoped disk, petdex host pinning) without CLI/npm coupling.
+a local spritesheet copy. Storage is profile-scoped disk with petdex host
+pinning, and has no CLI/npm coupling.
 """
 
 from __future__ import annotations

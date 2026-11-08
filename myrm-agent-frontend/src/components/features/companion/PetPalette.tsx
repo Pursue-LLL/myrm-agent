@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PetPalette — session-scoped Petdex picker (GUI equivalent of Hermes /pet list).
+ * PetPalette — session-scoped Petdex picker.
  *
  * [INPUT]
  * - @/store/useCompanionStore (POS: 伴侣全局状态 — palette 开关与精灵配置)

@@ -192,13 +192,13 @@ class RetrievalConfig:
         mmr_lambda: MMR diversity balance (1.0 = pure relevance, 0.0 = pure diversity)
         enable_conversation_raw_channel: Enable raw_embedding channel for ConversationMemory
         raw_channel_weight: Weight for raw_embedding channel (summary_channel_weight = 1 - this)
-        keyword_overlap_weight: Keyword overlap boost weight (MemPalace hybrid enhancement)
+        keyword_overlap_weight: Keyword overlap boost weight
         keyword_overlap_min_tokens: Minimum token overlap to apply boost
         enable_adaptive_channel: Enable adaptive dual-channel selection (saves ~35% query cost)
         adaptive_threshold: Token count threshold for dual-channel (queries < threshold use summary only)
         adaptive_diversity_threshold: Word diversity ratio threshold (unique_words/total_words)
         adaptive_strategy: Optional custom strategy for adaptive channel selection (overrides default 3-factor logic)
-        enable_two_pass_assistant_retrieval: Enable Two-Pass for assistant-reference queries (MemPalace enhancement)
+        enable_two_pass_assistant_retrieval: Enable Two-Pass for assistant-reference queries
         two_pass_first_stage_limit: Pass 1 top-K sessions to consider in Pass 2
         enable_keyword_boost: Enable keyword overlap boost in ResultBooster
         keyword_boost_weight: Keyword boost weight (multiplicative factor)
@@ -208,7 +208,7 @@ class RetrievalConfig:
         person_name_boost_weight: Person name boost weight (multiplicative factor)
         enable_quoted_phrase_boost: Enable quoted phrase match boost in ResultBooster
         quoted_phrase_boost_weight: Quoted phrase boost weight (multiplicative factor)
-        enable_preference_boost: Enable preference boost for preference-tagged memories (MemPalace enhancement)
+        enable_preference_boost: Enable preference boost for preference-tagged memories
         preference_boost_weight: Preference boost weight (multiplicative factor, applied to preference_strength)
         source_diversity_weight: Source diversity penalty weight for MMR session diversification
         min_relevance_score: Absolute minimum RRF score threshold (anti-hallucination hard cutoff)

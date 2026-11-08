@@ -6,7 +6,7 @@
 [OUTPUT]
 - ConnectionStatus: connection lifecycle state enum
 - ConnectionMetrics: usage and latency counters
-- MCPStartupBackoff: OpenClaw-style per-config exponential backoff circuit breaker
+- MCPStartupBackoff: per-config exponential backoff circuit breaker
 - MCPConnection: warm per-config connection wrapper holding per-server session actors
 
 [POS]

@@ -112,7 +112,7 @@ def evaluate_skill_health_findings(
         if stats.pinned:
             pinned_count += 1
 
-        # Check 1: Wrong but frequent (Hermes Failure Mode #142)
+        # Check 1: Wrong but frequent
         if stats.observed_count >= cfg.min_call_count_for_quality_check and stats.success_rate < cfg.min_success_rate:
             severity = "critical" if stats.success_rate < 0.15 else "warning"
             action = "unpin_and_archive" if stats.pinned else "archive"

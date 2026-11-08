@@ -1,7 +1,7 @@
 """Platform tag detection for per-platform core wheel builds.
 
-Mirrors Claude Code's ``@anthropic-ai/claude-code-{platform}`` optional
-dependency pattern adapted for Python / PEP 425 platform tags.
+Per-platform core wheels follow the optional-dependency pattern, keyed by
+Python / PEP 425 platform tags.
 """
 
 from __future__ import annotations

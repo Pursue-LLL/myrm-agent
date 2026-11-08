@@ -3,10 +3,10 @@
 Single source of truth for all platform-specific knowledge.
 Other modules consume PlatformInfo instead of scattered ``if IS_WINDOWS`` checks.
 
-Incorporates best practices from competitor analysis:
-- openclaw: WSL multi-layer detection (env vars → /proc/version)
-- zeroclaw: safe environment variable whitelist per platform
-- pi-mono: shell configuration as data (shell_path, shell_args)
+Provides:
+- WSL multi-layer detection (env vars → /proc/version)
+- A safe environment variable whitelist per platform
+- Shell configuration as data (shell_path, shell_args)
 
 [INPUT]
 - (none)

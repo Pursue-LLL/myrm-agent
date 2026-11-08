@@ -49,7 +49,9 @@ class ProfileEntry(BaseModel):
             return v.replace(tzinfo=UTC)
         return v
 
+
 PreferenceType = Literal["explicit", "implicit"]
+
 
 class SemanticMemory(BaseMemory):
     """Factual knowledge stored with vector embeddings.
@@ -82,6 +84,7 @@ class SemanticMemory(BaseMemory):
     language: Literal["zh", "en"] = "en"
     merge_count: int = Field(default=0, ge=0, description="Number of merges applied to this memory")
     merge_history: str = Field(default="", description="Compact merge log: timestamp|action|summary")
+
 
 class EpisodicMemory(BaseMemory):
     """Conversation event stored with vector embeddings and optional graph.
@@ -132,6 +135,7 @@ class EpisodicMemory(BaseMemory):
         description="Category describing the cross-task relationship",
     )
 
+
 class ConversationMemory(BaseMemory):
     """Conversation exchange stored with dual-field verbatim + summary.
 
@@ -161,9 +165,7 @@ class ConversationMemory(BaseMemory):
     raw_embedding: list[float] | None = None
     summary_embedding: list[float] | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    user_turn_only: bool = Field(
-        default=True, description="Index only user turns (MemPalace strategy for 96.6% baseline)"
-    )
+    user_turn_only: bool = Field(default=True, description="Index only user turns")
     related_entities: list[str] = Field(default_factory=list)
     source_chat_id: str | None = None
     source_message_id: str | None = None
@@ -180,6 +182,7 @@ class ConversationMemory(BaseMemory):
     def display_content(self) -> str:
         """Return summary content for display (not raw verbatim)."""
         return self.content
+
 
 class ProceduralMemory(BaseMemory):
     """Behavioral rule: trigger -> action.
@@ -267,6 +270,7 @@ class ProceduralMemory(BaseMemory):
         elif self.is_active and self.status == MemoryStatus.DISABLED:
             self.is_active = False
 
+
 class ClaimMemory(BaseMemory):
     """Compiled knowledge object produced from the claim graph.
 
@@ -285,6 +289,7 @@ class ClaimMemory(BaseMemory):
     freshness_days: int = Field(default=0, ge=0)
     contradiction_status: str = "none"
     confidence: float = Field(default=0.75, ge=0.0, le=1.0)
+
 
 class IntegrationMemory(BaseMemory):
     """External service data cached as local memory for semantic retrieval.
@@ -318,6 +323,7 @@ class IntegrationMemory(BaseMemory):
         if isinstance(v, datetime) and v.tzinfo is None:
             return v.replace(tzinfo=UTC)
         return v
+
 
 class TaskDigestMemory(BaseMemory):
     """Structured artifact summarizing a completed or interrupted long-horizon task session.

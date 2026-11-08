@@ -37,8 +37,8 @@ export interface KeyboardEventLike {
 /**
  * Safari 在 compositionend 之后派发确认 / 取消 keydown 的时间窗（毫秒）。
  *
- * 取值来自真机验证（Safari 26 + macOS 拼音/日文）：该窗口内到达的 Enter / Escape
- * 属于 IME 的候选上屏或取消组合，必须吞掉；超出窗口则视为用户的真实意图。
+ * 该窗口内到达的 Enter / Escape 属于 IME 的候选上屏或取消组合，必须吞掉；
+ * 超出窗口则视为用户的真实意图。
  */
 export const IME_CONFIRM_KEY_WINDOW_MS = 100;
 

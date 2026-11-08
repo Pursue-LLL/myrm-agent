@@ -8,7 +8,7 @@
 - Pytest cases verifying intake noise filtration, capacity watermarks, and CRUD endpoints
 
 [POS]
-Server-side integration testing for Hermes-grade memory purity and capacity budgeting.
+Server-side integration testing for memory purity and capacity budgeting.
 """
 
 from __future__ import annotations
