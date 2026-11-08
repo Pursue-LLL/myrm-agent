@@ -11,8 +11,9 @@
 
 [POS]
 The directory decides what the gate runs, so a test cannot be left out by forgetting to mark it; files directly in this
-directory that another workflow runs by path stay with that workflow. The gate rejects unregistered markers, so a
-misspelled marker or a lost registration is a collection error instead of tests dropping out unnoticed.
+directory that another workflow runs by path stay with that workflow, which already runs them on every pull request and
+every push to main, so repeating them here would only add run time. The gate rejects unregistered markers, so a
+misspelled marker or a lost registration fails the gate instead of tests dropping out unnoticed.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def pytest_itemcollected(item: pytest.Item) -> None:
     # The workflows name these files by a path directly under this directory, so a file of the same name in a
-    # subdirectory is run by nobody else and stays in the gate.
+    # subdirectory is not run by those workflows and stays in the gate.
     runs_elsewhere = item.path.resolve().parent == _ARCHITECTURE and item.path.name.startswith(RUN_BY_OTHER_WORKFLOWS)
     if not runs_elsewhere:
         item.add_marker(pytest.mark.architecture)

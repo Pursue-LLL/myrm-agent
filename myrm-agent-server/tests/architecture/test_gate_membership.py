@@ -9,11 +9,11 @@
 
 [OUTPUT]
 - that the hook marks every file except the ones named in `RUN_BY_OTHER_WORKFLOWS` that sit directly in this directory,
-  and that a workflow command names each of those
+  and that a workflow command names the path of each of those
 
 [POS]
 The hook is the one place that can drop a test from the gate, and a file left out of the gate is safe only while a
-workflow still runs it, so this file pins both instead of trusting them; the second pin covers the name in the
+workflow still runs it, so this file pins both instead of trusting them; the second pin covers the path in the
 workflow's command, not the run, which an `if:` or a pytest option can still switch off. Its tests carry their own
 mark, so a broken hook cannot deselect them as well.
 """
@@ -87,6 +87,8 @@ def test_the_hook_marks_every_file_except_those_another_workflow_runs(file_name:
 @pytest.mark.architecture
 @pytest.mark.parametrize("name", _load_conftest().RUN_BY_OTHER_WORKFLOWS)
 def test_a_workflow_command_names_every_file_the_hook_leaves_out(name: str) -> None:
-    pattern = f"{name}py" if name.endswith(".") else f"{name}*.py"
+    # The pin includes the directory: a command for a same-named file elsewhere (for example under `tests/toolkits/`) does not
+    # satisfy it. Another project's `tests/architecture/` still would, because the text cannot tell them apart.
+    pattern = f"tests/architecture/{name}py" if name.endswith(".") else f"tests/architecture/{name}*.py"
 
     assert any(pattern in command for command in _workflow_commands()), f"no workflow command names {pattern}"
