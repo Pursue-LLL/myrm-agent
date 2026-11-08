@@ -1,4 +1,4 @@
-"""文件编辑工具（Claude Code 兼容）
+"""文件编辑工具
 
 1. 本文件的 INPUT/OUTPUT/POS 注释
 

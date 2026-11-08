@@ -1,4 +1,4 @@
-"""File search tool module (Claude Code compatible).
+"""File search tool module.
 
 提供文件名搜索和内容搜索能力。
 增强安全性：正则表达式验证、资源限制。

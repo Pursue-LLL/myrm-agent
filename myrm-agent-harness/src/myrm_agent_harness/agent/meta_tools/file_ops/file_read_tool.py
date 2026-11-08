@@ -1,4 +1,4 @@
-"""文件读取工具（Claude Code 兼容）
+"""文件读取工具
 
 [INPUT]
 - langchain.tools::tool (POS: LangChain 工具装饰器)
