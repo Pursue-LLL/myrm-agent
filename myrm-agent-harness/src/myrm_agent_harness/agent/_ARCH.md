@@ -50,7 +50,7 @@ Agent core module — public API for BaseAgent / SkillAgent runtime.
 | `api/hooks.py` | `agent/hooks/` | **Server integration facade** (session ContextVar, memory extract, bash registry re-exports) vs **lifecycle hooks** (built-in and SKILL.md-declared) |
 | `api/hooks.py` | `core/hooks/` | Integration callables for product code vs **HookEvent / HookResult type definitions** |
 | `parallel/` | `sub_agents/` | **共享 spawn 路径** (batch/swarm semaphore) vs **子 Agent 生命周期全栈** |
-| `meta_tools/spawn_subagent/` | `dynamic_workflow/tools.py` | **LLM** `delegate_task_tool` 等 3 个工具 vs **PTC** `myrm_tools.spawn_subagent()`（同名不同层，共用 `_spawn_child()`） |
+| `meta_tools/spawn_subagent/` | `dynamic_workflow/tools/` | **LLM** `delegate_task_tool` 等 3 个工具 vs **PTC** `myrm_tools.spawn_subagent()`（同名不同层，共用 `_spawn_child()`） |
 | `agent/artifacts/` | `core/artifacts/` | **运行时生命周期** (registry/vault/UI) vs **类型常量 + 路径 SSOT** |
 | `agent/streaming/broadcast/` | `observability/` (top-level) | **ToolBroadcastBus side-channel** (chat UI via EventLogger→SSE) vs **Prometheus + Doctor** |
 | `infra/pubsub/` | `agent/streaming/broadcast/` | **PubSubBus / Server business SSE** vs **hook tool side-channel bus** |

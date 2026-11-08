@@ -1,39 +1,22 @@
-"""DW PTC tools — SpawnSubagentTool and NotifyProgressTool for Dynamic Workflows.
-
-[INPUT]
-- base_agent::BaseAgent (POS: Parent agent with _spawn_child capability)
-- agent.sub_agents.orchestrator::run_with_verification (POS: Adversarial worker+verifier retry loop)
-- agent.sub_agents.verifier_selection::resolve_verifier (POS: Verifier choice shared with the delegate path; refuses a verifier that cannot run commands)
-- agent.sub_agents.spawn_prep (POS: Shared spawn prep SSOT with delegate path)
-- core.security.path::coerce_filesystem_path (POS: Runtime path coercion for workspace journal sidecar)
-- dynamic_workflow.store::WorkflowEventStore (POS: L2 persistent cache)
-- dynamic_workflow.spawn_cache::SpawnCacheParams (POS: Cache fingerprint)
-- agent.skills.mcp.progress_payload::build_workflow_stage_event (POS: Shared notify field SSOT)
-- sub_agents.types::SubagentCatalog, SubagentConfig, SubAgentResult (POS: Agent configuration, workspace policy, and structured spawn result SSOT)
-- utils.runtime.cancellation::CancellationToken
+"""[INPUT]
+- dynamic_workflow.spawn_cache::SpawnCacheParams (POS: 缓存指纹)
+- dynamic_workflow.store::WorkflowEventStore (POS: L2 持久缓存)
+- sub_agents.spawn_prep (POS: 与 delegate 共用的 spawn 准备)
+- sub_agents.types (POS: 目录/配置/结果类型)
+- sub_agents.orchestrator / verifier_selection (POS: 对抗式验证选择)
 
 [OUTPUT]
-- SpawnSubagentTool: PTC tool exposed as myrm_tools.spawn_subagent
-- NotifyProgressTool: PTC tool exposed as myrm_tools.notify — emits workflow stage events to the frontend
-- HumanAskTool: PTC tool exposed as myrm_tools.human_ask — suspends workflow for mid-run user input / decision
-- SteerChildTool: PTC tool exposed as myrm_tools.steer_child — dynamically injects corrective message into a running/warmed child subagent
-- WorkflowRunGuard: Per-workflow spawn counter and concurrency semaphore
+- SpawnSubagentTool / WorkflowRunGuard / DwVerificationMode
 
 [POS]
-Bridges the PTC Python script to the Harness delegate path. spawn_subagent() uses
-parent_agent._spawn_child() or run_with_verification() when verification_mode is
-adversarial. Shares spawn prep with delegate_task_tool via spawn_prep.py.
-WorkflowEventStore provides L2 persistent caching beyond the delegate's 60s TTL.
-NotifyProgressTool provides real-time workflow stage notifications from PTC scripts.
-HumanAskTool provides mid-run human-in-the-loop gate via PhaseWaiter.
-SteerChildTool provides runtime steering and redirection into child subagents.
+`dynamic_workflow/tools/` 的子 Agent 派生工具；负责并发、验证模式与结果规范化。
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, cast
 
@@ -44,7 +27,6 @@ from myrm_agent_harness.agent.dynamic_workflow.spawn_cache import SpawnCachePara
 from myrm_agent_harness.agent.dynamic_workflow.store import WorkflowEventStore
 from myrm_agent_harness.agent.skills.mcp.progress_payload import (
     build_workflow_stage_event,
-    normalize_dw_message,
 )
 from myrm_agent_harness.agent.sub_agents.spawn_prep import (
     apply_readonly_to_config,
@@ -63,15 +45,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_SPAWN_PER_WORKFLOW = 50
-DEFAULT_MAX_CONCURRENT_SPAWNS = 5
 
+DEFAULT_MAX_CONCURRENT_SPAWNS = 5
 
 class DwVerificationMode(StrEnum):
     NONE = "none"
     ADVERSARIAL = "adversarial"
     AUDITOR_BLIND = "auditor_blind"
     MULTI_SKEPTIC = "multi_skeptic"
-
 
 class WorkflowRunGuard:
     """Hard cap on total spawns and concurrent in-flight sub-agents."""
@@ -108,7 +89,6 @@ class WorkflowRunGuard:
     def release_spawn_slot(self) -> None:
         self._semaphore.release()
 
-
 def _normalize_spawn_result(result: object, *, task_id: str, agent_type: str) -> dict[str, object]:
     if isinstance(result, dict):
         return result
@@ -129,7 +109,6 @@ def _normalize_spawn_result(result: object, *, task_id: str, agent_type: str) ->
             else str(status_val or "unknown")
         ),
     }
-
 
 class SpawnSubagentInput(BaseModel):
     task_id: str = Field(..., description="Unique identifier for this sub-agent task.")
@@ -160,7 +139,6 @@ class SpawnSubagentInput(BaseModel):
         default=None,
         description="Optional model tier hint ('simple', 'standard', 'reasoning').",
     )
-
 
 class SpawnSubagentTool(BaseTool):
     """PTC tool that spawns sub-agents through the parent agent's delegate path."""
@@ -445,296 +423,3 @@ class SpawnSubagentTool(BaseTool):
             )
 
         return final_result
-
-
-# ---------------------------------------------------------------------------
-# NotifyProgressTool — real-time workflow stage notifications from PTC scripts
-# ---------------------------------------------------------------------------
-
-
-class NotifyProgressInput(BaseModel):
-    message: str = Field(..., description="Status message to display to the user.")
-    progress: int = Field(
-        default=-1,
-        description="Progress percentage (0-100). Use -1 for indeterminate.",
-    )
-    step_index: int = Field(
-        default=0,
-        description="Current step number (1-based). 0 if not applicable.",
-    )
-    total_steps: int = Field(
-        default=0,
-        description="Total number of steps. 0 if not applicable.",
-    )
-    category: str = Field(
-        default="",
-        description="Stage/phase label (e.g. 'data_collection', 'analysis'). Groups related notifications.",
-    )
-    level: str = Field(
-        default="info",
-        description="Notification level: 'info' (normal), 'warn' (attention), or 'alert' (critical).",
-    )
-
-
-class NotifyProgressTool(BaseTool):
-    """PTC tool that emits real-time workflow stage progress events to the frontend SSE stream."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    name: str = "notify"
-    description: str = (
-        "Report workflow stage progress to the user interface. "
-        "Call this at the start of each major phase to show real-time progress."
-    )
-    args_schema: type[BaseModel] = NotifyProgressInput
-
-    event_queue: asyncio.Queue[dict[str, object]]
-    message_id: str = ""
-
-    def _run(
-        self,
-        message: str,
-        progress: int = -1,
-        step_index: int = 0,
-        total_steps: int = 0,
-        category: str = "",
-        level: str = "info",
-    ) -> object:
-        raise NotImplementedError("NotifyProgressTool only supports async execution.")
-
-    async def _arun(
-        self,
-        message: str,
-        progress: int = -1,
-        step_index: int = 0,
-        total_steps: int = 0,
-        category: str = "",
-        level: str = "info",
-    ) -> object:
-        event = build_workflow_stage_event(
-            self.message_id,
-            message,
-            progress=progress,
-            step_index=step_index,
-            total_steps=total_steps,
-            category=category,
-            level=level,
-        )
-        await self.event_queue.put(event)
-        display_message = normalize_dw_message(message)
-        return {"success": True, "message": display_message}
-
-
-class HumanAskInput(BaseModel):
-    """Input schema for myrm_tools.human_ask mid-run human-in-the-loop gate."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    question: str = Field(
-        ...,
-        description="The question or decision prompt to present to the user.",
-    )
-    options: list[str] = Field(
-        default_factory=list,
-        description="Optional list of discrete options for multiple-choice decisions (e.g. ['continue', 'abort']).",
-    )
-    timeout_seconds: int = Field(
-        default=300,
-        description="Timeout in seconds to wait for user input (default 300s). Falls back to default_action on timeout.",
-    )
-    default_action: str = Field(
-        default="",
-        description="Fallback answer or action if user response times out.",
-    )
-
-
-AskGateCallable = Callable[[str, list[str], int, str], Awaitable[str | None]]
-
-
-class HumanAskTool(BaseTool):
-    """PTC tool that suspends the Dynamic Workflow execution and requests mid-run user input via PhaseWaiter."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    name: str = "human_ask"
-    description: str = (
-        "Ask the user a question or present a critical decision during Dynamic Workflow execution. "
-        "Suspends workflow execution until the user responds or timeout elapses."
-    )
-    args_schema: type[BaseModel] = HumanAskInput
-
-    event_queue: asyncio.Queue[dict[str, object]]
-    message_id: str = ""
-    ask_gate_callable: AskGateCallable | None = None
-    cancel_token: CancellationToken | None = None
-
-    def _run(
-        self,
-        question: str,
-        options: list[str] | None = None,
-        timeout_seconds: int = 300,
-        default_action: str = "",
-    ) -> object:
-        raise NotImplementedError("HumanAskTool only supports async execution.")
-
-    async def _arun(
-        self,
-        question: str,
-        options: list[str] | None = None,
-        timeout_seconds: int = 300,
-        default_action: str = "",
-    ) -> dict[str, object]:
-        if self.cancel_token and self.cancel_token.is_cancelled:
-            return {
-                "success": False,
-                "answer": default_action or None,
-                "error": "Workflow cancelled by user before human_ask",
-                "timed_out": False,
-            }
-
-        opts = options or []
-        timeout_sec = max(5, min(timeout_seconds, 1800))
-
-        # 1. Emit human_gate status event to frontend SSE
-        gate_event: dict[str, object] = {
-            "type": "status",
-            "messageId": self.message_id,
-            "data": {
-                "phase": "human_gate",
-                "status": "waiting",
-                "question": question,
-                "options": opts,
-                "timeout_seconds": timeout_sec,
-                "default_action": default_action,
-                "source": "dynamic_workflow",
-            },
-        }
-        await self.event_queue.put(gate_event)
-
-        # 2. Invoke server-provided approval gate (PhaseWaiter bridge)
-        answer: str | None = None
-        timed_out = False
-        error_msg = ""
-
-        try:
-            if self.ask_gate_callable is not None:
-                answer = await self.ask_gate_callable(question, opts, timeout_sec, default_action)
-            else:
-                # Direct fallback when gate callable is not injected (e.g. unattended tests)
-                logger.info(
-                    "HumanAskTool has no server ask_gate_callable; using default_action='%s'",
-                    default_action,
-                )
-                answer = default_action or (opts[0] if opts else "continue")
-        except TimeoutError:
-            timed_out = True
-            answer = default_action
-            error_msg = f"User response timed out after {timeout_sec}s; applied default: '{default_action}'"
-            logger.warning(
-                "HumanAskTool timed out: message_id=%s, applied default='%s'",
-                self.message_id,
-                default_action,
-            )
-        except Exception as exc:
-            error_msg = f"human_ask failed: {exc}"
-            logger.error("HumanAskTool error: %s", exc, exc_info=True)
-
-        # 3. Emit resolved status event to frontend SSE
-        resolved_event: dict[str, object] = {
-            "type": "status",
-            "messageId": self.message_id,
-            "data": {
-                "phase": "human_gate",
-                "status": "resolved",
-                "answer": answer,
-                "timed_out": timed_out,
-                "source": "dynamic_workflow",
-            },
-        }
-        await self.event_queue.put(resolved_event)
-
-        return {
-            "success": error_msg == "",
-            "answer": answer,
-            "error": error_msg,
-            "timed_out": timed_out,
-        }
-
-
-# ---------------------------------------------------------------------------
-# SteerChildTool — dynamically inject corrective messages into child subagents
-# ---------------------------------------------------------------------------
-
-
-class SteerChildInput(BaseModel):
-    """Input schema for myrm_tools.steer_child mid-run subagent steering."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    task_id: str = Field(
-        ...,
-        description="The unique task_id of the target sub-agent to steer.",
-    )
-    message: str = Field(
-        ...,
-        description="Corrective or follow-up instruction message injected into the sub-agent's next turn.",
-        max_length=4000,
-    )
-    config_overlay: dict[str, object] | None = Field(
-        default=None,
-        description="Optional Continual configuration overrides (timeout_seconds, retry_attempts, verification_mode, etc.) applied in-flight.",
-    )
-
-
-class SteerChildTool(BaseTool):
-    """PTC tool that injects steering messages into a child subagent."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    name: str = "steer_child"
-    description: str = (
-        "Inject a corrective or follow-up instruction into a running or active child sub-agent. "
-        "Allows dynamic redirection in multi-stage workflows without cold-respawning."
-    )
-    args_schema: type[BaseModel] = SteerChildInput
-
-    parent_agent: object
-
-    def _run(
-        self,
-        task_id: str,
-        message: str,
-        config_overlay: dict[str, object] | None = None,
-    ) -> dict[str, object]:
-        if not hasattr(self.parent_agent, "steer_child"):
-            return {
-                "success": False,
-                "task_id": task_id,
-                "error": "Parent agent does not support steer_child.",
-            }
-        try:
-            if config_overlay is not None:
-                steered = self.parent_agent.steer_child(task_id, message, config_overlay=config_overlay)
-            else:
-                steered = self.parent_agent.steer_child(task_id, message)
-        except TypeError:
-            steered = self.parent_agent.steer_child(task_id, message)
-        if steered:
-            return {
-                "success": True,
-                "task_id": task_id,
-                "message": f"Steering message successfully queued for sub-agent `{task_id}`.",
-            }
-        return {
-            "success": False,
-            "task_id": task_id,
-            "error": f"Could not steer `{task_id}`: sub-agent not found or already completed.",
-        }
-
-    async def _arun(
-        self,
-        task_id: str,
-        message: str,
-        config_overlay: dict[str, object] | None = None,
-    ) -> dict[str, object]:
-        return self._run(task_id=task_id, message=message, config_overlay=config_overlay)
