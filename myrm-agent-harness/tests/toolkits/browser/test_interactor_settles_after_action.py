@@ -62,24 +62,25 @@ def _coordinate_page() -> MagicMock:
 
 
 @pytest.mark.parametrize(
-    ("action", "extra", "settles"),
+    ("action", "text", "drag_target", "settles"),
     [
-        ("click", {}, True),
-        ("dblclick", {}, True),
-        ("type", {"text": "hi"}, True),
-        ("press", {"text": "Enter"}, True),
-        ("drag", {"target_x": 500, "target_y": 400}, True),
-        ("hover", {}, False),
+        ("click", "", None, True),
+        ("dblclick", "", None, True),
+        ("type", "hi", None, True),
+        ("press", "Enter", None, True),
+        ("drag", "", (500.0, 400.0), True),
+        ("hover", "", None, False),
     ],
 )
 async def test_an_action_at_coordinates_settles_only_when_it_can_ask_the_backend(
-    action: str, extra: dict[str, object], settles: bool
+    action: str, text: str, drag_target: tuple[float, float] | None, settles: bool
 ) -> None:
     page = _coordinate_page()
     interactor = Interactor(page, {})
+    target_x, target_y = drag_target if drag_target else (None, None)
 
     with patch("asyncio.sleep", new=AsyncMock()), patch(_COORDINATE_SETTLE, new_callable=AsyncMock) as settle:
-        await interactor.interact_at(action, 400, 300, **extra)
+        await interactor.interact_at(action, 400, 300, text, target_x, target_y)
 
     if settles:
         settle.assert_awaited_once_with(page)
