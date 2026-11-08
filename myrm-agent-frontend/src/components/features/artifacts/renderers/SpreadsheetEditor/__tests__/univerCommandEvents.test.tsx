@@ -52,12 +52,21 @@ async function renderOpenedEditor(onDirty: (dirty: boolean) => void): Promise<vo
   await screen.findByText('spreadsheet.saveChanges');
 }
 
-async function editCell(address: string): Promise<void> {
+interface OpenedUniver {
+  api: FUniver;
+  workbook: NonNullable<ReturnType<FUniver['getActiveWorkbook']>>;
+}
+
+function openedUniver(): OpenedUniver {
   const api = univerApis.at(-1);
   expectDefined(api, 'univer api');
   const workbook = api.getActiveWorkbook();
   expectNonNull(workbook, 'active workbook');
-  await workbook.getActiveSheet().getRange(address).setValue('edited');
+  return { api, workbook };
+}
+
+async function editCell(address: string): Promise<void> {
+  await openedUniver().workbook.getActiveSheet().getRange(address).setValue('edited');
 }
 
 describe('SpreadsheetEditor command events', () => {
@@ -81,5 +90,35 @@ describe('SpreadsheetEditor command events', () => {
 
     await editCell('B2');
     expect(onDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays clean when the user only moves the selection', async () => {
+    const onDirty = vi.fn();
+    await renderOpenedEditor(onDirty);
+    const { api, workbook } = openedUniver();
+    const executed = vi.fn();
+    api.addEvent(api.Event.CommandExecuted, executed);
+
+    workbook.setActiveRange(workbook.getActiveSheet().getRange('B2'));
+
+    expect(executed).toHaveBeenCalled();
+    expect(onDirty).not.toHaveBeenCalled();
+  });
+
+  it('stays clean for mutations that are only applied locally', async () => {
+    const onDirty = vi.fn();
+    await renderOpenedEditor(onDirty);
+    const { api, workbook } = openedUniver();
+    const mutation = {
+      unitId: workbook.getId(),
+      subUnitId: workbook.getActiveSheet().getSheetId(),
+      cellValue: { 0: { 0: { v: 'derived' } } },
+    };
+
+    await api.executeCommand('sheet.mutation.set-range-values', mutation, { onlyLocal: true });
+    expect(onDirty).not.toHaveBeenCalled();
+
+    await api.executeCommand('sheet.mutation.set-range-values', mutation);
+    expect(onDirty).toHaveBeenCalledExactlyOnceWith(true);
   });
 });

@@ -142,8 +142,10 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = memo(({ previewUrl, 
         univerAPI.createWorkbook(workbookData as unknown as import('@univerjs/core').IWorkbookData);
         univerRef.current = univerAPI;
 
-        commandDisposable = univerAPI.addEvent(univerAPI.Event.CommandExecuted, () => {
-          if (!disposed) {
+        // Selection, the in-cell editor's document and formula recalculation emit commands too, even right after
+        // the workbook opens; only a sheet mutation that would be synced to replicas is an edit.
+        commandDisposable = univerAPI.addEvent(univerAPI.Event.CommandExecuted, (event) => {
+          if (!disposed && event.id.startsWith('sheet.mutation.') && !event.options?.onlyLocal) {
             markDirty();
           }
         });
