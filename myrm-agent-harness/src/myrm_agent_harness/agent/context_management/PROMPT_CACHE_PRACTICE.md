@@ -10,7 +10,7 @@
 > | §2.5–2.6 记忆 / 入账 Human 前缀 | `agent/middlewares/memory_context/memory_context_middleware.py`；`app/core/utils/delivery_provenance.py`、`app/core/channel_bridge/agent_executor/helpers.py`、`app/ai_agents/general_agent/stream_pipeline.py`、`myrm-agent-server/app/api/agents/general_agent/streaming.py`、`app/services/agent/wakeup_handler.py` |
 > | §3 显式缓存优化器 | `pipeline/processors/cache_optimizer.py` |
 > | §4.1 批量清理 | `pipeline/processors/compress_processor.py` |
-> | §4.2 compress_min_save | `infra/schemas.py` |
+> | §4.2 compress_min_save | `infra/schemas/` |
 > | §4.3 动态阈值 | `infra/context_budget.py` |
 > | §4.4 可逆压缩 | `strategies/compactor/compactor.py` |
 > | §4.5 摘要与缓存生命周期 | `strategies/summary/summarizer/` |
@@ -496,7 +496,7 @@ class BatchCompactState:
 
 **公式**（简化）：执行压缩当且仅当 `T_cleared > T_prefix × (1 - P)`
 
-**实现**：`infra/schemas.py` 中定义默认值：
+**实现**：`infra/schemas/` 中定义默认值：
 
 ```python
 COMPRESS_MIN_SAVE_DEFAULT: int = 3000
@@ -589,7 +589,7 @@ META: tokens_saved=5000 time=2024-12-20T15:30:00
 
 ### 4.6 工具保护机制
 
-`ToolProtectionConfig`（`infra/schemas.py`）定义哪些工具的输出不可被**过滤**：
+`ToolProtectionConfig`（`infra/schemas/`）定义哪些工具的输出不可被**过滤**：
 
 ```python
 BUILTIN_PROTECTED_TOOLS = frozenset({"skill_select_tool", "todo_write", "file_read_tool"})
@@ -1295,7 +1295,7 @@ MCP 本身不直接改 SystemMessage；常见 ``system prompt changed`` 来自 p
 | `strategies/compactor/compactor.py` | 可逆压缩实现（紧凑格式 + 外部化到文件，减 tokens 不减 blocks） |
 | `strategies/summary/summarizer/` | 结构化摘要（缓存重置事件，减 tokens 且减 blocks） |
 | `infra/context_budget.py` | `ContextBudget` — 动态阈值计算 |
-| `infra/schemas.py` | `ContextConfig` — 阈值定义、`COMPRESS_MIN_SAVE_DEFAULT`、`COMPACT_RULES` |
+| `infra/schemas/` | `ContextConfig` — 阈值定义、`COMPRESS_MIN_SAVE_DEFAULT`、`COMPACT_RULES` |
 
 ### Pipeline 与集成
 
