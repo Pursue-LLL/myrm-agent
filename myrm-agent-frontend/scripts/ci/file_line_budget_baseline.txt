@@ -11,7 +11,6 @@ src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
 src/components/features/artifacts/PublishModal.tsx
 src/components/features/artifacts/renderers/MediaPreview.tsx
-src/components/features/artifacts/renderers/SpreadsheetEditor/index.tsx
 src/components/features/artifacts/renderers/architecture/ArchitecturePreview.tsx
 src/components/features/chat-window/Chat.tsx
 src/components/features/chat-window/ChatWindow.tsx
