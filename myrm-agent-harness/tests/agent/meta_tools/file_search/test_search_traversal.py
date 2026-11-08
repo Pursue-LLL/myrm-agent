@@ -16,8 +16,14 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.meta_tools.file_search.rg_traversal import has_git_ancestor, rg_traversal_args
-from tests.agent.meta_tools.file_search.search_probe import SearchRunner, hit_files, listed, write_tree
+from myrm_agent_harness.agent.meta_tools.file_search.rg_traversal import rg_traversal_args
+from tests.agent.meta_tools.file_search.search_probe import (
+    PLAIN_FOLDER_FLAGS,
+    SearchRunner,
+    hit_files,
+    listed,
+    write_tree,
+)
 
 DEPENDENCY_AND_BUILD_TREE = {
     "src/app.js": "needle\n",
@@ -54,21 +60,6 @@ def workspace(request: pytest.FixtureRequest) -> Path:
     return root
 
 
-class TestGitAncestor:
-    def test_directory_marker(self, tmp_path: Path) -> None:
-        (tmp_path / ".git").mkdir()
-        nested = tmp_path / "a" / "b"
-        nested.mkdir(parents=True)
-        assert has_git_ancestor(nested)
-
-    def test_file_marker_of_a_worktree(self, tmp_path: Path) -> None:
-        (tmp_path / ".git").write_text("gitdir: /elsewhere/.git/worktrees/w\n", encoding="utf-8")
-        assert has_git_ancestor(tmp_path)
-
-    def test_no_marker(self, plain_dir: Path) -> None:
-        assert not has_git_ancestor(plain_dir)
-
-
 class TestTraversalArguments:
     def test_user_configuration_is_always_ignored(self, plain_dir: Path) -> None:
         assert rg_traversal_args(plain_dir)[0] == "--no-config"
@@ -78,16 +69,29 @@ class TestTraversalArguments:
         self, plain_dir: Path
     ) -> None:
         arguments = rg_traversal_args(plain_dir)
-        assert "--no-ignore-parent" in arguments
-        assert "--no-ignore-global" in arguments
+        assert set(arguments) >= PLAIN_FOLDER_FLAGS
         assert any("node_modules" in argument for argument in arguments)
 
-    def test_git_checkout_leaves_ignore_decisions_to_git(self, tmp_path: Path) -> None:
-        (tmp_path / ".git").mkdir()
-        arguments = rg_traversal_args(tmp_path)
-        assert "--no-ignore-parent" not in arguments
-        assert "--no-ignore-global" not in arguments
-        assert not any("node_modules" in argument for argument in arguments)
+    @pytest.mark.parametrize("marker", ["directory", "file"])
+    def test_git_checkout_leaves_ignore_decisions_to_git(self, tmp_path: Path, marker: str) -> None:
+        # Worktrees and submodules hold a ``.git`` file where a clone holds a directory.
+        if marker == "directory":
+            (tmp_path / ".git").mkdir()
+        else:
+            (tmp_path / ".git").write_text("gitdir: /elsewhere/.git/worktrees/w\n", encoding="utf-8")
+        nested = tmp_path / "a" / "b"
+        nested.mkdir(parents=True)
+
+        for root in (tmp_path, nested):
+            arguments = rg_traversal_args(root)
+            assert PLAIN_FOLDER_FLAGS.isdisjoint(arguments)
+            assert not any("node_modules" in argument for argument in arguments)
+
+    def test_a_path_beyond_the_platform_limit_is_no_checkout_and_no_failure(self, plain_dir: Path) -> None:
+        # ``Path.exists`` raises ENAMETOOLONG for it; the flag computation must not fail the call.
+        beyond_the_limit = plain_dir.joinpath(*["d" * 200] * 25)
+
+        assert set(rg_traversal_args(beyond_the_limit)) >= PLAIN_FOLDER_FLAGS
 
     def test_include_ignored_turns_ignore_files_and_pruning_off(self, plain_dir: Path) -> None:
         arguments = rg_traversal_args(plain_dir, include_ignored=True)

@@ -6,6 +6,14 @@
 - .mcp_citation_handler::MCPMetadataExtractor (POS: MCP citation handler)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - agent.skills.runtime.skill_invocation::plain_skill_call, settings_withheld_note (POS: whether a command is a plain call of one skill, and the note for a command that was not given the skill's settings)
+- agent.meta_tools.file_ops.validators.office_bash_audit::OfficeBashAudit (POS: Primary Office write-fidelity path; runs only when the session has a workspace root)
+- .workspace_manager::WorkspaceManager (POS: Workspace Manager)
+- .skill_workspace_manager::SkillWorkspaceManager (POS: Skill Workspace Manager)
+- .prepare_mixin::PreparedExecution (POS: Code-type detection, skill staging, per-execution MCP IPC server startup, and Python execution preparation)
+- agent.skills.mcp.ipc_proxy::CallerScope (POS: PTC IPC backbone: wire types and the server)
+- toolkits.code_execution.executors.base::CodeExecutor, ExecutionContext, ExecutionResult (POS: Code executor base classes)
+- toolkits.code_execution.executors.mcp_config::MCPConfigItem (POS: Plain data describing the MCP servers visible to one execution)
+- toolkits.code_execution::Workspace (POS: Workspace data models for code execution sessions)
 
 [OUTPUT]
 - BashExecutorExecuteMixin.execute
