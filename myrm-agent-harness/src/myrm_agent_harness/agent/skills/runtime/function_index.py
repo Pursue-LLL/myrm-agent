@@ -33,7 +33,8 @@ from myrm_agent_harness.utils.text_utils import get_token_count
 L1_FUNCTION_INDEX_MAX_TOKENS = 1_200
 """Ceiling of all ``<functions>`` lines together; the lines ride in every turn's prompt, so the sum is bounded.
 
-About 190 tools of ordinary length. A larger server keeps the select-first path, whose L2 document is built for it.
+A name costs about 4 tokens (measured on a 100-tool server), so the ceiling holds roughly 300 names; longer names fit
+fewer. A larger server keeps the select-first path, whose L2 document is built for it.
 """
 
 FUNCTION_INDEX_RULES: tuple[str, ...] = (

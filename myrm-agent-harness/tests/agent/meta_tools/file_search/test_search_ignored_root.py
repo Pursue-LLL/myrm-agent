@@ -7,7 +7,7 @@ Covers:
 - glob and grep below directories a repository ignores (dependencies, virtualenv, logs, build output)
 - A directory whose contents alone are ignored (``partial/*``) and an empty directory stay empty
 - The rest of the repository is searched as before
-- The Python tier does not read an ignore file above an ignored root (a virtualenv's own ``.gitignore`` of ``*``)
+- Neither tier reads a ``.gitignore`` above an ignored root that ignores everything below itself (a virtualenv's own)
 """
 
 from __future__ import annotations
@@ -35,6 +35,19 @@ IGNORED_ROOTS = [
     ("logs", "app.txt"),
     ("dist", "out.js"),
 ]
+# Ways a tool writes a ``.gitignore`` that ignores everything below its directory; git reads each as such.
+CATCH_ALL_FILES = {
+    "star": b"*\n",
+    "venv": b"# Created by venv; see https://docs.python.org/3/library/venv.html\n*\n",
+    "carriage_return": b"*\r\n",
+    "trailing_spaces": b"*  \n",
+    "anchored": b"/*\n",
+    "double_star": b"**\n",
+    "anchored_double_star": b"/**\n",
+    "recursive": b"**/*\n",
+    "among_other_rules": b"*.pyc\n\n*\nbuild/\n",
+    "byte_order_mark": b"\xef\xbb\xbf*\n",
+}
 
 
 @pytest.fixture
@@ -79,10 +92,21 @@ class TestRootsThatAreNotIgnored:
         assert "No matches found" in await run_grep(repo, "needle", path="partial")
 
 
-@pytest.mark.parametrize("engine", ["python"], indirect=True)
 class TestIgnoreFileAboveTheRoot:
-    async def test_python_tier_walks_the_root_like_a_plain_folder(self, repo: Path, run_glob: SearchRunner) -> None:
-        # A virtual environment writes its own ``.gitignore`` of ``*``; ripgrep honours it and finds nothing below.
-        write_tree(repo, {".venv/.gitignore": "*\n"})
+    # A virtual environment, uv or a tool cache writes its own ``.gitignore`` into the directory it owns. The
+    # repository ignores that directory, so neither tier may let the file hide what lies below a search root inside it.
+    @pytest.mark.parametrize("content", CATCH_ALL_FILES.values(), ids=CATCH_ALL_FILES)
+    async def test_glob_walks_the_root_like_a_plain_folder(
+        self, repo: Path, run_glob: SearchRunner, content: bytes
+    ) -> None:
+        (repo / ".venv" / ".gitignore").write_bytes(content)
 
         assert listed(await run_glob(repo, "**/*", path=".venv/lib")) == {"mod.py"}
+
+    async def test_grep_walks_the_root_like_a_plain_folder(self, repo: Path, run_grep: SearchRunner) -> None:
+        (repo / ".venv" / ".gitignore").write_bytes(b"*\n")
+
+        output = await run_grep(repo, "needle", path=".venv/lib")
+
+        assert "Found 1 match(es)" in output
+        assert "mod.py" in output

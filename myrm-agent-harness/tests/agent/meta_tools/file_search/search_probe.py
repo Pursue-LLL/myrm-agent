@@ -16,6 +16,9 @@ from myrm_agent_harness.agent.meta_tools.file_search import fallback_search, glo
 
 SearchRunner = Callable[..., Awaitable[str]]
 
+# The ripgrep flags that make a walk treat a folder as if no repository governed it; a checkout never gets them.
+PLAIN_FOLDER_FLAGS = frozenset({"--no-require-git", "--no-ignore-parent", "--no-ignore-global"})
+
 # Fails a hung search instead of the whole suite.
 SEARCH_TIMEOUT_GUARD_SECONDS = 20.0
 
