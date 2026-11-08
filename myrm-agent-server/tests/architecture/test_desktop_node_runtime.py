@@ -123,7 +123,8 @@ def test_the_entitlements_give_the_bundled_node_the_memory_v8_needs() -> None:
     """Tauri re-signs an `externalBin` with the app's identity and entitlements, replacing Node's own signature.
 
     A hardened-runtime Node without these two keys dies at start-up ("Failed to reserve virtual memory for
-    CodeRange"), and the unsigned CI builds never apply the hardened runtime, so only this check sees it.
+    CodeRange"). The ad-hoc signature of a CI build applies the hardened runtime too, so the launch smoke would
+    catch it, but only after the platform builds; this check sees it in seconds.
     """
     macos = cast("dict[str, object]", bundle_config("macos")["macOS"])
     entitlements = plistlib.loads((DESKTOP / "src-tauri" / str(macos["entitlements"])).read_bytes())

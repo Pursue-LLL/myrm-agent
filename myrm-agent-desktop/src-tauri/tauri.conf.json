@@ -42,6 +42,7 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "hardenedRuntime": true,
+      "signingIdentity": "-",
       "entitlements": "entitlements.plist",
       "exceptionDomain": "",
       "providerShortName": null,

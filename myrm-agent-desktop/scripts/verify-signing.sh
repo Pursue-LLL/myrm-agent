@@ -1,25 +1,32 @@
 #!/usr/bin/env bash
 #
-# verify-signing.sh — Post-build macOS code signing & notarization verifier.
+# verify-signing.sh — Post-build macOS code signing verifier for the .app / .dmg artifacts of a release.
 #
-# Meant to run after `tauri-action` produces .app / .dmg artifacts of a signed release; no
-# workflow calls it until Apple signing secrets are configured. Four hard checks per artifact:
+# --level says how far the build was meant to be signed; every check of a level is a hard check:
 #
-#   1. codesign --verify --deep --strict           : signature integrity
-#   2. codesign -dv                                : signature details (audit trail)
-#   3. spctl --assess -t exec|open                 : Gatekeeper acceptance simulation
-#   4. xcrun stapler validate                      : Apple Notary staple presence
+#   sealed      The bundle carries a signature that seals it (an ad-hoc one is enough): the Info.plist and every
+#               resource are bound to it. Gatekeeper still stops the first launch, but as an app it cannot verify,
+#               with an "Open Anyway" button; an unsealed bundle is reported as damaged, with no way to open it.
+#                 1. codesign --verify --deep --strict : seal integrity
+#                 2. codesign -dv                      : signature details (audit trail)
+#               A .dmg is mounted read-only and the .app inside it gets the same two checks.
+#   notarized   Developer ID signature plus Apple notarization:
+#                 1. codesign --verify --deep --strict : signature integrity
+#                 2. codesign -dv                      : signature details (audit trail)
+#                 3. spctl --assess -t exec|open       : Gatekeeper acceptance simulation
+#                 4. xcrun stapler validate            : Apple Notary staple presence
+#               A .dmg gets checks 3 and 4 only.
 #
 # Exit code = number of failed checks. Non-zero exit fails the calling step.
 # Full verification log is also written to the --log path.
 #
 # Usage:
-#   scripts/verify-signing.sh \
+#   scripts/verify-signing.sh --level sealed|notarized \
 #     --search-root src-tauri/target \
 #     --log dist/verification.log \
 #     [--list-out dist/artifacts.txt]
 #
-#   scripts/verify-signing.sh --artifact path/to/MyrmAgent.app
+#   scripts/verify-signing.sh --level sealed --artifact path/to/MyrmAgent.app
 
 set -euo pipefail
 
@@ -27,9 +34,14 @@ search_roots=()
 explicit_artifacts=()
 list_out=""
 log_path=""
+level=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --level)
+      level="$2"
+      shift 2
+      ;;
     --search-root)
       search_roots+=("$2")
       shift 2
@@ -47,7 +59,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      sed -n '2,20p' "$0"
+      awk 'NR > 1 { if (/^#/) { sub(/^# ?/, ""); print } else exit }' "$0"
       exit 0
       ;;
     *)
@@ -56,6 +68,14 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "$level" in
+  sealed|notarized) ;;
+  *)
+    echo "verify-signing.sh: --level sealed|notarized is required" >&2
+    exit 64
+    ;;
+esac
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "verify-signing.sh: macOS-only verifier, current OS is $(uname -s)" >&2
@@ -113,12 +133,14 @@ else
   fi
   for root in "${search_roots[@]}"; do
     [[ -d "$root" ]] || continue
+    # A bundle's own content (a .app inside the .app's resources) is not a release artifact.
     while IFS= read -r path; do
       [[ -n "$path" ]] && artifacts+=("$(absolute_path "$path")")
     done < <(
       find "$root" \
-        \( -path '*/release/bundle/macos/*.app' \
-        -o -path '*/release/bundle/dmg/*.dmg' \) \
+        \( \( -path '*/release/bundle/macos/*.app' -type d \) \
+        -o \( -path '*/release/bundle/dmg/*.dmg' -type f \) \) \
+        ! -path '*.app/*' \
         -print 2>/dev/null | sort -u
     )
   done
@@ -136,6 +158,68 @@ fi
 
 failures=0
 
+# Runs one check; a check that does not pass counts as a failure and never stops the run.
+check() {
+  run_and_log "$@" || failures=$((failures + 1))
+}
+
+verify_app() {
+  local app="$1"
+  check "codesign --verify --deep --strict" \
+    codesign --verify --deep --strict --verbose=4 "$app"
+  check "codesign -dv (signature details)" \
+    codesign -dv --verbose=4 "$app"
+  if [[ "$level" == "notarized" ]]; then
+    check "spctl --assess -t exec (Gatekeeper)" \
+      spctl --assess --type exec --verbose=2 "$app"
+    check "stapler validate (notarization)" \
+      xcrun stapler validate "$app"
+  fi
+}
+
+mount_point=""
+
+detach_dmg() {
+  [[ -n "$mount_point" ]] || return 0
+  hdiutil detach -quiet "$mount_point" || hdiutil detach -force -quiet "$mount_point" || true
+  rmdir "$mount_point" 2>/dev/null || true
+  mount_point=""
+}
+trap detach_dmg EXIT
+
+# What a first-time user opens is the .dmg, so below the notarized level the .app inside it is verified.
+verify_dmg() {
+  local dmg="$1" app
+  local apps=()
+  if [[ "$level" == "notarized" ]]; then
+    check "spctl --assess -t open (Gatekeeper)" \
+      spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+    check "stapler validate (notarization)" \
+      xcrun stapler validate "$dmg"
+    return
+  fi
+  mount_point="$(mktemp -d)"
+  if ! run_and_log "hdiutil attach (read-only)" \
+    hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$mount_point" "$dmg"; then
+    failures=$((failures + 1))
+    detach_dmg
+    return
+  fi
+  while IFS= read -r app; do
+    apps+=("$app")
+  done < <(find "$mount_point" -maxdepth 1 -name '*.app' -type d)
+  if [[ ${#apps[@]} -eq 0 ]]; then
+    log "✗ the .dmg holds no .app"
+    failures=$((failures + 1))
+  else
+    for app in "${apps[@]}"; do
+      log "Inside the .dmg: $(basename "$app")"
+      verify_app "$app"
+    done
+  fi
+  detach_dmg
+}
+
 for artifact in "${artifacts[@]}"; do
   log "════════════════════════════════════════════════════════════════════"
   log "Artifact: $artifact"
@@ -143,26 +227,10 @@ for artifact in "${artifacts[@]}"; do
 
   case "$artifact" in
     *.app)
-      run_and_log "codesign --verify --deep --strict" \
-        codesign --verify --deep --strict --verbose=4 "$artifact" \
-        || failures=$((failures + 1))
-      run_and_log "codesign -dv (signature details)" \
-        codesign -dv --verbose=4 "$artifact" \
-        || failures=$((failures + 1))
-      run_and_log "spctl --assess -t exec (Gatekeeper)" \
-        spctl --assess --type exec --verbose=2 "$artifact" \
-        || failures=$((failures + 1))
-      run_and_log "stapler validate (notarization)" \
-        xcrun stapler validate "$artifact" \
-        || failures=$((failures + 1))
+      verify_app "$artifact"
       ;;
     *.dmg)
-      run_and_log "spctl --assess -t open (Gatekeeper)" \
-        spctl --assess --type open --context context:primary-signature --verbose=2 "$artifact" \
-        || failures=$((failures + 1))
-      run_and_log "stapler validate (notarization)" \
-        xcrun stapler validate "$artifact" \
-        || failures=$((failures + 1))
+      verify_dmg "$artifact"
       ;;
     *)
       log "✗ Unsupported artifact type: $artifact"
@@ -173,8 +241,8 @@ done
 
 log "════════════════════════════════════════════════════════════════════"
 if [[ $failures -gt 0 ]]; then
-  log "RESULT: $failures check(s) failed across ${#artifacts[@]} artifact(s)"
+  log "RESULT: $failures check(s) failed across ${#artifacts[@]} artifact(s) at level $level"
   exit "$failures"
 fi
-log "RESULT: all ${#artifacts[@]} artifact(s) passed signing + notarization verification"
+log "RESULT: all ${#artifacts[@]} artifact(s) passed $level verification"
 exit 0
