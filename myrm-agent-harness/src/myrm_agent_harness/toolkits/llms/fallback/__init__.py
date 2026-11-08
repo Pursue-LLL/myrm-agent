@@ -35,12 +35,6 @@ from .health_check import (
 )
 from .managed_llm import FallbackModel, ManagedLLM
 from .manager import ModelCandidate, ModelFallbackManager
-from .presets import (
-    PRESET_STRATEGIES,
-    FallbackStrategy,
-    create_managed_llm_from_preset,
-    get_preset_strategy,
-)
 from .probe_throttle import GlobalProbeThrottle, get_global_probe_throttle
 from .recommendations import (
     FallbackRecommendation,
@@ -53,13 +47,11 @@ from .scenario import ModelMetrics, ScenarioType, select_by_scenario, select_by_
 __all__ = [
     "DEFAULT_HEALTH_PROBE_TIMEOUT_S",
     "PRESET_CONFIGS",
-    "PRESET_STRATEGIES",
     "FailoverCallback",
     "FailoverEmitter",
     "FailoverEvent",
     "FallbackModel",
     "FallbackRecommendation",
-    "FallbackStrategy",
     "GlobalProbeThrottle",
     "ManagedLLM",
     "HealthProbeErrorKind",
@@ -71,13 +63,11 @@ __all__ = [
     "RecoveryCallback",
     "RecoveryEvent",
     "ScenarioType",
-    "create_managed_llm_from_preset",
     "failover_emitter_ctx",
     "generate_quantified_reason",
     "get_active_failover_emitter",
     "get_global_probe_throttle",
     "get_preset_config",
-    "get_preset_strategy",
     "get_primary_recommendation",
     "lightweight_health_check",
     "probe_llm_health",

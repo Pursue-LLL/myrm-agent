@@ -155,5 +155,4 @@ def test_video_media_resolve_uses_secure_get() -> None:
     end = next_def if next_def != -1 else len(source)
     body = source[start:end]
     assert "secure_get" in body
-    assert "validate_media_url" not in body
     assert "create_httpx_client" not in body

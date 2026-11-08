@@ -4,7 +4,7 @@
 None (foundational types module)
 
 [OUTPUT]
-VisionBackendKind, VisionResult, VisionCacheKey
+VisionBackendKind, VisionResult
 
 [POS]
 Vision toolkit SSOT types. Shared enums and result carriers for fallback and video analysis engines.
@@ -38,15 +38,3 @@ class VisionResult:
             header += f" degraded_from={self.degraded_from.value}"
         header += "]\n"
         return header + self.text
-
-
-@dataclass(frozen=True)
-class VisionCacheKey:
-    content_hash: str
-    mode: str
-    task_hash: str
-    region: str | None = None
-
-    def digest(self) -> str:
-        region_part = self.region or ""
-        return f"{self.content_hash}:{self.mode}:{self.task_hash}:{region_part}"
