@@ -9,7 +9,7 @@
  * 数据流：
  * 1. 初始化时从 ConfigSyncManager 加载
  * 2. 应用成功后通知 ConfigSyncManager 同步
- * 3. ConfigSyncManager 负责防抖同步到后端；应用嵌入模型时改为立即强制同步，保存成功后才估算旧记忆
+ * 3. ConfigSyncManager 负责防抖同步到后端；应用嵌入模型时立即强制同步，保存成功后才估算旧记忆
  */
 
 import { create } from 'zustand';
