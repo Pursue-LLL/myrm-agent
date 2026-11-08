@@ -1,7 +1,7 @@
 """Token cost computation from catalog prices.
 
 [INPUT]
-- catalog.store (POS: model_info — per-token prices and context-length price tiers)
+- catalog.store (POS: model_info — per-token prices and prompt-size price tiers)
 
 [OUTPUT]
 - cost_per_token: (prompt_cost, completion_cost) in USD for one call's token counts, or None for an unpriced model
@@ -9,9 +9,12 @@
 [POS]
 Cache-aware pricing shared by the cost engine and the savings report. ``prompt_tokens`` is the total prompt size
 including cached tokens (the shape every transport wire reports); cache reads and writes are billed at their own
-rates and the rest at the input rate. Models that price long prompts higher (``*_above_200k_tokens``) switch every
-rate once the prompt crosses the threshold. A cache price the catalog does not list is billed at the input rate
-instead of free, so an unlisted discount never understates a bill.
+rates and the rest at the input rate. Models that price long prompts higher switch every rate once the prompt
+crosses a threshold, either as flat ``*_above_200k_tokens`` rates or as ``tiered_pricing`` rows; in both the whole
+request, completion included, is billed at the tier the prompt size falls in (a row covers up to and including its
+upper bound, a prompt beyond the last bound takes the last row), as the providers bill it. A row carries every rate
+of its tier, so nothing is borrowed from the entry's flat rates. A cache price the catalog does not list is billed at
+the input rate instead of free, so an unlisted discount never understates a bill.
 """
 
 from __future__ import annotations
@@ -30,6 +33,32 @@ def _rate(info: ModelInfo, key: str, tier: str = "") -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
+def _number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _tiers(info: ModelInfo) -> list[tuple[float, Mapping[str, object]]]:
+    """(upper bound, rates) of the usable ``tiered_pricing`` rows, ascending.
+
+    A row lacking its upper bound or an input or output token rate is skipped.
+    """
+    rows = info.get("tiered_pricing")
+    tiers: list[tuple[float, Mapping[str, object]]] = []
+    for row in rows if isinstance(rows, list) else ():
+        if not isinstance(row, dict):
+            continue
+        bounds = row.get("range")
+        if (
+            isinstance(bounds, list)
+            and len(bounds) == 2
+            and _number(bounds[1])
+            and _number(row.get("input_cost_per_token"))
+            and _number(row.get("output_cost_per_token"))
+        ):
+            tiers.append((float(bounds[1]), row))
+    return sorted(tiers, key=lambda tier: tier[0])
+
+
 def _tier_suffix(info: Mapping[str, object], prompt_tokens: int) -> str:
     """Suffix of the highest price tier the prompt size crosses ('' when none)."""
     best_threshold, best_suffix = -1, ""
@@ -41,6 +70,17 @@ def _tier_suffix(info: Mapping[str, object], prompt_tokens: int) -> str:
         if prompt_tokens > threshold > best_threshold:
             best_threshold, best_suffix = threshold, key.removeprefix("input_cost_per_token")
     return best_suffix
+
+
+def _rates_for(info: ModelInfo, prompt_tokens: int) -> tuple[ModelInfo, str]:
+    """The rates billing a prompt of this size, and the suffix of their keys.
+
+    A ``tiered_pricing`` row when the entry has usable ones, else the entry itself.
+    """
+    tiers = _tiers(info)
+    if not tiers:
+        return info, _tier_suffix(info, prompt_tokens)
+    return next((rates for bound, rates in tiers if prompt_tokens <= bound), tiers[-1][1]), ""
 
 
 def cost_per_token(
@@ -55,13 +95,13 @@ def cost_per_token(
     info = model_info(model, provider)
     if info is None:
         return None
-    tier = _tier_suffix(info, prompt_tokens)
-    input_rate = _rate(info, "input_cost_per_token", tier)
-    output_rate = _rate(info, "output_cost_per_token", tier)
+    rates, tier = _rates_for(info, prompt_tokens)
+    input_rate = _rate(rates, "input_cost_per_token", tier)
+    output_rate = _rate(rates, "output_cost_per_token", tier)
     if input_rate is None or output_rate is None:
         return None
-    read_rate = _rate(info, "cache_read_input_token_cost", tier)
-    write_rate = _rate(info, "cache_creation_input_token_cost", tier)
+    read_rate = _rate(rates, "cache_read_input_token_cost", tier)
+    write_rate = _rate(rates, "cache_creation_input_token_cost", tier)
     cached = max(0, min(cache_read_tokens, prompt_tokens))
     written = max(0, min(cache_write_tokens, prompt_tokens - cached))
     fresh = max(0, prompt_tokens) - cached - written

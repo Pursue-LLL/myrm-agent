@@ -13,15 +13,8 @@ from myrm_agent_harness.toolkits.llms.catalog import (
     model_facts,
     model_info,
     register_model,
-    store,
     supports_web_search,
 )
-
-
-@pytest.fixture(autouse=True)
-def _isolated_registrations(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Registrations a test makes never outlive it."""
-    monkeypatch.setattr(store, "_REGISTERED", {})
 
 
 class TestLookup:

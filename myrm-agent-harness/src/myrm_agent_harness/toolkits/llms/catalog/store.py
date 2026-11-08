@@ -23,8 +23,8 @@ step for facts that belong to the model rather than the route (window, vision, r
 finds nothing it drops the leading gateway segments one by one. Billing and routing decisions stay on ``model_info``.
 
 A registration overlays the entry the snapshot resolves for that id: limits and capability flags it does not state
-carry over, while stated prices replace the catalog's whole price group, so an official cache or long-prompt rate
-never mixes into a user's own rates.
+carry over, while stated prices (flat rates or ``tiered_pricing``) replace the catalog's whole price group, so an
+official cache, long-prompt or tier rate never mixes into a user's own rates.
 """
 
 from __future__ import annotations
@@ -126,11 +126,15 @@ def model_facts(model: str, provider: str | None = None) -> ModelInfo | None:
     return None
 
 
+def _is_price(field: str) -> bool:
+    return "_cost" in field or field == "tiered_pricing"
+
+
 def register_model(model: str, info: ModelInfo) -> None:
     """Overlay ``info`` on what the snapshot resolves for ``model``; a registration beats the snapshot."""
     base = dict(_resolve(model, None, _snapshot_entry) or {}) if model else {}
-    if any("_cost" in field for field in info):
-        base = {field: value for field, value in base.items() if "_cost" not in field}
+    if any(map(_is_price, info)):
+        base = {field: value for field, value in base.items() if not _is_price(field)}
     with _LOCK:
         _REGISTERED[model] = {**base, **info}
 
