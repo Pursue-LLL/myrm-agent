@@ -19,10 +19,10 @@
   (excluding browser_execute_script_tool).
 
 [POS]
-Browser toolkit security enclave layer. Inspired by Meta Muse's restricted AX subagent
-philosophy: treats all external web pages as potentially adversarial. Disables
-arbitrary script execution, preventing untrusted websites from exploiting the Agent
-via indirect prompt injection to execute scripts or exfiltrate session data.
+Browser toolkit security enclave layer: treats all external web pages as potentially
+adversarial. Disables arbitrary script execution, preventing untrusted websites from
+exploiting the Agent via indirect prompt injection to execute scripts or exfiltrate
+session data.
 """
 
 from __future__ import annotations

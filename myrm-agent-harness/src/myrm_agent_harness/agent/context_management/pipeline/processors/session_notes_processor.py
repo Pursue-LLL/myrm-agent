@@ -149,7 +149,7 @@ class SessionNotesProcessor(BaseProcessor):
 def _calculate_keep_index(messages: list[BaseMessage], last_summarized_idx: int) -> int:
     """Calculate keep-start index for recent messages (multi-dimensional strategy).
 
-    Inspired by Claude Code's calculateMessagesToKeepIndex:
+    Strategy:
     - Start from last_summarized_idx + 1
     - Expand backwards until minTokens + minTextMessages are met or maxTokens reached
     - Ensure tool_use/tool_result pairs are not split

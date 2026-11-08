@@ -7,8 +7,6 @@ Produces **warnings only** — does not block execution. Integration points
 can call ``scan_file_for_env_leaks()`` before executing user-provided or
 LLM-generated script files and log the warnings.
 
-Inspired by openfang's shell_bleed.rs.
-
 [INPUT]
 - (none)
 

@@ -30,7 +30,7 @@ class DenialReasonCodeEnum(StrEnum):
 
 
 class ResolutionBranchEnum(StrEnum):
-    """Four-way adaptive resolution strategies inspired by Dots protocol."""
+    """Four-way adaptive resolution strategies."""
 
     ASK_USER = "ASK_USER"
     TRY_ALTERNATIVE = "TRY_ALTERNATIVE"

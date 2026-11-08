@@ -12,7 +12,7 @@
 - filter_stderr_stream_chunk: Streaming chunk adapter with line-buffering support
 
 [POS]
-Harness-level line-by-line stderr filter inspired by Molio bb06966.
+Harness-level line-by-line stderr filter.
 Replaces brittle whole-block substring matching with fine-grained per-line classification.
 Prevents real exceptions and panics from being dropped when mixed with CLI banners and warnings.
 """
@@ -81,7 +81,9 @@ _RE_CRITICAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^Traceback \(most recent call last\):"),
     re.compile(r"^(?:FATAL(?:\s+ERROR)?:|PANIC:|panic:)\s*", re.IGNORECASE),
     re.compile(r"^(?:Error|Exception):\s*", re.IGNORECASE),
-    re.compile(r"\b(?:SyntaxError|ImportError|ModuleNotFoundError|NameError|TypeError|ValueError|IndexError|KeyError|AttributeError|ZeroDivisionError|RuntimeError|AssertionError|FileNotFoundError|PermissionError):\s*"),
+    re.compile(
+        r"\b(?:SyntaxError|ImportError|ModuleNotFoundError|NameError|TypeError|ValueError|IndexError|KeyError|AttributeError|ZeroDivisionError|RuntimeError|AssertionError|FileNotFoundError|PermissionError):\s*"
+    ),
     re.compile(r"\bSegmentation fault\b", re.IGNORECASE),
     re.compile(r"\bcommand not found\b", re.IGNORECASE),
     re.compile(r"\bNo such file or directory\b", re.IGNORECASE),

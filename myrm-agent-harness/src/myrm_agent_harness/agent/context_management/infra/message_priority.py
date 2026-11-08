@@ -91,10 +91,7 @@ def classify_message_priority(
 
 
 def _is_tool_error(msg: ToolMessage) -> bool:
-    """Detect if tool message is an error.
-
-    Borrowed from OpenSpace conversation_formatter.py:296-310
-    """
+    """Detect if tool message is an error."""
     content = str(msg.content)
     if not content:
         return False
@@ -115,7 +112,6 @@ def _has_embedded_summary(msg: ToolMessage) -> bool:
     """Check if tool result has self-generated summary.
 
     Shell agent and other tools may include "Execution Summary" blocks.
-    Borrowed from OpenSpace conversation_formatter.py:313-334
     """
     import re
 

@@ -89,7 +89,7 @@ class SkillStatsCollector:
         A use always counts; only an observed outcome moves the success/failure counters.
 
         If the skill is currently ``stale``, it is auto-recovered to
-        ``active`` (inspired by Hermes' stale-reactivation design).
+        ``active``.
 
         Args:
             skill_path: Absolute path to skill directory
