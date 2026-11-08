@@ -18,7 +18,7 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 数据安全约定：
 
 - 备份要么完整要么不存在：快照捕获发现任一记忆类型导出不全或读取失败就抛 `SnapshotError`，不写文件、不上传。
-- 嵌入模型首次启用或切换后，原有记忆还留在旧模型的集合里，当前模型读不到，快照里就没有它们；远程轮转再让这种空备份把完整备份挤出保留份数。所以快照类型在旧模型集合里还有记忆（`MemoryManager.detect_orphan_collections()`，只计快照类型，原文对话不在备份范围内不算）或无法确认有没有时，`capture_snapshot` 一律拒绝：前者抛 `PreviousModelMemoriesError`（远程失败码 `previous_model`），后者抛 `SnapshotError`（`snapshot`），本地与远程一视同仁，直到用户在记忆设置里完成迁移。覆盖式恢复前的安全副本以 `allow_previous_models=True` 例外：覆盖不会动旧模型的记忆，副本对被替换的内容是完整的，不能被它们拦住。
+- 嵌入模型首次启用或切换后，原有记忆还留在旧模型的集合里，当前模型读不到，快照里就没有它们；远程轮转再让这种空备份把完整备份挤出保留份数。所以快照类型在旧模型集合里还有记忆（`MemoryManager.detect_orphan_collections()`，只计快照类型，原文对话不在备份范围内不算）或无法确认有没有时，`capture_snapshot` 一律拒绝：前者抛 `PreviousModelMemoriesError`（远程失败码与本地创建响应的 `error_code` 都是 `previous_model`），后者抛 `SnapshotError`（远程失败码 `snapshot`），本地与远程一视同仁，直到用户在记忆设置里完成迁移。覆盖式恢复前的安全副本以 `allow_previous_models=True` 例外：覆盖不会动旧模型的记忆，副本对被替换的内容是完整的，不能被它们拦住。
 - 恢复前先解码备份；覆盖式恢复（`overwrite=true`）先把当前记忆另存为一份新备份，再清空回放，回放后逐类型核对数量，失败时提示该备份 id。
 - 远程恢复只合并（跳过已有内容），不删除任何已有记忆。
 - 备份 id 只接受 `volume_store.py` 生成的格式，路径穿越无从谈起；远程文件名只是存储端选择器，下载总落在固定本地文件名下。
