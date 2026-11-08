@@ -10,8 +10,8 @@ and provides canonical URL normalization.
 [OUTPUT]
 - strip_tracking_parameters: remove common marketing/analytics query parameters
 - resolve_citation_url: single URL resolution with fallback to original
-- enrich_sources_with_resolved_urls: batch resolve redirect chains, strip tracking, and deduplicate sources
-  (`url` = final destination, `redirect_url` = original when different)
+- enrich_sources_with_resolved_urls: batch resolve redirect chains and strip tracking parameters; every source is kept,
+  in order (`url` = final destination, `redirect_url` = original when different)
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import TypedDict
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
@@ -33,18 +32,6 @@ logger = logging.getLogger(__name__)
 
 _REDIRECT_TIMEOUT_SECONDS = 5.0
 _MAX_CONCURRENT_RESOLUTIONS = 5
-
-
-class SearchSourcePayload(TypedDict, total=False):
-    """Normalized search source representation used for citation resolution."""
-
-    url: str
-    link: str
-    redirect_url: str
-    title: str
-    snippet: str
-    index: int
-    score: float
 
 
 # Provider citation wrappers that require SSRF-safe HEAD resolution.
@@ -148,14 +135,14 @@ async def resolve_citation_url(url: str) -> str:
 
 
 def _normalize_source_url(
-    source: SearchSourcePayload,
+    source: dict[str, object],
     raw_url: str,
     resolved: str,
-) -> SearchSourcePayload:
+) -> dict[str, object]:
     """Apply resolved destination as canonical `url`; preserve original in `redirect_url`."""
     if resolved == raw_url:
         return source
-    enriched: SearchSourcePayload = dict(source)  # type: ignore[assignment]
+    enriched = dict(source)
     enriched["redirect_url"] = raw_url
     enriched["url"] = resolved
     if "link" in enriched:
@@ -164,15 +151,15 @@ def _normalize_source_url(
 
 
 async def enrich_sources_with_resolved_urls(
-    sources: list[SearchSourcePayload],
-) -> list[SearchSourcePayload]:
+    sources: list[dict[str, object]],
+) -> list[dict[str, object]]:
     """Resolve redirect chains, strip tracking query parameters, and normalize each source."""
     if not sources:
         return sources
 
     semaphore = asyncio.Semaphore(_MAX_CONCURRENT_RESOLUTIONS)
 
-    async def _resolve_one(source: SearchSourcePayload) -> SearchSourcePayload:
+    async def _resolve_one(source: dict[str, object]) -> dict[str, object]:
         raw_url = source.get("link") or source.get("url")
         if not isinstance(raw_url, str) or not raw_url:
             return source

@@ -4,27 +4,33 @@ Manages search provider configuration, query execution with retry,
 result caching, single-flight coalescing, and conversion to LangChain Documents.
 
 [INPUT]
+core.config.gateway::ToolGatewayConfig (POS: Tool Gateway configuration, routes third-party tool requests through one gateway)
 web_search.core.common::SearchResult (POS: Unified search result dataclass)
 web_search.core.error_handling::build_search_error_context, is_retryable_search_error (POS: Search error classification)
 web_search.core.exceptions::AllQueriesFailedError, ErrorContext, SearchAPIError (POS: Search exception types)
 web_search.coalescing.search_coalescing::await_coalesced_search, bucket_search_limit, build_search_cache_key (POS: Search cache coalescing)
+web_search.processing._explicit_params::resolve_site_operators, resolve_time_range (POS: Explicit constraint mapper; maps the query's site: operators and the time_range onto the serving provider's own parameters)
 web_search.processing.search_results_processor::search_results_to_documents (POS: Search-result to Document converter)
 web_search.providers.search_service_factory::SearchService, build_search_service, credential_scope_digest (POS: Provider client factory)
+web_search.providers.chain::search_provider_chain (POS: Priority-ordered provider failover with quota tracking) [lazy]
 
 [OUTPUT]
-WebSearcher: Configurable multi-provider web search with LRU cache, single-flight coalescing, limit bucketing, retry, and Document output
+WebSearcher: Configurable multi-provider web search with LRU cache, single-flight coalescing, limit bucketing, retry, and Document output; an all-empty search names the time_range as a possible cause only when a provider this config can reach maps the requested time_range
+SearchServiceConfig: Provider configuration model; provider_names lists the providers a request through it can reach (chain hops in priority order, else its own service)
 SearchServiceType: str alias naming a search provider slug (the provider catalog is owned by the host application)
 
 [POS]
 Web search orchestrator. Provides a unified interface for querying multiple search
 providers (Perplexity, Tavily, Exa, etc.) with caching, coalescing, retry, and error handling.
+Each searcher serves one provider and translates the agent's explicit constraints into that provider's own
+parameters, so a chain failover hands every hop the same query text, operators included, and never one provider's
+parameters to another. Every result it returns names that provider.
 
 """
 
 import asyncio
 import json
 import logging
-from collections.abc import Sequence
 
 from langchain_core.documents import Document
 from pydantic import BaseModel, ConfigDict, Field
@@ -46,7 +52,10 @@ from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     ErrorContext,
     SearchAPIError,
 )
-from myrm_agent_harness.toolkits.web_search.processing._explicit_params import ProviderOverride
+from myrm_agent_harness.toolkits.web_search.processing._explicit_params import (
+    resolve_site_operators,
+    resolve_time_range,
+)
 from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
     search_results_to_documents,
 )
@@ -95,6 +104,11 @@ class SearchServiceConfig(BaseModel):
         default=None,
         description="Optional gateway configuration for routing traffic through the Unified Tool Gateway",
     )
+
+    @property
+    def provider_names(self) -> list[str]:
+        """The providers a request through this config can reach: the chain hops in priority order, else its own."""
+        return [hop.search_service for hop in self.provider_chain or [self]]
 
 
 SearchServiceConfig.model_rebuild()
@@ -159,15 +173,18 @@ class WebSearcher:
         self,
         query: str,
         num_results: int = 5,
-        extra_params_override: ProviderOverride | None = None,
+        time_range: str | None = None,
     ) -> list[SearchResult]:
         """Search using configured search engine
 
         Args:
-            query: Search query
+            query: Search query. Its ``site:`` operators are mapped onto the domain filters of the provider that
+                   serves the request (each chain hop maps them for itself) and win over config.extra_params; a
+                   provider this toolkit maps no domain filter for receives the query as written.
             num_results: Number of results to return
-            extra_params_override: Optional per-query parameter override (e.g., from intent detection).
-                                   Merged on top of config.extra_params when provided.
+            time_range: Time window the agent explicitly asked for. It is mapped onto the parameters of the
+                        provider that serves the request — each chain hop maps it for itself — and wins over
+                        config.extra_params.
 
         Returns:
             List of search results
@@ -181,13 +198,20 @@ class WebSearcher:
                 self.config.provider_chain,
                 query,
                 num_results,
-                extra_params_override=extra_params_override,
+                time_range=time_range,
             )
             return results
 
         extra_params: dict[str, object] = dict(self.config.extra_params) if self.config.extra_params else {}
-        if extra_params_override:
-            extra_params.update(extra_params_override)
+        query, site_params = resolve_site_operators(query, self.config.search_service)
+        extra_params.update(site_params)
+        if time_range:
+            resolution = resolve_time_range(time_range, self.config.search_service)
+            extra_params.update(resolution.params)
+            if resolution.caveat:
+                logger.info(
+                    "Search time filter caveat (provider=%s): %s", self.config.search_service, resolution.caveat
+                )
 
         for key, value in _provider_default_params(self.config.search_service).items():
             extra_params.setdefault(key, value)
@@ -203,7 +227,12 @@ class WebSearcher:
         )
 
         async def fetch() -> list[SearchResult]:
-            return await self._search_provider_with_retry(query, bucketed_limit, extra_params)
+            results = await self._search_provider_with_retry(query, bucketed_limit, extra_params)
+            # Stamped before the results enter the cache, whose key names the provider: a cached result keeps
+            # naming the provider that served it.
+            for result in results:
+                result.provider = self.config.search_service
+            return results
 
         return await await_coalesced_search(
             cache_key,
@@ -288,14 +317,14 @@ class WebSearcher:
         self,
         query: str,
         num_results: int,
-        extra_params_override: ProviderOverride | None = None,
+        time_range: str | None = None,
     ) -> tuple[str, list[Document], Exception | None]:
         """Execute single query and process results for compound search
 
         Args:
             query: Query string
             num_results: Number of results to return
-            extra_params_override: Optional per-query parameter override from intent detection
+            time_range: Time window the agent explicitly asked for
 
         Returns:
             Query, documents list and possible exception
@@ -307,7 +336,7 @@ class WebSearcher:
                 self.search(
                     query=query,
                     num_results=num_results,
-                    extra_params_override=extra_params_override,
+                    time_range=time_range,
                 ),
                 timeout=total_timeout,
             )
@@ -383,7 +412,7 @@ class WebSearcher:
         self,
         queries: list[str],
         results_per_query: int,
-        per_query_overrides: Sequence[ProviderOverride | None] | None = None,
+        time_range: str | None = None,
     ) -> list[tuple[str, list[Document], Exception | None]]:
         """Multi-query parallel search
 
@@ -392,8 +421,7 @@ class WebSearcher:
         Args:
             queries: List of queries
             results_per_query: Number of results per query
-            per_query_overrides: Optional list of per-query extra_params overrides (from intent detection).
-                                 Must match len(queries) if provided. None entries mean no override.
+            time_range: Time window the agent explicitly asked for; applies to every query.
 
         Returns:
             Raw search results list: [(query, documents list, possible exception), ...]
@@ -401,12 +429,7 @@ class WebSearcher:
         Raises:
             RuntimeError: When all search queries fail, raises concise error message
         """
-        overrides = per_query_overrides or [None] * len(queries)
-        tasks = [
-            self.search_and_process(q, results_per_query, override)
-            for q, override in zip(queries, overrides, strict=False)
-        ]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*(self.search_and_process(q, results_per_query, time_range) for q in queries))
 
         # Check if there are successful queries
         successful_queries = [q for q, docs, err in results if err is None and docs]
@@ -432,9 +455,16 @@ class WebSearcher:
 
         empty_queries = [q for q, docs, err in results if err is None and not docs]
         if empty_queries:
+            # A time filter can only have emptied the results if a provider this config can reach maps it.
+            if time_range and any(resolve_time_range(time_range, name).params for name in self.config.provider_names):
+                cause = (
+                    f"The time_range '{time_range}' may have excluded every result: widen or drop it and retry. "
+                    "Otherwise the search service may be unreachable or returned an empty response."
+                )
+            else:
+                cause = "The search service may be unreachable or returned an empty response."
             raise AllQueriesFailedError(
-                f"Web search returned 0 results for {len(empty_queries)} queries. "
-                "The search service may be unreachable or returned an empty response.",
+                f"Web search returned 0 results for {len(empty_queries)} queries. {cause}",
                 failed_queries=[(q, "empty result set") for q in empty_queries],
             )
 

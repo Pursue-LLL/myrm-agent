@@ -147,24 +147,23 @@ describe('ProgressSteps fault-side badge', () => {
     expect(title?.className).not.toContain('text-destructive');
   });
 
-  it('renders domain-intent-pill for structured vertical queries in QueryItemsRenderer', async () => {
+  it('lists the queries of a search step verbatim', async () => {
+    const queries = [
+      'Analyze "CVE-2024-38077" patch details',
+      'NVDA stock price earnings',
+      '10.1038/s41586-024-07487-w paper',
+      'regular query without identifiers',
+    ];
     const searchStep: ProgressItem = {
       step_key: 'web_search_tool',
       tool_name: 'web_search_tool',
       status: 'complete',
-      items: [
-        { query: 'Analyze "CVE-2024-38077" patch details' },
-        { query: 'NVDA stock price earnings' },
-        { query: '10.1038/s41586-024-07487-w paper' },
-        { query: 'regular query without identifiers' },
-      ],
+      items: queries.map((query) => ({ query })),
     };
     render(<ProgressSteps messageId="m-3" steps={[searchStep]} loading={false} />);
     await userEvent.click(screen.getByTestId('progress-steps-toggle'));
-    const pills = screen.getAllByTestId('domain-intent-pill');
-    expect(pills.length).toBe(3);
-    expect(screen.getByText('Security CVE')).toBeInTheDocument();
-    expect(screen.getByText('Finance Market')).toBeInTheDocument();
-    expect(screen.getByText('Academic DOI')).toBeInTheDocument();
+    for (const query of queries) {
+      expect(screen.getByText(query)).toBeInTheDocument();
+    }
   });
 });

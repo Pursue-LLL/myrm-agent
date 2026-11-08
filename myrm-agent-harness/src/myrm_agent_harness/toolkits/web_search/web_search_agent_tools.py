@@ -2,14 +2,19 @@
 
 
 [INPUT]
-- toolkits.web_search.providers.web_searcher::SearchServiceConfig (POS: search service configuration)
+- toolkits.web_search.engine::SearchServiceConfig, WebSearchTools (POS: Web search tools wrapper, the toolkit's external interface) [WebSearchTools lazy]
+- toolkits.web_search.processing.citation_resolver::enrich_sources_with_resolved_urls (POS: Redirect-chain resolution and tracking-parameter cleanup of source URLs) [lazy]
 - toolkits.retriever.sufficiency (POS: Retrieval Sufficiency Guard for quality evaluation)
 - toolkits.web_search._web_search_tool_description::resolve_web_search_tool_description (POS: Locale-aware prompt SSOT; recommends fetch_and_extract only when the agent has it)
+- toolkits.web_search.processing._explicit_params::describe_time_range_caveats (POS: Explicit constraint mapper; states how the providers that served the results fall short of a requested time range) [lazy]
+- core.config.llm::LLMConfig (POS: Framework-agnostic LLM configuration SSOT)
+- utils.context_format::wrap_with_external_sources_tag (POS: Context formatting utilities; wraps search text as untrusted data) [lazy]
+- utils.errors::ToolError, ToolErrorCategory (POS: Framework-level error handling with structured tool errors)
 - langchain.tools::tool (POS: LangChain tool decorator)
 - pydantic::BaseModel, Field, field_validator (POS: parameter validation)
 
 [OUTPUT]
-- create_web_search_tool: factory function to create web search tool (``fetch_and_extract_available`` tells it whether the agent's web_fetch_tool offers fetch_and_extract)
+- create_web_search_tool: factory function to create web search tool (``fetch_and_extract_available`` tells it whether the agent's web_fetch_tool offers fetch_and_extract); the ``metadata.sources`` it returns are the engine's sources without the internal ``search_provider`` tag
 
 [POS]
 Web search meta-tool. Integrates web search capability as a meta-tool (high frequency, 80%+ queries require search).
@@ -40,6 +45,19 @@ from myrm_agent_harness.toolkits.web_search._web_search_tool_description import 
     resolve_web_search_tool_description,
 )
 from myrm_agent_harness.utils.errors import ToolError, ToolErrorCategory
+
+
+def _split_serving_providers(sources: list[dict[str, object]]) -> tuple[list[dict[str, object]], list[str]]:
+    """Separate the engine's per-source ``search_provider`` tags from the sources the tool returns.
+
+    The tags only tell this tool which providers answered. Left on the sources they would travel with the stream
+    and the stored message, which declare no such field. Returns the untagged sources and the distinct providers
+    the tags named, in order of first appearance.
+    """
+    tags = (source.get("search_provider") for source in sources)
+    providers = list(dict.fromkeys(tag for tag in tags if isinstance(tag, str)))
+    untagged = [{key: value for key, value in source.items() if key != "search_provider"} for source in sources]
+    return untagged, providers
 
 
 def create_web_search_tool(
@@ -129,16 +147,12 @@ def create_web_search_tool(
                         },
                     )
 
-        explicit_params: dict[str, object] | None = None
-        if time_range:
-            explicit_params = {"time_range": time_range}
-
         web_search = WebSearchTools(search_service_cfg)
         sources_metadata, formatted_context = await web_search.fast_search_with_questions(
             questions=questions,
             search_results_per_query=10,
             top_k=10,
-            explicit_params=explicit_params,
+            time_range=time_range,
             blocked_hostnames=blocked_hostnames,
         )
 
@@ -146,7 +160,9 @@ def create_web_search_tool(
             enrich_sources_with_resolved_urls,
         )
 
-        sources_metadata = await enrich_sources_with_resolved_urls(sources_metadata)
+        sources_metadata, serving_providers = _split_serving_providers(
+            await enrich_sources_with_resolved_urls(sources_metadata)
+        )
 
         if formatted_context:
             from myrm_agent_harness.utils.context_format import (
@@ -156,8 +172,6 @@ def create_web_search_tool(
             content = wrap_with_external_sources_tag(formatted_context, source="web_search")
         else:
             content = formatted_context
-
-        sufficiency_metadata: dict[str, object] = {}
 
         if sufficiency_config and sufficiency_config.enabled and sufficiency_llm_config and content:
             from myrm_agent_harness.toolkits.retriever.sufficiency import (
@@ -171,14 +185,6 @@ def create_web_search_tool(
                 llm_config=sufficiency_llm_config,
                 config=sufficiency_config,
             )
-
-            sufficiency_metadata = {
-                "is_sufficient": verdict.is_sufficient,
-                "confidence": verdict.confidence,
-                "missing_aspects": list(verdict.missing_aspects),
-                "suggested_queries": list(verdict.suggested_queries),
-                "negative_constraint_violations": list(verdict.negative_constraint_violations),
-            }
 
             if not verdict.is_sufficient and verdict.confidence >= sufficiency_config.confidence_threshold:
                 guidance_parts: list[str] = []
@@ -197,14 +203,18 @@ def create_web_search_tool(
                     notice = "\n\n---\n⚠️ **Retrieval Sufficiency Notice**: The search results may be incomplete.\n"
                     content += notice + "\n".join(guidance_parts)
 
-        return {
-            "content": content,
-            "metadata": {
-                "sources": sources_metadata,
-                "search_queries": questions,
-                "total_results": len(sources_metadata),
-                **({"sufficiency": sufficiency_metadata} if sufficiency_metadata else {}),
-            },
-        }
+        # Outside the untrusted-content wrapper: this line is the tool's own statement, not search-result text.
+        if time_range and content:
+            from myrm_agent_harness.toolkits.web_search.processing._explicit_params import (
+                describe_time_range_caveats,
+            )
+
+            # The caveat concerns the providers that returned these results, not the ones waiting behind them in
+            # the chain; results that name no provider fall back to every configured one.
+            providers = serving_providers or search_service_cfg.provider_names
+            if caveats := describe_time_range_caveats(time_range, providers):
+                content += f"\n\nTime filter notice: {caveats}"
+
+        return {"content": content, "metadata": {"sources": sources_metadata}}
 
     return web_search_func

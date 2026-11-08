@@ -1,37 +1,43 @@
 """Bilibili search fast-path.
 
 Direct search via Bilibili's public API, bypassing generic search engines.
-Triggered by intent detection when user explicitly requests Bilibili search
-(e.g., "搜B站上关于LLM的视频").
+Used when every query is scoped to Bilibili videos by its ``site:`` operators (``is_bilibili_video_query``), e.g.
+``site:bilibili.com Rust 入门``, and no ``time_range`` is set (the request carries no date parameter, so a time
+window goes to the provider search).
 
 Returns structured results with play count, author, duration — data that
 generic engines (Google, SearxNG) cannot provide for Bilibili content.
 
-Scope limitation: This is one of only two platform-specific search fast-paths
-(YouTube via SearxNG engine, Bilibili via direct API). Additional platforms
-must use Skill/MCP — not toolkit built-ins.
+Scope limitation: Bilibili (direct API) is the only platform-specific search
+fast-path in the toolkit. Additional platforms must use Skill/MCP — not toolkit
+built-ins.
 
 [INPUT]
 - web_search.core.common::SearchResult (POS: Unified search result dataclass)
+- web_search.processing._explicit_params::split_site_operators (POS: Explicit constraint mapper; the one reading of a query's site: operators)
 
 [OUTPUT]
-- search_bilibili: Async Bilibili keyword search returning SearchResult list or None
+- is_bilibili_video_query: Whether a query is scoped to Bilibili videos: its site: operators name bilibili.com or its /video section and no other domain
+- search_bilibili: Async Bilibili keyword search (site: operators are removed from the keyword) returning SearchResult list or None
 
 [POS]
 Bilibili search fast-path. Returns structured SearchResult list via public API;
-returns None on failure to trigger fallback to generic search engine.
+returns None when the API fails or has no video to link, so the caller falls back to the provider search.
 """
 
 from __future__ import annotations
 
 import asyncio
+import html
 import json
 import logging
 import re
 import urllib.parse
 import urllib.request
+from typing import TypedDict
 
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
+from myrm_agent_harness.toolkits.web_search.processing._explicit_params import split_site_operators
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +49,39 @@ _DEFAULT_HEADERS = {
 }
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+class _VideoEntry(TypedDict, total=False):
+    """The fields of a Bilibili video search hit that this module reads."""
+
+    title: str
+    author: str | None
+    play: int | None
+    duration: str | None
+    bvid: str
+    description: str | None
+
+
+_BILIBILI_HOST = "bilibili.com"
+# The API returns videos only, so only the whole site and its video section ask for what it can return.
+_VIDEO_SECTIONS = ("", "video")
+
+
+def _scopes_to_videos(domain: str) -> bool:
+    """Whether a ``site:`` domain is bilibili.com itself or a path in its ``/video`` section."""
+    host, _, path = domain.lower().partition("/")
+    return host == _BILIBILI_HOST and path.partition("/")[0] in _VIDEO_SECTIONS
+
+
+def is_bilibili_video_query(query: str) -> bool:
+    """Whether the ``site:`` operators of ``query`` scope it to Bilibili videos.
+
+    Every included domain must be bilibili.com or its ``/video`` section; excluded domains do not matter.
+    ``-site:bilibili.com`` excludes the site, a second domain widens the search beyond it, and the other sections
+    (``/read``, ``/opus``) hold what the video API cannot return: none of them asks for Bilibili videos.
+    """
+    included = split_site_operators(query).included
+    return bool(included) and all(_scopes_to_videos(domain) for domain in included)
 
 
 def _strip_html(text: str) -> str:
@@ -63,13 +102,16 @@ async def search_bilibili(
     """Search Bilibili for videos matching keyword.
 
     Args:
-        keyword: Search query string
+        keyword: Search query string. The API takes plain keywords, so its ``site:`` operators are removed first.
         max_results: Maximum number of results to return (capped at 20, min 1)
 
     Returns:
-        List of SearchResult on success, None on failure (triggers fallback).
+        List of SearchResult, or None when nothing can be answered: the request failed, the API returned no video
+        that can be linked, or no keyword is left once the ``site:`` operators are removed (no request is made
+        then). The caller falls back to the provider search.
     """
-    if not keyword.strip():
+    keyword = split_site_operators(keyword).remainder
+    if not keyword:
         return None
     max_results = max(1, min(max_results, 20))
 
@@ -86,26 +128,29 @@ async def search_bilibili(
                 return None
 
             result_groups = (data.get("data") or {}).get("result", [])
-            videos: list[dict] = []
+            videos: list[_VideoEntry] = []
             for group in result_groups:
                 if group.get("result_type") == "video":
                     videos = group.get("data", [])
                     break
 
-            if not videos:
+            # The video group also lists live rooms, which come without a bvid: there is no video to link to.
+            linkable = [(bvid, v) for v in videos if (bvid := v.get("bvid"))]
+            if not linkable:
                 logger.info("Bilibili search returned 0 video results for: %s", keyword[:50])
                 return None
 
             results: list[SearchResult] = []
-            for v in videos[:max_results]:
-                title = _strip_html(v.get("title", ""))
+            for bvid, v in linkable[:max_results]:
+                # Tags go first so that markup the API escaped stays text.
+                title = html.unescape(_strip_html(v.get("title", "")))
                 author = v.get("author", "")
                 play = v.get("play", 0)
                 duration = v.get("duration", "")
-                bvid = v.get("bvid", "")
-                description = v.get("description", "")
+                # A video may come without a description (null): it is still a result.
+                description = html.unescape(v.get("description") or "")
 
-                link = f"https://www.bilibili.com/video/{bvid}" if bvid else ""
+                link = f"https://www.bilibili.com/video/{bvid}"
                 snippet_parts = []
                 if author:
                     snippet_parts.append(f"UP主: {author}")

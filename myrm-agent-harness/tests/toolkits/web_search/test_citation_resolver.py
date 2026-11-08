@@ -1,11 +1,10 @@
-"""Unit tests for citation_resolver module (SSRF-safe redirects, tracking parameter stripping, strong typing)."""
+"""Unit tests for citation_resolver module (SSRF-safe redirects, tracking parameter stripping)."""
 
 from __future__ import annotations
 
 import pytest
 
 from myrm_agent_harness.toolkits.web_search.processing.citation_resolver import (
-    SearchSourcePayload,
     enrich_sources_with_resolved_urls,
     resolve_citation_url,
     strip_tracking_parameters,
@@ -35,9 +34,9 @@ async def test_resolve_citation_url_non_redirect() -> None:
 
 
 @pytest.mark.asyncio
-async def test_enrich_sources_with_resolved_urls_typed() -> None:
-    """Test batch resolving sources with strong SearchSourcePayload typing."""
-    sources: list[SearchSourcePayload] = [
+async def test_enrich_sources_with_resolved_urls() -> None:
+    """Test batch resolving sources: tracking parameters stripped, original URL kept as redirect_url."""
+    sources: list[dict[str, object]] = [
         {
             "index": 1,
             "title": "Python 3.13 Release Notes",

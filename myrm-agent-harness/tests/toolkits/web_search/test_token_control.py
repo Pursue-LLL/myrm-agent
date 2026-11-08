@@ -5,10 +5,8 @@
 
 from langchain_core.documents import Document
 
-from myrm_agent_harness.utils.context_format import (
-    _allocate_tokens_weighted,
-    format_documents_with_metadata,
-)
+from myrm_agent_harness.utils.context_format import format_documents_with_metadata
+from myrm_agent_harness.utils.context_format.budget import allocate_tokens_weighted
 from myrm_agent_harness.utils.text_utils import (
     PLANNING_ENCODING,
     find_sentence_boundary,
@@ -23,21 +21,21 @@ class TestHelperFunctions:
 
     def test_allocate_tokens_weighted_empty(self):
         """空文档列表"""
-        assert _allocate_tokens_weighted(1000, 0) == []
+        assert allocate_tokens_weighted(1000, 0) == []
 
     def test_allocate_tokens_weighted_single(self):
         """单文档获得全部预算"""
-        result = _allocate_tokens_weighted(1000, 1)
+        result = allocate_tokens_weighted(1000, 1)
         assert result == [1000]
 
     def test_allocate_tokens_weighted_triple(self):
         """3个文档平均分配"""
-        result = _allocate_tokens_weighted(1000, 3)
+        result = allocate_tokens_weighted(1000, 3)
         assert result == [333, 333, 333]
 
     def test_allocate_tokens_weighted_many(self):
         """多文档加权分配"""
-        result = _allocate_tokens_weighted(1000, 5)
+        result = allocate_tokens_weighted(1000, 5)
         assert len(result) == 5
         # Top-3: 25%, 15%, 10%
         assert result[0] == 250

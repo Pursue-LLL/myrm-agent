@@ -44,7 +44,7 @@ class _Probe:
             self: WebSearcher,
             query: str,
             num_results: int = 5,
-            extra_params_override: dict[str, str | int | bool] | None = None,
+            time_range: str | None = None,
         ) -> list[SearchResult]:
             key = self.config.api_key or self.config.api_base or ""
             probe.contacted.append(key)
