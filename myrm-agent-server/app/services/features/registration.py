@@ -1,6 +1,14 @@
 """Feature registration — registers all framework + business features at startup.
 
-Called once during application lifespan before init_features().
+[INPUT]
+- myrm_agent_harness.core.features.registry (POS: global feature registry)
+- myrm_agent_harness.core.features.types::FeatureSpec / FeatureStage (POS: feature lifecycle contracts)
+
+[OUTPUT]
+- register_all_features: registers every FeatureSpec once during application lifespan
+
+[POS]
+Startup registration entry for framework-level and business-level feature flags.
 """
 
 from __future__ import annotations

@@ -6,11 +6,8 @@ using automatic token-based threshold estimation.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-from langchain_core.tools import BaseTool, StructuredTool
-
 import pytest
+from langchain_core.tools import BaseTool, StructuredTool
 
 from myrm_agent_harness.agent._factory.mcp_routing import (
     compute_direct_threshold,

@@ -12,7 +12,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from langchain_core.tools import StructuredTool
-
 from mcp.types import (
     CallToolResult,
     ImageContent,

@@ -93,4 +93,4 @@ Pre-commit runs `validate_arch_inventory.py` via hook `harness-arch-inventory-ch
 
 - **扫描目标**：`src/myrm_agent_harness/`
 - **配置**：`boundary_config.py`（`ALLOWED_FRAMEWORK_PREFIXES`、`BANNED_PREFIXES`、`ALLOWED_PATHS`）
-- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`
+- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`；`server-architecture.yml` 运行 `validate_arch_inventory.py`、`check_import_resolvability.py`、`check_module_reachability.py`，该流水线不设路径过滤（由 server 的 `tests/architecture/test_gate_workflow_triggers.py` 钉住），所以改任一脚本，在 push main 与 PR 上都会跑

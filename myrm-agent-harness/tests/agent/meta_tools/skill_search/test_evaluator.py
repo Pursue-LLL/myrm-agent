@@ -6,7 +6,7 @@ import pytest
 
 from myrm_agent_harness.agent.meta_tools.skills.search.engine import SkillSearchEngine
 
-from .baselines import RandomSearchEngine, TFIDFSearchEngine
+from .baselines import RandomSearchEngine
 from .evaluator import SearchEvaluator
 from .fixtures import create_comprehensive_mock_skills
 from .golden_dataset import GOLDEN_DATASET
@@ -87,10 +87,10 @@ class TestSearchEvaluator:
     def test_compare_with_significance(self, evaluator, mock_skills):
         """Test statistical significance testing"""
         bm25_engine = SkillSearchEngine(skills=mock_skills)
-        tfidf_engine = TFIDFSearchEngine(skills=mock_skills)
+        random_engine = RandomSearchEngine(skills=mock_skills)
 
         significance_tests = evaluator.compare_with_significance(
-            baseline_func=lambda q: tfidf_engine.search(q, top_k=10),
+            baseline_func=lambda q: random_engine.search(q, top_k=10),
             improved_func=lambda q: bm25_engine.search_bm25(q, top_k=10),
             n_bootstrap=100,  # Reduced for faster testing
         )

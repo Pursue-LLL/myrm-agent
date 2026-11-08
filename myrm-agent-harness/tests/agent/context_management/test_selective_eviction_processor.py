@@ -3,16 +3,16 @@
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
+from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
+    EvictionMark,
+    with_message_marks,
+)
 from myrm_agent_harness.agent.context_management.pipeline.base import ProcessorContext
 from myrm_agent_harness.agent.context_management.pipeline.processors.selective_eviction_processor import (
     SelectiveEvictionProcessor,
 )
 from myrm_agent_harness.agent.context_management.strategies.compactor.selective_eviction import (
     evict_messages_by_marks,
-)
-from myrm_agent_harness.agent.context_management.eviction_marks.marks import (
-    EvictionMark,
-    with_message_marks,
 )
 
 

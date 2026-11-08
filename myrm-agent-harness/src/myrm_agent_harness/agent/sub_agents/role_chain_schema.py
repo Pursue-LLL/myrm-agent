@@ -232,9 +232,7 @@ def compile_role_chain_guidance(preset_id_or_chain: str | tuple[str, ...], max_r
         )
 
     # Custom chain tuple fallback
-    chain_tuple = (
-        preset_id_or_chain if isinstance(preset_id_or_chain, tuple) else (preset_id_or_chain,)
-    )
+    chain_tuple = preset_id_or_chain if isinstance(preset_id_or_chain, tuple) else (preset_id_or_chain,)
     chain_sequence = " -> ".join(chain_tuple)
     return (
         f"### Active Subagent Role Chain Protocol: Custom Chain\n"

@@ -151,7 +151,7 @@ async def test_execute_command_asyncssh_timeout(monkeypatch: pytest.MonkeyPatch)
 @pytest.mark.asyncio
 async def test_execute_command_asyncssh_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import MagicMock
 
     mock_asyncssh = MagicMock()
     mock_asyncssh.connect = MagicMock(side_effect=ConnectionRefusedError("Connection refused by peer"))

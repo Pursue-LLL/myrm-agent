@@ -12,9 +12,7 @@
 - Module: test_invalid_generated_title_recovery_suite.py
 """
 
-from typing import Dict, List
 
-import pytest
 
 from myrm_agent_harness.agent import (
     InvalidGeneratedTitleRecoverySuite as RootExportedSuite,
@@ -25,9 +23,7 @@ from myrm_agent_harness.agent.context_management import (
     InvalidTitleTaxonomy,
     ProvisionalTitleRetryGate,
     TitleRecoveryConfig,
-    TitleRecoveryState,
     TitleRecoveryVerdict,
-    TitleValidationResult,
 )
 
 
