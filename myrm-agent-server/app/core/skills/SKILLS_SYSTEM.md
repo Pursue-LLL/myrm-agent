@@ -113,7 +113,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 |------|------|
 | Seed 同步 | `prebuilt_sync._sync_skill_bundle_files` 将 `scripts/` 等写入 storage |
 | SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
-| Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage → cwd + token inject |
+| Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage（纯调用时先还原为随包文件）→ 命令从 skill 目录起跑（`CommandEnv.cwd`）+ token inject |
 | OAuth scope | 集成 skill 的 SKILL.md frontmatter `oauth_issuer`（如 `google_workspace`）→ harness 解析为 `SkillMetadata.oauth_issuer` → bash 检测到 skill 路径时 `ExecutionContext.allowed_credential_issuers` 仅注入对应 issuer；generic bash（无 skill 路径）仍注入全部 session 凭证 |
 
 ### 3.7 Integration OAuth availability
@@ -126,12 +126,12 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
 | 快照与适配 | Skills 页读取持久化快照；prebuilt 快照的 `requires` 在同步时取自实际留存的 SKILL.md（用户改过则以用户副本为准），在线编辑 SKILL.md 后于下次同步对齐；快照还带上种子 frontmatter 声明的 `required_permissions`，启用技能的授权门读取它。绑定到 Agent 的 LOCAL 技能经 `/user/` 路由由 `runtime_metadata.skill_to_runtime_metadata` 还原为运行时元数据（requires / trust / allowed_tools / always / 调用开关等），绑定的 prebuilt 技能由 `/prebuilt/` 路由从 SKILL.md 读取；availability 由运行时 gate 重算，Agent 配置页的 Turn1 预览走同一套组装与同一组 gate |
 | 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、x-live-search provider gate（`resolve_xai_search_config`）；所有声明了 `requires`（bins / env / config）的 skill 由 `requirements_availability.py` 统一重算，无需逐 skill 登记 |
-| Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3。技能设置里名字像密钥的变量（如 `EMAIL_IMAP_PASSWORD`）不进 shell 环境：命令里含 `.claude/skills/<name>/` 路径（即运行该 skill 自带脚本）时，经 `resolve_skill_env_map` → `ExecutionContext.skill_env`，由 harness `skill_secret_env` 选出后只随这条命令送达，命令输出中按原值遮盖；不含该路径的命令（如直接 `curl ... $NOTION_API_KEY`）拿不到 |
+| Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3。技能设置里名字像密钥的变量（如 `EMAIL_IMAP_PASSWORD`）不进 shell 环境：只随该 skill 脚本的纯调用送达：经 `resolve_skill_env_map` → `ExecutionContext.skill_env`，由 harness `skill_secret_env` 选出；命令的每一段都只是该 skill 自己的 `.claude/skills/<name>/<文件>` 调用（harness `plain_skill_call` 判定）才算，送达前工作区里的 skill 目录先还原成随包文件，命令输出中按原值遮盖；其余命令（路径只出现在注释或 `echo` 里、串着其他程序、直接 `curl ... $KEY`）拿不到，失败消息写明原因与正确写法 |
 | GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill；仅依赖 env 密钥且不可用的技能卡片提供就地「配置密钥」按钮，打开详情侧栏（密钥在侧栏内填写，保存后可用性按 `skill_env_vars` 重算）；缺账号或连接器的技能显示本地化的“去设置连接”提示，同时声明了 bins / env / config 的技能显示服务端原因（缺的可能不是账号） |
 | Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
 | Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
 | Bin gate scope | `requires.bins` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；桌面端 PATH 由 sidecar 启动时补全；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
-| Env gate scope | `requires.env` 的每个变量须存在于进程 env 或该 skill 的 `UserSkillConfig.skill_env_vars`（非空白）——与 `resolve_skill_env_map` 运行时注入使用同一份 `lookup_skill_env`，「可用」判定与运行时读取同一份设置；名字像密钥的变量只送达含该 skill 脚本路径的命令（见 Bash 注入行）；harness `evaluate_requires(requires, extra_env)` 为纯函数 |
+| Env gate scope | `requires.env` 的每个变量须存在于进程 env 或该 skill 的 `UserSkillConfig.skill_env_vars`（非空白）——与 `resolve_skill_env_map` 运行时注入使用同一份 `lookup_skill_env`，「可用」判定与运行时读取同一份设置；名字像密钥的变量只送达该 skill 脚本的纯调用（见 Bash 注入行）；harness `evaluate_requires(requires, extra_env)` 为纯函数 |
 
 ### 3.8 Skill 权限管理链路
 
