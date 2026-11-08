@@ -6,7 +6,7 @@
 - session.download::DownloadError, DownloadMark, DownloadActivity, DownloadRefusal, DownloadResult (POS: the error of a download that is not kept, and the records a session's downloads are reported in)
 
 [OUTPUT]
-- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), _assert_download_final_url_allowed (the verifier the download manager judges every download with), list_downloads, download_refusals, download_mark / downloads_since (what a page-started download came to after a moment), download_enabled
+- BrowserSessionDownloadMixin: download_url (judged like a navigation to the same URL), _assert_download_final_url_allowed (the verifier the download manager judges every download with), list_downloads, download_refusals, download_mark / downloads_since (what a page-started download came to after a moment), take_unannounced_downloads (what no answer has carried yet), download_enabled
 
 [POS]
 Download API of BrowserSession over the optional DownloadManager. An explicit download is a request the browser
@@ -94,10 +94,22 @@ class BrowserSessionDownloadMixin(SessionHost):
         return self._download_manager.mark()
 
     async def downloads_since(self, mark: DownloadMark) -> DownloadActivity:
-        """What was saved or refused since ``mark``, once the downloads the page started after it have settled."""
+        """What was saved or refused since ``mark``, once the downloads the page started after it have settled.
+
+        The caller puts the report in its answer, so ``take_unannounced_downloads`` does not hand it over again.
+        """
         if self._download_manager is None:
             return DownloadActivity()
         return await self._download_manager.activity_since(mark)
+
+    def take_unannounced_downloads(self) -> DownloadActivity:
+        """What the downloads a page started came to since no answer last carried it; handed over once.
+
+        A download can settle after the action that started it was answered, so the next answer carries it.
+        """
+        if self._download_manager is None:
+            return DownloadActivity()
+        return self._download_manager.take_unannounced()
 
     @property
     def download_enabled(self) -> bool:

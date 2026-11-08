@@ -8,6 +8,7 @@
 - session.download.config::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
 - session.download.storage::DownloadStorage, sanitize_filename (POS: the disk side of the download domain: unique names, quota, and the browser's finished copy written below a trusted root without following a link)
 - session.download.records::DownloadResult, DownloadRefusal, DownloadMark, DownloadActivity (POS: the shapes the download manager, its storage and the session-level download APIs exchange)
+- session.download.outcomes::DownloadOutcomes (POS: the ledger of what a session's downloads came to, and of what no answer has told the agent yet)
 - session.download.errors::DownloadError (POS: the error of a download that is not kept)
 - session.network::safe_preview (POS: credential-masked text cut to a limit)
 - utils.url_utils::sanitize_url_for_error (POS: a URL as an error or log line may show it: scheme, host and path, no credentials, query or fragment)
@@ -21,15 +22,17 @@ side (names, quota, the copy, and never writing through a link) is ``DownloadSto
 session hands it the verifier that judges the address a download came from, and the config hands it the policy that
 says whether a page may save a file on its own. A download that is refused, cut short while it is judged, or not kept
 is cancelled and deleted (the caller waits a bounded time for that; the cleanup carries on after the caller stops
-waiting). A page-started download is admitted and judged at once, without waiting for a free slot, and one that is not
-kept is remembered with its reason so the agent can be told. A slot (``max_concurrent_downloads``) bounds only the
-saves in progress: a request still waiting for its page to start a download, and a download being judged, hold none.
-A report of what happened after a mark waits only for the downloads the page started after it. Once a download is processed the browser keeps nothing of it: the saved copy is the only one left. A download_url
-request takes the first download its page starts, one request at a time per page; every other download of that page
-goes through the page path, and one the request claimed but never took goes there when the request ends, so no
-download is kept without a verdict. A request that gives up stops the navigation it started (one bounded, best-effort
-protocol command), so an answer still on its way does not land after the request has returned. Log lines name a
-download's URL without its query, fragment or credentials.
+waiting). A page-started download is admitted and judged at once, without waiting for a free slot, and what it comes
+to (saved, or not kept with the reason) is recorded in the ``DownloadOutcomes`` ledger, which also holds what the
+agent has not been told yet. A report of what happened after a mark waits only for the downloads the page started
+after it. A slot (``max_concurrent_downloads``) bounds only the saves in progress: a request still waiting for its
+page to start a download, and a download being judged, hold none. Once a download is processed the browser keeps
+nothing of it: the saved copy is the only one left. A download_url request takes the first download its page starts,
+one request at a time per page; every other download of that page goes through the page path, and one the request
+claimed but never took goes there when the request ends, so no download is kept without a verdict. A request that
+gives up stops the navigation it started (one bounded, best-effort protocol command), so an answer still on its way
+does not land after the request has returned. Log lines name a download's URL without its query, fragment or
+credentials.
 """
 
 from __future__ import annotations
@@ -37,7 +40,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections import deque
 from collections.abc import Awaitable, Callable, Coroutine, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -50,6 +52,7 @@ from ...utils.timeout import is_timeout_error
 from ..network import safe_preview
 from .config import DownloadConfig
 from .errors import DownloadError
+from .outcomes import DownloadOutcomes
 from .records import DownloadActivity, DownloadMark, DownloadRefusal, DownloadResult
 from .storage import DownloadStorage, sanitize_filename
 
@@ -68,9 +71,6 @@ type AddressVerifier = Callable[[str], Awaitable[None]]
 _UNADDRESSED_SCHEMES = ("blob:", "data:")
 
 _DISCARD_TIMEOUT_S = 2.0
-
-# How many refused downloads are remembered to tell the agent; a page can start them without end.
-_REFUSALS_KEPT = 5
 
 # Why a page-started download was not kept, as the agent is told: no address in any of them. A file the page built
 # itself has no address for download_url to request, so it is not pointed there.
@@ -123,9 +123,7 @@ class DownloadManager:
         self._config = config
         self._verify_final_url = verify_final_url
         self._storage = DownloadStorage(config)
-        self._downloads: list[DownloadResult] = []
-        self._refusals: deque[DownloadRefusal] = deque(maxlen=_REFUSALS_KEPT)
-        self._refused_total = 0
+        self._outcomes = DownloadOutcomes()
         self._semaphore = asyncio.Semaphore(self._config.max_concurrent_downloads)
         self._pending_tasks: set[asyncio.Task[None]] = set()
         self._page_started_total = 0
@@ -145,32 +143,33 @@ class DownloadManager:
     @property
     def downloads(self) -> list[DownloadResult]:
         """Get all download results."""
-        return list(self._downloads)
+        return self._outcomes.saved
 
     @property
     def refusals(self) -> tuple[DownloadRefusal, ...]:
         """The latest page-started downloads that were not kept, oldest first."""
-        return tuple(self._refusals)
+        return self._outcomes.refusals
 
     def mark(self) -> DownloadMark:
         """Where the downloads stand now; ``activity_since`` reports what comes after it."""
-        return DownloadMark(saved=len(self._downloads), refused=self._refused_total, started=self._page_started_total)
+        return self._outcomes.mark(started=self._page_started_total)
 
     async def activity_since(self, mark: DownloadMark) -> DownloadActivity:
         """What was saved or refused since ``mark``, once the downloads the page started after it have settled.
 
         The wait is bounded by ``download_timeout_s``, as a save is: a verdict still pending would otherwise read as
         no download at all. A download started before the mark is none of this action's business, and a slow one
-        would hold up every action that follows it.
+        would hold up every action that follows it. The answer that carries the report tells the agent of these
+        outcomes, so ``take_unannounced`` does not hand them over again.
         """
         awaited = [task for number, task in self._page_started_in_flight.items() if number >= mark.started]
         if awaited:
             await asyncio.wait(awaited, timeout=self._config.download_timeout_s)
-        refused_since = self._refused_total - mark.refused
-        return DownloadActivity(
-            saved=tuple(self._downloads[mark.saved :]),
-            refused=tuple(self._refusals)[-refused_since:] if refused_since else (),
-        )
+        return self._outcomes.report_since(mark)
+
+    def take_unannounced(self) -> DownloadActivity:
+        """Hand over, once, what the downloads a page started came to since no answer last carried it."""
+        return self._outcomes.take_unannounced()
 
     async def download_url(self, page: Page, url: str, timeout: float | None = None) -> DownloadResult:
         """Actively download a file from a URL.
@@ -357,7 +356,7 @@ class DownloadManager:
                 )
                 return
             await self._judge(download)
-            await self._process_download(download)
+            self._outcomes.leave_unannounced(await self._process_download(download))
         except BrowserNavigationBlockedError as refusal:
             logged_url = _loggable_url(download.url)
             logger.warning(
@@ -372,8 +371,9 @@ class DownloadManager:
             self._note_refusal(download, _NOT_PROCESSED)
 
     def _note_refusal(self, download: Download, reason: str) -> None:
-        self._refusals.append(DownloadRefusal(file_name=sanitize_filename(download.suggested_filename), reason=reason))
-        self._refused_total += 1
+        refusal = DownloadRefusal(file_name=sanitize_filename(download.suggested_filename), reason=reason)
+        self._outcomes.record_refusal(refusal)
+        self._outcomes.leave_unannounced(refusal)
 
     @staticmethod
     def _log_not_saved(url: str, failure: DownloadError) -> None:
@@ -393,7 +393,7 @@ class DownloadManager:
         try:
             async with self._semaphore:
                 result = await self._storage.save(download)
-            self._downloads.append(result)
+            self._outcomes.record_saved(result)
             logger.info("Downloaded: %s (%d bytes) → %s", result.file_name, result.file_size, result.path)
             return result
         finally:

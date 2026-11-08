@@ -1151,11 +1151,11 @@ browser/
 │   ├── interact.py — browser_interact_tool（含 Semantic DOM Guard）
 │   ├── extract.py — browser_extract_tool
 │   ├── manage.py — browser_manage_tool
-│   ├── download_actions.py — download_url / list_downloads 的结果与点击之后的下载汇总（文件名与原因按不可信内容包装）
+│   ├── download_actions.py — download_url / list_downloads 的结果、点击（元素或坐标）与导航到文件之后的下载汇总、动作应答之后才落定的下载提示（文件名与原因按不可信内容包装）
 │   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
-│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消同样自愈；一次性重置提示）
+│   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
 │   ├── inspect.py — browser_inspect_tool
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）
 │   └── common.py — 工具共享工具函数
@@ -1192,7 +1192,7 @@ browser/
 │   ├── browser_session_extraction_mixin.py — 内容提取、vision fallback、截图对比
 │   ├── browser_session_page_mixin.py — viewport、dialog、evaluate、emulate_device 等页面级 API
 │   ├── browser_session_interaction_mixin.py — interact（ref 操作）/ interact_at（坐标操作）及可选视觉校验
-│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定；返回保存结果，不保留则抛带原因的 DownloadError）/ 下载记录与页面发起下载的拒绝记录读取
+│   ├── browser_session_download_mixin.py — download_url（与导航同一套 URL 判定；返回保存结果，不保留则抛带原因的 DownloadError）/ 下载记录、页面发起下载的拒绝记录与尚未告知的下载结果读取
 │   ├── browser_session_persistence_mixin.py — SessionVault 持久化 API
 │   ├── browser_session_recording_mixin.py — trace/HAR 录制控制
 │   ├── takeover/ — 会话级接管等待（人占用时等待，脚本跨越接管时停止）及其两个错误
@@ -1215,7 +1215,7 @@ browser/
 │   ├── device_emulator.py — 运行时 CDP 移动设备仿真（三连注入 + 会话一致性 + DeviceRegistry 协议）
 │   ├── vision_verifier.py — 三层视觉验证
 │   ├── dialog_manager.py — JS dialog 生命周期
-│   ├── download/ — 文件下载：DownloadConfig（下载目录与它所在的受信根 `confined_to`（均必填）、体积上限、配额、超时、并发、扩展名白名单、页面发起下载的放行策略；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载）、DownloadManager（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）、DownloadStorage（读浏览器已下载完成的那一份、独占创建的唯一文件名、不跟随链接地落盘、目录配额）、记录与 DownloadError
+│   ├── download/ — 文件下载：DownloadConfig（下载目录与它所在的受信根 `confined_to`（均必填）、体积上限、配额、超时、并发、扩展名白名单、页面发起下载的放行策略；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载）、DownloadManager（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）、DownloadStorage（读浏览器已下载完成的那一份、独占创建的唯一文件名、不跟随链接地落盘、目录配额）、DownloadOutcomes（已保存文件、被拒记录，以及尚无应答告知过的页面发起下载结果：每个结果只告知一次）、记录与 DownloadError
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/

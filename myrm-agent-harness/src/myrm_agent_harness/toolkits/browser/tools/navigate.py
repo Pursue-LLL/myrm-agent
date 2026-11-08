@@ -2,13 +2,16 @@
 
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
+- tools.download_actions::describe_downloads_since (POS: agent-facing text of the download actions)
 - utils.errors::ToolError (POS: Storage quota related errors.)
 
 [OUTPUT]
 - create_navigate_tool: Create browser_navigate tool bound to session; successful navigate returns `{content, metadata:{sources:[{url,title,source_key}]}}` for SourceTracker.
 
 [POS]
-browser_navigate tool for URL navigation.
+browser_navigate tool for URL navigation. An address that answers with a file makes the browser start a download
+instead of opening a page, which fails the navigation; the answer then says what the download came to, so the agent
+does not read a saved file as a failure and retry (a retry saves the file a second time).
 """
 
 from __future__ import annotations
@@ -18,13 +21,19 @@ from typing import TYPE_CHECKING
 from langchain.tools import tool
 from pydantic import BaseModel, Field
 
+from ..exceptions import BrowserNavigationError
 from .common import mark_untrusted
+from .download_actions import describe_downloads_since
 
 if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
     from ..session import BrowserSession
 
+_STARTED_A_DOWNLOAD = "The address started a file download instead of opening a page."
 
-def create_navigate_tool(session: BrowserSession):
+
+def create_navigate_tool(session: BrowserSession) -> BaseTool:
     """Create browser_navigate tool bound to session."""
 
     class NavigateInput(BaseModel):
@@ -60,7 +69,13 @@ def create_navigate_tool(session: BrowserSession):
                 user_hint="The URL contains sensitive data (API keys, file paths, or credentials). Remove sensitive data from the URL.",
             )
 
-        raw_result = await session.navigate(url, verify_goal=verify_goal)
+        mark = session.download_mark()
+        try:
+            raw_result = await session.navigate(url, verify_goal=verify_goal)
+        except BrowserNavigationError:
+            if notes := await describe_downloads_since(session, mark):
+                return mark_untrusted(f"{_STARTED_A_DOWNLOAD}\n{notes}")
+            raise
         content = mark_untrusted(raw_result)
         page = session.get_active_page()
         page_url = page.url

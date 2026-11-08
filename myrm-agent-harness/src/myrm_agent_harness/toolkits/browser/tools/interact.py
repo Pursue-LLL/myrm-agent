@@ -2,7 +2,7 @@
 
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
-- tools.download_actions::describe_download_activity (POS: agent-facing text of the download actions)
+- tools.download_actions::describe_downloads_since (POS: agent-facing text of the download actions)
 - session.browser_session::BrowserSession (POS: browser session aggregate root; semantic guard in interact)
 
 [OUTPUT]
@@ -11,12 +11,11 @@
 [POS]
 browser_interact tool for element interactions. Two modes: ref-based (via BrowserSession.interact
 with Semantic DOM HITL) and coordinate-based (via BrowserSession.interact_at for canvas/rich-editor
-pages). This tool adds download detection for ref-based click/dblclick.
+pages). This tool adds download detection for click/dblclick in both modes.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -25,19 +24,18 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import RefNotFoundError
 from .common import mark_untrusted
-from .download_actions import describe_download_activity
+from .download_actions import describe_downloads_since
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
     from ..session import BrowserSession
+    from ..session.download import DownloadMark
 
 logger = logging.getLogger(__name__)
 
-# A click that starts a download starts it at once, but the browser does not always report it before the click returns,
-# so the report waits this long before it asks which downloads are in flight. Every click pays it, so it is kept short:
-# a download a page starts later, from a timer of its own, is not in the answer; ``list_downloads`` shows it.
-_DOWNLOAD_START_GRACE_S = 0.05
+# The actions that can start a download of their own; a download another action starts is carried by a later answer.
+_DOWNLOAD_ACTIONS = ("click", "dblclick")
 
 
 class InteractStep(BaseModel):
@@ -132,15 +130,17 @@ def create_interact_tool(session: BrowserSession) -> BaseTool:
     labels_str = ", ".join([f"'{lbl}'" for lbl in labels]) if labels else "none available"
     InteractInput = _build_interact_input_model(labels_str=labels_str)  # noqa: N806  # dynamically built model class
 
+    async def _with_download_notes(action: str, mark: DownloadMark, result: str) -> str:
+        """Add what the downloads a click started came to (files saved, downloads refused) to its answer."""
+        if action not in _DOWNLOAD_ACTIONS:
+            return result
+        notes = await describe_downloads_since(session, mark)
+        return f"{result}\n{notes}" if notes else result
+
     async def _run_single(action: str, ref: str, text: str, verify_goal: str | None) -> str:
         mark = session.download_mark()
         result = await session.interact(action, ref, text, verify_goal=verify_goal)
-
-        if action in ("click", "dblclick") and session.download_enabled:
-            await asyncio.sleep(_DOWNLOAD_START_GRACE_S)
-            if notes := describe_download_activity(await session.downloads_since(mark)):
-                result = f"{result}\n{notes}"
-        return result
+        return await _with_download_notes(action, mark, result)
 
     @tool("browser_interact_tool", args_schema=InteractInput)
     async def browser_interact(
@@ -172,17 +172,17 @@ def create_interact_tool(session: BrowserSession) -> BaseTool:
                 return "Error: ref and x/y are mutually exclusive. Use ref OR coordinates, not both."
             if not action.strip():
                 return "Error: action is required for coordinate mode"
-            return mark_untrusted(
-                await session.interact_at(
-                    action=action,
-                    x=x,
-                    y=y,
-                    text=text,
-                    target_x=target_x,
-                    target_y=target_y,
-                    verify_goal=verify_goal,
-                )
+            mark = session.download_mark()
+            result = await session.interact_at(
+                action=action,
+                x=x,
+                y=y,
+                text=text,
+                target_x=target_x,
+                target_y=target_y,
+                verify_goal=verify_goal,
             )
+            return mark_untrusted(await _with_download_notes(action, mark, result))
         if (x is not None) != (y is not None):
             return "Error: both x and y must be provided together for coordinate mode"
 

@@ -1,7 +1,8 @@
 """What the agent is told about downloads: the files saved, and for every one not kept, why; all of it untrusted text.
 
 A file name and a refusal reason can come from a hostile page, so every answer that carries one is wrapped as untrusted
-content. A click that starts downloads is answered with what they came to, after the downloads in flight have settled.
+content. A click that starts downloads, by element or by coordinates, is answered with what they came to, after the
+downloads the page started have settled.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from myrm_agent_harness.toolkits.browser.session.download import (
     DownloadRefusal,
     DownloadResult,
 )
-from myrm_agent_harness.toolkits.browser.tools import interact as interact_module
+from myrm_agent_harness.toolkits.browser.tools import download_actions as download_actions_module
 from myrm_agent_harness.toolkits.browser.tools.download_actions import (
     describe_download_activity,
     list_downloads_report,
@@ -107,6 +108,13 @@ class TestListDownloadsReport:
         assert "UNTRUSTED_DATA" in answer
         assert _HOSTILE_NAME in answer
 
+    def test_the_listing_hands_over_what_a_later_answer_would_have_added(self) -> None:
+        session = _session(saved=[_SAVED])
+
+        list_downloads_report(session)
+
+        session.take_unannounced_downloads.assert_called_once_with()
+
 
 class TestDescribeDownloadActivity:
     def test_nothing_happened_nothing_is_said(self) -> None:
@@ -129,7 +137,7 @@ class TestClickReport:
 
     @pytest.fixture(autouse=True)
     def _no_grace_period(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(interact_module, "_DOWNLOAD_START_GRACE_S", 0)
+        monkeypatch.setattr(download_actions_module, "_DOWNLOAD_START_GRACE_S", 0)
 
     @staticmethod
     def _interact_session(activity: DownloadActivity, *, enabled: bool = True) -> MagicMock:
@@ -219,6 +227,48 @@ class TestClickReport:
         assert session.downloads_since.await_count == 2
         assert answer.count("File downloaded: a.pdf") == 2
 
+    @pytest.mark.asyncio
+    async def test_a_coordinate_click_is_reported_like_a_click_on_an_element(self) -> None:
+        session = self._interact_session(DownloadActivity(saved=(_SAVED,)))
+        session.interact_at = AsyncMock(return_value="Clicked at (10, 20)")
+
+        answer = await create_interact_tool(session).ainvoke({"action": "click", "x": 10, "y": 20})
+
+        assert "Clicked at (10, 20)\nFile downloaded: a.pdf (3 bytes)\nPath: /w/.agent/downloads/a.pdf" in answer
+        assert "UNTRUSTED_DATA" in answer
+
+    @pytest.mark.asyncio
+    async def test_the_report_of_a_coordinate_click_counts_from_before_the_click(self) -> None:
+        order: list[str] = []
+
+        def mark() -> DownloadMark:
+            order.append("mark")
+            return DownloadMark(saved=2, refused=1)
+
+        def click(*_args: object, **_kwargs: object) -> str:
+            order.append("click")
+            return "Clicked at (10, 20)"
+
+        session = self._interact_session(DownloadActivity())
+        session.download_mark.side_effect = mark
+        session.interact_at = AsyncMock(side_effect=click)
+
+        await create_interact_tool(session).ainvoke({"action": "click", "x": 10, "y": 20})
+
+        assert order == ["mark", "click"]
+        session.downloads_since.assert_awaited_once_with(DownloadMark(saved=2, refused=1))
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("action", ["type", "scroll", "hover"])
+    async def test_a_coordinate_action_that_cannot_start_a_download_is_not_watched(self, action: str) -> None:
+        session = self._interact_session(DownloadActivity(saved=(_SAVED,)))
+        session.interact_at = AsyncMock(return_value="Done")
+
+        answer = await create_interact_tool(session).ainvoke({"action": action, "x": 10, "y": 20, "text": "x"})
+
+        session.downloads_since.assert_not_awaited()
+        assert "File downloaded" not in answer
+
 
 class TestClickWait:
     """The browser announces a download a moment after the click that started it, and every click pays that moment."""
@@ -241,7 +291,7 @@ class TestClickWait:
 
         await create_interact_tool(session).ainvoke({"action": "click", "ref": "e0"})
 
-        assert stamps["asked"] - stamps["clicked"] >= interact_module._DOWNLOAD_START_GRACE_S * 0.8
+        assert stamps["asked"] - stamps["clicked"] >= download_actions_module._DOWNLOAD_START_GRACE_S * 0.8
 
     def test_the_moment_is_short_because_every_click_that_starts_no_download_pays_it(self) -> None:
-        assert 0 < interact_module._DOWNLOAD_START_GRACE_S <= 0.1
+        assert 0 < download_actions_module._DOWNLOAD_START_GRACE_S <= 0.1

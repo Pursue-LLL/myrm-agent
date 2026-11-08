@@ -6,6 +6,7 @@ wrap_with_external_sources_tag() to provide 5-layer security protection.
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.session.download import DownloadActivity
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
 from myrm_agent_harness.utils.runtime.user_control import UserControl
 
@@ -49,6 +50,9 @@ async def mock_browser_session():
 
         def take_tab_reset_notice(self) -> str | None:
             return None
+
+        def take_unannounced_downloads(self) -> DownloadActivity:
+            return DownloadActivity()
 
         def active_tab_crashed(self) -> bool:
             return False

@@ -2,7 +2,8 @@
 
 [INPUT]
 - utils.runtime.cancellation::run_until_cancelled, OperationCancelledError (POS: request-level cancellation token; run_until_cancelled is the boundary for operations that cannot observe it)
-- session::BrowserSession (POS: browser session aggregate root; active_tab_crashed reads the browser's crash report for the active tab, recover_active_tab heals a page that stopped answering, take_tab_reset_notice tells the model about it)
+- session::BrowserSession (POS: browser session aggregate root; active_tab_crashed reads the browser's crash report for the active tab, recover_active_tab heals a page that stopped answering, take_tab_reset_notice tells the model about it, take_unannounced_downloads hands over the downloads no answer has carried yet)
+- tools.download_actions::late_downloads_notice (POS: agent-facing text of the download actions)
 
 [OUTPUT]
 - apply_cancel_boundary: wrap every tool's coroutine in place so a stopped run releases the browser
@@ -18,7 +19,8 @@ request (executor timeout, stuck-task watchdog, shutdown) cancels the tool witho
 nothing may call the session again soon, so the tab is healed there too before the cancellation
 continues. A tab whose renderer the browser reported as crashed is healed before the call runs, so
 no tool fails on (or answers from the cache of) a dead page. A healed tab is blank, so the next text
-result carries the session's reset notice.
+result carries the session's reset notice. A download a page started can settle after the action that
+started it was answered, so the next text result also carries what it came to, once.
 Mutates the tools it receives, because `with_dynamic_hints` already produced the final copies.
 """
 
@@ -31,6 +33,8 @@ from typing import TYPE_CHECKING
 from langchain_core.tools import BaseTool, StructuredTool
 
 from myrm_agent_harness.utils.runtime.cancellation import OperationCancelledError, run_until_cancelled
+
+from .download_actions import late_downloads_notice
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -71,14 +75,21 @@ def _cancel_aware(
         except asyncio.CancelledError:
             await session.recover_active_tab()
             raise
-        return _with_tab_reset_notice(result, session)
+        return _with_pending_notices(result, session)
 
     return run
 
 
-def _with_tab_reset_notice(result: object, session: BrowserSession) -> object:
-    """Prefix a text result with the pending tab-reset notice; other results leave it pending."""
+def _with_pending_notices(result: object, session: BrowserSession) -> object:
+    """Add what the model has not been told yet to a text result: the tab reset ahead of it, late downloads after it.
+
+    Other results leave the notices pending.
+    """
     if not isinstance(result, str):
         return result
-    notice = session.take_tab_reset_notice()
-    return result if notice is None else f"{notice}\n\n{result}"
+    reset = session.take_tab_reset_notice()
+    if reset is not None:
+        result = f"{reset}\n\n{result}"
+    if late_downloads := late_downloads_notice(session.take_unannounced_downloads()):
+        result = f"{result}\n\n{late_downloads}"
+    return result
