@@ -22,7 +22,7 @@ import pytest
 
 from tests.support.desktop_release import sidecar_build_module, sidecar_module, smoke_channels_module
 
-# server-architecture.yml runs `-m architecture` on every change under app/ and assets/, which is when this can break.
+# The conftest leaves test_desktop_* to desktop-contracts.yml; this mark also puts the file in the architecture gate.
 pytestmark = pytest.mark.architecture
 
 # Code that loads Python from a file path rather than by module name. Such a file is not a module: it has to be shipped

@@ -20,7 +20,7 @@ import pytest
 
 from tests.support.desktop_release import sidecar_build_module
 
-# server-architecture.yml runs `-m architecture` on every change under app/ and assets/, which is when this can break.
+# The conftest leaves test_desktop_* to desktop-contracts.yml; this mark also puts the file in the architecture gate.
 pytestmark = pytest.mark.architecture
 
 # Modules that open data through a path built from `__file__`, and the path they open (under the server root).

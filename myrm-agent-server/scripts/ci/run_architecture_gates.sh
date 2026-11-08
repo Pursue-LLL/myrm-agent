@@ -14,7 +14,8 @@ _run_pytest() {
   # One read splits fixed and user options, so the array is never empty (bash 3.2 rejects expanding
   # an empty array under `set -u`); -d '' keeps newline-separated values and makes read return 1.
   local -a pytest_args
-  read -r -d '' -a pytest_args <<<"tests/architecture/ -m architecture --tb=short ${PYTEST_ARCH_ARGS:--n ${num_workers}}" || true
+  # --strict-markers makes a misspelled or unregistered marker a collection error instead of dropping tests silently.
+  read -r -d '' -a pytest_args <<<"tests/architecture/ -m architecture --strict-markers --tb=short ${PYTEST_ARCH_ARGS:--n ${num_workers}}" || true
   local monorepo_safe="${SERVER_ROOT}/../../scripts/dev/run-pytest-safe.sh"
   if [[ -x "${monorepo_safe}" && -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     bash "${monorepo_safe}" "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"

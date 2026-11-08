@@ -38,7 +38,7 @@
 | `finalize-release` | Mac ARM + Win 完成后：`latest.json` + sha256 + verify；各道门（含 repair 工作流）要求的平台与构建 job 一致由 `test_desktop_release_gates.py` 钉住 |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
 
-三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在这些文件改动时运行。
+三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在每次 push main 与 PR 时运行。
 
 **验证运行**：非 tag 的 `workflow_dispatch` 会构建并烟测各平台包，但不创建 Release、不上传任何资产（所有上传步骤均 `if: github.ref_type == 'tag'`），版本为 `0.0.0-<run_number>`；`v*` tag push 才发布。
 
