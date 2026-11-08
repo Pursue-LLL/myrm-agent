@@ -28,12 +28,14 @@ POST-CALL (in this order):
 12. Verification evidence — tag bash commands containing test/lint/typecheck/build
 13. Loop warning — append the loop hint when a WARN was issued
 14. POST_TOOL_USE hook — a failing or blocking hook turns the result into a failure result
+15. Sources hoisting — the citation sources of a ``{content, metadata}`` result move out of the text the model reads
 
 [INPUT]
 - agent.middlewares.tooling._tool_guards (POS: Pre/post-call guard orchestration)
 - agent.middlewares.tooling._tool_execution_lifecycle (POS: Tool resolve, heartbeat, error handling)
 - agent.middlewares.tooling._skill_failure_tracking (POS: Skill failure telemetry)
 - agent.middlewares.tooling.tool_executor (POS: Tool execution engine with timeout/retry/backoff)
+- agent.middlewares.tooling.tool_sources_hoisting (POS: Citation sources of a tool result move into additional_kwargs)
 - agent.middlewares._session_context (POS: Middleware session context)
 
 [OUTPUT]
@@ -83,6 +85,7 @@ from myrm_agent_harness.agent.middlewares.tooling._tool_guards import (
     run_pre_call_guards,
 )
 from myrm_agent_harness.agent.middlewares.tooling.tool_executor import execute_with_retry
+from myrm_agent_harness.agent.middlewares.tooling.tool_sources_hoisting import hoist_tool_sources
 from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET, LoopGuard
 from myrm_agent_harness.core.context_vars import scoped_value
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
@@ -425,7 +428,7 @@ async def _tool_interceptor_middleware_inner(
             pre_result.steering_token,
             pre_result.call_record,
         )
-        return result
+        return hoist_tool_sources(result)
 
     except asyncio.CancelledError as e:
         return await handle_cancellation(e, tool_name, tool_call_id, tool_args, start_time)

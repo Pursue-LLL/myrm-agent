@@ -104,7 +104,7 @@ dispatcher  handlers      events         recovery*
 | `message_builder.py` | 消息准备与时间戳注入 |
 | `step_builder.py` | 前端步骤 UI 数据（tool name + args） |
 | `utils.py` | 上下文校验、时间戳规则、tool name 规范化 |
-| `source_tracker.py` | 来源引用转发 |
+| `source_tracker.py` | 来源引用转发：`event_handlers` 把工具结果 `ToolMessage.additional_kwargs["sources"]`（由 `tool_interceptor_middleware` 从 `{content, metadata}` 结果的 `metadata.sources` 取出）交给它，按本次运行去重编号后增量分发；要在结果文本里给来源编号的工具，用开跑时绑进 `source_indexer_var` 的 `SourceTracker.index_for` 取号，卡片沿用同一个编号 |
 
 ---
 

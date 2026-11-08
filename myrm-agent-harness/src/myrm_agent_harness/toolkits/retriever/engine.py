@@ -6,6 +6,7 @@
 - retriever.preprocessing::create_document_chunks_from_crawl_results (POS: document preprocessing, convert crawl results to document chunks)
 - retriever.hybrid_retriever::hybrid_retriever (POS: stable public facade for hybrid retrieval)
 - web_fetch::SuccessResult, FailedResult (POS: web crawl result types)
+- core.context_vars::source_indexer_var (POS: the run's source numbering, so the numbers a result prints are the indexes of its cards)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
 - pydantic::BaseModel, ConfigDict, Field (POS: configuration validation)
 
@@ -26,6 +27,7 @@ import logging
 from langchain_core.documents import Document
 from pydantic import BaseModel, ConfigDict, Field
 
+from myrm_agent_harness.core.context_vars import source_indexer_var
 from myrm_agent_harness.toolkits.retriever.embedding import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.hybrid_retriever import hybrid_retriever
 from myrm_agent_harness.toolkits.retriever.preprocessing import create_document_chunks_from_crawl_results
@@ -142,6 +144,7 @@ class RetrieverManager:
         sources_metadata, formatted_context, _ = format_documents_with_metadata(
             relevant_docs,
             questions=query_list,
+            index_for=source_indexer_var.get(),
         )
         return sources_metadata, formatted_context
 

@@ -22,12 +22,12 @@
 | `reasoning_scrubber.py` | 核心 | 模型思考推理标签（`<think>`等）状态机清洗与独立事件重定向 |
 | `repetition_scrubber.py` | 核心 | 模型退化重复循环实时检测与流式熔断保护 |
 | `run_digest.py` | 核心 | 智能体实时执行快照 DTO 与步骤信息归纳聚合器 |
-| `source_tracker.py` | 核心 | 会话级引用信息源追踪、全局去重编号与增量分发 |
+| `source_tracker.py` | 核心 | 单次运行的引用信息源追踪：带 url 的来源按 `url_dedup_key` 去重（同一页面的不同拼写算一个来源，不同锚点算不同来源），编号、增量分发。工具要在结果文本里给来源编号时，用 `StreamExecutor.execute` 开跑时绑进 `source_indexer_var` 的 `index_for` 取号（早于卡片发出），卡片的 `index` 沿用同一个编号；工具改写过 URL（`redirect_url` 存原链接）的卡片按原链接认号，两个编号落到同一最终链接时，后到的卡片保留原链接，以免被下游按 URL 合并 |
 | `step_builder.py` | 核心 | 智能体步骤执行数据格式化（面向 WebUI 的多类型工具状态渲染契约） |
 | `stream_buffer.py` | 核心 | 内存滑动窗口流式重放缓冲与 Last-Event-ID 重连恢复。一个缓冲只属于一次运行，结束后只重放、不再接收新事件；`GlobalStreamRegistry.get_or_create` 把某个 id 现有的缓冲交给重连的客户端，`start_run` 给新一次运行换一个新缓冲（审批通过后的续跑沿用被停下那一轮的 message id，若拿到它已结束的缓冲，客户端收到的是那一轮的重放而不是续跑），被换下的缓冲留给还在读它的人读完；`remove(run_id, buffer)` 带缓冲时只清掉仍登记的那一个，换下的缓冲排定的延时清理不会误结束新一次运行的流 |
 | `stream_compactor.py` | 核心 | 高频文本片段流式合并压实器（降低前端事件风暴与渲染开销） |
 | `stream_dispatcher.py` | 核心 | 流式执行引擎事件分发 Mixin（覆盖 Tool Stdout、UI 更新、任务步骤、AgentStatus 状态机透传（含 `restart`：丢弃正在流出的草稿）与 `__interrupt__` 分片分发——中断转事件见 `interrupt_events.py`；并把每个 `updates` 分片里的最后一条 AIMessage 记为 `_latest_reply`，见 `latest_reply.py`） |
-| `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截；被 Stop 打断的模型请求以 `OperationCancelledError` 早退，与循环内 Stop 同一收尾） |
+| `stream_executor.py` | 核心 | 流式执行引擎生命周期封装（Agent.astream 调度、重试恢复与异常拦截；被 Stop 打断的模型请求以 `OperationCancelledError` 早退，与循环内 Stop 同一收尾；开跑时把本次运行追踪器的 `index_for` 绑进 `source_indexer_var`，工具给来源编号时用） |
 | `stream_fatal_error.py` | 核心 | 致命错误上报 Mixin：把一次运行的异常转成带诊断的 GUI 错误事件（故障归属、恢复建议、冷却剩余时间）、以脱敏文本记入运行统计（`AgentRunStatistics.record_error`，随 SESSION_END 钩子载荷离开进程）、写入事件日志并抛出 `MyrmLLMError`；`StreamExecutor` 经多继承使用 |
 | `types.py` | 核心 | 流式事件类型定义与 core.events.types 兼容重导出 |
 | `utils.py` | 辅助 | 时间戳规则、时区管理上下文变量及工具名称规范化等通用辅助函数 |

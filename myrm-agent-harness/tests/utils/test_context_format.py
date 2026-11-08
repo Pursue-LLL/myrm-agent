@@ -1,6 +1,6 @@
 """context_format 模块完整测试覆盖
 
-测试目标：确保 context_format.py 的所有核心功能都经过验证，覆盖率 > 80%
+测试目标：确保 utils.context_format 包的所有核心功能都经过验证，覆盖率 > 80%
 """
 
 from langchain_core.documents import Document
