@@ -8,7 +8,6 @@ Skill Evolution System - Framework Layer.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Skill Evolution System - Framework Layer. | — |
-| integration.py | Core | Integration. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

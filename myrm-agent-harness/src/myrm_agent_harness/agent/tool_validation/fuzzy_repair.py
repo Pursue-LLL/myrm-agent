@@ -1,30 +1,22 @@
-"""Fuzzy tool name auto-repair and tool-call ID uniquification engine.
+"""Fuzzy tool name auto-repair.
 
-Resolves model hallucinated typos, case discrepancies, and duplicate tool-call IDs
-often emitted by open-weights models or proxy gateways without corrupting downstream
-dispatch pipelines.
-
-[OUTPUT]
-- ToolNameFuzzyRepairer: Performs exact, canonical, alias, suffix-strip and fuzzy distance name repair.
-- ToolCallIdUniquifier: Ensures all tool-call IDs in a batch are session-globally unique.
+Resolves model hallucinated typos, case discrepancies and invented name suffixes often emitted by
+open-weights models or proxy gateways, so the call reaches the registered tool instead of failing.
 
 [INPUT]
 - __future__
 - difflib
 
 [OUTPUT]
-- ToolNameFuzzyRepairer
-- ToolCallIdUniquifier
+- ToolNameFuzzyRepairer: Performs exact, canonical, alias, suffix-strip and fuzzy distance name repair.
 
 [POS]
-Fuzzy tool name auto-repair and tool-call ID uniquification engine.
+Fuzzy tool name auto-repair.
 """
 
 from __future__ import annotations
 
 import difflib
-
-from myrm_agent_harness.agent.tool_validation.validation_types import ToolCallEnvelope
 
 # Suffixes a model tends to append to a real tool name when it guesses the implementation naming
 # instead of the registered one. Ordered longest-first so "_tool_call" wins over "_call"/"_tool".
@@ -99,41 +91,3 @@ class ToolNameFuzzyRepairer:
             return best_candidate
 
         return None
-
-
-class ToolCallIdUniquifier:
-    """Ensures tool-call IDs in an inbound LLM batch are strictly unique."""
-
-    @staticmethod
-    def uniquify(
-        calls: list[ToolCallEnvelope] | tuple[ToolCallEnvelope, ...],
-        taken_ids: set[str] | None = None,
-    ) -> tuple[ToolCallEnvelope, ...]:
-        """Deduplicate tool call IDs across the current batch and already-used session IDs."""
-        known = set(taken_ids) if taken_ids else set()
-        result: list[ToolCallEnvelope] = []
-
-        for call in calls:
-            orig_id = call.id if call.id.strip() else f"call_{call.index}"
-            candidate_id = orig_id
-            counter = 1
-
-            while candidate_id in known:
-                candidate_id = f"{orig_id}_dup{counter}"
-                counter += 1
-
-            known.add(candidate_id)
-
-            if candidate_id != call.id:
-                result.append(
-                    ToolCallEnvelope(
-                        id=candidate_id,
-                        name=call.name,
-                        arguments=call.arguments,
-                        index=call.index,
-                    )
-                )
-            else:
-                result.append(call)
-
-        return tuple(result)
