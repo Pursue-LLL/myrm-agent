@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
+from myrm_agent_harness.toolkits.web_search.processing._explicit_params import (
+    resolve_site_operators,
+    resolve_time_range,
+)
 from myrm_agent_harness.toolkits.web_search.providers.search_adapters import ADAPTERS, SearchRequest
+from myrm_agent_harness.toolkits.web_search.providers.volcengine_doubao_search import VolcengineDoubaoSearch
 
 
-def _request(provider: str, limit: int = 5, **unified: object) -> SearchRequest:
-    return ADAPTERS[provider].build("q", limit, unified, "key:secret", None)
+def _request(provider: str, limit: int = 5, *, api_base: str | None = None, **unified: object) -> SearchRequest:
+    return ADAPTERS[provider].build("q", limit, unified, "key:secret", api_base)
 
 
 def _body(request: SearchRequest) -> dict[str, object]:
@@ -20,6 +27,45 @@ def test_one_domain_given_as_plain_text_is_a_one_item_filter() -> None:
     request = _request("tavily", search_domain_filter="docs.python.org")
 
     assert _body(request)["include_domains"] == ["docs.python.org"]
+
+
+class TestMappedConstraintsOnTheWire:
+    """The parameter names ``resolve_time_range`` and ``resolve_site_operators`` emit are the ones each provider reads."""
+
+    def test_tavily_gets_the_time_bucket_and_both_domain_lists(self) -> None:
+        _, site_params = resolve_site_operators("react hooks site:react.dev -site:reddit.com", "tavily")
+        request = _request("tavily", **site_params, **resolve_time_range("week", "tavily").params)
+
+        assert _body(request) == {
+            "query": "q",
+            "max_results": 5,
+            "include_domains": ["react.dev"],
+            "exclude_domains": ["reddit.com"],
+            "time_range": "week",
+        }
+
+    def test_tavily_gets_a_date_range_as_a_start_and_an_end_date(self) -> None:
+        resolution = resolve_time_range("2025-01-01..2025-06-30", "tavily", date(2026, 11, 5))
+        request = _request("tavily", **resolution.params)
+
+        assert _body(request) == {"query": "q", "max_results": 5, "start_date": "2025-01-01", "end_date": "2025-06-30"}
+
+    def test_searxng_gets_the_time_bucket_as_a_query_parameter(self) -> None:
+        request = _request("searxng", api_base="http://searx.local", **resolve_time_range("month", "searxng").params)
+
+        assert request.method == "GET"
+        assert request.params == {"q": "q", "format": "json", "time_range": "month"}
+
+    @pytest.mark.parametrize(
+        ("time_range", "wire_value"),
+        [("week", "OneWeek"), ("2025-01-01..2025-06-30", "2025-01-01..2025-06-30")],
+    )
+    def test_volcengine_body_carries_the_mapped_time_range(self, time_range: str, wire_value: str) -> None:
+        params = resolve_time_range(time_range, "volcengine_doubao", date(2026, 11, 5)).params
+
+        body = VolcengineDoubaoSearch(api_key="key")._build_body(query="q", count=5, extra=dict(params))
+
+        assert body["TimeRange"] == wire_value
 
 
 class TestParallel:
