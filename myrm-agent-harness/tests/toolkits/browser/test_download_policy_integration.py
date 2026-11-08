@@ -1,9 +1,10 @@
 """Real-Chromium proof of what the agent is told when a page starts a download, and which ones the policy lets a page keep.
 
-A click that starts a download is answered with where the file is, or why it was not kept, even when the verdict takes
-a while or the page starts the download a moment after the click; the policy decides on the address the download came from; a policy that says no keeps nothing, tells the
-agent, and still leaves the agent free to request the file itself; and the listing of downloads reports what was not
-kept. The hosts are fake (see ``test_download_url_integration``).
+A click that starts a download, in a link or in the click handler of a button, is answered with where the file is, or
+why it was not kept, even when the verdict takes a while; a download the page starts later from a timer of its own is
+not in that answer but is kept and listed. The policy decides on the address the download came from; a policy that says
+no keeps nothing, tells the agent, and still leaves the agent free to request the file itself; and the listing of
+downloads reports what was not kept. The hosts are fake (see ``test_download_url_integration``).
 Run with: `pytest -m integration tests/toolkits/browser/test_download_policy_integration.py`.
 """
 
@@ -41,8 +42,13 @@ pytestmark = [
 
 _SLOW_VERDICT_S = 1.0
 _LINK_PAGE = page('<a href="/file" download>get the report</a>')
-# An export button: the page starts the download from a timer, a moment after the click has returned.
-_DEFERRED_START_S = 0.2
+# An export button whose click handler starts the download itself.
+_EXPORT_PAGE = page(
+    "<button onclick=\"document.getElementById('f').click()\">export</button>"
+    '<a id="f" href="/file" download hidden>report</a>'
+)
+# An export button whose page starts the download from a timer, well after the click's answer has been given.
+_DEFERRED_START_S = 0.6
 _BUTTON_PAGE = page(
     f"<button onclick=\"setTimeout(() => document.getElementById('f').click(), {int(_DEFERRED_START_S * 1000)})\">"
     'export</button><a id="f" href="/file" download hidden>report</a>'
@@ -91,14 +97,26 @@ class TestClickReport:
                 assert await kept_by_browser_once_settled(browser_tmp) == []
             assert kept_files(downloads_dir) == ["a.txt"]
 
-    async def test_a_download_the_page_starts_a_moment_after_the_click_is_in_the_answer(
+    async def test_a_download_the_click_handler_starts_is_in_the_answer(self, downloads_dir: Path) -> None:
+        with serve({"/home": _EXPORT_PAGE, "/file": attachment("a.txt", b"hello")}) as site:
+            async with open_session(downloads_dir, local=False) as session:
+                answer = await _click_the_first_element(session, url_on("public.test", site, "/home"))
+
+                assert "File downloaded: a.txt (5 bytes)" in answer
+
+    async def test_a_download_the_page_starts_later_is_kept_and_listed_though_not_in_the_answer(
         self, downloads_dir: Path
     ) -> None:
         with serve({"/home": _BUTTON_PAGE, "/file": attachment("a.txt", b"hello")}) as site:
             async with open_session(downloads_dir, local=False) as session:
                 answer = await _click_the_first_element(session, url_on("public.test", site, "/home"))
+                assert "File downloaded" not in answer
 
-                assert "File downloaded: a.txt (5 bytes)" in answer
+                await until(lambda: bool(session.list_downloads()))
+                listing = str(await create_manage_tool(session).ainvoke({"action": "list_downloads"}))
+
+                assert "a.txt" in listing
+            assert kept_files(downloads_dir) == ["a.txt"]
 
     async def test_a_click_whose_download_a_policy_refuses_says_why_and_keeps_nothing(
         self, downloads_dir: Path, browser_tmp: Path

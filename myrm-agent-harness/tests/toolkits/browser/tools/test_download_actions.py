@@ -6,6 +6,7 @@ content. A click that starts downloads is answered with what they came to, after
 
 from __future__ import annotations
 
+import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -217,3 +218,30 @@ class TestClickReport:
 
         assert session.downloads_since.await_count == 2
         assert answer.count("File downloaded: a.pdf") == 2
+
+
+class TestClickWait:
+    """The browser announces a download a moment after the click that started it, and every click pays that moment."""
+
+    @pytest.mark.asyncio
+    async def test_the_question_is_asked_after_the_moment_not_at_once(self) -> None:
+        stamps: dict[str, float] = {}
+
+        def click(*_args: object, **_kwargs: object) -> str:
+            stamps["clicked"] = time.monotonic()
+            return "Clicked element e0"
+
+        async def downloads_since(_mark: DownloadMark) -> DownloadActivity:
+            stamps["asked"] = time.monotonic()
+            return DownloadActivity()
+
+        session = TestClickReport._interact_session(DownloadActivity())
+        session.interact.side_effect = click
+        session.downloads_since.side_effect = downloads_since
+
+        await create_interact_tool(session).ainvoke({"action": "click", "ref": "e0"})
+
+        assert stamps["asked"] - stamps["clicked"] >= interact_module._DOWNLOAD_START_GRACE_S * 0.8
+
+    def test_the_moment_is_short_because_every_click_that_starts_no_download_pays_it(self) -> None:
+        assert 0 < interact_module._DOWNLOAD_START_GRACE_S <= 0.1

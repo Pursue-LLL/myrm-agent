@@ -34,8 +34,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# A click starts its download a moment after it returns; the report then waits for the downloads in flight.
-_DOWNLOAD_START_GRACE_S = 0.5
+# A click that starts a download starts it at once, but the browser does not always report it before the click returns,
+# so the report waits this long before it asks which downloads are in flight. Every click pays it, so it is kept short:
+# a download a page starts later, from a timer of its own, is not in the answer; ``list_downloads`` shows it.
+_DOWNLOAD_START_GRACE_S = 0.05
 
 
 class InteractStep(BaseModel):
