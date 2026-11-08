@@ -22,6 +22,7 @@ to visible elements.
 from __future__ import annotations
 
 import asyncio
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.browser.session.humanize import (
     bezier_move,
@@ -30,11 +31,26 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
 )
 from myrm_agent_harness.toolkits.browser.wait import settle_after_action
 
+if TYPE_CHECKING:
+    from patchright.async_api import Page
+
+    from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig
+
 
 class CoordInteractMixin:
     """Coordinate-based interaction — Visual Mode actions at viewport positions."""
 
     _COORD_ACTIONS = frozenset({"click", "dblclick", "type", "press", "hover", "scroll", "drag"})
+
+    # Provided by Interactor and ScrollHumanizeMixin; declared so the mixin type-checks on its own.
+    _page: Page
+    _humanize: HumanizeConfig
+    _mouse_x: float
+    _mouse_y: float
+
+    if TYPE_CHECKING:
+
+        async def _scroll_with_report(self, x: float, y: float, delta: int, suffix: str) -> str: ...
 
     async def interact_at(
         self,

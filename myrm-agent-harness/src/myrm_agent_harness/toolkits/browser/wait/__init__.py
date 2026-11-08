@@ -126,10 +126,7 @@ def _record_to_domain_metrics(metrics: WaitMetrics, domain: str, domain_metrics_
             domain_metrics.record_networkidle_result(success=metrics.reason == "network_only")
 
         elif metrics.strategy in (WaitStrategy.HYBRID, WaitStrategy.SMART):
-            if metrics.network_idle_ms is not None:
-                domain_metrics.record_networkidle_result(success=True)
-            elif metrics.reason != "network_only":
-                domain_metrics.record_networkidle_result(success=False)
+            domain_metrics.record_networkidle_result(success=metrics.network_idle_ms is not None)
 
             if metrics.dom_stable_ms is not None:
                 domain_metrics.record_wait_strategy("dom_stable", metrics.dom_stable_ms)
