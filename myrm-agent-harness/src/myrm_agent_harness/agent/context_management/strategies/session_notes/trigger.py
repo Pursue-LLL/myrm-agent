@@ -30,7 +30,7 @@ logger = get_agent_logger(__name__)
 class SessionNotesTrigger:
     """双阈值触发策略
 
-    借鉴 Claude Code 的 shouldExtractMemory：
+    双阈值策略：
     - 初始化阈值：总 token 达到 init_token_threshold 才开始
     - 更新阈值：token 增长 ≥ update_token_threshold AND 工具调用 ≥ update_tool_call_threshold
     - 自然断点：最后一轮助手没有工具调用时，只需满足 token 阈值

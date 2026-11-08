@@ -185,7 +185,7 @@ def _parse_frontmatter_fields(content: str, skill_dir_name: str) -> SkillFrontma
             category = raw_category
 
     # primaryEnv: optional, primary env var name for apiKey mapping
-    # Supports both camelCase (OpenClaw/FastClaw compat) and snake_case
+    # Supports both camelCase (external skill formats) and snake_case
     primary_env: str | None = None
     raw_primary_env = parsed.get("primaryEnv") or parsed.get("primary_env")
     if raw_primary_env:

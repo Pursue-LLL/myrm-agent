@@ -67,7 +67,7 @@
 | `agent/meta_tools/spawn_subagent/_delegate_budget.py` | 预算准入、策略拒绝、重复委派指纹、动态 roster |
 | `agent/meta_tools/spawn_subagent/agent_manage_tool.py` | LLM `subagent_control_tool`（list/cancel/steer/wait） |
 | `agent/meta_tools/spawn_subagent/delegation_pause_gate.py` | Session 级委派暂停门闩（REST + tool 入口） |
-| `agent/dynamic_workflow/tools.py` | PTC `spawn_subagent` / `notify`（`use_workflow=True`；不进 `_TOOL_LAYERS`；下游同 `_spawn_child()`） |
+| `agent/dynamic_workflow/tools/` | PTC `spawn_subagent` / `notify`（`use_workflow=True`；不进 `_TOOL_LAYERS`；下游同 `_spawn_child()`） |
 | `configs/subagents/` | 外部 YAML 配置文件（core 核心配置 + custom 自定义配置） |
 
 ### 6 个核心抽象
