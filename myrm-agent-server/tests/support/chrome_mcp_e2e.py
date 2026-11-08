@@ -3205,7 +3205,7 @@ def attach_chat_and_wait_agent_binding(
     agent_id: str,
     timeout_sec: float = 90.0,
 ) -> dict[str, object]:
-    """Deterministic agent+preset hydrate via E2E bridge attachToChat (BUG-004 SSOT)."""
+    """Deterministic agent+preset hydrate via E2E bridge attachToChat."""
     if _parallel_chrome_e2e_active():
         timeout_sec = max(timeout_sec, 120.0)
     chat_id_json = json.dumps(chat_id)

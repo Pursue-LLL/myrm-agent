@@ -339,7 +339,7 @@ def _ui_probe_host_port(ui_base: str) -> tuple[str, int]:
 def frontend_tcp_html_probe_ok(ui_base: str, *, timeout_sec: float = 5.0) -> bool:
     """W2 #4 dual probe: fresh TCP connect + first-HTML-packet on the shared UI.
 
-    Guards against BUG-004 "probe before=ok but curl refused": a keep-alive
+    Guards against "probe before=ok but curl refused": a keep-alive
     HTTP 200 can be served by a dying Next process while a fresh TCP connect is
     refused, and a listening socket can accept without ever speaking HTML.
     Requires a NEW socket connection whose first response packets carry an HTML

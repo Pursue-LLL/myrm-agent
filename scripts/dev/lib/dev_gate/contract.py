@@ -188,7 +188,7 @@ PROVIDER_READINESS_GATE_MAX_SEC: Final[float] = 180.0
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_LEASE_SCALE_SEC: Final[float] = 40.0
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_MAX_SEC: Final[float] = 480.0
 # Physical work is bounded; logical shared sessions are deliberately unlimited.
-# R123/BUG-DG-022: mux ADMIT wait scales with active wave leases (align attach scaling).
+# Mux ADMIT wait scales with active wave leases (align attach scaling).
 MUX_ADMISSION_WAIT_LEASE_SEC: Final[int] = 45
 MUX_UPSTREAM_WAIT_SEC: Final[int] = 300
 MUX_UPSTREAM_POLL_SEC: Final[int] = 15

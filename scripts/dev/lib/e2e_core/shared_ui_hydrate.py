@@ -1,7 +1,7 @@
 """Serialize shared UI navigate/reload bursts for parallel SHPOIB Chrome E2E.
 
 R36: the flock guards **navigate/reload bursts** only — not MCP probe polling loops.
-Holding the lock during long probe loops caused 180s×retry silent blocking (BUG-022).
+Holding the lock during long probe loops caused 180s×retry silent blocking.
 """
 
 from __future__ import annotations
