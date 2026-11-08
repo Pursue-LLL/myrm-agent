@@ -110,7 +110,6 @@
 | `context-strip/` | 目录 | 输入区上方统一内联上下文胶囊流与超载治理（ComposerContextChipStrip） | 见 [context-strip/_ARCH.md](context-strip/_ARCH.md) |
 | `composer/` | 目录 | 聊天输入区的组成单元：文本区、发送控制、手机「+」与操作表、拖放、按键分流、面板开合联动 | 见 [composer/_ARCH.md](composer/_ARCH.md) |
 | `composer-options/` | 目录 | 桌面输入框的主行（5 个控件）与「+」展开的选项区（思考 / 模式 / 能力三组），以及开合记忆与「已启用」摘要 | 见 [composer-options/_ARCH.md](composer-options/_ARCH.md) |
-| `group-chat/` | 目录 | Bot Mode 多智能体群聊驾驶舱：群聊房间成员常驻顶栏、输入框 @ 联想浮窗、多 Agent 顺序接力讨论流、PASS 静默折叠气泡与 needs-you 人权介入呼吸提示栏 | 见 [group-chat/_ARCH.md](group-chat/_ARCH.md) |
 
 ## agent-config-panel/
 
@@ -205,8 +204,6 @@
 
 | 目录                 | 内容                                                                                                 | 文档                                   |
 | -------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `presentation-tool/` | 组件 `InteractiveSuggestionChips`、`StructuredPresentationCard`；状态仓库 `usePresentationToolStore` | [_ARCH.md](presentation-tool/_ARCH.md) |
-| `token-economics/`   | 组件 `ProviderBalanceModal`、`SessionTokenCapsule`；状态仓库 `useTokenEconomicsStore`                | [_ARCH.md](token-economics/_ARCH.md)   |
 
 ## 依赖
 

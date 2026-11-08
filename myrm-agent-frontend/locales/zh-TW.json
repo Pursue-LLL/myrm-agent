@@ -6393,35 +6393,6 @@
     }
   },
   "artifacts": {
-    "factCheck": {
-      "title": "多源事實核查與衝突仲裁表",
-      "summaryTitle": "質檢總覽與衝突仲裁",
-      "totalItems": "核查總項",
-      "criticalConflicts": "嚴重衝突",
-      "warnings": "差異演進",
-      "infoDifferences": "描述差異",
-      "unresolvedItems": "待確認爭議",
-      "searchPlaceholder": "搜尋事實主題、採納口徑或文件...",
-      "filterAll": "全部嚴重度",
-      "filterCritical": "僅看嚴重衝突",
-      "filterWarning": "僅看差異演進",
-      "filterInfo": "僅看描述差異",
-      "adoptedStandard": "採納標準口徑",
-      "rationale": "裁定依據",
-      "confidence": "置信度",
-      "multiSourceMatrix": "多源素材對照矩陣",
-      "sourceDoc": "來源文件",
-      "claimedValue": "主張數據",
-      "anchorTimestamp": "錨點 / 時效",
-      "contextSnippet": "上下文摘錄",
-      "affectedDeliverables": "已同步修正的交付物",
-      "statusResolved": "已採納最新權威口徑",
-      "statusUnresolved": "待人工最終確認",
-      "statusConditional": "條件分支生效",
-      "noItemsFound": "未檢索到符合的事實核查項",
-      "loading": "正在載入事實核查表...",
-      "close": "關閉"
-    },
     "title": "工件",
     "empty": "暫無工件資產",
     "emptyDesc": "智慧體在對話中產生的報告、圖表、程式碼將自動歸檔在此",
@@ -14567,75 +14538,6 @@
     },
     "tabToAdopt": "按 Tab 鍵一鍵填入建議提示詞"
   },
-  "factCheck": {
-    "bannerTitle": "誠實守衛與待核驗提示",
-    "bannerWarning": "本篇草案包含 {count} 處待實測佔位資料，釋出前建議替換為真實跑測結果",
-    "bannerSuccess": "所有佔位資料已全部核驗並替換為真實資料，具備工業級嚴謹度",
-    "viewCheckSheet": "檢視核驗清單",
-    "finalizeDraft": "一鍵定稿",
-    "drawerTitle": "事實核查與佔位管理",
-    "drawerSubtitle": "不編造資料，把即興演練的虛構骨架與已核實事實嚴密管起來",
-    "tabPlaceholders": "待替換佔位",
-    "tabVerified": "已核實硬事實",
-    "placeholderTag": "待實測",
-    "verifiedTag": "已核實",
-    "contextLabel": "上下文摘錄",
-    "inputRealValuePlaceholder": "輸入真實跑測資料...",
-    "applyBtn": "替換",
-    "applied": "已替換",
-    "replaceAllBtn": "一鍵全部替換並定稿",
-    "sourceLabel": "信源",
-    "verifiedAtLabel": "核實時間",
-    "emptyPending": "太棒了！當前沒有任何未核驗的虛構佔位資料",
-    "emptyVerified": "暫無附加的網路檢索核實記錄",
-    "close": "關閉"
-  },
-  "groupChat": {
-    "title": "Bot Mode 多 Agent 協同群聊工作區",
-    "botModeSummary": "支援智慧體機器人模式與點對點訊息",
-    "roomsTitle": "協同工作頻道",
-    "createRoom": "建立新房間",
-    "roomNamePlaceholder": "房間名稱 (如: 架構戰情室)",
-    "roomTopicPlaceholder": "討論目標或協同主題...",
-    "participantsTitle": "房間成員與角色",
-    "operatorLabel": "工作區導演 (Human)",
-    "botLabel": "專職 Bot",
-    "composerPlaceholder": "輸入協作指令，按 @ 呼叫特定 Agent...",
-    "sendBtn": "傳送",
-    "peerTitle": "Agent 規範私聊歸檔 (Canonical Inbox)",
-    "noMessages": "暫無群聊訊息，請在輸入框鍵入並 @ 智慧體發起協作",
-    "noArchives": "暫無對等點對點通訊記錄",
-    "messagesCount": "條訊息",
-    "latencyLabel": "往返延遲",
-    "avatarLocked": "確定性頭像已鎖定",
-    "presence": {
-      "idle": "空閒待命",
-      "reasoning": "正在推理與協同...",
-      "pass": "本輪靜默旁聽",
-      "viewSkills": "檢視技能與設定",
-      "skillsTitle": "已掛載技能與工具",
-      "membersOnline": "位專家線上"
-    },
-    "mention": {
-      "mentionTitle": "指派呼叫智慧體",
-      "filterPlaceholder": "輸入角色或名稱篩選 (如 @sec, @arch)...",
-      "noMatch": "未找到匹配的智慧體",
-      "primaryTarget": "主攻專家"
-    },
-    "deliberation": {
-      "passBadge": "評估無本輪動作，PASS 靜默旁聽",
-      "expandPass": "展開判定依據",
-      "collapsePass": "摺疊",
-      "roleSpeaker": "發言代表"
-    },
-    "needsYou": {
-      "needsYouTitle": "需人類介入協同決斷 (NEEDS-YOU)",
-      "resolveNotice": "多方討論進入關鍵分水嶺，請為協同小隊指明方向",
-      "suggestedChips": "推薦裁決方案：",
-      "customResponse": "或輸入您的專屬決斷指令...",
-      "submitDecision": "確認裁決並恢復執行"
-    }
-  },
   "machines": {
     "title": "自託管機群 (My Machines)",
     "subtitle": "接入並監控自託管物理機與私有算力節點，支援遠端人機同屏即時接管",
@@ -14713,38 +14615,6 @@
       "sessions": "會話",
       "expand": "展開更多"
     }
-  },
-  "runtimeConsole": {
-    "title": "執行時控制台與多端狀態投影中樞",
-    "liveStateSummary": "即時呈現執行狀態與事件",
-    "surfaces": {
-      "chat": "Chat 對話檢視",
-      "runtimeConsole": "Runtime Console 控制台",
-      "deliverables": "Deliverables 工件看板",
-      "audit": "Audit 審計流水"
-    },
-    "attemptInspector": {
-      "title": "Attempt 狀態機變遷與吞吐水位線",
-      "attemptNumber": "第 {number} 次嘗試",
-      "duration": "耗時",
-      "throughput": "生成速率",
-      "tokens": "Tokens 消耗",
-      "status": "狀態",
-      "faultReason": "故障診斷原因",
-      "diffSummary": "虛擬 Diff 變更",
-      "noAttempts": "暫無 Attempt 執行記錄"
-    },
-    "deliverablesSection": {
-      "title": "產出工件與事實矩陣",
-      "noDeliverables": "當前 Run 尚未產生固化產物"
-    },
-    "auditSection": {
-      "title": "合規安全與許可權決策流水",
-      "noAudit": "暫無高危動作與審計記錄"
-    },
-    "tokensTotal": "累計消耗 Tokens",
-    "avgThroughput": "平均生成速率",
-    "closeDrawer": "關閉控制台"
   },
   "skillAlignment": {
     "title": "前置需求結構化對齊",

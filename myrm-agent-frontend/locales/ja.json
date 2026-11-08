@@ -6393,35 +6393,6 @@
     }
   },
   "artifacts": {
-    "factCheck": {
-      "title": "マルチソース事実確認・不一致仲裁シート",
-      "summaryTitle": "品質監査サマリーと仲裁結果",
-      "totalItems": "総確認項目",
-      "criticalConflicts": "重大な不一致",
-      "warnings": "仕様の差異",
-      "infoDifferences": "表現の差異",
-      "unresolvedItems": "要確認の論点",
-      "searchPlaceholder": "事実トピック、採用値、文書を検索...",
-      "filterAll": "すべての重要度",
-      "filterCritical": "重大な不一致のみ",
-      "filterWarning": "仕様差異のみ",
-      "filterInfo": "表現差異のみ",
-      "adoptedStandard": "採用された標準値",
-      "rationale": "仲裁の根拠",
-      "confidence": "信頼度",
-      "multiSourceMatrix": "マルチソース対照マトリクス",
-      "sourceDoc": "ソース文書",
-      "claimedValue": "主張された値",
-      "anchorTimestamp": "アンカー / タイムスタンプ",
-      "contextSnippet": "コンテキスト抜粋",
-      "affectedDeliverables": "影響を受ける成果物",
-      "statusResolved": "最新の権威値で解決済み",
-      "statusUnresolved": "手動確認待ち",
-      "statusConditional": "条件付き有効",
-      "noItemsFound": "一致する事実確認項目が見つかりません",
-      "loading": "事実確認シートを読み込み中...",
-      "close": "閉じる"
-    },
     "title": "工件",
     "empty": "まだアーティファクトがありません",
     "emptyDesc": "対話中に対話エージェントが生成したレポート、チャート、コードがここにアーカイブされます",
@@ -14567,75 +14538,6 @@
     },
     "tabToAdopt": "Tab キーで提案されたプロンプトを採用"
   },
-  "factCheck": {
-    "bannerTitle": "誠実性監査＆事実検証",
-    "bannerWarning": "この下書きには未検証のプレースホルダーデータが {count} 件あります。公開前に実際のベンチマークに置き換えてください",
-    "bannerSuccess": "すべてのプレースホルダーデータが検証され、実データに置き換えられました",
-    "viewCheckSheet": "チェックシートを表示",
-    "finalizeDraft": "下書きを確定",
-    "drawerTitle": "ファクトチェック＆プレースホルダー台帳",
-    "drawerSubtitle": "管理されない捏造はゼロ。プレースホルダーの骨組みと検証済みの事実を厳密に管理します",
-    "tabPlaceholders": "未検証のプレースホルダー",
-    "tabVerified": "検証済みの確定事実",
-    "placeholderTag": "要検証",
-    "verifiedTag": "検証済み",
-    "contextLabel": "文脈の抜粋",
-    "inputRealValuePlaceholder": "実際のベンチマーク値を入力...",
-    "applyBtn": "適用",
-    "applied": "適用済み",
-    "replaceAllBtn": "すべて置換して確定",
-    "sourceLabel": "ソース",
-    "verifiedAtLabel": "検証日時",
-    "emptyPending": "未検証のプレースホルダーはすべて解消されました",
-    "emptyVerified": "ウェブ検索による検証記録は添付されていません",
-    "close": "閉じる"
-  },
-  "groupChat": {
-    "title": "ボットモードのマルチエージェントグループチャットワークスペース",
-    "botModeSummary": "ボットモードとピアツーピアのメッセージに対応",
-    "roomsTitle": "コラボレーションチャンネル",
-    "createRoom": "新しいルームを作成",
-    "roomNamePlaceholder": "ルーム名（例: アーキテクチャ対策会議）",
-    "roomTopicPlaceholder": "コラボレーションの目標またはルームのトピック...",
-    "participantsTitle": "ルームの参加者＆役割",
-    "operatorLabel": "ワークスペースディレクター（人間）",
-    "botLabel": "専門ボット",
-    "composerPlaceholder": "指示を入力、@ で特定のエージェントにメンション...",
-    "sendBtn": "送信",
-    "peerTitle": "正規のピア対話アーカイブ",
-    "noMessages": "まだメッセージがありません。入力欄に入力し、@ でエージェントにメンションして共同作業を始めましょう。",
-    "noArchives": "ピアツーピアの対話が見つかりません",
-    "messagesCount": "件のメッセージ",
-    "latencyLabel": "往復レイテンシ",
-    "avatarLocked": "固定アバターをロック済み",
-    "presence": {
-      "idle": "待機中・準備完了",
-      "reasoning": "推論・検討中...",
-      "pass": "PASS（静観）",
-      "viewSkills": "スキルとペルソナを表示",
-      "skillsTitle": "搭載中のスキルとツール",
-      "membersOnline": "人の専門家がオンライン"
-    },
-    "mention": {
-      "mentionTitle": "エージェントをメンションして割り当て",
-      "filterPlaceholder": "役割または名前で絞り込み（例: @sec、@arch）...",
-      "noMatch": "一致するエージェントが見つかりません",
-      "primaryTarget": "主な対象"
-    },
-    "deliberation": {
-      "passBadge": "評価済み: 今回は対応不要のため PASS（傍聴中）",
-      "expandPass": "推論を展開",
-      "collapsePass": "折りたたむ",
-      "roleSpeaker": "主担当"
-    },
-    "needsYou": {
-      "needsYouTitle": "人の判断が必要です (NEEDS-YOU)",
-      "resolveNotice": "検討が重要な分岐点に達しました。チームの方向性を指示してください。",
-      "suggestedChips": "提案される方向性:",
-      "customResponse": "または独自の判断指示を入力...",
-      "submitDecision": "決定を確認して再開"
-    }
-  },
   "machines": {
     "title": "マイマシン（フリートダッシュボード）",
     "subtitle": "セルフホストのマシンやプライベート計算ノードを接続・監視し、画面をリアルタイムで引き継げます",
@@ -14713,38 +14615,6 @@
       "sessions": "セッション",
       "expand": "その他"
     }
-  },
-  "runtimeConsole": {
-    "title": "ランタイムコンソール＆マルチサーフェス投影ハブ",
-    "liveStateSummary": "実行状態とイベントをリアルタイムで表示",
-    "surfaces": {
-      "chat": "チャットビュー",
-      "runtimeConsole": "ランタイムコンソール",
-      "deliverables": "成果物ボード",
-      "audit": "監査台帳"
-    },
-    "attemptInspector": {
-      "title": "試行の遷移＆スループットの最高値",
-      "attemptNumber": "試行 #{number}",
-      "duration": "所要時間",
-      "throughput": "スループット",
-      "tokens": "使用トークン数",
-      "status": "ステータス",
-      "faultReason": "診断された障害の原因",
-      "diffSummary": "仮想 Diff の概要",
-      "noAttempts": "記録された試行はありません"
-    },
-    "deliverablesSection": {
-      "title": "成果物＆アーティファクトマトリクス",
-      "noDeliverables": "この実行ではまだ成果物が生成されていません"
-    },
-    "auditSection": {
-      "title": "コンプライアンス＆権限台帳",
-      "noAudit": "記録されたセキュリティ操作はありません"
-    },
-    "tokensTotal": "累計トークン数",
-    "avgThroughput": "平均生成速度",
-    "closeDrawer": "コンソールを閉じる"
   },
   "skillAlignment": {
     "title": "実行前の好みの擦り合わせ",
