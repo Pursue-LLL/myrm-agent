@@ -24,8 +24,6 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 import myrm_agent_harness.toolkits.memory.setup as memory_setup
 from myrm_agent_harness.agent._internals.memory_extraction import auto_extract_memories
-from myrm_agent_harness.toolkits.memory.conversation_search.memory_provider import MemoryConversationSearchProvider
-from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchRequest
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.types import ConversationMemory, MemoryType
@@ -154,18 +152,17 @@ async def test_opt_in_capture_is_searchable(stack: _Stack) -> None:
 
 
 async def test_opt_in_capture_is_recalled_with_the_verbatim_exchange(stack: _Stack) -> None:
-    """The recall provider must hand back the stored words, not just the summary."""
+    """Searching with ``include_raw`` must hand back the stored words, not just the user message."""
     await stack.run_turns(len(_TURNS), enable_verbatim=True)
 
-    response = await MemoryConversationSearchProvider(stack.manager).search(
-        ConversationSearchRequest(query=_TURNS[2], current_conversation_id="other-chat")
-    )
+    hits = await stack.manager.search(_TURNS[2], memory_types=[MemoryType.CONVERSATION], limit=3, include_raw=True)
 
-    assert response.hits
-    top = response.hits[0]
-    assert top.summary == _TURNS[2]
-    assert _TURNS[2] in top.snippet
-    assert _REPLY in top.snippet
+    assert hits
+    top = hits[0].memory
+    assert isinstance(top, ConversationMemory)
+    assert top.content == _TURNS[2]
+    assert _TURNS[2] in top.raw_exchange
+    assert _REPLY in top.raw_exchange
 
 
 async def test_turn_without_user_text_stores_no_verbatim_exchange(stack: _Stack) -> None:

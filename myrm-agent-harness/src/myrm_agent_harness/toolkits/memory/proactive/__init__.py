@@ -12,7 +12,6 @@ from myrm_agent_harness.toolkits.memory.proactive.extraction import (
     extract_commitments,
     validate_candidates,
 )
-from myrm_agent_harness.toolkits.memory.proactive.protocols import CommitmentStore
 from myrm_agent_harness.toolkits.memory.proactive.types import (
     CommitmentCandidate,
     CommitmentDueWindow,
@@ -33,7 +32,6 @@ __all__ = [
     "CommitmentRecord",
     "CommitmentSensitivity",
     "CommitmentStatus",
-    "CommitmentStore",
     "ExtractionBatchResult",
     "build_extraction_prompt",
     "extract_commitments",

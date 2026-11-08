@@ -49,14 +49,14 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `memory_<star
 | _manager/  | Composable ``MemoryManager`` implementation modules.                               |
 | _internal/ | Internal implementation details — not part of the public API.                     |
 | cognitive/  | Cognitive memory consolidation layer.                                             |
-| conversation_search/ | Protocol-backed conversation recall (served via `memory_search_tool(corpus=sessions)`), source refs, scope/lineage DTOs, **expand_message_id window**, format `message_id`, MemoryManager provider. |
+| conversation_search/ | Protocol-backed conversation recall (served via `memory_search_tool(corpus=sessions)`), source refs, scope/lineage DTOs, **expand_message_id window**, format `message_id`. |
 | graph/      | Graph Store — async graph storage with SQLite CTE backend.                        |
 | integration/ | Integration Memory — pulls data from third-party services into local memory for cross-source semantic retrieval. |
 | protocols/  | Storage-agnostic protocols for the memory system.                                 |
 | relational/ | Relational Store — abstract interface and SQLite implementation.                  |
 | strategies/ | Optional memory strategies: forgetting, extraction, deduplication, consolidation, preference stability, recurrence-triggered consolidation, and staleness review. |
-| proactive/ | Proactive follow-up track — LLM implicit commitment extraction, `CommitmentStore` protocol, heartbeat delivery. See [COMMITMENT_SYSTEM.md](proactive/COMMITMENT_SYSTEM.md). |
-| file_sync/ | Local-First Markdown File-as-Memory sync subsystem (LenientMarkdownParser, FileMemoryStore, MemoryAnchorFormatter, FileMemorySyncEngine). |
+| proactive/ | Proactive follow-up track — LLM implicit commitment extraction and commitment record types; the host persists the records and delivers them on heartbeat. See [COMMITMENT_SYSTEM.md](proactive/COMMITMENT_SYSTEM.md). |
+| file_sync/ | Local-First Markdown File-as-Memory sync subsystem (LenientMarkdownParser, FileMemoryStore, FileMemorySyncEngine). |
 | profile_notes/ | Dual-Layer Profile & Working Notes Memory Budget & Garbage Purge Guard: deterministic intake noise filtering (task progress, ephemeral numbers, error traces), dual-layer routing (USER <= 1375c, MEMORY <= 2200c), and multi-tier capacity watermark governance. |
 | onboarding/ | Onboarding insight sampling and first-encounter reporting for users migrating from other agent tools (sliding-window sampling, local redaction, fact distillation). See [onboarding/_ARCH.md](onboarding/_ARCH.md). |
 | tool_guidance/ | Deterministic, cache-stable synthesis of procedural tool memory (traps) into bounded, zero-LLM tool guidance. See [tool_guidance/_ARCH.md](tool_guidance/_ARCH.md). |

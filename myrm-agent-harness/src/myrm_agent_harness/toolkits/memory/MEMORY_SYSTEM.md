@@ -123,7 +123,6 @@ myrm_agent_harness/
 │   │   ├── relational.py              # RelationalStoreProtocol
 │   │   ├── graph.py                    # GraphStoreProtocol
 │   │   ├── embedding.py               # EmbeddingProtocol
-│   │   ├── hooks.py                   # MemoryLifecycleHookProtocol
 │   │   └── cache.py                    # EmbeddingCacheProtocol
 │   ├── graph/                          # 图存储（开箱即用）
 │   │   ├── base.py                    # GraphStore ABC + 数据模型
@@ -192,8 +191,6 @@ myrm_agent_harness/
 > **Digest Recall 隐藏规则**：`task_digest` 属于 L2 编译原料，不属于用户侧普通 recall 对象。搜索编排会在普通 recall 阶段主动隐藏 `event_type='task_digest'` 的 episodic 结果，避免“原始 digest + 编译后 claim”同时进入模型上下文，浪费 token 并打乱知识层次。
 >
 > **Model-Ready Summary 编译层**：Claim 编译阶段会同步生成稳定的 `model_summary`，并持久化在图节点上。Recall 时优先直接消费该摘要，而不是每次临时拼接 `claim_text/last_result/evidence_count`，从而让跨渠道复用和后续 prompt 注入具备稳定输入。
->
-> **Lifecycle Hook Protocol**：`protocols/hooks.py` 定义 `MemoryLifecycleHookProtocol`，提供 `on_turn_start`、`on_pre_compress`、`on_memory_write`、`on_delegation`、`on_session_end` 五个可选扩展边界。该协议只暴露 framework DTO / plain string，不承载 SharedContext、team、tenant 等产品语义。
 
 ---
 
@@ -249,7 +246,7 @@ vectors_config = {
    - 直接写入会话索引，绕过待审批队列（`_bypass_approval=True`），仍经过内容安全扫描
    - 100% lossless preservation；用户消息无文本的回合不构成 exchange，不存储
    - 失败隔离：该轨道抛错只上报 `write` 阶段 ERROR 事件，不影响 Compressed Track
-   - 召回：`MemoryConversationSearchProvider` 以 `include_raw=True` 检索，命中的 `snippet` 为 verbatim exchange（`recent` 模式走 `list_memories`，只返回摘要）
+   - 召回：`MemoryManager.search(..., memory_types=[MemoryType.CONVERSATION], include_raw=True)` 命中记忆的 `raw_exchange` 为 verbatim exchange（缺省 `include_raw=False` 只返回 `content`）
    - 默认关闭的原因：每轮 2 次 embedding 并新增 1 个向量点，而压缩轨道已保留值得记忆的内容
    - 实现：`agent/_internals/memory_verbatim.py::capture_current_exchange`
 
@@ -871,7 +868,7 @@ tools = create_memory_tools(manager=manager)
 
 **Memory MCP HTTP**（`agent_surface/mcp_server/`）：对外暴露 `memory_recall` / `memory_list` / `memory_store` / `memory_manage` 四工具；**`memory_manage` 与 `memory_store` 描述** import `agent_surface/_memory_agent_tool_descriptions` SSOT（`surface=mcp` 工具名映射；store 默认不含 wiki boundary 文案——MCP 面无 wiki 工具、运行时 wiki 拦截由 server 按 agent 经 ContextVar 控制，静态描述不声称 wiki enabled，显式启用场景下 MCP 面也不泄漏 GUI 内部工具名 `wiki_ingest_tool`）；wiki 启用时 `memory_store` 运行时硬拒 document-like 内容（与 GUI `memory_save_tool` 一致，server middleware 传 ContextVar，拒绝消息同样不引用 GUI 内部工具）。recall/list 仍为 MCP 专用 inline 描述。
 
-`conversation_search/` 模块提供 Protocol、formatter 与 `MemoryConversationSearchProvider`；会话检索只经 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL 暴露（GeneralAgent 与 Custom 子 Agent 一致），框架不提供独立的 `conversation_search_tool`。
+`conversation_search/` 模块提供会话检索 DTO 与 formatter（`ConversationSearchProtocol` 在 `protocols/conversation_search.py`，由 Server 实现）；会话检索只经 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL 暴露（GeneralAgent 与 Custom 子 Agent 一致），框架不提供独立的 `conversation_search_tool`。
 
 ### 8.3 审批机制
 
@@ -1054,7 +1051,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 | 维度 | MemoryManager | Proactive (`memory/proactive/`) |
 |------|---------------|----------------------------------|
-| 存储 | Vector + Relational + Graph | SQLite `CommitmentStore`（host 实现） |
+| 存储 | Vector + Relational + Graph | 承诺记录由 host 持久化（Server 为 SQLite） |
 | 触发 | Agent 工具 / 策略 / 中间件 | 会话结束 LLM 抽取 + Cron heartbeat 投递 |
 | 开关 | `enable_memory` | 同样受 `enable_memory` 门控 |
 | 投递 ack | — | 非 `[SILENT]` → SENT；失败 ack → 自动 snooze 6h |
@@ -1183,11 +1180,11 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **按天笔记追加（`append_daily_note`）**：提供格式规范的日常事件日志原子追加。
 - **双向增量同步引擎（`FileMemorySyncEngine`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.sync`；
-  - **会话前惰性检查（`check_and_sync_on_ingress`）**：在用户会话进入前自动检测外部人工对 `MEMORY.md` 的编辑，识别新增或修改段落，并向底层 `MemoryManager` 增量写入带物理文件锚点元数据的条目；
+  - **会话前惰性检查（`check_and_sync_on_ingress`）**：在用户会话进入前自动检测外部人工对 `MEMORY.md` 的编辑，识别新增或修改段落，并向底层 `MemoryManager` 增量写入条目（带 `file:` 来源与 `cat:` 类别标签）；
   - **会话中事件原子沉淀（`persist_episodic_note`）**：Agent 在执行复杂多步骤任务后，将所得情景经验原子追加至磁盘 `memory/daily/`，并同步索引至底层向量库。
-- **溯源锚点格式化器（`MemoryAnchorFormatter`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.anchor`；
-  - 生成 `[source: MEMORY.md#L15-L18]` 形式的标准物理溯源标签，使大模型推理时的记忆引用完全具备透明审计与原文对齐能力。
+- **溯源锚点（`FileMemoryEntry.to_anchor()`）**：
+  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
+  - 生成 `[source: MEMORY.md#L15-L18]` 形式的标准物理溯源标签（单行条目折叠为 `#L15`）；管理器没有 `add_knowledge` 时，同步引擎经 `store` 入库并把该标签写入元数据的 `anchor` 字段。
 - **开箱即用装配工厂（`setup_local_file_memory_sync`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.setup`；
   - 一键完成目录拓扑初始化、文件存储层与双向同步引擎绑定，无缝支持 Local、Desktop 与 Sandbox 独立持久化卷环境。
