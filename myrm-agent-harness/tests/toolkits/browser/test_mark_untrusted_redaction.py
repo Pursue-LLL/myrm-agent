@@ -55,7 +55,7 @@ class TestMarkUntrustedRedaction:
 async def test_manage_console_log_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.get_console_log.return_value = "Console: loaded config with key ghp_abcdefghijklmnop"
-    tool = create_manage_tool(session)  # type: ignore[arg-type]
+    tool = create_manage_tool(session)
 
     output = await tool.ainvoke({"action": "console_log", "value": ""})
 
@@ -68,7 +68,7 @@ async def test_manage_console_log_redacted_and_wrapped() -> None:
 async def test_manage_network_log_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.get_network_log.return_value = "GET /api Authorization: Bearer sk-ant-api03-longtoken12345678"
-    tool = create_manage_tool(session)  # type: ignore[arg-type]
+    tool = create_manage_tool(session)
 
     output = await tool.ainvoke({"action": "network_log", "value": ""})
 
@@ -81,7 +81,7 @@ async def test_manage_network_log_redacted_and_wrapped() -> None:
 async def test_manage_evaluate_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.evaluate = AsyncMock(return_value="returned sk-proj-abcdefghijklmnop1234567890")
-    tool = create_manage_tool(session)  # type: ignore[arg-type]
+    tool = create_manage_tool(session)
 
     output = await tool.ainvoke({"action": "evaluate", "value": "document.title"})
 
@@ -94,7 +94,7 @@ async def test_manage_evaluate_redacted_and_wrapped() -> None:
 async def test_inspect_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.inspect = AsyncMock(return_value="Title: Example\nURL: https://x.com?token=ghp_abcdefghijklmnop")
-    tool = create_inspect_tool(session)  # type: ignore[arg-type]
+    tool = create_inspect_tool(session)
 
     output = await tool.ainvoke({})
 
@@ -111,7 +111,7 @@ async def test_navigate_redacted_and_wrapped() -> None:
     active_page.url = "https://x.com/login"
     active_page.title = AsyncMock(return_value="Login")
     session.get_active_page = MagicMock(return_value=active_page)
-    tool = create_navigate_tool(session)  # type: ignore[arg-type]
+    tool = create_navigate_tool(session)
 
     output = await tool.ainvoke({"url": "https://x.com/login"})
 
@@ -126,7 +126,7 @@ async def test_interact_redacted_and_wrapped() -> None:
     session = MagicMock()
     session.download_enabled = False
     session.interact = AsyncMock(return_value="Clicked element with key sk-proj-abcdefghijklmnop1234567890")
-    tool = create_interact_tool(session)  # type: ignore[arg-type]
+    tool = create_interact_tool(session)
 
     output = await tool.ainvoke({"action": "click", "ref": "e0"})
 

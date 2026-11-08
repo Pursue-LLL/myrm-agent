@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.toolkits.browser.session.download import DownloadError
 from myrm_agent_harness.toolkits.browser.tools.manage import create_manage_tool
@@ -31,38 +32,38 @@ def _make_session() -> MagicMock:
 
 
 @pytest.fixture
-def manage_tool():
+def manage_tool() -> BaseTool:
     return create_manage_tool(_make_session())
 
 
 class TestNetworkActions:
     @pytest.mark.asyncio
-    async def test_network_detail_success(self, manage_tool) -> None:
+    async def test_network_detail_success(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_detail", "value": "5"})
         assert "detail result" in result
 
     @pytest.mark.asyncio
-    async def test_network_detail_empty_value(self, manage_tool) -> None:
+    async def test_network_detail_empty_value(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_detail", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_network_detail_invalid_value(self, manage_tool) -> None:
+    async def test_network_detail_invalid_value(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_detail", "value": "abc"})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_network_replay_success(self, manage_tool) -> None:
+    async def test_network_replay_success(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_replay", "value": "3"})
         assert "replayed" in result
 
     @pytest.mark.asyncio
-    async def test_network_replay_empty_value(self, manage_tool) -> None:
+    async def test_network_replay_empty_value(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_replay", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_network_replay_invalid_value(self, manage_tool) -> None:
+    async def test_network_replay_invalid_value(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "network_replay", "value": "xyz"})
         assert "Error" in result
 
@@ -88,64 +89,64 @@ class TestDialogActions:
 
 class TestSessionVaultActions:
     @pytest.mark.asyncio
-    async def test_save_session_success(self, manage_tool) -> None:
+    async def test_save_session_success(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "save_session", "value": "github.com"})
         assert "saved" in result
 
     @pytest.mark.asyncio
-    async def test_save_session_empty(self, manage_tool) -> None:
+    async def test_save_session_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "save_session", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_restore_session_success(self, manage_tool) -> None:
+    async def test_restore_session_success(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "restore_session", "value": "github.com"})
         assert "restored" in result
 
     @pytest.mark.asyncio
-    async def test_restore_session_empty(self, manage_tool) -> None:
+    async def test_restore_session_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "restore_session", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_list_sessions(self, manage_tool) -> None:
+    async def test_list_sessions(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "list_sessions"})
         assert "sessions list" in result
 
     @pytest.mark.asyncio
-    async def test_delete_session_success(self, manage_tool) -> None:
+    async def test_delete_session_success(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "delete_session", "value": "github.com"})
         assert "deleted" in result
 
     @pytest.mark.asyncio
-    async def test_delete_session_empty(self, manage_tool) -> None:
+    async def test_delete_session_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "delete_session", "value": ""})
         assert "Error" in result
 
 
 class TestRecordingActions:
     @pytest.mark.asyncio
-    async def test_trace_start(self, manage_tool) -> None:
+    async def test_trace_start(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "trace_start"})
         assert "trace started" in result
 
     @pytest.mark.asyncio
-    async def test_trace_stop(self, manage_tool) -> None:
+    async def test_trace_stop(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "trace_stop"})
         assert "trace stopped" in result
 
     @pytest.mark.asyncio
-    async def test_har_start(self, manage_tool) -> None:
+    async def test_har_start(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "har_start"})
         assert "har started" in result
 
     @pytest.mark.asyncio
-    async def test_har_stop(self, manage_tool) -> None:
+    async def test_har_stop(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "har_stop"})
         assert "har stopped" in result
 
     @pytest.mark.asyncio
-    async def test_recording_status(self, manage_tool) -> None:
+    async def test_recording_status(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "recording_status"})
         assert "idle" in result
 
@@ -185,12 +186,12 @@ class TestDownloadActions:
         assert "Download failed: no download started within 60 s" in result
 
     @pytest.mark.asyncio
-    async def test_download_url_empty(self, manage_tool) -> None:
+    async def test_download_url_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "download_url", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_list_downloads_empty(self, manage_tool) -> None:
+    async def test_list_downloads_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "list_downloads"})
         assert "No files" in result
 
@@ -218,22 +219,22 @@ _DOMAIN_METRICS = "myrm_agent_harness.toolkits.web_fetch.router.get_global_domai
 
 class TestSiteExperienceActions:
     @pytest.mark.asyncio
-    async def test_save_site_experience_empty(self, manage_tool) -> None:
+    async def test_save_site_experience_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "save_site_experience", "value": ""})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_save_site_experience_invalid_json(self, manage_tool) -> None:
+    async def test_save_site_experience_invalid_json(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "save_site_experience", "value": "not json"})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_save_site_experience_missing_domain(self, manage_tool) -> None:
+    async def test_save_site_experience_missing_domain(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "save_site_experience", "value": '{"known_traps":[]}'})
         assert "Error" in result
 
     @pytest.mark.asyncio
-    async def test_save_site_experience_success(self, manage_tool) -> None:
+    async def test_save_site_experience_success(self, manage_tool: BaseTool) -> None:
         mock_store = MagicMock()
         mock_exp = MagicMock()
         mock_exp.format_full = MagicMock(return_value="saved experience")
@@ -249,7 +250,7 @@ class TestSiteExperienceActions:
             assert "saved experience" in result
 
     @pytest.mark.asyncio
-    async def test_list_site_experience_empty(self, manage_tool) -> None:
+    async def test_list_site_experience_empty(self, manage_tool: BaseTool) -> None:
         mock_store = MagicMock()
         mock_store.list_domains = MagicMock(return_value=[])
 
@@ -258,7 +259,7 @@ class TestSiteExperienceActions:
             assert "No site experience" in result
 
     @pytest.mark.asyncio
-    async def test_list_site_experience_with_domains(self, manage_tool) -> None:
+    async def test_list_site_experience_with_domains(self, manage_tool: BaseTool) -> None:
         mock_store = MagicMock()
         mock_store.list_domains = MagicMock(return_value=["example.com"])
         mock_exp = MagicMock()
@@ -273,7 +274,7 @@ class TestSiteExperienceActions:
             assert "example.com" in result
 
     @pytest.mark.asyncio
-    async def test_delete_site_experience_success(self, manage_tool) -> None:
+    async def test_delete_site_experience_success(self, manage_tool: BaseTool) -> None:
         mock_store = MagicMock()
         mock_store.delete = MagicMock(return_value=True)
 
@@ -282,7 +283,7 @@ class TestSiteExperienceActions:
             assert "Deleted" in result
 
     @pytest.mark.asyncio
-    async def test_delete_site_experience_not_found(self, manage_tool) -> None:
+    async def test_delete_site_experience_not_found(self, manage_tool: BaseTool) -> None:
         mock_store = MagicMock()
         mock_store.delete = MagicMock(return_value=False)
 
@@ -291,14 +292,14 @@ class TestSiteExperienceActions:
             assert "No site experience" in result
 
     @pytest.mark.asyncio
-    async def test_delete_site_experience_empty(self, manage_tool) -> None:
+    async def test_delete_site_experience_empty(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "delete_site_experience", "value": ""})
         assert "Error" in result
 
 
 class TestUnknownAction:
     @pytest.mark.asyncio
-    async def test_unknown_action(self, manage_tool) -> None:
+    async def test_unknown_action(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "nonexistent_action"})
         assert "Unknown action" in result
 
@@ -319,7 +320,7 @@ class TestRunSiteTool:
         assert "boom" in result
 
     @pytest.mark.asyncio
-    async def test_list_site_tools_includes_x_com(self, manage_tool) -> None:
+    async def test_list_site_tools_includes_x_com(self, manage_tool: BaseTool) -> None:
         result = await manage_tool.ainvoke({"action": "list_site_tools"})
         assert "x-com" in result
         assert "get_timeline_posts" in result

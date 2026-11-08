@@ -46,7 +46,7 @@ async def test_batch_interact_halts_on_hard_navigation(mock_session: MagicMock) 
     mock_page = mock_session.get_active_page()
 
     # Step 1 executes on /form, then page.url changes to /success
-    async def simulate_step_1_nav(*args, **kwargs):
+    async def simulate_step_1_nav(*args: object, **kwargs: object) -> str:
         mock_page.url = "https://example.com/success"
         return "Clicked submit"
 
@@ -75,21 +75,10 @@ async def test_batch_interact_halts_on_hard_navigation(mock_session: MagicMock) 
 @pytest.mark.asyncio
 async def test_batch_interact_allows_spa_query_change(mock_session: MagicMock) -> None:
     mock_page = mock_session.get_active_page()
-
-    # Step 1 updates query param (SPA soft routing)
-    async def simulate_spa_filter(*args, **kwargs):
-        mock_page.url = "https://example.com/form?tab=active"
-        return "Clicked tab"
-
-    mock_session.interact.side_effect = [
-        "Clicked tab",
-        "Filled filter",
-    ]
-
-    # Simulating url mutation after step 1
     call_count = 0
 
-    async def side_effect_mock(*args, **kwargs):
+    # Step 1 changes only the query string (SPA soft routing): the guard halts a batch on a path change, not on this.
+    async def interact(*args: object, **kwargs: object) -> str:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -97,7 +86,7 @@ async def test_batch_interact_allows_spa_query_change(mock_session: MagicMock) -
             return "Clicked tab"
         return "Filled input"
 
-    mock_session.interact.side_effect = side_effect_mock
+    mock_session.interact.side_effect = interact
 
     with patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_vault:
         mock_vault.return_value.list_labels.return_value = []

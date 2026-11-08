@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.pool import ContextType
 from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
 from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
 from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
@@ -298,7 +299,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         pool = MagicMock()
-        session = BrowserSession(pool, "AGENT")
+        session = BrowserSession(pool, ContextType.AGENT)
         assert session.list_downloads() == []
 
     def test_list_downloads_with_manager(self, tmp_downloads: Path) -> None:
@@ -306,7 +307,7 @@ class TestBrowserSessionDownloadIntegration:
 
         pool = MagicMock()
         cfg = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
-        session = BrowserSession(pool, "AGENT", download_config=cfg)
+        session = BrowserSession(pool, ContextType.AGENT, download_config=cfg)
         assert session.list_downloads() == []
         assert session._download_manager is not None
 
@@ -317,7 +318,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         config = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent) if configured else None
-        session = BrowserSession(MagicMock(), "AGENT", download_config=config)
+        session = BrowserSession(MagicMock(), ContextType.AGENT, download_config=config)
 
         context_kwargs = session._tab_controller._context_kwargs
         assert context_kwargs is not None
@@ -328,7 +329,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         pool = MagicMock()
-        session = BrowserSession(pool, "AGENT")
+        session = BrowserSession(pool, ContextType.AGENT)
         with pytest.raises(RuntimeError, match="Download support not enabled"):
             await session.download_url("https://x.com/f.pdf")
 
@@ -339,7 +340,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         config = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
-        session = BrowserSession(MagicMock(), "AGENT", download_config=config)
+        session = BrowserSession(MagicMock(), ContextType.AGENT, download_config=config)
         navigator = MagicMock()
         navigator.assert_landed_allowed = AsyncMock()
         session._navigator = navigator
@@ -354,7 +355,7 @@ class TestBrowserSessionDownloadIntegration:
 
         pool = MagicMock()
         cfg = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
-        session = BrowserSession(pool, "AGENT", download_config=cfg)
+        session = BrowserSession(pool, ContextType.AGENT, download_config=cfg)
         stats = session.stats
         assert "downloads" in stats
         assert stats["downloads"] == 0

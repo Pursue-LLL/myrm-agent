@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import (
     BrowserNavigationBlockedError,
     assert_browser_navigation_allowed,
@@ -25,13 +26,13 @@ from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import (
 from myrm_agent_harness.toolkits.browser.session.download import manager as download_manager
 from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
 from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
-from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
+from myrm_agent_harness.toolkits.browser.session.download.manager import AddressVerifier, DownloadManager
 from myrm_agent_harness.toolkits.browser.session.network import RAW_PREVIEW_WINDOW
-from myrm_agent_harness.toolkits.browser.session.network import logger as network_logger
 from tests.support.fake_secrets import github_token
 from tests.toolkits.browser._download_doubles import download_of
 
 _MANAGER_LOGGER = "myrm_agent_harness.toolkits.browser.session.download.manager"
+_MASKING = "myrm_agent_harness.toolkits.browser.session.network.logger.redact_sensitive_text"
 _SIGNATURE = "SIGNATURE-VALUE"
 _FRAGMENT = "frag-9f3"
 _LONG_PASSWORD = "S3CRET" + "x" * 90  # longer than the logged URL, so the cut falls inside it
@@ -53,7 +54,7 @@ def _no_navigation_to_stop() -> Iterator[None]:
         yield
 
 
-def _manager(tmp_path: Path, verify: AsyncMock | None = None, *, timeout_s: float = 5.0) -> DownloadManager:
+def _manager(tmp_path: Path, verify: AddressVerifier | None = None, *, timeout_s: float = 5.0) -> DownloadManager:
     config = DownloadConfig(downloads_dir=tmp_path / "downloads", confined_to=tmp_path, download_timeout_s=timeout_s)
     return DownloadManager(config, verify_final_url=verify or AsyncMock())
 
@@ -192,9 +193,7 @@ class TestRefusalOfAHostileUrl:
     async def test_redaction_never_sees_more_than_its_window_of_a_huge_url(self, tmp_path: Path) -> None:
         manager = _manager(tmp_path, assert_browser_navigation_allowed)
 
-        with patch.object(
-            network_logger, "redact_sensitive_text", wraps=network_logger.redact_sensitive_text
-        ) as redact:
+        with patch(_MASKING, wraps=redact_sensitive_text) as redact:
             manager._on_download(download_of(MagicMock(), "filesystem:" + "A" * 200_000))
             await asyncio.gather(*list(manager._pending_tasks), return_exceptions=True)
 
