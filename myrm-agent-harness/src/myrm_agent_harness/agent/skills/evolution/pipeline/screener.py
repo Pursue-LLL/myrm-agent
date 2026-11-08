@@ -126,8 +126,8 @@ class EvolutionScreener:
     Phase 2: LLM confirmation (cheap model).
 
     Benefits:
-    - Block 70-80% blind fixes (estimated based on OpenSpace data)
-    - Reduce evolution cost by 60-70% (1 cheap LLM call << 1 expensive evolution)
+    - Block blind fixes before the expensive evolution runs
+    - Reduce evolution cost (1 cheap LLM call << 1 expensive evolution)
     - Prevent "snowball effect" (fix correct code → new errors → infinite loop)
     """
 

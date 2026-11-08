@@ -9,7 +9,7 @@
  * - SaveSkillApprovalPreview: save_skill / skill_manage save 审批预览面
  *
  * [POS]
- * 对齐 OpenWorker SaveSkillPreview：description、instructions 折叠预览、bundle 文件 chip、footer。
+ * 展示 description、instructions 折叠预览、bundle 文件 chip、footer。
  */
 
 import { useMemo, useState } from 'react';

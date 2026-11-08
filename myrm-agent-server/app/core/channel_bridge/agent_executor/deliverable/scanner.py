@@ -1,4 +1,4 @@
-"""Hermes-style deliverable path scanner for channel IM outbound.
+"""Deliverable path scanner for channel IM outbound.
 
 Scans assistant reply text (outside fenced/inline code) for workspace-relative
 file paths with supported extensions, resolves them within the chat workspace
@@ -18,7 +18,7 @@ containment check, so nothing outside the workspace can be attached.
 - extract_deliverable_path_tokens / resolve_deliverable_path / resolve_chat_workspace_root
 
 [POS]
-Channel deliverable attachment mode (Hermes parity). Complements artifact event
+Channel deliverable attachment mode. Complements artifact event
 collection in deliverable.deep_links.collect_channel_artifacts.
 """
 

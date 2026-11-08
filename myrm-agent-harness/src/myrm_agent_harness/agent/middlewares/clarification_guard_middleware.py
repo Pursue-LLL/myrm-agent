@@ -13,7 +13,7 @@ When the model emits ``ask_question_tool`` in a turn:
 - ASK_QUESTION_TOOL_NAME: canonical tool name constant
 
 [POS]
-Pre-execution guard aligned with Hermes ``NEVER_PARALLEL`` clarify semantics.
+Pre-execution guard that keeps a clarification call from running in parallel with other tools.
 Runs before ToolApprovalMiddleware, which skips a call that already has an answer, so blocked tools never reach
 approval/HITL.
 """

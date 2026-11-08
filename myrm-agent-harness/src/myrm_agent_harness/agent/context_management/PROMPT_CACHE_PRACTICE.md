@@ -41,7 +41,7 @@
 
 ## 1. 整体策略
 
-框架采用**双层优化**架构，与 Manus 的设计理念一致：
+框架采用**双层优化**架构：
 
 ```
 缓存层（成本优化）                     质量层（上下文管理）
@@ -170,8 +170,6 @@ messages[idx] = HumanMessage(content=f"{msg.content}\n\n{prompt}")
 - **说明文案与数据分离**：`datetime_rules` 在 System Prompt 中声明一次（被缓存），每条消息只携带 ~12 tokens 的时间戳数据，相比每条重复完整说明节省 ~28 tokens/条
 - **核心行为规则**：`AGENT_CORE_RULES`（`streaming/agent_core_rules.py`）追加在 `DATETIME_SYSTEM_RULES` 之后。输出固定文本（反叙述 + 工具诚实 + 搜索与上下文复用），所有模型字节相同、与模型名无关，session 内不变，完全缓存安全。模型特有的失败模式不靠分厂商的提示词文本，由代码兜底（工具调用解析器、流恢复、CompletionGuard）
 - **环境感知注入**：`detect_platform().environment_prompt_line`（`toolkits/code_execution/platform.py`）追加在 `resolve_channel_output_hint` 之后。输出一个 `<environment>` XML 标签，包含 OS 类型/版本/架构、Shell 类型/工具链差异、Python 工具链状态（pip/PEP-668/uv）。由 `detect_platform()` 的 `@lru_cache(maxsize=1)` 保证进程生命周期内不变，Python 探测由 `env_probe.get_environment_probe_line()` 的 `threading.Lock` 保证一次性探测。正常环境省略 Python 部分（零额外 token），异常环境增加 <50 tokens。完全缓存安全
-
-这与 Claude Code 的官方策略一致：动态信息通过 `<system-reminder>` 标签放在 user message 中。
 
 **已知边缘情况 — Timezone 切换**：历史消息的时间戳使用**当前请求时的用户时区**渲染（`user_timezone_var.get()`）。如果用户在对话中途切换时区（如 `Asia/Shanghai` → `America/New_York`），同一条历史消息的 UTC offset 会变化（`UTC+8` → `UTC-5`），导致该消息之后的前缀缓存一次性失效。
 
@@ -684,7 +682,7 @@ if compress_idx is not None and compress_idx not in breakpoints:
 
 清理历史消息中的 `reasoning_content` / `thinking_blocks`，减少无效 token 占用。按模型和消息类型智能处理：
 - Anthropic：保留 `thinking_blocks`，清理 `reasoning_content`
-- DeepSeek/MiMo/Kimi 等 thinking 模型：选择性清理 `reasoning_content`——API 仅要求 tool_calls 消息保留 reasoning_content，纯文本回复的历史 reasoning_content 安全删除（与 Reasonix、OpenClaw 策略一致）
+- DeepSeek/MiMo/Kimi 等 thinking 模型：选择性清理 `reasoning_content`——API 仅要求 tool_calls 消息保留 reasoning_content，纯文本回复的历史 reasoning_content 安全删除
 - 其他模型：清理 `thinking_blocks`，保留 `reasoning_content`
 
 间接提升缓存效率——更少的 token 意味着更晚触发压缩，更少的缓存破坏。典型 DeepSeek 会话可节省数万 tokens。

@@ -34,7 +34,7 @@
 | 文件                                          | 地位 | 职责                                                                        |
 | --------------------------------------------- | ---- | --------------------------------------------------------------------------- |
 | `SpriteEngine.ts`                             | 核心 | Canvas 2D 精灵图渲染引擎（Codex 标准 8×9 atlas，rAF 驱动，缺帧降级）        |
-| `PetStateMachine.ts`                          | 核心 | Hermes 7 态状态机（transient/sticky/release + setBlockedOnUser）            |
+| `PetStateMachine.ts`                          | 核心 | 7 态状态机（transient/sticky/release + setBlockedOnUser）            |
 | `deriveBlockedOnUser.ts`                      | 核心 | 聚合 HITL store → blocked-on-user SSOT                                      |
 | `petStateMapping.ts`                          | 核心 | Codex/Legacy 行序 → resolvePetSheetRow()                                    |
 | `SpriteRenderer.tsx`                          | 核心 | SpriteEngine 的 React 封装（Canvas 生命周期、加载态降级占位、行数检测回调） |

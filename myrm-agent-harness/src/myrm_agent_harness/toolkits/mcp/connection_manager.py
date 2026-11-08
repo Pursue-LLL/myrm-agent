@@ -7,7 +7,7 @@ Architecture:
 - Per-``config_hash`` singleflight creation locks so distinct MCP servers spawn
   in parallel without head-of-line blocking, bounded by a process-wide spawn
   semaphore
-- OpenClaw-style exponential startup backoff circuit breaker (``MCPStartupBackoff``)
+- Exponential startup backoff circuit breaker (``MCPStartupBackoff``)
 - Transparent cross-TTL proxy tool rebinding via ``actor_resolver``
 
 [INPUT]

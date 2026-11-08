@@ -7,7 +7,7 @@
 - Pytest test cases verifying intake filter precision and capacity watermark thresholds
 
 [POS]
-Harness toolkit memory tests enforcing Hermes-grade noise rejection and strict budget limits.
+Harness toolkit memory tests enforcing noise rejection and strict budget limits.
 """
 
 from __future__ import annotations

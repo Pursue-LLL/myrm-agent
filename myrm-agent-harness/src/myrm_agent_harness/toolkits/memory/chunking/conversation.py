@@ -256,7 +256,7 @@ def chunk_conversation(
         List of conversation chunks
 
     Strategies:
-        EXCHANGE_PAIR: User turn + subsequent AI response = 1 chunk (MemPalace)
+        EXCHANGE_PAIR: User turn + subsequent AI response = 1 chunk
         USER_ONLY: Each user turn = 1 chunk
         SESSION: Entire session = 1 chunk
         EPISODES: Adaptive episodes chunking preserving causal overlap
@@ -278,7 +278,7 @@ def chunk_conversation(
 
 
 def _chunk_by_exchange_pair(messages: list[dict[str, object]]) -> list[ConversationChunk]:
-    """One user turn + subsequent AI response = one chunk (MemPalace strategy).
+    """One user turn + subsequent AI response = one chunk.
 
     Preserves semantic completeness of Q+A pairs.
     """
@@ -386,10 +386,7 @@ def _chunk_by_episodes(messages: list[dict[str, object]]) -> list[ConversationCh
             elif r == "assistant":
                 ai_parts.append(c)
 
-        raw = "\n".join(
-            f"[{str(m.get('role') or 'user').upper()}]: {m.get('content', '')}"
-            for m in ep.messages
-        )
+        raw = "\n".join(f"[{str(m.get('role') or 'user').upper()}]: {m.get('content', '')}" for m in ep.messages)
         chunks.append(
             ConversationChunk(
                 raw_text=raw,

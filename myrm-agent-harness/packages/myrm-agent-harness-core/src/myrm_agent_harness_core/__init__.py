@@ -1,7 +1,7 @@
 """Platform-specific compiled core extensions for myrm-agent-harness.
 
-This package is installed alongside ``myrm-agent-harness`` (mirrors Claude Code's
-per-platform native binary packages).  It places Nuitka-compiled ``.so`` artifacts
+This package is installed alongside ``myrm-agent-harness`` as a per-platform
+native binary package.  It places Nuitka-compiled ``.so`` artifacts
 into the ``myrm_agent_harness`` namespace so imports resolve transparently.
 """
 

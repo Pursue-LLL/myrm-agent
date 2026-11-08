@@ -7,11 +7,11 @@
 
 [OUTPUT]
 - estimate_idle_compact_request_tokens: request-level tokens for idle gate floor
-- resolve_idle_compact_token_floor: Hermes post-compaction target floor
+- resolve_idle_compact_token_floor: post-compaction target floor
 - resolve_min_messages_to_compact: manual /compact min message guard
 
 [POS]
-Idle gate token accounting; separates Hermes idle predicate from manual compact guards.
+Idle gate token accounting; separates the idle predicate from manual compact guards.
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ async def estimate_idle_compact_request_overhead(agent_id: str | None) -> int:
 def resolve_idle_compact_token_floor(
     max_context_tokens: int | None = None,
 ) -> int:
-    """Post-compaction target floor (Hermes threshold × summary_target_ratio semantics)."""
+    """Post-compaction target floor (compress threshold × IDLE_SUMMARY_TARGET_RATIO)."""
     from myrm_agent_harness.agent.context_management.infra.schemas import (
         DEFAULT_CONTEXT_CONFIG,
         ContextConfig,

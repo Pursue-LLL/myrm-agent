@@ -20,7 +20,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `memory_<star
 | types/                  | Core     | 记忆类型体系子包：`enums.py`（分类/层级/状态/冲突处置）、`base.py`（BaseMemory / Scope / Lifecycle / 证据与变更 DTO）、`records.py`（八类具体记忆模型）、`search.py`（检索结果与待审候选）；门面保持原导入面。详见 [types/_ARCH.md](types/_ARCH.md) | ✅    |
 | config.py                | Core     | Memory configuration — functional switches and retrieval params only.                                         | ✅    |
 | threshold_strategy.py    | Core     | Adaptive similarity-threshold strategies: the protocol and the library-size based default used by `RetrievalConfig`. | ✅    |
-| _assistant_retrieval.py  | Internal | Two-Pass Assistant Retrieval for assistant-reference queries (MemPalace enhancement).                         | ✅    |
+| _assistant_retrieval.py  | Internal | Two-Pass Assistant Retrieval for assistant-reference queries.                         | ✅    |
 | adaptive.py              | Core     | Adaptive dual-channel selection logic. Analyzes query characteristics (token count,                           | ✅    |
 | backup.py                | Core     | Provides BackupMetadata, BackupResult, RestoreResult.                                                         | ✅    |
 | compression.py           | Core     | Transparent payload compression and external BLOB storage for ConversationMemory raw_exchange fields.         | ✅    |
@@ -33,7 +33,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `memory_<star
 | query_analyzer.py        | Core     | Bilingual (EN/CN) query pattern recognition for temporal markers, person names, quoted phrases, preference queries, and assistant reference detection. Integrated into main retrieval path via search_service. | ✅    |
 | query_sanitizer.py       | Core     | Agent Memory query preprocessing layer.                                                                       | ✅    |
 | reliability.py           | Core     | Framework-safe memory reliability DTOs for probe results, repair plans, repair execution results, archive restore plans/results, import dry-run mappings, import plans (import source labels are business-owned and shape-validated, never vendor-enumerated), typed recall warning codes (MemoryGatherWarningCode), and recall benchmark summaries with IR metrics (ndcg, mrr, precision, latency percentiles). | ✅    |
-| result_booster.py        | Core     | Result boosting for memory retrieval (MemPalace enhancement).                                                 | ✅    |
+| result_booster.py        | Core     | Result boosting for memory retrieval.                                                 | ✅    |
 | security.py              | Core     | Public facade for memory security preflight scanning used by app-layer import and archive restore review flows. | ✅    |
 | retriever.py             | Core     | RRF retriever for multi-source memory search with 3-tier deterministic tie-breaking (score descending -> hit_count descending -> id ascending) and white-box RecallDebugTrace (HitSource). rank(): geometric scoring (type-prior preservation & L1-normalized dynamic multipliers) → correction-chain suppression → hard cutoff → MMR → normalization. fuse(): RRF scoring → correction-chain suppression → MMR → deterministic normalization with hit attribution. | ✅    |
 | retriever_scoring.py     | Core     | Per-candidate scoring mixed into `MemoryRetriever`: geometric signal fusion (recall counts are not a signal) plus keyword, temporal and pattern boosts. | ✅    |

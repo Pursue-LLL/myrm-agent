@@ -1,4 +1,4 @@
-"""Single-use ticket manager implementing DSH Data Agent §9 three-token chain.
+"""Single-use ticket manager implementing the three-token chain.
 
 [INPUT]
 - .types::SingleUseTicket, TicketStatus, TokenType

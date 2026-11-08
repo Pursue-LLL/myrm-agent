@@ -1,4 +1,4 @@
-"""Unit tests for Two-Pass Assistant Retrieval (MemPalace enhancement)."""
+"""Unit tests for Two-Pass Assistant Retrieval."""
 
 from __future__ import annotations
 

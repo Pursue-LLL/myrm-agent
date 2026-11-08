@@ -8,7 +8,7 @@
 - Public exports for MemoryIntakeGarbageFilter and CapacityWatermarkGovernor
 
 [POS]
-Harness toolkit memory subpackage providing Hermes-grade dual-layer memory
+Harness toolkit memory subpackage providing dual-layer memory
 organization (USER <= 1375c, MEMORY <= 2200c) with deterministic garbage filtering.
 """
 

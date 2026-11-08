@@ -1,4 +1,4 @@
-"""Tests for OpenViking-style progressive L0/L1/L2 retrieval and drill-down."""
+"""Tests for progressive L0/L1/L2 retrieval and drill-down."""
 
 from __future__ import annotations
 
@@ -19,9 +19,7 @@ from myrm_agent_harness.toolkits.memory.types import (
 
 
 @pytest.mark.asyncio
-async def test_memory_search_progressive_l1_overview(
-    mock_vector_store, mock_embedding, memory_config
-) -> None:
+async def test_memory_search_progressive_l1_overview(mock_vector_store, mock_embedding, memory_config) -> None:
     manager = MemoryManager(
         memory_config,
         user_id="test_user",
@@ -45,9 +43,7 @@ async def test_memory_search_progressive_l1_overview(
     )
 
     with patch.object(MemoryManager, "search", search_mock):
-        tool = next(
-            t for t in create_memory_tools(manager) if t.name == "memory_search_tool"
-        )
+        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_search_tool")
         result = await tool.ainvoke({"query": "implementation"})
 
     assert "[L1] Short factual overview" in result
@@ -56,9 +52,7 @@ async def test_memory_search_progressive_l1_overview(
 
 
 @pytest.mark.asyncio
-async def test_memory_search_drill_down_by_id(
-    mock_vector_store, mock_embedding, memory_config
-) -> None:
+async def test_memory_search_drill_down_by_id(mock_vector_store, mock_embedding, memory_config) -> None:
     manager = MemoryManager(
         memory_config,
         user_id="test_user",
@@ -73,9 +67,7 @@ async def test_memory_search_drill_down_by_id(
     )
 
     with patch.object(MemoryManager, "get_memory", AsyncMock(return_value=mem)):
-        tool = next(
-            t for t in create_memory_tools(manager) if t.name == "memory_search_tool"
-        )
+        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_search_tool")
         result = await tool.ainvoke({"memory_id": "mem-prog-2", "detail_level": "full"})
 
     assert "[L2 Verbatim Full Content]" in result
@@ -83,9 +75,7 @@ async def test_memory_search_drill_down_by_id(
 
 
 @pytest.mark.asyncio
-async def test_memory_search_domain_filtering(
-    mock_vector_store, mock_embedding, memory_config
-) -> None:
+async def test_memory_search_domain_filtering(mock_vector_store, mock_embedding, memory_config) -> None:
     from myrm_agent_harness.toolkits.memory.domain_types import MemoryDomain
 
     manager = MemoryManager(
@@ -124,9 +114,7 @@ async def test_memory_search_domain_filtering(
     )
 
     with patch.object(MemoryManager, "search", search_mock):
-        tool = next(
-            t for t in create_memory_tools(manager) if t.name == "memory_search_tool"
-        )
+        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_search_tool")
         # Search specifically for task domain
         task_result = await tool.ainvoke({"query": "check", "domain": "task"})
         # Search specifically for user domain
@@ -144,9 +132,7 @@ async def test_memory_search_domain_filtering(
 
 
 @pytest.mark.asyncio
-async def test_memory_search_heuristic_domain_fallback(
-    mock_vector_store, mock_embedding, memory_config
-) -> None:
+async def test_memory_search_heuristic_domain_fallback(mock_vector_store, mock_embedding, memory_config) -> None:
     """When a legacy memory lacks an explicit domain field, heuristic classification falls back seamlessly."""
     manager = MemoryManager(
         memory_config,
@@ -178,9 +164,7 @@ async def test_memory_search_heuristic_domain_fallback(
     )
 
     with patch.object(MemoryManager, "search", search_mock):
-        tool = next(
-            t for t in create_memory_tools(manager) if t.name == "memory_search_tool"
-        )
+        tool = next(t for t in create_memory_tools(manager) if t.name == "memory_search_tool")
         # 1. Searching for task domain matches via heuristic inference
         matched_result = await tool.ainvoke({"query": "testing", "domain": "task"})
         assert "Runbook for bun testing" in matched_result
@@ -188,5 +172,3 @@ async def test_memory_search_heuristic_domain_fallback(
         # 2. Searching for user domain prunes it correctly
         pruned_result = await tool.ainvoke({"query": "testing", "domain": "user"})
         assert "No relevant memories found." in pruned_result
-
-

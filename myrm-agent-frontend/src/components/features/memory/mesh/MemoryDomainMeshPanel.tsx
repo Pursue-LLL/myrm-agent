@@ -14,7 +14,7 @@
  * and Hot-Cold Mirror Memory Mesh.
  *
  * [POS]
- * Primary UI component for Item 14 OpenViking-style three-domain progressive retrieval.
+ * Primary UI component for three-domain progressive retrieval.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';

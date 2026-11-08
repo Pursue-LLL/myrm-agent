@@ -1,7 +1,7 @@
 """Data types for skill evolution system.
 
 Simplified but complete implementation for skill self-evolution capability.
-Focus on real-world utility with 54% less code than OpenSpace while maintaining full functionality.
+Focus on real-world utility while maintaining full functionality.
 
 [INPUT]
 - (none)

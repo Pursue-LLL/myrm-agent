@@ -2,9 +2,8 @@
 # [INPUT]: Raw candidate memory records, scoring signals, and budget configurations.
 # [OUTPUT]: Strongly-typed Pydantic domain models for greedy marginal-value recall packing.
 
-"""Domain models for Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
+"""Domain models for Budget Greedy Marginal Value Recall Packing Suite.
 
-Benchmarked against FrankHu-HK/mnemosyne knapsack algorithm:
 Defines candidate records, dual-track token budget constraints,
 marginal utility metrics, and packing outcome reports.
 

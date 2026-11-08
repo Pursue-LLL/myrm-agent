@@ -536,8 +536,8 @@ class TestDualChannelFusion:
 class TestTypeWeightsDemoteNoise:
     """Verify retrieval type weights inherently demote chat noise.
 
-    CONVERSATION (0.95) ranks below SEMANTIC (1.0), mirroring gbrain's
-    detail-gate intent without a separate archival pipeline.
+    CONVERSATION (0.95) ranks below SEMANTIC (1.0), demoting chat noise
+    without a separate archival pipeline.
     """
 
     def test_type_weights_can_demote_conversation_noise(self) -> None:

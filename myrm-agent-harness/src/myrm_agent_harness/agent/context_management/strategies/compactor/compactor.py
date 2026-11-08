@@ -137,8 +137,8 @@ async def compress_messages_async(
 ) -> tuple[list[BaseMessage], int]:
     """压缩消息列表中的旧工具调用
 
-    四级压缩策略(增强版,参考Hermes):
-    L0 Deduplicate: 去重重复内容(参考Hermes)
+    四级压缩策略(增强版):
+    L0 Deduplicate: 去重重复内容
     L1 Dedup: 跳过已压缩内容
     L2 Truncate: 超大输出截断保留头尾 + 摘要
     L3 Remove: 替换为紧凑格式(工具标识符 + 元信息)

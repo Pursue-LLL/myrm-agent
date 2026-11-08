@@ -13,7 +13,7 @@
   evaluating intake noise, and enforcing capacity watermark thresholds.
 
 [POS]
-Server-side business service implementing Hermes-grade dual-layer memory
+Server-side business service implementing dual-layer memory
 budgeting, ephemeral noise filtration, and sandbox-isolated state persistence.
 """
 

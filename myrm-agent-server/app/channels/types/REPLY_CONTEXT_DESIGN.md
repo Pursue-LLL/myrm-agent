@@ -320,13 +320,7 @@ Reply context is injected into the LLM query via `build_channel_inbound_query()`
 - Content truncated to 500 chars → prevents context window bloat
 - `sanitize()` applied → prevents prompt injection from quoted content
 
-**vs Competitor (Hermes)**:
-```python
-# Hermes approach [gateway/run.py:8044-8052]:
-reply_snippet = event.reply_to_text[:500]
-message_text = f'[Replying to: "{reply_snippet}"]\n\n{message_text}'
-# Missing: sender_name, media hint, security sanitization
-```
+**vs 常见的最小实现**：只截取前 500 字符并拼成 `[Replying to: "…"]`，没有发送者名、附件提示与注入清洗；本实现三者俱全。
 
 ---
 

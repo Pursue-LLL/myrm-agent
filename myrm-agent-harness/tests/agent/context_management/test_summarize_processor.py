@@ -70,7 +70,9 @@ class TestSummarizeProcessorCircuitBreaker:
         assert any("fallback" in m.content.lower() for m in result.messages)
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time"
+    )
     @patch(
         "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.guard.generate_structured_summary"
     )
@@ -366,7 +368,9 @@ class TestIsCircuitOpen:
         _set_failures(0)
         assert _is_circuit_open() is False
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time"
+    )
     def test_open_sets_time_on_first_call(self, mock_time) -> None:
         mock_time.return_value = 5000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES)
@@ -374,14 +378,18 @@ class TestIsCircuitOpen:
         assert _is_circuit_open() is True
         assert _sp.circuit_breaker._circuit_open_time == 5000.0
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time"
+    )
     def test_within_cooldown_stays_open(self, mock_time) -> None:
         mock_time.return_value = 5000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "transient")
         _sp.circuit_breaker._circuit_open_time = 4950.0
         assert _is_circuit_open() is True
 
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.circuit_breaker.time.time"
+    )
     def test_past_cooldown_resets(self, mock_time) -> None:
         mock_time.return_value = 10000.0
         _set_failures(MAX_CONSECUTIVE_SUMMARIZE_FAILURES, "transient")
@@ -670,7 +678,9 @@ class TestSummarizeProcessorSummarizerLLM:
     """Cover dedicated summarizer_llm invocation over primary llm."""
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_uses_summarizer_llm_when_provided(self, mock_guarded) -> None:
         primary_llm = AsyncMock()
         aux_compactor_llm = AsyncMock()
@@ -705,10 +715,12 @@ class TestProcessorName:
 
 
 class TestPreCompactionDeterministicPruneShortCircuit:
-    """Cover deterministic pre-compaction tool-result pruning short-circuit (DSH pattern)."""
+    """Cover deterministic pre-compaction tool-result pruning short-circuit."""
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_pre_compaction_prune_bypasses_llm_summarize_when_tokens_reduced_below_ceiling(
         self, mock_guarded
     ) -> None:
@@ -760,7 +772,9 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.messages[6].content == "short"
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_pre_compaction_prune_falls_through_to_llm_when_tokens_still_exceed_ceiling(
         self, mock_guarded
     ) -> None:
@@ -797,7 +811,9 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.structured_summary is summary
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_pre_compaction_prune_disabled_via_metadata(self, mock_guarded) -> None:
         """When enable_pre_compact_tool_prune=False, proceed directly to LLM summarize without pruning."""
         cfg = ContextConfig(max_context_tokens=10000)
@@ -830,7 +846,9 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.metadata.get("deterministic_prune_bypassed_summarize") is None
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_pre_compaction_prune_with_offload_archives_to_persistent_storage(self, mock_guarded) -> None:
         """When on_prune_offload is provided, pruned tool results are archived with persistent references."""
         offload_mock = AsyncMock(return_value="/vault/archive/tool_output.gz")
@@ -878,7 +896,9 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert "[Tool result archived" in str(result.messages[2].content)
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_pre_compaction_prune_keep_recent_calls_hard_boundary_min_2(self, mock_guarded) -> None:
         """Even if caller sets pre_compact_keep_recent_calls=0, hard floor ensures last 2 calls are kept."""
         cfg = ContextConfig(max_context_tokens=10000)
@@ -929,7 +949,9 @@ class TestPreCompactionDeterministicPruneShortCircuit:
         assert result.messages[6].content == large_3
 
     @pytest.mark.asyncio
-    @patch("myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize")
+    @patch(
+        "myrm_agent_harness.agent.context_management.pipeline.processors.summarize_processor.processor._guarded_summarize"
+    )
     async def test_preflight_fence_bypasses_llm_on_oversized_payload(self, mock_guarded) -> None:
         """When total payload exceeds physical safe watermark, bypass LLM to prevent ContextLengthExceeded."""
         cfg = ContextConfig(max_context_tokens=10000)

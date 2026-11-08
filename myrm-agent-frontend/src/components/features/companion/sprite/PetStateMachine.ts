@@ -1,12 +1,12 @@
 /**
- * PetStateMachine — maps agent SSE events to Codex/Hermes-aligned pet animation states.
+ * PetStateMachine — maps agent SSE events to Petdex pet animation states.
  *
  * [INPUT]
  * - None (standalone state machine, receives events via ingest() calls)
  *
  * [OUTPUT]
  * - PetStateMachine: Event-driven state machine with transient/sticky/release modes
- * - PetState: Seven-state enum aligned with Petdex/Hermes (idle/run/review/jump/wave/failed/waiting)
+ * - PetState: Seven-state enum (idle/run/review/jump/wave/failed/waiting)
  * - stepKeyToPetEvent: SSE step_key → PetEvent mapping function
  *
  * [POS]
@@ -15,7 +15,7 @@
  * Blocked-on-user (approval/clarify) is driven via setBlockedOnUser() from store SSOT in PetOverlay.
  */
 
-/** Codex/Hermes-aligned animation states (not raw spritesheet row indices). */
+/** Pet animation states (not raw spritesheet row indices). */
 export enum PetState {
   IDLE = 0,
   RUNNING = 1,

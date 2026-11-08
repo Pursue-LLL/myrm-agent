@@ -1,7 +1,7 @@
 # MyrmAgent 开源产品仓架构
 
 > **许可**: MIT · **仓库**: `myrm-agent`（server + frontend + desktop + extension + shared + 根 `scripts/`）  
-> **产品定位**: 通用 AI 工作伙伴（GUI），对标 OpenClaw / Cowork / Hermes；**非**专业编码 IDE。  
+> **产品定位**: 通用 AI 工作伙伴（GUI），同类产品如 OpenClaw / Cowork / Hermes；**非**专业编码 IDE。  
 > **Agent 交互**: 对话与配置均在 WebUI；`myrm` 仅为安装/启动引导（`setup|start|searxng`），不是 Agent CLI 产品。
 
 ---

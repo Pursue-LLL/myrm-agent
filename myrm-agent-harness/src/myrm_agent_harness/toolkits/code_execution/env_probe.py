@@ -12,8 +12,8 @@ Design principles:
 - Never crashes — failures silently return empty string.
 - A probe that times out is reported as unknown, never as absent: claiming "no pip module" for an
   interpreter whose probe merely outran its budget is a false statement the model acts on.
-- Does NOT skip container environments (unlike Hermes): our agent runs
-  inside the sandbox, so the probe is always relevant.
+- Does NOT skip container environments: the agent runs inside the sandbox,
+  so the probe is always relevant.
 
 [INPUT]
 - (none — reads host environment via subprocess)
@@ -63,6 +63,7 @@ def _note_probe_failure() -> None:
 def _probe_failures() -> int:
     with _CACHE_LOCK:
         return _probe_failures_count
+
 
 def _reset_probe_failures() -> None:
     global _probe_failures_count

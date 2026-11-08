@@ -8,7 +8,7 @@
 - **`starMapRadialMath.ts`**：径向同心圆布局计算纯函数，实现“最老居于中心，最新位于外环”的 Recency 映射、黄金角极坐标离散分布算法，以及直方图分桶统计与时间游标截断函数；
 - **`starMapCatalogData.ts`**：内置真实学习信号的技能实体与记忆数据源，提供基于实战召回口径（`used` / `learned`）、实体类型、智能体作用域与时间窗口的过滤纯函数；
 - **`useStarMapStore.ts`**：Zustand 集中式状态总线，管理节点与连线状态、时间游标拖拽与倍速自动回放、就地溯源抽屉状态与星图图片导出，派发 `myrm:star-map-image-exported` 全局事件；
-- **`RadialStarMapCanvas.tsx`**：SVG/CSS 径向同心圆学习星图画布，渲染时间同心环、实体金星/蓝钻、连线光晕、脱敏模式切换（隐藏文字）以及无手势依赖的无障碍替代列表视图（Hermes FOS-8 规范）；
+- **`RadialStarMapCanvas.tsx`**：SVG/CSS 径向同心圆学习星图画布，渲染时间同心环、实体金星/蓝钻、连线光晕、脱敏模式切换（隐藏文字）以及无手势依赖的无障碍替代列表视图；
 - **`StarMapPlaybackController.tsx`**：分桶双色直方图时间回放条，支持 1x/2x/5x 变速自动回放、进度滑块任意拖拽与时间截断点亮；
 - **`StarMapNodeDetailSheet.tsx`**：原生 `<dialog open>` 就地溯源抽屉，展示召回次数、创建时间、来源会话跳转链接、知识标签与关联演化星图节点。
 

@@ -32,7 +32,7 @@ describe('CommandCenterSessionsTab', () => {
       screen.getByText(/多模型分栏竞技场对比 DeepSeek-R1 与 Claude 3.7/)
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/OpenClaw Gateway 延迟压测与 N\+1 请求清零/)
+      screen.queryByText(/Gateway 延迟压测与 N\+1 请求清零/)
     ).not.toBeInTheDocument();
   });
 

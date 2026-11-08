@@ -15,8 +15,8 @@ The normalized JSON Schema dict is passed through unchanged as the
 This preserves every semantic detail (``description``, ``enum``,
 ``minimum``/``maximum``, nested ``properties``) for the LLM: LangChain's
 ``convert_to_openai_tool`` serializes a dict ``args_schema`` verbatim,
-matching how the official ``langchain-mcp-adapters`` and Hermes bridge MCP
-tools. Runtime type coercion/restructuring is owned by
+matching how the official ``langchain-mcp-adapters`` bridge MCP tools.
+Runtime type coercion/restructuring is owned by
 ``tool_processing.sanitize_tools``' dict pipeline (``flatten_json_schema`` →
 ``canonicalize_schema_for_cache`` → ``flatten_deep_schema`` → coerce → nest),
 which was already designed for dict schemas.

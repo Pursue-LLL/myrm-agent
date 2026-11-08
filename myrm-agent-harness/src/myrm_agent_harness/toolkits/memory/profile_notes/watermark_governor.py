@@ -11,7 +11,7 @@
   watermark alert levels (SAFE, WARNING, CRITICAL, OVERFLOW), and intake allowance.
 
 [POS]
-Capacity governor enforcing Hermes memory character limits (USER <= 1375, MEMORY <= 2200),
+Capacity governor enforcing the memory character limits (USER <= 1375, MEMORY <= 2200),
 preventing unbounded token expansion and maintaining high prompt-cache density.
 """
 
@@ -23,7 +23,7 @@ from myrm_agent_harness.toolkits.memory.profile_notes.types import (
     WatermarkStatus,
 )
 
-# Standard Hermes-grade character budget constants
+# Default character budget per memory layer
 DEFAULT_USER_MAX_CHARS: int = 1375
 DEFAULT_MEMORY_MAX_CHARS: int = 2200
 

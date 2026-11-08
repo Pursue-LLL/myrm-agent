@@ -1,14 +1,10 @@
 """Message priority classification for intelligent compression.
 
-吸收OpenSpace conversation_formatter的6级优先级理念，简化为4级：
+Four priority levels:
 - CRITICAL (0-1): Human messages + Final iteration content
 - HIGH (2): Tool calls + Tool errors (paired)
 - MEDIUM (3): Assistant reasoning + Tool results with summary
 - LOW (4): Tool success results
-
-References:
-- OpenSpace: conversation_formatter.py (6-level priority)
-- Onyx: compression.py (no priority, LLM-based)
 
 [INPUT]
 - (none)

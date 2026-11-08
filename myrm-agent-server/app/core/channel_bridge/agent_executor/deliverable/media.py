@@ -1,8 +1,8 @@
 """Oversized deliverable media handling for channel IM outbound.
 
 Single source of truth for the channel attachment size cap, plus a
-Hermes-style progressive image compressor so oversized images still reach
-users as attachments instead of being silently dropped.
+progressive image compressor so oversized images still reach users as
+attachments instead of being silently dropped.
 
 [INPUT]
 - None (self-contained; stdlib + Pillow only)
@@ -14,7 +14,7 @@ users as attachments instead of being silently dropped.
 - compress_oversized_image: progressive compression producing a temp file under the cap
 
 [POS]
-Channel deliverable attachment cap + oversized-image fallback (Hermes parity).
+Channel deliverable attachment cap + oversized-image fallback.
 Consumed by deliverable.deep_links.collect_channel_artifacts and
 deliverable.scanner.collect_deliverable_paths_from_text.
 """
@@ -54,7 +54,7 @@ def is_compressible_image(filename: str) -> bool:
 def compress_oversized_image(src: str | Path, *, max_bytes: int) -> Path | None:
     """Compress a raster image under ``max_bytes`` via progressive degradation.
 
-    Mirrors Hermes ``vision_tools``: JPEG/WEBP quality descends 85 → 70 → 50,
+    JPEG/WEBP quality descends 85 → 70 → 50,
     PNG only shrinks dimensions; dimensions are halved between rounds (min side
     64 px); RGBA/LA/P is flattened onto a white background for lossy output.
     Returns a new temp file path on success, or None when the image is not

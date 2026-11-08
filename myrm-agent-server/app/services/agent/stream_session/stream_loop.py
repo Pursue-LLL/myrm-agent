@@ -282,9 +282,9 @@ async def _cancelled_chunk(session: AgentStreamSession) -> str:
     )
     # Cooperative cleanup: ``npm install`` / ``webpack --watch``
     # backgrounded by the agent must not outlive the cancelled
-    # chat or they keep eating RAM/CPU/sandbox quota. Mirrors
-    # ``hermes-agent`` ``process_registry.kill_all(task_id=...)``
-    # called from its cleanup hook.
+    # chat or they keep eating RAM/CPU/sandbox quota, so the chat's
+    # background jobs are killed here through the background registry
+    # (``kill_session_jobs``).
     if session.request.chat_id:
         try:
             from myrm_agent_harness.api.hooks import (

@@ -10,7 +10,7 @@
 - format_profile_notes_prompt_section: system prompt injection assembler
 
 [POS]
-Harness toolkit memory governance component bridging Hermes memory guidelines
+Harness toolkit memory governance component bridging the memory guidelines
 (USER <= 1375c, MEMORY <= 2200c) with the execution runtime and write pipeline.
 Strict typing applied: No `Any` types allowed.
 """

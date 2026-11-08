@@ -1,7 +1,7 @@
 """ClawHub-compatible registry URL resolution and reachability probe.
 
 [INPUT]
-- Process env CLAWHUB_URL, CLAWHUB_REGISTRY, OPENCLAW_CLAWHUB_URL (OpenClaw parity)
+- Process env CLAWHUB_URL, CLAWHUB_REGISTRY, OPENCLAW_CLAWHUB_URL (the last is read for OpenClaw-setup compatibility)
 
 [OUTPUT]
 - resolve_registry_base_url: Effective registry base URL for ClawHubSource (CLAWHUB_URL SSOT)

@@ -25,8 +25,8 @@ Writes default to the pending queue (``force_pending=True``) for GUI review unle
 the caller opts out (API compat). Explicit ``memory_save_tool`` writes bypass
 pending via ``_bypass_approval=True``.
 
-**Verbatim Track (opt-in, ``enable_verbatim=True``; MemPalace verbatim storage
-strategy):** the newest user/assistant exchange is stored as a ConversationMemory
+**Verbatim Track (opt-in, ``enable_verbatim=True``):** the newest user/assistant
+exchange is stored as a ConversationMemory
 (NO LLM processing, lossless) directly in the conversation index, bypassing the
 pending queue — see ``memory_verbatim``. Off by default: every turn then costs
 two embeddings and adds one point to the vector store, while the compressed track

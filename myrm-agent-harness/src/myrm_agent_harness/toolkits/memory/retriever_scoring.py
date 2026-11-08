@@ -140,7 +140,7 @@ class RetrievalScoringMixin:
         return weighted_product * confidence
 
     def _keyword_overlap_boost(self, result: MemorySearchResult, query_tokens: frozenset[str]) -> float:
-        """Calculate keyword overlap boost (MemPalace hybrid enhancement).
+        """Calculate keyword overlap boost.
 
         Formula: boost = keyword_weight * (overlap_ratio)
         where overlap_ratio = |query_tokens & content_tokens| / |query_tokens|
@@ -163,7 +163,7 @@ class RetrievalScoringMixin:
         return self._config.keyword_overlap_weight * overlap_ratio
 
     def _temporal_proximity_boost(self, result: MemorySearchResult) -> float:
-        """Calculate temporal proximity boost (MemPalace hybrid enhancement).
+        """Calculate temporal proximity boost.
 
         Boosts memories created recently (within threshold_hours).
 

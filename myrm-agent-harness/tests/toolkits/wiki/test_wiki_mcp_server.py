@@ -65,9 +65,8 @@ def _ainvoke_mock(bundle: dict[str, BaseTool], name: str) -> AsyncMock:
 async def test_mcp_tool_params_cover_langchain_tool_params() -> None:
     """L1 drift guard: MCP shell params must match the LangChain tool params.
 
-    Mirrors the Hindsight pattern (test_trigger_input_covers_every_http_
-    trigger_field): when wiki_agent_tools gains or renames a parameter, this
-    test fails until the MCP shell is updated in lockstep.
+    When wiki_agent_tools gains or renames a parameter, this test fails until
+    the MCP shell is updated in lockstep.
     """
     langchain_params = {t.name: set(t.args.keys()) for t in _build_langchain_tools()}
     mcp_params = await _mcp_tool_schemas()

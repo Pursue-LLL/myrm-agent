@@ -19,7 +19,7 @@ does not implement a separate summarize pipeline.
 - ModelWindowUnavailableError: fail-closed signal when model window cannot be resolved
 
 [POS]
-Server product-layer timing gate (Hermes ``idle_compact_after_seconds`` semantics).
+Server product-layer timing gate for idle stale compaction.
 Configured via Agent Profile ``engine_params.idle_compact_after_seconds`` (default 0).
 Complements harness idle worker post-turn compaction — this covers resume-before-reply.
 """

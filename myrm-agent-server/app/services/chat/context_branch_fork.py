@@ -10,7 +10,7 @@
 - ContextBranchForkService.fork_from_branch (POS: create child chat from snapshot jsonl)
 
 [POS]
-Business-layer fork from CompactedSummaryView snapshot bookmarks (OpenClaw branch parity).
+Business-layer fork from CompactedSummaryView snapshot bookmarks.
 """
 
 from __future__ import annotations

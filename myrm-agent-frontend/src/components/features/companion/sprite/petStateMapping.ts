@@ -32,7 +32,7 @@ const CODEX_STATE_ROWS: readonly string[] = [
 ] as const;
 
 /**
- * Legacy Hermes/Petdex row order for older 9×8 atlases (1728×1664px).
+ * Legacy Petdex row order for older 9×8 atlases (1728×1664px).
  */
 const LEGACY_STATE_ROWS: readonly string[] = [
   'idle',

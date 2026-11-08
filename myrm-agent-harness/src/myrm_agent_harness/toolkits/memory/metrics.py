@@ -172,28 +172,28 @@ class SearchMetrics:
             )
             self._otel_assistant_reference_query_count = meter.create_counter(
                 "memory_assistant_reference_query_total",
-                description="Total assistant-reference queries detected (MemPalace Two-Pass)",
+                description="Total assistant-reference queries detected",
             )
             self._otel_two_pass_execution_count = meter.create_counter(
                 "memory_two_pass_execution_total",
-                description="Total Two-Pass retrieval executions (MemPalace Two-Pass)",
+                description="Total Two-Pass retrieval executions",
             )
             self._otel_two_pass_latency_ms = meter.create_histogram(
                 "memory_two_pass_latency_ms",
                 unit="ms",
-                description="Two-Pass retrieval latency distribution (MemPalace Two-Pass)",
+                description="Two-Pass retrieval latency distribution",
             )
             self._otel_keyword_boost_count = meter.create_counter(
                 "memory_keyword_boost_total",
-                description="Total results boosted by keyword overlap (MemPalace ResultBooster)",
+                description="Total results boosted by keyword overlap",
             )
             self._otel_temporal_boost_count = meter.create_counter(
                 "memory_temporal_boost_total",
-                description="Total results boosted by temporal proximity (MemPalace ResultBooster)",
+                description="Total results boosted by temporal proximity",
             )
             self._otel_preference_boost_count = meter.create_counter(
                 "memory_preference_boost_total",
-                description="Total results boosted by preference strength (MemPalace ResultBooster)",
+                description="Total results boosted by preference strength",
             )
             self._otel_degradation_timeout_total = meter.create_counter(
                 "memory_search_degradation_timeout_total",
@@ -381,13 +381,13 @@ class SearchMetrics:
                 self._otel_degradation_corpus_overflow_total.add(1)
 
     def record_assistant_reference_query(self) -> None:
-        """Record assistant-reference query detection (MemPalace Two-Pass)."""
+        """Record assistant-reference query detection."""
         if self._otel_assistant_reference_query_count:
             with suppress(Exception):
                 self._otel_assistant_reference_query_count.add(1)
 
     def record_two_pass_execution(self, latency_ms: float) -> None:
-        """Record Two-Pass retrieval execution (MemPalace Two-Pass)."""
+        """Record Two-Pass retrieval execution."""
         if self._otel_two_pass_execution_count:
             with suppress(Exception):
                 self._otel_two_pass_execution_count.add(1)
@@ -396,19 +396,19 @@ class SearchMetrics:
                 self._otel_two_pass_latency_ms.record(latency_ms)
 
     def record_keyword_boost(self, count: int) -> None:
-        """Record keyword boost applications (MemPalace ResultBooster)."""
+        """Record keyword boost applications."""
         if self._otel_keyword_boost_count and count > 0:
             with suppress(Exception):
                 self._otel_keyword_boost_count.add(count)
 
     def record_temporal_boost(self, count: int) -> None:
-        """Record temporal boost applications (MemPalace ResultBooster)."""
+        """Record temporal boost applications."""
         if self._otel_temporal_boost_count and count > 0:
             with suppress(Exception):
                 self._otel_temporal_boost_count.add(count)
 
     def record_preference_boost(self, count: int) -> None:
-        """Record preference boost applications (MemPalace ResultBooster)."""
+        """Record preference boost applications."""
         if self._otel_preference_boost_count and count > 0:
             with suppress(Exception):
                 self._otel_preference_boost_count.add(count)

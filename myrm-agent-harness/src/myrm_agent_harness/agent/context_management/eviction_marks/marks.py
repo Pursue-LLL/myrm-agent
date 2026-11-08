@@ -12,8 +12,8 @@ pinned rules, trap shields) to decouple memory storage from compression strategi
 - get_message_marks, with_message_marks, has_message_marks, is_eviction_immune
 
 [POS]
-Core memory abstraction layer for message metadata tags, aligned with AgentScope MemoryBase
-contract while maintaining zero-LLM overhead and Prompt Cache safety.
+Core memory abstraction layer for message metadata tags, maintaining zero-LLM overhead
+and Prompt Cache safety.
 """
 
 from __future__ import annotations

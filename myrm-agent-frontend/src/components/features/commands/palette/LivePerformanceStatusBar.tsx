@@ -3,7 +3,7 @@
 /**
  * LivePerformanceStatusBar Component.
  * Real-time status bar telemetry with Cache Hit %, TTFT, Tokens/sec, and Global E-Stop.
- * Implements Hermes Agent v0.21.0 status bar telemetry parity with zero emojis.
+ * Renders without emojis.
  */
 
 import React, { useState } from 'react';
@@ -136,7 +136,7 @@ export const LivePerformanceStatusBar: React.FC<LivePerformanceStatusBarProps> =
 
         <div className="flex items-center gap-1 text-[10px] text-slate-400 pl-2 border-l border-slate-800">
           <Activity className="h-3 w-3 text-emerald-400" />
-          <span>Hermes Telemetry</span>
+          <span>Telemetry</span>
         </div>
       </div>
     </aside>

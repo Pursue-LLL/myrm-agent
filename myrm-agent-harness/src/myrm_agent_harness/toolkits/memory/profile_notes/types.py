@@ -12,7 +12,7 @@
 
 [POS]
 Foundational types for DualLayerProfileMemoryBudgetAndGarbagePurgeGuard, enforcing
-Hermes-grade memory purity, strict capacity budgets, and dual-layer organization.
+memory purity, strict capacity budgets, and dual-layer organization.
 """
 
 from __future__ import annotations

@@ -10,7 +10,7 @@
 - load/save async helpers for compact_chat transactional paths
 
 [POS]
-Server product persistence for anti-thrash streak (Hermes compression_ineffective_count parity).
+Server product persistence for the anti-thrash streak.
 """
 
 from __future__ import annotations

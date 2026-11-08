@@ -1,6 +1,6 @@
 /**
  * Data contracts for Global Fuzzy Command Palette & Status Bar Telemetry Suite.
- * Strict zero-any compliance aligned with Hermes Agent v0.21.0 & OpenHuman search hub parity.
+ * Strict zero-any typing.
  */
 
 export type CommandActionCategory = 'model' | 'agent' | 'session' | 'system';

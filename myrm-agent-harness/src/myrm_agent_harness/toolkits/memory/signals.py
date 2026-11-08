@@ -159,7 +159,7 @@ class SignalCalculator:
     def temporal_proximity_factor(
         memory: BaseMemory, reference_time: datetime | None = None, threshold_hours: float = 24.0
     ) -> float:
-        """Calculate temporal proximity to reference time (MemPalace enhancement).
+        """Calculate temporal proximity to reference time.
 
         Gives extra boost to memories created close to the reference time.
         Different from recency_factor: proximity is relative to query time,

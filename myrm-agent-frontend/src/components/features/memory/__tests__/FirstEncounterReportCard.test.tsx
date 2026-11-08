@@ -99,7 +99,6 @@ describe('FirstEncounterReportCard', () => {
 
     expect(screen.getByTestId('first-encounter-report-card')).toBeInTheDocument();
     expect(screen.getByText(/历史会话轻量采样与初见报告/)).toBeInTheDocument();
-    expect(screen.getByText('Item 67 · P0')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockScanAgentSources).toHaveBeenCalledTimes(1);

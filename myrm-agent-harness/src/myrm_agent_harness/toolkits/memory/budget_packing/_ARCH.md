@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-预算贪心边际价值召回装箱套件（Budget Greedy Marginal Value Recall Packing Suite · Item 122 P2 · 对标 FrankHu-HK/mnemosyne `brain.py:548` `_budget_recall` 贪心背包算法）。
+预算贪心边际价值召回装箱套件（Budget Greedy Marginal Value Recall Packing Suite）。
 
 ### 核心机制
 1. **边际价值与价值密度评估（Marginal Value Density）**：
