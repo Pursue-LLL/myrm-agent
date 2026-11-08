@@ -20,7 +20,7 @@
 | 8 | 安全扫描框架 | **CORE** | 可扩展扫描规则 + 内容转义 |
 | 9 | 安装与卸载 | **CORE** | 安全提取 + 隔离区安装（评分门禁、事务式回滚） |
 | 10 | 状态管理 | **CORE** | 文件即真相：技能目录内的 `.stats.json` / `origin.json` / `receipt.json`；SQLite 快照 + 目录监听 |
-| 11 | 技能失败事件与可选隔离读取 | **CORE** | `SkillFailureEvent` 交给宿主处置；`QuarantineAwareSkillBackend` 仅过滤宿主置为 `is_active=False` 的技能 |
+| 11 | 技能失败事件 | **CORE** | `SkillFailureEvent` 交给宿主处置，框架本身不隐藏任何技能 |
 | 12 | 搜索缓存 | **CORE** | 精确键 + TTL 的查询结果缓存 |
 | 13 | Marketplace 集成 | ENHANCE | 多源 Marketplace 接入 |
 | 14 | 技能创建与评估 | ENHANCE | AI 驱动的创建与评估 |
@@ -640,15 +640,12 @@ Scanner（编排器）
 
 ---
 
-## 11. 技能失败事件与可选隔离读取 (Skill Failure Event & Opt-in Quarantine Read) [CORE]
+## 11. 技能失败事件 (Skill Failure Event) [CORE]
 
 ### 11.1 默认行为：事件上报，不隐藏技能
 技能归因的工具失败由 `_skill_failure_tracking` 中间件发布为 `SkillFailureEvent`（`runtime/events/skill_events.py`），由宿主决定如何处置（记录、触发 FIX 提案等）。中间件自身只把工具调用结果记入本次运行的技能使用记录（`backends/skills/usage_recorder`，不触发隔离或修复），因此默认栈不会把任何技能置为 `is_active=False`，也不会从技能列表中隐藏技能。
 
 **计数口径**：仅当会话中恰好加载了一个存储技能时，每次工具调用的结果才记入该技能本次运行的使用记录：成功计成功；失败（排除 e-stop、hook 拦截、取消等策略性拦截，规则与失败事件一致）计失败；加载技能本身（`skill_select_tool`）不算结果。加载多个存储技能时归属不明，不计数。运行结束时每个用到的技能只落一条使用记录，写入 Curator 的 `.stats.json`（`SkillStatsCollector`，唯一的技能使用账本），结果按多数原则判定（失败调用超过一半才算失败，偶发且已恢复的错误不拖累技能）；没有归因到工具调用的使用只计使用次数、不计成败。因此成功率表示"有已观察结果的运行中的成功比例"；据此做决策的只有宿主审批流的 `low_effective_rate` 风险信号（已观察运行 ≥ 3 且成功率 < 50% 时该提案不得自动合并，转人工复核）；沙箱验证只留下验证记录。
-
-### 11.2 读取侧
-被置为 `is_active=False` 的技能只有在宿主用 `QuarantineAwareSkillBackend` + `SkillStateReader` 包装后端时才会从列表中过滤；框架不内置任何自动置位 `is_active=False` 的策略，不提供默认的 `SkillStateReader` 实现，也不提供解除隔离的入口——置位与恢复路径均由宿主自行定义（例如修复提案通过后重新写入 `is_active=True`）。
 
 ---
 

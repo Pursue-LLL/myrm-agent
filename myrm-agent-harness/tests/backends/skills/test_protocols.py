@@ -6,27 +6,7 @@ by verifying the concrete classes have the required methods with correct signatu
 
 import inspect
 
-from myrm_agent_harness.backends.skills.protocols import (
-    SkillStateReader,
-    SnapshotStoreProtocol,
-)
-
-
-class TestSkillStateReader:
-    def test_concrete_class_has_required_method(self):
-        """Verify SkillStateReader defines is_skill_active."""
-
-        class ConcreteReader:
-            def is_skill_active(self, skill_name: str) -> bool:
-                return True
-
-        reader = ConcreteReader()
-        assert hasattr(reader, "is_skill_active")
-        assert callable(reader.is_skill_active)
-
-    def test_protocol_defines_interface(self):
-        """Verify SkillStateReader protocol has the expected method."""
-        assert hasattr(SkillStateReader, "is_skill_active")
+from myrm_agent_harness.backends.skills.protocols import SnapshotStoreProtocol
 
 
 class TestSnapshotStoreProtocol:

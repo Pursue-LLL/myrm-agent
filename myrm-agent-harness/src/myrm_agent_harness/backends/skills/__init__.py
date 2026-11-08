@@ -41,7 +41,6 @@ from myrm_agent_harness.backends.skills.creation_protocols import (
     SkillWriteBackend,
 )
 from myrm_agent_harness.backends.skills.decorators import (
-    QuarantineAwareSkillBackend,
     VersionAwareSkillBackend,
     session_id_var,
 )
@@ -83,7 +82,6 @@ from myrm_agent_harness.backends.skills.protocols import (
 )
 from myrm_agent_harness.backends.skills.protocols import (
     SkillSnapshot,
-    SkillStateReader,
     SnapshotStoreProtocol,
 )
 from myrm_agent_harness.backends.skills.scanning import (
@@ -110,7 +108,6 @@ __all__ = [
     "PermissionTemplate",
     "PrerequisiteProbe",
     "PrerequisiteReport",
-    "QuarantineAwareSkillBackend",
     "ScanningSkillWriteBackend",
     "SkillBackendProtocol",
     "SkillDeleteResult",
@@ -124,7 +121,6 @@ __all__ = [
     "SkillSaveResult",
     "SkillSearchResult",
     "SkillSnapshot",
-    "SkillStateReader",
     "SkillWriteBackend",
     "SnapshotStoreProtocol",
     "StorageSkillBackend",

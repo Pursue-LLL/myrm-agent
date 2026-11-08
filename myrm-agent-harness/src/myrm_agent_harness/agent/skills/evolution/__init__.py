@@ -10,7 +10,6 @@ Core features:
 """
 
 from .core.engine import SkillEvolutionEngine
-from .core.gene_bank import GeneBankArchive
 from .core.proposal_builder import ProposalBuilder
 from .core.skill_on_disk import skill_from_disk
 from .core.types import (
@@ -19,8 +18,6 @@ from .core.types import (
     EvolutionRequest,
     EvolutionType,
     FailurePathology,
-    GeneCellKey,
-    GeneEliteRecord,
     SkillLineage,
     SkillRecord,
     SkillVerificationType,
@@ -51,9 +48,6 @@ __all__ = [
     "EvolutionLayer",
     "EvolutionType",
     "FailurePathology",
-    "GeneBankArchive",
-    "GeneCellKey",
-    "GeneEliteRecord",
     "SkillVerificationType",
     "VerificationProof",
     # Patch system

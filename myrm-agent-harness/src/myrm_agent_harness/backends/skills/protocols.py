@@ -8,7 +8,7 @@
 [OUTPUT]
 - SkillBackend: 技能后端协议(定义 list_skills, load_skills, get_skill_content, get_skill_resources)
 - SkillSnapshot: 已激活技能版本快照的只读视图(version, content)
-- SnapshotStoreProtocol / SkillStateReader: 装饰器后端依赖的快照存储与激活状态协议
+- SnapshotStoreProtocol: 装饰器后端依赖的快照存储协议
 
 [POS]
 Skill backend protocol definition. Specifies the unified interface for loading skills from multiple sources.
@@ -127,18 +127,6 @@ SkillBackendProtocol = SkillBackend
 # ---------------------------------------------------------------------------
 # Decorator dependency protocols
 # ---------------------------------------------------------------------------
-
-
-class SkillStateReader(Protocol):
-    """Protocol for checking skill active/quarantine state.
-
-    Used by QuarantineAwareSkillBackend to filter out quarantined skills.
-    Implementations typically wrap a database (e.g. SkillStore SQLite).
-    """
-
-    def is_skill_active(self, skill_name: str) -> bool:
-        """Return True if the skill is active (not quarantined)."""
-        ...
 
 
 class SkillSnapshot(Protocol):

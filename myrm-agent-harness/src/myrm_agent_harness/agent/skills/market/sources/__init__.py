@@ -4,8 +4,6 @@
 - agent.skills.market.sources.aliyun::AliyunSource (POS: 阿里云技能源适配层)
 - agent.skills.market.sources.base::SkillSource (POS: 技能源抽象基类)
 - agent.skills.market.sources.github::GitHubSkillSource (POS: GitHub 技能源适配层)
-- agent.skills.market.sources.github_tap::GitHubTapSkillSource
-  (POS: GitHub Tap 技能源适配层)
 - agent.skills.market.sources.modelscope::ModelScopeSource
   (POS: ModelScope 技能源适配层)
 - agent.skills.market.sources.prebuilt::PrebuiltSkillSource
@@ -28,7 +26,6 @@ contract here, so the market layer stays agnostic about which registry a skill c
 from .aliyun import AliyunSource
 from .base import SkillSource
 from .github import GitHubSkillSource
-from .github_tap import GitHubTapSkillSource
 from .modelscope import ModelScopeSource
 from .prebuilt import PrebuiltSkillSource
 from .skills_sh import SkillsShSource
@@ -38,7 +35,6 @@ from .wellknown import WellKnownSkillSource
 __all__ = [
     "AliyunSource",
     "GitHubSkillSource",
-    "GitHubTapSkillSource",
     "ModelScopeSource",
     "PrebuiltSkillSource",
     "SkillSource",
