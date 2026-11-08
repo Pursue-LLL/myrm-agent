@@ -12,7 +12,7 @@
 - session.interactor_coord_mixin::CoordInteractMixin (POS: coordinate-based Visual Mode interactions)
 - session.interactor_ref_action_mixin::RefActionMixin (POS: ref verb dispatch on a resolved locator)
 - session.ref_metrics::RefNotFoundMetrics, RefDiagnosticsMixin (POS: ref failure statistics + diagnosis behaviors)
-- wait::settle_after_action (POS: the wait an interaction ends with: the requests the action started, within a cap)
+- wait::settle_after_action, capped_note (POS: the wait an interaction ends with: the requests the action started, within a cap; the note for a wait that hit it)
 
 [OUTPUT]
 - Interactor: element interaction manager (supports humanized delays + Bézier mouse via HumanizeConfig)
@@ -26,7 +26,8 @@ Element interaction manager. Responsibilities:
 5. Failure monitoring (failure rate, hot refs, hot actions statistics + periodic log output)
 
 Ref interaction orchestration lives here (action validation, ref resolution and
-self-healing, the wait after the action, the answers to a failed interaction); the
+self-healing, the wait after the action in the element's own document with a note
+on the answer when it hit its cap, the answers to a failed interaction); the
 verbs themselves, humanized scrolling (wheel-burst delivery, honest reporting,
 scroll_to_bottom progress loop), CAREFUL pre-interaction target centering,
 Bézier-mouse click trajectory, coordinate interactions (interact_at), and
@@ -66,7 +67,7 @@ from myrm_agent_harness.toolkits.browser.session.ref_metrics import (
     RefNotFoundMetrics,
 )
 from myrm_agent_harness.toolkits.browser.snapshot import resolve_locator
-from myrm_agent_harness.toolkits.browser.wait import settle_after_action
+from myrm_agent_harness.toolkits.browser.wait import capped_note, settle_after_action
 
 if TYPE_CHECKING:
     from patchright.async_api import Frame, Locator, Page
@@ -93,8 +94,9 @@ _VALID_ACTIONS = frozenset(
         "fill_credential",
     }
 )
-# The actions that change the page the agent will read next end by waiting for the requests they started.
-_SETTLED_ACTIONS = frozenset({"click", "dblclick", "type", "fill", "fill_credential", "press"})
+# Only the actions that move the pointer, the focus or the viewport start no request the next read depends on;
+# every other action ends by waiting for the requests it started.
+_NO_SETTLE_ACTIONS = frozenset({"hover", "focus", "scroll", "scroll_to_bottom"})
 
 
 class Interactor(
@@ -301,8 +303,8 @@ class Interactor(
 
         try:
             result = await self._perform_ref_action(action, ref, text, locator, healed_msg)
-            if action in _SETTLED_ACTIONS:
-                await settle_after_action(self._page)
+            if action not in _NO_SETTLE_ACTIONS:
+                result += capped_note(await settle_after_action(frame))
             return result
         except Exception as e:
             error_msg = str(e)

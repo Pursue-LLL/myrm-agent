@@ -4,7 +4,7 @@
 - pool.config::HumanizeConfig (POS: interaction humanization config)
 - session.humanize::bezier_move, click_delay, type_delay (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
-- wait::settle_after_action (POS: the wait an interaction ends with: the requests the action started, within a cap)
+- wait::settle_after_action, capped_note (POS: the wait an interaction ends with: the requests the action started, within a cap; the note for a wait that hit it)
 
 [OUTPUT]
 - CoordInteractMixin: coordinate-based interaction manager — click/dblclick/type/
@@ -29,7 +29,7 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
     click_delay,
     type_delay,
 )
-from myrm_agent_harness.toolkits.browser.wait import settle_after_action
+from myrm_agent_harness.toolkits.browser.wait import capped_note, settle_after_action
 
 if TYPE_CHECKING:
     from patchright.async_api import Page
@@ -51,6 +51,10 @@ class CoordInteractMixin:
     if TYPE_CHECKING:
 
         async def _scroll_with_report(self, x: float, y: float, delta: int, suffix: str) -> str: ...
+
+    async def _settle_note(self) -> str:
+        """Wait for the requests the action started; the note its answer ends with when the wait hit its cap."""
+        return capped_note(await settle_after_action(self._page))
 
     async def interact_at(
         self,
@@ -101,14 +105,14 @@ class CoordInteractMixin:
             await asyncio.sleep(delay_ms / 1000.0)
             await self._page.mouse.up()
             self._mouse_x, self._mouse_y = x, y
-            await settle_after_action(self._page)
-            return f"Clicked at ({x}, {y})"
+            note = await self._settle_note()
+            return f"Clicked at ({x}, {y}){note}"
 
         if action == "dblclick":
             await self._page.mouse.dblclick(x, y)
             self._mouse_x, self._mouse_y = x, y
-            await settle_after_action(self._page)
-            return f"Double-clicked at ({x}, {y})"
+            note = await self._settle_note()
+            return f"Double-clicked at ({x}, {y}){note}"
 
         if action == "type":
             if not text:
@@ -121,8 +125,8 @@ class CoordInteractMixin:
             self._mouse_x, self._mouse_y = x, y
             delay_per_char = type_delay(self._humanize)
             await self._page.keyboard.type(text, delay=delay_per_char)
-            await settle_after_action(self._page)
-            return f"Typed '{text}' at ({x}, {y})"
+            note = await self._settle_note()
+            return f"Typed '{text}' at ({x}, {y}){note}"
 
         if action == "press":
             if not text:
@@ -130,8 +134,8 @@ class CoordInteractMixin:
             await self._page.mouse.click(x, y)
             self._mouse_x, self._mouse_y = x, y
             await self._page.keyboard.press(text)
-            await settle_after_action(self._page)
-            return f"Pressed '{text}' at ({x}, {y})"
+            note = await self._settle_note()
+            return f"Pressed '{text}' at ({x}, {y}){note}"
 
         if action == "hover":
             if self._humanize.enable_bezier_mouse:
@@ -168,7 +172,7 @@ class CoordInteractMixin:
                 await self._page.mouse.move(target_x, target_y, steps=10)
             await self._page.mouse.up()
             self._mouse_x, self._mouse_y = target_x, target_y
-            await settle_after_action(self._page)
-            return f"Dragged from ({x}, {y}) to ({target_x}, {target_y})"
+            note = await self._settle_note()
+            return f"Dragged from ({x}, {y}) to ({target_x}, {target_y}){note}"
 
         return f"Unknown coordinate action: {action}"

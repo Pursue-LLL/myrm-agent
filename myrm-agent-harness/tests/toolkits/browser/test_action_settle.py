@@ -1,7 +1,8 @@
-"""The post-action settle asks the page in its main world, says why it ended, and never fails the action.
+"""The post-action settle asks a page or a frame in its main world, says why it ended, and never fails the action.
 
-The wait itself runs in the page (see ``test_post_action_settle_integration``); what is pinned here is how it is asked
-and that nothing a page does while it is asked, short of the run being stopped, comes back as an error.
+The wait itself runs in the page (see ``test_post_action_settle_integration``); what is pinned here is how it is asked,
+that only a wait that hit its cap leaves a note, and that nothing a page does while it is asked, short of the run
+being stopped, comes back as an error.
 """
 
 from __future__ import annotations
@@ -12,11 +13,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from patchright.async_api import Error as BrowserDriverError
-from patchright.async_api import Page
+from patchright.async_api import Frame, Page
 
-from myrm_agent_harness.toolkits.browser.wait import _action_settle, settle_after_action
-
-pytestmark = pytest.mark.asyncio
+from myrm_agent_harness.toolkits.browser.wait import _action_settle, capped_note, settle_after_action
 
 
 def _page_answering(answer: object) -> AsyncMock:
@@ -31,6 +30,15 @@ async def test_the_page_is_asked_in_its_main_world_where_the_tracker_lives() -> 
     await settle_after_action(page)
 
     assert page.evaluate.await_args.kwargs == {"isolated_context": False}
+
+
+async def test_a_frame_is_asked_the_way_a_page_is() -> None:
+    frame = AsyncMock(spec=Frame)
+    frame.evaluate = AsyncMock(return_value="settled")
+
+    assert await settle_after_action(frame) == "settled"
+
+    assert frame.evaluate.await_args.kwargs == {"isolated_context": False}
 
 
 async def test_the_page_is_given_the_cap_it_must_end_the_wait_by() -> None:
@@ -98,3 +106,8 @@ async def test_a_stopped_run_is_not_swallowed() -> None:
 
     with pytest.raises(asyncio.CancelledError):
         await settling
+
+
+def test_only_a_wait_that_hit_its_cap_leaves_a_note() -> None:
+    assert "still loading" in capped_note("capped")
+    assert [capped_note(outcome) for outcome in ("settled", "no_request", "untracked", "failed")] == [""] * 4

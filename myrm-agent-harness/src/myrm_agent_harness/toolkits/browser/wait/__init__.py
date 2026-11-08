@@ -15,6 +15,7 @@
 - WaitStrategyStats: runtime statistics class (thread-safe)
 - wait_for_page_ready: page readiness detection entry point (default SMART strategy, auto-records stats)
 - settle_after_action: the wait an interaction ends with (the requests the action started, not page quiet)
+- capped_note: the sentence an answer carries when that wait ended at its cap
 - get_wait_strategy_stats: retrieve global statistics
 - reset_wait_strategy_stats: reset statistics (for testing)
 
@@ -50,7 +51,7 @@ import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from ._action_settle import settle_after_action
+from ._action_settle import capped_note, settle_after_action
 from ._impl import (
     _elapsed_ms_since,
     is_navigation_interrupt,
@@ -246,6 +247,7 @@ __all__ = [
     "WaitMetrics",
     "WaitStrategy",
     "WaitStrategyStats",
+    "capped_note",
     "get_wait_strategy_stats",
     "reset_wait_strategy_stats",
     "settle_after_action",

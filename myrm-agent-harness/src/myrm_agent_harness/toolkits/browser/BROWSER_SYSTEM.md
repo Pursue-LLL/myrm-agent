@@ -593,7 +593,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 - **手势标记**：捕获阶段监听 `pointerdown` / `keydown` / `input` / `change` / `click`，一次动作的第一个输入事件（距上一个输入事件超过 400 ms）记下此刻的请求序号。
 - **渲染级**：500ms MutationObserver 渲染防抖。
 
-**动作之后等什么**：`click` / `dblclick` / `type` / `fill` / `fill_credential` / `press`（按 ref）和 `click` / `dblclick` / `type` / `press` / `drag`（按坐标）完成后，由 `wait/_action_settle.py::settle_after_action` 只等**这次动作自己发起**的 Fetch/XHR（序号大于手势标记）结束，再给页面一个绘制窗口：请求结束后页面 150 ms 内没有再变化即返回，页面持续变化时最多等到请求结束后 300 ms。整体上限 3 s，到点按页面当前状态返回，不算失败。动作发起前就已在途的请求（长轮询）、噪声请求、没有输入事件的动作都不等；文档里没有追踪器、或页面在等待中跳转时立即返回。页面加载后的就绪判定仍走 `wait_for_page_ready`，不在这里。
+**动作之后等什么**：除了只移动指针、焦点或视口的 `hover` / `focus` / `scroll` / `scroll_to_bottom`，其余动作——按 ref 的 `click` / `dblclick` / `type` / `fill` / `fill_credential` / `press` / `select` / `check` / `uncheck` / `upload_file` / `drag`，和按坐标的 `click` / `dblclick` / `type` / `press` / `drag`——完成后，由 `wait/_action_settle.py::settle_after_action` 只等**这次动作自己发起**的 Fetch/XHR（序号大于手势标记）结束，再给页面一个绘制窗口：请求结束后页面 150 ms 内没有再变化即返回，页面持续变化时最多等到请求结束后 300 ms。每个文档有自己的追踪器，所以按 ref 的动作在元素所在的文档里等（iframe 里的元素在那个 iframe 的 Frame 上等）；按坐标的动作在主文档里等，落在 iframe 内的手势主文档看不到，不会被等。整体上限 3 s，到点按页面当前状态返回，不算失败，答案末尾补一句 `capped_note`（页面还在加载这次动作的响应，接下来读到的内容可能还没有它的结果）。动作发起前就已在途的请求（长轮询）、噪声请求、没有输入事件的动作都不等；文档里没有追踪器、页面在等待中跳转、或动作本身导致跳转（新文档还没有过任何手势）时立即返回，不会去等新页面自己的请求。没有发请求的动作多花一次 30 ms 宽限加一次页面往返，本机 Chromium 实测每次多约 25–45 ms。页面加载后的就绪判定仍走 `wait_for_page_ready`，不在这里。
 
 ---
 
@@ -1142,7 +1142,7 @@ browser/
 │   ├── coordinator.py — CAPTCHA 协调状态机（asyncio.Event 暂停/恢复）
 │   └── manual_solver.py — 默认手动求解器（轮询检测 CAPTCHA 消失）
 ├── wait/
-│   ├── __init__.py — 门面（wait_for_page_ready + settle_after_action + WaitStrategy/WaitMetrics + 全局统计）
+│   ├── __init__.py — 门面（wait_for_page_ready + settle_after_action + capped_note + WaitStrategy/WaitMetrics + 全局统计）
 │   ├── _impl.py — 4 种策略实现（networkidle/dom_stable/smart/hybrid + spa_stable）
 │   ├── _action_settle.py — 动作之后的等待（只等动作自己发起的请求，上限 3 s）
 │   ├── _types.py — 类型定义与运行时统计（线程安全）
