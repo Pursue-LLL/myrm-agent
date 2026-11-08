@@ -21253,6 +21253,7 @@
       "errorCodes": {
         "config": "The storage settings are incomplete or invalid. Check them and try again.",
         "snapshot": "Your memories couldn't be read completely, so nothing was uploaded.",
+        "previous_model": "Some memories haven't been migrated to the new embedding model yet, so nothing was uploaded and your earlier backups are untouched. Finish the migration, then back up again.",
         "upload": "The upload failed. Check the connection, the credentials and the free space of your storage.",
         "busy": "Another backup is already running. Try again in a moment.",
         "internal": "Something went wrong while preparing the backup. Try again later."

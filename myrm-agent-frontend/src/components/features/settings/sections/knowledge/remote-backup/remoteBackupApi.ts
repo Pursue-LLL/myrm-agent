@@ -44,9 +44,9 @@ export interface RestoreResult {
   restoredCount: number;
 }
 
-export type ErrorCodeKey = 'config' | 'snapshot' | 'upload' | 'busy' | 'internal';
+export type ErrorCodeKey = 'config' | 'snapshot' | 'previous_model' | 'upload' | 'busy' | 'internal';
 
-const KNOWN_ERROR_CODES: readonly string[] = ['config', 'snapshot', 'upload', 'busy'];
+const KNOWN_ERROR_CODES: readonly string[] = ['config', 'snapshot', 'previous_model', 'upload', 'busy'];
 
 /** The reason a backup reported; a code this card does not know reads as an internal error. */
 export function errorCodeKey(code: string | null | undefined): ErrorCodeKey {

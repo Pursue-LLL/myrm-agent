@@ -200,7 +200,7 @@ describe('fetchAutoStatus', () => {
 });
 
 describe('errorCodeKey', () => {
-  it.each(['config', 'snapshot', 'upload', 'busy', 'internal'])('knows %s', (code) => {
+  it.each(['config', 'snapshot', 'previous_model', 'upload', 'busy', 'internal'])('knows %s', (code) => {
     expect(errorCodeKey(code)).toBe(code);
   });
 

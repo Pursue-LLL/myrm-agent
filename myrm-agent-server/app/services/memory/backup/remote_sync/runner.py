@@ -33,6 +33,7 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from app.services.memory.backup.snapshot import (
     MemorySnapshot,
+    PreviousModelMemoriesError,
     SnapshotError,
     apply_snapshot,
     capture_snapshot,
@@ -61,7 +62,7 @@ _UNSAFE_DEVICE_CHARS = re.compile(r"[^\w.-]+")
 _UNSAFE_PLATFORM_CHARS = re.compile(r"[^a-z0-9_-]+")
 _MAX_DEVICE_LABEL_LENGTH = 64
 
-BackupErrorCode = Literal["snapshot", "upload", "internal"]
+BackupErrorCode = Literal["snapshot", "previous_model", "upload", "internal"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +118,9 @@ async def run_remote_backup(
     """Execute a single remote backup cycle.
 
     Steps:
-    1. Capture a complete memory snapshot (fails instead of uploading a partial one)
+    1. Capture a complete memory snapshot (fails instead of uploading a partial one, which includes
+       memories still stored under a previous embedding model: they are not in a snapshot, and an empty
+       backup must not rotate the complete ones out)
     2. Compress and upload it to the remote
     3. Rotate this instance's older backups beyond max_backups
 
@@ -160,6 +163,9 @@ async def run_remote_backup(
             size_bytes=file_size,
             duration_ms=_elapsed_ms(start),
         )
+    except PreviousModelMemoriesError as e:
+        logger.warning("Remote backup aborted: %s", e)
+        return RemoteBackupResult(status="failed", error_code="previous_model", error=str(e), duration_ms=_elapsed_ms(start))
     except SnapshotError as e:
         logger.warning("Remote backup aborted: %s", e)
         return RemoteBackupResult(status="failed", error_code="snapshot", error=str(e), duration_ms=_elapsed_ms(start))

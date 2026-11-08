@@ -21253,6 +21253,7 @@
       "errorCodes": {
         "config": "Die Speichereinstellungen sind unvollständig oder ungültig. Prüfen Sie sie und versuchen Sie es erneut.",
         "snapshot": "Ihr Gedächtnis konnte nicht vollständig gelesen werden, daher wurde nichts hochgeladen.",
+        "previous_model": "Teile Ihres Gedächtnisses wurden noch nicht auf das neue Embedding-Modell migriert, daher wurde nichts hochgeladen und Ihre früheren Backups bleiben unverändert. Schließen Sie zuerst die Migration ab und sichern Sie dann erneut.",
         "upload": "Der Upload ist fehlgeschlagen. Prüfen Sie Verbindung, Zugangsdaten und freien Speicherplatz.",
         "busy": "Es läuft bereits ein anderes Backup. Versuchen Sie es gleich noch einmal.",
         "internal": "Beim Vorbereiten des Backups ist etwas schiefgelaufen. Versuchen Sie es später erneut."
