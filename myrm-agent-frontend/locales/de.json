@@ -3398,18 +3398,6 @@
       "stopped": "{name} gestoppt; der Teilentwurf wurde gesichert",
       "stopFailed": "Aufgabe konnte nicht gestoppt werden"
     },
-    "multiplexer": {
-      "sessionListTitle": "Sitzungen",
-      "panesCount": "Bereiche",
-      "headlessBadge": "Headless-Modus",
-      "pendingDirectives": "ausstehende Anweisungen",
-      "inspectLogTitle": "Live-Protokoll",
-      "noLogs": "Noch keine Ausgabe",
-      "artifactsLabel": "Artefakte",
-      "instructPlaceholder": "Anweisung an diesen Sub-Agenten senden...",
-      "sendInstruction": "Senden",
-      "noSessions": "Keine aktiven Sitzungen"
-    },
     "roleChainPresets": {
       "title": "Rollenketten-Vorlagen",
       "badge": "Vorlage",

@@ -3398,18 +3398,6 @@
       "stopped": "已停止 {name}，半成品草稿已安全保留",
       "stopFailed": "叫停任务失败"
     },
-    "multiplexer": {
-      "sessionListTitle": "会话",
-      "panesCount": "个窗格",
-      "headlessBadge": "无头",
-      "pendingDirectives": "条待处理指令",
-      "inspectLogTitle": "实时日志",
-      "noLogs": "暂无输出",
-      "artifactsLabel": "产物",
-      "instructPlaceholder": "向该子代理发送指令...",
-      "sendInstruction": "发送",
-      "noSessions": "暂无活跃会话"
-    },
     "roleChainPresets": {
       "title": "角色链预设",
       "badge": "预设",

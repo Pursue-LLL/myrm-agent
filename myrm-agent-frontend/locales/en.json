@@ -3398,18 +3398,6 @@
       "stopped": "Stopped {name}; the partial draft was kept",
       "stopFailed": "Failed to stop the task"
     },
-    "multiplexer": {
-      "sessionListTitle": "Sessions",
-      "panesCount": "panes",
-      "headlessBadge": "Headless",
-      "pendingDirectives": "pending directives",
-      "inspectLogTitle": "Live log",
-      "noLogs": "No output yet",
-      "artifactsLabel": "Artifacts",
-      "instructPlaceholder": "Send an instruction to this sub-agent...",
-      "sendInstruction": "Send",
-      "noSessions": "No active sessions"
-    },
     "roleChainPresets": {
       "title": "Role chain presets",
       "badge": "Preset",

@@ -3398,18 +3398,6 @@
       "stopped": "{name}을(를) 중지했습니다. 작업 중이던 초안은 안전하게 보존되었습니다",
       "stopFailed": "작업 중지에 실패했습니다"
     },
-    "multiplexer": {
-      "sessionListTitle": "세션",
-      "panesCount": "개 창",
-      "headlessBadge": "헤드리스",
-      "pendingDirectives": "개의 대기 중 지시",
-      "inspectLogTitle": "실시간 로그",
-      "noLogs": "아직 출력이 없습니다",
-      "artifactsLabel": "산출물",
-      "instructPlaceholder": "이 서브에이전트에 지시를 보냅니다...",
-      "sendInstruction": "보내기",
-      "noSessions": "활성 세션이 없습니다"
-    },
     "roleChainPresets": {
       "title": "역할 체인 프리셋",
       "badge": "프리셋",

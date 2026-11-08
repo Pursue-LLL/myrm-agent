@@ -3398,18 +3398,6 @@
       "stopped": "{name} を停止しました。作業中の下書きは保持されています",
       "stopFailed": "タスクの停止に失敗しました"
     },
-    "multiplexer": {
-      "sessionListTitle": "セッション",
-      "panesCount": "ペイン",
-      "headlessBadge": "ヘッドレス",
-      "pendingDirectives": "件の保留中の指示",
-      "inspectLogTitle": "ライブログ",
-      "noLogs": "まだ出力はありません",
-      "artifactsLabel": "成果物",
-      "instructPlaceholder": "このサブエージェントに指示を送る...",
-      "sendInstruction": "送信",
-      "noSessions": "アクティブなセッションはありません"
-    },
     "roleChainPresets": {
       "title": "ロールチェーンのプリセット",
       "badge": "プリセット",
