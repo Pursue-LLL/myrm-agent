@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import type { ApplyStatus } from '@/store/useRetrievalStore';
+import type { ApplyStatus } from '@/store/retrieval/types';
 import { useApplyMessage } from './applyMessage';
 
 const OUTCOME_CLASS: Record<ApplyStatus, string> = {

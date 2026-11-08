@@ -17,4 +17,4 @@
 | `ApplyOutcome.tsx`          | 应用结果行（成功/失败文案，未应用过时不显示）                                                                                     |
 | `applyMessage.ts`           | `useApplyMessage`：把 store 记录的英文校验结果映射为当前语言                                                                      |
 
-依赖 `@/lib/search/retrievalProviders`（提供商目录与预设模型）和 `@/store/useRetrievalStore`；嵌入模型更换后的记忆迁移提示由 `memory/settings/MemoryMigrationNotice` 承担，挂在嵌入行下方。
+依赖 `@/lib/search/retrievalProviders`（提供商目录与预设模型）和 `@/store/useRetrievalStore`（类型来自 `@/store/retrieval/types`）；嵌入模型更换后的记忆迁移提示由 `memory/settings/MemoryMigrationNotice` 承担，挂在嵌入行下方。

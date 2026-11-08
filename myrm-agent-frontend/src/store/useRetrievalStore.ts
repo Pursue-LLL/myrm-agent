@@ -14,113 +14,11 @@
 
 import { create } from 'zustand';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
-import {
-  DEFAULT_PROVIDER_ID,
-  EMBEDDING_PROVIDERS,
-  RERANKER_PROVIDERS,
-  getPresetModel,
-  toRoutedModelId,
-} from '@/lib/search/retrievalProviders';
-import {
-  getMemoryOrphanEstimate,
-  getMemoryReindexStatus,
-  startMemoryReindex,
-  type MemoryReindexResult,
-} from '@/services/memory/reindex';
-
-export type ApplyStatus = 'idle' | 'applying' | 'success' | 'error';
-
-export interface ProviderModelConfig {
-  provider: string;
-  model: string;
-  apiKey: string;
-  apiBase?: string;
-}
-
-export interface RetrievalConfig {
-  // Embedding 配置（临时编辑状态）
-  embeddingConfig: ProviderModelConfig;
-  embeddingApplied: boolean;
-  embeddingAppliedAt?: number;
-  embeddingApplyStatus: ApplyStatus;
-  embeddingApplyMessage?: string;
-
-  // Reranker 配置（临时编辑状态）
-  rerankerConfig: ProviderModelConfig;
-  rerankerApplied: boolean;
-  rerankerAppliedAt?: number;
-  rerankerApplyStatus: ApplyStatus;
-  rerankerApplyMessage?: string;
-
-  // 高级检索开关（控制网页抓取的嵌入+重排序与记忆召回的重排序）
-  enableAdvancedRetrieval: boolean;
-
-  // Orphan collection 状态（模型切换后的旧记忆检测）
-  orphanCount: number;
-
-  // 旧记忆迁移运行状态：'running' 期间轮询服务端后台任务，'done' 带逐条计数，'error' 表示运行中断
-  reindexStatus: ReindexRunStatus;
-  reindexProgress: { done: number; total: number };
-  reindexResult: MemoryReindexResult | null;
-}
-
-export type ReindexRunStatus = 'idle' | 'running' | 'done' | 'error';
-
-interface RetrievalActions {
-  // 初始化
-  initRetrieval: () => Promise<void>;
-
-  // Embedding 配置
-  setEmbeddingConfig: (config: ProviderModelConfig) => void;
-  applyEmbedding: () => Promise<{ success: boolean; message: string }>;
-  resetEmbeddingToApplied: () => void;
-
-  // Reranker 配置
-  setRerankerConfig: (config: ProviderModelConfig) => void;
-  applyReranker: () => Promise<{ success: boolean; message: string }>;
-  resetRerankerToApplied: () => void;
-
-  // 高级检索开关
-  setEnableAdvancedRetrieval: (enable: boolean) => void;
-
-  // Orphan 重建
-  checkOrphanCollections: () => Promise<void>;
-  executeReindex: () => Promise<void>;
-  dismissOrphanWarning: () => void;
-
-  // 重置所有配置
-  reset: () => void;
-}
-
-type RetrievalStore = RetrievalConfig & RetrievalActions & { isInitialized: boolean };
-
-const DEFAULT_CONFIG: RetrievalConfig = {
-  embeddingConfig: {
-    provider: DEFAULT_PROVIDER_ID,
-    model: getPresetModel(EMBEDDING_PROVIDERS, DEFAULT_PROVIDER_ID),
-    apiKey: '',
-    apiBase: '',
-  },
-  embeddingApplied: false,
-  embeddingAppliedAt: undefined,
-  embeddingApplyStatus: 'idle',
-  embeddingApplyMessage: undefined,
-  rerankerConfig: {
-    provider: DEFAULT_PROVIDER_ID,
-    model: getPresetModel(RERANKER_PROVIDERS, DEFAULT_PROVIDER_ID),
-    apiKey: '',
-    apiBase: '',
-  },
-  rerankerApplied: false,
-  rerankerAppliedAt: undefined,
-  rerankerApplyStatus: 'idle',
-  rerankerApplyMessage: undefined,
-  enableAdvancedRetrieval: false,
-  orphanCount: 0,
-  reindexStatus: 'idle',
-  reindexProgress: { done: 0, total: 0 },
-  reindexResult: null,
-};
+import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS, toRoutedModelId } from '@/lib/search/retrievalProviders';
+import { getMemoryOrphanEstimate, getMemoryReindexStatus, startMemoryReindex } from '@/services/memory/reindex';
+import { DEFAULT_CONFIG } from './retrieval/defaults';
+import { estimateOrphansOnceSaved, syncToManager } from './retrieval/persistence';
+import type { RetrievalStore } from './retrieval/types';
 
 // 迁移要经过用户的 embedding 服务，大库需数分钟：启动请求立即返回，之后按此节奏轮询状态
 export const REINDEX_POLL_INTERVAL_MS = 2000;
@@ -133,42 +31,6 @@ const sleep = (ms: number): Promise<void> =>
 
 // 初始化标志
 let isStoreInitialized = false;
-
-/**
- * 同步到 ConfigSyncManager
- *
- * 统一通过 ConfigSyncManager 同步：
- * - Tauri 模式：TauriAdapter -> SQLite
- * - Sandbox 模式：SandboxAdapter -> PostgreSQL + 服务端加密
- */
-function syncToManager(config: RetrievalConfig): void {
-  const value: RetrievalConfigValue = {
-    embeddingConfig: config.embeddingConfig,
-    embeddingApplied: config.embeddingApplied,
-    embeddingAppliedAt: config.embeddingAppliedAt,
-    rerankerConfig: config.rerankerConfig,
-    rerankerApplied: config.rerankerApplied,
-    rerankerAppliedAt: config.rerankerAppliedAt,
-    enableAdvancedRetrieval: config.enableAdvancedRetrieval,
-  };
-  getConfigSyncManager().set('retrieval', value);
-}
-
-/**
- * 旧记忆估算由服务端按「已保存的」检索配置回答，所以必须排在刚入队的这次保存之后。
- * 保存没成功就不估算：此时服务端仍按旧配置回答 0，会把迁移提示藏起来；提示挂载时会自己再查一次。
- */
-async function estimateOrphansOnceSaved(estimate: () => Promise<void>): Promise<void> {
-  let saved = false;
-  try {
-    saved = (await getConfigSyncManager().forceSync()).success;
-  } catch {
-    // 同步管理器已记录失败原因；这里只需跳过估算。
-  }
-  if (saved) {
-    await estimate();
-  }
-}
 
 export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   ...DEFAULT_CONFIG,
