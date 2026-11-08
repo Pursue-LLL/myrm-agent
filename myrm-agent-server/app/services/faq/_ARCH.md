@@ -20,7 +20,7 @@ InboundMessage → ChannelAgentExecutor.execute_stream
 | 文件 | 职责 |
 |------|------|
 | `__init__.py` | 包入口，re-export 公共 API |
-| `corpus.py` | FAQ 语料 CRUD + Qdrant 索引重建 |
+| `corpus.py` | FAQ 语料 CRUD + Qdrant 索引重建（先算完全部向量再动索引：嵌入调用失败时在用的索引原样保留，向量大小取自提供方的应答） |
 | `interceptor.py` | 零 LLM 语义拦截器（embedding + 双校验） |
 | `tracker.py` | 命中/未命中日志记录 + 分析统计 |
 | `factory.py` | FaqInterceptor 工厂：embedding 来自 WebUI retrieval 配置，拦截器按配置（模型/密钥/地址）缓存，配置一变即重建 |
