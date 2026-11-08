@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from contextlib import AsyncExitStack
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids_in_text
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
@@ -26,11 +27,72 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
 )
 from myrm_agent_harness.agent.skills.runtime.skill_invocation import plain_skill_call, settings_withheld_note
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.meta_tools.bash._executor.mcp_citation_handler import MCPMetadataExtractor
+    from myrm_agent_harness.agent.meta_tools.bash._executor.prepare_mixin import PreparedExecution
+    from myrm_agent_harness.agent.meta_tools.bash._executor.skill_workspace_manager import SkillWorkspaceManager
+    from myrm_agent_harness.agent.meta_tools.bash._executor.workspace_manager import WorkspaceManager
+    from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope
+    from myrm_agent_harness.toolkits.code_execution import Workspace
+    from myrm_agent_harness.toolkits.code_execution.executors.base import (
+        CodeExecutor,
+        ExecutionContext,
+        ExecutionResult,
+    )
+    from myrm_agent_harness.toolkits.code_execution.executors.mcp_config import MCPConfigItem
+
 logger = logging.getLogger(__name__)
 
 
 class BashExecutorExecuteMixin:
     """Primary synchronous code execution entry point."""
+
+    # Provided by BashExecutor.__init__
+    _executor: CodeExecutor
+    _workspace_manager: WorkspaceManager
+    _skill_manager: SkillWorkspaceManager
+    _metadata_extractor: MCPMetadataExtractor
+    _skill_env_map: dict[str, dict[str, str]] | None
+
+    if TYPE_CHECKING:
+        # Provided by BashExecutorPrepareMixin / BashExecutorContextMixin.
+        def _caller_scope(self, session_id: str, workspace_root: str | None) -> CallerScope: ...
+        async def _prepare_execution(
+            self, command: str, scope: CallerScope, ipc_servers: AsyncExitStack
+        ) -> PreparedExecution: ...
+        def _inject_resilience_script(self, prepared_code: str) -> str: ...
+        def _detect_skill_from_code(self, code: str) -> str | None: ...
+        def _rewrite_skill_paths(self, code: str) -> tuple[str, str | None]: ...
+        def _convert_to_container_paths(self, workspace_skill_paths: list[str], workspace: Workspace) -> list[str]: ...
+        def _maybe_extend_timeout_for_mcp(
+            self, mcp_config_items: list[MCPConfigItem] | None, timeout: int | None
+        ) -> int | None: ...
+        def _register_generated_files(self, result: ExecutionResult) -> None: ...
+        def _build_error_details(self, result: ExecutionResult) -> str: ...
+        def _build_execution_context(
+            self,
+            prepared_code: str,
+            original_code: str,
+            mcp_config_items: list[MCPConfigItem] | None,
+            session_id: str | None,
+            workspace: Workspace | None,
+            env_paths: list[str] | None,
+            working_dir: str | None,
+            skill_names: list[str] | None = None,
+            skill_env: dict[str, str] | None = None,
+            timeout: int | None = None,
+        ) -> ExecutionContext: ...
+        async def _log_bash_command_execution(
+            self,
+            command: str,
+            session_id: str,
+            exit_code: int,
+            stdout: str,
+            stderr: str,
+            duration_ms: int,
+            success: bool,
+            error_message: str = "",
+        ) -> None: ...
 
     async def execute(
         self,
@@ -147,7 +209,10 @@ class BashExecutorExecuteMixin:
                 OfficeBashAudit,
             )
 
-            office_snapshots = OfficeBashAudit.prepare_snapshots(workspace_root_str, command)
+            # The audit resolves relative Office paths against the workspace root; without one there is nothing to audit.
+            office_snapshots = (
+                OfficeBashAudit.prepare_snapshots(workspace_root_str, command) if workspace_root_str else {}
+            )
 
             context = self._build_execution_context(
                 prepared_code=prepared_code,
@@ -226,11 +291,15 @@ class BashExecutorExecuteMixin:
         else:
             logger.info(" Command executed successfully")
 
-        office_warnings = await OfficeBashAudit.finalize_audit(
-            office_snapshots,
-            workspace_root_str,
-            command,
-            list(result.generated_files or []),
+        office_warnings = (
+            await OfficeBashAudit.finalize_audit(
+                office_snapshots,
+                workspace_root_str,
+                command,
+                list(result.generated_files or []),
+            )
+            if workspace_root_str
+            else []
         )
 
         clean_stdout, mcp_metadata = self._metadata_extractor.extract_metadata(result.stdout, trace_nonce)
