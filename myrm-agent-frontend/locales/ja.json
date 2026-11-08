@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "1 回のバッチインポートで最大 50 件の URL が許可されます",
         "urlImportResult": "インポート完了: 合計 {total} 件、キュー登録 {enqueued} 件、エラー {errors} 件",
         "importFailed": "URL の一括インポート開始に失敗しました",
+        "urlImportFailedHint": "次のリンクはインポートできませんでした。入力欄に残してあるので、確認して再試行できます。",
         "urlImportCount": "{count} 件の URL を検出",
         "urlImportPlaceholder": "URL をここに貼り付け（1 行に 1 件、最大 50 件）",
         "urlImportFolderLabel": "保存先フォルダ（任意）",

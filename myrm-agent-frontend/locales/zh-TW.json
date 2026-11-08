@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "單次批次匯入最多支援 50 個連結",
         "urlImportResult": "匯入完成：共 {total} 個，已排隊 {enqueued} 個，失敗 {errors} 個",
         "importFailed": "啟動連結批次匯入失敗",
+        "urlImportFailedHint": "以下連結未能匯入，已保留在輸入框中，可檢查後重試。",
         "urlImportCount": "已辨識 {count} 個連結",
         "urlImportPlaceholder": "在此貼上連結（每行一個，最多 50 個）",
         "urlImportFolderLabel": "目標知識庫目錄（選填）",

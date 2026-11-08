@@ -10,9 +10,12 @@ directory sidecars, bottom-up incremental DAG refresh, and LLM-driven wikilink e
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Wiki toolkit entry point | ✅ |
-| wiki_agent_tools.py | Core | LangChain tool integration: **ingest/query/apply** agent tools (bilingual schema & prompt optimization; apply writes stage as HITL pending drafts, never publish directly); URL ingest via `pipeline/ingress/publish_url_markdown_ingress`; admin compile/maintain via REST. Auto-compile on ingest, knowledge compounding on query, FetchEngine URL/binary ingest. | ✅ |
-| mcp_server.py | Surface | MCP adapter exposing wiki tools (`wiki_query_tool`, `wiki_ingest_tool`, `wiki_apply_tool`) to external agents (Claude Code, Cursor) — thin shell over the LangChain tools via `register_wiki_mcp_tools` + request-level ContextVar; ingest is URL/raw-text only on this surface (local file paths refused). | ✅ |
+| __init__.py | Package | Wiki toolkit entry point; also the server's import path for `fetch_url_markdown` and `SourceLoadError` | ✅ |
+| wiki_agent_tools.py | Core | LangChain tool integration: **ingest/query/apply** agent tools (apply writes stage as HITL pending drafts, never publish directly); URL ingest via `pipeline/ingress/publish_url_markdown_ingress`; admin compile/maintain via REST. Auto-compile on ingest, knowledge compounding on query. Ingest sources are loaded by `source_loader`: a source with no readable text is refused with its reason (`Failed to ingest document: …`) and never written to raw/. | ✅ |
+| wiki_tool_descriptions.py | Core | Bilingual (EN/ZH) descriptions of the three agent tools and their locale resolvers, shared by the LangChain tools and the MCP adapter. | ✅ |
+| source_loader.py | Core | Source loading for ingestion: `fetch_url_markdown` (FetchEngine only — SSRF guard, tier degradation, subtitle extractors; a page with nothing readable raises `SourceLoadError`, and so does a URL the SSRF guard blocks, because the engine answers a blocked, timed-out or unreachable URL with no document), `read_local_file` (file parsers where one supports the format; otherwise UTF-8 text, refusing binary files, non-UTF-8 bytes, directories and empty files instead of decoding garbage), `looks_like_local_path` (the predicate both the ingest tool and the MCP adapter use). | ✅ |
+| ingest_chunking.py | Core | `split_if_large`: cuts a document above the compile threshold into numbered chunk files next to its original path. | ✅ |
+| mcp_server.py | Surface | MCP adapter exposing wiki tools (`wiki_query_tool`, `wiki_ingest_tool`, `wiki_apply_tool`) to external agents (Claude Code, Cursor) — thin shell over the LangChain tools via `register_wiki_mcp_tools` + request-level ContextVar; ingest is URL/raw-text only on this surface (local file paths refused with the same `looks_like_local_path` predicate the ingest tool uses). | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|
@@ -25,8 +28,9 @@ directory sidecars, bottom-up incremental DAG refresh, and LLM-driven wikilink e
 
 ## Key Dependencies
 
-- `web_fetch` (FetchEngine for URL ingestion with YouTube/Bilibili subtitle extraction + multi-tier fallback; MarkdownGenerator as fallback converter)
-- `core.security.http.secure_fetch` (secure_get fallback for URL ingestion when FetchEngine unavailable)
+- `web_fetch` (FetchEngine for URL ingestion with YouTube/Bilibili subtitle extraction + multi-tier fallback; its SSRF guard is the only network gate of URL ingestion)
+- `file_parsers` (local PDF/Office/image parsing for file ingestion)
+- `utils.content_sniff` (tells a binary file from text for files no parser supports)
 - `utils` (logger, context_format)
 - `web_search` (optional)
 - `memory` (auto-archive from conversations)

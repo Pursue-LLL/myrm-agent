@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "한 번에 최대 50개의 URL까지 가져올 수 있습니다",
         "urlImportResult": "가져오기 완료: 총 {total}개, 대기열 추가 {enqueued}개, 오류 {errors}개",
         "importFailed": "URL 일괄 가져오기 시작 실패",
+        "urlImportFailedHint": "다음 링크는 가져오지 못했습니다. 입력란에 남겨 두었으니 확인한 뒤 다시 시도하세요.",
         "urlImportCount": "{count}개 URL 감지됨",
         "urlImportPlaceholder": "여기에 URL 붙여넣기 (한 줄에 하나씩, 최대 50개)",
         "urlImportFolderLabel": "대상 저장소 폴더 (선택 사항)",

@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "Maximal 50 URLs pro Stapelimport erlaubt",
         "urlImportResult": "Import abgeschlossen: {total} gesamt, {enqueued} eingereiht, {errors} Fehler",
         "importFailed": "Starten des URL-Stapelimports fehlgeschlagen",
+        "urlImportFailedHint": "Diese URLs konnten nicht importiert werden. Sie bleiben im Feld erhalten, damit sie geprüft und erneut versucht werden können.",
         "urlImportCount": "{count} URLs erkannt",
         "urlImportPlaceholder": "URLs hier einfügen (eine pro Zeile, max. 50)",
         "urlImportFolderLabel": "Ziel-Vault-Ordner (optional)",

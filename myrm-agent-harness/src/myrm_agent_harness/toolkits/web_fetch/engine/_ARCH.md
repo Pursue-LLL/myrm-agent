@@ -14,7 +14,7 @@ FetchEngine 执行引擎子包：L1 HTTP / L2 Browser / L3 Stealth 分层抓取�
 | base.py | Core | FetchEngine — tiered fetcher pool entry (mixins: cache / fetch / escalation); WeChat URLs log fast-path vs browser degradation outcomes | ✅ |
 | types.py | Core | CachedDocument, AccessStats, BackgroundTask, result aliases | ✅ |
 | cache_mixin.py | Core | Cache, coalescing, SWR background revalidation mixin; fetch error normalisation: an `SSRFSecurityError` from any tier is a terminal block (logged, remembered as failed, `None`), never an unexpected error and never a reason to try another tier | ✅ |
-| fetch_mixin.py | Core | L1/L2/L3 fetch, degradation, router feedback mixin; a non-text body (PDF, Office) is routed to a file parser before the empty-shell check, so only a body no parser accepts degrades to the browser | ✅ |
+| fetch_mixin.py | Core | L1/L2/L3 fetch, degradation, router feedback mixin. A file (PDF, Office, image) is routed to a file parser before the empty-shell check; one no parser reads ends the fetch (a browser cannot read it either) but is still offered to the L4 remote providers, while an error status degrades as before. Text (plain, markdown, csv, feeds) is returned as it is, skipping the HTML-only checks. The router learns only from real outcomes: a final miss (404, 304, an unreadable file) is not reported | ✅ |
 | escalation_mixin.py | Core | L4 remote escalation + bilibili cookie loader mixin | ✅ |
 
 ## Key Dependencies

@@ -215,7 +215,7 @@ def test_import_urls_success(tmp_path: Path) -> None:
             new=AsyncMock(return_value=SSRFResult(safe=True)),
         ),
         patch(
-            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            "myrm_agent_harness.toolkits.wiki.fetch_url_markdown",
             return_value="# Test Title\n\nArticle body content.",
         ),
     ):
@@ -269,7 +269,7 @@ def test_import_urls_ssrf_blocked(tmp_path: Path) -> None:
     assert data["error_count"] == 1
     assert data["enqueued_count"] == 0
     assert data["results"][0]["status"] == "error"
-    assert "SSRF blocked" in data["results"][0]["error"]
+    assert data["results"][0]["error"] == "This address cannot be imported"
 
 
 def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
@@ -281,7 +281,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
             new=AsyncMock(return_value=SSRFResult(safe=True)),
         ),
         patch(
-            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            "myrm_agent_harness.toolkits.wiki.fetch_url_markdown",
             return_value="# Version 1\n\nFirst edition.",
         ),
     ):
@@ -311,7 +311,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
             new=AsyncMock(return_value=SSRFResult(safe=True)),
         ),
         patch(
-            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            "myrm_agent_harness.toolkits.wiki.fetch_url_markdown",
             return_value="# Version 2\n\nSecond edition.",
         ),
     ):
@@ -340,7 +340,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
             new=AsyncMock(return_value=SSRFResult(safe=True)),
         ),
         patch(
-            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            "myrm_agent_harness.toolkits.wiki.fetch_url_markdown",
             return_value="# Version 2\n\nSecond edition.",
         ),
     ):
@@ -374,7 +374,7 @@ def test_import_urls_redacts_credential_content(tmp_path: Path) -> None:
             new=AsyncMock(return_value=SSRFResult(safe=True)),
         ),
         patch(
-            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            "myrm_agent_harness.toolkits.wiki.fetch_url_markdown",
             return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
         ),
     ):

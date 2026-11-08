@@ -11,7 +11,7 @@ auto-conversion).
 |------|------|-------------|-------|
 | __init__.py | Package | File parsers toolkit entry point. Aggregates parsers, LegacyFormatParser (OLE2 magic detection + soffice conversion for .doc/.xls/.ppt), and factory functions. | ✅ |
 | base.py | Core | File parser base classes and data structures (PDFHeading/PDFTable/PDFParseResult) | ✅ |
-| content_format_sniff.py | Core | Content sniffing: detect file format from bytes (magic bytes) independent of extension | ✅ |
+| content_format_sniff.py | Core | Content sniffing: detect file format from a file path or bytes (magic bytes) independent of extension; zip containers are named by `utils.content_sniff.zip_file_extension`, the same rules the web fetch tiers use | ✅ |
 | container_xml_parser.py | Core | Generic OPC/container XML parser for legacy office formats | ✅ |
 | csv_parser.py | Core | CSV file parser with delimiter detection and Markdown output | ✅ |
 | docx.py | Core | Word document parser. Supports markdown (headings, lists, tables with merged-cell dedup, document order, embedded image refs) and structure mode (JSON metadata with paragraph IDs, styles, table cell map with row/col coordinates for incremental edits and form filling). | ✅ |

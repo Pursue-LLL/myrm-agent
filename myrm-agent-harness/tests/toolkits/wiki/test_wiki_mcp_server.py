@@ -8,17 +8,17 @@ scoping ContextVar, and forwarding behavior for all three tools.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain_core.tools import BaseTool
 from mcp.server.mcpserver import MCPServer
-from mcp.types import TextContent
+from mcp.types import CallToolResult, TextContent
 
 from myrm_agent_harness.toolkits.wiki import create_wiki_agent_tools
 from myrm_agent_harness.toolkits.wiki import mcp_server as wiki_mcp
 from myrm_agent_harness.toolkits.wiki.mcp_server import (
-    _looks_like_local_path,
     get_request_wiki_tools,
     register_wiki_mcp_tools,
     reset_request_wiki_tools,
@@ -44,10 +44,21 @@ async def _mcp_tool_schemas() -> dict[str, set[str]]:
     register_wiki_mcp_tools(mcp, get_request_wiki_tools)
     tools = await mcp.list_tools()
     return {
-        t.name: set((t.input_schema or {}).get("properties", {}).keys())
-        for t in tools
-        if t.name.startswith("wiki_")
+        t.name: set((t.input_schema or {}).get("properties", {}).keys()) for t in tools if t.name.startswith("wiki_")
     }
+
+
+def _first_text(result: object) -> str:
+    """Text of the first content block of an MCP tool-call result."""
+    assert isinstance(result, CallToolResult)
+    block = result.content[0]
+    assert isinstance(block, TextContent)
+    return block.text
+
+
+def _ainvoke_mock(bundle: dict[str, BaseTool], name: str) -> AsyncMock:
+    """The recording AsyncMock that stands in for ``bundle[name].ainvoke``."""
+    return cast(AsyncMock, bundle[name].ainvoke)
 
 
 @pytest.mark.asyncio
@@ -64,8 +75,7 @@ async def test_mcp_tool_params_cover_langchain_tool_params() -> None:
     assert set(langchain_params) == set(mcp_params), "tool name sets must match"
     for name, params in langchain_params.items():
         assert mcp_params[name] == params, (
-            f"parameter drift for {name}: MCP has {mcp_params[name]}, "
-            f"LangChain has {params}"
+            f"parameter drift for {name}: MCP has {mcp_params[name]}, LangChain has {params}"
         )
 
 
@@ -82,7 +92,7 @@ def test_request_wiki_tools_context() -> None:
     """Test set, get, and reset of the request-scoped wiki tool bundle."""
     assert get_request_wiki_tools() is None
 
-    mock_tools = {"wiki_query_tool": MagicMock()}
+    mock_tools: dict[str, BaseTool] = {"wiki_query_tool": MagicMock()}
     token = set_request_wiki_tools(mock_tools)
     try:
         assert get_request_wiki_tools() is mock_tools
@@ -90,22 +100,6 @@ def test_request_wiki_tools_context() -> None:
         reset_request_wiki_tools(token)
 
     assert get_request_wiki_tools() is None
-
-
-def test_looks_like_local_path_branch_conditions(tmp_path: Path) -> None:
-    """The refusal condition must mirror the LangChain ingest local-file branch."""
-    local_file = tmp_path / "notes.md"
-    local_file.write_text("hello", encoding="utf-8")
-
-    assert _looks_like_local_path(str(local_file)) is True
-    assert _looks_like_local_path("https://example.com/doc") is False
-    assert _looks_like_local_path("http://example.com/doc") is False
-    # Long raw text (>260 chars) is raw text, not a path.
-    assert _looks_like_local_path("word " * 100) is False
-    # Multiline raw text is raw text, not a path.
-    assert _looks_like_local_path("line one\nline two") is False
-    # Short non-existent string is raw text on the LangChain branch too.
-    assert _looks_like_local_path("just some notes") is False
 
 
 @pytest.mark.asyncio
@@ -117,9 +111,7 @@ async def test_wiki_tools_unavailable_when_resolver_returns_none() -> None:
     assert any(t.name == "wiki_query_tool" for t in tools)
 
     result = await mcp.call_tool("wiki_query_tool", {"question": "any question"})
-    contents = result[0] if isinstance(result, list) else result.content
-    text = contents[0].text if isinstance(contents, list) else str(contents)
-    assert "not available" in text
+    assert "not available" in _first_text(result)
 
 
 def _bundle_with_mocks() -> dict[str, BaseTool]:
@@ -141,7 +133,7 @@ async def test_wiki_query_forwards_to_langchain_tool() -> None:
 
     await mcp.call_tool("wiki_query_tool", {"question": "What is X?"})
 
-    bundle["wiki_query_tool"].ainvoke.assert_awaited_once_with({"question": "What is X?"})
+    _ainvoke_mock(bundle, "wiki_query_tool").assert_awaited_once_with({"question": "What is X?"})
 
 
 @pytest.mark.asyncio
@@ -156,7 +148,7 @@ async def test_wiki_ingest_forwards_url_and_raw_text() -> None:
     )
     await mcp.call_tool("wiki_ingest_tool", {"source": "plain notes"})
 
-    assert bundle["wiki_ingest_tool"].ainvoke.await_count == 2
+    assert _ainvoke_mock(bundle, "wiki_ingest_tool").await_count == 2
 
 
 @pytest.mark.asyncio
@@ -171,10 +163,8 @@ async def test_wiki_ingest_refuses_local_file_paths(tmp_path: Path) -> None:
 
     result = await mcp.call_tool("wiki_ingest_tool", {"source": str(secret)})
 
-    bundle["wiki_ingest_tool"].ainvoke.assert_not_awaited()
-    contents = result[0] if isinstance(result, list) else result.content
-    text = contents[0].text if isinstance(contents, list) else str(contents)
-    assert "local file paths are not supported" in text
+    _ainvoke_mock(bundle, "wiki_ingest_tool").assert_not_awaited()
+    assert "local file paths are not supported" in _first_text(result)
 
 
 @pytest.mark.asyncio
@@ -193,7 +183,7 @@ async def test_wiki_apply_forwards_to_langchain_tool() -> None:
         },
     )
 
-    bundle["wiki_apply_tool"].ainvoke.assert_awaited_once_with(
+    _ainvoke_mock(bundle, "wiki_apply_tool").assert_awaited_once_with(
         {
             "op": "create_note",
             "concept_name": "research/topic",

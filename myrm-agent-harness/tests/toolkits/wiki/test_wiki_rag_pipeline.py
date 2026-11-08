@@ -1,107 +1,22 @@
-"""Tests for Local RAG pipeline: indexer raw text, compiler enqueue, and chunk splitting."""
+"""Tests for Local RAG pipeline: indexer raw text and compiler enqueue."""
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.wiki.wiki_agent_tools import (
-    _BINARY_DOC_EXTENSIONS,
-    _LARGE_DOC_CHUNK_THRESHOLD,
-    _split_if_large,
-)
-
-
-class TestBinaryDocExtensions:
-    """Verify the binary document extension set is correct."""
-
-    @pytest.mark.parametrize(
-        "ext",
-        [".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"],
-    )
-    def test_supported_extensions(self, ext: str) -> None:
-        assert ext in _BINARY_DOC_EXTENSIONS
-
-    @pytest.mark.parametrize("ext", [".md", ".txt", ".py", ".json", ".csv"])
-    def test_unsupported_extensions(self, ext: str) -> None:
-        assert ext not in _BINARY_DOC_EXTENSIONS
-
-
-class TestSplitIfLarge:
-    """Tests for _split_if_large chunking logic."""
-
-    def test_small_content_returns_single_entry(self) -> None:
-        content = "Short doc content"
-        result = _split_if_large(content, "notes/test.md")
-        assert len(result) == 1
-        assert result[0] == ("notes/test.md", content)
-
-    def test_exactly_at_threshold_returns_single_entry(self) -> None:
-        content = "x" * _LARGE_DOC_CHUNK_THRESHOLD
-        result = _split_if_large(content, "doc.md")
-        assert len(result) == 1
-        assert result[0] == ("doc.md", content)
-
-    def _make_diverse_content(self, min_chars: int) -> str:
-        """Generate diverse content that survives chunk quality filtering."""
-        sections: list[str] = []
-        i = 0
-        while len("\n\n".join(sections)) < min_chars:
-            sections.append(
-                f"## Section {i}: Topic Alpha-{i}\n\n"
-                f"Paragraph about concept {i} in domain engineering. "
-                f"The framework handles request {i} through middleware layer {i}. "
-                f"Configuration parameter set-{i} controls behavior for module {i}.\n"
-            )
-            i += 1
-        return "\n\n".join(sections)
-
-    def test_above_threshold_produces_multiple_chunks(self) -> None:
-        content = self._make_diverse_content(_LARGE_DOC_CHUNK_THRESHOLD + 10000)
-        assert len(content) > _LARGE_DOC_CHUNK_THRESHOLD
-
-        result = _split_if_large(content, "big_report.md")
-        assert len(result) >= 2
-
-        for path, chunk in result:
-            assert path.endswith(".md")
-            assert len(chunk) > 0
-
-    def test_chunk_naming_with_parent_path(self) -> None:
-        content = self._make_diverse_content(_LARGE_DOC_CHUNK_THRESHOLD + 10000)
-        result = _split_if_large(content, "folder/subfolder/report.md")
-
-        if len(result) >= 2:
-            for path, _ in result:
-                assert path.startswith("folder/subfolder/")
-                assert "report_chunk" in path
-
-    def test_chunk_naming_without_parent(self) -> None:
-        content = self._make_diverse_content(_LARGE_DOC_CHUNK_THRESHOLD + 10000)
-        result = _split_if_large(content, "report.md")
-
-        if len(result) >= 2:
-            for path, _ in result:
-                assert "report_chunk" in path
-
-    def test_all_content_preserved_after_split(self) -> None:
-        words = [f"word{i}" for i in range(_LARGE_DOC_CHUNK_THRESHOLD // 3)]
-        content = " ".join(words)
-        result = _split_if_large(content, "doc.md")
-
-        combined = " ".join(chunk for _, chunk in result)
-        for w in words[:50]:
-            assert w in combined
+from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
 
 
 class TestIndexRawText:
     """Tests for WikiIndexer.index_raw_text FTS5 interim indexing."""
 
     @pytest.fixture()
-    def db_path(self, tmp_path: Path):
+    def db_path(self, tmp_path: Path) -> Iterator[Path]:
         path = tmp_path / "test_wiki.db"
         yield path
 
@@ -210,6 +125,14 @@ class TestIndexRawText:
             conn.close()
 
 
+def _compiler_with(queue: MagicMock, indexer: MagicMock | None) -> WikiCompiler:
+    """A WikiCompiler wired to a mock queue and indexer; ``__new__`` skips the real constructor."""
+    compiler = WikiCompiler.__new__(WikiCompiler)
+    compiler._queue = queue
+    compiler._indexer = indexer
+    return compiler
+
+
 class TestCompilerEnqueueRawIndex:
     """Tests for compiler.enqueue_file triggering raw FTS5 indexing."""
 
@@ -219,25 +142,16 @@ class TestCompilerEnqueueRawIndex:
 
         mock_indexer = MagicMock()
         mock_queue = MagicMock()
+        compiler = _compiler_with(mock_queue, mock_indexer)
 
-        with patch(
-            "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler.__init__",
-            return_value=None,
-        ):
-            from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
-
-            compiler = WikiCompiler.__new__(WikiCompiler)
-            compiler._queue = mock_queue
-            compiler._indexer = mock_indexer
-            compiler.start_background_worker = MagicMock()
-
+        with patch.object(compiler, "start_background_worker"):
             compiler.enqueue_file(md_file)
 
-            mock_queue.add_item.assert_called_once_with(md_file)
-            mock_indexer.index_raw_text.assert_called_once_with(
-                "test_doc",
-                "# Test Document\nSome content here.",
-            )
+        mock_queue.add_item.assert_called_once_with(md_file)
+        mock_indexer.index_raw_text.assert_called_once_with(
+            "test_doc",
+            "# Test Document\nSome content here.",
+        )
 
     def test_enqueue_skips_indexing_for_non_md_files(self, tmp_path: Path) -> None:
         py_file = tmp_path / "script.py"
@@ -245,62 +159,34 @@ class TestCompilerEnqueueRawIndex:
 
         mock_indexer = MagicMock()
         mock_queue = MagicMock()
+        compiler = _compiler_with(mock_queue, mock_indexer)
 
-        with patch(
-            "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler.__init__",
-            return_value=None,
-        ):
-            from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
-
-            compiler = WikiCompiler.__new__(WikiCompiler)
-            compiler._queue = mock_queue
-            compiler._indexer = mock_indexer
-            compiler.start_background_worker = MagicMock()
-
+        with patch.object(compiler, "start_background_worker"):
             compiler.enqueue_file(py_file)
 
-            mock_queue.add_item.assert_called_once()
-            mock_indexer.index_raw_text.assert_not_called()
+        mock_queue.add_item.assert_called_once()
+        mock_indexer.index_raw_text.assert_not_called()
 
     def test_enqueue_skips_indexing_when_no_indexer(self, tmp_path: Path) -> None:
         md_file = tmp_path / "doc.md"
         md_file.write_text("content", encoding="utf-8")
 
         mock_queue = MagicMock()
+        compiler = _compiler_with(mock_queue, None)
 
-        with patch(
-            "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler.__init__",
-            return_value=None,
-        ):
-            from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
-
-            compiler = WikiCompiler.__new__(WikiCompiler)
-            compiler._queue = mock_queue
-            compiler._indexer = None
-            compiler.start_background_worker = MagicMock()
-
+        with patch.object(compiler, "start_background_worker"):
             compiler.enqueue_file(md_file)
 
-            mock_queue.add_item.assert_called_once()
+        mock_queue.add_item.assert_called_once()
 
     def test_enqueue_handles_empty_md_file(self, tmp_path: Path) -> None:
         md_file = tmp_path / "empty.md"
         md_file.write_text("   \n  ", encoding="utf-8")
 
         mock_indexer = MagicMock()
-        mock_queue = MagicMock()
+        compiler = _compiler_with(MagicMock(), mock_indexer)
 
-        with patch(
-            "myrm_agent_harness.toolkits.wiki.pipeline.compiler.WikiCompiler.__init__",
-            return_value=None,
-        ):
-            from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
-
-            compiler = WikiCompiler.__new__(WikiCompiler)
-            compiler._queue = mock_queue
-            compiler._indexer = mock_indexer
-            compiler.start_background_worker = MagicMock()
-
+        with patch.object(compiler, "start_background_worker"):
             compiler.enqueue_file(md_file)
 
-            mock_indexer.index_raw_text.assert_not_called()
+        mock_indexer.index_raw_text.assert_not_called()

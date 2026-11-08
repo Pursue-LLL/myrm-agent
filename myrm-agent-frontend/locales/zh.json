@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "单次批量导入最多支持 50 个链接",
         "urlImportResult": "导入完成：共 {total} 个，已入队 {enqueued} 个，失败 {errors} 个",
         "importFailed": "启动链接批量导入失败",
+        "urlImportFailedHint": "以下链接未能导入，已保留在输入框中，可检查后重试。",
         "urlImportCount": "已识别 {count} 个链接",
         "urlImportPlaceholder": "在此粘贴链接（每行一个，最多 50 个）",
         "urlImportFolderLabel": "目标知识库目录（可选）",

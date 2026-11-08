@@ -17754,6 +17754,7 @@
         "urlImportTooManyError": "Maximum 50 URLs allowed per batch import",
         "urlImportResult": "Import complete: {total} total, {enqueued} enqueued, {errors} errors",
         "importFailed": "Failed to start URL batch import",
+        "urlImportFailedHint": "These links could not be imported. They stay in the box so you can check them and retry.",
         "urlImportCount": "{count} URLs detected",
         "urlImportPlaceholder": "Paste URLs here (one per line, up to 50)",
         "urlImportFolderLabel": "Target Vault Folder (optional)",

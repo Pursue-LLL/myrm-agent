@@ -6,6 +6,7 @@
 - toolkits.web_fetch.probe.http3_probe::is_quic_egress_available (POS: QUIC egress probe and L1 retry metrics)
 - toolkits.web_fetch.router.site_experience::get_global_site_experience_store (POS: Site experience store)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Proxy rotation pool for FetchEngine)
+- utils.content_sniff::classify_payload (POS: web page, text or binary file, decided once for every fetch tier)
 
 [OUTPUT]
 - HttpFetcher: L1 tier fetcher with HTTP/2 default and HTTP/3 retry on antibot/403/empty failure (not 429; skipped when proxy pool active); every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy rejects raises SSRFSecurityError instead of degrading to the next tier
@@ -36,6 +37,7 @@ from myrm_agent_harness.toolkits.web_fetch.processing.antibot_detector import (
 from myrm_agent_harness.toolkits.web_fetch.router.site_experience import (
     get_global_site_experience_store,
 )
+from myrm_agent_harness.utils.content_sniff import PayloadKind, classify_payload
 
 from .protocols import FetcherType, FetchResult
 from .target_guard import FetchTargetGuard
@@ -221,7 +223,7 @@ class HttpFetcher:
         if 400 <= result.status_code < 500:
             return False
 
-        if result.raw_body is not None:
+        if result.kind is not PayloadKind.WEB:
             return False
 
         if not result.has_content:
@@ -353,17 +355,11 @@ class HttpFetcher:
                 fetcher_type=FetcherType.HTTP,
             )
 
-        content_type = (resp_headers.get("content-type") or "").split(";")[0].strip().lower()
-        is_text = (
-            not content_type
-            or content_type.startswith("text/")
-            or content_type in ("application/json", "application/xml", "application/javascript")
-        )
-
         body = getattr(response, "body", b"")
         encoding = getattr(response, "encoding", None)
+        kind = classify_payload(resp_headers.get("content-type"), body)
 
-        if is_text:
+        if kind is not PayloadKind.BINARY:
             from ..probe.charset_detector import detect_and_decode_html
 
             if len(body) > MAX_TEXT_BODY_BYTES:
@@ -381,6 +377,7 @@ class HttpFetcher:
                 status_code=status,
                 headers=resp_headers,
                 fetcher_type=FetcherType.HTTP,
+                kind=kind,
             )
 
         return FetchResult(

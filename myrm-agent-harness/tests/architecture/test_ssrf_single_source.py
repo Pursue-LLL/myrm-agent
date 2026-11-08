@@ -33,6 +33,10 @@ _FOLLOW_REDIRECTS_ALLOWLIST = frozenset(
     }
 )
 
+# Modules that open a connection by themselves.
+_HTTP_CLIENT_ROOTS = frozenset({"httpx", "requests", "aiohttp", "urllib3", "curl_cffi"})
+_HTTP_CLIENT_MODULES = frozenset({"urllib.request", "http.client"})
+
 _SSRF_IMPORT_MARKERS = (
     "secure_fetch",
     "async_pin_url",
@@ -104,19 +108,28 @@ def test_toolkits_network_package_removed() -> None:
     assert not network_dir.exists(), "toolkits/network/ must not exist — use core/security/guards/ssrf.py"
 
 
-def test_wiki_url_fetch_uses_secure_get() -> None:
-    """Wiki URL ingestion must use secure_get — not bare httpx client.get."""
-    wiki_tools = _HARNESS_SRC / "toolkits" / "wiki" / "wiki_agent_tools.py"
-    source = wiki_tools.read_text(encoding="utf-8")
-    assert "async def _fetch_url_as_markdown" in source
-    start = source.index("async def _fetch_url_as_markdown")
-    next_def = source.find("\nasync def ", start + 1)
-    next_at = source.find("\n    @tool", start + 1)
-    candidates = [x for x in (next_def, next_at) if x != -1]
-    end = min(candidates) if candidates else len(source)
-    body = source[start:end]
-    assert "secure_get" in body, "wiki _fetch_url_as_markdown must call secure_get"
-    assert "create_httpx_client" not in body, "wiki _fetch_url_as_markdown must not use bare httpx client"
+def _imported_modules(path: Path) -> set[str]:
+    imported: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+    return imported
+
+
+def test_wiki_url_ingestion_reaches_the_network_only_through_the_fetch_engine() -> None:
+    """The engine's SSRF guard covers every hop; a client of its own in the wiki toolkit would bypass it."""
+    wiki = _HARNESS_SRC / "toolkits" / "wiki"
+    own_clients = {
+        f"{name}: {module}"
+        for name in ("source_loader.py", "wiki_agent_tools.py")
+        for module in _imported_modules(wiki / name)
+        if module.split(".")[0] in _HTTP_CLIENT_ROOTS or module in _HTTP_CLIENT_MODULES or "secure_fetch" in module
+    }
+
+    assert not own_clients, f"Wiki URL ingestion must fetch through web_fetch_tools only: {sorted(own_clients)}"
+    assert "myrm_agent_harness.toolkits.web_fetch" in _imported_modules(wiki / "source_loader.py")
 
 
 def test_image_reference_download_uses_secure_get() -> None:
