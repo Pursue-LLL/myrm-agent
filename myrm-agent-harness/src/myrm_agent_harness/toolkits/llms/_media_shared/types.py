@@ -8,7 +8,7 @@
 - SizeSpec: Width/height pair for resolution constraints
 
 [POS]
-These types are imported by video/models.py, normalization.py, and task_store.py.
+These types are imported by video/models.py and normalization.py.
 They define the contract between provider declarations and the
 normalization engine.
 """

@@ -100,6 +100,7 @@ __all__ = [
     "MemoryError",
     "MemoryNotFoundError",
     "MemoryProtectedError",
+    "MemoryRejectedError",
     "_get_adaptive_threshold",
     "_lifecycle_from_metadata",
     "_lifecycle_payload",
@@ -154,6 +155,14 @@ class MemoryNotFoundError(MemoryError):
 
 class MemoryProtectedError(MemoryError):
     """Raised when a user-protected memory is written without explicit consent."""
+
+
+class MemoryRejectedError(MemoryError):
+    """Raised when a write is refused for a reason its caller can act on.
+
+    The message is addressed to whoever made the call (an agent reading a tool result, an API
+    client), so a surface may show it as written.
+    """
 
 
 class InvalidPendingEditError(MemoryError):

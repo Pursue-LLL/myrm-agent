@@ -5,15 +5,15 @@
 - memory.protocols.graph::GraphStoreProtocol (POS: graph store for claim collection)
 - utils.coercion::parse_int (POS: defensive numeric coercion utilities)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Direct persistence of maintenance counters, hashes and timestamps)
+- strategies.consolidation_models::CONSOLIDATION_INSIGHT_TAG (POS: markers of consolidation's own output)
 - strategies.pattern_discovery_models::* (POS: Domain models and result DTO for pattern discovery)
 - strategies.pattern_discovery_prompts::* (POS: Prompts for cross-cycle pattern discovery)
 
 [OUTPUT]
-- PatternReport: Immutable result of a pattern discovery cycle.
-- run_pattern_discovery: Analyze memories and insights to surface cross-cycle patterns.
+- run_pattern_discovery: Analyze memories and insights to surface cross-cycle patterns; returns a PatternReport.
 - should_run_pattern_discovery: Gate check based on memory maturity.
 - increment_consolidation_count: Track consolidation runs for gate check.
-- get_recent_patterns: Retrieve patterns for Heartbeat SituationSection injection.
+- get_recent_patterns: Retrieve the newest patterns for Heartbeat SituationSection injection.
 
 [POS]
 Cross-cycle pattern discovery strategy. Runs weekly (server-layer scheduling),
@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING
 from langchain_core.language_models import BaseChatModel
 
 from myrm_agent_harness.toolkits.memory.strategies.bookkeeping import read_bookkeeping, write_bookkeeping
+from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import CONSOLIDATION_INSIGHT_TAG
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
     DiscoveredPattern,
     PatternDiscoveryResponse,
@@ -103,14 +104,14 @@ async def increment_consolidation_count(manager: MemoryManager) -> None:
 
 
 async def _collect_insights(manager: MemoryManager, limit: int = 30) -> list[str]:
-    """Collect consolidation insights stored as semantic memories tagged 'consolidation-insight'."""
+    """Collect the insights consolidation stored as semantic memories (tagged ``CONSOLIDATION_INSIGHT_TAG``)."""
     try:
         results = await manager.search(
             "consolidation insight pattern observation",
             limit=limit,
             track_access=False,
         )
-        return [r.memory.content for r in results if "consolidation-insight" in getattr(r.memory, "tags", [])]
+        return [r.memory.content for r in results if CONSOLIDATION_INSIGHT_TAG in getattr(r.memory, "tags", [])]
     except Exception as exc:
         logger.warning("Pattern discovery: failed to collect insights: %s", exc)
         return []
@@ -156,10 +157,12 @@ async def run_pattern_discovery(
 
     from myrm_agent_harness.toolkits.memory.types import MemoryType
 
+    # The newest 200 of each type: the prompt lists the 100 most recent, and the memory-set hash below
+    # must change when a memory arrives, which an arbitrary 200 of a larger store would not show.
     all_memories: list[AnyMemory] = []
     for mt in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         try:
-            mems = await manager.list_memories(mt, limit=200)
+            mems = await manager.list_memories(mt, limit=200, sort_by="created_at")
             all_memories.extend(mems)
         except Exception as exc:
             logger.warning("Pattern discovery: failed to list %s: %s", mt.value, exc)
@@ -188,12 +191,19 @@ async def run_pattern_discovery(
         from langchain_core.messages import HumanMessage, SystemMessage
 
         structured_llm = llm.with_structured_output(PatternDiscoveryResponse)
-        response: PatternDiscoveryResponse = await structured_llm.ainvoke(
+        raw_response = await structured_llm.ainvoke(
             [
                 SystemMessage(content=_SYSTEM_PROMPT),
                 HumanMessage(content=user_prompt),
             ]
         )
+        # A pydantic schema normally yields an instance and a JSON-mode parser a dict; anything else is a provider fault.
+        if isinstance(raw_response, dict):
+            response = PatternDiscoveryResponse.model_validate(raw_response)
+        elif isinstance(raw_response, PatternDiscoveryResponse):
+            response = raw_response
+        else:
+            raise TypeError(f"Unexpected response type from structured LLM: {type(raw_response)}")
     except Exception as exc:
         logger.warning("Pattern discovery LLM call failed: %s", exc)
         elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
@@ -338,10 +348,12 @@ async def _persist_patterns(
 
 
 async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[str]:
-    """Retrieve recently discovered patterns for Heartbeat injection.
+    """Retrieve the newest discovered patterns for Heartbeat injection.
 
     Filters episodic events by event_type=pattern_discovery via vector scroll,
-    avoiding unreliable semantic search.
+    avoiding unreliable semantic search. The scroll is ordered newest first: an
+    unordered one returns an arbitrary ``limit`` of the events, so a stale pattern
+    could stand in for the latest.
     """
     if not manager.has_vector:
         return []
@@ -356,6 +368,7 @@ async def get_recent_patterns(manager: MemoryManager, limit: int = 5) -> list[st
                 "event_type": "pattern_discovery",
                 "primary_namespace": manager.namespaces,
             },
+            order_by=("_created_ts", "desc"),
         )
         return [d.content for d in docs if d.content]
     except Exception:

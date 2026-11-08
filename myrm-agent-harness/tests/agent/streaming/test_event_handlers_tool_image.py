@@ -2,7 +2,7 @@
 
 Verifies that multimodal tool outputs (e.g., computer_use screenshots)
 are detected and emitted as TOOL_IMAGE_OUTPUT events, and exercises
-the normal, error, and metadata extraction paths of _handle_tool_result.
+the normal, error, and hoisted-sources paths of _handle_tool_result.
 """
 
 import json
@@ -10,12 +10,13 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
+from myrm_agent_harness.agent.middlewares.tooling.tool_sources_hoisting import TOOL_SOURCES_KWARG
 from myrm_agent_harness.agent.streaming.event_handlers import (
-    _extract_tool_metadata,
     _handle_tool_result,
     process_messages_chunk,
     process_updates_chunk,
 )
+from myrm_agent_harness.agent.streaming.source_tracker import SourceTracker
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
 
@@ -171,64 +172,106 @@ async def test_image_block_without_base64_no_event():
     assert len(image_events) == 0
 
 
-# ==================== _extract_tool_metadata tests ====================
+# ==================== sources carried in additional_kwargs ====================
 
 
-def test_extract_metadata_from_dict_content():
-    """Dict content with metadata key should be extracted.
-
-    Note: LangChain ToolMessage converts dict to str(dict), so we test
-    the raw function with a manually constructed msg that has dict content.
-    """
-    msg = ToolMessage(content="plain text", name="web_search", tool_call_id="call_m1")
-    # Manually set .content to dict to test the isinstance(dict) branch
-    object.__setattr__(msg, "content", {"result": "ok", "metadata": {"sources": [{"url": "https://example.com"}]}})
-    meta = _extract_tool_metadata(msg)
-    assert meta == {"sources": [{"url": "https://example.com"}]}
+async def _events_of(msg: ToolMessage, tracker: SourceTracker | None) -> list[dict[str, object]]:
+    return [event async for event in _handle_tool_result(msg, "msg_src", tracker)]
 
 
-def test_extract_metadata_from_json_string():
-    """JSON string content with metadata should be parsed and extracted."""
-    payload = json.dumps({"output": "done", "metadata": {"key": "value"}})
-    msg = ToolMessage(content=payload, name="some_tool", tool_call_id="call_m2")
-    meta = _extract_tool_metadata(msg)
-    assert meta == {"key": "value"}
-
-
-def test_extract_metadata_from_plain_string():
-    """Plain string content should return empty dict."""
-    msg = ToolMessage(content="Just a plain result", name="tool_x", tool_call_id="call_m3")
-    meta = _extract_tool_metadata(msg)
-    assert meta == {}
-
-
-def test_extract_metadata_invalid_json():
-    """Invalid JSON string starting with '{' should return empty dict."""
-    msg = ToolMessage(content="{not valid json", name="tool_y", tool_call_id="call_m4")
-    meta = _extract_tool_metadata(msg)
-    assert meta == {}
-
-
-def test_extract_metadata_from_list_content():
-    """List content (multimodal) should return empty dict."""
+@pytest.mark.asyncio
+async def test_hoisted_sources_emit_the_reviewing_step_and_the_sources_event() -> None:
+    """Sources in ``additional_kwargs`` reach the tracker, which numbers them and returns the new ones."""
     msg = ToolMessage(
-        content=[{"type": "text", "text": "hello"}],
-        name="tool_z",
-        tool_call_id="call_m5",
+        content="Found two pages.",
+        name="web_search_tool",
+        tool_call_id="call_s1",
+        additional_kwargs={
+            TOOL_SOURCES_KWARG: [
+                {"url": "https://a.test", "title": "A"},
+                {"url": "https://b.test", "title": "B"},
+            ]
+        },
     )
-    meta = _extract_tool_metadata(msg)
-    assert meta == {}
+
+    events = await _events_of(msg, SourceTracker())
+
+    expected = [
+        {"url": "https://a.test", "title": "A", "index": 1},
+        {"url": "https://b.test", "title": "B", "index": 2},
+    ]
+    assert [e["type"] for e in events] == [AgentEventType.TASKS_STEPS.value, AgentEventType.SOURCES.value]
+    assert events[0]["step_key"] == "reviewing_sources"
+    assert events[0]["count"] == 2
+    assert events[0]["data"] == expected
+    assert events[1]["data"] == expected
 
 
-def test_extract_metadata_dict_without_metadata_key():
-    """Dict content without metadata key should return empty dict."""
+@pytest.mark.asyncio
+async def test_an_envelope_left_in_the_content_is_not_read_for_sources() -> None:
+    """Only the hoisted kwarg carries sources; a ``metadata.sources`` still inside the text is not consulted."""
     msg = ToolMessage(
-        content={"result": "ok", "other_key": 42},
-        name="tool_w",
-        tool_call_id="call_m6",
+        content=json.dumps({"content": "found", "metadata": {"sources": [{"url": "https://x.com"}]}}),
+        name="web_search_tool",
+        tool_call_id="call_s2",
     )
-    meta = _extract_tool_metadata(msg)
-    assert meta == {}
+
+    assert await _events_of(msg, SourceTracker()) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sources", [[], None, "https://x.com", {"url": "https://x.com"}])
+async def test_a_sources_kwarg_that_is_not_a_non_empty_list_emits_nothing(sources: object) -> None:
+    msg = ToolMessage(
+        content="found",
+        name="web_search_tool",
+        tool_call_id="call_s3",
+        additional_kwargs={TOOL_SOURCES_KWARG: sources},
+    )
+
+    assert await _events_of(msg, SourceTracker()) == []
+
+
+@pytest.mark.asyncio
+async def test_hoisted_sources_without_a_tracker_emit_nothing() -> None:
+    msg = ToolMessage(
+        content="found",
+        name="web_search_tool",
+        tool_call_id="call_s4",
+        additional_kwargs={TOOL_SOURCES_KWARG: [{"url": "https://x.com"}]},
+    )
+
+    assert await _events_of(msg, None) == []
+
+
+@pytest.mark.asyncio
+async def test_a_source_the_tracker_already_knows_is_not_emitted_again() -> None:
+    tracker = SourceTracker()
+    msg = ToolMessage(
+        content="found",
+        name="web_search_tool",
+        tool_call_id="call_s5",
+        additional_kwargs={TOOL_SOURCES_KWARG: [{"url": "https://x.com"}]},
+    )
+
+    assert len(await _events_of(msg, tracker)) == 2
+    assert await _events_of(msg, tracker) == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_result_emits_its_error_step_and_no_sources() -> None:
+    msg = ToolMessage(
+        content="boom",
+        name="web_search_tool",
+        tool_call_id="call_s6",
+        status="error",
+        additional_kwargs={TOOL_SOURCES_KWARG: [{"url": "https://x.com"}]},
+    )
+
+    events = await _events_of(msg, SourceTracker())
+
+    assert [e["type"] for e in events] == [AgentEventType.TASKS_STEPS.value]
+    assert events[0]["status"] == "error"
 
 
 # ==================== _handle_tool_result normal path tests ====================
@@ -245,22 +288,6 @@ async def test_normal_string_result_no_events():
 
     events = []
     async for event in _handle_tool_result(msg, "msg_norm", None):
-        events.append(event)
-
-    assert len(events) == 0
-
-
-@pytest.mark.asyncio
-async def test_json_result_with_metadata_no_tracker():
-    """JSON result with metadata but no source_tracker should yield zero events."""
-    msg = ToolMessage(
-        content=json.dumps({"result": "found", "metadata": {"sources": [{"url": "https://x.com"}]}}),
-        name="web_search",
-        tool_call_id="call_dict",
-    )
-
-    events = []
-    async for event in _handle_tool_result(msg, "msg_dict", None):
         events.append(event)
 
     assert len(events) == 0

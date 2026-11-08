@@ -8,8 +8,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 _SCRIPTS_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "scripts"
 _INSTALL_SH = _SCRIPTS_ROOT / "install.sh"
 _INSTALL_PS1 = _SCRIPTS_ROOT / "install.ps1"
@@ -17,7 +15,6 @@ _CN_MIRRORS_SH = _SCRIPTS_ROOT / "lib" / "cn_mirrors.sh"
 _DOCKERFILE = Path(__file__).resolve().parent.parent.parent.parent / "myrm-agent-server" / "Dockerfile"
 
 
-@pytest.mark.architecture
 class TestCnMirrorDetection:
     """Verify CN mirror auto-detection is present and correct."""
 

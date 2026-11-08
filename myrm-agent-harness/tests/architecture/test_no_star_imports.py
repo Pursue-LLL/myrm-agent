@@ -27,7 +27,6 @@ _ALLOWED_STAR_IMPORT_FILES = frozenset(
         "agent/security/detection/pseudonym_store.py",
         "agent/security/detection/pseudonymizer.py",
         "agent/security/guards/privacy_tracker.py",
-        "agent/security/guards/ssrf_guard.py",
     }
 )
 

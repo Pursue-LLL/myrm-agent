@@ -28,15 +28,13 @@
 """
 
 from .context import AgentContext
-from .desktop_repl import (
-    DesktopApiSdk,
-    DesktopElementMock,
-    DesktopReplSessionSnapshot,
-    PersistentDesktopReplEngine,
-    ReplExecutionResult,
-    ReplExecutionStatus,
-    ReplRuntimeKind,
-    ReplScriptCommand,
+from .eviction_marks import (
+    IMMUNE_MARKS,
+    EvictionMark,
+    get_message_marks,
+    has_message_marks,
+    is_eviction_immune,
+    with_message_marks,
 )
 from .infra.archive_reference import ContextArchiveReference
 from .infra.cache_policy import CacheTtlPrunePolicy, resolve_cache_ttl_prune_policy
@@ -82,17 +80,6 @@ from .pipeline import (
     ThinkingBlockCleaner,
     build_default_processors,
     create_default_pipeline,
-)
-from .prefix_caching_ledger import (
-    ContextBlockDescriptor,
-    ContextTier,
-    HiddenReasoningTokensPenetrationAuditor,
-    MultiDimensionalSessionTokenLedger,
-    PrefixCachingAlignedContextLayoutAndHiddenReasoningTokenLedgerSuite,
-    PrefixCachingAlignedLayoutEngine,
-    PrefixCachingLayoutConfig,
-    TokenUsageBreakdown,
-    TurnLedgerRecord,
 )
 from .strategies.compactor import (
     COMPACT_RULES,
@@ -141,40 +128,8 @@ from .tracking.task_metrics import (
     get_task_metrics,
     record_archive_refetch_for_path,
 )
-from .two_stage_search_extract import (
-    CacheStats,
-    DeepExtractResult,
-    FetchBudgetExceededError,
-    FetchBudgetGovernor,
-    FetchBudgetStatus,
-    RankedSnippetItem,
-    RankedSnippetTriageEngine,
-    SearchExtractError,
-    SearchFetchSessionCache,
-    SelectiveDeepExtractCleaner,
-    SnippetTriageResult,
-    TwoStageRankedSnippetAndSelectiveDeepExtractSuite,
-    TwoStageSearchConfig,
-)
-from .eviction_marks import (
-    IMMUNE_MARKS,
-    EvictionMark,
-    get_message_marks,
-    has_message_marks,
-    is_eviction_immune,
-    with_message_marks,
-)
 
 __all__ = [
-    # desktop_repl
-    "DesktopApiSdk",
-    "DesktopElementMock",
-    "DesktopReplSessionSnapshot",
-    "PersistentDesktopReplEngine",
-    "ReplExecutionResult",
-    "ReplExecutionStatus",
-    "ReplRuntimeKind",
-    "ReplScriptCommand",
     # schemas
     "BUILTIN_PROTECTED_TOOLS",
     "COMPACT_RULES",
@@ -266,30 +221,6 @@ __all__ = [
     "should_filter",
     # summarizer
     "should_summarize",
-    # prefix_caching_ledger
-    "ContextBlockDescriptor",
-    "ContextTier",
-    "HiddenReasoningTokensPenetrationAuditor",
-    "MultiDimensionalSessionTokenLedger",
-    "PrefixCachingAlignedContextLayoutAndHiddenReasoningTokenLedgerSuite",
-    "PrefixCachingAlignedLayoutEngine",
-    "PrefixCachingLayoutConfig",
-    "TokenUsageBreakdown",
-    "TurnLedgerRecord",
-    # two_stage_search_extract
-    "CacheStats",
-    "DeepExtractResult",
-    "FetchBudgetExceededError",
-    "FetchBudgetGovernor",
-    "FetchBudgetStatus",
-    "RankedSnippetItem",
-    "RankedSnippetTriageEngine",
-    "SearchExtractError",
-    "SearchFetchSessionCache",
-    "SelectiveDeepExtractCleaner",
-    "SnippetTriageResult",
-    "TwoStageRankedSnippetAndSelectiveDeepExtractSuite",
-    "TwoStageSearchConfig",
     # title_recovery
     "InvalidGeneratedTitleRecoverySuite",
     "InvalidTitleReason",

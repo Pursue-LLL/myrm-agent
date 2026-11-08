@@ -1,8 +1,9 @@
-"""Documents fetched over L1 are parsed, not mistaken for an empty page and sent to the browser.
+"""Payloads fetched over L1 are read as what they are, not mistaken for an empty page.
 
-The HTTP fetcher hands a non-text body (PDF, Office, downloads) to the engine as ``raw_body``
-with an empty ``html``. The engine must try the file parsers first; only a payload no parser
-accepts degrades to the browser tier.
+The HTTP fetcher classifies every body: web pages go through the HTML pipeline, text (plain, markdown, csv,
+feeds) is returned as it is, and files (PDF, Office, downloads) arrive as ``raw_body`` with an empty ``html``.
+The engine parses a file first; a file no parser accepts ends the fetch, because a browser cannot read it
+either. An error status instead means the server refused the request, which a browser tier may get past.
 """
 
 from __future__ import annotations
@@ -10,38 +11,20 @@ from __future__ import annotations
 import io
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType, FetchResult
+from myrm_agent_harness.utils.content_sniff import PayloadKind
+from tests.support.minimal_pdf import minimal_pdf_bytes
 
 URL = "http://example.com/file"
 MARKER = "DOC-MARKER-4711"
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
-
-def _pdf_bytes(text: str) -> bytes:
-    """A one-page PDF with a real text layer, small enough to build by hand."""
-    stream = f"BT /F1 18 Tf 72 720 Td ({text}) Tj ET".encode()
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    ]
-    body = b"%PDF-1.4\n"
-    offsets: list[int] = []
-    for number, obj in enumerate(objects, start=1):
-        offsets.append(len(body))
-        body += b"%d 0 obj\n%s\nendobj\n" % (number, obj)
-    xref_offset = len(body)
-    body += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
-    body += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
-    body += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objects) + 1, xref_offset)
-    return body
+EXE_HEADERS = {"content-type": "application/octet-stream", "content-disposition": 'attachment; filename="setup.exe"'}
+EXE_BODY = b"MZ\x90\x00" + bytes(range(256)) * 8
 
 
 def _docx_bytes(text: str) -> bytes:
@@ -53,18 +36,31 @@ def _docx_bytes(text: str) -> bytes:
     return buffer.getvalue()
 
 
+def _text_result(text: str, *, content_type: str = "text/plain", status_code: int = 200) -> FetchResult:
+    return FetchResult(
+        html=text, url=URL, status_code=status_code, headers={"content-type": content_type}, kind=PayloadKind.TEXT
+    )
+
+
+def _exe_result(*, status_code: int = 200) -> FetchResult:
+    return FetchResult(html="", url=URL, status_code=status_code, headers=EXE_HEADERS, raw_body=EXE_BODY)
+
+
 @pytest.fixture
 async def engine_with_http(tmp_path: Path) -> AsyncIterator[tuple[FetchEngine, AsyncMock]]:
     engine = FetchEngine(adaptive_router_rules_file=tmp_path / "rules.pkl")
     http = AsyncMock()
-    engine._http_fetcher = http  # type: ignore[assignment]
+    engine._http_fetcher = http
+    engine._browser_fetcher = AsyncMock()
+    engine._browser_fetcher.set_launch_mode_preference = MagicMock()
+    engine._stealth_fetcher = AsyncMock()
     yield engine, http
     await engine.shutdown()
 
 
 @pytest.mark.parametrize(
     ("make_body", "content_type"),
-    [(_pdf_bytes, "application/pdf"), (_docx_bytes, DOCX_CONTENT_TYPE)],
+    [(minimal_pdf_bytes, "application/pdf"), (_docx_bytes, DOCX_CONTENT_TYPE)],
     ids=["pdf", "docx"],
 )
 async def test_document_is_parsed_instead_of_degraded(
@@ -84,31 +80,160 @@ async def test_document_is_parsed_instead_of_degraded(
     assert degradable is False
 
 
-@pytest.mark.parametrize("content_type", ["application/xhtml+xml", "application/ld+json", "application/octet-stream"])
-async def test_non_text_page_no_parser_accepts_still_degrades_to_the_browser(
-    engine_with_http: tuple[FetchEngine, AsyncMock], content_type: str
-) -> None:
+async def test_file_no_parser_reads_ends_the_fetch(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:
     engine, http = engine_with_http
-    http.fetch.return_value = FetchResult(
-        html="", url=URL, headers={"content-type": content_type}, raw_body=b"<html><body>page</body></html>"
-    )
+    http.fetch.return_value = _exe_result()
 
     doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
-    assert degradable is True
+    assert degradable is False
 
 
-async def test_binary_download_without_a_parser_degrades_instead_of_reaching_the_model(
+async def test_file_no_parser_reads_behind_an_error_status_still_degrades(
     engine_with_http: tuple[FetchEngine, AsyncMock],
 ) -> None:
     engine, http = engine_with_http
-    headers = {"content-type": "application/octet-stream", "content-disposition": 'attachment; filename="setup.exe"'}
-    http.fetch.return_value = FetchResult(
-        html="", url=URL, headers=headers, raw_body=b"MZ\x90\x00" + bytes(range(256)) * 8
-    )
+    http.fetch.return_value = _exe_result(status_code=403)
 
     doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
+
+
+@pytest.mark.parametrize(
+    ("content_type", "text"),
+    [
+        ("text/markdown", "# Title\n\n- one\n- two <b>kept</b>\n"),
+        ("text/csv", "name,qty\nwidget,3\ngadget,5\n"),
+        ("application/rss+xml", '<?xml version="1.0"?>\n<rss><channel><title>Feed</title></channel></rss>'),
+        ("text/plain", "line one\nline two\n"),
+    ],
+    ids=["markdown", "csv", "feed", "plain"],
+)
+async def test_text_is_returned_as_it_is(
+    engine_with_http: tuple[FetchEngine, AsyncMock], content_type: str, text: str
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _text_result(text, content_type=content_type)
+
+    doc, _, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+
+    assert doc is not None
+    assert doc.page_content == text.strip()
+    assert doc.metadata["url"] == URL
+    assert doc.metadata["was_truncated"] is False
+
+
+@pytest.mark.parametrize("status_code", [403, 429])
+async def test_text_behind_an_error_status_still_degrades(
+    engine_with_http: tuple[FetchEngine, AsyncMock], status_code: int
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _text_result("Forbidden", status_code=status_code)
+
+    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+
+    assert doc is None
+    assert degradable is True
+
+
+async def test_empty_text_degrades(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _text_result("  \n")
+
+    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+
+    assert doc is None
+    assert degradable is True
+
+
+async def test_truncated_text_warns_the_user(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _text_result("0123456789" * 20)
+
+    with patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", new_callable=AsyncMock) as dispatch:
+        doc, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
+
+    assert doc is not None
+    assert doc.metadata["was_truncated"] is True
+    assert doc.page_content.endswith("[TRUNCATED]")
+    dispatch.assert_awaited_once()
+    assert dispatch.await_args is not None
+    assert dispatch.await_args.args[1]["step_key"] == "ux_warning_truncated"
+
+
+async def test_crawl_reads_text_without_any_browser_tier(engine_with_http: tuple[FetchEngine, AsyncMock]) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _text_result("plain answer\n")
+
+    doc, _ = await engine._crawl_with_degradation(URL)
+
+    assert doc is not None
+    assert doc.page_content == "plain answer"
+    engine._browser_fetcher.fetch.assert_not_called()  # type: ignore[attr-defined]
+    engine._stealth_fetcher.fetch.assert_not_called()  # type: ignore[attr-defined]
+
+
+async def test_crawl_stops_at_an_unreadable_file_but_offers_it_to_remote_providers(
+    engine_with_http: tuple[FetchEngine, AsyncMock],
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _exe_result()
+
+    with patch.object(engine, "_try_escalation", new=AsyncMock(return_value=(None, None))) as escalation:
+        doc, result = await engine._crawl_with_degradation(URL)
+        assert doc is None
+        assert result is not None
+        assert result.kind is PayloadKind.BINARY
+        escalation.assert_awaited_once()
+
+        escalation.reset_mock()
+        await engine._crawl_with_degradation(URL, allow_escalation=False)
+        escalation.assert_not_called()
+
+    engine._browser_fetcher.fetch.assert_not_called()  # type: ignore[attr-defined]
+    engine._stealth_fetcher.fetch.assert_not_called()  # type: ignore[attr-defined]
+
+
+async def test_crawl_returns_what_a_remote_provider_reads_from_an_unreadable_file(
+    engine_with_http: tuple[FetchEngine, AsyncMock],
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = _exe_result()
+    remote = MagicMock(page_content="read remotely")
+    remote_result = FetchResult(html="read remotely", url=URL)
+
+    with patch.object(engine, "_try_escalation", new=AsyncMock(return_value=(remote, remote_result))):
+        doc, result = await engine._crawl_with_degradation(URL)
+
+    assert doc is remote
+    assert result is remote_result
+
+
+@pytest.mark.parametrize(
+    ("fetched", "reported_success"),
+    [
+        (FetchResult(html="<html><body>missing</body></html>", url=URL, status_code=404), None),
+        (FetchResult(html="", url=URL, status_code=304), None),
+        (_exe_result(), None),
+        (_text_result("readable\n"), True),
+        (_text_result(""), False),
+    ],
+    ids=["404", "304", "unreadable-file", "text", "empty-text"],
+)
+async def test_router_learns_only_from_real_outcomes(
+    engine_with_http: tuple[FetchEngine, AsyncMock], fetched: FetchResult, reported_success: bool | None
+) -> None:
+    engine, http = engine_with_http
+    http.fetch.return_value = fetched
+
+    with patch.object(engine._router, "report_result") as report:
+        await engine._try_and_report(URL, FetcherType.HTTP)
+
+    if reported_success is None:
+        report.assert_not_called()
+    else:
+        report.assert_called_once()
+        assert report.call_args.args[2] is reported_success

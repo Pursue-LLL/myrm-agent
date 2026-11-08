@@ -7,7 +7,6 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.link_extraction import (
     extract_markdown_link_targets,
     extract_wikilink_targets,
-    find_wikilinks,
     is_external_link,
     mask_code,
     normalize_wikilink_target,
@@ -91,12 +90,6 @@ class TestWikilinkTargets:
 
     def test_wikilink_must_stay_on_one_line(self) -> None:
         assert extract_wikilink_targets("stray [[ open\nclose ]] [[Real]]") == ("Real",)
-
-    def test_find_wikilinks_keeps_source_text_and_label(self) -> None:
-        found = find_wikilinks("see [[Page#Part|the `page`]] now")
-        assert [raw for raw, _ in found] == ["[[Page#Part|the `page`]]"]
-        parts = found[0][1]
-        assert (parts.note, parts.fragment, parts.label) == ("Page", "Part", "the `page`")
 
 
 class TestMarkdownLinkTargets:

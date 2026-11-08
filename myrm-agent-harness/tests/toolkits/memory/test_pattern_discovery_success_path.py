@@ -16,7 +16,6 @@ import pytest
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
     _PROFILE_KEY_MEMORY_SET_HASH,
-    _build_discovery_prompt,
     _collect_claims,
     _collect_insights,
     _compute_memory_set_hash,
@@ -25,6 +24,12 @@ from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     get_recent_patterns,
     run_pattern_discovery,
 )
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import _build_discovery_prompt
 from myrm_agent_harness.toolkits.memory.types import (
     ProceduralMemory,
     SemanticMemory,
@@ -52,11 +57,6 @@ def _memories(count: int) -> list[SemanticMemory]:
 
 
 def _pattern(*, title: str, confidence: float, durability: str = "emerging") -> object:
-    from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-        DiscoveredPattern,
-        PatternDurability,
-    )
-
     return DiscoveredPattern(
         title=title,
         description="desc",
@@ -157,10 +157,6 @@ class TestBuildDiscoveryPrompt:
 class TestRunPatternDiscoverySuccess:
     @pytest.mark.asyncio
     async def test_full_cycle_persists_and_bookkeeps(self, bookkeeping_rows: dict[str, str]) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDiscoveryResponse,
-        )
-
         memories = _memories(5)
         manager = _mature_manager()
         manager.list_memories = AsyncMock(return_value=memories)

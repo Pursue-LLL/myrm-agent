@@ -4,10 +4,10 @@
 - pydantic::BaseModel (POS: schema base)
 
 [OUTPUT]
-- Context snapshots, telemetry envelopes and health models, re-exported for services.
+- Context snapshots and telemetry envelopes, re-exported for services.
 
 [POS]
-Aggregate exit of the control-plane schema package: events, snapshots, telemetry and health.
+Aggregate exit of the control-plane schema package: events, snapshots and telemetry.
 """
 
 from __future__ import annotations
@@ -21,10 +21,6 @@ from .context_events import (
 )
 from .context_snapshot import (
     ContextCompactionSnapshot,
-)
-from .health import (
-    DLQMetrics,
-    HealthMetricsResponse,
 )
 from .telemetry import (
     ContextCompactionBatchPayload,
@@ -54,6 +50,4 @@ __all__ = [
     "MemoryGuardianGuardTelemetryAggregate",
     "MemoryGuardianGuardTelemetryEnvelope",
     "MemoryGuardianGuardBatchPayload",
-    "DLQMetrics",
-    "HealthMetricsResponse",
 ]

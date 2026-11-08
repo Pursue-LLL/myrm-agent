@@ -4,7 +4,7 @@
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
 - infra.tls_error_signals::is_tls_transient_error (POS: The one list of certificate-rejection and interrupted-handshake wordings)
-- toolkits.llms.errors.tls_rejection::CONNECTION_KEYWORDS, rejects_certificate (POS: The one verdict on a rejected certificate)
+- toolkits.llms.errors.tls_rejection::is_connection_failure, rejects_certificate (POS: The one verdict on a rejected certificate)
 
 [OUTPUT]
 - diagnose_transport: maps a TLS or connection failure to a localized DiagnosticResult, None for any other error
@@ -23,7 +23,7 @@ import re
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.types import DiagnosticResult, ErrorContext
 from myrm_agent_harness.infra.tls_error_signals import is_tls_transient_error
-from myrm_agent_harness.toolkits.llms.errors.tls_rejection import CONNECTION_KEYWORDS, rejects_certificate
+from myrm_agent_harness.toolkits.llms.errors.tls_rejection import is_connection_failure, rejects_certificate
 
 
 def diagnose_transport(
@@ -45,7 +45,7 @@ def diagnose_transport(
         return build_catalog_result("tls_transient", locale, cooldown_remaining_ms)
 
     # 1. Connection errors (精准自定义端点诊断)
-    if any(kw in full_text for kw in CONNECTION_KEYWORDS):
+    if is_connection_failure(exc, full_text):
         # 自定义端点(Ollama/LM Studio)专属诊断
         if context and context.is_custom_endpoint:
             return build_catalog_result(

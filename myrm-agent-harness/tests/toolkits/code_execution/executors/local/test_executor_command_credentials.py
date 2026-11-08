@@ -25,6 +25,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="drives a real b
 
 _GITHUB = EphemeralUserCredential(issuer="github", token="github-secret-1")
 _FEISHU = EphemeralUserCredential(issuer="feishu", token="feishu-secret-1")
+_SKILL_SETTINGS = {"EMAIL_IMAP_HOST": "imap.example.test", "EMAIL_IMAP_PASSWORD": "skill-pw-1"}
 
 
 @contextlib.contextmanager
@@ -62,6 +63,7 @@ async def _run(
     *,
     issuers: list[str] | None = None,
     env: dict[str, str] | None = None,
+    skill_env: dict[str, str] | None = None,
 ) -> str:
     result = await executor.execute_bash(
         ExecutionContext(
@@ -71,6 +73,7 @@ async def _run(
             workspace_root=str(tmp_path),
             allowed_credential_issuers=issuers,
             env=env,
+            skill_env=skill_env,
             timeout=30,
         )
     )
@@ -262,6 +265,80 @@ class TestPerCommandEnv:
         await _run(executor, tmp_path, "echo started", env={"MY_API_TOKEN": "leak"})
 
         assert await _run(executor, tmp_path, _read_command("MY_API_TOKEN"), env={"MY_API_TOKEN": "leak"}) == "NONE"
+
+
+class TestSkillSecrets:
+    """A secret-named setting of the running skill is the skill's to read, around its own command and nowhere else."""
+
+    async def test_secret_setting_reaches_its_skill_command_and_not_the_next_command(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        command = _read_command("EMAIL_IMAP_PASSWORD")
+        assert await _run(executor, tmp_path, command, env=_SKILL_SETTINGS, skill_env=_SKILL_SETTINGS) == _hex(
+            "skill-pw-1"
+        )
+        assert await _run(executor, tmp_path, command) == "NONE"
+        assert await _run(executor, tmp_path, command, env=_SKILL_SETTINGS) == "NONE"
+
+    async def test_the_same_secret_in_the_environment_alone_is_still_stripped(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        assert await _run(executor, tmp_path, _read_command("EMAIL_IMAP_PASSWORD"), env=_SKILL_SETTINGS) == "NONE"
+
+    async def test_command_that_prints_the_secret_shows_it_masked(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        printed = await _run(
+            executor, tmp_path, "printenv EMAIL_IMAP_PASSWORD", env=_SKILL_SETTINGS, skill_env=_SKILL_SETTINGS
+        )
+        assert "skill-pw-1" not in printed
+        assert printed
+
+    async def test_non_secret_setting_is_exported_to_the_shell_and_printed_as_is(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        printed = await _run(
+            executor, tmp_path, "printenv EMAIL_IMAP_HOST", env=_SKILL_SETTINGS, skill_env=_SKILL_SETTINGS
+        )
+        assert printed == "imap.example.test"
+
+    @pytest.mark.parametrize("name", ["LD_PRELOAD", "LD_DEBUG", "NODE_OPTIONS", "BASH_ENV"])
+    async def test_a_name_that_makes_a_program_run_foreign_code_is_never_delivered(
+        self, executor: LocalExecutor, tmp_path: Path, name: str
+    ) -> None:
+        assert await _run(executor, tmp_path, _read_command(name), skill_env={name: "/tmp/planted"}) == "NONE"
+
+    async def test_stream_path_delivers_the_secret_to_its_skill_command(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        chunks = [
+            chunk
+            async for chunk in executor.execute_bash_stream(
+                ExecutionContext(
+                    code=_read_command("EMAIL_IMAP_PASSWORD"),
+                    session_id="one-conversation",
+                    work_dir=str(tmp_path),
+                    workspace_root=str(tmp_path),
+                    env=_SKILL_SETTINGS,
+                    skill_env=_SKILL_SETTINGS,
+                    timeout=30,
+                )
+            )
+        ]
+        assert _hex("skill-pw-1") in "".join(chunks)
+        assert await _run(executor, tmp_path, _read_command("EMAIL_IMAP_PASSWORD")) == "NONE"
+
+    async def test_a_credential_issued_for_the_command_wins_over_the_skill_setting(
+        self, executor: LocalExecutor, tmp_path: Path
+    ) -> None:
+        with _credentials(_GITHUB):
+            delivered = await _run(
+                executor,
+                tmp_path,
+                _read_command("GITHUB_TOKEN"),
+                skill_env={"GITHUB_TOKEN": "from-settings-1"},
+            )
+        assert delivered == _hex("github-secret-1")
 
 
 class TestTracingCannotCarryCredentialsIntoOutput:

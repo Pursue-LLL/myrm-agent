@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .adapters.thinking_adapter import ThinkingModelReasoningAdapter
     from .core.credential_pool import CredentialPoolStrategy
-    from .core.llm import ChatLiteLLM, create_litellm_model
+    from .core.llm import TransportChatModel, create_chat_model
     from .core.manager import LLMManager, llm_manager
     from .errors.classifier import (
         ErrorKind,
@@ -20,15 +20,13 @@ if TYPE_CHECKING:
         ProviderBalanceResult,
         ProviderBalanceStatus,
     )
-    from .utils.no_proxy_bypass import LanEndpointNoProxyManager
 
 __all__ = [
-    "ChatLiteLLM",
+    "TransportChatModel",
     "CredentialPoolStrategy",
     "ErrorKind",
     "FallbackModel",
     "LLMManager",
-    "LanEndpointNoProxyManager",
     "ManagedLLM",
     "ProviderBalanceProbeProtocol",
     "ProviderBalanceResult",
@@ -36,7 +34,7 @@ __all__ = [
     "ScenarioType",
     "ThinkingModelReasoningAdapter",
     "classify_error",
-    "create_litellm_model",
+    "create_chat_model",
     "extract_retry_after",
     "is_context_overflow",
     "is_payload_overflow",
@@ -45,7 +43,7 @@ __all__ = [
 ]
 
 _LAZY_IMPORTS = {
-    "ChatLiteLLM": ("myrm_agent_harness.toolkits.llms.core.llm", "ChatLiteLLM"),
+    "TransportChatModel": ("myrm_agent_harness.toolkits.llms.core.llm", "TransportChatModel"),
     "CredentialPoolStrategy": (
         "myrm_agent_harness.toolkits.llms.core.credential_pool",
         "CredentialPoolStrategy",
@@ -62,9 +60,9 @@ _LAZY_IMPORTS = {
         "myrm_agent_harness.toolkits.llms.probe",
         "ProviderBalanceStatus",
     ),
-    "create_litellm_model": (
+    "create_chat_model": (
         "myrm_agent_harness.toolkits.llms.core.llm",
-        "create_litellm_model",
+        "create_chat_model",
     ),
     "LLMManager": ("myrm_agent_harness.toolkits.llms.core.manager", "LLMManager"),
     "llm_manager": ("myrm_agent_harness.toolkits.llms.core.manager", "llm_manager"),
@@ -97,10 +95,6 @@ _LAZY_IMPORTS = {
         "myrm_agent_harness.toolkits.llms.errors.classifier",
         "is_payload_overflow",
     ),
-    "LanEndpointNoProxyManager": (
-        "myrm_agent_harness.toolkits.llms.utils.no_proxy_bypass",
-        "LanEndpointNoProxyManager",
-    ),
     "ThinkingModelReasoningAdapter": (
         "myrm_agent_harness.toolkits.llms.adapters.thinking_adapter",
         "ThinkingModelReasoningAdapter",
@@ -119,18 +113,13 @@ if __debug__:
         raise RuntimeError(f"llms: _LAZY_IMPORTS has symbols not in __all__: {_extra}")
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> object:
     """Lazy load llms components on first access."""
     if name in _LAZY_IMPORTS:
         from importlib import import_module
 
         module_path, attr_name = _LAZY_IMPORTS[name]
         module = import_module(module_path)
-
-        if attr_name == "llm_manager":
-            from myrm_agent_harness.toolkits.llms import (
-                config as _config,  # noqa: F401  # side-effect: ensure config loaded
-            )
 
         value = getattr(module, attr_name)
         globals()[name] = value

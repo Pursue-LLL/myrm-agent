@@ -1,0 +1,200 @@
+{
+ "config": "anthropic_opus",
+ "wire": "anthropic",
+ "model": "antigravity/claude-opus-4-6-thinking",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/v1/messages",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    ": keepalive",
+    "event: message_start",
+    "data: {\"message\":{\"content\":[],\"id\":\"msg_req_vrtx_011CgfgJzzXvEQzXpoWsEgDS\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":45,\"output_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}},\"type\":\"message_start\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"signature\":\"\",\"thinking\":\"\",\"type\":\"thinking\"},\"index\":0,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\"The user wants me to reply with exactly\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\" one word:\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\" PONG\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"signature\":\"c2lnbmF0dXJl\",\"type\":\"signature_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":0,\"type\":\"content_block_stop\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":1,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\"PONG\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":1,\"type\":\"content_block_stop\"}",
+    "",
+    "event: message_delta",
+    "data: {\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":45,\"output_tokens\":28,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}",
+    "",
+    "event: message_stop",
+    "data: {\"type\":\"message_stop\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "The user wants me to reply with exactly one word: PONG",
+    "tool_calls": [],
+    "usage": [
+     45,
+     28,
+     0
+    ]
+   }
+  },
+  "tools2_nonstream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/messages",
+   "content_type": "application/json",
+   "lines": [
+    "{\"content\":[{\"signature\":\"c2lnbmF0dXJl\",\"thinking\":\"The user wants me to get the weather for both Tokyo and Paris simultaneously.\",\"type\":\"thinking\"},{\"text\":\"I'll get the temperature for both cities right away!\",\"type\":\"text\"},{\"id\":\"toolu_vrtx_01Wk9NHkpgpYSkfyvRWAi7YU\",\"input\":{\"city\":\"Tokyo\"},\"name\":\"get_weather\",\"type\":\"tool_use\"},{\"id\":\"toolu_vrtx_01GieowaehyDxwMLFJnSTzRJ\",\"input\":{\"city\":\"Paris\"},\"name\":\"get_weather\",\"type\":\"tool_use\"}],\"id\":\"msg_req_vrtx_011CgfgKAPazrmEqWFAzhWpa\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"role\":\"assistant\",\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":615,\"output_tokens\":124,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}"
+   ],
+   "expect": {
+    "text": "I'll get the temperature for both cities right away!",
+    "reasoning": "The user wants me to get the weather for both Tokyo and Paris simultaneously.",
+    "tool_calls": [
+     {
+      "id": "toolu_vrtx_01Wk9NHkpgpYSkfyvRWAi7YU",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "toolu_vrtx_01GieowaehyDxwMLFJnSTzRJ",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     615,
+     124,
+     0
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/messages",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "event: message_start",
+    "data: {\"message\":{\"content\":[],\"id\":\"msg_req_vrtx_011CgfgJfCeoguq3QkoTLqjV\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"role\":\"assistant\",\"stop_reason\":null,\"stop_sequence\":null,\"type\":\"message\",\"usage\":{\"input_tokens\":615,\"output_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}},\"type\":\"message_start\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"signature\":\"\",\"thinking\":\"\",\"type\":\"thinking\"},\"index\":0,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\"The user wants me to get\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\" the weather for\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\" both\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\" Tokyo and Paris simultaneously\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"thinking\":\".\",\"type\":\"thinking_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"signature\":\"c2lnbmF0dXJl\",\"type\":\"signature_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":0,\"type\":\"content_block_stop\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"text\":\"\",\"type\":\"text\"},\"index\":1,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\"I\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\"'ll fetch\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\" the temperatures\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\" for both cities right\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\" away!\",\"type\":\"text_delta\"},\"index\":1,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":1,\"type\":\"content_block_stop\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"id\":\"toolu_vrtx_01QAWEWhnsgRosbmMNrxUqPH\",\"input\":{},\"name\":\"get_weather\",\"type\":\"tool_use\"},\"index\":2,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"partial_json\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"type\":\"input_json_delta\"},\"index\":2,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":2,\"type\":\"content_block_stop\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"id\":\"toolu_vrtx_01Rk1QD5PwRYVocdnEFMsoZ9\",\"input\":{},\"name\":\"get_weather\",\"type\":\"tool_use\"},\"index\":3,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"partial_json\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"type\":\"input_json_delta\"},\"index\":3,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"index\":3,\"type\":\"content_block_stop\"}",
+    "",
+    "event: message_delta",
+    "data: {\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null},\"type\":\"message_delta\",\"usage\":{\"input_tokens\":615,\"output_tokens\":124,\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}",
+    "",
+    "event: message_stop",
+    "data: {\"type\":\"message_stop\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "I'll fetch the temperatures for both cities right away!",
+    "reasoning": "The user wants me to get the weather for both Tokyo and Paris simultaneously.",
+    "tool_calls": [
+     {
+      "id": "toolu_vrtx_01QAWEWhnsgRosbmMNrxUqPH",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "toolu_vrtx_01Rk1QD5PwRYVocdnEFMsoZ9",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     615,
+     124,
+     0
+    ]
+   }
+  }
+ }
+}

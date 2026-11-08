@@ -117,6 +117,16 @@ _OVERFLOW_EXACT_RE = re.compile(
             r"context size has been exceeded",
             r"available context size",
             r"input tokens exceed",
+            # Bedrock Converse wordings (Claude, Llama and Mistral say the first, Nova the second)
+            r"input is too long for requested model",
+            r"too many input tokens",
+            # Overflow answers that carry no dedicated error code, so the sentence is the only signal: Gemini,
+            # Cohere, TGI servers (Together, Hugging Face) and other OpenAI-compatible hosts.
+            r"exceeds the maximum number of tokens allowed",
+            r"too many tokens: total number of tokens",
+            r"`?inputs`? tokens \+ `?max_new_tokens`? must be",
+            r"maximum context limit",
+            r"longer than the model.?s (?:maximum )?context length",
         ]
     ),
     re.IGNORECASE,
@@ -134,6 +144,10 @@ _OVERFLOW_COMPOUND_CHECKS: list[tuple[re.Pattern[str], ...]] = [
         re.compile(r"context", re.IGNORECASE),
     ),
     (re.compile(r"413", re.IGNORECASE), re.compile(r"too large", re.IGNORECASE)),
+    # Cerebras: "Current length is 20000 while limit is 8192"
+    (re.compile(r"current length is", re.IGNORECASE), re.compile(r"while limit is", re.IGNORECASE)),
+    # "Maximum input length is 32768 tokens, but got 40000 tokens." (a length in characters is not an overflow)
+    (re.compile(r"maximum input length is", re.IGNORECASE), re.compile(r"tokens", re.IGNORECASE)),
 ]
 
 _OVERFLOW_CN_KEYWORDS = (
@@ -168,11 +182,6 @@ _PAYLOAD_TOO_LARGE_RE = re.compile(
 # Provider / model semantics
 # ============================================================================
 
-_LITELLM_INIT_BUG_RE = re.compile(
-    r"BadRequestError\.__init__\(\).*missing.*required positional argument",
-    re.IGNORECASE,
-)
-
 _PROVIDER_FORMAT_400_RE = re.compile(
     r"must be in JSON format|InvalidParameter.*(?:function|arguments)"
     r"|schema validation error|invalid format|invalid json format|valid JSON",
@@ -200,14 +209,15 @@ _USAGE_LIMIT_TRANSIENT_SIGNALS = [
 
 _USAGE_LIMIT_PATTERNS = ["usage limit", "quota", "limit exceeded", "key limit exceeded"]
 
-# Provider refusals of the prompt or the reply on policy grounds: Azure's `content_filter` and
-# `ResponsibleAIPolicyViolation`, DashScope's `data_inspection_failed` and "may contain inappropriate content", Codex's
-# cybersecurity flag, MiniMax's `new_sensitive` (1027) and "Content Exists Risk". The spaced phrase "content filter"
-# does not match, so prose that merely mentions a filter never turns a rejected request into a safety block.
+# Provider refusals of the prompt or the reply on policy grounds: Azure's `content_filter`,
+# `ResponsibleAIPolicyViolation` and "content management policy" sentence (a gateway may drop its code),
+# DashScope's `data_inspection_failed` and "may contain inappropriate content", Codex's cybersecurity flag,
+# MiniMax's `new_sensitive` (1027) and "Content Exists Risk". The spaced phrase "content filter" does not match, so
+# prose that merely mentions a filter never turns a rejected request into a safety block.
 _SAFETY_BLOCK_RE = re.compile(
     r"content_?policy_?violation|violating our usage policy|safety system"
     r"|content filtered|responsible ai policy|safety block"
-    r"|content_filter|responsibleaipolicyviolation"
+    r"|content_filter|responsibleaipolicyviolation|content management policy"
     r"|data_inspection_failed|may contain inappropriate content|flagged for possible cybersecurity risk"
     r"|\bnew_sensitive\b|content exists risk",
     re.IGNORECASE,

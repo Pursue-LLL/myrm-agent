@@ -97,7 +97,10 @@ class TestPreflight:
             return package, False
 
         with (
-            patch(f"{_PREFLIGHT}._probe_pypi", side_effect=lambda package: asyncio.ensure_future(_missing(package))),
+            patch(
+                f"{_PREFLIGHT}.packages._probe_pypi",
+                side_effect=lambda package: asyncio.ensure_future(_missing(package)),
+            ),
             pytest.raises(ToolError),
         ):
             await check_install_packages(f"pip install ghostpkg --key={_SECRET}")

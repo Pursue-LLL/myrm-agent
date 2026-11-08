@@ -6,11 +6,9 @@
 myrm_agent_harness/agent/_internals/agent_runtime.py	767
 myrm_agent_harness/agent/_internals/run_lifecycle.py	509
 myrm_agent_harness/agent/base_agent.py	582
-myrm_agent_harness/agent/context_management/infra/schemas.py	715
 myrm_agent_harness/agent/context_management/pipeline/processors/cache_ttl_prune_processor.py	721
 myrm_agent_harness/agent/context_management/tracking/task_metrics_model.py	570
 myrm_agent_harness/agent/dynamic_workflow/__init__.py	671
-myrm_agent_harness/agent/dynamic_workflow/tools.py	740
 myrm_agent_harness/agent/file_snapshot/shadow_git_store.py	647
 myrm_agent_harness/agent/goals/continuation.py	656
 myrm_agent_harness/agent/meta_tools/bash/_compression/compressors.py	691
@@ -20,9 +18,9 @@ myrm_agent_harness/agent/security/guards/loop_guard/detectors.py	571
 myrm_agent_harness/agent/sub_agents/event_forwarder.py	622
 myrm_agent_harness/agent/sub_agents/manager.py	591
 myrm_agent_harness/agent/sub_agents/prompts.py	546
-myrm_agent_harness/agent/sub_agents/types.py	532
+myrm_agent_harness/agent/sub_agents/types.py	529
 myrm_agent_harness/core/security/types.py	646
-myrm_agent_harness/eval/assertions.py	693
+myrm_agent_harness/eval/assertions.py	677
 myrm_agent_harness/eval/protocols.py	635
 myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
@@ -43,7 +41,7 @@ myrm_agent_harness/toolkits/kanban/_orchestrator_tools.py	575
 myrm_agent_harness/toolkits/kanban/dispatcher.py	687
 myrm_agent_harness/toolkits/kanban/protocols.py	539
 myrm_agent_harness/toolkits/llms/fallback/manager.py	609
-myrm_agent_harness/toolkits/llms/image/generator.py	557
+myrm_agent_harness/toolkits/llms/image/generator.py	553
 myrm_agent_harness/toolkits/llms/video/generator.py	532
 myrm_agent_harness/toolkits/llms/video/video_engine.py	544
 myrm_agent_harness/toolkits/memory/strategies/deduplicator.py	780
@@ -51,8 +49,5 @@ myrm_agent_harness/toolkits/memory/strategies/merger.py	554
 myrm_agent_harness/toolkits/web_fetch/engine/base.py	532
 myrm_agent_harness/toolkits/web_fetch/router/adaptive_router.py	657
 myrm_agent_harness/toolkits/web_fetch/router/domain_metrics.py	503
-myrm_agent_harness/toolkits/wiki/core/claims_contract.py	771
 myrm_agent_harness/toolkits/wiki/core/structure.py	507
-myrm_agent_harness/toolkits/wiki/wiki_agent_tools.py	542
-myrm_agent_harness/utils/context_format.py	517
 myrm_agent_harness/utils/token_economics/tracker.py	569

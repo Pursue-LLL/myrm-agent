@@ -15,11 +15,17 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     _PROFILE_KEY_CONSOLIDATION_COUNT,
+    _PROFILE_KEY_MEMORY_SET_HASH,
     _is_promotable_to_rule,
     get_recent_patterns,
     increment_consolidation_count,
     run_pattern_discovery,
     should_run_pattern_discovery,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
 )
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
@@ -118,13 +124,76 @@ class TestRunPatternDiscoveryLLMFailure:
         assert report.duration_ms > 0
 
 
+class TestRunPatternDiscoveryResponseShapes:
+    """A structured-output call yields a model instance for a pydantic schema and a dict for a JSON parser."""
+
+    @pytest.mark.asyncio
+    async def test_dict_response_is_validated_like_an_instance(self, bookkeeping_rows: dict[str, str]) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        manager = _mature_manager()
+        manager.list_memories = AsyncMock(return_value=_memories(5))
+        raw = {
+            "patterns": [
+                {
+                    "category": "morning review",
+                    "description": "starts with reviews",
+                    "evidence": "weekly",
+                    "confidence": 0.8,
+                },
+                {"title": "dropped", "description": "weak", "evidence_summary": "once", "confidence": 0.3},
+            ],
+            "meta_observation": "more structured",
+        }
+
+        report = await run_pattern_discovery(manager, _structured_llm(raw))
+
+        assert report.skipped is False
+        assert all(isinstance(pattern, DiscoveredPattern) for pattern in report.patterns)
+        assert [pattern.title for pattern in report.patterns] == ["morning review"]
+        assert report.meta_observation == "more structured"
+        manager.add_event.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "raw",
+        [{"patterns": "not a list"}, {"patterns": [{"description": "no title"}]}],
+        ids=["wrong-field-type", "missing-required-field"],
+    )
+    async def test_invalid_dict_skips_the_cycle_and_keeps_the_memory_set_unmarked(
+        self, bookkeeping_rows: dict[str, str], raw: dict[str, object]
+    ) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        manager = _mature_manager()
+        manager.list_memories = AsyncMock(return_value=_memories(5))
+
+        report = await run_pattern_discovery(manager, _structured_llm(raw))
+
+        assert report.skipped is True
+        assert "LLM call failed" in report.skip_reason
+        manager.add_event.assert_not_awaited()
+        # The analysed-set hash is written only after a usable answer, so the next cycle retries.
+        assert _PROFILE_KEY_MEMORY_SET_HASH not in bookkeeping_rows
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("raw", [None, "plain text", ["patterns"]], ids=["none", "str", "list"])
+    async def test_unexpected_response_type_skips_the_cycle(
+        self, bookkeeping_rows: dict[str, str], raw: object
+    ) -> None:
+        bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
+        manager = _mature_manager()
+        manager.list_memories = AsyncMock(return_value=_memories(5))
+
+        report = await run_pattern_discovery(manager, _structured_llm(raw))
+
+        assert report.skipped is True
+        assert "Unexpected response type" in report.skip_reason
+        manager.add_event.assert_not_awaited()
+        assert _PROFILE_KEY_MEMORY_SET_HASH not in bookkeeping_rows
+
+
 class TestRunPatternDiscoveryFiltering:
     @pytest.mark.asyncio
     async def test_low_confidence_patterns_filtered_out(self, bookkeeping_rows: dict[str, str]) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDiscoveryResponse,
-        )
-
         bookkeeping_rows[_PROFILE_KEY_CONSOLIDATION_COUNT] = "5"
         memories = _memories(5)
         manager = _mature_manager()
@@ -143,10 +212,6 @@ class TestRunPatternDiscoveryFiltering:
 
 
 def _pattern(*, title: str, confidence: float) -> object:
-    from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-        DiscoveredPattern,
-    )
-
     return DiscoveredPattern(
         title=title,
         description="desc",
@@ -158,10 +223,6 @@ def _pattern(*, title: str, confidence: float) -> object:
 
 class TestIsPromotableToRule:
     def test_established_high_confidence_with_suggestion_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDurability,
-        )
-
         pattern = _pattern(title="habit", confidence=0.9)
         pattern.durability = PatternDurability.ESTABLISHED
         assert _is_promotable_to_rule(pattern) is True
@@ -171,20 +232,11 @@ class TestIsPromotableToRule:
         assert _is_promotable_to_rule(pattern) is False
 
     def test_low_confidence_never_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            PatternDurability,
-        )
-
         pattern = _pattern(title="weak", confidence=0.7)
         pattern.durability = PatternDurability.ESTABLISHED
         assert _is_promotable_to_rule(pattern) is False
 
     def test_empty_suggestion_never_promotes(self) -> None:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            DiscoveredPattern,
-            PatternDurability,
-        )
-
         pattern = DiscoveredPattern(
             title="no-action",
             description="knowledge evolution",

@@ -12,7 +12,8 @@
 - glob_match::compile_glob (POS: 两档共用的 glob 语义：锚定、**、花括号)
 - _rg_runner::run_rg (POS: ripgrep 子进程生命周期：提前终止、超时回收)
 - grep_tool::_has_ripgrep (POS: Content search tool, Claude Code compatible)
-- path_hint::format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- path_hint::mcp_namespace_error (POS: File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths)
+- search_target::require_examinable_target (POS: Preflight that names a missing or unreadable search path instead of searching it)
 - skill_path_filter::get_disabled_skill_roots, is_under_disabled_skill_root (POS: ACL filter preventing file tools from reading disabled skill directories)
 
 [OUTPUT]
@@ -46,8 +47,9 @@ from myrm_agent_harness.utils.locale import is_chinese
 from ._rg_runner import run_rg
 from .fallback_discovery import collect_candidate_files
 from .glob_match import compile_glob
-from .path_hint import format_path_not_found_hint, mcp_namespace_error, suggest_similar_paths
+from .path_hint import mcp_namespace_error
 from .rg_traversal import rg_traversal_args
+from .search_target import require_examinable_target
 from .skill_path_filter import get_disabled_skill_roots, is_under_disabled_skill_root
 
 if TYPE_CHECKING:
@@ -219,9 +221,7 @@ def create_glob_tool(
             匹配的文件列表
 
         Raises:
-            FileNotFoundError: 搜索路径不存在
-            PermissionError: 权限不足
-            ValueError: 路径不安全或参数错误
+            ToolError: 搜索路径不存在或读不了、不是目录、路径不安全、参数错误，以及未预期的失败
         """
         try:
             executor = ensure_executor(config)
@@ -246,13 +246,8 @@ def create_glob_tool(
                     user_hint="This path belongs to a disabled skill and cannot be searched.",
                 )
 
-            # 验证路径存在且为目录
-            if not search_path_obj.exists():
-                suggestions = suggest_similar_paths(search_path)
-                raise ToolError(
-                    message=f"Path not found: {path}",
-                    user_hint=format_path_not_found_hint(path, suggestions),
-                )
+            # glob_tool 只列目录、不读文件：文件路径由下面的 is_dir 检查拒绝，不论它可不可读
+            require_examinable_target(search_path, path, reads_a_file=False)
 
             if not search_path_obj.is_dir():
                 raise ToolError(

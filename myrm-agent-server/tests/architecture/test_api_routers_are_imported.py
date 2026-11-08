@@ -85,7 +85,6 @@ def _routers_without_importer(app_root: Path = _APP_ROOT) -> list[str]:
     )
 
 
-@pytest.mark.architecture
 def test_every_router_module_has_an_importer() -> None:
     orphans = _routers_without_importer()
     assert not orphans, (
@@ -100,7 +99,6 @@ def _write_api_module(app_root: Path, name: str, source: str) -> None:
     path.write_text(source, encoding="utf-8")
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("assignment", ["router = APIRouter()", "router: APIRouter = APIRouter()"])
 def test_router_module_without_importer_is_reported(tmp_path: Path, assignment: str) -> None:
     app_root = tmp_path / "app"
@@ -109,7 +107,6 @@ def test_router_module_without_importer_is_reported(tmp_path: Path, assignment: 
     assert _routers_without_importer(app_root) == ["app/api/lonely.py"]
 
 
-@pytest.mark.architecture
 def test_router_module_with_importer_is_not_reported(tmp_path: Path) -> None:
     app_root = tmp_path / "app"
     _write_api_module(app_root, "lonely.py", "from fastapi import APIRouter\n\nrouter = APIRouter()\n")
@@ -118,7 +115,6 @@ def test_router_module_with_importer_is_not_reported(tmp_path: Path) -> None:
     assert _routers_without_importer(app_root) == []
 
 
-@pytest.mark.architecture
 def test_scan_that_finds_no_router_module_fails(tmp_path: Path) -> None:
     app_root = tmp_path / "app"
     _write_api_module(app_root, "plain.py", "VALUE = 1\n")

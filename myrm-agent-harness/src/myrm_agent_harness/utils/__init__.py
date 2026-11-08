@@ -26,7 +26,7 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.utils.chat_utils import extract_answer_text, extract_litellm_answer_text
+    from myrm_agent_harness.utils.chat_utils import extract_answer_text, extract_completion_text
     from myrm_agent_harness.utils.context_format import (
         TruncationStats,
         format_documents_with_metadata,
@@ -91,9 +91,9 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.utils.chat_utils",
         "extract_answer_text",
     ),
-    "extract_litellm_answer_text": (
+    "extract_completion_text": (
         "myrm_agent_harness.utils.chat_utils",
-        "extract_litellm_answer_text",
+        "extract_completion_text",
     ),
     # Device fingerprint utilities (legacy, kept for migration compatibility)
     "get_device_fingerprint": (
@@ -130,7 +130,7 @@ __all__ = [
     # File & LLM response extraction utilities
     "extract_answer_text",
     "extract_file_id_from_url",
-    "extract_litellm_answer_text",
+    "extract_completion_text",
     "extract_original_content",
     # Context formatting
     "format_documents_with_metadata",

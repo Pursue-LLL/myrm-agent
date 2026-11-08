@@ -8,9 +8,9 @@
   for anything but a hard certificate signal, or when a wrapper that is not a connection failure loses its own verdict.
 
 [POS]
-Regression guard for the transport family of the diagnostic engine. The wrappers are linked the two ways the LLM
-client stack links them: litellm's outer layers are implicit ``__context__`` (raised inside an ``except``), while
-openai and httpx use ``raise ... from``.
+Regression guard for the transport family of the diagnostic engine. The wrappers are linked the two ways a client
+stack links them: an implicit ``__context__`` (raised inside an ``except``) and an explicit ``raise ... from``; httpx
+and httpcore use the latter.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from __future__ import annotations
 import ssl
 from typing import Literal
 
+import httpcore
+import httpx
 import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDiagnostic
@@ -37,13 +39,10 @@ def _wrap(cause: Exception, wrapper: Exception, link: _Link) -> Exception:
     return wrapper
 
 
-def _litellm_chain(root: Exception) -> Exception:
-    """The six layers a litellm call raises, only the innermost carrying the reason."""
-    error = _wrap(root, ConnectionError("httpcore.ConnectError"), "context")
-    error = _wrap(error, ConnectionError("httpx.ConnectError"), "cause")
-    error = _wrap(error, ConnectionError("Connection error."), "cause")
-    error = _wrap(error, Exception("Connection error."), "context")
-    return _wrap(error, Exception("litellm.InternalServerError: OpenAIException - Connection error."), "context")
+def _transport_chain(root: Exception) -> Exception:
+    """The layers a model request raises on a failed connection, only the innermost carrying the reason."""
+    error = _wrap(root, httpcore.ConnectError(""), "cause")
+    return _wrap(error, httpx.ConnectError(""), "cause")
 
 
 @pytest.mark.parametrize("link", ["cause", "context"])
@@ -58,14 +57,14 @@ def test_a_connection_error_wrapping_a_rejected_certificate_is_diagnosed_as_the_
     assert LLMErrorDiagnostic.diagnose(wrapped, locale=locale) == bare
 
 
-def test_the_certificate_at_the_innermost_of_the_six_layers_litellm_raises_is_found() -> None:
-    wrapped = _litellm_chain(ssl.SSLCertVerificationError(_CERT))
+def test_the_certificate_at_the_innermost_layer_of_the_transport_chain_is_found() -> None:
+    wrapped = _transport_chain(ssl.SSLCertVerificationError(_CERT))
 
     assert LLMErrorDiagnostic.diagnose(wrapped, locale="en").error_type == "tls_certificate"
 
 
 def test_a_custom_endpoint_with_a_rejected_certificate_is_not_reported_as_an_unreachable_service() -> None:
-    wrapped = _litellm_chain(ssl.SSLCertVerificationError(_CERT))
+    wrapped = _transport_chain(ssl.SSLCertVerificationError(_CERT))
 
     assert LLMErrorDiagnostic.diagnose(wrapped, _CUSTOM_ENDPOINT, locale="en").error_type == "tls_certificate"
 
@@ -81,7 +80,7 @@ def test_a_custom_endpoint_with_a_rejected_certificate_is_not_reported_as_an_unr
     ],
 )
 def test_a_connection_error_whose_cause_is_not_a_rejected_certificate_stays_a_connection_failure(cause: str) -> None:
-    wrapped = _litellm_chain(OSError(cause))
+    wrapped = _transport_chain(OSError(cause))
 
     assert LLMErrorDiagnostic.diagnose(wrapped, locale="en").error_type == "connection"
     assert (
@@ -103,3 +102,20 @@ def test_a_wrapper_that_is_not_a_connection_failure_keeps_its_own_verdict_whatev
     wrapped = _wrap(ssl.SSLCertVerificationError(_CERT), Exception(outer), "context")
 
     assert LLMErrorDiagnostic.diagnose(wrapped, locale="en").error_type == verdict
+
+
+def test_a_refused_connection_names_the_unreachable_service_not_a_timeout() -> None:
+    """httpx words a refused connection "All connection attempts failed", which no keyword of ours matches."""
+    refused = _wrap(
+        ConnectionRefusedError(61, "Connect call failed"), httpx.ConnectError("All connection attempts failed"), "cause"
+    )
+
+    assert LLMErrorDiagnostic.diagnose(refused, locale="en").error_type == "connection"
+    assert (
+        LLMErrorDiagnostic.diagnose(refused, _CUSTOM_ENDPOINT, locale="en").error_type == "custom_endpoint_unreachable"
+    )
+
+
+@pytest.mark.parametrize("timeout", [httpx.ReadTimeout(""), httpx.ConnectTimeout("")])
+def test_a_timed_out_request_is_a_timeout_even_on_a_custom_endpoint(timeout: Exception) -> None:
+    assert LLMErrorDiagnostic.diagnose(timeout, _CUSTOM_ENDPOINT, locale="en").error_type == "timeout"

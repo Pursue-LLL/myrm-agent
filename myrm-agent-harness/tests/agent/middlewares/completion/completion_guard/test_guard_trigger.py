@@ -156,7 +156,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
-        assert "Substantial unpersisted deliverables" in reasons_of(result).deliverable_write
+        assert "Substantial unpersisted deliverables" in reasons_of(result).unwritten_deliverable
 
     @pytest.mark.asyncio
     async def test_unwritten_deliverable_auto_staged_at_max_rejections(self) -> None:
@@ -218,7 +218,7 @@ class TestCompletionGuardTriggerConditions:
             mock_guard.return_value.recorded_calls.return_value = []
             result = await self.guard.aafter_model(state, None)
 
-        assert "Substantial unpersisted deliverables detected" in reasons_of(result).deliverable_write
+        assert "Substantial unpersisted deliverables detected" in reasons_of(result).unwritten_deliverable
 
     @pytest.mark.asyncio
     async def test_allows_when_mcp_ptc_bash_evidence_exists(self) -> None:

@@ -28,6 +28,8 @@ from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     WebSearcher,
 )
 
+from ._fakes import FakeProviderHTTPError
+
 
 def _two_provider_chain() -> list[SearchServiceConfig]:
     return [
@@ -49,7 +51,7 @@ def _install_search(monkeypatch: pytest.MonkeyPatch, failures: dict[str, Excepti
         self: WebSearcher,
         query: str,
         num_results: int = 5,
-        extra_params_override: dict[str, str | int | bool] | None = None,
+        time_range: str | None = None,
     ) -> list[SearchResult]:
         provider = self.config.search_service
         calls.append(provider)
@@ -79,8 +81,7 @@ def test_search_api_error_context_body_quota_detection() -> None:
 
 
 def test_quota_detects_http_status_on_exception() -> None:
-    exc = Exception("provider error")
-    exc.http_status = 429
+    exc = FakeProviderHTTPError("provider error", http_status=429)
     assert is_quota_or_rate_limit_error(exc) is True
 
 
@@ -136,8 +137,7 @@ def test_provider_reply_still_marks_quota_and_rate_limit() -> None:
 
 def test_persistent_quota_depleted_distinction() -> None:
     # 402 Payment Required -> Persistent
-    exc_402 = Exception("Payment required")
-    exc_402.status_code = 402
+    exc_402 = FakeProviderHTTPError("Payment required", status_code=402)
     assert is_persistent_quota_depleted_error(exc_402) is True
 
     # Quota exceeded text -> Persistent
@@ -273,7 +273,7 @@ _REJECTION_FAILURES = {
     "http_404": SearchAPIError("Search endpoint not found (404)", ErrorContext(status_code=404)),
     "http_429": SearchAPIError("Search service rate limited (429)", ErrorContext(status_code=429)),
     "wrapped_plan_limit": RuntimeError(
-        "litellm.InternalServerError: TavilyException - Request exceeds your plan's set usage limit"
+        "InternalServerError: TavilyException - Request exceeds your plan's set usage limit"
     ),
     "plain_runtime_error": RuntimeError("unexpected search failure"),
 }
@@ -327,7 +327,7 @@ async def test_chain_ends_without_a_hop_when_the_budget_is_spent_inside_a_provid
         self: WebSearcher,
         query: str,
         num_results: int = 5,
-        extra_params_override: dict[str, str | int | bool] | None = None,
+        time_range: str | None = None,
     ) -> list[SearchResult]:
         calls.append(self.config.search_service)
         fake_clock.advance(chain_module._CHAIN_WALL_CLOCK_SECONDS)

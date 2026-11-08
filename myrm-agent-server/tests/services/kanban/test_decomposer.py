@@ -1,6 +1,6 @@
 """Unit tests for PlatformTaskDecomposer.
 
-Mirrors the pattern of test_specifier.py: mock LiteLLM responses, verify
+Mirrors the pattern of test_specifier.py: mock model responses, verify
 all outcome fields and edge-case handling.
 """
 

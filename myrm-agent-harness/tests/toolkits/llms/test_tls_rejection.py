@@ -19,6 +19,8 @@ Unit tests of the certificate verdict on hand-built exception chains; the real c
 
 import ssl
 
+import httpcore
+import httpx
 import pytest
 
 from myrm_agent_harness.toolkits.llms.errors.classifier import (
@@ -70,7 +72,16 @@ def test_classify_tls_hard_spellings_as_tls_certificate(msg: str) -> None:
 _CERT = "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1032)"
 
 
-def _wrapped_in_connection_error(root: Exception, outermost: str) -> Exception:
+def _wrapped_in_connection_error(root: Exception) -> Exception:
+    """The layers the model transport raises around *root*: only the innermost carries the reason."""
+    middle = httpcore.ConnectError("")
+    middle.__cause__ = root
+    outer = httpx.ConnectError("")
+    outer.__cause__ = middle
+    return outer
+
+
+def _relayed_as_connection_error(root: Exception, outermost: str) -> Exception:
     """A client library's layers around *root*: only the innermost carries the reason, the outermost is its wording."""
     middle = ConnectionError("Connection error.")
     middle.__cause__ = root
@@ -79,21 +90,34 @@ def _wrapped_in_connection_error(root: Exception, outermost: str) -> Exception:
     return outer
 
 
-@pytest.mark.parametrize(
-    "outermost",
-    [
-        "litellm.InternalServerError: OpenAIException - Connection error.",
-        "litellm.InternalServerError: VertexAIException - Connection error",
-        "litellm.APIConnectionError: Connection error.",
-    ],
-)
+_RELAYED_WORDINGS = [
+    "Connection error.",
+    "litellm.InternalServerError: OpenAIException - Connection error.",
+    "litellm.APIConnectionError: Connection error.",
+]
+
+
 @pytest.mark.parametrize(
     "root",
     [ssl.SSLCertVerificationError(1, _CERT), ssl.SSLError(1, _CERT)],
     ids=["typed", "text_only"],
 )
-def test_classify_connection_error_wrapping_a_rejected_certificate(root: Exception, outermost: str) -> None:
-    exc = _wrapped_in_connection_error(root, outermost)
+def test_classify_connection_error_wrapping_a_rejected_certificate(root: Exception) -> None:
+    exc = _wrapped_in_connection_error(root)
+    assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
+    assert classify_error(exc) == ErrorKind.TLS_CERTIFICATE
+
+
+@pytest.mark.parametrize("outermost", _RELAYED_WORDINGS)
+@pytest.mark.parametrize(
+    "root",
+    [ssl.SSLCertVerificationError(1, _CERT), ssl.SSLError(1, _CERT)],
+    ids=["typed", "text_only"],
+)
+def test_classify_a_rejected_certificate_a_client_library_words_as_a_connection_error(
+    root: Exception, outermost: str
+) -> None:
+    exc = _relayed_as_connection_error(root, outermost)
     assert classify_failover_reason(exc) == FailoverReason.TLS_CERTIFICATE
     assert classify_error(exc) == ErrorKind.TLS_CERTIFICATE
 
@@ -117,8 +141,8 @@ def test_classify_certificate_inside_a_connection_error_class_name_is_not_a_time
 )
 def test_classify_connection_error_without_a_rejected_certificate_stays_transient(root: Exception) -> None:
     """An https URL pointed at a plain-HTTP service or an interrupted handshake is no certificate verdict."""
-    exc = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
-    assert classify_failover_reason(exc) == FailoverReason.TIMEOUT
+    assert classify_failover_reason(_wrapped_in_connection_error(root)) == FailoverReason.TIMEOUT
+    assert classify_failover_reason(_relayed_as_connection_error(root, _RELAYED_WORDINGS[0])) == FailoverReason.TIMEOUT
 
 
 # What a verifier that asks the operating system reports: the system's own sentence, in the system's language
@@ -137,18 +161,17 @@ def test_a_failed_certificate_verification_is_read_by_its_type_in_any_wording(wo
     root = ssl.SSLCertVerificationError(wording)
 
     assert classify_error(root) is ErrorKind.TLS_CERTIFICATE
-    wrapped = _wrapped_in_connection_error(root, "litellm.InternalServerError: OpenAIException - Connection error.")
-    assert classify_error(wrapped) is ErrorKind.TLS_CERTIFICATE
+    assert classify_error(_wrapped_in_connection_error(root)) is ErrorKind.TLS_CERTIFICATE
+    assert classify_error(_relayed_as_connection_error(root, _RELAYED_WORDINGS[0])) is ErrorKind.TLS_CERTIFICATE
 
 
 @pytest.mark.parametrize("wording", _SYSTEM_WORDINGS)
 def test_the_same_wording_without_the_verification_type_is_no_certificate_verdict(wording: str) -> None:
     """The type is what carries the verdict; a sentence a client merely echoes is not matched."""
-    wrapped = _wrapped_in_connection_error(
-        ssl.SSLError(1, wording), "litellm.InternalServerError: OpenAIException - Connection error."
-    )
+    root = ssl.SSLError(1, wording)
 
-    assert classify_error(wrapped) is not ErrorKind.TLS_CERTIFICATE
+    assert classify_error(_wrapped_in_connection_error(root)) is not ErrorKind.TLS_CERTIFICATE
+    assert classify_error(_relayed_as_connection_error(root, _RELAYED_WORDINGS[0])) is not ErrorKind.TLS_CERTIFICATE
 
 
 @pytest.mark.parametrize("outer", ["Request timed out.", "Rate limit exceeded", "Error code: 401 - invalid api key"])
@@ -204,13 +227,13 @@ def test_a_rejection_a_gateway_relays_in_a_5xx_is_still_a_rejected_certificate(s
 
 
 def _chain_of(root: Exception, links: int) -> Exception:
-    """An exception whose chain holds *links* exceptions: *root* at the bottom, a client library's wording on top."""
+    """An exception whose chain holds *links* exceptions: *root* at the bottom, the transport's layers on top."""
     current = root
     for _ in range(links - 3):
-        layer = ConnectionError("Connection error.")
+        layer = httpcore.ConnectError("")
         layer.__cause__ = current
         current = layer
-    return _wrapped_in_connection_error(current, "litellm.InternalServerError: OpenAIException - Connection error.")
+    return _wrapped_in_connection_error(current)
 
 
 @pytest.mark.parametrize("links", [3, 7, MAX_CHAIN_DEPTH])

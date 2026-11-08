@@ -5,8 +5,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _APP_ROOT = _SERVER_ROOT / "app"
 
@@ -36,7 +34,6 @@ def _scan_app() -> tuple[int, list[str]]:
     return found, undeclared
 
 
-@pytest.mark.architecture
 def test_memory_search_declares_whether_it_is_a_recall() -> None:
     """A search stamps its hits as used and a used memory is protected from forgetting."""
     _, undeclared = _scan_app()
@@ -46,7 +43,6 @@ def test_memory_search_declares_whether_it_is_a_recall() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_detector_flags_undeclared_calls_and_sees_the_real_ones() -> None:
     source = (
         "async def f(manager, other):\n"

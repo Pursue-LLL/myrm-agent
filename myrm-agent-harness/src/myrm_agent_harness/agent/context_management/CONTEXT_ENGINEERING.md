@@ -608,7 +608,7 @@ LLM provider 将请求体序列化为 prompt 时，各部分的**确定性顺序
 - 修改 system prompt → Tools 前缀不变时可命中；System 从变化 token 起重算，之后全部失效
 - 修改 messages → Tools + System 前缀均可保留（仅 Messages 尾部新增）
 - **ToolLayer 收益**：EXTENDED 尾部变化时，**CORE+HIGH_PRIORITY 的 Tools 前缀**仍可命中；System 仍须重算
-- **Skill attenuation**：信任衰减通过 `tool_choice.allowed_tools`（OpenAI 模式）收窄当轮可调用工具，**不** mutate `request.tools`；`tool_choice` 变化不破坏 Tools/System 前缀（Anthropic 表：`tool_choice` 变化 → Tools ✅ System ✅）。非 OpenAI 或 provider 不支持 `allowed_tools` 时，执行层 `check_trust_attenuation` 仍拦截越权调用；`ChatLiteLLM.bind_tools` 透传 dict 型 `tool_choice`
+- **Skill attenuation**：信任衰减通过 `tool_choice.allowed_tools`（OpenAI 模式）收窄当轮可调用工具，**不** mutate `request.tools`；`tool_choice` 变化不破坏 Tools/System 前缀（Anthropic 表：`tool_choice` 变化 → Tools ✅ System ✅）。非 OpenAI 或 provider 不支持 `allowed_tools` 时，执行层 `check_trust_attenuation` 仍拦截越权调用；`TransportChatModel.bind_tools` 透传 dict 型 `tool_choice`
 - **动态内容（如时间戳）应放在 messages 中**，而非 system prompt 或 tools 中
 
 > **Claude Code 官方策略**：当信息过时（日期变化、文件修改）时，**不修改 system prompt**，而是将更新信息作为 `<system-reminder>` 标签放在下一条 user message 中。这确保 system prompt 前缀永远冻结，cache 始终命中。

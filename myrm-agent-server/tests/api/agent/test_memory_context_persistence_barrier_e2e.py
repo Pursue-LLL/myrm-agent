@@ -37,7 +37,7 @@ def _consume_agent_stream_sse(response) -> tuple[list[dict[str, object]], str]:
 @pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
-    reason="E2E requires BASIC_API_KEY for real LiteLLM call",
+    reason="E2E requires BASIC_API_KEY for real provider call",
 )
 @pytest.mark.asyncio
 async def test_load_web_chat_history_excludes_memory_context_markers(

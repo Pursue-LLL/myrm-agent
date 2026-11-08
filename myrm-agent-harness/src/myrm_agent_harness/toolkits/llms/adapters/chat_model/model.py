@@ -1,10 +1,9 @@
-"""LangChain LiteLLM Adapter
+"""LangChain chat model over the model transport
 
 [INPUT]
 - langchain_core (POS: BaseChatModel base class, message, runnable, tool and env-lookup helpers)
-- litellm::litellm (POS: LiteLLM library, imported lazily)
+- transport::LLMTransport, get_transport (POS: provider transport the adapter calls; injectable for tests)
 - adapters.chat_model.message_mixin / output_cap_recovery / session_affinity / sync_mixin / async_mixin / async_stream_mixin (POS: request assembly, output-limit recovery and generation behavior composed into the aggregate root)
-- adapters.chat_model.allowed_params::inject_allowed_params (POS: per-call allowed_openai_params injection)
 - adapters.chat_model.binding (POS: bind_tools and with_structured_output assembly)
 - adapters.chat_model.exceptions (POS: adapter exceptions and constants)
 - adapters.metrics::EmptyRetryMetrics (POS: empty-response retry counters)
@@ -15,14 +14,14 @@
 - toolkits.llms.utils.json_document::is_json_document (POS: whether reasoning text is a JSON document the output parser accepts)
 
 [OUTPUT]
-- ChatLiteLLM: LangChain-compatible LiteLLM chat model aggregate root (config, bind_tools, structured_output)
+- TransportChatModel: LangChain-compatible chat model aggregate root (config, bind_tools, structured_output)
 - chat_model.message_mixin / chat_model.session_affinity / chat_model.sync_mixin / chat_model.async_mixin / chat_model.async_stream_mixin : message assembly, session-affinity and generation mixins
 - chat_model.binding: tool_bind_kwargs / structured_output_bind_kwargs / structured_output_chain (bind_tools and with_structured_output assembly)
 - chat_model.exceptions: EmptyChoicesError, EmptyStreamError, adapter constants
 - clean_model_kwargs(): utility function to clean model parameters
 
 [POS]
-LangChain LiteLLM adapter. Provides a LangChain-compatible LiteLLM interface for unified multi-model
+LangChain chat-model adapter. Provides a LangChain-compatible chat model for unified multi-model
 invocation. Supports sync/async calls, streaming responses (with TTFT and duration latency tracking),
 tool calling, structured output, and model native search (web_search_options).
 Records token usage + cost calculation + audit log appending for every call (streaming and non-streaming),
@@ -33,13 +32,11 @@ Stream only supports fully empty stream retry (mid-stream interruptions cannot b
 business layer exports via retry_metrics.to_dict() for monitoring integration.
 **Structured output**: an empty answer retries once without ``response_format``; the model's reasoning
 replaces it only when the reasoning is itself a JSON document the output parser accepts.
-**Parameter protection**: injects per-call ``allowed_openai_params`` to prevent LiteLLM from
-silently dropping framework params (tools, tool_choice) or user-supplied model_kwargs when
-a provider's capability declaration is incomplete (e.g. ``xiaomi_mimo``). Calls to the first-party
-Anthropic Messages API are the exception: that API rejects raw OpenAI-shaped fields, so LiteLLM's own
-translation builds the request body there.
-Cross-provider compatible via LiteLLM. As the adapter layer, used by core.llm and business layer,
-bridging LangChain and LiteLLM.
+**Parameter fidelity**: every parameter the framework or the caller sets reaches the provider request; the transport
+never filters by a provider capability table. Each protocol wire translates the OpenAI-shaped parameters into the
+provider's own request body, so protocol-specific rejections are handled in one place per wire.
+Cross-provider compatible via the model transport. As the adapter layer, used by core.llm and business layer,
+bridging LangChain and the transport.
 Provider-aware message normalization keeps providers that reject ``system`` turns
 (for example MiniMax) on the compatibility path without leaking that concern to callers.
 For OpenAI GPT-5+/Codex/o-series models, promotes ``system`` role to ``developer``
@@ -49,12 +46,10 @@ following OpenAI's recommended priority hierarchy (system > developer > user).
 from __future__ import annotations
 
 import logging
-import types
 from collections.abc import Sequence
 from typing import (
     Any,
     TypeVar,
-    cast,
 )
 
 from langchain_core.language_models import LanguageModelInput
@@ -65,13 +60,11 @@ from langchain_core.runnables import (
     RunnableConfig,
 )
 from langchain_core.tools import BaseTool
-from langchain_core.utils import get_from_dict_or_env
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.allowed_params import inject_allowed_params
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import ChatLiteLLMAsyncMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import ChatLiteLLMAsyncStreamMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_mixin import TransportChatModelAsyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.async_stream_mixin import TransportChatModelAsyncStreamMixin
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.binding import (
     structured_output_bind_kwargs,
     structured_output_chain,
@@ -83,11 +76,12 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyStreamError,
     StreamStallTimeoutError,
 )
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import ChatLiteLLMMessageMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import ChatLiteLLMOutputCapMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import ChatLiteLLMSessionAffinityMixin
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import ChatLiteLLMSyncMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.message_mixin import TransportChatModelMessageMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.output_cap_recovery import TransportChatModelOutputCapMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.session_affinity import TransportChatModelSessionAffinityMixin
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.sync_mixin import TransportChatModelSyncMixin
 from myrm_agent_harness.toolkits.llms.adapters.metrics import EmptyRetryMetrics
+from myrm_agent_harness.toolkits.llms.transport import LLMTransport, get_transport
 from myrm_agent_harness.toolkits.llms.utils.json_document import is_json_document
 from myrm_agent_harness.toolkits.llms.utils.model_kwargs import (
     clean_model_kwargs as utils_clean_model_kwargs,
@@ -103,7 +97,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEVELOPER_ROLE_PATTERN",
-    "ChatLiteLLM",
+    "TransportChatModel",
     "EmptyChoicesError",
     "EmptyStreamError",
     "StreamStallTimeoutError",
@@ -111,30 +105,29 @@ __all__ = [
 ]
 
 
-class ChatLiteLLM(
-    ChatLiteLLMMessageMixin,
-    ChatLiteLLMOutputCapMixin,
-    ChatLiteLLMSessionAffinityMixin,
-    ChatLiteLLMSyncMixin,
-    ChatLiteLLMAsyncMixin,
-    ChatLiteLLMAsyncStreamMixin,
+class TransportChatModel(
+    TransportChatModelMessageMixin,
+    TransportChatModelOutputCapMixin,
+    TransportChatModelSessionAffinityMixin,
+    TransportChatModelSyncMixin,
+    TransportChatModelAsyncMixin,
+    TransportChatModelAsyncStreamMixin,
     BaseChatModel,
 ):
-    """Minimal LangChain ChatModel adapter for litellm.
+    """Minimal LangChain ChatModel adapter over the model transport.
 
     Implements the subset of features this project uses: non-streaming/streaming
     chat completions and compatibility with LangChain Runnable API.
     """
 
-    client: types.ModuleType | None = None
+    client: LLMTransport | None = None
     model: str = "gpt-3.5-turbo"
     model_name: str | None = None
-    openai_api_key: str | None = None
     api_key: str | None = None
     api_base: str | None = None
     organization: str | None = None
     custom_llm_provider: str | None = None
-    # Seconds to wait for the provider's next bytes, handed to litellm as ``timeout``: a stream that keeps producing
+    # Seconds to wait for the provider's next bytes, handed to the transport as ``timeout``: a stream that keeps producing
     # is not cut, a silent provider is. ``first_event_timeout`` and ``inter_chunk_timeout`` guard a started stream.
     request_timeout: float | None = 300.0
     temperature: float | None = None
@@ -142,7 +135,7 @@ class ChatLiteLLM(
     extra_body: dict[str, Any] | None = Field(default=None)
     web_search_options: dict[str, Any] | None = Field(
         default=None,
-        description="LiteLLM web_search_options for native search (auto-detected or explicit)",
+        description="web_search_options for native search (auto-detected or explicit)",
     )
     top_p: float | None = None
     top_k: int | None = None
@@ -214,13 +207,8 @@ class ChatLiteLLM(
     @model_validator(mode="before")
     @classmethod
     def validate_environment(cls, values: dict[str, Any]) -> dict[str, Any]:
-        try:
-            import litellm
-        except (ImportError, TypeError):
-            raise ValueError("Could not import litellm python package. Please install it with uv sync.") from None
-
-        values["openai_api_key"] = get_from_dict_or_env(values, "openai_api_key", "OPENAI_API_KEY", default="")
-        values["client"] = litellm
+        if values.get("client") is None:
+            values["client"] = get_transport()
         return values
 
     @property
@@ -236,6 +224,11 @@ class ChatLiteLLM(
             "custom_llm_provider": self.custom_llm_provider,
             **self.model_kwargs,
         }
+        # Sampling options a user sets in the model configuration: OpenAI-shaped bodies also get them through the
+        # factory's extra_body mirror, the wires with their own protocol (Gemini, Ollama, Responses, Anthropic) only here.
+        for name, value in (("top_p", self.top_p), ("top_k", self.top_k)):
+            if value is not None:
+                params[name] = value
         if self.extra_body:
             params["extra_body"] = self.extra_body
         if self.reasoning_effort is not None:
@@ -247,31 +240,20 @@ class ChatLiteLLM(
     @property
     def _client_params(self) -> dict[str, Any]:
         set_model_value = self.model_name or self.model
-        client = self.client
-        if client is None:
-            raise RuntimeError("LiteLLM client not initialized")
-        # litellm is a dynamically-typed module; cast silences static property
-        # lookups that cannot be resolved from types.ModuleType.
-        litellm_client = cast(Any, client)
-        litellm_client.api_base = self.api_base
-        litellm_client.api_key = self.api_key or self.openai_api_key
-        litellm_client.organization = self.organization
         creds: dict[str, Any] = {
             "model": set_model_value,
             "api_base": self.api_base,
-            "api_key": self.api_key or self.openai_api_key,
+            "api_key": self.api_key,
+            "organization": self.organization,
         }
         if self.egress_proxy:
             normalized_proxy = normalize_proxy_url(self.egress_proxy)
             if normalized_proxy:
                 creds["proxy"] = normalized_proxy
 
-        # Collect and inject extra headers (e.g. Authorization or gateway affinity)
-        api_key_val = self.api_key or self.openai_api_key
+        # Caller headers plus gateway affinity; each wire adds its own credential header.
         raw_extra_headers = self.model_kwargs.get("extra_headers")
         extra_headers: dict[str, str] = dict(raw_extra_headers) if isinstance(raw_extra_headers, dict) else {}
-        if api_key_val and "authorization" not in {k.lower() for k in extra_headers}:
-            extra_headers["Authorization"] = f"Bearer {api_key_val}"
 
         if self._is_opencode_endpoint() and not any(k.lower() == "x-opencode-session" for k in extra_headers):
             from myrm_agent_harness.core.context_vars import (
@@ -287,8 +269,6 @@ class ChatLiteLLM(
 
         return {**self._default_params, **creds}
 
-    _inject_allowed_params = staticmethod(inject_allowed_params)
-
     @property
     def _identifying_params(self) -> dict[str, Any]:
         set_model_value = self.model_name or self.model
@@ -302,7 +282,7 @@ class ChatLiteLLM(
 
     @property
     def _llm_type(self) -> str:
-        return "litellm-chat"
+        return "transport-chat"
 
     @staticmethod
     def should_skip_response_format(model: str) -> bool:
@@ -388,4 +368,4 @@ def clean_model_kwargs(
     model: str,
     additional_remove_keys: list[str] | None = None,
 ) -> dict[str, Any]:
-    return ChatLiteLLM.clean_model_kwargs(kwargs, model, additional_remove_keys)
+    return TransportChatModel.clean_model_kwargs(kwargs, model, additional_remove_keys)

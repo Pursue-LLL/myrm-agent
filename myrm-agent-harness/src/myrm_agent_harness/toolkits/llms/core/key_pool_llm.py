@@ -1,6 +1,6 @@
 """Key-pool LLM wrapper — transparent API key rotation on errors.
 
-Wraps multiple ``ChatLiteLLM`` instances (same model, different keys)
+Wraps multiple ``TransportChatModel`` instances (same model, different keys)
 behind a single ``BaseChatModel`` interface. On rate-limit, auth, or
 billing errors the wrapper automatically rotates to the next available
 key from the pool while preserving the pool's dispatch strategy.
@@ -58,12 +58,12 @@ _KEY_ROTATABLE_KINDS = frozenset(
 class KeyPoolLLM(BaseChatModel):
     """BaseChatModel wrapper that rotates API keys on key-specific errors.
 
-    Holds one ``ChatLiteLLM`` instance per key and delegates calls to the
+    Holds one ``TransportChatModel`` instance per key and delegates calls to the
     currently selected instance. When a rate limit, auth failure, or billing
     error is detected, the failing key enters cooldown and the next available
     key is tried automatically.
 
-    Transparent to callers — behaves exactly like a single ``ChatLiteLLM``.
+    Transparent to callers — behaves exactly like a single ``TransportChatModel``.
     """
 
     _instances: dict[str, BaseChatModel] = PrivateAttr(default_factory=dict)

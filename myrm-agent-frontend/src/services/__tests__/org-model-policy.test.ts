@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isModelAllowedByPolicy } from '../org-model-policy';
-import { getLiteLLMModelName } from '@/store/config/providerTypes';
+import { getRoutedModelName } from '@/store/config/providerTypes';
 
 describe('isModelAllowedByPolicy', () => {
   it('allows all models when patterns list is empty', () => {
@@ -44,36 +44,36 @@ describe('isModelAllowedByPolicy', () => {
   });
 });
 
-describe('model-picker integration: getLiteLLMModelName + isModelAllowedByPolicy', () => {
+describe('model-picker integration: getRoutedModelName + isModelAllowedByPolicy', () => {
   const patterns = ['openai/*', 'deepseek/*'];
 
-  it('allows openai model via LiteLLM format conversion', () => {
-    const litellmName = getLiteLLMModelName('openai', 'gpt-4o-mini');
-    expect(litellmName).toBe('openai/gpt-4o-mini');
-    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  it('allows openai model via routed id conversion', () => {
+    const routedName = getRoutedModelName('openai', 'gpt-4o-mini');
+    expect(routedName).toBe('openai/gpt-4o-mini');
+    expect(isModelAllowedByPolicy(routedName, patterns)).toBe(true);
   });
 
-  it('allows deepseek model via LiteLLM format conversion', () => {
-    const litellmName = getLiteLLMModelName('deepseek', 'deepseek-chat');
-    expect(litellmName).toBe('deepseek/deepseek-chat');
-    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  it('allows deepseek model via routed id conversion', () => {
+    const routedName = getRoutedModelName('deepseek', 'deepseek-chat');
+    expect(routedName).toBe('deepseek/deepseek-chat');
+    expect(isModelAllowedByPolicy(routedName, patterns)).toBe(true);
   });
 
-  it('blocks anthropic model via LiteLLM format conversion', () => {
-    const litellmName = getLiteLLMModelName('anthropic', 'claude-4-opus');
-    expect(litellmName).toBe('anthropic/claude-4-opus');
-    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(false);
+  it('blocks anthropic model via routed id conversion', () => {
+    const routedName = getRoutedModelName('anthropic', 'claude-4-opus');
+    expect(routedName).toBe('anthropic/claude-4-opus');
+    expect(isModelAllowedByPolicy(routedName, patterns)).toBe(false);
   });
 
   it('raw model name without conversion would give wrong result', () => {
     expect(isModelAllowedByPolicy('gpt-4o-mini', patterns)).toBe(false);
-    const litellmName = getLiteLLMModelName('openai', 'gpt-4o-mini');
-    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+    const routedName = getRoutedModelName('openai', 'gpt-4o-mini');
+    expect(isModelAllowedByPolicy(routedName, patterns)).toBe(true);
   });
 
-  it('model already in LiteLLM format is not double-prefixed', () => {
-    const litellmName = getLiteLLMModelName('openai', 'openai/gpt-4o');
-    expect(litellmName).toBe('openai/gpt-4o');
-    expect(isModelAllowedByPolicy(litellmName, patterns)).toBe(true);
+  it('model already in routed id form is not double-prefixed', () => {
+    const routedName = getRoutedModelName('openai', 'openai/gpt-4o');
+    expect(routedName).toBe('openai/gpt-4o');
+    expect(isModelAllowedByPolicy(routedName, patterns)).toBe(true);
   });
 });

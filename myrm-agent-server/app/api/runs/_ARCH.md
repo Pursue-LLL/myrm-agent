@@ -10,7 +10,6 @@ Unified Runs Hub 聚合 API。只读端点，将 Cron Runs、Kanban Background T
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `router.py` | 核心 | GET /runs 聚合端点 | ✅ |
-| `projection_router.py` | 核心 | GET/POST /runs/{run_id}/projection, events, switch-surface, attempts 纯函数多端状态投影与 Attempt 变迁端点 | ✅ |
 | `stop_reason.py` | 辅助 | 从 metadata / error / shell 任务推断停止原因（存储形态由 `core/agent/stop_reason.py` 定义） | — |
 | `schemas.py` | 模型 | UnifiedRunResponse/UnifiedRunsListResponse | — |
 

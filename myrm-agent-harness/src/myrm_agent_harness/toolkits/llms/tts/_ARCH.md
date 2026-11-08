@@ -25,4 +25,4 @@ connect directly.
 
 LangChain adapter: `myrm-agent-server/app/ai_agents/media_tools/tts_agent_tool.py`.
 
-Channel outbound TTS (`myrm-agent-server/app/channels/voice/tts.py`) is **business layer** — not part of this module.
+Channel outbound TTS (`myrm-agent-server/app/channels/voice/tts/`) is **business layer** — not part of this module.

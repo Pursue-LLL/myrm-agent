@@ -37,13 +37,8 @@ export const MobileHitlApprovalCard: React.FC<MobileHitlApprovalCardProps> = ({
   isProcessing = false,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('mobileCockpit.hitlApproval');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests or SSR
-  }
+  const translation = useTranslations('mobileCockpit.hitlApproval');
+  const t = (key: string): string => translation(key);
 
   const [mode, setMode] = useState<'idle' | 'rejecting' | 'steering'>('idle');
   const [rejectReason, setRejectReason] = useState<string>('');

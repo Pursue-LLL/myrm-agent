@@ -35,6 +35,6 @@ Runtime 阶段 `COPY shared /shared`，供 [providers.py](../app/services/agent/
 
 Lock 约束：`tests/architecture/test_server_pyproject_lock_parity.py` 要求 harness 为 in-repo path source，且 `uv.lock` 只使用 `pypi.org` / `files.pythonhosted.org`（不含镜像站 URL）。
 
-CI：`.github/workflows/server-architecture.yml`（PR 全 paths；`main` push 仅分发 paths 触发 `docker-image` job：仓库根 `docker build -f myrm-agent-server/Dockerfile`，容器内 smoke import provider remap）；`install-smoke.yml`（`install.sh` 非 frozen 路径；Windows 仅 `workflow_dispatch`）。
+CI：`.github/workflows/server-architecture.yml`（push main 与每个 PR 都跑 `architecture` 与 `docker-image` 两个 job，不设路径过滤；`docker-image` 在仓库根 `docker build -f myrm-agent-server/Dockerfile`，容器内 smoke import provider remap）；`install-smoke.yml`（`install.sh` 非 frozen 路径；Windows 仅 `workflow_dispatch`）。
 
 升级 harness 依赖：改 `myrm-agent-harness/pyproject.toml` 后分别刷新 `myrm-agent-harness/uv.lock` 与 `myrm-agent-server/uv.lock`；harness 与 server 同仓同提交，无需先发 PyPI。

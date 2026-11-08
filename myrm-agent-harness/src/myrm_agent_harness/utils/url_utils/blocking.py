@@ -118,7 +118,16 @@ def is_blocked_ip(addr: str | ipaddress.IPv4Address | ipaddress.IPv6Address) -> 
 
 
 class _SSRFResultLike(Protocol):
-    safe: bool
-    error: str
-    hostname: str
-    resolved_ips: tuple[str, ...]
+    """The read-only fields of an SSRF validation result that DNS pinning reads."""
+
+    @property
+    def safe(self) -> bool: ...
+
+    @property
+    def error(self) -> str: ...
+
+    @property
+    def hostname(self) -> str: ...
+
+    @property
+    def resolved_ips(self) -> tuple[str, ...]: ...

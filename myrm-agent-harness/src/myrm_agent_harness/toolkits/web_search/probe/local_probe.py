@@ -121,7 +121,7 @@ async def probe_searxng_endpoints(
 async def probe_local_search_services(
     searxng_candidates: tuple[str, ...] | None = None,
 ) -> list[LocalSearchProbeResult]:
-    """Probe SearXNG (LiteLLM self-hosted backend)."""
+    """Probe SearXNG (self-hosted backend)."""
     try:
         return [await probe_searxng_endpoints(searxng_candidates)]
     except Exception as exc:

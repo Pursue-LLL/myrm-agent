@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.retriever.reranker.cloud_reranker::CloudReranker (POS: cloud reranker backend)
+- myrm_agent_harness.toolkits.llms.transport.http::_async_client (POS: the HTTP client every transport call goes through)
 
 [OUTPUT]
 - Relevance: the score a document earns for a query, keyed by ``(query, document)``
@@ -20,9 +21,11 @@ import json
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from typing import cast
+from unittest import mock
 
 import httpx
 
+from myrm_agent_harness.toolkits.llms.transport import http
 from myrm_agent_harness.toolkits.retriever.reranker.cloud_reranker import CloudReranker
 
 Relevance = Mapping[tuple[str, str], float]
@@ -50,10 +53,14 @@ def _provider_transport(relevance: Relevance, omit: frozenset[str]) -> httpx.Moc
 async def provider_reranker(
     relevance: Relevance, *, omit: frozenset[str] = frozenset()
 ) -> AsyncIterator[CloudReranker]:
-    """A ``CloudReranker`` talking to the fake provider; ``omit`` lists documents the provider leaves out of its answers."""
-    reranker = CloudReranker(model="openai/test-reranker", api_key="test-key", api_base="https://rerank.test/v1")
-    reranker._http_client = httpx.AsyncClient(transport=_provider_transport(relevance, omit))
+    """A ``CloudReranker`` talking to the fake provider; ``omit`` lists documents the provider leaves out of its answers.
+
+    The reranker calls the provider through the transport's shared HTTP client, so the client is replaced for the
+    duration of the context.
+    """
+    client = httpx.AsyncClient(transport=_provider_transport(relevance, omit))
     try:
-        yield reranker
+        with mock.patch.object(http, "_async_client", lambda proxy: client):
+            yield CloudReranker(model="openai/test-reranker", api_key="test-key", api_base="https://rerank.test/v1")
     finally:
-        await reranker.aclose()
+        await client.aclose()

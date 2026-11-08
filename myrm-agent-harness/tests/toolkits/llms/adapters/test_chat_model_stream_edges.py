@@ -1,4 +1,4 @@
-"""Unit tests for ChatLiteLLM stream chunk processing and async stream edge paths.
+"""Unit tests for TransportChatModel stream chunk processing and async stream edge paths.
 
 Covers branch-level paths that existing adapter tests leave untested:
 - ``_process_chunk`` role dispatch (user / system / function / fallback / tool calls)
@@ -25,7 +25,7 @@ from langchain_core.messages import (
     SystemMessageChunk,
 )
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyStreamError,
     StreamStallTimeoutError,
@@ -34,7 +34,7 @@ from myrm_agent_harness.toolkits.llms.adapters.stream_aggregator import StreamAg
 
 
 class _Chunk:
-    """Minimal duck-typed chunk with attribute access (mirrors LiteLLM ModelResponse)."""
+    """Minimal duck-typed chunk with attribute access (mirrors an SDK response object)."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         self._data = data
@@ -99,8 +99,8 @@ def test_dump_payload_pairing(monkeypatch: pytest.MonkeyPatch, caplog: pytest.Lo
 class TestProcessChunk:
     """Branch coverage for _process_chunk role dispatch."""
 
-    def _make(self) -> ChatLiteLLM:
-        model = ChatLiteLLM(model="openai/test-model")
+    def _make(self) -> TransportChatModel:
+        model = TransportChatModel(model="openai/test-model")
         return model
 
     def test_user_role(self) -> None:
@@ -219,7 +219,7 @@ class TestProcessChunk:
 
 class TestSyncGenerateRetryLoop:
     def test_unexpected_loop_exit_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.empty_retry_enabled = False
         monkeypatch.setattr(
@@ -241,9 +241,9 @@ class TestSyncGenerateRetryLoop:
 class TestAsyncStreamEdges:
     @pytest.mark.asyncio
     async def test_empty_stream_retries_then_raises(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
-        model.client.acreate = AsyncMock(return_value=_async_chunks([]))
+        model.client.acompletion = AsyncMock(return_value=_async_chunks([]))
         model.empty_retry_max_attempts = 1
         model.empty_retry_delay = 0.1
 
@@ -253,7 +253,7 @@ class TestAsyncStreamEdges:
 
     @pytest.mark.asyncio
     async def test_stream_stall_raises_timeout(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.first_event_timeout = 0.05
         model.client = MagicMock()
 
@@ -267,7 +267,7 @@ class TestAsyncStreamEdges:
                 await asyncio.sleep(0.1)
                 raise StopAsyncIteration
 
-        model.client.acreate = AsyncMock(return_value=_StallingStream())
+        model.client.acompletion = AsyncMock(return_value=_StallingStream())
 
         with pytest.raises(StreamStallTimeoutError) as excinfo:
             async for _ in model._astream([HumanMessage(content="hi")]):
@@ -276,7 +276,7 @@ class TestAsyncStreamEdges:
 
     @pytest.mark.asyncio
     async def test_stream_with_reasoning_and_content(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks: list[dict[str, Any]] = [
             {
@@ -293,7 +293,7 @@ class TestAsyncStreamEdges:
             {"choices": [{"delta": {"content": " world"}, "finish_reason": "stop"}]},
             {"choices": [], "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}},
         ]
-        model.client.acreate = AsyncMock(return_value=_async_chunks(chunks))
+        model.client.acompletion = AsyncMock(return_value=_async_chunks(chunks))
 
         collected: list[str] = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -318,8 +318,8 @@ class _CustomChunk(BaseMessageChunk):
 class TestProcessChunkFallback:
     """Unknown roles with non-standard chunk classes use the generic fallback."""
 
-    def _make(self) -> ChatLiteLLM:
-        return ChatLiteLLM(model="openai/test-model")
+    def _make(self) -> TransportChatModel:
+        return TransportChatModel(model="openai/test-model")
 
     def test_fallback_custom_class(self) -> None:
         model = self._make()
@@ -336,7 +336,7 @@ class TestGenerateRetryLoopExit:
     """Defensive retry-loop exit raises when no attempt ran."""
 
     def test_generate_zero_attempts_raises_runtime_error(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         model.empty_retry_max_attempts = 0
         with pytest.raises(RuntimeError, match="Unexpected error"):
@@ -347,7 +347,7 @@ class TestSyncStreamRunManager:
     """run_manager receives a callback per yielded chunk."""
 
     def test_run_manager_callback_invoked(self) -> None:
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = [
             {"choices": [{"delta": {"role": "assistant", "content": "hi"}, "finish_reason": None, "index": 0}]},
@@ -372,7 +372,7 @@ class TestSyncResponsesWire:
         }
         monkeypatch.setattr(sync_mod, "invoke_responses_sync", lambda *args, **kwargs: completed)
 
-        model = ChatLiteLLM(model="openai/test-model", wire_protocol="responses")
+        model = TransportChatModel(model="openai/test-model", wire_protocol="responses")
         model.client = MagicMock()
         result = model._generate([HumanMessage(content="hi")])
 
@@ -401,7 +401,7 @@ class TestSyncResponsesWire:
         ]
         monkeypatch.setattr(sync_mod, "stream_responses_sync", lambda *args, **kwargs: iter(stream_chunks))
 
-        model = ChatLiteLLM(model="openai/test-model", wire_protocol="responses")
+        model = TransportChatModel(model="openai/test-model", wire_protocol="responses")
         model.client = MagicMock()
         out = list(model._stream([HumanMessage(content="hi")]))
 

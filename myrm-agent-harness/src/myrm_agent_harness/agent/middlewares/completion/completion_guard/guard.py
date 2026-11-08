@@ -221,6 +221,7 @@ class CompletionGuard(AgentMiddleware):
         checklist = assess_checklist(records, workspace_root=todo_workspace)
         evidence_reason, evidence_unreachable = self._evidence_demand(run_state, messages, records)
         deliverable_write_reason: str | None = None
+        unwritten_reason: str | None = None
         unwritten_deliverables: list[UnwrittenDeliverable] = []
         execution_claim_reason = check_execution_claim(
             user_text=latest_user_text,
@@ -235,8 +236,6 @@ class CompletionGuard(AgentMiddleware):
                     records=records,
                     latest_user_text=latest_user_text,
                 )
-                if unwritten_reason is not None:
-                    deliverable_write_reason = unwritten_reason
         query_grounding_reason = check_query_grounding_claim(
             user_text=latest_user_text,
             assistant_text=content_str,
@@ -245,7 +244,13 @@ class CompletionGuard(AgentMiddleware):
 
         blocked_by_a_check = any(
             reason is not None
-            for reason in (evidence_reason, deliverable_write_reason, execution_claim_reason, query_grounding_reason)
+            for reason in (
+                evidence_reason,
+                deliverable_write_reason,
+                unwritten_reason,
+                execution_claim_reason,
+                query_grounding_reason,
+            )
         )
         if not checklist.critical and not blocked_by_a_check:
             return None
@@ -268,6 +273,7 @@ class CompletionGuard(AgentMiddleware):
             evidence=evidence_reason or "",
             evidence_unreachable=evidence_unreachable,
             deliverable_write=deliverable_write_reason or "",
+            unwritten_deliverable=unwritten_reason or "",
             execution_claim=execution_claim_reason or "",
             query_grounding=query_grounding_reason or "",
             verification=bool(checklist.causes & VERIFICATION_CAUSES),

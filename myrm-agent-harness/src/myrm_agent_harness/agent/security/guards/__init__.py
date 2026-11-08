@@ -7,7 +7,6 @@ Available guards:
 - estop: Global emergency stop mechanism
 - context_budget: Context window size management
 - privacy_tracker: PII and privacy tracking
-- ssrf_guard: SSRF protection for network tools
 
 [POS]
 Session-level security guards integrated into tool_interceptor_middleware.

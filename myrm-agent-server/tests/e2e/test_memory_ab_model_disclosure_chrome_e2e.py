@@ -455,7 +455,7 @@ def test_memory_ab_model_disclosure_chrome_e2e() -> None:
 
             row_text = table.get("firstRowText", "")
             # .env.test declares BASIC_MODEL=openai-like/agnes-2.5-flash; the
-            # disclosed label is the litellm-normalized form (openai/agnes-2.5-flash).
+            # disclosed label is the provider-normalized form (openai/agnes-2.5-flash).
             expected_model = load_test_secrets().basic_model
             model_name = expected_model.rsplit("/", 1)[-1]
             assert f"/{model_name}" in row_text, f"agent_model disclosure missing; expected *{model_name} in row: {row_text}"

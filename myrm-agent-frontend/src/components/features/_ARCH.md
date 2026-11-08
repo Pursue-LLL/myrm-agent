@@ -60,7 +60,6 @@
 | `canvas/`                                     | Canvas 画布文件严格沙箱隔离与交互式脚本动态鉴权体系（Strict CSP、iframe sandbox、出网审批门禁） | [_ARCH.md](canvas/_ARCH.md)                                                       |
 | `extension-widgets/`                          | 扩展小组件 ANSI 颜色渲染器与微型组件挂载宿主（Nano-Context 上下文占用表、Todo 任务清单） | [_ARCH.md](extension-widgets/_ARCH.md)                                           |
 | `model-tester/`                               | 模型配置一键测速与连通性自检器（首字延迟 TTFT、TPS 吞吐量、呼吸状态健康徽标） | [_ARCH.md](model-tester/_ARCH.md)                                                 |
-| `runtime/`                                  | 纯函数式多端状态投影中枢、实时运行时控制台与 Attempt 状态变迁透视抽屉（Quad-Surface 视图切换、Attempt 水位线与故障诊断） | [_ARCH.md](runtime/_ARCH.md)                                                     |
 | `browser-annotation/`                       | 内置预览浏览器「点选圈批」与 DOM/CSS 元素精准批注系统（选区高亮、编号 Pin、DOM 特征提取、脱敏与子树分组并行修复） | [_ARCH.md](browser-annotation/_ARCH.md)                                           |
 | `workspace-cockpit/`                        | 个人数字员工工作区总控驾驶舱（“你不在的时候”离线成果统计、4 泳道任务流、实时 streaming tail 与悬浮会话托盘） | [_ARCH.md](workspace-cockpit/_ARCH.md)                                             |
 | `arena/` | 组件 `AdoptSynthesizeBar`、`LocalProjectWorkspaceCard`、`MultiModelSplitArenaView`；状态仓库 `useArenaStore` | [_ARCH.md](arena/_ARCH.md) |
@@ -68,7 +67,6 @@
 | `command-center/` | 组件 `CommandCenterHeaderTrigger`、`CommandCenterMaintenanceTab`、`CommandCenterModal`、`CommandCenterSessionsTab` 等 6 个；状态仓库 `useCommandCenterStore` | [_ARCH.md](command-center/_ARCH.md) |
 | `element-editor/` | 组件 `ElementInspectorOverlay`、`ElementVisualEditorContainer`、`InPlaceEditPopover`、`VisualVersionRollbackDeck`；状态仓库 `useElementEditorStore` | [_ARCH.md](element-editor/_ARCH.md) |
 | `mobile-companion/` | 组件 `MobileRemoteSteeringBar`、`MobileTaskCompanionView`、`QrCodePairingModal`；状态仓库 `useMobileCompanionStore` | [_ARCH.md](mobile-companion/_ARCH.md) |
-| `three-mode-switcher/` | 组件 `ThreeModeCapsuleSwitcher`、`ThreeModeIntentGuidanceToast`、`ThreeModePermissionMatrixDeck`；状态仓库 `useThreeModeStore` | [_ARCH.md](three-mode-switcher/_ARCH.md) |
 | `threejs-sandbox/` | 组件 `ThreeJsCanvasViewer`、`ThreeJsConsoleDrawer`、`ThreeJsPerformancePanel`；状态仓库 `useThreeJsSandboxStore` | [_ARCH.md](threejs-sandbox/_ARCH.md) |
 | `batch-directory/` | 批量目录并行项目：列表页（统计、项目表、创建向导与目录选择器）与详情页（概览、范围、任务表、动作栏）及其数据 / 动作 hooks | [_ARCH.md](batch-directory/_ARCH.md) |
 

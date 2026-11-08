@@ -4,12 +4,13 @@
 - langchain_core.messages::AIMessage, ToolMessage (POS: LangChain core message types)
 - agent.streaming.step_builder::build_step_data, get_step_key (POS: Agent step data builder. Constructs frontend display data from tool names and arguments with per-tool-type customization.)
 - agent.streaming.source_tracker::SourceTracker (POS: Source reference forwarding capability for BaseAgent.)
+- agent.middlewares.tooling.tool_sources_hoisting::TOOL_SOURCES_KWARG (POS: Citation sources of a tool result move into additional_kwargs.)
 - agent.types::AgentRunStatistics (POS: Agent core runtime type definitions.)
 - agent.streaming.types::AgentEventType (POS: Streaming module core type definitions.)
 - toolkits.llms.adapters.tool_recovery::has_withheld_tool_calls (POS: Detects messages that only record withheld tool calls.)
 
 [OUTPUT]
-- process_updates_chunk(): 处理 LangGraph updates 流 → 业务事件（含自动 sources 转发，空 AIMessage 过滤；仅记录被扣留工具调用的消息不算空消息）
+- process_updates_chunk(): 处理 LangGraph updates 流 → 业务事件（含自动 sources 转发：来源取自 ToolMessage.additional_kwargs；空 AIMessage 过滤；仅记录被扣留工具调用的消息不算空消息）
 - process_messages_chunk(): 处理 LangGraph messages 流 → 消息块事件（含 message/reasoning 统一清洗、工具调用文本抑制）
 
 [POS]
@@ -22,7 +23,6 @@ Emits TOOL_IMAGE_OUTPUT for all image blocks in multimodal ToolMessage content
 from __future__ import annotations
 
 import enum
-import json
 from collections.abc import AsyncGenerator, Generator
 from typing import cast
 
@@ -32,6 +32,7 @@ from myrm_agent_harness.agent.errors.fault_side import (
     FaultSide,
     classify_tool_fault_side,
 )
+from myrm_agent_harness.agent.middlewares.tooling.tool_sources_hoisting import TOOL_SOURCES_KWARG
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.core.security.model_directed_notes import user_facing_text
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
@@ -270,32 +271,13 @@ async def _handle_tool_result(
                         "messageId": message_id,
                     }
 
-    try:
-        tool_metadata = _extract_tool_metadata(msg)
-
-        if source_tracker and tool_metadata:
-            async for source_event in _emit_source_events(tool_metadata, message_id, source_tracker):
-                yield source_event
-
-    except Exception as e:
-        logger.error(" Failed to send tool event: %s: %s", type(e).__name__, e)
-
-
-def _extract_tool_metadata(msg: ToolMessage) -> dict[str, object]:
-    """从 ToolMessage 中提取 metadata（支持 dict 和 JSON 字符串两种格式）"""
-    if isinstance(msg.content, dict):
-        return msg.content.get("metadata", {})
-
-    if isinstance(msg.content, str) and msg.content.strip().startswith("{"):
+    sources = msg.additional_kwargs.get(TOOL_SOURCES_KWARG)
+    if source_tracker and isinstance(sources, list) and sources:
         try:
-            parsed = json.loads(msg.content)
-            if isinstance(parsed, dict):
-                metadata: object = parsed.get("metadata", {})
-                return metadata if isinstance(metadata, dict) else {}
-        except json.JSONDecodeError:
-            pass
-
-    return {}
+            async for source_event in _emit_source_events(sources, message_id, source_tracker):
+                yield source_event
+        except Exception as e:
+            logger.error(" Failed to send tool event: %s: %s", type(e).__name__, e)
 
 
 def _error_category_value(raw: object) -> str:
@@ -318,14 +300,14 @@ def _error_category_value(raw: object) -> str:
 
 
 async def _emit_source_events(
-    tool_metadata: dict[str, object], message_id: str, source_tracker: SourceTracker
+    sources: list[dict[str, object]], message_id: str, source_tracker: SourceTracker
 ) -> AsyncGenerator[dict[str, object]]:
     """通过 SourceTracker 发送引用相关事件
 
     1. reviewing_sources 步骤 → ProgressSteps UI（展示本次工具返回的来源）
     2. sources 事件 → 引用栏（仅新增的、去重后的来源）
     """
-    new_sources = source_tracker.extract_and_add(tool_metadata)
+    new_sources = source_tracker.add_batch(sources)
     if not new_sources:
         return
 

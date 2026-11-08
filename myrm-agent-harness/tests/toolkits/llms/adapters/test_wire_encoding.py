@@ -2,7 +2,7 @@
 
 [INPUT]
 - adapters.chat_model.wire_encoding::replace_lone_surrogates (POS: the scrub under test)
-- adapters.chat_model::ChatLiteLLM (POS: owner of the single funnel every model request is built through)
+- adapters.chat_model::TransportChatModel (POS: owner of the single funnel every model request is built through)
 - adapters.chat_model.outbound_guard::set_outbound_message_guard (POS: policy hook that runs after the scrub)
 - httpx (POS: the transport whose ``json=`` encoding is where an unencodable string fails)
 
@@ -25,7 +25,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import set_outbound_message_guard
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.wire_encoding import replace_lone_surrogates
 
@@ -170,8 +170,8 @@ class TestReplaceLoneSurrogates:
 
 class TestThroughTheFunnel:
     @staticmethod
-    def _model() -> ChatLiteLLM:
-        return ChatLiteLLM.model_construct(client=MagicMock(), model="gpt-5-chat")
+    def _model() -> TransportChatModel:
+        return TransportChatModel.model_construct(client=MagicMock(), model="gpt-5-chat")
 
     def test_every_message_kind_leaves_the_funnel_encodable(self) -> None:
         history = [

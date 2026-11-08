@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.browser.navigation import Navigator
 from myrm_agent_harness.toolkits.browser.navigation.ssrf_guard import BrowserNavigationBlockedError
 from myrm_agent_harness.toolkits.browser.session.browser_session_download_mixin import BrowserSessionDownloadMixin
 from myrm_agent_harness.toolkits.browser.session.browser_session_navigation_mixin import BrowserSessionNavigationMixin
-from myrm_agent_harness.toolkits.browser.session.download_manager import DownloadResult
+from myrm_agent_harness.toolkits.browser.session.download import DownloadError, DownloadResult
 from myrm_agent_harness.toolkits.browser.utils.private_origins import private_origin_grants
 from myrm_agent_harness.utils.errors import ToolError
 
@@ -48,7 +48,7 @@ class _Rig:
 def _rig(
     *, blocked_host: str | None = None, result: DownloadResult | None = _SAVED, lands_on: str | None = None
 ) -> _Rig:
-    """``lands_on`` is where the tab ends up when the request produces no download."""
+    """``result=None`` is a request that starts no download; ``lands_on`` is where the tab ends up then."""
     session = MagicMock()
     page = MagicMock()
     page.url = _TAB_URL
@@ -58,10 +58,12 @@ def _rig(
     async def admit(_url: str) -> None:
         rig.order.append("admit")
 
-    async def request(*_args: object, **_kwargs: object) -> DownloadResult | None:
+    async def request(*_args: object, **_kwargs: object) -> DownloadResult:
         rig.order.append("request")
         if lands_on is not None:
             page.url = lands_on
+        if result is None:
+            raise DownloadError("no download started within 60 s")
         return result
 
     session._ensure_components = AsyncMock()
@@ -75,7 +77,7 @@ def _rig(
     return rig
 
 
-async def _download(rig: _Rig, url: str = "https://public.example/a.pdf") -> DownloadResult | None:
+async def _download(rig: _Rig, url: str = "https://public.example/a.pdf") -> DownloadResult:
     return await BrowserSessionDownloadMixin.download_url(rig.session, url)
 
 
@@ -87,9 +89,7 @@ class TestSessionFlow:
         await BrowserSessionDownloadMixin.download_url(rig.session, "HTTP://2130706433:8080/a.pdf", 7.0)
 
         rig.navigator.admit_download.assert_awaited_once_with("http://127.0.0.1:8080/a.pdf")
-        rig.request.assert_awaited_once_with(
-            rig.page, "http://127.0.0.1:8080/a.pdf", 7.0, verify_final_url=rig.navigator.assert_landed_allowed
-        )
+        rig.request.assert_awaited_once_with(rig.page, "http://127.0.0.1:8080/a.pdf", 7.0)
         assert rig.order == ["admit", "request"]
 
     @pytest.mark.asyncio
@@ -151,7 +151,8 @@ class TestRequestThatEndedOnAPage:
     async def test_an_allowed_landing_page_is_left_alone(self) -> None:
         rig = _rig(result=None, lands_on="https://public.example/login")
 
-        assert await _download(rig) is None
+        with pytest.raises(DownloadError, match="no download started"):
+            await _download(rig)
 
         rig.navigator.assert_landed_allowed.assert_awaited_once_with(
             "https://public.example/login", discard_document=True
@@ -162,7 +163,8 @@ class TestRequestThatEndedOnAPage:
     async def test_a_tab_that_did_not_move_to_a_network_page_is_not_judged(self, lands_on: str | None) -> None:
         rig = _rig(result=None, lands_on=lands_on)
 
-        assert await _download(rig) is None
+        with pytest.raises(DownloadError, match="no download started"):
+            await _download(rig)
 
         rig.navigator.assert_landed_allowed.assert_not_awaited()
 

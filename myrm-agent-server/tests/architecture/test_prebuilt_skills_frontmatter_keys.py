@@ -34,12 +34,10 @@ def _unknown_frontmatter_keys(content: str, skill_name: str, caplog: pytest.LogC
     return unknown
 
 
-@pytest.mark.architecture
 def test_prebuilt_skills_are_discovered() -> None:
     assert _SKILL_DIRS, f"no SKILL.md found under {_SKILLS_ROOT}"
 
 
-@pytest.mark.architecture
 def test_unknown_key_detector_reports_a_misspelled_key(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -48,7 +46,6 @@ def test_unknown_key_detector_reports_a_misspelled_key(
     assert _unknown_frontmatter_keys(content, "probe-skill", caplog) == {"tools"}
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("skill_dir", _SKILL_DIRS, ids=lambda path: path.name)
 def test_prebuilt_skill_declares_only_known_frontmatter_keys(skill_dir: Path, caplog: pytest.LogCaptureFixture) -> None:
     content = (skill_dir / "SKILL.md").read_text(encoding="utf-8")

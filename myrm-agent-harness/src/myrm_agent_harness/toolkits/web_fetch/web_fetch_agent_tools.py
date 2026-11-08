@@ -12,6 +12,7 @@ Contains:
 - toolkits.web_fetch.processing.spill::store_full_text, emit_web_fetch_evicted_ref (POS: Sandbox persistence of the full text) [lazy]
 - toolkits.web_fetch.processing.content_sanitize::strip_base64_images_from_markdown (POS: Inline image payload removal) [lazy]
 - utils.context_format::wrap_with_external_sources_tag (POS: UNTRUSTED_DATA boundary around fetched content) [lazy]
+- core.context_vars::source_indexer_var (POS: the run's source numbering, so the numbers a result prints are the indexes of its cards)
 - toolkits.web_fetch._url_gate::validate_urls (POS: canonical spelling, blocklist, SSRF and exfiltration gate before any request)
 - toolkits.web_fetch._web_fetch_tool_description::resolve_web_fetch_tool_description
 - utils.errors::ToolError
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
     from myrm_agent_harness.toolkits.web_fetch.processing.spill import StoredFullText
 
+from myrm_agent_harness.core.context_vars import source_indexer_var
 from myrm_agent_harness.toolkits.web_fetch._url_gate import validate_urls
 from myrm_agent_harness.toolkits.web_fetch._web_fetch_tool_description import resolve_web_fetch_tool_description
 from myrm_agent_harness.utils.errors import ToolError
@@ -190,7 +192,12 @@ async def _fetch_full_content(
                 body=strip_base64_images_from_markdown(doc.page_content),
             )
         )
-    delivery = plan_full_content(pages, failed_urls)
+    index_for = source_indexer_var.get()
+    delivery = plan_full_content(
+        pages,
+        failed_urls,
+        indices=[index_for(source) for source in sources] if index_for is not None else None,
+    )
 
     stored = None
     if delivery.stored_text is not None:
@@ -327,13 +334,3 @@ async def _append_sufficiency_notice(
     if guidance_parts:
         notice = "\n\n---\n⚠️ **Retrieval Sufficiency Notice**: The extracted content may be incomplete.\n"
         result["content"] = content + notice + "\n".join(guidance_parts)
-
-    metadata = result.get("metadata")
-    if isinstance(metadata, dict):
-        metadata["sufficiency"] = {
-            "is_sufficient": verdict.is_sufficient,
-            "confidence": verdict.confidence,
-            "missing_aspects": list(verdict.missing_aspects),
-            "suggested_queries": list(verdict.suggested_queries),
-            "negative_constraint_violations": list(verdict.negative_constraint_violations),
-        }

@@ -18,7 +18,6 @@ Prefix cache matches from the start of that byte stream. Anything that changes *
 |---------|-----------|-----------|
 | Tool schemas | Front (sorted by layer/name) | See `ToolLayer` / registry in PROMPT_CACHE_PRACTICE §2.1 |
 | System prompt | System message, append-only | Do not inject time, memory, or tool results here |
-| Stable project / persona blocks | Tier-1 static blocks | `prefix_caching_aligned_layout_engine.py` Tier-1 hash |
 
 ## What must NOT be in the system prompt
 

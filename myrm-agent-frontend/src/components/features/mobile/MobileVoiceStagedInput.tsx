@@ -33,13 +33,8 @@ export const MobileVoiceStagedInput: React.FC<MobileVoiceStagedInputProps> = ({
   onSend,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('mobileCockpit.voiceStagedInput');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests or SSR
-  }
+  const translation = useTranslations('mobileCockpit.voiceStagedInput');
+  const t = (key: string): string => translation(key);
 
   const [text, setText] = useState<string>('');
   const [unsupportedError, setUnsupportedError] = useState<boolean>(false);

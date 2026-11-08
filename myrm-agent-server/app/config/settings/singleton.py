@@ -1,5 +1,5 @@
 """[INPUT]
-- .constants (POS: BASE_DIR)
+- .app::AppSettings (POS: the composed settings model)
 
 [OUTPUT]
 - get_settings, settings

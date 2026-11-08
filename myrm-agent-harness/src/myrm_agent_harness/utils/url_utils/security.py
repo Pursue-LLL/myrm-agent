@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import re as _re
+from urllib.parse import urlparse
 
 from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname, parse_outbound_url
 
@@ -168,39 +169,54 @@ def check_url_exfiltration(
     return warnings
 
 
-def sanitize_url_for_error(url: str, max_length: int = 50) -> str:
-    """Sanitize URL for error messages to prevent data exfiltration via errors.
+# What a text that is no URL is shown as, so neither a relative path nor a half-typed address reaches a message.
+_UNREADABLE_URL = "invalid_or_redacted_url"
 
-    Truncates URL and masks query parameters/fragments that might contain sensitive data.
+
+def sanitize_url_for_error(url: str, max_length: int = 50) -> str:
+    """Sanitize a URL for error messages and logs: where it points, without the parts that usually carry a secret.
+
+    Shows the scheme, host and path. The credentials before the ``@`` of the authority are dropped, the query and
+    fragment are replaced by a marker, a URL with no ``//`` after its scheme (``blob:``, ``data:``, ``filesystem:``,
+    ``javascript:``) is opaque and shows its scheme alone, and a text that is no URL shows a fixed placeholder.
+    The path is shown as it is: a secret a service puts in its path (a token segment) is shown too, so a caller
+    that logs a URL it did not write masks the result as well. Never raises.
 
     Args:
         url: Original URL
-        max_length: Maximum length of sanitized URL
+        max_length: Maximum length of the sanitized URL (a longer one is cut and ends with ``...``)
 
     Returns:
-        Sanitized URL safe for error messages
+        Sanitized URL safe for error messages and logs
 
     Example:
         >>> sanitize_url_for_error("https://evil.com/?key=sk-1234567890")
         "https://evil.com/?<query_redacted>"
 
-        >>> sanitize_url_for_error("https://example.com/api/users")
+        >>> sanitize_url_for_error("https://deploy:hunter2@example.com/api/users")
         "https://example.com/api/users"
+
+        >>> sanitize_url_for_error("filesystem:https://example.com/temporary/report.pdf?sig=abc")
+        "filesystem:"
     """
-    from urllib.parse import urlparse as _urlparse
+    text = url.strip()
+    try:
+        parsed = urlparse(text)
+    except ValueError:  # e.g. an unterminated IPv6 literal
+        return _UNREADABLE_URL
+    if not parsed.scheme:
+        return _UNREADABLE_URL
+    if not text.startswith("//", len(parsed.scheme) + 1):
+        return f"{parsed.scheme}:"
 
-    parsed = _urlparse(url)
+    host = parsed.netloc.rpartition("@")[2]
+    safe_url = f"{parsed.scheme}://{host}{parsed.path}"
 
-    # Build safe base URL (scheme + netloc + path)
-    safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-
-    # Redact query and fragment
     if parsed.query:
         safe_url += "?<query_redacted>"
     if parsed.fragment:
         safe_url += "#<fragment_redacted>"
 
-    # Truncate if too long
     if len(safe_url) > max_length:
         safe_url = safe_url[:max_length] + "..."
 

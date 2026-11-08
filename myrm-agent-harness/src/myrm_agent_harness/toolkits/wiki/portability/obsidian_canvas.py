@@ -1,14 +1,12 @@
-"""Obsidian vault structure, canvas text extraction, and 1-hop link parsing.
+"""Obsidian JSON Canvas (.canvas) text extraction.
 
 [INPUT]
 - pathlib::Path (POS: filesystem path operations)
 - json (POS: JSON Canvas spec parsing)
-- ..core.link_extraction::find_wikilinks (POS: link syntax SSOT; code is never a link)
 
 [OUTPUT]
+- CanvasTextNode: A textual node extracted from a .canvas file.
 - extract_canvas_text_nodes: Extracts clean text nodes and labels from .canvas files.
-- extract_wikilinks_from_markdown: Extracts [[target|alias]] references from Markdown text.
-- resolve_one_hop_wikilinks: Resolves 1-hop neighbor notes given a seed note and vault root.
 
 [POS]
 Harness-level pure file-format utilities for Obsidian interoperability.
@@ -22,8 +20,6 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.wiki.core.link_extraction import find_wikilinks
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,15 +31,6 @@ class CanvasTextNode:
     node_type: str  # "text", "file", "link", "group"
     content: str
     label: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class WikilinkReference:
-    """A parsed wikilink reference."""
-
-    target: str
-    alias: str = ""
-    raw_match: str = ""
 
 
 def extract_canvas_text_nodes(canvas_path: Path | str) -> list[CanvasTextNode]:
@@ -77,10 +64,10 @@ def extract_canvas_text_nodes(canvas_path: Path | str) -> list[CanvasTextNode]:
         if not isinstance(node, dict):
             continue
 
-        node_id = str(node.get("id", ""))
-        node_type = str(node.get("type", ""))
-        text = str(node.get("text", "")).strip()
-        label = str(node.get("label", "")).strip()
+        node_id = str(node.get("id") or "")
+        node_type = str(node.get("type") or "")
+        text = str(node.get("text") or "").strip()
+        label = str(node.get("label") or "").strip()
 
         if node_type == "text" and text:
             extracted.append(
@@ -92,7 +79,7 @@ def extract_canvas_text_nodes(canvas_path: Path | str) -> list[CanvasTextNode]:
                 )
             )
         elif node_type == "file":
-            file_ref = str(node.get("file", "")).strip()
+            file_ref = str(node.get("file") or "").strip()
             if file_ref or label:
                 extracted.append(
                     CanvasTextNode(
@@ -103,7 +90,7 @@ def extract_canvas_text_nodes(canvas_path: Path | str) -> list[CanvasTextNode]:
                     )
                 )
         elif node_type == "link":
-            url = str(node.get("url", "")).strip()
+            url = str(node.get("url") or "").strip()
             if url or label:
                 extracted.append(
                     CanvasTextNode(
@@ -124,55 +111,3 @@ def extract_canvas_text_nodes(canvas_path: Path | str) -> list[CanvasTextNode]:
             )
 
     return extracted
-
-
-def extract_wikilinks_from_markdown(content: str) -> list[WikilinkReference]:
-    """Extract all [[Target|Alias]] wikilinks from Markdown text."""
-    return [
-        WikilinkReference(target=parts.note, alias=(parts.label or "").strip(), raw_match=raw)
-        for raw, parts in find_wikilinks(content)
-    ]
-
-
-def resolve_one_hop_wikilinks(
-    seed_markdown_path: Path | str,
-    vault_root: Path | str,
-    *,
-    case_insensitive: bool = True,
-) -> dict[str, Path]:
-    """Resolve 1-hop neighbor file paths referenced by a seed markdown file.
-
-    Returns a mapping of target name -> resolved absolute Path in the vault.
-    """
-    seed_path = Path(seed_markdown_path)
-    root = Path(vault_root)
-
-    if not seed_path.is_file() or not root.is_dir():
-        return {}
-
-    try:
-        content = seed_path.read_text(encoding="utf-8")
-    except (UnicodeDecodeError, OSError):
-        return {}
-
-    links = extract_wikilinks_from_markdown(content)
-    if not links:
-        return {}
-
-    # Build a lookup index of vault markdown files
-    # Case-insensitive stem/name -> Path
-    index: dict[str, Path] = {}
-    for md_file in root.rglob("*.md"):
-        if md_file.is_file():
-            key = md_file.stem.lower() if case_insensitive else md_file.stem
-            if key not in index:
-                index[key] = md_file
-
-    resolved: dict[str, Path] = {}
-    for ref in links:
-        target_stem = Path(ref.target).stem
-        lookup_key = target_stem.lower() if case_insensitive else target_stem
-        if lookup_key in index:
-            resolved[ref.target] = index[lookup_key]
-
-    return resolved

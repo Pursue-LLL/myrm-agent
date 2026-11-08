@@ -1,38 +1,13 @@
 name: Server architecture gates
 
+# No path filter: the gates and the image build read files across the repository (the server, the harness, the frontend,
+# the extension, the desktop project, shared/ and the CI scripts), and a list of paths stops covering a file the day a
+# test starts reading it. tests/architecture/test_gate_workflow_triggers.py pins that neither trigger takes one.
 on:
   push:
     branches:
       - main
-    paths:
-      - 'myrm-agent-server/app/**'
-      - 'myrm-agent-server/assets/**'
-      - 'myrm-agent-server/tests/architecture/**'
-      - 'myrm-agent-server/**/*.md'
-      - 'myrm-agent-server/pyproject.toml'
-      - 'myrm-agent-server/uv.lock'
-      - 'myrm-agent-server/Dockerfile'
-      - 'myrm-agent-server/docker/**'
-      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
-      - 'myrm-agent-harness/src/**'
-      - 'myrm-agent-harness/pyproject.toml'
-      - 'myrm-agent-frontend/src/store/config/litellmRouting.generated.ts'
   pull_request:
-    paths:
-      - 'myrm-agent-server/app/**'
-      - 'myrm-agent-server/assets/**'
-      - 'myrm-agent-server/tests/architecture/**'
-      - 'myrm-agent-server/**/*.md'
-      - 'myrm-agent-server/pyproject.toml'
-      - 'myrm-agent-server/uv.lock'
-      - 'myrm-agent-server/Dockerfile'
-      - 'myrm-agent-server/docker/**'
-      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
-      - 'myrm-agent-harness/src/**'
-      - 'myrm-agent-harness/pyproject.toml'
-      - 'myrm-agent-frontend/src/store/config/litellmRouting.generated.ts'
-      - 'shared/**'
-      - '.github/workflows/server-architecture.yml'
 
 concurrency:
   # The module-reachability gate compares a push with the commit main pointed at before that push, so a run

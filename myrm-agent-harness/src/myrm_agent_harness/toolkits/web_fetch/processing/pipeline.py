@@ -9,10 +9,12 @@ web_fetch.processing.content_pruning::ContentPruningFilter (POS: Boilerplate / n
 web_fetch.processing.html_scan::extract_title (POS: Linear-time scans of raw HTML text)
 web_fetch.fetchers.protocol::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.markdown_generator::MarkdownGenerator (POS: HTML-to-Markdown conversion)
+utils.content_sniff::PayloadKind (POS: Tells text responses from web pages)
 utils.text_cleaner::clean_text (POS: Generic text cleaning utility)
 
 [OUTPUT]
-ContentPipeline: Transforms raw FetchResult HTML into cleaned, Markdown-formatted Documents
+ContentPipeline: Transforms raw FetchResult HTML into cleaned, Markdown-formatted Documents; text responses
+(plain, markdown, csv, feeds) become Documents verbatim
 (``process`` synchronously, ``aprocess`` on a dedicated conversion thread)
 
 [POS]
@@ -32,6 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from langchain_core.documents import Document
 
+from myrm_agent_harness.utils.content_sniff import PayloadKind
 from myrm_agent_harness.utils.text_cleaner import clean_text
 
 from ..fetchers.protocols import FetcherType, FetchResult
@@ -43,11 +46,19 @@ logger = logging.getLogger(__name__)
 
 _MIN_CONTENT_LENGTH = 50
 _FIT_MARKDOWN_THRESHOLD = 100
+_TRUNCATION_MARKER = "\n\n[TRUNCATED]"
 
 # One worker on purpose: conversions stay serial (as they were on the event loop) and a conversion that keeps running
 # after its awaiting task was cancelled is the only orphan there can be; futures still queued are dropped unstarted.
 _CONVERSION_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="web-fetch-convert")
 atexit.register(_CONVERSION_EXECUTOR.shutdown, wait=False, cancel_futures=True)
+
+
+def _truncate(content: str, max_chars: int) -> tuple[str, bool]:
+    """Cut content to the character budget; the marker tells the model the text goes on."""
+    if 0 < max_chars < len(content):
+        return content[:max_chars] + _TRUNCATION_MARKER, True
+    return content, False
 
 
 class ContentPipeline:
@@ -110,11 +121,7 @@ class ContentPipeline:
         if "application/json" in content_type or (body_text.startswith(("{", "[")) and body_text.endswith(("}", "]"))):
             try:
                 parsed = json.loads(body_text)
-                formatted_json = json.dumps(parsed, indent=2, ensure_ascii=False)
-                was_truncated = False
-                if max_chars > 0 and len(formatted_json) > max_chars:
-                    formatted_json = formatted_json[:max_chars] + "\n\n[TRUNCATED]"
-                    was_truncated = True
+                formatted_json, was_truncated = _truncate(json.dumps(parsed, indent=2, ensure_ascii=False), max_chars)
                 content = f"```json\n{formatted_json}\n```"
                 return Document(
                     page_content=content,
@@ -130,11 +137,7 @@ class ContentPipeline:
 
         # 2. XML / RSS / Atom bypass
         if "application/xml" in content_type or "text/xml" in content_type:
-            was_truncated = False
-            content = body_text
-            if max_chars > 0 and len(content) > max_chars:
-                content = content[:max_chars] + "\n\n[TRUNCATED]"
-                was_truncated = True
+            content, was_truncated = _truncate(body_text, max_chars)
             wrapped = f"```xml\n{content}\n```"
             return Document(
                 page_content=wrapped,
@@ -148,19 +151,37 @@ class ContentPipeline:
 
         return None
 
+    @staticmethod
+    def _text_document(fetch_result: FetchResult, max_chars: int) -> Document | None:
+        text = fetch_result.html.strip()
+        if not text:
+            return None
+        content, was_truncated = _truncate(text, max_chars)
+        return Document(
+            page_content=content,
+            metadata={
+                "url": fetch_result.url,
+                "title": f"Text Data ({fetch_result.url})",
+                "description": "Raw text response",
+                "was_truncated": was_truncated,
+            },
+        )
+
     def process(self, fetch_result: FetchResult, max_chars: int = 0) -> Document | None:
-        """Converts FetchResult HTML or structured data into a clean Document."""
+        """Converts FetchResult HTML, structured data or a text response into a clean Document."""
         # Fast path: check for structured JSON / XML data bypass
         structured_doc = self._try_structured_data_bypass(fetch_result, max_chars)
         if structured_doc is not None:
             return structured_doc
 
-        was_truncated = False
+        # Text is already the content: converting it as HTML would drop its line breaks and angle brackets.
+        if fetch_result.kind is PayloadKind.TEXT:
+            return self._text_document(fetch_result, max_chars)
+
         if self._md_generator is None:
-            content = self._extract_raw_markdown(fetch_result.html, fetch_result.url)
-            if max_chars > 0 and len(content) > max_chars:
-                content = content[:max_chars] + "\n\n[TRUNCATED]"
-                was_truncated = True
+            content, was_truncated = _truncate(
+                self._extract_raw_markdown(fetch_result.html, fetch_result.url), max_chars
+            )
         else:
             is_stealth = fetch_result.fetcher_type == FetcherType.STEALTH
             content, was_truncated = self._extract_with_generator(

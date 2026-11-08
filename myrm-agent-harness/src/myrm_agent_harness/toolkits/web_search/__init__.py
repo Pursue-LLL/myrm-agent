@@ -7,7 +7,7 @@
 - processing.search_results_processor::combine_search_results_unified, search_results_to_documents (POS: result processing utilities)
 
 [OUTPUT]
-- SearchResult, Citation, WebSearchTools, LiteLLMSearch, SearchServiceConfig: core search types and tools
+- SearchResult, Citation, WebSearchTools, RestSearch, SearchServiceConfig: core search types and tools
 - Error types: AllQueriesFailedError, SearchAPIError, SearchConfigError, WebSearchError, ErrorContext
 - combine_search_results_unified, search_results_to_documents: result processors
 
@@ -27,14 +27,14 @@ from .processing.search_results_processor import (
 
 if TYPE_CHECKING:
     from .engine import WebSearchTools
-    from .providers.litellm_search import LiteLLMSearch
+    from .providers.rest_search import RestSearch
     from .providers.web_searcher import SearchServiceConfig
 
 __all__ = [
     "AllQueriesFailedError",
     "Citation",
     "ErrorContext",
-    "LiteLLMSearch",
+    "RestSearch",
     "SearchAPIError",
     "SearchConfigError",
     "SearchResult",
@@ -45,7 +45,7 @@ __all__ = [
     "search_results_to_documents",
 ]
 
-_LAZY_SYMBOLS = {"LiteLLMSearch", "SearchServiceConfig", "WebSearchTools"}
+_LAZY_SYMBOLS = {"RestSearch", "SearchServiceConfig", "WebSearchTools"}
 
 if __debug__:
     _extra = _LAZY_SYMBOLS - set(__all__)
@@ -54,13 +54,13 @@ if __debug__:
 
 
 def __getattr__(name: str) -> object:
-    """Lazy load LiteLLMSearch, SearchServiceConfig, and WebSearchTools on first access."""
+    """Lazy load RestSearch, SearchServiceConfig, and WebSearchTools on first access."""
     if name in _LAZY_SYMBOLS:
-        if name == "LiteLLMSearch":
-            from .providers.litellm_search import LiteLLMSearch
+        if name == "RestSearch":
+            from .providers.rest_search import RestSearch
 
-            globals()[name] = LiteLLMSearch
-            return LiteLLMSearch
+            globals()[name] = RestSearch
+            return RestSearch
         elif name == "SearchServiceConfig":
             from .providers.web_searcher import SearchServiceConfig
 

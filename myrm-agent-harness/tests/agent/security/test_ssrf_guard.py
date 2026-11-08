@@ -1,10 +1,10 @@
-"""Tests for security.guards.ssrf_guard — SSRF protection."""
+"""Tests for core.security.guards.ssrf — SSRF protection."""
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from myrm_agent_harness.agent.security.guards.ssrf_guard import check_url, resolve_and_check
+from myrm_agent_harness.core.security.guards.ssrf import check_url, resolve_and_check
 from myrm_agent_harness.utils.url_utils import is_blocked_ip
 
 

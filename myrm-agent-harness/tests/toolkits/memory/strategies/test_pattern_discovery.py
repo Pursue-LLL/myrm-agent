@@ -8,17 +8,19 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-    DiscoveredPattern,
-    PatternDiscoveryResponse,
-    PatternDurability,
-    PatternReport,
-    _build_discovery_prompt,
     _compute_memory_set_hash,
     get_recent_patterns,
     increment_consolidation_count,
     run_pattern_discovery,
     should_run_pattern_discovery,
 )
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import (
+    DiscoveredPattern,
+    PatternDiscoveryResponse,
+    PatternDurability,
+    PatternReport,
+)
+from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_prompts import _build_discovery_prompt
 
 
 @pytest.fixture

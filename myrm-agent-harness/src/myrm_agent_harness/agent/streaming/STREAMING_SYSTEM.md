@@ -75,7 +75,7 @@ dispatcher  handlers      events         recovery*
 - `event_handlers.process_updates_chunk` 保留只记录被扣留调用的消息，恢复处理器才能看到它；
 - `recovery/stream_recovery_truncation.py` 最多重试 1 次：不再带上该消息，追加一条提示（提示缓存前缀不变），并一次性放大输出预算（有上限，不会低于已配置预算）；仍失败则上报 `tool_call_truncated`。审批后的续跑轮（`agent_input` 是已被 LangGraph 消费的 `Command`，再喂一次不推进任何工作）也走同一入口：输入只含这条提示，图从检查点接着跑，被扣留的调用由悬空调用中间件补一条「参数无效」的结果，重试的写入会再次请求审批。被扣留调用的原始参数只在内存里，重试前以 WARNING 记一行（工具、解析策略、长度、脱敏后的头尾）；
 - 流在收到最终元数据块之前断开时，`finish_reason` 记为 `__stream_dropped__`，`map_to_completion_status` 将其映射为 `truncated`，并禁止“补全 JSON”式修复；
-- 上游在没有 `finish_reason` 时干净关闭，LiteLLM 流包装器会合成 `stop`，块层与正常结束完全相同，因此不会被记为断流（`finish_reason` 与遥测口径不变）。适配器改读包装器自己记录的提供方结束标记（`received_finish_reason` / `intermittent_finish_reason`，`StreamAggregator.provider_finish`）：两者都为空说明提供方没有结束这条流，工具参数不再补全，该调用按被扣留处理并走上面的重试；没有这两个标记的流（Responses 线路）仍只看 `finish_reason`。停在字符串内部的参数无论如何都拒绝执行（`litellm_utils.py` 的 `truncated_mid_value`）。
+- 上游在没有 `finish_reason` 时干净关闭，流的块层与正常结束没有区别，因此不会被记为断流（`finish_reason` 与遥测口径不变）。适配器改读提供方流自己记录的结束标记（`ProviderStream.received_finish_reason`，只记录提供方真正发出的结束原因；`StreamAggregator.provider_finish`）：为空说明提供方没有结束这条流，工具参数不再补全，该调用按被扣留处理并走上面的重试；没有这个标记的流（Responses 线路）仍只看 `finish_reason`。停在字符串内部的参数无论如何都拒绝执行（`tool_argument_recovery.py` 的 `truncated_mid_value`）。
 
 ### 恢复重放与回复文本（重启契约）
 
@@ -104,7 +104,7 @@ dispatcher  handlers      events         recovery*
 | `message_builder.py` | 消息准备与时间戳注入 |
 | `step_builder.py` | 前端步骤 UI 数据（tool name + args） |
 | `utils.py` | 上下文校验、时间戳规则、tool name 规范化 |
-| `source_tracker.py` | 来源引用转发 |
+| `source_tracker.py` | 来源引用转发：`event_handlers` 把工具结果 `ToolMessage.additional_kwargs["sources"]`（由 `tool_interceptor_middleware` 从 `{content, metadata}` 结果的 `metadata.sources` 取出）交给它，按本次运行去重编号后增量分发；要在结果文本里给来源编号的工具，用开跑时绑进 `source_indexer_var` 的 `SourceTracker.index_for` 取号，卡片沿用同一个编号 |
 
 ---
 

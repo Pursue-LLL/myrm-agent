@@ -3,7 +3,7 @@
 Validates lazy loading behavior:
 - toolkits/__init__.py: llms, retriever, web_fetch 延迟导入
 - browser/__init__.py: checkpoint, doctor 延迟导入
-- web_search/__init__.py: LiteLLMSearch 延迟导入
+- web_search/__init__.py: RestSearch 延迟导入
 
 Run: uv run pytest benchmarks/bench_startup_performance.py -v
 """
@@ -43,7 +43,7 @@ print(f"{(time.time()-start)*1000:.2f}")
 
 @pytest.mark.benchmark(group="startup")
 def test_import_toolkits(benchmark):
-    """Benchmark: import toolkits (litellm not loaded)"""
+    """Benchmark: import toolkits (model transport not loaded)"""
 
     def import_toolkits():
         result = subprocess.run(
@@ -95,7 +95,7 @@ print(f"{(time.time()-start)*1000:.2f}")
 
 @pytest.mark.benchmark(group="startup")
 def test_import_web_search(benchmark):
-    """Benchmark: import web_search (litellm not loaded)"""
+    """Benchmark: import web_search (model transport not loaded)"""
 
     def import_web_search():
         result = subprocess.run(
@@ -120,8 +120,8 @@ print(f"{(time.time()-start)*1000:.2f}")
 
 
 @pytest.mark.benchmark(group="lazy_loading")
-def test_lazy_loading_litellm(benchmark):
-    """Benchmark: litellm loads on first access"""
+def test_lazy_loading_langchain_core(benchmark):
+    """Benchmark: langchain_core loads on first access of llm_manager"""
 
     def check_lazy_loading():
         result = subprocess.run(
@@ -132,8 +132,8 @@ def test_lazy_loading_litellm(benchmark):
 import sys
 from myrm_agent_harness import toolkits
 
-# Should not load litellm
-assert 'litellm' not in sys.modules, "litellm should not be loaded"
+# Should not load langchain_core
+assert 'langchain_core' not in sys.modules, "langchain_core should not be loaded"
 
 # Now access llm_manager (should trigger lazy load)
 import time
@@ -141,7 +141,7 @@ start = time.time()
 from myrm_agent_harness.toolkits import llm_manager
 elapsed = (time.time()-start)*1000
 
-assert 'litellm' in sys.modules, "litellm should be loaded now"
+assert 'langchain_core' in sys.modules, "langchain_core should be loaded now"
 print(f"{elapsed:.2f}")
 """,
             ],
@@ -154,7 +154,7 @@ print(f"{elapsed:.2f}")
         return float(result.stdout.strip().split("\n")[-1])
 
     elapsed_ms = benchmark(check_lazy_loading)
-    assert elapsed_ms < 5000, f"litellm lazy load should be < 5000ms, got {elapsed_ms:.2f}ms"
+    assert elapsed_ms < 5000, f"langchain_core lazy load should be < 5000ms, got {elapsed_ms:.2f}ms"
 
 
 @pytest.mark.benchmark(group="lazy_loading")

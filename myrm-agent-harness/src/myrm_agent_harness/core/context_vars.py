@@ -22,6 +22,8 @@ introducing forbidden dependencies (e.g. toolkits/ → agent/).
 - current_tool_call_id_var: The call the tool body is running inside (set by the tool-call middleware)
 - approval_notes_var: The human's notes on this run's approvals, keyed by tool call id
 - publish_approval_notes / stash_approval_note / claim_approval_note: the note hand-off
+- SourceIndexer / source_indexer_var: The run's source numbering. A tool numbers the sources of its result with it,
+  so the number the model reads is the index of the card the stream issues for that source
 - scoped_value: Bind a ContextVar for a ``with`` block and restore what it held on exit
 
 [POS]
@@ -32,7 +34,7 @@ by providing a neutral location for runtime context that both layers need.
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
@@ -146,6 +148,14 @@ def claim_approval_note(call_id: str) -> str:
     if store is None:
         return ""
     return store.pop(call_id, "")
+
+
+# Numbers a source for the model. Tools print a number in front of each source of their result before the stream
+# knows the sources, so the run's ``SourceTracker.index_for`` is bound here at the start of the run and the number
+# the model reads is the index of the card the stream issues for that source. Held here so toolkits/ can number
+# sources without importing agent/. Unbound outside a run: a tool then numbers its own sources from 1.
+SourceIndexer = Callable[[Mapping[str, object]], int]
+source_indexer_var: ContextVar[SourceIndexer | None] = ContextVar("source_indexer", default=None)
 
 
 @contextmanager

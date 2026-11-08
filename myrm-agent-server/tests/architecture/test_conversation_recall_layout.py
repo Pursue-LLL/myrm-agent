@@ -27,7 +27,6 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 )
 
 
-@pytest.mark.architecture
 def test_conversation_recall_subpackage_layout() -> None:
     assert _CONVERSATION_RECALL_PACKAGE.is_dir(), (
         f"Missing {_CONVERSATION_RECALL_PACKAGE}. See app/database/repositories/conversation_recall/_ARCH.md."
@@ -37,7 +36,6 @@ def test_conversation_recall_subpackage_layout() -> None:
         assert path.is_file(), f"Missing required conversation_recall module file: {path}"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("legacy_filename", _FORBIDDEN_LEGACY_FLAT_FILES)
 def test_conversation_recall_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _REPOSITORIES_ROOT / legacy_filename
@@ -47,7 +45,6 @@ def test_conversation_recall_legacy_flat_files_removed(legacy_filename: str) -> 
     )
 
 
-@pytest.mark.architecture
 def test_conversation_recall_public_exports() -> None:
     from app.database.repositories.conversation_recall import (
         CONVERSATION_RECALL_SCHEMA_SQL,

@@ -1,4 +1,4 @@
-"""Tests for QdrantVectorStore scroll order_by, ensure_payload_indexes, and epoch timestamps."""
+"""Tests for QdrantVectorStore scroll order_by, ensure_payload_indexes, epoch timestamps and payload backfills."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -67,11 +67,12 @@ class TestEnsurePayloadIndexes:
     async def test_creates_payload_indexes(self, store, mock_client):
         mock_client.create_payload_index.return_value = True
         await store.ensure_payload_indexes("test_col")
-        assert mock_client.create_payload_index.call_count == 6
+        assert mock_client.create_payload_index.call_count == 7
         created_fields = [c[1]["field_name"] for c in mock_client.create_payload_index.call_args_list]
         assert set(created_fields) == {
             "_created_ts",
             "_updated_ts",
+            "stored_ts",
             "importance",
             "tags",
             "namespaces",
@@ -131,3 +132,70 @@ class TestBackfillEpochTimestamps:
         assert count == 1
         set_call = mock_client.set_payload.call_args[1]
         assert isinstance(set_call["payload"]["_created_ts"], float)
+
+
+class TestBackfillPayloadCopy:
+    @staticmethod
+    def _point(point_id: str, created_ts: float) -> MagicMock:
+        point = MagicMock()
+        point.id = point_id
+        point.payload = {"_created_ts": created_ts}
+        return point
+
+    @pytest.mark.asyncio
+    async def test_no_pending_points(self, store, mock_client):
+        mock_client.scroll.return_value = ([], None)
+        assert await store.backfill_payload_copy("col", "stored_ts", "_created_ts") == 0
+        mock_client.batch_update_points.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_each_point_receives_its_own_value_in_one_request_per_page(self, store, mock_client):
+        mock_client.scroll.side_effect = [([self._point("p1", 1.5), self._point("p2", 2.5)], None)]
+
+        assert await store.backfill_payload_copy("col", "stored_ts", "_created_ts") == 2
+
+        mock_client.batch_update_points.assert_awaited_once()
+        operations = mock_client.batch_update_points.call_args[1]["update_operations"]
+        assert [(op.set_payload.payload, op.set_payload.points) for op in operations] == [
+            ({"stored_ts": 1.5}, ["p1"]),
+            ({"stored_ts": 2.5}, ["p2"]),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_pending_points_are_those_with_the_source_field_and_without_the_target(self, store, mock_client):
+        mock_client.scroll.return_value = ([], None)
+
+        await store.backfill_payload_copy("col", "stored_ts", "_created_ts")
+
+        call = mock_client.scroll.call_args[1]
+        pending = call["scroll_filter"]
+        assert [c.is_empty.key for c in pending.must] == ["stored_ts"]
+        assert [c.is_empty.key for c in pending.must_not] == ["_created_ts"]
+        assert call["with_payload"] == ["_created_ts"]
+        assert call["with_vectors"] is False
+
+    @pytest.mark.asyncio
+    async def test_pages_until_the_scroll_ends(self, store, mock_client):
+        mock_client.scroll.side_effect = [
+            ([self._point("p1", 1.5)], "next-point"),
+            ([self._point("p2", 2.5)], None),
+        ]
+
+        assert await store.backfill_payload_copy("col", "stored_ts", "_created_ts", batch_size=1) == 2
+
+        assert [c[1]["offset"] for c in mock_client.scroll.call_args_list] == [None, "next-point"]
+        assert mock_client.batch_update_points.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_a_collection_that_does_not_exist_has_nothing_to_copy(self, store, mock_client):
+        mock_client.scroll.side_effect = ValueError("Collection col not found")
+
+        assert await store.backfill_payload_copy("col", "stored_ts", "_created_ts") == 0
+
+    @pytest.mark.asyncio
+    async def test_any_other_failure_is_raised(self, store, mock_client, monkeypatch):
+        monkeypatch.setattr(store, "RETRY_BASE_DELAY", 0)
+        mock_client.scroll.side_effect = ValueError("Wrong input")
+
+        with pytest.raises(ValueError, match="Wrong input"):
+            await store.backfill_payload_copy("col", "stored_ts", "_created_ts")

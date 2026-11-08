@@ -74,6 +74,12 @@ class ExecutionContext:
     max_memory_mb: int = 2048
     max_cpu_cores: float = 2.0
     env: dict[str, str] | None = None
+    skill_env: dict[str, str] | None = None
+    """Settings the user saved for the skill this command belongs to (``env`` carries them as well).
+
+    A shell takes the non-secret ones from ``env``. The secret-named ones are never exported into the shell:
+    they reach the commands of this skill only, each for the length of that command (``build_command_env``).
+    """
     mcp_config: list[MCPConfigItem] | None = None
     readonly_workspace: bool = False
     harness_owned: bool = False

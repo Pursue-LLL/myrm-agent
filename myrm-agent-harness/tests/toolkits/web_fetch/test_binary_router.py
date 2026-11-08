@@ -11,8 +11,6 @@ import pytest
 from myrm_agent_harness.toolkits.web_fetch.processing.binary_router import (
     _detect_extension_from_content_type,
     _detect_extension_from_disposition,
-    _detect_extension_from_magic,
-    _refine_zip_extension,
     detect_binary_extension,
     route_binary_content,
 )
@@ -76,74 +74,6 @@ class TestDetectExtensionFromDisposition:
     def test_capitalized_header(self) -> None:
         headers = {"Content-Disposition": 'attachment; filename="file.pptx"'}
         assert _detect_extension_from_disposition(headers) == ".pptx"
-
-
-class TestDetectExtensionFromMagic:
-    def test_pdf_magic(self) -> None:
-        data = b"%PDF-1.4 some content here..."
-        assert _detect_extension_from_magic(data) == ".pdf"
-
-    def test_png_magic(self) -> None:
-        data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
-        assert _detect_extension_from_magic(data) == ".png"
-
-    def test_jpeg_magic(self) -> None:
-        data = b"\xff\xd8\xff\xe0" + b"\x00" * 100
-        assert _detect_extension_from_magic(data) == ".jpeg"
-
-    def test_webp_magic(self) -> None:
-        data = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100
-        assert _detect_extension_from_magic(data) == ".webp"
-
-    def test_riff_non_webp(self) -> None:
-        data = b"RIFF\x00\x00\x00\x00WAVE" + b"\x00" * 100
-        assert _detect_extension_from_magic(data) is None
-
-    def test_ole2_magic(self) -> None:
-        data = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 100
-        assert _detect_extension_from_magic(data) == ".doc"
-
-    def test_too_short(self) -> None:
-        assert _detect_extension_from_magic(b"\x89PNG") is None
-
-    def test_unknown_format(self) -> None:
-        data = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09"
-        assert _detect_extension_from_magic(data) is None
-
-    def test_zip_docx(self) -> None:
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("word/document.xml", "<doc/>")
-            zf.writestr("[Content_Types].xml", "<types/>")
-        data = buf.getvalue()
-        assert _detect_extension_from_magic(data) == ".docx"
-
-    def test_zip_xlsx(self) -> None:
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("xl/workbook.xml", "<wb/>")
-            zf.writestr("[Content_Types].xml", "<types/>")
-        data = buf.getvalue()
-        assert _detect_extension_from_magic(data) == ".xlsx"
-
-    def test_zip_pptx(self) -> None:
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("ppt/presentation.xml", "<pres/>")
-            zf.writestr("[Content_Types].xml", "<types/>")
-        data = buf.getvalue()
-        assert _detect_extension_from_magic(data) == ".pptx"
-
-
-class TestRefineZipExtension:
-    def test_generic_zip(self) -> None:
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("readme.txt", "hello")
-        assert _refine_zip_extension(buf.getvalue()) == ".zip"
-
-    def test_bad_zip(self) -> None:
-        assert _refine_zip_extension(b"PK\x03\x04garbage") == ".zip"
 
 
 class TestDetectBinaryExtension:
@@ -256,15 +186,15 @@ class TestRouteBinaryContent:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_unparsed_text_payload_returns_raw_text(self) -> None:
+    async def test_router_has_no_text_fallback_for_unsupported_extension(self) -> None:
+        # Readable text never reaches the router (the fetcher sends it to the text path), so a payload that
+        # arrives here without a parser is not decoded even when its bytes happen to be readable.
         headers = {
             "content-type": "application/octet-stream",
             "content-disposition": 'attachment; filename="config.toml"',
         }
         result = await route_binary_content(b'name = "demo"\n', headers, "http://example.com/config.toml")
-        assert result is not None
-        assert result.page_content == 'name = "demo"\n'
-        assert result.metadata["source_type"] == "binary_text"
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_content_truncation(self) -> None:

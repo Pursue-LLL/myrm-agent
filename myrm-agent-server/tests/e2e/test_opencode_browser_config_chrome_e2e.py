@@ -15,7 +15,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 from tests.support.e2e_runtime_guard import heartbeat_once
 
-_OPENCODE_API_KEY = "sk-bQTJ2yZDiY7iQI8xUWKRbRWkl5HZWVuL0Gya2gYdj3LwxvhfqbRXo8HJGfweNt67"
+_OPENCODE_API_KEY = "sk-test-opencode-go-e2e-placeholder-key"
 _OPENCODE_MODEL = "muse-spark-1.3-contributor"
 _OPENCODE_PROVIDER_ID = "opencode_go"
 

@@ -10,6 +10,7 @@ LLM acts as a "compiler" to maintain structured markdown wikis.
 - wiki.query::WikiQueryEngine (POS: wiki query and enhancement engine)
 - wiki.linter::WikiLinter (POS: wiki health check and maintenance)
 - wiki.tools::create_wiki_tools (POS: LangChain tool integration)
+- wiki.source_loader::fetch_url_markdown, SourceLoadError (POS: readable markdown of a URL for ingestion)
 
 [OUTPUT]
 - WikiStructure: file system abstraction for wiki
@@ -18,6 +19,7 @@ LLM acts as a "compiler" to maintain structured markdown wikis.
 - WikiLinter: health checks and maintenance
 - WikiConfig: wiki configuration
 - create_wiki_tools: LangChain agent tool factory (ingest, query, apply)
+- fetch_url_markdown, SourceLoadError: read a URL for ingestion; a page with nothing readable raises SourceLoadError
 
 [POS]
 Wiki toolkit entry point. Provides a self-evolving knowledge base framework using LLM
@@ -100,6 +102,7 @@ from .pipeline.compiler import WikiCompiler
 from .pipeline.pending import WikiPendingEditsManager
 from .pipeline.queue import WikiIngestionQueue
 from .retrieval.query import SemanticSearchFn, WikiQueryEngine
+from .source_loader import SourceLoadError, fetch_url_markdown
 from .wiki_agent_tools import (
     create_wiki_agent_tools,
     create_wiki_tools,
@@ -112,6 +115,7 @@ __all__ = [
     "LintResult",
     "QueryResult",
     "SemanticSearchFn",
+    "SourceLoadError",
     "WikiArticle",
     "WikiCompileConfig",
     "WikiCompiler",
@@ -126,5 +130,6 @@ __all__ = [
     "WikiStructure",
     "create_wiki_agent_tools",
     "create_wiki_tools",
+    "fetch_url_markdown",
     "register_wiki_mcp_tools",
 ]

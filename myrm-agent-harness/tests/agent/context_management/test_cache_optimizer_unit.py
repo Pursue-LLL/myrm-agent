@@ -224,8 +224,8 @@ class TestCacheControlInjection:
         result = processor._inject_cache_control(messages, [0], ctx)
         assert result[0].additional_kwargs.get("cache_control") == {"type": "ephemeral", "ttl": "1h"}
 
-    def test_inject_cache_control_litellm_anthropic_prefix_infers_direct(self, processor):
-        """测试 LiteLLM anthropic/ 前缀推断为直连, 使用 1h TTL"""
+    def test_inject_cache_control_anthropic_prefix_infers_direct(self, processor):
+        """测试 anthropic/ 前缀推断为直连, 使用 1h TTL"""
         messages = [SystemMessage(content="System")]
         ctx = self._make_context(messages, model_name="anthropic/claude-3-5-sonnet-20241022", base_url="")
 
@@ -466,7 +466,7 @@ class TestCoverageGaps:
 
 
 class TestNeedsExplicitCachingProviderFormats:
-    """Verify _needs_explicit_caching handles all LiteLLM model naming formats."""
+    """Verify _needs_explicit_caching handles all provider model naming formats."""
 
     @pytest.fixture
     def processor(self):

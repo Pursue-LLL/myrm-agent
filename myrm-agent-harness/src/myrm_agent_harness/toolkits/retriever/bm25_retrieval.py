@@ -99,9 +99,9 @@ def extract_url_keywords(url: str) -> list[str]:
 
     # Extract product names from domain, including subdomains
     domain_patterns = [
-        r"([a-z]+)\.([a-z]+)\.ai",  # docs.litellm.ai -> docs, litellm
+        r"([a-z]+)\.([a-z]+)\.ai",  # docs.example.ai -> docs, example
         r"([a-z]+)\.([a-z]+)\.com",  # api.example.com -> api, example
-        r"([a-z]+)\.ai",  # litellm.ai -> litellm
+        r"([a-z]+)\.ai",  # example.ai -> example
         r"([a-z]+)\.com",  # example.com -> example
         r"([a-z]+)\.org",  # example.org -> example
     ]
@@ -158,11 +158,8 @@ def split_camelcase(text: str) -> list[str]:
         List of split tokens
 
     Examples:
-        >>> split_camelcase("LiteLLM")
-        ['LiteLLM', 'Lite', 'LLM']
-
         >>> split_camelcase("FastAPI")
-        ['FastAPI', 'Fast', 'API']
+        ['FastAPI', 'API', 'Fast']
 
         >>> split_camelcase("GitHub")
         ['GitHub', 'Git', 'Hub']
@@ -260,12 +257,12 @@ def preprocess_text(text: str, *, dedupe: bool = True) -> list[str]:
         List of tokens
 
     Examples:
-        >>> preprocess_text("litellm 1.77 release notes")
-        ['litellm', '1.77', '1', '77', 'release', 'notes', 'litellmreleasenotes']
+        >>> preprocess_text("fastapi 0.115 release notes")
+        ['0.115', '0', '115', 'fastapi', 'release', 'notes']
 
-        >>> preprocess_text("docs.litellm.ai/release_notes/v1-77-2")
-        ['docs.litellm.ai/release_notes/v1-77-2', 'docs', 'litellm', 'release_notes',
-         'release', 'notes', 'v1-77-2', '1', '77', '2']
+        >>> preprocess_text("docs.example.ai/release_notes/v1-77-2")
+        ['docs.example.ai/release_notes/v1-77-2', 'docs', 'example', 'release_notes',
+         'release', 'notes', 'v1-77-2', 'v1', '77', '2', '1', 'ai']
     """
     if not text:
         return []

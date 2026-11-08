@@ -2,16 +2,18 @@
 - .common (POS: shared primitives)
 
 [OUTPUT]
-- _resolve_model_max_input_tokens, _lookup_custom_model_info, _resolve_supports_vision_from_litellm, enrich_model_capabilities, enrich_model_context_window
+- _resolve_model_max_input_tokens, _lookup_custom_model_info, _resolve_supports_vision_from_catalog, enrich_model_capabilities, enrich_model_context_window
 
 [POS]
-Model resolver: context-window and capability enrichment from custom model info / litellm metadata.
+Model resolver: context-window and capability enrichment from custom model info / the model catalog.
 """
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from myrm_agent_harness.toolkits.llms.catalog import model_facts
 
 if TYPE_CHECKING:
     from app.core.types import ModelConfig
@@ -26,7 +28,7 @@ def _resolve_model_max_input_tokens(
 ) -> int | None:
     """Query the true max_input_tokens for a model.
 
-    Priority: user customModelInfo > litellm built-in data.
+    Priority: user customModelInfo > the model catalog.
     Returns None if the model is unknown (caller falls back to 128K).
     """
     if providers_dict and isinstance(providers_dict, dict):
@@ -45,21 +47,8 @@ def _resolve_model_max_input_tokens(
                     if isinstance(val, (int, float)) and val > 0:
                         return int(val)
 
-    try:
-        import litellm
-
-        info = litellm.get_model_info(model.lower())
-        if info:
-            max_input = info.get("max_input_tokens")
-            if isinstance(max_input, int) and max_input > 0:
-                return max_input
-            max_tokens = info.get("max_tokens")
-            if isinstance(max_tokens, int) and max_tokens > 0:
-                return max_tokens
-    except Exception:
-        pass
-
-    return None
+    window = (model_facts(model) or {}).get("max_input_tokens")
+    return window if isinstance(window, int) and window > 0 else None
 
 
 def _lookup_custom_model_info(
@@ -85,21 +74,9 @@ def _lookup_custom_model_info(
     return None
 
 
-def _resolve_supports_vision_from_litellm(model: str) -> bool | None:
-    bare = model.split("/", 1)[-1].lower()
-    try:
-        import litellm
-
-        info = litellm.get_model_info(bare)
-        if not info:
-            return None
-        if info.get("supports_vision") or info.get("supports_image_input"):
-            return True
-        if info.get("supports_vision") is False:
-            return False
-    except Exception:
-        return None
-    return None
+def _resolve_supports_vision_from_catalog(model: str) -> bool | None:
+    vision = (model_facts(model) or {}).get("supports_vision")
+    return vision if isinstance(vision, bool) else None
 
 
 def enrich_model_capabilities(
@@ -108,7 +85,7 @@ def enrich_model_capabilities(
     *,
     selection_supports_vision: bool | None = None,
 ) -> "ModelConfig":
-    """Enrich supports_vision from frontend selection, customModelInfo, or litellm."""
+    """Enrich supports_vision from frontend selection, customModelInfo, or the model catalog."""
     if selection_supports_vision is not None:
         return cfg.model_copy(update={"supports_vision": selection_supports_vision})
 
@@ -116,9 +93,9 @@ def enrich_model_capabilities(
     if custom is not None and "supports_vision" in custom:
         return cfg.model_copy(update={"supports_vision": bool(custom["supports_vision"])})
 
-    litellm_vision = _resolve_supports_vision_from_litellm(cfg.model)
-    if litellm_vision is not None:
-        return cfg.model_copy(update={"supports_vision": litellm_vision})
+    catalog_vision = _resolve_supports_vision_from_catalog(cfg.model)
+    if catalog_vision is not None:
+        return cfg.model_copy(update={"supports_vision": catalog_vision})
 
     return cfg
 
@@ -130,7 +107,7 @@ def enrich_model_context_window(
     """Enrich a ModelConfig with the model's true max_context_tokens.
 
     If max_context_tokens is already set, returns the config unchanged.
-    Otherwise queries customModelInfo / litellm for the model's real
+    Otherwise queries customModelInfo / the model catalog for the model's real
     max_input_tokens and returns a new ModelConfig with it set.
     """
     if cfg.max_context_tokens is not None:

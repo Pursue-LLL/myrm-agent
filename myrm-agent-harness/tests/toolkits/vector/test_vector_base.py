@@ -157,3 +157,9 @@ async def test_default_search_multi_vector_raises() -> None:
     store = _StubVectorStore()
     with pytest.raises(NotImplementedError, match="doesn't support search_multi_vector"):
         await store.search_multi_vector("col", {"raw": [0.1, 0.2, 0.3]})
+
+
+@pytest.mark.asyncio
+async def test_default_backfill_payload_copy_changes_nothing() -> None:
+    """A backend that cannot rewrite a payload in place reports no document copied."""
+    assert await _StubVectorStore().backfill_payload_copy("col", "stored_ts", "_created_ts") == 0

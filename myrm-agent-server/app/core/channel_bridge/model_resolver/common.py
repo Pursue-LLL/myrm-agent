@@ -1,11 +1,11 @@
 """[INPUT]
-- myrm_agent_harness.agent.config.parsers (POS: LiteLLM name conversion)
+- myrm_agent_harness.agent.config.parsers (POS: provider/model name conversion)
 
 [OUTPUT]
 - header builders, key extraction, name conversion/normalisation and the provider type map
 
 [POS]
-Model resolver shared primitives: header building, provider key discovery and LiteLLM naming.
+Model resolver shared primitives: header building, provider key discovery and provider/model naming.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import ipaddress
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
-from myrm_agent_harness.agent.config.parsers import parse_litellm_model, to_litellm_model
+from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
 
 if TYPE_CHECKING:
     pass
@@ -76,19 +76,19 @@ def _build_transport_headers(
     return {"extra_headers": headers} if headers else None
 
 
-def _parse_litellm_model(model_name: str) -> tuple[str, str]:
-    """Parse a LiteLLM model name (wrapper for framework-level parser)."""
-    return cast(tuple[str, str], parse_litellm_model(model_name))
+def _parse_route_model_id(model_name: str) -> tuple[str, str]:
+    """Parse a routed model name (wrapper for framework-level parser)."""
+    return cast(tuple[str, str], parse_route_model_id(model_name))
 
 
-def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:
-    """Convert provider + model to LiteLLM format (wrapper for framework-level converter)."""
+def _to_route_model_id(provider: str, model: str, provider_type: str | None = None) -> str:
+    """Convert provider + model to the routed form (wrapper for framework-level converter)."""
     if provider == "vercel_ai_gateway":
         clean_model = model.removeprefix("vercel_ai_gateway/")
         if clean_model.startswith("openai/"):
             return clean_model
         return f"openai/{clean_model}"
-    return str(to_litellm_model(provider, model, provider_type))
+    return str(to_route_model_id(provider, model, provider_type))
 
 
 def _extract_active_key(provider: dict[str, object]) -> str | None:
@@ -199,9 +199,9 @@ def _collapse_repeated_prefixes(model: str) -> str:
 
 
 def _normalize_model_name(model: str) -> str:
-    """Normalize model name to LiteLLM-compatible format and collapse repeated prefixes.
+    """Normalize model name to the routed format and collapse repeated prefixes.
 
-    Converts legacy/alternative provider prefixes to standard LiteLLM format:
+    Converts legacy/alternative provider prefixes to the standard routed format:
     - openai-compatible/ -> openai/
     - openai_compatible/ -> openai/
     - gemini-compatible/ -> gemini/

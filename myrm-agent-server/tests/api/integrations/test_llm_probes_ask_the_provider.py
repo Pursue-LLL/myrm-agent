@@ -1,8 +1,8 @@
 """The settings-page probes ask the provider on every call: verify, check-reachability and speed-test.
 
-The real ChatLiteLLM runs against a loopback provider that serves one API key, with the LiteLLM defaults the server runs
-with. A key or endpoint the user has just edited has to be judged by the provider, not by an answer that was kept for the
-key that was right a moment ago.
+The real chat model runs against a loopback provider that serves one API key. A key or endpoint the user has just edited
+has to be judged by the provider, and so does a request that has not changed since an earlier success: no answer is kept
+that could stand in for a mistyped key or hide a provider that has since gone away.
 """
 
 from __future__ import annotations
@@ -40,11 +40,9 @@ def provider() -> Iterator[FakeChatProvider]:
 
 
 @pytest.fixture(autouse=True)
-def server_llm_defaults() -> Iterator[None]:
-    # The first use of llm_manager applies the LiteLLM defaults the server runs with; an empty reachability cache keeps
-    # the tests from answering each other.
-    from myrm_agent_harness.toolkits.llms import llm_manager  # noqa: F401
-
+def empty_reachability_cache() -> Iterator[None]:
+    # The reachability cache is the one cache a probe may be answered from; an empty one keeps the tests from answering
+    # each other.
     llms._reachability_cache.clear()
     yield
     llms._reachability_cache.clear()
@@ -159,3 +157,11 @@ def test_probes_keep_the_model_arguments_the_caller_sent(client: TestClient, pro
 
     [seen] = provider.requests
     assert seen.headers["x-probe-marker"] == "kept"
+
+
+def test_verify_asks_the_provider_again_for_a_request_it_already_made(client: TestClient, provider: FakeChatProvider) -> None:
+    first = client.post(_VERIFY, json=_config(provider, _RIGHT_KEY))
+    second = client.post(_VERIFY, json=_config(provider, _RIGHT_KEY))
+
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert len(provider.requests) == 2

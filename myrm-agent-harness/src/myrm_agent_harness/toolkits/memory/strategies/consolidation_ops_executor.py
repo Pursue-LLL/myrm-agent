@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
+    CONSOLIDATION_EVENT_TYPE,
+    CONSOLIDATION_SOURCE_KEY,
     ConflictCallback,
     ConflictContext,
     ConsolidationOp,
@@ -180,7 +182,7 @@ async def execute_operations(
                     content=op.merged_content,
                     importance=op.importance,
                     confidence=0.9,
-                    metadata={"consolidation_source": ",".join(op.source_ids)},
+                    metadata={CONSOLIDATION_SOURCE_KEY: ",".join(op.source_ids)},
                 )
                 stored = await manager.store(new_mem, _bypass_approval=True)
                 merged_id = stored.id if hasattr(stored, "id") else new_mem.id
@@ -349,7 +351,7 @@ async def record_consolidation_event(manager: MemoryManager, stats: Consolidatio
     try:
         await manager.add_event(
             content=summary,
-            event_type="consolidation",
+            event_type=CONSOLIDATION_EVENT_TYPE,
             related_entities=["memory_system"],
         )
     except Exception as e:

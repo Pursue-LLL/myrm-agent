@@ -198,9 +198,10 @@ def suggest_similar_paths(
     seen: set[str] = set()
 
     for directory in search_dirs:
-        dir_path = Path(directory)
-        if not dir_path.is_dir():
+        # os.path answers False for a path longer than the platform allows; Path.is_dir raises on Python 3.13.
+        if not os.path.isdir(directory):
             continue
+        dir_path = Path(directory)
         try:
             entries = [entry.name for entry in dir_path.iterdir()]
         except OSError:
@@ -209,13 +210,14 @@ def suggest_similar_paths(
         target_base_lower = basename.lower()
         for entry_name in entries:
             candidate_path = os.path.join(directory, entry_name)
-            if candidate_path in seen or is_blocked_device_path(candidate_path):
+            if candidate_path in seen:
                 continue
 
             entry_lower = entry_name.lower()
             # Bounded Levenshtein distance (max 2 edits)
             dist = levenshtein_distance_bounded(target_base_lower, entry_lower, max_dist=2)
-            if dist <= 2:
+            # The device check costs a realpath, so it runs only on the few names close enough to suggest.
+            if dist <= 2 and not is_blocked_device_path(candidate_path):
                 # Primary ranking: smallest distance, then SequenceMatcher ratio
                 ratio = SequenceMatcher(None, target_base_lower, entry_lower).ratio()
                 scored_candidates.append((dist, -ratio, candidate_path))

@@ -1,4 +1,4 @@
-"""Sub-agent subsystem — lifecycle management, cross-examination, and configuration loading.
+"""Sub-agent subsystem — lifecycle management and configuration loading.
 
 Configuration Architecture:
 - Framework layer: Provides loading mechanism (config_loader.py)
@@ -10,47 +10,11 @@ Configuration Loading:
 - See business layer configs/subagents/_ARCH.md for format details
 
 [INPUT]
-- cross_examination
+- (none)
 
 [OUTPUT]
-- (模块级副作用与注册)
+- (none — consumers import the submodules by path)
 
 [POS]
-Sub-agent subsystem — lifecycle management, cross-examination, and configuration loading.
+Sub-agent subsystem — lifecycle management and configuration loading.
 """
-
-from .cross_examination import (
-    AdoptionChoice,
-    AdoptionReceipt,
-    AgentExecutionOutput,
-    AgentRoleTarget,
-    ConsensusDeltaHighlighter,
-    CrossExamArbitrationReport,
-    CrossExamConsensus,
-    CrossExamDivergence,
-    IntentCategory,
-    IntentRoutingDecision,
-    OmniAgentDispatcherSuite,
-    OmniAgentUnifiedDispatcherAndSplitCrossExaminationSuite,
-    OneClickArbitrator,
-    SplitCrossExaminationEngine,
-    UnifiedIntentDispatcher,
-)
-
-__all__ = [
-    "AdoptionChoice",
-    "AdoptionReceipt",
-    "AgentExecutionOutput",
-    "AgentRoleTarget",
-    "ConsensusDeltaHighlighter",
-    "CrossExamArbitrationReport",
-    "CrossExamConsensus",
-    "CrossExamDivergence",
-    "IntentCategory",
-    "IntentRoutingDecision",
-    "OmniAgentDispatcherSuite",
-    "OmniAgentUnifiedDispatcherAndSplitCrossExaminationSuite",
-    "OneClickArbitrator",
-    "SplitCrossExaminationEngine",
-    "UnifiedIntentDispatcher",
-]

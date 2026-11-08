@@ -18,8 +18,8 @@ path is faked: the model has to find the skill, run the right commands and repor
 
 [POS]
 Lane-C test of the prebuilt skill ``imap-smtp-email``; the unit tests next to it pin the script's commands against doubles,
-this one pins that a model can use them against a server it does not control. It skips while a password-named setting
-cannot reach the skill's commands, because then no run can log in, and starts running by itself once it can.
+this one pins that a model can use them against a server it does not control. The password is a password-named setting:
+it reaches the skill's commands (and only those) as a per-command credential, so a run that cannot log in fails here.
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.core.security.process_env import is_non_inheritable_env_var
 
 from app.api.skills import router as skills_router
 from app.core.skills import prebuilt_sync
@@ -114,11 +113,6 @@ def _incoming() -> email.message.EmailMessage:
 async def test_the_agent_reads_and_answers_a_mail_on_a_real_server(
     client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if is_non_inheritable_env_var(_PASSWORD_ENV):
-        pytest.skip(
-            f"{_PASSWORD_ENV} is a secret-named variable: the shell never receives it from the skill settings, "
-            "so no run of the skill can log in; this lane runs once settings secrets reach the skill's commands"
-        )
     with running_mailbox(tmp_path) as mailbox:
         monkeypatch.setenv("SSL_CERT_FILE", str(mailbox.ca_bundle))
         await _install_skill(client, mailbox, monkeypatch)

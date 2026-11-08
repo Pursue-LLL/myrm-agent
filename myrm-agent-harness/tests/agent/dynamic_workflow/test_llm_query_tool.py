@@ -227,7 +227,7 @@ class TestLlmQueryTool:
 
         assert result["success"] is True
         assert result["result"] == "answer"
-        # Token accounting moved to the ChatLiteLLM adapter (non-streaming path);
+        # Token accounting moved to the TransportChatModel adapter (non-streaming path);
         # the tool must not double-record via its own usage extraction.
         assert not hasattr(tool, "_record_usage")
 
@@ -554,7 +554,6 @@ async def test_llm_query_batched_honors_cancellation_cascade() -> None:
     parent.llm.ainvoke.assert_not_called()
 
 
-
 @pytest.mark.asyncio
 async def test_llm_query_replays_from_durable_store(tmp_path) -> None:
     """A retried workflow must not re-bill prompts that already completed.
@@ -579,17 +578,13 @@ async def test_llm_query_replays_from_durable_store(tmp_path) -> None:
     parent.llm.ainvoke.side_effect = fake_ainvoke
 
     first_tool = LlmQueryTool(parent_agent=parent, store=store)
-    first = await first_tool._query_one(
-        prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0
-    )
+    first = await first_tool._query_one(prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0)
     assert first["success"] is True
     assert len(calls) == 1
 
     # A fresh tool instance models a new run of the same script.
     second_tool = LlmQueryTool(parent_agent=parent, store=store)
-    second = await second_tool._query_one(
-        prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0
-    )
+    second = await second_tool._query_one(prompt="classify A", system="sys", model="m", max_tokens=10, temperature=0.0)
 
     assert second["success"] is True
     assert second["result"] == first["result"]

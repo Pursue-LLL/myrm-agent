@@ -57,7 +57,7 @@ def normalize_provider_error(error: Exception) -> NormalizedError:
     _types: list[str] = []
     _metadata_msg = ""
 
-    # Direct exception attributes from client SDKs (OpenAI, Anthropic, LiteLLM)
+    # Direct exception attributes from the transport and client SDKs (OpenAI, Anthropic)
     direct_code = getattr(error, "code", None)
     if direct_code is not None and not callable(direct_code):
         _codes.append(str(direct_code).lower())

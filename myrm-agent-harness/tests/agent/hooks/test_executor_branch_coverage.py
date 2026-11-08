@@ -89,7 +89,7 @@ class TestLLMHookExecution:
 
     @staticmethod
     def _install_model(monkeypatch: pytest.MonkeyPatch, response_content: str, *, delay: float = 0.0) -> list[str]:
-        """Patch the litellm adapter with a stub; return captured prompts."""
+        """Patch the chat-model factory with a stub; return captured prompts."""
 
         class _StubLLM:
             async def ainvoke(self, prompt: str) -> object:
@@ -106,7 +106,7 @@ class TestLLMHookExecution:
         def _fake_create(*, model: str) -> object:
             return SimpleNamespace(ainvoke=_invoke_and_capture)
 
-        monkeypatch.setattr("myrm_agent_harness.toolkits.llms.create_litellm_model", _fake_create)
+        monkeypatch.setattr("myrm_agent_harness.toolkits.llms.create_chat_model", _fake_create)
         return captured
 
     @pytest.mark.asyncio

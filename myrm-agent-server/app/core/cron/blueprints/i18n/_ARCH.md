@@ -19,3 +19,10 @@
 
 - 分组模块只依赖 `types.py`，彼此不引用
 - 分组间出现同一蓝图 ID 时，合并顺序靠后的分组覆盖靠前的
+
+## 依赖关系
+
+- `daily.py` → `types.py`
+- `finance.py` → `types.py`
+- `growth.py` → `types.py`
+- `knowledge.py` → `types.py`

@@ -1,7 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.utils.url_utils.blocking::SSRF_BLOCKED_HOSTNAMES / clear_dynamic_blocked_hostnames / is_blocked_ip / register_blocked_hostnames / unregister_blocked_hostnames (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
 - myrm_agent_harness.utils.url_utils.dns::build_host_resolver_rules / create_dns_pin_map (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
-- myrm_agent_harness.utils.url_utils.parsing::extract_domain / is_file_url / is_image_url / is_valid_image_url / normalize_url (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
+- myrm_agent_harness.utils.url_utils.parsing::extract_domain / is_file_url / is_image_url / is_valid_image_url / readable_url / url_dedup_key (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
 - myrm_agent_harness.utils.url_utils.security::check_url_exfiltration / sanitize_url_for_error / validate_scheme_and_hostname (POS: url_utils 子包的一部分；由 __init__.py 聚合导出。)
 
 [OUTPUT]
@@ -16,7 +16,8 @@
 - is_file_url
 - is_image_url
 - is_valid_image_url
-- normalize_url
+- readable_url
+- url_dedup_key
 - check_url_exfiltration
 - sanitize_url_for_error
 - validate_scheme_and_hostname
@@ -38,7 +39,8 @@ from myrm_agent_harness.utils.url_utils.parsing import (
     is_file_url,
     is_image_url,
     is_valid_image_url,
-    normalize_url,
+    readable_url,
+    url_dedup_key,
 )
 from myrm_agent_harness.utils.url_utils.security import (
     check_url_exfiltration,
@@ -57,9 +59,10 @@ __all__ = [
     "is_file_url",
     "is_image_url",
     "is_valid_image_url",
-    "normalize_url",
+    "readable_url",
     "register_blocked_hostnames",
     "sanitize_url_for_error",
     "unregister_blocked_hostnames",
+    "url_dedup_key",
     "validate_scheme_and_hostname",
 ]

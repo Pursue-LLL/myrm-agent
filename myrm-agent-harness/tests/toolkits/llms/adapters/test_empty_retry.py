@@ -1,4 +1,4 @@
-"""Unit tests for empty response retry mechanism in ChatLiteLLM.
+"""Unit tests for empty response retry mechanism in TransportChatModel.
 
 Tests cover:
 - Sync retry (success and exhausted)
@@ -16,16 +16,16 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
-    ChatLiteLLM,
     EmptyChoicesError,
     EmptyStreamError,
+    TransportChatModel,
 )
 
 
 @pytest.fixture
 def chat_model():
-    """Create ChatLiteLLM instance with mock client."""
-    model = ChatLiteLLM(model="gpt-3.5-turbo")
+    """Create TransportChatModel instance with mock client."""
+    model = TransportChatModel(model="gpt-3.5-turbo")
     model.client = MagicMock()
     return model
 
@@ -105,31 +105,31 @@ async def test_async_retry_success(chat_model, messages):
         "usage": {"prompt_tokens": 10, "completion_tokens": 20},
     }
 
-    mock_acreate = AsyncMock()
-    mock_acreate.side_effect = [
+    mock_acompletion = AsyncMock()
+    mock_acompletion.side_effect = [
         mock_response_empty,
         mock_response_success,
     ]
-    chat_model.client.acreate = mock_acreate
+    chat_model.client.acompletion = mock_acompletion
 
     result = await chat_model._agenerate(messages)
 
     assert len(result.generations) == 1
     assert result.generations[0].message.content == "test"
-    assert mock_acreate.call_count == 2
+    assert mock_acompletion.call_count == 2
 
 
 @pytest.mark.asyncio
 async def test_async_retry_exhausted(chat_model, messages):
     """Test async retry fails after max attempts."""
     mock_response_empty = {"choices": [], "usage": {}}
-    mock_acreate = AsyncMock(return_value=mock_response_empty)
-    chat_model.client.acreate = mock_acreate
+    mock_acompletion = AsyncMock(return_value=mock_response_empty)
+    chat_model.client.acompletion = mock_acompletion
 
     with pytest.raises(EmptyChoicesError):
         await chat_model._agenerate(messages)
 
-    assert mock_acreate.call_count == 3
+    assert mock_acompletion.call_count == 3
 
 
 @pytest.mark.asyncio
@@ -137,13 +137,13 @@ async def test_async_retry_disabled(chat_model, messages):
     """Test async retry disabled via config."""
     chat_model.empty_retry_enabled = False
     mock_response_empty = {"choices": [], "usage": {}}
-    mock_acreate = AsyncMock(return_value=mock_response_empty)
-    chat_model.client.acreate = mock_acreate
+    mock_acompletion = AsyncMock(return_value=mock_response_empty)
+    chat_model.client.acompletion = mock_acompletion
 
     with pytest.raises(EmptyChoicesError):
         await chat_model._agenerate(messages)
 
-    assert mock_acreate.call_count == 1
+    assert mock_acompletion.call_count == 1
 
 
 # Stream tests
@@ -289,28 +289,28 @@ def test_stream_end_to_end_tool_call_recovery(chat_model, messages, model_id, ex
 def test_config_max_attempts_validation():
     """Test max_attempts validation (1-10)."""
     # Valid range
-    model = ChatLiteLLM(model="test", empty_retry_max_attempts=5)
+    model = TransportChatModel(model="test", empty_retry_max_attempts=5)
     assert model.empty_retry_max_attempts == 5
 
     # Below minimum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_max_attempts=0)
+        TransportChatModel(model="test", empty_retry_max_attempts=0)
 
     # Above maximum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_max_attempts=11)
+        TransportChatModel(model="test", empty_retry_max_attempts=11)
 
 
 def test_config_delay_validation():
     """Test delay validation (0.1-10.0)."""
     # Valid range
-    model = ChatLiteLLM(model="test", empty_retry_delay=1.5)
+    model = TransportChatModel(model="test", empty_retry_delay=1.5)
     assert model.empty_retry_delay == 1.5
 
     # Below minimum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_delay=0.05)
+        TransportChatModel(model="test", empty_retry_delay=0.05)
 
     # Above maximum
     with pytest.raises(ValueError):
-        ChatLiteLLM(model="test", empty_retry_delay=15.0)
+        TransportChatModel(model="test", empty_retry_delay=15.0)

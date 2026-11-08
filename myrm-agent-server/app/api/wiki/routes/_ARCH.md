@@ -44,3 +44,21 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 - `app.services.wiki.source_sync.ima` (POS: ima sync facade)
 - `app.services.wiki.vault` (POS: wiki archiver)
 - `myrm_agent_harness.toolkits.wiki.pipeline.ingress` (POS: clip ingress + wikiignore)
+
+## 依赖关系
+
+- `insights.py` → `schemas.py`
+- `mutations.py` → `schemas.py`
+- `query.py` → `response_mappers.py`
+- `query.py` → `schemas.py`
+- `queue.py` → `response_mappers.py`
+- `queue.py` → `schemas.py`
+- `response_mappers.py` → `schemas.py`
+- `stats.py` → `schemas.py`
+- `tree.py` → `response_mappers.py`
+- `tree.py` → `schemas.py`
+- `url_import.py` → `import_helpers.py`
+- `url_import.py` → `schemas_import.py`
+- `vault.py` → `schemas.py`
+- `video_import.py` → `import_helpers.py`
+- `video_import.py` → `schemas_import.py`

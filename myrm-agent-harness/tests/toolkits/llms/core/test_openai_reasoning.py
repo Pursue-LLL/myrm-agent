@@ -7,12 +7,12 @@ Validates:
 4. Unsupported 'off' value stripping for OpenAI reasoning models.
 5. Stripping reasoning_effort for non-reasoning OpenAI models (gpt-4o) to prevent 400.
 6. Non-OpenAI models remain untouched.
-7. End-to-end integration via create_litellm_model.
+7. End-to-end integration via create_chat_model.
 """
 
 from unittest.mock import MagicMock, patch
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.core.openai_reasoning import (
     apply_openai_reasoning_effort,
     is_openai_model,
@@ -112,28 +112,28 @@ class TestOpenAIReasoningEffortRemap:
         assert kwargs["reasoning_effort"] == "minimal"
 
 
-class TestCreateLiteLLMModelOpenAIIntegration:
-    """Integration test via create_litellm_model factory."""
+class TestCreateChatModelOpenAIIntegration:
+    """Integration test via create_chat_model factory."""
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_gpt56_minimal_remapped_to_low(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("openai/gpt-5.6", reasoning_effort="minimal")
+        create_chat_model("openai/gpt-5.6", reasoning_effort="minimal")
         assert mock_cls.call_count == 1
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["reasoning_effort"] == "low"
         assert call_kwargs["extra_body"]["reasoning_effort"] == "low"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_o3_mini_max_remapped_to_high(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("openai/o3-mini", reasoning_effort="max")
+        create_chat_model("openai/o3-mini", reasoning_effort="max")
         assert mock_cls.call_count == 1
         call_kwargs = mock_cls.call_args[1]
         assert call_kwargs["reasoning_effort"] == "high"
         assert call_kwargs["extra_body"]["reasoning_effort"] == "high"
 
-    @patch("myrm_agent_harness.toolkits.llms.core.llm.ChatLiteLLM")
+    @patch("myrm_agent_harness.toolkits.llms.core.llm.TransportChatModel")
     def test_gpt4o_strips_reasoning_effort(self, mock_cls: MagicMock) -> None:
-        create_litellm_model("openai/gpt-4o", reasoning_effort="low")
+        create_chat_model("openai/gpt-4o", reasoning_effort="low")
         assert mock_cls.call_count == 1
         call_kwargs = mock_cls.call_args[1]
         assert "reasoning_effort" not in call_kwargs

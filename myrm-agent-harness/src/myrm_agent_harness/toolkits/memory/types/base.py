@@ -45,7 +45,9 @@ class EvidenceReference(BaseModel):
     quote_snippet: str | None = Field(default=None, description="Exact verbatim snippet serving as factual evidence")
     author_id: str | None = Field(default=None, description="Sender ID of the evidentiary message")
 
+
 ARCHIVE_RETENTION_DAYS = 7
+
 
 def archive_retention_stamps(now: datetime) -> dict[str, str]:
     """Build the metadata pair every archival write path must stamp.
@@ -60,6 +62,7 @@ def archive_retention_stamps(now: datetime) -> dict[str, str]:
         "archive_expires_at": (now + timedelta(days=ARCHIVE_RETENTION_DAYS)).isoformat(),
     }
 
+
 class MemoryMutationRef(BaseModel):
     """A single typed memory mutation outcome reference."""
 
@@ -67,6 +70,7 @@ class MemoryMutationRef(BaseModel):
     memory_id: str
     backend: str
     reason: str = ""
+
 
 class MemoryMutationResult(BaseModel):
     """Exact outcome of a typed memory mutation request."""
@@ -82,6 +86,7 @@ class MemoryMutationResult(BaseModel):
             counts[ref.memory_type] = counts.get(ref.memory_type, 0) + 1
         return counts
 
+
 class ProfileAttributeSnapshot(BaseModel):
     """Content-local profile attribute value and revision."""
 
@@ -90,6 +95,7 @@ class ProfileAttributeSnapshot(BaseModel):
     exists: bool = False
     revision: str = ""
     updated_at: datetime | None = None
+
 
 class MemoryScope(BaseModel):
     """Deterministic ownership and session identity for a memory record.
@@ -109,6 +115,7 @@ class MemoryScope(BaseModel):
     channel_id: str | None = None
     conversation_id: str | None = None
     task_id: str | None = None
+
 
 class MemoryLifecycle(BaseModel):
     """Typed lifecycle state for compiled / staged memories.
@@ -145,6 +152,7 @@ class MemoryLifecycle(BaseModel):
             claim_graph_conflict=ClaimConflictState.NONE,
         )
 
+
 class BaseMemory(BaseModel):
     """Common fields shared by all memory types.
 
@@ -162,6 +170,15 @@ class BaseMemory(BaseModel):
     metadata: dict[str, str | int | float | bool] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    stored_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Instant the store persisted this memory, from a clock that never repeats within a process. "
+            "Unlike created_at, which a late approval, an import or a correction carries from its own "
+            "source, it orders arrival. The store sets it on every write and a vector document carries it "
+            "back on every read; a procedural rule's row keeps it as created_at instead."
+        ),
+    )
     access_count: int = Field(default=0)
     last_accessed_at: datetime | None = None
     user_rating: float = Field(
@@ -244,7 +261,7 @@ class BaseMemory(BaseModel):
         """
         return self.pinned or self.is_user_locked or self.is_exact_fact
 
-    @field_validator("created_at", "updated_at", "last_accessed_at", mode="before")
+    @field_validator("created_at", "updated_at", "last_accessed_at", "stored_at", mode="before")
     @classmethod
     def _ensure_utc(cls, v: datetime | None) -> datetime | None:
         if v is None:

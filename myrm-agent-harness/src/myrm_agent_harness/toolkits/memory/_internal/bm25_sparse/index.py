@@ -359,6 +359,10 @@ class BM25SparseIndexStore:
             return await self._inner.count(bm25_collection_for(collection), filters=filters)
         return await self._inner.count(collection, filters=filters)
 
+    async def backfill_payload_copy(self, collection: str, field: str, from_field: str) -> int:
+        target = bm25_collection_for(collection) if self._sparse_authoritative else collection
+        return await self._inner.backfill_payload_copy(target, field, from_field)
+
     async def health_check(self) -> bool:
         return await self._inner.health_check()
 

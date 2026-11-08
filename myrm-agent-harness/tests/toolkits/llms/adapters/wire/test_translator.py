@@ -209,3 +209,10 @@ def test_system_instructions_from_non_string_content() -> None:
     instructions, remaining = extract_responses_instructions(messages)
     assert instructions == '{"policy": "strict"}'
     assert remaining == [{"role": "user", "content": "hi"}]
+
+
+def test_an_image_keeps_the_detail_level_the_caller_chose() -> None:
+    image = {"url": "https://x.test/cat.png", "detail": "high"}
+    messages = [{"role": "user", "content": [{"type": "image_url", "image_url": image}]}]
+    converted = chat_messages_to_responses_input(messages)
+    assert converted[0]["content"] == [{"type": "input_image", "image_url": "https://x.test/cat.png", "detail": "high"}]

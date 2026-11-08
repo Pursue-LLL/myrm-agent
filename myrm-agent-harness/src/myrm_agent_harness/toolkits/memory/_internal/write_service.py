@@ -34,7 +34,7 @@ from myrm_agent_harness.toolkits.memory._internal.scope import (
     MemoryWriteTarget,
     scope_for_write_target,
 )
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError
+from myrm_agent_harness.toolkits.memory._internal.storage import MemoryError, MemoryRejectedError
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.strategies.exact_fact import ExactFactClassifier
 from myrm_agent_harness.toolkits.memory.types import (
@@ -379,7 +379,7 @@ class MemoryWriter:
         check_memory_not_garbage(memory)
         filtered = self._filter_transient_business_batch([memory])
         if not filtered:
-            raise MemoryError(transient_fact_save_rejection_message())
+            raise MemoryRejectedError(transient_fact_save_rejection_message())
         return filtered[0]
 
     def _scan_batch(self, memories: Sequence[AnyMemory]) -> list[AnyMemory]:

@@ -138,7 +138,7 @@
 - **HTTP 装配**：`app/services/agent/params/` 解析 `ModelSelection` 与用户 Provider 行；缺失密钥时抛出 `ConfigIncompleteError`（**禁止** `BASIC_*`/`LITE_*` 进程 env 回退）。
 - **平台默认模型**：后台 judge/embedding/Advisor/Companion 等读 WebUI via `platform_config.py`（`load_platform_llm` / `load_llm_from_model_config` wire-aware）；`model_resolver._fallback_model_from_providers` 仅从 `defaultModelConfig` + `providers` 解析，无 env 回退。OpenCode Go wire 路由见 `app/core/wire/`（muse-spark `responses` wire 默认 `reasoning.encrypted_content` include；多轮 replay 在 harness `myrm-agent-harness/src/myrm_agent_harness/toolkits/llms/adapters/wire/`）。
 - **启动提示**：`pre_flight.py` 在 local/tauri 下对未配置 WebUI 默认模型输出 **warning**（不阻塞启动）。
-- **前端 gate**：`messageRequest.validateChatModelConfig` 发送前拦截无 provider / 无 defaultModel；Settings `SearchSection` 一键激活免费搜索（SearXNG `:8081` / DuckDuckGo）；`GET /config/onboarding/searxng/probe` 探测本地 SearXNG；deploy `docker compose --profile search` 自动启动 SearXNG。
+- **前端 gate**：`modelSelection.validateChatModelConfig` 发送前拦截无 provider / 无 defaultModel；Settings `SearchSection` 一键激活免费搜索（SearXNG `:8081` / DuckDuckGo）；`GET /config/onboarding/searxng/probe` 探测本地 SearXNG；deploy `docker compose --profile search` 自动启动 SearXNG。
 
 ### 0.06 环境变量分层（[P]/[O]/[X]/[T]/[S]）
 
@@ -204,7 +204,7 @@ Server 与 MIT 开源 `myrm-agent-harness` 的分层边界：
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
 
-- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`litellm`/`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、 `tenacity>=9.1.4`（`vercel_client`）、`regex>=2026.4.4`（风险规则引擎对每条规则的单次匹配设时间预算，标准库 `re` 做不到）、`myrm-agent-harness[...,computer-use]`（`langchain`/`langchain-core` 与桌面键鼠 `pyautogui` 均经 harness 传递，server 不重复 pin）。可选 extra：`channels-sdk`、`matrix` / `matrix-e2ee` / `wechat-silk`（GPLv3）/ `wechat-formatter`（`markdown`+`pygments`，WeChat 文章 skill）/ `voice-tts`（GPL-3.0）/ `local-stt`（faster-whisper，`voice/stt.py`）/ `data-viz`。Desktop PyInstaller、OSS `myrm setup`、dev `setup.sh` 均通过 `scripts/lib/server_sync_flags.sh` 排除 GPL/heavy optional extras（`MYRM_HARNESS_SKIP_MATRIX_E2EE=0` 时保留 matrix-e2ee）；Docker 官方镜像仍 `--all-extras` 全装。本地 STT：`uv sync --extra local-stt`；Edge TTS：`uv sync --extra voice-tts`；WeChat 排版 skill：`uv sync --extra wechat-formatter`（`--all-extras` 已含）。Web 聊天语音输入 local STT 未安装时 `/stt/transcribe` 503 + 前端 toast（`useSpeechInput`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian`。
 - **执行运行时绘图栈隔离**：`matplotlib`/`pandas`（`data-viz` extra 锁定 pandas 2.3.x，避开 yanked 的 3.0.4）收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
 - **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
 - **全链路追踪按需启用 (Tracing)**：OpenTelemetry 在任何部署模式下默认关闭：只有标准 `OTEL_EXPORTER_OTLP_*` 变量配置了端点时，Server 才初始化 SDK 与导出器（`app/core/monitoring/__init__.py` → harness `setup_tracing` / `setup_metrics`）；未配置时保持 No-Op provider，不记录、不发送。启用后导出的 trace 沿用请求的 `X-Trace-Id`，FastAPI 原生遥测不产生请求 span。
@@ -261,7 +261,7 @@ Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test�
 - **Goal 完成交付物汇总**：`goal_registry.py::ServerGoalManager._collect_deliverables_on_completion` 在 Goal COMPLETE 时汇总本会话未删除的 Artifact（id 与文件名），写入 `goal.metadata["deliverables"]` 并保存，供前端交付物 bundle 展示；汇总失败只记 warning，不影响 Goal 状态流转。
 - **历史证据提升**：`app/services/memory/shared_context/shared_context_history.py` 复用 ChatService 的 FTS5 会话搜索，把用户选中的历史消息转换为可审批写入提案，而不是直接污染共享记忆。
 - **历史会话召回**：`app/services/chat/conversation_search_service.py` 实现 Harness `ConversationSearchProtocol`，按当前 `chat_id` 排除本会话，并用 Server scope policy 和 `agent_id` 做硬过滤/排序加权；FTS5 命中来自消息段索引并同时带出 `compacted_summary`，空查询返回最近会话列表，semantic 路径必须经 Server 索引 hydration 后才返回可核验 snippet/source_ref，并与 FTS/recent/消息级历史搜索共享 active、excluded、scope/source/fork lineage 过滤。
-- **外部记忆导入治理**：`app/services/memory/imports/import_sessions.py` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示（`POST /memory/import/rollback/dry-run` 只在 `MYRM_MEMORY_LABS=1` 时挂载，实际回滚 `POST /memory/import/rollback` 对所有用户可用），确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center（Memory Labs，默认关闭）通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。
+- **外部记忆导入治理**：`app/services/memory/imports/import_sessions/` 持久化 dry-run 审查会话、payload hash、过期时间、normalized data 和 plan hash；确认导入只接受 `dry_run_id` 并校验计划一致性，写入时追加 `import_batch_id/import_source/import_payload_hash/import_item_id` 元数据，并把实际写入 id 映射为 item-level transaction ledger。服务端记录 profile 导入前后 revision snapshot，确认后自动运行内容安全 Memory Doctor 并回写迁移来源；回滚前提供 dry-run 摘要和 profile revision 覆盖风险提示（`POST /memory/import/rollback/dry-run` 只在 `MYRM_MEMORY_LABS=1` 时挂载，实际回滚 `POST /memory/import/rollback` 对所有用户可用），确认后先持久化 rollback journal，再按 `dry_run_id` 或 `import_batch_id` 删除本批次 semantic/episodic/conversation/procedural 记忆并恢复 profile，启动预热会恢复未完成回滚，回滚响应返回 deleted/missing/forbidden/failed refs 和完整性状态，已完成审查会话按保留窗口清理。Command Center（Memory Labs，默认关闭）通过 adapter registry 展示 native-json/agentmemory 等来源状态、最近导入批次、自动诊断状态、导入审查清理指标、导入后验证建议和回滚预演入口，metadata-only plane summary 暴露导入回滚健康计数供控制平面读取。
 
 ### 0.6 全域动作空间与准确度引擎 (Global Action Space & Decision Accuracy Engine)
 
@@ -337,7 +337,7 @@ raise ToolError(
 - **运行时**: Python 3.13
 - **Web 框架**: FastAPI + uvicorn (uvloop)
 - **AI 框架**: LangChain + LangGraph
-- **LLM 适配**: LiteLLM（多模型支持）
+- **LLM 适配**: harness 自研模型传输层（OpenAI Chat/Responses、Anthropic Messages、Gemini、Ollama 线协议适配器 + 数据驱动 Provider Profile + 随包模型目录）
 - **包管理**: UV
 
 ---

@@ -13,8 +13,9 @@
 
 [POS]
 Bounded browser and page health primitives, shared by navigation (timeout settlement, SSRF route
-teardown), pool (idle page reuse, crash watchdog), network intelligence and session recovery (tab
-healing). A main frame stuck in a stalled navigation or a spinning renderer leaves page-level
+teardown), the download manager (a request that gives up stops the navigation it started), pool
+(idle page reuse, crash watchdog), network intelligence and session recovery (tab healing). A main
+frame stuck in a stalled navigation or a spinning renderer leaves page-level
 commands (`evaluate`, `unroute`, `close`, CDP `detach`) hanging with no timeout of their own, so
 every call here carries its own bound. `Page.stopLoading` and the browser-level
 `Browser.getVersion` are the commands the browser keeps answering in that state, which is why

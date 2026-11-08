@@ -80,7 +80,7 @@ def _configs(skill_ids: list[str], *, is_core: bool) -> SkillConfigs:
 
 
 async def _runtime_skills(service: SkillsService, skill_ids: list[str]) -> list[SkillMetadata]:
-    """The skills the agent runtime loads for these ids: what `general_agent/factory.py` builds, then `SkillAgent` loads."""
+    """The skills the agent runtime loads for these ids: what `general_agent/factory/` builds, then `SkillAgent` loads."""
     enabled = frozenset((await service.user_config.get_config()).enabled_prebuilt_ids)
     backend = await create_skill_backend(
         storage=service.storage,

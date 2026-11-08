@@ -1,6 +1,6 @@
 """[INPUT]
 - app.channels.types::VoiceConfig (POS: Channel system domain types — pure data definitions, no I/O.)
-- app.core.utils.chat_utils::extract_litellm_answer_text (POS: Aggregate exit of the chat-utils package: history conversion, image compression, inbound multimodal)
+- myrm_agent_harness.toolkits.llms.text_completion::acomplete_text (POS: One-shot text completion outside the chat-model stack.)
 
 [OUTPUT]
 - _resolve_base_url: Resolve the API base URL: config override (OpenAI & Voicebox) > provider default.
@@ -22,8 +22,9 @@ import tempfile
 from pathlib import Path
 from types import ModuleType
 
+from myrm_agent_harness.toolkits.llms.text_completion import acomplete_text
+
 from app.channels.types import VoiceConfig
-from app.core.utils.chat_utils import extract_litellm_answer_text
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,7 @@ def _import_edge_tts() -> ModuleType:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def _write_temp(data: bytes, suffix: str) -> Path:
     tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
     tmp.write(data)
@@ -120,17 +122,14 @@ _SUMMARY_TIMEOUT = 15.0
 async def _summarize_for_tts(text: str, config: VoiceConfig) -> str | None:
     """Summarize long text using LLM before TTS synthesis."""
     try:
-        from litellm import acompletion
-
         model = config.tts_summary_model or "gpt-4o-mini"
-        resp = await acompletion(
-            model=model,
-            messages=[{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
+        summary = await acomplete_text(
+            model,
+            [{"role": "user", "content": f"{_SUMMARY_PROMPT}{text}"}],
             max_tokens=500,
             temperature=0.3,
             timeout=_SUMMARY_TIMEOUT,
         )
-        summary = extract_litellm_answer_text(resp).strip()
         if not summary:
             return None
 

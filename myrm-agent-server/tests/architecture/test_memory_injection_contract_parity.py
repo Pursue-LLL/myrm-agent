@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 from myrm_agent_harness.api.hooks import get_memory_runtime_injection_contract
 
 from app.services.agent.stream_session._memory_status_helpers import (
@@ -33,7 +32,6 @@ def _extract_union_literals(block: str, field_name: str) -> frozenset[str]:
     return frozenset(re.findall(r"'([^']+)'", match.group(1)))
 
 
-@pytest.mark.architecture
 def test_frontend_memory_injection_union_matches_harness_contract() -> None:
     ts_content = _FRONTEND_TYPES.read_text(encoding="utf-8")
     injection_block = _extract_interface_block(ts_content, "MemoryBriefInjectionStatus")
@@ -51,7 +49,6 @@ def test_frontend_memory_injection_union_matches_harness_contract() -> None:
     assert ts_reasons == py_reasons, f"reason union mismatch: ts={sorted(ts_reasons)} py={sorted(py_reasons)}"
 
 
-@pytest.mark.architecture
 def test_frontend_memory_brief_status_union_matches_server_contract() -> None:
     ts_content = _FRONTEND_TYPES.read_text(encoding="utf-8")
     brief_block = _extract_interface_block(ts_content, "MemoryBriefStatus")

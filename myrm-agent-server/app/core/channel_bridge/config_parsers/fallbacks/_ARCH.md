@@ -12,3 +12,9 @@
 | `model.py` | 模块 | 轻量模型与视觉回退链 | ✅ |
 | `slot.py` | 模块 | 视频、槽位、后台进化回退链 | ✅ |
 | `resolution.py` | 模块 | 槽位 fallback 项解析（两条链共用） | ✅ |
+
+## 依赖关系
+
+- `model.py` → `resolution.py`
+- `slot.py` → `model.py`
+- `slot.py` → `resolution.py`

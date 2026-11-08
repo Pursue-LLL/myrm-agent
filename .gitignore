@@ -45,3 +45,6 @@ myrm-agent-desktop/agent-sidecar/
 
 # Backend runtime cache written when a server is started from the repo root
 /data/
+
+# Local-only bug ledgers: <module>_<start>_<end>_BUGFIX_LOG.md next to the module they describe
+*_BUGFIX_LOG.md

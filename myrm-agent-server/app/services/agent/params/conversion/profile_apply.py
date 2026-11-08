@@ -49,7 +49,7 @@ class ProfileContext:
     kanban_default_board_id: str | None = None
     mcp_configs: list[MCPServerConfig] | None = None
     agent_skill_ids: list[str] = field(default_factory=list)
-    agent_skill_configs: dict[str, dict] | None = None
+    agent_skill_configs: dict[str, dict[str, object]] | None = None
     agent_subagent_ids: list[str] | None = None
     agent_security_raw: dict[str, object] | None = None
     agent_max_iterations: int | None = None
@@ -86,125 +86,125 @@ async def apply_agent_profile(
         mcp_configs=mcp_configs,
     )
 
-    if request.agent_id:
-        resolved = await get_agent_profile_resolver().resolve(request.agent_id)
-        profile.resolved = resolved
-        if resolved:
-            if not request.agent_config and resolved.system_prompt:
-                profile.user_instructions = (
-                    f"{profile.user_instructions}\n\n{resolved.system_prompt}"
-                    if profile.user_instructions
-                    else resolved.system_prompt
-                )
-            # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
-            if (
-                resolved.enabled_builtin_tools
-                and "browser" in resolved.enabled_builtin_tools
-                and "computer_use" in resolved.enabled_builtin_tools
-            ):
-                from app.config.computer_use_deploy import (
-                    is_computer_use_deploy_supported,
-                )
+    resolved = await get_agent_profile_resolver().resolve(request.agent_id) if request.agent_id else None
+    profile.resolved = resolved
 
-                hybrid_ready = is_computer_use_deploy_supported()
+    # The persona follows the client's instructions. A chat-level prompt, even an empty one, replaces the saved one;
+    # it exists only in the request, so it applies without a saved agent too.
+    chat_prompt = request.agent_config.system_prompt if request.agent_config else None
+    agent_prompt = (resolved.system_prompt if resolved else None) if chat_prompt is None else chat_prompt
+    if agent_prompt:
+        profile.user_instructions = (
+            f"{profile.user_instructions}\n\n{agent_prompt}" if profile.user_instructions else agent_prompt
+        )
+
+    if resolved:
+        # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
+        if (
+            resolved.enabled_builtin_tools
+            and "browser" in resolved.enabled_builtin_tools
+            and "computer_use" in resolved.enabled_builtin_tools
+        ):
+            from app.config.computer_use_deploy import (
+                is_computer_use_deploy_supported,
+            )
+
+            hybrid_ready = is_computer_use_deploy_supported()
+        else:
+            hybrid_ready = False
+
+        if hybrid_ready:
+            hybrid_routing_rule = (
+                "\n\n[HYBRID EXECUTION ROUTING RULES]\n"
+                "You have both 'browser' and 'computer_use' (desktop) tools available. You MUST follow these strict routing rules:\n"
+                "1. For ANY web page interaction (clicking links, filling forms, reading web content), you MUST use 'browser_snapshot' and 'browser_interact_tool'. It is 10x faster and more reliable.\n"
+                "2. DO NOT use 'desktop_snapshot' or 'desktop_interact_tool' to interact with web pages.\n"
+                "3. ONLY use 'desktop_snapshot' and 'desktop_interact_tool' when dealing with native OS dialogs (e.g., File Upload/Save dialogs, OS permission prompts) or browser extensions that 'browser_interact_tool' cannot see.\n"
+                "4. If 'browser_snapshot' or 'browser_interact_tool' warns you that an OS dialog is blocking the page, immediately switch to 'desktop_snapshot' and 'desktop_interact_tool'."
+            )
+            profile.user_instructions = (
+                f"{profile.user_instructions}{hybrid_routing_rule}" if profile.user_instructions else hybrid_routing_rule.strip()
+            )
+
+        profile.agent_skill_ids = list(resolved.skill_ids)
+        profile.agent_skill_configs = resolved.skill_configs
+        profile.agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
+        profile.agent_security_raw = resolved.security_overrides
+        profile.enabled_builtin_tools = list(resolved.enabled_builtin_tools)
+        profile.agent_max_iterations = resolved.max_iterations
+        profile.agent_memory_policy = resolved.memory_policy
+        profile.agent_memory_decay_profile = resolved.memory_decay_profile
+        profile.agent_memory_extraction_preset = resolved.memory_extraction_preset
+        profile.engine_params = resolved.engine_params
+        profile.auto_restore_domains = list(resolved.auto_restore_domains)
+        profile.browser_source = resolved.browser_source
+        profile.dialog_policy = resolved.dialog_policy
+        profile.session_recording = resolved.session_recording
+        profile.openapi_services = resolved.openapi_services or None
+
+        # Safety net: use agent's model when frontend didn't pass model_selection
+        if not request.model_selection and resolved.model:
+            if resolved.model_kwargs:
+                from app.services.agent.params.models import ModelSelection
+
+                agent_model_selection = ModelSelection(
+                    provider_id="auto",
+                    model=resolved.model,
+                    model_kwargs=resolved.model_kwargs,
+                )
+                try:
+                    plan.model_cfg = await resolve(agent_model_selection, providers_dict)
+                except Exception:
+                    logger.warning(
+                        "Failed to resolve agent model '%s' with kwargs, keeping default",
+                        resolved.model,
+                    )
             else:
-                hybrid_ready = False
-
-            if hybrid_ready:
-                hybrid_routing_rule = (
-                    "\n\n[HYBRID EXECUTION ROUTING RULES]\n"
-                    "You have both 'browser' and 'computer_use' (desktop) tools available. You MUST follow these strict routing rules:\n"
-                    "1. For ANY web page interaction (clicking links, filling forms, reading web content), you MUST use 'browser_snapshot' and 'browser_interact_tool'. It is 10x faster and more reliable.\n"
-                    "2. DO NOT use 'desktop_snapshot' or 'desktop_interact_tool' to interact with web pages.\n"
-                    "3. ONLY use 'desktop_snapshot' and 'desktop_interact_tool' when dealing with native OS dialogs (e.g., File Upload/Save dialogs, OS permission prompts) or browser extensions that 'browser_interact_tool' cannot see.\n"
-                    "4. If 'browser_snapshot' or 'browser_interact_tool' warns you that an OS dialog is blocking the page, immediately switch to 'desktop_snapshot' and 'desktop_interact_tool'."
-                )
-                profile.user_instructions = (
-                    f"{profile.user_instructions}{hybrid_routing_rule}"
-                    if profile.user_instructions
-                    else hybrid_routing_rule.strip()
+                from app.core.channel_bridge.model_resolver import (
+                    resolve_model_config as _resolve_override_model,
                 )
 
-            profile.agent_skill_ids = list(resolved.skill_ids)
-            profile.agent_skill_configs = resolved.skill_configs
-            profile.agent_subagent_ids = list(resolved.subagent_ids) if resolved.subagent_ids else None
-            profile.agent_security_raw = resolved.security_overrides
-            profile.enabled_builtin_tools = list(resolved.enabled_builtin_tools)
-            profile.agent_max_iterations = resolved.max_iterations
-            profile.agent_memory_policy = resolved.memory_policy
-            profile.agent_memory_decay_profile = resolved.memory_decay_profile
-            profile.agent_memory_extraction_preset = resolved.memory_extraction_preset
-            profile.engine_params = resolved.engine_params
-            profile.auto_restore_domains = list(resolved.auto_restore_domains)
-            profile.browser_source = resolved.browser_source
-            profile.dialog_policy = resolved.dialog_policy
-            profile.session_recording = resolved.session_recording
-            profile.openapi_services = resolved.openapi_services or None
-
-            # Safety net: use agent's model when frontend didn't pass model_selection
-            if not request.model_selection and resolved.model:
-                if resolved.model_kwargs:
-                    from app.services.agent.params.models import ModelSelection
-
-                    agent_model_selection = ModelSelection(
-                        provider_id="auto",
-                        model=resolved.model,
-                        model_kwargs=resolved.model_kwargs,
-                    )
-                    try:
-                        plan.model_cfg = await resolve(agent_model_selection, providers_dict)
-                    except Exception:
-                        logger.warning(
-                            "Failed to resolve agent model '%s' with kwargs, keeping default",
-                            resolved.model,
-                        )
-                else:
-                    from app.core.channel_bridge.model_resolver import (
-                        resolve_model_config as _resolve_override_model,
+                try:
+                    plan.model_cfg = _resolve_override_model(providers_dict, model_override=resolved.model)
+                except Exception:
+                    logger.warning(
+                        "Failed to resolve agent model '%s', keeping default",
+                        resolved.model,
                     )
 
-                    try:
-                        plan.model_cfg = _resolve_override_model(providers_dict, model_override=resolved.model)
-                    except Exception:
-                        logger.warning(
-                            "Failed to resolve agent model '%s', keeping default",
-                            resolved.model,
-                        )
+        if resolved.agent_type == "team":
+            from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
-            if resolved.agent_type == "team":
-                from app.ai_agents.team_protocol import build_leader_protocol_prompt
-
-                leader_protocol = await build_leader_protocol_prompt(
-                    profile.agent_subagent_ids or [],
-                    leader_id=request.agent_id,
-                    dynamic_discovery=True,
-                )
-                profile.user_instructions = (
-                    f"{profile.user_instructions}\n\n{leader_protocol}" if profile.user_instructions else leader_protocol
-                )
-
-            from app.services.agent.params.profile_output_suffixes import (
-                apply_profile_output_suffixes,
+            leader_protocol = await build_leader_protocol_prompt(
+                profile.agent_subagent_ids or [],
+                leader_id=request.agent_id,
+                dynamic_discovery=True,
+            )
+            profile.user_instructions = (
+                f"{profile.user_instructions}\n\n{leader_protocol}" if profile.user_instructions else leader_protocol
             )
 
-            suffix_engine_params: dict[str, object] | None = dict(resolved.engine_params) if resolved.engine_params else None
-            if request.engine_params:
-                if suffix_engine_params:
-                    suffix_engine_params = {
-                        **suffix_engine_params,
-                        **request.engine_params,
-                    }
-                else:
-                    suffix_engine_params = dict(request.engine_params)
+        from app.services.agent.params.profile_output_suffixes import (
+            apply_profile_output_suffixes,
+        )
 
-            profile.user_instructions = apply_profile_output_suffixes(
-                profile.user_instructions,
-                personality_style=resolved.personality_style,
-                engine_params=suffix_engine_params,
-                agent_id=request.agent_id,
-            )
+        suffix_engine_params: dict[str, object] | None = dict(resolved.engine_params) if resolved.engine_params else None
+        if request.engine_params:
+            if suffix_engine_params:
+                suffix_engine_params = {
+                    **suffix_engine_params,
+                    **request.engine_params,
+                }
+            else:
+                suffix_engine_params = dict(request.engine_params)
 
-    resolved = profile.resolved
+        profile.user_instructions = apply_profile_output_suffixes(
+            profile.user_instructions,
+            personality_style=resolved.personality_style,
+            engine_params=suffix_engine_params,
+            agent_id=request.agent_id,
+        )
+
     if profile.mcp_configs and resolved:
         from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
 

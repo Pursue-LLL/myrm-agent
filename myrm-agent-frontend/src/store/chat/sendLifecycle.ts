@@ -9,7 +9,7 @@
  * - isHeldByOtherTurn: whether a newer turn holds the shared abort handle, so an ended turn must not release the shared turn state.
  *
  * [POS]
- * Pure helpers of the send lifecycle. Kept apart from messageRequest.ts so the queue-drain semantics
+ * Pure helpers of the send lifecycle. Kept apart from sendMessage.ts so the queue-drain semantics
  * (a queued message sends its own attachments, a busy rejection leaves no ghost bubble), the turn ownership rule
  * (an ended turn never resets the state of the turn that replaced it) and the wording policy for failed turns
  * stay unit-testable.

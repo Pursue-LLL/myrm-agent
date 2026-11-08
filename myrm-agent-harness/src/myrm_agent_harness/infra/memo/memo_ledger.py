@@ -12,10 +12,10 @@
 - MemoLedger: persistent store of model-call outcomes, keyed by memo key digest
 
 [POS]
-Framework-level persistence for the model-call memo ledger. One row per model call, in the
-same shape as the durable tool ledger (`runtime/tool_ledger`): a row is written *before* the
-call is dispatched, so a crash leaves the truth behind, and the completed answer is written
-afterwards, so a repeated call can read it back instead of paying for the model again.
+Framework-level persistence for the model-call memo ledger. One row per model call: a row is
+written *before* the call is dispatched, so a crash leaves the truth behind, and the completed
+answer is written afterwards, so a repeated call can read it back instead of paying for the
+model again.
 
 This ledger stores answers, not telemetry: the recorded response is the model's own output.
 Callers decide where the file lives and whether the data may be persisted at all.

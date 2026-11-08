@@ -39,7 +39,7 @@ _HERMES_TASK_TO_MYRM_SLOT: dict[str, str] = {
     "kanban_decomposer": "routingReasoningModel",
 }
 
-_PROVIDER_LITELLM_PREFIX: dict[str, str] = {
+_PROVIDER_ROUTE_PREFIX: dict[str, str] = {
     "openai": "openai",
     "anthropic": "anthropic",
     "openrouter": "openrouter",
@@ -95,15 +95,15 @@ def extract_hermes_auxiliary_config(hermes_config: dict[str, Any]) -> dict[str, 
     return tasks
 
 
-def _resolve_litellm_model(provider: str, model: str) -> str:
-    """Convert Hermes provider/model pair to a LiteLLM-compatible model string."""
+def _resolve_route_model_id(provider: str, model: str) -> str:
+    """Convert Hermes provider/model pair to a routed model string."""
     clean_provider = provider.strip().lower()
     if clean_provider in ("ai-gateway", "vercel_ai_gateway", "aigateway", "vercel"):
         raw_model = model.removeprefix("vercel_ai_gateway/")
         return f"vercel_ai_gateway/{raw_model}"
     if "/" in model:
         return model
-    prefix = _PROVIDER_LITELLM_PREFIX.get(provider, provider)
+    prefix = _PROVIDER_ROUTE_PREFIX.get(provider, provider)
     return f"{prefix}/{model}"
 
 
@@ -145,9 +145,9 @@ async def migrate_hermes_auxiliary_models(
             result.skipped_tasks.append(task_key)
             continue
 
-        litellm_model = _resolve_litellm_model(task_info["provider"], task_info["model"])
+        route_model_id = _resolve_route_model_id(task_info["provider"], task_info["model"])
         if myrm_slot not in slot_candidates:
-            slot_candidates[myrm_slot] = litellm_model
+            slot_candidates[myrm_slot] = route_model_id
 
     if slot_candidates:
         updates = dict(current_model_config)
@@ -170,11 +170,11 @@ async def migrate_hermes_auxiliary_models(
     return result
 
 
-def _litellm_to_primary_selection(litellm_model: str) -> dict[str, str]:
-    """Convert a LiteLLM model string to defaultModelConfig primary selection."""
-    if "/" not in litellm_model:
-        return {"providerId": "openrouter", "model": litellm_model}
-    provider_id, model_id = litellm_model.split("/", 1)
+def _route_id_to_primary_selection(route_model_id: str) -> dict[str, str]:
+    """Convert a routed model string to defaultModelConfig primary selection."""
+    if "/" not in route_model_id:
+        return {"providerId": "openrouter", "model": route_model_id}
+    provider_id, model_id = route_model_id.split("/", 1)
     return {"providerId": provider_id, "model": model_id}
 
 
@@ -185,7 +185,7 @@ def _slot_primary_selection(model_config: dict[str, Any], slot_name: str) -> dic
     model_name = slot.get("model")
     if not isinstance(model_name, str) or not model_name.strip():
         return None
-    return _litellm_to_primary_selection(model_name.strip())
+    return _route_id_to_primary_selection(model_name.strip())
 
 
 def _routing_slot_has_primary(routing_slot: object) -> bool:

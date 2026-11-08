@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _TESTS_ROOT = _SERVER_ROOT / "tests"
 _UNIT_ROOT = _TESTS_ROOT / "unit"
 
 
-@pytest.mark.architecture
 def test_unit_tree_has_no_api_subpackage() -> None:
     """``import_mode=importlib`` treats ``tests/unit/api`` and ``tests/api`` as one ``api`` package."""
     if not _UNIT_ROOT.is_dir():

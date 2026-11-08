@@ -13,7 +13,7 @@ describe('chat agent binding architecture contracts', () => {
   it('requires finalizeAgentStreamTurn on agent-stream exit paths', () => {
     const finalizeSources: Array<{ file: string; mustContain: string }> = [
       { file: 'streamConsumer.ts', mustContain: 'finalizeAgentStreamTurn' },
-      { file: 'messageRequest.ts', mustContain: 'finalizeAgentStreamTurn' },
+      { file: 'attachToChat.ts', mustContain: 'finalizeAgentStreamTurn' },
       { file: '../../lib/approval/resumeApprovalStream.ts', mustContain: 'finalizeAgentStreamTurn' },
       { file: '../../services/chat.ts', mustContain: 'finalizeAgentStreamTurn' },
     ];

@@ -1,7 +1,7 @@
 """Real-LLM e2e tests for the answer-content extraction helpers.
 
 These exercises the exact code path fixed for reasoning models: the LLM returns
-an ``AIMessage`` and ``extract_answer_text`` / ``extract_litellm_answer_text``
+an ``AIMessage`` and ``extract_answer_text`` / ``extract_completion_text``
 must return the real answer without leaking ``<think>`` blocks. No mocks on the
 extraction path.
 """
@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.utils.chat_utils import (
     extract_answer_text,
-    extract_litellm_answer_text,
+    extract_completion_text,
 )
 
 pytestmark = pytest.mark.e2e
@@ -57,22 +57,21 @@ async def test_extract_answer_text_strips_think_blocks(basic_llm) -> None:
 
 
 @pytest.mark.asyncio
-async def test_extract_litellm_answer_text_real_llm() -> None:
-    """extract_litellm_answer_text works on a raw litellm.acompletion response."""
-    import litellm
+async def test_extract_completion_text_real_llm() -> None:
+    """extract_completion_text works on a raw transport completion."""
+    from myrm_agent_harness.toolkits.llms.transport import get_transport
+    from tests.integration.llm_extraction.llm_creds import route_config_for
 
-    from tests.integration.llm_extraction.litellm_creds import litellm_config_for
-
-    api_key, base_url, model, _provider = litellm_config_for("LITE")
-    response = await litellm.acompletion(
+    api_key, base_url, model, _provider = route_config_for("LITE")
+    response = await get_transport().acompletion(
         model=model,
         api_key=api_key,
         api_base=base_url,
-        messages=[{"role": "user", "content": "Reply with exactly: litellm works"}],
+        messages=[{"role": "user", "content": "Reply with exactly: transport works"}],
         temperature=0.0,
         max_tokens=128,
     )
-    text = extract_litellm_answer_text(response)
+    text = extract_completion_text(response)
     assert isinstance(text, str)
-    assert text.strip(), "extract_litellm_answer_text returned empty text"
-    assert "litellm works" in text.lower()
+    assert text.strip(), "extract_completion_text returned empty text"
+    assert "transport works" in text.lower()

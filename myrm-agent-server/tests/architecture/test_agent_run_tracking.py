@@ -82,7 +82,6 @@ def test_the_scan_sees_the_known_call_sites() -> None:
     assert len(_process_stream_sites()) >= 6, "the source scan found fewer call sites than exist; the guard is blind"
 
 
-@pytest.mark.architecture
 def test_every_process_stream_call_site_is_accounted_for() -> None:
     expected = {**_GATEWAY_COUNTED, **_TRACKED, **{k: 1 for k in _TRACKED_DELEGATES}}
     assert _process_stream_sites() == expected, (
@@ -92,7 +91,6 @@ def test_every_process_stream_call_site_is_accounted_for() -> None:
     )
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path", sorted(_GATEWAY_COUNTED))
 def test_gateway_counted_site_goes_through_the_gateway(relative_path: str) -> None:
     source = (_APP / relative_path).read_text(encoding="utf-8")
@@ -100,14 +98,12 @@ def test_gateway_counted_site_goes_through_the_gateway(relative_path: str) -> No
     assert count_calls(source, "execute_stream"), f"{relative_path} no longer routes its run through AgentGateway.execute_stream"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path, owner", sorted(_TRACKED_DELEGATES.items()))
 def test_delegated_site_runs_inside_a_tracked_owner(relative_path: str, owner: str) -> None:
     assert (_APP / relative_path).is_file(), f"{relative_path} does not exist"
     assert opens_run_tracker((_APP / owner).read_text(encoding="utf-8")), f"{owner} does not wrap its run"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path", sorted(_TRACKED))
 def test_tracked_site_wraps_its_run_in_the_tracker(relative_path: str) -> None:
     source = (_APP / relative_path).read_text(encoding="utf-8")

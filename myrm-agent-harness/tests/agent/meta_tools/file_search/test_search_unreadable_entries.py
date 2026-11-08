@@ -12,9 +12,7 @@ Covers:
 
 from __future__ import annotations
 
-import os
-import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -23,19 +21,9 @@ from tests.agent.meta_tools.file_search.search_probe import SearchRunner, git, h
 
 
 @pytest.fixture
-def unsearchable() -> Iterator[Callable[[Path], None]]:
+def unsearchable(restrict_mode: Callable[[Path, int], None]) -> Callable[[Path], None]:
     """Make directories listable but not searchable: their entries can be named, and none of them can be examined."""
-    if sys.platform == "win32" or os.geteuid() == 0:
-        pytest.skip("directory permissions are not enforced here (Windows, or root reads every directory)")
-    locked: list[Path] = []
-
-    def lock(directory: Path) -> None:
-        directory.chmod(0o644)
-        locked.append(directory)
-
-    yield lock
-    for directory in locked:
-        directory.chmod(0o755)
+    return lambda directory: restrict_mode(directory, 0o644)
 
 
 def _repository(root: Path, files: dict[str, str], *, committed: bool = False) -> Path:

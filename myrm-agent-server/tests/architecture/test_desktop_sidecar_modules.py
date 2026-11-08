@@ -22,7 +22,7 @@ import pytest
 
 from tests.support.desktop_release import sidecar_build_module, sidecar_module, smoke_channels_module
 
-# server-architecture.yml runs `-m architecture` on every change under app/ and assets/, which is when this can break.
+# The conftest leaves test_desktop_* to desktop-contracts.yml; this mark also puts the file in the architecture gate.
 pytestmark = pytest.mark.architecture
 
 # Code that loads Python from a file path rather than by module name. Such a file is not a module: it has to be shipped
@@ -261,16 +261,19 @@ def test_the_launch_smoke_accepts_a_refusal_only_where_the_provider_cannot_load_
     assert channels.UNAVAILABLE_WITHOUT_SDK <= left_out_channels
 
 
-def _bundle_with(tmp_path: Path, build: ModuleType, inventory: ModuleType, *, scripts: bool) -> Path:
-    """A bundle directory whose `_internal` holds the domain tool scripts (or not); returns its executable."""
+def _bundle_with(tmp_path: Path, build: ModuleType, inventory: ModuleType, *, scripts: bool = True, data: bool = True) -> Path:
+    """A bundle directory whose `_internal` holds the domain tool scripts and the harness data files (or not)."""
     executable = tmp_path / "bundle" / "backend"
     executable.parent.mkdir(parents=True)
-    if scripts:
-        for script in inventory.domain_tool_scripts(build.HARNESS_SOURCE_DIR):
-            relative = script.relative_to(build.HARNESS_SOURCE_DIR)
-            target = executable.parent / "_internal" / inventory.HARNESS_PACKAGE / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text("", encoding="utf-8")
+    harness = build.HARNESS_SOURCE_DIR
+    shipped = [
+        *(inventory.domain_tool_scripts(harness) if scripts else []),
+        *(inventory.harness_data_files(harness) if data else []),
+    ]
+    for file in shipped:
+        target = executable.parent / "_internal" / inventory.HARNESS_PACKAGE / file.relative_to(harness)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("", encoding="utf-8")
     return executable
 
 
@@ -284,7 +287,7 @@ def _problems(
 def test_the_verifier_accepts_a_bundle_that_holds_everything_the_inventory_asks_for(
     build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    executable = _bundle_with(tmp_path, build, inventory, scripts=True)
+    executable = _bundle_with(tmp_path, build, inventory)
 
     assert _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory)) == []
 
@@ -302,3 +305,58 @@ def test_the_verifier_names_a_lost_module_a_channel_sdk_that_got_in_and_a_script
     assert "1 of" in problems[0] and _A_PROVIDER_MODULE in problems[0]
     assert "mautrix" in problems[1]
     assert "domain tool scripts are not in the bundle" in problems[2]
+
+
+def test_the_verifier_names_each_harness_data_file_the_bundle_lost(
+    build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = _bundle_with(tmp_path, build, inventory, data=False)
+
+    problems = _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory))
+
+    data_files = inventory.harness_data_files(build.HARNESS_SOURCE_DIR)
+    assert len(problems) == 1
+    assert f"{len(data_files)} of {len(data_files)} harness data files are not in the bundle" in problems[0]
+    assert all(file.name in problems[0] for file in data_files)
+
+
+def test_the_verifier_names_only_the_data_file_that_is_missing(
+    build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = _bundle_with(tmp_path, build, inventory)
+    data_files = inventory.harness_data_files(build.HARNESS_SOURCE_DIR)
+    lost = next(path for path in data_files if path.name != "model_catalog.json")
+    (executable.parent / "_internal" / inventory.HARNESS_PACKAGE / lost.relative_to(build.HARNESS_SOURCE_DIR)).unlink()
+
+    problems = _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory))
+
+    assert len(problems) == 1
+    assert lost.name in problems[0] and "model_catalog.json" not in problems[0]
+
+
+def test_the_harness_data_the_runtime_reads_by_path_is_the_catalog_and_the_token_tables(
+    build: ModuleType, inventory: ModuleType
+) -> None:
+    files = inventory.harness_data_files(build.HARNESS_SOURCE_DIR)
+    relative = {PurePosixPath(*file.relative_to(build.HARNESS_SOURCE_DIR).parts) for file in files}
+
+    assert PurePosixPath("toolkits/llms/catalog/data/model_catalog.json") in relative
+    assert sum(path.parent == PurePosixPath("utils/_tiktoken_tables") for path in relative) == 3
+
+
+def test_a_data_directory_the_harness_moved_fails_the_build_instead_of_shipping_nothing(
+    inventory: ModuleType, tmp_path: Path
+) -> None:
+    for directory in inventory.HARNESS_DATA_DIRS:
+        (tmp_path / directory).mkdir(parents=True)
+        (tmp_path / directory / "data.json").write_text("{}", encoding="utf-8")
+    assert len(inventory.harness_data_files(tmp_path)) == len(inventory.HARNESS_DATA_DIRS)
+
+    only_code = tmp_path / inventory.HARNESS_DATA_DIRS[0]
+    (only_code / "data.json").unlink()
+    (only_code / "helper.py").write_text("", encoding="utf-8")
+    (only_code / "__pycache__").mkdir()
+    (only_code / "__pycache__" / "cached.dat").write_text("", encoding="utf-8")
+
+    with pytest.raises(FileNotFoundError, match="holds no data file"):
+        inventory.harness_data_files(tmp_path)

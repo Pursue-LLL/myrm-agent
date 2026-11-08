@@ -29,10 +29,6 @@ engines:
     engine: baidu
     weight: 0.8
 
-  - name: sougou
-    engine: sougou
-    weight: 0.4
-
   - name: 360search
     engine: 360search
     weight: 0.4
@@ -41,15 +37,10 @@ engines:
     engine: quark
     weight: 0.4
 
-  # --- Code & Developer engines (for CODE intent) ---
+  # --- Code & Developer engines ---
   - name: github
     engine: github
     shortcut: gh
-    categories: it
-
-  - name: stackoverflow
-    engine: stackoverflow
-    shortcut: st
     categories: it
 
   - name: npm
@@ -64,7 +55,7 @@ engines:
     categories: it
     disabled: false
 
-  # --- News engines (for NEWS intent) ---
+  # --- News engines ---
   - name: google news
     engine: google_news
     categories: news
@@ -73,7 +64,7 @@ engines:
     engine: bing_news
     categories: news
 
-  # --- Academic engines (for ACADEMIC intent) ---
+  # --- Academic engines ---
   - name: arxiv
     engine: arxiv
     shortcut: arx
@@ -90,13 +81,7 @@ engines:
     shortcut: ss
     categories: science
 
-  # --- Social media (for SOCIAL intent) ---
-  - name: reddit
-    engine: reddit
-    shortcut: rd
-    categories: social media
-    disabled: false
-
+  # --- Social media ---
   - name: hackernews
     engine: hackernews
     shortcut: hn

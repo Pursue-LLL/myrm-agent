@@ -86,4 +86,3 @@ def test_deliverable_manifest_evidence_sources_binding():
         "vault://doc_brief.pdf",
         "evidence/financial_summary.xlsx",
     ]
-

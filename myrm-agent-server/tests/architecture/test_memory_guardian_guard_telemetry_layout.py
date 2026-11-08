@@ -23,7 +23,6 @@ _FORBIDDEN_LEGACY_FLAT_FILES = (
 )
 
 
-@pytest.mark.architecture
 def test_memory_guardian_guard_telemetry_subpackage_layout() -> None:
     assert _TELEMETRY_PACKAGE.is_dir(), (
         f"Missing {_TELEMETRY_PACKAGE}. See app/services/agent/memory_guardian_guard_telemetry/_ARCH.md."
@@ -33,7 +32,6 @@ def test_memory_guardian_guard_telemetry_subpackage_layout() -> None:
         assert path.is_file(), f"Missing required guardian guard telemetry module file: {path}"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("legacy_filename", _FORBIDDEN_LEGACY_FLAT_FILES)
 def test_memory_guardian_guard_telemetry_legacy_flat_files_removed(legacy_filename: str) -> None:
     legacy_path = _AGENT_SERVICES_ROOT / legacy_filename

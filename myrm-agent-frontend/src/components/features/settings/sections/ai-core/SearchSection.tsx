@@ -42,7 +42,7 @@ const SearchSection = memo(() => {
   const [searxngConsentOpen, setSearxngConsentOpen] = useState(false);
   const [pendingQuickEnable, setPendingQuickEnable] = useState(false);
 
-  // Sandbox: hide local-only SearXNG entries; paid LiteLLM providers remain visible.
+  // Sandbox: hide local-only SearXNG entries; paid providers remain visible.
   const filteredConfigs = useMemo(() => {
     const configs = isLocal
       ? searchServiceConfigs

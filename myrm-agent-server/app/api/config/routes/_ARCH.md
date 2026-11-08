@@ -15,3 +15,9 @@
 | `media_health.py` | 路由 | `POST /vision-health`、`POST /video-health` | ✅ |
 | `crud.py` | 路由 | `GET/PUT/DELETE /{config_key}`、历史、回滚、批量同步 | ✅ |
 | `diagnostics.py` | 路由 | `POST /test-local-model`、`POST /test-proxy` | ✅ |
+
+## 依赖关系
+
+- `catalog.py` → `support.py`
+- `crud.py` → `support.py`
+- `onboarding.py` → `support.py`

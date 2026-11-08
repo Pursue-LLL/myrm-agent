@@ -9,11 +9,12 @@ import pytest
 
 from app.services.chat import share_renderer
 from tests.services.chat.share_support import agentless_db, make_chat, make_message, render_page
+from tests.support.fake_secrets import aws_access_key_id, github_token, gitlab_token, openai_style_key
 
-_OPENAI_KEY = "sk-proj-A1b2C3d4E5f6G7h8I9j0K1l2M3n4"
-_AWS_KEY = "AKIAQWERTYUIOPASDFGH"
-_GITLAB_TOKEN = "glpat-Xy9Wv8Ut7Sr6Qp5On4Ml"
-_GITHUB_TOKEN = "ghp_Qa1Ws2Ed3Rf4Tg5Yh6Uj7Ik8Ol9Pz0Xc1Vb2"
+_OPENAI_KEY = openai_style_key("proj-A1b2C3d4E5f6G7h8I9j0K1l2M3n4")
+_AWS_KEY = aws_access_key_id("QWERTYUIOPASDFGH")
+_GITLAB_TOKEN = gitlab_token("Xy9Wv8Ut7Sr6Qp5On4Ml")
+_GITHUB_TOKEN = github_token("Qa1Ws2Ed3Rf4Tg5Yh6Uj7Ik8Ol9Pz0Xc1Vb2")
 
 # The part of each credential that a masked copy must no longer carry.
 _HIDDEN_PARTS = ("A1b2C3d4E5f6G7h8I9j0", "WERTYUIOPASDF", "Wv8Ut7Sr6Qp5", "Ws2Ed3Rf4Tg5Yh6Uj7Ik8")

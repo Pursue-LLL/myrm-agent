@@ -42,6 +42,9 @@ const SOURCE_COLORS: Record<string, string> = {
   aliyun: 'text-accent-warm',
 };
 
+// Product label of the WorkBuddy top-20 list; it reads the same in every language.
+const WORKBUDDY_TOP_BADGE = 'WB Top 20';
+
 // ========== Tag Button ==========
 
 export function TagButton({
@@ -126,7 +129,7 @@ export const SkillResultCard = memo(
                   variant="secondary"
                   className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
                 >
-                  WB Top 20
+                  {WORKBUDDY_TOP_BADGE}
                 </Badge>
               )}
               {skill.package_type === 'agent_plugin' && (

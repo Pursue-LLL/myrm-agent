@@ -1,7 +1,7 @@
 """Mount order of the Human-tail middlewares in build_general_agent.
 
 [INPUT]
-- app/ai_agents/general_agent/factory.py (POS: source under inspection)
+- app/ai_agents/general_agent/factory/ (POS: source under inspection)
 
 [OUTPUT]
 - Tests that the tail blocks are mounted after the context pipeline and that the knowledge pack precedes the session deltas.

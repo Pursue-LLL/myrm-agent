@@ -96,7 +96,7 @@ async def run_agent_stream(
     """Streaming Agent execution with gateway lifecycle management.
 
     Backend is the authoritative store: persists user message first,
-    then loads chat history from DB (frontend no longer sends chat_history).
+    then loads chat history from the database, which is the single source of history.
     """
     stream_started_at_monotonic = time.perf_counter()
     consensus_rejection = _reject_legacy_consensus_request(request)

@@ -11,7 +11,7 @@
 - strict_anthropic_responder(): Anthropic-style validation (unknown top-level field -> HTTP 400)
 
 [POS]
-Shared test double that lets a test drive the real adapter -> LiteLLM -> HTTP path offline: assert on the
+Shared test double that lets a test drive the real adapter -> transport -> HTTP path offline: assert on the
 request body that reaches the wire and on how finished or cut streams are handled.
 """
 

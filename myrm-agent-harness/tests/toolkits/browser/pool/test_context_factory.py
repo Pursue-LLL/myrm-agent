@@ -1,17 +1,35 @@
-"""Unit tests for context_factory._sync_accept_language.
+"""Unit tests for the options ContextFactory builds.
 
 Validates that Accept-Language headers are correctly derived from locale
-settings and that module-level constants are never mutated (shallow copy safety).
+settings, that module-level constants are never mutated (shallow copy safety),
+and that a context refuses downloads unless its owner asks for them.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.pool import ContextType
 from myrm_agent_harness.toolkits.browser.pool.context_factory import (
     _DEFAULT_CONTEXT_OPTIONS,
+    ContextFactory,
     _sync_accept_language,
 )
+
+
+class TestDownloadDefault:
+    """The browser's own default saves every download a page starts and holds it until the context closes."""
+
+    @pytest.mark.parametrize("context_type", [context_type.value for context_type in ContextType])
+    def test_a_context_refuses_downloads_by_default(self, context_type: str) -> None:
+        options = ContextFactory()._build_context_options(context_type, None, None)
+
+        assert options["accept_downloads"] is False
+
+    def test_the_owner_of_a_context_can_ask_for_downloads(self) -> None:
+        options = ContextFactory()._build_context_options(ContextType.AGENT.value, None, {"accept_downloads": True})
+
+        assert options["accept_downloads"] is True
 
 
 class TestSyncAcceptLanguage:

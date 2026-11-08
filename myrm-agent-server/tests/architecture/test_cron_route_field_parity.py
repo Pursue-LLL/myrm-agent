@@ -12,12 +12,8 @@ import inspect
 import textwrap
 from collections.abc import Callable
 
-import pytest
-
 from app.api.cron.routes import helpers, jobs
 from app.api.cron.schemas import CronJobCreate, CronJobResponse, CronJobUpdate
-
-pytestmark = pytest.mark.architecture
 
 # Declared on the create schema but advisory: the create dialog shows the prerequisite card and the server never acts on it.
 # An entry that the route starts reading must be removed, so a stale entry fails the create test.

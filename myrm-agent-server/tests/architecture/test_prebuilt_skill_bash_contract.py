@@ -23,7 +23,6 @@ def _bash_skill_files() -> list[Path]:
     return files
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("skill_path", _bash_skill_files(), ids=lambda p: p.parent.name)
 def test_bash_skill_includes_execution_contract(skill_path: Path) -> None:
     text = skill_path.read_text(encoding="utf-8")

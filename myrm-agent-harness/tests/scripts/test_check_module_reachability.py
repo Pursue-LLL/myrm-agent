@@ -100,6 +100,26 @@ def test_dead_server_unit_does_not_keep_a_harness_unit_alive(
     assert "agent/engine/ghost" in capsys.readouterr().err
 
 
+def test_harness_mode_honours_root_dirs(trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]) -> None:
+    harness, _ = trees
+    _write(
+        harness,
+        {
+            "toolkits/browser/domain_skills/builtin/skill.py": "def run() -> None: ...\n",
+            "toolkits/browser/domain_skills/orphan.py": "def lost() -> None: ...\n",
+            "toolkits/browser/orphan.py": "def lost() -> None: ...\n",
+            "toolkits/orphan.py": "def lost() -> None: ...\n",
+        },
+    )
+    assert cli.main(["--json"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert sorted(item["unit"] for item in payload["dead"]) == [
+        "toolkits/browser/domain_skills/orphan",
+        "toolkits/browser/orphan",
+        "toolkits/orphan",
+    ]
+
+
 def test_server_mode_audits_server_units_and_honours_root_dirs(
     trees: tuple[Path, Path], capsys: pytest.CaptureFixture[str]
 ) -> None:

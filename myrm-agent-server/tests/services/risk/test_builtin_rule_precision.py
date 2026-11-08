@@ -21,6 +21,7 @@ from app.services.risk.constants import DEFAULT_ENABLED_CATEGORIES, RiskCategory
 from app.services.risk.detection import RiskDetectionService
 from app.services.risk.match_checks import is_confirmed_match
 from app.services.risk.rule_service import RiskRuleService
+from tests.support.fake_secrets import jwt_shaped
 
 from .conftest import EngineBuilder
 
@@ -157,7 +158,9 @@ CREDENTIALS = {
     "postgres url with a raw @ in the password": "postgres://root:Zk9@mango42x@db.internal:5432/prod",
     "sqlalchemy url with a driver": "DATABASE_URL=postgresql+asyncpg://app:Pa55w0rd@db.internal:5432/app",
     "mongodb srv url": "mongodb+srv://user:Pa55w0rd@cluster0.mongodb.net/test",
-    "jwt": ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"),
+    "jwt": jwt_shaped(
+        "hbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "zdWIiOiIxMjM0NTY3ODkwIn0", "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    ),
     "private key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA",
     "kubeconfig": "apiVersion: v1\nkind: Config\nclusters:\n- cluster:\n    server: https://10.0.0.1",
     "groq key in an env file": "GROQ_API_KEY=gsk_" + _token(40),

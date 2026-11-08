@@ -7,7 +7,7 @@
 - AppSettings, get_settings, settings and every settings group, re-exported.
 
 [POS]
-Aggregate exit of the settings package; import path unchanged.
+Aggregate exit of the settings package (`app.config.settings`).
 """
 
 from __future__ import annotations
@@ -71,5 +71,4 @@ __all__ = [
     "WebUISettings",
     "get_settings",
     "settings",
-    "BASE_DIR",
 ]

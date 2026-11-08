@@ -118,6 +118,20 @@ class TestSharedBudget:
         for read_range in plan.read_ranges:
             assert f"{read_range.label} URL: https://site" in plan.visible_text
 
+    def test_pages_carry_the_numbers_they_are_given(self) -> None:
+        plan = plan_full_content(make_pages(["alpha", "beta"]), indices=[7, 3])
+
+        assert plan.visible_text == (
+            "【7】 URL: https://site1.test/page\n\nalpha\n\n【3】 URL: https://site2.test/page\n\nbeta\n\n"
+        )
+
+    def test_the_read_ranges_of_cut_pages_carry_the_given_numbers(self) -> None:
+        plan = plan_full_content(make_pages([numbered_body(i, 400) for i in (1, 2)]), indices=[5, 9])
+
+        assert [r.label for r in plan.read_ranges] == ["【5】", "【9】"]
+        assert "【5】 URL: https://site1.test/page" in plan.visible_text
+        assert "【9】 URL: https://site2.test/page" in plan.visible_text
+
     @pytest.mark.parametrize(
         ("sizes", "budget", "expected"),
         [

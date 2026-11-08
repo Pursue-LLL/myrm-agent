@@ -40,6 +40,8 @@ export interface AgentConfig {
   skillConfigs?: AgentSkillConfigMap;
   selectedMcpNames: string[];
   systemPrompt: string;
+  /** 用户是否在本会话里改写过指令；仅为 true 时 systemPrompt 才作为会话级替换随请求发送，否则服务端使用智能体已保存的指令。 */
+  systemPromptEdited?: boolean;
   useGlobalInstruction: boolean;
   autoRestoreDomains?: string[]; // 自动恢复的浏览器身份域名列表
   // 已保存智能体信息（用于追踪和更新）

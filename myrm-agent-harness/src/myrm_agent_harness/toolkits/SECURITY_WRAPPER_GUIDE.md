@@ -168,7 +168,7 @@ wrapped = wrap_with_tool_output_tag(content)
 ## 参考资料
 
 - **核心实现**：`myrm_agent_harness/core/security/detection/content_boundary.py`
-- **工具层接口**：`myrm_agent_harness/utils/context_format.py`
+- **工具层接口**：`myrm_agent_harness/utils/context_format/boundary.py`（经 `myrm_agent_harness.utils.context_format` 导入）
 - **MCP 框架层统一包装**：`toolkits/mcp/agent.py` (`_wrap_tools_with_timeout`)
 - **已有示例**：
   - `toolkits/web_search/web_search_agent_tools.py`

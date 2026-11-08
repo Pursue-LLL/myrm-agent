@@ -52,7 +52,7 @@ describe('ProgressSteps refusal tone', () => {
 
   it.each([
     ['user_declined', 'text-amber-700', 'text-destructive'],
-    ['policy_denied', 'text-destructive', 'text-amber-700'],
+    ['policy_denied', 'text-destructive-text', 'text-amber-700'],
   ])('draws the hint of a %s step in its own tone', async (category, shown, notShown) => {
     const HINT = 'Ask again when you are ready.';
     render(
@@ -82,6 +82,6 @@ describe('ProgressSteps refusal tone', () => {
     for (const badge of screen.getAllByText('errorCategories.policy_denied')) {
       expect(badge.className).toContain('bg-destructive');
     }
-    expect(screen.getByText(REASON).className).toContain('text-destructive');
+    expect(screen.getByText(REASON).className).toContain('text-destructive-text');
   });
 });

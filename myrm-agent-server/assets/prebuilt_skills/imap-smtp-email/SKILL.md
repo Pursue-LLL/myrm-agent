@@ -26,7 +26,7 @@ contract:
     - "Phase 4: Report — summarize results clearly to the user"
   potential_traps:
     - description: "Credentials not configured or authorization code expired"
-      mitigation: "Check env vars first; instruct user to configure in Settings → Skills → Environment"
+      mitigation: "Run the helper's check command first: its error names any unset variable or reports the failed login. Instruct user to configure in Settings → Skills → Environment"
       severity: high
     - description: "Exposing email credentials in LLM context"
       mitigation: "Never print or echo credential env vars. Runtime injects them into bash process automatically."
@@ -40,7 +40,7 @@ contract:
   verification_steps:
     - step_id: credentials_available
       description: "IMAP host, user, and password environment variables are set"
-      validation_method: "bash test -n \"$EMAIL_IMAP_HOST\" && test -n \"$EMAIL_IMAP_USER\" && test -n \"$EMAIL_IMAP_PASSWORD\""
+      validation_method: "bash python3 .claude/skills/imap-smtp-email/scripts/email_manager.py check --limit 1"
       is_required: true
   success_criteria: "Requested email operation completed with user-visible summary"
   estimated_duration_seconds: 120

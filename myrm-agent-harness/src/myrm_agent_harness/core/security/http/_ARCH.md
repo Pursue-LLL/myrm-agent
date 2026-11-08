@@ -24,7 +24,6 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `agent/hooks/executor.py`
 - `toolkits/cron/delivery.py`
 - `toolkits/openapi_bridge/spec_parser.py`, `http_executor.py`
-- `toolkits/wiki/wiki_agent_tools.py` (`_fetch_url_as_markdown`)
 - `toolkits/wiki/pipeline/ingress/asset_store.py`
 - `toolkits/llms/image/generator.py`, `models.py` (reference/result URL downloads)
 - `toolkits/llms/video/video_engine.py` (`_resolve_media_sources` HTTP branch)

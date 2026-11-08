@@ -37,7 +37,7 @@
 1. **不为向后兼容留包袱**：不加 shim、不为改名保留旧名、不维护双份实现。
 2. **不绕过持久化契约**：Memory / Artifacts / Checkpoints 走 `toolkits/storage` 的 `StorageProvider`、`ArtifactVault` 或 `runtime/checkpointing`；跨会话业务状态不得只存内存。
 3. **不把大数据塞进 Prompt**：超阈值结果落 `ArtifactVault`，用 `vault://<uuid>` 指针传递（`agent/artifacts/vault.py` 的 `VAULT_PREFIX`）；禁止把千行文本拼进消息。
-4. **不写偷懒实现**：核心调度必须具备并发与崩溃语义。SQLite 走 WAL 加固（`utils/db/sqlite/hardening.py`），文件写走 `infra.atomic_write`，子 agent 扇出受深度上限与并发闸门约束（`agent/sub_agents/manager.py` 的 `_MAX_GLOBAL_SPAWN_DEPTH = 3`、`runtime/concurrency_throttle/` 的分层信号量）。
+4. **不写偷懒实现**：核心调度必须具备并发与崩溃语义。SQLite 走 WAL 加固（`utils/db/sqlite/hardening.py`），文件写走 `infra.atomic_write`，子 agent 扇出受深度上限与并发闸门约束（`agent/sub_agents/manager.py` 的 `_MAX_GLOBAL_SPAWN_DEPTH = 3` 与 `asyncio.Semaphore`）。
 
 ## 4. 同沙箱零拷贝
 

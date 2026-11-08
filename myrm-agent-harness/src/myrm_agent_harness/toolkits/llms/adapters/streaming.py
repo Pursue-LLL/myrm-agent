@@ -5,9 +5,8 @@
 - langchain_core.outputs::ChatGenerationChunk (POS: LangChain generation chunk type)
 
 [OUTPUT]
-- LiteLLMStreamMixin: streaming response processing mixin class
 - safe_get(), extract_chunk_metadata(), build_tool_call_chunks(), and other stream processing utilities
-- provider_reported_finish(): whether the provider (not LiteLLM's stream wrapper) reported how a stream ended
+- provider_reported_finish(): whether the provider itself reported how a stream ended
 
 [POS]
 Streaming response processing module. Provides stream response parsing, incremental tool call merging,
@@ -45,22 +44,6 @@ def safe_get(obj: Any, key: str, default: Any = None) -> Any:
     return getattr(obj, key, default)
 
 
-def _is_complete_json_fragment(text: str) -> bool:
-    """Check if a string is a complete, well-formed JSON object or array fragment."""
-    if not isinstance(text, str):
-        return False
-    stripped = text.strip()
-    if not (
-        (stripped.startswith("{") and stripped.endswith("}")) or (stripped.startswith("[") and stripped.endswith("]"))
-    ):
-        return False
-    try:
-        json.loads(stripped)
-        return True
-    except Exception:
-        return False
-
-
 def extract_chunk_metadata(chunk: Any) -> tuple[Any, str | None, str | None]:
     """Extract usage, model, and finish_reason from a streaming chunk.
 
@@ -78,23 +61,18 @@ def extract_chunk_metadata(chunk: Any) -> tuple[Any, str | None, str | None]:
     return usage, model, finish_reason
 
 
-_PROVIDER_FINISH_MARKERS: tuple[str, ...] = ("received_finish_reason", "intermittent_finish_reason")
 _ABSENT = object()
 
 
 def provider_reported_finish(stream: object) -> bool | None:
     """Whether the provider itself reported how an exhausted *stream* ended.
 
-    LiteLLM's stream wrapper closes a stream on which the provider never sent a finish reason with
-    a synthesized ``stop``, so a connection cut mid tool call reads like a normal turn. The wrapper
-    keeps what the provider actually sent in ``received_finish_reason`` / ``intermittent_finish_reason``;
-    with both unset the final reason was made up. Returns ``None`` for a stream without those markers
-    (Responses-wire iterators), where the finish reason alone has to be trusted.
+    A provider stream records in ``received_finish_reason`` only a finish reason the provider actually sent, so a
+    connection cut mid tool call stays distinguishable from a normal turn. Returns ``None`` for a stream without that
+    marker (Responses-wire iterators), where the finish reason alone has to be trusted.
     """
-    markers = [getattr(stream, name, _ABSENT) for name in _PROVIDER_FINISH_MARKERS]
-    if any(marker is _ABSENT for marker in markers):
-        return None
-    return any(marker is not None for marker in markers)
+    marker = getattr(stream, "received_finish_reason", _ABSENT)
+    return None if marker is _ABSENT else marker is not None
 
 
 def build_tool_call_chunks(raw_tool_calls: Any) -> list[ToolCallChunk]:

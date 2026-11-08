@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from .blocking import _SSRFResultLike
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_dns_pin_map(
-    results: list[_SSRFResultLike],
+    results: Sequence[_SSRFResultLike],
 ) -> tuple[dict[str, str], str | None]:
     """Build hostname→IP mapping from validated SSRFResults for DNS pinning.
 
@@ -41,7 +42,7 @@ def create_dns_pin_map(
     return pin_map, None
 
 
-def build_host_resolver_rules(results: list[_SSRFResultLike]) -> str:
+def build_host_resolver_rules(results: Sequence[_SSRFResultLike]) -> str:
     """Build Chrome ``--host-resolver-rules`` flag value from SSRFResults.
 
     Used by crawl4ai/Playwright to pin DNS at the browser level.

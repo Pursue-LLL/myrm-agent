@@ -19,7 +19,7 @@ Integrated into `BrowserSession.navigate()` and `BrowserSession.interact()` (cli
 
 ## Solver Selection (business layer)
 
-The `myrm-agent-server/app/ai_agents/general_agent/tool_setup/browser.py` dynamically selects the solver at session creation:
+The `myrm-agent-server/app/ai_agents/general_agent/tool_setup/` dynamically selects the solver at session creation:
 - **With CapSolver API key configured**: `FallbackSolver(ApiSolver(key), ManualSolver())`
 - **Without configuration**: `ManualSolver()` (preserves existing behavior)
 

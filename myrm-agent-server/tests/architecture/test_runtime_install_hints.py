@@ -4,12 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 _APP_ROOT = Path(__file__).resolve().parent.parent.parent / "app"
 
 
-@pytest.mark.architecture
 def test_app_runtime_messages_avoid_pip_install() -> None:
     """User-facing app code must not suggest pip install."""
     offenders: list[str] = []
@@ -20,7 +17,6 @@ def test_app_runtime_messages_avoid_pip_install() -> None:
     assert offenders == [], f"pip install still present: {offenders}"
 
 
-@pytest.mark.architecture
 def test_registry_matrix_install_hint() -> None:
     from app.channels.providers.registry import _all_specs, _channel_install_hint
 

@@ -7,7 +7,7 @@
 - session.interactor::Interactor, session.extractor::Extractor (POS: element interaction, content extraction)
 - session.console_logger / network (NetworkLogger, NetworkIntelligence) / dialog_manager / device_emulator / consent_dismisser / vision_verifier (POS: per-page components owned by the aggregate root)
 - pool::GlobalBrowserPool, pool.extension_bridge::ExtensionBridge (POS: browser pool, user-browser extension bridge)
-- observability::BrowserObservability, recording_manager::RecordingManager, session.download_manager::DownloadManager, session.session_persistence::SessionPersistence (POS: optional per-session services owned by the aggregate root)
+- observability::BrowserObservability, recording_manager::RecordingManager, session.download::DownloadManager, session.session_persistence::SessionPersistence (POS: optional per-session services owned by the aggregate root)
 - captcha::CaptchaCoordinator, captcha.protocols::CaptchaHandleResult (POS: CAPTCHA detection and solving coordination, the structured result of one detection)
 - snapshot::RefInfo (POS: element reference metadata)
 - utils.runtime.user_control::UserControl, DEFAULT_WAIT_TIMEOUT_S (POS: control hold and wait budget the mixins' takeover wait is typed against)
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from .console_logger import ConsoleLogger
     from .device_emulator import DeviceEmulator
     from .dialog_manager import DialogManager
-    from .download_manager import DownloadManager
+    from .download import DownloadManager
     from .extractor import Extractor
     from .interactor import Interactor
     from .network import NetworkIntelligence, NetworkLogger

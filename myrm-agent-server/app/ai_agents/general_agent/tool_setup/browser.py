@@ -1,5 +1,7 @@
 """[INPUT]
 - app.ai_agents.general_agent.tool_setup.base::ToolSetupBaseMixin (POS: 各工具族 mixin 共同继承，避免重复声明宿主属性。)
+- app.ai_agents.general_agent.tool_setup.common::_build_download_config (POS: 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。)
+- myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: Stable public import path for the memory toolkit façade.)
 
 [OUTPUT]
 - BrowserToolsMixin: 浏览器与验证码工具。
@@ -15,10 +17,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .base import ToolSetupBaseMixin
+from .common import _build_download_config
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.toolkits.browser.captcha.protocols import CaptchaSolver
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
 
 logger = logging.getLogger(__name__)
@@ -31,8 +35,8 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
         self,
         tools: list[object],
         effective_chat_id: str,
-        vision_llm: "BaseChatModel" | None = None,
-        memory_manager: object | None = None,
+        vision_llm: BaseChatModel | None = None,
+        memory_manager: MemoryManager | None = None,
     ) -> None:
         """Set up browser automation tools and session."""
         try:
@@ -136,6 +140,7 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
                 domain_blocklist=domain_blocklist,
                 captcha_solver=await self._build_captcha_solver(),
                 content_vault=ArtifactVault(workspace_root),
+                download_config=_build_download_config(workspace_root, merged_security),
                 vision_llm=vision_llm,
                 extension_bridge=ext_bridge,
                 allow_private_networks=is_local_mode(),

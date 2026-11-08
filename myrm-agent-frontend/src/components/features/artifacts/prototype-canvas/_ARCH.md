@@ -12,5 +12,4 @@
 | `LivePrototypeSandbox.tsx` | 安全交互沙箱 | 基于严格安全 iframe，注入 Tailwind 与元素拾取垫片（Element Picker Shim），实现跨端双向通信与元素高亮圈选 | ✅ |
 | `PrototypeAnnotationOverlay.tsx` | 批注浮层与抽屉 | 悬浮输入气泡条（快捷键 ⌘+Enter 提交）与右侧滑出批注列表管理抽屉 | ✅ |
 | `LivePrototypeCanvas.tsx` | 总控画布容器 | 顶部 HUD 控制栏（多端视口、批注模式切换、Handoff 规格固化导出）与原型工作台集成 | ✅ |
-| `index.ts` | 门面 | 统一导出类型、状态库与组件 | ✅ |
 | `_ARCH.md` | 文档 | 模块定位与架构清单 | ✅ |

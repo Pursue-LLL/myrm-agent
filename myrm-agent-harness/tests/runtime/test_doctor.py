@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from myrm_agent_harness.runtime.diagnostics.doctor import (
@@ -167,27 +168,84 @@ class TestLLMConnectivity:
             assert result.status == CheckStatus.ERROR
 
     @pytest.mark.asyncio
-    async def test_successful_connectivity(self) -> None:
-        from unittest.mock import AsyncMock
-
+    async def test_successful_connectivity_probes_the_resolved_endpoint(self) -> None:
         mock_response = MagicMock()
         mock_response.status_code = 200
-
-        mock_client_instance = AsyncMock()
-        mock_client_instance.head = AsyncMock(return_value=mock_response)
-        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
-        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
-
-        mock_litellm = MagicMock()
-        mock_litellm.get_llm_provider = MagicMock(return_value=(None, None, "https://api.openai.com/v1", None))
+        client = AsyncMock()
+        client.head = AsyncMock(return_value=mock_response)
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch.dict("os.environ", {"MYRM_MODEL_NAME": "gpt-4o", "MYRM_API_KEY": "sk-123"}),
-            patch.dict("sys.modules", {"litellm": mock_litellm}),
-            patch("httpx.AsyncClient", return_value=mock_client_instance),
+            patch.dict("os.environ", {"MYRM_MODEL_NAME": "anthropic/claude-sonnet-4-5", "MYRM_API_KEY": "sk-123"}),
+            patch("myrm_agent_harness.infra.tls_compat.create_httpx_client", return_value=client),
         ):
             result = await Doctor()._check_llm_connectivity()
-            assert result.status == CheckStatus.OK
+        assert result.status == CheckStatus.OK
+        assert client.head.await_args.args[0] == "https://api.anthropic.com"
+
+    @pytest.mark.asyncio
+    async def test_custom_base_url_is_the_probe_target(self) -> None:
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        client = AsyncMock()
+        client.head = AsyncMock(return_value=mock_response)
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
+
+        env = {"MYRM_MODEL_NAME": "my-model", "MYRM_BASE_URL": "http://gateway.local/v1/", "MYRM_API_KEY": "k"}
+        with (
+            patch.dict("os.environ", env, clear=True),
+            patch("myrm_agent_harness.infra.tls_compat.create_httpx_client", return_value=client),
+        ):
+            result = await Doctor()._check_llm_connectivity()
+        assert result.status == CheckStatus.OK
+        assert client.head.await_args.args[0] == "http://gateway.local/v1"
+
+    @pytest.mark.asyncio
+    async def test_unresolvable_model_is_an_error(self) -> None:
+        with patch.dict("os.environ", {"MYRM_MODEL_NAME": "my-model", "MYRM_API_KEY": "k"}, clear=True):
+            result = await Doctor()._check_llm_connectivity()
+        assert result.status == CheckStatus.ERROR
+
+    @pytest.mark.asyncio
+    async def test_a_provider_that_is_addressed_per_resource_needs_a_base_url_to_be_probed(self) -> None:
+        with patch.dict("os.environ", {"MYRM_MODEL_NAME": "azure/gpt-4", "MYRM_API_KEY": "k"}, clear=True):
+            result = await Doctor()._check_llm_connectivity()
+        assert result.status == CheckStatus.ERROR
+        assert "No endpoint known for model 'azure/gpt-4'" in result.message
+
+    @pytest.mark.asyncio
+    async def test_a_server_error_from_the_endpoint_is_a_warning(self) -> None:
+        response = MagicMock()
+        response.status_code = 503
+        client = AsyncMock()
+        client.head = AsyncMock(return_value=response)
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"MYRM_MODEL_NAME": "ollama/llama3.1"}, clear=True),
+            patch("myrm_agent_harness.infra.tls_compat.create_httpx_client", return_value=client),
+        ):
+            result = await Doctor()._check_llm_connectivity()
+        assert result.status == CheckStatus.WARNING
+        assert "HTTP 503" in result.message
+
+    @pytest.mark.asyncio
+    async def test_an_endpoint_nobody_listens_on_is_an_error(self) -> None:
+        client = AsyncMock()
+        client.head = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"MYRM_MODEL_NAME": "ollama/llama3.1"}, clear=True),
+            patch("myrm_agent_harness.infra.tls_compat.create_httpx_client", return_value=client),
+        ):
+            result = await Doctor()._check_llm_connectivity()
+        assert result.status == CheckStatus.ERROR
+        assert "unreachable" in result.message
 
 
 class TestGetModuleVersion:

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.agent.config.litellm_routing import (
+from myrm_agent_harness.agent.config.provider_routing import (
     normalize_env_model_selection_string,
 )
 from myrm_agent_harness.agent.middlewares._session_context import (
@@ -24,7 +24,7 @@ from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
 from myrm_agent_harness.toolkits.llms.allowed_tools_capability import (
     model_supports_allowed_tools_tool_choice,
 )
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(90)]
 
@@ -123,7 +123,7 @@ async def test_real_llm_invoke_without_allowed_tools_succeeds() -> None:
     api_key, base_url, model = _get_basic_llm_config()
     assert model_supports_allowed_tools_tool_choice(model, api_base=base_url) is False
 
-    llm = create_litellm_model(model, base_url=base_url, api_key=api_key, streaming=False)
+    llm = create_chat_model(model, base_url=base_url, api_key=api_key, streaming=False)
     result = await llm.ainvoke([HumanMessage(content="Reply with exactly: OK")])
     content = result.content
     assert isinstance(content, str)
@@ -141,7 +141,7 @@ async def test_agnes_real_llm_invoke_without_allowed_tools_succeeds() -> None:
     api_key, base_url, model = agnes
     assert model_supports_allowed_tools_tool_choice(model, api_base=base_url) is False
 
-    llm = create_litellm_model(model, base_url=base_url, api_key=api_key, streaming=False)
+    llm = create_chat_model(model, base_url=base_url, api_key=api_key, streaming=False)
     try:
         result = await llm.ainvoke([HumanMessage(content="Reply with exactly: OK")])
     except Exception as exc:

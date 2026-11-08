@@ -179,11 +179,13 @@ class SSRFResult:
 
 提供同步 (`validate_url_for_ssrf`) 和异步 (`async_validate_url_for_ssrf`) 两个版本。
 
-**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、A2A resolver、cron webhook、HTTP hooks、LobeHub 技能安装、wiki URL ingestion 与 asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
+**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、A2A resolver、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
 
 **浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时改用私网源授权策略：会话显式导航到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝。
 
-`browser_manage_tool` 的 `download_url` 与导航走同一套判定：先规范化并过 URL 黑名单，再由 `Navigator.admit_download` 按同一策略放行（本地模式下被点名的源获得授权，仅限该源），之后才让页面发起请求；下载实际来自的地址（重定向之后）、以及请求落在页面而非文件时标签页所在的地址，由 `assert_landed_url_allowed` 复核，被拒的下载取消、被拒的页面重置为 `about:blank`，`javascript:`、`file:` 等非网络 scheme 直接拒绝。重定向的中间跳在 patchright 下不可路由，请求仍会到达重定向目标，但响应既不保存也不返回；下载期间页面自带的下载监听器让位给这次调用，不会把被拒的下载另存一份。
+`browser_manage_tool` 的 `download_url` 与导航走同一套判定：先规范化并过 URL 黑名单，再由 `Navigator.admit_download` 按同一策略放行（本地模式下被点名的源获得授权，仅限该源），之后才让页面发起请求；下载实际来自的地址（重定向之后）由下载管理器对它保存的每一个下载复核（含页面自己通过脚本或链接发起的下载；`blob:`、`data:` 是页面自己生成的、没有网络地址可判，不在其列），请求落在页面而非文件时标签页所在的地址由 `assert_landed_url_allowed` 复核；被拒、无法判定或判定被中途打断（调用方被取消）的下载取消并删除，处理完毕的下载（已保存、或不予保留）浏览器自己留存的那一份同样取消并删除，落盘的副本是唯一保留的一份（调用方至多等 2 s，之后清理仍在后台继续）、被拒的页面重置为 `about:blank`，`javascript:`、`file:` 等非网络 scheme 直接拒绝。判定发生在拨号之后，下载只复核最终来自的地址：重定向的中间跳在 patchright 下不可路由，也不会被逐跳重放，请求照常发出，被拒下载的响应体既不保存也不返回（没有请求过滤器的上下文 `BrowserPoolConfig.minimal()` 里，连页面直接发起的请求也不被拦在请求层）；判定时的域名解析在 Python 侧进行，与实际拨号方的解析相互独立（页面的文档请求由 `enhancers/inject_route.py` 交给驱动进程取回，取回失败才由 Chromium 自己发出），DNS 重绑定可使两者不一致；请求只认领它的页面在等待期间发起的第一个下载（浏览器交给请求的就是这一个），同一页面上的其余下载走页面自己发起的下载的同一条路径：判定之后才保存，被拒的取消并删除；请求认领了却没取到的下载（请求提前结束）在请求结束时交给这条路径，不会有下载在没有判定的情况下被留下；页面自己发起的下载即时判定、不排队等下载名额，被拒时记一条警告日志（URL 只显示 scheme、主机与路径，凭据、查询串与片段不记；拒绝原因里引用的 URL 同样换成这个形式；URL 由页面决定，日志里被脱敏的文本长度有界），并留一条不含地址的记录（文件名与原因，最近 5 条），在这次点击的结果与 `list_downloads` 里告诉模型；没有下载管理器的会话（未传 `download_config`）其浏览器上下文不接受任何下载，页面发起的下载由浏览器取消、不落盘（上下文池新建的上下文默认也不接受，传了 `download_config` 的会话才为自己的上下文打开）；放弃等待的请求（超时、页面故障、取消）会中止它发起的导航（一条有界、尽力而为的协议命令），使仍在途中的下载或页面不在请求返回之后落地。
+
+**浏览器下载：页面自己发起的下载与下载目录**：页面发起的下载没有哪一次模型调用可以拿来请示，所以决定要在它发生之前做出：`DownloadConfig.admit_page_started` 是应用交给下载管理器的策略，收到下载来自的地址（`blob:`、`data:` 下载没有地址，收到页面自己的地址），只有返回真才放行；产品里这个策略取该会话 `browser_download` 权限的结论，只有 ALLOW 放行（本地模式的 web_chat 默认 ALLOW，云端默认 ASK，消息渠道 DENY，用户规则同样生效），ASK 与 DENY 一律取消并删除，模型仍可用 `download_url` 请求同一个文件，那一次走正常审批；策略自己出错按拒绝处理。保存的文件放在会话工作区的 `.agent/downloads/`，该目录由第一次保存创建并自带忽略自己的 `.gitignore`，没有下载的工作区不会多出任何东西；保存的内容是浏览器自己已经下载完成的那一份（读取 `Download.path()`，要求浏览器由本进程启动或以 CDP 接入），复制之前就知道真实大小，空文件、超过单文件上限、会让目录超出配额的都在复制前拒绝，目录已满则在等待内容之前就拒绝；文件名由独占创建认领，同名不覆盖（依次加 ` (1)`、` (2)`），同时进行的保存不会选到同一个名字，名字超过 200 字节按字符边界截断并保留扩展名；沙箱里的模型能写工作区，所以保存时不信任工作区根以下的任何名字：目录自工作区根起逐层以不跟随链接的方式打开（任何一层是符号链接，哪怕指向工作区内部的 `.git/hooks`，都拒绝并告诉模型），文件在已打开的目录描述符之下以 `O_EXCL`、`O_NOFOLLOW` 创建并只通过创建返回的描述符写入，之后被换成的符号链接或硬链接、被换掉的目录都改不了写入落点，事先放在目标名字上的链接只会使创建失败而改用下一个名字（`core/security/path/confined_write.py`）；没有描述符锚定的平台（Windows）退化为逐层 `lstat` 检查，只拒绝已经存在的链接，检查与使用之间的空窗不能关闭；目录有文件数与总体积配额（默认 200 个、1024 MB），从目录本身统计，所以对共用该目录的会话都成立，是软上限（同时保存的下载可超出它们合计的大小），满了新的下载被拒绝并告诉模型原因，不自动淘汰。文件名与拒绝原因出自页面，交给模型时按不可信内容包装，原因不含地址。
 
 ### 3.2 命令/模块黑名单
 
@@ -260,7 +262,7 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 
 **核心机制**：
 1. **ContextVar 物理隔离**：通过 `user_credentials_ctx = ContextVar[tuple[EphemeralUserCredential, ...]]` 在线程与协程层面物理隔离当前会话所关联的具体用户凭证。不同用户的并发任务绝对无法越权读取或篡改其他会话的临时凭证。
-2. **零磁盘残留、按命令注入**：`credential_env_overrides()` 把 `user_credentials_ctx` 中的 token 映射为进程环境变量（如 `FEISHU_USER_ACCESS_TOKEN`、`GITHUB_TOKEN`、`GOOGLE_WORKSPACE_TOKEN`；token 若是外部密钥引用则先解析为值），注入发生在 **env 隔离之后**，避免隔离规则剥离合法凭证。消费路径：`safe_exec.py`（cron/CLI，可传 `allowed_issuers`）与 `build_command_env`（`bash_code_execute_tool` 主路径）。持久 shell 比它运行的任何命令都长寿，所以凭证不属于 shell 而属于命令：`build_command_env` 返回 `CommandEnv(sticky=…, scoped=…)`，`scoped` 部分仅在该条命令周围生效并在命令结束后立即移除，`sticky` 只含经 `scrubbed_user_env` 过滤的调用方环境。**Bash scope 规则**（`allowed_issuers`）：`None`（未检测到 skill 路径）注入全部 session 凭证，`[]` 不注入，检测到 skill 时仅注入该 skill SKILL.md frontmatter `oauth_issuer` 声明的 issuer（由 `_resolve_allowed_credential_issuers` 解析为 `ExecutionContext.allowed_credential_issuers`）。一次性凭证（`core/security/ephemeral_credentials`）仅对其被批准的命令摘要有效，在 `collect_command_credentials` 内消费。`MYRM_USER_TIMEZONE`（来自 `user_timezone_var`）由 `_build_bash_env` 写入 shell 启动环境，供 vendor skill 脚本计算本地日历日界。所有注入均在进程内存空间完成，**决不在磁盘配置文件或持久化全局环境变量中留存任何明文**。
+2. **零磁盘残留、按命令注入**：`credential_env_overrides()` 把 `user_credentials_ctx` 中的 token 映射为进程环境变量（如 `FEISHU_USER_ACCESS_TOKEN`、`GITHUB_TOKEN`、`GOOGLE_WORKSPACE_TOKEN`；token 若是外部密钥引用则先解析为值），注入发生在 **env 隔离之后**，避免隔离规则剥离合法凭证。消费路径：`safe_exec.py`（cron/CLI，可传 `allowed_issuers`）与 `build_command_env`（`bash_code_execute_tool` 主路径）。持久 shell 比它运行的任何命令都长寿，所以凭证不属于 shell 而属于命令：`build_command_env` 返回 `CommandEnv(sticky=…, scoped=…)`，`scoped` 部分仅在该条命令周围生效并在命令结束后立即移除，`sticky` 只含经 `scrubbed_user_env` 过滤的调用方环境（技能设置里名字像密钥的变量不进 `sticky`：检测到 skill 路径时，用户为该 skill 保存的此类设置经 `ExecutionContext.skill_env` 由 `skill_secret_env` 选出，与上述凭证一起进入 `scoped`，只随该 skill 的命令送达；全局环境变量里的密钥不走这条路）。**Bash scope 规则**（`allowed_issuers`）：`None`（未检测到 skill 路径）注入全部 session 凭证，`[]` 不注入，检测到 skill 时仅注入该 skill SKILL.md frontmatter `oauth_issuer` 声明的 issuer（由 `_resolve_allowed_credential_issuers` 解析为 `ExecutionContext.allowed_credential_issuers`）。一次性凭证（`core/security/ephemeral_credentials`）仅对其被批准的命令摘要有效，在 `collect_command_credentials` 内消费。`MYRM_USER_TIMEZONE`（来自 `user_timezone_var`）由 `_build_bash_env` 写入 shell 启动环境，供 vendor skill 脚本计算本地日历日界。所有注入均在进程内存空间完成，**决不在磁盘配置文件或持久化全局环境变量中留存任何明文**。
 3. **主动与被动双向 Token 热刷新**：
    * **主动式提前续期**：`OpenAPIExecutor` 在执行 HTTP 外部请求前，检测到凭证 expiring（距离失效小于 5 分钟），自动触发协程刷新回调 `refresh_callback` 进行主动续期。
    * **被动式 401 挑战**：若遇到服务响应 `401 Unauthorized` 挑战，客户端自动拦截并执行 `refresh_callback`。获取到新凭证后重新签署 headers `Authorization: Bearer <new_token>` 并在内存中静默发起第二次重试，实现长链条复杂任务的零感静默续期。
@@ -621,7 +623,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 Org 管理员可通过 Control Plane 配置 **Managed Approval Policy (MAP)**，经 sandbox env 注入并在 harness 进程内由 `managed_approval_policy.py` 加载。MAP 是组织级**下限**（floor），不替代用户/Agent 的 SecurityConfig，仅在匹配模型上收紧审批路径。
 
-**模型匹配**：`forceAutoReviewForModels` / `ignoreAllowlistForModels` 使用 fnmatch glob（`fnmatchcase`，大小写敏感），对 Agent 的 **bare model slug** 匹配（与 `parse_litellm_model` 第二段一致，`agent_runtime.py` 注入 primary model）。Control Plane upsert 时会 strip 可选的 `provider/` 前缀后再存库与 fanout。
+**模型匹配**：`forceAutoReviewForModels` / `ignoreAllowlistForModels` 使用 fnmatch glob（`fnmatchcase`，大小写敏感），对 Agent 的 **bare model slug** 匹配（与 `parse_route_model_id` 第二段一致，`agent_runtime.py` 注入 primary model）。Control Plane upsert 时会 strip 可选的 `provider/` 前缀后再存库与 fanout。
 
 **与 YOLO 的 precedence**（`managed_policy_gates.yolo_allowed_for_model` → `batch_processor.evaluate_tool_batch`）：
 
@@ -1151,9 +1153,9 @@ _LOCAL_BROWSER_RELAXATION = (
 )
 ```
 
-本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 同步跳过 SSRF Guard 检查（保留 URL scheme 检查与 URL 规范化）。
+本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 按私网源授权策略判定：会话显式导航（含 `download_url`）到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝；URL scheme 检查与 URL 规范化照常执行。
 
-**web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 同样跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
+**web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
 
 ### 配置合并优先级
 

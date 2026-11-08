@@ -9,7 +9,7 @@
 - fake_chat_provider(): context manager running one provider on an ephemeral loopback port
 
 [POS]
-真实 ChatLiteLLM（LiteLLM + OpenAI SDK）打到的假上游：LLM 探针类测试用它代替对 get_llm 的 patch，
+真实 TransportChatModel（harness 自带的 httpx 传输）打到的假上游：LLM 探针类测试用它代替对 get_llm 的 patch，
 某个 Key 或端点有没有真的被问到，由 `requests` 里的记录证明，而不是由返回值猜。
 """
 

@@ -1,5 +1,9 @@
 """[INPUT]
 - myrm_agent_harness.core.artifacts.constants::ArtifactType (POS: Artifact type mappings — framework-agnostic constants.)
+- myrm_agent_harness.core.artifacts.paths::resolve_workspace_downloads_dir (POS: Single source of truth for the on-disk layout of the artifact vault and of browser downloads under a task workspace root.)
+- myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation —)
+- myrm_agent_harness.core.security.tool_registry::resolve_permission_type (POS: tool safety registry: the permission type a tool call is judged under)
+- myrm_agent_harness.toolkits.browser.session::DownloadConfig (POS: download settings of a browser session: where files go, how much, and the policy for downloads a page starts)
 
 [OUTPUT]
 - _should_mount_ask_question_tool: Return True when structured HITL clarification is safe and product-appropriate.
@@ -9,6 +13,7 @@
 - _video_generation_credential_configured: _video_generation_credential_configured
 - _select_image_constraints: Select optimal ImageConstraints based on model family.
 - _get_artifact_push_fn: Create an artifact push callback for image/video generation tools.
+- _build_download_config: Download support of a chat's browser: its folder under the workspace and the policy for downloads a page starts.
 
 [POS]
 只放无 self 依赖的判断/构造工具，供各工具族 mixin 复用。
@@ -18,17 +23,22 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.security.types import SecurityConfig
+    from myrm_agent_harness.toolkits.browser.session import DownloadConfig
 
     from app.ai_agents.agents import (
         VideoGenerationParams,
     )
 
 logger = logging.getLogger(__name__)
+
+_BROWSER_MANAGE_TOOL = "browser_manage_tool"
 
 
 def _should_mount_ask_question_tool(
@@ -84,6 +94,7 @@ def _video_generation_credential_configured(params: VideoGenerationParams) -> bo
         if isinstance(fb, dict)
     )
 
+
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.
 
@@ -130,3 +141,33 @@ def _get_artifact_push_fn() -> Callable[[str, str, ArtifactType, str], None] | N
         return _push
     except Exception:
         return None
+
+
+def _build_download_config(workspace_root: str, security: SecurityConfig) -> DownloadConfig:
+    """Download support of a chat's browser.
+
+    Files land under the workspace the agent already works in. The sandboxed agent can write that workspace, so the
+    resolved workspace root is the root the storage trusts: nothing below it is followed through a link. Nobody can be
+    asked about a download a page starts, so the permission policy decides beforehand: a page may save a file on its
+    own only where the agent may download without asking (ALLOW); ASK and DENY refuse it, and the agent can still
+    request the file with ``download_url``.
+    """
+    from myrm_agent_harness.agent.security.engine import evaluate_tool_call
+    from myrm_agent_harness.agent.security.types import PermissionAction
+    from myrm_agent_harness.core.artifacts.paths import resolve_workspace_downloads_dir
+    from myrm_agent_harness.core.security.tool_registry import resolve_permission_type
+    from myrm_agent_harness.toolkits.browser.session import DownloadConfig
+
+    def admit(address: str) -> bool:
+        tool_input: dict[str, object] = {"action": "download_url", "value": address}
+        action, _ = evaluate_tool_call(
+            resolve_permission_type(_BROWSER_MANAGE_TOOL, tool_input),
+            tool_input,
+            security,
+            workspace_root=workspace_root,
+            tool_name=_BROWSER_MANAGE_TOOL,
+        )
+        return action == PermissionAction.ALLOW
+
+    root = Path(workspace_root).expanduser().resolve()
+    return DownloadConfig(downloads_dir=resolve_workspace_downloads_dir(root), confined_to=root, admit_page_started=admit)

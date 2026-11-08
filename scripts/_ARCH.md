@@ -21,7 +21,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 
 ## 路由表前端产物（生成器不在本仓）
 
-`myrm-agent-frontend/src/store/config/litellmRouting.generated.ts` 由生成器按 `myrm-agent-harness/src/myrm_agent_harness/agent/config/litellm_routing.py` 的路由表写出并提交；生成器不在本仓，勿手改产物。`myrm-agent-server/tests/architecture/test_litellm_routing_frontend_parity.py` 校验产物与路由表一致。
+`myrm-agent-frontend/src/store/config/providerRouting.generated.ts` 由生成器按 `myrm-agent-harness/src/myrm_agent_harness/agent/config/provider_routing.py` 的路由表写出并提交；生成器不在本仓，勿手改产物。`myrm-agent-server/tests/architecture/test_provider_routing_frontend_parity.py` 校验产物与路由表一致。
 
 ## 中国大陆网络自适应
 

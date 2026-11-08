@@ -4,7 +4,7 @@ Provides a comprehensive evaluation framework with:
 - Core metrics calculation (MRR, MAP, Top-K, P/R/F1, NDCG)
 - Failure analysis (identify and analyze failed queries)
 - Statistical significance testing (bootstrap, confidence intervals)
-- Baseline comparison (Random, TF-IDF)
+- Baseline comparison (random ranking)
 - Category-level analysis
 
 Usage:

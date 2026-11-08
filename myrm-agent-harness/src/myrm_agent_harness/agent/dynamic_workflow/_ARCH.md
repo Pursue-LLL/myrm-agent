@@ -37,7 +37,7 @@ Trust layer (preflight + HITL)
        ↓
 PTC Sandbox Execution
        ↓
-SpawnSubagentTool (tools.py)
+SpawnSubagentTool (tools/spawn.py)
   - spawn_prep.py → parent_agent._spawn_child()
   - Full tool registry inherited from parent
   - cancel_token checked before each spawn
@@ -67,7 +67,7 @@ SSE events (message / message_end / status)
 | `template_validation.py` | Template library | Script validation, `extract_template_placeholders`, `validate_template_args`, AST `script_all_spawns_readonly`, placeholder substitution, trust-latch plan-confirm skip guardrails. |
 | `paths.py` | Template library | `resolve_workflow_events_db_path` — SQLite path SSOT under `{harness_root}/.myrm/workflow_events.db`. |
 | `spawn_cache.py` | Cache SSOT | `SpawnCacheParams` fingerprint for durable replay. |
-| `tools.py` | PTC Tools | `SpawnSubagentTool` (WorkflowRunGuard, cache fingerprint, `verification_mode` support for standard, `auditor_blind`, and `multi_skeptic` verification patterns) / `NotifyProgressTool` / `HumanAskTool` (Mid-Run Human-in-the-Loop Gate via PhaseWaiter / ask_gate) / `SteerChildTool` (`myrm_tools.steer_child` 运行时向子智能体注入引导修正指令). |
+| `tools/` | PTC Tools | PTC 工具族子包：`spawn.py`（SpawnSubagentTool、WorkflowRunGuard、验证模式）、`notify.py`（进度通知）、`human.py`（human_ask）、`steer.py`（steer_child）；门面保持原导入面。详见 [tools/_ARCH.md](tools/_ARCH.md) | ✅ |
 | `llm_query_tool.py` | PTC Tools | `LlmQueryTool` / `LlmQueryBatchedTool` — 轻量 LLM 直调原语（无子 agent）；批量保序、异常隔离、共享预算熔断（token 记账由 adapter 层统一处理），且整批共享一次模型解析；响应提取复用 `utils.chat_utils::extract_answer_text`（兼容 str / Anthropic block list / 内联 think 剥离 / reasoning 模型 content 空时回退 reasoning_content）；接入 `event_queue` 实时派发 `llm_query_batched` 步进百分比阶段事件并具备 `cancel_token` 级联安全熔断。 |
 | `notify_stream.py` | Streaming | `iter_notify_events_while_task_runs` concurrently drains the notify queue while PTC execution runs. Cancellation is polled every 200ms in addition to event arrival: a bare queue wait blocks for as long as the script stays silent, so compute-only or blocked-I/O scripts could not be stopped. |
 | `_ARCH.md` | Doc | This architecture document. |

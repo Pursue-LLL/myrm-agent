@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from myrm_agent_harness.agent.meta_tools.file_search import path_hint
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
     find_existing_unicode_path,
     format_path_not_found_hint,
@@ -20,6 +22,7 @@ from myrm_agent_harness.agent.meta_tools.file_search.skill_path_filter import (
     get_disabled_skill_roots,
     is_under_disabled_skill_root,
 )
+from myrm_agent_harness.core.security.path import is_blocked_device_path
 
 
 def test_suggest_similar_paths_finds_close_name(tmp_path: Path) -> None:
@@ -136,6 +139,37 @@ def test_suggest_similar_paths_levenshtein_ranking(tmp_path: Path) -> None:
     suggestions = suggest_similar_paths(str(tmp_path / "main_contorller.py"))
     assert len(suggestions) > 0
     assert suggestions[0].endswith("main_controller.py")
+
+
+def test_suggest_similar_paths_checks_for_devices_only_on_close_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    directory = tmp_path / "d"
+    directory.mkdir()
+    for index in range(300):
+        (directory / f"file_{index:03d}.log").touch()
+    near = directory / "readme.mx"
+    near.touch()
+    checked: list[str] = []
+
+    def spy(candidate: str) -> bool:
+        checked.append(candidate)
+        return is_blocked_device_path(candidate)
+
+    monkeypatch.setattr(path_hint, "is_blocked_device_path", spy)
+
+    assert suggest_similar_paths(str(directory / "readme.md")) == [str(near)]
+    assert checked == [str(near)]
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="named pipes are not available")
+def test_suggest_similar_paths_never_suggests_a_named_pipe(tmp_path: Path) -> None:
+    os.mkfifo(tmp_path / "report_final.md")
+    (tmp_path / "report_finale.md").touch()
+
+    suggestions = suggest_similar_paths(str(tmp_path / "report_final.mdd"))
+
+    assert [Path(path).name for path in suggestions] == ["report_finale.md"]
 
 
 def test_path_hint_edge_cases(tmp_path: Path) -> None:

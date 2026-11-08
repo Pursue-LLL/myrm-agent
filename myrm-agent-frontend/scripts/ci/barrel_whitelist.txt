@@ -18,4 +18,3 @@ src/lib/utils/locale/index.ts
 src/lib/utils/mcp-config/index.ts
 src/lib/utils/media/index.ts
 src/theme-engine/index.ts
-src/components/chat/group/index.ts

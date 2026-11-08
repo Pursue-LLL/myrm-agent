@@ -39,7 +39,7 @@ from .common import (
 from .common import (
     _extract_active_key,
     _extract_all_active_keys,
-    _to_litellm_model,
+    _to_route_model_id,
 )
 from .common import (
     _is_loopback_api_url as _is_loopback_api_url,
@@ -48,7 +48,7 @@ from .common import (
     _normalize_model_name as _normalize_model_name,
 )
 from .common import (
-    _parse_litellm_model as _parse_litellm_model,
+    _parse_route_model_id as _parse_route_model_id,
 )
 from .common import (
     _supports_provider_no_auth as _supports_provider_no_auth,
@@ -60,7 +60,7 @@ from .enrich import (
     _resolve_model_max_input_tokens as _resolve_model_max_input_tokens,
 )
 from .enrich import (
-    _resolve_supports_vision_from_litellm as _resolve_supports_vision_from_litellm,
+    _resolve_supports_vision_from_catalog as _resolve_supports_vision_from_catalog,
 )
 from .enrich import (
     enrich_model_capabilities,
@@ -88,5 +88,5 @@ __all__ = [
     "_fallback_model_from_providers",
     "_extract_active_key",
     "_extract_all_active_keys",
-    "_to_litellm_model",
+    "_to_route_model_id",
 ]

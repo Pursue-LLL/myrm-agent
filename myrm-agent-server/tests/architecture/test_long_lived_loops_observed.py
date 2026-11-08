@@ -16,8 +16,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _SCAN_ROOTS = (
     _SERVER_ROOT / "app" / "channels",
@@ -52,7 +50,6 @@ def _spawned_coroutine_loops(tree: ast.Module) -> list[ast.Call]:
     return offenders
 
 
-@pytest.mark.architecture
 def test_long_lived_loops_are_spawned_observed() -> None:
     offenders: list[str] = []
     for source in _python_sources():
@@ -66,7 +63,6 @@ def test_long_lived_loops_are_spawned_observed() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_observed_spawn_calls_are_named() -> None:
     unnamed: list[str] = []
     spawns = 0

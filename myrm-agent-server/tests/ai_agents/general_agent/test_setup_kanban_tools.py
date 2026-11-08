@@ -22,7 +22,7 @@ ORCHESTRATOR_TOOL_NAMES = frozenset(
 
 
 def _should_append_worker_lifecycle_guidance(agent_wrapper: object) -> bool:
-    """Mirror general_agent/factory.py worker lifecycle prompt gate."""
+    """Mirror general_agent/factory/ worker lifecycle prompt gate."""
     return (
         resolve_kanban_tool_mode(
             kanban_tool_mode=getattr(agent_wrapper, "kanban_tool_mode", None),

@@ -1,8 +1,6 @@
 """Tests for line-by-line stderr stream filtering and classification pipeline."""
 
 from myrm_agent_harness.toolkits.code_execution.utils.stderr_filter import (
-    ClassifiedStderrLine,
-    StderrFilterResult,
     StderrLineSeverity,
     classify_stderr_line,
     filter_stderr_stream_chunk,

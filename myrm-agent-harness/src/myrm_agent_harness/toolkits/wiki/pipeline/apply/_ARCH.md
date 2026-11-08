@@ -38,6 +38,6 @@ Blocked publish outcomes (security scan) raise `WikiApplyError("publish_blocked"
 
 - `toolkits/wiki/core/section_contract.py` — managed block SSOT
 - `toolkits/wiki/core/canonical_registry.py` — canonical id, alias index, page lease hash
-- `toolkits/wiki/core/claims_contract.py` — claim merge + compile snapshots
+- `toolkits/wiki/core/claims_contract/` — claim merge + compile snapshots
 - `pipeline/publication/gate.py` — deterministic publication routing (stage vs publish)
 - `pipeline/pending.py` — HITL staging (via the gate's lazy import)

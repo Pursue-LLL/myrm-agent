@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
+- myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models::PatternReport (POS: Domain models and result DTO for pattern discovery)
 - app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
 - app.services.agent.platform_config::load_platform_evolution_llm (POS: WebUI 后台自进化专属模型，wire-aware，带 3 级自适应降级）
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
@@ -26,7 +27,7 @@ from myrm_agent_harness.toolkits.memory import MemoryOperationKind, MemoryOperat
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
-    from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import PatternReport
+    from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery_models import PatternReport
 
 logger = logging.getLogger(__name__)
 

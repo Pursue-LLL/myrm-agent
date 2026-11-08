@@ -11,5 +11,4 @@
 | `usePinnedDashboardStore.ts` | 状态库 | 管理固钉小组件列表、抽屉显隐、网络权限策略变更与导出目标状态机 | ✅ |
 | `PinnedDashboardDrawer.tsx` | 抽屉组件 | 会话右侧滑动抽屉、小组件摘要卡片、网络策略选择器、海报导出触发器 | ✅ |
 | `WidgetPosterExportModal.tsx` | 模态框 | 多主题（极简深灰、赛博紫、翡翠绿、日落橙）外框选择、SVG/PNG 快照下载与剪贴板复制 | ✅ |
-| `index.ts` | 门面 | 统一导出类型、状态库与组件 | ✅ |
 | `_ARCH.md` | 文档 | 模块定位与架构清单 | ✅ |

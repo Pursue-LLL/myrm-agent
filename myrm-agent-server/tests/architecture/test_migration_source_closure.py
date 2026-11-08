@@ -22,14 +22,12 @@ def _discover_probe_ids() -> frozenset[str]:
     return frozenset(ids)
 
 
-@pytest.mark.architecture
 def test_migration_probe_ids_match_local_scan_manifest() -> None:
     closed = frozenset(migration_source_local_scan_ids())
     probe_ids = _discover_probe_ids()
     assert probe_ids == closed, f"probe/closed drift: probes={probe_ids} closed={closed}"
 
 
-@pytest.mark.architecture
 def test_migration_loaders_registered_for_all_supported_ids(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -48,7 +46,6 @@ def test_migration_loaders_registered_for_all_supported_ids(
         assert loaded.get("_load_error") is None, f"loader missing for {competitor_id!r}"
 
 
-@pytest.mark.architecture
 def test_migration_loaders_reject_unknown_competitor_id(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -11,10 +11,11 @@
 - agent.streaming.recovery.stream_recovery_truncation::reset_ephemeral_max_output_tokens (POS: ephemeral output token cleanup)
 - agent.streaming.types::AgentEventType (POS: Framework-agnostic streaming event types)
 - agent.types::AgentRunStatistics (POS: Agent core runtime type definitions: completion status, run statistics, quote attachments, workspace bindings, and runtime specs)
+- core.context_vars::source_indexer_var (POS: Foundation ContextVar registry shared by agent/ and toolkits/)
 
 [OUTPUT]
 - StreamContext: execution context dataclass (optional callbacks: drain_subagent_notifications, on_loop_restart, on_goal_hold, file_content_reader for media/vision recovery)
-- StreamExecutor: streaming execution engine
+- StreamExecutor: streaming execution engine; binds the run's source numbering (``SourceTracker.index_for``) for the tools it streams
 
 [POS]
 Stream execution engine. Encapsulates the complete lifecycle of Agent.astream().
@@ -38,6 +39,7 @@ from myrm_agent_harness.agent.middlewares.tooling.tool_interceptor_middleware im
 from myrm_agent_harness.agent.security.guards.loop_guard import DEFAULT_ROUND_BUDGET
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
+from myrm_agent_harness.core.context_vars import source_indexer_var
 from myrm_agent_harness.toolkits.llms.errors.provider_window import ProviderWindowHint
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 from myrm_agent_harness.utils.runtime.cancellation import OperationCancelledError
@@ -188,6 +190,10 @@ class StreamExecutor(StreamDispatcherMixin, PreflightGateMixin, StreamRecoveryMi
         )
 
         try:
+            # Bound here, in the task that streams the graph: every tool body runs in a copy of this context, and
+            # the tracker is mutated in place, so a number a tool prints is the index of the card issued for it.
+            source_indexer_var.set(ctx.source_tracker.index_for)
+
             if ctx.token_tracker is not None:
                 from myrm_agent_harness.utils.token_economics.tracker import (
                     _current_tracker,

@@ -3,7 +3,7 @@
 [INPUT]
 - adapters.tool_call_parsers (POS: Tool call parser module. Unified handling of tool call formats from multiple LLMs.)
 - adapters.safety_termination_detector::detect_safety_termination (POS: Safety termination detection)
-- utils.litellm_utils::parse_tool_call_arguments_with_recovery (POS: LiteLLM utility functions)
+- utils.tool_argument_recovery::parse_tool_call_arguments_with_recovery (POS: tool-argument JSON recovery utilities)
 - utils.token_economics.usage_ledger::DROPPED_STREAM_FINISH_REASON (POS: finish_reason telemetry sentinel for dropped streams)
 - observability.metrics.registry::metrics_registry (POS: Global metrics registry)
 - core.security.redact::redact_sensitive_text (POS: credential redaction for the argument text a diagnostic quotes)
@@ -35,7 +35,7 @@ from myrm_agent_harness.toolkits.llms.adapters.safety_termination_detector impor
     detect_safety_termination,
 )
 from myrm_agent_harness.toolkits.llms.adapters.tool_call_parsers import decode_html_entities_in_args
-from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
     parse_tool_call_arguments_with_recovery,
 )
 from myrm_agent_harness.utils.token_economics.usage_ledger import (

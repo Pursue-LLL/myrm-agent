@@ -4,11 +4,14 @@ import asyncio
 from typing import cast
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
+from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMCallError, LLMResponseError
 
 import app.services.agent.stream_session.turn_capability_terminal as turn_capability_terminal
 from app.services.agent.params.models import AgentRequest, TurnCapabilityTelemetryRequest
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
+from tests.support.provider_failures import provider_failure
 
 
 def _build_request_with_terminal_context() -> AgentRequest:
@@ -39,6 +42,55 @@ def test_classify_turn_capability_failure_reason_maps_core_cases() -> None:
     )
     assert turn_capability_terminal.classify_turn_capability_failure_reason(RuntimeError("HTTP status 503")) == "server_error"
     assert turn_capability_terminal.classify_turn_capability_failure_reason(asyncio.CancelledError()) == "abort"
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        (400, "unknown_error"),
+        (401, "unknown_error"),
+        (403, "unknown_error"),
+        (404, "unknown_error"),
+        (429, "unknown_error"),
+        (408, "network_error"),
+        (500, "server_error"),
+        (502, "server_error"),
+        (503, "server_error"),
+        (504, "network_error"),
+    ],
+)
+def test_a_provider_status_decides_the_label_and_the_class_name_does_not(status: int, expected: str) -> None:
+    """``LLMHTTPError`` holds the word «http», which the wording rules would read as a server fault for every status."""
+    error = provider_failure(status, "the provider said so")
+
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(error) == expected
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        httpx.ConnectError("All connection attempts failed"),
+        httpx.ReadTimeout(""),
+        httpx.RemoteProtocolError("Server disconnected without sending a response."),
+    ],
+    ids=["connect", "read-timeout", "dropped-connection"],
+)
+def test_a_connection_that_broke_is_a_network_error(error: httpx.TransportError) -> None:
+    """The dropped connection's message says «server»; the failure is still the network's."""
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(error) == "network_error"
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (LLMResponseError("openai", "The answer is not a JSON object"), "server_error"),
+        (LLMAnswerError("openai", {"error": {"message": "overloaded", "type": "server_error"}}, stream=True), "server_error"),
+        (LLMAnswerError("openai", {"error": {"message": "mystery"}}), "unknown_error"),
+    ],
+    ids=["unreadable-answer", "failure-inside-a-stream", "unnamed-failure-in-a-whole-answer"],
+)
+def test_a_failure_inside_a_2xx_answer_carries_its_own_status(error: LLMCallError, expected: str) -> None:
+    assert turn_capability_terminal.classify_turn_capability_failure_reason(error) == expected
 
 
 @pytest.mark.asyncio

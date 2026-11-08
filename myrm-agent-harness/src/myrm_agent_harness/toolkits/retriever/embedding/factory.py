@@ -40,7 +40,7 @@ class EmbeddingConfig:
     """Embedding service configuration.
 
     Attributes:
-        model: Model name in LiteLLM format (e.g. "text-embedding-3-small")
+        model: ``provider/model``, a bare OpenAI id (e.g. "text-embedding-3-small"), or any model id with ``api_base``
         api_key: Provider API key (required). For Ollama, use any non-empty placeholder.
         api_base: API base URL for self-hosted endpoints (e.g. http://localhost:11434/v1).
         max_retries: Maximum retry count for transient errors.
@@ -74,7 +74,7 @@ def get_embedding_service(
     config: EmbeddingConfig | None = None,
     cache: EmbeddingCacheProtocol | None = None,
 ) -> EmbeddingService:
-    """Get embedding service instance (CloudEmbedding via LiteLLM).
+    """Get embedding service instance (CloudEmbedding).
 
     Requires ``api_key`` in config. Local embedding uses Ollama or another OpenAI-compatible
     endpoint via ``api_base`` (e.g. http://localhost:11434/v1).

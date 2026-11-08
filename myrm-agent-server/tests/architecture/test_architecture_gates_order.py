@@ -19,8 +19,6 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.architecture
-
 _CI_DIR = Path(__file__).resolve().parents[2] / "scripts" / "ci"
 _BASES_LOG = "bases.log"
 

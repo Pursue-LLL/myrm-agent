@@ -5,8 +5,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 _SCRIPT = Path(__file__).resolve().parent.parent.parent / "scripts" / "sync_arch_file_tables.py"
 _spec = importlib.util.spec_from_file_location("sync_arch_file_tables", _SCRIPT)
 assert _spec and _spec.loader
@@ -15,7 +13,6 @@ _spec.loader.exec_module(_mod)
 _needs_refresh = _mod._needs_refresh
 
 
-@pytest.mark.architecture
 def test_sync_skips_mixed_stub_and_completed_iop() -> None:
     content = """# app/lifecycle 模块架构
 
@@ -31,7 +28,6 @@ def test_sync_skips_mixed_stub_and_completed_iop() -> None:
     assert _needs_refresh(content, force=False) is False
 
 
-@pytest.mark.architecture
 def test_sync_refreshes_fully_stub_table() -> None:
     content = """# tasks/
 

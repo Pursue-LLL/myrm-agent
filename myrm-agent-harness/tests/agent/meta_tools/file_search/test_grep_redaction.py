@@ -11,7 +11,10 @@ from langchain_core.runnables import RunnableConfig
 from myrm_agent_harness.agent.meta_tools.file_search._redaction import Match, redact_matches
 from myrm_agent_harness.agent.meta_tools.file_search.grep_tool import create_grep_tool
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
+from tests.support.fake_secrets import openai_style_key
 
+_SHORT_KEY = openai_style_key("abc123def456ghi789jkl")
+_LONG_KEY = openai_style_key("abc123def456ghi789jkl012")
 _PRIVATE_KEY = (
     "-----BEGIN PRIVATE KEY-----\n"
     "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7\n"
@@ -48,8 +51,8 @@ class TestRedactMatches:
         assert out[1]["content"] == "total_api_tokens=***"
 
     def test_a_literal_secret_in_source_is_still_masked(self) -> None:
-        out = redact_matches([_match("a.py", 1, 'API_KEY = "sk-abc123def456ghi789jkl"')])
-        assert "sk-abc123def456ghi789jkl" not in str(out[0]["content"])
+        out = redact_matches([_match("a.py", 1, f'API_KEY = "{_SHORT_KEY}"')])
+        assert _SHORT_KEY not in str(out[0]["content"])
 
     def test_other_fields_of_a_match_survive(self) -> None:
         (out,) = redact_matches([_match("a.py", 7, "x = 1", kind="context")])
@@ -120,17 +123,16 @@ class TestGrepToolOutput:
 
     async def test_a_secret_searched_for_is_not_echoed(self, tmp_path: Path, executor: AsyncMock) -> None:
         (tmp_path / "a.txt").write_text("nothing here\n")
-        secret = "sk-abc123def456ghi789jkl012"
-        out = await self._grep(executor, pattern=secret, literal=True)
-        assert secret not in out
+        out = await self._grep(executor, pattern=_LONG_KEY, literal=True)
+        assert _LONG_KEY not in out
         assert "No matches found" in out
 
     @pytest.mark.usefixtures("engine")
     async def test_context_lines_are_redacted_like_matches(self, tmp_path: Path, executor: AsyncMock) -> None:
-        (tmp_path / "a.py").write_text('# marker\nAPI_KEY = "sk-abc123def456ghi789jkl012"\n')
+        (tmp_path / "a.py").write_text(f'# marker\nAPI_KEY = "{_LONG_KEY}"\n')
         out = await self._grep(executor, pattern="marker", context_lines=1)
         assert "API_KEY" in out
-        assert "sk-abc123def456ghi789jkl012" not in out
+        assert _LONG_KEY not in out
 
     @pytest.mark.usefixtures("engine")
     async def test_a_search_of_one_file_redacts_by_the_type_of_that_file(

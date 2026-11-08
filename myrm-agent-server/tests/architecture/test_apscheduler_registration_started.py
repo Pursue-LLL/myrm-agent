@@ -15,8 +15,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _SCHEDULER_SOURCES = (
     *sorted((_SERVER_ROOT / "app" / "lifecycle" / "schedulers").glob("*.py")),
@@ -60,7 +58,6 @@ def _spawn_calls() -> list[tuple[Path, ast.Call]]:
     return calls
 
 
-@pytest.mark.architecture
 def test_every_async_scheduler_block_starts_the_scheduler() -> None:
     blocks = _scheduler_blocks()
 
@@ -69,7 +66,6 @@ def test_every_async_scheduler_block_starts_the_scheduler() -> None:
     assert not dead, "these AsyncScheduler blocks never start the scheduler, so their jobs would never run: " + ", ".join(dead)
 
 
-@pytest.mark.architecture
 def test_every_scheduler_task_is_spawned_with_failure_observation() -> None:
     """A scheduler task started with a bare create_task has its crash silently swallowed."""
     spawns = _spawn_calls()

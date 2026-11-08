@@ -2,12 +2,14 @@
 
 The memory tools and the MCP server catch every write failure so one bad call never
 aborts the agent turn. This module turns the failure into the text the model reads:
-an explicit, actionable rejection for the two refusals it can act on (write-scan
-rejection, user-protected memory) and a generic message for everything else.
+an explicit, actionable rejection for the three refusals it can act on (write-scan
+rejection, user-protected memory, a write the memory refused with its own reason) and
+a generic message for everything else.
 
 [INPUT]
 - memory._internal.memory_scanner::MemoryTaintedError (POS: write-scan rejection; ``harmful_state`` selects the message.)
 - memory._internal.storage::MemoryProtectedError (POS: refusal to rewrite a user-protected memory.)
+- memory._internal.storage::MemoryRejectedError (POS: refusal whose message is addressed to the caller and shown as written.)
 - agent_surface.rule_write_boundary::rule_write_protection_message (POS: protected-write rejection text.)
 
 [OUTPUT]
@@ -22,7 +24,7 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.toolkits.memory._internal.memory_scanner import MemoryTaintedError
-from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError
+from myrm_agent_harness.toolkits.memory._internal.storage import MemoryProtectedError, MemoryRejectedError
 from myrm_agent_harness.toolkits.memory.agent_surface.rule_write_boundary import rule_write_protection_message
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,9 @@ def write_failure_feedback(tool: str, error: Exception, *, fallback: str, memory
     if isinstance(error, MemoryProtectedError):
         logger.info("%s refused a protected memory: %s", tool, error)
         return rule_write_protection_message(memory_id)
+    if isinstance(error, MemoryRejectedError):
+        logger.info("%s rejected: %s", tool, error)
+        return str(error)
     logger.warning("%s failed: %s", tool, error)
     return fallback
 

@@ -7,13 +7,13 @@
  */
 
 export interface ModelOption {
-  value: string; // Real model name (not LiteLLM format)
+  value: string; // Real model name (not the routed id)
   label: string;
   description?: string;
 }
 
 export interface ProviderConfig {
-  id: string; // LiteLLM provider prefix
+  id: string; // Route prefix
   name: string; // Display name
   models: ModelOption[];
   requiresApiBase?: boolean; // Whether custom API Base is required
@@ -323,14 +323,14 @@ export const QUICK_SETUP_PROVIDERS: ProviderConfig[] = EMBEDDING_PROVIDERS.filte
 // ==================== Helper Functions ====================
 
 /**
- * Convert provider + model to LiteLLM format.
+ * Convert provider + model to the routed model id.
  *
  * @example
- * toLiteLLMFormat('openai', 'text-embedding-3-small') → 'text-embedding-3-small'
- * toLiteLLMFormat('jina_ai', 'jina-embeddings-v3') → 'jina_ai/jina-embeddings-v3'
- * toLiteLLMFormat('siliconflow', 'BAAI/bge-large-zh-v1.5') → 'openai/BAAI/bge-large-zh-v1.5'
+ * toRoutedModelId('openai', 'text-embedding-3-small') → 'text-embedding-3-small'
+ * toRoutedModelId('jina_ai', 'jina-embeddings-v3') → 'jina_ai/jina-embeddings-v3'
+ * toRoutedModelId('siliconflow', 'BAAI/bge-large-zh-v1.5') → 'openai/BAAI/bge-large-zh-v1.5'
  */
-export function toLiteLLMFormat(providerId: string, modelName: string): string {
+export function toRoutedModelId(providerId: string, modelName: string): string {
   if (providerId === 'openai') {
     return modelName;
   }

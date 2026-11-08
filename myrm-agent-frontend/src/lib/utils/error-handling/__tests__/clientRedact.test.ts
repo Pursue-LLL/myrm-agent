@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { redactSensitiveClientText, containsSensitiveData } from '../clientRedact';
+import { jwtShaped } from '@/test-utils/fakeSecrets';
 
 describe('clientRedact', () => {
   it('redacts OpenAI/Anthropic style API keys', () => {
@@ -35,8 +36,12 @@ MIIEowIBAAKCAQEA0Y1+
   });
 
   it('redacts JWT bearer authorization header', () => {
-    const raw =
-      'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.doNotLeakThisSignaturePart';
+    const jwt = jwtShaped(
+      'hbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+      'zdWIiOiIxMjM0NTY3ODkwIn0',
+      'doNotLeakThisSignaturePart',
+    );
+    const raw = `Authorization: Bearer ${jwt}`;
     const redacted = redactSensitiveClientText(raw);
     expect(redacted).not.toContain('doNotLeakThisSignaturePart');
     expect(redacted).toContain('[REDACTED_TOKEN]');

@@ -1,14 +1,20 @@
-"""Tests for SourceTracker — session-level source deduplication and indexing.
+"""Tests for SourceTracker — per-run source deduplication and indexing.
 
 Covers:
-- URL-based deduplication
+- URL-based deduplication (spellings of one page are one source; anything that tells pages apart stays apart)
 - Content-hash-based deduplication (non-URL sources)
-- Global index assignment
+- Index assignment
 - Incremental return (add_batch returns only new items)
-- extract_and_add from metadata
+- Entries that are not dicts are skipped
+
+Numbering a source before its card exists (``index_for``) is covered in test_source_tracker_numbering.py.
 """
 
 from __future__ import annotations
+
+from typing import cast
+
+import pytest
 
 from myrm_agent_harness.agent.streaming.source_tracker import SourceTracker
 
@@ -32,7 +38,6 @@ class TestSourceTrackerDedup:
             ]
         )
         assert len(batch2) == 0
-        assert len(tracker.all_sources) == 2
 
     def test_content_hash_dedup_for_non_url_sources(self) -> None:
         tracker = SourceTracker()
@@ -87,8 +92,53 @@ class TestSourceTrackerDedup:
         assert len(batch2) == 0
 
 
+class TestSourceTrackerSamePage:
+    """A page spelled two ways is one source; anything that tells pages apart stays apart."""
+
+    @pytest.mark.parametrize(
+        ("first", "second"),
+        [
+            ("https://example.com/docs/", "https://example.com/docs"),
+            ("https://www.example.com/a", "https://example.com/a"),
+            ("https://Example.com/a", "https://example.com/a"),
+            ("https://en.wikipedia.org/wiki/Foo_(bar)", "https://en.wikipedia.org/wiki/Foo_%28bar%29"),
+            ("https://www.bilibili.com/video/BV1xx411c7mD/", "https://www.bilibili.com/video/BV1xx411c7mD"),
+            ("https://example.com/a#s1", "https://Example.com/a#s1"),
+            ("https://example.com", "https://example.com/"),
+            ("https://example.com?q=1", "https://example.com/?q=1"),
+            ("https://example.com#s1", "https://example.com/#s1"),
+        ],
+    )
+    def test_spellings_of_one_page_dedup_across_batches(self, first: str, second: str) -> None:
+        tracker = SourceTracker()
+        assert len(tracker.add_batch([{"url": first}])) == 1
+        assert tracker.add_batch([{"url": second}]) == []
+
+    @pytest.mark.parametrize(
+        ("first", "second"),
+        [
+            ("https://example.com/a#s1", "https://example.com/a#s2"),
+            ("https://example.com/a", "https://example.com/a#s1"),
+            ("http://example.com/a", "https://example.com/a"),
+            ("https://example.com/a", "https://example.com/b"),
+            ("https://example.com/a?x=1", "https://example.com/a?x=2"),
+            ("https://example.com#s1", "https://example.com/#s2"),
+        ],
+    )
+    def test_pages_that_differ_stay_separate(self, first: str, second: str) -> None:
+        tracker = SourceTracker()
+        tracker.add_batch([{"url": first}])
+        assert len(tracker.add_batch([{"url": second}])) == 1
+
+    def test_a_url_that_is_not_text_falls_back_to_the_content_hash(self) -> None:
+        tracker = SourceTracker()
+        source: dict[str, object] = {"url": 5, "title": "T"}
+        assert len(tracker.add_batch([source])) == 1
+        assert tracker.add_batch([source]) == []
+
+
 class TestSourceTrackerIndex:
-    """Global index assignment."""
+    """Index assignment."""
 
     def test_sequential_index(self) -> None:
         tracker = SourceTracker()
@@ -137,12 +187,6 @@ class TestSourceTrackerIncremental:
         assert len(batch2) == 1
         assert batch2[0]["url"] == "https://c.com"
 
-    def test_all_sources_accumulates(self) -> None:
-        tracker = SourceTracker()
-        tracker.add_batch([{"url": "https://a.com"}])
-        tracker.add_batch([{"url": "https://b.com"}])
-        assert len(tracker.all_sources) == 2
-
     def test_url_dedup_after_citation_normalization(self) -> None:
         """Two provider redirects resolving to the same final URL should dedup."""
         tracker = SourceTracker()
@@ -167,50 +211,23 @@ class TestSourceTrackerIncremental:
             ]
         )
         assert len(batch2) == 0
-        assert len(tracker.all_sources) == 1
 
 
-class TestSourceTrackerExtract:
-    """extract_and_add from metadata dict."""
+class TestSourceTrackerBatchInput:
+    """What add_batch accepts."""
 
-    def test_extract_from_metadata(self) -> None:
+    def test_empty_batch_adds_nothing(self) -> None:
         tracker = SourceTracker()
-        metadata = {"sources": [{"url": "https://x.com", "title": "X"}]}
-        new_items = tracker.extract_and_add(metadata)
-        assert len(new_items) == 1
-        assert new_items[0]["index"] == 1
-
-    def test_extract_empty_sources(self) -> None:
-        tracker = SourceTracker()
-        assert tracker.extract_and_add({"sources": []}) == []
-        assert tracker.extract_and_add({}) == []
-        assert tracker.extract_and_add({"sources": None}) == []
+        assert tracker.add_batch([]) == []
 
     def test_non_dict_items_skipped(self) -> None:
         tracker = SourceTracker()
-        batch = tracker.add_batch(["not_a_dict", 42, None, {"url": "https://a.com"}])
-        assert len(batch) == 1
-
-
-class TestSourceTrackerAllSourcesCopy:
-    """all_sources returns a copy, not a reference."""
-
-    def test_copy_isolation(self) -> None:
-        tracker = SourceTracker()
-        tracker.add_batch([{"url": "https://a.com"}])
-        sources = tracker.all_sources
-        sources.clear()
-        assert len(tracker.all_sources) == 1
+        entries = cast("list[dict[str, object]]", ["not_a_dict", 42, None, {"url": "https://a.com"}])
+        assert len(tracker.add_batch(entries)) == 1
 
 
 class TestSourceTrackerEdgeCases:
     """Edge cases and robustness."""
-
-    def test_empty_batch(self) -> None:
-        tracker = SourceTracker()
-        result = tracker.add_batch([])
-        assert result == []
-        assert tracker.all_sources == []
 
     def test_url_with_fragment_not_deduped(self) -> None:
         """URLs with different fragments are treated as different."""
@@ -239,7 +256,7 @@ class TestSourceTrackerEdgeCases:
     def test_large_batch_performance(self) -> None:
         """Verify no performance degradation with larger batches."""
         tracker = SourceTracker()
-        sources = [{"url": f"https://example{i}.com"} for i in range(100)]
+        sources: list[dict[str, object]] = [{"url": f"https://example{i}.com"} for i in range(100)]
         batch = tracker.add_batch(sources)
         assert len(batch) == 100
         assert batch[-1]["index"] == 100

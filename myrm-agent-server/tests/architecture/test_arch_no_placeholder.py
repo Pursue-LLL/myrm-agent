@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pytest
-
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 _BANNED_PHRASES = (
@@ -37,7 +35,6 @@ def _arch_files_under_roots() -> list[Path]:
     return sorted(files)
 
 
-@pytest.mark.architecture
 def test_arch_md_has_no_lazy_placeholders() -> None:
     violations: list[str] = []
     for arch_path in _arch_files_under_roots():

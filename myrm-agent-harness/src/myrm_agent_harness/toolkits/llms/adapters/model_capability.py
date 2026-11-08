@@ -298,7 +298,7 @@ class ModelCapabilityDetector:
 
         Grok emits ``&&`` as ``&amp;&amp;`` inside argument strings, so they must be decoded after
         parsing; every other model's arguments are byte-exact data and must never be decoded. The
-        model id alone is the evidence — the LiteLLM ``xai/`` route or a standalone ``grok`` token,
+        model id alone is the evidence — the ``xai/`` route or a standalone ``grok`` token,
         including a Grok served through a gateway or named by a gateway alias — so no provider or
         host is consulted.
 

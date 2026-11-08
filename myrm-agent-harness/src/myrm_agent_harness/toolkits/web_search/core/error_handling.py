@@ -82,7 +82,7 @@ def is_retryable_search_error(exc: BaseException) -> bool:
     text = str(exc).lower()
 
     # Non-retryable: quota/plan limit or invalid credentials — must check before
-    # status codes because LiteLLM wraps provider errors as APIConnectionError(status=500).
+    # status codes because a gateway may wrap a provider's quota error in a generic 5xx.
     if is_quota_or_rate_limit_error(exc):
         return False
     if "exceeds" in text and ("usage limit" in text or "plan" in text):
@@ -103,7 +103,7 @@ def is_retryable_search_error(exc: BaseException) -> bool:
         return True
     if "timeout" in text or "timed out" in text:
         return True
-    # Match real connection errors but not LiteLLM's APIConnectionError wrapper
+    # Match real connection errors but not a generic APIConnectionError wrapper
     if "connection refused" in text or "broken pipe" in text:
         return True
     return bool("connectionerror" in text and "apiconnectionerror" not in text)

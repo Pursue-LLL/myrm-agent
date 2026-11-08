@@ -39,10 +39,10 @@ def wrap_with_privacy_routing(
     routing_config: "PrivacyRoutingConfig",
 ) -> "PrivacyRoutingModel":
     """Wrap a cloud LLM with PrivacyRoutingModel using the given config."""
-    from myrm_agent_harness.toolkits.llms import create_litellm_model
+    from myrm_agent_harness.toolkits.llms import create_chat_model
     from myrm_agent_harness.toolkits.llms.routing import PrivacyRoutingModel
 
-    local_llm = create_litellm_model(
+    local_llm = create_chat_model(
         model=routing_config.local_model,
         base_url=routing_config.local_base_url,
         api_key=routing_config.local_api_key or "",

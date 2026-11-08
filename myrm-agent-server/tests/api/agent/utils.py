@@ -13,7 +13,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
+from myrm_agent_harness.agent.config.provider_routing import normalize_env_model_selection_string
 
 from app.core.types import ModelConfig
 from tests.support.test_secrets import load_test_secrets, resolve_test_env
@@ -91,6 +91,13 @@ async def hide_sse_heartbeats_async(response: httpx.Response) -> None:
         response.aiter_lines = lambda: adrop_sse_heartbeats(aiter_lines())  # type: ignore[method-assign]
 
 
+# 模型传输层把供应商拒绝写成 "<provider> API error <status>: ..."；这些状态码属于账号、额度或服务端环境问题。
+_TRANSPORT_ENV_SIGNALS = tuple(f"API error {status}" for status in (401, 403, 429, 500, 502, 503, 529))
+
+# 开发者环境里模型名写错的表现：供应商拒绝所配置的模型或参数（400），或模型 id 无法路由到任何供应商。
+# 只用于顶层 error 事件；内嵌在工具失败里的 400 可能是工具自己的请求，不能据此 skip。
+_MISCONFIGURED_MODEL_SIGNALS = ("API error 400", "Cannot resolve a provider for model")
+
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
 _ENV_SKIP_KEYWORDS = (
     "Authentication",
@@ -101,8 +108,6 @@ _ENV_SKIP_KEYWORDS = (
     "InternalServerError",
     "timeout",
     "Timeout",
-    "LLM Provider NOT provided",
-    "litellm.BadRequestError",
     "ServiceUnavailableError",
     "quota exceeded",
     "free_request_quota",
@@ -118,7 +123,8 @@ _ENV_SKIP_KEYWORDS = (
     "Invalid API Key",
     "APIConnectionError",
     "msgpack serializable",
-    "MinimaxException",
+    *_TRANSPORT_ENV_SIGNALS,
+    *_MISCONFIGURED_MODEL_SIGNALS,
 )
 
 # 强环境失败信号：内嵌在工具失败 / 流恢复消息中（非顶层 error 事件），
@@ -139,6 +145,7 @@ _ENV_SKIP_BLOB_KEYWORDS = (
     "ratelimiterror",
     "serviceunavailableerror",
     "no active tab",
+    *(signal.lower() for signal in _TRANSPORT_ENV_SIGNALS),
 )
 
 
@@ -171,14 +178,14 @@ def _require_env(name: str) -> str:
 
 
 def _strip_provider_prefix(model: str) -> str:
-    """Strip the LiteLLM provider prefix from a model string."""
+    """Strip the provider prefix from a model string."""
     if "/" in model:
         return model.split("/", 1)[1]
     return model
 
 
 def _infer_provider_id(model: str, fallback: str = "default") -> str:
-    """Infer the provider id from a LiteLLM model string when possible."""
+    """Infer the provider id from a ``provider/model`` string when possible."""
     if "/" in model:
         provider_id = model.split("/", 1)[0].strip()
         if provider_id:
@@ -188,8 +195,8 @@ def _infer_provider_id(model: str, fallback: str = "default") -> str:
     return fallback
 
 
-def _convert_litellm_model(model: str) -> str:
-    """Normalize env/model picker strings to LiteLLM model ids (harness single source)."""
+def _normalize_model_id(model: str) -> str:
+    """Normalize env/model picker strings to ``provider/model`` ids (harness single source)."""
     return normalize_env_model_selection_string(model)
 
 
@@ -198,7 +205,7 @@ def get_model_selection() -> dict[str, object]:
     raw_model = _require_env("BASIC_MODEL")
     provider_id = _infer_provider_id(raw_model)
 
-    api_model = _convert_litellm_model(raw_model)
+    api_model = _normalize_model_id(raw_model)
 
     selection: dict[str, object] = {
         "providerId": provider_id,
@@ -225,7 +232,7 @@ def get_lite_model_selection() -> dict[str, object]:
     raw_model = _require_env("LITE_MODEL")
     return {
         "providerId": _infer_provider_id(raw_model),
-        "model": _convert_litellm_model(raw_model),
+        "model": _normalize_model_id(raw_model),
         "baseUrl": resolve_test_env("LITE_BASE_URL"),
     }
 
@@ -233,7 +240,7 @@ def get_lite_model_selection() -> dict[str, object]:
 def get_base_model_config() -> dict[str, object]:
     """获取基础模型配置（旧格式，兼容）"""
     raw_model = _require_env("BASIC_MODEL")
-    api_model = _convert_litellm_model(raw_model)
+    api_model = _normalize_model_id(raw_model)
     config: dict[str, object] = {
         "model": api_model,
         "api_key": resolve_test_env("BASIC_API_KEY"),

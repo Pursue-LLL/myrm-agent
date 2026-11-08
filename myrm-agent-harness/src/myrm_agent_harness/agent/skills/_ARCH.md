@@ -21,7 +21,6 @@ Detailed design: [SKILL_SYSTEM.md](SKILL_SYSTEM.md)
 | packaging/ | Skill packaging (ZIP export/import) and validation. |
 | runtime/ | Runtime — skill execution runtime. |
 | security/ | Export-time content sanitization for skill privacy protection. |
-| autonomous_visualization/ | Autonomous Zero-Prompt Visualization & Dynamic Web Dashboard Engine (Item 49 P1). |
 
 ## Key Dependencies
 

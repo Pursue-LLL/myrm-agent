@@ -5,9 +5,9 @@
 - .pipeline.compiler::WikiCompiler (POS: Wiki compilation core engine)
 - .retrieval.query::WikiQueryEngine (POS: Wiki query and enhancement engine)
 - .core.structure::WikiStructure (POS: Wiki file system abstraction layer)
-- toolkits.web_fetch::web_fetch_tools (POS: Global FetchEngine singleton — YouTube/Bilibili subtitle extraction, multi-tier fallback)
-- toolkits.web_fetch.processing.markdown_generator::MarkdownGenerator (POS: HTML to Markdown converter, fallback path)
-- core.security.http.secure_fetch::secure_get (POS: SSRF-protected outbound HTTP, fallback path)
+- .source_loader::fetch_url_markdown, read_local_file, looks_like_local_path (POS: Readable text of a URL or local file for ingestion)
+- .ingest_chunking::split_if_large (POS: Cuts a large document into compile-sized raw/ sources)
+- .wiki_tool_descriptions::resolve_wiki_ingest_description, resolve_wiki_query_description, resolve_wiki_apply_description (POS: Localized tool descriptions)
 
 [OUTPUT]
 - create_wiki_tools: creates 3 LangChain agent tools (ingest, query, apply)
@@ -17,7 +17,8 @@
 LangChain tool integration layer for Wiki toolkit. Wraps WikiCompiler and
 WikiQueryEngine into agent-facing StructuredTools for Agent use. Provides end-to-end
 automation: ingest triggers compilation, query archives high-value results for knowledge
-compounding, and URL fetching uses FetchEngine (YouTube/Bilibili subtitle extraction, multi-tier fallback).
+compounding, and ingestion sources are loaded by source_loader (FetchEngine for URLs, file parsers for files); a
+source that has no readable text is refused, never written to raw/.
 Query metadata forwards layered citations, asset hit metadata, and read-time evidence snapshot_status for Chat/Settings UI.
 """
 
@@ -27,13 +28,13 @@ import hashlib
 from pathlib import Path
 from typing import Annotated
 
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 
-from myrm_agent_harness.utils.locale import is_chinese
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .core.frontmatter_contract import WikiProvenance
 from .core.structure import WikiStructure
+from .ingest_chunking import split_if_large
 from .pipeline.apply import (
     WikiApplyError,
     WikiApplyOp,
@@ -48,93 +49,14 @@ from .retrieval.source_citations import (
     build_wiki_query_sources,
     format_evidence_cards_context,
 )
+from .source_loader import SourceLoadError, fetch_url_markdown, looks_like_local_path, read_local_file
+from .wiki_tool_descriptions import (
+    resolve_wiki_apply_description,
+    resolve_wiki_ingest_description,
+    resolve_wiki_query_description,
+)
 
 logger = get_agent_logger(__name__)
-
-_BINARY_DOC_EXTENSIONS = frozenset({".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"})
-_LARGE_DOC_CHUNK_THRESHOLD = 80_000
-
-# ---------------------------------------------------------------------------
-# Wiki Tools Multilingual Descriptions (EN / ZH)
-# ---------------------------------------------------------------------------
-
-WIKI_INGEST_DESCRIPTION_EN = """Ingest documents into the Wiki knowledge base (supports Web URLs, local files like PDF/Word/Excel/Markdown, or raw text).
-
-Use this when users want to add reference materials or documents to their knowledge base.
-If folder_path is provided, the document is categorized under that subdirectory.
-Supported inputs:
-- Web URLs: fetched and converted to markdown
-- Local file paths: text/markdown or parsed binary documents (PDF, DOCX, XLSX, PPTX)
-- Raw text: saved as a markdown document
-Automatically parsed and queued for knowledge compilation.
-"""
-
-WIKI_INGEST_DESCRIPTION_ZH = """将文档录入 Wiki 知识库（支持网页 URL、本地 PDF/Word/Excel/Markdown 等文件或纯文本内容）。
-
-适用场景：用户希望向个人/团队知识库添加参考资料或文档。
-若提供 folder_path，文档将归类至该逻辑子目录下。
-支持输入类型：
-- 网页 URL：抓取并转换为 Markdown
-- 本地文件路径：文本/Markdown 或自动解析的二进制文档（PDF、DOCX、XLSX、PPTX）
-- 纯文本内容：直接保存为 Markdown 文档
-自动解析并加入知识库编译索引队列。
-"""
-
-WIKI_QUERY_DESCRIPTION_EN = """Query the Wiki knowledge base.
-
-Searches relevant wiki articles and returns grounded context with source citations.
-Search here first when answering questions about project concepts, domain knowledge, team notes, or compiled research.
-When the tool refuses (insufficient evidence), tell the user honestly that the
-knowledge base has no verified basis for the question and suggest ingesting source
-documents - never guess or invent an answer.
-"""
-
-WIKI_QUERY_DESCRIPTION_ZH = """检索 Wiki 知识库。
-
-搜索相关 Wiki 概念词条与文档，返回带有来源引用的可信上下文。
-在回答有关项目概念、领域知识、团队笔记或沉淀研究的问题时优先在此搜索。
-当工具返回拒答（证据不足）时，必须如实告知用户知识库中无可靠依据，
-并建议补充录入相关源文档——严禁猜测或编造答案。
-"""
-
-WIKI_APPLY_DESCRIPTION_EN = """Apply a narrow, structured mutation to a wiki concept page.
-
-Protects managed sections (Compiled Truth, Timeline, claims frontmatter).
-Writes are staged as pending drafts for human review and publish only after
-approval; report the note as awaiting review, not published.
-Do not use whole-page rewrites; pick the smallest op that fits:
-- create_note: Create a new structured note (requires concept_name and body; optional tags/aliases/sources)
-- patch_compiled_truth: Update the core facts section (requires concept_name and compiled_truth)
-- append_timeline: Append a milestone bullet (requires concept_name and timeline_entry)
-- update_metadata: Update frontmatter tags, aliases, or source citations (requires concept_name and tags/aliases/sources)
-"""
-
-WIKI_APPLY_DESCRIPTION_ZH = """对 Wiki 概念页面应用结构化更新。
-
-保护受管区域（核心事实 Compiled Truth、时间线 Timeline、元数据 frontmatter）。
-通过本工具写入的内容会进入待审箱等待人工审核，批准后才发布；请告知用户
-笔记处于待审状态，而非已发布。
-请勿全量重写整个页面，按需选择最轻量的操作：
-- create_note: 创建新结构化笔记（需 concept_name 与 body；可选 tags/aliases/sources）
-- patch_compiled_truth: 局部修正核心事实段落（需 concept_name 与 compiled_truth）
-- append_timeline: 追加里程碑时间线条目（需 concept_name 与 timeline_entry）
-- update_metadata: 更新标签、别名或引用来源（需 concept_name 与 tags/aliases/sources）
-"""
-
-
-def resolve_wiki_ingest_description(locale: str | None = None) -> str:
-    """Resolve localized description for wiki_ingest_tool."""
-    return WIKI_INGEST_DESCRIPTION_ZH if is_chinese(locale) else WIKI_INGEST_DESCRIPTION_EN
-
-
-def resolve_wiki_query_description(locale: str | None = None) -> str:
-    """Resolve localized description for wiki_query_tool."""
-    return WIKI_QUERY_DESCRIPTION_ZH if is_chinese(locale) else WIKI_QUERY_DESCRIPTION_EN
-
-
-def resolve_wiki_apply_description(locale: str | None = None) -> str:
-    """Resolve localized description for wiki_apply_tool."""
-    return WIKI_APPLY_DESCRIPTION_ZH if is_chinese(locale) else WIKI_APPLY_DESCRIPTION_EN
 
 
 def create_wiki_tools(
@@ -144,7 +66,7 @@ def create_wiki_tools(
     *,
     wiki_scope_id: str | None = None,
     locale: str | None = None,
-) -> list:
+) -> list[BaseTool]:
     """Create agent-facing wiki tools (ingest + query + apply).
 
     Compile/maintain are Settings/REST operations and are not exposed to the LLM.
@@ -165,7 +87,7 @@ def create_wiki_agent_tools(
     *,
     wiki_scope_id: str | None = None,
     locale: str | None = None,
-) -> list:
+) -> list[BaseTool]:
     """Create LangChain tools exposed to the agent at Turn1."""
 
     @tool("wiki_ingest_tool", description=resolve_wiki_ingest_description(locale))
@@ -184,7 +106,7 @@ def create_wiki_agent_tools(
 
         try:
             if source.startswith("http://") or source.startswith("https://"):
-                content = await _fetch_url_as_markdown(source)
+                content = await fetch_url_markdown(source)
                 resolved_filename = filename or f"web_{hashlib.sha256(source.encode()).hexdigest()[:12]}.md"
                 resolved_filename = Path(resolved_filename).name
                 if folder_path:
@@ -198,7 +120,7 @@ def create_wiki_agent_tools(
                     publish_url_markdown_ingress,
                 )
 
-                chunks = _split_if_large(content, full_path)
+                chunks = split_if_large(content, full_path)
                 ingested_count = 0
                 display_path = full_path
 
@@ -237,21 +159,15 @@ def create_wiki_agent_tools(
                 logger.info(f"Ingested {ingested_count} chunk(s) for: {display_path}")
                 suffix = f" ({ingested_count} chunks)" if ingested_count > 1 else ""
                 return f"Successfully ingested document: {display_path}{suffix}. Compilation queued."
-            elif len(source) < 260 and "\n" not in source and Path(source).exists():
+            elif looks_like_local_path(source):
                 src_path = Path(source)
-                from myrm_agent_harness.toolkits.file_parsers import is_supported
-
-                if is_supported(str(src_path)):
-                    content = await _parse_binary_document(str(src_path))
-                else:
-                    try:
-                        content = src_path.read_text(encoding="utf-8")
-                    except UnicodeDecodeError:
-                        content = src_path.read_text(encoding="utf-8", errors="replace")
+                content = await read_local_file(src_path)
                 filename = filename or src_path.name
                 if not filename.endswith(".md"):
                     filename = Path(filename).stem + ".md"
             else:
+                if not source.strip():
+                    raise SourceLoadError("The source is empty")
                 content = source
                 filename = filename or f"text_{hashlib.sha256(source.encode()).hexdigest()[:12]}.md"
 
@@ -263,7 +179,7 @@ def create_wiki_agent_tools(
             else:
                 full_path = filename
 
-            chunks = _split_if_large(content, full_path)
+            chunks = split_if_large(content, full_path)
             ingested_count = 0
 
             from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
@@ -311,6 +227,9 @@ def create_wiki_agent_tools(
             suffix = f" ({ingested_count} chunks)" if ingested_count > 1 else ""
             return f"Successfully ingested document: {full_path}{suffix}. Compilation queued."
 
+        except SourceLoadError as exc:
+            logger.warning(f"Nothing to ingest from {source[:100]}: {exc}")
+            return f"Failed to ingest document: {exc}"
         except Exception as e:
             logger.error(f"Failed to ingest {source}: {e}")
             return "Failed to ingest document"
@@ -321,7 +240,7 @@ def create_wiki_agent_tools(
             str,
             "Question to ask the wiki knowledge base (e.g. concept definitions, architecture patterns, team facts)",
         ],
-    ) -> dict | str:
+    ) -> dict[str, object] | str:
         logger.info(f"Querying wiki: {question[:100]}")
 
         try:
@@ -469,74 +388,3 @@ async def _archive_query_result(
 
     compiler.enqueue_file(result.absolute_path)
     logger.info(f"Archived query result for knowledge compounding: {filename}")
-
-
-async def _parse_binary_document(file_path: str) -> str:
-    """Parse binary document (PDF/DOCX/XLSX/PPTX) into Markdown text via file_parsers."""
-    from myrm_agent_harness.toolkits.file_parsers import get_parser, is_supported
-
-    if not is_supported(file_path):
-        raise ValueError(f"Unsupported file type: {Path(file_path).suffix}")
-
-    parser = get_parser(file_path)
-    text = await parser.parse(file_path)
-    if not text or not text.strip():
-        raise ValueError(f"Parser returned empty content for: {file_path}")
-    return text
-
-
-def _split_if_large(content: str, base_path: str) -> list[tuple[str, str]]:
-    """Split large content into chunks for better wiki compilation.
-
-    Returns list of (relative_path, content) tuples. For small documents,
-    returns a single entry with the original path.
-    """
-    if len(content) <= _LARGE_DOC_CHUNK_THRESHOLD:
-        return [(base_path, content)]
-
-    from myrm_agent_harness.toolkits.retriever.splitter import TextChunker
-
-    chunker = TextChunker(min_chunk_tokens=200)
-    docs = chunker.chunk_text(content, document_metadata={"title": Path(base_path).stem})
-
-    if len(docs) <= 1:
-        return [(base_path, content)]
-
-    stem = Path(base_path).stem
-    parent = str(Path(base_path).parent) if Path(base_path).parent != Path(".") else ""
-    results: list[tuple[str, str]] = []
-
-    for i, doc in enumerate(docs, 1):
-        chunk_name = f"{stem}_chunk{i:03d}.md"
-        chunk_path = f"{parent}/{chunk_name}" if parent else chunk_name
-        results.append((chunk_path, doc.page_content))
-
-    logger.info(f"Split large document into {len(results)} chunks: {stem}")
-    return results
-
-
-async def _fetch_url_as_markdown(url: str) -> str:
-    """Fetch URL via FetchEngine (YouTube/Bilibili subtitle extraction, multi-tier fallback)."""
-    try:
-        from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
-
-        doc = await web_fetch_tools.crawl(url)
-        if doc and doc.page_content:
-            return doc.page_content
-        logger.debug("FetchEngine returned empty for %s, falling back to secure_get", url)
-    except Exception:
-        logger.debug("FetchEngine failed for %s, falling back to secure_get", url)
-
-    from myrm_agent_harness.core.security.http.secure_fetch import secure_get
-    from myrm_agent_harness.toolkits.web_fetch.processing.markdown_generator import (
-        MarkdownGenerator,
-    )
-
-    headers = {"User-Agent": "Myrm-Agent-Wiki/1.0 (knowledge-ingestion)"}
-    response = await secure_get(url, timeout=30.0, headers=headers)
-    if response.status_code != 200:
-        raise ValueError(f"Failed to fetch {url}: HTTP {response.status_code}")
-
-    generator = MarkdownGenerator()
-    result = generator.generate_markdown(response.text, base_url=url)
-    return result.raw_markdown or f"# {url}\n\n(empty page)"

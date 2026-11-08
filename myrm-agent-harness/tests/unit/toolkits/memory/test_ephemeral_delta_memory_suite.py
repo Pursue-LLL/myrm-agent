@@ -10,7 +10,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from myrm_agent_harness.toolkits.memory.ephemeral_delta import (
     DeltaActionKind,
     EphemeralDeltaItem,
-    EphemeralDeltaReconciler,
     EphemeralDeltaStore,
     HumanTailDeltaInjector,
 )
@@ -168,56 +167,5 @@ def test_mark_reconciled_does_not_suppress_active_deltas_for_injection() -> None
     assert len(store.get_active_deltas(session_id)) == 1
     store.mark_reconciled(session_id)
     assert len(store.get_active_deltas(session_id)) == 1
-    snapshot = store.get_snapshot(session_id)
-    assert snapshot.is_reconciled
-
-
-@pytest.mark.asyncio
-async def test_ephemeral_delta_reconciler_batch_persistence() -> None:
-    """Test asynchronous reconciliation loop flushing to durable persistence."""
-    store = EphemeralDeltaStore()
-    reconciler = EphemeralDeltaReconciler()
-    session_id = "sess-reconcile-99"
-
-    d1 = EphemeralDeltaItem(
-        delta_id="d-1",
-        target_key="city",
-        content="San Francisco",
-        action=DeltaActionKind.OVERRIDE,
-    )
-    d2 = EphemeralDeltaItem(
-        delta_id="d-2",
-        target_key="city",
-        content="Tokyo",
-        action=DeltaActionKind.OVERRIDE,
-    )
-    d3 = EphemeralDeltaItem(
-        delta_id="d-3",
-        target_key="role",
-        content="Software Architect",
-        action=DeltaActionKind.ADD_FACT,
-    )
-    store.record_delta(session_id, d1)
-    store.record_delta(session_id, d2)
-    store.record_delta(session_id, d3)
-
-    persisted_items: list[EphemeralDeltaItem] = []
-
-    async def mock_persist(items: list[EphemeralDeltaItem]) -> None:
-        persisted_items.extend(items)
-
-    report = await reconciler.reconcile_session(
-        session_id, store, persist_callback=mock_persist
-    )
-
-    assert report.session_id == session_id
-    assert report.reconciled_count == 2
-    assert report.overridden_count == 1
-    assert set(report.persisted_keys) == {"city", "role"}
-
-    assert len(persisted_items) == 2
-    tokyo_item = next(it for it in persisted_items if it.target_key == "city")
-    assert tokyo_item.content == "Tokyo"
-
     snapshot = store.get_snapshot(session_id)
     assert snapshot.is_reconciled

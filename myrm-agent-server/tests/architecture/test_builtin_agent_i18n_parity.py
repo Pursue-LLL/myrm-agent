@@ -5,8 +5,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _MYRM_AGENT_ROOT = _SERVER_ROOT.parent
 _FRONTEND_I18N_DATA = _MYRM_AGENT_ROOT / "myrm-agent-frontend" / "src" / "components" / "agent" / "builtin-agent-i18n-data.ts"
@@ -20,7 +18,6 @@ def _parse_frontend_builtin_i18n_keys() -> set[str]:
     return set(_I18N_KEY_PATTERN.findall(text))
 
 
-@pytest.mark.architecture
 def test_builtin_agent_i18n_keys_match_server_specs() -> None:
     from app.services.agent.builtin_agent_specs import _BUILTIN_AGENTS
 

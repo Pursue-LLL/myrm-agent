@@ -164,6 +164,35 @@ class TestSiteNameAndAuthorityPassthrough:
         assert "authority_description" not in sources[1]
 
 
+class TestSearchProviderPassthrough:
+    """The provider that served a result travels in the document metadata and survives the merge."""
+
+    def test_provider_is_carried_in_the_metadata(self) -> None:
+        results = [SearchResult(title="T", link="https://a.com", snippet="S", provider="tavily")]
+
+        docs = search_results_to_documents(results)
+
+        assert docs[0].metadata["search_provider"] == "tavily"
+
+    def test_a_result_without_a_provider_carries_no_key(self) -> None:
+        results = [SearchResult(title="T", link="https://a.com", snippet="S")]
+
+        docs = search_results_to_documents(results)
+
+        assert "search_provider" not in docs[0].metadata
+
+    def test_provider_survives_the_merge(self) -> None:
+        from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
+            combine_search_results_unified,
+        )
+
+        results = [SearchResult(title="T", link="https://a.com", snippet="S", provider="tavily")]
+
+        _, unified = combine_search_results_unified([("q1", search_results_to_documents(results), None)])
+
+        assert unified[0].metadata["search_provider"] == "tavily"
+
+
 class TestCombineSearchResultsMetadataPreservation:
     """Verify combine_search_results_unified preserves all metadata fields."""
 

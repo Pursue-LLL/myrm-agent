@@ -22,7 +22,6 @@ class TestRuntimeConfig:
         assert cfg.cwd is None
         assert cfg.timeout_seconds == 300
         assert cfg.permission_mode == "allow_all"
-        assert cfg.allowed_tools == []
         assert cfg.max_response_chars == 50_000
 
     def test_custom_values(self) -> None:
@@ -34,7 +33,6 @@ class TestRuntimeConfig:
             cwd="/workspace",
             timeout_seconds=120,
             permission_mode="safe",
-            allowed_tools=["Read", "Bash(npm run *)"],
         )
         assert cfg.command == "codex"
         assert cfg.backend_type == "cli"

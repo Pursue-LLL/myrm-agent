@@ -3,6 +3,7 @@
 [INPUT]
 myrm_agent_harness.utils.markdown_frontmatter::parse_frontmatter (POS: YAML FM parse SSOT)
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract::infer_type_for_import, serialize_frontmatter (POS: wiki page type gate SSOT)
+myrm_agent_harness.toolkits.wiki.portability::extract_canvas_text_nodes (POS: .canvas text extraction)
 
 [OUTPUT]
 - prepare_obsidian_file: Transforms Obsidian syntax without writing raw/.
@@ -19,7 +20,6 @@ bypass the raw publication gate.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import re
 import shutil
@@ -30,6 +30,7 @@ from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     infer_type_for_import,
     serialize_frontmatter,
 )
+from myrm_agent_harness.toolkits.wiki.portability import extract_canvas_text_nodes
 from myrm_agent_harness.utils.markdown_frontmatter import (
     parse_frontmatter,
 )
@@ -223,41 +224,21 @@ def _prepare_canvas_file(
     source_file: Path,
     vault_root: Path,
 ) -> ObsidianRawPrepared | None:
-    """Extract text content from a JSON Canvas (.canvas) file into a Markdown document.
+    """Render the text of a JSON Canvas (.canvas) file as a Markdown document.
 
-    Follows JSON Canvas 1.0 spec: nodes[].type=="text" → text content.
-    Also extracts node labels for "file" and "link" types.
+    Text nodes keep their text, file and link nodes become a "File" / "Link" line (the label, else the
+    path or URL) and group nodes become a heading. A canvas that cannot be read or holds no text is skipped.
     """
-    try:
-        raw = source_file.read_text(encoding="utf-8")
-        canvas_data = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
-        return None
-
-    nodes = canvas_data.get("nodes", [])
-    if not nodes:
-        return None
-
     sections: list[str] = []
-    for node in nodes:
-        node_type = node.get("type", "")
-        text = node.get("text", "").strip()
-        label = node.get("label", "").strip()
-
-        if node_type == "text" and text:
-            sections.append(text)
-        elif node_type == "file":
-            file_ref = node.get("file", "")
-            entry = label or file_ref
-            if entry:
-                sections.append(f"- File: {entry}")
-        elif node_type == "link":
-            url = node.get("url", "")
-            entry = label or url
-            if entry:
-                sections.append(f"- Link: {entry}")
-        elif node_type == "group" and label:
-            sections.append(f"## {label}")
+    for node in extract_canvas_text_nodes(source_file):
+        if node.node_type == "text":
+            sections.append(node.content)
+        elif node.node_type == "file":
+            sections.append(f"- File: {node.label or node.content}")
+        elif node.node_type == "link":
+            sections.append(f"- Link: {node.label or node.content}")
+        else:
+            sections.append(f"## {node.content}")
 
     if not sections:
         return None

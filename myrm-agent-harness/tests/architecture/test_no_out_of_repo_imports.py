@@ -40,7 +40,6 @@ _IMPORT_ALIASES = frozenset(
         "dotenv",  # python-dotenv
         "opentelemetry",  # opentelemetry-api / -sdk / -semantic-conventions
         "pil",  # pillow
-        "sklearn",  # scikit-learn
         "yaml",  # PyYAML
     }
 )

@@ -4,7 +4,7 @@ External consumers import here instead of reaching into ``agent.security``.
 
 [INPUT]
 - agent.security.managed_approval_policy::ManagedApprovalPolicy / get_process_managed_approval_policy (POS: 进程级托管审批策略)
-- agent.middlewares.security.outbound_privacy_guard::set_process_privacy_policy / sanitize_outbound_text (POS: Wire-level half of the privacy layer: the guardrail middleware covers the agent loop, this guard covers every other ChatLiteLLM call.)
+- agent.middlewares.security.outbound_privacy_guard::set_process_privacy_policy / sanitize_outbound_text (POS: Wire-level half of the privacy layer: the guardrail middleware covers the agent loop, this guard covers every other TransportChatModel call.)
 - agent.middlewares.security.privacy_preview::PrivacyPreview / preview_privacy_policy (POS: Dry run of the privacy layer for a settings page: what the model would see for a text, with nothing recorded.)
 - agent.resilience.task_airbag::arm_task_airbag (POS: 挂机安全气囊武装与快照捕捉)
 - agent.security.guards::set_untrusted_ingress / untrusted_ingress_scope / is_untrusted_ingress_active (POS: 不可信入口围栏开关：整轮置位、按作用域置位并还原、读取当前状态)

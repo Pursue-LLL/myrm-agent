@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import tomllib
 from collections.abc import Iterable
@@ -9,6 +10,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import Version
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _REPO_ROOT / "pyproject.toml"
@@ -83,6 +86,17 @@ def _lock_core_dependency_names() -> set[str]:
     return {_normalize_pkg_name(str(dep["name"])) for dep in deps if isinstance(dep, dict)}
 
 
+def _lock_versions() -> dict[str, str]:
+    """Package name -> the version uv.lock resolves for it."""
+    versions: dict[str, str] = {}
+    for pkg in _lock_packages():
+        name = pkg.get("name")
+        version = pkg.get("version")
+        assert isinstance(name, str) and isinstance(version, str), f"malformed uv.lock entry: {pkg!r}"
+        versions[_normalize_pkg_name(name)] = version
+    return versions
+
+
 def _non_pypi_lock_entries(packages: Iterable[dict[str, object]]) -> list[str]:
     """Describe every package whose index or download host in the lock is not PyPI itself."""
     findings: list[str] = []
@@ -127,10 +141,56 @@ def test_optional_only_packages_live_in_expected_extras_or_dev() -> None:
 
 @pytest.mark.architecture
 def test_core_dependency_count_is_stable() -> None:
-    """Lock core footprint: 26 runtime packages in [project].dependencies."""
+    """Lock core footprint: 25 runtime packages in [project].dependencies."""
     data = _load_pyproject()
     core = _core_dependency_names(data)
-    assert len(core) == 26
+    assert len(core) == 25
+
+
+def _imports_litellm(source: str) -> bool:
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import) and any(alias.name.split(".")[0] == "litellm" for alias in node.names):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and (node.module or "").split(".")[0] == "litellm":
+            return True
+    return False
+
+
+@pytest.mark.architecture
+def test_litellm_is_not_declared_locked_or_imported() -> None:
+    """The model transport is in-house: the multi-provider client library must not return in any form."""
+    data = _load_pyproject()
+    project = data["project"]
+    assert isinstance(project, dict)
+    optional = project.get("optional-dependencies", {})
+    assert isinstance(optional, dict)
+    declared = _core_dependency_names(data) | _dev_group_names(data, "dev")
+    for extra in optional:
+        declared |= _optional_extra_names(data, str(extra))
+    assert "litellm" not in declared, "litellm must not be declared in any dependency table"
+
+    assert "litellm" not in {_normalize_pkg_name(str(pkg["name"])) for pkg in _lock_packages()}, (
+        "litellm must not be resolved into uv.lock"
+    )
+
+    importers = [
+        path.relative_to(_REPO_ROOT).as_posix()
+        for root in ("src", "tests", "scripts", "benchmarks")
+        for path in sorted((_REPO_ROOT / root).rglob("*.py"))
+        if _imports_litellm(path.read_text(encoding="utf-8"))
+    ]
+    assert not importers, f"modules importing litellm: {importers}"
+
+
+@pytest.mark.architecture
+def test_litellm_import_detector_sees_every_import_form() -> None:
+    """Positive and negative control for the check behind ``test_litellm_is_not_declared_locked_or_imported``."""
+    assert _imports_litellm("import litellm")
+    assert _imports_litellm("import litellm.types.utils as types")
+    assert _imports_litellm("from litellm import acompletion")
+    assert _imports_litellm("from litellm.types.utils import Usage")
+    assert not _imports_litellm("from . import litellm_like")
+    assert not _imports_litellm("import not_litellm\nname = 'litellm'")
 
 
 @pytest.mark.architecture
@@ -150,13 +210,39 @@ def test_all_extra_includes_acp() -> None:
 
 @pytest.mark.architecture
 def test_uv_lock_core_matches_pyproject() -> None:
-    """uv.lock editable core deps must mirror pyproject.toml (``uv sync --locked`` SSOT).
+    """uv.lock editable core deps must mirror pyproject.toml in both names and versions (``uv sync --locked`` SSOT).
 
-    A mismatch means uv.lock is stale: run ``UV_DEFAULT_INDEX=https://pypi.org/simple uv lock`` and commit the result.
+    A name-only comparison lets raised floors slip through: pyproject can demand ``langchain>=2`` while the lock still
+    pins ``1.9``, and every ``uv sync --locked`` job fails at install time instead of here. A mismatch means uv.lock is
+    stale: run ``UV_DEFAULT_INDEX=https://pypi.org/simple uv lock`` and commit the result.
     """
     data = _load_pyproject()
-    diff = _core_dependency_names(data).symmetric_difference(_lock_core_dependency_names())
+    project = data["project"]
+    assert isinstance(project, dict)
+    declared = project.get("dependencies", [])
+    assert isinstance(declared, list)
+
+    names = {_normalize_pkg_name(str(spec)) for spec in declared}
+    diff = names.symmetric_difference(_lock_core_dependency_names())
     assert not diff, f"uv.lock core dependencies drift from pyproject.toml (run `{_RELOCK_COMMAND}`): {sorted(diff)}"
+
+    versions = _lock_versions()
+    violations: list[str] = []
+    for spec in declared:
+        try:
+            requirement = Requirement(str(spec))
+        except InvalidRequirement:  # pragma: no cover - uv would reject this before the gate runs
+            violations.append(f"{spec!r}: unparsable requirement")
+            continue
+        pinned = versions.get(_normalize_pkg_name(requirement.name))
+        if pinned is None:
+            violations.append(f"{requirement.name}: absent from uv.lock")
+        elif not requirement.specifier.contains(Version(pinned), prereleases=True):
+            violations.append(f"{requirement.name}: pyproject requires {requirement.specifier}, uv.lock pins {pinned}")
+    assert not violations, (
+        f"pyproject.toml and uv.lock disagree on {len(violations)} core package version(s) "
+        f"(run `{_RELOCK_COMMAND}`): {violations}"
+    )
 
 
 @pytest.mark.architecture

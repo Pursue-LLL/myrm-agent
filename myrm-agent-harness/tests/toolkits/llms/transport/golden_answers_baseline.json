@@ -1,0 +1,3322 @@
+{
+ "_meta": {
+  "cross_check": "The same corpus served to litellm 1.106.0 (the harness lock) reads the same in 36 of 36 streams and 121 of 121 answers and differs in 4 of 132 error replies: three Ollama replies (400, 404, 500) that 1.97.0 reports as a connection failure and one Moonshot policy refusal that 1.97.0 reads as a malformed request.",
+  "method": "Each case was served by a loopback HTTP server to the previous adapter; the AIMessage it returned was reduced to the fields below.",
+  "recorded": "2026-11-06",
+  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
+ },
+ "cases": {
+  "anthropic.cache_usage": {
+   "body": {
+    "content": [
+     {
+      "text": "x",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "cache_creation_input_tokens": 10,
+     "cache_read_input_tokens": 20,
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 35,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 37
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.empty_content": {
+   "body": {
+    "content": [],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_empty_list": {
+   "body": [],
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_empty_obj": {
+   "body": {},
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_foo_bar": {
+   "body": {
+    "foo": "bar"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_html": {
+   "body": "<html><body>Gateway says hi</body></html>",
+   "kind": "html",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_null": {
+   "body": null,
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_status_ok": {
+   "body": {
+    "status": "ok"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_string": {
+   "body": "ok",
+   "kind": "json",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.foreign_text": {
+   "body": "OK",
+   "kind": "text",
+   "old": "raised",
+   "wire": "anthropic"
+  },
+  "anthropic.multi_text": {
+   "body": {
+    "content": [
+     {
+      "text": "a",
+      "type": "text"
+     },
+     {
+      "text": "b",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "ab",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.redacted_thinking": {
+   "body": {
+    "content": [
+     {
+      "data": "abc",
+      "type": "redacted_thinking"
+     },
+     {
+      "text": "42",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_cache": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1, \"cache_creation_input_tokens\": 10, \"cache_read_input_tokens\": 20}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"x\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\"}, \"usage\": {\"output_tokens\": 2}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_citations": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"hi\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"citations_delta\", \"citation\": {\"type\": \"web_search_result_location\", \"url\": \"https://e.com\", \"title\": \"t\", \"cited_text\": \"c\"}}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\"}, \"usage\": {\"output_tokens\": 2}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_max_tokens": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"cut\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"max_tokens\"}, \"usage\": {\"output_tokens\": 2}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_ping": {
+   "body": "event: ping\ndata: {\"type\": \"ping\"}\n\nevent: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: ping\ndata: {\"type\": \"ping\"}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"hi\"}}\n\nevent: ping\ndata: {\"type\": \"ping\"}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\"}, \"usage\": {\"output_tokens\": 2}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_text": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"hel\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"lo\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\", \"stop_sequence\": null}, \"usage\": {\"output_tokens\": 2}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_thinking": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"thinking\", \"thinking\": \"\", \"signature\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"thinking_delta\", \"thinking\": \"let me\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"signature_delta\", \"signature\": \"sig123\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 1, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 1, \"delta\": {\"type\": \"text_delta\", \"text\": \"42\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 1}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\", \"stop_sequence\": null}, \"usage\": {\"output_tokens\": 6}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": "let me",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.s_tools2": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"tool_use\", \"id\": \"toolu_1\", \"name\": \"get_weather\", \"input\": {}}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"input_json_delta\", \"partial_json\": \"{\\\"city\\\": \"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"input_json_delta\", \"partial_json\": \"\\\"Paris\\\"}\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 1, \"content_block\": {\"type\": \"tool_use\", \"id\": \"toolu_2\", \"name\": \"get_weather\", \"input\": {}}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 1, \"delta\": {\"type\": \"input_json_delta\", \"partial_json\": \"{\\\"city\\\": \\\"Rome\\\"}\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 1}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"tool_use\", \"stop_sequence\": null}, \"usage\": {\"output_tokens\": 9}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.server_tool": {
+   "body": {
+    "content": [
+     {
+      "id": "srv_1",
+      "input": {
+       "query": "q"
+      },
+      "name": "web_search",
+      "type": "server_tool_use"
+     },
+     {
+      "content": [],
+      "tool_use_id": "srv_1",
+      "type": "web_search_tool_result"
+     },
+     {
+      "text": "answer",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "answer",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "web_search",
+      "{\"query\": \"q\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.stop_max_tokens": {
+   "body": {
+    "content": [
+     {
+      "text": "x",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "max_tokens",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "length",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.stop_pause_turn": {
+   "body": {
+    "content": [
+     {
+      "text": "x",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "pause_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.stop_refusal": {
+   "body": {
+    "content": [
+     {
+      "text": "x",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "refusal",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.stop_stop_sequence": {
+   "body": {
+    "content": [
+     {
+      "text": "x",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "stop_sequence",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.text": {
+   "body": {
+    "content": [
+     {
+      "text": "hello",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.thinking": {
+   "body": {
+    "content": [
+     {
+      "signature": "sig123",
+      "thinking": "let me think",
+      "type": "thinking"
+     },
+     {
+      "text": "42",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "end_turn",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": "let me think",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.tool_no_input": {
+   "body": {
+    "content": [
+     {
+      "id": "toolu_1",
+      "input": {},
+      "name": "f",
+      "type": "tool_use"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "tool_use",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "f",
+      "{}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.tools2": {
+   "body": {
+    "content": [
+     {
+      "text": "Checking.",
+      "type": "text"
+     },
+     {
+      "id": "toolu_1",
+      "input": {
+       "city": "Paris"
+      },
+      "name": "get_weather",
+      "type": "tool_use"
+     },
+     {
+      "id": "toolu_2",
+      "input": {
+       "city": "Rome"
+      },
+      "name": "get_weather",
+      "type": "tool_use"
+     }
+    ],
+    "id": "msg_1",
+    "model": "m",
+    "role": "assistant",
+    "stop_reason": "tool_use",
+    "stop_sequence": null,
+    "type": "message",
+    "usage": {
+     "input_tokens": 5,
+     "output_tokens": 2
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "Checking.",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "anthropic"
+  },
+  "gemini.blocked_prompt": {
+   "body": {
+    "promptFeedback": {
+     "blockReason": "SAFETY"
+    },
+    "usageMetadata": {
+     "promptTokenCount": 5,
+     "totalTokenCount": 5
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 0,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 5
+   },
+   "wire": "gemini"
+  },
+  "gemini.code_execution": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "executableCode": {
+          "code": "print(1)",
+          "language": "PYTHON"
+         }
+        },
+        {
+         "codeExecutionResult": {
+          "outcome": "OUTCOME_OK",
+          "output": "1"
+         }
+        },
+        {
+         "text": "done"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "done",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.empty_parts": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_BLOCKLIST": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "BLOCKLIST",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_MALFORMED_FUNCTION_CALL": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "MALFORMED_FUNCTION_CALL",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_MAX_TOKENS": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "MAX_TOKENS",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "length",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_OTHER": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "OTHER",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_PROHIBITED_CONTENT": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "PROHIBITED_CONTENT",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_RECITATION": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "RECITATION",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.finish_SAFETY": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "SAFETY",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.foreign_empty_list": {
+   "body": [],
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_empty_obj": {
+   "body": {},
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_foo_bar": {
+   "body": {
+    "foo": "bar"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_html": {
+   "body": "<html><body>Gateway says hi</body></html>",
+   "kind": "html",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_null": {
+   "body": null,
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_status_ok": {
+   "body": {
+    "status": "ok"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_string": {
+   "body": "ok",
+   "kind": "json",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.foreign_text": {
+   "body": "OK",
+   "kind": "text",
+   "old": "raised",
+   "wire": "gemini"
+  },
+  "gemini.inline_image": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "inlineData": {
+          "data": "AAAA",
+          "mimeType": "image/png"
+         }
+        },
+        {
+         "text": "here"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "here",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.no_finish": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_max_tokens": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"cut\"}]}, \"index\": 0, \"finishReason\": \"MAX_TOKENS\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_safety": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"x\"}]}, \"index\": 0}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\ndata: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": []}, \"index\": 0, \"finishReason\": \"SAFETY\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_text": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"hel\"}]}, \"index\": 0}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 1, \"totalTokenCount\": 6}, \"modelVersion\": \"m\"}\n\ndata: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"lo\"}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_thought": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"thinking\", \"thought\": true}]}, \"index\": 0}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\ndata: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"42\"}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": "thinking",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_thought_signature": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"get_weather\", \"args\": {\"city\": \"Paris\"}}, \"thoughtSignature\": \"SIG==\"}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": true,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_tools2": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"get_weather\", \"args\": {\"city\": \"Paris\"}}}]}, \"index\": 0}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\ndata: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"name\": \"get_weather\", \"args\": {\"city\": \"Rome\"}}}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}, \"modelVersion\": \"m\"}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.s_usage_last_only": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"hel\"}]}, \"index\": 0}]}\n\ndata: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"lo\"}]}, \"finishReason\": \"STOP\", \"index\": 0}], \"usageMetadata\": {\"promptTokenCount\": 5, \"candidatesTokenCount\": 2, \"totalTokenCount\": 7}}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "gemini"
+  },
+  "gemini.text": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "hello"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.thought": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "thinking",
+         "thought": true
+        },
+        {
+         "text": "42"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": "thinking",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.tools2": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "functionCall": {
+          "args": {
+           "city": "Paris"
+          },
+          "name": "get_weather"
+         }
+        },
+        {
+         "functionCall": {
+          "args": {
+           "city": "Rome"
+          },
+          "name": "get_weather"
+         }
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.tools_thought_signature": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "functionCall": {
+          "args": {
+           "city": "Paris"
+          },
+          "name": "get_weather"
+         },
+         "thoughtSignature": "SIG=="
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "candidatesTokenCount": 2,
+     "promptTokenCount": 5,
+     "totalTokenCount": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "gemini"
+  },
+  "gemini.usage_details": {
+   "body": {
+    "candidates": [
+     {
+      "content": {
+       "parts": [
+        {
+         "text": "x"
+        }
+       ],
+       "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+     }
+    ],
+    "modelVersion": "m",
+    "usageMetadata": {
+     "cachedContentTokenCount": 64,
+     "candidatesTokenCount": 30,
+     "promptTokenCount": 100,
+     "thoughtsTokenCount": 20,
+     "totalTokenCount": 150
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 100,
+    "invalid_tool_calls": 0,
+    "out": 50,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 150
+   },
+   "wire": "gemini"
+  },
+  "ollama.foreign_empty_list": {
+   "body": [],
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_empty_obj": {
+   "body": {},
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_foo_bar": {
+   "body": {
+    "foo": "bar"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_html": {
+   "body": "<html><body>Gateway says hi</body></html>",
+   "kind": "html",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_null": {
+   "body": null,
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_status_ok": {
+   "body": {
+    "status": "ok"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_string": {
+   "body": "ok",
+   "kind": "json",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.foreign_text": {
+   "body": "OK",
+   "kind": "text",
+   "old": "raised",
+   "wire": "ollama"
+  },
+  "ollama.length": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "done_reason": "length",
+    "eval_count": 2,
+    "message": {
+     "content": "cut",
+     "role": "assistant"
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": "length",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "ollama.no_done_reason": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "eval_count": 2,
+    "message": {
+     "content": "hi",
+     "role": "assistant"
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "ollama.s_length": {
+   "body": "{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"cut\"}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\"}, \"done\": true, \"done_reason\": \"length\", \"prompt_eval_count\": 5, \"eval_count\": 2}\n",
+   "kind": "ndjson",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "ollama"
+  },
+  "ollama.s_text": {
+   "body": "{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"lo\"}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\"}, \"done\": true, \"done_reason\": \"stop\", \"prompt_eval_count\": 5, \"eval_count\": 2}\n",
+   "kind": "ndjson",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "ollama"
+  },
+  "ollama.s_thinking": {
+   "body": "{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\", \"thinking\": \"hm\"}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"42\"}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\"}, \"done\": true, \"done_reason\": \"stop\", \"prompt_eval_count\": 5, \"eval_count\": 4}\n",
+   "kind": "ndjson",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": "hm",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "ollama"
+  },
+  "ollama.s_tools2": {
+   "body": "{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"function\": {\"name\": \"get_weather\", \"arguments\": {\"city\": \"Paris\"}}}, {\"function\": {\"name\": \"get_weather\", \"arguments\": {\"city\": \"Rome\"}}}]}, \"done\": false}\n{\"model\": \"m\", \"message\": {\"role\": \"assistant\", \"content\": \"\"}, \"done\": true, \"done_reason\": \"stop\", \"prompt_eval_count\": 5, \"eval_count\": 9}\n",
+   "kind": "ndjson",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "ollama"
+  },
+  "ollama.text": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "done_reason": "stop",
+    "eval_count": 2,
+    "message": {
+     "content": "hello",
+     "role": "assistant"
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "ollama.thinking": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "done_reason": "stop",
+    "eval_count": 2,
+    "message": {
+     "content": "42",
+     "role": "assistant",
+     "thinking": "hmm"
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": "hmm",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "ollama.tools2": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "done_reason": "stop",
+    "eval_count": 2,
+    "message": {
+     "content": "",
+     "role": "assistant",
+     "tool_calls": [
+      {
+       "function": {
+        "arguments": {
+         "city": "Paris"
+        },
+        "name": "get_weather"
+       }
+      },
+      {
+       "function": {
+        "arguments": {
+         "city": "Rome"
+        },
+        "name": "get_weather"
+       }
+      }
+     ]
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "ollama.tools_str_args": {
+   "body": {
+    "created_at": "2024-01-01T00:00:00Z",
+    "done": true,
+    "done_reason": "stop",
+    "eval_count": 2,
+    "message": {
+     "content": "",
+     "role": "assistant",
+     "tool_calls": [
+      {
+       "function": {
+        "arguments": "{\"city\": \"Paris\"}",
+        "name": "get_weather"
+       }
+      }
+     ]
+    },
+    "model": "m",
+    "prompt_eval_count": 5
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "ollama"
+  },
+  "openai.content_filter": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "content_filter",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "content_filter",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.empty_stop": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.finish_null": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": null,
+      "index": 0,
+      "message": {
+       "content": "hi",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.foreign_empty_list": {
+   "body": [],
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_empty_obj": {
+   "body": {},
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_foo_bar": {
+   "body": {
+    "foo": "bar"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_html": {
+   "body": "<html><body>Gateway says hi</body></html>",
+   "kind": "html",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_null": {
+   "body": null,
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_status_ok": {
+   "body": {
+    "status": "ok"
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_string": {
+   "body": "ok",
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.foreign_text": {
+   "body": "OK",
+   "kind": "text",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.legacy_function_call": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "function_call",
+      "index": 0,
+      "message": {
+       "content": null,
+       "function_call": {
+        "arguments": "{}",
+        "name": "f"
+       },
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "function_call",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.length": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "length",
+      "index": 0,
+      "message": {
+       "content": "cut",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": "length",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.list_content": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": [
+        {
+         "text": "part",
+         "type": "text"
+        }
+       ],
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": "raised",
+   "wire": "openai"
+  },
+  "openai.no_usage": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "hi",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": null
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": "stop",
+    "in": 0,
+    "invalid_tool_calls": 0,
+    "out": 0,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 0
+   },
+   "wire": "openai"
+  },
+  "openai.reasoning": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "42",
+       "reasoning_content": "think hard",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": "think hard",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.reasoning_openrouter": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "42",
+       "reasoning": "think hard",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": "think hard",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.refusal": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": null,
+       "refusal": "I cannot help with that",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.s_crlf": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"finish_reason\": null}]}\r\n\r\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"lo\"}, \"finish_reason\": null}]}\r\n\r\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\r\n\r\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\r\n\r\ndata: [DONE]\r\n\r\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_empty_deltas": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"hi\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_keepalive": {
+   "body": ": ping\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"finish_reason\": null}]}\n\n: ping\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"lo\"}, \"finish_reason\": null}]}\n\n: ping\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\n: ping\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\n: ping\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_length": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"cut\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"length\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "cut",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_no_done": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"lo\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_nospace": {
+   "body": "data:{\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"finish_reason\": null}]}\n\ndata:{\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"lo\"}, \"finish_reason\": null}]}\n\ndata:{\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata:{\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_reasoning": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"reasoning_content\": \"th\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"reasoning_content\": \"ink\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"42\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": "think",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_reasoning_openrouter": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"reasoning\": \"th\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"reasoning\": \"ink\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"42\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "42",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": "think",
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_text": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hel\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"lo\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_tool_id_each_chunk": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"tool_calls\": [{\"index\": 0, \"id\": \"call_1\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\": \"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"id\": \"call_1\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"\\\"Paris\\\"}\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"tool_calls\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_tool_noindex": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"tool_calls\": [{\"id\": \"call_1\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\": \\\"Paris\\\"}\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"tool_calls\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_tools2": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": null, \"tool_calls\": [{\"index\": 0, \"id\": \"call_1\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"{\\\"city\\\": \"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"\\\"Paris\\\"}\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 1, \"id\": \"call_2\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\": \\\"Rome\\\"}\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"tool_calls\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_tools_finish_stop": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"tool_calls\": [{\"index\": 0, \"id\": \"call_1\", \"type\": \"function\", \"function\": {\"name\": \"get_weather\", \"arguments\": \"{\\\"city\\\": \\\"Paris\\\"}\"}}]}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_usage_deepseek": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hi\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}], \"usage\": {\"prompt_tokens\": 100, \"completion_tokens\": 10, \"total_tokens\": 110, \"prompt_cache_hit_tokens\": 64, \"prompt_cache_miss_tokens\": 36}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.s_usage_in_last": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"hi\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}], \"usage\": {\"prompt_tokens\": 5, \"completion_tokens\": 2, \"total_tokens\": 7}}\n\ndata: [DONE]\n\n",
+   "kind": "sse",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hi",
+    "finish": null,
+    "in": null,
+    "invalid_tool_calls": 0,
+    "out": null,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": null
+   },
+   "wire": "openai"
+  },
+  "openai.text": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "hello",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "hello",
+    "finish": "stop",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.tool_args_dict": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": {
+           "city": "Paris"
+          },
+          "name": "f"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "f",
+      "{\"city\": \"Paris\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.tool_badjson": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": ",
+          "name": "f"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "f",
+      "{\"city\": null}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.tool_no_id": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{}",
+          "name": "f"
+         },
+         "type": "function"
+        }
+       ]
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "f",
+      "{}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.tool_noargs": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "",
+          "name": "f"
+         },
+         "id": "call_1",
+         "type": "function"
+        }
+       ]
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 1,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.tools2": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+       "content": null,
+       "role": "assistant",
+       "tool_calls": [
+        {
+         "function": {
+          "arguments": "{\"city\": \"Paris\"}",
+          "name": "get_weather"
+         },
+         "id": "call_1",
+         "type": "function"
+        },
+        {
+         "function": {
+          "arguments": "{\"city\": \"Rome\"}",
+          "name": "get_weather"
+         },
+         "id": "call_2",
+         "type": "function"
+        }
+       ]
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 2,
+     "prompt_tokens": 5,
+     "total_tokens": 7
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "",
+    "finish": "tool_calls",
+    "in": 5,
+    "invalid_tool_calls": 0,
+    "out": 2,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [
+     [
+      "get_weather",
+      "{\"city\": \"Paris\"}"
+     ],
+     [
+      "get_weather",
+      "{\"city\": \"Rome\"}"
+     ]
+    ],
+    "tool_id_thought": false,
+    "total": 7
+   },
+   "wire": "openai"
+  },
+  "openai.usage_deepseek": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "x",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 10,
+     "prompt_cache_hit_tokens": 64,
+     "prompt_cache_miss_tokens": 36,
+     "prompt_tokens": 100,
+     "total_tokens": 110
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 100,
+    "invalid_tool_calls": 0,
+    "out": 10,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 110
+   },
+   "wire": "openai"
+  },
+  "openai.usage_details": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "x",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 30,
+     "completion_tokens_details": {
+      "reasoning_tokens": 12
+     },
+     "prompt_tokens": 100,
+     "prompt_tokens_details": {
+      "cached_tokens": 64
+     },
+     "total_tokens": 130
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 100,
+    "invalid_tool_calls": 0,
+    "out": 30,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 130
+   },
+   "wire": "openai"
+  },
+  "openai.usage_missing_total": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "x",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "completion_tokens": 10,
+     "prompt_tokens": 100
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 100,
+    "invalid_tool_calls": 0,
+    "out": 10,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 110
+   },
+   "wire": "openai"
+  },
+  "openai.usage_moonshot": {
+   "body": {
+    "choices": [
+     {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+       "content": "x",
+       "role": "assistant"
+      }
+     }
+    ],
+    "created": 1730000000,
+    "id": "chatcmpl-1",
+    "model": "m",
+    "object": "chat.completion",
+    "usage": {
+     "cached_tokens": 64,
+     "completion_tokens": 10,
+     "prompt_tokens": 100,
+     "total_tokens": 110
+    }
+   },
+   "kind": "json",
+   "old": {
+    "cache_creation": null,
+    "cache_read": null,
+    "content": "x",
+    "finish": "stop",
+    "in": 100,
+    "invalid_tool_calls": 0,
+    "out": 10,
+    "reasoning_content": null,
+    "reasoning_tokens": null,
+    "thinking_blocks": 0,
+    "tool_calls": [],
+    "tool_id_thought": false,
+    "total": 110
+   },
+   "wire": "openai"
+  }
+ }
+}

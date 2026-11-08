@@ -2,7 +2,7 @@
 
 Validates that blocked_items and next_steps are correctly populated by a real LLM
 when the conversation history contains explicit blockers and planned next actions.
-Uses BASIC_MODEL from .env.test (or fallback) via ChatLiteLLM.
+Uses BASIC_MODEL from .env.test (or fallback) via TransportChatModel.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ pytestmark = pytest.mark.timeout(120)
 
 
 def _normalize_model(raw: str) -> tuple[str, str | None]:
-    """Convert env model name (e.g. openai-like/X) to LiteLLM (openai/X, provider)."""
+    """Convert env model name (e.g. openai-like/X) to the transport route form (openai/X, provider)."""
     openai_compat = {"openai-like", "openai_compatible", "openai-compatible", "openai_like"}
     if "/" in raw:
         prefix, model = raw.split("/", 1)
@@ -47,10 +47,10 @@ def _require_api_key() -> None:
 
 
 def _make_llm():
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
     model, provider = _normalize_model(_RAW_MODEL)
-    return ChatLiteLLM(
+    return TransportChatModel(
         model=model,
         api_key=_TEST_API_KEY,
         api_base=_TEST_BASE_URL,

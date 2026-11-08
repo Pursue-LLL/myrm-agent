@@ -1,9 +1,11 @@
 """Priority-ordered search provider chain runner with self-healing quota tracking.
 
 [INPUT]
-- myrm_agent_harness.toolkits.web_search.providers.web_searcher::WebSearcher (POS: Web search orchestrator)
+- myrm_agent_harness.toolkits.web_search.providers.web_searcher::WebSearcher, SearchServiceConfig (POS: Web search orchestrator) [WebSearcher lazy, SearchServiceConfig type only]
 - myrm_agent_harness.toolkits.web_search.providers.search_service_factory::credential_scope_digest (POS: Provider wiring for WebSearcher)
-- myrm_agent_harness.toolkits.web_search.core.error_handling::is_quota_or_rate_limit_error, is_persistent_quota_depleted_error
+- myrm_agent_harness.toolkits.web_search.core.error_handling::is_quota_or_rate_limit_error, is_persistent_quota_depleted_error (POS: Search error classification)
+- myrm_agent_harness.toolkits.web_search.core.exceptions::AllQueriesFailedError, SearchAPIError (POS: Web Search exception hierarchy)
+- myrm_agent_harness.toolkits.web_search.core.common::SearchResult (POS: Shared data models for web search results) [type only]
 
 [OUTPUT]
 - ProviderQuotaStatus: Enum of provider health states
@@ -42,7 +44,6 @@ from myrm_agent_harness.toolkits.web_search.providers.search_service_factory imp
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
-    from myrm_agent_harness.toolkits.web_search.processing._explicit_params import ProviderOverride
     from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
         SearchServiceConfig,
     )
@@ -154,7 +155,7 @@ async def search_provider_chain(
     query: str,
     num_results: int,
     *,
-    extra_params_override: ProviderOverride | None = None,
+    time_range: str | None = None,
     quota_tracker: ProviderQuotaTracker | None = None,
 ) -> tuple[list[SearchResult], str]:
     """Search using a priority-ordered provider chain with intelligent quota auto-skip.
@@ -164,6 +165,10 @@ async def search_provider_chain(
     failures also put that hop's credential on a cooldown. A hop that has not answered after half of the remaining
     budget is abandoned unless it is the last one. When no provider produces results but one answered with an empty
     list, the chain returns that empty answer and raises only when every provider failed.
+
+    The query and ``time_range`` reach every hop unmapped: each hop's searcher translates the query's ``site:``
+    operators and the ``time_range`` into the parameters of its own provider, so a failover never forwards one
+    provider's parameters to another.
 
     Returns:
         Tuple of (results, provider slug that produced them).
@@ -223,7 +228,7 @@ async def search_provider_chain(
                 results = await hop_searcher.search(
                     query=query,
                     num_results=num_results,
-                    extra_params_override=extra_params_override,
+                    time_range=time_range,
                 )
         except Exception as exc:
             last_error = exc

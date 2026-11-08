@@ -6,8 +6,6 @@ import re
 import tomllib
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _SERVER_ROOT / "pyproject.toml"
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
@@ -59,7 +57,6 @@ def _optional_extra_names() -> set[str]:
     return set(data["project"].get("optional-dependencies", {}).keys())
 
 
-@pytest.mark.architecture
 def test_pyproject_main_deps_have_evidence_packages() -> None:
     """Sanity: core declared deps include harness and httpx."""
     names = _main_dependency_names()
@@ -70,7 +67,6 @@ def test_pyproject_main_deps_have_evidence_packages() -> None:
     assert "aiofiles" not in names
 
 
-@pytest.mark.architecture
 def test_pyproject_main_deps_exclude_moved_optional_packages() -> None:
     """Regression: optional-only packages must not reappear in main dependencies."""
     names = _main_dependency_names()
@@ -78,7 +74,6 @@ def test_pyproject_main_deps_exclude_moved_optional_packages() -> None:
         assert forbidden not in names, f"{forbidden} must not be a main dependency"
 
 
-@pytest.mark.architecture
 def test_lock_forbids_removed_declarations() -> None:
     """Regression: dead deps and retired extras must not reappear in lock metadata."""
     block = _lock_requires_dist_block()
@@ -86,7 +81,6 @@ def test_lock_forbids_removed_declarations() -> None:
         assert forbidden not in block, f"uv.lock still lists forbidden declaration: {forbidden}"
 
 
-@pytest.mark.architecture
 def test_lock_provides_extras_match_pyproject() -> None:
     """optional-dependencies in pyproject must match provides-extras in lock."""
     text = _LOCK_PATH.read_text(encoding="utf-8")
@@ -99,7 +93,6 @@ def test_lock_provides_extras_match_pyproject() -> None:
     assert lock_extras == _optional_extra_names()
 
 
-@pytest.mark.architecture
 def test_harness_is_in_repo_editable_path_source() -> None:
     """The harness lives in this repository: pyproject declares the path source and the lock resolves it."""
     sources = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["tool"]["uv"]["sources"]
@@ -114,14 +107,12 @@ def test_harness_is_in_repo_editable_path_source() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_lock_uses_only_canonical_package_hosts() -> None:
     """A lock generated behind a regional mirror pins mirror URLs that break CI and release builds."""
     hosts = set(re.findall(r"https?://([^/\"]+)", _LOCK_PATH.read_text(encoding="utf-8")))
     assert hosts <= {"pypi.org", "files.pythonhosted.org"}, f"non-canonical hosts in uv.lock: {sorted(hosts)}"
 
 
-@pytest.mark.architecture
 def test_lock_includes_local_stt_extra_markers() -> None:
     """Local Whisper STT optional extra must be present in lock metadata."""
     block = _lock_requires_dist_block()
@@ -129,7 +120,6 @@ def test_lock_includes_local_stt_extra_markers() -> None:
     assert "faster-whisper" in block
 
 
-@pytest.mark.architecture
 def test_lock_includes_wechat_silk_extra_markers() -> None:
     """WeChat SILK optional extra must be present in lock metadata."""
     block = _lock_requires_dist_block()
@@ -137,7 +127,6 @@ def test_lock_includes_wechat_silk_extra_markers() -> None:
     assert "pilk" in block
 
 
-@pytest.mark.architecture
 def test_lock_includes_wechat_formatter_extra_markers() -> None:
     """WeChat article formatter optional extra must be present in lock metadata."""
     block = _lock_requires_dist_block()
@@ -146,7 +135,6 @@ def test_lock_includes_wechat_formatter_extra_markers() -> None:
     assert "pygments" in block
 
 
-@pytest.mark.architecture
 def test_lock_includes_matrix_extra_markers() -> None:
     """Matrix optional extra must be present in lock metadata."""
     block = _lock_requires_dist_block()

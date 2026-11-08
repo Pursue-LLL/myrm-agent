@@ -1,10 +1,19 @@
 """Shared fixtures for memory toolkit tests."""
 
+from collections.abc import AsyncIterator, Callable
+from pathlib import Path
 from unittest.mock import DEFAULT, AsyncMock
+from uuid import uuid4
 
 import pytest
+import pytest_asyncio
 
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.protocols.embedding import EmbeddingProtocol
+from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
+from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores, create_embedded_store
+from myrm_agent_harness.toolkits.vector.qdrant.store import QdrantVectorStore
 
 
 @pytest.fixture
@@ -129,3 +138,54 @@ def bookkeeping_rows(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
     monkeypatch.setattr(pattern_discovery, "read_bookkeeping", read)
     monkeypatch.setattr(pattern_discovery, "write_bookkeeping", write)
     return rows
+
+
+class _ConstantEmbedder:
+    """Maps every text to one vector, so what a test observes never depends on similarity."""
+
+    dimension = 4
+
+    async def embed(self, text: str) -> list[float]:
+        return [1.0, 0.5, 0.5, 0.5]
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [await self.embed(text) for text in texts]
+
+
+@pytest_asyncio.fixture(scope="module", loop_scope="module")
+async def qdrant() -> AsyncIterator[QdrantVectorStore]:
+    """One embedded Qdrant for the module (cold start dominates); tests isolate by collection prefix."""
+    await clear_embedded_stores()
+    embedded = await create_embedded_store(path=":memory:")
+    try:
+        yield embedded
+    finally:
+        await embedded.close()
+        await clear_embedded_stores()
+
+
+@pytest_asyncio.fixture
+async def new_manager(qdrant: QdrantVectorStore, tmp_path: Path) -> AsyncIterator[Callable[..., MemoryManager]]:
+    """Factory of real managers that share one SQLite file and one set of collections."""
+    relational = SQLiteRelationalStore(str(tmp_path / "memory.db"))
+    config = MemoryConfig(embedding_model="test", collection_prefix=f"cv{uuid4().hex[:8]}", blob_storage_enabled=False)
+
+    def build(
+        namespaces: list[str] | None = None,
+        *,
+        embedding: EmbeddingProtocol | None = None,
+        approval_required: bool = False,
+    ) -> MemoryManager:
+        return MemoryManager(
+            config,
+            user_id="u1",
+            vector=qdrant,
+            embedding=embedding or _ConstantEmbedder(),
+            relational=relational,
+            namespaces=namespaces or ["global"],
+            auto_warmup=False,
+            approval_required=approval_required,
+        )
+
+    yield build
+    await relational.close()

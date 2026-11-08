@@ -14,8 +14,6 @@ import pytest
 from app.api.cron.routes.blueprints import BlueprintFillResponse
 from tests.support.frontend_api_paths import FRONTEND_SRC
 
-pytestmark = pytest.mark.architecture
-
 _CRON_TYPES = FRONTEND_SRC / "services" / "cron.types.ts"
 _INTERFACE_RE = re.compile(r"export interface BlueprintFillResponse \{(?P<body>.*?)\n\}", re.DOTALL)
 _PROPERTY_RE = re.compile(r"(?P<name>\w+)\??:")

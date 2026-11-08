@@ -46,7 +46,7 @@ class TestExtractCacheWriteTokens:
     def test_reads_anthropic_creation_field(self) -> None:
         assert extract_cache_write_tokens({"cache_creation_input_tokens": 30}) == 30
 
-    def test_reads_litellm_cache_write_alias(self) -> None:
+    def test_reads_cache_write_tokens_alias(self) -> None:
         assert extract_cache_write_tokens({"cache_write_tokens": 18}) == 18
 
     def test_falls_back_to_prompt_details(self) -> None:

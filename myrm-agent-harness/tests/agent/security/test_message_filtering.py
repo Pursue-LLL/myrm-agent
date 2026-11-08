@@ -1,6 +1,6 @@
 """Tests for message_filtering framework.
 
-Covers: base, system_role_filter, filter_stats, config_manager, pipeline.
+Covers: base, system_role_filter, filter_stats, pipeline.
 """
 
 from __future__ import annotations
@@ -11,9 +11,6 @@ from myrm_agent_harness.agent.security.message_filtering.base import (
     FilterConfig,
     FilterContext,
     MessageFilter,
-)
-from myrm_agent_harness.agent.security.message_filtering.config_manager import (
-    MemoryConfigManager,
 )
 from myrm_agent_harness.agent.security.message_filtering.filter_stats import (
     FilterStats,
@@ -188,45 +185,6 @@ class TestMeasureFilterTime:
     def test_context_manager_no_stats(self):
         with measure_filter_time("TestFilter", None):
             _ = sum(range(100))
-
-
-# ── config_manager.py ────────────────────────────────────────────
-
-
-class TestMemoryConfigManager:
-    def test_get_config(self):
-        cfg = FilterConfig(enabled=True)
-        mgr = MemoryConfigManager(cfg)
-        assert mgr.get_config() is cfg
-
-    def test_reload_noop(self):
-        cfg = FilterConfig()
-        mgr = MemoryConfigManager(cfg)
-        mgr.reload()
-        assert mgr.get_config() is cfg
-
-    def test_update_config(self):
-        cfg = FilterConfig(enabled=True)
-        mgr = MemoryConfigManager(cfg)
-        new_cfg = FilterConfig(enabled=False)
-        mgr.update_config(new_cfg)
-        assert mgr.get_config() is new_cfg
-
-    def test_observer_notified(self):
-        received: list[FilterConfig] = []
-        cfg = FilterConfig(enabled=True)
-        mgr = MemoryConfigManager(cfg)
-        mgr.subscribe(lambda c: received.append(c))
-        new_cfg = FilterConfig(enabled=False)
-        mgr.update_config(new_cfg)
-        assert len(received) == 1
-        assert received[0].enabled is False
-
-    def test_observer_error_does_not_crash(self):
-        cfg = FilterConfig()
-        mgr = MemoryConfigManager(cfg)
-        mgr.subscribe(lambda _: (_ for _ in ()).throw(RuntimeError("boom")))
-        mgr.update_config(FilterConfig(enabled=False))
 
 
 # ── pipeline.py ──────────────────────────────────────────────────

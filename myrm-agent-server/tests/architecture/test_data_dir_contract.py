@@ -12,8 +12,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.architecture
-
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _WORKSPACE_ROOT = Path(__file__).resolve().parents[4]
 _DISTRIBUTION_COMPOSE = _WORKSPACE_ROOT / "docker-compose.yml"

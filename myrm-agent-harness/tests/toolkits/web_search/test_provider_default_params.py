@@ -1,29 +1,20 @@
 """Provider defaults WebSearcher applies when neither the config nor the query set a parameter.
 
-Exa returns no page content unless asked and LiteLLM then asks for the full text of every result, so the default
-is ``contents.highlights``. The wire-level cases go through the real LiteLLM request/response transformation with
+Exa returns no page content unless asked and the client's own default then asks for the full text of every result,
+so the default is ``contents.highlights``. The wire-level cases go through the real request/response mapping with
 only the HTTP layer faked, because what Exa actually receives is what the default has to be judged by.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import json
 
 import httpx
 import pytest
-from litellm.llms.custom_httpx.http_handler import HTTPHandler
 
-from myrm_agent_harness.toolkits.web_search.coalescing.search_coalescing import reset_search_coalescing_state_for_tests
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 from myrm_agent_harness.toolkits.web_search.providers.chain import ProviderQuotaTracker, search_provider_chain
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import SearchServiceConfig, WebSearcher
-
-
-@pytest.fixture(autouse=True)
-def _clear_search_coalescing_state() -> Iterator[None]:
-    reset_search_coalescing_state_for_tests()
-    yield
-    reset_search_coalescing_state_for_tests()
 
 
 class _RecordingService:
@@ -66,9 +57,9 @@ class TestExaDefault:
 
     @pytest.mark.asyncio
     async def test_other_parameters_keep_the_default_next_to_them(self) -> None:
-        searcher, service = _searcher("exa_ai", {"category": "news"})
+        searcher, service = _searcher("exa_ai", {"category": "news", "type": "neural"})
 
-        await searcher.search("exa category query", extra_params_override={"type": "neural"})
+        await searcher.search("exa category query")
 
         assert service.calls == [{"category": "news", "type": "neural", "contents": {"highlights": True}}]
 
@@ -104,9 +95,9 @@ class TestOtherProviders:
 
     @pytest.mark.asyncio
     async def test_searxng_defaults_never_replace_what_the_caller_set(self) -> None:
-        searcher, service = _searcher("searxng", {"language": "zh"})
+        searcher, service = _searcher("searxng", {"language": "zh", "categories": "science"})
 
-        await searcher.search("searxng configured query", extra_params_override={"categories": "science"})
+        await searcher.search("searxng configured query")
 
         assert service.calls == [{"language": "zh", "categories": "science", "safesearch": "0"}]
 
@@ -131,7 +122,7 @@ async def test_each_chain_hop_gets_the_defaults_of_its_own_provider(monkeypatch:
 class TestExaOnTheWire:
     @staticmethod
     def _fake_exa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
-        """Fake only the HTTP POST of LiteLLM's client; return the JSON bodies that were sent."""
+        """Fake only the HTTP round trip; return the JSON bodies that were sent."""
         sent: list[dict[str, object]] = []
         reply = {
             "results": [
@@ -141,13 +132,13 @@ class TestExaOnTheWire:
             ]
         }
 
-        def fake_post(self: HTTPHandler, url: str, **kwargs: object) -> httpx.Response:
-            body = kwargs.get("json")
-            assert isinstance(body, dict)
-            sent.append(body)
-            return httpx.Response(200, json=reply, request=httpx.Request("POST", url))
+        async def fake_request(self: httpx.AsyncClient, method: str, url: str, **kwargs: object) -> httpx.Response:
+            content = kwargs.get("content")
+            assert isinstance(content, bytes)
+            sent.append(json.loads(content))
+            return httpx.Response(200, json=reply, request=httpx.Request(method, url))
 
-        monkeypatch.setattr(HTTPHandler, "post", fake_post)
+        monkeypatch.setattr(httpx.AsyncClient, "request", fake_request)
         return sent
 
     @pytest.mark.asyncio

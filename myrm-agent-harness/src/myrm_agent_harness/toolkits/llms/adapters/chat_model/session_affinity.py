@@ -1,15 +1,15 @@
-"""Session affinity for ChatLiteLLM: keeps one conversation on one provider-side cache.
+"""Session affinity for TransportChatModel: keeps one conversation on one provider-side cache.
 
 [INPUT]
 - core.context_vars::prompt_routing_key_var, chat_id_var (POS: session-scoped routing key, imported lazily)
 
 [OUTPUT]
-- ChatLiteLLMSessionAffinityMixin: first-party endpoint detection (OpenAI / OpenCode / xAI) and per-request routing-key injection
+- TransportChatModelSessionAffinityMixin: first-party endpoint detection (OpenAI / OpenCode / xAI) and per-request routing-key injection
 
 [POS]
 Providers route a request to a cache server by a client-supplied key, so sending the session's key with every
 request keeps its prompt prefix on the server that already holds it. OpenAI takes `prompt_cache_key`, an OpenCode
-relay takes `x-opencode-session`, xAI takes `x-grok-conv-id`. Bound into ``ChatLiteLLM`` by ``model.py``.
+relay takes `x-opencode-session`, xAI takes `x-grok-conv-id`. Bound into ``TransportChatModel`` by ``model.py``.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 
-class ChatLiteLLMSessionAffinityMixin:
+class TransportChatModelSessionAffinityMixin:
     if TYPE_CHECKING:
-        # Attributes defined on the ChatLiteLLM aggregate root; declared here so mypy
+        # Attributes defined on the TransportChatModel aggregate root; declared here so mypy
         # understands the composition-mixin pattern.
         api_base: str | None
         custom_llm_provider: str | None

@@ -1,24 +1,23 @@
-"""LiteLLM message and tool call converters
+"""Message and tool call converters
 
 
 [INPUT]
 - langchain_core.messages (POS: LangChain message types)
-- utils.litellm_utils::parse_tool_call_arguments_with_recovery (POS: schema-aware JSON recovery utility)
+- utils.tool_argument_recovery::parse_tool_call_arguments_with_recovery (POS: schema-aware JSON recovery utility)
 - adapters.tool_call_parsers::ToolCallDict, parse_tool_calls, decode_html_entities_in_args (POS: tool call parser + HTML entity decoding)
 
 [OUTPUT]
 - lc_tool_call_to_openai_tool_call(): convert LangChain ToolCall to OpenAI format
-- convert_lc_messages_to_litellm(): convert LangChain messages to LiteLLM format while preserving explicit message names
-- convert_litellm_response_to_lc_message(): convert LiteLLM response to LangChain message
+- convert_message_to_dict(): convert a LangChain message to the OpenAI dict format while preserving explicit message names
 - convert_dict_to_message(): convert DictFormat message to LangChain BaseMessage (preserves reasoning_content for reasoning models; routes unsafe/truncated tool args to invalid_tool_calls, never to dispatchable tool_calls; HTML-decodes tool args only when asked, for xAI Grok)
 - _extract_citations(): extract unified citation format from provider annotations
 
 [POS]
-LiteLLM message and tool call converter. Provides bidirectional message format conversion
-between LangChain and LiteLLM. Supports all message types (System, Human, AI, Tool) and
+Message and tool call converter. Provides bidirectional message format conversion
+between LangChain and the OpenAI chat format. Supports all message types (System, Human, AI, Tool) and
 tool call bidirectional conversion. Preserves explicit message names and automatically
 extracts provider citation annotations into unified {url, title} format. As the converter
-layer, depended on by ChatLiteLLM for format interop.
+layer, depended on by TransportChatModel for format interop.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ from myrm_agent_harness.toolkits.llms.adapters.tool_call_parsers import (
     decode_html_entities_in_args,
     parse_tool_calls,
 )
-from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
     ToolArgumentRecoveryResult,
     parse_tool_call_arguments_with_recovery,
 )
@@ -103,7 +102,7 @@ def ensure_arguments_json_string(
 
 
 def convert_message_to_dict(message: BaseMessage, *, wire_protocol: str | None = None) -> dict[str, Any]:
-    """Convert a LangChain message to the LiteLLM dict format."""
+    """Convert a LangChain message to the OpenAI dict format."""
     message_dict: dict[str, Any] = {"content": message.content}
     if isinstance(message, ChatMessage):
         message_dict["role"] = message.role
@@ -350,7 +349,7 @@ def convert_dict_to_message(
     """Convert a dict-format message to a LangChain BaseMessage.
 
     Args:
-        _dict: Provider message dict (OpenAI/LiteLLM shape).
+        _dict: Provider message dict (OpenAI chat shape).
         available_tools: Names used to filter hallucinated tool calls.
         tool_schemas: Tool schemas keyed by name, for schema-aware arg recovery.
         stream_complete: Whether the producing stream ended normally. ``False``

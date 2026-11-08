@@ -21,7 +21,7 @@ def test_custom_model_def_with_llm_config():
 
     config = LLMConfig(
         model=custom_def.model_id,
-        api_key="dummy",  # Ollama不需要key但LiteLLM要求
+        api_key="dummy",  # Ollama不需要key，占位即可
         base_url="http://localhost:11434",
         custom_model_def=custom_def,
     )

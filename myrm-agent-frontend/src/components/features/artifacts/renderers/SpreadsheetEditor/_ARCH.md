@@ -6,9 +6,11 @@ Artifact Edit 模式下的 XLSX 交互编辑器：用 SheetJS 在 XLSX 与 Unive
 
 ## 文件清单
 
-| 文件        | 地位 | 职责                                                                | I/O/P |
-| ----------- | ---- | ------------------------------------------------------------------- | ----- |
-| `index.tsx` | 核心 | `SpreadsheetEditor`：Univer Sheet 引擎挂载、XLSX 双向转换与导出保存 | ✅    |
+| 文件                | 地位 | 职责                                                                                                                                                                                                 | I/O/P |
+| ------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `index.tsx`         | 核心 | `SpreadsheetEditor`：Univer Sheet 引擎挂载；工作簿数据被改动才标脏（`Event.CommandExecuted` 里非 `onlyLocal` 的 `sheet.mutation.*`，选区、单元格编辑器与公式重算不算）；草稿自动保存与恢复；导出保存 | ✅    |
+| `dataConversion.ts` | 核心 | `xlsxToUniverData` / `univerDataToXlsx`：SheetJS 与 Univer 数据模型双向转换的纯逻辑，并探测宏与图片 / 绘图这类编辑保存后可能无法完整保留的内容（`FidelityWarnings`）                                 | ✅    |
+| `draftStorage.ts`   | 辅助 | IndexedDB 草稿读写（`getDraftKey` / `saveDraft` / `loadDraft` / `deleteDraft`）：配额或权限出错时静默降级，不影响编辑                                                                                | ✅    |
 
 ## 依赖
 

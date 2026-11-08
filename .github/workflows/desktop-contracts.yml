@@ -1,31 +1,14 @@
 name: Desktop release contracts
 
 # The release pipeline is spread over the Tauri config, the sidecar build, the CI scripts and the workflows;
-# these tests pin what those files must agree on, so they run whenever one of them changes: the whole desktop
-# project rather than a hand-kept list of the files they read, because a list silently stops covering a file the
-# next time a test starts reading it (tests/architecture/test_desktop_workflow_triggers.py pins the two lists).
-# Changes under myrm-agent-server/ and shared/ are covered by the server workflows, which run these tests too.
+# these tests pin what those files must agree on.
+# No path filter: the tests read files across the repository, and a list of paths stops covering a file the day a
+# test starts reading it. tests/architecture/test_gate_workflow_triggers.py pins that neither trigger takes one.
 on:
   push:
     branches:
       - main
-    paths:
-      - 'myrm-agent-desktop/**'
-      - 'scripts/ci/desktop-release/**'
-      - '.github/workflows/desktop-*.yml'
-      - '.github/actions/**'
-      - 'myrm-agent-server/tests/support/desktop_release.py'
-      - 'myrm-agent-server/tests/support/stand_in_shell_bundle.py'
-      - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
   pull_request:
-    paths:
-      - 'myrm-agent-desktop/**'
-      - 'scripts/ci/desktop-release/**'
-      - '.github/workflows/desktop-*.yml'
-      - '.github/actions/**'
-      - 'myrm-agent-server/tests/support/desktop_release.py'
-      - 'myrm-agent-server/tests/support/stand_in_shell_bundle.py'
-      - 'myrm-agent-server/tests/architecture/test_desktop_*.py'
 
 concurrency:
   group: desktop-contracts-${{ github.event.pull_request.number || github.ref }}
@@ -55,5 +38,9 @@ jobs:
       - name: Install server dependencies
         run: uv sync --frozen --group dev
 
-      - name: Run the desktop contract tests
-        run: uv run --frozen pytest tests/architecture/test_desktop_*.py -n0 --tb=short -q
+      # The trigger guard also runs here: server-architecture.yml reaches it after its other gates, so any earlier
+      # failure there stops it, and a filter added to that workflow alone could skip the run that carries it.
+      - name: Run the desktop contract tests and the gate trigger guard
+        run: >-
+          uv run --frozen pytest tests/architecture/test_desktop_*.py tests/architecture/test_gate_workflow_triggers.py
+          -n0 --tb=short -q

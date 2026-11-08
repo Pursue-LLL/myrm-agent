@@ -1,7 +1,8 @@
 """Search results processor.
 
 Converts raw SearchResult objects into deduplicated, cleaned LangChain Documents
-with normalised URLs and content-hash-based deduplication.
+with URL-key and content-hash-based deduplication. The URL a document shows is the
+provider's own; only the dedup key folds spelling variants together.
 
 [INPUT]
 web_search.core.common::SearchResult (POS: Unified search result dataclass)
@@ -9,7 +10,7 @@ web_search.core.exceptions::ErrorContext, SearchAPIError (POS: Search exception 
 utils.document_utils::enhance_document_content (POS: Document content enhancement)
 utils.hash_utils::get_content_hash (POS: Content hashing for deduplication)
 utils.text_cleaner::clean_search_snippet (POS: Search snippet cleaning)
-utils.url_utils::normalize_url, extract_domain (POS: URL normalisation and domain extraction)
+utils.url_utils::url_dedup_key, readable_url, extract_domain (POS: URL dedup key, display URL and domain extraction)
 
 [OUTPUT]
 search_results_to_documents: Converts SearchResult list to Document list
@@ -25,6 +26,7 @@ layer, handling cleaning, deduplication, domain diversity sorting, and Document 
 
 import logging
 from collections import Counter
+from collections.abc import Sequence
 
 from langchain_core.documents import Document
 
@@ -36,7 +38,7 @@ from myrm_agent_harness.toolkits.web_search.core.exceptions import (
 from myrm_agent_harness.utils.document_utils import enhance_document_content
 from myrm_agent_harness.utils.hash_utils import get_content_hash
 from myrm_agent_harness.utils.text_cleaner import clean_search_snippet
-from myrm_agent_harness.utils.url_utils import extract_domain, normalize_url
+from myrm_agent_harness.utils.url_utils import extract_domain, readable_url, url_dedup_key
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,8 @@ def search_results_to_documents(results: list[SearchResult]) -> list[Document]:
             metadata["site_name"] = result.site_name
         if result.authority_description:
             metadata["authority_description"] = result.authority_description
+        if result.provider:
+            metadata["search_provider"] = result.provider
 
         if result.citations:
             metadata["citations"] = [
@@ -118,13 +122,14 @@ def interleave_search_results_round_robin(
 
 
 def combine_search_results_unified(
-    search_results: list[tuple[str, list[Document], Exception | None]],
+    search_results: Sequence[tuple[str, list[Document], Exception | None]],
 ) -> tuple[list[dict[str, str]], list[Document]]:
     """Merge multi-query search results with two-layer deduplication.
 
     Deduplication strategy:
-    - Layer 1 (URL arbitration): Same normalized URL keeps only the version with
-      the longest page_content (information density proxy).
+    - Layer 1 (URL arbitration): Same dedup key (spelling variants of one URL) keeps only
+      the version with the longest page_content (information density proxy). The kept
+      document shows its own URL, with only non-ASCII percent-escapes made readable.
     - Layer 2 (Content hash): Different URLs with identical content_hash (mirror sites)
       keep only the first encountered.
 
@@ -137,10 +142,10 @@ def combine_search_results_unified(
     if not search_results:
         return [], []
 
-    # Layer 1: URL → best candidate (longest content wins)
-    url_best: dict[str, tuple[int, Document, str]] = {}  # url → (content_len, doc, semantic_url)
-    # Layer 2: content_hash → first seen URL (for mirror site dedup)
-    content_hash_seen: dict[str, str] = {}  # hash → normalized_url
+    # Layer 1: URL dedup key → best candidate (longest content wins)
+    url_best: dict[str, tuple[int, Document]] = {}  # dedup key → (content_len, doc)
+    # Layer 2: content_hash → first seen URL dedup key (for mirror site dedup)
+    content_hash_seen: dict[str, str] = {}  # hash → dedup key
 
     total_docs = 0
     failed_queries = 0
@@ -194,40 +199,41 @@ def combine_search_results_unified(
 
         page_content = doc.page_content
 
-        normalized_url_dedup, normalized_url_semantic = normalize_url(original_url)
-        if not normalized_url_dedup:
+        dedup_key = url_dedup_key(original_url)
+        if not dedup_key:
             continue
 
         content_len = len(page_content)
         content_hash = get_content_hash(page_content, strategy="builtin", use_cache=True)
 
         # Layer 2: mirror site dedup (different URL, same content)
-        existing_url = content_hash_seen.get(content_hash)
-        if existing_url is not None and existing_url != normalized_url_dedup:
+        existing_key = content_hash_seen.get(content_hash)
+        if existing_key is not None and existing_key != dedup_key:
             continue
-        content_hash_seen.setdefault(content_hash, normalized_url_dedup)
+        content_hash_seen.setdefault(content_hash, dedup_key)
 
         # Layer 1: URL arbitration (same URL, keep longest content)
-        prev = url_best.get(normalized_url_dedup)
+        prev = url_best.get(dedup_key)
         if prev is not None and content_len <= prev[0]:
             continue
-        url_best[normalized_url_dedup] = (content_len, doc, normalized_url_semantic)
+        url_best[dedup_key] = (content_len, doc)
 
     # Build final document list preserving insertion order
     unified_docs: list[Document] = []
     url_metadata_list: list[dict[str, str]] = []
 
-    for _content_len, doc, semantic_url in url_best.values():
-        doc.metadata["url"] = semantic_url
+    for _content_len, doc in url_best.values():
+        shown_url = readable_url(doc.metadata["url"])
+        doc.metadata["url"] = shown_url
         enhanced_content = enhance_document_content(doc)
 
         new_metadata = {
             **doc.metadata,
-            "url": semantic_url,
+            "url": shown_url,
         }
 
         unified_docs.append(Document(page_content=enhanced_content, metadata=new_metadata))
-        url_metadata_list.append({"url": semantic_url, "title": new_metadata.get("title", "")})
+        url_metadata_list.append({"url": shown_url, "title": new_metadata.get("title", "")})
 
     logger.debug(
         f"Document pool: {total_docs} raw -> {len(unified_docs)} deduplicated "

@@ -8,7 +8,7 @@ from .browser_session import BrowserSession
 from .browser_session_extraction_mixin import ContentVault
 from .consent_dismisser import ConsentDismisser
 from .dialog_manager import DialogManager, DialogPolicy
-from .download_manager import DownloadConfig, DownloadManager, DownloadResult
+from .download import DownloadConfig, DownloadError, DownloadManager, DownloadResult
 from .extractor import Extractor
 from .interactor import Interactor
 from .restricted_ax_session import (
@@ -29,6 +29,7 @@ __all__ = [
     "DialogManager",
     "DialogPolicy",
     "DownloadConfig",
+    "DownloadError",
     "DownloadManager",
     "DownloadResult",
     "Extractor",

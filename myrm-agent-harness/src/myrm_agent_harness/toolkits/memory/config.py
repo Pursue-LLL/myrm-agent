@@ -303,9 +303,9 @@ class RetrievalConfig:
     gravity_time_scale_hours: float = 24.0
     dynamic_signal_weights: dict[str, float] | None = None
     """Wall-clock ceiling (seconds) for the full retrieval pipeline and its
-    candidate-collect stage. Aligned with CoPaw's 10s memory fallback; remote
-    embedding/vector providers that hang past this budget are cut with partial
-    results retained and the search marked as degraded (fail-open)."""
+    candidate-collect stage. Remote embedding/vector providers that hang past
+    this budget are cut with partial results retained and the search marked as
+    degraded (fail-open)."""
 
 
 @dataclass(frozen=True, slots=True)

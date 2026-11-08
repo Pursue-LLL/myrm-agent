@@ -20,11 +20,6 @@ from .compactor import (
 )
 from .deduplication import deduplicate_tool_results
 from .integrity_guard import ensure_tool_pair_integrity
-from .one_click_compaction_types import (
-    OneClickCompactionConfig,
-    OneClickCompactionResult,
-)
-from .one_click_context_compactor import OneClickContextCompactor
 from .pre_compact_context import (
     PRE_COMPACT_RECALL_MARKER,
     apply_pre_compact_after_protected_head,
@@ -34,9 +29,6 @@ from .smart_fallback import apply_smart_fallback
 
 __all__ = [
     "COMPACT_RULES",
-    "OneClickCompactionConfig",
-    "OneClickCompactionResult",
-    "OneClickContextCompactor",
     "PRE_COMPACT_RECALL_MARKER",
     "apply_pre_compact_after_protected_head",
     "apply_smart_fallback",

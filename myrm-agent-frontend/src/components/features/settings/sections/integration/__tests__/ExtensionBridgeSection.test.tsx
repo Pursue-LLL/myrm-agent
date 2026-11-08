@@ -17,10 +17,13 @@ import {
 
 import ExtensionBridgeSection from '../ExtensionBridgeSection';
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, string | number>) =>
+// 翻译函数必须是稳定引用：每次渲染都新建会让依赖它的 hook 反复重建。
+const { translate } = vi.hoisted(() => ({
+  translate: (key: string, params?: Record<string, string | number>) =>
     params ? `${key}|${Object.values(params).join(',')}` : key,
 }));
+
+vi.mock('next-intl', () => ({ useTranslations: () => translate }));
 
 vi.mock('@/hooks/shared/useToast', () => ({ toast: vi.fn() }));
 vi.mock('@/lib/utils/clipboardUtils', () => ({ writeToClipboard: vi.fn() }));

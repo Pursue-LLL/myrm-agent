@@ -8,6 +8,8 @@ Model Context Protocol.
 - toolkits.wiki.wiki_agent_tools::create_wiki_agent_tools (POS: LangChain wiki tool factory — the single engine-level implementation of ingest/query/apply)
 - mcp.server.mcpserver::MCPServer (POS: MCP SDK server to attach tools to)
 - langchain_core.tools::BaseTool (POS: LangChain tool interface — invoked via ainvoke so this adapter holds zero engine logic)
+- toolkits.wiki.wiki_tool_descriptions::resolve_wiki_*_description (POS: Tool descriptions shared with the LangChain tools)
+- toolkits.wiki.source_loader::looks_like_local_path (POS: The exact predicate the ingest tool uses to take a source for a local file)
 
 [OUTPUT]
 - register_wiki_mcp_tools: attach wiki_query/wiki_ingest/wiki_apply MCP tools to any MCPServer
@@ -26,17 +28,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from contextvars import ContextVar, Token
-from pathlib import Path
 
 from langchain_core.tools import BaseTool
-
-try:
-    from mcp.server.fastmcp import FastMCP as MCPServer
-except ImportError:
-    from mcp.server.mcpserver import MCPServer  # type: ignore[no-redef]
+from mcp.server.mcpserver import MCPServer
 from mcp.types import TextContent
 
-from .wiki_agent_tools import (
+from .source_loader import looks_like_local_path
+from .wiki_tool_descriptions import (
     resolve_wiki_apply_description,
     resolve_wiki_ingest_description,
     resolve_wiki_query_description,
@@ -76,18 +74,6 @@ def reset_request_wiki_tools(token: Token[dict[str, BaseTool] | None]) -> None:
 def get_request_wiki_tools() -> dict[str, BaseTool] | None:
     """Return the active wiki tool bundle for the current MCP request context."""
     return _request_wiki_tools.get()
-
-
-def _looks_like_local_path(source: str) -> bool:
-    """Mirror the local-file branch condition of wiki_ingest (wiki_agent_tools).
-
-    Must stay in sync with the LangChain tool's path detection so the refusal
-    covers exactly the branch it is meant to block. L1 contract test
-    (tests/toolkits/wiki/test_wiki_mcp_server.py) fails if the two drift apart.
-    """
-    if source.startswith(("http://", "https://")):
-        return False
-    return len(source) < 260 and "\n" not in source and Path(source).exists()
 
 
 def _to_text_content(result: object) -> list[TextContent]:
@@ -155,7 +141,7 @@ def register_wiki_mcp_tools(
         # Trusted-surface narrowing: the LangChain tool also accepts local file
         # paths (trusted for in-process agents); remote MCP callers must not
         # read arbitrary server-side files through the wiki pipeline.
-        if _looks_like_local_path(source):
+        if looks_like_local_path(source):
             return [TextContent(type="text", text=_LOCAL_PATH_REFUSED_MESSAGE)]
         return await _invoke_tool(
             tools,

@@ -9,8 +9,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 from tests.support.fake_secrets import slack_bot_token, stripe_live_key
 
 _TESTS_ROOT = Path(__file__).resolve().parent.parent
@@ -31,7 +29,6 @@ def _scanned_files() -> list[Path]:
     ]
 
 
-@pytest.mark.architecture
 def test_patterns_detect_helper_output() -> None:
     """The guard must keep matching what the fixture helpers build, otherwise the scan passes vacuously."""
     assert _PROVIDER_TOKEN_PATTERNS["Stripe secret/restricted key"].search(stripe_live_key("123456789012345678901234"))
@@ -40,7 +37,6 @@ def test_patterns_detect_helper_output() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_no_complete_provider_tokens_in_tests() -> None:
     violations: list[str] = []
     for path in _scanned_files():

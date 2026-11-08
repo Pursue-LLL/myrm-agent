@@ -65,7 +65,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
         "agent/skills/",
         frozenset(
             {
-                "autonomous_visualization",
                 "curator",
                 "market",
                 "mcp",
@@ -83,14 +82,11 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
             {
                 "archive_checkpoint",
                 "capability_matrix",
-                "desktop_repl",
                 "infra",
-                "prefix_caching_ledger",
                 "scratchpad_promotion",
                 "strategies",
                 "title_recovery",
                 "tracking",
-                "two_stage_search_extract",
                 "eviction_marks",
             }
         ),
@@ -107,8 +103,6 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "conversation_search",
                 "_internal",
                 "agent_surface",
-                "external_providers",
-                "handoff",
                 "onboarding",
                 # Feature packages shipped as readable source; list a package in core_manifest.yaml to compile it.
                 "budget_packing",

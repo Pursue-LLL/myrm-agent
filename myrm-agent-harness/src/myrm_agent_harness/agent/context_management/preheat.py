@@ -77,8 +77,7 @@ async def preheat_prefix_cache(
 
     Uses ``max_tokens=0`` per Anthropic official best practice to avoid
     generating any output tokens.  Falls back to ``max_tokens=1`` if the
-    provider rejects zero (older LiteLLM versions or non-Anthropic explicit
-    cache providers).
+    provider rejects zero (non-Anthropic explicit cache providers).
 
     Args:
         llm: Chat model instance to invoke.

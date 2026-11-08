@@ -22,15 +22,14 @@ dependencies = [
   # 1.x 区间：下限是 CI 逐周在最低版本上验证过的；上限防止未经验证的大版本被自动装入（每周金丝雀见 harness-framework-canary.yml）
   "langchain>=1.4.3,<2",                   # Agent 编排核心
   "langchain-core>=1.6.6,<2",              # LangChain 基础抽象
-  "langgraph>=1.2.13,<2",                  # 图状态机 Agent 运行时
+  # 上限 <1.2.20：同一任务连续两次 interrupt()，1.2.19 里两次暂停共用一个 interrupt id，1.2.20 起每次暂停各有一个；
+  # HITL 卡片 id（interrupt id + 轮次，agent/streaming/interrupt_identity.py）按前一种行为寻址，
+  # tests/agent/_internals/test_resume_addressing_rounds.py 的 10 条用例在 1.2.20 全红，在 1.2.16 至 1.2.19 全绿。
+  # 放开上限前须先改造卡片 id 协议。
+  "langgraph>=1.2.13,<1.2.20",             # 图状态机 Agent 运行时
   "langgraph-checkpoint-sqlite>=3.1.1,<4", # SQLite 状态持久化 (checkpoint factory)
   "aiosqlite>=0.22.1",                     # async SQLite (memory stores + checkpointer)
-  "dill>=0.4.1",                           # checkpoint serde (ChatLiteLLM / complex objects)
-  # --- LLM 多供应商适配 ---
-  # Floor capped by the server: every aioboto3 release pins aiobotocore 2.25.1, which caps
-  # boto3 below 1.40.62, while litellm >= 1.98 requires boto3 >= 1.43. 1.97 is the newest
-  # release both trees can install; it already ships search, RerankResponse and model_cost.
-  "litellm>=1.90.2", # 统一 LLM API 代理 (100+ 供应商)
+  "dill>=0.4.1",                           # checkpoint serde (chat model / complex objects)
   # --- 数据验证与序列化 ---
   "pydantic>=2.13.5", # 数据模型验证
   "PyYAML>=6.0.2",    # YAML 配置解析（下限 6.0.2：pdf-ocr 的 paddlex 固定 PyYAML==6.0.2）
@@ -176,7 +175,6 @@ exclude-dependencies = [
 override-dependencies = [
   "click>=8.5.0",
   "patchright>=1.59.1",
-  "openai>=3.24.0",
   "opentelemetry-semantic-conventions>=0.61b0",
   "mcp>=2.0.0",                   # MCP SDK 2.x
 ]
@@ -213,6 +211,7 @@ exclude = [
   "**/.DS_Store",
   "**/*.swp",
   "**/*~",
+  "**/*_BUGFIX_LOG.md",
 ]
 
 [tool.ruff]
@@ -295,7 +294,7 @@ reportMissingTypeStubs = false
 reportMissingModuleSource = false
 reportUnsupportedDunderAll = false
 # pyright 1.1.348+ 将 reportGeneralTypeIssues 拆分为细粒度规则。
-# LangChain/LiteLLM 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
+# LangChain 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
 reportGeneralTypeIssues = false
 reportAttributeAccessIssue = false
 reportArgumentType = false
@@ -328,9 +327,6 @@ addopts = "--import-mode=importlib -n0 --timeout=300 -m 'not integration and not
 filterwarnings = [
     "error",
     "ignore:The default value of `allowed_objects` will change:langchain_core._api.deprecation.LangChainPendingDeprecationWarning",
-    "ignore::DeprecationWarning:litellm",
-    # LiteLLM >= 1.103 types use typing_extensions.ReadOnly in a TypedDict; pydantic warns when it builds the schema.
-    "ignore:Item .* on TypedDict class .* is using the .ReadOnly. qualifier:UserWarning:pydantic",
     "ignore::DeprecationWarning:pydantic",
     "ignore::DeprecationWarning:google",
     "ignore::DeprecationWarning:pkg_resources",
@@ -405,7 +401,7 @@ include = [
   "*/myrm_agent_harness/agent/security/*",
   "*/myrm_agent_harness/core/security/*",
   "*/myrm_agent_harness/backends/secrets/*",
-  "*/myrm_agent_harness/agent/config/litellm_routing.py",
+  "*/myrm_agent_harness/agent/config/provider_routing.py",
   "*/myrm_agent_harness/agent/config/parsers.py",
   "*/myrm_agent_harness/agent/tool_management/*",
   "*/myrm_agent_harness/agent/_factory/*",
@@ -464,4 +460,7 @@ dev = [
   "types-regex>=2026.9.29.20261005",
   "types-pyyaml>=6.0.12.20250915",
   "blockbuster>=1.5.26",
+  "openai>=3.24.0",                  # real SDK exception shapes for the error-classification tests
+  "aiohttp>=3.14.3",                 # library-contract and loopback tests of infra/tls_compat.py
+  "python-dotenv>=1.2.2",            # live tests load the server's .env.test
 ]

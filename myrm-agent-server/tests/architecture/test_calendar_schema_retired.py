@@ -4,19 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-@pytest.mark.architecture
 def test_migration_drops_calendar_events_table() -> None:
     from app.database import migrations
 
     assert "DROP TABLE IF EXISTS calendar_events" in migrations.MIGRATION_STATEMENTS
 
 
-@pytest.mark.architecture
 def test_index_tail_drops_calendar_events_indexes() -> None:
     from app.database import migrations
 
@@ -31,7 +27,6 @@ def test_index_tail_drops_calendar_events_indexes() -> None:
     assert stmts.index(pub_idx_artifact) < stmts.index(pub_idx_target)
 
 
-@pytest.mark.architecture
 def test_no_calendar_orm_or_api_packages_on_disk() -> None:
     app_root = _SERVER_ROOT / "app"
     assert not (app_root / "api" / "calendar").exists()

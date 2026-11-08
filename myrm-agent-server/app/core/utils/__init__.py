@@ -13,7 +13,7 @@ from app.core.utils.chat_utils import (
     ChatHistoryReq,
     convert_chat_history,
     extract_answer_text,
-    extract_litellm_answer_text,
+    extract_completion_text,
     parse_judge_json,
 )
 
@@ -56,7 +56,7 @@ __all__ = [
     "ChatHistoryReq",
     "convert_chat_history",
     "extract_answer_text",
-    "extract_litellm_answer_text",
+    "extract_completion_text",
     "parse_judge_json",
     # 文件工具
     "extract_file_id_from_url",

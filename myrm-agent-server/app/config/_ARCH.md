@@ -20,7 +20,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `settings/` | ✅ 核心 | 应用配置，按组拆为 7 个模块（constants / llm / channels / security / infra / app / singleton）：`AppSettings` 组合、`settings` 单例（`get_settings()` 带 `lru_cache`）、执行缓存空闲回收等配置项；仅 [P]/[O]/[S] 进程 env。见 [settings/_ARCH.md](settings/_ARCH.md) | ✅ |
+| `settings/` | ✅ 核心 | 应用配置，按组拆为 6 个模块（llm / channels / security / infra / app / singleton）：`AppSettings` 组合、`settings` 单例（`get_settings()` 带 `lru_cache`）、执行缓存空闲回收等配置项；仅 [P]/[O]/[S] 进程 env。见 [settings/_ARCH.md](settings/_ARCH.md) | ✅ |
 | `pre_flight.py` | ✅ 核心 | 配置启动前验证；local/tauri WebUI 模型 warning | ✅ |
 | `change_tracker.py` | ✅ 核心 | 配置变更追踪（track_config_changes，基于哈希比较） | ✅ |
 | `migrator.py` | ✅ 核心 | 配置迁移工具（check_and_migrate_config，版本升级时自动迁移） | ✅ |

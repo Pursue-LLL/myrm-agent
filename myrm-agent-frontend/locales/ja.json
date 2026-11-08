@@ -3398,18 +3398,6 @@
       "stopped": "{name} を停止しました。作業中の下書きは保持されています",
       "stopFailed": "タスクの停止に失敗しました"
     },
-    "multiplexer": {
-      "sessionListTitle": "セッション",
-      "panesCount": "ペイン",
-      "headlessBadge": "ヘッドレス",
-      "pendingDirectives": "件の保留中の指示",
-      "inspectLogTitle": "ライブログ",
-      "noLogs": "まだ出力はありません",
-      "artifactsLabel": "成果物",
-      "instructPlaceholder": "このサブエージェントに指示を送る...",
-      "sendInstruction": "送信",
-      "noSessions": "アクティブなセッションはありません"
-    },
     "roleChainPresets": {
       "title": "ロールチェーンのプリセット",
       "badge": "プリセット",
@@ -6405,35 +6393,6 @@
     }
   },
   "artifacts": {
-    "factCheck": {
-      "title": "マルチソース事実確認・不一致仲裁シート",
-      "summaryTitle": "品質監査サマリーと仲裁結果",
-      "totalItems": "総確認項目",
-      "criticalConflicts": "重大な不一致",
-      "warnings": "仕様の差異",
-      "infoDifferences": "表現の差異",
-      "unresolvedItems": "要確認の論点",
-      "searchPlaceholder": "事実トピック、採用値、文書を検索...",
-      "filterAll": "すべての重要度",
-      "filterCritical": "重大な不一致のみ",
-      "filterWarning": "仕様差異のみ",
-      "filterInfo": "表現差異のみ",
-      "adoptedStandard": "採用された標準値",
-      "rationale": "仲裁の根拠",
-      "confidence": "信頼度",
-      "multiSourceMatrix": "マルチソース対照マトリクス",
-      "sourceDoc": "ソース文書",
-      "claimedValue": "主張された値",
-      "anchorTimestamp": "アンカー / タイムスタンプ",
-      "contextSnippet": "コンテキスト抜粋",
-      "affectedDeliverables": "影響を受ける成果物",
-      "statusResolved": "最新の権威値で解決済み",
-      "statusUnresolved": "手動確認待ち",
-      "statusConditional": "条件付き有効",
-      "noItemsFound": "一致する事実確認項目が見つかりません",
-      "loading": "事実確認シートを読み込み中...",
-      "close": "閉じる"
-    },
     "title": "工件",
     "empty": "まだアーティファクトがありません",
     "emptyDesc": "対話中に対話エージェントが生成したレポート、チャート、コードがここにアーカイブされます",
@@ -9887,6 +9846,7 @@
       "pathLabel": "スクリプトファイル"
     },
     "clarificationRequired": "エラーの明確化が必要です",
+    "toolExecutionFailed": "ツール実行に失敗しました",
     "fixParameters": "パラメータを修正（JSON）",
     "visualContextAlt": "承認待ちの操作の対象スクリーンショット",
     "humanAttentionEscHint": "エージェント実行中は Esc でデスクトップ自動化をすぐ停止できます。",
@@ -9898,28 +9858,6 @@
     "humanAttentionView": "項目へ移動",
     "humanAttentionMultiple": "{count} 件の入力待ち",
     "humanAttentionKindClarify": "確認質問",
-    "riskConfirmation": {
-      "tierHighRisk": "レベル3 · 高リスク操作（確認必須）",
-      "tierWrite": "レベル2 · 状態の書き込み（ドライラン対応）",
-      "tierRead": "レベル1 · 読み取り専用（自動承認）",
-      "targetLabel": "対象：",
-      "riskReasonsTitle": "リスク警告と想定される影響",
-      "editingParamsTitle": "実行パラメータを編集（JSON）",
-      "paramsSummaryTitle": "パラメータの概要",
-      "editParams": "パラメータを編集",
-      "noParams": "入力パラメータはありません",
-      "invalidJson": "JSONの形式が正しくありません",
-      "dryRunResultTitle": "ドライランのシミュレーション結果",
-      "rejectReasonPlaceholder": "任意：却下の理由を入力...",
-      "dryRun": "ドライラン",
-      "confirmationToken": "トークン：{token}...",
-      "reject": "却下",
-      "confirmReject": "却下を確定",
-      "applyEditsAndRun": "変更を適用して実行",
-      "authorizeAndRun": "承認して実行",
-      "continueRun": "続行",
-      "approved": "承認済み"
-    },
     "maskedCredentials": {
       "title": "このコマンドに必要なパスワードまたはキー",
       "badgeNeverSaved": "1回だけ使用・保存されません",
@@ -13418,8 +13356,6 @@
     "viewportDesktop": "デスクトップ表示（100%）",
     "viewportTablet": "タブレット表示（768px）",
     "viewportMobile": "モバイル表示（375px）",
-    "indicatorReady": "サービス準備完了",
-    "indicatorPreview": "分割プレビュー",
     "splitPreviewerTitle": "サンドボックス組み込み分割 Web プレビュー",
     "splitPreviewerSubtitle": "サンドボックス内で稼働中の Web ページとホットリロードを並べてライブプレビューします",
     "splitCollapse": "分割表示を折りたたむ",
@@ -14578,75 +14514,6 @@
     },
     "tabToAdopt": "Tab キーで提案されたプロンプトを採用"
   },
-  "factCheck": {
-    "bannerTitle": "誠実性監査＆事実検証",
-    "bannerWarning": "この下書きには未検証のプレースホルダーデータが {count} 件あります。公開前に実際のベンチマークに置き換えてください",
-    "bannerSuccess": "すべてのプレースホルダーデータが検証され、実データに置き換えられました",
-    "viewCheckSheet": "チェックシートを表示",
-    "finalizeDraft": "下書きを確定",
-    "drawerTitle": "ファクトチェック＆プレースホルダー台帳",
-    "drawerSubtitle": "管理されない捏造はゼロ。プレースホルダーの骨組みと検証済みの事実を厳密に管理します",
-    "tabPlaceholders": "未検証のプレースホルダー",
-    "tabVerified": "検証済みの確定事実",
-    "placeholderTag": "要検証",
-    "verifiedTag": "検証済み",
-    "contextLabel": "文脈の抜粋",
-    "inputRealValuePlaceholder": "実際のベンチマーク値を入力...",
-    "applyBtn": "適用",
-    "applied": "適用済み",
-    "replaceAllBtn": "すべて置換して確定",
-    "sourceLabel": "ソース",
-    "verifiedAtLabel": "検証日時",
-    "emptyPending": "未検証のプレースホルダーはすべて解消されました",
-    "emptyVerified": "ウェブ検索による検証記録は添付されていません",
-    "close": "閉じる"
-  },
-  "groupChat": {
-    "title": "ボットモードのマルチエージェントグループチャットワークスペース",
-    "botModeSummary": "ボットモードとピアツーピアのメッセージに対応",
-    "roomsTitle": "コラボレーションチャンネル",
-    "createRoom": "新しいルームを作成",
-    "roomNamePlaceholder": "ルーム名（例: アーキテクチャ対策会議）",
-    "roomTopicPlaceholder": "コラボレーションの目標またはルームのトピック...",
-    "participantsTitle": "ルームの参加者＆役割",
-    "operatorLabel": "ワークスペースディレクター（人間）",
-    "botLabel": "専門ボット",
-    "composerPlaceholder": "指示を入力、@ で特定のエージェントにメンション...",
-    "sendBtn": "送信",
-    "peerTitle": "正規のピア対話アーカイブ",
-    "noMessages": "まだメッセージがありません。入力欄に入力し、@ でエージェントにメンションして共同作業を始めましょう。",
-    "noArchives": "ピアツーピアの対話が見つかりません",
-    "messagesCount": "件のメッセージ",
-    "latencyLabel": "往復レイテンシ",
-    "avatarLocked": "固定アバターをロック済み",
-    "presence": {
-      "idle": "待機中・準備完了",
-      "reasoning": "推論・検討中...",
-      "pass": "PASS（静観）",
-      "viewSkills": "スキルとペルソナを表示",
-      "skillsTitle": "搭載中のスキルとツール",
-      "membersOnline": "人の専門家がオンライン"
-    },
-    "mention": {
-      "mentionTitle": "エージェントをメンションして割り当て",
-      "filterPlaceholder": "役割または名前で絞り込み（例: @sec、@arch）...",
-      "noMatch": "一致するエージェントが見つかりません",
-      "primaryTarget": "主な対象"
-    },
-    "deliberation": {
-      "passBadge": "評価済み: 今回は対応不要のため PASS（傍聴中）",
-      "expandPass": "推論を展開",
-      "collapsePass": "折りたたむ",
-      "roleSpeaker": "主担当"
-    },
-    "needsYou": {
-      "needsYouTitle": "人の判断が必要です (NEEDS-YOU)",
-      "resolveNotice": "検討が重要な分岐点に達しました。チームの方向性を指示してください。",
-      "suggestedChips": "提案される方向性:",
-      "customResponse": "または独自の判断指示を入力...",
-      "submitDecision": "決定を確認して再開"
-    }
-  },
   "machines": {
     "title": "マイマシン（フリートダッシュボード）",
     "subtitle": "セルフホストのマシンやプライベート計算ノードを接続・監視し、画面をリアルタイムで引き継げます",
@@ -14707,55 +14574,7 @@
       "rejectReasonPlaceholder": "任意: 却下の理由...",
       "rejectConfirm": "却下を確認",
       "processing": "処理中..."
-    },
-    "selectionList": {
-      "title": "タッチ操作の選択",
-      "singleSelectHint": "片手の親指でタップしてそのまま選択",
-      "multiSelectHint": "複数選択に対応。タップして確定",
-      "confirmSelection": "選択を確定",
-      "selectedCount": "{count} 件を選択中",
-      "clearAll": "リセット"
-    },
-    "actionBar": {
-      "quickVoice": "音声入力",
-      "skills": "スキル (/)",
-      "stop": "停止",
-      "stopping": "停止中...",
-      "sessions": "セッション",
-      "expand": "その他"
     }
-  },
-  "runtimeConsole": {
-    "title": "ランタイムコンソール＆マルチサーフェス投影ハブ",
-    "liveStateSummary": "実行状態とイベントをリアルタイムで表示",
-    "surfaces": {
-      "chat": "チャットビュー",
-      "runtimeConsole": "ランタイムコンソール",
-      "deliverables": "成果物ボード",
-      "audit": "監査台帳"
-    },
-    "attemptInspector": {
-      "title": "試行の遷移＆スループットの最高値",
-      "attemptNumber": "試行 #{number}",
-      "duration": "所要時間",
-      "throughput": "スループット",
-      "tokens": "使用トークン数",
-      "status": "ステータス",
-      "faultReason": "診断された障害の原因",
-      "diffSummary": "仮想 Diff の概要",
-      "noAttempts": "記録された試行はありません"
-    },
-    "deliverablesSection": {
-      "title": "成果物＆アーティファクトマトリクス",
-      "noDeliverables": "この実行ではまだ成果物が生成されていません"
-    },
-    "auditSection": {
-      "title": "コンプライアンス＆権限台帳",
-      "noAudit": "記録されたセキュリティ操作はありません"
-    },
-    "tokensTotal": "累計トークン数",
-    "avgThroughput": "平均生成速度",
-    "closeDrawer": "コンソールを閉じる"
   },
   "skillAlignment": {
     "title": "実行前の好みの擦り合わせ",
@@ -16587,7 +16406,7 @@
         "refreshSuccess": "モデル情報を更新しました",
         "refreshFailed": "更新に失敗しました",
         "refreshNoData": "モデル情報を取得できませんでした",
-        "refreshNoDataDesc": "このモデルは LiteLLM データベースに存在しない可能性があります。手動で情報を編集できます。",
+        "refreshNoDataDesc": "このモデルはモデルカタログに存在しない可能性があります。手動で情報を編集できます。",
         "saveSuccess": "モデル情報を保存しました",
         "vision": "視覚",
         "functionCalling": "ツール呼び出し",
@@ -17753,6 +17572,7 @@
         "urlImportTooManyError": "1 回のバッチインポートで最大 50 件の URL が許可されます",
         "urlImportResult": "インポート完了: 合計 {total} 件、キュー登録 {enqueued} 件、エラー {errors} 件",
         "importFailed": "URL の一括インポート開始に失敗しました",
+        "urlImportFailedHint": "次のリンクはインポートできませんでした。入力欄に残してあるので、確認して再試行できます。",
         "urlImportCount": "{count} 件の URL を検出",
         "urlImportPlaceholder": "URL をここに貼り付け（1 行に 1 件、最大 50 件）",
         "urlImportFolderLabel": "保存先フォルダ（任意）",
@@ -19725,15 +19545,15 @@
     "duckduckgoFree": "DuckDuckGo（無料クラウド）",
     "modelPlaceholder": "プロバイダー/モデル名（例：openai/gpt-4, anthropic/claude-3-opus-20240229）",
     "apiKeyPlaceholder": "APIキーを入力してください",
-    "baseUrlPlaceholder": "プロバイダーの API URL またはカスタム URL（組み込みの一般的なプロバイダー URL は入力不要、litellm ドキュメントを参照してください）",
-    "baseUrlTooltip": "モデルプロバイダーの API ベース URL。http または https で始まる必要があります。一部のプロバイダーは自動取得できます。litellm のドキュメントを参照してください",
+    "baseUrlPlaceholder": "プロバイダーの API URL またはカスタム URL（組み込みの一般的なプロバイダー URL は入力不要）",
+    "baseUrlTooltip": "モデルプロバイダーの API ベース URL。http または https で始まる必要があります。一部のプロバイダーは自動取得できます。",
     "baseUrlFormatError": "ベース URL は有効な URL 形式で、http または https で始まる必要があります",
     "modelKwargsPlaceholder": "JSON 形式でパラメータを入力",
     "modelAndApiKeyRequired": "モデルと API キーは必須です",
     "invalidModelKwargs": "モデルパラメータの JSON が無効です",
     "modelValidationFailed": "モデルの検証に失敗しました。設定を確認してください。",
     "inferenceModel": "推論モデル",
-    "modelTooltip": "litellm ベース。対応モデルはこちらを参照してください",
+    "modelTooltip": "対応モデルはプロバイダーのドキュメントを参照してください",
     "modelKwargsTooltip": "モデル固有のパラメータ。JSON 形式で使用し、ネスト構造をサポートします",
     "modelRequired": "モデル名は空にできません",
     "apiKeyRequired": "API キーは空にできません",
@@ -22668,13 +22488,6 @@
     "close": "閉じる",
     "binaryChanged": "バイナリファイルが変更されました",
     "noChanges": "変更なし"
-  },
-  "riskGate": {
-    "regionLabel": "段階別リスク確認",
-    "dryRunImpact": "dry_run=true で {tool} の実行をシミュレーションしました",
-    "dryRunDefaultTarget": "対象エンティティ",
-    "dryRunParamsVerified": "パラメーターの検証に成功しました（{count} 項目）",
-    "dryRunNoPersistentChanges": "ファイルシステムやデータベースへの永続的な変更はありません"
   },
   "commerceReceipt": {
     "statusCommitted": "支払い済み・検証済み",

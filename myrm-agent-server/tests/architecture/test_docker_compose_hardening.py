@@ -19,12 +19,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
 import yaml
 
 from app.services.agent.gateway import AgentGateway
-
-pytestmark = pytest.mark.architecture
 
 _COMPOSE = Path(__file__).resolve().parents[2] / "docker-compose.yaml"
 # The steps after the drain (tunnel, watchers, database) need their own time before SIGKILL.

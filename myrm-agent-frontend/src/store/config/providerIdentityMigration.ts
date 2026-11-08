@@ -1,5 +1,5 @@
 /**
- * One-shot migration for unified provider identity (storage id ↔ LiteLLM routing).
+ * One-shot migration for unified provider identity (storage id ↔ route segment).
  *
  * Rewrites persisted Provider bundle + personal media settings once on load/import.
  * No runtime alias tables on the server — selections must resolve to concrete rows.
@@ -13,11 +13,7 @@ import type {
   RoutingConfig,
   SingleModelSelection,
 } from './providerTypes';
-import {
-  getInitialDefaultModelConfig,
-  PROVIDER_TO_LITELLM_PREFIX,
-  resolveCustomProviderTypeInfo,
-} from './providerTypes';
+import { getInitialDefaultModelConfig, PROVIDER_TO_ROUTE_PREFIX, resolveCustomProviderTypeInfo } from './providerTypes';
 import type { ProvidersConfigValue } from '@/services/config/types';
 import type { PersonalSettingsConfigValue, VideoGenerationConfig } from '@/services/config/types';
 
@@ -41,9 +37,9 @@ export function deriveRoutingProfile(provider: ProviderConfig): string {
   }
   const typeInfo = resolveCustomProviderTypeInfo(provider.providerType);
   if (typeInfo) {
-    return typeInfo.litellmPrefix;
+    return typeInfo.routePrefix;
   }
-  return PROVIDER_TO_LITELLM_PREFIX[provider.id] ?? provider.id;
+  return PROVIDER_TO_ROUTE_PREFIX[provider.id] ?? provider.id;
 }
 
 function migrateSelection(sel: SingleModelSelection | null): SingleModelSelection | null {

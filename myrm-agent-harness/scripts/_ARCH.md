@@ -14,6 +14,7 @@ Harness 仓维护脚本：框架-业务边界 enforcement、PyPI 发布校验、
 | `build_core.py` | 核心 | compiled-core 构建（平台键的 CPU 必须等于构建机 CPU）+ wheel 后 inline artifact verify | ✅ |
 | `build_release_wheel.py` | 核心 | 发布 wheel 组装 + strip 后 inline artifact verify | ✅ |
 | `sync_distribution_metadata.py` | 核心 | 从 `core_manifest.yaml` 再生成 `runtime/install_guard` codegen 产物与 compiled-core pin | ✅ |
+| `sync_model_catalog.py` | 辅助 | 把社区模型价格表并入内置模型目录快照：按键取并集（上游仍列出的模型整条以上游为准，上游不再列出的模型保留最后一条记录），输出新增/更新/保留/丢失窗口或价格的审阅清单；上游保留的键少于快照一半时拒绝写入（表格式变了而不是被裁剪）。发布前运行并提交 diff | ✅ |
 | `check_package_root_layout.py` | Gate | 包根禁止平铺实现模块（仅允许 `__init__.py`）；`tests/` 根禁止散落测试模块（仅允许 `__init__.py` / `conftest.py`）；回归 legacy 平铺文件名 | — |
 | `assemble_production.py` | 辅助 | 生产包组装 | ✅ |
 | `verify_release_tag.py` | 辅助 | tag 与 `project.version` 一致性校验 | ✅ |
@@ -93,4 +94,4 @@ Pre-commit runs `validate_arch_inventory.py` via hook `harness-arch-inventory-ch
 
 - **扫描目标**：`src/myrm_agent_harness/`
 - **配置**：`boundary_config.py`（`ALLOWED_FRAMEWORK_PREFIXES`、`BANNED_PREFIXES`、`ALLOWED_PATHS`）
-- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`
+- **CI / pre-commit**：与 `tests/` 边界测试套件联动；`check_fractal_docs.py` 与 `tests/architecture/test_check_fractal_docs.py`；`server-architecture.yml` 运行 `validate_arch_inventory.py`、`check_import_resolvability.py`、`check_module_reachability.py`，该流水线不设路径过滤（由 server 的 `tests/architecture/test_gate_workflow_triggers.py` 钉住），所以改任一脚本，在 push main 与 PR 上都会跑

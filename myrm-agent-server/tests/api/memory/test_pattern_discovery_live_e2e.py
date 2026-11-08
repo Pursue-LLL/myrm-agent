@@ -1,7 +1,7 @@
 """Live E2E: pattern discovery with a real LLM (BASIC_* from .env.test).
 
 Verifies the end-to-end value chain that the memory guardian revives on
-demand: a real ``ChatLiteLLM`` built from the platform-style model config
+demand: a real ``TransportChatModel`` built from the platform-style model config
 runs the harness ``run_pattern_discovery`` strategy through
 ``with_structured_output`` and produces validated ``DiscoveredPattern`` s.
 
@@ -15,10 +15,10 @@ from __future__ import annotations
 import os
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms import TransportChatModel
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     run_pattern_discovery,
 )
@@ -75,8 +75,10 @@ def _make_mature_manager() -> AsyncMock:
 
     manager.count_memories = AsyncMock(side_effect=lambda mt: 60 if str(mt) == "semantic" else 0)
     manager.list_memories = AsyncMock(return_value=memories)
-    manager.get_profile_attribute = AsyncMock(side_effect=lambda key: "5" if "consolidation" in key else None)
-    manager.set_profile_attribute = AsyncMock()
+    # Maintenance counters live in bookkeeping rows read straight from the relational store.
+    relational = AsyncMock()
+    relational.get_profile = AsyncMock(side_effect=lambda key, namespaces=None: "5" if "consolidation" in key else None)
+    manager._rel = MagicMock(return_value=relational)
     manager.search = AsyncMock(
         return_value=[
             SimpleNamespace(
@@ -99,7 +101,7 @@ def _make_mature_manager() -> AsyncMock:
 async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
     """A real LLM over sufficiently mature memories yields validated patterns."""
     cfg = get_base_model_config()
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=str(cfg["model"]),
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,
@@ -145,7 +147,7 @@ async def test_pattern_discovery_skips_when_gate_not_met() -> None:
     manager.count_memories = AsyncMock(return_value=10)
 
     cfg = get_base_model_config()
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=str(cfg["model"]),
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,

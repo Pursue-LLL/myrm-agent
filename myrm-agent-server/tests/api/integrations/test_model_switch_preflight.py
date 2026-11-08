@@ -66,7 +66,7 @@ class TestModelSwitchPreflight:
         assert response.status_code == 422
 
     def test_unknown_model_with_frontend_window(self, client: TestClient) -> None:
-        """Frontend-provided window drives threshold even when litellm is unknown.
+        """Frontend-provided window drives threshold even when the catalog does not know the model.
 
         Window 16k maps to WEAK tier (context-length based) -> ratio 0.30.
         """
@@ -399,7 +399,7 @@ class TestPreflightWindowResolution:
     def test_missing_window_skips_warning(self, client: TestClient) -> None:
         """No frontend window and unknown model -> found=False, no warning."""
         with patch(
-            "app.api.integrations.llms.preflight._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value=None,
         ):
             response = client.post(
@@ -415,10 +415,10 @@ class TestPreflightWindowResolution:
         assert item["new_window"] is None
         assert item["will_compress"] is False
 
-    def test_backend_resolves_window_from_litellm_info(self, client: TestClient) -> None:
-        """Backend resolves max_input_tokens from LiteLLM model info when not provided."""
+    def test_backend_resolves_window_from_catalog_info(self, client: TestClient) -> None:
+        """Backend resolves max_input_tokens from the model catalog when not provided."""
         with patch(
-            "app.api.integrations.llms.preflight._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value={"max_input_tokens": 32000},
         ):
             response = client.post(
@@ -435,10 +435,10 @@ class TestPreflightWindowResolution:
         # gpt-4o 32k -> MEDIUM tier (ratio 0.50) -> threshold = 32000 * (0.50 + 0.15) = 20800
         assert item["compress_threshold"] == 20800
 
-    def test_backend_falls_back_to_max_tokens_key(self, client: TestClient) -> None:
-        """max_tokens key is honored when max_input_tokens is absent."""
+    def test_backend_does_not_read_max_tokens_as_a_window(self, client: TestClient) -> None:
+        """max_tokens is an output budget for part of the catalog, never a context window."""
         with patch(
-            "app.api.integrations.llms.preflight._try_get_model_info_exact",
+            "app.api.integrations.llms.preflight.model_facts",
             return_value={"max_tokens": 64000},
         ):
             response = client.post(
@@ -450,14 +450,14 @@ class TestPreflightWindowResolution:
             )
         assert response.status_code == 200
         item = response.json()["data"]["results"][0]
-        assert item["found"] is True
-        assert item["new_window"] == 64000
+        assert item["found"] is False
+        assert item["new_window"] is None
 
     def test_backend_ignores_nonpositive_windows(self, client: TestClient) -> None:
-        """info with only non-positive windows resolves to None -> found=False."""
+        """A non-positive window resolves to None -> found=False."""
         with patch(
-            "app.api.integrations.llms.preflight._try_get_model_info_exact",
-            return_value={"max_input_tokens": 0, "max_tokens": -1},
+            "app.api.integrations.llms.preflight.model_facts",
+            return_value={"max_input_tokens": 0},
         ):
             response = client.post(
                 "/api/v1/integrations/llm/model-switch-preflight",

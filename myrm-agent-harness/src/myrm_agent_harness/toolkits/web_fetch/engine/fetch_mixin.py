@@ -12,12 +12,16 @@ from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
 
-from ..fetchers.protocols import FetcherType, FetchResult
+from myrm_agent_harness.utils.content_sniff import PayloadKind
+
+from ..fetchers.protocols import Fetcher, FetcherType, FetchResult
 from ..processing.antibot_detector import is_blocked as detect_antibot
 from .types import DEGRADABLE_4XX
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
+
+    from ..processing.pipeline import ContentPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +32,33 @@ try:
 except (ImportError, TypeError):
     _PSUTIL_AVAILABLE = False
     logger.warning("psutil not available, resource tracking disabled")
+
+
+async def _process_and_warn_if_truncated(
+    pipeline: ContentPipeline, fetch_result: FetchResult, url: str, max_chars: int
+) -> Document | None:
+    """Run the content pipeline and warn the user when the content was truncated to fit the context."""
+    doc = await pipeline.aprocess(fetch_result, max_chars=max_chars)
+    if doc and doc.metadata.get("was_truncated"):
+        try:
+            from myrm_agent_harness.utils.event_utils import dispatch_custom_event
+
+            await dispatch_custom_event(
+                "agent_status",
+                {
+                    "step_key": "ux_warning_truncated",
+                    "status": "warning",
+                    "items": [
+                        {
+                            "text": f"Warning: Content from {url} was intelligently truncated to fit within context limits."
+                        }
+                    ],
+                    "metadata": {"type": "html_truncation", "url": url},
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to dispatch truncation event: {e}")
+    return doc
 
 
 class FetchEngineFetchMixin:
@@ -41,7 +72,7 @@ class FetchEngineFetchMixin:
         max_chars: int = 0,
     ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
         """Fetch with a specified fetcher and process through the pipeline."""
-        fetcher_map = {
+        fetcher_map: dict[FetcherType, Fetcher] = {
             FetcherType.HTTP: self._http_fetcher,
             FetcherType.BROWSER: self._browser_fetcher,
             FetcherType.STEALTH: self._stealth_fetcher,
@@ -66,7 +97,9 @@ class FetchEngineFetchMixin:
 
         start_time = time.time()
         if fetcher_type == FetcherType.HTTP and (etag or last_modified):
-            fetch_result: FetchResult | None = await fetcher.fetch(url, etag=etag, last_modified=last_modified)
+            fetch_result: FetchResult | None = await self._http_fetcher.fetch(
+                url, etag=etag, last_modified=last_modified
+            )
         else:
             fetch_result = await fetcher.fetch(url)
         elapsed = time.time() - start_time
@@ -98,14 +131,21 @@ class FetchEngineFetchMixin:
             logger.warning(f"HTTP {fetch_result.status_code} not degradable, abort: {url}")
             return None, False, latency_ms, cpu_percent, memory_mb, None
 
-        # Non-text bodies (PDF, Office) reach here as raw bytes with empty html, so they must be routed to a
-        # file parser before the empty-shell check; a payload no parser accepts still degrades to the browser.
+        # Files (PDF, Office, images) reach here as raw bytes with empty html, so they are routed to a file parser
+        # before the empty-shell check. A file no parser reads is just as unreadable in a browser, so it ends the
+        # fetch; an error status instead means the server refused the request, which a browser may get past.
         if fetch_result.raw_body is not None:
             from ..processing.binary_router import route_binary_content
 
             doc = await route_binary_content(fetch_result.raw_body, fetch_result.headers, url)
-            if doc is not None:
+            if doc is not None or fetch_result.status_code < 400:
                 return doc, False, latency_ms, cpu_percent, memory_mb, fetch_result
+
+        # Text (plain, markdown, csv, feeds, source files) is already the content; the HTML-only checks below
+        # (empty shell, anti-bot) would reject it for lacking markup.
+        if fetch_result.kind is PayloadKind.TEXT and fetch_result.status_code < 400:
+            doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
+            return doc, True, latency_ms, cpu_percent, memory_mb, fetch_result
 
         if fetcher_type == FetcherType.HTTP and not fetch_result.has_content:
             logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
@@ -140,28 +180,7 @@ class FetchEngineFetchMixin:
             logger.warning(f"Anti-bot detected ({reason}): {url}")
             return None, True, latency_ms, cpu_percent, memory_mb, None
 
-        doc = await self._pipeline.aprocess(fetch_result, max_chars=max_chars)
-
-        if doc and doc.metadata.get("was_truncated"):
-            try:
-                from myrm_agent_harness.utils.event_utils import dispatch_custom_event
-
-                await dispatch_custom_event(
-                    "agent_status",
-                    {
-                        "step_key": "ux_warning_truncated",
-                        "status": "warning",
-                        "items": [
-                            {
-                                "text": f"Warning: Content from {url} was intelligently truncated to fit within context limits."
-                            }
-                        ],
-                        "metadata": {"type": "html_truncation", "url": url},
-                    },
-                )
-            except Exception as e:
-                logger.warning(f"Failed to dispatch truncation event: {e}")
-
+        doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
         return doc, True, latency_ms, cpu_percent, memory_mb, fetch_result
 
     async def _try_and_report(
@@ -181,14 +200,17 @@ class FetchEngineFetchMixin:
             last_modified=last_modified,
             max_chars=max_chars,
         )
-        self._report_feedback(
-            url,
-            fetcher_type,
-            success=(doc is not None),
-            latency_ms=latency,
-            cpu=cpu,
-            memory=mem,
-        )
+        # A miss that is final (404, 304, a file no parser reads) says nothing about whether this tier can fetch the
+        # site, so it must not teach the router to skip the tier.
+        if doc is not None or degradable:
+            self._report_feedback(
+                url,
+                fetcher_type,
+                success=(doc is not None),
+                latency_ms=latency,
+                cpu=cpu,
+                memory=mem,
+            )
         return doc, degradable, latency, cpu, mem, fetch_result
 
     async def _crawl_with_degradation(
@@ -241,7 +263,14 @@ class FetchEngineFetchMixin:
             last_modified=last_modified,
             max_chars=max_chars,
         )
-        if doc or not degradable:
+        if doc:
+            return doc, result
+        if not degradable:
+            # A browser cannot read a file the parsers could not, but a remote provider can still try.
+            if allow_escalation and result is not None and result.kind is PayloadKind.BINARY:
+                esc_doc, esc_result = await self._try_escalation(url, max_chars=max_chars)
+                if esc_doc:
+                    return esc_doc, esc_result
             return doc, result
 
         logger.warning(f"HTTP insufficient, degrading to browser: {url}")

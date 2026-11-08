@@ -195,12 +195,12 @@ class TestConcurrencyLimiterEdgeCases:
 
 
 # ---------------------------------------------------------------------------
-# ParallelToolCallsMiddleware with a real ChatLiteLLM
+# ParallelToolCallsMiddleware with a real TransportChatModel
 # ---------------------------------------------------------------------------
 
 
-class TestParallelToolCallsReachChatLiteLLM:
-    """The setting the middleware puts on a model request is what ``ChatLiteLLM.bind_tools`` binds."""
+class TestParallelToolCallsReachTransportChatModel:
+    """The setting the middleware puts on a model request is what ``TransportChatModel.bind_tools`` binds."""
 
     @staticmethod
     async def _bound(parallel: bool, model_settings: dict[str, object] | None = None):
@@ -209,7 +209,7 @@ class TestParallelToolCallsReachChatLiteLLM:
         from langchain_core.tools import tool
 
         from myrm_agent_harness.agent.middlewares.parallel_tool_calls import ParallelToolCallsMiddleware
-        from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
         @tool
         def probe() -> str:
@@ -226,7 +226,7 @@ class TestParallelToolCallsReachChatLiteLLM:
             return ModelResponse(result=[AIMessage(content="")])
 
         request = ModelRequest(
-            model=ChatLiteLLM(model="test-model", api_key="test-key"),
+            model=TransportChatModel(model="test-model", api_key="test-key"),
             messages=[],
             tools=[probe],
             model_settings=model_settings,

@@ -53,7 +53,6 @@ import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } fro
 import Chat from './Chat';
 import { isChatRouteHydratedForId, subscribeChatRouteHydrated } from './chatRouteHydration';
 import { ExtensionUIModal } from '../extension-ui';
-import { TieredRiskGateContainer } from '../risk-approval';
 import { TaskHudOverlay } from '../task-hud';
 import { useExtensionUIStore } from '@/store/useExtensionUIStore';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
@@ -683,7 +682,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         ) : null}
         <LifeStatusCapsule currentSessionId={id || null} />
         <ExtensionUIModal />
-        <TieredRiskGateContainer />
         <TaskHudOverlay />
       </>
     );
@@ -718,7 +716,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       {isGoalsEnabled ? <GoalStatusCard /> : null}
       <LifeStatusCapsule currentSessionId={id || null} />
       <ExtensionUIModal />
-      <TieredRiskGateContainer />
       <TaskHudOverlay />
     </>
   );

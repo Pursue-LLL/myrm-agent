@@ -16,7 +16,7 @@ def _clear_llm_cache() -> None:
     LLMManager.clear_cache()
 
 
-def _mock_litellm_model(*, api_key: str, **kwargs: object) -> MagicMock:
+def _mock_chat_model(*, api_key: str, **kwargs: object) -> MagicMock:
     model = MagicMock()
     model.model = f"model-{api_key}"
     return model
@@ -35,8 +35,8 @@ def _make_config(api_keys: list[str], strategy: str | CredentialPoolStrategy) ->
 
 def test_pooled_cache_is_order_sensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
-        _mock_litellm_model,
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
+        _mock_chat_model,
     )
 
     first = LLMManager._get_pooled_llm(
@@ -61,8 +61,8 @@ def test_pooled_cache_is_order_sensitive(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_pooled_cache_is_strategy_sensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
-        _mock_litellm_model,
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
+        _mock_chat_model,
     )
 
     first = LLMManager._get_pooled_llm(
@@ -88,8 +88,8 @@ def test_pooled_cache_is_strategy_sensitive(monkeypatch: pytest.MonkeyPatch) -> 
 @pytest.mark.asyncio
 async def test_get_llm_from_config_uses_config_pool_strategy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
-        _mock_litellm_model,
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
+        _mock_chat_model,
     )
 
     config = _make_config(["key-a", "key-b"], "fill_first")
@@ -111,7 +111,7 @@ async def test_get_llm_from_config_top_level_temperature_overrides_model_kwargs(
         return model
 
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
         _capturing_model,
     )
 
@@ -144,7 +144,7 @@ async def test_get_llm_from_config_keeps_model_kwargs_temperature_when_top_level
         return model
 
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
         _capturing_model,
     )
 
@@ -176,7 +176,7 @@ async def test_get_llm_from_config_passes_top_level_reasoning_effort(
         return model
 
     monkeypatch.setattr(
-        "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
+        "myrm_agent_harness.toolkits.llms.core.manager.create_chat_model",
         _capturing_model,
     )
 

@@ -22,14 +22,11 @@ Detailed design: [CONTEXT_MANAGEMENT_SYSTEM.md](CONTEXT_MANAGEMENT_SYSTEM.md)
 |-----------|-------------|
 | archive_checkpoint/ | Lite-LLM archive summary checkpoints: Protocol store, EpisodicMemory persistence, bounded async `ArchiveSummaryService`. |
 | capability_matrix/ | 情境感知型渐进式能力即时推荐与交互式快捷指令全景面板核心引擎（Item 38 P0）。 See [capability_matrix/_ARCH.md](capability_matrix/_ARCH.md). |
-| desktop_repl/ | In-process scripted REPL over a mock desktop SDK that only records actions; it does not drive a real desktop and is not wired to `DesktopSession` or any agent tool. See [desktop_repl/_ARCH.md](desktop_repl/_ARCH.md). |
 | infra/ | Context management infrastructure: shared types, token estimation, budget management, session locks, archive references, cache policy. |
 | pipeline/ | Ordered context processors for filtering, active per-step tool-result pruning, cache-TTL pruning, pre-compaction recall, compression, session notes, summarization, post-compaction refetch guard, normalization, and explicit cache markers. Filter and Compress consume compression_intent via retention_helpers. |
-| prefix_caching_ledger/ | Prefix caching aligned context layout and hidden reasoning token ledger suite (Item 308). See [prefix_caching_ledger/_ARCH.md](prefix_caching_ledger/_ARCH.md). |
 | scratchpad_promotion/ | Quick scratchpad draft to full project seed transformation engine for dual-track workspace architectures. See [scratchpad_promotion/_ARCH.md](scratchpad_promotion/_ARCH.md). |
 | strategies/ | Three-tier context reduction strategies: Filter, Compress, Summarize. `Summarize` enforces structural validation via `with_structured_output` to eliminate JSON parsing fragility. |
 | tracking/ | Observation and tracking: artifact tracking, task metrics, archive refetch cost, restore-block events, and archive read budgets. |
-| two_stage_search_extract/ | Two-stage ranked snippet triage and selective deep web extract suite (Item 327). See [two_stage_search_extract/_ARCH.md](two_stage_search_extract/_ARCH.md). |
 | eviction_marks/ | Message-level eviction-immunity marks: metadata tags consumed by selective eviction; no runtime workbench state. |
 
 ## Key Dependencies

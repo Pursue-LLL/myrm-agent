@@ -6,10 +6,18 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `__init__.py` | 导出全部类型与 `AnyMemory`，执行 `model_rebuild` |
-| `enums.py` | 记忆分类、层级、摘要/蒸发/声明状态、冲突处置、规则优先级 |
-| `base.py` | BaseMemory / MemoryScope / MemoryLifecycle / EvidenceReference / 归档窗口 / 变更 DTO |
-| `records.py` | ProfileEntry 与八类具体记忆模型 |
-| `search.py` | 检索来源、白盒追踪、搜索结果与待审候选 |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 门面 | 导出全部类型与 `AnyMemory`，执行 `model_rebuild` | ✅ |
+| `enums.py` | 核心 | 记忆分类、层级、摘要/蒸发/声明状态、冲突处置、规则优先级 | ✅ |
+| `base.py` | 基础 | BaseMemory（含 `stored_at`：存储层写入时盖的到达戳，不同于业务时间 `created_at`）/ MemoryScope / MemoryLifecycle / EvidenceReference / 归档窗口 / 变更 DTO | ✅ |
+| `records.py` | 核心 | ProfileEntry 与八类具体记忆模型 | ✅ |
+| `search.py` | 核心 | 检索来源、白盒追踪、搜索结果与待审候选 | ✅ |
+
+## 依赖关系
+
+- `base.py` → `enums.py`
+- `records.py` → `base.py`
+- `records.py` → `enums.py`
+- `search.py` → `enums.py`
+- `search.py` → `records.py`

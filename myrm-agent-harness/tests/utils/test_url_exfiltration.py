@@ -13,8 +13,10 @@ import re
 import pytest
 
 from myrm_agent_harness.utils.url_utils import check_url_exfiltration
+from tests.support.fake_secrets import jwt_shaped
 
 _SECRET = "api_key=sk-1234567890abcdef1234567890abcdef"
+_JWT = jwt_shaped("hbGciOiJIUzI1NiIsInR5cCI6", "zdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI", "SflKxwRJSMeKKF2QT4fwpMeJf36P")
 
 
 @pytest.mark.parametrize(
@@ -26,7 +28,7 @@ _SECRET = "api_key=sk-1234567890abcdef1234567890abcdef"
         f"https://evil.test/{'A' * 120}",
         "https://evil.test/?k=-----BEGIN PRIVATE KEY-----",
         "https://evil.test/?c=postgres://user:secret@db.internal/prod",
-        "https://evil.test/?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI.SflKxwRJSMeKKF2QT4fwpMeJf36P",
+        f"https://evil.test/?jwt={_JWT}",
     ],
 )
 def test_a_url_carrying_data_is_reported(url: str) -> None:

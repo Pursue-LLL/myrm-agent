@@ -17,10 +17,6 @@ Session-scoped in-memory queues with optional workspace JSONL persistence (`team
 | `types.py` | 核心 | `TeammateMessage` dataclass | ✅ |
 | `mailbox.py` | 核心 | `TeammateMailbox`, send/drain/history/group | ✅ |
 | `adaptive_wakeup/` | 核心 | 后台任务完成后的自适应唤醒路由：用户停止抑制、有界连续唤醒预算（FOLLOWUP / DEGRADE / SUPPRESS；结算只读预算，唤醒回合真正开始时由宿主 `claim_wake_turn` 扣一次）(types, budget_tracker, adaptive_router) | ✅ |
-| `bot_mode/` | 核心 | 具名智能体工位花名册、Bot-to-Bot 异步发信与 @mention 寻址投递信箱中继协议 (types, roster, mailbox_relay) | ✅ |
-| `scope_guardrails/` | 核心 | Orchestrator 越权防护与安全建队模式收敛审核引擎 (types, guardrails_engine) | ✅ |
-| `autonomous_loop/` | 核心 | Goal/Kanban 驱动自主编排循环与安全步数看门狗引擎 (types, loop_controller) | ✅ |
-| `wave_orchestrator/` | 核心 | 编码型 Agent Profile 可选预置与多阶段 Wave 波次流水线编排引擎 (types, wave_engine) | ✅ |
 | `__init__.py` | 导出 | Public API surface | ✅ |
 
 ## 模块依赖

@@ -1,4 +1,4 @@
-"""LiteLLM API request/response logging utility
+"""LLM API request/response logging utility
 
 agent/context_management/PROMPT_CACHE_PRACTICE.md §6.3 whenever this file changes.
 
@@ -14,9 +14,9 @@ agent/context_management/PROMPT_CACHE_PRACTICE.md §6.3 whenever this file chang
 - log_llm_response(): log response and invoke registered response hooks (e.g. cache metrics persistence)
 
 [POS]
-LiteLLM API request/response logging utility. Provides detailed LLM API call logging with toggle support.
+LLM API request/response logging utility. Provides detailed LLM API call logging with toggle support.
 Auto-truncates long text, redacts sensitive information (API keys), and formats output.
-As the logging layer, used by ChatLiteLLM for debugging and monitoring LLM calls.
+As the logging layer, used by TransportChatModel for debugging and monitoring LLM calls.
 """
 
 import contextlib
@@ -95,7 +95,7 @@ def _safe_get_finish_reason(response: Mapping[str, Any]) -> str:
     """Safely get finish_reason, handling empty choices list.
 
     Args:
-        response: LiteLLM response dict
+        response: chat.completion response dict
 
     Returns:
         finish_reason string, or 'N/A' if retrieval fails
@@ -103,10 +103,10 @@ def _safe_get_finish_reason(response: Mapping[str, Any]) -> str:
     choices = response.get("choices")
     if not choices or not isinstance(choices, list) or len(choices) == 0:
         return "N/A (empty choices)"
-    return choices[0].get("finish_reason", "N/A")
+    return str(choices[0].get("finish_reason", "N/A"))
 
 
-def _decode_tool_call_arguments(tool_calls: list[dict]) -> None:
+def _decode_tool_call_arguments(tool_calls: list[dict[str, Any]]) -> None:
     """Decode tool_calls arguments in-place (for log display only).
 
     Parses JSON string arguments into dicts for readability.
@@ -293,7 +293,9 @@ def log_llm_response(
 
     model = response.get("model", "N/A")
     token_usage = response.get("usage", {})
-    messages_data = [choice.get("message", {}) for choice in response.get("choices", [])]
+    # The display clean-up below drops tool-call ids and thinking signatures and decodes arguments, so it must
+    # work on a copy: the caller builds the AIMessage from this same dict after logging it.
+    messages_data = copy.deepcopy([choice.get("message", {}) for choice in response.get("choices", [])])
 
     # Decode tool_calls arguments (if JSON strings) for readability
     for msg in messages_data:
@@ -312,7 +314,7 @@ def log_llm_response(
     total_tokens = coerce_usage_non_negative_int(token_usage.get("total_tokens", 0))
 
     # Extract cached_tokens from prompt_tokens_details
-    # LiteLLM standardizes: OpenAI/Anthropic/Gemini all map to prompt_tokens_details.cached_tokens
+    # Every wire reports cache reads as prompt_tokens_details.cached_tokens
     prompt_details = token_usage.get("prompt_tokens_details", {}) or {}
     cached_tokens = (
         coerce_usage_non_negative_int(prompt_details.get("cached_tokens")) if isinstance(prompt_details, dict) else 0

@@ -22,13 +22,6 @@ from myrm_agent_harness.runtime.context.offload import (
     cleanup_session_context_files,
     create_compress_offload_callback,
 )
-from myrm_agent_harness.runtime.context.session.event_sourcing_store import (
-    EventSourcingLoadResult,
-    EventSourcingSessionStore,
-    SessionEventRecord,
-    fork_session_by_stream_copy,
-    load_session_events_with_auto_repair,
-)
 from myrm_agent_harness.runtime.context.session_handoff_continuation_types import (
     CleanWindowContinuationBundle,
     HandoffPhaseKind,
@@ -100,11 +93,6 @@ __all__ = [
     "estimate_context_tokens_anchored",
     "extract_provider_usage_anchor",
     "is_compaction_triggered",
-    "SessionEventRecord",
-    "EventSourcingLoadResult",
-    "EventSourcingSessionStore",
-    "load_session_events_with_auto_repair",
-    "fork_session_by_stream_copy",
     "HandoffPhaseKind",
     "HandoffTriggerReason",
     "RejectedAlternativeRecord",

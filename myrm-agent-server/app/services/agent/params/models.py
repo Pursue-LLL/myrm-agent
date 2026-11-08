@@ -90,6 +90,13 @@ class AgentConfigRequest(BaseModel):
         default=None,
         description="Chat session target kanban board for LLM tool default_board_id",
     )
+    system_prompt: str | None = Field(
+        default=None,
+        description=(
+            "Chat-level replacement of the saved agent system prompt. Omitted: the saved prompt is used. "
+            "A string replaces it as a whole; an empty string clears it."
+        ),
+    )
     tool_gateway_config: ToolGatewayConfig | None = None
 
     @field_validator("kanban_default_board_id")
@@ -272,7 +279,10 @@ class AgentRequest(BaseModel):
 
     agent_config: AgentConfigRequest | None = None
 
-    user_instructions: str | None = None
+    user_instructions: str | None = Field(
+        default=None,
+        description="Instructions the client composes (global instruction, companion intro); the agent system prompt is added server-side.",
+    )
     fetch_raw_webpage: bool = False
     enable_memory: bool = True
     memory_require_confirmation: bool = True

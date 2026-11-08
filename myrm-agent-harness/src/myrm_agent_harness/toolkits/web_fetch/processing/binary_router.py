@@ -7,6 +7,7 @@ the raw bytes to the appropriate file parser for extraction.
 [INPUT]
 - web_fetch.fetchers.protocols::FetchResult (POS: Fetcher protocol types)
 - toolkits.file_parsers (POS: File parsers toolkit)
+- utils.content_sniff::magic_extension (POS: Format signature to file extension)
 
 [OUTPUT]
 - route_binary_content: Detect and parse binary content from a FetchResult
@@ -25,10 +26,11 @@ from pathlib import Path
 
 from langchain_core.documents import Document
 
+from myrm_agent_harness.utils.content_sniff import magic_extension
+
 logger = logging.getLogger(__name__)
 
 _MAX_BINARY_SIZE = 20 * 1024 * 1024  # 20 MB safety limit
-_BINARY_SNIFF_BYTES = 8192  # leading bytes inspected to tell binary payloads from text
 
 _CONTENT_TYPE_MAP: dict[str, str] = {
     "application/pdf": ".pdf",
@@ -44,15 +46,6 @@ _CONTENT_TYPE_MAP: dict[str, str] = {
     "image/bmp": ".bmp",
     "image/tiff": ".tiff",
 }
-
-_MAGIC_SIGNATURES: list[tuple[bytes, str]] = [
-    (b"%PDF", ".pdf"),
-    (b"\x89PNG\r\n\x1a\n", ".png"),
-    (b"\xff\xd8\xff", ".jpeg"),
-    (b"RIFF", ".webp"),  # RIFF....WEBP (check sub-format below)
-    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", ".doc"),  # OLE2 Compound (legacy Office)
-    (b"PK\x03\x04", ".zip"),  # ZIP-based (DOCX/XLSX/PPTX)
-]
 
 _CD_FILENAME_RE = re.compile(r"filename\*?=(?:UTF-8''|utf-8'')?[\"']?([^\"';\s]+)", re.IGNORECASE)
 
@@ -74,41 +67,6 @@ def _detect_extension_from_disposition(headers: dict[str, str]) -> str | None:
     return ext if ext else None
 
 
-def _detect_extension_from_magic(data: bytes) -> str | None:
-    """Layer 3: Identify format from first bytes (magic signature)."""
-    if len(data) < 8:
-        return None
-
-    for sig, ext in _MAGIC_SIGNATURES:
-        if data[: len(sig)] == sig:
-            if ext == ".webp" and len(data) >= 12 and data[8:12] != b"WEBP":
-                continue
-            if ext == ".zip":
-                return _refine_zip_extension(data)
-            return ext
-
-    return None
-
-
-def _refine_zip_extension(data: bytes) -> str:
-    """Distinguish DOCX/XLSX/PPTX from generic ZIP by internal structure."""
-    import zipfile
-    from io import BytesIO
-
-    try:
-        with zipfile.ZipFile(BytesIO(data)) as zf:
-            names = zf.namelist()
-            if any(n.startswith("word/") for n in names):
-                return ".docx"
-            if any(n.startswith("xl/") for n in names):
-                return ".xlsx"
-            if any(n.startswith("ppt/") for n in names):
-                return ".pptx"
-    except (zipfile.BadZipFile, Exception):
-        pass
-    return ".zip"
-
-
 def detect_binary_extension(headers: dict[str, str], data: bytes) -> str | None:
     """Three-layer detection: CT → CD → Magic. Returns extension or None."""
     ct = headers.get("content-type") or headers.get("Content-Type") or ""
@@ -120,7 +78,7 @@ def detect_binary_extension(headers: dict[str, str], data: bytes) -> str | None:
     if ext:
         return ext
 
-    return _detect_extension_from_magic(data)
+    return magic_extension(data)
 
 
 async def route_binary_content(
@@ -130,8 +88,7 @@ async def route_binary_content(
 ) -> Document | None:
     """Route binary content to appropriate parser and return a Document.
 
-    Returns None if the content type is unrecognized, parsing fails, or a payload
-    without a parser is binary rather than text.
+    Returns None if the content type is unrecognized, no parser supports it, or parsing fails.
     """
     if len(raw_body) > _MAX_BINARY_SIZE:
         logger.warning("Binary content too large (%d bytes), skipping: %s", len(raw_body), url[:100])
@@ -145,18 +102,8 @@ async def route_binary_content(
     from myrm_agent_harness.toolkits.file_parsers import is_supported
 
     if not is_supported(f"file{ext}"):
-        logger.info("No parser available for extension %s, returning raw text", ext)
-        # NUL bytes never occur in text; decoding such a payload would hand the model garbage.
-        if ext == ".zip" or b"\x00" in raw_body[:_BINARY_SNIFF_BYTES]:
-            return None
-        try:
-            text = raw_body.decode("utf-8", errors="replace")
-            return Document(
-                page_content=text[:100_000],
-                metadata={"url": url, "source_type": "binary_text", "extension": ext},
-            )
-        except Exception:
-            return None
+        logger.info("No parser available for extension %s: %s", ext, url[:100])
+        return None
 
     tmp_file = None
     try:

@@ -199,10 +199,10 @@ async def test_interrupt_without_action_requests_labels_unknown() -> None:
 async def test_source_events_emit_steps_and_sources() -> None:
     """Newly tracked sources emit both the progress step and the citation event."""
     tracker = SourceTracker()
-    metadata = {"sources": [{"url": "https://example.com/a", "title": "A"}]}
+    sources: list[dict[str, object]] = [{"url": "https://example.com/a", "title": "A"}]
 
-    events: list[dict] = []
-    async for event in _emit_source_events(metadata, "msg_src", tracker):
+    events: list[dict[str, object]] = []
+    async for event in _emit_source_events(sources, "msg_src", tracker):
         events.append(event)
 
     assert [event["type"] for event in events] == [
@@ -218,13 +218,13 @@ async def test_source_events_emit_steps_and_sources() -> None:
 async def test_source_events_silent_when_no_new_sources() -> None:
     """Duplicates must not re-emit the step or the citation event."""
     tracker = SourceTracker()
-    metadata = {"sources": [{"url": "https://example.com/a", "title": "A"}]}
+    sources: list[dict[str, object]] = [{"url": "https://example.com/a", "title": "A"}]
 
-    async for _ in _emit_source_events(metadata, "msg_first", tracker):
+    async for _ in _emit_source_events(sources, "msg_first", tracker):
         pass
 
-    repeat: list[dict] = []
-    async for event in _emit_source_events(metadata, "msg_second", tracker):
+    repeat: list[dict[str, object]] = []
+    async for event in _emit_source_events(sources, "msg_second", tracker):
         repeat.append(event)
 
     assert repeat == []

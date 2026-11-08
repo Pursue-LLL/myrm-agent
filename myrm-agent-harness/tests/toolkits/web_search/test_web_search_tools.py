@@ -245,46 +245,27 @@ class TestSearchResultsProcessor:
 
 
 @pytest.mark.asyncio
-class TestLiteLLMSearch:
-    """LiteLLM Search 单元测试"""
+class TestRestSearch:
+    """RestSearch construction (request and response shapes are covered by test_rest_search.py)"""
 
-    async def test_litellm_search_init(self) -> None:
-        """测试 LiteLLM 搜索初始化"""
-        from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
+    async def test_rest_search_init(self) -> None:
+        from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch
 
-        engine = LiteLLMSearch(
-            search_provider="perplexity",
-            api_key="test-key",
-        )
+        engine = RestSearch(search_provider="perplexity", api_key="test-key")
 
-        assert engine is not None
         assert engine.search_provider == "perplexity"
 
-    async def test_litellm_search_execution(self) -> None:
-        """测试搜索执行（Mock 返回 SearchResult）"""
-        from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
+    async def test_unknown_provider_is_a_config_error(self) -> None:
+        from myrm_agent_harness.toolkits.web_search.core.exceptions import SearchConfigError
+        from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch
 
-        engine = LiteLLMSearch(search_provider="perplexity", api_key="test-key")
+        with pytest.raises(SearchConfigError):
+            RestSearch(search_provider="no-such-provider", api_key="k")
 
-        # Mock 返回 SearchResult 对象列表
-        [SearchResult(title="R1", link="https://e.com/1", snippet="S1")]
+    async def test_searxng_url_override(self) -> None:
+        from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch
 
-        with patch(
-            "myrm_agent_harness.toolkits.web_search.providers.litellm_search.search",
-            new_callable=AsyncMock,
-            return_value={"results": [{"title": "R1", "link": "https://e.com/1", "snippet": "S1"}]},
-        ):
-            results = await engine.search(query="test query", num_results=5)
-
-            # litellm.search 返回的是字典，engine.search 会转换为 SearchResult
-            assert results is not None
-            assert isinstance(results, list)
-
-    async def test_litellm_searxng_url_override(self) -> None:
-        """测试 SearXNG 自定义 URL"""
-        from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
-
-        engine = LiteLLMSearch(
+        engine = RestSearch(
             search_provider="searxng",
             api_base="http://custom-searxng:8080",
         )

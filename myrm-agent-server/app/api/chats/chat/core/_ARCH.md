@@ -14,7 +14,7 @@
 
 ## 路由顺序
 
-子路由挂载顺序为 crud → recall → pins → session。总路由集合与原文件一致（17 条，methods + path + endpoint name 逐条对比通过）；静态路径（`/recall/*`、`/batch-delete`、`/pin-reorder`）与动态路径 `/{chat_id}` 系列在段数或方法上不重叠，顺序变化不影响匹配。
+子路由挂载顺序为 crud → recall → pins → session。总路由共 17 条；静态路径（`/recall/*`、`/batch-delete`、`/pin-reorder`）与动态路径 `/{chat_id}` 系列在段数或方法上不重叠，顺序变化不影响匹配。
 
 ## 依赖关系
 

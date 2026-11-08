@@ -18,7 +18,6 @@ state (env vars, cwd) across commands.
 | stream_output_processor.py | Core | `StreamOutputProcessor` — unified tee writing (raw), SSE throttle/valve, disk quota; scrubs the live (SSE) text on whole lines of the accumulated output, holding an unfinished line or open key block (up to a size cap) so a secret split across reads is matched in one piece | ✅ |
 | stream_buffer.py | Core | `ExecutionStreamBuffer` — zero-copy byte stream parsing with marker detection; `parse_failed` flag when the exit-code field is not a number (boundary corruption); with a `ValueMasker` the decoded text is masked before it is retained or returned, so the result, the tee file and the live stream all derive from masked text | ✅ |
 | value_masker.py | Core | `ValueMasker` — exact-value masking of a command's credentials (`CommandEnv.scoped`) in its output, wherever the reads were cut (a read ending in the beginning of a value is held until the next read); values under 4 characters are left alone; `printed_forms` expands a credential into the value plus the forms a client prints it in (percent-encoded as in a URL, with and without escaping `!'()*`; escaped as in a JSON string; only where they differ) | ✅ |
-| log_distiller.py | Core | High-efficiency terminal execution log distiller (`DistilledLogResult`, `TerminalLogDistiller`, `distill_terminal_output`) | ✅ |
 
 ## Key Dependencies
 

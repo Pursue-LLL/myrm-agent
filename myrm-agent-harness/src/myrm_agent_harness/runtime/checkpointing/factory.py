@@ -33,7 +33,7 @@ _LARGE_CHECKPOINT_THRESHOLD = 102400  # 100KB
 class PickleSerde:
     """Pickle-based serializer for LangGraph checkpoints.
 
-    Uses dill for enhanced serialization to support complex objects (e.g., ChatLiteLLM)
+    Uses dill for enhanced serialization to support complex objects (e.g., TransportChatModel)
     that contain module references. Falls back to pickle on failure.
 
     A checkpoint holds the full channel state, so its size grows with the conversation; those above

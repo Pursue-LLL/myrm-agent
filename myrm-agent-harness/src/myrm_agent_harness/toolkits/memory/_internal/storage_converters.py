@@ -4,6 +4,7 @@
 - memory.protocols.vector::{VectorDocument, FilterDict} (POS: vector store protocol and data models)
 - memory.types::{SemanticMemory, EpisodicMemory, ConversationMemory, ...} (POS: memory data models)
 - memory.domain_types::{MemoryDomain, DomainCategory} (POS: domain & category taxonomy)
+- _internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata, stored_ts_payload} (POS: arrival stamp of a stored memory and its payload form)
 
 [OUTPUT]
 - Scope helpers: _scope_payload, _scope_from_metadata, _user_filter
@@ -13,7 +14,8 @@
 - from_doc: doc_to_semantic, doc_to_episodic, doc_to_conversation
 
 [POS]
-Stateless conversion layer between vector-store documents and typed memory models.
+Stateless conversion layer between vector-store documents and typed memory models. A document's store stamp
+travels with the memory in both directions, so a rewrite through a model keeps the stamp it was stored with.
 """
 
 from __future__ import annotations
@@ -35,6 +37,11 @@ from myrm_agent_harness.toolkits.memory._internal._storage_payload_helpers impor
     _stamp_access,
     _status_from_metadata,
     _user_filter,
+)
+from myrm_agent_harness.toolkits.memory._internal.store_stamp import (
+    STORED_TS_KEY,
+    stored_at_from_metadata,
+    stored_ts_payload,
 )
 from myrm_agent_harness.toolkits.memory.domain_types import MemoryDomain
 from myrm_agent_harness.toolkits.memory.protocols.vector import (
@@ -122,6 +129,7 @@ _SEMANTIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "source_error",
         "tags",
         "last_accessed_at",
+        STORED_TS_KEY,
     }
 )
 
@@ -131,6 +139,7 @@ _EPISODIC_KNOWN_KEYS = _COMMON_KNOWN_KEYS | frozenset(
         "related_entities",
         "tags",
         "last_accessed_at",
+        STORED_TS_KEY,
     }
 )
 
@@ -202,6 +211,7 @@ def doc_to_semantic(doc: VectorDocument) -> SemanticMemory:
         metadata=extra,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
+        stored_at=stored_at_from_metadata(meta),
         language="zh" if meta.get("language") == "zh" else "en",
         merge_count=_safe_int(meta.get("merge_count", 0)),
         merge_history=str(meta.get("merge_history", "")),
@@ -242,6 +252,7 @@ def doc_to_episodic(doc: VectorDocument) -> EpisodicMemory:
         metadata=extra,
         created_at=doc.created_at,
         updated_at=doc.updated_at,
+        stored_at=stored_at_from_metadata(meta),
         language="zh" if meta.get("language") == "zh" else "en",
         merge_count=_safe_int(meta.get("merge_count", 0)),
         merge_history=str(meta.get("merge_history", "")),
@@ -371,6 +382,7 @@ def semantic_to_doc(m: SemanticMemory) -> VectorDocument:
         **_scope_payload(m.scope),
         **_lifecycle_payload(m.lifecycle),
         **_last_accessed_payload(m.last_accessed_at),
+        **stored_ts_payload(m.stored_at),
     }
     for k, v in m.metadata.items():
         if k not in payload:
@@ -413,6 +425,7 @@ def episodic_to_doc(m: EpisodicMemory) -> VectorDocument:
         **_scope_payload(m.scope),
         **_lifecycle_payload(m.lifecycle),
         **_last_accessed_payload(m.last_accessed_at),
+        **stored_ts_payload(m.stored_at),
     }
     for k, v in m.metadata.items():
         if k not in payload:

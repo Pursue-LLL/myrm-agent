@@ -45,7 +45,7 @@ def _install_search(
         self: WebSearcher,
         query: str,
         num_results: int = 5,
-        extra_params_override: dict[str, str | int | bool] | None = None,
+        time_range: str | None = None,
     ) -> list[SearchResult]:
         provider = self.config.search_service
         calls.append(provider)

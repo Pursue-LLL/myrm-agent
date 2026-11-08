@@ -101,7 +101,12 @@ def string_keyed_dicts(values: list[object]) -> list[dict[str, object]]:
 
 
 def source_dedup_key(source: dict[str, object]) -> str:
-    """Stable dedup key aligned with frontend mergeMessageSources / SourceTracker."""
+    """Dedup key of a source in the stored message, in the order frontend mergeMessageSources compares.
+
+    Order: source_key, conversation history, URL, MCP skill name, index. The server trims the strings it compares and,
+    for a source without an index, ends with a content hash; the frontend compares the strings as they are.
+    Same-page spellings of a URL are folded upstream by the harness SourceTracker, not here.
+    """
     source_key = source.get("source_key")
     if isinstance(source_key, str) and source_key.strip():
         return f"source_key:{source_key.strip()}"

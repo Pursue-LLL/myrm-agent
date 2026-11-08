@@ -1,15 +1,15 @@
 """[INPUT]
-- (none)
+- utils.text_cleaner::clean_text (POS: Search snippet cleaning)
 
 [OUTPUT]
-- SearchResult: Unified search engine result model.
+- SearchResult: Unified search engine result model; ``provider`` names the provider that served it.
 - Citation: Inline citation with positional info.
 
 [POS]
 Shared data models for web search results, used across the search toolkit.
 """
 
-from typing import Any
+from collections.abc import Mapping
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,6 +54,7 @@ class SearchResult(BaseModel):
         default=None,
         description="Authority info from search provider (e.g. '官方', '媒体')",
     )
+    provider: str | None = Field(default=None, description="Slug of the search provider that served this result")
 
     @property
     def url(self) -> str:
@@ -61,13 +62,13 @@ class SearchResult(BaseModel):
         return self.link
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SearchResult":
+    def from_dict(cls, data: Mapping[str, object]) -> "SearchResult":
         """Build a SearchResult from a raw API response dict, applying content cleaning."""
-        snippet = data.get("snippet", "") or data.get("content", "") or data.get("text", "")
-        cleaned_snippet = clean_text(snippet)
+        snippet = data.get("snippet", "") or data.get("content", "") or data.get("text", "") or ""
+        cleaned_snippet = clean_text(str(snippet))
         title = data.get("title") or "Untitled"
 
-        result: dict[str, Any] = {
+        result: dict[str, object] = {
             "title": title,
             "link": data.get("link", "") or data.get("url", ""),
             "snippet": cleaned_snippet,
@@ -95,4 +96,4 @@ class SearchResult(BaseModel):
                     )
             result["citations"] = parsed
 
-        return cls(**result)
+        return cls.model_validate(result)

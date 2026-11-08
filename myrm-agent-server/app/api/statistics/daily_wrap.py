@@ -8,7 +8,7 @@ cached in the main SQLite database (one row per date) to minimize LLM costs.
 - app.api.statistics.daily_journal (POS: data fetchers for sessions, approvals, cron runs, kanban)
 - app.core.channel_bridge.config_loader (POS: load user LLM configs)
 - app.core.channel_bridge.config_parsers (POS: extract lite model config)
-- myrm_agent_harness.toolkits.llms (POS: create_litellm_model for LLM calls)
+- myrm_agent_harness.toolkits.llms (POS: create_chat_model for LLM calls)
 - core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 - app.core.utils.errors::{StandardHTTPException, internal_error, timeout_error} (POS: 服务端核心错误处理与异常出口门禁)
 
@@ -133,9 +133,9 @@ async def _generate_wrap_via_llm(
     if not lite_cfg:
         return None
 
-    from myrm_agent_harness.toolkits.llms import create_litellm_model
+    from myrm_agent_harness.toolkits.llms import create_chat_model
 
-    llm = create_litellm_model(
+    llm = create_chat_model(
         model=lite_cfg.model,
         base_url=lite_cfg.base_url,
         api_key=lite_cfg.api_key,

@@ -24,15 +24,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Sequence
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.agent.skills.evolution.core.types import (
-    GeneEliteRecord,
-    SkillRecord,
-)
+from myrm_agent_harness.agent.skills.evolution.core.types import SkillRecord
 from myrm_agent_harness.eval.leakage_guard import (
     audit_proposer_prompt_for_leakage,
     filter_search_cases_for_proposer,
@@ -226,10 +222,6 @@ class VariantGenerator:
         if constraints:
             sections.append(f"\n## Historical Constraints (MUST obey or rejection is guaranteed)\n{constraints}")
 
-        gene_bank_section = self._build_gene_bank_prior_section(getattr(skill, "gene_bank_priors", []))
-        if gene_bank_section:
-            sections.append(gene_bank_section)
-
         sections.append(f"\nCurrent Skill Content:\n{skill.content}")
         sections.append(_STRUCTURED_OUTPUT)
 
@@ -257,24 +249,6 @@ class VariantGenerator:
                 if snippet:
                     prompt = prompt.replace(snippet, "[REDACTED_TEST_CASE]")
         return prompt
-
-    @staticmethod
-    def _build_gene_bank_prior_section(
-        diverse_elites: Sequence[GeneEliteRecord],
-    ) -> str:
-        """Inject MAP-Elites diverse exemplars across layers to prevent evolution collapse."""
-        if not diverse_elites:
-            return ""
-        lines: list[str] = ["## Diverse Multi-Layer Defensive Exemplars (MAP-Elites Prior)"]
-        lines.append(
-            "Consider solutions across different layers (Prompt, Tool Code, Runtime Config) to avoid over-fitting to prompt-only tweaks:"
-        )
-        for elite in diverse_elites:
-            layer_val = getattr(elite, "cell_key", None)
-            layer_name = layer_val.layer.value if layer_val else "unknown"
-            summary = getattr(elite, "patch_summary", "")
-            lines.append(f"- [{layer_name.upper()}] {summary}")
-        return "\n".join(lines)
 
     @staticmethod
     def _build_eval_cases_section(skill: SkillRecord) -> str:

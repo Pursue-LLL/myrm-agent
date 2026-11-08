@@ -25,7 +25,6 @@ def _extract_alert_block(content: str, alert_name: str) -> str:
     return match.group("body")
 
 
-@pytest.mark.architecture
 def test_memory_brief_flush_http_error_alert_uses_attempt_based_ratio_contract() -> None:
     rules_content = _PROMETHEUS_RULES_PATH.read_text(encoding="utf-8")
     block = _extract_alert_block(rules_content, _TARGET_ALERT)
@@ -48,7 +47,6 @@ def test_memory_brief_flush_http_error_alert_uses_attempt_based_ratio_contract()
         assert fragment in block, f"missing alert contract fragment: {fragment}"
 
 
-@pytest.mark.architecture
 def test_memory_brief_dedup_reject_alert_uses_ratio_and_redis_burst_contract() -> None:
     rules_content = _PROMETHEUS_RULES_PATH.read_text(encoding="utf-8")
     block = _extract_alert_block(rules_content, _DEDUP_REJECT_ALERT)
@@ -69,7 +67,6 @@ def test_memory_brief_dedup_reject_alert_uses_ratio_and_redis_burst_contract() -
         assert fragment in block, f"missing alert contract fragment: {fragment}"
 
 
-@pytest.mark.architecture
 def test_promtool_rules_check_passes_when_promtool_available() -> None:
     promtool = shutil.which("promtool")
     if promtool is None:

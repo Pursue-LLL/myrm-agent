@@ -11,7 +11,7 @@ Reference: bytedance/agentkit-samples skills/byted-web-search/scripts/web_search
 - VolcengineDoubaoSearch: native search client for slug volcengine_doubao
 
 [POS]
-Native search provider adapter alongside litellm_search.py (not a separate toolkit).
+Native search provider adapter alongside rest_search.py (not a separate toolkit).
 """
 
 from __future__ import annotations

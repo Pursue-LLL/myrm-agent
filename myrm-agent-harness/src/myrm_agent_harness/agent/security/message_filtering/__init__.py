@@ -36,17 +36,14 @@ Example:
 """
 
 from .base import FilterConfig, FilterContext, MessageFilter
-from .config_manager import ConfigManager, MemoryConfigManager
 from .filter_stats import FilterStats
 from .pipeline import MessageFilterPipeline
 from .system_role_filter import SystemRoleFilter
 
 __all__ = [
-    "ConfigManager",
     "FilterConfig",
     "FilterContext",
     "FilterStats",
-    "MemoryConfigManager",
     "MessageFilter",
     "MessageFilterPipeline",
     "SystemRoleFilter",

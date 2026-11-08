@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
-import { wikiService, type ImportUrlsResultResponse } from '@/services/wikiService';
+import { wikiService, type ImportUrlsResultResponse, type UrlImportItemResult } from '@/services/wikiService';
 
 interface WikiUrlImportDialogProps {
   open: boolean;
@@ -28,6 +28,7 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
   const [urlText, setUrlText] = useState('');
   const [folderPath, setFolderPath] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [failures, setFailures] = useState<UrlImportItemResult[]>([]);
 
   const parsedUrls = useMemo(() => {
     const rawLines = urlText.split('\n');
@@ -49,12 +50,19 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
     return valid;
   }, [urlText]);
 
+  // A failure stops being listed once its link is edited or removed from the box.
+  const listedFailures = useMemo(
+    () => failures.filter((item) => parsedUrls.includes(item.url)),
+    [failures, parsedUrls],
+  );
+
   const handleClose = () => {
     if (isSubmitting) {
       return;
     }
     setUrlText('');
     setFolderPath('');
+    setFailures([]);
     onOpenChange(false);
   };
 
@@ -71,15 +79,27 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
     setIsSubmitting(true);
     try {
       const res = await wikiService.importUrls(finalUrls, folderPath.trim() || undefined, true, agentScopeId);
-      toast.success(
-        t('urlImportResult', {
-          total: res.total_urls,
-          enqueued: res.enqueued_count,
-          errors: res.error_count,
-        }),
-      );
+      const summary = t('urlImportResult', {
+        total: res.total_urls,
+        enqueued: res.enqueued_count,
+        errors: res.error_count,
+      });
       onImportFinished(res);
-      handleClose();
+      // The box keeps what still needs importing (links that could not be read, links beyond this batch's
+      // limit), so one more click continues with just those.
+      const failed = res.results.filter((item) => item.status === 'error');
+      const remaining = [...failed.map((item) => item.url), ...parsedUrls.slice(finalUrls.length)];
+      if (failed.length > 0) {
+        toast.warning(summary);
+      } else {
+        toast.success(summary);
+      }
+      if (remaining.length === 0) {
+        handleClose();
+        return;
+      }
+      setFailures(failed);
+      setUrlText(remaining.join('\n'));
     } catch (err) {
       console.error('URL batch import failed:', err);
       toast.error(t('importFailed'));
@@ -112,6 +132,22 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
               disabled={isSubmitting}
               className="font-mono text-xs resize-none"
             />
+            {listedFailures.length > 0 ? (
+              <div
+                role="alert"
+                className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs"
+              >
+                <p className="font-medium text-destructive-text">{t('urlImportFailedHint')}</p>
+                <ul className="max-h-32 space-y-1 overflow-y-auto">
+                  {listedFailures.map((item) => (
+                    <li key={item.url} className="break-all">
+                      <span className="font-mono text-foreground">{item.url}</span>
+                      {item.error ? <span className="text-muted-foreground"> - {item.error}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">

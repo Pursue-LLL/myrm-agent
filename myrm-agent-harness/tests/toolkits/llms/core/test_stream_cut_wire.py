@@ -1,19 +1,18 @@
 """Wire-level proof that a stream the connection cut short never executes a half-written tool call.
 
-LiteLLM's stream wrapper answers a stream that ended without any provider finish marker with a synthesized
-``stop``. Each test drives the real adapter -> LiteLLM -> HTTP path against a loopback fake provider that
-either finishes properly or closes the connection mid-call, and inspects the message the agent would act on.
+A stream that ended without any provider finish marker must never read as a finished turn. Each test drives the real
+adapter -> transport -> HTTP path against a loopback fake provider that either finishes properly or closes the
+connection mid-call, and inspects the message the agent would act on.
 """
 
 from __future__ import annotations
 
-import litellm
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
 
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import has_withheld_tool_calls
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from tests.mocks.llm_wire_server import (
     FakeProviderServer,
     FakeReply,
@@ -33,11 +32,8 @@ CUT_INSIDE_VALUE = ['{"path": "/tmp/report.md", ', '"content": "Dear Alice, the 
 
 
 @pytest.fixture(autouse=True)
-def _production_litellm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Apply the global LiteLLM switches the harness sets in production and keep the loopback off any proxy."""
+def _loopback_off_any_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
-    monkeypatch.setattr(litellm, "drop_params", True)
-    monkeypatch.setattr(litellm, "modify_params", True)
 
 
 @tool
@@ -49,7 +45,7 @@ def write_file(path: str, content: str, overwrite: bool = False) -> str:
 async def _answer(model: str, stream: bytes) -> AIMessage:
     base_path = "/v1" if model == OPENAI_MODEL else ""
     with FakeProviderServer(lambda _body: FakeReply(stream)) as server:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model, base_url=server.base_url + base_path, api_key="sk-offline", streaming=True, max_tokens=1024
         )
         return await llm.bind_tools([write_file]).ainvoke([HumanMessage(content="save the report")])

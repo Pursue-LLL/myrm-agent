@@ -21,7 +21,6 @@ Skill market module — search, install, update, and manage skills from external
 |-----------|-------------|
 | installers/ | Skill installers. |
 | sources/ | Skill data sources. |
-| static_index/ | Static skills index engine and mirror cache. See [static_index/_ARCH.md](static_index/_ARCH.md). |
 
 ## Key Dependencies
 

@@ -2,6 +2,7 @@
 
 [INPUT]
 - File path or initial byte prefix
+- utils.content_sniff::zip_file_extension (POS: Names the document a zip container holds)
 
 [OUTPUT]
 - Normalized extension (e.g. ".pdf") when content signature matches
@@ -12,20 +13,12 @@ Shared by file_parsers.get_parser and wiki/raw ingest routing.
 
 from __future__ import annotations
 
-import zipfile
+import io
 from pathlib import Path
 
-_MAX_SNIFF_BYTES = 8192
+from myrm_agent_harness.utils.content_sniff import zip_file_extension
 
-_ZIP_EXTENSIONS = {
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
-    "application/epub+zip": ".epub",
-    "application/vnd.oasis.opendocument.text": ".odt",
-    "application/vnd.oasis.opendocument.spreadsheet": ".ods",
-    "application/vnd.oasis.opendocument.presentation": ".odp",
-}
+_MAX_SNIFF_BYTES = 8192
 
 
 def sniff_content_format(file_path: str | Path) -> str | None:
@@ -45,7 +38,7 @@ def sniff_content_format(file_path: str | Path) -> str | None:
         return ".rtf"
 
     if prefix.startswith(b"PK\x03\x04"):
-        return _sniff_zip_container(path)
+        return _document_extension(zip_file_extension(path))
 
     if prefix.startswith(b"\x89PNG\r\n\x1a\n"):
         return ".png"
@@ -70,26 +63,6 @@ def _read_prefix(path: Path) -> bytes:
         return b""
 
 
-def _sniff_zip_container(path: Path) -> str | None:
-    try:
-        with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
-            if "mimetype" in names:
-                raw_mimetype = archive.read("mimetype").decode("utf-8", errors="ignore").strip()
-                mapped = _ZIP_EXTENSIONS.get(raw_mimetype.split(";")[0].strip())
-                if mapped:
-                    return mapped
-            if "[Content_Types].xml" in names and any(name.startswith("word/") for name in names):
-                return ".docx"
-            if "META-INF/container.xml" in names:
-                return ".epub"
-            if "content.xml" in names:
-                return ".odt"
-    except (OSError, zipfile.BadZipFile):
-        return None
-    return None
-
-
 def sniff_content_format_from_bytes(content: bytes) -> str | None:
     """Sniff format from an in-memory byte prefix."""
     if not content:
@@ -100,32 +73,15 @@ def sniff_content_format_from_bytes(content: bytes) -> str | None:
     if prefix.startswith(b"{\\rtf") or prefix.startswith(b"{\\RTF"):
         return ".rtf"
     if prefix.startswith(b"PK\x03\x04"):
-        return _sniff_zip_container_bytes(content)
+        return _document_extension(zip_file_extension(io.BytesIO(content)))
     if _looks_like_csv_text(prefix):
         return ".csv"
     return None
 
 
-def _sniff_zip_container_bytes(content: bytes) -> str | None:
-    import io
-
-    try:
-        with zipfile.ZipFile(io.BytesIO(content)) as archive:
-            names = archive.namelist()
-            if "mimetype" in names:
-                raw_mimetype = archive.read("mimetype").decode("utf-8", errors="ignore").strip()
-                mapped = _ZIP_EXTENSIONS.get(raw_mimetype.split(";")[0].strip())
-                if mapped:
-                    return mapped
-            if "content.xml" in names:
-                return ".odt"
-            if "[Content_Types].xml" in names and any(name.startswith("word/") for name in names):
-                return ".docx"
-            if "META-INF/container.xml" in names:
-                return ".epub"
-    except (OSError, zipfile.BadZipFile):
-        return None
-    return None
+def _document_extension(zip_extension: str) -> str | None:
+    """A plain zip is no document any parser reads."""
+    return None if zip_extension == ".zip" else zip_extension
 
 
 def _looks_like_csv_text(prefix: bytes) -> bool:

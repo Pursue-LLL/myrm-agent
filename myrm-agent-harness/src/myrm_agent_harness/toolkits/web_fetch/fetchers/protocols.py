@@ -4,7 +4,7 @@ Defines a unified fetch interface and intermediate result types,
 allowing different fetch strategies to be plugged in interchangeably.
 
 [INPUT]
-- (none)
+- utils.content_sniff::PayloadKind — payload classification carried by a fetch result
 
 [OUTPUT]
 - FetcherType: class — Fetcher type enum
@@ -20,6 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Protocol, runtime_checkable
+
+from myrm_agent_harness.utils.content_sniff import PayloadKind
 
 
 class FetcherType(Enum):
@@ -38,6 +40,13 @@ class FetchResult:
     headers: dict[str, str] = field(default_factory=dict)
     fetcher_type: FetcherType = FetcherType.HTTP
     raw_body: bytes | None = None
+    kind: PayloadKind = PayloadKind.WEB
+
+    def __post_init__(self) -> None:
+        # A result that carries raw bytes is a file for a parser; deriving the kind keeps the two fields from
+        # disagreeing and leaves remote providers, which never set either, as plain web pages.
+        if self.raw_body is not None:
+            self.kind = PayloadKind.BINARY
 
     @property
     def has_content(self) -> bool:

@@ -1,0 +1,71 @@
+{
+ "config": "ollama_minimax",
+ "wire": "ollama",
+ "model": "minimax-cn/MiniMax-M3.1-Flash-Preview",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/api/chat",
+   "content_type": "application/x-ndjson",
+   "lines": [
+    "{\"created_at\":\"2026-11-03T08:27:21.328341Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\"We\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.329513Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\" need answer\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.377338Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\" exactly one word P\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.38529Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\"ONG. Need\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.417462Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\" comply\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.466884Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"thinking\":\".\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.466941Z\",\"done\":false,\"message\":{\"content\":\"P\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.469015Z\",\"done\":false,\"message\":{\"content\":\"ONG\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:21.641596Z\",\"done\":true,\"done_reason\":\"stop\",\"eval_count\":17,\"eval_duration\":313268750,\"load_duration\":0,\"message\":{\"content\":\"\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"prompt_eval_count\":210,\"prompt_eval_duration\":9362077916,\"total_duration\":9675346666}",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "We need answer exactly one word PONG. Need comply.",
+    "tool_calls": [],
+    "usage": [
+     210,
+     17,
+     0
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/api/chat",
+   "content_type": "application/x-ndjson",
+   "lines": [
+    "{\"created_at\":\"2026-11-03T08:27:11.385351Z\",\"done\":false,\"message\":{\"content\":\"I'll\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:11.495404Z\",\"done\":false,\"message\":{\"content\":\" check both cities' temperatures now.\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:11.957248Z\",\"done\":false,\"message\":{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"id\":\"call_ZTCouQCnifhDitfuw6XoyeC1\",\"function\":{\"index\":0,\"name\":\"get_weather\",\"arguments\":{\"city\":\"Tokyo\"}}},{\"id\":\"call_4dZ5z3L2Trf92WVzbBq3tXaS\",\"function\":{\"index\":1,\"name\":\"get_weather\",\"arguments\":{\"city\":\"Paris\"}}}]},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\"}",
+    "{\"created_at\":\"2026-11-03T08:27:11.957293Z\",\"done\":true,\"done_reason\":\"stop\",\"eval_count\":59,\"eval_duration\":571965042,\"load_duration\":0,\"message\":{\"content\":\"\",\"role\":\"assistant\"},\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"prompt_eval_count\":456,\"prompt_eval_duration\":1491064750,\"total_duration\":2063029792}",
+    ""
+   ],
+   "expect": {
+    "text": "I'll check both cities' temperatures now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     456,
+     59,
+     0
+    ]
+   }
+  }
+ }
+}

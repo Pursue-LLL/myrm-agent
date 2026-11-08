@@ -20,8 +20,11 @@ import { getWikiEvidenceSummary, type WikiEvidenceSummary } from '@/services/wik
 import UsageStatisticsSection from '../UsageStatisticsSection';
 import { downloadUsageCsv } from '../usageExport';
 
+// 翻译函数必须是稳定引用：每次渲染都新建会让依赖它的 hook 反复重建。
+const { translate } = vi.hoisted(() => ({ translate: (key: string) => key }));
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => translate,
   useLocale: () => 'en',
 }));
 

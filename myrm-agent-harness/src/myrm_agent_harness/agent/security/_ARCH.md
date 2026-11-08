@@ -5,7 +5,7 @@ Agent security subsystem — 6-layer onion defense architecture.
 
 Implementation split:
 - **Agent-local** (`engine.py`, `checks.py`, `config.py`, …): orchestration wired into agent middlewares.
-- **Core shims** (`audit.py`, `types.py`, `tool_registry.py`, `detection/*`, `guards/ssrf_guard.py` → `core/security/guards/ssrf.py`, …): re-exports from `core/security/` for stable `agent.security.*` import paths. Canonical implementations live in [../../core/security/_ARCH.md](../../core/security/_ARCH.md). New code outside agent middleware wiring should import from `core.security`.
+- **Core shims** (`audit.py`, `types.py`, `tool_registry.py`, `detection/*`, …): re-exports from `core/security/` for stable `agent.security.*` import paths. Canonical implementations live in [../../core/security/_ARCH.md](../../core/security/_ARCH.md). New code outside agent middleware wiring should import from `core.security`.
 
 Detailed design: [HITL_SYSTEM.md](HITL_SYSTEM.md)
 Detailed design: [SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)
@@ -43,8 +43,7 @@ Detailed design: [SECURITY_SYSTEM.md](SECURITY_SYSTEM.md)
 | Submodule | Description |
 |-----------|-------------|
 | workspace_trust/ | Folder bind trust + side-channel gate. See [workspace_trust/_ARCH.md](workspace_trust/_ARCH.md). |
-| audit_pack/ | Legal-grade audit pack and non-repudiation evidence export suite. See [audit_pack/_ARCH.md](audit_pack/_ARCH.md). |
-| delegation/ | Triad delegation identity: subject identities and the privilege intersection guard that blocks privilege amplification. See [delegation/_ARCH.md](delegation/_ARCH.md). |
+| delegation/ | Triad delegation identity: subject identities and the delegation token whose effective scopes are the intersection of requester and executor. See [delegation/_ARCH.md](delegation/_ARCH.md). |
 | jit_gate/ | JIT dual verification gate: a fast metadata check plus a deep SHA-256 comparison right before a tool call resumes. See [jit_gate/_ARCH.md](jit_gate/_ARCH.md). |
 | detection/ | Detection submodule. |
 | guards/ | Session-level security guards integrated into tool_interceptor_middleware. |

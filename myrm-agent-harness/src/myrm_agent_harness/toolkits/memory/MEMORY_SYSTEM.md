@@ -123,7 +123,6 @@ myrm_agent_harness/
 │   │   ├── relational.py              # RelationalStoreProtocol
 │   │   ├── graph.py                    # GraphStoreProtocol
 │   │   ├── embedding.py               # EmbeddingProtocol
-│   │   ├── hooks.py                   # MemoryLifecycleHookProtocol
 │   │   └── cache.py                    # EmbeddingCacheProtocol
 │   ├── graph/                          # 图存储（开箱即用）
 │   │   ├── base.py                    # GraphStore ABC + 数据模型
@@ -165,7 +164,7 @@ myrm_agent_harness/
 | **Task Digest (L2)** | Vector (Episodic metadata) | Qdrant              | 会话级任务摘要，作为后续编译/图谱蒸发输入 | `event_type='task_digest'`                              |
 | **Integration**      | Vector + Graph             | Qdrant + GraphStore | 外部服务数据本地缓存，跨源语义检索。                                                                            | Gmail 邮件、GitHub PR、Slack 消息、Notion 页面          |
 
-> **时间约定**：所有 `datetime` 字段（`created_at`、`updated_at`、`last_accessed_at` 等）统一使用 **UTC timezone-aware** datetime（`datetime.now(UTC)`）。模型默认值、业务逻辑和测试均遵循此约定。
+> **时间约定**：所有 `datetime` 字段（`created_at`、`updated_at`、`last_accessed_at`、`stored_at` 等）统一使用 **UTC timezone-aware** datetime（`datetime.now(UTC)`）。模型默认值、业务逻辑和测试均遵循此约定。
 >
 > **作用域约定**：所有 `BaseMemory` 均携带 `MemoryScope`。向量层会持久化 `primary_namespace/namespaces/channel_id/...` 元数据，检索时按 `primary_namespace ∈ 当前 manager.namespaces` **精确过滤**（Qdrant 对单值字段的 MatchAny 即 IN 语义，与关系层 `primary_namespace IN (...)` 和图谱层逐 namespace 检索同语义），杜绝仅共享 `global` 广播命名空间的其他 agent 记忆串入本 scope，同时保留跨渠道可召回能力。`AgentMemoryPolicy` 允许把“读哪些 namespace”和“写入哪个 scope”正式配置化，例如只读 `global` 共享知识，同时把新记忆仅写入 `task` namespace。
 >
@@ -192,8 +191,6 @@ myrm_agent_harness/
 > **Digest Recall 隐藏规则**：`task_digest` 属于 L2 编译原料，不属于用户侧普通 recall 对象。搜索编排会在普通 recall 阶段主动隐藏 `event_type='task_digest'` 的 episodic 结果，避免“原始 digest + 编译后 claim”同时进入模型上下文，浪费 token 并打乱知识层次。
 >
 > **Model-Ready Summary 编译层**：Claim 编译阶段会同步生成稳定的 `model_summary`，并持久化在图节点上。Recall 时优先直接消费该摘要，而不是每次临时拼接 `claim_text/last_result/evidence_count`，从而让跨渠道复用和后续 prompt 注入具备稳定输入。
->
-> **Lifecycle Hook Protocol**：`protocols/hooks.py` 定义 `MemoryLifecycleHookProtocol`，提供 `on_turn_start`、`on_pre_compress`、`on_memory_write`、`on_delegation`、`on_session_end` 五个可选扩展边界。该协议只暴露 framework DTO / plain string，不承载 SharedContext、team、tenant 等产品语义。
 
 ---
 
@@ -249,7 +246,7 @@ vectors_config = {
    - 直接写入会话索引，绕过待审批队列（`_bypass_approval=True`），仍经过内容安全扫描
    - 100% lossless preservation；用户消息无文本的回合不构成 exchange，不存储
    - 失败隔离：该轨道抛错只上报 `write` 阶段 ERROR 事件，不影响 Compressed Track
-   - 召回：`MemoryConversationSearchProvider` 以 `include_raw=True` 检索，命中的 `snippet` 为 verbatim exchange（`recent` 模式走 `list_memories`，只返回摘要）
+   - 召回：`MemoryManager.search(..., memory_types=[MemoryType.CONVERSATION], include_raw=True)` 命中记忆的 `raw_exchange` 为 verbatim exchange（缺省 `include_raw=False` 只返回 `content`）
    - 默认关闭的原因：每轮 2 次 embedding 并新增 1 个向量点，而压缩轨道已保留值得记忆的内容
    - 实现：`agent/_internals/memory_verbatim.py::capture_current_exchange`
 
@@ -735,15 +732,16 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 
 **模型来源**：整理、陈旧复审与复发检测共用同一个 consolidation LLM。工厂 `create_local_memory_manager` 以显式传入的 `consolidation_llm` 为准，未传入时回落到 `dedup_llm`；两者都缺省时整理与陈旧复审不运行，复发检测退化为取最近一条对话片段作为合并结果。
 
-### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `named_entity_guard.py`)
+### 7.2.2 跨会话认知整理与确定性命名实体守卫 (`strategies/consolidation.py`, `consolidation_models.py`, `consolidation_prompts.py`, `consolidation_ops_executor.py`, `consolidation_window.py`, `bookkeeping.py`, `named_entity_guard.py`)
 
-跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成。
+跨会话记忆整理（Memory Consolidation）在空闲时段对沉淀的事实与偏好执行聚合去重、矛盾纠错与洞察生成。模块由领域模型层（`consolidation_models`）、提示词与短 ID 映射层（`consolidation_prompts`）、候选窗口层（`consolidation_window`）、原子执行与审计层（`consolidation_ops_executor`）、实体守卫（`named_entity_guard`）以及主编排门面（`consolidation`）协同构成；水位线等维护行由记账层（`bookkeeping`）读写。
 
 **核心机制与安全边界**：
 - **确定性命名实体守卫 (`NamedEntityGuard`)**：零 I/O 确定性检测器，自动提取源码记忆中的 5 类关键技术实体（`PORT` 端口、`IP_ADDRESS` IP、`URL_DSN` 数据库/API 链接、`ENV_VAR` 环境变量名、`FILE_PATH` 文件与系统路径）。在 LLM 提议 `merge`、`correct` 或 `update_content` 操作时，强制要求新文本完整保留所有关键实体；若关键实体发生篡改或丢失，直接拒绝该候选操作，杜绝模型摘要压缩产生的幻觉。
 - **Class-First Rubric 评分与短 ID 映射**：在系统提示词与执行前置过滤中固化准确性、防碎片化、冗余度三维标准，以短 ID 压缩减少 Token 开销并捍卫 Prompt Cache 静态前缀。
 - **跨子阶段毫秒级协作避让 (`check_cooperative_yield`)**：在 `maintenance_service.py` 编排的 8 个维护子阶段（合并、BLOB GC、遗忘、摘要蒸发、因果图编译、陈旧审查、偏好重建、健康体检）入口处注入协作让出检查。当高优先级交互触发 `CooperativePauseSignal` 时，维护任务在毫秒内优雅退出并安全释放锁，保留已执行阶段的指标于 `MaintenanceReport.interrupted_by_pause`，确保前台交互零延迟。
-- **批次熔断与时间戳脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断或全量操作失败时跳过更新 `last_consolidated_at` 时间戳，保障未完成项在后续周期可被重新抓取。读取侧同样设防：`get_last_consolidated_at` 丢弃无时区或晚于当前时间的存量值（视同从未整合），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆。
+- **覆盖水位线与候选窗口**：`_system.last_consolidated_at` 是「已覆盖到哪里」的水位线，记在记账行里（`bookkeeping.py`：按管理器的归属命名空间分行，不经画像治理，确认模式下不进待审队列、不向聊天上下文追加增量）。水位线走记忆到达存储的顺序，而不是业务时间 `created_at`：存储层在每条语义、情节、规则写入时盖一个到达戳 `stored_at`（`_internal/store_stamp.py`；向量文档落为 payload 的 `stored_ts`，规则行把它写成 `created_at`），取自进程内严格递增的微秒时钟，调用方自带的值一律被覆盖，经模型重写的 `update_memory` 沿用原戳。晚到的审批（保留提案时的 `created_at`）、带历史时间戳的导入、纠错写入，以及批量写入里创建时间完全相同的多条记忆，因此都按真正入库的先后被读到，窗口的截断处也不会再并列。每次整理只分析水位线之后最早的 `max_memories` 条记忆（`consolidation_window.py`）：语义与情节向量源按到达戳升序读取，水位线与本次的水位上界都下推到存储层（`stored_ts` 是 FLOAT payload 索引，由服务端预热统一建立）；规则按同一到达顺序并入：按页读完全部激活规则（每页 2000 条，规则数量没有上限，停用的规则不读），到达时刻完全相同的几条规则不会被截断劈开（截断点后移到上一个时刻，整批同一时刻则整批入窗）。水位线只推进到该窗口实际覆盖的位置，大于一批的积压在连续几次整理中按到达顺序依次消化。早于到达戳存在的存量文档，在读取前由 `VectorStore.backfill_payload_copy` 按集合惰性补上由创建时间推得的到达戳（幂等；补写失败按该来源不可读处理，水位线停住；不能原位改写 payload 的后端保持默认的什么都不做）。存量文档补上的到达戳就是创建时间：创建时间完全相同的一组存量文档，若被某个来源的截断落在中间（每个来源只比窗口多读一条），该组其后的几条不会再被读到；新写入的记忆在进程内戳互不相同，不受影响。窗口不越过任何一个被截断的源已读到的位置（该位置取自读到的文档，而不是解码成功的记忆），否则另一个源里更晚的记忆会被分析、而该源没展示的更早记忆被永久跳过；整理自己的产物（审计事件、洞察、合并结果）不进入窗口。任一来源读取失败时其余来源照常分析，但水位线不动，读不到的记忆留给下一次；集合不存在（从未写入）按空处理。向量源按文档逐条解码：无法解码的文档被跳过，日志只记文档 ID 与异常类型、不记内容，也不会遮住同一来源的其余记忆；只有某个来源的整批非空文档一条都解不出来时，才按该来源不可读处理，水位线停住，其他来源的记忆随后续窗口再次入窗，直到该来源最早的一批未覆盖文档里解出至少一条。规则按页读完，其中任意一页读不出来（如某一行的创建时间无法解析）会让整次规则读取失败，同样使水位线停住，直到该行被修复。积压消化期间水位线落后于当前时间，24 小时门槛与 1 小时软锁据此更早放行下一批。
+- **批次熔断与水位线脏推进保护**：原子操作执行器跟踪连续存储异常，当连续遭遇 3 次底层异常时自动熔断并中止当前批次。主编排门面在批次被熔断、全量操作失败或模型调用失败时不推进水位线，保障未完成项在后续周期可被重新抓取；模型返回的任一操作带有越界取值（如 `update_content` 的 `importance` 超出 0–1，即存量记忆校验所用的区间）时整份响应校验失败，按模型调用失败处理。读取侧同样设防：`get_last_consolidated_at` 丢弃无时区或晚于当前时间的存量值（视同从未整理），外部写入的异常值不会让时间门槛与软锁抛错或长期停摆；窗口推进的目标不会超过本次整理的水位上界 `settled_through()`——所有早于它盖章的写入都已落盘的最晚时刻，仍在落盘的写入会把它压在自己的戳之下——因此水位线不会被写成未来值，也不会越过尚不可见的写入；到达戳按进程盖章，其他进程里的写入方不在这道保护之内。
 - **单机沙箱确定性审计与回滚通道**：巩固周期生成的 `EpisodicMemory` 审计日志由存储管理器统一路由持久化，单机 SQLite 模式与混合向量存储模式均可完整记录 `[affected_ids:...]` 拓扑关系，保障 `consolidation_rollback.py` 可精准反转最近周期的记忆变更。
 - **全生命周期完成回调**：主编排门面确保在所有退出路径（包含 0 操作早退与正常完成）均触发 `on_complete` 回调并回传 `ConsolidationStats`，为前端状态通知与 WebSocket 管道提供可靠的生命周期事件流。
 - **受保护条目豁免**：自动化合并与纠错传递 `allow_protected=False`，用户主动锁定的关键记忆永不被覆写或合并。
@@ -759,7 +757,7 @@ LLM 驱动的事实过期审查。与遗忘策略互补：遗忘靠数值衰减�
 - **No-Op Default (严格精度门控)**：彻底颠覆传统的高召回倾向，向大模型施加极其严厉的 `Strict Precision` 惩罚指令。默认返回空数组 `[]`，仅在存在高杠杆价值知识、明确用户约束时才允许提取。从源头阻断日常闲聊产生的碎片垃圾入库，保护长期上下文纯净度。
 - **主体归属隔离 (Attribution)**：严格区分用户本人与第三方（家人、朋友、同事等），禁止将第三方的特征、疾病或偏好归因于用户本人。
 - **瞬态情绪过滤 (Transient State Filter)**：过滤掉短暂的情绪和心理状态（如“今天很焦虑”、“感觉很抑郁”），除非明确说明是慢性疾病，防止 AI 永久存储瞬态情绪。
-- **业务瞬态事实 L3 写入总闸 (Business Transient Fact Write Gate)**：`transient_fact_boundary.py` 提供双语 regex 启发式；`MemoryWriter.store/store_batch` 与 `MemoryManager.update_memory` 在持久化前统一过滤 Semantic/Episodic 中的实时业务态（物流进度、账户余额、OTP、临时链接等），`memory_save_tool` 与 auto-extract 路径同样拦截；Profile/Procedural/ConversationMemory 豁免。
+- **业务瞬态事实 L3 写入总闸 (Business Transient Fact Write Gate)**：`transient_fact_boundary.py` 提供双语 regex 启发式；`MemoryWriter.store/store_batch` 与 `MemoryManager.update_memory` 在持久化前统一过滤 Semantic/Episodic 中的实时业务态（物流进度、账户余额、OTP、临时链接等），`memory_save_tool` 与 auto-extract 路径同样拦截；Profile/Procedural/ConversationMemory 豁免。拒绝以 `MemoryRejectedError`（`MemoryError` 子类，消息面向调用方，可原样呈现）抛出，工具层经 `write_failure_feedback` 原样转述给模型，Server 层映射为 HTTP 400。`update_memory` 对写入前即可判定的越界输入同样以 `MemoryRejectedError` 拒绝且不落任何数据：`importance` / `confidence` 必须在 0.0–1.0（模型层的读取区间，越界值一旦落库该记忆将无法再读出），不做钳制。
 - **流程型/FAQ Agent L2 记忆策略预设 (Flow-Type Agent L2-Only Memory Policy Preset)**：`AgentMemoryPolicy` 扩展 `allow_l3_extraction` 与 `auto_cleanup`，提供 `preset_l2_flow`（任务级局部读写、禁用 L3 抽取、完成自动蒸发）与 `preset_faq_retrieval`（会话级局部读写、禁用 L3 抽取）；在 `review.py` 会话结算时短路阻断后台 LLM 抽取，从源头防止工单、即时搜索等瞬态临时数据污染长期库。
 - **Per-Fact TTL**：提取时 LLM 为每条记忆预估有效期 `expected_valid_days`（瞬态 30-90d、项目 90-180d、习惯 180-365d、永久 null），供遗忘策略和 staleness review 使用
 - **动态提示词**：根据 `ExtractionConfig` 动态生成，仅包含启用的记忆类型
@@ -870,7 +868,7 @@ tools = create_memory_tools(manager=manager)
 
 **Memory MCP HTTP**（`agent_surface/mcp_server/`）：对外暴露 `memory_recall` / `memory_list` / `memory_store` / `memory_manage` 四工具；**`memory_manage` 与 `memory_store` 描述** import `agent_surface/_memory_agent_tool_descriptions` SSOT（`surface=mcp` 工具名映射；store 默认不含 wiki boundary 文案——MCP 面无 wiki 工具、运行时 wiki 拦截由 server 按 agent 经 ContextVar 控制，静态描述不声称 wiki enabled，显式启用场景下 MCP 面也不泄漏 GUI 内部工具名 `wiki_ingest_tool`）；wiki 启用时 `memory_store` 运行时硬拒 document-like 内容（与 GUI `memory_save_tool` 一致，server middleware 传 ContextVar，拒绝消息同样不引用 GUI 内部工具）。recall/list 仍为 MCP 专用 inline 描述。
 
-`conversation_search/` 模块提供 Protocol、formatter 与 `MemoryConversationSearchProvider`；会话检索只经 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL 暴露（GeneralAgent 与 Custom 子 Agent 一致），框架不提供独立的 `conversation_search_tool`。
+`conversation_search/` 模块提供会话检索 DTO 与 formatter（`ConversationSearchProtocol` 在 `protocols/conversation_search.py`，由 Server 实现）；会话检索只经 `memory_search_tool(corpus=sessions)` + Server `MemorySearchPolicy` ACL 暴露（GeneralAgent 与 Custom 子 Agent 一致），框架不提供独立的 `conversation_search_tool`。
 
 ### 8.3 审批机制
 
@@ -1053,7 +1051,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 | 维度 | MemoryManager | Proactive (`memory/proactive/`) |
 |------|---------------|----------------------------------|
-| 存储 | Vector + Relational + Graph | SQLite `CommitmentStore`（host 实现） |
+| 存储 | Vector + Relational + Graph | 承诺记录由 host 持久化（Server 为 SQLite） |
 | 触发 | Agent 工具 / 策略 / 中间件 | 会话结束 LLM 抽取 + Cron heartbeat 投递 |
 | 开关 | `enable_memory` | 同样受 `enable_memory` 门控 |
 | 投递 ack | — | 非 `[SILENT]` → SENT；失败 ack → 自动 snooze 6h |
@@ -1182,11 +1180,11 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - **按天笔记追加（`append_daily_note`）**：提供格式规范的日常事件日志原子追加。
 - **双向增量同步引擎（`FileMemorySyncEngine`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.sync`；
-  - **会话前惰性检查（`check_and_sync_on_ingress`）**：在用户会话进入前自动检测外部人工对 `MEMORY.md` 的编辑，识别新增或修改段落，并向底层 `MemoryManager` 增量写入带物理文件锚点元数据的条目；
+  - **会话前惰性检查（`check_and_sync_on_ingress`）**：在用户会话进入前自动检测外部人工对 `MEMORY.md` 的编辑，识别新增或修改段落，并向底层 `MemoryManager` 增量写入条目（带 `file:` 来源与 `cat:` 类别标签）；
   - **会话中事件原子沉淀（`persist_episodic_note`）**：Agent 在执行复杂多步骤任务后，将所得情景经验原子追加至磁盘 `memory/daily/`，并同步索引至底层向量库。
-- **溯源锚点格式化器（`MemoryAnchorFormatter`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.anchor`；
-  - 生成 `[source: MEMORY.md#L15-L18]` 形式的标准物理溯源标签，使大模型推理时的记忆引用完全具备透明审计与原文对齐能力。
+- **溯源锚点（`FileMemoryEntry.to_anchor()`）**：
+  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
+  - 生成 `[source: MEMORY.md#L15-L18]` 形式的标准物理溯源标签（单行条目折叠为 `#L15`）；管理器没有 `add_knowledge` 时，同步引擎经 `store` 入库并把该标签写入元数据的 `anchor` 字段。
 - **开箱即用装配工厂（`setup_local_file_memory_sync`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.setup`；
   - 一键完成目录拓扑初始化、文件存储层与双向同步引擎绑定，无缝支持 Local、Desktop 与 Sandbox 独立持久化卷环境。

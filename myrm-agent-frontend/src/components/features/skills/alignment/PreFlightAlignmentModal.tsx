@@ -42,13 +42,8 @@ export const PreFlightAlignmentModal: React.FC<PreFlightAlignmentModalProps> = (
   taskTitle = '新可视化与课件生成任务',
   questions = DEFAULT_ALIGNMENT_QUESTIONS,
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('skillAlignment');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('skillAlignment');
+  const t = (key: string): string => translation(key);
 
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string[]>>({
     palette: ['tech_blue'],

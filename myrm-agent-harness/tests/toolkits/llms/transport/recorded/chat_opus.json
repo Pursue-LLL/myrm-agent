@@ -1,0 +1,143 @@
+{
+ "config": "chat_opus",
+ "wire": "chat",
+ "model": "antigravity/claude-opus-4-6-thinking",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/v1/chat/completions",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "data: {\"choices\":[{\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"The user wants me to reply with exactly\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" one word:\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" PONG\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"PONG\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[],\"created\":1793694496,\"id\":\"chatcmpl-req_vrtx_011CgfgLJfwLwdzkxe55qtW7\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":28,\"completion_tokens_details\":{\"reasoning_tokens\":0},\"prompt_tokens\":45,\"prompt_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"total_tokens\":73}}",
+    "",
+    "data: [DONE]",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "The user wants me to reply with exactly one word: PONG",
+    "tool_calls": [],
+    "usage": [
+     45,
+     28,
+     0
+    ]
+   }
+  },
+  "tools2_nonstream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/chat/completions",
+   "content_type": "application/json",
+   "lines": [
+    "{\"choices\":[{\"finish_reason\":\"tool_calls\",\"index\":0,\"message\":{\"content\":\"I'll get the temperature for both cities right away!\",\"reasoning_content\":\"The user wants me to get the weather for both Tokyo and Paris simultaneously.\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"city\\\": \\\"Tokyo\\\"}\",\"name\":\"get_weather\"},\"id\":\"toolu_vrtx_019mekCbW22zN5xJSGfgdjnP\",\"type\":\"function\"},{\"function\":{\"arguments\":\"{\\\"city\\\": \\\"Paris\\\"}\",\"name\":\"get_weather\"},\"id\":\"toolu_vrtx_014FEvX1L1qgZwjC1JjncTpR\",\"type\":\"function\"}]}}],\"created\":1793694500,\"id\":\"chatcmpl-req_vrtx_011CgfgLSvnWwCJ7guTkBzeb\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion\",\"usage\":{\"completion_tokens\":124,\"completion_tokens_details\":{\"reasoning_tokens\":0},\"prompt_tokens\":615,\"prompt_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"total_tokens\":739}}"
+   ],
+   "expect": {
+    "text": "I'll get the temperature for both cities right away!",
+    "reasoning": "The user wants me to get the weather for both Tokyo and Paris simultaneously.",
+    "tool_calls": [
+     {
+      "id": "toolu_vrtx_019mekCbW22zN5xJSGfgdjnP",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "toolu_vrtx_014FEvX1L1qgZwjC1JjncTpR",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     615,
+     124,
+     0
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/chat/completions",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "data: {\"choices\":[{\"delta\":{\"content\":\"\",\"role\":\"assistant\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"The user wants\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" me to get\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" the weather for\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" both Tokyo and Paris simultaneously\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\".\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"I\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"'ll get the temperature\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\" for both cities right\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\" away\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"content\":\"!\"},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"arguments\":\"\",\"name\":\"get_weather\"},\"id\":\"toolu_vrtx_017UnvtPC8PVRVuUAzfrG9hM\",\"index\":0,\"type\":\"function\"}]},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"city\\\": \\\"Tokyo\\\"}\"},\"index\":0}]},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"arguments\":\"\",\"name\":\"get_weather\"},\"id\":\"toolu_vrtx_017TQphz7X8YN9QPNCC5B5qy\",\"index\":1,\"type\":\"function\"}]},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"arguments\":\"{\\\"city\\\": \\\"Paris\\\"}\"},\"index\":1}]},\"finish_reason\":null,\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\",\"index\":0}],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":null}",
+    "",
+    "data: {\"choices\":[],\"created\":1793694493,\"id\":\"chatcmpl-req_vrtx_011CgfgL41svzm4WA2JD2bNA\",\"model\":\"antigravity/claude-opus-4-6-thinking\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":124,\"completion_tokens_details\":{\"reasoning_tokens\":0},\"prompt_tokens\":615,\"prompt_tokens_details\":{\"cache_write_tokens\":0,\"cached_tokens\":0},\"total_tokens\":739}}",
+    "",
+    "data: [DONE]",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "I'll get the temperature for both cities right away!",
+    "reasoning": "The user wants me to get the weather for both Tokyo and Paris simultaneously.",
+    "tool_calls": [
+     {
+      "id": "toolu_vrtx_017UnvtPC8PVRVuUAzfrG9hM",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "toolu_vrtx_017TQphz7X8YN9QPNCC5B5qy",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     615,
+     124,
+     0
+    ]
+   }
+  }
+ }
+}

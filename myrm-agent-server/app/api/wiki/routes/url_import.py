@@ -5,9 +5,10 @@
 - app.api.wiki.routes.import_helpers::_schedule_post_import_dedup_scan / _validate_import_conflict_options (POS: folder/zip/obsidian/urls/video 五条导入路径共用；不感知具体来源。)
 - app.api.wiki.routes.schemas_import::ImportUrlsRequest / ImportUrlsResultResponse / UrlImportItemResult (POS: Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。)
 - app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /)
+- myrm_agent_harness.toolkits.wiki::fetch_url_markdown / SourceLoadError (POS: Readable markdown of a URL; a page with none raises SourceLoadError)
 
 [OUTPUT]
-- import_urls: Batch import web URLs into Wiki with SSRF protection, content extraction, and raw gate verification.
+- import_urls: Batch import web URLs into Wiki with SSRF protection, content extraction, and raw gate verification. A URL that cannot be read becomes an error item and is never written.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。
@@ -67,12 +68,12 @@ async def import_urls(
         cleaned_urls = cleaned_urls[:50]
 
     from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
+    from myrm_agent_harness.toolkits.wiki import SourceLoadError, fetch_url_markdown
     from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
         UrlMarkdownIngressRequest,
         publish_url_markdown_ingress,
     )
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawConflictPolicy
-    from myrm_agent_harness.toolkits.wiki.wiki_agent_tools import _fetch_url_as_markdown
 
     conflict_policy = RawConflictPolicy.SUPERSEDE if request.on_conflict == "supersede" else RawConflictPolicy.SKIP
 
@@ -90,17 +91,21 @@ async def import_urls(
             try:
                 ssrf_res = await async_validate_url_for_ssrf(target_url)
                 if not ssrf_res.safe:
+                    # The import dialog shows the error text, so the guard's verdict stays in the log.
+                    logger.warning("URL import blocked by the SSRF guard: %s (%s)", target_url, ssrf_res.error)
                     return UrlImportItemResult(
                         url=target_url,
                         status="error",
-                        error=f"SSRF blocked or invalid URL: {ssrf_res.error}",
+                        error="This address cannot be imported",
                     )
 
+                # A page that cannot be read is an error item: publishing a blank body would store a
+                # placeholder, and under supersede it would overwrite the source already in raw/.
                 try:
-                    markdown = await _fetch_url_as_markdown(target_url)
-                except Exception as exc:
-                    logger.warning("_fetch_url_as_markdown failed for %s: %s", target_url, exc)
-                    markdown = ""
+                    markdown = await fetch_url_markdown(target_url)
+                except SourceLoadError as exc:
+                    logger.warning("Nothing to import from %s: %s", target_url, exc)
+                    return UrlImportItemResult(url=target_url, status="error", error=str(exc))
 
                 ingress_res = await publish_url_markdown_ingress(
                     archiver._structure,
@@ -145,12 +150,13 @@ async def import_urls(
                     status="error",
                     error="Ingress was not written",
                 )
-            except Exception as exc:
-                logger.warning("Failed to import URL %s: %s", target_url, exc)
+            except Exception:
+                # The import dialog shows this text, so the cause stays in the log.
+                logger.warning("Failed to import URL %s", target_url, exc_info=True)
                 return UrlImportItemResult(
                     url=target_url,
                     status="error",
-                    error=str(exc),
+                    error="Failed to import this URL",
                 )
 
     tasks = [_process_single_url(u) for u in cleaned_urls]

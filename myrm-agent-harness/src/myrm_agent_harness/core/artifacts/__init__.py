@@ -34,8 +34,10 @@ from myrm_agent_harness.core.artifacts.manifest import (
 )
 from myrm_agent_harness.core.artifacts.paths import (
     ARTIFACT_VAULT_DIR_NAME,
+    DOWNLOADS_DIR_NAME,
     WORKSPACE_AGENT_DIR_NAME,
     resolve_workspace_artifact_vault_dir,
+    resolve_workspace_downloads_dir,
     workspace_vault_relative_parts,
 )
 
@@ -43,6 +45,7 @@ __all__ = [
     "ACTIVE_CONTENT_MIME_TYPES",
     "ARTIFACT_VAULT_DIR_NAME",
     "CATEGORY_DIRECTORY_MAPPING",
+    "DOWNLOADS_DIR_NAME",
     "EXTENSION_TO_ARTIFACT_TYPE",
     "EXTENSION_TO_LANGUAGE",
     "WORKSPACE_AGENT_DIR_NAME",
@@ -65,5 +68,6 @@ __all__ = [
     "is_active_content",
     "is_text_content",
     "resolve_workspace_artifact_vault_dir",
+    "resolve_workspace_downloads_dir",
     "workspace_vault_relative_parts",
 ]

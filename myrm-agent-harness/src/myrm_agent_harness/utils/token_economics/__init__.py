@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from .budget_boundary_middleware import BudgetBoundaryMiddleware
     from .budget_guard import BudgetChecker, BudgetStatus, DailyBudgetGuard
     from .cache_economics import coerce_usage_non_negative_int, compute_prompt_cache_stats
-    from .cost_engine import CostResult, CostStatus, compute_cost, compute_cost_by_tokens
+    from .cost_engine import CostResult, CostStatus, compute_cost_by_tokens
     from .latency_stats import LatencyStats
     from .multidim_budget import BudgetDimension, MultidimensionalBudgetGuard
     from .tracker import (
@@ -51,7 +51,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     # cost_engine.py
     "CostStatus": (".cost_engine", "CostStatus"),
     "CostResult": (".cost_engine", "CostResult"),
-    "compute_cost": (".cost_engine", "compute_cost"),
     "compute_cost_by_tokens": (".cost_engine", "compute_cost_by_tokens"),
     # cache_economics.py
     "compute_prompt_cache_stats": (".cache_economics", "compute_prompt_cache_stats"),
@@ -92,7 +91,6 @@ __all__ = [
     "UsageRecord",
     "append_to_ledger",
     "coerce_usage_non_negative_int",
-    "compute_cost",
     "compute_cost_by_tokens",
     "compute_prompt_cache_stats",
     "get_pending_token_events",

@@ -9,7 +9,8 @@
 - FetchedPage: one fetched page (source URL, title, Markdown body)
 - ReadRange: omitted lines of the stored copy, labelled with the page they belong to
 - FullContentDelivery: the model-visible text, the full text to persist, and the omitted-line ranges
-- plan_full_content(): split the shared budget fairly, cut each long page, and locate the omitted lines
+- plan_full_content(): split the shared budget fairly, cut each long page, locate the omitted lines; the pages carry
+  the numbers the caller gives (the run's source numbers), from 1 when none
 - clamp_read_ranges(): drop the ranges a capped stored copy no longer holds
 - all_failed_content(): tool result when no URL could be read
 - MAX_LINE_CHARS: longest line kept in the stored copy of a cut page
@@ -69,11 +70,21 @@ class FullContentDelivery:
         return self.stored_text is not None
 
 
-def plan_full_content(pages: Sequence[FetchedPage], failed_urls: Sequence[str] = ()) -> FullContentDelivery:
-    """Lay out ``pages`` within one budget; ``stored_text`` is set only when some page had to be cut."""
+def plan_full_content(
+    pages: Sequence[FetchedPage],
+    failed_urls: Sequence[str] = (),
+    *,
+    indices: Sequence[int] | None = None,
+) -> FullContentDelivery:
+    """Lay out ``pages`` within one budget; ``stored_text`` is set only when some page had to be cut.
+
+    ``indices`` holds the number each page carries in its header and in its read range (one per page); without it
+    the pages are numbered from 1.
+    """
+    numbers = list(range(1, len(pages) + 1)) if indices is None else list(indices)
     headers = [
-        format_document_header(index, page.url, page.title, include_title=True, include_date=False)
-        for index, page in enumerate(pages, start=1)
+        format_document_header(number, page.url, page.title, include_title=True, include_date=False)
+        for number, page in zip(numbers, pages, strict=True)
     ]
     bodies = [page.body for page in pages]
     budget = max(MIN_BUDGET_CHARS, PER_PAGE_BUDGET_CHARS * min(len(pages), MAX_BUDGETED_PAGES))
@@ -109,7 +120,7 @@ def plan_full_content(pages: Sequence[FetchedPage], failed_urls: Sequence[str] =
         if omitted is None:
             continue
         visible_bodies[index] = apply_truncation_window(body, window)
-        ranges.append(ReadRange(f"【{index + 1}】", *omitted))
+        ranges.append(ReadRange(f"【{numbers[index]}】", *omitted))
 
     if not ranges:
         return _in_full(headers, bodies, failures)
