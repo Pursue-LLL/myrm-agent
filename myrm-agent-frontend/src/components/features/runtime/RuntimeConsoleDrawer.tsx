@@ -39,14 +39,8 @@ export const RuntimeConsoleDrawer: React.FC<RuntimeConsoleDrawerProps> = ({
   onClose,
   initialSurface = 'runtime_console',
 }) => {
-  // Safe translation fallback
-  let t = (key: string): string => key;
-  try {
-    const translator = useTranslations('runtimeConsole');
-    t = (key: string) => translator(key);
-  } catch {
-    // Fallback in tests
-  }
+  const translator = useTranslations('runtimeConsole');
+  const t = (key: string) => translator(key);
 
   const { snapshot, activeSurface, setSurface, isLoading } = useRunProjection(runId, initialSurface, isOpen);
 

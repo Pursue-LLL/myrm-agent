@@ -36,13 +36,8 @@ export const ConnectMachineModal: React.FC<ConnectMachineModalProps> = ({
   onClose,
   onConnectedSuccess,
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('machines');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('machines');
+  const t = (key: string): string => translation(key);
 
   const [platform, setPlatform] = useState<MachinePlatform>('darwin');
   const [tokenData, setTokenData] = useState<RegistrationTokenResponse | null>(null);

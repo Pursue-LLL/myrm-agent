@@ -35,13 +35,8 @@ export const GroupChatRoomHeader: React.FC<GroupChatRoomHeaderProps> = ({
   onSelectMember,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('groupChat');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests
-  }
+  const translation = useTranslations('groupChat');
+  const t = (key: string): string => translation(key);
 
   const [inspectingMember, setInspectingMember] = useState<GroupChatBotMember | null>(null);
 

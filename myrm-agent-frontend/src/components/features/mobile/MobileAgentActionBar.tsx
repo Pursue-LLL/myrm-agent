@@ -27,13 +27,8 @@ export const MobileAgentActionBar: React.FC<MobileAgentActionBarProps> = ({
   isStopping = false,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('mobileCockpit.actionBar');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests
-  }
+  const translation = useTranslations('mobileCockpit.actionBar');
+  const t = (key: string): string => translation(key);
 
   return (
     <div

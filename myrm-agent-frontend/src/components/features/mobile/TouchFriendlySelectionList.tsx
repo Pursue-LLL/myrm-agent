@@ -30,19 +30,9 @@ export const TouchFriendlySelectionList: React.FC<TouchFriendlySelectionListProp
   title,
   className = '',
 }) => {
-  let t = (key: string, values?: Record<string, string | number>): string => {
-    if (key === 'selectedCount' && values?.count !== undefined) {
-      return `已选 ${values.count} 项`;
-    }
-    return key;
-  };
-  try {
-    const translation = useTranslations('mobileCockpit.selectionList');
-    t = (key: string, values?: Record<string, string | number>): string =>
-      translation(key, values);
-  } catch {
-    // Fallback in tests
-  }
+  const translation = useTranslations('mobileCockpit.selectionList');
+  const t = (key: string, values?: Record<string, string | number>): string =>
+    translation(key, values);
 
   const handleToggle = useCallback(
     (option: TouchOptionItem) => {

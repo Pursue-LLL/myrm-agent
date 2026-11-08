@@ -29,13 +29,8 @@ export const AgentMentionPopup: React.FC<AgentMentionPopupProps> = ({
   onClose,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('groupChat.mention');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests
-  }
+  const translation = useTranslations('groupChat.mention');
+  const t = (key: string): string => translation(key);
 
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
 

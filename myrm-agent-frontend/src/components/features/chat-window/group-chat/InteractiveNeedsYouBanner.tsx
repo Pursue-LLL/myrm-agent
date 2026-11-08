@@ -32,13 +32,8 @@ export const InteractiveNeedsYouBanner: React.FC<InteractiveNeedsYouBannerProps>
   onDismiss,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('groupChat.needsYou');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests
-  }
+  const translation = useTranslations('groupChat.needsYou');
+  const t = (key: string): string => translation(key);
 
   const [customText, setCustomText] = useState<string>('');
 

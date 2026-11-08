@@ -37,13 +37,8 @@ export const LiveTakeoverDrawer: React.FC<LiveTakeoverDrawerProps> = ({
   onClose,
   onStatusChange,
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('machines');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('machines');
+  const t = (key: string): string => translation(key);
 
   const [controlState, setControlState] = useState<TakeoverState>('agent');
   const [isUpdating, setIsUpdating] = useState<boolean>(false);

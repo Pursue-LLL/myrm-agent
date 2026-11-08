@@ -30,19 +30,8 @@ export const FactCheckSheetDrawer: React.FC<FactCheckSheetDrawerProps> = ({
   onReplaceAllAndFinalize,
   activePlaceholderId,
 }) => {
-  let t = (key: string, values?: Record<string, string | number>): string => {
-    if (key === 'bannerWarning' && values?.count !== undefined) {
-      return `本篇草案包含 ${values.count} 处待实测占位数据`;
-    }
-    return key;
-  };
-
-  try {
-    const translation = useTranslations('factCheck');
-    t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('factCheck');
+  const t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
 
   const [activeTab, setActiveTab] = useState<FactCheckDrawerTab>('placeholders');
   const [inputs, setInputs] = useState<Record<string, string>>({});

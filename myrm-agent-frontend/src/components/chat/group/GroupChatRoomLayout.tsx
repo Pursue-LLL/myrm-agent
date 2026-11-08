@@ -19,14 +19,7 @@ interface GroupChatRoomLayoutProps {
 }
 
 export const GroupChatRoomLayout: React.FC<GroupChatRoomLayoutProps> = ({ initialRoomId }) => {
-  // Safe translation fallback
-  let t = (key: string): string => key;
-  try {
-    const translator = useTranslations('groupChat');
-    t = (key: string) => translator(key);
-  } catch {
-    // Fallback when outside next-intl context in tests
-  }
+  const t = useTranslations('groupChat');
 
   const [room, setRoom] = useState<GroupRoom | null>(null);
   const [peerArchives, setPeerArchives] = useState<PeerSessionArchive[]>([]);

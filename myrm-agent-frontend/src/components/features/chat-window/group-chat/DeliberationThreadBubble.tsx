@@ -32,13 +32,8 @@ export const DeliberationThreadBubble: React.FC<DeliberationThreadBubbleProps> =
   onSelectOption,
   className = '',
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('groupChat.deliberation');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback for tests
-  }
+  const translation = useTranslations('groupChat.deliberation');
+  const t = (key: string): string => translation(key);
 
   const [passExpanded, setPassExpanded] = useState<boolean>(false);
   const isPass = message.status === 'pass';

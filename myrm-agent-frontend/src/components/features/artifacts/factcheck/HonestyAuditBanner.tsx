@@ -25,19 +25,8 @@ export const HonestyAuditBanner: React.FC<HonestyAuditBannerProps> = ({
   onFinalize,
   className = '',
 }) => {
-  let t = (key: string, values?: Record<string, string | number>): string => {
-    if (key === 'bannerWarning' && values?.count !== undefined) {
-      return `本篇草案包含 ${values.count} 处待实测占位数据，发布前建议替换为真实跑测结果`;
-    }
-    return key;
-  };
-
-  try {
-    const translation = useTranslations('factCheck');
-    t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('factCheck');
+  const t = (key: string, values?: Record<string, string | number>): string => translation(key, values);
 
   const hasPending = pendingCount > 0;
 

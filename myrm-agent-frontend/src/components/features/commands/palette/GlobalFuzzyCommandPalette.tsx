@@ -40,14 +40,8 @@ export const GlobalFuzzyCommandPalette: React.FC<GlobalFuzzyCommandPaletteProps>
   onSelectChat,
   customActions,
 }) => {
-  // Safe translation fallback
-  let t = (key: string): string => key;
-  try {
-    const translator = useTranslations('commandPalette');
-    t = (key: string) => translator(key);
-  } catch {
-    // Fallback in tests
-  }
+  const translator = useTranslations('commandPalette');
+  const t = (key: string) => translator(key);
 
   const [query, setQuery] = useState<string>('');
   const [historyResults, setHistoryResults] = useState<HistorySearchResultItem[]>([]);

@@ -36,14 +36,8 @@ export const LivePerformanceStatusBar: React.FC<LivePerformanceStatusBarProps> =
   onTriggerEStop,
   className = '',
 }) => {
-  // Safe translation fallback
-  let t = (key: string): string => key;
-  try {
-    const translator = useTranslations('commandPalette.telemetry');
-    t = (key: string) => translator(key);
-  } catch {
-    // Fallback in tests
-  }
+  const translator = useTranslations('commandPalette.telemetry');
+  const t = (key: string) => translator(key);
 
   const [isEstopTriggered, setIsEstopTriggered] = useState<boolean>(metrics.estop_active);
   const [isConfirmingEstop, setIsConfirmingEstop] = useState<boolean>(false);

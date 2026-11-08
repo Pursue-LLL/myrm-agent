@@ -44,13 +44,8 @@ export const SolidifyToSkillWizardModal: React.FC<SolidifyToSkillWizardModalProp
   defaultTitle = '交互式课件与可视化模版',
   onSolidifiedSuccess,
 }) => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('skillSolidify');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('skillSolidify');
+  const t = (key: string): string => translation(key);
 
   const [step, setStep] = useState<SolidifyWizardStep>('params');
   const [skillName, setSkillName] = useState<string>('interactive-courseware');

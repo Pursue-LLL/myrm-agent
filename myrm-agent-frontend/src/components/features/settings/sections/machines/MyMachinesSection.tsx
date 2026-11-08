@@ -25,13 +25,8 @@ import { ConnectMachineModal } from './ConnectMachineModal';
 import { LiveTakeoverDrawer } from './LiveTakeoverDrawer';
 
 export const MyMachinesSection: React.FC = () => {
-  let t = (key: string): string => key;
-  try {
-    const translation = useTranslations('machines');
-    t = (key: string): string => translation(key);
-  } catch {
-    // Fallback in test suites
-  }
+  const translation = useTranslations('machines');
+  const t = (key: string): string => translation(key);
 
   const [machines, setMachines] = useState<MachineNode[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
