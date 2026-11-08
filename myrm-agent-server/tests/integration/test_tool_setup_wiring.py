@@ -276,6 +276,7 @@ async def test_browser_setup_gives_the_session_download_support_in_the_chat_work
     download_config = captured.get("download_config")
     assert download_config is not None
     assert download_config.downloads_dir == tmp_path.resolve() / ".agent" / "downloads"
+    assert download_config.confined_to == tmp_path.resolve()
     assert download_config.admit_page_started is not None
     assert not download_config.downloads_dir.exists()
 

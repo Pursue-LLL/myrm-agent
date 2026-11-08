@@ -1,10 +1,7 @@
 """Download configuration — where a download manager keeps files, how much, for how long, and which kinds.
 
-[INPUT]
-- infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
-
 [OUTPUT]
-- DownloadConfig: frozen settings of a download manager (directory, size limits, quota, timeout, concurrency, allowed extensions, the policy for downloads a page starts)
+- DownloadConfig: frozen settings of a download manager (directory and the trusted root it lives below, size limits, quota, timeout, concurrency, allowed extensions, the policy for downloads a page starts)
 - PageStartedPolicy: decides whether a download a page started by itself may be kept
 
 [POS]
@@ -16,10 +13,8 @@ accept no download at all.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-
-from myrm_agent_harness.infra.data_dir import resolve_data_dir
 
 _DEFAULT_ALLOWED_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -91,13 +86,16 @@ type PageStartedPolicy = Callable[[str], bool]
 class DownloadConfig:
     """Download configuration.
 
-    ``max_files`` and ``max_total_mb`` cap what the downloads directory holds. They are read from the directory
-    itself, so they hold across sessions that share it; downloads saving at the same moment can overshoot them by
-    what they save together. ``admit_page_started`` left ``None`` lets every download that passes the address check
-    be kept.
+    ``confined_to`` is the root the caller trusts (absolute and resolved, like the workspace folder): ``downloads_dir``
+    lies below it, and every directory and file below the root is created without following a link, because whoever
+    can write the root can plant one. ``max_files`` and ``max_total_mb`` cap what the downloads directory holds. They
+    are read from the directory itself, so they hold across sessions that share it; downloads saving at the same
+    moment can overshoot them by what they save together. ``admit_page_started`` left ``None`` lets every download
+    that passes the address check be kept.
     """
 
-    downloads_dir: Path = field(default_factory=lambda: resolve_data_dir() / "downloads")
+    downloads_dir: Path
+    confined_to: Path
     max_file_size_mb: int = 100
     download_timeout_s: float = 60.0
     max_concurrent_downloads: int = 3
@@ -105,3 +103,9 @@ class DownloadConfig:
     max_files: int = 200
     max_total_mb: int = 1024
     admit_page_started: PageStartedPolicy | None = None
+
+    def __post_init__(self) -> None:
+        if not self.confined_to.is_absolute():
+            raise ValueError(f"confined_to must be an absolute path: {self.confined_to}")
+        if not self.downloads_dir.is_relative_to(self.confined_to) or ".." in self.downloads_dir.parts:
+            raise ValueError(f"downloads_dir {self.downloads_dir} must lie below confined_to {self.confined_to}")

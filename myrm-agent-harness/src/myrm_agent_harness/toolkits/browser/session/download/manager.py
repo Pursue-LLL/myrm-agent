@@ -6,7 +6,7 @@
 - utils.page_health::abort_pending_navigation (POS: bounded browser and page health primitives)
 - utils.timeout::is_timeout_error (POS: single source for unified timeout exception detection across browser toolkit)
 - session.download.config::DownloadConfig (POS: where a download manager keeps files, how much, for how long, and which kinds)
-- session.download.storage::DownloadStorage, sanitize_filename (POS: the disk side of the download domain: unique names, quota, the copy from the browser)
+- session.download.storage::DownloadStorage, sanitize_filename (POS: the disk side of the download domain: unique names, quota, and the browser's finished copy written below a trusted root without following a link)
 - session.download.records::DownloadResult, DownloadRefusal, DownloadMark, DownloadActivity (POS: the shapes the download manager, its storage and the session-level download APIs exchange)
 - session.download.errors::DownloadError (POS: the error of a download that is not kept)
 - session.network::safe_preview (POS: credential-masked text cut to a limit)
@@ -17,7 +17,7 @@
 
 [POS]
 Browser file download manager. Single responsibility: listen for, judge, process, and record file downloads; the disk
-side (names, quota, the copy) is ``DownloadStorage``. It holds no URL policy: the session hands it the verifier that
+side (names, quota, the copy, and never writing through a link) is ``DownloadStorage``. It holds no URL policy: the session hands it the verifier that
 judges the address a download came from, and the config hands it the policy that says whether a page may save a file
 on its own. A download that is refused, cut short while it is judged, or not kept is cancelled and deleted (the
 caller waits a bounded time for that; the cleanup carries on after the caller stops waiting). A page-started download
@@ -112,10 +112,10 @@ class DownloadManager:
     address every download came from (the final one, after redirects) before any byte is kept.
     """
 
-    def __init__(self, config: DownloadConfig | None = None, *, verify_final_url: AddressVerifier) -> None:
-        self._config = config or DownloadConfig()
+    def __init__(self, config: DownloadConfig, *, verify_final_url: AddressVerifier) -> None:
+        self._config = config
         self._verify_final_url = verify_final_url
-        self._storage = DownloadStorage(self._config)
+        self._storage = DownloadStorage(config)
         self._downloads: list[DownloadResult] = []
         self._refusals: deque[DownloadRefusal] = deque(maxlen=_REFUSALS_KEPT)
         self._refused_total = 0
@@ -364,8 +364,8 @@ class DownloadManager:
     async def _process_download(self, download: Download) -> DownloadResult:
         """Save a judged download and record it; the browser's own copy is released however that ends.
 
-        The browser keeps every download it accepted in its temp dir until the context closes, also after
-        ``save_as`` copied it, and keeps pulling a body after a save gave up. Discarding ends both.
+        The browser keeps every download it accepted in its temp dir until the context closes, also after the
+        storage copied it, and keeps pulling a body after a save gave up. Discarding ends both.
 
         Raises:
             DownloadError: the download is not kept (see ``DownloadStorage.save``).

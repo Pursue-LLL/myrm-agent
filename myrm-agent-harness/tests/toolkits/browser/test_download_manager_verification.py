@@ -62,7 +62,7 @@ def verify() -> AsyncMock:
 
 @pytest.fixture
 def manager(downloads_dir: Path, verify: AsyncMock) -> DownloadManager:
-    config = DownloadConfig(downloads_dir=downloads_dir, download_timeout_s=5.0)
+    config = DownloadConfig(downloads_dir=downloads_dir, confined_to=downloads_dir.parent, download_timeout_s=5.0)
     return DownloadManager(config, verify_final_url=verify)
 
 
@@ -85,7 +85,7 @@ class TestFinalAddressVerification:
         saves_at_verification: list[int] = []
 
         async def record(_url: str) -> None:
-            saves_at_verification.append(download.save_as.await_count)
+            saves_at_verification.append(download.path.await_count)
 
         verify.side_effect = record
 
@@ -109,7 +109,7 @@ class TestFinalAddressVerification:
         verify.assert_awaited_once_with(DEFAULT_FINAL_URL)
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
         assert manager.downloads == []
         assert kept_files(downloads_dir) == []
 
@@ -125,7 +125,7 @@ class TestFinalAddressVerification:
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
         assert kept_files(downloads_dir) == []
 
 
@@ -140,7 +140,7 @@ class TestPageStartedDownloads:
         saves_at_verification: list[int] = []
 
         async def record(_url: str) -> None:
-            saves_at_verification.append(download.save_as.await_count)
+            saves_at_verification.append(download.path.await_count)
 
         verify.side_effect = record
 
@@ -165,7 +165,7 @@ class TestPageStartedDownloads:
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
         assert manager.downloads == []
         assert kept_files(downloads_dir) == []
         assert "Refused a download from" in caplog.text
@@ -185,7 +185,7 @@ class TestPageStartedDownloads:
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
         assert manager.downloads == []
         assert "Download handler error" in caplog.text
 
@@ -194,9 +194,10 @@ class TestPageStartedDownloads:
         self, downloads_dir: Path, verify: AsyncMock
     ) -> None:
         """Judging needs no slot, so a download to refuse is discarded at once even while every slot is taken."""
-        manager = DownloadManager(
-            DownloadConfig(downloads_dir=downloads_dir, max_concurrent_downloads=1), verify_final_url=verify
+        config = DownloadConfig(
+            downloads_dir=downloads_dir, confined_to=downloads_dir.parent, max_concurrent_downloads=1
         )
+        manager = DownloadManager(config, verify_final_url=verify)
         verify.side_effect = BrowserNavigationBlockedError("SSRF blocked: 127.0.0.1 is loopback")
         download = download_of(MagicMock(), DEFAULT_FINAL_URL)
 
@@ -205,7 +206,7 @@ class TestPageStartedDownloads:
             await asyncio.wait_for(_until_discarded(download), timeout=1.0)
 
         await _let_listener_tasks_finish(manager)
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("url", ["blob:https://app.example/6f1c", "data:text/plain;base64,aGk="])
@@ -236,7 +237,7 @@ class TestRequestClaim:
         await _let_listener_tasks_finish(manager)
 
         assert result is not None
-        assert download.save_as.await_count == 1
+        assert download.path.await_count == 1
         assert verify.await_count == 1
         assert len(manager.downloads) == 1
 
@@ -253,8 +254,8 @@ class TestRequestClaim:
 
         assert sorted(call.args[0] for call in verify.await_args_list) == [first.url, second.url]
         assert sorted(result.url for result in manager.downloads) == [first.url, second.url]
-        assert first.save_as.await_count == 1
-        assert second.save_as.await_count == 1
+        assert first.path.await_count == 1
+        assert second.path.await_count == 1
 
     @pytest.mark.asyncio
     async def test_a_second_download_of_the_page_is_refused_like_any_other(
@@ -276,7 +277,7 @@ class TestRequestClaim:
         assert result is not None
         second.cancel.assert_awaited_once()
         second.delete.assert_awaited_once()
-        second.save_as.assert_not_awaited()
+        second.path.assert_not_awaited()
         assert [saved.url for saved in manager.downloads] == [first.url]
         assert len(kept_files(downloads_dir)) == 1
 

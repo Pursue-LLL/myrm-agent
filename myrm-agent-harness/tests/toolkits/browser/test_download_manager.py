@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,7 +12,7 @@ from myrm_agent_harness.toolkits.browser.session.download.config import Download
 from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
 from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
 from myrm_agent_harness.toolkits.browser.session.download.records import DownloadResult
-from tests.toolkits.browser._download_doubles import ExpectDownload
+from tests.toolkits.browser._download_doubles import ExpectDownload, finished_file
 
 # =============================================================================
 # Fixtures
@@ -35,6 +34,7 @@ def tmp_downloads(tmp_path: Path) -> Path:
 def config(tmp_downloads: Path) -> DownloadConfig:
     return DownloadConfig(
         downloads_dir=tmp_downloads,
+        confined_to=tmp_downloads.parent,
         max_file_size_mb=1,
         download_timeout_s=5.0,
         max_concurrent_downloads=2,
@@ -61,12 +61,12 @@ def _make_download_mock(
     dl.cancel = AsyncMock()
     dl.delete = AsyncMock()
 
-    async def _save_as(path: str) -> None:
+    async def _path() -> Path:
         if failure_msg:
             raise RuntimeError(failure_msg)
-        Path(path).write_bytes(save_content)
+        return finished_file(save_content)
 
-    dl.save_as = AsyncMock(side_effect=_save_as)
+    dl.path = AsyncMock(side_effect=_path)
     return dl
 
 
@@ -106,15 +106,19 @@ class TestDownloadManagerInit:
     def test_init_touches_no_disk(self, tmp_path: Path) -> None:
         """A workspace whose chats never download gets no downloads directory."""
         dl_dir = tmp_path / "new_dir" / "nested"
-        DownloadManager(DownloadConfig(downloads_dir=dl_dir), verify_final_url=_allow_every_address)
+        DownloadManager(
+            DownloadConfig(downloads_dir=dl_dir, confined_to=tmp_path), verify_final_url=_allow_every_address
+        )
         assert not dl_dir.exists()
 
-    def test_init_default_config(self) -> None:
-        with tempfile.TemporaryDirectory() as d:
-            cfg = DownloadConfig(downloads_dir=Path(d))
-            dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
-            assert dm.downloads == []
-            assert dm.refusals == ()
+    def test_a_new_manager_has_saved_and_refused_nothing(self, tmp_path: Path) -> None:
+        dm = DownloadManager(
+            DownloadConfig(downloads_dir=tmp_path / "downloads", confined_to=tmp_path),
+            verify_final_url=_allow_every_address,
+        )
+
+        assert dm.downloads == []
+        assert dm.refusals == ()
 
 
 class TestDownloadManagerAttach:
@@ -156,6 +160,7 @@ class TestDownloadManagerProcessDownload:
     async def test_disallowed_extension_rejected(self, tmp_downloads: Path) -> None:
         cfg = DownloadConfig(
             downloads_dir=tmp_downloads,
+            confined_to=tmp_downloads.parent,
             allowed_extensions=frozenset({"pdf"}),
         )
         dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
@@ -172,6 +177,7 @@ class TestDownloadManagerProcessDownload:
     async def test_file_size_exceeded(self, tmp_downloads: Path) -> None:
         cfg = DownloadConfig(
             downloads_dir=tmp_downloads,
+            confined_to=tmp_downloads.parent,
             max_file_size_mb=0,  # 0 MB limit — any file exceeds
         )
         dm = DownloadManager(cfg, verify_final_url=_allow_every_address)
@@ -299,7 +305,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         pool = MagicMock()
-        cfg = DownloadConfig(downloads_dir=tmp_downloads)
+        cfg = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
         session = BrowserSession(pool, "AGENT", download_config=cfg)
         assert session.list_downloads() == []
         assert session._download_manager is not None
@@ -310,7 +316,7 @@ class TestBrowserSessionDownloadIntegration:
     ) -> None:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
-        config = DownloadConfig(downloads_dir=tmp_downloads) if configured else None
+        config = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent) if configured else None
         session = BrowserSession(MagicMock(), "AGENT", download_config=config)
 
         context_kwargs = session._tab_controller._context_kwargs
@@ -332,7 +338,8 @@ class TestBrowserSessionDownloadIntegration:
     ) -> None:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
-        session = BrowserSession(MagicMock(), "AGENT", download_config=DownloadConfig(downloads_dir=tmp_downloads))
+        config = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
+        session = BrowserSession(MagicMock(), "AGENT", download_config=config)
         navigator = MagicMock()
         navigator.assert_landed_allowed = AsyncMock()
         session._navigator = navigator
@@ -346,7 +353,7 @@ class TestBrowserSessionDownloadIntegration:
         from myrm_agent_harness.toolkits.browser.session import BrowserSession
 
         pool = MagicMock()
-        cfg = DownloadConfig(downloads_dir=tmp_downloads)
+        cfg = DownloadConfig(downloads_dir=tmp_downloads, confined_to=tmp_downloads.parent)
         session = BrowserSession(pool, "AGENT", download_config=cfg)
         stats = session.stats
         assert "downloads" in stats

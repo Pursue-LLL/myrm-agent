@@ -18,7 +18,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser.session.download import manager as download_manager
 from myrm_agent_harness.toolkits.browser.session.download.config import DownloadConfig
 from myrm_agent_harness.toolkits.browser.session.download.manager import DownloadManager
-from tests.toolkits.browser._download_doubles import ExpectDownload, download_of
+from tests.toolkits.browser._download_doubles import ExpectDownload, download_of, finished_file
 
 _FIRST_URL = "https://public.example/first"
 _SECOND_URL = "https://public.example/second"
@@ -32,7 +32,8 @@ def _no_navigation_to_stop() -> Iterator[None]:
 
 @pytest.fixture
 def manager(tmp_path: Path) -> DownloadManager:
-    return DownloadManager(DownloadConfig(downloads_dir=tmp_path / "downloads"), verify_final_url=AsyncMock())
+    config = DownloadConfig(downloads_dir=tmp_path / "downloads", confined_to=tmp_path)
+    return DownloadManager(config, verify_final_url=AsyncMock())
 
 
 def _page_serving(*downloads: MagicMock) -> MagicMock:
@@ -130,12 +131,12 @@ class TestTakingTurns:
         slow = download_of(MagicMock(), "https://cdn.example/a.txt", name="a.txt")
         saving, release = asyncio.Event(), asyncio.Event()
 
-        async def slow_save(path: str) -> None:
+        async def slow_finish() -> Path:
             saving.set()
             await release.wait()
-            Path(path).write_bytes(b"a")
+            return finished_file(b"a")
 
-        slow.save_as = AsyncMock(side_effect=slow_save)
+        slow.path = AsyncMock(side_effect=slow_finish)
         page = _page_serving(slow, download_of(MagicMock(), "https://cdn.example/b.txt", name="b.txt"))
         first = asyncio.create_task(manager.download_url(page, _FIRST_URL))
         await asyncio.wait_for(saving.wait(), timeout=1.0)

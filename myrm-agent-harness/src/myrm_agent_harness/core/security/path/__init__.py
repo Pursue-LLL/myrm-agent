@@ -1,11 +1,12 @@
 """Path security domain — the single import surface for every path protection rule.
 
-Four modules, one responsibility each:
+Five modules, one responsibility each:
 
 - ``pattern``    — glob matcher engine (`*`/`?`/`**`/character classes, case-insensitive by default)
 - ``filesystem`` — generic path safety: dangerous roots, device names, boundary, safe join, coercion
 - ``rules``      — protected-path policy: which files must not be touched, and the predicates that read the rules
 - ``bounded_read`` — text reads of untrusted files that cannot exhaust memory or block on a FIFO or device
+- ``confined_write`` — new files below a trusted directory that a symlink or hard link cannot redirect
 
 Consumers import predicates from this package (``core.security.path``) and reach for
 ``core.security.path.pattern`` only when they need the raw matcher. ``__all__`` is
@@ -15,12 +16,14 @@ bypass the predicates that carry the security policy.
 
 [INPUT]
 - path.bounded_read (POS: Bounded text read of files in an untrusted folder)
+- path.confined_write (POS: Exclusive file creation below a trusted directory, decided on descriptors so no link redirects it)
 - path.filesystem (POS: Generic filesystem path safety — no product protection policy)
 - path.rules (POS: Protected-path policy)
 
 [OUTPUT]
 - is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
 - read_text_bounded, BoundedRead, ReadRefusal
+- open_directory_beneath, ConfinedDirectory, UnsafeDirectoryError
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
 - DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH
 - SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS
@@ -38,6 +41,15 @@ from myrm_agent_harness.core.security.path.bounded_read import (
 )
 from myrm_agent_harness.core.security.path.bounded_read import (
     read_text_bounded as read_text_bounded,
+)
+from myrm_agent_harness.core.security.path.confined_write import (
+    ConfinedDirectory as ConfinedDirectory,
+)
+from myrm_agent_harness.core.security.path.confined_write import (
+    UnsafeDirectoryError as UnsafeDirectoryError,
+)
+from myrm_agent_harness.core.security.path.confined_write import (
+    open_directory_beneath as open_directory_beneath,
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     BLOCKED_DEVICE_NAMES as BLOCKED_DEVICE_NAMES,
@@ -107,7 +119,9 @@ __all__ = (
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
     "BoundedRead",
+    "ConfinedDirectory",
     "ReadRefusal",
+    "UnsafeDirectoryError",
     "coerce_filesystem_path",
     "covers_dangerous_path",
     "is_blocked_device_path",
@@ -118,6 +132,7 @@ __all__ = (
     "is_protected_instruction_file",
     "is_sensitive_file",
     "is_within_boundary",
+    "open_directory_beneath",
     "read_text_bounded",
     "safe_join_path",
 )

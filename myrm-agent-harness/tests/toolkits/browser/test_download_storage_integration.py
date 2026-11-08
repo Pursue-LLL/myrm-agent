@@ -3,14 +3,16 @@
 Downloads that save at the same moment each get a file of their own and keep their own content; a directory that is
 full keeps no more files, says why, and names the way out; the directory appears with the first download and ignores
 itself in version control; asking for a URL again asks the server again, so a file that changed is not mistaken for the
-one saved before; and download requests on one page take turns, each getting the download it started. The hosts are
-fake (see ``test_download_url_integration``).
+one saved before; download requests on one page take turns, each getting the download it started; and a downloads
+folder that the sandboxed agent replaced with a link is refused instead of written through. The hosts are fake (see
+``test_download_url_integration``).
 Run with: `pytest -m integration tests/toolkits/browser/test_download_storage_integration.py`.
 """
 
 from __future__ import annotations
 
 import asyncio
+import sys
 from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
@@ -18,6 +20,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.session.download.errors import DownloadError
 from tests.toolkits.browser._browser_available import chromium_available
 from tests.toolkits.browser._download_doubles import kept_files
 from tests.toolkits.browser._download_integration import (
@@ -67,7 +70,10 @@ def _process_dns() -> Iterator[None]:
 
 @pytest.fixture
 def downloads_dir(tmp_path: Path) -> Path:
-    return tmp_path / "workspace" / ".agent" / "downloads"
+    """The folder of a workspace, which the first download creates below the workspace's ``.agent``."""
+    agent_dir = tmp_path / "workspace" / ".agent"
+    agent_dir.mkdir(parents=True)
+    return agent_dir / "downloads"
 
 
 @pytest.fixture
@@ -167,3 +173,26 @@ class TestRequestsOnOnePage:
                 assert (second.file_name, Path(second.path).read_bytes()) == ("b.txt", b"BBB")
                 assert await kept_by_browser_once_settled(browser_tmp) == []
             assert kept_files(downloads_dir) == ["a.txt", "b.txt"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="creating links needs privileges on Windows")
+class TestLinksPlantedInTheWorkspace:
+    async def test_a_downloads_folder_replaced_by_a_link_is_refused_and_nothing_is_written_through_it(
+        self, tmp_path: Path, browser_tmp: Path
+    ) -> None:
+        """The sandboxed agent can write the workspace, but not ``.git/hooks``: a link must not let a download do it."""
+        workspace = tmp_path / "workspace"
+        hooks = workspace / ".git" / "hooks"
+        hooks.mkdir(parents=True)
+        (workspace / ".agent").mkdir()
+        (workspace / ".agent" / "downloads").symlink_to(hooks)
+        routes = {"/home": page("home"), "/hook": attachment("pre-commit.txt", b"#!/bin/sh\nexit 1\n")}
+        with serve(routes) as site:
+            async with open_session(workspace / ".agent" / "downloads", local=False, confined_to=workspace) as session:
+                await session.navigate(url_on("public.test", site, "/home"))
+
+                with pytest.raises(DownloadError, match="because downloads is a link"):
+                    await session.download_url(url_on("public.test", site, "/hook"))
+
+                assert await kept_by_browser_once_settled(browser_tmp) == []
+            assert list(hooks.iterdir()) == []

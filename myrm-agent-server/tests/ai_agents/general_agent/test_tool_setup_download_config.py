@@ -37,6 +37,18 @@ class TestDownloadsFolder:
         assert config.downloads_dir == resolve_workspace_downloads_dir(tmp_path)
         assert not config.downloads_dir.exists()
 
+    def test_the_workspace_is_the_root_the_storage_trusts_and_a_link_to_it_is_resolved_first(self, tmp_path: Path) -> None:
+        """The sandboxed agent can write the workspace, so nothing below its resolved root is followed through a link."""
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+        alias = tmp_path / "alias"
+        alias.symlink_to(workspace)
+
+        config = _build_download_config(str(alias), build_channel_security_config("web_chat"))
+
+        assert config.confined_to == workspace.resolve()
+        assert config.downloads_dir == workspace.resolve() / ".agent" / "downloads"
+
 
 class TestPageStartedPolicy:
     @pytest.mark.parametrize(

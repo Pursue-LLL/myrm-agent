@@ -89,15 +89,18 @@ async def open_session(
     filtered: bool = True,
     max_files: int = 200,
     admit_page_started: PageStartedPolicy | None = None,
+    confined_to: Path | None = None,
 ) -> AsyncIterator[BrowserSession]:
     """A session with one tab; it has download support only when ``downloads_dir`` is given.
 
     ``filtered=False`` leaves its context without a request filter. ``max_files`` and ``admit_page_started`` are
-    the quota and the policy for downloads a page starts that the download support runs with.
+    the quota and the policy for downloads a page starts that the download support runs with. ``confined_to`` is the
+    root the downloads directory lies below: the directory's parent unless a test models a workspace around it.
     """
     download_config = (
         DownloadConfig(
             downloads_dir=downloads_dir,
+            confined_to=confined_to or downloads_dir.parent,
             download_timeout_s=DOWNLOAD_TIMEOUT_S,
             max_files=max_files,
             admit_page_started=admit_page_started,

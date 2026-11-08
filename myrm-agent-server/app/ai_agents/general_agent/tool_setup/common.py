@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
@@ -145,9 +146,11 @@ def _get_artifact_push_fn() -> Callable[[str, str, ArtifactType, str], None] | N
 def _build_download_config(workspace_root: str, security: SecurityConfig) -> DownloadConfig:
     """Download support of a chat's browser.
 
-    Files land under the workspace the agent already works in. Nobody can be asked about a download a page starts,
-    so the permission policy decides beforehand: a page may save a file on its own only where the agent may download
-    without asking (ALLOW); ASK and DENY refuse it, and the agent can still request the file with ``download_url``.
+    Files land under the workspace the agent already works in. The sandboxed agent can write that workspace, so the
+    resolved workspace root is the root the storage trusts: nothing below it is followed through a link. Nobody can be
+    asked about a download a page starts, so the permission policy decides beforehand: a page may save a file on its
+    own only where the agent may download without asking (ALLOW); ASK and DENY refuse it, and the agent can still
+    request the file with ``download_url``.
     """
     from myrm_agent_harness.agent.security.engine import evaluate_tool_call
     from myrm_agent_harness.agent.security.types import PermissionAction
@@ -166,4 +169,5 @@ def _build_download_config(workspace_root: str, security: SecurityConfig) -> Dow
         )
         return action == PermissionAction.ALLOW
 
-    return DownloadConfig(downloads_dir=resolve_workspace_downloads_dir(workspace_root), admit_page_started=admit)
+    root = Path(workspace_root).expanduser().resolve()
+    return DownloadConfig(downloads_dir=resolve_workspace_downloads_dir(root), confined_to=root, admit_page_started=admit)

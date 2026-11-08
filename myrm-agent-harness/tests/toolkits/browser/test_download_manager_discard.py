@@ -46,7 +46,7 @@ def verify() -> AsyncMock:
 
 @pytest.fixture
 def manager(tmp_path: Path, verify: AsyncMock) -> DownloadManager:
-    config = DownloadConfig(downloads_dir=tmp_path / "downloads", download_timeout_s=5.0)
+    config = DownloadConfig(downloads_dir=tmp_path / "downloads", confined_to=tmp_path, download_timeout_s=5.0)
     return DownloadManager(config, verify_final_url=verify)
 
 
@@ -62,7 +62,7 @@ def _verifier_that_never_answers(verify: AsyncMock) -> asyncio.Event:
     return asked
 
 
-async def _never_finishes(_path: str) -> None:
+async def _never_finishes() -> None:
     await asyncio.sleep(3600)
 
 
@@ -281,7 +281,7 @@ class TestCancelledJudgement:
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_a_requested_download_is_discarded_when_its_judgement_is_cancelled(
@@ -298,7 +298,7 @@ class TestCancelledJudgement:
 
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
 
 
 class TestWhatTheBrowserKeepsOfAProcessedDownload:
@@ -319,15 +319,18 @@ class TestWhatTheBrowserKeepsOfAProcessedDownload:
                 download.suggested_filename = "tool.exe"
             case "save-timeout":
                 timeout_s = 0.05
-                download.save_as = AsyncMock(side_effect=_never_finishes)
+                download.path = AsyncMock(side_effect=_never_finishes)
             case "save-failure":
-                download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+                download.path = AsyncMock(side_effect=RuntimeError("disk full"))
             case "too-large":
                 limit_mb = 0
             case "file-vanished":
-                download.save_as = AsyncMock(side_effect=lambda path: Path(path).unlink())
+                download.path = AsyncMock(return_value=tmp_path / "gone-from-the-browsers-temp-dir")
         config = DownloadConfig(
-            downloads_dir=tmp_path / "downloads", download_timeout_s=timeout_s, max_file_size_mb=limit_mb
+            downloads_dir=tmp_path / "downloads",
+            confined_to=tmp_path,
+            download_timeout_s=timeout_s,
+            max_file_size_mb=limit_mb,
         )
         manager = DownloadManager(config, verify_final_url=verify)
 

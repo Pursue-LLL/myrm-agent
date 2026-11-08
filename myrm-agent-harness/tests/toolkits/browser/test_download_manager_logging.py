@@ -54,11 +54,11 @@ def _no_navigation_to_stop() -> Iterator[None]:
 
 
 def _manager(tmp_path: Path, verify: AsyncMock | None = None, *, timeout_s: float = 5.0) -> DownloadManager:
-    config = DownloadConfig(downloads_dir=tmp_path / "downloads", download_timeout_s=timeout_s)
+    config = DownloadConfig(downloads_dir=tmp_path / "downloads", confined_to=tmp_path, download_timeout_s=timeout_s)
     return DownloadManager(config, verify_final_url=verify or AsyncMock())
 
 
-async def _never_finishes(_path: str) -> None:
+async def _never_finishes() -> None:
     await asyncio.sleep(3600)
 
 
@@ -109,7 +109,7 @@ class TestDownloadLogs:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         download = download_of(MagicMock(), _signed())
-        download.save_as = AsyncMock(side_effect=_never_finishes)
+        download.path = AsyncMock(side_effect=_never_finishes)
 
         await _page_starts(_manager(tmp_path, timeout_s=0.05), download)
 
@@ -120,7 +120,7 @@ class TestDownloadLogs:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         download = download_of(MagicMock(), _signed())
-        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+        download.path = AsyncMock(side_effect=RuntimeError("disk full"))
 
         await _page_starts(_manager(tmp_path), download)
 
@@ -131,7 +131,7 @@ class TestDownloadLogs:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         download = download_of(MagicMock(), _signed(f"user:{_LONG_PASSWORD}"))
-        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+        download.path = AsyncMock(side_effect=RuntimeError("disk full"))
 
         await _page_starts(_manager(tmp_path), download)
 
@@ -144,7 +144,7 @@ class TestDownloadLogs:
         token = github_token("Ab3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0dF3hJ6")
         # The cut falls four characters into the token: too few for any redactor to recognise it once the text is cut.
         download = download_of(MagicMock(), f"https://files.example/{'x' * 49}/{token}")
-        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+        download.path = AsyncMock(side_effect=RuntimeError("disk full"))
 
         await _page_starts(_manager(tmp_path), download)
 
@@ -157,7 +157,7 @@ class TestDownloadLogs:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         download = download_of(MagicMock(), f"https://files.example/{'p' * 500}")
-        download.save_as = AsyncMock(side_effect=RuntimeError("disk full"))
+        download.path = AsyncMock(side_effect=RuntimeError("disk full"))
 
         await _page_starts(_manager(tmp_path), download)
 

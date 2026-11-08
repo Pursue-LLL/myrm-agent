@@ -49,6 +49,7 @@ def _manager(
 ) -> DownloadManager:
     config = DownloadConfig(
         downloads_dir=tmp_path / "downloads",
+        confined_to=tmp_path,
         admit_page_started=admit,
         max_files=max_files,
         download_timeout_s=timeout_s,
@@ -90,7 +91,7 @@ class TestAdmission:
         verify.assert_not_awaited()
         download.cancel.assert_awaited_once()
         download.delete.assert_awaited_once()
-        download.save_as.assert_not_awaited()
+        download.path.assert_not_awaited()
         assert manager.downloads == []
         assert kept_files(tmp_path / "downloads") == []
         assert [refusal.file_name for refusal in manager.refusals] == ["secret.txt"]
@@ -170,7 +171,7 @@ class TestAdmission:
             await request
         await _settled(manager)
 
-        claimed.save_as.assert_not_awaited()
+        claimed.path.assert_not_awaited()
         assert manager.downloads == []
 
 

@@ -11,7 +11,7 @@ GeneralAgent 工具装配：每个工具族一个 mixin，`mixin.py` 按固定�
 | `__init__.py` | 门面 | 导出 `ToolSetupMixin` | ✅ |
 | `mixin.py` | 组合 | 按固定 MRO 组合各工具族 | ✅ |
 | `base.py` | 基类 | `ToolSetupBaseMixin` + TYPE_CHECKING 宿主属性 | ✅ |
-| `common.py` | 支撑 | 媒体凭据/图片约束/artifact push、浏览器下载配置（工作区 `.agent/downloads`；页面自发的下载仅在权限策略对 `download_url` 判 ALLOW 时放行）等模块级辅助 | ✅ |
+| `common.py` | 支撑 | 媒体凭据/图片约束/artifact push、浏览器下载配置（工作区 `.agent/downloads`，以解析后的工作区根为不跟随链接的受信根；页面自发的下载仅在权限策略对 `download_url` 判 ALLOW 时放行）等模块级辅助 | ✅ |
 | `skill.py` | 工具族 | 技能市场、技能管理 | ✅ |
 | `search.py` | 工具族 | 搜索/抓取、澄清 | ✅ |
 | `media.py` | 工具族 | 图像、视频、TTS | ✅ |
