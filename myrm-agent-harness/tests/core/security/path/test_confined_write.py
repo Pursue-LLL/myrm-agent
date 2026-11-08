@@ -234,6 +234,36 @@ class TestCreatingFiles:
                 with directory.scandir() as entries:
                     assert [entry.name for entry in entries] == ["a.pdf"]
 
+    def test_a_listing_that_is_still_open_does_not_cut_the_next_one_short(self, root: Path) -> None:
+        with _downloads(root) as directory:
+            for name in ("a.pdf", "b.pdf", "c.pdf"):
+                _write(directory.create_new(name), b"x")
+
+            with directory.scandir() as first:
+                next(first)
+                with directory.scandir() as second:
+                    assert sorted(entry.name for entry in second) == ["a.pdf", "b.pdf", "c.pdf"]
+
+    def test_a_file_created_after_a_listing_is_in_the_next_one(self, root: Path) -> None:
+        with _downloads(root) as directory:
+            _write(directory.create_new("a.pdf"), b"x")
+            with directory.scandir() as entries:
+                assert [entry.name for entry in entries] == ["a.pdf"]
+
+            _write(directory.create_new("b.pdf"), b"x")
+
+            with directory.scandir() as entries:
+                assert sorted(entry.name for entry in entries) == ["a.pdf", "b.pdf"]
+
+    def test_the_entries_of_an_open_listing_can_be_inspected(self, root: Path) -> None:
+        with _downloads(root) as directory:
+            _write(directory.create_new("a.pdf"), b"12345")
+
+            with directory.scandir() as entries:
+                (entry,) = entries
+                assert entry.is_file(follow_symlinks=False)
+                assert entry.stat(follow_symlinks=False).st_size == 5
+
 
 @POSIX_ONLY
 class TestAnchoring:

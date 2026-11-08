@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import errno
 import os
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 from typing import NoReturn
 from unittest.mock import AsyncMock, MagicMock
@@ -25,6 +27,25 @@ from tests.toolkits.browser._download_doubles import (
 
 _MIB = 1024 * 1024
 _RUNS_AS_ROOT = hasattr(os, "geteuid") and os.geteuid() == 0
+
+
+def _entry_that_cannot_be_inspected(name: str, error: OSError) -> MagicMock:
+    """A regular file of a listing whose size cannot be read, for the reason ``error`` gives."""
+    entry = MagicMock()
+    entry.name = name
+    entry.is_file.return_value = True
+    entry.stat.side_effect = error
+    return entry
+
+
+def _listing_of(*entries: MagicMock) -> Callable[[ConfinedDirectory], AbstractContextManager[Iterator[MagicMock]]]:
+    """A stand-in for ``ConfinedDirectory.scandir`` that lists ``entries``."""
+
+    @contextmanager
+    def scandir(_directory: ConfinedDirectory) -> Iterator[Iterator[MagicMock]]:
+        yield iter(entries)
+
+    return scandir
 
 
 class TestSanitizeFilename:
@@ -203,6 +224,31 @@ class TestDirectory:
             await storage_in(tmp_path / "dl").save(download_named())
 
         assert "Input/output error" in refused.value.detail
+
+    @pytest.mark.asyncio
+    async def test_a_file_removed_while_the_folder_is_counted_is_not_counted(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        gone = _entry_that_cannot_be_inspected("gone.pdf", FileNotFoundError(errno.ENOENT, "No such file"))
+        monkeypatch.setattr(ConfinedDirectory, "scandir", _listing_of(gone))
+
+        result = await storage_in(tmp_path / "dl", max_files=1).save(download_named())
+
+        assert kept_files(tmp_path / "dl") == [result.file_name]
+
+    @pytest.mark.asyncio
+    async def test_a_file_whose_size_cannot_be_read_refuses_the_download_instead_of_counting_as_empty(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        locked = _entry_that_cannot_be_inspected("locked.pdf", PermissionError(errno.EACCES, "Permission denied"))
+        monkeypatch.setattr(ConfinedDirectory, "scandir", _listing_of(locked))
+        late = download_named()
+
+        with pytest.raises(DownloadError, match="downloads folder cannot be read") as refused:
+            await storage_in(tmp_path / "dl").save(late)
+
+        assert "Permission denied" in refused.value.detail
+        late.path.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_a_file_the_file_system_cannot_create_refuses_the_download(

@@ -135,7 +135,7 @@ class DownloadStorage:
         try:
             with directory.scandir() as entries:
                 for entry in entries:
-                    with contextlib.suppress(OSError):  # a file removed meanwhile is simply not counted
+                    with contextlib.suppress(FileNotFoundError):  # a file removed meanwhile is simply not counted
                         if entry.name != _IGNORE_FILE_NAME and entry.is_file(follow_symlinks=False):
                             total_bytes += entry.stat(follow_symlinks=False).st_size
                             files += 1

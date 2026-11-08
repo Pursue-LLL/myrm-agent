@@ -76,9 +76,25 @@ class ConfinedDirectory:
         self.path = path  # the root and the names below it, as written: where a result says the files are
         self._fd = fd  # None where descriptors cannot anchor the directory
 
-    def scandir(self) -> contextlib.AbstractContextManager[Iterator[os.DirEntry[str]]]:
-        """The entries of this very directory (read them with ``follow_symlinks=False``)."""
-        return os.scandir(self.path if self._fd is None else self._fd)
+    @contextlib.contextmanager
+    def scandir(self) -> Iterator[Iterator[os.DirEntry[str]]]:
+        """The entries of this very directory (read them with ``follow_symlinks=False``).
+
+        Each listing reads through a descriptor opened for it: listings that shared one would cut each other short, and
+        a descriptor opened before files were created can be answered with a listing older than them (seen on overlayfs,
+        the usual root file system of a container). The descriptor stays open as long as the listing does, because the
+        entries read their attributes through it.
+        """
+        if self._fd is None:
+            with os.scandir(self.path) as entries:
+                yield entries
+            return
+        listing_fd = os.open(".", _DIRECTORY_FLAGS, dir_fd=self._fd)
+        try:
+            with os.scandir(listing_fd) as entries:
+                yield entries
+        finally:
+            os.close(listing_fd)
 
     def create_new(self, name: str) -> int:
         """A descriptor open for writing on a file created now under ``name``.
