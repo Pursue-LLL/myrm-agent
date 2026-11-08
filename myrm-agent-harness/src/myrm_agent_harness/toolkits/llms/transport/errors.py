@@ -2,6 +2,7 @@
 
 [INPUT]
 - httpx::Response (POS: the failed HTTP answer)
+- transport.redirects (POS: the wording of a redirect that is not followed)
 
 [OUTPUT]
 - LLMCallError: the base of every failure below, so a caller can tell "the model call failed" from any other fault
@@ -24,6 +25,8 @@ import json
 from typing import Final
 
 import httpx
+
+from myrm_agent_harness.toolkits.llms.transport.redirects import redirect_notice
 
 _MESSAGE_LIMIT = 2000
 
@@ -144,12 +147,17 @@ def _parse_body(text: str) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _failure_text(response: httpx.Response) -> str:
+    """The provider's own words; a redirect has none worth showing (a proxy's page), so it says where it pointed."""
+    return redirect_notice(response) if response.has_redirect_location else response.text
+
+
 def raise_for_status(response: httpx.Response, provider: str) -> None:
     """Raise LLMHTTPError for a failed response; reads the body of a streamed one first."""
     if response.is_success:
         return
     response.read()
-    raise LLMHTTPError(provider, response.status_code, response.text, response)
+    raise LLMHTTPError(provider, response.status_code, _failure_text(response), response)
 
 
 async def araise_for_status(response: httpx.Response, provider: str) -> None:
@@ -157,4 +165,4 @@ async def araise_for_status(response: httpx.Response, provider: str) -> None:
     if response.is_success:
         return
     await response.aread()
-    raise LLMHTTPError(provider, response.status_code, response.text, response)
+    raise LLMHTTPError(provider, response.status_code, _failure_text(response), response)
