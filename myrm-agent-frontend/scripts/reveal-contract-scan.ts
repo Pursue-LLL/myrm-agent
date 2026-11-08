@@ -1,11 +1,20 @@
 /**
  * 悬停揭示契约静态扫描：找出只靠鼠标悬停才显现的可交互元素。
  *
- * [INPUT]  source: string（TSX 源码字符串）
- * [OUTPUT] findHoverOnlyRevealSites(): HoverOnlyRevealSite[]
- * [POS]    无障碍门禁底层扫描器，兼容 Babel/TypeScript 7 AST
+ * 为什么需要：`opacity-0 group-hover:opacity-100` 的控件只在指针悬停父级时可见——键盘用户 Tab 到它时它仍是
+ * 透明的，触屏设备又没有悬停，控件等于不存在，而 jsx-a11y 与单测都看不到。契约要求揭示同时有键盘路径
+ * （`group-focus-within` / `focus-within` / `focus-visible` / `focus` 之一的 `:opacity-100`）与触屏路径
+ * （`pointer-coarse:opacity-100`）；共享常量 `REVEAL_ON_HOVER`（`src/lib/utils/a11y.ts`）同时提供两者。
+ *
+ * 判定单元是 JSX 元素的 `className` 属性值（含 `cn()` 多参数、三元、模板字符串）。元素本身或它的任一后代
+ * 是可交互元素时才算违规：箭头、提示文字这类纯装饰的悬停效果不受约束。
+ *
+ * 盲区：只解析写在 `className` 属性里的类名，不解析先拼进变量再传入的类名；也不判断
+ * `pointer-events-none` 等让可交互元素无法被点击的写法。
  */
-import { parse } from '@babel/parser';
+import { type JSXAttribute, type JSXOpeningElement, Visitor } from 'oxc-parser';
+
+import { jsxNameText, lineAt, parseProgram } from './source-ast';
 
 export type MissingRevealPath = 'keyboard' | 'touch';
 
@@ -26,6 +35,29 @@ const INTERACTIVE_COMPONENT_TAG = /^(?:Link|NavLink|\w*Button|\w*Trigger|\w*Menu
 const INTERACTIVE_HANDLER = /^on(?:Click|DoubleClick|KeyDown|KeyUp|PointerDown|MouseDown|Change)$/;
 const INTERACTIVE_ROLES = new Set(['button', 'link', 'menuitem', 'switch', 'checkbox', 'tab', 'option']);
 
+function attributeOf(tag: JSXOpeningElement, name: string): JSXAttribute | undefined {
+  for (const attribute of tag.attributes) {
+    if (attribute.type === 'JSXAttribute' && jsxNameText(attribute.name) === name) {
+      return attribute;
+    }
+  }
+  return undefined;
+}
+
+function isInteractiveTag(tag: JSXOpeningElement): boolean {
+  const name = jsxNameText(tag.name);
+  if (INTERACTIVE_HTML_TAGS.has(name) || INTERACTIVE_COMPONENT_TAG.test(name.slice(name.lastIndexOf('.') + 1))) {
+    return true;
+  }
+  const role = attributeOf(tag, 'role')?.value;
+  if (role?.type === 'Literal' && INTERACTIVE_ROLES.has(role.value)) {
+    return true;
+  }
+  return tag.attributes.some(
+    (attribute) => attribute.type === 'JSXAttribute' && INTERACTIVE_HANDLER.test(jsxNameText(attribute.name)),
+  );
+}
+
 function missingPaths(className: string): MissingRevealPath[] {
   if (SHARED_REVEAL_CONSTANT.test(className)) {
     return [];
@@ -40,128 +72,44 @@ function missingPaths(className: string): MissingRevealPath[] {
   return missing;
 }
 
-function getTagName(nameNode: any): string {
-  if (!nameNode) return '';
-  if (nameNode.type === 'JSXIdentifier') {
-    return nameNode.name;
-  }
-  if (nameNode.type === 'JSXMemberExpression') {
-    return `${getTagName(nameNode.object)}.${nameNode.property.name}`;
-  }
-  return '';
+/**
+ * 一个 JSX 元素的判定状态。`interactive`（自身或任一后代可交互）要等子树遍历完才确定，
+ * 所以元素先按文档顺序登记，遍历结束后再统一取出违规的。
+ */
+interface ElementState {
+  interactive: boolean;
+  /** 只有 className 满足「默认透明、悬停才揭示、缺键盘或触屏路径」时才有。 */
+  site: HoverOnlyRevealSite | null;
 }
 
-function getRawAttributeValue(attrNode: any, source: string): string {
-  if (!attrNode || !attrNode.value) return '';
-  const val = attrNode.value;
-  if (val.type === 'StringLiteral') {
-    return val.value;
+function revealSite(source: string, tag: JSXOpeningElement): HoverOnlyRevealSite | null {
+  const attribute = attributeOf(tag, 'className');
+  const className = attribute ? source.slice(attribute.start, attribute.end) : '';
+  if (!HIDDEN_BY_DEFAULT.test(className) || !REVEALED_ON_ANCESTOR_HOVER.test(className)) {
+    return null;
   }
-  if (val.type === 'JSXExpressionContainer' && val.start != null && val.end != null) {
-    return source.slice(val.start, val.end);
-  }
-  return '';
-}
-
-function isInteractiveTag(opening: any, source: string): boolean {
-  const name = getTagName(opening.name);
-  const baseName = name.slice(name.lastIndexOf('.') + 1);
-  if (INTERACTIVE_HTML_TAGS.has(name) || INTERACTIVE_COMPONENT_TAG.test(baseName)) {
-    return true;
-  }
-  for (const attr of opening.attributes || []) {
-    if (attr.type === 'JSXAttribute') {
-      const attrName = attr.name?.name;
-      if (attrName === 'role' && attr.value?.type === 'StringLiteral' && INTERACTIVE_ROLES.has(attr.value.value)) {
-        return true;
-      }
-      if (typeof attrName === 'string' && INTERACTIVE_HANDLER.test(attrName)) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function containsInteractive(elementNode: any, source: string): boolean {
-  let found = false;
-  function walk(node: any) {
-    if (found || !node || typeof node !== 'object') return;
-    if (node.type === 'JSXElement') {
-      if (isInteractiveTag(node.openingElement, source)) {
-        found = true;
-        return;
-      }
-    } else if (node.type === 'JSXOpeningElement') {
-      if (isInteractiveTag(node, source)) {
-        found = true;
-        return;
-      }
-    }
-    for (const key of Object.keys(node)) {
-      if (key === 'parent' || key === 'tokens') continue;
-      const child = node[key];
-      if (Array.isArray(child)) {
-        for (const c of child) walk(c);
-      } else if (child && typeof child === 'object') {
-        walk(child);
-      }
-    }
-  }
-  walk(elementNode);
-  return found;
+  const missing = missingPaths(className);
+  return missing.length > 0 ? { line: lineAt(source, tag.start), tag: jsxNameText(tag.name), missing } : null;
 }
 
 export function findHoverOnlyRevealSites(source: string): HoverOnlyRevealSite[] {
-  let ast: any;
-  try {
-    ast = parse(source, {
-      sourceType: 'module',
-      plugins: ['jsx', 'typescript'],
-      errorRecovery: true,
-    });
-  } catch {
-    return [];
-  }
+  const elements: ElementState[] = [];
+  const ancestors: ElementState[] = [];
 
-  const sites: HoverOnlyRevealSite[] = [];
-
-  function traverse(node: any, parent: any) {
-    if (!node || typeof node !== 'object') return;
-
-    if (node.type === 'JSXElement') {
-      const opening = node.openingElement;
-      let className = '';
-      for (const attr of opening.attributes || []) {
-        if (attr.type === 'JSXAttribute' && attr.name?.name === 'className') {
-          className = getRawAttributeValue(attr, source);
-          break;
-        }
+  new Visitor({
+    JSXElement({ openingElement }) {
+      const element = { interactive: isInteractiveTag(openingElement), site: revealSite(source, openingElement) };
+      elements.push(element);
+      ancestors.push(element);
+    },
+    'JSXElement:exit'() {
+      const element = ancestors.pop();
+      const parent = ancestors.at(-1);
+      if (element?.interactive && parent) {
+        parent.interactive = true;
       }
+    },
+  }).visit(parseProgram(source, 'source.tsx'));
 
-      if (HIDDEN_BY_DEFAULT.test(className) && REVEALED_ON_ANCESTOR_HOVER.test(className)) {
-        const missing = missingPaths(className);
-        if (missing.length > 0 && containsInteractive(node, source)) {
-          sites.push({
-            line: opening.loc ? opening.loc.start.line : 1,
-            tag: getTagName(opening.name),
-            missing,
-          });
-        }
-      }
-    }
-
-    for (const key of Object.keys(node)) {
-      if (key === 'parent' || key === 'tokens') continue;
-      const child = node[key];
-      if (Array.isArray(child)) {
-        for (const c of child) traverse(c, node);
-      } else if (child && typeof child === 'object') {
-        traverse(child, node);
-      }
-    }
-  }
-
-  traverse(ast, null);
-  return sites;
+  return elements.flatMap(({ interactive, site }) => (interactive && site ? [site] : []));
 }

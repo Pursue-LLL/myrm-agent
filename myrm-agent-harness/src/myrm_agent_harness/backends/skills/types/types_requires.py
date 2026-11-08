@@ -74,3 +74,9 @@ class MCPSkillData:
 
     tool_schemas: dict[str, dict[str, object]] = field(default_factory=dict)
     """Tool parameter schemas"""
+
+    inline_functions: list[str] = field(default_factory=list)
+    """Python function names the L1 catalog may list in this skill's entry (empty: select the skill first).
+
+    A model that calls a listed function never loads the skill document, so a server whose document carries
+    instructions leaves this empty: those instructions are read only on selection."""

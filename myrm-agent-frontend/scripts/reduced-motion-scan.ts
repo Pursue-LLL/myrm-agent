@@ -36,8 +36,8 @@ const HAS_GUARD = /prefers-reduced-motion/;
  * 守卫必须落到通用选择器上，而不是只关掉一两个具名动画。
  *
  * 为什么单独判：文件里只要出现 `prefers-reduced-motion` 就算通过的话，`globals.css` 里那两处
- * 只管 `.animate-node-pulse` 与品牌按钮的窄补丁也能满足它——而真正的缺口正是“其余动画没人管”
- * （`BUG-AGENT-2026-10-18-002` 的起点）。允许换行与任意空白。
+ * 只管 `.animate-node-pulse` 与品牌按钮的窄补丁也能满足它——而真正的缺口正是“其余动画没人管”。
+ * 允许换行与任意空白。
  */
 const UNIVERSAL_GUARD = /\*\s*,\s*\*::before\s*,\s*\*::after\s*\{/;
 
