@@ -1,20 +1,7 @@
-"""Deterministic wiki retrieval benchmark — CI gate for hybrid search regressions.
+"""Deterministic offline wiki retrieval benchmark for the hybrid-search regression gate.
 
-[INPUT]
-- ..core.config::WikiConfig (POS: indexer configuration)
-- ..core.structure::WikiStructure (POS: vault layout)
-- ..retrieval.indexer::WikiIndexer (POS: FTS5 hybrid search)
-
-[OUTPUT]
-- WikiRecallBenchmarkCase: query and expected concept case definition
-- WikiRecallBenchmarkResult: single benchmark execution result
-- WikiRecallBenchmarkSummary: aggregate benchmark metrics and summary
-- run_wiki_recall_benchmark: executes deterministic offline retrieval benchmark
-- summarize_wiki_recall_benchmark: calculates recall@k and summary statistics
-
-[POS]
-Offline retrieval quality probe. Measures whether expected concepts appear in top-k
-search results — no LLM, no agent tools, no user vault mutation.
+Measures whether the expected concepts appear in the top-k search results of an indexed vault;
+no LLM, no agent tools, no user vault mutation.
 """
 
 from __future__ import annotations

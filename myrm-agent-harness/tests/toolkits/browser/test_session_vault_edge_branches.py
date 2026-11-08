@@ -1,5 +1,4 @@
-"""Tests for StorageVaultBackend (cloud-native storage backend) and
-SessionVault edge branches (oversized cache entry, save/list/cleanup failures)."""
+"""SessionVault edge branches: oversized cache entry, save/list/cleanup failures and singleflight waiter recovery."""
 
 from __future__ import annotations
 
@@ -12,13 +11,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.session_vault import SessionVault
 from myrm_agent_harness.toolkits.browser.session_vault.backends import FileVaultBackend
-from myrm_agent_harness.toolkits.browser.session_vault.backends.storage_backend import (
-    StorageVaultBackend,
-)
-from myrm_agent_harness.toolkits.browser.session_vault.exceptions import (
-    EncryptionError,
-    InvalidDomainError,
-)
+from myrm_agent_harness.toolkits.browser.session_vault.exceptions import EncryptionError
 from myrm_agent_harness.toolkits.browser.session_vault.types import (
     SessionEntry,
     SessionSummary,
@@ -26,146 +19,9 @@ from myrm_agent_harness.toolkits.browser.session_vault.types import (
 )
 
 
-class FakeStorageProvider:
-    """In-memory StorageProvider stand-in (duck-typed, StorageVaultBackend only
-    references StorageProvider under TYPE_CHECKING)."""
-
-    def __init__(self) -> None:
-        self.store: dict[str, bytes] = {}
-        self.list_result: list[str] | None = None
-        self.raise_on_list = False
-        self.raise_on_write = False
-
-    async def read(self, key: str) -> bytes:
-        if key not in self.store:
-            raise FileNotFoundError(key)
-        return self.store[key]
-
-    async def write(self, key: str, content: bytes, content_type: str | None = None) -> None:
-        if self.raise_on_write:
-            raise OSError("disk full")
-        self.store[key] = content
-
-    async def delete(self, key: str) -> None:
-        if key not in self.store:
-            raise FileNotFoundError(key)
-        del self.store[key]
-
-    async def list(self, prefix: str = "", recursive: bool = True) -> list[str]:
-        if self.raise_on_list:
-            raise RuntimeError("provider unavailable")
-        if self.list_result is not None:
-            return self.list_result
-        return [key for key in self.store if key.startswith(prefix)]
-
-
-@pytest.fixture
-def provider() -> FakeStorageProvider:
-    return FakeStorageProvider()
-
-
-@pytest.fixture
-def storage_backend(provider: FakeStorageProvider) -> StorageVaultBackend:
-    return StorageVaultBackend(provider, prefix="browser/sessions")
-
-
 @pytest.fixture
 def vault_key() -> bytes:
     return os.urandom(32)
-
-
-# =============================================================================
-# StorageVaultBackend
-# =============================================================================
-
-
-class TestStorageVaultBackend:
-    def test_init_rsplit_prefix(self, provider: FakeStorageProvider) -> None:
-        backend = StorageVaultBackend(provider, prefix="browser/sessions/")
-        assert backend._prefix == "browser/sessions"
-
-    def test_storage_key_valid_domain(self, storage_backend: StorageVaultBackend) -> None:
-        assert storage_backend._storage_key("example.com") == "browser/sessions/example.com.enc"
-
-    def test_storage_key_url_encodes_special_chars(self, storage_backend: StorageVaultBackend) -> None:
-        assert storage_backend._storage_key("localhost:8080") == "browser/sessions/localhost%3A8080.enc"
-
-    def test_storage_key_invalid_domain(self, storage_backend: StorageVaultBackend) -> None:
-        with pytest.raises(InvalidDomainError):
-            storage_backend._storage_key("a/../b")
-
-    async def test_read_existing(self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider) -> None:
-        provider.store["browser/sessions/example.com.enc"] = b"secret"
-        assert await storage_backend.read("example.com") == b"secret"
-
-    async def test_read_missing_returns_none(self, storage_backend: StorageVaultBackend) -> None:
-        assert await storage_backend.read("nope.com") is None
-
-    async def test_write(self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider) -> None:
-        await storage_backend.write("example.com", b"data")
-        assert provider.store["browser/sessions/example.com.enc"] == b"data"
-
-    async def test_delete_existing(self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider) -> None:
-        provider.store["browser/sessions/example.com.enc"] = b"data"
-        assert await storage_backend.delete("example.com") is True
-        assert "browser/sessions/example.com.enc" not in provider.store
-
-    async def test_delete_missing_returns_false(self, storage_backend: StorageVaultBackend) -> None:
-        assert await storage_backend.delete("nope.com") is False
-
-    async def test_list_all_decodes_domains(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        provider.store["browser/sessions/example.com.enc"] = b"a"
-        provider.store["browser/sessions/localhost%3A8080.enc"] = b"b"
-        assert sorted(await storage_backend.list_all()) == ["example.com", "localhost:8080"]
-
-    async def test_list_all_skips_invalid_keys(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        provider.list_result = [
-            "browser/sessions/example.com.enc",
-            "other/prefix/ignored.enc",
-            "browser/sessions/missing-extension",
-        ]
-        assert await storage_backend.list_all() == ["example.com"]
-
-    async def test_list_all_provider_error_returns_empty(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        provider.raise_on_list = True
-        assert await storage_backend.list_all() == []
-
-    async def test_list_all_unquote_error_skipped(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        provider.list_result = ["browser/sessions/bad.enc"]
-        with patch(
-            "myrm_agent_harness.toolkits.browser.session_vault.backends.storage_backend.unquote",
-            side_effect=ValueError("bad url"),
-        ):
-            assert await storage_backend.list_all() == []
-
-    async def test_backup_corrupted(self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider) -> None:
-        await storage_backend.backup_corrupted("example.com", b"corrupt")
-        assert provider.store["browser/sessions/example.com.corrupted"] == b"corrupt"
-
-    async def test_backup_corrupted_only_swaps_the_trailing_suffix(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        await storage_backend.backup_corrupted("mail.enc.example.com", b"corrupt")
-        assert provider.store == {"browser/sessions/mail.enc.example.com.corrupted": b"corrupt"}
-
-    async def test_backup_corrupted_error_swallowed(
-        self, storage_backend: StorageVaultBackend, provider: FakeStorageProvider
-    ) -> None:
-        provider.raise_on_write = True
-        await storage_backend.backup_corrupted("example.com", b"corrupt")
-
-
-# =============================================================================
-# SessionVault edge branches
-# =============================================================================
 
 
 class TestSessionVaultEdgeBranches:

@@ -19,8 +19,8 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.session import BrowserSession
-from myrm_agent_harness.toolkits.browser.snapshot.aria_test_utils import extract_ref_ids
 from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
+from tests.toolkits.browser._aria_refs import extract_ref_ids
 
 
 def _content(result: str | dict[str, object]) -> str:

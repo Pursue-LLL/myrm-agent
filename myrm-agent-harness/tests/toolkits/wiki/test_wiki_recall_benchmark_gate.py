@@ -8,7 +8,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
-from myrm_agent_harness.toolkits.wiki.diagnostics.recall_benchmark import (
+from tests.toolkits.wiki.recall_benchmark_support import (
     WikiRecallBenchmarkCase,
     run_wiki_recall_benchmark,
     summarize_wiki_recall_benchmark,

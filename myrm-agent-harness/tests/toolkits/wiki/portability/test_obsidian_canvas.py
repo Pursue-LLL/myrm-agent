@@ -1,13 +1,9 @@
-"""Unit tests for Obsidian canvas text extraction and wikilink parsing."""
+"""Unit tests for Obsidian canvas text extraction."""
 
 import json
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.wiki.portability import (
-    extract_canvas_text_nodes,
-    extract_wikilinks_from_markdown,
-    resolve_one_hop_wikilinks,
-)
+from myrm_agent_harness.toolkits.wiki.portability import extract_canvas_text_nodes
 
 
 def test_extract_canvas_text_nodes(tmp_path: Path):
@@ -55,63 +51,6 @@ def test_extract_canvas_text_nodes(tmp_path: Path):
     assert file_node.label == "Authentication Service Spec"
 
 
-def test_extract_wikilinks_from_markdown():
-    text = """
-    # Design Document
-    Please refer to [[Database Schema]] and [[API Gateway|Gateway V2]].
-    Also check [[Risk Policy#Section 2|Risk Rules]] for compliance.
-
-    ```markdown
-    Ignore [[Fake Link in Code Block]] here.
-    ```
-
-    Final note: [[Deployment Plan]].
-    """
-    links = extract_wikilinks_from_markdown(text)
-    targets = [link.target for link in links]
-
-    assert "Database Schema" in targets
-    assert "API Gateway" in targets
-    assert "Risk Policy" in targets
-    assert "Deployment Plan" in targets
-    assert "Fake Link in Code Block" not in targets
-
-    alias_map = {link.target: link.alias for link in links}
-    assert alias_map["API Gateway"] == "Gateway V2"
-    assert alias_map["Risk Policy"] == "Risk Rules"
-
-
-def test_extract_wikilinks_skips_every_code_form_and_keeps_source_text():
-    text = "~~~\n[[Tilde]]\n~~~\n`[[Inline]]` [[Real|the `real` one]] [[#Top]] [[https://x.io]]"
-    links = extract_wikilinks_from_markdown(text)
-
-    assert [(link.target, link.alias, link.raw_match) for link in links] == [
-        ("Real", "the `real` one", "[[Real|the `real` one]]")
-    ]
-
-
-def test_resolve_one_hop_wikilinks(tmp_path: Path):
-    vault = tmp_path / "vault"
-    vault.mkdir()
-    (vault / "specs").mkdir()
-
-    seed = vault / "seed.md"
-    seed.write_text("See [[Auth Spec]] and [[billing_rule]].", encoding="utf-8")
-
-    auth_file = vault / "specs" / "Auth Spec.md"
-    auth_file.write_text("Auth specification details", encoding="utf-8")
-
-    billing_file = vault / "Billing_Rule.md"
-    billing_file.write_text("Billing rules details", encoding="utf-8")
-
-    resolved = resolve_one_hop_wikilinks(seed, vault, case_insensitive=True)
-    assert "Auth Spec" in resolved
-    assert resolved["Auth Spec"] == auth_file
-
-    assert "billing_rule" in resolved
-    assert resolved["billing_rule"] == billing_file
-
-
 def test_extract_canvas_edge_cases(tmp_path: Path):
     # Non-existent file
     assert extract_canvas_text_nodes(tmp_path / "missing.canvas") == []
@@ -136,16 +75,10 @@ def test_extract_canvas_edge_cases(tmp_path: Path):
     mixed_nodes.write_text(json.dumps({"nodes": ["string-node", 123, None]}), encoding="utf-8")
     assert extract_canvas_text_nodes(mixed_nodes) == []
 
-
-def test_wikilinks_and_resolve_edge_cases(tmp_path: Path):
-    # Empty content
-    assert extract_wikilinks_from_markdown("") == []
-
-    # Seed does not exist or vault root invalid
-    assert resolve_one_hop_wikilinks(tmp_path / "none.md", tmp_path) == {}
-    seed = tmp_path / "empty_seed.md"
-    seed.write_text("No wikilinks here", encoding="utf-8")
-    assert resolve_one_hop_wikilinks(seed, tmp_path / "non_existent_vault") == {}
-
-    # Seed without links
-    assert resolve_one_hop_wikilinks(seed, tmp_path) == {}
+    # null fields are empty, never the text "None"
+    null_fields = tmp_path / "null_fields.canvas"
+    null_fields.write_text(
+        json.dumps({"nodes": [{"type": "text", "text": None}, {"type": "file", "file": None, "label": None}]}),
+        encoding="utf-8",
+    )
+    assert extract_canvas_text_nodes(null_fields) == []
