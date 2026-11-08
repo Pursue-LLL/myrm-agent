@@ -85,7 +85,7 @@ class StructuredSummary:
     - But full context is backed up to filesystem (context_dump_path)
     - The model can use grep/cat to retrieve original details
 
-    Handoff fields (inspired by Hermes Context Compaction template):
+    Handoff fields:
     - active_task: user's latest unfinished request (verbatim), ensures task continuity
     - constraints_and_preferences: user preferences & constraints, prevents post-compression loss
     - resolved_questions: answered questions, prevents the agent from re-answering

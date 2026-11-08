@@ -4,7 +4,7 @@
 各预检函数与共享常量。
 
 [POS]
-`..._security.preflight_checks` 的唯一入口；实现按检查族拆分。
+`..._security.preflight_checks` 的唯一入口；实现按检查族分层。
 """
 
 from __future__ import annotations
