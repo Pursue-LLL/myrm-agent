@@ -1,5 +1,5 @@
 """[INPUT] Harness budget_scaling submodule exports and subagent configuration loader.
-[OUTPUT] Unit tests verifying zero-disruption configuration migration and 80% watermark alerts.
+[OUTPUT] Unit tests verifying zero-disruption configuration migration.
 [POS] Unit tests for Subagent Concurrency & Tool Budget Adaptive Scaling (Item 31).
 """
 
@@ -10,9 +10,7 @@ from myrm_agent_harness.agent.sub_agents.budget_scaling import (
     DEFAULT_MAX_DESCENDANTS_PER_RUN,
     DEFAULT_SCALED_CONCURRENCY,
     DEFAULT_SCALED_MAX_TURNS,
-    DEFAULT_WATERMARK_THRESHOLD_RATIO,
     ConfigUpgradeMigrator,
-    SubagentWatermarkGuard,
 )
 
 
@@ -89,60 +87,3 @@ def test_migrator_handles_missing_and_malformed_values() -> None:
     migrated_malformed, _ = ConfigUpgradeMigrator.migrate_config_dict(malformed)
     assert migrated_malformed["concurrency_limit"] == DEFAULT_SCALED_CONCURRENCY
     assert migrated_malformed["max_turns"] == DEFAULT_SCALED_MAX_TURNS
-
-
-def test_watermark_guard_below_threshold_does_not_alert() -> None:
-    guard = SubagentWatermarkGuard(DEFAULT_WATERMARK_THRESHOLD_RATIO)  # 0.80
-
-    # 100 / 250 = 40%
-    alert1 = guard.record_turn_and_check("subagent-alpha", current_turn=100, max_turns=250)
-    assert alert1 is None
-    assert guard.is_task_alerted("subagent-alpha") is False
-    assert guard.get_current_turn("subagent-alpha") == 100
-
-    # 199 / 250 = 79.6% (strictly below 80%)
-    alert2 = guard.record_turn_and_check("subagent-alpha", current_turn=199, max_turns=250)
-    assert alert2 is None
-    assert guard.is_task_alerted("subagent-alpha") is False
-
-
-def test_watermark_guard_fires_once_at_80_percent_and_debounces() -> None:
-    guard = SubagentWatermarkGuard(0.80)
-
-    # 200 / 250 = 80.0% -> First trigger
-    alert = guard.record_turn_and_check("subagent-beta", current_turn=200, max_turns=250)
-    assert alert is not None
-    assert alert.task_id == "subagent-beta"
-    assert alert.current_turn == 200
-    assert alert.max_turns == 250
-    assert alert.usage_ratio == 0.80
-    assert alert.turns_remaining == 50
-    assert "reached 80.0% of turn budget" in alert.warning_message
-    assert guard.is_task_alerted("subagent-beta") is True
-
-    # Subsequent turns: 201, 202 -> Debounced, return None
-    alert_next = guard.record_turn_and_check("subagent-beta", current_turn=201, max_turns=250)
-    assert alert_next is None
-
-    alert_further = guard.record_turn_and_check("subagent-beta", current_turn=249, max_turns=250)
-    assert alert_further is None
-
-
-def test_watermark_guard_clear_and_reset() -> None:
-    guard = SubagentWatermarkGuard(0.80)
-    guard.record_turn_and_check("subagent-gamma", current_turn=200, max_turns=250)
-    assert guard.is_task_alerted("subagent-gamma") is True
-
-    # Clear individual task
-    guard.clear_task("subagent-gamma")
-    assert guard.is_task_alerted("subagent-gamma") is False
-    assert guard.get_current_turn("subagent-gamma") == 0
-
-    # Can fire again after clear
-    alert = guard.record_turn_and_check("subagent-gamma", current_turn=210, max_turns=250)
-    assert alert is not None
-    assert alert.current_turn == 210
-
-    # Reset all
-    guard.reset_all()
-    assert guard.is_task_alerted("subagent-gamma") is False

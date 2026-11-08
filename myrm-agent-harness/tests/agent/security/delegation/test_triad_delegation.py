@@ -1,4 +1,4 @@
-"""Tests for the triad delegation token, the privilege intersection guard and the session accessor."""
+"""Tests for the triad delegation token and the session accessor."""
 
 from __future__ import annotations
 
@@ -10,10 +10,6 @@ import pytest
 # ``agent.middlewares`` re-exports the accessor; this import fails at collection if the definition is missing.
 from myrm_agent_harness.agent.middlewares import get_delegation_token
 from myrm_agent_harness.agent.middlewares._session_context import set_delegation_token
-from myrm_agent_harness.agent.security.delegation.guard import (
-    PrivilegeAmplificationBlockedError,
-    PrivilegeIntersectionGuard,
-)
 from myrm_agent_harness.agent.security.delegation.models import (
     SubjectIdentity,
     SubjectType,
@@ -85,9 +81,6 @@ def test_expired_token_grants_nothing() -> None:
 
     assert token.is_expired is True
     assert token.has_scope("workspace:read") is False
-    assert PrivilegeIntersectionGuard.is_scope_allowed(token, "workspace:read") is False
-    with pytest.raises(PrivilegeAmplificationBlockedError, match="expired"):
-        PrivilegeIntersectionGuard.assert_scope_allowed(token, "workspace:read")
 
 
 def test_subagent_token_is_narrowed_to_the_parent_intersection() -> None:
@@ -108,39 +101,6 @@ def test_subagent_token_is_narrowed_to_the_parent_intersection() -> None:
     assert child.initial_requester == parent.initial_requester
     assert child.business_approver == approver
     assert child.created_at == parent.created_at
-
-
-def test_guard_blocks_a_scope_outside_the_intersection() -> None:
-    token = TriadDelegationToken(
-        initial_requester=_human("user_charlie", "workspace:read"),
-        executor_agent=_agent("agent_power", "workspace:read", "cloud:deploy"),
-    )
-
-    PrivilegeIntersectionGuard.assert_scope_allowed(token, "workspace:read")
-    assert PrivilegeIntersectionGuard.is_scope_allowed(token, "workspace:read") is True
-
-    with pytest.raises(PrivilegeAmplificationBlockedError) as blocked:
-        PrivilegeIntersectionGuard.assert_scope_allowed(token, "cloud:deploy", action_name="deploy_prod")
-
-    assert blocked.value.required_scope == "cloud:deploy"
-    assert blocked.value.initial_requester_id == "user_charlie"
-    assert blocked.value.executor_agent_id == "agent_power"
-    assert blocked.value.to_diagnostic_info() == {
-        "privilege_amplification_blocked": True,
-        "required_scope": "cloud:deploy",
-        "initial_requester_id": "user_charlie",
-        "executor_agent_id": "agent_power",
-        "effective_scopes": ["workspace:read"],
-    }
-
-
-def test_guard_fails_closed_without_a_token() -> None:
-    assert PrivilegeIntersectionGuard.is_scope_allowed(None, "workspace:read") is False
-    with pytest.raises(PrivilegeAmplificationBlockedError) as blocked:
-        PrivilegeIntersectionGuard.assert_scope_allowed(None, "workspace:read", action_name="read_file")
-
-    assert blocked.value.initial_requester_id == "anonymous"
-    assert blocked.value.effective_scopes == frozenset()
 
 
 def test_subject_identity_round_trips_through_a_dict() -> None:

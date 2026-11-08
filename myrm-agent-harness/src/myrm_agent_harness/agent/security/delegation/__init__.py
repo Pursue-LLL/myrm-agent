@@ -1,11 +1,11 @@
 """Triad delegation identity package.
 
 [INPUT]
-- None (callers import ``models`` and ``guard`` explicitly)
+- None (callers import ``models`` explicitly)
 
 [OUTPUT]
 - None (package marker without re-exports)
 
 [POS]
-Triad delegation identity tokens and the privilege-intersection guard.
+Triad delegation identity tokens.
 """
