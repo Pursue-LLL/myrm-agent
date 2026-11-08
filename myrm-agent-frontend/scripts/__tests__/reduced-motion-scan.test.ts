@@ -25,7 +25,7 @@ describe('findUnguardedMotionSurface', () => {
     expect(findUnguardedMotionSurface('ext/sidepanel.css', source)).toBeUndefined();
   });
 
-  // 这一条钉的是 BUG-AGENT-2026-10-18-002 的起点：只关一两个具名动画不算兜住全部。
+  // 只关一两个具名动画不算兜住全部。
   it('rejects a narrow guard that only disables one named animation', () => {
     const source = `.a { animation: pulse 1s infinite; }
 @media (prefers-reduced-motion: reduce) { .a { animation: none; } }`;
