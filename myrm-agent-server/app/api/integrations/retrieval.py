@@ -4,7 +4,7 @@
 - myrm_agent_harness.toolkits.retriever.embedding.factory::get_embedding_service (POS: embedding service factory)
 - myrm_agent_harness.toolkits.retriever.reranker.factory::get_reranker_service (POS: reranker service factory)
 - myrm_agent_harness.toolkits.llms.errors::classify_failover_reason (POS: provider failure classifier)
-- myrm_agent_harness.agent.errors.diagnostics.provider_words::provider_message, error_text (POS: the provider's own words in a failure, as one clean line)
+- myrm_agent_harness.agent.errors.diagnostics.provider_words::provider_message, error_text (POS: The provider's words an error is read by and shown with)
 
 [OUTPUT]
 - validate_embedding: POST /embedding, embeds one short text through the configured provider

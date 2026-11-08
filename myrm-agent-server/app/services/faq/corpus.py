@@ -1,4 +1,4 @@
-"""FAQ corpus CRUD and embedding index management.
+"""FAQ corpus CRUD and embedding index rebuild.
 
 [INPUT]
 - app.database.models.faq::FaqCorpus, FaqEntry (POS: FAQ 语义缓存域模型)
@@ -7,11 +7,11 @@
 - myrm_agent_harness.toolkits.vector.base::VectorStore (POS: vector store 抽象)
 
 [OUTPUT]
-- FaqCorpusService: FAQ corpus CRUD + embedding index rebuild
+- FaqCorpusService: FAQ corpus CRUD, bulk import, and an index rebuild that embeds every question before touching the index
 
 [POS]
-Business-layer FAQ corpus management. Provides CRUD for per-agent FAQ Q&A pairs
-and synchronizes the Qdrant embedding index when entries change.
+Business-layer FAQ corpus management. Provides CRUD for per-agent FAQ Q&A pairs. The embedding index is built only by
+``rebuild_index``: adding, editing, deleting or importing entries leaves the index as it was until the next rebuild.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _collection_name(agent_id: str) -> str:
 
 
 class FaqCorpusService:
-    """Manages per-agent FAQ corpus CRUD and vector index sync."""
+    """Manages per-agent FAQ corpus CRUD and builds the vector index on request."""
 
     async def get_or_create_corpus(self, agent_id: str, db: AsyncSession | None = None) -> FaqCorpus:
         async def _inner(session: AsyncSession) -> FaqCorpus:

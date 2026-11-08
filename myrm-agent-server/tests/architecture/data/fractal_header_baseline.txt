@@ -59,7 +59,6 @@ app/api/kanban/routes/specify.py
 app/api/kanban/routes/task_meta.py
 app/api/media/batch_routes.py
 app/api/media/router.py
-app/api/memory/operations/backup.py
 app/api/memory/operations/backup_remote.py
 app/api/memory/operations/crud.py
 app/api/memory/router.py

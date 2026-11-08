@@ -277,6 +277,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/reliability/test_inbound_replay.py` | 集成 | 入站日志的重放保真：按生产路径（回合开始写日志条目 → SQLite → 网关启动恢复 → 路由闸门）走一遍，重放回来的消息与原消息逐字段相等（仅多出 `is_recovery` 标记）；交给真实的 `_handle_merged` 后，到达回合的消息仍带着附件、引用回复、群上下文、发送者与发送时间，日志条目被确认且不重复写；无聊天标识的消息仍无；控制面转发重放后仍带着它的身份；yolo 窗口不跨重启；本地文件已不存在的附件有 url 则保留 url、否则从附件里去掉并在正文里点名；无法解码的条目不拖垮其后的条目；另一种列结构的表在打开时重建，日志继续可用 |
 | `channels/reliability/test_inbound_replay_merging.py` | 集成 | 重放经过会话闸门的合并：同一聊天的两条重放合并成一个回合，回合带着两条日志条目，经真实闸门、`_handle_merged` 与 SQLite 日志走完后两个条目都被确认；重放与实时消息不合并，按到达顺序各占一个回合（两种先后顺序），实时消息不带条目 |
 | `channels/inbound_message_testkit.py` | 辅助 | `full_message()`：每个会持久化的字段都取非默认值的 `InboundMessage`（含两层嵌套的引用回复、群上下文、关联上下文与一个本地附件），`test_inbound_wire.py` 与 `test_inbound_replay.py` 共用 |
+| `channels/policy_resolver_testkit.py` | 辅助 | `make_message()` / `make_resolver()`：`PolicyResolver` 各测试文件共用的 `InboundMessage` 与解析器构造（配对与策略仓库、消息副作用为替身，群上下文缓冲为真实对象） |
+| `channels/test_routing_policy_resolver.py` | 单元 | `PolicyResolver` 私聊解析与 LID 回退：控制面转发带来的身份只在带控制面标记时采纳；关闭 / 开放（未映射 LID 与未配对发送者成为访客）/ 配对（通过、被拒、待审、新发送者）/ 白名单（通过、被拒、未配对）各模式，缺省策略按白名单；LID 经缓存解析并继承其手机号的状态、角色与配额，未配对手机号的 LID 不绑定，缓存未命中且白名单策略下无结果 |
+| `channels/test_routing_policy_group_resolution.py` | 单元 | `PolicyResolver` 群聊解析：预先解析的群用户绕过策略检查；策略关闭或群未启用；访客须显式点名（只回复不算）；点名触发、未配对发送者在已启用群里为访客、未点名只缓冲；all / prefix 触发模式（前缀不匹配不触发）；无默认用户返回空，无策略时缺省关闭 |
+| `channels/test_routing_policy_group_gates.py` | 单元 | 群聊的跟进豁免（追踪器的 LRU 与 TTL、按 thread 的豁免与静音、自由回复聊天白名单）与机器人发送者闸门：机器人闲聊即使在自由回复群里也被忽略、显式点名可触发、闸门触发后点名与私聊被拒、真人点名不受影响；机器人闲聊不进上下文缓冲，缓冲下来的闲聊凭据已打码，触发归因只写一次 |
 | `channels/types/test_inbound_wire.py` | 单元 | `InboundMessage` 线格式：夹具覆盖全部会持久化的字段、经 JSON 往返后逐字段相等、`channel_capabilities` 不持久化、最小消息往返、TypedDict 键集与 dataclass 字段集一致 |
 | `channels/reliability/test_durable_outbound_poison_isolation.py` | 单元 | 持久化出站队列：带按钮的消息重启后完整读回；无法解码的记录隔离到失败桶，不拖垮其余记录、仅一次性上报永久失败且绝不重发，网关启动不受影响 |
 | `channels/reliability/test_durable_outbound_persist_failure.py` | 单元 | 持久化出站写盘失败（磁盘满等）时降级为不落盘的内存发送并记 WARNING：原消息原样返回、`mark_attempting` / `ack` 为空操作、真实总线仍把消息投递出去；取消信号不被吞掉 |

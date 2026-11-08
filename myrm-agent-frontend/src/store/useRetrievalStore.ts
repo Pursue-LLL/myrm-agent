@@ -1,15 +1,19 @@
 /**
- * Retrieval Store - 管理 Embedding 和 Reranker 配置
+ * [INPUT]
+ * @/services/config::getConfigSyncManager, RetrievalConfigValue (POS: 配置同步服务，数据库是唯一权威数据源，乐观更新、差量同步)
+ * @/lib/search/retrievalProviders::EMBEDDING_PROVIDERS, RERANKER_PROVIDERS, toRoutedModelId (POS: Retrieval service provider catalog (Embedding + Reranker))
+ * @/services/memory/reindex::getMemoryOrphanEstimate, startMemoryReindex, getMemoryReindexStatus (POS: Memory reindex client)
+ * ./retrieval/{defaults,persistence,types} (POS: 初始状态、与 ConfigSyncManager 的同步桥、store 类型)
  *
- * 存储策略（统一使用 ConfigSyncManager）：
- * - Tauri 模式（Desktop/WebUI）：同步到本地 SQLite（明文存储）
- * - Sandbox 模式：同步到云端 PostgreSQL（服务端加密）
- * - 访客模式：仅保存到 localStorage，不同步
+ * [OUTPUT]
+ * useRetrievalStore: 嵌入 / 重排序配置（编辑、校验后应用、重置）、高级检索开关，以及旧记忆迁移的运行状态（估算、启动并轮询迁移、关闭提醒）
+ * REINDEX_POLL_INTERVAL_MS / REINDEX_POLL_MAX_CONSECUTIVE_ERRORS: 迁移状态轮询的间隔与连续失败上限
  *
- * 数据流：
- * 1. 初始化时从 ConfigSyncManager 加载
- * 2. 应用成功后通知 ConfigSyncManager 同步
- * 3. ConfigSyncManager 负责防抖同步到后端；应用嵌入模型时立即强制同步，保存成功后才估算旧记忆
+ * [POS]
+ * 嵌入 / 重排序模型配置（校验通过才生效并同步）与更换嵌入模型后旧记忆迁移的运行状态（轮询服务端后台任务）。
+ * 存储统一走 ConfigSyncManager：Tauri 模式（Desktop/WebUI）同步到本地 SQLite（明文存储），Sandbox 模式同步到云端 PostgreSQL
+ * （服务端加密），访客模式仅保存到 localStorage、不同步。初始化时从 ConfigSyncManager 加载；嵌入 / 重排序配置应用成功后才同步
+ * （防抖同步到后端），高级检索开关切换即同步；应用嵌入模型时立即强制同步，保存成功后才估算旧记忆。
  */
 
 import { create } from 'zustand';
