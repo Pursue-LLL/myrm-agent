@@ -151,6 +151,7 @@ Myrm Agent Harness 是一个**GUI-first 通用 AI 工作助手运行时框架**�
 | **沙箱执行** | 系统沙箱组件 `sandbox-exec`（macOS）/ `bwrap`（Linux）/ AppContainer（Windows）（非 Python 依赖；见 `toolkits/code_execution/EXECUTION_SYSTEM.md`） | 子进程权限收窄                |
 | **存储**     | aiofiles                          | 本地文件系统存储              |
 | **文件解析** | pdfplumber（core）                | PDF 文本+表格提取（默认安装） |
+| **文本编码** | charset-normalizer（core）        | 非 UTF-8 文本（GBK/Big5/Shift-JIS/EUC/cp1252）的编码识别（`toolkits/file_parsers/text_decoding.py`） |
 
 可选 extras 中的检索/监控/ACP 依赖见下节（`[retrieval]`、`[observability]`、`[acp]`）。Core runtime 依赖 **26** 项（`tests/architecture/test_core_dependencies.py` 锁定）。
 

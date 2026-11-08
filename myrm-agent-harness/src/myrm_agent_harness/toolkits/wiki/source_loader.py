@@ -3,6 +3,7 @@
 [INPUT]
 - toolkits.web_fetch::web_fetch_tools (POS: Global FetchEngine singleton — SSRF-guarded multi-tier fetch, YouTube/Bilibili subtitles)
 - toolkits.file_parsers::get_parser, is_supported (POS: Document parsers for PDF, Office, images and more)
+- toolkits.file_parsers::TextDecodingError, decode_text_bytes (POS: Text bytes to str: UTF-8, Unicode BOM or an identifiable legacy encoding such as GBK)
 - utils.content_sniff::PayloadKind, classify_payload (POS: Tells a binary file from text)
 
 [OUTPUT]
@@ -13,8 +14,8 @@
 
 [POS]
 Turns an ingestion source into text for the raw/ layer. It never invents content: a page that could not be
-fetched, a file no parser supports or bytes that are not text raise SourceLoadError, so nothing but real text is
-written to the knowledge base and compiled.
+fetched, a file no parser supports, bytes that are not text and text in an encoding that cannot be identified raise
+SourceLoadError, so nothing but real text is written to the knowledge base and compiled.
 """
 
 from __future__ import annotations
@@ -56,7 +57,16 @@ async def fetch_url_markdown(url: str) -> str:
     return doc.page_content
 
 
+def _undecodable(path: Path) -> SourceLoadError:
+    return SourceLoadError(
+        f"{path.name} is not UTF-8 text and its encoding could not be identified reliably; "
+        "save it as UTF-8 and ingest it again"
+    )
+
+
 def _read_text_file(path: Path) -> str:
+    from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, decode_text_bytes
+
     try:
         with path.open("rb") as handle:
             if classify_payload(None, handle.read(_SNIFF_BYTES)) is PayloadKind.BINARY:
@@ -66,23 +76,27 @@ def _read_text_file(path: Path) -> str:
     except OSError as exc:
         raise SourceLoadError(f"{path.name} could not be read") from exc
     try:
-        return data.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise SourceLoadError(f"{path.name} is not valid UTF-8 text") from exc
+        return decode_text_bytes(data)
+    except TextDecodingError as exc:
+        raise _undecodable(path) from exc
 
 
 async def read_local_file(path: Path) -> str:
-    """The text of a local file: parsed when a parser supports its format, read as UTF-8 text otherwise.
+    """The text of a local file: parsed when a parser supports its format, read as text otherwise.
 
-    A binary file no parser supports and bytes that are not UTF-8 are refused instead of being decoded into
-    replacement characters, which would be compiled into the knowledge base as garbage.
+    Text is UTF-8, UTF-16/32 with a byte-order mark, or a legacy encoding such as GBK that can be identified from
+    the bytes. A binary file no parser supports and text whose encoding cannot be identified reliably are refused
+    instead of being decoded into replacement characters, which would be compiled into the knowledge base as garbage.
     """
-    from myrm_agent_harness.toolkits.file_parsers import get_parser, is_supported
+    from myrm_agent_harness.toolkits.file_parsers import TextDecodingError, get_parser, is_supported
 
     if not await asyncio.to_thread(path.is_file):
         raise SourceLoadError(f"{path.name} is not a regular file")
     if await asyncio.to_thread(is_supported, str(path)):
-        text = await get_parser(str(path)).parse(str(path))
+        try:
+            text = await get_parser(str(path)).parse(str(path))
+        except TextDecodingError as exc:
+            raise _undecodable(path) from exc
         if not text.strip():
             raise SourceLoadError(f"The parser found no text in {path.name}")
         return text

@@ -13,7 +13,7 @@ auto-conversion).
 | base.py | Core | File parser base classes and data structures (PDFHeading/PDFTable/PDFParseResult) | ✅ |
 | content_format_sniff.py | Core | Content sniffing: detect file format from a file path or bytes (magic bytes) independent of extension; zip containers are named by `utils.content_sniff.zip_file_extension`, the same rules the web fetch tiers use | ✅ |
 | container_xml_parser.py | Core | Generic OPC/container XML parser for legacy office formats | ✅ |
-| csv_parser.py | Core | CSV file parser with delimiter detection and Markdown output | ✅ |
+| csv_parser.py | Core | CSV file parser with Markdown output; reads through `text_decoding.read_text_file` | ✅ |
 | docx.py | Core | Word document parser. Supports markdown (headings, lists, tables with merged-cell dedup, document order, embedded image refs) and structure mode (JSON metadata with paragraph IDs, styles, table cell map with row/col coordinates for incremental edits and form filling). | ✅ |
 | docx_embedded_assets.py | Core | DOCX OOXML relationship-id → image bytes extractor and markdown ref localizer into wiki assets | ✅ |
 | excel.py | Core | Excel file parser. Supports markdown/text (content), structure (JSON metadata for token-efficient overview), audit (formula error detection). Dynamic data_only based on mode. | ✅ |
@@ -23,12 +23,14 @@ auto-conversion).
 | pdf/（子包） | Core | PDF 解析子域：pdfplumber 文本/表格解析编排、智能提取（Text/Hybrid/Image + OCR 兜底）、SmartPDFParser 适配器、书签/编号/字号多信号标题管线（含垃圾书签质量门与行内落位）、跨页表格保守缝合、无边框表格启发式提取。`pdf*` 模块聚合于此，`pdf/__init__.py` 为聚合门面统一 re-export | ✅ |
 | pptx.py | Core | PowerPoint document parser. Supports markdown (slide text, tables, speaker notes) and structure mode (JSON metadata with shape IDs, types, positions, layouts for incremental edits). | ✅ |
 | rtf_parser.py | Core | RTF parser with font/color group handling and Markdown output | ✅ |
-| text.py | Core | Text file parser | ✅ |
+| text.py | Core | Text file parser; reads through `text_decoding.read_text_file` | ✅ |
+| text_decoding.py | Core | The one place where file bytes become text: UTF-8, UTF-16/32 with a byte-order mark, UTF-8 with a few damaged bytes, then GBK/GB18030, Big5, Shift-JIS, EUC-JP, EUC-KR and Windows-1252 identified with `charset-normalizer`. A legacy guess needs strong evidence and must decode the whole text; binary data and text that cannot be identified reliably raise `TextDecodingError` instead of becoming replacement-character garbage. Shared by `TextParser`, `CsvParser`, the Wiki source loader and the server source-sync converter | ✅ |
 | ipynb.py | Core | Jupyter Notebook parser. Extracts Markdown/code/raw cells, outputs plots (multimodal blocks), preserves cell tags, and applies 10K/100-line safe truncation. | ✅ |
 
 ## Dependencies
 
 - **Core**: `pdfplumber`（含 pypdfium2 传递依赖；`pdf/pdf.py`, `pdf/pdf_content_extractor.py`, `file_read_tool`）
+- **Core**: `charset-normalizer`（`text_decoding.py` 识别非 UTF-8 文本的编码；pdfminer-six、requests 亦依赖，不增加新的已安装包；版本范围 `>=3.5.0,<3.6`，识别结果随小版本变化，升级前重跑 `tests/toolkits/file_parsers/test_text_decoding.py`）
 - **Optional `[file-parsers]`**: `python-docx`, `openpyxl`, `python-pptx`
 - **Optional `[pdf-ocr]`**: `rapidocr` + `onnxruntime`（`ocr.py` 扫描 PDF OCR 兜底，经 `pdf/pdf_smart.py`/`extract_pdf_content` 接入；缺失时降级返回文本层/页面图）
 - **Stdlib**: `json`（`ipynb.py`，无额外依赖）

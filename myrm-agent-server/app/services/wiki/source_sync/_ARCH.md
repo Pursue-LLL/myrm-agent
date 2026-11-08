@@ -14,7 +14,7 @@ Wiki 外部来源确定性同步：Feishu 文档 / Gmail 标签 / Google Drive �
 | `schemas.py` | 类型 | `WikiSourceSyncConfig`（Feishu/Gmail/GDrive/RSS/Zotero/mirror）/ state / run summary DTO | ✅ |
 | `config_store.py` | 持久化 | UserConfig `wikiSourceSync` 按 agent 读写 + exists 探测 | ✅ |
 | `state_store.py` | 持久化 | UserConfig `wikiSourceSyncState` 上次同步状态（按 agent） | ✅ |
-| `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（sniff+docx embed→wiki/assets） | ✅ |
+| `content_convert.py` | 辅助 | 云盘文件 bytes → Markdown（sniff+docx embed→wiki/assets）；文本经 harness `decode_text_bytes` 解码（UTF-8 / Unicode BOM / GBK 等可识别旧编码），编码无法可靠识别的文件记录警告并跳过，不写入替换字符乱码 | ✅ |
 | `publish_helpers.py` | 辅助 | 统一 `publish_raw(caller=settings)` + frontmatter；`publish_source_markdown` 支持 `conflict_policy`（默认 SKIP，ima 用 SUPERSEDE）；`sanitize_path_segment` 同时受字符与字节预算约束 | ✅ |
 | `feishu/` | 连接器 | Feishu 域 — 门面 + 纯函数渲染；见 [`feishu/_ARCH.md`](feishu/_ARCH.md) | ✅ |
 | `gmail/` | 连接器 | Gmail 域 — 门面 + HTML 渲染；见 [`gmail/_ARCH.md`](gmail/_ARCH.md) | ✅ |

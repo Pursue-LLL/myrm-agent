@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import codecs
 import tracemalloc
 import zipfile
 from collections.abc import AsyncIterator
@@ -23,6 +24,12 @@ from tests.support.minimal_pdf import minimal_pdf_bytes
 _ENGINE = "myrm_agent_harness.toolkits.web_fetch.web_fetch_tools"
 _GET_PARSER = "myrm_agent_harness.toolkits.file_parsers.get_parser"
 _HEAD_ONLY_LIMIT_BYTES = 4 * 1024 * 1024
+_REPLACEMENT = "\ufffd"
+_GBK_NOTES = (
+    "知识库编译流程会先读取原始资料，再由模型提炼要点并写入对应的页面。\n"
+    "如果资料的编码无法确认，系统宁可明确拒绝，也不会把乱码写进知识库。\n"
+    "每个页面都会记录来源，方便之后回溯和复核。\n"
+)
 
 
 def _engine_answering(doc: MagicMock | None) -> MagicMock:
@@ -144,12 +151,32 @@ class TestReadLocalFile:
         with pytest.raises(SourceLoadError, match="binary file"):
             await read_local_file(path)
 
-    async def test_text_in_another_encoding_is_refused(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("name", ["legacy.log", "legacy.txt", "legacy.csv"])
+    async def test_text_in_a_legacy_encoding_is_read_exactly(self, tmp_path: Path, name: str) -> None:
+        """GBK is what Chinese Windows tools write; the unsupported-extension and the parser paths read it the same."""
+        path = tmp_path / name
+        path.write_bytes(_GBK_NOTES.encode("gbk"))
+
+        text = await read_local_file(path)
+
+        assert "知识库编译流程会先读取原始资料" in text
+        assert _REPLACEMENT not in text
+
+    async def test_utf16_with_a_byte_order_mark_is_read(self, tmp_path: Path) -> None:
+        path = tmp_path / "export.log"
+        path.write_bytes(codecs.BOM_UTF16_LE + _GBK_NOTES.encode("utf-16-le"))
+
+        assert await read_local_file(path) == _GBK_NOTES
+
+    @pytest.mark.parametrize("name", ["legacy.log", "legacy.txt"])
+    async def test_text_whose_encoding_cannot_be_identified_is_refused(self, tmp_path: Path, name: str) -> None:
         """Decoding GBK as UTF-8 with replacement characters would put garbage into the knowledge base."""
-        path = tmp_path / "legacy.log"
+        path = tmp_path / name
         path.write_bytes("你好，世界".encode("gbk"))
 
-        with pytest.raises(SourceLoadError, match="not valid UTF-8"):
+        with pytest.raises(
+            SourceLoadError, match=rf"{name} is not UTF-8 text and its encoding could not be identified"
+        ):
             await read_local_file(path)
 
     @pytest.mark.parametrize("content", [b"", b"  \n\t\n"])

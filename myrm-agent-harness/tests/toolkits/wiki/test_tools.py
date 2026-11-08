@@ -243,3 +243,39 @@ async def test_wiki_ingest_unsupported_binary_file_is_refused(
     assert result == "Failed to ingest document: setup.exe is a binary file that no parser supports"
     assert _raw_files(wiki_structure) == []
     enqueue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_wiki_ingest_legacy_encoded_file_is_stored_as_utf8(
+    wiki_tools: list[BaseTool], wiki_structure: WikiStructure, tmp_path: Path
+) -> None:
+    """A GBK file is read as the text it is and stored in the knowledge base as UTF-8, not as replacement characters."""
+    ingest_tool = next(tool for tool in wiki_tools if tool.name == "wiki_ingest_tool")
+    notes = "知识库编译流程会先读取原始资料，再由模型提炼要点并写入对应的页面。\n如果资料的编码无法确认，系统宁可明确拒绝。\n"
+    legacy = tmp_path / "legacy.log"
+    legacy.write_bytes(notes.encode("gbk"))
+
+    result = await ingest_tool.ainvoke({"source": str(legacy)})
+
+    assert "Successfully ingested" in result
+    assert (wiki_structure.raw_dir / "legacy.md").read_text(encoding="utf-8") == notes
+
+
+@pytest.mark.asyncio
+async def test_wiki_ingest_text_in_an_unidentifiable_encoding_is_refused(
+    wiki_tools: list[BaseTool], wiki_structure: WikiStructure, tmp_path: Path
+) -> None:
+    """Text that cannot be read reliably is never decoded into replacement characters and compiled."""
+    ingest_tool = next(tool for tool in wiki_tools if tool.name == "wiki_ingest_tool")
+    legacy = tmp_path / "short.txt"
+    legacy.write_bytes("你好，世界".encode("gbk"))
+
+    with patch.object(WikiCompiler, "enqueue_file") as enqueue:
+        result = await ingest_tool.ainvoke({"source": str(legacy)})
+
+    assert result == (
+        "Failed to ingest document: short.txt is not UTF-8 text and its encoding could not be identified reliably; "
+        "save it as UTF-8 and ingest it again"
+    )
+    assert _raw_files(wiki_structure) == []
+    enqueue.assert_not_called()
