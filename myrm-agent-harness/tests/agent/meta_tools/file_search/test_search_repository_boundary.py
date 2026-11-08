@@ -5,8 +5,8 @@ keeps that boundary, and walks a root below a directory that ignores everything 
 tool cache) as a folder outside any repository.
 
 Covers:
-- The ignore files above a checkout, a folder's or an enclosing repository's, never hide its files, nor those of a
-  directory below its top level
+- The ``.gitignore`` of a folder or repository around a checkout never hides its files, nor those of a directory below
+  its top level
 - A worktree inside its main checkout is not governed by an ignore file only the main checkout holds
 - Which directories decide that a root is walked outside a repository: only those between it and the top level of its
   checkout, and only a ``.gitignore`` that ignores everything below itself and negates nothing
@@ -65,7 +65,7 @@ def _checkout(enclosing: Path) -> Path:
     return checkout
 
 
-class TestIgnoreFilesAboveTheCheckout:
+class TestGitignoreAboveTheCheckout:
     async def test_do_not_hide_its_files(self, enclosing: Path, run_glob: SearchRunner, run_grep: SearchRunner) -> None:
         checkout = _checkout(enclosing)
 

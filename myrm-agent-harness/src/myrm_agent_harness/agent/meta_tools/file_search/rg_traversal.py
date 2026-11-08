@@ -10,10 +10,11 @@
 Single place that decides which files ripgrep walks, so the ripgrep tier follows the file-selection policy of the
 Python tier (``fallback_discovery``): user configuration never applies, hidden files are walked and
 version-control internals are never listed. A git checkout keeps its repository boundary, as it has in git: the
-ignore files above its top level never apply, and neither do the rules of a repository around a nested one. A folder
-outside any repository (no ``.git`` above it, or only a directory that ignores everything below itself between it and
-the checkout) is walked without one: dependency and build directories are skipped and neither the ignore files of
-parent directories nor the user's global ignore file are honoured.
+``.gitignore`` files above its top level never apply, and neither do the rules of a repository around a nested one
+(ripgrep reads the ``.ignore`` and ``.rgignore`` files of parent directories whatever the boundary). A folder outside
+any repository (no ``.git`` above it, or only a directory that ignores everything below itself between it and the
+checkout) is walked without one: dependency and build directories are skipped and neither the ignore files of parent
+directories nor the user's global ignore file are honoured.
 """
 
 from __future__ import annotations
