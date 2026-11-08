@@ -192,6 +192,23 @@ class TestRefusalNotes:
         assert "hunter2" not in note.reason
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("url", "has_an_address_to_request"),
+        [(_URL, True), ("data:text/plain;base64,aGk=", False), ("blob:https://app.example/6f1c", False)],
+    )
+    async def test_a_refusal_by_the_policy_names_download_url_only_for_a_file_that_has_an_address(
+        self, tmp_path: Path, verify: AsyncMock, url: str, has_an_address_to_request: bool
+    ) -> None:
+        manager = _manager(tmp_path, verify, admit=lambda _address: False)
+
+        await _page_starts(manager, download_of(MagicMock(), url))
+
+        (note,) = manager.refusals
+        assert note.reason.startswith("the permission policy does not let a page save files on its own")
+        assert ("request the file with download_url" in note.reason) is has_an_address_to_request
+        assert ("no address to request" in note.reason) is not has_an_address_to_request
+
+    @pytest.mark.asyncio
     async def test_a_file_that_cannot_be_kept_is_noted_with_why(self, tmp_path: Path, verify: AsyncMock) -> None:
         manager = _manager(tmp_path, verify, max_files=1)
 

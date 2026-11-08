@@ -17,17 +17,19 @@
 
 [POS]
 Browser file download manager. Single responsibility: listen for, judge, process, and record file downloads; the disk
-side (names, quota, the copy, and never writing through a link) is ``DownloadStorage``. It holds no URL policy: the session hands it the verifier that
-judges the address a download came from, and the config hands it the policy that says whether a page may save a file
-on its own. A download that is refused, cut short while it is judged, or not kept is cancelled and deleted (the
-caller waits a bounded time for that; the cleanup carries on after the caller stops waiting). A page-started download
-is admitted and judged at once, without waiting for a free slot, and one that is not kept is remembered with its
-reason so the agent can be told. Once a download is processed the browser keeps nothing of it: the saved copy is the
-only one left. A download_url request takes the first download its page starts, one request at a time per page; every
-other download of that page goes through the page path, and one the request claimed but never took goes there when
-the request ends, so no download is kept without a verdict. A request that gives up stops the navigation it started
-(one bounded, best-effort protocol command), so an answer still on its way does not land after the request has
-returned. Log lines name a download's URL without its query, fragment or credentials.
+side (names, quota, the copy, and never writing through a link) is ``DownloadStorage``. It holds no URL policy: the
+session hands it the verifier that judges the address a download came from, and the config hands it the policy that
+says whether a page may save a file on its own. A download that is refused, cut short while it is judged, or not kept
+is cancelled and deleted (the caller waits a bounded time for that; the cleanup carries on after the caller stops
+waiting). A page-started download is admitted and judged at once, without waiting for a free slot, and one that is not
+kept is remembered with its reason so the agent can be told. A slot (``max_concurrent_downloads``) bounds only the
+saves in progress: a request still waiting for its page to start a download, and a download being judged, hold none.
+Once a download is processed the browser keeps nothing of it: the saved copy is the only one left. A download_url
+request takes the first download its page starts, one request at a time per page; every other download of that page
+goes through the page path, and one the request claimed but never took goes there when the request ends, so no
+download is kept without a verdict. A request that gives up stops the navigation it started (one bounded, best-effort
+protocol command), so an answer still on its way does not land after the request has returned. Log lines name a
+download's URL without its query, fragment or credentials.
 """
 
 from __future__ import annotations
@@ -70,8 +72,13 @@ _DISCARD_TIMEOUT_S = 2.0
 # How many refused downloads are remembered to tell the agent; a page can start them without end.
 _REFUSALS_KEPT = 5
 
-# Why a page-started download was not kept, as the agent is told: no address in any of them.
+# Why a page-started download was not kept, as the agent is told: no address in any of them. A file the page built
+# itself has no address for download_url to request, so it is not pointed there.
 _NOT_ADMITTED = "the permission policy does not let a page save files on its own; request the file with download_url"
+_NOT_ADMITTED_UNADDRESSED = (
+    "the permission policy does not let a page save files on its own; this file was built by the page itself, "
+    "so there is no address to request with download_url"
+)
 _ADDRESS_REFUSED = "the address it came from is blocked by the network safety policy"
 _NOT_PROCESSED = "it could not be processed"
 
@@ -186,10 +193,9 @@ class DownloadManager:
         timeout_s = timeout or self._config.download_timeout_s
 
         try:
-            async with self._semaphore:
-                download = await self._take_download(page, url, timeout_s)
-                await self._judge(download)
-                return await self._process_download(download)
+            download = await self._take_download(page, url, timeout_s)
+            await self._judge(download)
+            return await self._process_download(download)
         except BrowserNavigationBlockedError:
             raise
         except DownloadError as failure:
@@ -334,11 +340,13 @@ class DownloadManager:
                     "Refused a download from %s: the permission policy does not admit downloads a page starts",
                     _loggable_url(download.url),
                 )
-                self._note_refusal(download, _NOT_ADMITTED)
+                self._note_refusal(
+                    download,
+                    _NOT_ADMITTED_UNADDRESSED if download.url.startswith(_UNADDRESSED_SCHEMES) else _NOT_ADMITTED,
+                )
                 return
-            await self._judge(download)  # needs no slot: a refusal must not queue behind downloads that are running
-            async with self._semaphore:
-                await self._process_download(download)
+            await self._judge(download)
+            await self._process_download(download)
         except BrowserNavigationBlockedError as refusal:
             logged_url = _loggable_url(download.url)
             logger.warning(
@@ -365,13 +373,15 @@ class DownloadManager:
         """Save a judged download and record it; the browser's own copy is released however that ends.
 
         The browser keeps every download it accepted in its temp dir until the context closes, also after the
-        storage copied it, and keeps pulling a body after a save gave up. Discarding ends both.
+        storage copied it, and keeps pulling a body after a save gave up. Discarding ends both. Only the save holds
+        a slot: judging and discarding need none, so a refusal never queues behind downloads that are running.
 
         Raises:
             DownloadError: the download is not kept (see ``DownloadStorage.save``).
         """
         try:
-            result = await self._storage.save(download)
+            async with self._semaphore:
+                result = await self._storage.save(download)
             self._downloads.append(result)
             logger.info("Downloaded: %s (%d bytes) → %s", result.file_name, result.file_size, result.path)
             return result

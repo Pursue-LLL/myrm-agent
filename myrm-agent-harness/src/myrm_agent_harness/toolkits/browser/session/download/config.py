@@ -88,10 +88,10 @@ class DownloadConfig:
 
     ``confined_to`` is the root the caller trusts (absolute and resolved, like the workspace folder): ``downloads_dir``
     lies below it, and every directory and file below the root is created without following a link, because whoever
-    can write the root can plant one. ``max_files`` and ``max_total_mb`` cap what the downloads directory holds. They
-    are read from the directory itself, so they hold across sessions that share it; downloads saving at the same
-    moment can overshoot them by what they save together. ``admit_page_started`` left ``None`` lets every download
-    that passes the address check be kept.
+    can write the root can plant one. ``max_concurrent_downloads`` bounds the saves in progress at once. ``max_files``
+    and ``max_total_mb`` cap what the downloads directory holds. They are read from the directory itself, so they
+    hold across sessions that share it; downloads saving at the same moment can overshoot them by what they save
+    together. ``admit_page_started`` left ``None`` lets every download that passes the address check be kept.
     """
 
     downloads_dir: Path
