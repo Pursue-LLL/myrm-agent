@@ -38,7 +38,9 @@
     "verify:a11y": "bun scripts/check-a11y-ratchet.mjs",
     "verify:theme-colors": "bun scripts/check-theme-colors.mjs",
     "verify:reduced-motion": "bun scripts/check-reduced-motion.mjs",
+    "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
     "verify:icu-syntax": "bun scripts/check-icu-syntax.mjs",
+    "verify:intl-options": "bun scripts/check-ignored-intl-options.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
     "pretest": "bun run i18n:split && bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },
@@ -170,6 +172,7 @@
     "esbuild": "^0.28.2",
     "jsdom": "^31.0.0",
     "opencc-js": "^1.4.2",
+    "oxc-parser": "0.152.0",
     "oxlint": "^1.91.0",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.4",

@@ -44,8 +44,8 @@ jobs:
         run: bun run i18n:split
       # The gates below are independent: one red gate must not hide the others, so a single
       # run lists every failing gate instead of exposing them one push at a time.
-      # `lint` runs every static gate (stable mocks, a11y, theme colors, hardcoded copy, oxlint)
-      # and lists all the red ones; its gate list lives in scripts/run-lint-gates.ts.
+      # `lint` runs every static gate and lists all the red ones; the gate list lives in
+      # myrm-agent-frontend/scripts/run-lint-gates.ts.
       - name: Lint gates (every gate runs; oxlint errors fail, warnings non-blocking)
         if: ${{ !cancelled() }}
         run: bun run lint
