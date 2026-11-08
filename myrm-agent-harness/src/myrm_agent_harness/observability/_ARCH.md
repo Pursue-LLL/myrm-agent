@@ -32,7 +32,7 @@ Observability tools for Myrm Agent framework. Provides Prometheus metrics, auth 
 | tracing/ | ContextVar-based request tracing (trace_id / session_id) with logging.Filter and JSON formatter. |
 | invariants/ | Runtime invariant assertions and registry: cross-event causality, state-machine transition and data-integrity checks, no-op in production and fail-fast in development. See [invariants/_ARCH.md](invariants/_ARCH.md). |
 | spend_control/ | Four-tier progressive spend control and soft quota intervention engine (visibility, soft gate, auto-downgrade, approval pause). See [spend_control/_ARCH.md](spend_control/_ARCH.md). |
-| storage_governance/ | Read-only attribution of persistent agent state disk usage to declared categories (layout, inspector, snapshots). See [storage_governance/_ARCH.md](storage_governance/_ARCH.md). |
+| storage_governance/ | Read-only attribution of persistent agent state disk usage to declared categories (layout, walker, inspector). See [storage_governance/_ARCH.md](storage_governance/_ARCH.md). |
 ## Key Dependencies
 
 - `toolkits` (via diagnostics probes)

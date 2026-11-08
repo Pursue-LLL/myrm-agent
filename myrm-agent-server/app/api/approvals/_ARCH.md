@@ -22,9 +22,6 @@
 | POST | `/credentials/wipe` | 按 `chat_id` + `handle_ids` 立即销毁用户撤回或被拒绝/改写的审批所暂存的凭据 |
 | POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args,pattern,duration,ttl_seconds}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
-| POST | `/tiered-risk/evaluate` | 三级风险自适应判决（READ/WRITE/HIGH_RISK），挂起高危操作并颁发 confirmation_token |
-| POST | `/tiered-risk/confirm` | 校验单次 confirmation_token 并放行或打回高危工具执行（支持参数修改） |
-| POST | `/tiered-risk/dry-run` | 工具参数 Dry-run 模拟预览，返回预演影响分析与变更预测 |
 | POST | `/test/seed-mock` | local/test only（`test_routes.py`）：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |
 
 ## 契约要点

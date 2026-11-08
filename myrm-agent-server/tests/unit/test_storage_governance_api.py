@@ -18,10 +18,14 @@ from app.api.system.schemas import CreateSnapshotRequest, StorageGovernanceRepor
 from app.config.settings import DatabaseSettings
 
 
-def _create_database(path: Path) -> None:
+def _create_database(path: Path, *, instance: bool = False) -> None:
+    """A small database; an instance database also carries the migration ledger a restore verifies."""
     conn = sqlite3.connect(str(path))
     conn.execute("CREATE TABLE t (x INT);")
     conn.execute("INSERT INTO t VALUES (1);")
+    if instance:
+        conn.execute("CREATE TABLE _schema_migrations (version INTEGER PRIMARY KEY);")
+        conn.execute("INSERT INTO _schema_migrations VALUES (0);")
     conn.commit()
     conn.close()
 
@@ -34,7 +38,7 @@ def _write(path: Path, size: int) -> None:
 @pytest.fixture
 def state_dir(tmp_path: Path) -> Iterator[Path]:
     """A state directory holding the databases, wired in as the server's settings with memory kept on another volume."""
-    _create_database(tmp_path / "data.db")
+    _create_database(tmp_path / "data.db", instance=True)
     _create_database(tmp_path / "checkpoints.db")
     database = DatabaseSettings.model_construct(
         state_dir=str(tmp_path),
