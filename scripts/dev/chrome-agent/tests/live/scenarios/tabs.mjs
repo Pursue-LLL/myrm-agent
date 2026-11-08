@@ -129,9 +129,9 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
     },
 
     // A tab a client explicitly opens in a shared window (newWindow:false, a popup) may be in use
-    // right now, so the pool must not close it for a while (BUG-DG-2026-10-12-010: it used to close
-    // such tabs within milliseconds). Once such a tab has stayed blank and unleased for the grace
-    // period it is a leftover: it is closed and the pool keeps one idle tab per window.
+    // right now, so the pool must not close it for a while. Once such a tab has stayed blank and
+    // unleased for the grace period it is a leftover: it is closed and the pool keeps one idle tab
+    // per window.
     async sharedWindowBlanksAreReplaced() {
         const graceMs = 14000;
         const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
@@ -194,7 +194,7 @@ export const tabScenarios = ({ proxy, check, option, ROUNDS }) => ({
     },
 
     // With the idle pool running, a tab a session opens with new_page must survive: it has a window
-    // of its own, so the pool neither counts it as hidden nor closes it (BUG-DG-2026-10-12-010).
+    // of its own, so the pool neither counts it as hidden nor closes it.
     async clientNewPageSurvivesPool() {
         const pooled = new SandboxProxy(option('--proxy-dir', undefined), {
             CHROME_AGENT_MIN_IDLE_TABS: '3', CHROME_AGENT_MAX_PAGES: '8',

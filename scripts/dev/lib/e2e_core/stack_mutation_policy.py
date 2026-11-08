@@ -222,7 +222,7 @@ def should_defer_supervisor_backend_heal(
     api_http_ok: bool,
 ) -> bool:
     del pending_drift
-    # R143 / BUG-DG-2026-07-29-008: never restart a healthy backend while wave
+    # Never restart a healthy backend while wave
     # leases are active — a heal restart could tear down parallel tests.
     # When the API is already down, every parallel session is already broken,
     # so recovering the shared backend strictly dominates deferring: waiting

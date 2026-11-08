@@ -90,7 +90,7 @@ def acquire_server_lock(
 
     活跃实例 = 持锁进程 alive **且** 最终监听 ``target_port``。进程存活但从不监听
     端口的（僵尸 run.py）不视为活跃实例，新实例清理锁后接管——否则僵尸会永久
-    阻塞 backend 启动，表现为「backend 反复崩溃」（BUG-DG-2026-08-09-R014 家族）。
+    阻塞 backend 启动，表现为「backend 反复崩溃」。
     """
     import socket
 
@@ -133,7 +133,7 @@ def acquire_server_lock(
         # （另一 backend 正常运行 → 本次启动退出）。
         # 旧实现会全量指纹扫描并猎杀 workspace 内所有 run.py 进程来实现
         # 「无感接管」，但多人开发 / 并行 E2E 下并发启动会互相猎杀——这正是
-        # shared backend 反复崩溃的根因（见 BUG-DG-2026-08-09-R010）。
+        # shared backend 反复崩溃的根因。
         holder_pid = _read_pid_file(pid_file)
         if holder_pid is not None and _process_alive(holder_pid):
             # 持锁进程存活。仅当它最终监听 target_port 才视为「活跃实例」：
@@ -152,7 +152,7 @@ def acquire_server_lock(
                 # 非 daemon 线程退出，而 run.py 模块导入阶段已创建 libuv 事件循环
                 # 等线程，第二实例会被永久卡在 wait_for_thread_shutdown —— 进程
                 # 存活但僵尸化，持续占用数据库/端口探测，诱使 supervisor 误判
-                # "backend 活着但无响应"（见 BUG-DG-2026-08-09-R014）。
+                # "backend 活着但无响应"。
                 os._exit(1)
             # 持锁者 alive 但从未监听端口（僵尸 run.py）：落到下方僵尸锁接管。
 
