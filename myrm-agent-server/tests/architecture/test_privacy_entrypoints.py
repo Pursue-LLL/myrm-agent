@@ -73,7 +73,6 @@ def test_every_exemption_is_still_a_builder() -> None:
     assert set(_EXEMPT) <= set(_builders()), "an exempt file no longer builds GeneralAgentParams; drop the entry"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path", [path for path in _builders() if path not in _EXEMPT])
 def test_builder_reads_the_persisted_privacy_switch(relative_path: str) -> None:
     lines = unguarded_constructor_lines((_APP / relative_path).read_text(encoding="utf-8"))
@@ -84,7 +83,6 @@ def test_builder_reads_the_persisted_privacy_switch(relative_path: str) -> None:
     )
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path", _COPY_CARRIERS)
 def test_copy_carrier_applies_the_persisted_privacy_switch(relative_path: str) -> None:
     source = (_APP / relative_path).read_text(encoding="utf-8")

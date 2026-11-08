@@ -5,8 +5,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _TESTS_ROOT = _SERVER_ROOT / "tests"
 
@@ -31,7 +29,6 @@ def _collect_app_main_imports() -> list[str]:
     return violations
 
 
-@pytest.mark.architecture
 def test_tests_do_not_import_app_main() -> None:
     """API/integration tests must use tests.support.minimal_app, not app.main."""
     violations = _collect_app_main_imports()

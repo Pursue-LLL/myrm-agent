@@ -27,7 +27,6 @@ def _apt_install_block_with(dockerfile: Path, package: str) -> str:
     return blocks[0]
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("dockerfile", _RUNTIME_IMAGES, ids=lambda p: p.name)
 @pytest.mark.parametrize("package", _REQUIRED_X11_PACKAGES)
 def test_runtime_image_installs_x11_package(dockerfile: Path, package: str) -> None:

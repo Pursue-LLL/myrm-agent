@@ -100,14 +100,12 @@ def _offences(removal: _Removal) -> dict[str, list[str]]:
     return found
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("removal", [removal for removal in _REMOVALS if removal.files], ids=lambda removal: removal.name)
 def test_removed_files_do_not_exist(removal: _Removal) -> None:
     leftover = [path for path in removal.files if (_APP / path).exists()]
     assert not leftover, f"{removal.name}: {leftover}"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("removal", _REMOVALS, ids=lambda removal: removal.name)
 def test_removed_names_do_not_appear(removal: _Removal) -> None:
     offences = _offences(removal)

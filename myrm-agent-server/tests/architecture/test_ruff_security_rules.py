@@ -54,7 +54,6 @@ def _load_ruff_lint() -> dict:
     return data["tool"]["ruff"]["lint"]
 
 
-@pytest.mark.architecture
 class TestRuffSecurityConfig:
     """Validate ruff security rule configuration in pyproject.toml."""
 

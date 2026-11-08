@@ -1,4 +1,4 @@
-"""Locations and workflow accessors shared by the desktop release contract tests.
+"""Locations and workflow accessors shared by the desktop release contract tests and the gate guards.
 
 [INPUT]
 - myrm-agent-desktop/sidecar/build.py: the sidecar build script, imported as a module
@@ -7,6 +7,7 @@
 - scripts/ci/desktop-release/smoke_launch_shell.py: the packaged-shell launch smoke, imported as a module
 - scripts/ci/desktop-release/smoke_channels.py: the channel creation check the smoke imports from its own directory
 - .github/workflows/desktop-release*.yml: the release workflow and the repair workflow, parsed into job and step mappings
+- .github/workflows/*.yml: the jobs of any other workflow a caller names, for the gate guards
 - .github/actions/*/action.yml: the local composite actions the release jobs call
 
 [OUTPUT]
@@ -20,7 +21,7 @@
 - bundle_config(platform): the `bundle` section Tauri compiles for a platform (base config + platform patch)
 
 [POS]
-桌面发版契约测试共享的路径与工作流读取；sidecar 布局与发版输入两个测试读同一份定义，不各抄一份。
+桌面发版契约测试与门禁守卫共享的路径与工作流读取；各测试读同一份定义，不各抄一份。
 """
 
 from __future__ import annotations

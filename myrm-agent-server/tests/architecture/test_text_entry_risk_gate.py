@@ -167,7 +167,6 @@ def test_detector_sees_a_call_and_a_missing_call_and_a_missing_function() -> Non
     assert function_calls(source, "missing", "gate") is None
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize(("relative_path", "function", "gate"), _ENTRIES, ids=[f"{p}::{f}" for p, f, _ in _ENTRIES])
 def test_entry_screens_user_text_before_acting_on_it(relative_path: str, function: str, gate: str) -> None:
     called = function_calls(_source(relative_path), function, gate)
@@ -176,7 +175,6 @@ def test_entry_screens_user_text_before_acting_on_it(relative_path: str, functio
     assert called, f"{relative_path}::{function} must call {gate} on the text a user typed (see services/risk/refusal.py)"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize(("relative_path", "function"), _WRAPPERS, ids=[f"{p}::{f}" for p, f in _WRAPPERS])
 def test_gate_ends_in_the_single_screening_entry(relative_path: str, function: str) -> None:
     assert function_calls(_source(relative_path), function, _SCREEN), (
@@ -325,7 +323,6 @@ def test_a_dynamic_path_segment_can_reach_any_route_of_its_shape_but_is_no_evide
     assert has_frontend_caller(segments("/agents/chats/{chat_id}"), literal, dynamic_matches_any=True) is False
 
 
-@pytest.mark.architecture
 def test_every_instruction_text_endpoint_is_an_entry_or_an_exemption() -> None:
     entries = {(path, function) for path, function, _ in _ENTRIES}
     callerless = handlers_without_caller(public_api_handlers(), operations_without_caller(dynamic_matches_any=True))
@@ -340,7 +337,6 @@ def test_every_instruction_text_endpoint_is_an_entry_or_an_exemption() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_the_caller_judgement_still_finds_callers_of_the_entries() -> None:
     """An entry takes text a user types, so the judgement that skips callerless endpoints must find callers of most.
 
@@ -358,7 +354,6 @@ def test_the_caller_judgement_still_finds_callers_of_the_entries() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_exemptions_name_endpoints_that_still_carry_instruction_text() -> None:
     entries = {(path, function) for path, function, _ in _ENTRIES}
     stale = sorted(k for k in _EXEMPT if k not in _repository_handlers())

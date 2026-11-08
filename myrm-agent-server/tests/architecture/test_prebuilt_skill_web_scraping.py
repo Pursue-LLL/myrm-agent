@@ -50,31 +50,26 @@ def skill_text() -> str:
     return _SKILL_MD.read_text(encoding="utf-8")
 
 
-@pytest.mark.architecture
 def test_frontmatter_declares_skill_name(skill_text: str) -> None:
     assert "name: web-scraping" in skill_text
 
 
-@pytest.mark.architecture
 def test_frontmatter_has_description(skill_text: str) -> None:
     assert "description:" in skill_text
     assert "scraping" in skill_text.split("description:")[1][:250].lower()
 
 
-@pytest.mark.architecture
 def test_frontmatter_declares_semver_version(skill_text: str) -> None:
     assert re.search(r"^version: \d+\.\d+\.\d+$", skill_text, re.MULTILINE), (
         "web-scraping SKILL.md must declare a semver 'version: x.y.z'"
     )
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("marker", _CONTRACT_MARKERS)
 def test_contract_marker_present(skill_text: str, marker: str) -> None:
     assert marker in skill_text, f"Required contract marker missing from web-scraping SKILL.md: {marker!r}"
 
 
-@pytest.mark.architecture
 def test_skill_size_within_budget(skill_text: str) -> None:
     assert len(skill_text) <= _MAX_SKILL_CHARS, (
         f"web-scraping SKILL.md is {len(skill_text)} chars, exceeding budget {_MAX_SKILL_CHARS}"

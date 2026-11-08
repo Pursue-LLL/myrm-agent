@@ -24,8 +24,6 @@ from myrm_agent_harness.agent.config.provider_routing import (
 
 from tests.support.frontend_api_paths import FRONTEND_SRC
 
-pytestmark = pytest.mark.architecture
-
 _GENERATED = FRONTEND_SRC / "store" / "config" / "providerRouting.generated.ts"
 
 # Values only: the generator's quoting and key quoting are not part of the contract.

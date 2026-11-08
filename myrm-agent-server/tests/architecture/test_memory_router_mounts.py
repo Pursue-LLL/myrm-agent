@@ -99,7 +99,6 @@ def entries() -> dict[str, str | None]:
     return read_entries(_MOUNTS_FILE.read_text(encoding="utf-8"))
 
 
-@pytest.mark.architecture
 def test_default_mounts_are_registered(mounted: set[str], entries: dict[str, str | None]) -> None:
     unregistered = sorted(mounted - entries.keys())
     assert not unregistered, (
@@ -109,19 +108,16 @@ def test_default_mounts_are_registered(mounted: set[str], entries: dict[str, str
     )
 
 
-@pytest.mark.architecture
 def test_registered_mounts_are_current(mounted: set[str], entries: dict[str, str | None]) -> None:
     gone = sorted(entries.keys() - mounted)
     assert not gone, f"no longer mounted unconditionally, remove from memory_default_mounts.txt: {gone}"
 
 
-@pytest.mark.architecture
 def test_admitted_mounts_name_a_caller(entries: dict[str, str | None]) -> None:
     blank = sorted(mount for mount, evidence in entries.items() if evidence == "")
     assert not blank, f"an admitted mount needs `mount | caller file:line`: {blank}"
 
 
-@pytest.mark.architecture
 def test_admitted_mount_callers_exist(entries: dict[str, str | None]) -> None:
     problems = unverifiable_callers(entries, _REPO_ROOT)
     assert not problems, "admitted memory mounts must cite a real product caller:\n" + "\n".join(problems)

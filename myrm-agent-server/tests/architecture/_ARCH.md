@@ -96,8 +96,9 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_nas_docker_compose_template.py` | NAS / HomeLab Docker Compose 覆盖编排契约与三卷持久化挂载验证 |
 | `test_docker_compose_hardening.py` | 本地 Docker 栈的加固不得被悄悄删掉：后端去掉 `NET_RAW`/`NET_ADMIN`/`SYS_ADMIN`/`MKNOD` 并禁止提权、以 init 进程运行、停止宽限期不短于回合排空预算 + 30 秒；前端丢弃全部能力、禁止提权、根文件系统只读、仅 `/tmp` 为 `noexec,nosuid` 的 tmpfs |
 | `test_architecture_gates_order.py` | 门禁脚本 `scripts/ci/run_architecture_gates.sh` 先判推送区间、再装依赖：用只记录调用的桩 `python3`、`uv`、`promtool` 跑脚本副本，模块可达性的 harness 差分与 server 差分必须排在依赖安装与整树门禁之前，一次差分失败不遮住另一次并停下本次运行，依赖安装失败也不能让可达性判定被跳过；两次差分的基线取 `MYRM_REACHABILITY_BASE`：GitHub Actions 里缺基线则不跑任何差分就失败，本地缺省 `origin/main`（只设 `CI=true` 的本地运行也一样） |
-| `test_gate_workflow_triggers.py` | 门禁工作流（`server-architecture.yml`、`desktop-contracts.yml`）的 push 与 pull_request 触发器都不带 `paths` 与 `paths-ignore`：门禁与契约读仓库各处的文件，路径清单会在某个测试开始读新文件的那天悄悄失效，所以每次 push main 与 PR 都跑 |
+| `test_gate_workflow_triggers.py` | 门禁工作流（`server-architecture.yml`、`desktop-contracts.yml`、`public-tree-guards.yml`）的 push 与 pull_request 触发器都不带 `paths` 与 `paths-ignore`：门禁、契约与公开树守卫读仓库各处的文件，路径清单会在某个测试开始读新文件的那天悄悄失效，所以每次 push main 与 PR 都跑 |
 | `conftest.py` | 门禁选测：登记 `architecture` 标记，并给本目录的每个测试自动加上它，新增测试不会因为漏写标记而掉出门禁；别的工作流点名运行的文件除外（`test_desktop_*` 按前缀，`test_no_credential_literals` 与 `test_no_private_references` 按完整文件名）；门禁带 `--strict-markers`，标记拼错或登记丢失是收集错误，不会静默少跑 |
+| `test_gate_membership.py` | 门禁选测本身的守卫：按路径加载 `conftest.py`，用假 item 驱动真钩子——普通文件名（含 `test_no_credential_literals_extra.py` 这类近似名）会被加上 `architecture`，`RUN_BY_OTHER_WORKFLOWS` 点名的文件不加；并断言每个被豁免的名字都在某个工作流步骤的 `run:` 里被运行；判定被写反、或豁免名单与工作流命令对不上时，门禁不会在选测悄悄变少的同时保持全绿；两个测试自带 `architecture` 标记，判定出错时守卫自己不会被一起 deselect |
 | `data/server_api_import_baseline.txt` | 上述门禁 baseline（须保持为空） |
 | `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` 的超标模块台账（本地自查用，非 CI 阻断） |
 
@@ -110,4 +111,4 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 
 - 本地：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + `promtool check rules` + architecture pytest）
 - CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）
-- 选测：门禁（`-m architecture --strict-markers`）运行本目录的全部测试：`architecture` 标记由 `conftest.py` 登记并自动加到每个测试上，新增测试不必手写；`--strict-markers` 让拼错或丢失登记的标记成为收集错误。例外是别的工作流点名运行的文件：`test_desktop_*` 由 `desktop-contracts.yml`，`test_no_credential_literals` 与 `test_no_private_references` 由 `public-tree-guards.yml`（它不加载 conftest）；其中确需同时进门禁的（`test_desktop_sidecar_data`、`test_desktop_sidecar_modules`）手写 `pytestmark = pytest.mark.architecture`。
+- 选测：门禁（`-m architecture --strict-markers`）运行本目录的全部测试（例外见下）：`architecture` 标记由 `conftest.py` 登记并自动加到每个测试上，新增测试不必手写；`--strict-markers` 让拼错或丢失登记的标记成为收集错误。例外是别的工作流点名运行的文件：`test_desktop_*` 由 `desktop-contracts.yml`，`test_no_credential_literals` 与 `test_no_private_references` 由 `public-tree-guards.yml`（它不加载 conftest），`test_gate_membership.py` 断言每个例外都有工作流在运行；其中确需同时进门禁的（`test_desktop_sidecar_data`、`test_desktop_sidecar_modules`）手写 `pytestmark = pytest.mark.architecture`，`test_gate_membership.py` 的两个测试也手写该标记（判定写反时它们才不会被一起 deselect），除这三个文件外本目录不手写该标记。

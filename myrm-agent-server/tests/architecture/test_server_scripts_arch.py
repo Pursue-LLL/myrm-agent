@@ -15,7 +15,6 @@ _REQUIRED_ARCH_DIRS = (
 )
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("directory", _REQUIRED_ARCH_DIRS, ids=lambda p: p.name)
 def test_server_scripts_subtree_has_arch(directory: Path) -> None:
     arch_path = directory / "_ARCH.md"

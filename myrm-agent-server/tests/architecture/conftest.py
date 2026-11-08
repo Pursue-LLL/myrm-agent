@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - the `architecture` marker, registered here and added to every test under this directory except the files named below
+- RUN_BY_OTHER_WORKFLOWS: the prefixes and names of those files, read by test_gate_membership.py
 
 [POS]
 The directory decides what the gate runs, so a test cannot be left out by forgetting to mark it; files another workflow
@@ -19,7 +20,7 @@ import pytest
 
 # desktop-contracts.yml runs test_desktop_*.py and public-tree-guards.yml runs the other two files, the latter without
 # any conftest. The trailing dots keep a name from matching a longer file name.
-_RUN_BY_OTHER_WORKFLOWS = ("test_desktop_", "test_no_credential_literals.", "test_no_private_references.")
+RUN_BY_OTHER_WORKFLOWS = ("test_desktop_", "test_no_credential_literals.", "test_no_private_references.")
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -27,5 +28,5 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_itemcollected(item: pytest.Item) -> None:
-    if not item.path.name.startswith(_RUN_BY_OTHER_WORKFLOWS):
+    if not item.path.name.startswith(RUN_BY_OTHER_WORKFLOWS):
         item.add_marker(pytest.mark.architecture)

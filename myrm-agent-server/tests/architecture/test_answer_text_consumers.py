@@ -99,7 +99,6 @@ def test_the_scan_sees_the_known_call_sites() -> None:
     assert len(_call_sites()) >= 10, "the source scan found fewer call sites than exist; the guard is blind"
 
 
-@pytest.mark.architecture
 def test_every_stream_call_site_is_classified() -> None:
     classified = _ACCUMULATES_HERE | set(_DELEGATES) | set(_NO_ANSWER_TEXT)
 
@@ -110,7 +109,6 @@ def test_every_stream_call_site_is_classified() -> None:
     )
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize("relative_path", sorted(_ACCUMULATES_HERE))
 def test_call_site_accumulates_with_a_restart_aware_class(relative_path: str) -> None:
     source = (_APP / relative_path).read_text(encoding="utf-8")
@@ -118,7 +116,6 @@ def test_call_site_accumulates_with_a_restart_aware_class(relative_path: str) ->
     assert _uses_accumulator(source), f"{relative_path} builds answer text without AnswerDraft or StreamContentCollector"
 
 
-@pytest.mark.architecture
 @pytest.mark.parametrize(("relative_path", "delegate"), sorted(_DELEGATES.items()))
 def test_delegate_accumulates_with_a_restart_aware_class(relative_path: str, delegate: str) -> None:
     assert delegate.rsplit("/", 1)[-1].removesuffix(".py") in (_APP / relative_path).read_text(encoding="utf-8"), (

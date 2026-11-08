@@ -62,7 +62,6 @@ def _load_locale(locales_dir: Path, name: str) -> dict[str, object] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@pytest.mark.architecture
 def test_server_json_catalog_keys_within_allowlist() -> None:
     """Server JSON catalogs must not accumulate unreferenced keys."""
     for name in _SERVER_LOCALE_NAMES:
@@ -76,7 +75,6 @@ def test_server_json_catalog_keys_within_allowlist() -> None:
         )
 
 
-@pytest.mark.architecture
 def test_server_json_locales_share_identical_key_sets() -> None:
     """Every server locale must expose the exact same channel keys."""
     key_sets: dict[str, set[str]] = {}
@@ -94,7 +92,6 @@ def test_server_json_locales_share_identical_key_sets() -> None:
         )
 
 
-@pytest.mark.architecture
 def test_server_json_catalog_has_no_harness_diagnostic_overlap() -> None:
     """LLM error diagnostics are the harness catalog's job; never fork them."""
     harness_locales = _HARNESS_LOCALES_DIR

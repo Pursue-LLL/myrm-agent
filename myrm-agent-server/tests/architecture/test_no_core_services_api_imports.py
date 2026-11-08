@@ -6,8 +6,6 @@ import ast
 import re
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _APP_ROOT = _SERVER_ROOT / "app"
 _BASELINE_PATH = Path(__file__).resolve().parent / "data" / "server_api_import_baseline.txt"
@@ -53,7 +51,6 @@ def _load_baseline() -> frozenset[str]:
     )
 
 
-@pytest.mark.architecture
 def test_no_core_services_lifecycle_imports_app_api() -> None:
     """Business layers must not depend on HTTP routers or FastAPI DI shims."""
     baseline = _load_baseline()

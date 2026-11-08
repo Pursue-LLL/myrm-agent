@@ -42,13 +42,11 @@ def _resolve_compose_command() -> list[str] | None:
     return None
 
 
-@pytest.mark.architecture
 def test_nas_compose_overlay_file_exists() -> None:
     """Verify that docker-compose.nas.yml exists at workspace root."""
     assert _NAS_COMPOSE_PATH.is_file(), f"Expected {_NAS_COMPOSE_PATH} to exist"
 
 
-@pytest.mark.architecture
 def test_nas_compose_overlay_contract() -> None:
     """Validate NAS compose overlay YAML structure and persistence split contract."""
     assert _NAS_COMPOSE_PATH.is_file()
@@ -88,7 +86,6 @@ def test_nas_compose_overlay_contract() -> None:
     assert any(":3000" in p for p in ports), "Frontend must expose port 3000 for LAN ingress"
 
 
-@pytest.mark.architecture
 def test_nas_compose_merge_config_validity() -> None:
     """Validate that the compose merge runs without config schema errors."""
     compose_cmd = _resolve_compose_command()

@@ -30,8 +30,6 @@ import ast
 from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 # ``assets/`` holds the prebuilt skill scripts, which open their own connections.
 _SCANNED_ROOTS = (_SERVER_ROOT / "app", _SERVER_ROOT / "assets")
@@ -79,7 +77,6 @@ def _sources() -> Iterator[tuple[str, str]]:
             yield path.relative_to(_SERVER_ROOT).as_posix(), path.read_text(encoding="utf-8")
 
 
-@pytest.mark.architecture
 def test_every_scanned_root_holds_python_sources() -> None:
     """A root that no longer exists (moved, renamed) would make both scans below pass over nothing."""
     empty = [root.name for root in _SCANNED_ROOTS if not any(root.rglob("*.py"))]
@@ -87,7 +84,6 @@ def test_every_scanned_root_holds_python_sources() -> None:
     assert not empty, f"no Python sources under: {', '.join(empty)}"
 
 
-@pytest.mark.architecture
 def test_no_module_builds_a_tls_context_by_hand() -> None:
     offenders = [
         f"{name}:{line}: {builder}(...)" for name, source in _sources() for line, builder in direct_context_builds(source)
@@ -99,7 +95,6 @@ def test_no_module_builds_a_tls_context_by_hand() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_no_module_opens_a_stdlib_tls_connection_without_a_context() -> None:
     offenders = [
         f"{name}:{line}: {client}(...)" for name, source in _sources() for line, client in stdlib_clients_without_context(source)

@@ -6,8 +6,6 @@ import ast
 import re
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _BASELINE_PATH = Path(__file__).resolve().parent / "data" / "server_harness_import_baseline.txt"
 _APP_ROOT = _SERVER_ROOT / "app"
@@ -43,7 +41,6 @@ def _load_baseline() -> frozenset[str]:
     return frozenset(line.strip() for line in lines if line.strip())
 
 
-@pytest.mark.architecture
 def test_no_server_harness_private_module_imports() -> None:
     """Server must not import harness private modules (paths containing ``._``)."""
     current = _collect_harness_imports()
@@ -54,7 +51,6 @@ def test_no_server_harness_private_module_imports() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_no_new_server_deep_harness_imports() -> None:
     """Open-source server must not grow new direct harness internal import paths."""
     baseline = _load_baseline()
@@ -81,7 +77,6 @@ def _module_exists(module: str, package_root: Path) -> bool:
     return True
 
 
-@pytest.mark.architecture
 def test_every_server_harness_import_resolves() -> None:
     """A harness module move must fail here, not on the first production agent turn.
 

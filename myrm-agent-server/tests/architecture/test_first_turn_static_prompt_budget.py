@@ -48,7 +48,6 @@ def _static_first_message(locale: str) -> str:
     )
 
 
-@pytest.mark.architecture
 class TestFirstTurnStaticPromptBudget:
     """CI gate: the static first system message and the widget capability block stay within their caps."""
 

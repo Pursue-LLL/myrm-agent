@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 _APP_ROOT = Path(__file__).resolve().parent.parent.parent / "app"
 _API_ROOT = _APP_ROOT / "api"
 _SERVICES_ROOT = _APP_ROOT / "services"
@@ -144,7 +142,6 @@ def _top_level_dirs(root: Path) -> set[str]:
     }
 
 
-@pytest.mark.architecture
 def test_api_services_same_name_domains_match_disk() -> None:
     api_domains = _top_level_dirs(_API_ROOT)
     service_domains = _top_level_dirs(_SERVICES_ROOT)
@@ -160,7 +157,6 @@ def test_api_services_same_name_domains_match_disk() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_api_top_level_domain_partition() -> None:
     api_domains = _top_level_dirs(_API_ROOT)
     expected = SAME_NAME_DOMAINS | API_ONLY_DOMAINS | frozenset(API_SERVICES_ALIASES)
@@ -171,7 +167,6 @@ def test_api_top_level_domain_partition() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_services_top_level_domain_partition() -> None:
     service_domains = _top_level_dirs(_SERVICES_ROOT)
     expected = SAME_NAME_DOMAINS | SERVICES_ONLY_DOMAINS | frozenset(API_SERVICES_ALIASES.values())
@@ -182,7 +177,6 @@ def test_services_top_level_domain_partition() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_api_services_alias_pairs_exist_on_disk() -> None:
     api_domains = _top_level_dirs(_API_ROOT)
     service_domains = _top_level_dirs(_SERVICES_ROOT)
@@ -192,7 +186,6 @@ def test_api_services_alias_pairs_exist_on_disk() -> None:
         assert service_name in service_domains, f"Missing services/{service_name}/ for alias {api_name!r}"
 
 
-@pytest.mark.architecture
 def test_api_services_alias_keys_do_not_collide_with_same_name() -> None:
     overlap = frozenset(API_SERVICES_ALIASES) & SAME_NAME_DOMAINS
     assert not overlap, f"Alias keys must not also be same-name domains: {sorted(overlap)!r}"

@@ -17,8 +17,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 _APP_ROOT = Path(__file__).resolve().parent.parent.parent / "app"
 _CHAT_ROOT_RESOLVERS = ("resolve_chat_workspace_root", "find_chat_workspace_root")
 
@@ -77,7 +75,6 @@ def _scan_app() -> dict[tuple[str, str], list[tuple[int, bool]]]:
     return found
 
 
-@pytest.mark.architecture
 def test_every_vault_open_resolves_the_chat_root_or_is_justified() -> None:
     unresolved = sorted(
         f"{rel}:{line} in {function}"
@@ -93,7 +90,6 @@ def test_every_vault_open_resolves_the_chat_root_or_is_justified() -> None:
     )
 
 
-@pytest.mark.architecture
 def test_justified_vault_opens_are_still_present_and_still_needed() -> None:
     found = _scan_app()
     stale = sorted(
@@ -104,7 +100,6 @@ def test_justified_vault_opens_are_still_present_and_still_needed() -> None:
     assert not stale, f"_ROOT_FROM_CALLER entries that no longer apply (delete them): {stale}"
 
 
-@pytest.mark.architecture
 def test_detector_tells_resolved_roots_from_process_roots() -> None:
     resolved = (
         "async def read(chat_id):\n    root = await resolve_chat_workspace_root(chat_id)\n    return ArtifactVault(str(root))\n"

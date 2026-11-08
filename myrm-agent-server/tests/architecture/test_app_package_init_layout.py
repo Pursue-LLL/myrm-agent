@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _APP_ROOT = _SERVER_ROOT / "app"
 _SKIP_DIR_NAMES = frozenset({"__pycache__", "node_modules", ".mypy_cache", ".pytest_cache", ".ruff_cache"})
@@ -24,7 +22,6 @@ def _iter_python_package_dirs() -> list[Path]:
     return package_dirs
 
 
-@pytest.mark.architecture
 def test_app_python_dirs_have_init_py() -> None:
     missing: list[str] = []
     for package_dir in _iter_python_package_dirs():

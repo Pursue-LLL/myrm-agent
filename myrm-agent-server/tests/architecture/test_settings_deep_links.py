@@ -74,7 +74,6 @@ def _deep_link_literals() -> list[tuple[Path, int, str]]:
 
 
 @_SKIP_WITHOUT_FRONTEND
-@pytest.mark.architecture
 def test_settings_route_ssot_parses() -> None:
     tabs, aliases = _route_ids()
 
@@ -84,7 +83,6 @@ def test_settings_route_ssot_parses() -> None:
 
 
 @_SKIP_WITHOUT_FRONTEND
-@pytest.mark.architecture
 def test_settings_deep_links_resolve_to_known_routes() -> None:
     tabs, aliases = _route_ids()
     known = tabs | aliases
