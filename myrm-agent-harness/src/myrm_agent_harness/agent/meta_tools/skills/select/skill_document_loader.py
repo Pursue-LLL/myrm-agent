@@ -3,6 +3,7 @@
 [INPUT]
 - backends.skills.protocols::SkillBackend (POS: skill content + resources)
 - backends.skills.types::SkillMetadata, SkillInstance (POS: metadata + instance config)
+- agent.skills.runtime.skill_invocation::skill_call_notice (POS: how the model is told to call a skill script)
 - l1_disclosure_footer::build_l1_disclosure_footer (POS: L1 footer append)
 - core.security.redact::command_preview (POS: masked, cut command for a log line)
 - core.security.bounded_communicate::communicate_bounded (POS: communicate() with a cap on each pipe, stopping the process through the caller's on_abort)
@@ -27,6 +28,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
 
+from myrm_agent_harness.agent.skills.runtime.skill_invocation import skill_call_notice
 from myrm_agent_harness.backends.skills.types import SkillInstance, SkillMetadata
 from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
 from myrm_agent_harness.core.security.redact import command_preview
@@ -113,11 +115,7 @@ async def get_skill_document(
             return f"# {skill_meta.name}\n\nError: failed to load skill document"
 
         if skill_doc and skill_meta.storage_path:
-            skill_path_info = (
-                f"> ** 脚本执行**: 改为使用相对路径（如 `python3 scripts/xxx.py`），系统会自动设置工作目录。\n"
-                f"> ** 路径兼容性**: 如果文档中使用 `.claude/skills/{skill_meta.name}/...` 路径格式，系统也会自动处理。\n"
-                f"> ** 技能目录**: 所有技能文件都位于 `.claude/skills/{skill_meta.name}/` 目录下。\n\n"
-            )
+            skill_path_info = skill_call_notice(skill_meta.name)
     else:
         return ""
 

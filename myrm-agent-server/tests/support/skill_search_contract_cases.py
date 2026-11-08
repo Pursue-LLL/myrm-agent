@@ -122,8 +122,6 @@ _AUTHORED_MIXED_ROWS: tuple[tuple[str, str, str], ...] = (
 
 _BLIND_EXPECTED: dict[str, tuple[str, ...]] = {
     "ast": ("ast-grep-search", "ast-grep-structural-search"),
-    "notion": ("notion-workspace",),
-    "linear": ("linear-project",),
     "blender": ("blender-mcp",),
     "readlater": ("read-it-later",),
     "secscan": ("security-diff-scan", "security-fix-finding"),
@@ -148,8 +146,6 @@ _BLIND_EN_ROWS: tuple[tuple[str, str, str], ...] = (
         "find all places where this API is called regardless of formatting and change them all",
         "structural code search refactor",
     ),
-    ("notion", "put my meeting notes into Notion", "Notion pages database"),
-    ("linear", "open a ticket for this bug on Linear", "Linear issues tasks tracking"),
     ("blender", "make a low poly spaceship in Blender", "Blender 3D model render"),
     ("readlater", "pull in the articles I saved in Pocket and summarize them", "read later saved articles knowledge base"),
     ("secscan", "is my pull request safe, any vulnerabilities in the diff", "security vulnerability scan code fix"),
@@ -170,8 +166,6 @@ _BLIND_EN_ROWS: tuple[tuple[str, str, str], ...] = (
 
 _BLIND_MIXED_ROWS: tuple[tuple[str, str, str], ...] = (
     ("ast", "找出所有调用这个接口的地方，不管代码怎么排版，然后统一改掉", "代码结构搜索/structural code search refactor"),
-    ("notion", "把会议笔记存进 Notion", "Notion/Notion pages database"),
-    ("linear", "在 Linear 上给这个 bug 开个工单", "Linear 任务/Linear issues tasks tracking"),
     ("blender", "用 Blender 做一个低多边形飞船", "Blender 建模/Blender 3D model render"),
     ("readlater", "把我在 Pocket 里存的文章拉下来总结一下", "稍后阅读/read later saved articles knowledge base"),
     ("secscan", "我这个 PR 安全吗？改动里有没有漏洞", "安全漏洞/security vulnerability scan code fix"),

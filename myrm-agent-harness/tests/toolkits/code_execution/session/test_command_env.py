@@ -116,6 +116,45 @@ class TestStickyEnv:
         assert await _read(session, "ORG") == _hex("kept")
 
 
+@needs_bash
+class TestCommandDirectory:
+    """``CommandEnv.cwd`` is where one command starts; the shell itself stays where it was."""
+
+    async def test_command_starts_in_its_directory_and_the_shell_stays_put(
+        self, session: LocalPersistentSession, tmp_path: Path
+    ) -> None:
+        skill = tmp_path / "it's a dir" / "skill"
+        skill.mkdir(parents=True)
+
+        inside = await session.execute("pwd -P", env=CommandEnv(cwd=str(skill)))
+        after = await session.execute("pwd -P")
+
+        assert inside.stdout.strip() == str(skill.resolve())
+        assert after.stdout.strip() == str(tmp_path.resolve())
+
+    async def test_command_whose_directory_cannot_be_entered_does_not_run(
+        self, session: LocalPersistentSession, tmp_path: Path
+    ) -> None:
+        result = await session.execute("echo RAN", env=CommandEnv(cwd=str(tmp_path / "missing")))
+
+        assert not result.success
+        assert "RAN" not in result.stdout
+
+    async def test_directory_replaced_since_the_shell_last_used_it_is_entered_by_path(
+        self, session: LocalPersistentSession, tmp_path: Path
+    ) -> None:
+        skill = tmp_path / "skill"
+        skill.mkdir()
+        await session.execute("pwd", env=CommandEnv(cwd=str(skill)))
+        skill.rename(tmp_path / "moved")
+        skill.mkdir()
+        (skill / "fresh.txt").write_text("x")
+
+        result = await session.execute("ls", env=CommandEnv(cwd=str(skill)))
+
+        assert result.stdout.strip() == "fresh.txt"
+
+
 class TestWrappedCommand:
     def test_without_env_the_wrapper_is_unchanged(self) -> None:
         flavor = BashFlavor()
@@ -154,6 +193,19 @@ class TestWrappedCommand:
         assert lines[0] == "set TOKEN_A=t"
         assert lines[1] == "dir"
         assert lines[-1] == "set TOKEN_A="
+
+    def test_bash_enters_the_directory_in_a_subshell_inside_the_block(self) -> None:
+        wrapped = BashFlavor().build_wrapped_command("echo hi", "EX", "END", "$?", CommandEnv(cwd="/w/a b"))
+
+        lines = wrapped.splitlines()
+        block = lines[lines.index("{") + 1 : lines.index("}")]
+        assert block == ["( cd -- '/w/a b' && {", "echo hi", "} )", "__myrm_rc__=$?"]
+
+    @pytest.mark.parametrize("flavor", [PowerShellFlavor(), WindowsFlavor()])
+    def test_windows_drivers_start_a_command_where_their_shell_is(self, flavor: ShellFlavor) -> None:
+        without = flavor.build_wrapped_command("echo hi", "EX", "END", "$?")
+
+        assert flavor.build_wrapped_command("echo hi", "EX", "END", "$?", CommandEnv(cwd="C:\\w")) == without
 
     def test_powershell_value_is_always_a_quoted_literal(self) -> None:
         flavor = PowerShellFlavor()

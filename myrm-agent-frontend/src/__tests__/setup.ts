@@ -97,6 +97,9 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.hasPointerCapture
 // 每个测试后自动清理
 afterEach(() => {
   cleanup();
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.style.pointerEvents = '';
+  }
   try {
     vi.clearAllTimers();
   } catch {

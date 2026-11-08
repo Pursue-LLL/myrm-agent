@@ -25,12 +25,12 @@ from app.core.skills.store.user_config import UserSkillConfigManager
 from app.core.storage.paths import get_skill_file_path, get_skill_metadata_path
 from app.core.storage.types import SkillType
 
-NOTION = "notion-workspace"
+MAIL = "imap-smtp-email"
+MAIL_KEYS = ["EMAIL_IMAP_HOST", "EMAIL_IMAP_USER", "EMAIL_IMAP_PASSWORD"]
+EDITED_KEYS = ["MY_MAIL_HOST", *MAIL_KEYS[1:]]
 EMPTY_REQUIRES = {"bins": [], "env": [], "config": []}
 ENV_GATED_SEEDS = {
-    NOTION: SkillRequires(env=["NOTION_API_KEY"]),
-    "linear-project": SkillRequires(env=["LINEAR_API_KEY"]),
-    "imap-smtp-email": SkillRequires(env=["EMAIL_IMAP_HOST", "EMAIL_IMAP_USER", "EMAIL_IMAP_PASSWORD"]),
+    MAIL: SkillRequires(env=MAIL_KEYS),
     "xurl": SkillRequires(bins=["xurl"]),
 }
 
@@ -46,7 +46,8 @@ def _fresh_prebuilt_sync() -> Iterator[None]:
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalStorageBackend:
     backend = LocalStorageBackend(str(tmp_path))
     monkeypatch.setattr("app.core.skills.gates.requirements_availability.get_storage_provider", lambda: backend)
-    monkeypatch.delenv("NOTION_API_KEY", raising=False)
+    for key in MAIL_KEYS:
+        monkeypatch.delenv(key, raising=False)
     return backend
 
 
@@ -119,19 +120,19 @@ async def test_catalog_availability_follows_saved_keys_like_runtime(storage: Loc
     await prebuilt_sync.sync_prebuilt_seeds(storage)
 
     async def verdicts() -> tuple[bool, bool]:
-        skill = (await _catalog(storage))[NOTION]
+        skill = (await _catalog(storage))[MAIL]
         await apply_requirements_availability_to_catalog([skill])
         wrapped = wrap_integration_oauth_backend(
             StorageSkillBackend(storage=storage, skills_prefix="skills/prebuilt", default_trust=SkillTrust.TRUSTED)
         )
-        runtime = {m.storage_skill_id: m for m in await wrapped.list_skills()}[NOTION]
+        runtime = {m.storage_skill_id: m for m in await wrapped.list_skills()}[MAIL]
         return skill.available, runtime.available
 
     assert await verdicts() == (False, False)
 
     manager = UserSkillConfigManager(storage)
     config = await manager.get_config()
-    config.skill_env_vars = {NOTION: {"NOTION_API_KEY": "secret"}}
+    config.skill_env_vars = {MAIL: dict.fromkeys(MAIL_KEYS, "secret")}
     await manager.save_config(config)
 
     assert await verdicts() == (True, True)
@@ -140,27 +141,27 @@ async def test_catalog_availability_follows_saved_keys_like_runtime(storage: Loc
 @pytest.mark.asyncio
 async def test_resync_repairs_snapshots_written_without_requires(storage: LocalStorageBackend) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    pristine = await _read_metadata(storage, NOTION)
-    await _write_metadata(storage, NOTION, {**pristine, "requires": EMPTY_REQUIRES})
+    pristine = await _read_metadata(storage, MAIL)
+    await _write_metadata(storage, MAIL, {**pristine, "requires": EMPTY_REQUIRES})
 
     await _sync_again(storage)
 
-    assert await _read_metadata(storage, NOTION) == pristine
+    assert await _read_metadata(storage, MAIL) == pristine
 
 
 @pytest.mark.asyncio
 async def test_resync_repairs_user_modified_copy_from_its_own_skill_md(storage: LocalStorageBackend) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    pristine = await _read_metadata(storage, NOTION)
-    skill_md_path = get_skill_file_path(SkillType.PREBUILT, NOTION, "SKILL.md")
-    edited = (await storage.read_text(skill_md_path)).replace("NOTION_API_KEY", "MY_NOTION_TOKEN")
+    pristine = await _read_metadata(storage, MAIL)
+    skill_md_path = get_skill_file_path(SkillType.PREBUILT, MAIL, "SKILL.md")
+    edited = (await storage.read_text(skill_md_path)).replace(MAIL_KEYS[0], EDITED_KEYS[0])
     await storage.write_text(skill_md_path, edited)
-    await _write_metadata(storage, NOTION, {**pristine, "requires": EMPTY_REQUIRES})
+    await _write_metadata(storage, MAIL, {**pristine, "requires": EMPTY_REQUIRES})
 
     await _sync_again(storage)
 
-    repaired = await _read_metadata(storage, NOTION)
-    assert repaired["requires"] == {"bins": [], "env": ["MY_NOTION_TOKEN"], "config": []}
+    repaired = await _read_metadata(storage, MAIL)
+    assert repaired["requires"] == {"bins": [], "env": EDITED_KEYS, "config": []}
     assert repaired["origin_hash"] == pristine["origin_hash"]
     assert repaired["has_upstream_update"] is False
     assert await storage.read_text(skill_md_path) == edited
@@ -171,54 +172,54 @@ async def test_snapshot_rewritten_for_upstream_update_still_reflects_the_user_co
     storage: LocalStorageBackend,
 ) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    pristine = await _read_metadata(storage, NOTION)
-    skill_md_path = get_skill_file_path(SkillType.PREBUILT, NOTION, "SKILL.md")
-    await storage.write_text(skill_md_path, (await storage.read_text(skill_md_path)).replace("NOTION_API_KEY", "MY_NOTION_TOKEN"))
+    pristine = await _read_metadata(storage, MAIL)
+    skill_md_path = get_skill_file_path(SkillType.PREBUILT, MAIL, "SKILL.md")
+    await storage.write_text(skill_md_path, (await storage.read_text(skill_md_path)).replace(MAIL_KEYS[0], EDITED_KEYS[0]))
     # An older bundled version was the baseline, so the sync flags an upstream update and rewrites the snapshot.
-    await _write_metadata(storage, NOTION, {**pristine, "origin_hash": "0" * 64, "requires": EMPTY_REQUIRES})
+    await _write_metadata(storage, MAIL, {**pristine, "origin_hash": "0" * 64, "requires": EMPTY_REQUIRES})
 
     await _sync_again(storage)
 
-    rewritten = await _read_metadata(storage, NOTION)
+    rewritten = await _read_metadata(storage, MAIL)
     assert rewritten["has_upstream_update"] is True
     assert rewritten["origin_hash"] == "0" * 64
-    assert rewritten["requires"] == {"bins": [], "env": ["MY_NOTION_TOKEN"], "config": []}
+    assert rewritten["requires"] == {"bins": [], "env": EDITED_KEYS, "config": []}
 
 
 @pytest.mark.asyncio
 async def test_baseline_migration_of_a_user_copy_keeps_the_copy_requirements(storage: LocalStorageBackend) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    pristine = await _read_metadata(storage, NOTION)
-    skill_md_path = get_skill_file_path(SkillType.PREBUILT, NOTION, "SKILL.md")
-    await storage.write_text(skill_md_path, (await storage.read_text(skill_md_path)).replace("NOTION_API_KEY", "MY_NOTION_TOKEN"))
+    pristine = await _read_metadata(storage, MAIL)
+    skill_md_path = get_skill_file_path(SkillType.PREBUILT, MAIL, "SKILL.md")
+    await storage.write_text(skill_md_path, (await storage.read_text(skill_md_path)).replace(MAIL_KEYS[0], EDITED_KEYS[0]))
     legacy = {key: value for key, value in pristine.items() if key != "origin_hash"}
-    await _write_metadata(storage, NOTION, {**legacy, "requires": EMPTY_REQUIRES})
+    await _write_metadata(storage, MAIL, {**legacy, "requires": EMPTY_REQUIRES})
 
     await _sync_again(storage)
 
-    migrated = await _read_metadata(storage, NOTION)
+    migrated = await _read_metadata(storage, MAIL)
     assert migrated["has_upstream_update"] is True
-    assert migrated["requires"] == {"bins": [], "env": ["MY_NOTION_TOKEN"], "config": []}
+    assert migrated["requires"] == {"bins": [], "env": EDITED_KEYS, "config": []}
 
 
 @pytest.mark.asyncio
 async def test_resync_leaves_snapshot_alone_when_user_copy_is_unparsable(storage: LocalStorageBackend) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    pristine = await _read_metadata(storage, NOTION)
+    pristine = await _read_metadata(storage, MAIL)
     stale = {**pristine, "requires": EMPTY_REQUIRES}
-    await _write_metadata(storage, NOTION, stale)
-    await storage.write_text(get_skill_file_path(SkillType.PREBUILT, NOTION, "SKILL.md"), "no frontmatter at all")
+    await _write_metadata(storage, MAIL, stale)
+    await storage.write_text(get_skill_file_path(SkillType.PREBUILT, MAIL, "SKILL.md"), "no frontmatter at all")
 
     await _sync_again(storage)
 
-    assert await _read_metadata(storage, NOTION) == stale
+    assert await _read_metadata(storage, MAIL) == stale
 
 
 @pytest.mark.asyncio
 async def test_resync_does_not_rewrite_current_snapshots(storage: LocalStorageBackend) -> None:
     await prebuilt_sync.sync_prebuilt_seeds(storage)
     before = {skill_id: await _read_metadata(storage, skill_id) for skill_id in await _catalog(storage)}
-    metadata_path = Path(storage.base_path) / get_skill_metadata_path(SkillType.PREBUILT, NOTION)
+    metadata_path = Path(storage.base_path) / get_skill_metadata_path(SkillType.PREBUILT, MAIL)
     mtime = metadata_path.stat().st_mtime_ns
 
     await _sync_again(storage)

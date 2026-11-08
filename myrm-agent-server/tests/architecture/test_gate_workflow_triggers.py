@@ -4,6 +4,8 @@
 - .github/workflows/server-architecture.yml: the filters under its push and pull_request triggers
 - .github/workflows/desktop-contracts.yml: the filters under its push and pull_request triggers
 - .github/workflows/public-tree-guards.yml: the filters under its push and pull_request triggers
+- tests.support.desktop_release::WORKFLOWS (POS: the repository locations and workflow reads that the desktop contract
+  tests and the gate guards share)
 
 [OUTPUT]
 - that neither trigger of any of the three workflows takes a `paths` or `paths-ignore` filter

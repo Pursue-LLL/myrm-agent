@@ -4,6 +4,7 @@
 - pool.config::HumanizeConfig (POS: interaction humanization config)
 - session.humanize::bezier_move, click_delay, type_delay (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
+- wait::settle_after_action (POS: the wait an interaction ends with: the requests the action started, within a cap)
 
 [OUTPUT]
 - CoordInteractMixin: coordinate-based interaction manager — click/dblclick/type/
@@ -21,15 +22,13 @@ to visible elements.
 from __future__ import annotations
 
 import asyncio
-import logging
 
 from myrm_agent_harness.toolkits.browser.session.humanize import (
     bezier_move,
     click_delay,
     type_delay,
 )
-
-logger = logging.getLogger(__name__)
+from myrm_agent_harness.toolkits.browser.wait import settle_after_action
 
 
 class CoordInteractMixin:
@@ -76,17 +75,6 @@ class CoordInteractMixin:
                 "Use coordinates within the visible viewport area."
             )
 
-        from myrm_agent_harness.toolkits.browser.wait import (
-            WaitStrategy,
-            wait_for_page_ready,
-        )
-
-        async def _wait_after() -> None:
-            try:
-                await wait_for_page_ready(self._page, strategy=WaitStrategy.SPA_STABLE, max_ms=3000)
-            except Exception as exc:
-                logger.debug("Interactor: post-coord-action SPA wait failed: %s", exc)
-
         if action == "click":
             if self._humanize.enable_bezier_mouse:
                 await bezier_move(self._page, self._mouse_x, self._mouse_y, x, y, self._humanize)
@@ -97,13 +85,13 @@ class CoordInteractMixin:
             await asyncio.sleep(delay_ms / 1000.0)
             await self._page.mouse.up()
             self._mouse_x, self._mouse_y = x, y
-            await _wait_after()
+            await settle_after_action(self._page)
             return f"Clicked at ({x}, {y})"
 
         if action == "dblclick":
             await self._page.mouse.dblclick(x, y)
             self._mouse_x, self._mouse_y = x, y
-            await _wait_after()
+            await settle_after_action(self._page)
             return f"Double-clicked at ({x}, {y})"
 
         if action == "type":
@@ -117,7 +105,7 @@ class CoordInteractMixin:
             self._mouse_x, self._mouse_y = x, y
             delay_per_char = type_delay(self._humanize)
             await self._page.keyboard.type(text, delay=delay_per_char)
-            await _wait_after()
+            await settle_after_action(self._page)
             return f"Typed '{text}' at ({x}, {y})"
 
         if action == "press":
@@ -126,7 +114,7 @@ class CoordInteractMixin:
             await self._page.mouse.click(x, y)
             self._mouse_x, self._mouse_y = x, y
             await self._page.keyboard.press(text)
-            await _wait_after()
+            await settle_after_action(self._page)
             return f"Pressed '{text}' at ({x}, {y})"
 
         if action == "hover":
@@ -164,7 +152,7 @@ class CoordInteractMixin:
                 await self._page.mouse.move(target_x, target_y, steps=10)
             await self._page.mouse.up()
             self._mouse_x, self._mouse_y = target_x, target_y
-            await _wait_after()
+            await settle_after_action(self._page)
             return f"Dragged from ({x}, {y}) to ({target_x}, {target_y})"
 
         return f"Unknown coordinate action: {action}"

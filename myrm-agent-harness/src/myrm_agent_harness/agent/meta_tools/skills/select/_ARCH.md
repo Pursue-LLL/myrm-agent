@@ -44,7 +44,7 @@ Bound skills → resolve_catalog_display_skills() → get_metadata_summary()
 |------|------|-------------|-------|
 | __init__.py | Package | Skill selection tool module + `get_skill_document` export. | — |
 | skill_select_tool.py | Core | Static-description skill selection meta-tool; invoke handler resolves each written name with `resolve_skill_reference` and loads the SOP. | ✅ |
-| skill_document_loader.py | Core | SOP load pipeline, L2 file read, reload summaries, L1 footer orchestration. A dynamic command in a skill document (a backticked command after `!`) runs with a 10 s deadline, its output read through `communicate_bounded` (5 MiB per pipe, then cut to 2000 characters in the document), and the command, started in its own process group, is killed together with everything it started at the deadline or when the run is cancelled. | ✅ |
+| skill_document_loader.py | Core | SOP load pipeline, L2 file read, reload summaries, L1 footer orchestration. A stored skill's document carries `skill_call_notice` under its title (call a script by its full `.claude/skills/<name>/…` path as one plain command; what a plain call is lives in `agent/skills/runtime/skill_invocation.py`). A dynamic command in a skill document (a backticked command after `!`) runs with a 10 s deadline, its output read through `communicate_bounded` (5 MiB per pipe, then cut to 2000 characters in the document), and the command, started in its own process group, is killed together with everything it started at the deadline or when the run is cancelled. | ✅ |
 | l1_disclosure_footer.py | Core | L1 linked-files index + config block footer for `get_skill_document`. | ✅ |
 
 ## Key Dependencies

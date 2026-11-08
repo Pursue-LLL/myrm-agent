@@ -57,10 +57,15 @@ class CommandEnv:
     credential between commands and a later command is not handed what an earlier one was granted. All commands of a
     conversation share the shell: this limits what is delivered, it does not contain a command that tampers with the
     shell itself (a ``trap``, a function) and so observes what later commands are granted.
+
+    ``cwd`` is the directory the command starts in, whichever directory the shell is in; the shell stays where it
+    was. A command whose directory cannot be entered does not run. Only the POSIX shell driver applies it: the
+    Windows drivers start every command where their shell is.
     """
 
     sticky: Mapping[str, str] = field(default_factory=dict)
     scoped: Mapping[str, str] = field(default_factory=dict)
+    cwd: str | None = None
 
 
 @dataclass

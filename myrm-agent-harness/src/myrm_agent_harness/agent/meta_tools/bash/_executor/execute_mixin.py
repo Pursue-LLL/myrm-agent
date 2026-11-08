@@ -5,6 +5,7 @@
 - .._compression.output_eviction::maybe_evict_large_output (POS: Provides maybe_evict_large_output and EvictionResult for stdout/stderr large-output persistence)
 - .mcp_citation_handler::MCPMetadataExtractor (POS: MCP citation handler)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
+- agent.skills.runtime.skill_invocation::plain_skill_call, settings_withheld_note (POS: whether a command is a plain call of one skill, and the note for a command that was not given the skill's settings)
 
 [OUTPUT]
 - BashExecutorExecuteMixin.execute
@@ -23,6 +24,7 @@ from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
+from myrm_agent_harness.agent.skills.runtime.skill_invocation import plain_skill_call, settings_withheld_note
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,19 @@ class BashExecutorExecuteMixin:
 
             detected_skill_name = self._detect_skill_from_code(prepared_code)
 
+            # A bash command gets the skill's saved settings only as a plain call of that skill's own script, run
+            # from files restored to what shipped: naming the skill path is not enough, the agent writes both the
+            # command and the workspace copy (see ``plain_skill_call``).
+            saved_settings: dict[str, str] | None = None
+            if detected_skill_name and self._skill_env_map:
+                saved_settings = self._skill_env_map.get(detected_skill_name) or None
+            restore_skill = (
+                saved_settings is not None
+                and not use_python_execution
+                and plain_skill_call(command) == detected_skill_name
+            )
+            deliver_settings = saved_settings is not None and (use_python_execution or restore_skill)
+
             workspace_skill_paths: list[str] = []
             used_skill_paths: list[str] = []
 
@@ -103,7 +118,7 @@ class BashExecutorExecuteMixin:
 
                 if used_skill_paths:
                     workspace_skill_paths = await self._skill_manager.ensure_skills_in_workspace(
-                        workspace, used_skill_paths
+                        workspace, used_skill_paths, pristine=restore_skill
                     )
                     logger.info(f" Copying detected skill only: {detected_skill_name}")
 
@@ -122,9 +137,9 @@ class BashExecutorExecuteMixin:
                 if detected_skill_name:
                     working_dir = f"/workspace/.claude/skills/{detected_skill_name}"
 
-            resolved_skill_env: dict[str, str] | None = None
-            if detected_skill_name and self._skill_env_map:
-                resolved_skill_env = self._skill_env_map.get(detected_skill_name)
+            if restore_skill and not workspace_skill_paths:
+                deliver_settings = False
+            settings_withheld = saved_settings is not None and not deliver_settings
 
             timeout = self._maybe_extend_timeout_for_mcp(mcp_config_items, timeout)
 
@@ -143,7 +158,7 @@ class BashExecutorExecuteMixin:
                 env_paths=env_paths,
                 working_dir=working_dir,
                 skill_names=skill_names if skill_names else None,
-                skill_env=resolved_skill_env,
+                skill_env=saved_settings if deliver_settings else None,
                 timeout=timeout,
             )
 
@@ -169,6 +184,8 @@ class BashExecutorExecuteMixin:
             stdout_eviction = await maybe_evict_large_output(failed_stdout, self._executor)
             stderr_eviction = await maybe_evict_large_output(result.stderr or "", self._executor)
             message = self._build_error_details(result)
+            if settings_withheld and detected_skill_name:
+                message = f"{message}\n\n{settings_withheld_note(detected_skill_name)}"
             if completed_calls:
                 message = f"{message}\n\n{completed_calls}"
             # stdout is symmetric with stderr: small output goes verbatim so the

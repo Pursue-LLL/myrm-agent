@@ -14,6 +14,7 @@ Skill Workspace Manager
 """
 
 import logging
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,7 +31,7 @@ class SkillWorkspaceManager:
     Responsibilities:
     - Copy skills from storage to workspace on demand
     - Cache copied skill paths
-    - Validate skill file integrity
+    - Restore a skill to its shipped files before its settings are handed to it
     """
 
     def __init__(self, workspace_service: "WorkspaceService | None" = None) -> None:
@@ -49,12 +50,17 @@ class SkillWorkspaceManager:
             )
         return self._workspace_service
 
-    async def ensure_skills_in_workspace(self, workspace: "Workspace", skill_storage_paths: list[str]) -> list[str]:
+    async def ensure_skills_in_workspace(
+        self, workspace: "Workspace", skill_storage_paths: list[str], *, pristine: bool = False
+    ) -> list[str]:
         """Ensure skill files exist in the workspace, copying on demand.
 
         Args:
             workspace: Current workspace.
             skill_storage_paths: Absolute paths to skills in storage.
+            pristine: Replace each workspace copy with the stored files, so what runs is exactly what shipped:
+                the agent can write to the workspace, and a skill's settings must not reach code it edited or
+                a file it added beside it. A skill whose copy cannot be replaced is left out of the result.
 
         Returns:
             List of skill paths within the workspace.
@@ -77,6 +83,10 @@ class SkillWorkspaceManager:
                 continue
 
             skill_name = Path(skill_storage_path).name
+
+            if pristine and not self._remove_workspace_copy(workspace.id, workspace_abs_path, skill_name):
+                failed_skills.append(skill_name)
+                continue
 
             workspace_skill_path = await self._get_skill_path(
                 workspace=workspace, workspace_abs_path=workspace_abs_path, skill_name=skill_name
@@ -102,6 +112,28 @@ class SkillWorkspaceManager:
             logger.warning("Failed to copy skills: %s", ", ".join(failed_skills))
 
         return workspace_skill_paths
+
+    def _remove_workspace_copy(self, workspace_id: str, workspace_abs_path: Path, skill_name: str) -> bool:
+        """Delete the workspace copy of a skill; False when that cannot be done without leaving the workspace.
+
+        A link standing in for ``.claude`` or ``skills`` would send the deletion and the copy that follows to the
+        link's target, so such a workspace is refused.
+        """
+        self._skills_cache[workspace_id].pop(skill_name, None)
+        skills_root = workspace_abs_path / ".claude" / "skills"
+        skill_dir = skills_root / skill_name
+        try:
+            if skills_root.parent.is_symlink() or skills_root.is_symlink():
+                logger.warning("Skill directory chain is a link, skill not restored: %s", skill_name)
+                return False
+            if skill_dir.is_dir() and not skill_dir.is_symlink():
+                shutil.rmtree(skill_dir)
+            elif skill_dir.is_symlink() or skill_dir.exists():
+                skill_dir.unlink()
+        except OSError as e:
+            logger.warning("Failed to remove workspace copy of skill %s: %s", skill_name, e)
+            return False
+        return True
 
     async def _get_skill_path(self, workspace: "Workspace", workspace_abs_path: Path, skill_name: str) -> str | None:
         """Get skill path from cache or filesystem."""

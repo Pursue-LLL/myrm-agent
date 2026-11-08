@@ -1,16 +1,21 @@
-"""Behaviour of the gate-membership hook and the workflows that run the files it leaves out.
+"""Behaviour of the gate-membership hook and the workflow commands that name the files it leaves out.
 
 [INPUT]
-- tests/architecture/conftest.py: the `pytest_itemcollected` hook and the `RUN_BY_OTHER_WORKFLOWS` names it leaves out
-- .github/workflows/*.yml: the `run` command of every step, read through tests/support/desktop_release.py
+- tests.architecture.conftest::pytest_itemcollected (POS: the directory decides what the gate runs; files directly in
+  it that another workflow runs by path stay with that workflow)
+- tests.support.desktop_release::workflow_jobs (POS: the repository locations and workflow reads that the desktop
+  contract tests and the gate guards share)
+- .github/workflows/*.yml: the `run` command of every step
 
 [OUTPUT]
-- that the hook marks every file except the ones named in `RUN_BY_OTHER_WORKFLOWS`, and that a workflow command runs each of those
+- that the hook marks every file except the ones named in `RUN_BY_OTHER_WORKFLOWS` that sit directly in this directory,
+  and that a workflow command names each of those
 
 [POS]
-The hook is the one place that can drop a test from the gate, and a file left out of the gate is safe only while a workflow
-still runs it, so this file pins both instead of trusting them. Its tests carry their own mark, so a broken hook cannot
-deselect them as well.
+The hook is the one place that can drop a test from the gate, and a file left out of the gate is safe only while a
+workflow still runs it, so this file pins both instead of trusting them; the second pin covers the name in the
+workflow's command, not the run, which an `if:` or a pytest option can still switch off. Its tests carry their own
+mark, so a broken hook cannot deselect them as well.
 """
 
 from __future__ import annotations
@@ -56,7 +61,8 @@ def _workflow_commands() -> list[str]:
     return commands
 
 
-# The two `_extra` names are not real files; they pin that a longer name is not taken for a file another workflow runs.
+# The two `_extra` names and the nested name are not real files; they pin that a longer name, or the same name in a
+# subdirectory, is not taken for a file another workflow runs.
 @pytest.mark.architecture
 @pytest.mark.parametrize(
     ("file_name", "joins_gate"),
@@ -64,6 +70,7 @@ def _workflow_commands() -> list[str]:
         ("test_gate_workflow_triggers.py", True),
         ("test_no_credential_literals_extra.py", True),
         ("test_no_private_references_extra.py", True),
+        ("desktop/test_desktop_nested.py", True),
         ("test_desktop_release_gates.py", False),
         ("test_no_credential_literals.py", False),
         ("test_no_private_references.py", False),
@@ -79,7 +86,7 @@ def test_the_hook_marks_every_file_except_those_another_workflow_runs(file_name:
 
 @pytest.mark.architecture
 @pytest.mark.parametrize("name", _load_conftest().RUN_BY_OTHER_WORKFLOWS)
-def test_a_workflow_runs_every_file_the_hook_leaves_out(name: str) -> None:
+def test_a_workflow_command_names_every_file_the_hook_leaves_out(name: str) -> None:
     pattern = f"{name}py" if name.endswith(".") else f"{name}*.py"
 
-    assert any(pattern in command for command in _workflow_commands()), f"no workflow command runs {pattern}"
+    assert any(pattern in command for command in _workflow_commands()), f"no workflow command names {pattern}"

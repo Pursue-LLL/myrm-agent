@@ -113,6 +113,7 @@ class BashExecutorContextMixin:
             original_code=original_code,
             session_id=session_id,
             work_dir=work_dir,
+            enter_work_dir=bool(working_dir),
             workspace_root=workspace_root,
             active_skills=skill_names,
             allowed_credential_issuers=self._resolve_allowed_credential_issuers(skill_names),

@@ -30,6 +30,7 @@ from app.core.skills.store.service import SkillsService
 from app.core.storage.types import SkillType
 
 _CATALOG_BUDGET = "myrm_agent_harness.agent.skills.runtime.catalog_display.L1_CATALOG_MAX_TOKENS"
+_IMAP_KEYS = ("EMAIL_IMAP_HOST", "EMAIL_IMAP_USER", "EMAIL_IMAP_PASSWORD")
 _LOCAL_SKILL_MD = "---\nname: probe-local\ndescription: A local probe skill\n---\n# probe-local\n\nLocal SOP body.\n"
 
 SkillConfigs = dict[str, dict[str, object]]
@@ -211,13 +212,14 @@ async def test_build_catalog_preview_counts_a_local_skill_beside_prebuilt_ones(
 async def test_build_catalog_preview_counts_skill_whose_keys_are_saved_in_settings(
     monkeypatch: pytest.MonkeyPatch, service: SkillsService
 ) -> None:
-    monkeypatch.delenv("LINEAR_API_KEY", raising=False)
+    for key in _IMAP_KEYS:
+        monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(
         "app.core.skills.gates.requirements_availability._load_skill_env_vars",
-        AsyncMock(return_value={"linear-project": {"LINEAR_API_KEY": "secret"}}),
+        AsyncMock(return_value={"imap-smtp-email": dict.fromkeys(_IMAP_KEYS, "configured")}),
     )
 
-    preview = await _build_catalog_preview(["linear-project"], _configs(["linear-project"], is_core=True))
+    preview = await _build_catalog_preview(["imap-smtp-email"], _configs(["imap-smtp-email"], is_core=True))
 
     assert preview["inline_count"] == 1
 
@@ -226,13 +228,14 @@ async def test_build_catalog_preview_counts_skill_whose_keys_are_saved_in_settin
 async def test_build_catalog_preview_omits_skill_whose_keys_are_missing(
     monkeypatch: pytest.MonkeyPatch, service: SkillsService
 ) -> None:
-    monkeypatch.delenv("LINEAR_API_KEY", raising=False)
+    for key in _IMAP_KEYS:
+        monkeypatch.delenv(key, raising=False)
     monkeypatch.setattr(
         "app.core.skills.gates.requirements_availability._load_skill_env_vars",
         AsyncMock(return_value={}),
     )
 
-    preview = await _build_catalog_preview(["linear-project"], _configs(["linear-project"], is_core=True))
+    preview = await _build_catalog_preview(["imap-smtp-email"], _configs(["imap-smtp-email"], is_core=True))
 
     assert preview["inline_count"] == 0
 

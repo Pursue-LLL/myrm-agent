@@ -4,6 +4,7 @@
 [INPUT]
 - _types (POS: type definitions and statistics)
 - _impl (POS: strategy implementations)
+- _action_settle (POS: the wait an interaction ends with)
 - patchright.async_api::Page (POS: Patchright page instance)
 - time::perf_counter (POS: high-precision timer)
 - logging::getLogger (POS: Python logging)
@@ -13,6 +14,7 @@
 - WaitMetrics: wait metrics (full observability)
 - WaitStrategyStats: runtime statistics class (thread-safe)
 - wait_for_page_ready: page readiness detection entry point (default SMART strategy, auto-records stats)
+- settle_after_action: the wait an interaction ends with (the requests the action started, not page quiet)
 - get_wait_strategy_stats: retrieve global statistics
 - reset_wait_strategy_stats: reset statistics (for testing)
 
@@ -36,6 +38,7 @@ Module structure:
 - _types.py: type definitions (WaitStrategy/WaitMetrics/WaitStrategyStats) and runtime stats
 - _impl.py: 4 strategy implementations (networkidle/dom_stable/smart/hybrid)
 - _dom_stable_js.py: DOM stability detection JavaScript generator
+- _action_settle.py: the wait after an interaction (not a readiness strategy: it waits for what the action started)
 - __init__.py: public interface (this file)
 """
 
@@ -47,6 +50,7 @@ import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from ._action_settle import settle_after_action
 from ._impl import (
     _elapsed_ms_since,
     is_navigation_interrupt,
@@ -247,5 +251,6 @@ __all__ = [
     "WaitStrategyStats",
     "get_wait_strategy_stats",
     "reset_wait_strategy_stats",
+    "settle_after_action",
     "wait_for_page_ready",
 ]

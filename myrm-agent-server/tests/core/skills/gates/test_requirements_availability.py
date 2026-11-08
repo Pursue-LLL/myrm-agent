@@ -29,8 +29,8 @@ from app.core.skills.store.user_config import UserSkillConfigManager, lookup_ski
 from app.core.storage.types import SkillType
 
 PREBUILT_ASSETS = Path(__file__).resolve().parents[4] / "assets" / "prebuilt_skills"
-NOTION_KEY = "NOTION_API_KEY"
 IMAP_KEYS = ("EMAIL_IMAP_HOST", "EMAIL_IMAP_USER", "EMAIL_IMAP_PASSWORD")
+MISSING_IMAP_KEYS = ", ".join(f"ENV: {key}" for key in IMAP_KEYS)
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> LocalStorageBack
     """Temporary storage with the user-config reader pointed at it and no ambient keys."""
     backend = LocalStorageBackend(tmp_path)
     monkeypatch.setattr("app.core.skills.gates.requirements_availability.get_storage_provider", lambda: backend)
-    for key in (NOTION_KEY, *IMAP_KEYS):
+    for key in IMAP_KEYS:
         monkeypatch.delenv(key, raising=False)
     return backend
 
@@ -62,49 +62,51 @@ async def _wrapped_skills(backend: StorageSkillBackend) -> dict[str, SkillMetada
 
 
 async def test_env_saved_in_settings_makes_the_skill_available(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace", "github-workflow")
-    await _save_env(storage, {"notion-workspace": {NOTION_KEY: "secret_from_settings_ui"}})
+    backend = _install(storage, "imap-smtp-email", "github-workflow")
+    await _save_env(storage, {"imap-smtp-email": dict.fromkeys(IMAP_KEYS, "from_settings_ui")})
 
     skills = await _wrapped_skills(backend)
 
-    assert skills["notion-workspace"].available is True
-    assert skills["notion-workspace"].unavailable_reason is None
+    assert skills["imap-smtp-email"].available is True
+    assert skills["imap-smtp-email"].unavailable_reason is None
 
 
-async def test_missing_env_keeps_the_skill_unavailable_with_the_variable_named(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace")
+async def test_missing_env_keeps_the_skill_unavailable_with_the_variables_named(storage: LocalStorageBackend) -> None:
+    backend = _install(storage, "imap-smtp-email")
 
     skills = await _wrapped_skills(backend)
 
-    assert skills["notion-workspace"].available is False
-    assert skills["notion-workspace"].unavailable_reason == f"Missing: ENV: {NOTION_KEY}"
+    assert skills["imap-smtp-email"].available is False
+    assert skills["imap-smtp-email"].unavailable_reason == f"Missing: {MISSING_IMAP_KEYS}"
 
 
 async def test_blank_saved_value_does_not_count(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace")
-    await _save_env(storage, {"notion-workspace": {NOTION_KEY: "  "}})
+    backend = _install(storage, "imap-smtp-email")
+    await _save_env(storage, {"imap-smtp-email": {**dict.fromkeys(IMAP_KEYS, "configured"), IMAP_KEYS[2]: "  "}})
 
     skills = await _wrapped_skills(backend)
 
-    assert skills["notion-workspace"].available is False
+    assert skills["imap-smtp-email"].available is False
+    assert skills["imap-smtp-email"].unavailable_reason == f"Missing: ENV: {IMAP_KEYS[2]}"
 
 
 async def test_process_environment_alone_still_satisfies(storage: LocalStorageBackend, monkeypatch: pytest.MonkeyPatch) -> None:
-    backend = _install(storage, "notion-workspace")
-    monkeypatch.setenv(NOTION_KEY, "secret_from_process_env")
+    backend = _install(storage, "imap-smtp-email")
+    for key in IMAP_KEYS:
+        monkeypatch.setenv(key, "from_process_env")
 
     skills = await _wrapped_skills(backend)
 
-    assert skills["notion-workspace"].available is True
+    assert skills["imap-smtp-email"].available is True
 
 
 async def test_env_saved_for_another_skill_is_not_borrowed(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace")
-    await _save_env(storage, {"linear-project": {NOTION_KEY: "belongs_to_a_different_skill"}})
+    backend = _install(storage, "imap-smtp-email")
+    await _save_env(storage, {"github-workflow": dict.fromkeys(IMAP_KEYS, "belongs_to_a_different_skill")})
 
     skills = await _wrapped_skills(backend)
 
-    assert skills["notion-workspace"].available is False
+    assert skills["imap-smtp-email"].available is False
 
 
 async def test_every_declared_variable_is_required(storage: LocalStorageBackend) -> None:
@@ -156,11 +158,11 @@ async def test_unreadable_config_degrades_to_process_environment(
 
 
 async def test_catalog_cards_follow_the_same_verdict(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace")
-    await _save_env(storage, {"notion-workspace": {NOTION_KEY: "secret_from_settings_ui"}})
+    backend = _install(storage, "imap-smtp-email")
+    await _save_env(storage, {"imap-smtp-email": dict.fromkeys(IMAP_KEYS, "from_settings_ui")})
     meta = (await backend.list_skills())[0]
     assert meta.available is False, "the harness alone cannot see keys saved in settings"
-    card = Skill.from_metadata(meta, skill_id="notion-workspace", skill_type=SkillType.PREBUILT)
+    card = Skill.from_metadata(meta, skill_id="imap-smtp-email", skill_type=SkillType.PREBUILT)
 
     await apply_integration_oauth_availability([card], AsyncMock())
 
@@ -169,23 +171,23 @@ async def test_catalog_cards_follow_the_same_verdict(storage: LocalStorageBacken
 
 
 async def test_catalog_cards_are_downgraded_when_the_key_is_removed(storage: LocalStorageBackend) -> None:
-    backend = _install(storage, "notion-workspace")
+    backend = _install(storage, "imap-smtp-email")
     meta = (await backend.list_skills())[0]
-    card = Skill.from_metadata(meta, skill_id="notion-workspace", skill_type=SkillType.PREBUILT)
+    card = Skill.from_metadata(meta, skill_id="imap-smtp-email", skill_type=SkillType.PREBUILT)
     card.available = True
 
     await apply_requirements_availability_to_catalog([card])
 
     assert card.available is False
-    assert card.unavailable_reason == f"Missing: ENV: {NOTION_KEY}"
+    assert card.unavailable_reason == f"Missing: {MISSING_IMAP_KEYS}"
 
 
 class TestLookupSkillEnv:
     """The saved-env lookup shared by availability and runtime injection."""
 
     def test_display_name_wins_over_storage_id(self) -> None:
-        saved = {"notion-workspace": {"K": "by-name"}, "abc123": {"K": "by-id"}}
-        assert lookup_skill_env(saved, "notion-workspace", "abc123") == {"K": "by-name"}
+        saved = {"imap-smtp-email": {"K": "by-name"}, "abc123": {"K": "by-id"}}
+        assert lookup_skill_env(saved, "imap-smtp-email", "abc123") == {"K": "by-name"}
 
     def test_falls_back_to_storage_id(self) -> None:
         assert lookup_skill_env({"abc123": {"K": "by-id"}}, "My Skill", "abc123") == {"K": "by-id"}

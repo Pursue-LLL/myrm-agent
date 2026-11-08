@@ -52,7 +52,7 @@ bash/
 | `_executor/context_mixin.py` | Core | ExecutionContext 构建、OAuth issuer 作用域、事件日志。 |
 | `_executor/constants.py` | Internal | 共享常量（MCP 超时下限）。 |
 | `_executor/workspace_manager.py` | Core | 工作区薄委托（懒加载绑定存储根）。 |
-| `_executor/skill_workspace_manager.py` | Core | 技能文件 staging 路径解析。 |
+| `_executor/skill_workspace_manager.py` | Core | 技能文件 staging 路径解析与还原（`pristine=True`）。 |
 | `_executor/mcp_citation_handler.py` | Core | MCP Metadata Extractor。 |
 | `_executor/event_logging.py` | Internal | 命令执行事件日志（命令经 `core/security/redact` 的 `redact_command_line` 脱敏，输出经共享脱敏器，再分类；对齐 red team 回归防护）。 |
 | `_executor/error.py` | Core | 结构化 BashExecutionError，携带 stdout/stderr eviction 引用。 |

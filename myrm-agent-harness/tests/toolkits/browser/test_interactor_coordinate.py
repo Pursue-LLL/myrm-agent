@@ -9,7 +9,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.browser.session.interactor import Interactor
 
-_WAIT_PATCH = "myrm_agent_harness.toolkits.browser.wait.wait_for_page_ready"
+_WAIT_PATCH = "myrm_agent_harness.toolkits.browser.session.interactor_coord_mixin.settle_after_action"
 
 
 @pytest.fixture
@@ -395,9 +395,10 @@ async def test_interact_at_type_with_bezier(mock_page: Any) -> None:
 
 @pytest.mark.asyncio
 async def test_interact_at_spa_wait_failure_degrades(interactor: Interactor, mock_page: Any) -> None:
-    """A failing post-action SPA wait degrades silently (action still succeeds)."""
-    with patch(_WAIT_PATCH, side_effect=Exception("wait failed")):
-        result = await interactor.interact_at("click", 400, 300)
+    """A post-action wait that cannot probe the page degrades silently (action still succeeds)."""
+    mock_page.evaluate.side_effect = Exception("wait failed")
+
+    result = await interactor.interact_at("click", 400, 300)
 
     assert "Clicked at (400, 300)" in result
     mock_page.mouse.down.assert_awaited_once()

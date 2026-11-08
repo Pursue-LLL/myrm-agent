@@ -1,9 +1,9 @@
 /**
- * Progressive Web Enhancer - Injected via add_init_script
+ * Progressive Web Enhancer - delivered into every HTML document by enhancers/inject_route.py
  * Provides:
  * 1. Event Listener interception (Vanilla/Vue/jQuery)
  * 2. React Fiber DevTools hook interception
- * 3. SPA Routing/Network Activity interception
+ * 3. SPA Routing/Network Activity interception, with requests numbered and the start of each user gesture marked
  */
 
 (function() {
@@ -39,38 +39,61 @@
     };
 
     // --- 3. SPA Stability Tracking ---
+    // Tracked requests are numbered and kept in a set, so a waiter can tell the requests one user gesture started
+    // from the ones already in flight (wait/_action_settle.py reads this state).
     window.__myrm_spa_state = {
-        inflightRequests: 0,
+        pending: new Set(),
+        requestSeq: 0,
+        lastRequestEnd: -Infinity,
+        gestureSeq: 0,
+        gestureTime: -Infinity,
+        get inflightRequests() { return this.pending.size; },
         lastMutationTime: performance.now(),
         lastRouteTime: performance.now(),
         stable: false
     };
 
     // 3.1 Network Tracking (Fetch/XHR)
+    function trackRequest() {
+        const id = ++window.__myrm_spa_state.requestSeq;
+        window.__myrm_spa_state.pending.add(id);
+        window.__myrm_spa_state.stable = false;
+        return id;
+    }
+
+    function untrackRequest(id) {
+        window.__myrm_spa_state.pending.delete(id);
+        window.__myrm_spa_state.lastRequestEnd = performance.now();
+    }
+
+    // Ignore common noise/heartbeat/analytics requests: beacons and long-lived channels never settle. Whole path
+    // segments only, so /login, /logout and /tracking stay tracked.
+    const NOISE_SEGMENT = /\/(ping|heartbeat|analytics|metrics|track|log|ws|socket(\.io)?)(\/|$)/i;
+    function isNoise(url) {
+        try {
+            return NOISE_SEGMENT.test(new URL(url, location.href).pathname);
+        } catch (e) {
+            return false;
+        }
+    }
+
     const originalFetch = window.fetch;
     window.fetch = new Proxy(originalFetch, {
         apply: function(target, thisArg, argumentsList) {
             const url = argumentsList[0] instanceof Request ? argumentsList[0].url : String(argumentsList[0]);
-            // Ignore common noise/heartbeat/analytics requests
-            if (url.match(/\/(ping|heartbeat|analytics|metrics|track|log|ws|socket)/i)) {
+            if (isNoise(url)) {
                 return Reflect.apply(target, thisArg, argumentsList);
             }
-            window.__myrm_spa_state.inflightRequests++;
-            window.__myrm_spa_state.stable = false;
-            return Reflect.apply(target, thisArg, argumentsList).finally(() => {
-                window.__myrm_spa_state.inflightRequests = Math.max(0, window.__myrm_spa_state.inflightRequests - 1);
-            });
+            const id = trackRequest();
+            return Reflect.apply(target, thisArg, argumentsList).finally(() => untrackRequest(id));
         }
     });
 
     const originalXHR = window.XMLHttpRequest.prototype.send;
     window.XMLHttpRequest.prototype.send = new Proxy(originalXHR, {
         apply: function(target, thisArg, argumentsList) {
-            window.__myrm_spa_state.inflightRequests++;
-            window.__myrm_spa_state.stable = false;
-            thisArg.addEventListener('loadend', () => {
-                window.__myrm_spa_state.inflightRequests = Math.max(0, window.__myrm_spa_state.inflightRequests - 1);
-            });
+            const id = trackRequest();
+            thisArg.addEventListener('loadend', () => untrackRequest(id));
             return Reflect.apply(target, thisArg, argumentsList);
         }
     });
@@ -135,6 +158,22 @@
             window.__myrm_spa_state.stable = false;
         }
     }, 100);
+
+    // 3.5 Gesture Marking
+    // The input events of one user action arrive close together (a click is pointerdown..click, typing is a key per
+    // character). The requests it causes are the ones numbered after the first event of the burst.
+    const GESTURE_GAP_MS = 400;
+    const markGesture = () => {
+        const state = window.__myrm_spa_state;
+        const now = performance.now();
+        if (now - state.gestureTime > GESTURE_GAP_MS) {
+            state.gestureSeq = state.requestSeq;
+        }
+        state.gestureTime = now;
+    };
+    ['pointerdown', 'keydown', 'input', 'change', 'click'].forEach((type) => {
+        window.addEventListener(type, markGesture, { capture: true, passive: true });
+    });
 
     // --- 4. The Enhancer Execution (Called before snapshot) ---
     window.__myrm_enhance_dom = function() {

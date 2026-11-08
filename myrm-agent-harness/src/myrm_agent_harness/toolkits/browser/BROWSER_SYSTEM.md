@@ -587,11 +587,13 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 - **CDP 底层嗅探（兜底机制）**：无视前端框架，通过 Chrome DevTools Protocol 直接读取全局的事件监听器，100% 暴露出所有隐藏的无语义 `div` 按钮。
 - **免侵入提取**：动态附加 `data-myrm-react-interactive` 和 `role=button` 属性，让 Playwright ARIA 快照原生接管。
 
-**第二层：智能 SPA 混合观测器 (Smart SPA WaitStrategy)**
+**第二层：SPA 状态追踪与动作后等待**
 - **路由级**：拦截 `history.pushState` 捕获虚拟导航。
-- **网络级（智能降噪）**：自动过滤心跳、埋点分析和 WebSocket 长连接，仅统计有价值的 Fetch/XHR 数据请求 (In-flight requests == 0)。
+- **网络级（智能降噪）**：页面侧追踪器（`enhancers/dom_enhancer.js` 的 `window.__myrm_spa_state`）给每个 Fetch/XHR 编号并记录在途集合；fetch 的 URL 路径含心跳、埋点、WebSocket 等噪声段时不计入（按完整路径段匹配，`/login`、`/tracking` 照常统计），XHR 全部计入。
+- **手势标记**：捕获阶段监听 `pointerdown` / `keydown` / `input` / `change` / `click`，一次动作的第一个输入事件（距上一个输入事件超过 400 ms）记下此刻的请求序号。
 - **渲染级**：500ms MutationObserver 渲染防抖。
-**首选应用场景**：集成于 `WaitStrategy.SPA_STABLE`，作为所有交互动作（`click`, `type`等）之后的默认检测原语，消灭长连接导致的超时死锁。
+
+**动作之后等什么**：`click` / `dblclick` / `type` / `fill` / `fill_credential` / `press`（按 ref）和 `click` / `dblclick` / `type` / `press` / `drag`（按坐标）完成后，由 `wait/_action_settle.py::settle_after_action` 只等**这次动作自己发起**的 Fetch/XHR（序号大于手势标记）结束，再给页面一个绘制窗口：请求结束后页面 150 ms 内没有再变化即返回，页面持续变化时最多等到请求结束后 300 ms。整体上限 3 s，到点按页面当前状态返回，不算失败。动作发起前就已在途的请求（长轮询）、噪声请求、没有输入事件的动作都不等；文档里没有追踪器、或页面在等待中跳转时立即返回。页面加载后的就绪判定仍走 `wait_for_page_ready`，不在这里。
 
 ---
 
@@ -1140,8 +1142,9 @@ browser/
 │   ├── coordinator.py — CAPTCHA 协调状态机（asyncio.Event 暂停/恢复）
 │   └── manual_solver.py — 默认手动求解器（轮询检测 CAPTCHA 消失）
 ├── wait/
-│   ├── __init__.py — 门面（wait_for_page_ready + WaitStrategy/WaitMetrics + 全局统计）
+│   ├── __init__.py — 门面（wait_for_page_ready + settle_after_action + WaitStrategy/WaitMetrics + 全局统计）
 │   ├── _impl.py — 4 种策略实现（networkidle/dom_stable/smart/hybrid + spa_stable）
+│   ├── _action_settle.py — 动作之后的等待（只等动作自己发起的请求，上限 3 s）
 │   ├── _types.py — 类型定义与运行时统计（线程安全）
 │   └── _dom_stable_js.py — DOM 稳定性检测 JS 生成器（含 Shadow DOM）
 ├── tools/

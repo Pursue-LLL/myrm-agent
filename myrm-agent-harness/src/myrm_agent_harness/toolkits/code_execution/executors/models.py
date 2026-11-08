@@ -59,6 +59,12 @@ class ExecutionContext:
     args: list[str] | None = None
     session_id: str | None = None
     work_dir: str = "/workspace"
+    enter_work_dir: bool = False
+    """Start the command in ``work_dir`` whichever directory its shell is in, leaving the shell where it was.
+
+    Set for a skill command: its paths are relative to the skill's directory, and a shell that has served earlier
+    commands is not there.
+    """
     workspace_root: str | None = None
     active_skills: list[str] | None = None
     allowed_credential_issuers: list[str] | None = None

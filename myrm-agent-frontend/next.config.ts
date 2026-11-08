@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
-import type { withSentryConfig as sentryConfigWrapper } from '@sentry/nextjs';
+import type { withSentryConfig as sentryConfigWrapper } from '@sentry/nextjs/config';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -54,7 +54,7 @@ let withSentryConfig: typeof sentryConfigWrapper | null = null;
 
 if (SENTRY_ENABLED) {
   try {
-    const { withSentryConfig: _withSentryConfig } = require('@sentry/nextjs') as typeof import('@sentry/nextjs');
+    const { withSentryConfig: _withSentryConfig } = require('@sentry/nextjs/config') as typeof import('@sentry/nextjs/config');
     withSentryConfig = _withSentryConfig;
     console.log('[Build] Sentry integration enabled');
   } catch {
@@ -270,10 +270,13 @@ finalConfig = withSerwist(finalConfig);
 
 if (SENTRY_ENABLED && withSentryConfig) {
   finalConfig = withSentryConfig(finalConfig, {
-    // Sentry webpack plugin options
-    silent: true, // Suppress logs during build
-    hideSourceMaps: true, // Hide source maps from generated client bundles
-    disableLogger: true, // Disable Sentry logger in production builds
+    silent: true,
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
+    bundleSizeOptimizations: {
+      excludeDebugStatements: true,
+    },
   });
 }
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shlex
 import sys
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -143,6 +144,10 @@ class BashFlavor(ShellFlavor):
         # itself. The scoped ones are unset after the end marker rather than inside the block: ``exit`` leaves the
         # block early, and nothing after the markers can change the exit code the caller reads.
         clean_command = command.rstrip("\r\n")
+        if env is not None and env.cwd is not None:
+            # A subshell keeps the directory change from reaching later commands; chained, so a directory that
+            # cannot be entered stops the command instead of running it elsewhere.
+            clean_command = f"( cd -- {shlex.quote(env.cwd)} && {{\n{clean_command}\n}} )"
         set_lines, unset_lines = self.env_commands(env)
         return (
             f'trap \'echo "{exit_marker}"$?; echo "{end_marker}"\' EXIT\n'

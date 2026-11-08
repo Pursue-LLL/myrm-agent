@@ -58,7 +58,8 @@ function fail(message) {
 }
 
 function countRuleWarnings() {
-  const run = spawnSync(process.execPath, [OXLINT_BIN, '--ignore-path', '.oxlintignore', '--format', 'json'], {
+  const runner = typeof process.versions.node !== 'undefined' ? 'node' : process.execPath;
+  const run = spawnSync(runner, [OXLINT_BIN, '--ignore-path', '.oxlintignore', '--format', 'json'], {
     cwd: rootDir,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Mapping
+from pathlib import Path
 
 from myrm_agent_harness.toolkits.code_execution.session.models import CommandEnv
 
@@ -122,12 +123,15 @@ def build_command_env(
     allowed_issuers: list[str] | None,
     command: str | None,
     skill_env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
 ) -> CommandEnv:
     """Return the environment one bash command runs with on top of its shell's own.
 
-    A credential approved or issued for the command wins over a skill setting of the same name.
+    A credential approved or issued for the command wins over a skill setting of the same name. ``cwd``, when
+    given, is the directory the command starts in.
     """
     return CommandEnv(
         sticky=scrubbed_user_env(user_env),
         scoped={**skill_secret_env(skill_env), **collect_command_credentials(allowed_issuers, command)},
+        cwd=str(cwd) if cwd else None,
     )

@@ -12,6 +12,7 @@
 - session.interactor_scroll_targeting_mixin::ScrollTargetingMixin (POS: CAREFUL pre-interaction target centering)
 - session.interactor_coord_mixin::CoordInteractMixin (POS: coordinate-based Visual Mode interactions)
 - session.ref_metrics::RefNotFoundMetrics, RefDiagnosticsMixin (POS: ref failure statistics + diagnosis behaviors)
+- wait::settle_after_action (POS: the wait an interaction ends with: the requests the action started, within a cap)
 
 [OUTPUT]
 - Interactor: element interaction manager (supports humanized delays + Bézier mouse via HumanizeConfig)
@@ -66,6 +67,7 @@ from myrm_agent_harness.toolkits.browser.session.ref_metrics import (
     RefNotFoundMetrics,
 )
 from myrm_agent_harness.toolkits.browser.snapshot import resolve_locator
+from myrm_agent_harness.toolkits.browser.wait import settle_after_action
 
 if TYPE_CHECKING:
     from patchright.async_api import Frame, Locator, Page
@@ -319,18 +321,6 @@ class Interactor(
                 healed_msg = f" [Auto-Healed to '{new_name or ref_info.name}']"
                 logger.info(f"Interactor: locator for {ref} self-healed.{healed_msg}")
 
-        from myrm_agent_harness.toolkits.browser.wait import (
-            WaitStrategy,
-            wait_for_page_ready,
-        )
-
-        async def _wait_after_action():
-            try:
-                # Wait for SPA stability after action (timeout=3000ms, quiet=500ms)
-                await wait_for_page_ready(self._page, strategy=WaitStrategy.SPA_STABLE, max_ms=3000)
-            except Exception as e:
-                logger.debug(f"Interactor: post-action SPA wait failed/timed out: {e}")
-
         # CAREFUL-only: bring the target into the viewport center band with the same
         # humanized wheel stack used by explicit scrolls, instead of Playwright's
         # implicit one-shot scrollIntoViewIfNeeded (instant JS jump, CDP fingerprint).
@@ -349,13 +339,13 @@ class Interactor(
                     delay = click_delay(self._humanize)
                     await locator.click(delay=delay, timeout=INTERACTION_TIMEOUT_MS)
                     result_msg = f"Clicked {ref}{healed_msg}"
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return result_msg
 
             elif action == "dblclick":
                 delay = click_delay(self._humanize)
                 await locator.dblclick(delay=delay, timeout=INTERACTION_TIMEOUT_MS)
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return f"Double-clicked {ref}{healed_msg}"
 
             elif action == "type":
@@ -364,14 +354,14 @@ class Interactor(
                 delay_per_char = type_delay(self._humanize)
                 typing_timeout = max(INTERACTION_TIMEOUT_MS, len(text) * delay_per_char + 5000)
                 await locator.type(text, delay=delay_per_char, timeout=typing_timeout)
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return f"Typed '{text}' into {ref}{healed_msg}"
 
             elif action == "fill":
                 await self._assert_not_password_field(locator, "filling")
 
                 await locator.fill(text, timeout=INTERACTION_TIMEOUT_MS)
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return f"Filled {ref} with '{text}'{healed_msg}"
 
             elif action == "fill_credential":
@@ -393,12 +383,12 @@ class Interactor(
                     raise ValueError(f"Failed to retrieve credential for label '{text}': {e}") from e
 
                 await locator.fill(secret_text, timeout=INTERACTION_TIMEOUT_MS)
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return f"Filled credential '{text}' into {ref}{healed_msg} [CREDENTIAL_FILLED]"
 
             elif action == "press":
                 await locator.press(text, timeout=INTERACTION_TIMEOUT_MS)
-                await _wait_after_action()
+                await settle_after_action(self._page)
                 return f"Pressed '{text}' on {ref}{healed_msg}"
 
             elif action == "hover":

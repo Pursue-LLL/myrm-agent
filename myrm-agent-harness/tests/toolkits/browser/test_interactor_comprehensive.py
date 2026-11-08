@@ -1608,18 +1608,15 @@ async def test_interact_self_healing():
                 assert "NewName" in res
                 healed_loc.click.assert_called_once()
     page = AsyncMock(spec=Page)
+    page.evaluate.side_effect = Exception("error")  # the post-action wait cannot probe the page
     interactor = Interactor(page, {"e0": RefInfo(role="button", name="B", nth=0)})
 
     with patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve:
         mock_loc = AsyncMock()
         mock_resolve.return_value = mock_loc
 
-        with patch(
-            "myrm_agent_harness.toolkits.browser.wait.wait_for_page_ready",
-            side_effect=Exception("error"),
-        ):
-            res = await interactor.interact("click", "e0")
-            assert "Clicked" in res
+        res = await interactor.interact("click", "e0")
+        assert "Clicked" in res
 
 
 @pytest.mark.asyncio
