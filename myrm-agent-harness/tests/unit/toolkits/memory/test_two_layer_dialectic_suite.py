@@ -1,148 +1,92 @@
-"""
-[INPUT]
-myrm_agent_harness.toolkits.memory.two_layer_dialectic (Models, Engines, Orchestrator)
+"""Unit tests for the keyword-pair dialectic reconciliation engine."""
 
-[OUTPUT]
-Unit test suite verifying Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite.
+from __future__ import annotations
 
-[POS]
-Harness framework unit tests for Item 112.
-Strict typing applied: No `Any` types allowed. Single file < 200 lines.
-"""
+import pytest
 
 from myrm_agent_harness.toolkits.memory.two_layer_dialectic import (
-    BaseContextEngine,
     DialecticCadenceConfig,
-    DialecticReasoningLevel,
+    DialecticPassKind,
     DialecticReconciliationEngine,
-    TwoLayerDialecticOrchestrator,
+    MultiPassDialecticReconciler,
 )
 
-
-def test_base_context_cadence_and_kv_cache_protection() -> None:
-    """Verify Layer 1 caches base context across turns and appends to user tail without touching system prompt."""
-    config = DialecticCadenceConfig(context_cadence=4)
-    engine = BaseContextEngine(config=config)
-
-    # Turn 1: Initial generation
-    bundle1 = engine.get_or_generate_bundle(
-        session_id="sess_101",
-        current_turn=1,
-        session_summary="已规划三层架构与强类型规范",
-        peer_card_summary="Alice Liu (前端负责人, 严格无Any)",
-    )
-    assert bundle1.generation_turn == 1
-    assert bundle1.system_prompt_frozen is True
-    assert bundle1.estimated_tokens > 0
-
-    # Turn 2 & 3: Should reuse cached bundle within cadence window (cadence=4)
-    assert not engine.should_refresh_base_context("sess_101", current_turn=2)
-    bundle2 = engine.get_or_generate_bundle(
-        session_id="sess_101",
-        current_turn=2,
-        session_summary="已更新部分内容但未到刷新轮次",
-        peer_card_summary="Alice Liu",
-    )
-    assert bundle2.generation_turn == 1  # Unchanged, cached!
-
-    # Turn 5: Exceeded cadence (5 - 1 = 4 >= 4), must refresh
-    assert engine.should_refresh_base_context("sess_101", current_turn=5)
-    bundle5 = engine.get_or_generate_bundle(
-        session_id="sess_101",
-        current_turn=5,
-        session_summary="更新为完成服务端落地与API集成",
-        peer_card_summary="Alice Liu",
-    )
-    assert bundle5.generation_turn == 5
-
-    # Verify user message tail injection
-    user_msg = "请帮我实现两层调和前端控制面板。"
-    injected_msg = engine.inject_into_user_message(user_msg, bundle5)
-    assert injected_msg.startswith(user_msg)
-    assert "<!-- [BASE_CONTEXT_KV_CACHE_PROTECTED] -->" in injected_msg
-    assert "<base_context" in injected_msg
+_POSTGRES = "We store everything in PostgreSQL"
+_SQLITE = "Storage switched to SQLite"
+_SYNC = "写入链路保持同步"
+_ASYNC = "写入链路改为异步"
 
 
-def test_dialectic_conflict_detection_and_multi_pass_synthesis() -> None:
-    """Verify Layer 2 detects contradictions and executes 1-3 pass dialectic loop."""
-    dialectic_engine = DialecticReconciliationEngine(
-        default_reasoning_level=DialecticReasoningLevel.DEEP
-    )
+def test_package_exports_the_engine_as_the_multi_pass_reconciler() -> None:
+    assert MultiPassDialecticReconciler is DialecticReconciliationEngine
+    assert isinstance(MultiPassDialecticReconciler(DialecticCadenceConfig()), DialecticReconciliationEngine)
 
-    history = [
-        "团队以往统一使用 SQLite 作为单机轻量数据源",
-        "禁止向后兼容，全面进行纯净重构",
+
+def test_inspect_conflicts_flags_opposing_keywords_across_a_pair() -> None:
+    conflicts = DialecticReconciliationEngine().inspect_conflicts([_POSTGRES, _SQLITE])
+
+    assert len(conflicts) == 1
+    conflict = conflicts[0]
+    assert conflict.statement_a == _POSTGRES
+    assert conflict.statement_b == _SQLITE
+    assert conflict.subject_domain == "Database Architecture"
+    assert conflict.conflict_score == pytest.approx(0.95)
+
+
+def test_inspect_conflicts_checks_every_statement_pair_in_either_keyword_order() -> None:
+    statements = [_SQLITE, "no keyword here", _POSTGRES, _ASYNC, _SYNC]
+
+    conflicts = DialecticReconciliationEngine().inspect_conflicts(statements)
+
+    assert [(c.statement_a, c.statement_b) for c in conflicts] == [(_SQLITE, _POSTGRES), (_ASYNC, _SYNC)]
+
+
+@pytest.mark.parametrize(
+    "statements",
+    [[], [_POSTGRES], ["采用 TypeScript strict 模式", "单文件严格小于400行"]],
+)
+def test_inspect_conflicts_returns_nothing_without_a_contradicting_pair(statements: list[str]) -> None:
+    assert DialecticReconciliationEngine().inspect_conflicts(statements) == []
+
+
+@pytest.mark.parametrize(
+    ("depth", "expected"),
+    [
+        (0, [DialecticPassKind.INSPECTION]),
+        (1, [DialecticPassKind.INSPECTION]),
+        (2, [DialecticPassKind.INSPECTION, DialecticPassKind.SYNTHESIS]),
+        (3, [DialecticPassKind.INSPECTION, DialecticPassKind.SYNTHESIS, DialecticPassKind.RECONCILIATION]),
+        (99, [DialecticPassKind.INSPECTION, DialecticPassKind.SYNTHESIS, DialecticPassKind.RECONCILIATION]),
+    ],
+)
+def test_reconcile_all_clamps_the_reported_passes_to_one_through_three(
+    depth: int, expected: list[DialecticPassKind]
+) -> None:
+    results = DialecticReconciliationEngine().reconcile_all([_POSTGRES, _SQLITE], depth=depth)
+
+    assert len(results) == 1
+    assert results[0].passes_executed == expected
+
+
+def test_reconcile_all_resolves_in_favour_of_the_later_statement() -> None:
+    results = DialecticReconciliationEngine().reconcile_all([_POSTGRES, _SQLITE, _SYNC, _ASYNC])
+
+    assert [(r.resolved_statement, r.superseded_statements) for r in results] == [
+        (_SQLITE, [_POSTGRES]),
+        (_ASYNC, [_SYNC]),
     ]
-    current_prompt = "在本次生产环境中，我们需要切换至 Postgres 架构以支持分布式扩展"
-
-    conflicts = dialectic_engine.detect_conflicts(history, current_prompt)
-    assert len(conflicts) >= 1
-    c = conflicts[0]
-    assert "数据库" in c.source_topic or "sqlite" in c.prior_stance.lower()
-    assert c.severity_score >= 0.8
-
-    # Run full 3-pass dialectic reconciliation
-    result = dialectic_engine.reconcile(
-        session_id="sess_101",
-        turn_index=3,
-        conflicts=conflicts,
-        depth=3,
-    )
-
-    assert result.dialectic_depth_executed == 3
-    assert len(result.passes) == 3
-    assert "Pass 0" in result.passes[0].pass_name
-    assert "Pass 1" in result.passes[1].pass_name
-    assert "Pass 2" in result.passes[2].pass_name
-    assert result.kv_cache_preserved is True
-    assert "辩证调和共识" in result.reconciled_directive
+    assert "Database Architecture" in results[0].rationale
+    assert "Concurrency Mode" in results[1].rationale
+    assert all(0.0 < r.confidence <= 1.0 for r in results)
 
 
-def test_clean_state_zero_conflicts_dialectic() -> None:
-    """Verify clean state when no contradictions exist produces minimal overhead."""
-    dialectic_engine = DialecticReconciliationEngine()
-    history = ["采用 TypeScript strict 模式", "单文件严格小于400行"]
-    current_prompt = "请添加一个新的图表组件，遵守400行规范"
+def test_reconcile_all_gives_each_result_its_own_pass_list() -> None:
+    first, second = DialecticReconciliationEngine().reconcile_all([_POSTGRES, _SQLITE, _SYNC, _ASYNC])
 
-    conflicts = dialectic_engine.detect_conflicts(history, current_prompt)
-    assert len(conflicts) == 0
+    first.passes_executed.clear()
 
-    result = dialectic_engine.reconcile(
-        session_id="sess_102",
-        turn_index=2,
-        conflicts=conflicts,
-        depth=2,
-    )
-    assert result.dialectic_depth_executed == 0
-    assert result.token_cost_estimate < 20
-    assert "DIALECTIC_CLEAN" in result.reconciled_directive
+    assert second.passes_executed
 
 
-def test_end_to_end_orchestrator_turn_preparation() -> None:
-    """Verify TwoLayerDialecticOrchestrator coordinates Layer 1 & 2 seamlessly."""
-    config = DialecticCadenceConfig(
-        context_cadence=3,
-        dialectic_cadence=2,
-        dialectic_depth=2,
-        dialectic_reasoning_level=DialecticReasoningLevel.STANDARD,
-    )
-    orchestrator = TwoLayerDialecticOrchestrator(config=config)
-
-    # Turn 2: Matches dialectic cadence (2 % 2 == 0)
-    payload = orchestrator.prepare_turn(
-        session_id="sess_200",
-        turn_index=2,
-        raw_user_message="我们现在要进行架构升级，打破以往做法",
-        session_summary="已完成阶段1",
-        peer_card_summary="DevBot",
-        historical_assertions=["保持旧版兼容模式"],
-    )
-
-    assert payload.session_id == "sess_200"
-    assert payload.turn_index == 2
-    assert payload.kv_cache_preserved is True
-    assert payload.base_context.generation_turn == 2
-    assert payload.dialectic_result is not None
-    assert payload.total_token_overhead > 0
-    assert "BASE_CONTEXT_KV_CACHE_PROTECTED" in payload.augmented_user_message
-    assert "DIALECTIC_RECONCILIATION_DIRECTIVE" in payload.augmented_user_message
+def test_reconcile_all_without_conflicts_returns_nothing() -> None:
+    assert DialecticReconciliationEngine().reconcile_all(["alpha", "beta"]) == []

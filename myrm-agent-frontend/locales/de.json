@@ -6393,35 +6393,6 @@
     }
   },
   "artifacts": {
-    "factCheck": {
-      "title": "Multiquellen-Faktenprüfungs- und Konfliktschlichtungstabelle",
-      "summaryTitle": "Prüfungsübersicht & Schlichtungszusammenfassung",
-      "totalItems": "Gesamtprüfungen",
-      "criticalConflicts": "Kritische Konflikte",
-      "warnings": "Spezifikationsabweichungen",
-      "infoDifferences": "Beschreibungsunterschiede",
-      "unresolvedItems": "Ausstehende Bestätigung",
-      "searchPlaceholder": "Thema, übernommenen Standard oder Dokument suchen...",
-      "filterAll": "Alle Schweregrade",
-      "filterCritical": "Nur kritische Konflikte",
-      "filterWarning": "Nur Spezifikationsabweichungen",
-      "filterInfo": "Nur Beschreibungsunterschiede",
-      "adoptedStandard": "Übernommener Standardwert",
-      "rationale": "Schlichtungsbegründung",
-      "confidence": "Konfidenz",
-      "multiSourceMatrix": "Multiquellen-Vergleichsmatrix",
-      "sourceDoc": "Quelldokument",
-      "claimedValue": "Behaupteter Wert",
-      "anchorTimestamp": "Anker / Zeitstempel",
-      "contextSnippet": "Kontextauszug",
-      "affectedDeliverables": "Betroffene Lieferergebnisse",
-      "statusResolved": "Nach neuester Autorität aufgelöst",
-      "statusUnresolved": "Ausstehende menschliche Bestätigung",
-      "statusConditional": "Bedingter Zweig",
-      "noItemsFound": "Keine passenden Faktenprüfungselemente gefunden",
-      "loading": "Faktenprüfungstabelle wird geladen...",
-      "close": "Schließen"
-    },
     "title": "Artefakte",
     "empty": "Noch keine Artefakte",
     "emptyDesc": "Vom Agenten während Unterhaltungen erstellte Berichte, Diagramme und Codes werden hier archiviert",
@@ -9887,28 +9858,6 @@
     "humanAttentionView": "Zum Element",
     "humanAttentionMultiple": "{count} Elemente warten auf Sie",
     "humanAttentionKindClarify": "Klärung",
-    "riskConfirmation": {
-      "tierHighRisk": "Stufe 3 · Hochriskante Aktion (Bestätigung erforderlich)",
-      "tierWrite": "Stufe 2 · Zustandsänderung (Probelauf möglich)",
-      "tierRead": "Stufe 1 · Nur lesen (automatisch freigegeben)",
-      "targetLabel": "Ziel:",
-      "riskReasonsTitle": "Risikowarnungen und mögliche Auswirkungen",
-      "editingParamsTitle": "Ausführungsparameter bearbeiten (JSON)",
-      "paramsSummaryTitle": "Parameterübersicht",
-      "editParams": "Parameter bearbeiten",
-      "noParams": "Keine Eingabeparameter",
-      "invalidJson": "Ungültiges JSON-Format",
-      "dryRunResultTitle": "Ergebnis der Probelauf-Simulation",
-      "rejectReasonPlaceholder": "Optional: Ablehnungsgrund eingeben ...",
-      "dryRun": "Probelauf",
-      "confirmationToken": "Token: {token} ...",
-      "reject": "Ablehnen",
-      "confirmReject": "Ablehnung bestätigen",
-      "applyEditsAndRun": "Änderungen übernehmen und ausführen",
-      "authorizeAndRun": "Autorisieren und ausführen",
-      "continueRun": "Fortsetzen",
-      "approved": "Freigegeben"
-    },
     "maskedCredentials": {
       "title": "Passwort oder Schlüssel für diesen Befehl",
       "badgeNeverSaved": "Einmal verwendet, nie gespeichert",
@@ -13407,8 +13356,6 @@
     "viewportDesktop": "Desktop-Ansicht (100 %)",
     "viewportTablet": "Tablet-Ansicht (768 px)",
     "viewportMobile": "Mobile Ansicht (375 px)",
-    "indicatorReady": "Dienst bereit",
-    "indicatorPreview": "Geteilte Vorschau",
     "splitPreviewerTitle": "In die Sandbox eingebettete geteilte Web-Vorschau",
     "splitPreviewerSubtitle": "Laufende Webseiten und Hot Reload nebeneinander live in der Sandbox ansehen",
     "splitCollapse": "Geteilte Ansicht einklappen",
@@ -14567,75 +14514,6 @@
     },
     "tabToAdopt": "Tab drücken, um den vorgeschlagenen Prompt zu übernehmen"
   },
-  "factCheck": {
-    "bannerTitle": "Ehrlichkeitsprüfung & Faktenverifizierung",
-    "bannerWarning": "Dieser Entwurf enthält {count} ungeprüfte Platzhalter-Datenpunkte. Ersetzen Sie sie vor der Veröffentlichung durch echte Benchmarks",
-    "bannerSuccess": "Alle Platzhalter-Datenpunkte wurden geprüft und durch echte Daten ersetzt",
-    "viewCheckSheet": "Prüfliste anzeigen",
-    "finalizeDraft": "Entwurf finalisieren",
-    "drawerTitle": "Faktencheck & Platzhalter-Verzeichnis",
-    "drawerSubtitle": "Keine unkontrollierte Erfindung. Platzhalter-Gerüste und geprüfte Fakten werden strikt verwaltet",
-    "tabPlaceholders": "Ausstehende Platzhalter",
-    "tabVerified": "Geprüfte harte Fakten",
-    "placeholderTag": "Zu prüfen",
-    "verifiedTag": "Geprüft",
-    "contextLabel": "Kontextausschnitt",
-    "inputRealValuePlaceholder": "Echten Benchmark-Wert eingeben...",
-    "applyBtn": "Anwenden",
-    "applied": "Angewendet",
-    "replaceAllBtn": "Alle ersetzen & finalisieren",
-    "sourceLabel": "Quelle",
-    "verifiedAtLabel": "Geprüft am",
-    "emptyPending": "Sehr gut! Es sind keine ungeprüften Platzhalter mehr übrig",
-    "emptyVerified": "Keine Web-Recherche-Prüfnachweise angehängt",
-    "close": "Schließen"
-  },
-  "groupChat": {
-    "title": "Bot-Modus: Multi-Agent-Gruppenchat-Arbeitsbereich",
-    "botModeSummary": "Bot-Modus und Peer-to-Peer-Nachrichten",
-    "roomsTitle": "Kollaborationskanäle",
-    "createRoom": "Neuen Raum erstellen",
-    "roomNamePlaceholder": "Raumname (z. B. Architektur-War-Room)",
-    "roomTopicPlaceholder": "Kollaborationsziel oder Raumthema...",
-    "participantsTitle": "Raumteilnehmer & Rollen",
-    "operatorLabel": "Arbeitsbereichsleiter (Mensch)",
-    "botLabel": "Spezialisierter Bot",
-    "composerPlaceholder": "Anweisungen eingeben, mit @ bestimmte Agents erwähnen...",
-    "sendBtn": "Senden",
-    "peerTitle": "Kanonische Peer-Dialog-Archive",
-    "noMessages": "Noch keine Nachrichten. Geben Sie etwas in das Eingabefeld ein und erwähnen Sie mit @ einen Agent, um zusammenzuarbeiten.",
-    "noArchives": "Keine Peer-to-Peer-Dialoge gefunden",
-    "messagesCount": "Nachrichten",
-    "latencyLabel": "Roundtrip-Latenz",
-    "avatarLocked": "Deterministischer Avatar gesperrt",
-    "presence": {
-      "idle": "Inaktiv & bereit",
-      "reasoning": "Denkt nach und wägt ab...",
-      "pass": "PASS (stille Beobachtung)",
-      "viewSkills": "Fähigkeiten & Persona anzeigen",
-      "skillsTitle": "Eingebundene Fähigkeiten & Werkzeuge",
-      "membersOnline": "Spezialisten online"
-    },
-    "mention": {
-      "mentionTitle": "Agent erwähnen & zuweisen",
-      "filterPlaceholder": "Nach Rolle oder Name filtern (z. B. @sec, @arch)...",
-      "noMatch": "Keine passenden Agents gefunden",
-      "primaryTarget": "Hauptziel"
-    },
-    "deliberation": {
-      "passBadge": "Bewertet: In dieser Runde ist keine Aktion nötig – PASS (hört zu)",
-      "expandPass": "Begründung ausklappen",
-      "collapsePass": "Einklappen",
-      "roleSpeaker": "Hauptsprecher"
-    },
-    "needsYou": {
-      "needsYouTitle": "Menschliches Eingreifen erforderlich (NEEDS-YOU)",
-      "resolveNotice": "Die Beratung hat eine kritische Weggabelung erreicht. Bitte lenken Sie das Team.",
-      "suggestedChips": "Vorgeschlagene Richtungen:",
-      "customResponse": "Oder eigene Entscheidungsanweisung eingeben...",
-      "submitDecision": "Entscheidung bestätigen & fortsetzen"
-    }
-  },
   "machines": {
     "title": "Meine Maschinen (Flottenübersicht)",
     "subtitle": "Verbinden und überwachen Sie Ihre selbst gehosteten Maschinen und privaten Rechenknoten mit Echtzeit-Bildschirmübernahme",
@@ -14696,55 +14574,7 @@
       "rejectReasonPlaceholder": "Optional: Ablehnungsgrund...",
       "rejectConfirm": "Ablehnung bestätigen",
       "processing": "Wird verarbeitet..."
-    },
-    "selectionList": {
-      "title": "Touch-Optionsauswahl",
-      "singleSelectHint": "Mit einem Daumen antippen, um direkt auszuwählen",
-      "multiSelectHint": "Mehrfachauswahl möglich, zum Bestätigen antippen",
-      "confirmSelection": "Auswahl bestätigen",
-      "selectedCount": "{count} ausgewählt",
-      "clearAll": "Zurücksetzen"
-    },
-    "actionBar": {
-      "quickVoice": "Spracheingabe",
-      "skills": "Fähigkeiten (/)",
-      "stop": "Stopp",
-      "stopping": "Wird gestoppt...",
-      "sessions": "Sitzungen",
-      "expand": "Mehr"
     }
-  },
-  "runtimeConsole": {
-    "title": "Laufzeitkonsole & Multi-Surface-Projektionszentrum",
-    "liveStateSummary": "Live-Ansicht von Laufzustand und Ereignissen",
-    "surfaces": {
-      "chat": "Chat-Ansicht",
-      "runtimeConsole": "Laufzeitkonsole",
-      "deliverables": "Ergebnis-Board",
-      "audit": "Prüfprotokoll"
-    },
-    "attemptInspector": {
-      "title": "Versuchsübergänge & Durchsatz-Höchstwerte",
-      "attemptNumber": "Versuch #{number}",
-      "duration": "Dauer",
-      "throughput": "Durchsatz",
-      "tokens": "Verbrauchte Tokens",
-      "status": "Zustand",
-      "faultReason": "Diagnostizierte Fehlerursache",
-      "diffSummary": "Zusammenfassung des virtuellen Diffs",
-      "noAttempts": "Keine Versuche aufgezeichnet"
-    },
-    "deliverablesSection": {
-      "title": "Ergebnis- & Artefaktmatrix",
-      "noDeliverables": "Dieser Lauf hat noch keine Ergebnisse erzeugt"
-    },
-    "auditSection": {
-      "title": "Compliance- & Berechtigungsprotokoll",
-      "noAudit": "Keine Sicherheitsaktionen aufgezeichnet"
-    },
-    "tokensTotal": "Kumulierte Tokens",
-    "avgThroughput": "Durchschnittliche Generierungsrate",
-    "closeDrawer": "Konsole schließen"
   },
   "skillAlignment": {
     "title": "Präferenzabstimmung vor dem Start",
@@ -22658,13 +22488,6 @@
     "close": "Schließen",
     "binaryChanged": "Binärdatei geändert",
     "noChanges": "Keine Änderungen"
-  },
-  "riskGate": {
-    "regionLabel": "Gestufte Risikobestätigung",
-    "dryRunImpact": "Simulierte Ausführung von {tool} mit dry_run=true",
-    "dryRunDefaultTarget": "Zielobjekt",
-    "dryRunParamsVerified": "Parameterprüfung bestanden ({count, plural, one {# Feld} other {# Felder}})",
-    "dryRunNoPersistentChanges": "Keine dauerhaften Änderungen an Dateisystem oder Datenbank vorgenommen"
   },
   "commerceReceipt": {
     "statusCommitted": "Bezahlt und geprüft",

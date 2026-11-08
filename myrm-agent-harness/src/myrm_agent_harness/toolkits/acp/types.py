@@ -176,7 +176,6 @@ class RuntimeConfig:
     cwd: str | None = None
     timeout_seconds: int = 300
     permission_mode: PermissionMode = "allow_all"
-    allowed_tools: list[str] = field(default_factory=list)
     auth_mode: AuthMode = "subscription"
     mcp_servers: list[McpServerConfig] = field(default_factory=list)
     max_response_chars: int = 50_000
@@ -284,20 +283,6 @@ class CliSessionStore(Protocol):
     async def load(self, session_id: str) -> CliSessionRecord | None: ...
 
     async def save(self, session_id: str, record: CliSessionRecord) -> None: ...
-
-
-@runtime_checkable
-class PermissionManager(Protocol):
-    """Protocol for permission checking — framework provides default, business layer can replace."""
-
-    async def check(
-        self,
-        tool_name: str,
-        tool_input: dict[str, object],
-        session_id: str,
-    ) -> PermissionDecision: ...
-
-    def record_approval(self, tool_name: str, session_id: str) -> None: ...
 
 
 # ---------------------------------------------------------------------------

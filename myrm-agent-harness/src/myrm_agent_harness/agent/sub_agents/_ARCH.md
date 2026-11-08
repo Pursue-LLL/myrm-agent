@@ -79,7 +79,6 @@ A guard that resets in place needs an isolated counterpart in `isolated_run_guar
 | checkpoint/ | Subagent checkpoint utilities package. Includes orphan recovery for automatic resumption after restart. |
 | budget_scaling/ | 子任务并发度弹性提升与工具调用预算自动无损迁移体系（默认并发提升至 10、单任务预算扩容至 250、旧版默认值零中断无损平滑迁移、80% 动态自适应水位预警心跳保护）。 |
 | `dag_plan.py` | Core | DAG plan schemas for sub-agent orchestration (not main-agent progress). — PlanStep, Plan: sub-agent DAG plan models with dependency resolution; GraphPatch, GraphPatchResult: declarative graph mutation DTOs for mid-run graph compiler gate | ✅ |
-| `role_chain_schema.py` | Core | Subagent Role Chain Presets and Guidance Compiler. — RoleChainStage: Single stage within an orchestrated subagent role chain; RoleChainPreset: Immutable specification for a multi-agent role chain preset; BUILTIN_ROLE_CHAIN_PRESETS: Dict of official golden role chain presets; get_role_chain_preset: Resolver for role chain preset by ID (+1 more) | ✅ |
 
 
 

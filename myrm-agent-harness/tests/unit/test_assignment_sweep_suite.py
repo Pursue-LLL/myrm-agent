@@ -14,18 +14,29 @@ import pytest
 from myrm_agent_harness.core.security.assignment_sweep import (
     AssignmentFormat,
     AssignmentKeyFamily,
+    AssignmentSweepReport,
     AssignmentSweepVerdict,
-    QuotedKeySecretAssignmentSweepFacade,
+    DatabaseUrlAuditor,
+    QuotedKeySecretAssignmentSweepEngine,
     find_assignment_matches,
 )
 
 
 @pytest.fixture
-def facade() -> QuotedKeySecretAssignmentSweepFacade:
-    return QuotedKeySecretAssignmentSweepFacade()
+def auditor() -> DatabaseUrlAuditor:
+    return DatabaseUrlAuditor()
 
 
-def test_quoted_json_and_single_quotes(facade: QuotedKeySecretAssignmentSweepFacade) -> None:
+@pytest.fixture
+def engine(auditor: DatabaseUrlAuditor) -> QuotedKeySecretAssignmentSweepEngine:
+    return QuotedKeySecretAssignmentSweepEngine(auditor)
+
+
+def _is_clean(report: AssignmentSweepReport) -> bool:
+    return report.verdict in {AssignmentSweepVerdict.CLEAN, AssignmentSweepVerdict.EXEMPTED_LOCAL_DEV}
+
+
+def test_quoted_json_and_single_quotes(engine: QuotedKeySecretAssignmentSweepEngine) -> None:
     content = """
     {
         "api_key": "sk-secret-token-abcdef123456",
@@ -33,7 +44,7 @@ def test_quoted_json_and_single_quotes(facade: QuotedKeySecretAssignmentSweepFac
         "database_port": 5432
     }
     """
-    report = facade.sweep_text(content)
+    report = engine.scan_content(content)
 
     assert report.verdict == AssignmentSweepVerdict.SUSPECTED_LEAK
     assert report.active_leaks_count == 2
@@ -47,13 +58,13 @@ def test_quoted_json_and_single_quotes(facade: QuotedKeySecretAssignmentSweepFac
         assert f.is_exempt is False
 
 
-def test_env_bracket_and_equals_assignments(facade: QuotedKeySecretAssignmentSweepFacade) -> None:
+def test_env_bracket_and_equals_assignments(engine: QuotedKeySecretAssignmentSweepEngine) -> None:
     content = """
     os.environ["API_KEY"] = "prod-secret-value-332211"
     config['app_secret'] = "app-sec-key-009988"
     export MY_API_KEY="env-key-secret-445566"
     """
-    report = facade.sweep_text(content)
+    report = engine.scan_content(content)
 
     assert report.verdict == AssignmentSweepVerdict.SUSPECTED_LEAK
     assert report.active_leaks_count == 3
@@ -64,7 +75,7 @@ def test_env_bracket_and_equals_assignments(facade: QuotedKeySecretAssignmentSwe
 
 
 def test_alphanumeric_run_and_placeholders_stay_quiet(
-    facade: QuotedKeySecretAssignmentSweepFacade,
+    engine: QuotedKeySecretAssignmentSweepEngine,
 ) -> None:
     # Code with words that look like secrets but are benign continuous symbols or placeholders
     benign_code = """
@@ -76,43 +87,47 @@ def test_alphanumeric_run_and_placeholders_stay_quiet(
     password = "changeme"
     placeholder_val = "<INSERT_KEY_HERE>"
     """
-    report = facade.sweep_text(benign_code)
+    report = engine.scan_content(benign_code)
 
     assert report.verdict == AssignmentSweepVerdict.CLEAN
     assert report.active_leaks_count == 0
     assert len(report.findings) == 0
-    assert facade.is_clean(benign_code) is True
+    assert _is_clean(report) is True
 
 
-def test_loopback_database_url_exemption(facade: QuotedKeySecretAssignmentSweepFacade) -> None:
+def test_loopback_database_url_exemption(
+    engine: QuotedKeySecretAssignmentSweepEngine,
+    auditor: DatabaseUrlAuditor,
+) -> None:
     # 1. Standard default dev credentials on localhost -> Exempted!
     local_dev_config = """
     DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/my_dev_db"
     """
-    report = facade.sweep_text(local_dev_config)
+    report = engine.scan_content(local_dev_config)
 
     assert report.active_leaks_count == 0
     assert report.exempted_count == 1
     assert report.verdict == AssignmentSweepVerdict.EXEMPTED_LOCAL_DEV
-    assert facade.is_clean(local_dev_config) is True
+    assert _is_clean(report) is True
 
     exempt_finding = report.findings[0]
     assert exempt_finding.is_exempt is True
     assert "Exempted local development DSN" in (exempt_finding.exemption_reason or "")
 
     # 2. 127.0.0.1 with standard root/password -> Exempted!
-    res_127 = facade.audit_database_url("mysql://root:root@127.0.0.1:3306/test")
+    res_127 = auditor.audit_url("mysql://root:root@127.0.0.1:3306/test")
     assert res_127 is not None
     assert res_127.is_exempt is True
     assert res_127.is_loopback is True
 
 
 def test_non_loopback_database_url_strictly_flagged(
-    facade: QuotedKeySecretAssignmentSweepFacade,
+    engine: QuotedKeySecretAssignmentSweepEngine,
+    auditor: DatabaseUrlAuditor,
 ) -> None:
     # 1. Compose container service name (@db) with default postgres creds -> Must NOT be exempted!
     compose_dsn = "postgresql://postgres:postgres@db:5432/analytics"
-    res_compose = facade.audit_database_url(compose_dsn)
+    res_compose = auditor.audit_url(compose_dsn)
     assert res_compose is not None
     assert res_compose.is_loopback is False
     assert res_compose.is_exempt is False
@@ -120,16 +135,16 @@ def test_non_loopback_database_url_strictly_flagged(
 
     # 2. Remote production database url -> Must NOT be exempted!
     remote_dsn = "postgresql://app_user:s3cur3p@ss@db.prod.company.internal:5432/main"
-    res_remote = facade.audit_database_url(remote_dsn)
+    res_remote = auditor.audit_url(remote_dsn)
     assert res_remote is not None
     assert res_remote.is_loopback is False
     assert res_remote.is_exempt is False
 
     # Full text sweep with remote DSN yields SUSPECTED_LEAK
-    report = facade.sweep_text(f"DATABASE_URL='{remote_dsn}'")
+    report = engine.scan_content(f"DATABASE_URL='{remote_dsn}'")
     assert report.verdict == AssignmentSweepVerdict.SUSPECTED_LEAK
     assert report.active_leaks_count >= 1
-    assert facade.is_clean(f"DATABASE_URL='{remote_dsn}'") is False
+    assert _is_clean(report) is False
 
 
 def test_assignment_matches_report_the_value_span_and_key_family() -> None:

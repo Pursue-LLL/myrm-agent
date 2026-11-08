@@ -1,13 +1,12 @@
 # app/config/settings 子包架构
 
-应用配置（pydantic-settings）。`AppSettings` 由各组配置组合而成，`settings` 为进程级单例；`app.config.settings` 导入路径不变（212 个导入方）。
+应用配置（pydantic-settings）。`AppSettings` 由各组配置组合而成，`settings` 为进程级单例。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 子域出口 | 聚合 `AppSettings`、`settings`、`get_settings` 与全部配置组（保持原 `__all__`） | — |
-| `constants.py` | 辅助 | `BASE_DIR`（配置默认路径基准） | ✅ |
+| `__init__.py` | 子域出口 | 聚合 `AppSettings`、`settings`、`get_settings` 与全部配置组 | — |
 | `llm.py` | 核心 | `LLMProvider`、`ProviderCacheConfig` / `PROVIDER_CACHE_CONFIGS`、`CacheSettings` | ✅ |
 | `channels.py` | 核心 | DingTalk / MCP / BrowserPool / WebUI 配置组 | ✅ |
 | `security.py` | 核心 | Bash 审计、代码执行、安全、Agent Gateway 配置组 | ✅ |

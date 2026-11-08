@@ -127,7 +127,7 @@ Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DES
 
 These domains use matching names under both layers:
 
-`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `machines` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `runs` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow` · `workflow_templates` · `workspace`
+`approvals` · `audit` · `batch_directory` · `browser_recording` · `budget` · `channels` · `checkpoint` · `companion` · `compounding_playbook` · `config` · `connect` · `context` · `cron` · `extension` · `external_agents` · `faq` · `features` · `files` · `instance_archive` · `integrations` · `kanban` · `machines` · `memory` · `migration` · `ops` · `plugins` · `progression` · `providers` · `risk` · `security` · `skill_optimization` · `skills` · `ssh_vault` · `statistics` · `system` · `theme` · `webhook` · `webui` · `wiki` · `workflow_templates` · `workspace`
 
 ### Intentional name pairs (most common confusion)
 
@@ -167,6 +167,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `presentation/` · `spreadsheet/` | in-module generators (`python-pptx` slides, styled Excel export) — no service layer |
 | `self_evolution/` | in-module component locate / recover pipeline for UI self-evolution tickets |
 | `session_map/` | direct DB aggregation over chat and project models |
+| `runs/` | in-module read-only timeline aggregation over `core/cron/`, `services/kanban/`, `core/channel_bridge/` and `services/agent/` shell tasks — no service layer |
 | `system_assistant/` | in-module natural-language system control routes |
 | `workbench/` | in-module workspace file tree, command and plugin routes |
 

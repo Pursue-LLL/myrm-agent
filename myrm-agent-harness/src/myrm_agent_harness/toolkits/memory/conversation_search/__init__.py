@@ -1,6 +1,3 @@
-from myrm_agent_harness.toolkits.memory.conversation_search.memory_provider import (
-    MemoryConversationSearchProvider,
-)
 from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationIndexCoverage,
     ConversationSearchHit,
@@ -13,5 +10,4 @@ __all__ = [
     "ConversationSearchHit",
     "ConversationSearchRequest",
     "ConversationSearchResponse",
-    "MemoryConversationSearchProvider",
 ]

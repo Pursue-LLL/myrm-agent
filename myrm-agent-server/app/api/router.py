@@ -32,7 +32,6 @@ from app.api.browser_sessions import router as browser_sessions_router
 from app.api.budget import budget_router
 from app.api.chats import router as chat_router
 from app.api.chats.chat.share import public_router as chat_share_public_router
-from app.api.chats.group_chat_router import router as group_chat_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
 from app.api.commerce.spending_router import router as commerce_spending_router
@@ -80,7 +79,6 @@ from app.api.providers import provider_balance_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router
 from app.api.runs import router as runs_router
-from app.api.runs.projection_router import projection_router as run_projection_router
 from app.api.security.allowlist import router as allowlist_router
 from app.api.security.estop import router as security_estop_router
 from app.api.security.generate import router as security_generate_router
@@ -157,7 +155,6 @@ api_router.include_router(external_agents_router, prefix="/external-agents", tag
 # 核心业务
 api_router.include_router(approvals_router)
 api_router.include_router(chat_router, prefix="/chats", tags=["chats"])
-api_router.include_router(group_chat_router)
 api_router.include_router(project_router, prefix="/projects", tags=["projects"])
 api_router.include_router(files_router, prefix="/files", tags=["files"])
 api_router.include_router(machines_router, prefix="", tags=["machines"])
@@ -198,7 +195,6 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(runs_router)
-api_router.include_router(run_projection_router)
 api_router.include_router(eval_router, tags=["eval"])
 api_router.include_router(commerce_spending_router)
 

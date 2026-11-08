@@ -11,5 +11,4 @@
 | `dataDashboardTypes.ts` | 类型 | 领域类型定义：DashboardSpec, KpiMetric, ChartConfig, TableSpec 等 | ✅ |
 | `dataDashboardUtils.ts` | 工具 | CSV 与 JSON 容错解析为统一规格，生成独立离线 HTML 看板文件 | ✅ |
 | `InteractiveDashboardArtifact.tsx` | 组件 | 高颜值数据看板渲染器，支持 KPI 网格、图表形态切换、明细表搜索与全屏交互 | ✅ |
-| `index.ts` | 门面 | 统一导出类型、工具与组件 | ✅ |
 | `_ARCH.md` | 文档 | 模块定位与架构清单 | ✅ |

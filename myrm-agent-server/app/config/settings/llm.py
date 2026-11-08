@@ -1,5 +1,5 @@
 """[INPUT]
-- .constants (POS: BASE_DIR)
+- pydantic_settings (POS: env-backed settings base)
 
 [OUTPUT]
 - LLMProvider, ProviderCacheConfig, PROVIDER_CACHE_CONFIGS, CacheSettings

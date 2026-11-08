@@ -6393,35 +6393,6 @@
     }
   },
   "artifacts": {
-    "factCheck": {
-      "title": "多源事实核查与冲突仲裁表",
-      "summaryTitle": "质检总览与冲突仲裁",
-      "totalItems": "核查总项",
-      "criticalConflicts": "严重冲突",
-      "warnings": "差异演进",
-      "infoDifferences": "描述差异",
-      "unresolvedItems": "待确认争议",
-      "searchPlaceholder": "搜索事实主题、采纳口径或文档...",
-      "filterAll": "全部严重度",
-      "filterCritical": "仅看严重冲突",
-      "filterWarning": "仅看差异演进",
-      "filterInfo": "仅看描述差异",
-      "adoptedStandard": "采纳标准口径",
-      "rationale": "裁定依据",
-      "confidence": "置信度",
-      "multiSourceMatrix": "多源素材对照矩阵",
-      "sourceDoc": "来源文档",
-      "claimedValue": "主张数据",
-      "anchorTimestamp": "锚点 / 时效",
-      "contextSnippet": "上下文摘录",
-      "affectedDeliverables": "已同步修正的交付物",
-      "statusResolved": "已采纳最新权威口径",
-      "statusUnresolved": "待人工最终确认",
-      "statusConditional": "条件分支生效",
-      "noItemsFound": "未检索到匹配的事实核查项",
-      "loading": "正在加载事实核查表...",
-      "close": "关闭"
-    },
     "title": "工件",
     "empty": "暂无工件资产",
     "emptyDesc": "智能体在对话中生成的报告、图表、代码将自动归档在此",
@@ -9887,28 +9858,6 @@
     "humanAttentionView": "前往处理",
     "humanAttentionMultiple": "{count} 项待你确认",
     "humanAttentionKindClarify": "澄清问题",
-    "riskConfirmation": {
-      "tierHighRisk": "Level 3 · 高危操作（强制确认）",
-      "tierWrite": "Level 2 · 状态写入（支持预演）",
-      "tierRead": "Level 1 · 只读操作（自动放行）",
-      "targetLabel": "目标对象：",
-      "riskReasonsTitle": "风险告警与潜在影响",
-      "editingParamsTitle": "修改执行参数（JSON）",
-      "paramsSummaryTitle": "参数摘要",
-      "editParams": "修改参数",
-      "noParams": "无输入参数",
-      "invalidJson": "JSON 格式无效",
-      "dryRunResultTitle": "预演模拟结果",
-      "rejectReasonPlaceholder": "可选：输入拒绝理由...",
-      "dryRun": "预演",
-      "confirmationToken": "令牌：{token}...",
-      "reject": "终止打回",
-      "confirmReject": "确认打回",
-      "applyEditsAndRun": "修改参数并执行",
-      "authorizeAndRun": "授权并执行",
-      "continueRun": "继续执行",
-      "approved": "已放行"
-    },
     "maskedCredentials": {
       "title": "此命令所需的密码或密钥",
       "badgeNeverSaved": "仅用一次，不会保存",
@@ -13407,8 +13356,6 @@
     "viewportDesktop": "桌面视图 (100%)",
     "viewportTablet": "平板视图 (768px)",
     "viewportMobile": "移动视图 (375px)",
-    "indicatorReady": "服务已就绪",
-    "indicatorPreview": "分屏预览",
     "splitPreviewerTitle": "沙箱服务嵌入式分屏预览器",
     "splitPreviewerSubtitle": "右侧分屏实时预览正在运行的 Web 页面与热重载效果",
     "splitCollapse": "收起分屏",
@@ -14567,75 +14514,6 @@
     },
     "tabToAdopt": "按 Tab 键一键填入建议提示词"
   },
-  "factCheck": {
-    "bannerTitle": "诚实守卫与待核验提示",
-    "bannerWarning": "本篇草案包含 {count} 处待实测占位数据，发布前建议替换为真实跑测结果",
-    "bannerSuccess": "所有占位数据已全部核验并替换为真实数据，具备工业级严谨度",
-    "viewCheckSheet": "查看核验清单",
-    "finalizeDraft": "一键定稿",
-    "drawerTitle": "事实核查与占位管理",
-    "drawerSubtitle": "不编造数据，把即兴演练的虚构骨架与已核实事实严密管起来",
-    "tabPlaceholders": "待替换占位",
-    "tabVerified": "已核实硬事实",
-    "placeholderTag": "待实测",
-    "verifiedTag": "已核实",
-    "contextLabel": "上下文摘录",
-    "inputRealValuePlaceholder": "输入真实跑测数据...",
-    "applyBtn": "替换",
-    "applied": "已替换",
-    "replaceAllBtn": "一键全部替换并定稿",
-    "sourceLabel": "信源",
-    "verifiedAtLabel": "核实时间",
-    "emptyPending": "太棒了！当前没有任何未核验的虚构占位数据",
-    "emptyVerified": "暂无附加的网络检索核实记录",
-    "close": "关闭"
-  },
-  "groupChat": {
-    "title": "Bot Mode 多 Agent 协同群聊工作区",
-    "botModeSummary": "支持智能体机器人模式与点对点私信",
-    "roomsTitle": "协同工作频道",
-    "createRoom": "创建新房间",
-    "roomNamePlaceholder": "房间名称 (如: 架构战情室)",
-    "roomTopicPlaceholder": "讨论目标或协同主题...",
-    "participantsTitle": "房间成员与角色",
-    "operatorLabel": "工作区导演 (Human)",
-    "botLabel": "专职 Bot",
-    "composerPlaceholder": "输入协作指令，按 @ 呼叫特定 Agent...",
-    "sendBtn": "发送",
-    "peerTitle": "Agent 规范私聊归档 (Canonical Inbox)",
-    "noMessages": "暂无群聊消息，请在输入框键入并 @ 智能体发起协作",
-    "noArchives": "暂无对等点对点通信记录",
-    "messagesCount": "条消息",
-    "latencyLabel": "往返延迟",
-    "avatarLocked": "确定性头像已锁定",
-    "presence": {
-      "idle": "空闲待命",
-      "reasoning": "正在推理与协同...",
-      "pass": "本轮静默旁听",
-      "viewSkills": "查看技能与设定",
-      "skillsTitle": "已挂载技能与工具",
-      "membersOnline": "位专家在线"
-    },
-    "mention": {
-      "mentionTitle": "指派呼叫智能体",
-      "filterPlaceholder": "输入角色或名称筛选 (如 @sec, @arch)...",
-      "noMatch": "未找到匹配的智能体",
-      "primaryTarget": "主攻专家"
-    },
-    "deliberation": {
-      "passBadge": "评估无本轮动作，PASS 静默旁听",
-      "expandPass": "展开判定依据",
-      "collapsePass": "折叠",
-      "roleSpeaker": "发言代表"
-    },
-    "needsYou": {
-      "needsYouTitle": "需人类介入协同决断 (NEEDS-YOU)",
-      "resolveNotice": "多方讨论进入关键分水岭，请为协同小队指明方向",
-      "suggestedChips": "推荐裁决方案：",
-      "customResponse": "或输入您的专属决断指令...",
-      "submitDecision": "确认裁决并恢复执行"
-    }
-  },
   "machines": {
     "title": "自托管机群 (My Machines)",
     "subtitle": "接入并监控自托管物理机与私有算力节点，支持远程人机同屏实时接管",
@@ -14696,55 +14574,7 @@
       "rejectReasonPlaceholder": "可选：填写拒绝原因...",
       "rejectConfirm": "确认拒绝",
       "processing": "处理中..."
-    },
-    "selectionList": {
-      "title": "触控方案选择",
-      "singleSelectHint": "单手轻按即可直接选定方案",
-      "multiSelectHint": "支持点选多项，完成后点击确认",
-      "confirmSelection": "确认选中项",
-      "selectedCount": "已选 {count} 项",
-      "clearAll": "重选"
-    },
-    "actionBar": {
-      "quickVoice": "语音暂存",
-      "skills": "技能菜单",
-      "stop": "中止",
-      "stopping": "中止中...",
-      "sessions": "会话",
-      "expand": "展开更多"
     }
-  },
-  "runtimeConsole": {
-    "title": "运行时控制台与多端状态投影中枢",
-    "liveStateSummary": "实时呈现运行状态与事件",
-    "surfaces": {
-      "chat": "Chat 对话视图",
-      "runtimeConsole": "Runtime Console 控制台",
-      "deliverables": "Deliverables 工件看板",
-      "audit": "Audit 审计流水"
-    },
-    "attemptInspector": {
-      "title": "Attempt 状态机变迁与吞吐水位线",
-      "attemptNumber": "第 {number} 次尝试",
-      "duration": "耗时",
-      "throughput": "生成速率",
-      "tokens": "Tokens 消耗",
-      "status": "状态",
-      "faultReason": "故障诊断原因",
-      "diffSummary": "虚拟 Diff 变更",
-      "noAttempts": "暂无 Attempt 运行记录"
-    },
-    "deliverablesSection": {
-      "title": "产出工件与事实矩阵",
-      "noDeliverables": "当前 Run 尚未产生固化产物"
-    },
-    "auditSection": {
-      "title": "合规安全与权限决策流水",
-      "noAudit": "暂无高危动作与审计记录"
-    },
-    "tokensTotal": "累计消耗 Tokens",
-    "avgThroughput": "平均生成速率",
-    "closeDrawer": "关闭控制台"
   },
   "skillAlignment": {
     "title": "前置需求结构化对齐",
@@ -22658,13 +22488,6 @@
     "close": "关闭",
     "binaryChanged": "二进制文件已更改",
     "noChanges": "无更改"
-  },
-  "riskGate": {
-    "regionLabel": "分级风险确认",
-    "dryRunImpact": "以 dry_run=true 模拟执行 {tool}",
-    "dryRunDefaultTarget": "目标对象",
-    "dryRunParamsVerified": "参数校验通过（{count} 个字段）",
-    "dryRunNoPersistentChanges": "未对文件系统或数据库做任何持久化修改"
   },
   "commerceReceipt": {
     "statusCommitted": "已支付并核验",

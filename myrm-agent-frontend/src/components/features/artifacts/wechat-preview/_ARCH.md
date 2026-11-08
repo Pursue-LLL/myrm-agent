@@ -11,5 +11,4 @@
 | `wechatThemes.ts` | 预设与编译器 | 四大微信排版主题预设与 compileWechatInlineHtml 内联样式注入编译器 | ✅ |
 | `useWechatPreviewStore.ts` | 状态库 | 视口模式（mobile/tablet/desktop）、主题切换、字号缩放及复制状态管理 | ✅ |
 | `MultiDeviceArticlePreviewer.tsx` | 预览器组件 | 多设备高保真仿真外壳、顶部 HUD 工具栏、实时内联富文本渲染与一键剪贴板复制 | ✅ |
-| `index.ts` | 门面 | 统一导出所有类型、主题工具、状态库与预览器组件 | ✅ |
 | `_ARCH.md` | 文档 | 模块定位与架构清单 | ✅ |

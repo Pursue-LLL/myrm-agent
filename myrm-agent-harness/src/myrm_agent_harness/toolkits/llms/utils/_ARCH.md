@@ -15,7 +15,6 @@ LLM toollayer: JSON handles, modelparameter, log
 | model_utils.py | Core | Model introspection — best-effort context window limit extraction from BaseChatModel, and the documented per-response output ceiling of a model (`get_model_output_ceiling`) with `clamp_budget_to_model_ceiling`, which limits an upward output-budget adjustment to that ceiling and never below a budget the provider already accepted | ✅ |
 | logger.py | Core | LLM API request/response logging utility. Provides detailed LLM API call logging with toggle sup | ✅ |
 | proxy.py | Core | Egress proxy utilities: URL normalization (socks to socks5), credential masking, URL validation with link-local/IMDS SSRF protection, HTTP status discrimination, and connectivity probing with TTL caching. | ✅ |
-| no_proxy_bypass.py | Core | `LanEndpointNoProxyManager` — `is_local_or_lan_endpoint` recognises localhost, RFC 1918 private subnets and local domain suffixes; `build_recommended_no_proxy_entries` builds the matching `NO_PROXY` list; `configure_bypass_client_kwargs` sets `trust_env=False` for such URLs so local Ollama/vLLM endpoints are not hijacked by `HTTP_PROXY` | — |
 
 ## Key Dependencies
 

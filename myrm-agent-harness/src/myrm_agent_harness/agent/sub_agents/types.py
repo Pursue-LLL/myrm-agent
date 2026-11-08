@@ -494,9 +494,6 @@ class SubagentConfig:
     delegation_allowed_types: frozenset[str] | None = field(default=None, repr=False)
     is_advisory: bool = False
     advisory_schema: dict[str, object] | None = field(default=None, repr=False)
-    role_chain: tuple[str, ...] | None = None
-    max_review_rounds: int = 3
-    model_override: str | None = None
 
     _MIN_TIMEOUT_SECONDS: ClassVar[int] = 30
 

@@ -26,7 +26,7 @@
 ║  event_translator.py          ║  └─ CliRuntime                 ║
 ╠═══════════════════════════════╩═══════════════════════════════╣
 ║                    横切关注点 (core/)                          ║
-║  types.py · core/EventBus · core/PermissionManager           ║
+║  types.py · core/EventBus                                    ║
 ║  core/BackendDetector                                         ║
 ╚═══════════════════════════════════════════════════════════════╝
 ```
@@ -114,7 +114,7 @@ RuntimeEvent (frozen dataclass)
 - `reasoning_delta` — 支持思维链展示（参考 nextclaw MessageReasoningDelta）
 - `usage_update` — 实时 Token 监控（参考 craft-agents-oss token 估算）
 - `status_update` — 后端状态变化通知（starting, compacting, reconnecting 等），UI 可精确展示后端状态；会话连续性通知由 `types.ContinuityStatus` 定义：`session_expired`（CLI 已不认识上次的会话，本回合改开新会话）与 `session_workspace_changed`（工作目录变了，不续接），宿主据此提示用户而不是当作错误；图片没有交给 agent 时（后端不收图，或 ACP agent 没声明 `promptCapabilities.image`）回合以一条 `images_not_sent`（`types.IMAGES_NOT_SENT_STATUS`，带 `images` 张数）开头，由 `types.images_not_sent_event` 构造，宿主据此如实告诉用户
-- `permission_request` 包含 `response_future` — 参考 Claude-Cowork PendingPermission 模式，run_turn 内部 await Future，订阅者通过 `future.set_result(decision)` 响应，超时按 PermissionManager 默认策略处理
+- `permission_request` 包含 `response_future` — 权限回调内部 await Future，订阅者通过 `future.set_result(decision)` 响应，30 秒无应答按 `DENY_ONCE` 拒绝（见 3.5）
 
 ### 3.3 结构化错误体系
 
@@ -157,32 +157,17 @@ EventBus
 - Session 级过滤：subscribe 可指定 session_id，只接收该会话的事件
 - 异步回调：支持 async callable
 
-### 3.5 PermissionManager（增强权限管理）
+### 3.5 权限模式（permission_mode）
 
-**来源**：craft-agents-oss 4 种权限模式 + ironclaw 工具白名单 + AionUi 审批缓存
+**裁决位置**：`RuntimeConfig.permission_mode` 没有可替换的权限管理器，由后端各自就地消费：ACP 后端的 `runtime/acp/callback.py::AcpCallbackHandler.request_permission` 裁决 agent 发来的权限请求；CLI 后端的 `auth.resolve_cli_args` 把模式映射成各 CLI 自己的权限参数，裁决交给 CLI 本身。
 
-**架构**：框架层提供 `PermissionManager` Protocol + `DefaultPermissionManager` 默认实现，业务层可替换为自定义实现。
+**4 种权限模式**（ACP 后端的裁决规则）：
+- `safe`：只放行读操作（工具名含 read / search / list / glob），其余拒绝
+- `ask`：通过 EventBus 发出 `permission_request` 事件并等待订阅者裁决；30 秒无应答按 `DENY_ONCE` 拒绝；未注入 EventBus 时按 `safe` 处理
+- `allow_all`：自动批准所有工具（选 agent 所列选项中第一个 allow_once / allow_always）
+- `bypass`：框架侧不做判断，直接回 allow_always（由外部后端自身的权限机制接管）
 
-```
-PermissionManager (Protocol)
-├── check(tool_name, tool_input, session_id) -> PermissionDecision
-└── record_approval(tool_name, session_id) -> None
-
-框架层默认实现：DefaultPermissionManager
-业务层可实现：UIPermissionManager, AdminPermissionManager 等
-```
-
-**4 种权限模式**：
-- `safe`：只允许读操作（Read, Glob, Grep, Search）
-- `ask`：每次工具调用都询问用户（通过 EventBus 发送 permission_request）
-- `allow_all`：自动批准所有工具
-- `bypass`：跳过框架侧权限检查（由外部后端自身的权限机制接管）
-
-**增强功能**：
-- **工具白名单 + 参数级通配符**：`allowed_tools: list[str]`，支持 `Bash(npm run *)` 格式
-- **Session 级审批缓存**：用户选择 "always allow" 后缓存决策
-- **工具分类**：自动识别读/写/执行操作
-- **异步响应机制**：`ask` 模式下，run_turn 产生包含 `asyncio.Future[PermissionDecision]` 的 permission_request 事件，await Future 等待外部决策；PermissionManager 在 `allow_all` / `safe` / `bypass` 模式下自动 set_result，无需外部参与
+**异步响应机制**：`ask` 模式下，回调产生包含 `asyncio.Future[PermissionDecision]` 的 permission_request 事件，await Future 等待外部决策，再把决策映射回 agent 提供的 allow / reject 选项；其余三种模式在回调内直接给出结果，无需外部参与
 
 ### 3.6 BackendDetector（后端自动检测）
 
@@ -238,7 +223,6 @@ RuntimeConfig (frozen dataclass)
 ├── cwd: str | None                      # 工作目录
 ├── timeout_seconds: int = 300           # 整个回合的时间上限（含 CLI 静默的时间），由宿主按场景设置
 ├── permission_mode: PermissionMode      # 权限模式
-├── allowed_tools: list[str]             # 工具白名单
 ├── auth_mode: AuthMode = "subscription" # 鉴权模式：订阅登录态 / API Key
 ├── mcp_servers: list[McpServerConfig]   # MCP Server 配置
 ├── max_response_chars: int = 50_000     # 响应截断限制
@@ -310,7 +294,6 @@ acp/
 ├── core/                   # 共享基础设施
 │   ├── __init__.py
 │   ├── event_bus.py        # EventBus
-│   ├── permission.py       # DefaultPermissionManager
 │   └── backend_detector.py # CLI 探测（detect + detect_with_auth 安装+登录态一次性视图）
 ├── auth/                   # 订阅鉴权子系统（业务无关机制）
 │   ├── __init__.py         # 公共导出
@@ -383,7 +366,6 @@ acp/
 | runtime/cli/runtime.py | 实现 | CLI spawn 后端 |
 | runtime/pool.py | 管理器 | 单实例内多后端管理 |
 | core/event_bus.py | 事件系统 | 类似生命周期钩子，业务层订阅 |
-| core/permission.py | Protocol + 默认实现 | DefaultPermissionManager（4 模式 + 白名单） |
 | core/backend_detector.py | 工具 | 后端自动检测 |
 
 ### 业务层自定义（通过 Protocol 注入）
@@ -393,7 +375,6 @@ acp/
 | 权限交互 UI | EventBus + permission_request 事件 | 订阅事件 → 展示 UI → `future.set_result()`（尚未接入：未注入 EventBus 时 ask 模式降级为只读） |
 | 监控集成 | EventBus 事件 | 推送到 Prometheus / DataDog |
 | 自定义后端 | RuntimeBackend Protocol | HTTP API Agent / 自研 Agent |
-| 自定义权限 | PermissionManager Protocol | 基于角色的权限管理 |
 
 ### 业务层接入（myrm-agent-server）
 
@@ -467,7 +448,6 @@ acp/
 | P0 | runtime/_base.py（基类） | 低 | types.py |
 | P0 | runtime/acp/runtime.py（ACP 后端） | 中 | types.py, _base.py |
 | P0 | runtime/pool.py（RuntimePool） | 低 | types.py |
-| P1 | core/permission.py（权限增强） | 中 | types.py |
 | P1 | core/event_bus.py（事件总线） | 低 | types.py |
 | P1 | runtime/cli/runtime.py（CLI 后端） | 中 | types.py, _base.py, core/event_bus.py |
 | P2 | core/backend_detector.py（自动检测） | 低 | 无 |
@@ -490,7 +470,7 @@ acp/
 9. **Server 层职责单一**：桥接与翻译与 Runtime 正交
 10. **依赖面小**：标准库 + 可选依赖 `agent-client-protocol` + 可选 Node 工具链
 11. **并发受控**：RuntimePool Semaphore
-12. **框架/业务可替换**：PermissionManager 等 Protocol 注入点明确
+12. **框架/业务可替换**：RuntimeBackend、CliSessionStore 等 Protocol 注入点明确
 13. **全链路取消**：CancellationToken 通过 ContextVar 传播，用户取消 → `cancel_hook` 在一个轮询周期内触发 → pool.cancel() → backend.cancel() → 进程组终止（SIGTERM → 宽限 → SIGKILL），不依赖外部 Agent 是否还在输出（含提示词尚未被 CLI 读走的时候，见「委派取消传播」）
 14. **超时/异常/放弃不留孤儿**：回合生成器由 aclosing 收尾，超时、异常与消费方提前放弃都会停掉存活进程
 15. **双层 Max Turns 安全护栏**：Layer 1（CLI 原生上限）让支持的 CLI 自行停止并如实报告，Layer 2（delegate_tool 工具调用计数）只兜底没有原生上限的后端

@@ -1,4 +1,4 @@
-"""SQLAlchemy implementation of the CommitmentStore protocol.
+"""SQLAlchemy persistence of commitment records.
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.proactive::{CommitmentRecord, CommitmentStatus, CommitmentDueWindow, is_active_status}
@@ -6,11 +6,11 @@
 - app.database.connection::get_session
 
 [OUTPUT]
-- SqlAlchemyCommitmentStore: Concrete CommitmentStore backed by SQLAlchemy.
+- SqlAlchemyCommitmentStore: commitment record store backed by SQLAlchemy.
 
 [POS]
-Server-layer SQLite commitment store. Implements the Harness-defined
-CommitmentStore protocol using SQLAlchemy ORM operations.
+Server-layer SQLite commitment store. Persists the Harness commitment records
+using SQLAlchemy ORM operations.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def _to_model(record: CommitmentRecord) -> CommitmentModel:
 
 
 class SqlAlchemyCommitmentStore:
-    """CommitmentStore backed by SQLAlchemy + SQLite/PostgreSQL."""
+    """Commitment record store backed by SQLAlchemy + SQLite/PostgreSQL."""
 
     async def upsert(self, record: CommitmentRecord) -> CommitmentRecord:
         """Insert or update by dedupe_key within (agent_id, user_id, channel) scope."""

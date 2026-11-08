@@ -92,7 +92,6 @@ Design notes:
 | `template_utils.py` | ✅ 辅助 | Agent 模板实例化共享工具（`PREBUILT_AGENTS_DIR` / `resolve_i18n` / `ensure_skills_enabled`），API templates router 与 onboarding presets 复用 | ✅ |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭据组装——`assemble_session_credentials` / `session_credentials_scope` / `user_config_session_credentials_scope` 注入 `EphemeralUserCredential`；`XAI_ISSUER` 规范 xAI issuer key | ✅ |
 | `agent_assembler_service.py` | ✅ 核心 | 模块化能力拼装服务 — 针对 6 大类积木（大脑/人设/工具/技能/记忆/沙箱）提供依赖合法性体检、预制积木卡片库以及即时微沙箱演练试跑 | ✅ |
-| `agent_avatar_service.py` | ✅ 核心 | 智能体头像生成与锁定服务 — 提供纯确定性多风格 SVG 种子算法（Dice Roll）、AI 描述词生图代理与头像锁定缓存持久化 | ✅ |
 
 
 

@@ -1,7 +1,7 @@
 # decorators/
 
 ## Overview
-SkillBackend decorator proxies — activated-version routing and quarantine filtering without mutating filesystem skill sources.
+SkillBackend decorator proxy — activated-version routing without mutating filesystem skill sources.
 
 ## File & Submodule Index
 
@@ -9,8 +9,7 @@ SkillBackend decorator proxies — activated-version routing and quarantine filt
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports decorator backends | — |
 | version_aware.py | Core | VersionAwareSkillBackend — activated snapshot serving with filesystem fallback | baseline |
-| quarantine_aware.py | Core | QuarantineAwareSkillBackend — filters inactive skills at runtime | baseline |
 
 ## Module Dependencies
 
-- `backends.skills.protocols::SkillBackend`, `SnapshotStoreProtocol`, `SkillStateReader`
+- `backends.skills.protocols::SkillBackend`, `SnapshotStoreProtocol`

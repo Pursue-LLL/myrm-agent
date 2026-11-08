@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -15,7 +16,6 @@ from myrm_agent_harness.toolkits.memory.file_sync import (
     FileMemorySyncEngine,
     FileMemoryTopology,
     LenientMarkdownParser,
-    MemoryAnchorFormatter,
 )
 
 
@@ -99,8 +99,8 @@ def test_file_store_atomic_write_and_daily_note(tmp_path: Path):
     assert "Investigated Redis cluster" in daily_content
 
 
-def test_anchor_formatter():
-    """Verify anchor citation formatting and batch assembly."""
+def test_entry_anchor_collapses_single_line_ranges():
+    """Verify the source anchor shows a line range only when the entry spans several lines."""
     entry = FileMemoryEntry(
         id="fmem_123",
         content="Prefer pytest over unittest.",
@@ -111,14 +111,8 @@ def test_anchor_formatter():
         title="Testing Convention",
     )
 
-    single_block = MemoryAnchorFormatter.format_entry(entry)
-    assert "### Testing Convention [source: MEMORY.md#L15-L18]" in single_block
-    assert "Prefer pytest over unittest." in single_block
-
-    batch_block = MemoryAnchorFormatter.format_batch([entry])
-    assert "<workspace_memory_context>" in batch_block
-    assert "[source: MEMORY.md#L15-L18]" in batch_block
-    assert "</workspace_memory_context>" in batch_block
+    assert entry.to_anchor() == "[source: MEMORY.md#L15-L18]"
+    assert replace(entry, line_end=15).to_anchor() == "[source: MEMORY.md#L15]"
 
 
 @pytest.mark.asyncio
@@ -238,14 +232,6 @@ def test_parser_tilde_code_block_and_unclosed_fence():
     assert "echo 'hello'" in entries[0].content
     assert entries[1].title == "Unclosed Fence"
     assert "key: value" in entries[1].content
-
-
-def test_anchor_formatter_empty_batch_and_build_anchor():
-    """Verify empty batch formatting and standalone anchor string builder."""
-    assert MemoryAnchorFormatter.format_batch([]) == ""
-    assert MemoryAnchorFormatter.build_anchor("test.md", 10) == "[source: test.md#L10]"
-    assert MemoryAnchorFormatter.build_anchor("test.md", 10, 10) == "[source: test.md#L10]"
-    assert MemoryAnchorFormatter.build_anchor("test.md", 10, 20) == "[source: test.md#L10-L20]"
 
 
 def test_file_store_read_all_and_append_existing(tmp_path: Path):

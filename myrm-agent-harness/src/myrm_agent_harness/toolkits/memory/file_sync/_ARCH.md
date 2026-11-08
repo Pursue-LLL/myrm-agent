@@ -12,13 +12,12 @@
 | 文件 | 地位 | 职责 | I/O/P |
 | :--- | :---: | :--- | :---: |
 | `__init__.py` | 门面 | 子包公共符号导出与统一入口 | ✅ |
-| `models.py` | 核心 | 记忆条目、目录拓扑与同步报告领域模型 | ✅ |
+| `models.py` | 核心 | 记忆条目（含 `to_anchor()` 溯源标签 `[source: file#Lstart-Lend]`）、目录拓扑与同步报告领域模型 | ✅ |
 | `parser.py` | 核心 | 宽容 Markdown 流式状态机解析器与行号提取 | ✅ |
 | `store.py` | 核心 | 物理 Markdown 存储器与临时文件原子写入（`os.replace`） | ✅ |
-| `anchor.py` | 辅助 | 溯源标签与上下文格式化器（`[source: file#Lstart-Lend]`） | ✅ |
 | `sync.py` | 核心 | 双向增量同步协调引擎与惰性保鲜探针 | ✅ |
 
 ## 模块依赖
 
-- 内部依赖：`models.py` <- `parser.py`, `store.py`, `anchor.py`, `sync.py`
+- 内部依赖：`models.py` <- `parser.py`, `store.py`, `sync.py`
 - 外部依赖：`myrm_agent_harness.toolkits.memory.manager::MemoryManager`

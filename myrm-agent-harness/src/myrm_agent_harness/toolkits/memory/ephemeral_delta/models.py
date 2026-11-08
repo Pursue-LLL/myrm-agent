@@ -7,7 +7,6 @@
 - DeltaActionKind: Action type for an ephemeral session delta.
 - EphemeralDeltaItem: A lightweight, turn-scoped ephemeral delta to be attached to the Human tail.
 - EphemeralDeltaBufferSnapshot: Snapshot representation of the active ephemeral delta buffer for a session.
-- ReconciliationBatchReport: Audit report generated when ephemeral deltas are flushed to permanent storage.
 
 [POS]
 Types and models for ephemeral delta.
@@ -58,17 +57,3 @@ class EphemeralDeltaBufferSnapshot:
     frozen_snapshot_id: str | None = None
     total_chars: int = 0
     is_reconciled: bool = False
-
-
-@dataclass(frozen=True)
-class ReconciliationBatchReport:
-    """Audit report generated when ephemeral deltas are flushed to permanent storage."""
-
-    session_id: str
-    reconciled_count: int
-    overridden_count: int
-    persisted_keys: list[str]
-    elapsed_ms: float
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )

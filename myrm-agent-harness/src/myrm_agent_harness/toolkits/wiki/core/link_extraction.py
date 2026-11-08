@@ -8,12 +8,11 @@
 - WIKILINK_RE, MARKDOWN_LINK_RE: the two link syntaxes (each part at most 1024 characters, so an unclosed opener cannot make a scan quadratic)
 - WikilinkParts, parse_wikilink, normalize_wikilink_target: split / normalize a `[[...]]` body
 - NON_PAGE_TARGET_PREFIXES, is_external_link: targets that are not wiki pages
-- find_wikilinks: page wikilinks with their source text and parts (label, heading)
 - extract_wikilink_targets, extract_markdown_link_targets: distinct page-candidate targets of a page's prose
 
 [POS]
-Single definition of link syntax for graph edges, structural lint, move/rename refactoring,
-backlink discovery and canvas import, so every consumer reads the same links in the same
+Single definition of link syntax for graph edges, structural lint, move/rename refactoring and
+backlink discovery, so every consumer reads the same links in the same
 text. Code regions (``` and ~~~ fences, backtick spans) are masked before any link is read;
 a link may still wrap an inline code span in its label. Resolving a target to a page is
 `link_resolver`'s concern, never this module's.
@@ -109,23 +108,6 @@ def is_external_link(url: str) -> bool:
 def _is_page_reference(target: str) -> bool:
     """Whether masked link text names a page: not empty, not code, not a URL or pseudo target."""
     return bool(target) and "\x00" not in target and not target.startswith(NON_PAGE_TARGET_PREFIXES)
-
-
-def find_wikilinks(content: str) -> list[tuple[str, WikilinkParts]]:
-    """(source text, parts) of every page `[[wikilink]]` outside code, in order of appearance.
-
-    Same-page anchors (`[[#Heading]]`), empty bodies, URLs and `system:*` pseudo targets
-    are not page references and are dropped. A label may wrap inline code.
-    """
-    masked, restore = protect_code(content)
-    found: list[tuple[str, WikilinkParts]] = []
-    for match in WIKILINK_RE.finditer(masked):
-        parts = parse_wikilink(match.group(1))
-        if _is_page_reference(parts.note):
-            fragment = None if parts.fragment is None else restore(parts.fragment)
-            label = None if parts.label is None else restore(parts.label)
-            found.append((restore(match.group(0)), WikilinkParts(parts.note, fragment, label)))
-    return found
 
 
 def extract_wikilink_targets(content: str) -> tuple[str, ...]:

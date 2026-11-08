@@ -10,9 +10,8 @@
 |---|---|---|
 | `DevPortPreviewModal.tsx` | 即时预览抽屉/模态框：语义化 `<dialog>`，内嵌安全隔离 iframe，支持三重视口切换、刷新、公网穿透复制与一键终止进程 | `< 250` 行，零 `any`，Tailwind 响应式 |
 | `DevPortsBar.tsx` | 常驻 HUD 端口监听胶囊：显示活跃端口总数与响应脉冲点，点击或按快捷键 `Cmd+Shift+P` 展开 Popover，消除 Dead Feature Path | `< 250` 行，零原生 emoji |
-| `DevPortIndicator.tsx` | 实时就绪服务气泡胶囊：展示 `:3000 Listening` 脉冲徽标，支持从日志自动嗅探与一键拉起分屏预览 | `< 200` 行，零 `any`，零原生 emoji |
 | `DevPortSplitPreviewer.tsx` | 嵌入式分屏 Web 实时预览抽屉：右侧分屏多视口（桌面/平板/手机）实时热重载、控制台日志与公网隧道穿透；预览标题与控制台日志行取自 `devPorts.previewTitle` 与 `devPorts.console*`（带参数） | `< 350` 行，零 `any`，零原生 emoji |
-| `index.ts` | 门面导出文件：统一导出预览模态框、监听条、就绪气泡与分屏预览器 | 统一入口 |
+| `index.ts` | 门面导出文件：统一导出预览模态框、监听条与分屏预览器 | 统一入口 |
 | `_ARCH.md` | 本模块架构说明与文件职责索引 | 遵循架构规范 |
 
 ## 核心特性

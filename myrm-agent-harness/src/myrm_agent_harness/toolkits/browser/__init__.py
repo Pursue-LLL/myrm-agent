@@ -96,7 +96,6 @@ if TYPE_CHECKING:
     )
     from .session_vault.backends.file_backend import FileVaultBackend, load_or_create_key
     from .session_vault.backends.protocols import SessionVaultBackend
-    from .session_vault.backends.storage_backend import StorageVaultBackend
 
 
 __all__ = [
@@ -131,7 +130,6 @@ __all__ = [
     "SessionVault",
     "SessionVaultBackend",
     "SessionVaultError",
-    "StorageVaultBackend",
     "VaultMetrics",
     "cleanup_orphan_processes",
     "cleanup_stale_automation_sandboxes",
@@ -171,7 +169,6 @@ _LAZY_MODULES = {
     ],
     "session_vault.backends.file_backend": ["FileVaultBackend", "load_or_create_key"],
     "session_vault.backends.protocols": ["SessionVaultBackend"],
-    "session_vault.backends.storage_backend": ["StorageVaultBackend"],
     "observability": ["BrowserObservability", "RecordingConfig"],
     "action_capture": [
         "ActionCaptureEngine",

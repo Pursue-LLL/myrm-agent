@@ -1,4 +1,4 @@
-"""Tests for vision fallback engine and cache."""
+"""Tests for vision fallback engine."""
 
 from __future__ import annotations
 
@@ -8,15 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from myrm_agent_harness.core.config.llm import LLMConfig
-from myrm_agent_harness.toolkits.llms.vision.cache import (
-    build_cache_key,
-    get_vision_cache_store,
-)
 from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
-from myrm_agent_harness.toolkits.llms.vision.types import (
-    VisionBackendKind,
-    VisionResult,
-)
 
 
 def _tiny_png() -> bytes:
@@ -48,16 +40,6 @@ async def test_describe_images_together_single_call(
     )
     assert result == "together-answer"
     assert fallback_engine._models[0].ainvoke.await_count == 1
-
-
-@pytest.mark.asyncio
-async def test_cache_key_isolated_by_task() -> None:
-    store = get_vision_cache_store()
-    store.clear()
-    key_a = build_cache_key(content_hash="abc", mode="ocr", task="amount")
-    key_b = build_cache_key(content_hash="abc", mode="ocr", task="date")
-    store.set(key_a, VisionResult(text="a", backend_kind=VisionBackendKind.VLM))
-    assert store.get(key_b) is None
 
 
 def _tall_png(width: int = 200, height: int = 1200) -> bytes:

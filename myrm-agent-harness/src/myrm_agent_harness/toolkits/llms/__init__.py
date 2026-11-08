@@ -20,7 +20,6 @@ if TYPE_CHECKING:
         ProviderBalanceResult,
         ProviderBalanceStatus,
     )
-    from .utils.no_proxy_bypass import LanEndpointNoProxyManager
 
 __all__ = [
     "TransportChatModel",
@@ -28,7 +27,6 @@ __all__ = [
     "ErrorKind",
     "FallbackModel",
     "LLMManager",
-    "LanEndpointNoProxyManager",
     "ManagedLLM",
     "ProviderBalanceProbeProtocol",
     "ProviderBalanceResult",
@@ -96,10 +94,6 @@ _LAZY_IMPORTS = {
     "is_payload_overflow": (
         "myrm_agent_harness.toolkits.llms.errors.classifier",
         "is_payload_overflow",
-    ),
-    "LanEndpointNoProxyManager": (
-        "myrm_agent_harness.toolkits.llms.utils.no_proxy_bypass",
-        "LanEndpointNoProxyManager",
     ),
     "ThinkingModelReasoningAdapter": (
         "myrm_agent_harness.toolkits.llms.adapters.thinking_adapter",

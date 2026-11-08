@@ -165,7 +165,7 @@ Does your code need to import anything from agent/?
 | acp/ | ACP protocol integration — server and runtime components for Agent Communication Protocol. |
 | browser/ | Browser automation — multi-tab control, iframe traversal, session vault, stealth mode, action capture. |
 | code_execution/ | Code execution system — Agent-in-Sandbox mode with multiple executor backends. |
-| memory/proactive/ | Proactive follow-up tracking — implicit promise extraction; host implements `CommitmentStore`. See [COMMITMENT_SYSTEM.md](memory/proactive/COMMITMENT_SYSTEM.md). |
+| memory/proactive/ | Proactive follow-up tracking — implicit promise extraction; the host persists the records. See [COMMITMENT_SYSTEM.md](memory/proactive/COMMITMENT_SYSTEM.md). |
 | computer_use/ | System-wide desktop automation — screen capture + coordinate-based input (macOS/Linux). |
 | cron/ | Scheduled task framework — scheduling engine, CRUD manager, built-in strategies. |
 | context_bundle/ | Unified context bundle — volume layout, facade, index registration. |

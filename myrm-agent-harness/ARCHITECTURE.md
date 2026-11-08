@@ -457,13 +457,6 @@ class UserService:
 - 预设配置：default、aggressive、conservative、balanced
 - 验证机制：自动检查参数有效性
 
-**预设降级策略（开箱即用）**：
-
-- 6种最佳实践策略（gpt-4-standard、gpt-4-high-availability、cost-optimized等）
-- create_managed_llm_from_preset()：一行代码完成配置
-- FallbackStrategy dataclass：封装完整策略（主模型、降级链、场景、探测配置）
-- 跨项目复用：标准化配置，降低门槛
-
 **降级与恢复事件通知**：
 
 - FailoverEvent：完整的降级事件数据
