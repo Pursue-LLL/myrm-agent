@@ -173,14 +173,14 @@ const BenchmarkMetrics = ({ summary, t }: { summary: MemoryCommandBenchmarkSumma
         />
         {summary.duplicate_rate !== undefined && (
           <MetricCard
-            label={t('commandCenter.benchmarkDuplicateRate') || '重复分块率'}
+            label={t('commandCenter.benchmarkDuplicateRate')}
             value={formatPercent(summary.duplicate_rate)}
             colorClass={metricColor(1 - summary.duplicate_rate, { good: 0.8, warn: 0.6 })}
           />
         )}
         {summary.distinct_source_ratio !== undefined && (
           <MetricCard
-            label={t('commandCenter.benchmarkDistinctSources') || '来源多样性'}
+            label={t('commandCenter.benchmarkDistinctSources')}
             value={formatPercent(summary.distinct_source_ratio)}
             colorClass={metricColor(summary.distinct_source_ratio, { good: 0.8, warn: 0.6 })}
           />
