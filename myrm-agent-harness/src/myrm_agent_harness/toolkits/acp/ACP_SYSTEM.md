@@ -37,8 +37,6 @@
 
 ### 3.1 RuntimeBackend Protocol（核心抽象）
 
-**来源**：openclaw AcpRuntime + workany AgentPlugin + LobsterAI CoworkRuntime
-
 **价值**：将 ACP 协议连接与 CLI spawn 统一为一个接口，新增后端只需实现这个 Protocol。
 
 ```
@@ -66,10 +64,10 @@ RuntimeBackend (Protocol)
 
 **2 种实现**：
 
-| Runtime | 协议 | 参考项目 | 适用场景 |
-|---------|------|---------|---------|
-| AcpRuntime | ACP JSON-RPC (stdin/stdout) | openclaw, zeroclaw | 需 ACP 桥接器（claude-agent-acp / acpx），原生 CLI 不支持 ACP |
-| CliRuntime | spawn CLI + NDJSON 解析（含 reasoning/usage/工具调用）；Claude / Codex 经 CLI 自己的会话 id 跨回合续接 | ironclaw, nullclaw, picoclaw | Claude/Codex/Gemini CLI（推荐，开箱即用） |
+| Runtime | 协议 | 适用场景 |
+|---------|------|---------|
+| AcpRuntime | ACP JSON-RPC (stdin/stdout) | 需 ACP 桥接器（claude-agent-acp / acpx），原生 CLI 不支持 ACP |
+| CliRuntime | spawn CLI + NDJSON 解析（含 reasoning/usage/工具调用）；Claude / Codex 经 CLI 自己的会话 id 跨回合续接 | Claude/Codex/Gemini CLI（推荐，开箱即用） |
 
 **BackendInfo**：
 ```
@@ -82,11 +80,7 @@ BackendInfo
 └── metadata: dict[str, object] | None
 ```
 
-来源：AionUi 后端版本检测 + workany AgentProviderMetadata
-
 ### 3.2 RuntimeEvent（统一事件模型）
-
-**来源**：opencode 事件订阅 + nextclaw NCP 34 事件类型（精简版）
 
 ```
 RuntimeEvent (frozen dataclass)
@@ -111,14 +105,12 @@ RuntimeEvent (frozen dataclass)
 | `done` | 会话结束 | stop_reason, total_usage |
 
 **设计亮点**：
-- `reasoning_delta` — 支持思维链展示（参考 nextclaw MessageReasoningDelta）
-- `usage_update` — 实时 Token 监控（参考 craft-agents-oss token 估算）
+- `reasoning_delta` — 支持思维链展示
+- `usage_update` — 实时 Token 监控
 - `status_update` — 后端状态变化通知（starting, compacting, reconnecting 等），UI 可精确展示后端状态；会话连续性通知由 `types.ContinuityStatus` 定义：`session_expired`（CLI 已不认识上次的会话，本回合改开新会话）与 `session_workspace_changed`（工作目录变了，不续接），宿主据此提示用户而不是当作错误；图片没有交给 agent 时（后端不收图，或 ACP agent 没声明 `promptCapabilities.image`）回合以一条 `images_not_sent`（`types.IMAGES_NOT_SENT_STATUS`，带 `images` 张数）开头，由 `types.images_not_sent_event` 构造，宿主据此如实告诉用户
 - `permission_request` 包含 `response_future` — 权限回调内部 await Future，订阅者通过 `future.set_result(decision)` 响应，30 秒无应答按 `DENY_ONCE` 拒绝（见 3.5）
 
 ### 3.3 结构化错误体系
-
-**来源**：craft-agents-oss 错误标记 (__API_KEY_ERROR__ 等) + ironclaw 错误分类
 
 ```
 AcpErrorCode (StrEnum)
@@ -141,8 +133,6 @@ AcpError (frozen dataclass)
 **价值**：生产系统必须有结构化错误码，上层可根据 `retryable` 自动重试，根据 `code` 精准定位问题。
 
 ### 3.4 EventBus（统一事件总线）
-
-**来源**：opencode 全局事件流 + nextclaw AgentConversationStateManager
 
 **价值**：解耦事件生产者和消费者，支持外部订阅（UI、日志、监控）。
 
@@ -170,8 +160,6 @@ EventBus
 **异步响应机制**：`ask` 模式下，回调产生包含 `asyncio.Future[PermissionDecision]` 的 permission_request 事件，await Future 等待外部决策，再把决策映射回 agent 提供的 allow / reject 选项；其余三种模式在回调内直接给出结果，无需外部参与
 
 ### 3.6 BackendDetector（后端自动检测）
-
-**来源**：AionUi 后端自动检测 + workany 6 级 Claude Code 发现
 
 **检测策略**：
 1. `which` / `where` 命令
@@ -248,8 +236,6 @@ RuntimeConfig (frozen dataclass)
 - 日志规范化
 
 ### 3.10 auth 子系统（订阅鉴权）
-
-**来源**：pi-mono `/login`（ChatGPT Plus/Pro·Claude Pro/Max）+ openhuman `openai_oauth/`（flow/store/status）+ zeroclaw「API Key vs Codex 订阅」二选一 + opencode 订阅插件
 
 **价值**：让委托的外部 CLI（Codex / Claude Code / Gemini / Qwen）运行在**用户自己的模型订阅**上而非按量计费的 API Key。框架只出**机制**（业务无关），由业务层驱动 GUI/SaaS 登录、状态徽章与凭据持久化。
 

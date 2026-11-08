@@ -648,7 +648,6 @@ mypy src/myrm_agent_harness
 ## 🙏 致谢
 
 - 基于 [LangChain](https://github.com/langchain-ai/langchain) 构建
-- 灵感来自 [Claude Code](https://www.anthropic.com/claude-code)
 - 性能优化源于生产环境实践
 
 ---
