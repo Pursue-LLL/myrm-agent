@@ -13378,8 +13378,6 @@
     "viewportDesktop": "Desktop View (100%)",
     "viewportTablet": "Tablet View (768px)",
     "viewportMobile": "Mobile View (375px)",
-    "indicatorReady": "Service Ready",
-    "indicatorPreview": "Split Preview",
     "splitPreviewerTitle": "Sandbox Embedded Split Web Previewer",
     "splitPreviewerSubtitle": "Live preview running web pages and hot reload side-by-side in sandbox",
     "splitCollapse": "Collapse Split View",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "Optional: reason for rejection...",
       "rejectConfirm": "Confirm Rejection",
       "processing": "Processing..."
-    },
-    "selectionList": {
-      "title": "Touch Option Selection",
-      "singleSelectHint": "Tap with one thumb to select directly",
-      "multiSelectHint": "Multiple options supported, tap to confirm",
-      "confirmSelection": "Confirm Selection",
-      "selectedCount": "{count} selected",
-      "clearAll": "Reset"
-    },
-    "actionBar": {
-      "quickVoice": "Voice Input",
-      "skills": "Skills (/)",
-      "stop": "Stop",
-      "stopping": "Stopping...",
-      "sessions": "Sessions",
-      "expand": "More"
     }
   },
   "skillAlignment": {

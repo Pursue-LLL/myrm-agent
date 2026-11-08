@@ -13378,8 +13378,6 @@
     "viewportDesktop": "데스크톱 보기(100%)",
     "viewportTablet": "태블릿 보기(768px)",
     "viewportMobile": "모바일 보기(375px)",
-    "indicatorReady": "서비스 준비 완료",
-    "indicatorPreview": "분할 미리보기",
     "splitPreviewerTitle": "샌드박스 내장 분할 웹 미리보기",
     "splitPreviewerSubtitle": "샌드박스에서 실행 중인 웹 페이지와 핫 리로드를 나란히 실시간으로 미리 봅니다",
     "splitCollapse": "분할 보기 접기",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "선택 사항: 거부 사유...",
       "rejectConfirm": "거부 확인",
       "processing": "처리 중..."
-    },
-    "selectionList": {
-      "title": "터치 옵션 선택",
-      "singleSelectHint": "엄지손가락 하나로 탭하여 바로 선택",
-      "multiSelectHint": "여러 옵션을 선택할 수 있습니다. 탭하여 확인",
-      "confirmSelection": "선택 확인",
-      "selectedCount": "{count}개 선택됨",
-      "clearAll": "초기화"
-    },
-    "actionBar": {
-      "quickVoice": "음성 입력",
-      "skills": "스킬 (/)",
-      "stop": "중지",
-      "stopping": "중지 중...",
-      "sessions": "세션",
-      "expand": "더보기"
     }
   },
   "skillAlignment": {

@@ -13378,8 +13378,6 @@
     "viewportDesktop": "Desktop-Ansicht (100 %)",
     "viewportTablet": "Tablet-Ansicht (768 px)",
     "viewportMobile": "Mobile Ansicht (375 px)",
-    "indicatorReady": "Dienst bereit",
-    "indicatorPreview": "Geteilte Vorschau",
     "splitPreviewerTitle": "In die Sandbox eingebettete geteilte Web-Vorschau",
     "splitPreviewerSubtitle": "Laufende Webseiten und Hot Reload nebeneinander live in der Sandbox ansehen",
     "splitCollapse": "Geteilte Ansicht einklappen",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "Optional: Ablehnungsgrund...",
       "rejectConfirm": "Ablehnung bestätigen",
       "processing": "Wird verarbeitet..."
-    },
-    "selectionList": {
-      "title": "Touch-Optionsauswahl",
-      "singleSelectHint": "Mit einem Daumen antippen, um direkt auszuwählen",
-      "multiSelectHint": "Mehrfachauswahl möglich, zum Bestätigen antippen",
-      "confirmSelection": "Auswahl bestätigen",
-      "selectedCount": "{count} ausgewählt",
-      "clearAll": "Zurücksetzen"
-    },
-    "actionBar": {
-      "quickVoice": "Spracheingabe",
-      "skills": "Fähigkeiten (/)",
-      "stop": "Stopp",
-      "stopping": "Wird gestoppt...",
-      "sessions": "Sitzungen",
-      "expand": "Mehr"
     }
   },
   "skillAlignment": {

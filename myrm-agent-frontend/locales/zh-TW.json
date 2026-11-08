@@ -13378,8 +13378,6 @@
     "viewportDesktop": "桌面檢視 (100%)",
     "viewportTablet": "平板檢視 (768px)",
     "viewportMobile": "移動檢視 (375px)",
-    "indicatorReady": "服務已就緒",
-    "indicatorPreview": "分屏預覽",
     "splitPreviewerTitle": "沙箱服務嵌入式分屏預覽器",
     "splitPreviewerSubtitle": "右側分屏即時預覽正在執行的 Web 頁面與熱過載效果",
     "splitCollapse": "收起分屏",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "可選：填寫拒絕原因...",
       "rejectConfirm": "確認拒絕",
       "processing": "處理中..."
-    },
-    "selectionList": {
-      "title": "觸控方案選擇",
-      "singleSelectHint": "單手輕按即可直接選定方案",
-      "multiSelectHint": "支援點選多項，完成後點選確認",
-      "confirmSelection": "確認選中項",
-      "selectedCount": "已選 {count} 項",
-      "clearAll": "重選"
-    },
-    "actionBar": {
-      "quickVoice": "語音暫存",
-      "skills": "技能選單",
-      "stop": "中止",
-      "stopping": "中止中...",
-      "sessions": "會話",
-      "expand": "展開更多"
     }
   },
   "skillAlignment": {

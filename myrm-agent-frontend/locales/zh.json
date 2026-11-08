@@ -13378,8 +13378,6 @@
     "viewportDesktop": "桌面视图 (100%)",
     "viewportTablet": "平板视图 (768px)",
     "viewportMobile": "移动视图 (375px)",
-    "indicatorReady": "服务已就绪",
-    "indicatorPreview": "分屏预览",
     "splitPreviewerTitle": "沙箱服务嵌入式分屏预览器",
     "splitPreviewerSubtitle": "右侧分屏实时预览正在运行的 Web 页面与热重载效果",
     "splitCollapse": "收起分屏",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "可选：填写拒绝原因...",
       "rejectConfirm": "确认拒绝",
       "processing": "处理中..."
-    },
-    "selectionList": {
-      "title": "触控方案选择",
-      "singleSelectHint": "单手轻按即可直接选定方案",
-      "multiSelectHint": "支持点选多项，完成后点击确认",
-      "confirmSelection": "确认选中项",
-      "selectedCount": "已选 {count} 项",
-      "clearAll": "重选"
-    },
-    "actionBar": {
-      "quickVoice": "语音暂存",
-      "skills": "技能菜单",
-      "stop": "中止",
-      "stopping": "中止中...",
-      "sessions": "会话",
-      "expand": "展开更多"
     }
   },
   "skillAlignment": {

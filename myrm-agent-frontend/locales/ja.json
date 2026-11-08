@@ -13378,8 +13378,6 @@
     "viewportDesktop": "デスクトップ表示（100%）",
     "viewportTablet": "タブレット表示（768px）",
     "viewportMobile": "モバイル表示（375px）",
-    "indicatorReady": "サービス準備完了",
-    "indicatorPreview": "分割プレビュー",
     "splitPreviewerTitle": "サンドボックス組み込み分割 Web プレビュー",
     "splitPreviewerSubtitle": "サンドボックス内で稼働中の Web ページとホットリロードを並べてライブプレビューします",
     "splitCollapse": "分割表示を折りたたむ",
@@ -14598,22 +14596,6 @@
       "rejectReasonPlaceholder": "任意: 却下の理由...",
       "rejectConfirm": "却下を確認",
       "processing": "処理中..."
-    },
-    "selectionList": {
-      "title": "タッチ操作の選択",
-      "singleSelectHint": "片手の親指でタップしてそのまま選択",
-      "multiSelectHint": "複数選択に対応。タップして確定",
-      "confirmSelection": "選択を確定",
-      "selectedCount": "{count} 件を選択中",
-      "clearAll": "リセット"
-    },
-    "actionBar": {
-      "quickVoice": "音声入力",
-      "skills": "スキル (/)",
-      "stop": "停止",
-      "stopping": "停止中...",
-      "sessions": "セッション",
-      "expand": "その他"
     }
   },
   "skillAlignment": {
