@@ -22,10 +22,12 @@ from pydantic import BaseModel, Field
 from .common import mark_untrusted
 
 if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
     from ..session import BrowserSession
 
 
-def create_snapshot_tool(session: BrowserSession):
+def create_snapshot_tool(session: BrowserSession) -> BaseTool:
     """Create browser_snapshot tool bound to session."""
 
     class SnapshotInput(BaseModel):
@@ -123,31 +125,6 @@ def create_snapshot_tool(session: BrowserSession):
         except Exception:
             pass
 
-        # Context-Aware Soft Routing: Check for blocking OS dialogs
-        warning_msg = ""
-        try:
-            # Only check if computer_use is theoretically available in the environment
-            # We can safely attempt to import and check
-            from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
-            from myrm_agent_harness.toolkits.computer_use.types import KNOWN_BROWSER_NAMES, ComputerUseConfig
-
-            # Create a lightweight session just to check backend (it caches the backend)
-            cu_session = create_computer_session(ComputerUseConfig())
-
-            # Check if the browser process has a blocking dialog
-            # We pass known browser names to ensure we only trigger if the dialog belongs to the browser
-            has_dialog = await cu_session.backend.has_blocking_dialog(list(KNOWN_BROWSER_NAMES))
-
-            if has_dialog:
-                warning_msg = (
-                    "\n[CRITICAL ROUTING WARNING: An OS-level dialog (e.g., File Picker, Permission Prompt) "
-                    "is currently blocking the web page. 'browser_interact_tool' CANNOT interact with it. "
-                    "You MUST switch to 'desktop_snapshot' and 'desktop_interact_tool' immediately to handle this dialog.]\n\n"
-                )
-        except Exception:
-            # Fail silently if computer_use is not configured or fails
-            pass
-
         # Visual content detection: hint agent to use coordinate mode
         visual_hint = ""
         try:
@@ -161,14 +138,14 @@ def create_snapshot_tool(session: BrowserSession):
             pass
 
         if isinstance(result, str):
-            final_str = dialog_msg + warning_msg + visual_hint + result
+            final_str = dialog_msg + visual_hint + result
             return mark_untrusted(final_str)
         if isinstance(result, tuple):
             aria_tree, _ = result
-            final_str = dialog_msg + warning_msg + visual_hint + aria_tree
+            final_str = dialog_msg + visual_hint + aria_tree
             return mark_untrusted(final_str)
         else:
-            final_str = dialog_msg + warning_msg + visual_hint + result.aria_tree
+            final_str = dialog_msg + visual_hint + result.aria_tree
             return mark_untrusted(final_str)
 
     return browser_snapshot

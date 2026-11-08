@@ -16,62 +16,62 @@ from myrm_agent_harness.toolkits.browser.snapshot import RefInfo
 
 
 @pytest.mark.asyncio
-async def test_interact_exception_with_dialog():
-    page = AsyncMock(spec=Page)
-    interactor = Interactor(page, {"e0": RefInfo(role="button", name="B", nth=0)})
-
-    with patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve:
-        mock_loc = AsyncMock()
-        mock_loc.click.side_effect = Exception("TargetClosedError")
-        mock_resolve.return_value = mock_loc
-
-        with patch("myrm_agent_harness.toolkits.computer_use.session.create_computer_session") as mock_create:
-            mock_cu = AsyncMock()
-            mock_cu.backend.has_blocking_dialog.return_value = True
-            mock_create.return_value = mock_cu
-
-            res = await interactor.interact("click", "e0")
-            assert "CRITICAL WARNING" in res
-
-
-@pytest.mark.asyncio
-async def test_interact_exception_no_dialog():
-    page = AsyncMock(spec=Page)
-    page.is_closed.return_value = False
-    interactor = Interactor(page, {"e0": RefInfo(role="button", name="B", nth=0)})
-
-    with patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve:
-        mock_loc = AsyncMock()
-        mock_loc.click.side_effect = Exception("TargetClosedError")
-        mock_resolve.return_value = mock_loc
-
-        with patch("myrm_agent_harness.toolkits.computer_use.session.create_computer_session") as mock_create:
-            mock_cu = AsyncMock()
-            mock_cu.backend.has_blocking_dialog.return_value = False
-            mock_create.return_value = mock_cu
-
-            with pytest.raises(Exception, match="TargetClosedError"):
-                await interactor.interact("click", "e0")
-
-
-@pytest.mark.asyncio
 async def test_interact_exception_tab_closed():
     page = AsyncMock(spec=Page)
     page.is_closed.return_value = True
     interactor = Interactor(page, {"e0": RefInfo(role="button", name="B", nth=0)})
 
-    with patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve:
+    with (
+        patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve,
+        patch("myrm_agent_harness.toolkits.browser.session.interactor.logger.warning") as mock_warn,
+    ):
         mock_loc = AsyncMock()
         mock_loc.click.side_effect = Exception("TargetClosedError")
         mock_resolve.return_value = mock_loc
 
-        with patch("myrm_agent_harness.toolkits.computer_use.session.create_computer_session") as mock_create:
-            mock_cu = AsyncMock()
-            mock_cu.backend.has_blocking_dialog.return_value = False
-            mock_create.return_value = mock_cu
+        res = await interactor.interact("click", "e0")
 
-            res = await interactor.interact("click", "e0")
-            assert "The browser tab was closed or detached" in res
+    assert "The browser tab was closed or detached" in res
+    mock_warn.assert_called_once_with("Browser interaction target closed: TargetClosedError")
+
+
+@pytest.mark.asyncio
+async def test_interact_target_closed_on_open_page_is_reraised_with_one_warning():
+    page = AsyncMock(spec=Page)
+    page.is_closed.return_value = False
+    interactor = Interactor(page, {"e0": RefInfo(role="button", name="B", nth=0)})
+
+    with (
+        patch("myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator") as mock_resolve,
+        patch("myrm_agent_harness.toolkits.browser.session.interactor.logger.warning") as mock_warn,
+    ):
+        mock_loc = AsyncMock()
+        mock_loc.click.side_effect = Exception("TargetClosedError")
+        mock_resolve.return_value = mock_loc
+
+        with pytest.raises(Exception, match="TargetClosedError"):
+            await interactor.interact("click", "e0")
+
+    mock_warn.assert_called_once_with("Browser interaction failed: %s", "TargetClosedError")
+
+
+@pytest.mark.asyncio
+async def test_interact_timeout_is_reraised_with_one_warning(mock_page: MagicMock, ref_info: RefInfo) -> None:
+    """A timeout is logged once and re-raised for the caller, never answered as a message."""
+    interactor = Interactor(mock_page, {"e0": ref_info})
+    locator = AsyncMock()
+    locator.click.side_effect = Exception("Timeout 30000 ms exceeded")
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator",
+            return_value=locator,
+        ),
+        patch("myrm_agent_harness.toolkits.browser.session.interactor.logger.warning") as mock_warn,
+        pytest.raises(Exception, match="Timeout"),
+    ):
+        await interactor.interact("click", "e0", "")
+
+    mock_warn.assert_called_once_with("Browser interaction failed: %s", "Timeout 30000 ms exceeded")
 
 
 @pytest.mark.asyncio
@@ -100,30 +100,6 @@ async def test_interact_fill_exception():
 
         res = await interactor.interact("fill", "e0", "test")
         assert "Filled" in res
-
-
-@pytest.mark.asyncio
-async def test_interact_dialog_check_failure_falls_back(mock_page: MagicMock, ref_info: RefInfo) -> None:
-    """Dialog detection failure degrades to the normal error path (no hint)."""
-    interactor = Interactor(mock_page, {"e0": ref_info})
-    locator = AsyncMock()
-    locator.click.side_effect = Exception("Timeout 30000 ms exceeded")
-    with (
-        patch(
-            "myrm_agent_harness.toolkits.browser.session.interactor.resolve_locator",
-            return_value=locator,
-        ),
-        patch(
-            "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
-            side_effect=Exception("no backend"),
-        ),
-        patch("myrm_agent_harness.toolkits.browser.session.interactor.logger.warning") as mock_warn,
-        pytest.raises(Exception, match="Timeout"),
-    ):
-        await interactor.interact("click", "e0", "")
-
-    # Falls through to the "no OS dialog detected" branch, still warns, then re-raises.
-    assert mock_warn.call_count == 1
 
 
 # =============================================================================

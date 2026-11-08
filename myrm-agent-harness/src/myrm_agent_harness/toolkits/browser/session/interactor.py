@@ -198,40 +198,6 @@ class Interactor(
                 "credential label instead of the plain text password."
             )
 
-    async def _dialog_block_hint(self, error_msg: str) -> str | None:
-        """Return a desktop-tool switch hint when an OS dialog is blocking.
-
-        TargetClosedError / Timeout often mean a native OS dialog (file picker,
-        permission prompt) blocks the browser process. Only inject the hint after
-        actually confirming a blocking dialog exists, so a regular timeout is not
-        misreported. Returns None when no dialog is detected (the caller re-raises).
-        """
-        try:
-            from myrm_agent_harness.toolkits.computer_use.session import (
-                create_computer_session,
-            )
-            from myrm_agent_harness.toolkits.computer_use.types import (
-                KNOWN_BROWSER_NAMES,
-                ComputerUseConfig,
-            )
-
-            cu_session = create_computer_session(ComputerUseConfig())
-            has_dialog = await cu_session.backend.has_blocking_dialog(list(KNOWN_BROWSER_NAMES))
-        except Exception:
-            has_dialog = False
-
-        if not has_dialog:
-            logger.warning(f"Browser interaction failed (no OS dialog detected): {error_msg}")
-            return None
-
-        logger.warning(f"Browser interaction failed and OS dialog detected: {error_msg}")
-        return (
-            f"Interaction failed: {error_msg}\n\n"
-            "[CRITICAL WARNING: A native OS dialog (e.g., File Upload, Permission Request) "
-            "is currently blocking the browser. Playwright CANNOT interact with native OS dialogs. "
-            "You MUST switch to 'desktop_snapshot' and 'desktop_interact_tool' immediately to handle it.]"
-        )
-
     async def interact(self, action: str, ref: str, text: str = "") -> str:
         """Execute an element interaction.
 
@@ -453,12 +419,11 @@ class Interactor(
 
         except Exception as e:
             error_msg = str(e)
-            if "TargetClosedError" in error_msg or "Target closed" in error_msg or "has been closed" in error_msg:
-                # 1. Probe for native OS blocking dialog (file picker / permission prompt)
-                hint = await self._dialog_block_hint(error_msg)
-                if hint is not None:
-                    return hint
-                # 2. If no OS dialog, check if target tab was actually closed by user or detached
+            target_closed = (
+                "TargetClosedError" in error_msg or "Target closed" in error_msg or "has been closed" in error_msg
+            )
+            if target_closed:
+                # A tab the user closed or that detached is a state the agent can act on, so it is answered, not raised.
                 is_closed = True
                 try:
                     is_closed = self._page.is_closed()
@@ -470,8 +435,6 @@ class Interactor(
                         f"Interaction failed: The browser tab was closed or detached ({error_msg}). "
                         "The target page is no longer available. Please inspect open tabs or ask the user."
                     )
-            elif "Timeout" in error_msg:
-                hint = await self._dialog_block_hint(error_msg)
-                if hint is not None:
-                    return hint
+            if target_closed or "Timeout" in error_msg:
+                logger.warning("Browser interaction failed: %s", error_msg)
             raise
