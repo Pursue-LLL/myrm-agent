@@ -118,6 +118,7 @@ class BashExecutorContextMixin:
             allowed_credential_issuers=self._resolve_allowed_credential_issuers(skill_names),
             timeout=timeout if timeout is not None else self._get_timeout(),
             env=env,
+            skill_env=skill_env,
             allow_network=network_config.allow_network,
             allowed_hosts=network_config.get_effective_allowed_hosts(),
             mcp_config=mcp_config_items,

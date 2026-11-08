@@ -169,7 +169,9 @@ class LocalBashMixin:
 
         env = self._build_bash_env(context.env)
         session = await self._get_or_create_bash_session(context, env)
-        command_env = build_command_env(context.env, context.allowed_credential_issuers, issued_command)
+        command_env = build_command_env(
+            context.env, context.allowed_credential_issuers, issued_command, context.skill_env
+        )
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
@@ -255,7 +257,9 @@ class LocalBashMixin:
         command = await self._prepare_bash_command(command)
         env = self._build_bash_env(context.env)
         session = await self._get_or_create_bash_session(context, env)
-        command_env = build_command_env(context.env, context.allowed_credential_issuers, issued_command)
+        command_env = build_command_env(
+            context.env, context.allowed_credential_issuers, issued_command, context.skill_env
+        )
 
         timeout = context.timeout or self.config.local.max_execution_time
         record_execution()
