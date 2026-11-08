@@ -1,7 +1,7 @@
 """The user's instructions and the memory block in one model call, mounted in the factory's order.
 
 [INPUT]
-- app/ai_agents/general_agent/factory.py (POS: source under inspection)
+- app/ai_agents/general_agent/factory/ (POS: source under inspection)
 - app/ai_agents/agent_middlewares/user_instructions_middleware.py (POS: injects <user_instructions> unless that tag is already among the leading system messages)
 - myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware (POS: injects <user_memory_context> into every model call)
 
