@@ -22,7 +22,11 @@ dependencies = [
   # 1.x 区间：下限是 CI 逐周在最低版本上验证过的；上限防止未经验证的大版本被自动装入（每周金丝雀见 harness-framework-canary.yml）
   "langchain>=1.4.3,<2",                   # Agent 编排核心
   "langchain-core>=1.6.6,<2",              # LangChain 基础抽象
-  "langgraph>=1.2.13,<2",                  # 图状态机 Agent 运行时
+  # 上限 <1.2.20：同一任务连续两次 interrupt()，1.2.19 里两次暂停共用一个 interrupt id，1.2.20 起每次暂停各有一个；
+  # HITL 卡片 id（interrupt id + 轮次，agent/streaming/interrupt_identity.py）按前一种行为寻址，
+  # tests/agent/_internals/test_resume_addressing_rounds.py 的 10 条用例在 1.2.20 全红，在 1.2.16 至 1.2.19 全绿。
+  # 放开上限前须先改造卡片 id 协议。
+  "langgraph>=1.2.13,<1.2.20",             # 图状态机 Agent 运行时
   "langgraph-checkpoint-sqlite>=3.1.1,<4", # SQLite 状态持久化 (checkpoint factory)
   "aiosqlite>=0.22.1",                     # async SQLite (memory stores + checkpointer)
   "dill>=0.4.1",                           # checkpoint serde (chat model / complex objects)

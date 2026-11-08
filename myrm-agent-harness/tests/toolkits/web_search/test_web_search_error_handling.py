@@ -10,11 +10,14 @@ import pytest
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
 from myrm_agent_harness.toolkits.web_search.core.error_handling import (
     build_search_error_context,
+    is_persistent_quota_depleted_error,
+    is_quota_or_rate_limit_error,
     is_retryable_search_error,
 )
 from myrm_agent_harness.toolkits.web_search.core.exceptions import (
     SearchAPIError,
 )
+from myrm_agent_harness.toolkits.web_search.providers.rest_search import SearchHTTPError
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
     WebSearcher,
@@ -91,6 +94,36 @@ class TestErrorClassification:
         exc = FakeAPIConnectionError("Something went wrong with the provider")
         # status=500 makes it retryable, but not because of "connection" keyword
         assert is_retryable_search_error(exc)  # retryable due to status=500
+
+
+class TestRestClientFailures:
+    """The failures the REST search client raises are classified from their status code and body."""
+
+    @pytest.mark.parametrize("status", [408, 500, 502, 503, 504])
+    def test_server_side_statuses_are_retried(self, status: int) -> None:
+        assert is_retryable_search_error(SearchHTTPError("tavily", status, "upstream trouble"))
+
+    @pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
+    def test_client_side_statuses_are_not_retried(self, status: int) -> None:
+        assert not is_retryable_search_error(SearchHTTPError("tavily", status, "request rejected"))
+
+    def test_a_rate_limit_hops_to_the_next_provider_instead_of_retrying(self) -> None:
+        exc = SearchHTTPError("tavily", 429, "Too Many Requests")
+
+        assert is_quota_or_rate_limit_error(exc)
+        assert not is_retryable_search_error(exc)
+
+    def test_a_plan_limit_in_the_body_beats_a_generic_server_status(self) -> None:
+        exc = SearchHTTPError(
+            "tavily", 500, '{"detail":{"error":"This request exceeds your plan\'s set usage limit."}}'
+        )
+
+        assert not is_retryable_search_error(exc)
+        assert is_persistent_quota_depleted_error(exc)
+
+    def test_the_clients_connection_and_timeout_errors_are_retried(self) -> None:
+        assert is_retryable_search_error(ConnectionError("tavily search connection failed: ConnectError: refused"))
+        assert is_retryable_search_error(TimeoutError("tavily search request timed out"))
 
 
 class TestErrorContext:
