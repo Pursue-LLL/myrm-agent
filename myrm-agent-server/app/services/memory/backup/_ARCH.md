@@ -8,7 +8,7 @@
 ```
 MemoryManager.export_all()/import_memories()      ← 框架提供的可移植导出/导入契约（导出逐页读到末页，读取失败即抛出）
         │
-   snapshot.py  ── capture_snapshot（先计数、再导出，数量对不上即失败）
+   snapshot.py  ── capture_snapshot（先查旧嵌入模型遗留、再计数、再导出，数量对不上即失败）
         │        └─ apply_snapshot（replace=清空后回放并校验 / merge=跳过已有内容）
         ├── volume_store.py + service.py   本地备份：创建 / 列表 / 恢复 / 删除
         └── remote_sync/                   远程备份：存储适配（WebDAV/S3）→ 运行器（创建→上传→轮转 / 远程恢复 merge）
@@ -18,6 +18,7 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 数据安全约定：
 
 - 备份要么完整要么不存在：快照捕获发现任一记忆类型导出不全或读取失败就抛 `SnapshotError`，不写文件、不上传。
+- 嵌入模型首次启用或切换后，原有记忆还留在旧模型的集合里，当前模型读不到，快照里就没有它们；远程轮转再让这种空备份把完整备份挤出保留份数。所以快照类型在旧模型集合里还有记忆（`MemoryManager.detect_orphan_collections()`，只计快照类型，原文对话不在备份范围内不算）或无法确认有没有时，`capture_snapshot` 一律拒绝：前者抛 `PreviousModelMemoriesError`（远程失败码 `previous_model`），后者抛 `SnapshotError`（`snapshot`），本地与远程一视同仁，直到用户在记忆设置里完成迁移。覆盖式恢复前的安全副本以 `allow_previous_models=True` 例外：覆盖不会动旧模型的记忆，副本对被替换的内容是完整的，不能被它们拦住。
 - 恢复前先解码备份；覆盖式恢复（`overwrite=true`）先把当前记忆另存为一份新备份，再清空回放，回放后逐类型核对数量，失败时提示该备份 id。
 - 远程恢复只合并（跳过已有内容），不删除任何已有记忆。
 - 备份 id 只接受 `volume_store.py` 生成的格式，路径穿越无从谈起；远程文件名只是存储端选择器，下载总落在固定本地文件名下。
@@ -34,7 +35,7 @@ MemoryManager.export_all()/import_memories()      ← 框架提供的可移植�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获、`apply_snapshot` 覆盖/合并回放与回放核对（覆盖只清当前嵌入模型的集合：快照里没有旧模型遗留的记忆，覆盖不能把它们一并销毁）、`encode_snapshot`/`decode_snapshot` | ✅ |
+| `snapshot.py` | 核心 | 可移植记忆快照：`MemorySnapshot` 格式（版本 3，gzip JSON）、`capture_snapshot` 完整性校验捕获（旧嵌入模型下仍有记忆时拒绝：`PreviousModelMemoriesError`）、`apply_snapshot` 覆盖/合并回放与回放核对（覆盖只清当前嵌入模型的集合：快照里没有旧模型遗留的记忆，覆盖不能把它们一并销毁）、`encode_snapshot`/`decode_snapshot` | ✅ |
 | `volume_store.py` | 核心 | 沙箱持久卷备份库（默认 `<状态根>/backups/{backup_id}/`）：`save`/`list_backups`/`load`/`delete`；`metadata.json` 最后原子写入，缺它即非完整备份；备份 id 严格校验 | ✅ |
-| `service.py` | 核心 | 本地备份编排 `MemoryBackupService`：`create`、`restore`（覆盖式恢复先留底，失败不丢副本） | ✅ |
+| `service.py` | 核心 | 本地备份编排 `MemoryBackupService`：`create`（旧嵌入模型下仍有记忆时被拒绝）、`restore`（覆盖式恢复先留底，留底不受旧模型记忆限制，失败不丢副本） | ✅ |
 | `remote_sync/` | 子包 | 远程（云端）备份的全部：存储适配（`storage/`，WebDAV/S3）、运行器（单次备份与远程恢复，远程文件名的唯一写法与轮转规则）、云端定时备份（按用户所选间隔运行，记录每次结果，连续失败只告警一次）。见 [`remote_sync/_ARCH.md`](remote_sync/_ARCH.md) | ✅ |

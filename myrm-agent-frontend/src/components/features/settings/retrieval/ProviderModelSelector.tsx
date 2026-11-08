@@ -9,7 +9,7 @@ import { Button } from '@/components/primitives/button';
 import OptionSelect from '../OptionSelect';
 import { getPresetModel, type ProviderConfig } from '@/lib/search/retrievalProviders';
 import { localizeReactNode } from '@/lib/utils/locale';
-import type { ApplyStatus, ProviderModelConfig } from '@/store/useRetrievalStore';
+import type { ApplyStatus, ProviderModelConfig } from '@/store/retrieval/types';
 import ApiKeyField from './ApiKeyField';
 import ApplyOutcome from './ApplyOutcome';
 

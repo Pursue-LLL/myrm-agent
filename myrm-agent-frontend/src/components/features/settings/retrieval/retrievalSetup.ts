@@ -6,7 +6,8 @@ import {
   getPresetModel,
   type ProviderConfig,
 } from '@/lib/search/retrievalProviders';
-import useRetrievalStore, { type ProviderModelConfig, type RetrievalConfig } from '@/store/useRetrievalStore';
+import type { ProviderModelConfig, RetrievalConfig } from '@/store/retrieval/types';
+import useRetrievalStore from '@/store/useRetrievalStore';
 
 /** One provider and key that set up both retrieval models. */
 export interface QuickCredentials {

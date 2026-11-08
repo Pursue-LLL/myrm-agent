@@ -4,11 +4,12 @@
 myrm_agent_harness.toolkits.memory::MemoryManager/MemoryType (POS: 记忆框架门面；export_all/import_memories 是其与 embedding 无关的可移植导出/导入契约)
 
 [OUTPUT]
-SNAPSHOT_MEMORY_TYPES / MemorySnapshot / SnapshotError / capture_snapshot / apply_snapshot / encode_snapshot / decode_snapshot
+SNAPSHOT_MEMORY_TYPES / MemorySnapshot / SnapshotError / PreviousModelMemoriesError / capture_snapshot / apply_snapshot / encode_snapshot / decode_snapshot
 
 [POS]
 本地卷备份与远程（WebDAV/S3）备份共用的快照格式及其捕获/回放逻辑。快照只含记忆内容，不含向量，
 恢复时由 MemoryManager 重新计算 embedding；捕获与回放都会校验完整性，宁可失败也不静默丢记忆。
+嵌入模型切换后仍留在旧模型集合里的记忆当前模型读不到，捕获会拒绝直到它们迁移完成（覆盖式恢复前的安全副本除外）。
 """
 
 from __future__ import annotations
@@ -53,6 +54,10 @@ class SnapshotError(Exception):
     """A snapshot could not be captured, decoded or applied; the message is safe to show to the user."""
 
 
+class PreviousModelMemoriesError(SnapshotError):
+    """Memories still sit under a previous embedding model, so a snapshot would leave them out without a trace."""
+
+
 class MemorySnapshot(BaseModel):
     """Serialized memories keyed by memory type, exactly as ``MemoryManager.export_all()`` yields them."""
 
@@ -73,13 +78,21 @@ class MemorySnapshot(BaseModel):
         return sum(len(entries) for entries in self.memories.values())
 
 
-async def capture_snapshot(manager: MemoryManager) -> MemorySnapshot:
+async def capture_snapshot(manager: MemoryManager, *, allow_previous_models: bool = False) -> MemorySnapshot:
     """Export every snapshot type, failing when any type came back incomplete.
 
     ``export_all`` walks each type to its last page and raises when a store fails. Counts are
     read first as an independent check: memories written while exporting only add rows, hence
     fewer exported than counted means rows went missing.
+
+    Memories an embedding switch left in a previous model's collections are invisible to both, so a
+    snapshot taken meanwhile would drop them without a trace and rotation would retire the complete
+    backups in its favor. Capture refuses until they are migrated, unless ``allow_previous_models``
+    accepts a snapshot of what the current model sees (the safety copy before a replacing restore,
+    which leaves those memories where they are).
     """
+    if not allow_previous_models:
+        await _require_no_previous_model_memories(manager)
     expected = {memory_type: await manager.count_memories(memory_type) for memory_type in SNAPSHOT_MEMORY_TYPES}
     try:
         exported = await manager.export_all()
@@ -98,6 +111,24 @@ async def capture_snapshot(manager: MemoryManager) -> MemorySnapshot:
     if incomplete:
         raise SnapshotError(f"Backup would be incomplete, nothing was saved: {', '.join(incomplete)}")
     return MemorySnapshot(created_at=datetime.now(UTC), memories=memories)
+
+
+async def _require_no_previous_model_memories(manager: MemoryManager) -> None:
+    """Refuse while any snapshot type has memories under another embedding model, or when that cannot be told.
+
+    Only snapshot types count: the verbatim conversation channel is in no snapshot, so it cannot make one incomplete.
+    """
+    try:
+        orphans = await manager.detect_orphan_collections()
+    except Exception as exc:
+        logger.exception("Could not check for memories left under a previous embedding model")
+        raise SnapshotError("Backup could not check for memories under a previous embedding model, nothing was saved") from exc
+    left_behind = sum(orphan.document_count for orphan in orphans if orphan.memory_type in _SNAPSHOT_TYPE_NAMES)
+    if left_behind:
+        raise PreviousModelMemoriesError(
+            "Backup would be incomplete, nothing was saved: "
+            f"memories under a previous embedding model ({left_behind}) have to be migrated first"
+        )
 
 
 async def apply_snapshot(manager: MemoryManager, snapshot: MemorySnapshot, *, replace: bool) -> dict[str, int]:
