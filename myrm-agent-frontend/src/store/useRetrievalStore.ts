@@ -9,7 +9,7 @@
  * 数据流：
  * 1. 初始化时从 ConfigSyncManager 加载
  * 2. 应用成功后通知 ConfigSyncManager 同步
- * 3. ConfigSyncManager 负责防抖同步到后端
+ * 3. ConfigSyncManager 负责防抖同步到后端；应用嵌入模型时改为立即强制同步，保存成功后才估算旧记忆
  */
 
 import { create } from 'zustand';
@@ -154,6 +154,22 @@ function syncToManager(config: RetrievalConfig): void {
   getConfigSyncManager().set('retrieval', value);
 }
 
+/**
+ * 旧记忆估算由服务端按「已保存的」检索配置回答，所以必须排在刚入队的这次保存之后。
+ * 保存没成功就不估算：此时服务端仍按旧配置回答 0，会把迁移提示藏起来；提示挂载时会自己再查一次。
+ */
+async function estimateOrphansOnceSaved(estimate: () => Promise<void>): Promise<void> {
+  let saved = false;
+  try {
+    saved = (await getConfigSyncManager().forceSync()).success;
+  } catch {
+    // 同步管理器已记录失败原因；这里只需跳过估算。
+  }
+  if (saved) {
+    await estimate();
+  }
+}
+
 export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
   ...DEFAULT_CONFIG,
   isInitialized: false,
@@ -256,10 +272,7 @@ export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
         });
 
         syncToManager(get());
-
-        get()
-          .checkOrphanCollections()
-          .catch(() => {});
+        void estimateOrphansOnceSaved(() => get().checkOrphanCollections());
 
         return { success: true, message: result.message };
       } else {

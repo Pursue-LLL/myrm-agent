@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const manager = vi.hoisted(() => ({ set: vi.fn() }));
+const manager = vi.hoisted(() => ({ set: vi.fn(), forceSync: vi.fn() }));
 const estimateMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/config', () => ({ getConfigSyncManager: () => manager }));
@@ -30,6 +30,7 @@ describe('retrieval store: applying a model', () => {
     fetchMock.mockReset();
     estimateMock.mockReset().mockResolvedValue({ total_memories: 0 });
     manager.set.mockReset();
+    manager.forceSync.mockReset().mockResolvedValue({ success: true, conflicts: [], newVersions: new Map() });
     vi.stubGlobal('fetch', fetchMock);
     useRetrievalStore.getState().reset();
     useRetrievalStore.setState({ embeddingConfig: EMBEDDING, rerankerConfig: RERANKER });
@@ -67,7 +68,7 @@ describe('retrieval store: applying a model', () => {
 
       await useRetrievalStore.getState().applyEmbedding();
 
-      expect(estimateMock).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(estimateMock).toHaveBeenCalledTimes(1));
     });
 
     it('refuses a config without a key before sending anything', async () => {
