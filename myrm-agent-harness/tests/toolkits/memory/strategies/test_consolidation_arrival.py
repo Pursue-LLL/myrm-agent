@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import random
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from myrm_agent_harness.toolkits.memory._internal import store_stamp
 from myrm_agent_harness.toolkits.memory._internal.storage import store_semantics_batch
 from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_KEY, settled_through
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -84,7 +86,7 @@ async def test_a_memory_approved_after_a_run_is_analyzed_by_the_next_run(new_man
     await seed(manager, [semantic("settled fact", 1)])
     # The proposal keeps the time it was made while it waits for a reviewer.
     proposal = await manager.store(SemanticMemory(content="User prefers oolong tea", created_at=at(5)))
-    pending_id = proposal.metadata["_pending_id"]
+    pending_id = str(proposal.metadata["_pending_id"])
     first = await _next_window(manager, None)
     assert _contents(first) == ["settled fact"]
 
@@ -234,6 +236,22 @@ async def test_rules_and_memories_are_analyzed_in_the_order_they_arrived(new_man
     window = await _next_window(manager, None)
 
     assert _contents(window) == ["fact before", "When: asked → Do: answer", "fact after"]
+
+
+async def test_a_rule_stored_while_the_stamp_clock_leads_the_wall_clock_is_still_analyzed(
+    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = new_manager()
+    # A wall clock that steps back leaves the stamp clock ahead of it until the wall clock catches up.
+    monkeypatch.setattr(store_stamp, "_last_stamp_us", time.time_ns() // 1000 + 60_000_000)
+    covered = await _next_window(manager, None)
+    await manager.store(
+        ProceduralMemory(content="When: later → Do: act", trigger="later", action="act"), _bypass_approval=True
+    )
+
+    window = await _next_window(manager, covered.advance_to)
+
+    assert _contents(window) == ["When: later → Do: act"]
 
 
 async def test_documents_stored_before_stamps_existed_are_stamped_from_their_creation_time(

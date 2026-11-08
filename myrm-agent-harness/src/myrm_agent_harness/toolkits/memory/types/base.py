@@ -176,7 +176,7 @@ class BaseMemory(BaseModel):
             "Instant the store persisted this memory, from a clock that never repeats within a process. "
             "Unlike created_at, which a late approval, an import or a correction carries from its own "
             "source, it orders arrival. The store sets it on every write and a vector document carries it "
-            "back on every read; a procedural rule's row records its insert time as created_at instead."
+            "back on every read; a procedural rule's row keeps it as created_at instead."
         ),
     )
     access_count: int = Field(default=0)

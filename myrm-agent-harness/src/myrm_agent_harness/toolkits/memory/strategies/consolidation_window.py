@@ -15,8 +15,8 @@
 [POS]
 Selects what a consolidation run analyzes. The stamp is a covered-through mark over arrival order: every memory
 stored at or before it was analyzed or deliberately skipped. Arrival is the store stamp, not ``created_at``, so a
-memory approved late, imported with its source's timestamp or corrected is still seen; a rule has no stamp and
-arrives when it is inserted, and every active rule is read however many there are. The window walks forward in
+memory approved late, imported with its source's timestamp or corrected is still seen; a rule's row keeps its
+stamp as its creation time, and every active rule is read however many there are. The window walks forward in
 arrival order, never past the run's horizon and never past a point some source was not read to, so a backlog larger
 than one run is drained batch by batch. The only memories it skips are consolidation's own output, rules that are
 no longer active, documents that cannot be decoded (one never hides its neighbours) and, when a source is cut inside
@@ -73,16 +73,17 @@ def _is_consolidation_product(memory: AnyMemory) -> bool:
 
 
 def _arrived_at(memory: AnyMemory) -> datetime:
-    """When the memory reached the store: its stamp, or for a rule, which has none, its insert time."""
+    """When the memory reached the store: its stamp, which a rule's row keeps as its creation time."""
     return memory.stored_at or memory.created_at
 
 
 def _without_split_instant(pool: list[AnyMemory], max_count: int) -> list[AnyMemory]:
     """The first ``max_count`` of an arrival-ordered pool that is longer, never cutting through one instant.
 
-    The stamp is an instant, so memories that arrived at the same one must stay on the same side of it. A rule
-    carries only its insert time, which two rules can share. The cut moves back to the previous instant, or takes
-    the whole instant when the first ``max_count`` all share it.
+    The stamp is an instant, so memories that arrived at the same one must stay on the same side of it. Stamps never
+    repeat within a process, but documents stamped from a shared creation time and rules written without the manager
+    can share one. The cut moves back to the previous instant, or takes the whole instant when the first
+    ``max_count`` all share it.
     """
     last = _arrived_at(pool[max_count - 1])
     if _arrived_at(pool[max_count]) != last:

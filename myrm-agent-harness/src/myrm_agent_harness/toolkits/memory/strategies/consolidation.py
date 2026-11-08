@@ -72,9 +72,10 @@ logger = logging.getLogger(__name__)
 async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     """Read the covered-through timestamp from the manager's bookkeeping row.
 
-    This module only writes timezone-aware times that are not ahead of the clock. A stored value
-    that is naive or in the future came from another writer; it is ignored so it cannot make the
-    time gates raise or hold consolidation back indefinitely.
+    The timestamp is a store stamp, and a stamp can run ahead of the wall clock while the wall clock catches up
+    after a step back. A stored value that is naive or ahead of the wall clock is ignored so it cannot make the
+    time gates raise or hold consolidation back indefinitely; the next run then starts again from the oldest
+    memories.
     """
     if not manager.has_relational:
         return None

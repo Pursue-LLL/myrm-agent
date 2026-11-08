@@ -3,8 +3,7 @@
 Mock stores ignore filters and ordering, so they cannot show a backlog drained across runs, a stamp that
 jumps over memories a source did not return, consolidation's own output re-entering the window, or another
 scope's memories reaching it. Each case drives a real manager over SQLite and an embedded Qdrant. A document
-that cannot be decoded is the one thing the window skips, and it must hide neither its neighbours nor the
-memories beyond it.
+that cannot be decoded is skipped on its own: it must hide neither its neighbours nor the memories beyond it.
 """
 
 from __future__ import annotations
@@ -245,8 +244,8 @@ async def test_every_rule_is_covered_however_many_the_library_holds(
     new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     manager = new_manager()
-    # The library outgrows both one capped read (a thousand rules) and one page, so neither a single read nor the
-    # first page alone covers it, and the stamp must not move past a rule they leave out.
+    # More rules than one default ``list_rules`` read returns (1000) and than one page (300 here), so neither a
+    # single read nor the first page alone covers the library, and the stamp must not move past a rule they leave out.
     monkeypatch.setattr(consolidation_window, "_RULE_PAGE_SIZE", 300)
     rules = [
         ProceduralMemory(content=f"When: ask {i:04d} → Do: answer", trigger=f"ask {i:04d}", action="answer")
