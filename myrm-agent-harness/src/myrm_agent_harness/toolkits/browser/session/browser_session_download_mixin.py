@@ -94,7 +94,7 @@ class BrowserSessionDownloadMixin(SessionHost):
         return self._download_manager.mark()
 
     async def downloads_since(self, mark: DownloadMark) -> DownloadActivity:
-        """What was saved or refused since ``mark``, once the downloads the page has in flight have settled."""
+        """What was saved or refused since ``mark``, once the downloads the page started after it have settled."""
         if self._download_manager is None:
             return DownloadActivity()
         return await self._download_manager.activity_since(mark)

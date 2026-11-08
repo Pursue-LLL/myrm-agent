@@ -16,6 +16,7 @@ Run with: `pytest -m integration tests/toolkits/browser/test_download_page_start
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Iterator
 from contextlib import suppress
 from dataclasses import replace
@@ -265,6 +266,27 @@ class TestDownloadsWhileARequestWaits:
                 assert await kept_by_browser_once_settled(browser_tmp) == []
             assert kept_files(downloads_dir) == ["first.txt"]
             assert service.hits == [("GET", "/creds")]  # only keeping the body is refused; the request was made
+
+
+class TestTheReportOfAnAction:
+    """What an action came to waits for the downloads it started, not for one that was already being judged."""
+
+    async def test_it_does_not_wait_for_a_download_that_started_before_the_action(
+        self, downloads_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked = delay_verdicts(monkeypatch, _LATE_VERDICT_S)
+        with serve({"/home": page("home"), "/file": attachment("a.txt", b"hello")}) as site:
+            async with open_session(downloads_dir, local=False) as session:
+                await session.navigate(url_on("public.test", site, "/home"))
+                await start_page_navigation(session, url_on("public.test", site, "/file"))
+                await until(lambda: len(asked) == 1)  # being judged: its verdict is held back
+
+                started = time.monotonic()
+                activity = await session.downloads_since(session.download_mark())
+
+                assert time.monotonic() - started < _LATE_VERDICT_S / 2
+                assert activity.saved == ()
+                await until(lambda: bool(session.list_downloads()))  # judged later, it is still saved
 
 
 class TestWithoutDownloadSupport:

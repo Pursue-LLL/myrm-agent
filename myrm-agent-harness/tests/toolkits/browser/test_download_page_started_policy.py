@@ -239,7 +239,7 @@ class TestRefusalNotes:
         await _page_starts(manager, *(download_of(MagicMock(), _URL, name=f"f{index}.txt") for index in range(8)))
 
         assert [note.file_name for note in manager.refusals] == [f"f{index}.txt" for index in range(3, 8)]
-        assert manager.mark() == DownloadMark(saved=0, refused=8)
+        assert manager.mark() == DownloadMark(saved=0, refused=8, started=8)
 
 
 class TestActivitySince:
@@ -284,6 +284,57 @@ class TestActivitySince:
         activity = await manager.activity_since(mark)
 
         assert [saved.url for saved in activity.saved] == [_URL]
+
+    @pytest.mark.asyncio
+    async def test_it_does_not_wait_for_a_download_that_started_before_the_mark(
+        self, tmp_path: Path, verify: AsyncMock
+    ) -> None:
+        """A slow verdict on an earlier download must not hold up the report of a later action."""
+        verdict_may_come = asyncio.Event()
+
+        async def verdict_that_waits(_url: str) -> None:
+            await verdict_may_come.wait()
+
+        verify.side_effect = verdict_that_waits
+        manager = _manager(tmp_path, verify, timeout_s=2.0)
+        manager._on_download(download_of(MagicMock(), _URL, name="earlier.txt"))
+        mark = manager.mark()
+
+        started = time.monotonic()
+        activity = await manager.activity_since(mark)
+
+        assert time.monotonic() - started < 1.0
+        assert activity.saved == ()
+        verdict_may_come.set()
+        await _settled(manager)
+        assert [saved.file_name for saved in manager.downloads] == ["earlier.txt"]
+
+    @pytest.mark.asyncio
+    async def test_it_waits_only_for_the_downloads_started_after_the_mark(
+        self, tmp_path: Path, verify: AsyncMock
+    ) -> None:
+        verdicts = {"earlier.txt": asyncio.Event(), "later.txt": asyncio.Event()}
+        asked: list[str] = []
+
+        async def verdict_per_download(url: str) -> None:
+            asked.append(url)
+            await verdicts[url.rsplit("/", 1)[1]].wait()
+
+        verify.side_effect = verdict_per_download
+        manager = _manager(tmp_path, verify, timeout_s=2.0)
+        manager._on_download(download_of(MagicMock(), "https://cdn.example/earlier.txt", name="earlier.txt"))
+        mark = manager.mark()
+        manager._on_download(download_of(MagicMock(), "https://cdn.example/later.txt", name="later.txt"))
+        report = asyncio.create_task(manager.activity_since(mark))
+        await asyncio.sleep(0.05)
+
+        assert not report.done(), "the report must wait for the download started after the mark"
+        verdicts["later.txt"].set()
+        activity = await asyncio.wait_for(report, timeout=1.0)
+
+        assert [saved.file_name for saved in activity.saved] == ["later.txt"]
+        verdicts["earlier.txt"].set()
+        await _settled(manager)
 
     @pytest.mark.asyncio
     async def test_it_does_not_wait_longer_than_a_download_may_take(self, tmp_path: Path, verify: AsyncMock) -> None:

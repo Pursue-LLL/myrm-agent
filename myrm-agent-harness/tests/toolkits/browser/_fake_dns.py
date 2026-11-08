@@ -51,10 +51,11 @@ def process_dns(answers: Mapping[str, str], *, unresolvable: Collection[str] = (
         flags: int = 0,
     ) -> _AddrInfo:
         name = host.decode() if isinstance(host, bytes) else host
-        if name in unresolvable:
-            raise socket.gaierror(socket.EAI_NONAME, "unresolvable in the test")
-        if name in answers:
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (answers[name], 0))]
+        if name is not None:
+            if name in unresolvable:
+                raise socket.gaierror(socket.EAI_NONAME, "unresolvable in the test")
+            if name in answers:
+                return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (answers[name], 0))]
         return real(host, port, family, kind, proto, flags)
 
     with patch.object(socket, "getaddrinfo", answer):

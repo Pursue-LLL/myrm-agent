@@ -279,3 +279,40 @@ class TestAnchoring:
 
         assert (root / ".agent" / "moved" / "a.pdf").read_bytes() == b"body"
         assert sorted(entry.name for entry in victim.parent.iterdir()) == ["victim.txt"]
+
+
+@pytest.mark.usefixtures("anchoring")
+class TestAClosedDirectory:
+    """Closing releases the descriptor; a closed directory refuses every use instead of falling back to the path."""
+
+    def test_every_use_is_refused(self, root: Path) -> None:
+        directory = _downloads(root)
+        directory.close()
+
+        with pytest.raises(ValueError, match="closed"):
+            directory.create_new("a.pdf")
+        with pytest.raises(ValueError, match="closed"):
+            directory.unlink("a.pdf")
+        with pytest.raises(ValueError, match="closed"), directory.scandir():
+            pass
+
+    @POSIX_ONLY
+    def test_a_link_standing_where_the_directory_was_is_not_followed_after_closing(
+        self, root: Path, victim: Path
+    ) -> None:
+        directory = _downloads(root)
+        directory.close()
+        downloads = root / ".agent" / "downloads"
+        downloads.rmdir()
+        downloads.symlink_to(victim.parent)
+
+        with pytest.raises(ValueError, match="closed"):
+            directory.create_new("planted.txt")
+
+        assert sorted(entry.name for entry in victim.parent.iterdir()) == ["victim.txt"]
+
+    def test_closing_again_does_nothing(self, root: Path) -> None:
+        directory = _downloads(root)
+
+        directory.close()
+        directory.close()
