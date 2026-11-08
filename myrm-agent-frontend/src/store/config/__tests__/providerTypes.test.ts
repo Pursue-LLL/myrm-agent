@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BUILT_IN_PROVIDER_INFO,
   getInitialProviders,
-  getLiteLLMModelName,
+  getRoutedModelName,
   hasActiveApiKey,
   hasUsableProviderAuth,
   isLocalOrTrustedSplitStackApiUrl,
@@ -26,7 +26,23 @@ describe('providerTypes defaults', () => {
       { url: 'https://opencode.ai/zen/go/v1', label: 'Zen / Go (订阅/贡献者套餐)' },
       { url: 'https://opencode.ai/v1', label: 'Standard API (平台标准直连)' },
     ]);
-    expect(getLiteLLMModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
+    expect(getRoutedModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
+  });
+
+  it('offers AWS Bedrock with its regional runtime endpoint and routes every model id through the bedrock route', () => {
+    expect(BUILT_IN_PROVIDER_INFO.bedrock).toMatchObject({
+      name: 'AWS Bedrock',
+      isBuiltIn: true,
+      defaultApiUrl: 'https://bedrock-runtime.{region}.amazonaws.com',
+    });
+    expect(getRoutedModelName('bedrock', 'us.anthropic.claude-sonnet-4-5-20250929-v1:0')).toBe(
+      'bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+    );
+    expect(getRoutedModelName('bedrock', 'bedrock/amazon.nova-pro-v1:0')).toBe('bedrock/amazon.nova-pro-v1:0');
+    expect(
+      getRoutedModelName('bedrock', 'arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123'),
+    ).toBe('bedrock/arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc123');
+    expect(getInitialProviders().some((provider) => provider.id === 'bedrock')).toBe(true);
   });
 
   it('seeds initial Xiaomi provider config with the same endpoint', () => {
@@ -35,41 +51,41 @@ describe('providerTypes defaults', () => {
     expect(xiaomiProvider?.apiUrl).toBe('https://api.xiaomimimo.com/v1');
   });
 
-  it('does not double-prefix Xiaomi MiMo when model already includes litellm segment', () => {
-    expect(getLiteLLMModelName('xiaomi_mimo', 'mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
-    expect(getLiteLLMModelName('xiaomi_mimo', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+  it('does not double-prefix Xiaomi MiMo when model already includes the route segment', () => {
+    expect(getRoutedModelName('xiaomi_mimo', 'mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+    expect(getRoutedModelName('xiaomi_mimo', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
   });
 
-  it('prefers an already-qualified LiteLLM model id over a mismatched providerId', () => {
-    expect(getLiteLLMModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+  it('prefers an already-qualified model id over a mismatched providerId', () => {
+    expect(getRoutedModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
   });
 
-  it('routes a custom provider through the LiteLLM route named by its providerType', () => {
+  it('routes a custom provider through the route named by its providerType', () => {
     // A custom OpenAI-compatible row has no generated id mapping; its providerType names the route.
-    expect(getLiteLLMModelName('openai-like', 'muse-spark-1.3-contributor', 'openai')).toBe(
+    expect(getRoutedModelName('openai-like', 'muse-spark-1.3-contributor', 'openai')).toBe(
       'openai/muse-spark-1.3-contributor',
     );
   });
 
   it('keeps the built-in id mapping authoritative over a legacy providerType', () => {
-    expect(getLiteLLMModelName('deepseek', 'deepseek-chat', 'openai')).toBe('deepseek/deepseek-chat');
-    expect(getLiteLLMModelName('minimax', 'MiniMax-M3.1-Flash', 'minimax')).toBe('minimax/MiniMax-M3.1-Flash');
+    expect(getRoutedModelName('deepseek', 'deepseek-chat', 'openai')).toBe('deepseek/deepseek-chat');
+    expect(getRoutedModelName('minimax', 'MiniMax-M3.1-Flash', 'minimax')).toBe('minimax/MiniMax-M3.1-Flash');
   });
 
   it('falls back to the provider id when no route can be derived', () => {
-    expect(getLiteLLMModelName('my-private-gateway', 'model-x')).toBe('my-private-gateway/model-x');
+    expect(getRoutedModelName('my-private-gateway', 'model-x')).toBe('my-private-gateway/model-x');
   });
 
   it('correctly configures and routes Vercel AI Gateway without vendor prefix hijacking', () => {
     expect(BUILT_IN_PROVIDER_INFO.vercel_ai_gateway.defaultApiUrl).toBe('https://ai-gateway.vercel.sh/v1');
-    expect(getLiteLLMModelName('vercel_ai_gateway', 'anthropic/claude-3-5-sonnet')).toBe(
+    expect(getRoutedModelName('vercel_ai_gateway', 'anthropic/claude-3-5-sonnet')).toBe(
       'vercel_ai_gateway/anthropic/claude-3-5-sonnet',
     );
-    expect(getLiteLLMModelName('vercel_ai_gateway', 'openai/gpt-4o')).toBe('vercel_ai_gateway/openai/gpt-4o');
-    expect(getLiteLLMModelName('vercel_ai_gateway', 'meta-llama/llama-3.3-70b')).toBe(
+    expect(getRoutedModelName('vercel_ai_gateway', 'openai/gpt-4o')).toBe('vercel_ai_gateway/openai/gpt-4o');
+    expect(getRoutedModelName('vercel_ai_gateway', 'meta-llama/llama-3.3-70b')).toBe(
       'vercel_ai_gateway/meta-llama/llama-3.3-70b',
     );
-    expect(getLiteLLMModelName('vercel_ai_gateway', 'vercel_ai_gateway/anthropic/claude-3-5-sonnet')).toBe(
+    expect(getRoutedModelName('vercel_ai_gateway', 'vercel_ai_gateway/anthropic/claude-3-5-sonnet')).toBe(
       'vercel_ai_gateway/anthropic/claude-3-5-sonnet',
     );
   });
@@ -77,7 +93,7 @@ describe('providerTypes defaults', () => {
 
 describe('resolveCustomProviderTypeInfo', () => {
   it('returns metadata for valid custom provider types', () => {
-    expect(resolveCustomProviderTypeInfo('openai-like')?.litellmPrefix).toBe('openai');
+    expect(resolveCustomProviderTypeInfo('openai-like')?.routePrefix).toBe('openai');
     expect(resolveCustomProviderTypeInfo('anthropic-like')?.name).toBe('Anthropic-Like');
   });
 

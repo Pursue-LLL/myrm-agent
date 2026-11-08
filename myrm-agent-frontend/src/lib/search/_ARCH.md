@@ -9,8 +9,8 @@
 | 文件                                   | 地位 | 职责                                                                                                                        |
 | -------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------- |
 | `searxngPresets.ts`                    | 核心 | SearXNG region preset 常量与 detect/build 辅助函数                                                                          |
-| `retrievalProviders.ts`                | 核心 | Embedding/Reranker provider 目录（每家首个模型即预设）、`QUICK_SETUP_PROVIDERS` 与 `toLiteLLMFormat`（Settings Apply 路径） |
-| `__tests__/retrievalProviders.test.ts` | 测试 | 预设模型取值、快速设置提供商集合、`toLiteLLMFormat` 单元测试                                                                |
+| `retrievalProviders.ts`                | 核心 | Embedding/Reranker provider 目录（每家首个模型即预设）、`QUICK_SETUP_PROVIDERS` 与 `toRoutedModelId`（Settings Apply 路径） |
+| `__tests__/retrievalProviders.test.ts` | 测试 | 预设模型取值、快速设置提供商集合、`toRoutedModelId` 单元测试                                                                |
 | `__tests__/searxngPresets.test.ts`     | 测试 | preset detect/build 单元测试                                                                                                |
 
 ## 依赖

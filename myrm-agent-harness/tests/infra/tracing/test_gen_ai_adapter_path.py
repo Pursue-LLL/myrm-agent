@@ -1,4 +1,4 @@
-"""The real ChatLiteLLM adapter (stream and non-stream) driving the GenAI span lifecycle.
+"""The real TransportChatModel adapter (stream and non-stream) driving the GenAI span lifecycle.
 
 The provider client is the only fake; the adapter, its retry loop, the memo and the span
 lifecycle are the production code.
@@ -19,7 +19,7 @@ from opentelemetry.trace import StatusCode
 from myrm_agent_harness.infra.memo import LlmCallScope, MemoLedger, llm_call_scope
 from myrm_agent_harness.infra.tracing.gen_ai import AgentRunSpan
 from myrm_agent_harness.infra.tracing.gen_ai.content import CAPTURE_CONTENT_ENV
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 
 from .conftest import MemoryTelemetry
 
@@ -56,7 +56,7 @@ class FakeClient:
         self._behaviours = list(behaviours)
         self.calls = 0
 
-    async def acreate(self, **kwargs: object) -> ProviderReply:
+    async def acompletion(self, **kwargs: object) -> ProviderReply:
         behaviour = self._behaviours[min(self.calls, len(self._behaviours) - 1)]
         self.calls += 1
         return behaviour()
@@ -78,15 +78,15 @@ def _fail(exc: Exception) -> Callable[[], NoReturn]:
     return behaviour
 
 
-def _model(client: FakeClient, *, streaming: bool) -> ChatLiteLLM:
-    model = ChatLiteLLM(model="gpt-4o-mini", api_key="test-key")
+def _model(client: FakeClient, *, streaming: bool) -> TransportChatModel:
+    model = TransportChatModel(model="gpt-4o-mini", api_key="test-key")
     model.streaming = streaming
     model.client = client  # type: ignore[assignment]
     model.empty_retry_delay = 0.01
     return model
 
 
-async def _drain(model: ChatLiteLLM, prompt: str = "hello") -> str:
+async def _drain(model: TransportChatModel, prompt: str = "hello") -> str:
     return "".join([str(chunk.content or "") async for chunk in model.astream(prompt)])
 
 

@@ -161,8 +161,8 @@ async def _async_iter(items: list[object]) -> object:
         yield item
 
 
-class TestChatLiteLLMPayloadRecovery:
-    """Test ChatLiteLLM in-place retry recovery when payload overflow occurs."""
+class TestTransportChatModelPayloadRecovery:
+    """Test TransportChatModel in-place retry recovery when payload overflow occurs."""
 
     @pytest.mark.asyncio
     async def test_async_stream_payload_overflow_recovers(self) -> None:
@@ -170,9 +170,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -190,7 +190,7 @@ class TestChatLiteLLMPayloadRecovery:
                 ]
             )
 
-        model.client.acreate = AsyncMock(side_effect=_flaky)
+        model.client.acompletion = AsyncMock(side_effect=_flaky)
         model.empty_retry_max_attempts = 2
         model.empty_retry_delay = 0.01
 
@@ -214,9 +214,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -232,7 +232,7 @@ class TestChatLiteLLMPayloadRecovery:
                 "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
             }
 
-        model.client.acreate = AsyncMock(side_effect=_flaky_agenerate)
+        model.client.acompletion = AsyncMock(side_effect=_flaky_agenerate)
         model.empty_retry_max_attempts = 2
         model.empty_retry_delay = 0.01
 
@@ -252,9 +252,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 
@@ -294,9 +294,9 @@ class TestChatLiteLLMPayloadRecovery:
 
         from langchain_core.messages import HumanMessage
 
-        from myrm_agent_harness.toolkits.llms.core.llm import ChatLiteLLM
+        from myrm_agent_harness.toolkits.llms.core.llm import TransportChatModel
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         calls = {"count": 0}
 

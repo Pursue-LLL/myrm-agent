@@ -1,7 +1,7 @@
 # wire/
 
 ## Overview
-OpenCode multi-wire transport for ChatLiteLLM: Responses API (`/v1/responses`) and Anthropic Messages (`/v1/messages`).
+OpenCode multi-wire transport for TransportChatModel: Responses API (`/v1/responses`) and Anthropic Messages (`/v1/messages`).
 
 ## File Index
 
@@ -9,10 +9,11 @@ OpenCode multi-wire transport for ChatLiteLLM: Responses API (`/v1/responses`) a
 |------|------|-------------|
 | __init__.py | Package | Re-exports wire transport helpers (params, translator, normalizer). |
 | translator.py | Core | Chat messages → Responses input; reasoning item replay; tool_calls/function_call_output; system → instructions |
-| normalizer.py | Core | Responses payload/events → chat-completions shape; decouple reasoning summary into reasoning_content; preserve `responses_reasoning_items`; failed/error SSE → ResponsesStreamError |
-| params.py | Core | Build litellm.responses kwargs (reasoning, include, api_base endpoint strip) from ChatLiteLLM call params |
+| normalizer.py | Core | Responses payload/events → chat-completions shape; decouple reasoning summary into reasoning_content (streamed live, never repeated on completion); preserve `responses_reasoning_items`; usage keeps cached / cache-write / reasoning token details; `response.incomplete` → `length` (usage kept); a failed response or error event (OpenAI's flat `error` event and the nested form gateways send) → `ResponsesStreamError` carrying the HTTP status the failure stands for (`transport.errors.error_status`), so the classifier retries a provider fault and stops on a rejected request; a missing, null or malformed `usage` maps to an empty one instead of failing the call |
+| responses_stream.py | Core | `ResponsesStreamState`: per-stream function-call bookkeeping. Matches announcement, `item_id` / `call_id` / `output_index` deltas and the whole-call replays (`arguments.done`, `output_item.done`, `response.completed`) to one tool-call index, so each call's arguments are handed over exactly once |
+| params.py | Core | Build Responses-wire request kwargs (reasoning, include, api_base endpoint strip) from TransportChatModel call params |
 | anthropic_params.py | Core | Anthropic Messages wire overrides for OpenCode Go minimax/qwen |
-| native_anthropic.py | Core | `is_native_anthropic_wire`: whether LiteLLM sends a call to the first-party Anthropic Messages API, which rejects unknown top-level fields; callers keep OpenAI-shaped pass-through parameters off those requests (unclassifiable models count as not native) |
+| routing.py | Core | `resolve_wire`: the protocol a call must use. The configured protocol is a preference; models the catalog lists as Responses-only, xAI native search and the GPT-5.4+ function-tools-with-reasoning combination move to the Responses endpoint, and a Responses call to a provider without that endpoint falls back to chat completions |
 | invocation.py | Core | Sync/async invoke + stream adapters; fail-open retry on `invalid_encrypted_content` |
 
 ## POS

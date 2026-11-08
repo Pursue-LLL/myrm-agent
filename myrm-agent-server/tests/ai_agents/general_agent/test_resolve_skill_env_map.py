@@ -195,7 +195,7 @@ def test_wrap_with_privacy_routing_wires_local_model() -> None:
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.llms.create_litellm_model",
+            "myrm_agent_harness.toolkits.llms.create_chat_model",
             return_value=fake_local_llm,
         ) as mock_create,
         patch(

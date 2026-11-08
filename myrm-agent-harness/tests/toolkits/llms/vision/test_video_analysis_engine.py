@@ -21,7 +21,7 @@ def mock_llm_config():
 
 @pytest.fixture
 def video_engine(mock_llm_config):
-    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_litellm_model") as mock_create:
+    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_chat_model") as mock_create:
         mock_model = AsyncMock()
         mock_create.return_value = mock_model
         engine = VideoAnalysisEngine(mock_llm_config)
@@ -300,7 +300,7 @@ def test_get_model_uses_model_kwargs_temperature_without_type_error():
         model_kwargs={"temperature": 0.9, "max_tokens": 2048},
     )
 
-    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_litellm_model") as mock_create:
+    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_chat_model") as mock_create:
         mock_create.return_value = MagicMock()
         engine = VideoAnalysisEngine(cfg)
         engine._get_model(0)
@@ -320,7 +320,7 @@ def test_get_model_top_level_temperature_wins_over_model_kwargs():
         model_kwargs={"temperature": 0.9},
     )
 
-    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_litellm_model") as mock_create:
+    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_chat_model") as mock_create:
         mock_create.return_value = MagicMock()
         engine = VideoAnalysisEngine(cfg)
         engine._get_model(0)
@@ -333,7 +333,7 @@ def test_get_model_defaults_temperature_when_unset():
     """未配置 temperature 时回退默认 0.1。"""
     cfg = LLMConfig(model="gpt-4o-mini", api_key="test-key")
 
-    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_litellm_model") as mock_create:
+    with patch("myrm_agent_harness.toolkits.llms.vision.video_analysis_engine.create_chat_model") as mock_create:
         mock_create.return_value = MagicMock()
         engine = VideoAnalysisEngine(cfg)
         engine._get_model(0)

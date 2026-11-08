@@ -1,4 +1,4 @@
-"""Unit tests for empty retry metrics in ChatLiteLLM.
+"""Unit tests for empty retry metrics in TransportChatModel.
 
 Tests cover:
 - Metrics collection for sync/async/stream retries
@@ -15,13 +15,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import HumanMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
 
 @pytest.fixture
 def chat_model():
-    """Create ChatLiteLLM instance with mock client."""
-    model = ChatLiteLLM(model="gpt-3.5-turbo")
+    """Create TransportChatModel instance with mock client."""
+    model = TransportChatModel(model="gpt-3.5-turbo")
     model.client = MagicMock()
     return model
 
@@ -78,12 +78,12 @@ async def test_async_retry_metrics_success(chat_model, messages):
         "usage": {"prompt_tokens": 10, "completion_tokens": 20},
     }
 
-    mock_acreate = AsyncMock()
-    mock_acreate.side_effect = [
+    mock_acompletion = AsyncMock()
+    mock_acompletion.side_effect = [
         mock_response_empty,
         mock_response_success,
     ]
-    chat_model.client.acreate = mock_acreate
+    chat_model.client.acompletion = mock_acompletion
 
     _ = await chat_model._agenerate(messages)
 
@@ -144,8 +144,8 @@ def test_metrics_helper_methods(chat_model, messages):
 
 def test_metrics_isolation_per_instance():
     """Test metrics are isolated per instance."""
-    model1 = ChatLiteLLM(model="gpt-3.5-turbo")
-    model2 = ChatLiteLLM(model="gpt-4")
+    model1 = TransportChatModel(model="gpt-3.5-turbo")
+    model2 = TransportChatModel(model="gpt-4")
 
     # Verify different instances have different metrics
     assert model1.retry_metrics is not model2.retry_metrics

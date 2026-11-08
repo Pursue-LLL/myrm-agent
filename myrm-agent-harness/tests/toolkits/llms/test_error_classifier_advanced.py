@@ -65,11 +65,11 @@ def test_classify_safety_block() -> None:
 @pytest.mark.parametrize(
     "message",
     [
-        "litellm.ContentPolicyViolationError: AzureException - The response was filtered",
-        'AzureException BadRequestError - {"error": {"message": "filtered", "code": "content_filter"}}',
+        "azure API error 400: The response was filtered due to the prompt triggering Azure OpenAI's content management policy.",
+        'azure API error 400: {"error": {"message": "filtered", "code": "content_filter"}}',
         "{'error': {'innererror': {'code': 'ResponsibleAIPolicyViolation'}}}",
     ],
-    ids=["litellm class name", "content_filter code", "inner policy code"],
+    ids=["content management policy sentence", "content_filter code", "inner policy code"],
 )
 def test_classify_provider_content_filter_as_safety_block(message: str) -> None:
     assert classify_error(Exception(message)) == ErrorKind.SAFETY_BLOCK

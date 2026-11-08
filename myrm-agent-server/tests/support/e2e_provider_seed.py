@@ -231,14 +231,14 @@ def upsert_provider(
 
 def build_e2e_model_selection(*, use_lite: bool = True) -> dict[str, object]:
     """Model selection for LIVE agent-stream using gateway preflight."""
-    from tests.api.agent.utils import _convert_litellm_model
+    from tests.api.agent.utils import _normalize_model_id
 
     endpoints = resolve_e2e_llm_endpoints()
     raw_model = endpoints.lite_model if use_lite else endpoints.basic_model
     base_url = endpoints.lite_base_url if use_lite else endpoints.basic_base_url
     return {
         "providerId": infer_provider_id(raw_model),
-        "model": _convert_litellm_model(raw_model),
+        "model": _normalize_model_id(raw_model),
         "baseUrl": base_url,
     }
 

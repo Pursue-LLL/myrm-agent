@@ -3,7 +3,7 @@
 [INPUT]
 - A folder the user links to a project, previews and trusts through the project and folder-trust API (POS: the workspace root of the turn)
 - POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, SSE back)
-- The messages ChatLiteLLM sends to the provider (POS: recorded where they are built)
+- The messages TransportChatModel sends to the provider (POS: recorded where they are built)
 
 [OUTPUT]
 - Fails when the request of the turn lacks the codeword of ``AGENTS.md`` or holds the one of ``.cursorrules``, or when the model's answer does not

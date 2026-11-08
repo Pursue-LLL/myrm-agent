@@ -1,4 +1,4 @@
-"""Unit tests for the library wiring of infra/tls_compat.py: aiohttp, urllib3, urllib and litellm.
+"""Unit tests for the library wiring of infra/tls_compat.py: aiohttp, urllib3 and urllib.
 
 Each library keeps its own reference to a context builder or a ready-made context; these tests pin that every one of
 them ends up on the policy, and that the library internals the policy reaches into are still where it expects them.
@@ -115,11 +115,6 @@ class TestLibraryContracts:
 
     def test_the_standard_library_keeps_a_replaceable_https_default(self) -> None:
         assert ssl._create_default_https_context is ssl.create_default_context
-
-    def test_litellm_keeps_its_contexts_in_a_clearable_cache(self) -> None:
-        from litellm.llms.custom_httpx import http_handler
-
-        assert isinstance(http_handler._ssl_context_cache, dict)
 
 
 class TestUrllib3Policy:

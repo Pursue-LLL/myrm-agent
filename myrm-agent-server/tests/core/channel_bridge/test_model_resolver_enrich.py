@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+from myrm_agent_harness.toolkits.llms.catalog import known_models, register_model, store
+
 from app.core.channel_bridge.model_resolver import (
     _build_platform_headers,
     _fallback_model_from_providers,
@@ -15,6 +18,12 @@ from app.core.channel_bridge.model_resolver import (
 from app.core.types import ModelConfig
 
 _MOD = "app.core.channel_bridge.model_resolver.enrich"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_catalog_registrations(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Registrations a test makes never outlive it."""
+    monkeypatch.setattr(store, "_REGISTERED", {})
 
 
 class TestResolveModelMaxInputTokens:
@@ -49,22 +58,30 @@ class TestResolveModelMaxInputTokens:
         result = _resolve_model_max_input_tokens("openai/gpt-4o", providers)
         assert result is None or result > 0
 
-    def test_litellm_fallback(self) -> None:
-        mock_info = {"max_input_tokens": 200_000}
-        with patch("litellm.get_model_info", return_value=mock_info):
-            result = _resolve_model_max_input_tokens("anthropic/claude-3-5-sonnet", None)
-        assert result == 200_000
+    def test_catalog_fallback(self) -> None:
+        register_model("vendor/windowed-model", {"max_input_tokens": 200_000})
+        assert _resolve_model_max_input_tokens("vendor/windowed-model", None) == 200_000
 
-    def test_litellm_max_tokens_fallback(self) -> None:
-        mock_info = {"max_tokens": 16_384}
-        with patch("litellm.get_model_info", return_value=mock_info):
-            result = _resolve_model_max_input_tokens("openai/gpt-3.5-turbo", None)
-        assert result == 16_384
+    def test_a_legacy_max_tokens_entry_has_no_window(self) -> None:
+        """``max_tokens`` is the output budget for part of the catalog, so it is never read as a context window."""
+        register_model("vendor/legacy-model", {"max_tokens": 16_384})
+        assert _resolve_model_max_input_tokens("vendor/legacy-model", None) is None
 
-    def test_litellm_exception_returns_none(self) -> None:
-        with patch("litellm.get_model_info", side_effect=Exception("unknown model")):
-            result = _resolve_model_max_input_tokens("unknown/model", None)
-        assert result is None
+    def test_a_mixed_case_catalog_key_resolves_from_any_spelling(self) -> None:
+        key, entry = next(
+            (name, info)
+            for name, info in known_models().items()
+            if name != name.lower() and isinstance(info.get("max_input_tokens"), int)
+        )
+        assert _resolve_model_max_input_tokens(key, None) == entry["max_input_tokens"]
+        assert _resolve_model_max_input_tokens(key.lower(), None) == entry["max_input_tokens"]
+
+    def test_a_gateway_route_resolves_to_the_model_behind_it(self) -> None:
+        register_model("routed-windowed-model", {"provider": "vendor", "max_input_tokens": 96_000})
+        assert _resolve_model_max_input_tokens("my-gateway/routed-windowed-model", None) == 96_000
+
+    def test_unknown_model_returns_none(self) -> None:
+        assert _resolve_model_max_input_tokens("unknown/model", None) is None
 
 
 class TestEnrichModelContextWindow:
@@ -74,7 +91,7 @@ class TestEnrichModelContextWindow:
         assert result.max_context_tokens == 64_000
         assert result is cfg
 
-    def test_enriches_from_litellm(self) -> None:
+    def test_enriches_from_the_catalog(self) -> None:
         cfg = ModelConfig(model="gpt-4o", api_key="sk-test")
         assert cfg.max_context_tokens is None
 

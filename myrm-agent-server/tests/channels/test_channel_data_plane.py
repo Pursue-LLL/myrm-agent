@@ -152,7 +152,7 @@ class TestChannelDataPlaneService:
         assert history[0].id == "e2e_msg_inbound_001"
         assert "SecretToken" not in history[0].content
 
-        # 3. Model Inference (real call via litellm if API key present, or deterministic reasoning)
+        # 3. Model Inference (real call via the LLM transport if API key present, or deterministic reasoning)
         model_name = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3")
         api_key = os.environ.get("BASIC_API_KEY", "")
         api_base = os.environ.get("BASIC_BASE_URL", "")
@@ -160,25 +160,19 @@ class TestChannelDataPlaneService:
         model_response_text = "128 divided by 4 is 32."
         if api_key and not api_key.startswith("mock") and "example" not in api_key:
             try:
-                import litellm
+                from myrm_agent_harness.toolkits.llms.text_completion import acomplete_text
 
-                resp = await litellm.acompletion(
-                    model=model_name,
+                full_text = await acomplete_text(
+                    model_name,
+                    [{"role": "user", "content": "Calculate directly: 128 / 4 = ?"}],
                     api_key=api_key,
                     api_base=api_base or None,
-                    messages=[
-                        {"role": "user", "content": "Calculate directly: 128 / 4 = ?"},
-                    ],
                     max_tokens=256,
                     temperature=0.0,
                     timeout=5.0,
                 )
-                if resp and resp.choices:
-                    content = resp.choices[0].message.content or ""
-                    reasoning = getattr(resp.choices[0].message, "reasoning_content", "") or ""
-                    full_text = f"{content} {reasoning}".strip()
-                    if full_text and "32" in full_text:
-                        model_response_text = full_text
+                if full_text and "32" in full_text:
+                    model_response_text = full_text
             except Exception:
                 # Best-effort network fallback to deterministic response
                 pass

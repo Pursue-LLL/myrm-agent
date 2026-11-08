@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from collections.abc import Sequence
+from unittest.mock import patch
 
 import pytest
 
@@ -12,11 +13,11 @@ from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import (
     CloudEmbedding,
 )
 
+_AEMBED = "myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding.aembed"
 
-def _make_mock_response(count: int, dim: int = 1536) -> MagicMock:
-    mock = MagicMock()
-    mock.data = [{"embedding": [0.1] * dim} for _ in range(count)]
-    return mock
+
+def _vectors(count: int, dim: int = 1536) -> list[list[float]]:
+    return [[0.1] * dim for _ in range(count)]
 
 
 @pytest.fixture()
@@ -84,13 +85,11 @@ class TestEmbedBatchWithSplit:
     async def test_large_batch_splits_api_calls(self, service: CloudEmbedding) -> None:
         call_sizes: list[int] = []
 
-        async def mock_aembedding(**kwargs: object) -> MagicMock:
-            inputs = kwargs.get("input", [])
-            assert isinstance(inputs, list)
-            call_sizes.append(len(inputs))
-            return _make_mock_response(len(inputs))
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
+            call_sizes.append(len(texts))
+            return _vectors(len(texts))
 
-        with patch("litellm.aembedding", side_effect=mock_aembedding):
+        with patch(_AEMBED, side_effect=mock_aembed):
             result = await service.embed_batch(["text"] * 100)
 
         assert len(result) == 100
@@ -101,14 +100,12 @@ class TestEmbedBatchWithSplit:
     async def test_small_batch_single_call(self, service: CloudEmbedding) -> None:
         call_count = 0
 
-        async def mock_aembedding(**kwargs: object) -> MagicMock:
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
             nonlocal call_count
             call_count += 1
-            inputs = kwargs.get("input", [])
-            assert isinstance(inputs, list)
-            return _make_mock_response(len(inputs))
+            return _vectors(len(texts))
 
-        with patch("litellm.aembedding", side_effect=mock_aembedding):
+        with patch(_AEMBED, side_effect=mock_aembed):
             result = await service.embed_batch(["hello"] * 5)
 
         assert len(result) == 5
@@ -118,15 +115,13 @@ class TestEmbedBatchWithSplit:
     async def test_long_texts_split_by_chars(self, service: CloudEmbedding) -> None:
         call_sizes: list[int] = []
 
-        async def mock_aembedding(**kwargs: object) -> MagicMock:
-            inputs = kwargs.get("input", [])
-            assert isinstance(inputs, list)
-            call_sizes.append(len(inputs))
-            return _make_mock_response(len(inputs))
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
+            call_sizes.append(len(texts))
+            return _vectors(len(texts))
 
         # Each text stays under the embed token window; combined chars exceed batch limit.
         long_texts = ["word " * 1_600 for _ in range(20)]
-        with patch("litellm.aembedding", side_effect=mock_aembedding):
+        with patch(_AEMBED, side_effect=mock_aembed):
             result = await service.embed_batch(long_texts)
 
         assert len(result) == 20
@@ -143,18 +138,15 @@ class TestEmbedBatchWithSplit:
         """Verify vectors match input text order across splits."""
         counter = 0
 
-        async def mock_aembedding(**kwargs: object) -> MagicMock:
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
             nonlocal counter
-            inputs = kwargs.get("input", [])
-            assert isinstance(inputs, list)
-            mock = MagicMock()
-            mock.data = []
-            for _ in inputs:
-                mock.data.append({"embedding": [float(counter)] * 1536})
+            vectors = []
+            for _ in texts:
+                vectors.append([float(counter)] * 1536)
                 counter += 1
-            return mock
+            return vectors
 
-        with patch("litellm.aembedding", side_effect=mock_aembedding):
+        with patch(_AEMBED, side_effect=mock_aembed):
             result = await service.embed_batch(["t"] * 70)
 
         assert len(result) == 70

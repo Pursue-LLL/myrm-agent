@@ -230,9 +230,10 @@ async def test_anti_drift_distillation_full_business_task_flow(
     async def real_or_grounded_llm_func(system_prompt: str, user_prompt: str) -> str:
         if api_key and not api_key.startswith("mock") and "example" not in api_key:
             try:
-                import litellm
+                from myrm_agent_harness.toolkits.llms.transport import get_transport
+                from myrm_agent_harness.utils.chat_utils import extract_completion_text
 
-                resp = await litellm.acompletion(
+                resp = await get_transport().acompletion(
                     model=model_name,
                     api_key=api_key,
                     api_base=api_base or None,
@@ -243,7 +244,7 @@ async def test_anti_drift_distillation_full_business_task_flow(
                     temperature=0.1,
                     timeout=20,
                 )
-                content = resp.choices[0].message.content or "[]"
+                content = extract_completion_text(resp) or "[]"
                 if "[" in content and "]" in content:
                     return content
             except Exception:

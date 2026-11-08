@@ -7,7 +7,7 @@ from langchain_core.language_models import FakeListChatModel
 
 from myrm_agent_harness.agent.acp.default_factory import DefaultAgentFactory
 from myrm_agent_harness.core.config.llm import LLMConfig
-from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms import TransportChatModel
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,7 @@ async def test_llm_is_built_from_explicit_config() -> None:
 
     agent = await DefaultAgentFactory(llm_config=config).create_agent("s1", "/tmp")
 
-    assert isinstance(agent.llm, ChatLiteLLM)
+    assert isinstance(agent.llm, TransportChatModel)
     assert agent.llm.model == "gpt-4o-mini"
 
 
@@ -42,7 +42,7 @@ async def test_llm_is_built_from_environment(monkeypatch: pytest.MonkeyPatch) ->
 
     agent = await DefaultAgentFactory().create_agent("s1", "/tmp")
 
-    assert isinstance(agent.llm, ChatLiteLLM)
+    assert isinstance(agent.llm, TransportChatModel)
     assert agent.llm.model == "gpt-4o-mini"
 
 

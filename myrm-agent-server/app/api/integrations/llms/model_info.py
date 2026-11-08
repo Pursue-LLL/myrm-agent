@@ -1,68 +1,30 @@
 """[INPUT]
-- litellm::model_cost (POS: built-in model metadata)
+- myrm_agent_harness.toolkits.llms.catalog::model_facts, known_models, is_deprecated (POS: built-in model catalog)
 - fastapi / pydantic (POS: route + schema primitives)
 
 [OUTPUT]
 - get_model_info / get_model_info_batch: capability lookup for one model or a batch
 - ModelCapabilities / ModelCandidate / ModelInfoResponse / ModelInfoRequest / ModelInfoBatchRequest
-- _try_get_model_info_exact, _build_capabilities, _search_models_by_name
+- _build_capabilities, _search_models_by_name
 
 [POS]
-Model metadata endpoints. Exact name match first, then gateway-prefix stripping, so the settings page
-shows real capabilities instead of a fabricated default.
+Model metadata endpoints. The catalog lookup comes first (case-insensitive; a gateway name resolves to the model
+behind it), then a name search over the catalog, so the settings page shows real capabilities instead of a
+fabricated default.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.toolkits.llms.catalog import is_deprecated, known_models, model_facts
 from pydantic import BaseModel, Field
 
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 
 from .common import logger, router
-
-
-def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
-    """尝试获取模型信息（优先精确匹配，未命中则剥离网关复合前缀回退查询）
-
-    Args:
-        model: 模型名称
-
-    Returns:
-        模型信息字典，如果找不到则返回 None
-    """
-    import litellm
-
-    model_clean = model.lower()
-
-    try:
-        if model_clean in getattr(litellm, "model_cost", {}):
-            return dict(litellm.model_cost[model_clean])
-        info = litellm.get_model_info(model_clean)
-        if info:
-            return dict(info)
-    except Exception:
-        pass
-
-    if "/" in model_clean:
-        candidates: list[str] = []
-        parts = model_clean.split("/")
-        if len(parts) > 2:
-            candidates.append("/".join(parts[1:]))
-        candidates.append(parts[-1])
-
-        for cand in candidates:
-            try:
-                if cand in getattr(litellm, "model_cost", {}):
-                    return dict(litellm.model_cost[cand])
-                info = litellm.get_model_info(cand)
-                if info:
-                    return dict(info)
-            except Exception:
-                continue
-
-    return None
 
 
 class ModelCapabilities(BaseModel):
@@ -75,7 +37,6 @@ class ModelCapabilities(BaseModel):
     supports_prompt_caching: bool = Field(default=False, description="是否支持提示词缓存")
     input_cost_per_token: float | None = Field(default=None, description="每个输入 token 的成本（美元）")
     output_cost_per_token: float | None = Field(default=None, description="每个输出 token 的成本（美元）")
-    max_tokens: int | None = Field(default=None, description="最大 token 数（输入+输出）")
     max_input_tokens: int | None = Field(default=None, description="最大输入 token 数")
     max_output_tokens: int | None = Field(default=None, description="最大输出 token 数")
 
@@ -99,7 +60,7 @@ class ModelInfoResponse(BaseModel):
 class ModelInfoRequest(BaseModel):
     """模型信息请求"""
 
-    model: str = Field(..., description="模型名称（LiteLLM 格式）")
+    model: str = Field(..., description="模型名称（provider/model 格式）")
 
 
 class ModelInfoBatchRequest(BaseModel):
@@ -108,8 +69,8 @@ class ModelInfoBatchRequest(BaseModel):
     models: list[str] = Field(..., description="模型名称列表")
 
 
-def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
-    """从 LiteLLM 模型信息构建能力对象"""
+def _build_capabilities(info: Mapping[str, object]) -> ModelCapabilities:
+    """从模型目录条目构建能力对象"""
     return ModelCapabilities(
         supports_vision=bool(info.get("supports_vision")),
         supports_function_calling=bool(info.get("supports_function_calling")),
@@ -118,14 +79,13 @@ def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
         supports_prompt_caching=bool(info.get("supports_prompt_caching")),
         input_cost_per_token=info.get("input_cost_per_token"),  # type: ignore[arg-type]
         output_cost_per_token=info.get("output_cost_per_token"),  # type: ignore[arg-type]
-        max_tokens=info.get("max_tokens"),  # type: ignore[arg-type]
         max_input_tokens=info.get("max_input_tokens"),  # type: ignore[arg-type]
         max_output_tokens=info.get("max_output_tokens"),  # type: ignore[arg-type]
     )
 
 
 def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
-    """在 litellm.model_cost 中搜索包含该模型名的所有条目
+    """在模型目录中搜索包含该模型名的所有条目
 
     Args:
         model_name: 要搜索的模型名称
@@ -133,27 +93,20 @@ def _search_models_by_name(model_name: str) -> list[ModelCandidate]:
     Returns:
         匹配的候选模型列表
     """
-    import litellm
-
     model_name_lower = model_name.lower()
     candidates: list[ModelCandidate] = []
 
-    model_cost = litellm.model_cost
-
-    for model_key, model_info in model_cost.items():
-        # 检查模型键是否包含搜索的模型名
-        if model_name_lower in model_key.lower():
+    for model_key, entry in known_models().items():
+        # 已过弃用日期的条目仍可查事实，但不作为候选推荐给用户
+        if model_name_lower in model_key.lower() and not is_deprecated(entry):
             # 提取提供商名称（键的第一部分）
             provider = model_key.split("/")[0] if "/" in model_key else "unknown"
-
-            # 构建能力信息
-            capabilities = _build_capabilities(model_info)
 
             candidates.append(
                 ModelCandidate(
                     provider=provider,
                     model_key=model_key,
-                    capabilities=capabilities,
+                    capabilities=_build_capabilities(entry),
                 )
             )
 
@@ -165,7 +118,7 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
     """
     获取单个模型的能力信息
 
-    只有原始模型名精确匹配时返回 found=true，否则返回候选列表供用户选择
+    目录命中（大小写不敏感；网关复合名回退到其背后的模型）时返回 found=true，否则返回候选列表供用户选择
 
     Args:
         request: 包含模型名称的请求体
@@ -173,14 +126,14 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
     Returns:
         ModelInfoResponse: found=true 时返回 capabilities，否则返回 candidates 候选列表
     """
-    # 1. 首先尝试精确匹配（只用原始名称，不做前缀转换）
-    info = _try_get_model_info_exact(request.model)
+    # 1. 先查目录事实（大小写不敏感，网关复合名回退到其背后的模型）
+    info = model_facts(request.model)
     if info:
         capabilities = _build_capabilities(info)
         response = ModelInfoResponse(found=True, capabilities=capabilities)
         return success_response(data=response.model_dump())
 
-    # 2. 精确匹配失败，进行模糊搜索
+    # 2. 目录未命中，进行名称搜索
     # 提取模型名称部分（去除可能的提供商前缀）
     model_name = request.model.split("/")[-1] if "/" in request.model else request.model
 
@@ -195,7 +148,7 @@ async def get_model_info(request: ModelInfoRequest) -> JSONResponse:
 @router.post("/model-info/batch", response_model=StandardSuccessResponse)
 async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
     """
-    批量获取模型的能力信息（精确匹配）
+    批量获取模型的能力信息（目录查找，规则同 /model-info）
 
     Args:
         request: 包含模型名称列表的请求体
@@ -206,12 +159,12 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
     result: dict[str, dict[str, object]] = {}
 
     for model in request.models:
-        info = _try_get_model_info_exact(model)
+        info = model_facts(model)
         if info:
             capabilities = _build_capabilities(info)
             result[model] = capabilities.model_dump()
         else:
-            # 模型不在 LiteLLM 数据库中，返回空能力
+            # 模型不在模型目录中，返回空能力
             result[model] = ModelCapabilities().model_dump()
 
     return success_response(data=result)

@@ -1,5 +1,5 @@
 """[INPUT]
-- .common (POS: headers / keys / LiteLLM naming)
+- .common (POS: headers / keys / provider/model naming)
 
 [OUTPUT]
 - resolve_model_config, validate_model_override, _fallback_model_from_providers, _resolve_override
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 from .common import (
     _build_transport_headers,
     _extract_all_active_keys,
-    _parse_litellm_model,
-    _to_litellm_model,
+    _parse_route_model_id,
+    _to_route_model_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def resolve_model_config(
 ) -> "ModelConfig":
     """Build ModelConfig for a specific model or the user's default.
 
-    If ``model_override`` is given (LiteLLM format like "openai/gpt-4o-mini"),
+    If ``model_override`` is given (routed form like "openai/gpt-4o-mini"),
     looks up the corresponding provider's API key and base URL.
     Falls back to the user's default model if the override is invalid.
     """
@@ -125,7 +125,7 @@ def _fallback_model_from_providers(
                 all_keys = _extract_all_active_keys(provider)
                 if all_keys:
                     ptype = str(provider.get("providerType", "")) or None
-                    full_model = _to_litellm_model(pid, model, ptype)
+                    full_model = _to_route_model_id(pid, model, ptype)
                     oauth_base = provider.get("_oauthBaseUrl")
                     api_url = str(oauth_base) if oauth_base else str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
@@ -171,10 +171,10 @@ def _fallback_model_from_providers(
 
 
 def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "ModelConfig | None":
-    """Try to build a ModelConfig from providers for the given LiteLLM model name."""
+    """Try to build a ModelConfig from providers for the given routed model name."""
     from app.core.types import ModelConfig
 
-    provider_id, raw_model = _parse_litellm_model(model_name)
+    provider_id, raw_model = _parse_route_model_id(model_name)
 
     providers: list[dict[str, object]] = providers_dict.get("providers", [])  # type: ignore[assignment]
 
@@ -218,7 +218,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         egress_proxy_raw = p.get("egressProxy") or p.get("egress_proxy")
         egress_proxy = str(egress_proxy_raw).strip() or None if egress_proxy_raw else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
-        resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
+        resolved_model = _to_route_model_id(pid, raw_model, ptype or None)
         model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
         return enrich_model_config(
             ModelConfig(

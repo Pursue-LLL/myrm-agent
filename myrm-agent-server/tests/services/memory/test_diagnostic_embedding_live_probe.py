@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import httpx
 import pytest
 from myrm_agent_harness.api.config import ConfigIncompleteError
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -11,6 +12,7 @@ from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingCon
 from app.services.memory.diagnostics.diagnostic.diagnostic_live_probes import run_embedding_live_probe
 from app.services.memory.diagnostics.diagnostic.diagnostic_probe_results import KEYWORD_MODE_EVIDENCE
 from app.services.memory.shared_context import shared_context_health as health_module
+from tests.support.provider_failures import provider_failure
 
 
 class _FakeEmbeddingService:
@@ -23,10 +25,6 @@ class _FakeEmbeddingService:
         if self._exc is not None:
             raise self._exc
         return self._vector
-
-
-class AuthenticationError(Exception):
-    """LiteLLM-compatible authentication failure name."""
 
 
 def _configure(monkeypatch: pytest.MonkeyPatch, config: EmbeddingConfig) -> None:
@@ -76,7 +74,9 @@ async def test_embedding_live_probe_stays_critical_when_the_provider_rejects_the
     monkeypatch.setattr(
         health_module,
         "get_embedding_service",
-        lambda config: _FakeEmbeddingService(exc=AuthenticationError("Incorrect API key provided: sk-invalid")),
+        lambda config: _FakeEmbeddingService(
+            exc=provider_failure(401, "Incorrect API key provided: sk-invalid", path="/v1/embeddings")
+        ),
     )
 
     probe = await run_embedding_live_probe()
@@ -94,7 +94,7 @@ async def test_embedding_live_probe_stays_critical_when_the_provider_is_unreacha
     monkeypatch.setattr(
         health_module,
         "get_embedding_service",
-        lambda config: _FakeEmbeddingService(exc=ConnectionError("connection refused")),
+        lambda config: _FakeEmbeddingService(exc=httpx.ConnectError("All connection attempts failed")),
     )
 
     probe = await run_embedding_live_probe()

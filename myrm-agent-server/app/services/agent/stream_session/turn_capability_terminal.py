@@ -3,6 +3,7 @@
 - app.services.agent.params.models::AgentRequest (POS: agent-stream request contract)
 - app.database.models::TurnCapabilityMetricEvent (POS: turn capability telemetry ORM)
 - app.services.agent.stream_session.stream_session_types::AgentStreamSession (POS: carries the once-only terminal recorded flag of the turn)
+- myrm_agent_harness.toolkits.llms.transport::LLMCallError (POS: model-call failure base, carries the HTTP status)
 
 [OUTPUT]
 - has_turn_capability_terminal_context: gate terminal telemetry writes by request payload.
@@ -21,6 +22,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal
+
+import httpx
+from myrm_agent_harness.toolkits.llms.transport import LLMCallError
 
 from app.database.models import TurnCapabilityMetricEvent
 from app.platform_utils import get_session_factory
@@ -53,9 +57,22 @@ def _resolve_turn_capability_context_key(request: AgentRequest) -> str:
     return "chat:unknown"
 
 
+_TIMEOUT_STATUSES = frozenset({408, 504})
+
+
 def classify_turn_capability_failure_reason(error: BaseException) -> TurnCapabilityFailureReason:
     if isinstance(error, asyncio.CancelledError):
         return "abort"
+
+    # A model-call failure states what happened: the provider's HTTP status, or a connection that broke. Its class
+    # name ("LLMHTTPError") and message prefix say nothing about the cause, so wording is read only from errors that
+    # carry no such fact. Statuses below 500 are the caller's or the account's problem, not a server fault.
+    if isinstance(error, LLMCallError) and error.status_code is not None:
+        if error.status_code in _TIMEOUT_STATUSES:
+            return "network_error"
+        return "server_error" if error.status_code >= 500 else "unknown_error"
+    if isinstance(error, httpx.TransportError):
+        return "network_error"
 
     error_name = type(error).__name__.lower()
     error_message = str(error).lower()

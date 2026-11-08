@@ -1,7 +1,7 @@
 """Shared LLM utilities for kanban specifier and decomposer.
 
 Extracts common helpers that both ``specifier.py`` and ``decomposer.py``
-rely on: JSON extraction, text truncation, CJK detection, and LiteLLM
+rely on: JSON extraction, text truncation, CJK detection, and LangChain
 response usage parsing.
 
 [INPUT]
@@ -11,7 +11,7 @@ response usage parsing.
 - extract_json_blob: Lenient JSON extraction tolerating fences and prose.
 - truncate: Truncate text to a character limit with ellipsis.
 - has_cjk: Detect CJK characters for locale-aware prompt selection.
-- extract_usage: Pull token counts from a LiteLLM response.
+- extract_langchain_usage: Pull token counts from a LangChain AIMessage.
 
 [POS]
 Shared LLM helpers for kanban specifier / decomposer.
@@ -47,16 +47,6 @@ def extract_json_blob(raw: str) -> dict[str, object] | None:
     real result (format examples preceding the actual verdict).
     """
     return parse_llm_json_object(raw)
-
-
-def extract_usage(response: object) -> tuple[int | None, int | None]:
-    """Pull (prompt_tokens, completion_tokens) from a LiteLLM response."""
-    usage = getattr(response, "usage", None)
-    if usage is None:
-        return None, None
-    prompt_raw = getattr(usage, "prompt_tokens", None)
-    completion_raw = getattr(usage, "completion_tokens", None)
-    return _coerce_int_or_none(prompt_raw), _coerce_int_or_none(completion_raw)
 
 
 def extract_langchain_usage(message: object) -> tuple[int | None, int | None]:

@@ -334,7 +334,7 @@ class TestPipelineIntegration:
     """Verify close_truncated_json works correctly via the recovery pipeline."""
 
     def test_dangling_key_via_pipeline(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             parse_tool_call_arguments_with_recovery,
         )
 
@@ -347,7 +347,7 @@ class TestPipelineIntegration:
         assert result.args["content"] is None
 
     def test_truncated_literal_via_pipeline(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             parse_tool_call_arguments_with_recovery,
         )
 
@@ -363,7 +363,7 @@ class TestRecoveryPipelineBranches:
     """Cover additional recovery strategies and helper functions."""
 
     def test_resolve_parameters_schema_direct(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _resolve_parameters_schema,
         )
 
@@ -373,7 +373,7 @@ class TestRecoveryPipelineBranches:
         assert "properties" in result
 
     def test_resolve_parameters_schema_none(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _resolve_parameters_schema,
         )
 
@@ -381,7 +381,7 @@ class TestRecoveryPipelineBranches:
         assert _resolve_parameters_schema({"parameters": "bad"}) is None
 
     def test_regex_fallback_extract_with_schema(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _regex_fallback_extract,
         )
 
@@ -403,7 +403,7 @@ class TestRecoveryPipelineBranches:
         assert result["count"] == 42
 
     def test_regex_fallback_extract_boolean_null(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _regex_fallback_extract,
         )
 
@@ -425,7 +425,7 @@ class TestRecoveryPipelineBranches:
         assert result["val"] is None
 
     def test_regex_fallback_extract_float(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _regex_fallback_extract,
         )
 
@@ -443,7 +443,7 @@ class TestRecoveryPipelineBranches:
         assert result["score"] == pytest.approx(3.14)
 
     def test_regex_fallback_without_schema(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _regex_fallback_extract,
         )
 
@@ -453,7 +453,7 @@ class TestRecoveryPipelineBranches:
         assert result["path"] == "/tmp"
 
     def test_regex_fallback_embedded_quotes(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _regex_fallback_extract,
         )
 
@@ -471,14 +471,14 @@ class TestRecoveryPipelineBranches:
         assert "hello" in result.get("content", "")
 
     def test_is_safe_degraded_empty(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _is_safe_degraded_result,
         )
 
         assert _is_safe_degraded_result({}, None) is False
 
     def test_is_safe_degraded_with_required(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _is_safe_degraded_result,
         )
 
@@ -496,7 +496,7 @@ class TestRecoveryPipelineBranches:
         assert _is_safe_degraded_result({"other": "val"}, schema) is False
 
     def test_is_safe_degraded_no_schema(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             _is_safe_degraded_result,
         )
 
@@ -504,7 +504,7 @@ class TestRecoveryPipelineBranches:
         assert _is_safe_degraded_result({"command": "rm -rf"}, None) is False
 
     def test_extract_json_from_malformed_response(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             extract_json_from_malformed_response,
         )
 
@@ -541,7 +541,7 @@ class TestRecoveryPipelineBranches:
         assert "response_format" not in result
 
     def test_pipeline_failed_recovery(self) -> None:
-        from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+        from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
             parse_tool_call_arguments_with_recovery,
         )
 

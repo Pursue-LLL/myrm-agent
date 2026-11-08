@@ -8,7 +8,7 @@
 
 [POS]
 工具包门面。把重量级工具层注册从进程导入期推迟到首次使用/后台预热，避免 HTTP
-服务启动时为注册工具而导入整个 Agent 工具链（含 litellm）。
+服务启动时为注册工具而导入整个 Agent 工具链。
 """
 
 from __future__ import annotations
@@ -22,8 +22,7 @@ _bootstrapped = False
 def ensure_tool_layer_bootstrap() -> None:
     """Register server-layer tools once, on first use.
 
-    Importing the bootstrap module pulls in the full agent tool chain (including
-    litellm), so it must not run at HTTP-server import time. Agent creation awaits
+    Importing the bootstrap module pulls in the full agent tool chain, so it must not run at HTTP-server import time. Agent creation awaits
     this in a worker thread; startup preloads it in the background.
     """
     global _bootstrapped

@@ -1,4 +1,4 @@
-"""ChatLiteLLM message conversion and response assembly mixin.
+"""TransportChatModel message conversion and response assembly mixin.
 
 [INPUT]
 - adapters.converters (POS: message and tool call converters)
@@ -10,10 +10,10 @@
 - adapters.chat_model.wire_encoding (POS: makes every string of a request encodable as UTF-8 before it leaves the process)
 
 [OUTPUT]
-- ChatLiteLLMMessageMixin: _create_message_dicts, normalize, stamp, ChatResult assembly
+- TransportChatModelMessageMixin: _create_message_dicts, normalize, stamp, ChatResult assembly
 
 [POS]
-Message normalization and response assembly for ChatLiteLLM. Provider-aware system
+Message normalization and response assembly for TransportChatModel. Provider-aware system
 demotion/promotion and reasoning_content stamping live here to keep the hot path in one module.
 """
 
@@ -26,6 +26,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
+from myrm_agent_harness.core.config.wire import DEFAULT_WIRE_PROTOCOL, WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     _SYSTEM_MESSAGE_DENYLIST_HINTS,
     DEVELOPER_ROLE_PATTERN,
@@ -49,16 +50,18 @@ from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
     is_stream_complete,
 )
+from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import strip_reasoning_replay
+from myrm_agent_harness.toolkits.llms.adapters.wire.routing import resolve_wire
 
 logger = logging.getLogger(__name__)
 
 _capability_detector = ModelCapabilityDetector()
 
 
-class ChatLiteLLMMessageMixin:
+class TransportChatModelMessageMixin:
     """Message conversion and response assembly mixin.
 
-    Hosted by :class:`ChatLiteLLM`, which supplies the field values for the
+    Hosted by :class:`TransportChatModel`, which supplies the field values for the
     attributes declared below. Declarations exist so static type checkers see
     the host-provided state; Pydantic merges the concrete fields from the host
     class (with their defaults).
@@ -83,7 +86,7 @@ class ChatLiteLLMMessageMixin:
             return dict(response.model_dump())
         if hasattr(response, "dict"):
             return dict(response.dict())
-        raise ValueError(f"Unable to convert LiteLLM response to dict. Type: {type(response)}")
+        raise ValueError(f"Unable to convert provider response to dict. Type: {type(response)}")
 
     def _build_empty_choices_error(self, response: Mapping[str, Any]) -> str:
         error_msg = response.get("error", {})
@@ -92,7 +95,7 @@ class ChatLiteLLMMessageMixin:
         original_error = response.get("original_exception", "")
 
         parts = [
-            f"LiteLLM returned empty choices. Model: {self.model_name or self.model}",
+            f"The provider returned empty choices. Model: {self.model_name or self.model}",
             f"Response keys: {list(response.keys())}",
         ]
 
@@ -214,6 +217,16 @@ class ChatLiteLLMMessageMixin:
         replace_lone_surrogates(message_dicts)
         apply_outbound_message_guard(message_dicts)
         return message_dicts, params
+
+    def _wire_for(self, params: Mapping[str, Any]) -> WireProtocol:
+        """The protocol this call must use: the configured one unless the provider or model requires another."""
+        return resolve_wire(getattr(self, "wire_protocol", DEFAULT_WIRE_PROTOCOL), params)
+
+    def _chat_messages(self, message_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Messages for a chat-completions call; reasoning items only a Responses call can replay are dropped."""
+        if getattr(self, "wire_protocol", DEFAULT_WIRE_PROTOCOL) == "responses":
+            return strip_reasoning_replay(message_dicts)
+        return message_dicts
 
     def _sanitize_outbound_wire_messages(self, message_dicts: list[dict[str, Any]]) -> None:
         """Sanitize message dicts according to target wire protocol.

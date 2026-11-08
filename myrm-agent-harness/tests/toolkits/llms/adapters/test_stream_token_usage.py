@@ -14,7 +14,7 @@ import pytest
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langchain_core.outputs import ChatGenerationChunk
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.utils.token_economics.tracker import (
     get_pending_token_events,
     init_token_tracker,
@@ -22,7 +22,7 @@ from myrm_agent_harness.utils.token_economics.tracker import (
 
 
 def _make_stream_chunks(*, include_usage: bool = True) -> list[dict[str, Any]]:
-    """Create a list of mock LiteLLM stream chunks."""
+    """Create a list of mock provider stream chunks."""
     chunks = [
         {
             "id": "chatcmpl-1",
@@ -126,7 +126,7 @@ def _make_tool_call_stream_chunks() -> list[dict[str, Any]]:
 
 
 class _MockModelResponse:
-    """Simulates LiteLLM's ModelResponse with attribute access."""
+    """Simulates an SDK response object with attribute access."""
 
     def __init__(self, data: dict[str, Any]) -> None:
         self._data = data
@@ -178,7 +178,7 @@ class TestSyncStreamSentinel:
 
     def test_yields_sentinel_when_no_tool_call(self):
         """Sentinel chunk is yielded after finalize_stream when no tool call."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -193,7 +193,7 @@ class TestSyncStreamSentinel:
 
     def test_token_usage_recorded_after_stream(self):
         """Token usage is correctly recorded and available via get_pending_token_events."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -209,7 +209,7 @@ class TestSyncStreamSentinel:
 
     def test_tool_call_stream_still_records_usage(self):
         """Token usage is recorded even in tool call streams."""
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_tool_call_stream_chunks()
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
@@ -223,22 +223,25 @@ class TestSyncStreamSentinel:
         assert usage["prompt_tokens"] == 20
         assert usage["total_tokens"] == 30
 
-    def test_no_usage_when_provider_omits_usage(self):
-        """Gracefully handles providers that don't return usage data."""
-        model = ChatLiteLLM(model="openai/test-model")
+    def test_usage_is_counted_locally_when_provider_omits_it(self):
+        """A provider that streams without usage still has its call accounted, from a local count."""
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
         model.client.completion = MagicMock(return_value=_mock_stream(chunks))
 
         results = list(model._stream([HumanMessage(content="hi")]))
 
-        # Sentinel is still yielded
+        # Sentinel is still yielded, and carries no usage: the provider reported none.
         last = results[-1]
         assert last.message.content == ""
+        assert all(not getattr(r.message, "usage_metadata", None) for r in results)
 
-        # But no token events (usage was None)
         events = get_pending_token_events()
-        assert len(events) == 0
+        assert len(events) == 1
+        usage = events[0]["usage"]
+        assert usage["prompt_tokens"] > 0
+        assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]
 
 
 class TestAsyncStreamSentinel:
@@ -249,10 +252,10 @@ class TestAsyncStreamSentinel:
         """Sentinel chunk is yielded after finalize_stream when no tool call."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -268,10 +271,10 @@ class TestAsyncStreamSentinel:
         """Token usage is correctly recorded via async path."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=True)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -285,14 +288,14 @@ class TestAsyncStreamSentinel:
         assert usage["total_tokens"] == 15
 
     @pytest.mark.asyncio
-    async def test_no_usage_when_provider_omits_usage(self):
-        """Gracefully handles providers that don't return usage data (async)."""
+    async def test_usage_is_counted_locally_when_provider_omits_it(self):
+        """A provider that streams without usage still has its call accounted, from a local count (async)."""
         from unittest.mock import AsyncMock
 
-        model = ChatLiteLLM(model="openai/test-model")
+        model = TransportChatModel(model="openai/test-model")
         model.client = MagicMock()
         chunks = _make_stream_chunks(include_usage=False)
-        model.client.acreate = AsyncMock(return_value=_mock_astream(chunks))
+        model.client.acompletion = AsyncMock(return_value=_mock_astream(chunks))
 
         results = []
         async for chunk in model._astream([HumanMessage(content="hi")]):
@@ -300,5 +303,9 @@ class TestAsyncStreamSentinel:
 
         last = results[-1]
         assert last.message.content == ""
+        assert all(not getattr(r.message, "usage_metadata", None) for r in results)
         events = get_pending_token_events()
-        assert len(events) == 0
+        assert len(events) == 1
+        usage = events[0]["usage"]
+        assert usage["prompt_tokens"] > 0
+        assert usage["total_tokens"] == usage["prompt_tokens"] + usage["completion_tokens"]

@@ -2,7 +2,7 @@
 
 [INPUT]
 myrm_agent_harness.core.config.llm::LLMConfig (POS: 框架层大模型配置定义)
-myrm_agent_harness.toolkits.llms.core.llm::create_litellm_model (POS: 框架层大模型创建器)
+myrm_agent_harness.toolkits.llms.core.llm::create_chat_model (POS: 框架层大模型创建器)
 myrm_agent_harness.toolkits.llms.vision.fallback_engine::VisionFallbackEngine (POS: 图像降级引擎，帧分析复用)
 myrm_agent_harness.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
 
@@ -28,7 +28,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.core.config.llm import LLMConfig
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.errors import classify_failover_reason
 from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
     VisionProviderCapacityError,
@@ -200,7 +200,7 @@ class VideoAnalysisEngine:
             if cfg.temperature is not None:
                 merged_kwargs["temperature"] = cfg.temperature
             self._models.append(
-                create_litellm_model(
+                create_chat_model(
                     model=cfg.model,
                     api_key=cfg.api_key,
                     base_url=cfg.base_url,

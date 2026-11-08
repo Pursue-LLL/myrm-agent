@@ -45,7 +45,7 @@ const ROOT_CONVENTION_ENTRIES: ReadonlySet<string> = new Set([
   'src/instrumentation-client.ts',
 ]);
 
-const GENERATED_ENTRY = /(?:^|\/)litellmRouting\.generated\.ts$/;
+const GENERATED_ENTRY = /(?:^|\/)providerRouting\.generated\.ts$/;
 const TEST_FILE = /(?:^|\/)(?:__tests__|__mocks__)\/|\.(?:test|spec)\.tsx?$/;
 const TEST_SUPPORT_DIR = 'src/test-utils/';
 

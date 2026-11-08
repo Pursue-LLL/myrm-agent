@@ -32,7 +32,7 @@ class RerankerConfig:
     """Reranking service configuration.
 
     Attributes:
-        model: Model name in LiteLLM format (e.g. "cohere/rerank-v3.5")
+        model: ``provider/model`` (e.g. "cohere/rerank-v3.5"), or any model id together with ``api_base``
         api_key: API key
         api_base: API base URL (optional)
     """

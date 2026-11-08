@@ -11,11 +11,8 @@
 [POS]
 OpenRouter accepts reasoning effort via the nested ``reasoning.effort``
 field (or the top-level ``verbosity`` alias), **not** the OpenAI-style
-top-level ``reasoning_effort``.  LiteLLM's ``drop_params=True`` silently
-discards ``reasoning_effort`` for models whose capability metadata is
-incomplete (e.g. Claude 4.6/4.7 Opus are not flagged as reasoning
-models in LiteLLM ≤ 1.93.0).  Even when kept, the parameter format is
-wrong for OpenRouter.
+top-level ``reasoning_effort``, so the parameter format the OpenAI wire
+sends by default is wrong for OpenRouter.
 
 This module bridges the gap at LLM-creation time: when the model is
 routed through OpenRouter and ``reasoning_effort`` is present in kwargs,
@@ -51,7 +48,7 @@ def apply_openrouter_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) ->
     this is a no-op.
 
     Args:
-        model: Full LiteLLM model identifier (e.g. ``openrouter/anthropic/claude-4.6-opus``).
+        model: Full route model identifier (e.g. ``openrouter/anthropic/claude-4.6-opus``).
         llm_kwargs: Mutable LLM parameter dict (modified in place).
     """
     if not _is_openrouter_model(model):

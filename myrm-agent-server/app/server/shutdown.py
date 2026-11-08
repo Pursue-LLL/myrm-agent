@@ -13,6 +13,7 @@
 - safe_close_external_agent_pools: 安全关闭外部 CLI/ACP Agent 运行时池
 - safe_stop_maintenance_daemon: 安全停止维护守护进程
 - safe_wait_background_tasks: 等待 Harness 后台任务完成
+- safe_close_model_transport: 有界等待地关闭模型传输层的共享 HTTP 客户端
 - safe_shutdown_observability: 安全关闭 OpenTelemetry
 
 [POS]
@@ -21,10 +22,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
+
+# The desktop shell waits only seconds for a self-exit; a close that hangs must not delay the database flush after it.
+_MODEL_TRANSPORT_CLOSE_TIMEOUT_SECONDS = 2.0
 
 
 async def safe_stop_cron() -> None:
@@ -95,3 +100,14 @@ async def safe_shutdown_observability() -> None:
         logger.info("[Shutdown] Observability providers shutdown complete: %s", results)
     except Exception as e:
         logger.warning("[Shutdown] Observability shutdown failed: %s", e)
+
+
+async def safe_close_model_transport() -> None:
+    """Close the model transport's shared HTTP clients within a bounded wait, once no component can still call a model."""
+    try:
+        from myrm_agent_harness.toolkits.llms.transport import aclose_clients
+
+        await asyncio.wait_for(aclose_clients(), timeout=_MODEL_TRANSPORT_CLOSE_TIMEOUT_SECONDS)
+        logger.info("[Shutdown] Model transport clients closed")
+    except Exception as e:
+        logger.warning("[Shutdown] Model transport close failed: %s", e)

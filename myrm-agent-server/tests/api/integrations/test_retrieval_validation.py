@@ -152,6 +152,18 @@ def test_an_edited_key_is_checked_against_the_provider(client: TestClient, api_k
 
 
 @pytest.mark.parametrize("kind", _KINDS)
+def test_a_repeated_probe_of_an_unchanged_configuration_reaches_the_provider_again(
+    client: TestClient, provider: FakeRetrievalProvider, api_key: str, kind: str
+) -> None:
+    # Every probe carries a text no earlier call used: the provider could have gone away since the last probe, and a
+    # fixed text answered from memory would still validate the form.
+    _probe(client, kind, api_key=api_key, api_base=provider.api_base)
+    _probe(client, kind, api_key=api_key, api_base=provider.api_base)
+
+    assert len(provider.requests) == 2
+
+
+@pytest.mark.parametrize("kind", _KINDS)
 def test_an_unreachable_host_is_named(client: TestClient, api_key: str, kind: str) -> None:
     result = _probe(client, kind, api_key=api_key, api_base=unreachable_api_base())
 
@@ -160,7 +172,8 @@ def test_an_unreachable_host_is_named(client: TestClient, api_key: str, kind: st
 
 
 def test_the_key_a_provider_repeats_is_not_echoed_back(client: TestClient, provider: FakeRetrievalProvider, api_key: str) -> None:
-    provider.status = 401  # the fake provider repeats the key in its error body; LiteLLM puts that body into the exception text
+    # The fake provider repeats the key in its error body; the transport puts that body into the exception text.
+    provider.status = 401
 
     result = _probe(client, "embedding", api_key=api_key, api_base=provider.api_base)
 

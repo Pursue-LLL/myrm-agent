@@ -1,7 +1,7 @@
 """Unit tests for infra/tls_compat.py: the context policy of the standard library and httpx.
 
 The policy rewires the TLS context builders of the whole process, so every test starts from the libraries' own
-builders and puts back whatever it found. What aiohttp, urllib3 and litellm hold is in ``test_tls_compat_libraries.py``.
+builders and puts back whatever it found. What aiohttp and urllib3 hold is in ``test_tls_compat_libraries.py``.
 """
 
 from __future__ import annotations

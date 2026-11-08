@@ -8,7 +8,7 @@ here because external embedding accounts have exhausted quota):
 1. ``split_for_embedding`` splits long Chinese text by the wordpiece character budget
    (bge-m3 = 8192 window, 0.9 margin -> 7372 chars) instead of the o200k BPE budget.
 2. Every produced chunk stays inside the real wordpiece window (no silent truncation).
-3. ``CloudEmbedding.embed_batch`` runs the real LiteLLM HTTP path to the endpoint.
+3. ``CloudEmbedding.embed_batch`` runs the real transport HTTP path to the endpoint.
 4. Oversized input fails loud with ``EmbedInputTooLargeError`` before any HTTP call.
 5. Memory ``_fit_text_for_embedding`` truncates to the first fitting chunk, then embeds.
 6. Real wiki ingest of a long Chinese document embeds every chunk within the window.

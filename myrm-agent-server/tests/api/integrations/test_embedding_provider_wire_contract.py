@@ -1,8 +1,9 @@
-"""What each embedding provider receives on the wire from the real CloudEmbedding and LiteLLM.
+"""What each embedding provider receives on the wire from the real CloudEmbedding and the transport.
 
-CloudEmbedding builds the call parameters and LiteLLM's per-provider adapters turn them into the request body that the
-provider's API judges. The parameters CloudEmbedding really builds run through the real LiteLLM, with the defaults the
-server runs with, against a loopback provider that records the body.
+CloudEmbedding hands its model, key and endpoint to the transport, which builds the request body each provider's API
+judges. The real classes run against a loopback provider that records the body that arrived over HTTP. A provider is
+reached through its own endpoint variable (`VOYAGE_API_BASE`, `JINA_AI_API_BASE`, `COHERE_API_BASE`) so the request keeps
+that provider's profile; a custom `api_base` is an OpenAI-compatible gateway that keeps the whole model id.
 
 Voyage's API takes `encoding_format` as null or "base64" (docs.voyageai.com/reference/embeddings-api); a request with
 "float" got HTTP 400 on 2026-11-07, one without it returned floats. The other providers' bodies are pinned as they are
@@ -12,20 +13,11 @@ today, so a change to one of them is a deliberate decision.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from types import SimpleNamespace
-from unittest.mock import patch
 
-import litellm
 import pytest
 from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import CloudEmbedding
 
-from tests.support.fake_retrieval_provider import FakeRetrievalProvider, fake_retrieval_provider
-
-
-@pytest.fixture(autouse=True)
-def server_litellm_defaults() -> None:
-    # The first import of the llms package applies the LiteLLM defaults the server runs with (drop_params).
-    from myrm_agent_harness.toolkits.llms import llm_manager  # noqa: F401
+from tests.support.fake_retrieval_provider import FakeRetrievalProvider, ProviderRequest, fake_retrieval_provider
 
 
 @pytest.fixture
@@ -34,51 +26,54 @@ def provider() -> Iterator[FakeRetrievalProvider]:
         yield running
 
 
-async def _wire_body(provider: FakeRetrievalProvider, model: str, api_base: str | None = None) -> dict[str, object]:
-    """The request body LiteLLM posts for the call CloudEmbedding builds for `model`, the loopback standing in for the provider."""
-    built: list[dict[str, object]] = []
-
-    async def record(**kwargs: object) -> SimpleNamespace:
-        built.append(kwargs)
-        return SimpleNamespace(data=[{"embedding": [0.1] * 4}])
-
-    with patch("litellm.aembedding", side_effect=record):
-        await CloudEmbedding(model=model, api_key="sk-loopback", api_base=api_base).embed("hello")
-
-    [kwargs] = built
-    try:
-        await litellm.aembedding(**{**kwargs, "api_base": provider.api_base})
-    except litellm.APIConnectionError:
-        # An adapter that expects another response shape than the OpenAI one the loopback answers with (Cohere)
-        # cannot parse it; the request, which is what is judged here, was recorded before that.
-        pass
+async def _wire_request(provider: FakeRetrievalProvider, model: str, api_base: str | None = None) -> ProviderRequest:
+    """The request that reaches the loopback when CloudEmbedding embeds one text with `model`."""
+    await CloudEmbedding(model=model, api_key="sk-loopback", api_base=api_base, max_retries=0).embed("hello")
     assert provider.requests, f"no request reached the provider for {model}"
-    return provider.requests[-1].body
+    return provider.requests[-1]
 
 
-async def test_voyage_receives_no_encoding_format(provider: FakeRetrievalProvider) -> None:
-    body = await _wire_body(provider, "voyage/voyage-4-lite")
+async def test_voyage_receives_no_encoding_format(provider: FakeRetrievalProvider, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VOYAGE_API_BASE", provider.api_base)
 
-    assert "encoding_format" not in body, body
+    request = await _wire_request(provider, "voyage/voyage-4-lite")
+
+    assert request.path == "/v1/embeddings"
+    assert request.body == {"model": "voyage-4-lite", "input": ["hello"]}, request.body
 
 
 @pytest.mark.parametrize(
-    ("model", "api_base"),
-    [("openai/BAAI/bge-m3", "https://api.siliconflow.cn/v1"), ("text-embedding-3-small", None)],
+    ("model", "wire_model"),
+    [("openai/BAAI/bge-m3", "BAAI/bge-m3"), ("text-embedding-3-small", "text-embedding-3-small")],
 )
-async def test_openai_style_providers_receive_float(provider: FakeRetrievalProvider, model: str, api_base: str | None) -> None:
-    body = await _wire_body(provider, model, api_base)
+async def test_openai_style_providers_receive_float(provider: FakeRetrievalProvider, model: str, wire_model: str) -> None:
+    request = await _wire_request(provider, model, provider.api_base)
 
-    assert body["encoding_format"] == "float", body
-
-
-async def test_cohere_receives_float_embedding_types(provider: FakeRetrievalProvider) -> None:
-    body = await _wire_body(provider, "cohere/embed-multilingual-v3.0")
-
-    assert body["embedding_types"] == ["float"], body
+    assert request.body == {"model": wire_model, "input": ["hello"], "encoding_format": "float"}, request.body
 
 
-async def test_jina_receives_no_encoding_format(provider: FakeRetrievalProvider) -> None:
-    body = await _wire_body(provider, "jina_ai/jina-embeddings-v3")
+async def test_a_voyage_model_behind_a_custom_endpoint_receives_float_and_the_whole_model_id(
+    provider: FakeRetrievalProvider,
+) -> None:
+    request = await _wire_request(provider, "voyage/voyage-4-lite", provider.api_base)
 
-    assert "encoding_format" not in body, body
+    assert request.body == {"model": "voyage/voyage-4-lite", "input": ["hello"], "encoding_format": "float"}, request.body
+
+
+async def test_cohere_receives_float_embedding_types(provider: FakeRetrievalProvider, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COHERE_API_BASE", provider.api_base)
+
+    request = await _wire_request(provider, "cohere/embed-multilingual-v3.0")
+
+    assert request.path == "/v1/embed"
+    assert request.body["embedding_types"] == ["float"], request.body
+    assert "encoding_format" not in request.body, request.body
+
+
+async def test_jina_receives_no_encoding_format(provider: FakeRetrievalProvider, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JINA_AI_API_BASE", provider.api_base)
+
+    request = await _wire_request(provider, "jina_ai/jina-embeddings-v3")
+
+    assert request.path == "/v1/embeddings"
+    assert request.body == {"model": "jina-embeddings-v3", "input": ["hello"]}, request.body

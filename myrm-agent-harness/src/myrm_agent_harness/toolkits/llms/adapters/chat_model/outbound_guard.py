@@ -1,6 +1,6 @@
-"""Outbound message guard: the single hook every ChatLiteLLM call passes before its messages leave the process.
+"""Outbound message guard: the single hook every TransportChatModel call passes before its messages leave the process.
 
-A host registers one guard; ChatLiteLLM calls it with the final wire messages of each request, so a policy
+A host registers one guard; TransportChatModel calls it with the final wire messages of each request, so a policy
 (PII masking, DLP) covers every caller of the model without each call site having to remember it. The guard
 rewrites the messages in place. A guard that raises stops the call: text it could not vet is never sent.
 
@@ -26,7 +26,7 @@ _guard: OutboundMessageGuard | None = None
 
 
 def set_outbound_message_guard(guard: OutboundMessageGuard | None) -> None:
-    """Register *guard* for every ChatLiteLLM request in this process, or remove it with None."""
+    """Register *guard* for every TransportChatModel request in this process, or remove it with None."""
     global _guard
     _guard = guard
 

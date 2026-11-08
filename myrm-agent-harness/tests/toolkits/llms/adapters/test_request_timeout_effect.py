@@ -1,8 +1,8 @@
 """``request_timeout`` bounds how long a provider call waits for the provider, on every wire protocol.
 
 The tests talk to a real socket on loopback instead of a stub of the provider client: the property under test is
-that the limit reaches the HTTP layer, which no assertion on the parameters handed to ``litellm`` can show (it
-ignores some parameter names on some wires).
+that the limit reaches the HTTP layer, which no assertion on the parameters handed to the transport can show (a
+wire ignores the parameter names it does not map).
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from myrm_agent_harness.core.config.wire import WireProtocol
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 
 _REQUEST_TIMEOUT = 0.8
@@ -125,8 +125,8 @@ async def _provider(handler: _Handler) -> AsyncIterator[str]:
         await server.wait_closed()
 
 
-def _model(api_base: str, wire: WireProtocol, *, streaming: bool) -> ChatLiteLLM:
-    return ChatLiteLLM(
+def _model(api_base: str, wire: WireProtocol, *, streaming: bool) -> TransportChatModel:
+    return TransportChatModel(
         model="claude-test" if wire == "anthropic_messages" else "openai/gpt-test",
         api_base=api_base,
         api_key="sk-test",
@@ -137,7 +137,7 @@ def _model(api_base: str, wire: WireProtocol, *, streaming: bool) -> ChatLiteLLM
     )
 
 
-async def _call(llm: ChatLiteLLM, *, streaming: bool) -> str:
+async def _call(llm: TransportChatModel, *, streaming: bool) -> str:
     messages = [HumanMessage(content="hi")]
     if not streaming:
         return str((await llm.ainvoke(messages)).content)

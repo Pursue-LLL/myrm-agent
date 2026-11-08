@@ -273,7 +273,7 @@ _REJECTION_FAILURES = {
     "http_404": SearchAPIError("Search endpoint not found (404)", ErrorContext(status_code=404)),
     "http_429": SearchAPIError("Search service rate limited (429)", ErrorContext(status_code=429)),
     "wrapped_plan_limit": RuntimeError(
-        "litellm.InternalServerError: TavilyException - Request exceeds your plan's set usage limit"
+        "InternalServerError: TavilyException - Request exceeds your plan's set usage limit"
     ),
     "plain_runtime_error": RuntimeError("unexpected search failure"),
 }

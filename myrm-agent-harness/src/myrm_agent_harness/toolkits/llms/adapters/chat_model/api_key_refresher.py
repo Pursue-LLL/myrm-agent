@@ -31,7 +31,7 @@ _refresher: ApiKeyRefresher | None = None
 
 
 def set_api_key_refresher(refresher: ApiKeyRefresher | None) -> None:
-    """Register *refresher* for every ChatLiteLLM async request in this process, or remove it with None."""
+    """Register *refresher* for every TransportChatModel async request in this process, or remove it with None."""
     global _refresher
     _refresher = refresher
 

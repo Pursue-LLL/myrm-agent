@@ -1,0 +1,3595 @@
+{
+ "_meta": {
+  "cards": "Each raised case also records the error card type a user was shown, without a context ('card') and with a custom local endpoint ('card_custom'): the case was served to the previous stack (litellm 1.97.0, main 5a9990bb39) and its exception diagnosed by that stack's LLMErrorDiagnostic. The replies whose body holds no sentence (status-only cases s<status>_*) were recorded the same way. The replies whose cause is named only in the kind or code field of the body, next to a sentence with none of the card's keywords (kind_*, code_*, type_*, status_*, plain_* and html_* cases), were recorded the same way.",
+  "cross_check": "The same corpus served to litellm 1.106.0 (the harness lock) reads the same in 36 of 36 streams and 121 of 121 answers and differs in 4 of 132 error replies: three Ollama replies (400, 404, 500) that 1.97.0 reports as a connection failure and one Moonshot policy refusal that 1.97.0 reads as a malformed request.",
+  "method": "Each case was served by a loopback HTTP server to the previous adapter; the raised exception went through that stack's own errors package.",
+  "recorded": "2026-11-06",
+  "stack": "litellm 1.97.0 (the version the server's uv.lock pins, which is the one the product runs) behind the previous ChatLiteLLM adapter, main c0cbd9185d"
+ },
+ "http": {
+  "anthropic.auth": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "anthropic"
+  },
+  "anthropic.bad_gateway_html": {
+   "body": "<html><body>Bad Gateway</body></html>",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 502,
+   "wire": "anthropic"
+  },
+  "anthropic.bad_request": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"max_tokens: Field required\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.bill_anthropic_529_ok": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"overloaded_error\", \"message\": \"Overloaded\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 529,
+   "wire": "anthropic"
+  },
+  "anthropic.billing": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.ctx_anthropic_bedrock_style": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"Input is too long for requested model.\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.ctx_anthropic_maxtok": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"input length and `max_tokens` exceed context limit: 190000 + 64000 > 200000, decrease input length or `max_tokens` and try again\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.ctx_overflow": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"prompt is too long: 210000 tokens > 200000 maximum\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.forbidden": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"permission_error\", \"message\": \"Your API key does not have permission to use the specified resource.\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "anthropic"
+  },
+  "anthropic.image_too_large": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"messages.0.content.1.image.source.base64: image exceeds 5 MB maximum: 6291456 bytes > 5242880 bytes\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": true,
+    "quota": false,
+    "reason": "image_too_large",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.kind_billing_400": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"billing_error\", \"message\": \"Your account has a problem.\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.kind_timeout_500": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"timeout_error\", \"message\": \"Something went wrong.\"}}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "anthropic"
+  },
+  "anthropic.kind_timeout_504": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"timeout_error\", \"message\": \"Something went wrong.\"}}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "anthropic"
+  },
+  "anthropic.not_found": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"not_found_error\", \"message\": \"model: claude-9\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "anthropic"
+  },
+  "anthropic.output_cap_anthropic": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"max_tokens: 64000 > 32000, which is the maximum allowed number of output tokens for claude-opus-4-20250514\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.overloaded": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"overloaded_error\", \"message\": \"Overloaded\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 529,
+   "wire": "anthropic"
+  },
+  "anthropic.payload": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"request_too_large\", \"message\": \"Request exceeds the maximum allowed number of bytes.\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 413,
+   "wire": "anthropic"
+  },
+  "anthropic.rate_limit": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\", \"message\": \"Number of request tokens has exceeded your per-minute rate limit\"}}",
+   "headers": {
+    "retry-after": "1"
+   },
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": 1.0
+   },
+   "status": 429,
+   "wire": "anthropic"
+  },
+  "anthropic.s401_kind_only": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"authentication_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "anthropic"
+  },
+  "anthropic.s403_kind_only": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"permission_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "anthropic"
+  },
+  "anthropic.s404_kind_only": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"not_found_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "anthropic"
+  },
+  "anthropic.s429_kind_only": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "anthropic"
+  },
+  "anthropic.s529_kind_only": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"overloaded_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 529,
+   "wire": "anthropic"
+  },
+  "anthropic.server_500": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"api_error\", \"message\": \"Internal server error\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "anthropic"
+  },
+  "anthropic.thinking_budget": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"thinking.enabled.budget_tokens: Input should be greater than or equal to 1024\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.thinking_sig": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"messages.1.content.0: Invalid `signature` in `thinking` block\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "thinking_signature",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "anthropic.tool_pairing": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"messages.2: `tool_use` ids were found without `tool_result` blocks immediately after: toolu_1.\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "anthropic"
+  },
+  "azure.azure_auth": {
+   "body": "{\"error\": {\"code\": \"401\", \"message\": \"Access denied due to invalid subscription key or wrong API endpoint.\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "azure"
+  },
+  "azure.azure_ctx": {
+   "body": "{\"error\": {\"message\": \"This model's maximum context length is 8192 tokens. However, your messages resulted in 9000 tokens. Please reduce the length of the messages.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "azure"
+  },
+  "azure.azure_deployment": {
+   "body": "{\"error\": {\"code\": \"DeploymentNotFound\", \"message\": \"The API deployment for this resource does not exist. If you created the deployment within the last 5 minutes, please wait a moment and try again.\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "model_not_found",
+    "payload": false,
+    "quota": false,
+    "reason": "model_not_found",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "azure"
+  },
+  "azure.azure_rate": {
+   "body": "{\"error\": {\"message\": \"Requests to the ChatCompletions_Create Operation under Azure OpenAI API version 2024-02-01 have exceeded token rate limit of your current OpenAI S0 pricing tier. Please retry after 56 seconds.\", \"type\": \"\", \"param\": null, \"code\": \"429\"}}",
+   "headers": {
+    "retry-after": "1"
+   },
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": 1.0
+   },
+   "status": 429,
+   "wire": "azure"
+  },
+  "azure.code_404_not_found": {
+   "body": "{\"error\": {\"code\": \"404\", \"message\": \"Resource not found\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "azure"
+  },
+  "azure.code_unauthorized_401": {
+   "body": "{\"error\": {\"code\": \"Unauthorized\", \"message\": \"Missing key.\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "azure"
+  },
+  "gemini.auth_key_invalid": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"API key not valid. Please pass a valid API key.\", \"status\": \"INVALID_ARGUMENT\", \"details\": [{\"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\", \"reason\": \"API_KEY_INVALID\"}]}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.bad_request": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"Invalid JSON payload received. Unknown name \\\"foo\\\": Cannot find field.\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "response_format_error",
+    "card_custom": "response_format_error",
+    "ctx": false,
+    "kind": "response_format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "response_format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.bill_gemini_free_quota": {
+   "body": "{\"error\": {\"code\": 429, \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.\", \"status\": \"RESOURCE_EXHAUSTED\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "gemini"
+  },
+  "gemini.ctx_gemini_alt": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"Request payload size exceeds the limit: 20971520 bytes.\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": true,
+    "quota": false,
+    "reason": "image_too_large",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.ctx_gemini_prompt_long": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"Please reduce the length of the messages or prompt; the total number of tokens exceeds the limit.\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.ctx_gemini_tokens": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"The input token count (1100000) exceeds the maximum number of tokens allowed (1048576).\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.ctx_overflow": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"The input token count (1100000) exceeds the maximum number of tokens allowed (1048576).\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.deadline": {
+   "body": "{\"error\": {\"code\": 504, \"message\": \"Deadline expired before operation could complete.\", \"status\": \"DEADLINE_EXCEEDED\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "gemini"
+  },
+  "gemini.entity_not_found_404": {
+   "body": "{\"error\": {\"code\": 404, \"message\": \"Requested entity was not found.\", \"status\": \"NOT_FOUND\"}}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "gemini"
+  },
+  "gemini.forbidden": {
+   "body": "{\"error\": {\"code\": 403, \"message\": \"Method doesn't allow unregistered callers\", \"status\": \"PERMISSION_DENIED\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "gemini"
+  },
+  "gemini.not_found": {
+   "body": "{\"error\": {\"code\": 404, \"message\": \"models/gemini-9 is not found for API version v1beta, or is not supported for generateContent.\", \"status\": \"NOT_FOUND\"}}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "gemini"
+  },
+  "gemini.policy_gemini": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"The prompt was blocked because of safety reasons.\", \"status\": \"INVALID_ARGUMENT\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "gemini"
+  },
+  "gemini.quota_daily": {
+   "body": "{\"error\": {\"code\": 429, \"message\": \"You exceeded your current quota, please check your plan and billing details.\", \"status\": \"RESOURCE_EXHAUSTED\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "gemini"
+  },
+  "gemini.rate_limit": {
+   "body": "{\"error\": {\"code\": 429, \"message\": \"Resource has been exhausted (e.g. check quota).\", \"status\": \"RESOURCE_EXHAUSTED\"}}",
+   "headers": {
+    "retry-after": "1"
+   },
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": 1.0
+   },
+   "status": 429,
+   "wire": "gemini"
+  },
+  "gemini.s401_status_only": {
+   "body": "{\"error\": {\"code\": 401, \"status\": \"UNAUTHENTICATED\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "gemini"
+  },
+  "gemini.s403_status_only": {
+   "body": "{\"error\": {\"code\": 403, \"status\": \"PERMISSION_DENIED\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "gemini"
+  },
+  "gemini.s404_status_only": {
+   "body": "{\"error\": {\"code\": 404, \"status\": \"NOT_FOUND\"}}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "gemini"
+  },
+  "gemini.s429_status_only": {
+   "body": "{\"error\": {\"code\": 429, \"status\": \"RESOURCE_EXHAUSTED\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "gemini"
+  },
+  "gemini.s503_status_only": {
+   "body": "{\"error\": {\"code\": 503, \"status\": \"UNAVAILABLE\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "gemini"
+  },
+  "gemini.server_500": {
+   "body": "{\"error\": {\"code\": 500, \"message\": \"An internal error has occurred.\", \"status\": \"INTERNAL\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "gemini"
+  },
+  "gemini.status_exhausted_429": {
+   "body": "{\"error\": {\"code\": 429, \"message\": \"Resource has been exhausted (e.g. check quota).\", \"status\": \"RESOURCE_EXHAUSTED\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "gemini"
+  },
+  "gemini.status_permission_403": {
+   "body": "{\"error\": {\"code\": 403, \"message\": \"Permission denied.\", \"status\": \"PERMISSION_DENIED\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "gemini"
+  },
+  "gemini.status_unauthenticated_401": {
+   "body": "{\"error\": {\"code\": 401, \"message\": \"Request had invalid authentication credentials.\", \"status\": \"UNAUTHENTICATED\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "gemini"
+  },
+  "gemini.unavailable": {
+   "body": "{\"error\": {\"code\": 503, \"message\": \"The model is overloaded. Please try again later.\", \"status\": \"UNAVAILABLE\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "gemini"
+  },
+  "ollama.bad_request": {
+   "body": "{\"error\": \"invalid options: foo\"}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "ollama"
+  },
+  "ollama.not_found": {
+   "body": "{\"error\": \"model 'llama9' not found, try pulling it first\"}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "timeout",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "ollama"
+  },
+  "ollama.rate_limit": {
+   "body": "{\"error\": \"too many requests\"}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "ollama"
+  },
+  "ollama.server_500": {
+   "body": "{\"error\": \"llama runner process has terminated: exit status 2\"}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "ollama"
+  },
+  "openai.422_validation": {
+   "body": "{\"detail\": [{\"loc\": [\"body\", \"messages\"], \"msg\": \"field required\", \"type\": \"value_error.missing\"}]}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 422,
+   "wire": "openai"
+  },
+  "openai.auth": {
+   "body": "{\"error\": {\"message\": \"Incorrect API key provided: sk-abc***xyz.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"invalid_api_key\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.auth_400_key": {
+   "body": "{\"error\": {\"message\": \"Incorrect API key provided: sk-abc. You can find your API key at https://platform.openai.com/account/api-keys.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"invalid_api_key\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.auth_403_key": {
+   "body": "{\"error\": {\"message\": \"Invalid API key\", \"type\": \"authentication_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.auth_deepseek": {
+   "body": "{\"error\": {\"message\": \"Authentication Fails (governor)\", \"type\": \"authentication_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.auth_moonshot": {
+   "body": "{\"error\": {\"message\": \"Invalid Authentication\", \"type\": \"invalid_authentication_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.auth_openrouter": {
+   "body": "{\"error\": {\"message\": \"No auth credentials found\", \"code\": 401}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.auth_zhipu": {
+   "body": "{\"error\": {\"code\": \"401\", \"message\": \"\\u4ee4\\u724c\\u5df2\\u8fc7\\u671f\\u6216\\u9a8c\\u8bc1\\u4e0d\\u6b63\\u786e\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.bad_gateway_html": {
+   "body": "<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 502,
+   "wire": "openai"
+  },
+  "openai.bad_request": {
+   "body": "{\"error\": {\"message\": \"Unsupported parameter: 'foo' is not supported with this model.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.bill_moonshot": {
+   "body": "{\"error\": {\"message\": \"Your account org-x<ak-y> is suspended due to insufficient balance, please recharge your account or check your plan and billing details\", \"type\": \"exceeded_current_quota_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.bill_openrouter": {
+   "body": "{\"error\": {\"message\": \"Insufficient credits. Add more using https://openrouter.ai/credits\", \"code\": 402}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.bill_qwen_arrearage": {
+   "body": "{\"error\": {\"message\": \"Access denied, please make sure your account is in good standing.\", \"type\": \"Arrearage\", \"code\": \"Arrearage\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.bill_siliconflow": {
+   "body": "{\"code\": 30001, \"message\": \"Sorry, your account balance is insufficient\", \"data\": null}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.bill_zhipu": {
+   "body": "{\"error\": {\"code\": \"1113\", \"message\": \"\\u60a8\\u7684\\u8d26\\u6237\\u5df2\\u6b20\\u8d39\\uff0c\\u8bf7\\u5145\\u503c\\u540e\\u91cd\\u8bd5\\u3002\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.billing_402": {
+   "body": "{\"error\": {\"message\": \"Insufficient Balance\", \"type\": \"unknown_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.cf_524": {
+   "body": "error code: 524",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 524,
+   "wire": "openai"
+  },
+  "openai.code_timeout_408": {
+   "body": "{\"error\": {\"message\": \"Request failed\", \"code\": \"request_timeout\"}}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout",
+    "retry_after": null
+   },
+   "status": 408,
+   "wire": "openai"
+  },
+  "openai.code_unauthorized_400": {
+   "body": "{\"error\": {\"message\": \"Request failed\", \"code\": \"unauthorized\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.content_policy": {
+   "body": "{\"error\": {\"message\": \"Your request was rejected as a result of our safety system.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"content_policy_violation\"}}",
+   "headers": {},
+   "old": {
+    "card": "safety_block",
+    "card_custom": "safety_block",
+    "ctx": false,
+    "kind": "safety_block",
+    "payload": false,
+    "quota": false,
+    "reason": "safety_block",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_ark": {
+   "body": "{\"error\": {\"code\": \"InvalidParameter\", \"message\": \"Total tokens of image and text exceed max message tokens. Request id: 02170\", \"param\": \"messages\", \"type\": \"BadRequest\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_baichuan_like": {
+   "body": "{\"error\": {\"message\": \"Prompt tokens exceed model limit: 140000 > 131072\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_cerebras": {
+   "body": "{\"message\": \"Current length is 20000 while limit is 8192\", \"type\": \"invalid_request_error\", \"param\": \"messages\", \"code\": \"context_length_exceeded\"}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_cerebras_nocode": {
+   "body": "{\"message\": \"Current length is 20000 while limit is 8192\", \"type\": \"invalid_request_error\"}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_exceed_limit_vendor": {
+   "body": "{\"error\": {\"message\": \"Input tokens exceed the configured limit of 272000 tokens. Your messages resulted in 300000 tokens.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_gemini_openai_compat": {
+   "body": "[{\"error\": {\"code\": 400, \"message\": \"The input token count (1100000) exceeds the maximum number of tokens allowed (1048576).\", \"status\": \"INVALID_ARGUMENT\"}}]",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_groq": {
+   "body": "{\"error\": {\"message\": \"Please reduce the length of the messages or completion.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_groq_tpm_413": {
+   "body": "{\"error\": {\"message\": \"Request too large for model `llama3-8b-8192` in organization `org_x` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Requested 9000, please reduce your message size and try again.\", \"type\": \"tokens\", \"param\": null, \"code\": \"rate_limit_exceeded\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 413,
+   "wire": "openai"
+  },
+  "openai.ctx_hunyuan": {
+   "body": "{\"error\": {\"message\": \"Total tokens exceed model max context length\", \"type\": \"invalid_request_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_llamacpp": {
+   "body": "{\"error\": {\"code\": 400, \"message\": \"the request exceeds the available context size, try increasing it\", \"type\": \"exceed_context_size_error\", \"n_prompt_tokens\": 10000, \"n_ctx\": 4096}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_longer_than_model": {
+   "body": "{\"error\": {\"message\": \"The input (9000 tokens) is longer than the model's context length (8192 tokens).\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_max_input_length": {
+   "body": "{\"error\": {\"message\": \"Maximum input length is 32768 tokens, but got 40000 tokens.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_minimax": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"bad_request_error\", \"message\": \"invalid params, context window exceeds limit (2013)\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_mistral": {
+   "body": "{\"object\": \"error\", \"message\": \"Prompt contains 150000 tokens and 0 draft tokens, too large for model with 131072 maximum context length\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_model_limit": {
+   "body": "{\"error\": {\"message\": \"Request exceeds the model's maximum context limit of 32768 tokens.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_moonshot2": {
+   "body": "{\"error\": {\"message\": \"Invalid request: Your request exceeded model token limit: 262144 (requested: 270000)\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_openrouter": {
+   "body": "{\"error\": {\"message\": \"This endpoint's maximum context length is 131072 tokens. However, you requested about 140000 tokens (130000 of text input, 10000 in the output). Please reduce the length of either one, or use the \\\"middle-out\\\" transform to compress your prompt automatically.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_overflow": {
+   "body": "{\"error\": {\"message\": \"This model's maximum context length is 128000 tokens. However, your messages resulted in 130000 tokens. Please reduce the length of the messages.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_qwen_range": {
+   "body": "{\"error\": {\"message\": \"Range of input length should be [1, 129024]\", \"type\": \"invalid_request_error\", \"code\": \"invalid_parameter_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_qwen_toolong": {
+   "body": "{\"error\": {\"message\": \"<400> InternalError.Algo.InvalidParameter: Input length 140000 exceeds the maximum length 131072 (limit).\", \"type\": \"invalid_request_error\", \"code\": \"invalid_parameter_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_responses": {
+   "body": "{\"error\": {\"message\": \"Your input exceeds the context window of this model. Please adjust your input and try again.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_siliconflow": {
+   "body": "{\"code\": 20015, \"message\": \"length of prompt_tokens (150000) must be less than max_seq_len (131072).\", \"data\": null}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_string_too_long": {
+   "body": "{\"error\": {\"message\": \"Invalid 'messages[0].content': string too long. Expected a string with maximum length 1048576, but got a string with length 2000000 instead.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"string_above_max_length\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_tgi": {
+   "body": "{\"error\": \"Input validation error: `inputs` tokens + `max_new_tokens` must be <= 8193. Given: 9000 `inputs` tokens and 100 `max_new_tokens`\", \"error_type\": \"validation\"}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 422,
+   "wire": "openai"
+  },
+  "openai.ctx_vllm": {
+   "body": "{\"object\": \"error\", \"message\": \"This model's maximum context length is 4096 tokens. However, you requested 5000 tokens (4000 in the messages, 1000 in the completion). Please reduce the length of the messages or completion.\", \"type\": \"BadRequestError\", \"param\": null, \"code\": 400}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.ctx_xai": {
+   "body": "{\"code\": \"Client specified an invalid argument\", \"error\": \"This model's maximum prompt length is 131072 but the request contains 150000 tokens.\"}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.deepseek_ctx": {
+   "body": "{\"error\": {\"message\": \"This model's maximum context length is 65536 tokens. However, you requested 70000 tokens (60000 in the messages, 10000 in the completion).\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.empty_500": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.enc_content": {
+   "body": "{\"error\": {\"message\": \"The encrypted content could not be verified.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"invalid_encrypted_content\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.flat_code_msg": {
+   "body": "{\"code\": \"1301\", \"message\": \"contentFilter: unsafe content detected\"}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.forbidden": {
+   "body": "{\"error\": {\"message\": \"You are not allowed to use this model.\", \"type\": \"permission_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.gateway_timeout": {
+   "body": "<html><body>504 Gateway Time-out</body></html>",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "openai"
+  },
+  "openai.html_402": {
+   "body": "<html><body>402 Payment Required</body></html>",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.images_too_large": {
+   "body": "{\"error\": {\"message\": \"Invalid image: image exceeds the maximum size of 20 MB.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": true,
+    "quota": false,
+    "reason": "image_too_large",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.minimax_rate": {
+   "body": "{\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\", \"message\": \"rate limit exceeded (2056)\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.model_400_deepseek": {
+   "body": "{\"error\": {\"message\": \"Model Not Exist\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.model_400_unknown": {
+   "body": "{\"error\": {\"message\": \"The requested model 'gpt-9' does not exist.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"model_not_found\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "model_not_found",
+    "payload": false,
+    "quota": false,
+    "reason": "model_not_found",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.model_404_openrouter": {
+   "body": "{\"error\": {\"message\": \"No endpoints found for foo/bar-9.\", \"code\": 404}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.moonshot_ctx": {
+   "body": "{\"error\": {\"message\": \"Invalid request: Your request exceeded model token limit: 262144 (requested: 270000)\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.not_found": {
+   "body": "{\"error\": {\"message\": \"The model `gpt-9` does not exist or you do not have access to it.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"model_not_found\"}}",
+   "headers": {},
+   "old": {
+    "card": "unknown",
+    "card_custom": "unknown",
+    "ctx": false,
+    "kind": "model_not_found",
+    "payload": false,
+    "quota": false,
+    "reason": "model_not_found",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.output_cap_openai": {
+   "body": "{\"error\": {\"message\": \"max_tokens is too large: 100000. This model supports at most 16384 completion tokens, whereas you provided 100000.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.overloaded_openai": {
+   "body": "{\"error\": {\"message\": \"Overloaded\", \"type\": \"overloaded_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 529,
+   "wire": "openai"
+  },
+  "openai.ovl_200_string": {
+   "body": "upstream connect error or disconnect/reset before headers. reset reason: connection failure",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.ovl_cf_1015": {
+   "body": "error code: 1015",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.ovl_envoy_503": {
+   "body": "no healthy upstream",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.param_reject_max_tokens": {
+   "body": "{\"error\": {\"message\": \"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"unsupported_parameter\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.param_reject_reasoning": {
+   "body": "{\"error\": {\"message\": \"Invalid parameter: reasoning_effort is not supported by this model.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "reasoning_mandatory",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.param_reject_temperature": {
+   "body": "{\"error\": {\"message\": \"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"unsupported_value\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.payload_413": {
+   "body": "<html><body>413 Request Entity Too Large</body></html>",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": true,
+    "kind": "format_error",
+    "payload": true,
+    "quota": false,
+    "reason": "image_too_large",
+    "retry_after": null
+   },
+   "status": 413,
+   "wire": "openai"
+  },
+  "openai.plain_403": {
+   "body": "Forbidden",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.plain_404": {
+   "body": "404 page not found",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.plain_429": {
+   "body": "Too Many Requests",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.policy_azure": {
+   "body": "{\"error\": {\"message\": \"The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"content_filter\"}}",
+   "headers": {},
+   "old": {
+    "card": "safety_block",
+    "card_custom": "safety_block",
+    "ctx": false,
+    "kind": "safety_block",
+    "payload": false,
+    "quota": false,
+    "reason": "safety_block",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.policy_invalid_prompt": {
+   "body": "{\"error\": {\"message\": \"Invalid prompt: your prompt was flagged as potentially violating our usage policy.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"invalid_prompt\"}}",
+   "headers": {},
+   "old": {
+    "card": "safety_block",
+    "card_custom": "safety_block",
+    "ctx": false,
+    "kind": "safety_block",
+    "payload": false,
+    "quota": false,
+    "reason": "safety_block",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.policy_moonshot": {
+   "body": "{\"error\": {\"message\": \"Invalid request: The request was rejected because it was considered high risk\", \"type\": \"content_filter\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.policy_openai": {
+   "body": "{\"error\": {\"message\": \"Your request was rejected as a result of our safety system. Your prompt may contain text that is not allowed by our safety system.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"content_policy_violation\"}}",
+   "headers": {},
+   "old": {
+    "card": "safety_block",
+    "card_custom": "safety_block",
+    "ctx": false,
+    "kind": "safety_block",
+    "payload": false,
+    "quota": false,
+    "reason": "safety_block",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.policy_qwen": {
+   "body": "{\"error\": {\"message\": \"Input data may contain inappropriate content.\", \"type\": \"data_inspection_failed\", \"code\": \"data_inspection_failed\"}}",
+   "headers": {},
+   "old": {
+    "card": "safety_block",
+    "card_custom": "safety_block",
+    "ctx": false,
+    "kind": "safety_block",
+    "payload": false,
+    "quota": false,
+    "reason": "safety_block",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.policy_zhipu": {
+   "body": "{\"error\": {\"code\": \"1301\", \"message\": \"\\u7cfb\\u7edf\\u68c0\\u6d4b\\u5230\\u8f93\\u5165\\u6216\\u751f\\u6210\\u5185\\u5bb9\\u53ef\\u80fd\\u5305\\u542b\\u4e0d\\u5b89\\u5168\\u6216\\u654f\\u611f\\u5185\\u5bb9\\uff0c\\u8bf7\\u60a8\\u907f\\u514d\\u8f93\\u5165\\u6613\\u4ea7\\u751f\\u654f\\u611f\\u5185\\u5bb9\\u7684\\u63d0\\u793a\\u8bed\\uff0c\\u611f\\u8c22\\u60a8\\u7684\\u914d\\u5408\\u3002\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.quota": {
+   "body": "{\"error\": {\"message\": \"You exceeded your current quota, please check your plan and billing details.\", \"type\": \"insufficient_quota\", \"param\": null, \"code\": \"insufficient_quota\"}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.qwen_ctx": {
+   "body": "{\"error\": {\"message\": \"Range of input length should be [1, 129024]\", \"type\": \"invalid_request_error\", \"code\": \"invalid_parameter_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.rate_limit": {
+   "body": "{\"error\": {\"message\": \"Rate limit reached for gpt-4o in organization org-x on tokens per min.\", \"type\": \"tokens\", \"param\": null, \"code\": \"rate_limit_exceeded\"}}",
+   "headers": {
+    "retry-after": "1"
+   },
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": 1.0
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.rl_400": {
+   "body": "{\"error\": {\"message\": \"Rate limit exceeded, please retry in 20 seconds.\", \"type\": \"rate_limit_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.rl_403_blocked": {
+   "body": "{\"error\": {\"message\": \"Your request was blocked due to rate limiting. Please slow down.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.rl_429_mistral": {
+   "body": "{\"object\": \"error\", \"message\": \"Service tier capacity exceeded for this model.\", \"type\": \"service_tier_capacity_exceeded\", \"param\": null, \"code\": \"3505\"}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.rl_429_qwen": {
+   "body": "{\"error\": {\"message\": \"Requests rate limit exceeded, please try again later.\", \"type\": \"limit_requests\", \"code\": \"limit_requests\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.rl_429_zhipu": {
+   "body": "{\"error\": {\"code\": \"1302\", \"message\": \"\\u60a8\\u7684\\u8d26\\u6237\\u5df2\\u8fbe\\u5230\\u901f\\u7387\\u9650\\u5236\\uff0c\\u8bf7\\u60a8\\u63a7\\u5236\\u8bf7\\u6c42\\u9891\\u7387\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.rl_500": {
+   "body": "{\"error\": {\"message\": \"Too many requests, rate limit exceeded\", \"type\": \"server_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.rl_503_capacity": {
+   "body": "{\"error\": {\"message\": \"Service tier capacity exceeded for this model.\", \"type\": \"service_tier_capacity_exceeded\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.s400_code_only": {
+   "body": "{\"error\": {\"code\": 400}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.s400_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.s400_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.s401_code_only": {
+   "body": "{\"error\": {\"code\": 401}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.s401_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.s401_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.s401_type_only": {
+   "body": "{\"error\": {\"type\": \"authentication_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 401,
+   "wire": "openai"
+  },
+  "openai.s402_code_only": {
+   "body": "{\"error\": {\"code\": 402}}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.s402_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.s402_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "payload": false,
+    "quota": true,
+    "reason": "billing",
+    "retry_after": null
+   },
+   "status": 402,
+   "wire": "openai"
+  },
+  "openai.s403_code_only": {
+   "body": "{\"error\": {\"code\": 403}}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.s403_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.s403_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "api_key",
+    "card_custom": "api_key",
+    "ctx": false,
+    "kind": "auth",
+    "payload": false,
+    "quota": false,
+    "reason": "auth_permanent",
+    "retry_after": null
+   },
+   "status": 403,
+   "wire": "openai"
+  },
+  "openai.s404_code_only": {
+   "body": "{\"error\": {\"code\": 404}}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.s404_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.s404_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.s404_type_only": {
+   "body": "{\"error\": {\"type\": \"weird\"}}",
+   "headers": {},
+   "old": {
+    "card": "model",
+    "card_custom": "custom_model_not_found",
+    "ctx": false,
+    "kind": "unknown",
+    "payload": false,
+    "quota": false,
+    "reason": "unknown",
+    "retry_after": null
+   },
+   "status": 404,
+   "wire": "openai"
+  },
+  "openai.s429_code_only": {
+   "body": "{\"error\": {\"code\": 429}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.s429_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.s429_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.s429_type_only": {
+   "body": "{\"error\": {\"type\": \"rate_limit_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.s500_code_only": {
+   "body": "{\"error\": {\"code\": 500}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.s500_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.s500_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.s503_code_only": {
+   "body": "{\"error\": {\"code\": 503}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.s503_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.s503_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.s504_code_only": {
+   "body": "{\"error\": {\"code\": 504}}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "openai"
+  },
+  "openai.s504_empty_obj": {
+   "body": "{}",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "openai"
+  },
+  "openai.s504_empty_text": {
+   "body": "",
+   "headers": {},
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 504,
+   "wire": "openai"
+  },
+  "openai.sentence_with_status_429": {
+   "body": "{\"error\": {\"message\": \"Error 429: quota is gone\", \"code\": 429}}",
+   "headers": {},
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit",
+    "retry_after": null
+   },
+   "status": 429,
+   "wire": "openai"
+  },
+  "openai.server_500": {
+   "body": "{\"error\": {\"message\": \"The server had an error while processing your request.\", \"type\": \"server_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.stream_opts_unsupported": {
+   "body": "{\"error\": {\"message\": \"Unknown parameter: 'stream_options'.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.string_error": {
+   "body": "{\"error\": \"model not loaded\"}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.tool_pairing": {
+   "body": "{\"error\": {\"message\": \"An assistant message with 'tool_calls' must be followed by tool messages responding to each 'tool_call_id'.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.tools_unsupported": {
+   "body": "{\"error\": {\"message\": \"tools is not supported for this model\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.type_billing_400": {
+   "body": "{\"error\": {\"message\": \"Request failed\", \"type\": \"billing_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "format",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.type_timeout_500": {
+   "body": "{\"error\": {\"message\": \"failed\", \"type\": \"timeout_error\"}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 500,
+   "wire": "openai"
+  },
+  "openai.unavailable": {
+   "body": "{\"error\": {\"message\": \"The engine is currently overloaded, please try again later.\", \"type\": \"server_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded",
+    "retry_after": null
+   },
+   "status": 503,
+   "wire": "openai"
+  },
+  "openai.vision_unsupported": {
+   "body": "{\"error\": {\"message\": \"This model does not support image input\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": null}}",
+   "headers": {},
+   "old": {
+    "card": "format_error",
+    "card_custom": "format_error",
+    "ctx": false,
+    "kind": "format_error",
+    "payload": false,
+    "quota": false,
+    "reason": "media_rejected",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  },
+  "openai.zhipu_ctx": {
+   "body": "{\"error\": {\"code\": \"1261\", \"message\": \"Prompt exceeds max length\"}}",
+   "headers": {},
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow",
+    "retry_after": null
+   },
+   "status": 400,
+   "wire": "openai"
+  }
+ },
+ "stream": {
+  "anthropic.empty_stream": {
+   "body": "",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_after_text_api_error": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\nevent: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"api_error\", \"message\": \"Internal server error\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_after_text_authentication_error": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\nevent: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_after_text_invalid_request_error": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\nevent: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"prompt is too long: 210000 tokens > 200000 maximum\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_after_text_overloaded_error": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\nevent: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"overloaded_error\", \"message\": \"Overloaded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_after_text_rate_limit_error": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\nevent: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\", \"message\": \"This request would exceed your organization's rate limit\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_first_api_error": {
+   "body": "event: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"api_error\", \"message\": \"Internal server error\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_first_authentication_error": {
+   "body": "event: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_first_invalid_request_error": {
+   "body": "event: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"prompt is too long: 210000 tokens > 200000 maximum\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_first_overloaded_error": {
+   "body": "event: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"overloaded_error\", \"message\": \"Overloaded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.err_first_rate_limit_error": {
+   "body": "event: error\ndata: {\"type\": \"error\", \"error\": {\"type\": \"rate_limit_error\", \"message\": \"This request would exceed your organization's rate limit\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.garbage_html": {
+   "body": "<html><body>Gateway error</body></html>\n",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "anthropic"
+  },
+  "anthropic.truncated_after_event": {
+   "body": "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"m\", \"content\": [], \"usage\": {\"input_tokens\": 5, \"output_tokens\": 0}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"partial\"}}\n\n",
+   "mode": "truncate",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "anthropic"
+  },
+  "gemini.empty_stream": {
+   "body": "",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_after_text_INTERNAL": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"partial\"}]}, \"index\": 0}]}\n\ndata: {\"error\": {\"code\": 500, \"message\": \"An internal error has occurred.\", \"status\": \"INTERNAL\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_after_text_INVALID_ARGUMENT": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"partial\"}]}, \"index\": 0}]}\n\ndata: {\"error\": {\"code\": 400, \"message\": \"The input token count (1100000) exceeds the maximum number of tokens allowed (1048576).\", \"status\": \"INVALID_ARGUMENT\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_after_text_RESOURCE_EXHAUSTED": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"partial\"}]}, \"index\": 0}]}\n\ndata: {\"error\": {\"code\": 429, \"message\": \"Resource has been exhausted (e.g. check quota).\", \"status\": \"RESOURCE_EXHAUSTED\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_after_text_UNAVAILABLE": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"partial\"}]}, \"index\": 0}]}\n\ndata: {\"error\": {\"code\": 503, \"message\": \"The model is overloaded. Please try again later.\", \"status\": \"UNAVAILABLE\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_first_INTERNAL": {
+   "body": "data: {\"error\": {\"code\": 500, \"message\": \"An internal error has occurred.\", \"status\": \"INTERNAL\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_first_INVALID_ARGUMENT": {
+   "body": "data: {\"error\": {\"code\": 400, \"message\": \"The input token count (1100000) exceeds the maximum number of tokens allowed (1048576).\", \"status\": \"INVALID_ARGUMENT\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_first_RESOURCE_EXHAUSTED": {
+   "body": "data: {\"error\": {\"code\": 429, \"message\": \"Resource has been exhausted (e.g. check quota).\", \"status\": \"RESOURCE_EXHAUSTED\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "gemini"
+  },
+  "gemini.err_first_UNAVAILABLE": {
+   "body": "data: {\"error\": {\"code\": 503, \"message\": \"The model is overloaded. Please try again later.\", \"status\": \"UNAVAILABLE\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "overloaded",
+    "card_custom": "overloaded",
+    "ctx": false,
+    "kind": "overloaded",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "overloaded"
+   },
+   "wire": "gemini"
+  },
+  "gemini.truncated_after_event": {
+   "body": "data: {\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"partial\"}]}, \"index\": 0}]}\n\n",
+   "mode": "truncate",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "gemini"
+  },
+  "openai.empty_stream": {
+   "body": "",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "openai"
+  },
+  "openai.err_after_text_insufficient_quota": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"partial\"}, \"finish_reason\": null}]}\n\ndata: {\"error\": {\"message\": \"You exceeded your current quota, please check your plan and billing details.\", \"type\": \"insufficient_quota\", \"param\": null, \"code\": \"insufficient_quota\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": true,
+    "reason": "billing"
+   },
+   "wire": "openai"
+  },
+  "openai.err_after_text_invalid_request_error": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"partial\"}, \"finish_reason\": null}]}\n\ndata: {\"error\": {\"message\": \"This model's maximum context length is 128000 tokens.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "openai"
+  },
+  "openai.err_after_text_rate_limit_error": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"partial\"}, \"finish_reason\": null}]}\n\ndata: {\"error\": {\"message\": \"Rate limit reached for requests\", \"type\": \"rate_limit_error\", \"param\": null, \"code\": \"rate_limit_exceeded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "openai"
+  },
+  "openai.err_after_text_server_error": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"partial\"}, \"finish_reason\": null}]}\n\ndata: {\"error\": {\"message\": \"The server had an error while processing your request. Sorry about that!\", \"type\": \"server_error\", \"param\": null, \"code\": null}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "openai"
+  },
+  "openai.err_first_insufficient_quota": {
+   "body": "data: {\"error\": {\"message\": \"You exceeded your current quota, please check your plan and billing details.\", \"type\": \"insufficient_quota\", \"param\": null, \"code\": \"insufficient_quota\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "billing",
+    "card_custom": "billing",
+    "ctx": false,
+    "kind": "billing",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": true,
+    "reason": "billing"
+   },
+   "wire": "openai"
+  },
+  "openai.err_first_invalid_request_error": {
+   "body": "data: {\"error\": {\"message\": \"This model's maximum context length is 128000 tokens.\", \"type\": \"invalid_request_error\", \"param\": null, \"code\": \"context_length_exceeded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "context_overflow",
+    "card_custom": "context_overflow",
+    "ctx": true,
+    "kind": "context_overflow",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "context_overflow"
+   },
+   "wire": "openai"
+  },
+  "openai.err_first_rate_limit_error": {
+   "body": "data: {\"error\": {\"message\": \"Rate limit reached for requests\", \"type\": \"rate_limit_error\", \"param\": null, \"code\": \"rate_limit_exceeded\"}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "rate_limit",
+    "card_custom": "rate_limit",
+    "ctx": false,
+    "kind": "rate_limit",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "rate_limit"
+   },
+   "wire": "openai"
+  },
+  "openai.err_first_server_error": {
+   "body": "data: {\"error\": {\"message\": \"The server had an error while processing your request. Sorry about that!\", \"type\": \"server_error\", \"param\": null, \"code\": null}}\n\n",
+   "mode": "normal",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "openai"
+  },
+  "openai.garbage_html": {
+   "body": "<html><body>Gateway error</body></html>\n",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "openai"
+  },
+  "openai.only_done": {
+   "body": "data: [DONE]\n\n",
+   "mode": "normal",
+   "old": {
+    "outcome": "COMPLETED",
+    "text": ""
+   },
+   "wire": "openai"
+  },
+  "openai.truncated_after_event": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.chunk\", \"created\": 1, \"model\": \"m\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"partial\"}, \"finish_reason\": null}]}\n\n",
+   "mode": "truncate",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "partial",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "openai"
+  },
+  "openai.truncated_mid_chunk": {
+   "body": "data: {\"id\": \"c1\", \"object\": \"chat.completion.",
+   "mode": "truncate",
+   "old": {
+    "card": "timeout",
+    "card_custom": "timeout",
+    "ctx": false,
+    "kind": "timeout",
+    "outcome": "RAISED",
+    "partial": "",
+    "payload": false,
+    "quota": false,
+    "reason": "timeout"
+   },
+   "wire": "openai"
+  }
+ }
+}

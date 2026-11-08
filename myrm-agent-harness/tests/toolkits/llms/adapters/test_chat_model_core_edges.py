@@ -1,4 +1,4 @@
-"""Edge-path coverage for ChatLiteLLM core generation surface.
+"""Edge-path coverage for TransportChatModel core generation surface.
 
 Complements the chat_model unit suites by exercising the fallback branches,
 structured-output variants, tool_choice mapping, message-mixin normalization
@@ -14,7 +14,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM, clean_model_kwargs
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel, clean_model_kwargs
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import EmptyChoicesError
 from myrm_agent_harness.toolkits.llms.adapters.converters import (
     _convert_raw_tool_call_to_langchain,
@@ -23,8 +23,8 @@ from myrm_agent_harness.toolkits.llms.adapters.converters import (
 from myrm_agent_harness.toolkits.llms.adapters.tool_call_parsers import ToolCallDict
 
 
-def _make_model(model: str = "gpt-5-chat", **kwargs) -> ChatLiteLLM:
-    return ChatLiteLLM.model_construct(client=MagicMock(), model=model, **kwargs)
+def _make_model(model: str = "gpt-5-chat", **kwargs) -> TransportChatModel:
+    return TransportChatModel.model_construct(client=MagicMock(), model=model, **kwargs)
 
 
 class _PydanticSchema(BaseModel):
@@ -34,13 +34,6 @@ class _PydanticSchema(BaseModel):
 # ---------------------------------------------------------------------------
 # _client_params / _convert_response_to_dict
 # ---------------------------------------------------------------------------
-
-
-class TestClientParams:
-    def test_client_params_requires_initialized_client(self) -> None:
-        llm = ChatLiteLLM.model_construct(model="gpt-5-chat", client=None)
-        with pytest.raises(RuntimeError, match="client not initialized"):
-            _ = llm._client_params
 
 
 class TestConvertResponseToDict:
@@ -112,26 +105,26 @@ class TestWithStructuredOutput:
             _make_model().with_structured_output({"type": "object"}, foo=1)
 
     def test_json_schema_injects_response_format(self) -> None:
-        with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind:
+        with patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind:
             _make_model().with_structured_output({"type": "object"})
         assert mock_bind.call_args.kwargs["response_format"] == {"type": "json_object"}
         assert mock_bind.call_args.kwargs["stream"] is False
 
     def test_pydantic_schema_builds_output_parser(self) -> None:
-        with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()):
+        with patch.object(TransportChatModel, "bind", return_value=MagicMock()):
             runnable = _make_model().with_structured_output(_PydanticSchema)
         assert runnable is not None
 
     def test_skips_response_format_for_denylisted_model(self) -> None:
         with (
-            patch.object(ChatLiteLLM, "should_skip_response_format", return_value=True),
-            patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind,
+            patch.object(TransportChatModel, "should_skip_response_format", return_value=True),
+            patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind,
         ):
             _make_model().with_structured_output({"type": "object"})
         assert "response_format" not in mock_bind.call_args.kwargs
 
     def test_include_raw_uses_fallback_chain(self) -> None:
-        with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()):
+        with patch.object(TransportChatModel, "bind", return_value=MagicMock()):
             runnable = _make_model().with_structured_output({"type": "object"}, include_raw=True)
         assert runnable is not None
 
@@ -143,27 +136,27 @@ class TestWithStructuredOutput:
 
 class TestBindToolsEdges:
     def test_none_and_required_choice(self) -> None:
-        llm = ChatLiteLLM(model="gpt-4o")
+        llm = TransportChatModel(model="gpt-4o")
         for choice in ("none", "required"):
-            with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind:
+            with patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind:
                 llm.bind_tools([], tool_choice=choice)
             assert mock_bind.call_args.kwargs["tool_choice"] == choice
 
     def test_any_maps_to_auto(self) -> None:
-        llm = ChatLiteLLM(model="gpt-4o")
-        with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind:
+        llm = TransportChatModel(model="gpt-4o")
+        with patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind:
             llm.bind_tools([], tool_choice="any")
         assert mock_bind.call_args.kwargs["tool_choice"] == "auto"
 
     def test_parallel_tool_calls_and_extra_kwargs(self) -> None:
-        llm = ChatLiteLLM(model="gpt-4o")
+        llm = TransportChatModel(model="gpt-4o")
         tools = [
             {
                 "type": "function",
                 "function": {"name": "f", "parameters": {"type": "object"}},
             }
         ]
-        with patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind:
+        with patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind:
             llm.bind_tools(tools, tool_choice="required", parallel_tool_calls=True, temperature=0.1)
         kwargs = mock_bind.call_args.kwargs
         assert kwargs["parallel_tool_calls"] is True
@@ -172,9 +165,9 @@ class TestBindToolsEdges:
         assert kwargs["tool_choice"] == "required"
 
     def test_conversion_error_skips_tool(self) -> None:
-        llm = ChatLiteLLM(model="gpt-4o")
+        llm = TransportChatModel(model="gpt-4o")
         with (
-            patch.object(ChatLiteLLM, "bind", return_value=MagicMock()) as mock_bind,
+            patch.object(TransportChatModel, "bind", return_value=MagicMock()) as mock_bind,
             patch(
                 "myrm_agent_harness.toolkits.llms.adapters.chat_model.binding.normalize_tool_schema",
                 side_effect=ValueError("boom"),
@@ -212,7 +205,7 @@ class TestCreateMessageDictsEdges:
         llm = _make_model()
         with (
             patch(
-                "myrm_agent_harness.toolkits.llms.adapters.chat_model.model.ChatLiteLLM._client_params",
+                "myrm_agent_harness.toolkits.llms.adapters.chat_model.model.TransportChatModel._client_params",
                 new_callable=PropertyMock,
                 return_value={"stop": ["x"]},
             ),
@@ -228,7 +221,7 @@ class TestCreateMessageDictsEdges:
 
 
 class TestNormalizeMessagesForProvider:
-    def _minimax(self, **kwargs) -> ChatLiteLLM:
+    def _minimax(self, **kwargs) -> TransportChatModel:
         return _make_model(
             "MiniMax-M2.5",
             api_base="https://api.minimaxi.com/v1",
@@ -397,7 +390,7 @@ class TestModelIdentityParams:
         assert _make_model("gpt-4o").base_url is None
 
     def test_llm_type(self) -> None:
-        assert _make_model("gpt-4o")._llm_type == "litellm-chat"
+        assert _make_model("gpt-4o")._llm_type == "transport-chat"
 
     def test_identifying_params(self) -> None:
         params = _make_model("gpt-4o")._identifying_params

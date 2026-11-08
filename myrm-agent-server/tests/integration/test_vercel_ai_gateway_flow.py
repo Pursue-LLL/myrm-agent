@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
 from app.core.channel_bridge.model_resolver import resolve_model_config
@@ -21,7 +21,7 @@ if test_env_path.exists():
 @pytest.mark.integration
 def test_vercel_ai_gateway_attribution_headers_injection() -> None:
     """Verify that models pointing to ai-gateway.vercel.sh automatically inject required attribution headers."""
-    gw_model = create_litellm_model(
+    gw_model = create_chat_model(
         "openai/gpt-4o",
         api_key="vca_test_mock_key",
         base_url="https://ai-gateway.vercel.sh/v1",
@@ -77,7 +77,7 @@ def test_real_user_task_flow_inference_loop() -> None:
     if not (real_api_key and real_base_url and real_model_name):
         pytest.skip("No real LLM credentials configured in environment/.env.test")
 
-    real_llm = create_litellm_model(
+    real_llm = create_chat_model(
         real_model_name,
         api_key=real_api_key,
         base_url=real_base_url,

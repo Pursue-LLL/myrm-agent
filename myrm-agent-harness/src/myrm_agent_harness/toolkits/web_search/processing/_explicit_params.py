@@ -6,7 +6,7 @@
 [OUTPUT]
 - normalize_explicit_params: Agent time_range → Volcengine/SearxNG/Tavily override dict
 - tavily_time_range_to_days: unified time_range → Tavily days parameter
-- apply_tavily_site_constraint: query site: operator → LiteLLM search_domain_filter
+- apply_tavily_site_constraint: query site: operator → search_domain_filter
 
 [POS]
 Layer-1 explicit param normalizer for web_search toolkit. Converts unified Agent
@@ -64,7 +64,7 @@ def apply_tavily_site_constraint(
     query: str,
     override: ProviderOverride | None,
 ) -> tuple[str, ProviderOverride | None]:
-    """Map site: operators in query to LiteLLM search_domain_filter for Tavily."""
+    """Map site: operators in query to the unified search_domain_filter for Tavily."""
     domains = _SITE_OPERATOR_PATTERN.findall(query)
     if not domains:
         return query, override

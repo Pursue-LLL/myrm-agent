@@ -6,7 +6,7 @@
 - errors.normalize::extract_status_code (POS: Input stage of the failure classifier)
 
 [OUTPUT]
-- CONNECTION_KEYWORDS: the wordings of a connection that failed before any answer came back
+- is_connection_failure: whether an LLM exception is a connection that failed before any answer came back
 - rejects_certificate: whether an LLM exception means the server's certificate was rejected, however many client
   layers wrap it and in whatever language the operating system worded it; never true for a 4xx answer, which proves
   the handshake succeeded, nor for a wrapper that states another verdict (rate limit, rejected key, timeout)
@@ -21,17 +21,34 @@ from __future__ import annotations
 
 import ssl
 
+import httpx
+
 from myrm_agent_harness.infra.tls_error_signals import is_tls_hard_error
 
 from .error_payload import walk_exception_chain
 from .normalize import extract_status_code
 
-CONNECTION_KEYWORDS = (
+_CONNECTION_KEYWORDS = (
     "connection refused",
     "connection reset",
     "connection error",
     "failed to establish",
 )
+
+
+def is_connection_failure(exc: Exception, text: str) -> bool:
+    """True when *exc* is a connection that failed before any answer came back.
+
+    A client library words it ("Connection error.", "connection refused") in *text*, the caller's lower-cased reading
+    of the exception; the model transport raises httpx's ``ConnectError``, whose message ("All connection attempts
+    failed") names none of those, so that type anywhere in the chain counts too, unless an HTTP status says an
+    answer did come back.
+    """
+    if any(keyword in text for keyword in _CONNECTION_KEYWORDS):
+        return True
+    return extract_status_code(exc) is None and any(
+        isinstance(cause, httpx.ConnectError) for cause in walk_exception_chain(exc)
+    )
 
 
 def rejects_certificate(exc: Exception, text: str) -> bool:
@@ -58,14 +75,13 @@ def rejects_certificate(exc: Exception, text: str) -> bool:
     if is_tls_hard_error(text):
         return True
     chain = walk_exception_chain(exc)
-    is_connection_failure = any(keyword in text for keyword in CONNECTION_KEYWORDS)
+    connection_failed = is_connection_failure(exc, text)
     if any(
-        isinstance(cause, ssl.SSLCertVerificationError)
-        and (cause is exc or is_connection_failure or _repeats(text, cause))
+        isinstance(cause, ssl.SSLCertVerificationError) and (cause is exc or connection_failed or _repeats(text, cause))
         for cause in chain
     ):
         return True
-    return is_connection_failure and any(is_tls_hard_error(str(cause)) for cause in chain[1:])
+    return connection_failed and any(is_tls_hard_error(str(cause)) for cause in chain[1:])
 
 
 def _repeats(text: str, cause: Exception) -> bool:

@@ -5,14 +5,14 @@ import time
 
 import pytest
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.converters import convert_dict_to_message
 from myrm_agent_harness.toolkits.llms.adapters.tool_recovery import (
     build_final_tool_call_chunk,
     has_withheld_tool_calls,
     recover_tool_call_payloads,
 )
-from myrm_agent_harness.toolkits.llms.utils.litellm_utils import (
+from myrm_agent_harness.toolkits.llms.utils.tool_argument_recovery import (
     _NONE_OUTSIDE_STRINGS,
     parse_tool_call_arguments_with_recovery,
 )
@@ -184,7 +184,7 @@ class TestStreamFinalizationRecovery:
             },
             required=["command"],
         )
-        model = ChatLiteLLM.model_construct(client=object(), model="test-model")
+        model = TransportChatModel.model_construct(client=object(), model="test-model")
         raw_tool_calls = [
             {
                 "id": "call_1",

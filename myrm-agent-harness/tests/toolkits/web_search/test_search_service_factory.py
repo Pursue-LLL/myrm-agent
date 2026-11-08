@@ -16,7 +16,7 @@ from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from myrm_agent_harness.toolkits.web_search.coalescing.search_coalescing import credential_fingerprint
 from myrm_agent_harness.toolkits.web_search.core.exceptions import SearchConfigError
 from myrm_agent_harness.toolkits.web_search.providers.chain import quota_tracker_key
-from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
+from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch
 from myrm_agent_harness.toolkits.web_search.providers.search_service_factory import (
     build_search_service,
     credential_scope_digest,
@@ -40,14 +40,14 @@ def _config(
     )
 
 
-def test_litellm_provider_gets_its_own_key_and_base() -> None:
+def test_rest_provider_gets_its_own_key_and_base() -> None:
     service = build_search_service(_config("tavily", api_key="k", api_base="https://api.example"))
 
-    assert isinstance(service, LiteLLMSearch)
+    assert isinstance(service, RestSearch)
     assert (service.search_provider, service.api_key, service.api_base) == ("tavily", "k", "https://api.example")
 
 
-def test_litellm_provider_without_key_is_a_config_error() -> None:
+def test_rest_provider_without_key_is_a_config_error() -> None:
     with pytest.raises(SearchConfigError, match="requires API key"):
         build_search_service(_config("tavily"))
 
@@ -55,7 +55,7 @@ def test_litellm_provider_without_key_is_a_config_error() -> None:
 def test_searxng_needs_api_base_but_no_key() -> None:
     service = build_search_service(_config("searxng", api_base="http://localhost:8081"))
 
-    assert isinstance(service, LiteLLMSearch)
+    assert isinstance(service, RestSearch)
     assert service.api_key is None
     with pytest.raises(SearchConfigError, match="api_base"):
         build_search_service(_config("searxng"))
@@ -70,14 +70,14 @@ def test_volcengine_uses_the_native_client() -> None:
 def test_gateway_routing_overrides_base_and_key() -> None:
     service = build_search_service(_config("tavily", api_key="byok", gateway_config=_GATEWAY))
 
-    assert isinstance(service, LiteLLMSearch)
+    assert isinstance(service, RestSearch)
     assert (service.api_base, service.api_key) == ("https://gw.example/relay/tavily", "gw-token")
 
 
 def test_bypass_gateway_falls_back_to_the_users_own_key() -> None:
     service = build_search_service(_config("tavily", api_key="byok", gateway_config=_GATEWAY), bypass_gateway=True)
 
-    assert isinstance(service, LiteLLMSearch)
+    assert isinstance(service, RestSearch)
     assert (service.api_base, service.api_key) == (None, "byok")
     with pytest.raises(SearchConfigError, match="requires API key"):
         build_search_service(_config("tavily", gateway_config=_GATEWAY), bypass_gateway=True)
@@ -86,7 +86,7 @@ def test_bypass_gateway_falls_back_to_the_users_own_key() -> None:
 def test_searxng_ignores_the_gateway() -> None:
     service = build_search_service(_config("searxng", api_base="http://localhost:8081", gateway_config=_GATEWAY))
 
-    assert isinstance(service, LiteLLMSearch)
+    assert isinstance(service, RestSearch)
     assert service.api_base == "http://localhost:8081"
 
 

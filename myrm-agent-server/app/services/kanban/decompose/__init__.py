@@ -8,7 +8,7 @@ Aggregated public API for the ``decompose`` subpackage.
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain task type.)
 
 [OUTPUT]
-- PlatformTaskDecomposer: Concrete TaskDecomposer using LiteLLM + WebUI config.
+- PlatformTaskDecomposer: Concrete TaskDecomposer using the platform LLM + WebUI config.
 - run_decompose_task / run_apply_decompose / run_apply_no_fanout:
     Decompose orchestration helpers.
 

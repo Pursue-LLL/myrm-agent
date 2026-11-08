@@ -9,7 +9,7 @@
 - MAX_EPHEMERAL_OUTPUT_TOKENS: int cap constant
 
 [POS]
-ChatLiteLLM reads this once per request; stream recovery sets it before retrying truncated responses.
+TransportChatModel reads this once per request; stream recovery sets it before retrying truncated responses.
 """
 
 from __future__ import annotations

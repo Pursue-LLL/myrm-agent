@@ -439,7 +439,7 @@ msg.additional_kwargs["cache_control"] = {"type": "ephemeral"}
 1. `metadata["cache_retention"] = "long"` → 强制 1h TTL（业务层显式配置）
 2. `metadata["cache_retention"] = "none"` → 默认 5min
 3. `metadata["base_url"]` 包含 `api.anthropic.com` 或 `aiplatform.googleapis.com` → 1h TTL
-4. `base_url` 为空 + `model_name` 以 `anthropic/` 开头 → 1h TTL（LiteLLM 直连路由推断）
+4. `base_url` 为空 + `model_name` 以 `anthropic/` 开头 → 1h TTL（`anthropic/` 前缀路由到 Anthropic 官方端点的推断）
 5. 其他 → 默认 5min（保守策略）
 
 注入前会创建消息副本，避免修改原始消息。
@@ -804,24 +804,26 @@ if request.resume_value is not None:
 ### 6.1 cache_control 传递链路
 
 ```
-ExplicitCacheProcessor                    LiteLLM / Anthropic SDK
+ExplicitCacheProcessor                    模型传输层（toolkits/llms/transport）
   │                                         │
   ├─ msg.additional_kwargs["cache_control"]  │
   │  = {"type": "ephemeral", "ttl": "1h"}   │  ← Anthropic 直连/Vertex 时
   │  = {"type": "ephemeral"}                 │  ← 代理/未知端点时（默认 5min）
   │                                         │
   └─────────────────────────────────────────→ API 请求中携带 cache_control
+                                              （Anthropic Messages 线路写入 content block；
+                                              OpenAI 线路只在声明支持的服务商保留，其余剥离）
 ```
 
 `llm.py` 中的注释明确了设计决策：
 
 ```python
 # 显式缓存（Claude/Qwen）完全由 Pipeline 的 ExplicitCacheProcessor 控制
-# 显式缓存不使用 LiteLLM 的 cache_control_injection_points 配置
+# 传输层只透传标记，不自行注入断点
 # 这样可以实现更智能的多断点策略
 ```
 
-**为什么不用 LiteLLM 的内置缓存配置**：LiteLLM 的 `cache_control_injection_points` 只支持简单的固定位置注入（如 "last-user-message"），无法实现框架需要的多断点策略（System + 压缩边界 + 20-block 保护 + 最后消息）。
+**为什么传输层不注入断点**：框架需要的是多断点策略（System + 压缩边界 + 20-block 保护 + 最后消息），断点位置取决于上下文管线的状态，只有 `ExplicitCacheProcessor` 知道；传输层不持有这些状态，只按消息里已有的标记转换请求。
 
 ### 6.2 自动前缀缓存模型
 
@@ -877,9 +879,9 @@ class TokenUsage:
 💰 [Session Cache Summary] Calls: 12 | Hit Rate: 85.3% | Cost Savings: 81.0% (7738 tokens)
 ```
 
-`_extract_cached_tokens()` 从 LiteLLM 统一格式中提取缓存数据，支持所有提供商：
+`utils/token_economics/usage_fields.py::extract_cached_tokens()` 从传输层统一后的 `usage` 中提取缓存命中数，支持所有提供商。统一发生在传输层边界（`toolkits/llms/transport`）：Anthropic 与 Gemini 的解码器写入 `prompt_tokens_details.cached_tokens`，OpenAI 兼容线路在 `openai_chat.py` 把顶层的缓存读取数（DeepSeek 的 `prompt_cache_hit_tokens`、网关转发的 `cache_read_input_tokens`）同步写入同一字段，提供商已给出的非零值不会被覆盖：
 
-| 提供商 | 原始字段 | LiteLLM 统一映射 |
+| 提供商 | 原始字段 | 传输层统一映射 |
 |--------|---------|-----------------|
 | OpenAI | `prompt_tokens_details.cached_tokens` | `prompt_tokens_details.cached_tokens` |
 | Anthropic | `cache_read_input_tokens` | `prompt_tokens_details.cached_tokens` |
@@ -948,7 +950,7 @@ Turn 12 (会话结束):
 |------|------|
 | ``recorded_at_utc`` | ISO8601 时间戳（UTC） |
 | ``response_model`` | 响应中的模型名 |
-| ``prompt_tokens`` / ``completion_tokens`` / ``cached_tokens`` | 来自 LiteLLM 标准化 ``usage``（仅支持 int/float/None，其他类型抛出 TypeError） |
+| ``prompt_tokens`` / ``completion_tokens`` / ``cached_tokens`` | 来自传输层统一后的 ``usage``（仅支持 int/float/None，其他类型抛出 TypeError） |
 | ``actual_cache_hit_rate`` | ``compute_prompt_cache_stats`` 返回的 ``cache_hit_rate``（``prompt_tokens <= 0`` 时为 0） |
 | ``cost_savings_pct_vs_uncached_input`` | ``compute_prompt_cache_stats`` 返回的 ``cost_savings_pct``（与 §6.3 层次 3 一致） |
 | ``explicit_cache_snapshot`` | 本次是否与显式缓存 pending 配对成功 |

@@ -3,7 +3,7 @@
 Chat title, channel title and offline compaction send user text to a lite model without passing through the security
 guardrail. They carry no privacy code: the persisted privacy settings are published process-wide and the outbound
 guard masks what any model call would put on the wire. These tests drive the real call sites against a real
-ChatLiteLLM and read what its provider client received.
+TransportChatModel and read what its provider client received.
 """
 
 from __future__ import annotations

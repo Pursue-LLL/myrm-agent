@@ -3,6 +3,7 @@
 Protects special blocks during recursive splitting in a single pass
 
 [INPUT]
+- utils.tiktoken_tables::encoding_for_model (POS: tiktoken encoding loaded from the bundled vocabularies)
 - .markdown_link_handler::MarkdownLinkHandler (POS: Markdown link handling during split)
 - .overlap_processor::OverlapProcessor (POS: Chunk overlap processing)
 - .special_block_detector::SpecialBlockDetector (POS: Detects code/table/list blocks)
@@ -17,6 +18,8 @@ Unified recursive character splitter
 
 import logging
 import re
+
+from myrm_agent_harness.utils.tiktoken_tables import encoding_for_model
 
 from .markdown_link_handler import MarkdownLinkHandler
 from .overlap_processor import OverlapProcessor
@@ -92,9 +95,7 @@ class RecursiveCharacterAndProtectSpecialChunkTextSplitterByTiktoken:
     def _init_tiktoken(self, model_name: str):
         """Initialize tiktoken encoder."""
         try:
-            import tiktoken
-
-            encoding = tiktoken.encoding_for_model(model_name)
+            encoding = encoding_for_model(model_name)
             self._length_function = lambda text: len(encoding.encode(text, disallowed_special=()))
             self._use_tiktoken = True
             # logger.warning(f"tiktoken分割器: chunk={self.chunk_size}, overlap={self.chunk_overlap}")

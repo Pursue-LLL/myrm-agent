@@ -21,7 +21,7 @@ dependencies = [
   # --- HTTP & I/O ---
   "httpx[socks]>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；socks extra 供 Telegram socks5 代理；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=6.0.0", # Workspace vault file change detection (file_watch_service.py)
-  # --- Agent 框架 (litellm/langchain/langchain-core via harness; server 不重复 pin) ---
+  # --- Agent 框架 (langchain/langchain-core via harness; server 不重复 pin) ---
   "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,computer-use]",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.3",           # Matrix channel + alert notifier HTTP client
@@ -46,7 +46,7 @@ dependencies = [
   "psutil>=7.2.2",                      # 系统监控 (server_lock + health)
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
   "websockets>=17.0.1",                   # WebSocket 通信 (11+ channels/voice)
-  "aioboto3>=15.5.0",                   # S3 异步客户端 (远程备份)；它锁 aiobotocore 2.25.1 → boto3<1.40.62，这决定了 harness 的 litellm 下限
+  "aioboto3>=15.5.0",                   # S3 异步客户端 (远程备份)；它锁 aiobotocore 2.25.1 → boto3<1.40.62
   "regex>=2026.4.4", # Risk-rule pattern engine: a per-match time budget that stdlib re lacks (services/risk/detection.py)
   "pywebpush>=2.4.0", # Web Push (VAPID) notifications (core/web_push/)
 ]
@@ -238,7 +238,7 @@ reportMissingTypeStubs = false
 reportMissingModuleSource = false
 reportUnsupportedDunderAll = false
 # pyright 1.1.348+ 将 reportGeneralTypeIssues 拆分为细粒度规则。
-# LangChain/LiteLLM 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
+# LangChain 等第三方库类型定义不完善产生大量噪音，逐个抑制（与 OpenAI Agents SDK 同等策略）。
 reportGeneralTypeIssues = false
 reportAttributeAccessIssue = false
 reportArgumentType = false

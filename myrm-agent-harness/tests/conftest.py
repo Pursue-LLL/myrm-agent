@@ -14,20 +14,12 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 from unittest.mock import patch
 
-# Python 3.13 / Pydantic 2.13.x / LiteLLM generic creation workaround
-try:
-    import pydantic.root_model
-
-    sys.modules["pydantic.root_model"] = pydantic.root_model
-except ImportError:
-    pass
-
 import pytest
 from blockbuster import BlockBuster
 
 logger = logging.getLogger(__name__)
 
-pytest_plugins = ["tests.support.run_guard_isolation"]
+pytest_plugins = ["tests.support.run_guard_isolation", "tests.support.llm_endpoint_env"]
 
 # Run at import time to isolate harness tests as well
 _temp_workspace = tempfile.mkdtemp(prefix="myrm_harness_test_")

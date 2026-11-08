@@ -257,7 +257,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
       enabledModels: [],
       availableModels: [],
       providerType,
-      routingProfile: CUSTOM_PROVIDER_TYPE_INFO[providerType].litellmPrefix,
+      routingProfile: CUSTOM_PROVIDER_TYPE_INFO[providerType].routePrefix,
     };
     const providers = [...get().providers, newProvider];
     const { defaultModelConfig, customModelInfo } = get();

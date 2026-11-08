@@ -33,7 +33,7 @@ class _ProviderError(Exception):
 
 
 def _chained(inner: BaseException, depth: int) -> Exception:
-    """Wrap *inner* in *depth* outer exceptions the way litellm wraps SDK errors."""
+    """Wrap *inner* in *depth* outer exceptions the way a client stack wraps the error beneath it."""
     current: BaseException = inner
     for level in range(depth):
         outer = RuntimeError(f"wrapper {level}")

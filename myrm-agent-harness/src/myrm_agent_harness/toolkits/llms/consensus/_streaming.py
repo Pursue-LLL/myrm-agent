@@ -36,16 +36,16 @@ async def collect_stream(
 
     ``temperature`` is bound per call so each role (reference vs aggregator)
     uses its configured sampling value without mutating the shared, cached
-    model instance; ``litellm.drop_params`` ignores it for models that do not
-    accept a custom temperature.
+    model instance; an endpoint that rejects a custom temperature is retried
+    without it by the gateway normalizer.
 
     ``max_tokens``, when set, caps the output length.  Used by reference calls
     to limit advisor verbosity (the aggregator only needs concise advice).
     ``None`` (default) omits the parameter, preserving prior uncapped behavior.
 
     ``reasoning_effort``, when set, controls how deeply reasoning models think.
-    ``None`` (default) uses the provider default.  Unsupported models silently
-    ignore it via ``litellm.drop_params``.
+    ``None`` (default) uses the provider default.  An endpoint that rejects it is retried
+    without it by the gateway normalizer.
 
     Falls back to ``reasoning_content`` when a reasoning model (e.g.
     DeepSeek-R1, GLM) streams its answer there with an empty ``content``.

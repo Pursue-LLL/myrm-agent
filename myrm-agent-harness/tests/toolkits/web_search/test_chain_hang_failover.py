@@ -43,7 +43,7 @@ class _FakeService:
         self._network.calls[self._provider] = self._network.calls.get(self._provider, 0) + 1
         behavior = self._network.behaviors[self._provider]
         if behavior == "hang":
-            # What LiteLLM does when the provider never answers: the per-attempt cap fires.
+            # What a client does when the provider never answers: the per-attempt cap fires.
             await asyncio.wait_for(asyncio.sleep(3600), timeout=_ATTEMPT_TIMEOUT_SECONDS)
         elif behavior == "slow_ok":
             await asyncio.sleep(0.25)

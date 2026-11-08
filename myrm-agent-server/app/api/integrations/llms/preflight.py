@@ -1,6 +1,5 @@
 """[INPUT]
-- litellm::model_cost (POS: built-in model metadata)
-- .model_info::_try_get_model_info_exact (POS: exact model metadata lookup)
+- myrm_agent_harness.toolkits.llms.catalog::model_facts (POS: built-in model catalog)
 
 [OUTPUT]
 - model_switch_preflight: context-window fit and compaction estimate for a model switch
@@ -17,19 +16,19 @@ from __future__ import annotations
 import asyncio
 
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.toolkits.llms.catalog import model_facts
 from pydantic import BaseModel, Field
 
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 
 from .common import router
-from .model_info import _try_get_model_info_exact
 
 
 class ModelSwitchPreflightItem(BaseModel):
     """模型切换压缩预检输入项"""
 
-    model: str = Field(..., description="目标模型名（LiteLLM 格式）")
+    model: str = Field(..., description="目标模型名（provider/model 格式）")
     max_input_tokens: int | None = Field(
         default=None,
         description="目标模型上下文窗口（前端能力探测结果）；缺省时后端尝试解析",
@@ -81,19 +80,13 @@ def _resolve_target_max_input_tokens(
 ) -> int | None:
     """Resolve the target model context window for preflight checks.
 
-    Priority: explicit frontend capability value > LiteLLM model info.
+    Priority: explicit frontend capability value > model catalog.
     Returns None when the window is unknown (caller skips the warning).
     """
     if isinstance(fallback, int) and fallback > 0:
         return fallback
-    info = _try_get_model_info_exact(model)
-    if not info:
-        return None
-    for key in ("max_input_tokens", "max_tokens"):
-        value = info.get(key)
-        if isinstance(value, (int, float)) and value > 0:
-            return int(value)
-    return None
+    window = (model_facts(model) or {}).get("max_input_tokens")
+    return int(window) if isinstance(window, (int, float)) and window > 0 else None
 
 
 @router.post("/model-switch-preflight", response_model=StandardSuccessResponse)

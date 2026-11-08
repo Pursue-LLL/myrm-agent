@@ -1,7 +1,7 @@
 """Live E2E: pattern discovery with a real LLM (BASIC_* from .env.test).
 
 Verifies the end-to-end value chain that the memory guardian revives on
-demand: a real ``ChatLiteLLM`` built from the platform-style model config
+demand: a real ``TransportChatModel`` built from the platform-style model config
 runs the harness ``run_pattern_discovery`` strategy through
 ``with_structured_output`` and produces validated ``DiscoveredPattern`` s.
 
@@ -18,7 +18,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms import TransportChatModel
 from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
     run_pattern_discovery,
 )
@@ -101,7 +101,7 @@ def _make_mature_manager() -> AsyncMock:
 async def test_pattern_discovery_with_real_llm_produces_patterns() -> None:
     """A real LLM over sufficiently mature memories yields validated patterns."""
     cfg = get_base_model_config()
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=str(cfg["model"]),
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,
@@ -147,7 +147,7 @@ async def test_pattern_discovery_skips_when_gate_not_met() -> None:
     manager.count_memories = AsyncMock(return_value=10)
 
     cfg = get_base_model_config()
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=str(cfg["model"]),
         api_key=str(cfg.get("api_key") or ""),
         api_base=str(cfg.get("base_url") or "").strip() or None,

@@ -44,6 +44,18 @@ def _content_part_type(role: ResponsesRole) -> str:
     return "output_text" if role == "assistant" else "input_text"
 
 
+def _image_part(part: dict[str, Any]) -> dict[str, str] | None:
+    image = part.get("image_url")
+    url = image.get("url") if isinstance(image, dict) else image
+    if not isinstance(url, str) or not url:
+        return None
+    mapped = {"type": "input_image", "image_url": url}
+    detail = image.get("detail") if isinstance(image, dict) else None
+    if isinstance(detail, str):
+        mapped["detail"] = detail
+    return mapped
+
+
 def _map_content_part(part: object, role: ResponsesRole) -> dict[str, str]:
     part_type = _content_part_type(role)
     if isinstance(part, str):
@@ -51,6 +63,8 @@ def _map_content_part(part: object, role: ResponsesRole) -> dict[str, str]:
     if isinstance(part, dict):
         ptype = part.get("type")
         text = part.get("text")
+        if ptype == "image_url" and role != "assistant" and (image := _image_part(part)) is not None:
+            return image
         if ptype == "text" and isinstance(text, str):
             return {"type": part_type, "text": text}
         if ptype == "input_text" and isinstance(text, str):
@@ -195,7 +209,7 @@ def extract_responses_instructions(messages: list[dict[str, Any]]) -> tuple[str 
     if not messages:
         return None, []
     first = messages[0]
-    if str(first.get("role")) != "system":
+    if str(first.get("role")) not in {"system", "developer"}:
         return None, messages
     content = first.get("content")
     if isinstance(content, str):

@@ -4,7 +4,7 @@
 - POST /api/v1/agents/agent-stream with the LITE model (POS: the whole server path, a real provider call, SSE back)
 - A folder the user links to a project, previews and trusts through the project and folder-trust API (POS: the workspace root of the turn;
   it may also hold a FIFO ``SKILL.md``, sparse config files, an oversized rule file or a rule file that links out of the folder)
-- The workspace trust each run applies and the messages ChatLiteLLM sends to the provider (POS: recorded where they are decided and built)
+- The workspace trust each run applies and the messages TransportChatModel sends to the provider (POS: recorded where they are decided and built)
 
 [OUTPUT]
 - Fails when the folder preview does not return, when the stream reports an error event, when a turn does not finish or does not answer,

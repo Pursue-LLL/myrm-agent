@@ -1,17 +1,17 @@
 """Provider defaults WebSearcher applies when neither the config nor the query set a parameter.
 
-Exa returns no page content unless asked and LiteLLM then asks for the full text of every result, so the default
-is ``contents.highlights``. The wire-level cases go through the real LiteLLM request/response transformation with
+Exa returns no page content unless asked and the client's own default then asks for the full text of every result,
+so the default is ``contents.highlights``. The wire-level cases go through the real request/response mapping with
 only the HTTP layer faked, because what Exa actually receives is what the default has to be judged by.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 
 import httpx
 import pytest
-from litellm.llms.custom_httpx.http_handler import HTTPHandler
 
 from myrm_agent_harness.toolkits.web_search.coalescing.search_coalescing import reset_search_coalescing_state_for_tests
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
@@ -131,7 +131,7 @@ async def test_each_chain_hop_gets_the_defaults_of_its_own_provider(monkeypatch:
 class TestExaOnTheWire:
     @staticmethod
     def _fake_exa(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
-        """Fake only the HTTP POST of LiteLLM's client; return the JSON bodies that were sent."""
+        """Fake only the HTTP round trip; return the JSON bodies that were sent."""
         sent: list[dict[str, object]] = []
         reply = {
             "results": [
@@ -141,13 +141,13 @@ class TestExaOnTheWire:
             ]
         }
 
-        def fake_post(self: HTTPHandler, url: str, **kwargs: object) -> httpx.Response:
-            body = kwargs.get("json")
-            assert isinstance(body, dict)
-            sent.append(body)
-            return httpx.Response(200, json=reply, request=httpx.Request("POST", url))
+        async def fake_request(self: httpx.AsyncClient, method: str, url: str, **kwargs: object) -> httpx.Response:
+            content = kwargs.get("content")
+            assert isinstance(content, bytes)
+            sent.append(json.loads(content))
+            return httpx.Response(200, json=reply, request=httpx.Request(method, url))
 
-        monkeypatch.setattr(HTTPHandler, "post", fake_post)
+        monkeypatch.setattr(httpx.AsyncClient, "request", fake_request)
         return sent
 
     @pytest.mark.asyncio

@@ -42,7 +42,7 @@
 ├─────────────────────────────────────────────────────────────────────┤
 │ - VisionFallbackEngine (toolkits/llms/vision/fallback_engine.py)        │
 │   • Image compression (if too large)                                │
-│   • Call vision model via LiteLLM                                   │
+│   • Call vision model via the model transport                        │
 │   • Return text description                                         │
 │ - VideoAnalysisEngine (toolkits/llms/vision/video_analysis_engine.py)   │
 │   • Native video pass-through (for video-capable models)            │
@@ -174,7 +174,7 @@ if not supports_vision and vision_fallback_model_cfg:
 
 ### 1. 图像压缩策略
 
-如果原始图像超过 LiteLLM 的尺寸限制，`VisionFallbackEngine` 会自动调用 `ImageCompressor` 进行压缩：
+如果原始图像超过供应商的尺寸限制，`VisionFallbackEngine` 会自动调用 `ImageCompressor` 进行压缩：
 
 - 最大分辨率：2000x2000
 - 质量：85%
@@ -272,7 +272,6 @@ Client                    Server
 
 ## 参考资料
 
-- **LiteLLM Vision API**: https://docs.litellm.ai/docs/vision
 - **SSE (Server-Sent Events)**: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events
 - **Playwright E2E Testing**: https://playwright.dev/python/
 

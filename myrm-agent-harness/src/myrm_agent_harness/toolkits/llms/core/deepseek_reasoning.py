@@ -14,7 +14,7 @@ with valid levels ('low', 'high', 'max') and controls reasoning mode via
 (such as DeepSeek-V4-Pro and DeepSeek-V4-Flash).
 Always-on reasoning models (such as DeepSeek-R1 and deepseek-reasoner) do not accept
 ``reasoning_effort`` or ``thinking`` parameters from caller requests; passing them causes HTTP 400.
-LiteLLM requires ``thinking: {"type": "enabled"}`` on configurable models to activate its thinking
+Configurable models need ``thinking: {"type": "enabled"}`` to activate thinking
 mode and protect multi-turn tool-calling with ``reasoning_content``.
 This module maps standard/extended reasoning effort values to DeepSeek native
 parameters and guarantees thinking mode activation or deactivation without HTTP 400 errors.
@@ -90,8 +90,8 @@ def apply_deepseek_reasoning_effort(model: str, llm_kwargs: dict[str, Any]) -> N
        - When effort is 'low', 'high', 'max' (or smooth mappings like medium -> high):
          Injects extra_body.thinking = {"type": "enabled"} and passes the native effort.
        - When effort is None:
-         Injects extra_body.thinking = {"type": "enabled"} so LiteLLM activates thinking
-         mode and automatically protects multi-turn tool-calling with reasoning_content.
+         Injects extra_body.thinking = {"type": "enabled"} so thinking
+         mode is active and the model protects multi-turn tool-calling with reasoning_content.
 
     Args:
         model: Model identifier (e.g. 'deepseek/deepseek-v4-pro').

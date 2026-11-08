@@ -20,7 +20,7 @@ from myrm_agent_harness.agent.context_management.strategies.reasoning.anchor_led
     clear_session_anchor_ledger,
     get_session_anchor_ledger,
 )
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
 pytestmark = pytest.mark.e2e
 
@@ -49,14 +49,14 @@ def _ensure_env_test() -> None:
                 os.environ.setdefault(k, v)
 
 
-def _get_real_llm() -> ChatLiteLLM:
+def _get_real_llm() -> TransportChatModel:
     api_key = os.environ.get("BASIC_API_KEY", "") or os.environ.get("LITE_API_KEY", "")
     base_url = os.environ.get("BASIC_BASE_URL", "") or os.environ.get("LITE_BASE_URL", "")
     model = os.environ.get("BASIC_MODEL", "") or os.environ.get("LITE_MODEL", "")
     if not (api_key and base_url and model):
         pytest.skip("No LLM credentials found in .env.test")
     norm_model, provider = _normalize_model(model)
-    return ChatLiteLLM(
+    return TransportChatModel(
         model=norm_model,
         api_key=api_key,
         api_base=base_url,

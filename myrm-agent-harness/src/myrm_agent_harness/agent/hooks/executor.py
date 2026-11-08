@@ -250,7 +250,7 @@ class HookExecutor:
             prefix += " Reason carefully over the full payload before deciding."
 
         try:
-            from myrm_agent_harness.toolkits.llms import create_litellm_model
+            from myrm_agent_harness.toolkits.llms import create_chat_model
 
             model = hook.model or os.environ.get("MYRM_HOOK_MODEL")
             if model is None:
@@ -260,7 +260,7 @@ class HookExecutor:
                     blocked=hook.block_on_failure,
                     reason="LLM hook requires a model (set 'model' or MYRM_HOOK_MODEL)",
                 )
-            llm = create_litellm_model(model=model)
+            llm = create_chat_model(model=model)
             response = await asyncio.wait_for(
                 llm.ainvoke(f"{prefix}\n\n{prompt}"),
                 timeout=hook.timeout_seconds,

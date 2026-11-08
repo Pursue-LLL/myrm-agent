@@ -7,7 +7,7 @@
 - is_json_document(): whether text parses to a JSON object or array, optionally inside a markdown fence
 
 [POS]
-Lets ``ChatLiteLLM`` decide on the same grounds as the output parser whether reasoning text can stand
+Lets ``TransportChatModel`` decide on the same grounds as the output parser whether reasoning text can stand
 in for an empty answer, so a chain of thought that merely mentions braces (or was cut off by the output
 cap) takes the retry instead of failing the parser.
 """

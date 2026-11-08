@@ -1,7 +1,7 @@
 """Tests for LLM identity metadata passthrough and capability-learning roundtrip.
 
 ``ManagedLLM`` / ``KeyPoolLLM`` wrappers expose ``model`` / ``model_name`` /
-``api_base`` / ``base_url`` via passthrough properties, and ``ChatLiteLLM``
+``api_base`` / ``base_url`` via passthrough properties, and ``TransportChatModel``
 aliases ``base_url`` to ``api_base``.  This keeps the capability learner key
 (model@api_base) stable across the middleware gate and the oneshot-recovery
 learn path, so an unsupported ``allowed_tools`` tool_choice is remembered after
@@ -15,7 +15,7 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.language_models import BaseChatModel
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.allowed_tools_capability import (
     CAPABILITY_REJECTS_ALLOWED_TOOLS,
     model_supports_allowed_tools_tool_choice,
@@ -38,15 +38,15 @@ def _reset_learner() -> None:
     ModelCapabilityLearner._instance = None
 
 
-def _chat_llm(**kwargs: object) -> ChatLiteLLM:
-    return ChatLiteLLM(
+def _chat_llm(**kwargs: object) -> TransportChatModel:
+    return TransportChatModel(
         model=str(kwargs.get("model", "gpt-4o")),
         api_base=(kwargs.get("api_base") or None),  # type: ignore[arg-type]
         model_name=(kwargs.get("model_name") or None),  # type: ignore[arg-type]
     )
 
 
-class TestChatLiteLLMBaseUrlAlias:
+class TestTransportChatModelBaseUrlAlias:
     def test_base_url_aliases_api_base(self) -> None:
         llm = _chat_llm(model="gpt-4o", api_base="https://api-a.example.com/v1")
         assert llm.base_url == "https://api-a.example.com/v1"
@@ -134,63 +134,35 @@ class TestCapabilityLearningRoundtrip:
         managed = ManagedLLM(main_llm=inner)
 
         # Middleware identity extraction (same getattrs as the middleware).
-        model_name = getattr(managed, "model", None) or getattr(
-            managed, "model_name", None
-        )
+        model_name = getattr(managed, "model", None) or getattr(managed, "model_name", None)
         api_base = getattr(managed, "api_base", None)
         assert model_name == "gpt-4o"
         assert api_base == "https://custom.example.com/v1"
 
         # Unknown/non-native endpoints fail closed — never send allowed_tools.
-        assert (
-            model_supports_allowed_tools_tool_choice(
-                str(model_name), api_base=str(api_base or "")
-            )
-            is False
-        )
+        assert model_supports_allowed_tools_tool_choice(str(model_name), api_base=str(api_base or "")) is False
 
         # The learner key stays scoped to model@api_base so the middleware.
         # check and this gate always agree.
         learner = get_capability_learner()
-        key = normalize_model_capability_key(
-            str(model_name), api_base=str(api_base or "")
-        )
+        key = normalize_model_capability_key(str(model_name), api_base=str(api_base or ""))
         assert key == "gpt-4o@https://custom.example.com/v1"
         assert learner.get(key, CAPABILITY_REJECTS_ALLOWED_TOOLS) is None
 
         # Only native OpenAI endpoint is opted in.
-        assert (
-            model_supports_allowed_tools_tool_choice(
-                str(model_name), api_base="https://api.openai.com/v1"
-            )
-            is True
-        )
+        assert model_supports_allowed_tools_tool_choice(str(model_name), api_base="https://api.openai.com/v1") is True
 
     def test_managed_llm_local_endpoint_fails_closed(self) -> None:
         """Local dev proxies (the OpenCode Go Pool scenario) never send allowed_tools."""
-        inner = _chat_llm(
-            model="openai-like/OpenCode Go Pool", api_base="http://localhost:20128/v1"
-        )
+        inner = _chat_llm(model="openai-like/OpenCode Go Pool", api_base="http://localhost:20128/v1")
         managed = ManagedLLM(main_llm=inner)
-        model_name = getattr(managed, "model", None) or getattr(
-            managed, "model_name", None
-        )
+        model_name = getattr(managed, "model", None) or getattr(managed, "model_name", None)
         api_base = getattr(managed, "api_base", None)
         assert model_name == "openai-like/OpenCode Go Pool"
         assert api_base == "http://localhost:20128/v1"
-        assert (
-            model_supports_allowed_tools_tool_choice(
-                str(model_name), api_base=str(api_base or "")
-            )
-            is False
-        )
+        assert model_supports_allowed_tools_tool_choice(str(model_name), api_base=str(api_base or "")) is False
         # Learning under the same scoped key remains consistent (no-op here).
-        assert (
-            model_supports_allowed_tools_tool_choice(
-                str(model_name), api_base=str(api_base or "")
-            )
-            is False
-        )
+        assert model_supports_allowed_tools_tool_choice(str(model_name), api_base=str(api_base or "")) is False
 
     def test_key_pool_llm_learns_then_gates(self) -> None:
         pool = CredentialPool(["k1", "k2"])
@@ -202,17 +174,10 @@ class TestCapabilityLearningRoundtrip:
         assert api_base == "https://custom.example.com/v1"
 
         learner = get_capability_learner()
-        key = normalize_model_capability_key(
-            str(model_name), api_base=str(api_base or "")
-        )
+        key = normalize_model_capability_key(str(model_name), api_base=str(api_base or ""))
         learner.learn(key, CAPABILITY_REJECTS_ALLOWED_TOOLS, True)
 
-        assert (
-            model_supports_allowed_tools_tool_choice(
-                str(model_name), api_base=str(api_base or "")
-            )
-            is False
-        )
+        assert model_supports_allowed_tools_tool_choice(str(model_name), api_base=str(api_base or "")) is False
 
 
 def test_managed_llm_is_base_chat_model_subclass() -> None:

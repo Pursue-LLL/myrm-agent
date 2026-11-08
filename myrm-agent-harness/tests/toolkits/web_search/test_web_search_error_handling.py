@@ -23,10 +23,10 @@ from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
 
 
 class _FakeAPIConnectionError(Exception):
-    """Simulates LiteLLM's APIConnectionError(status=500) wrapper."""
+    """Simulates a gateway's generic APIConnectionError(status=500) wrapper."""
 
     def __init__(self, message: str, status_code: int = 500):
-        super().__init__(f"litellm.APIConnectionError: {message}")
+        super().__init__(f"APIConnectionError: {message}")
         self.status_code = status_code
 
 
@@ -98,7 +98,7 @@ class TestErrorClassification:
         assert is_retryable_search_error(ConnectionError("Connection refused"))
 
     def test_apiconnectionerror_wrapper_not_matched_as_connection_error(self):
-        """LiteLLM APIConnectionError 包装器不应被当作真实连接错误"""
+        """网关的 APIConnectionError 包装器不应被当作真实连接错误"""
         exc = _FakeAPIConnectionError("Something went wrong with the provider")
         # status=500 makes it retryable, but not because of "connection" keyword
         assert is_retryable_search_error(exc)  # retryable due to status=500
@@ -186,8 +186,8 @@ class TestTimeoutHandling:
             assert error.context.error_code == "TimeoutError"
 
 
-class TestLiteLLMSearchEdgeCases:
-    """测试 LiteLLMSearch 边缘情况"""
+class TestSearchRowParsing:
+    """测试搜索结果行解析的边缘情况"""
 
     def test_result_parsing_with_all_fields(self):
         """测试带完整字段的结果解析"""

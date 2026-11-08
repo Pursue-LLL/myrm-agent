@@ -5,7 +5,7 @@ __init__.py serves as the unified export entry for general-purpose capabilities.
 Agent-callable tools are exported via dedicated xx_agent_tools.py files.
 
 [INPUT]
-- llms::llm_manager, LLMManager, ChatLiteLLM, create_litellm_model (POS: LLM manager and adapters, 100+ provider support)
+- llms::llm_manager, LLMManager, TransportChatModel, create_chat_model (POS: LLM manager and adapters, 100+ provider support)
 - web_fetch::FetchEngine (POS: layered fetch engine with HTTP/Browser/Stealth fallback)
 - retriever_tools::RetrieverManager (POS: retriever manager class)
 - web_fetch::web_fetch_tools (POS: global FetchEngine instance)
@@ -13,8 +13,8 @@ Agent-callable tools are exported via dedicated xx_agent_tools.py files.
 [OUTPUT]
 - llm_manager: global LLM manager singleton
 - LLMManager: LLM manager class
-- ChatLiteLLM: LiteLLM chat model
-- create_litellm_model: LiteLLM model factory function
+- TransportChatModel: LangChain chat model over the model transport
+- create_chat_model: chat model factory function
 - FetchEngine: layered fetch engine
 - RetrieverManager: retriever manager class
 - web_fetch_tools: global FetchEngine instance
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.acp_agent_tools import create_invoke_acp_agent_tool
     from myrm_agent_harness.toolkits.browser.tools import create_browser_tools
     from myrm_agent_harness.toolkits.cron.cron_agent_tools import create_cron_tools
-    from myrm_agent_harness.toolkits.llms import ChatLiteLLM, LLMManager, create_litellm_model, llm_manager
+    from myrm_agent_harness.toolkits.llms import LLMManager, TransportChatModel, create_chat_model, llm_manager
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
     from myrm_agent_harness.toolkits.retriever.engine import RetrieverManager
     from myrm_agent_harness.toolkits.web_fetch import FetchEngine, web_fetch_tools
@@ -50,14 +50,14 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_search.web_search_agent_tools import create_web_search_tool
 
 __all__ = [
-    "ChatLiteLLM",
+    "TransportChatModel",
     "FetchEngine",
     "LLMManager",
     "RetrieverManager",
     "create_browser_tools",
     "create_cron_tools",
     "create_invoke_acp_agent_tool",
-    "create_litellm_model",
+    "create_chat_model",
     "create_memory_tools",
     "create_web_fetch_tool",
     "create_web_search_tool",
@@ -68,8 +68,8 @@ __all__ = [
 _LAZY_IMPORTS = {
     "llm_manager": ("myrm_agent_harness.toolkits.llms", "llm_manager"),
     "LLMManager": ("myrm_agent_harness.toolkits.llms", "LLMManager"),
-    "ChatLiteLLM": ("myrm_agent_harness.toolkits.llms", "ChatLiteLLM"),
-    "create_litellm_model": ("myrm_agent_harness.toolkits.llms", "create_litellm_model"),
+    "TransportChatModel": ("myrm_agent_harness.toolkits.llms", "TransportChatModel"),
+    "create_chat_model": ("myrm_agent_harness.toolkits.llms", "create_chat_model"),
     "FetchEngine": ("myrm_agent_harness.toolkits.web_fetch", "FetchEngine"),
     "RetrieverManager": ("myrm_agent_harness.toolkits.retriever.engine", "RetrieverManager"),
     "web_fetch_tools": ("myrm_agent_harness.toolkits.web_fetch", "web_fetch_tools"),

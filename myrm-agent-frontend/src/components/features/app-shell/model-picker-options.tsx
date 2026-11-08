@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * [INPUT] @/store/config/providerTypes::getLiteLLMModelName (POS: LiteLLM 路由名), ./model-picker-catalog (POS: 选择器数据类型)
+ * [INPUT] @/store/config/providerTypes::getRoutedModelName (POS: 路由名), ./model-picker-catalog (POS: 选择器数据类型)
  * [OUTPUT] SmartRoutingOption: 智能路由虚拟选项; MoaPresetGroup: MoA preset 虚拟分组; ProviderModelGroup: Provider 分组及其模型行（上下文窗口 / 压缩预警 / 成本 / 能力徽标，组织策略灰显）
  * [POS] ModelPickerPopover 的列表区块，纯展示，选择与槽位状态由父组件持有。
  */
@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
 import { type ModelCapabilities, type ModelSwitchPreflightResult } from '@/services/llm-config';
-import { getLiteLLMModelName, type ProviderConfig } from '@/store/config/providerTypes';
+import { getRoutedModelName, type ProviderConfig } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 
@@ -237,7 +237,7 @@ export function ProviderModelGroup({
         const preflightKey = `${provider.id}/${model}`;
         const preflight = preflightMap[preflightKey];
         const acknowledged = acknowledgedCounts.current[preflightKey] ?? 0;
-        const liteModelName = getLiteLLMModelName(provider.id, model, provider.providerType);
+        const liteModelName = getRoutedModelName(provider.id, model, provider.providerType);
         const policyBlocked = restricted && !isModelAllowed(liteModelName);
         const highlightColor =
           activeSlot === 'primary'

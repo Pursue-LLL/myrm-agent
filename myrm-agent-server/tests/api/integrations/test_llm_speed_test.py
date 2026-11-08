@@ -111,7 +111,7 @@ class TestSpeedTestE2E:
     def test_single_model_speed_test(self, client: TestClient) -> None:
         """Test real model returns valid TTFT and TPS metrics."""
         secrets = load_test_secrets()
-        from myrm_agent_harness.agent.config.litellm_routing import (
+        from myrm_agent_harness.agent.config.provider_routing import (
             normalize_env_model_selection_string,
         )
 
@@ -154,7 +154,7 @@ class TestSpeedTestE2E:
     def test_multi_model_speed_test(self, client: TestClient) -> None:
         """Test batch speed test with multiple models, results sorted by TTFT."""
         secrets = load_test_secrets()
-        from myrm_agent_harness.agent.config.litellm_routing import (
+        from myrm_agent_harness.agent.config.provider_routing import (
             normalize_env_model_selection_string,
         )
 
@@ -204,7 +204,7 @@ class TestSpeedTestE2E:
     def test_mixed_valid_invalid_models(self, client: TestClient) -> None:
         """Valid + invalid model: valid succeeds, invalid gets error status."""
         secrets = load_test_secrets()
-        from myrm_agent_harness.agent.config.litellm_routing import (
+        from myrm_agent_harness.agent.config.provider_routing import (
             normalize_env_model_selection_string,
         )
 

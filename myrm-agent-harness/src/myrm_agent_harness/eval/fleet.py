@@ -100,10 +100,9 @@ def calculate_fleet_variance(
         for task_idx in range(total_tasks):
             task_passed_any = False
             for attempt in attempt_results:
-                if task_idx < len(attempt.turn_results):
-                    if attempt.turn_results[task_idx].assertion_passed is True:
-                        task_passed_any = True
-                        break
+                if task_idx < len(attempt.turn_results) and attempt.turn_results[task_idx].assertion_passed is True:
+                    task_passed_any = True
+                    break
             if task_passed_any:
                 passed_tasks += 1
         pass_at_k = (passed_tasks / total_tasks) if total_tasks > 0 else 0.0
@@ -259,7 +258,7 @@ class FleetEvalRunner:
         attempt_results: list[EvalResult] = []
 
         # 3. Execute N attempts
-        for attempt_idx in range(self._n_attempts):
+        for _ in range(self._n_attempts):
             if self._abort_requested:
                 break
 

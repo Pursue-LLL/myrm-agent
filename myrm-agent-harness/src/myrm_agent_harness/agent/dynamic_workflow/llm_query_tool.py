@@ -19,7 +19,7 @@
 Bridges the PTC Python script to direct LLM calls without spawning a sub-agent.
 Suitable for cheap, focused sub-tasks (extraction, classification, summarization,
 fact-checking a chunk of text) where a full sub-agent loop would be wasteful.
-Token usage is accounted at the adapter layer (ChatLiteLLM non-streaming recording),
+Token usage is accounted at the adapter layer (TransportChatModel non-streaming recording),
 so no manual bookkeeping is needed here; the tool honors cancellation and budget guards.
 """
 

@@ -14,7 +14,7 @@ step and are not touched.
 - replace_lone_surrogates: rewrite every unencodable string value of the wire messages of one request (nested in dicts and lists) to ``U+FFFD``, in place
 
 [POS]
-Last pure step of the message funnel of ``ChatLiteLLM``, run before the outbound guard so a policy sees the text that is
+Last pure step of the message funnel of ``TransportChatModel``, run before the outbound guard so a policy sees the text that is
 actually sent. A string that is already encodable is left as the same object, so the request bytes (and with them the
 provider prompt cache) do not change for any ordinary history.
 """

@@ -13,7 +13,7 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.tool import ToolCall
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.converters import (
     _parse_tool_call_args_result,
     convert_dict_to_message,
@@ -127,7 +127,7 @@ class TestModelIdDrivesDecoding:
         [("xai/grok-4", DECODED_COMMAND), ("gpt-4o", ESCAPED_COMMAND), ("deepseek/deepseek-v4-flash", ESCAPED_COMMAND)],
     )
     def test_non_stream_response(self, model: str, expected: str) -> None:
-        chat_model = ChatLiteLLM(model=model)
+        chat_model = TransportChatModel(model=model)
 
         result = chat_model._create_chat_result(self._response({"command": ESCAPED_COMMAND}, "bash_code_execute_tool"))
 
@@ -150,7 +150,7 @@ class TestModelIdDrivesDecoding:
         assert json.loads(final_message.tool_call_chunks[0]["args"] or "") == {"command": expected}
 
     def test_html_source_is_written_verbatim_by_non_grok_models(self) -> None:
-        chat_model = ChatLiteLLM(model="gpt-4o")
+        chat_model = TransportChatModel(model="gpt-4o")
         arguments = {"path": "index.html", "content": HTML_SOURCE}
 
         result = chat_model._create_chat_result(self._response(arguments, "file_write_tool"))

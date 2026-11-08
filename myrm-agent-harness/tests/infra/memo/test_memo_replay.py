@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.infra.memo import LlmCallScope, MemoLedger, llm_call_scope
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 
 RESPONSE: dict[str, Any] = {
     "id": "chatcmpl-memo",
@@ -29,13 +29,13 @@ class CountingClient:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def acreate(self, **kwargs: Any) -> dict[str, Any]:
+    async def acompletion(self, **kwargs: Any) -> dict[str, Any]:
         self.calls += 1
         return dict(RESPONSE)
 
 
-def _model() -> tuple[ChatLiteLLM, CountingClient]:
-    model = ChatLiteLLM(model="gpt-4o-mini", api_key="test-key")
+def _model() -> tuple[TransportChatModel, CountingClient]:
+    model = TransportChatModel(model="gpt-4o-mini", api_key="test-key")
     client = CountingClient()
     model.client = client  # type: ignore[assignment]
     return model, client

@@ -20,7 +20,7 @@ providers are unavailable (e.g. quota exhausted).
 [CONTRACT]
 - POST /v1/embeddings accepts OpenAI ``input`` list and returns OpenAI-shaped
   ``{"data": [{"object": "embedding", "index", "embedding"}], ...}``.
-- GET /v1/models returns a model list (litellm compatibility).
+- GET /v1/models returns a model list (OpenAI-client compatibility).
 - Vectors are 1024-dimensional (same as ``BAAI/bge-m3``) and deterministic
   per input text, so cosine search behaves stably across reruns.
 """

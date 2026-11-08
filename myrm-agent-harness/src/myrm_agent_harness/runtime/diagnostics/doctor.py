@@ -149,7 +149,7 @@ class Doctor:
         )
 
     async def _check_core_deps(self) -> DoctorCheckResult:
-        deps = ["langchain_core", "langgraph", "litellm", "pydantic"]
+        deps = ["langchain_core", "langgraph", "httpx", "pydantic"]
         missing = [d for d in deps if _cached_find_spec(d) is None]
         if missing:
             return DoctorCheckResult("core_deps", CheckStatus.ERROR, f"Missing: {', '.join(missing)}", fix="uv sync")
@@ -218,34 +218,27 @@ class Doctor:
             return DoctorCheckResult("deploy_mode", CheckStatus.WARNING, f"Deploy mode check failed: {e}")
 
     async def _check_llm_connectivity(self) -> DoctorCheckResult:
-        """Lightweight HTTP probe to LLM provider endpoint.
+        """Lightweight HTTP probe to the configured model's endpoint.
 
-        Uses HTTP HEAD instead of actual LLM call to avoid token consumption
-        and reduce latency from 2-5s to <1s.
+        Uses HTTP HEAD instead of an actual LLM call to avoid token consumption and keep the probe under a second.
         """
         try:
             import httpx
-            import litellm
+
+            from myrm_agent_harness.infra.tls_compat import create_httpx_client
+            from myrm_agent_harness.toolkits.llms.transport import UnsupportedProviderError, resolve_route
 
             model = os.getenv("MYRM_MODEL_NAME", "")
             if not model:
                 return DoctorCheckResult("llm_conn", CheckStatus.ERROR, "No LLM model configured")
 
-            # Get the base URL for the model's provider
             try:
-                _, _, api_base, _ = litellm.get_llm_provider(model=model)
-            except Exception:
-                api_base = None
-
-            # Determine probe URL
-            if api_base:
-                probe_url = api_base.rstrip("/")
-            else:
-                # Default OpenAI-compatible endpoint
-                probe_url = "https://api.openai.com/v1"
-
-            # Lightweight HEAD probe with 5s timeout
-            from myrm_agent_harness.infra.tls_compat import create_httpx_client
+                route = resolve_route(model, api_base=os.getenv("MYRM_BASE_URL") or None)
+            except UnsupportedProviderError as e:
+                return DoctorCheckResult("llm_conn", CheckStatus.ERROR, f"LLM endpoint unresolved: {e}")
+            if not route.base_url:
+                return DoctorCheckResult("llm_conn", CheckStatus.ERROR, f"No endpoint known for model '{model}'")
+            probe_url = route.base_url.rstrip("/")
 
             async with create_httpx_client(timeout=5.0) as client:
                 try:
@@ -260,19 +253,6 @@ class Doctor:
                     )
                 except httpx.ConnectError as e:
                     return DoctorCheckResult("llm_conn", CheckStatus.ERROR, f"LLM endpoint unreachable: {str(e)[:80]}")
-        except ImportError:
-            # Fallback to full LLM call if httpx not available
-            try:
-                import litellm
-
-                await litellm.acompletion(
-                    model=os.getenv("MYRM_MODEL_NAME", ""),
-                    messages=[{"role": "user", "content": "hi"}],
-                    max_tokens=1,
-                )
-                return DoctorCheckResult("llm_conn", CheckStatus.OK, "LLM Connectivity OK")
-            except Exception as e:
-                return DoctorCheckResult("llm_conn", CheckStatus.ERROR, f"LLM Conn failed: {str(e)[:100]}")
         except Exception as e:
             return DoctorCheckResult("llm_conn", CheckStatus.ERROR, f"LLM probe failed: {str(e)[:100]}")
 

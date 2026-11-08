@@ -22,16 +22,16 @@ def _opencode_key() -> str | None:
 
 
 @pytest.mark.asyncio
-async def test_chatlitellm_responses_stream() -> None:
+async def test_chat_model_responses_stream() -> None:
     key = _opencode_key()
     if not key:
         pytest.skip("OpenCode Go key not configured")
 
     from langchain_core.messages import HumanMessage
 
-    from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+    from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
-    llm = create_litellm_model(
+    llm = create_chat_model(
         model="openai/muse-spark-1.2-contributor",
         api_key=key,
         base_url="https://opencode.ai/zen/go/v1",

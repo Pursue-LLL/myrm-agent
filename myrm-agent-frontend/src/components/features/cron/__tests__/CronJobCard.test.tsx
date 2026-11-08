@@ -57,7 +57,7 @@ vi.mock('@/store/useAgentStore', () => ({
 }));
 vi.mock('@/store/config/providerTypes', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/store/config/providerTypes')>()),
-  getLiteLLMModelName: (providerId: string, model: string) => `${providerId}/${model}`,
+  getRoutedModelName: (providerId: string, model: string) => `${providerId}/${model}`,
 }));
 vi.mock('@/components/features/app-shell/model-picker-popover', () => ({
   default: ({ trigger, onSelect }: { trigger: ReactNode; onSelect: (providerId: string, model: string) => void }) => (

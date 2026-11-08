@@ -1,0 +1,1669 @@
+{
+ "_meta": {
+  "client_library": "litellm 1.97.0",
+  "configuration": "production (LITELLM_LOCAL_MODEL_COST_MAP, drop_params, modify_params, custom providers registered; response cache off)",
+  "matrix": "golden_shapes.py",
+  "recorded_at_commit": "dc1b5711db"
+ },
+ "chat/anthropic|basic|api": [
+  "/api/v1/messages"
+ ],
+ "chat/anthropic|basic|api_chat": [
+  "/api/chat/v1/messages"
+ ],
+ "chat/anthropic|basic|bare": [
+  "/v1/messages"
+ ],
+ "chat/anthropic|basic|full_chat": [
+  "/v1/chat/completions/v1/messages"
+ ],
+ "chat/anthropic|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/v1/messages"
+ ],
+ "chat/anthropic|basic|full_messages": [
+  "/v1/messages"
+ ],
+ "chat/anthropic|basic|gw": [
+  "/gw/v1/messages"
+ ],
+ "chat/anthropic|basic|gw_v1": [
+  "/gw/v1/v1/messages"
+ ],
+ "chat/anthropic|basic|slash": [
+  "//v1/messages"
+ ],
+ "chat/anthropic|basic|v1": [
+  "/v1/v1/messages"
+ ],
+ "chat/anthropic|basic|v1beta": [
+  "/v1beta/v1/messages"
+ ],
+ "chat/anthropic|basic|v1slash": [
+  "/v1//v1/messages"
+ ],
+ "chat/azure|basic|api": [
+  "/api/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|api_chat": [
+  "/api/chat/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|bare": [
+  "/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|full_chat": [
+  "/v1/chat/completions/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|full_messages": [
+  "/v1/messages/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|gw": [
+  "/gw/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|gw_v1": [
+  "/gw/v1/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|slash": [
+  "/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|v1": [
+  "/v1/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|v1beta": [
+  "/v1beta/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/azure|basic|v1slash": [
+  "/v1/openai/deployments/gpt-4o/chat/completions?api-version=2024-10-21"
+ ],
+ "chat/cerebras|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/cerebras|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/cerebras|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/cerebras|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/cerebras|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/cerebras|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/cerebras|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/cerebras|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/cerebras|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/cerebras|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/cerebras|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/cerebras|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/cohere_chat|basic|api": [
+  "/api"
+ ],
+ "chat/cohere_chat|basic|api_chat": [
+  "/api/chat"
+ ],
+ "chat/cohere_chat|basic|bare": [
+  ""
+ ],
+ "chat/cohere_chat|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/cohere_chat|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/cohere_chat|basic|full_messages": [
+  "/v1/messages"
+ ],
+ "chat/cohere_chat|basic|gw": [
+  "/gw"
+ ],
+ "chat/cohere_chat|basic|gw_v1": [
+  "/gw/v1"
+ ],
+ "chat/cohere_chat|basic|slash": [
+  "/"
+ ],
+ "chat/cohere_chat|basic|v1": [
+  "/v1"
+ ],
+ "chat/cohere_chat|basic|v1beta": [
+  "/v1beta"
+ ],
+ "chat/cohere_chat|basic|v1slash": [
+  "/v1/"
+ ],
+ "chat/dashscope|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/dashscope|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/dashscope|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/dashscope|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/dashscope|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/dashscope|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/dashscope|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/dashscope|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/dashscope|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/dashscope|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/dashscope|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/dashscope|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/deepseek|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/deepseek|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/deepseek|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/deepseek|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/deepseek|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/deepseek|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/deepseek|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/deepseek|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/deepseek|basic|slash": [
+  "//chat/completions"
+ ],
+ "chat/deepseek|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/deepseek|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/deepseek|basic|v1slash": [
+  "/v1//chat/completions"
+ ],
+ "chat/fireworks_ai|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/fireworks_ai|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/gemini|basic|api": [
+  "/api/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|api_chat": [
+  "/api/chat/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|bare": [
+  "/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|full_chat": [
+  "/v1/chat/completions/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|full_messages": [
+  "/v1/messages/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|gw": [
+  "/gw/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|gw_v1": [
+  "/gw/v1/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|slash": [
+  "//models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|v1": [
+  "/v1/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|v1beta": [
+  "/v1beta/models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/gemini|basic|v1slash": [
+  "/v1//models/gemini-2.5-flash:generateContent"
+ ],
+ "chat/groq|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/groq|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/groq|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/groq|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/groq|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/groq|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/groq|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/groq|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/groq|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/groq|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/groq|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/groq|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/lm_studio|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/lm_studio|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/lm_studio|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/lm_studio|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/lm_studio|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/lm_studio|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/lm_studio|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/lm_studio|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/lm_studio|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/lm_studio|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/lm_studio|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/lm_studio|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/minimax|basic|api": [
+  "/api/v1/chat/completions"
+ ],
+ "chat/minimax|basic|api_chat": [
+  "/api/chat/v1/chat/completions"
+ ],
+ "chat/minimax|basic|bare": [
+  "/v1/chat/completions"
+ ],
+ "chat/minimax|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/minimax|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/minimax|basic|full_messages": [
+  "/v1/messages/v1/chat/completions"
+ ],
+ "chat/minimax|basic|gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/minimax|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/minimax|basic|slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/minimax|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/minimax|basic|v1beta": [
+  "/v1beta/v1/chat/completions"
+ ],
+ "chat/minimax|basic|v1slash": [
+  "/v1/v1/chat/completions"
+ ],
+ "chat/mistral|basic|api": [
+  "/api/v1/chat/completions"
+ ],
+ "chat/mistral|basic|api_chat": [
+  "/api/chat/v1/chat/completions"
+ ],
+ "chat/mistral|basic|bare": [
+  "/v1/chat/completions"
+ ],
+ "chat/mistral|basic|full_chat": [
+  "/v1/chat/completions/v1"
+ ],
+ "chat/mistral|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/v1"
+ ],
+ "chat/mistral|basic|full_messages": [
+  "/v1/messages/v1/chat/completions"
+ ],
+ "chat/mistral|basic|gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/mistral|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/mistral|basic|slash": [
+  "//v1/chat/completions"
+ ],
+ "chat/mistral|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/mistral|basic|v1beta": [
+  "/v1beta/v1/chat/completions"
+ ],
+ "chat/mistral|basic|v1slash": [
+  "/v1//v1/chat/completions"
+ ],
+ "chat/moonshot|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/moonshot|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/moonshot|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/moonshot|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/moonshot|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/moonshot|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/moonshot|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/moonshot|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/moonshot|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/moonshot|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/moonshot|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/moonshot|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/ollama|basic|api": [
+  "/api/api/generate"
+ ],
+ "chat/ollama|basic|api_chat": [
+  "/api/chat/api/generate"
+ ],
+ "chat/ollama|basic|bare": [
+  "/api/generate"
+ ],
+ "chat/ollama|basic|full_chat": [
+  "/v1/chat/completions/api/generate"
+ ],
+ "chat/ollama|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/api/generate"
+ ],
+ "chat/ollama|basic|full_messages": [
+  "/v1/messages/api/generate"
+ ],
+ "chat/ollama|basic|gw": [
+  "/gw/api/generate"
+ ],
+ "chat/ollama|basic|gw_v1": [
+  "/gw/v1/api/generate"
+ ],
+ "chat/ollama|basic|slash": [
+  "//api/generate"
+ ],
+ "chat/ollama|basic|v1": [
+  "/v1/api/generate"
+ ],
+ "chat/ollama|basic|v1beta": [
+  "/v1beta/api/generate"
+ ],
+ "chat/ollama|basic|v1slash": [
+  "/v1//api/generate"
+ ],
+ "chat/openai|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/openai|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/openai|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/openai|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/openai|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/openai|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/openai|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/openai|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/openai|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/openai|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/openai|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/openai|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/openrouter|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/openrouter|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/openrouter|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/openrouter|basic|full_chat": [
+  "/v1/chat/completions"
+ ],
+ "chat/openrouter|basic|full_chat_gw": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/openrouter|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/openrouter|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/openrouter|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/openrouter|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/openrouter|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/openrouter|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/openrouter|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/perplexity|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/perplexity|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/perplexity|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/perplexity|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/perplexity|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/perplexity|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/perplexity|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/perplexity|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/perplexity|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/perplexity|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/perplexity|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/perplexity|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/together_ai|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/together_ai|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/together_ai|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/together_ai|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/together_ai|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/together_ai|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/together_ai|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/together_ai|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/together_ai|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/together_ai|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/together_ai|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/together_ai|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/volcengine|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/volcengine|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/volcengine|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/volcengine|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/volcengine|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/volcengine|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/volcengine|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/volcengine|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/volcengine|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/volcengine|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/volcengine|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/volcengine|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/xai|basic|api": [
+  "/api/responses"
+ ],
+ "chat/xai|basic|api_chat": [
+  "/api/chat/responses"
+ ],
+ "chat/xai|basic|bare": [
+  "/responses"
+ ],
+ "chat/xai|basic|full_chat": [
+  "/v1/chat/completions/responses"
+ ],
+ "chat/xai|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/responses"
+ ],
+ "chat/xai|basic|full_messages": [
+  "/v1/messages/responses"
+ ],
+ "chat/xai|basic|gw": [
+  "/gw/responses"
+ ],
+ "chat/xai|basic|gw_v1": [
+  "/gw/v1/responses"
+ ],
+ "chat/xai|basic|slash": [
+  "/responses"
+ ],
+ "chat/xai|basic|v1": [
+  "/v1/responses"
+ ],
+ "chat/xai|basic|v1beta": [
+  "/v1beta/responses"
+ ],
+ "chat/xai|basic|v1slash": [
+  "/v1/responses"
+ ],
+ "chat/xiaomi_mimo|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/xiaomi_mimo|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/yunshu|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/yunshu|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/yunshu|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/yunshu|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/yunshu|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/yunshu|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/yunshu|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/yunshu|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/yunshu|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/yunshu|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/yunshu|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/yunshu|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "chat/zai|basic|api": [
+  "/api/chat/completions"
+ ],
+ "chat/zai|basic|api_chat": [
+  "/api/chat/chat/completions"
+ ],
+ "chat/zai|basic|bare": [
+  "/chat/completions"
+ ],
+ "chat/zai|basic|full_chat": [
+  "/v1/chat/completions/chat/completions"
+ ],
+ "chat/zai|basic|full_chat_gw": [
+  "/gw/v1/chat/completions/chat/completions"
+ ],
+ "chat/zai|basic|full_messages": [
+  "/v1/messages/chat/completions"
+ ],
+ "chat/zai|basic|gw": [
+  "/gw/chat/completions"
+ ],
+ "chat/zai|basic|gw_v1": [
+  "/gw/v1/chat/completions"
+ ],
+ "chat/zai|basic|slash": [
+  "/chat/completions"
+ ],
+ "chat/zai|basic|v1": [
+  "/v1/chat/completions"
+ ],
+ "chat/zai|basic|v1beta": [
+  "/v1beta/chat/completions"
+ ],
+ "chat/zai|basic|v1slash": [
+  "/v1/chat/completions"
+ ],
+ "embedding/azure|single|bare": [
+  "/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|full_op": [
+  "/v1/embeddings/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|gw": [
+  "/gw/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|gw_v1": [
+  "/gw/v1/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|slash": [
+  "/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|v1": [
+  "/v1/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/azure|single|v1slash": [
+  "/v1/openai/deployments/text-embedding-3-small/embeddings?api-version=2025-02-01-preview"
+ ],
+ "embedding/cohere|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/cohere|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/cohere|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/cohere|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/cohere|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/cohere|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/cohere|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/gemini|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/gemini|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/gemini|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/gemini|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/gemini|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/gemini|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/gemini|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/jina_ai|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/jina_ai|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/jina_ai|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/jina_ai|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/jina_ai|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/jina_ai|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/jina_ai|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/lm_studio|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/lm_studio|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/lm_studio|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/lm_studio|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/lm_studio|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/lm_studio|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/lm_studio|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/mistral|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/mistral|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/mistral|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/mistral|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/mistral|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/mistral|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/mistral|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/ollama|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/ollama|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/ollama|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/ollama|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/ollama|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/ollama|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/ollama|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/openai_bare|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/openai_bare|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/openai_bare|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/openai_bare|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/openai_bare|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/openai_bare|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/openai_bare|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/openai|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/openai|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/openai|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/openai|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/openai|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/openai|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/openai|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/openrouter|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/openrouter|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/openrouter|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/openrouter|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/openrouter|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/openrouter|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/openrouter|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/siliconflow|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/siliconflow|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/siliconflow|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/siliconflow|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/siliconflow|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/siliconflow|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/siliconflow|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/together_ai|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/together_ai|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/together_ai|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/together_ai|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/together_ai|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/together_ai|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/together_ai|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "embedding/voyage|single|bare": [
+  "/embeddings"
+ ],
+ "embedding/voyage|single|full_op": [
+  "/v1/embeddings/embeddings"
+ ],
+ "embedding/voyage|single|gw": [
+  "/gw/embeddings"
+ ],
+ "embedding/voyage|single|gw_v1": [
+  "/gw/v1/embeddings"
+ ],
+ "embedding/voyage|single|slash": [
+  "/embeddings"
+ ],
+ "embedding/voyage|single|v1": [
+  "/v1/embeddings"
+ ],
+ "embedding/voyage|single|v1slash": [
+  "/v1/embeddings"
+ ],
+ "image/azure|edit|bare": [
+  "/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|full_op": [
+  "/v1/images/generations/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|gw": [
+  "/gw/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|gw_v1": [
+  "/gw/v1/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|slash": [
+  "/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|v1": [
+  "/v1/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|edit|v1slash": [
+  "/v1/openai/deployments/dall-e-3/images/edits?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|bare": [
+  "/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|full_op": [
+  "/v1/images/generations/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|gw": [
+  "/gw/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|gw_v1": [
+  "/gw/v1/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|slash": [
+  "/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|v1": [
+  "/v1/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/azure|generate|v1slash": [
+  "/v1/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
+ ],
+ "image/dall_e_2|edit|bare": [
+  "/images/edits"
+ ],
+ "image/dall_e_2|edit|full_op": [
+  "/v1/images/generations/images/edits"
+ ],
+ "image/dall_e_2|edit|gw": [
+  "/gw/images/edits"
+ ],
+ "image/dall_e_2|edit|gw_v1": [
+  "/gw/v1/images/edits"
+ ],
+ "image/dall_e_2|edit|slash": [
+  "/images/edits"
+ ],
+ "image/dall_e_2|edit|v1": [
+  "/v1/images/edits"
+ ],
+ "image/dall_e_2|edit|v1slash": [
+  "/v1/images/edits"
+ ],
+ "image/dall_e_2|generate|bare": [
+  "/images/generations"
+ ],
+ "image/dall_e_2|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/dall_e_2|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/dall_e_2|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/dall_e_2|generate|slash": [
+  "/images/generations"
+ ],
+ "image/dall_e_2|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/dall_e_2|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/dall_e_3|edit|bare": [
+  "/images/edits"
+ ],
+ "image/dall_e_3|edit|full_op": [
+  "/v1/images/generations/images/edits"
+ ],
+ "image/dall_e_3|edit|gw": [
+  "/gw/images/edits"
+ ],
+ "image/dall_e_3|edit|gw_v1": [
+  "/gw/v1/images/edits"
+ ],
+ "image/dall_e_3|edit|slash": [
+  "/images/edits"
+ ],
+ "image/dall_e_3|edit|v1": [
+  "/v1/images/edits"
+ ],
+ "image/dall_e_3|edit|v1slash": [
+  "/v1/images/edits"
+ ],
+ "image/dall_e_3|generate|bare": [
+  "/images/generations"
+ ],
+ "image/dall_e_3|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/dall_e_3|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/dall_e_3|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/dall_e_3|generate|slash": [
+  "/images/generations"
+ ],
+ "image/dall_e_3|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/dall_e_3|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/flux|edit|bare": [],
+ "image/flux|edit|full_op": [],
+ "image/flux|edit|gw": [],
+ "image/flux|edit|gw_v1": [],
+ "image/flux|edit|slash": [],
+ "image/flux|edit|v1": [],
+ "image/flux|edit|v1slash": [],
+ "image/flux|generate|bare": [],
+ "image/flux|generate|full_op": [],
+ "image/flux|generate|gw": [],
+ "image/flux|generate|gw_v1": [],
+ "image/flux|generate|slash": [],
+ "image/flux|generate|v1": [],
+ "image/flux|generate|v1slash": [],
+ "image/gemini_imagen|edit|bare": [
+  "/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|full_op": [
+  "/v1/images/generations/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|gw": [
+  "/gw/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|gw_v1": [
+  "/gw/v1/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|slash": [
+  "/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|v1": [
+  "/v1/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|edit|v1slash": [
+  "/v1/models/imagen-3.0-generate-002:generateContent"
+ ],
+ "image/gemini_imagen|generate|bare": [
+  "/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|full_op": [
+  "/v1/images/generations/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|gw": [
+  "/gw/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|gw_v1": [
+  "/gw/v1/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|slash": [
+  "/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|v1": [
+  "/v1/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gemini_imagen|generate|v1slash": [
+  "/v1/models/imagen-3.0-generate-002:predict"
+ ],
+ "image/gpt_image_1|edit|bare": [
+  "/images/edits"
+ ],
+ "image/gpt_image_1|edit|full_op": [
+  "/v1/images/generations/images/edits"
+ ],
+ "image/gpt_image_1|edit|gw": [
+  "/gw/images/edits"
+ ],
+ "image/gpt_image_1|edit|gw_v1": [
+  "/gw/v1/images/edits"
+ ],
+ "image/gpt_image_1|edit|slash": [
+  "/images/edits"
+ ],
+ "image/gpt_image_1|edit|v1": [
+  "/v1/images/edits"
+ ],
+ "image/gpt_image_1|edit|v1slash": [
+  "/v1/images/edits"
+ ],
+ "image/gpt_image_1|generate|bare": [
+  "/images/generations"
+ ],
+ "image/gpt_image_1|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/gpt_image_1|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/gpt_image_1|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/gpt_image_1|generate|slash": [
+  "/images/generations"
+ ],
+ "image/gpt_image_1|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/gpt_image_1|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/minimax|edit|bare": [],
+ "image/minimax|edit|full_op": [],
+ "image/minimax|edit|gw": [],
+ "image/minimax|edit|gw_v1": [],
+ "image/minimax|edit|slash": [],
+ "image/minimax|edit|v1": [],
+ "image/minimax|edit|v1slash": [],
+ "image/minimax|generate|bare": [
+  "/v1/image_generation"
+ ],
+ "image/minimax|generate|full_op": [
+  "/v1/images/generations/v1/image_generation"
+ ],
+ "image/minimax|generate|gw": [
+  "/gw/v1/image_generation"
+ ],
+ "image/minimax|generate|gw_v1": [
+  "/gw/v1/v1/image_generation"
+ ],
+ "image/minimax|generate|slash": [
+  "/v1/image_generation"
+ ],
+ "image/minimax|generate|v1": [
+  "/v1/v1/image_generation"
+ ],
+ "image/minimax|generate|v1slash": [
+  "/v1/v1/image_generation"
+ ],
+ "image/openai_compat|edit|bare": [
+  "/images/edits"
+ ],
+ "image/openai_compat|edit|full_op": [
+  "/v1/images/generations/images/edits"
+ ],
+ "image/openai_compat|edit|gw": [
+  "/gw/images/edits"
+ ],
+ "image/openai_compat|edit|gw_v1": [
+  "/gw/v1/images/edits"
+ ],
+ "image/openai_compat|edit|slash": [
+  "/images/edits"
+ ],
+ "image/openai_compat|edit|v1": [
+  "/v1/images/edits"
+ ],
+ "image/openai_compat|edit|v1slash": [
+  "/v1/images/edits"
+ ],
+ "image/openai_compat|generate|bare": [
+  "/images/generations"
+ ],
+ "image/openai_compat|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/openai_compat|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/openai_compat|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/openai_compat|generate|slash": [
+  "/images/generations"
+ ],
+ "image/openai_compat|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/openai_compat|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/openai_gpt_image|edit|bare": [
+  "/images/edits"
+ ],
+ "image/openai_gpt_image|edit|full_op": [
+  "/v1/images/generations/images/edits"
+ ],
+ "image/openai_gpt_image|edit|gw": [
+  "/gw/images/edits"
+ ],
+ "image/openai_gpt_image|edit|gw_v1": [
+  "/gw/v1/images/edits"
+ ],
+ "image/openai_gpt_image|edit|slash": [
+  "/images/edits"
+ ],
+ "image/openai_gpt_image|edit|v1": [
+  "/v1/images/edits"
+ ],
+ "image/openai_gpt_image|edit|v1slash": [
+  "/v1/images/edits"
+ ],
+ "image/openai_gpt_image|generate|bare": [
+  "/images/generations"
+ ],
+ "image/openai_gpt_image|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/openai_gpt_image|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/openai_gpt_image|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/openai_gpt_image|generate|slash": [
+  "/images/generations"
+ ],
+ "image/openai_gpt_image|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/openai_gpt_image|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/stability|edit|bare": [
+  "/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|full_op": [
+  "/v1/images/generations/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|gw": [
+  "/gw/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|gw_v1": [
+  "/gw/v1/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|slash": [
+  "/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|v1": [
+  "/v1/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|edit|v1slash": [
+  "/v1/v2beta/stable-image/edit/inpaint"
+ ],
+ "image/stability|generate|bare": [
+  "/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|full_op": [
+  "/v1/images/generations/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|gw": [
+  "/gw/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|gw_v1": [
+  "/gw/v1/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|slash": [
+  "/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|v1": [
+  "/v1/v2beta/stable-image/generate/sd3"
+ ],
+ "image/stability|generate|v1slash": [
+  "/v1/v2beta/stable-image/generate/sd3"
+ ],
+ "image/together_flux|edit|bare": [],
+ "image/together_flux|edit|full_op": [],
+ "image/together_flux|edit|gw": [],
+ "image/together_flux|edit|gw_v1": [],
+ "image/together_flux|edit|slash": [],
+ "image/together_flux|edit|v1": [],
+ "image/together_flux|edit|v1slash": [],
+ "image/together_flux|generate|bare": [
+  "/images/generations"
+ ],
+ "image/together_flux|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/together_flux|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/together_flux|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/together_flux|generate|slash": [
+  "/images/generations"
+ ],
+ "image/together_flux|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/together_flux|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "image/xai|edit|bare": [],
+ "image/xai|edit|full_op": [],
+ "image/xai|edit|gw": [],
+ "image/xai|edit|gw_v1": [],
+ "image/xai|edit|slash": [],
+ "image/xai|edit|v1": [],
+ "image/xai|edit|v1slash": [],
+ "image/xai|generate|bare": [
+  "/images/generations"
+ ],
+ "image/xai|generate|full_op": [
+  "/v1/images/generations/images/generations"
+ ],
+ "image/xai|generate|gw": [
+  "/gw/images/generations"
+ ],
+ "image/xai|generate|gw_v1": [
+  "/gw/v1/images/generations"
+ ],
+ "image/xai|generate|slash": [
+  "/images/generations"
+ ],
+ "image/xai|generate|v1": [
+  "/v1/images/generations"
+ ],
+ "image/xai|generate|v1slash": [
+  "/v1/images/generations"
+ ],
+ "rerank/azure_ai|top_k|bare": [
+  "/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|full_op": [
+  "/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|gw": [
+  "/gw/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|gw_v1": [
+  "/gw/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|slash": [
+  "/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|v1": [
+  "/v1/rerank"
+ ],
+ "rerank/azure_ai|top_k|v1slash": [
+  "/v1/rerank"
+ ],
+ "rerank/cohere|top_k|bare": [
+  "/v2/rerank"
+ ],
+ "rerank/cohere|top_k|full_op": [
+  "/v1/rerank"
+ ],
+ "rerank/cohere|top_k|gw": [
+  "/gw/v2/rerank"
+ ],
+ "rerank/cohere|top_k|gw_v1": [
+  "/gw/v1/v2/rerank"
+ ],
+ "rerank/cohere|top_k|slash": [
+  "/v2/rerank"
+ ],
+ "rerank/cohere|top_k|v1": [
+  "/v1/v2/rerank"
+ ],
+ "rerank/cohere|top_k|v1slash": [
+  "/v1/v2/rerank"
+ ],
+ "rerank/jina_ai|top_k|bare": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|full_op": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|gw": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|gw_v1": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|slash": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|v1": [
+  "/v1/rerank"
+ ],
+ "rerank/jina_ai|top_k|v1slash": [
+  "/v1/rerank"
+ ],
+ "rerank/openai_compat|top_k|bare": [
+  "/rerank"
+ ],
+ "rerank/openai_compat|top_k|full_op": [
+  "/v1/rerank/rerank"
+ ],
+ "rerank/openai_compat|top_k|gw": [
+  "/gw/rerank"
+ ],
+ "rerank/openai_compat|top_k|gw_v1": [
+  "/gw/v1/rerank"
+ ],
+ "rerank/openai_compat|top_k|slash": [
+  "//rerank"
+ ],
+ "rerank/openai_compat|top_k|v1": [
+  "/v1/rerank"
+ ],
+ "rerank/openai_compat|top_k|v1slash": [
+  "/v1//rerank"
+ ],
+ "rerank/together_ai|top_k|bare": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|full_op": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|gw": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|gw_v1": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|slash": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|v1": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/together_ai|top_k|v1slash": [
+  "api.together.xyz/v1/rerank"
+ ],
+ "rerank/voyage|top_k|bare": [
+  "/v1/rerank"
+ ],
+ "rerank/voyage|top_k|full_op": [
+  "/v1/rerank"
+ ],
+ "rerank/voyage|top_k|gw": [
+  "/gw/v1/rerank"
+ ],
+ "rerank/voyage|top_k|gw_v1": [
+  "/gw/v1/rerank"
+ ],
+ "rerank/voyage|top_k|slash": [
+  "/v1/rerank"
+ ],
+ "rerank/voyage|top_k|v1": [
+  "/v1/rerank"
+ ],
+ "rerank/voyage|top_k|v1slash": [
+  "/v1/rerank"
+ ]
+}

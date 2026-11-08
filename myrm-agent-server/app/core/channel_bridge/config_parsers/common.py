@@ -1,5 +1,5 @@
 """[INPUT]
-- app.core.channel_bridge.model_resolver::_to_litellm_model (POS: Business-layer model resolution. Uses framework-level parsers (to_litellm_model, parse_litellm_model))
+- app.core.channel_bridge.model_resolver::_to_route_model_id (POS: Aggregate exit of the model resolver package; import path unchanged.)
 
 [OUTPUT]
 - _int_setting: _int_setting
@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from app.core.channel_bridge.model_resolver import _to_litellm_model
+from app.core.channel_bridge.model_resolver import _to_route_model_id
 
 if TYPE_CHECKING:
     from app.core.types import ModelConfig
@@ -96,7 +96,7 @@ def _build_enriched_model_config(
         return None
 
     ptype = str(provider.get("providerType", "")) or None
-    full_model = _to_litellm_model(provider_id, model, ptype)
+    full_model = _to_route_model_id(provider_id, model, ptype)
     oauth_base = provider.get("_oauthBaseUrl")
     api_url_raw = oauth_base if oauth_base else provider.get("apiUrl") or provider.get("baseURL") or ""
     api_url = str(api_url_raw).strip() or None

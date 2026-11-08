@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.llms::create_litellm_model (POS: myrm_agent_harness.toolkits.llms)
+- myrm_agent_harness.toolkits.llms::create_chat_model (POS: myrm_agent_harness.toolkits.llms)
 - myrm_agent_harness.toolkits.llms.utils.proxy::probe_proxy_health / validate_proxy_url (POS: Network utility module for proxy URL normalization, validation, security masking,)
 
 [OUTPUT]
@@ -21,6 +21,7 @@ import asyncio
 import logging
 import time
 
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
@@ -44,6 +45,8 @@ class TestLocalModelResponse(BaseModel):
 # Stays below the 15 s request abort of the settings UI so a slow model is reported with a
 # classified message instead of the page giving up first.
 _LOCAL_MODEL_TEST_TIMEOUT_S = 12.0
+# How the resolvers of Windows, macOS and Linux report a host name that does not exist.
+_DNS_FAILURE_PHRASES = ("dns", "name resolution", "getaddrinfo", "nodename nor servname", "name or service not known")
 
 
 def _classify_local_model_error(exc: Exception) -> str:
@@ -65,10 +68,14 @@ def _classify_local_model_error(exc: Exception) -> str:
         return "Authentication failed — check your API key"
     if "404" in msg or "not found" in msg:
         return "Model not found — check the model name"
-    if "dns" in msg or "name resolution" in msg or "getaddrinfo" in msg:
+    if any(phrase in msg for phrase in _DNS_FAILURE_PHRASES):
         return "DNS resolution failed — check the base URL"
     if "ssl" in msg or "certificate" in msg:
         return "SSL/TLS error — check your server's certificate"
+    if isinstance(exc, httpx.ConnectError):
+        # The HTTP client reports a refused connection as "All connection attempts failed" and says nothing more;
+        # DNS and TLS failures are named above, so what is left is a server that is not there.
+        return "Could not connect — is the model server running?"
     return "Connection test failed"
 
 
@@ -80,11 +87,11 @@ async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResp
     abandoned after ``_LOCAL_MODEL_TEST_TIMEOUT_S`` seconds.
     """
     from langchain_core.messages import HumanMessage
-    from myrm_agent_harness.toolkits.llms import create_litellm_model
+    from myrm_agent_harness.toolkits.llms import create_chat_model
 
     start = time.monotonic()
     try:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             model=request.model,
             base_url=request.base_url,
             api_key=request.api_key or "",

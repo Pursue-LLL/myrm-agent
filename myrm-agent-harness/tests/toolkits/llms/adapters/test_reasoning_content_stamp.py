@@ -1,4 +1,4 @@
-"""Tests for reasoning_content stamp logic in ChatLiteLLM.
+"""Tests for reasoning_content stamp logic in TransportChatModel.
 
 Verifies that _stamp_missing_reasoning_content correctly back-fills empty
 reasoning_content on assistant messages for thinking-mode models (DeepSeek,
@@ -9,11 +9,11 @@ from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
 
-def _make_model(model: str, **kwargs) -> ChatLiteLLM:
-    return ChatLiteLLM.model_construct(client=MagicMock(), model=model, **kwargs)
+def _make_model(model: str, **kwargs) -> TransportChatModel:
+    return TransportChatModel.model_construct(client=MagicMock(), model=model, **kwargs)
 
 
 class TestStampMissingReasoningContent:

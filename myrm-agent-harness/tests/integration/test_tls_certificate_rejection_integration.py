@@ -1,4 +1,4 @@
-"""A rejected certificate is read as one failure across the real LLM client stack.
+"""A rejected certificate is read as one failure across the real model transport.
 
 [INPUT]
 - toolkits.llms.errors::classify_error, ErrorKind (POS: LLM error classification)
@@ -7,15 +7,15 @@
 - tests.support.mcp_testkit.tls_pki::generate_tls_pki (POS: Throwaway PKI whose server certificate chains to a private CA)
 
 [OUTPUT]
-- Fails when a provider family's client layers word a rejected certificate in a shape the classifier or the
+- Fails when a provider family's wire words a rejected certificate in a shape the classifier or the
   diagnostics do not recognize, which sends the failure back to the retry, key-rotation or generic-connection paths.
 - Fails when a plain-HTTP answer to an https request is taken for a certificate rejection and stops being retried.
-- Fails when a client stack's exception chain grows past half of the bound the cause is read within, before one more
-  client layer can push the rejected certificate out of reach.
+- Fails when the transport's exception chain grows past half of the bound the cause is read within, before one more
+  layer can push the rejected certificate out of reach.
 
 [POS]
 Drift guard for ``rejects_certificate``. Hand-built exception chains prove the logic; this test proves the chains
-litellm actually raises, one per provider family, against a loopback listener whose certificate the client does not
+the model transport actually raises, one per provider family, against a loopback listener whose certificate the client does not
 trust (a private CA missing from the trust store, the situation of a TLS-inspecting corporate proxy). A listener that
 answers plain HTTP pins the opposite side: a misconfigured scheme stays a transient transport failure.
 """
@@ -30,16 +30,16 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import litellm
 import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error
 from myrm_agent_harness.toolkits.llms.errors.error_payload import MAX_CHAIN_DEPTH, walk_exception_chain
+from myrm_agent_harness.toolkits.llms.transport import get_transport
 from tests.support.mcp_testkit.tls_pki import generate_tls_pki
 from tests.support.tls_loopback import isolate_from_system_proxy
 
-# One model per provider family whose client stack words a connection failure differently.
+# One model per wire the transport speaks.
 _PROVIDER_MODELS = (
     "openai/gpt-4o-mini",
     "anthropic/claude-3-5-haiku-latest",
@@ -112,10 +112,6 @@ def _plain_http_handler(connection: socket.socket) -> None:
 @pytest.fixture(autouse=True)
 def _direct_loopback(monkeypatch: pytest.MonkeyPatch) -> None:
     isolate_from_system_proxy(monkeypatch)
-    # The chat model writes its endpoint onto the litellm module on every call and leaves it there; a direct
-    # ``litellm.acompletion`` of the next test would then reach that endpoint instead of its own listener.
-    monkeypatch.setattr(litellm, "api_base", None)
-    monkeypatch.setattr(litellm, "api_key", None)
 
 
 @pytest.fixture
@@ -132,18 +128,15 @@ def plain_http_listener() -> Iterator[_Listener]:
 
 async def _failure_of_https_call(model: str, listener: _Listener) -> Exception:
     try:
-        await litellm.acompletion(
+        await get_transport().acompletion(
             model=model,
             messages=[{"role": "user", "content": "hi"}],
             api_base=f"https://127.0.0.1:{listener.port}",
             api_key="test-key",
-            num_retries=0,
-            ssl_verify=True,
             timeout=10,
         )
     except Exception as exc:
-        # Each provider stack raises its own class. The request reached the local listener, so the failure is
-        # the connection under test and not a stray one.
+        # The request reached the local listener, so the failure is the connection under test and not a stray one.
         assert listener.accepted
         return exc
     raise AssertionError("the https call to the local listener must fail")

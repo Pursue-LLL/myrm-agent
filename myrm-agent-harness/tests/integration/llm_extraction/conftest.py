@@ -2,7 +2,7 @@
 
 Loads credentials from ``myrm-agent/myrm-agent-server/.env.test`` (the same
 file pytest uses for server-side integration/e2e suites) and builds real
-``ChatLiteLLM`` instances for the BASIC (agnes hub) and LITE (minimax) model
+``TransportChatModel`` instances for the BASIC (agnes hub) and LITE (minimax) model
 lanes. Tests that require a real model must opt in via ``@pytest.mark.e2e``.
 """
 
@@ -15,7 +15,7 @@ import pytest
 
 _ENV_TEST = Path(__file__).resolve().parents[4] / "myrm-agent-server" / ".env.test"
 
-from tests.integration.llm_extraction.litellm_creds import litellm_config_for
+from tests.integration.llm_extraction.llm_creds import route_config_for
 
 
 @pytest.fixture(autouse=True)
@@ -32,13 +32,13 @@ def _load_env_test() -> None:
             os.environ.setdefault(key, value)
 
 
-def build_litellm_for(key_prefix: str):
-    """Build a real ChatLiteLLM from ``<PREFIX>_API_KEY/BASE_URL/MODEL`` env vars."""
-    api_key, base_url, litellm_model, provider = litellm_config_for(key_prefix)
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+def build_llm_for(key_prefix: str):
+    """Build a real TransportChatModel from ``<PREFIX>_API_KEY/BASE_URL/MODEL`` env vars."""
+    api_key, base_url, route_model_id, provider = route_config_for(key_prefix)
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
-    return ChatLiteLLM(
-        model=litellm_model,
+    return TransportChatModel(
+        model=route_model_id,
         api_key=api_key,
         api_base=base_url,
         custom_llm_provider=provider,
@@ -50,10 +50,10 @@ def build_litellm_for(key_prefix: str):
 @pytest.fixture
 def basic_llm():
     """Real LLM on the BASIC lane (agnes hub by default)."""
-    return build_litellm_for("BASIC")
+    return build_llm_for("BASIC")
 
 
 @pytest.fixture
 def lite_llm():
     """Real LLM on the LITE lane (minimax by default)."""
-    return build_litellm_for("LITE")
+    return build_llm_for("LITE")

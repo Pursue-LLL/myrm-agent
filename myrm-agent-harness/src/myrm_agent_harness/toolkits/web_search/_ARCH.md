@@ -18,7 +18,7 @@ and the intent-aware search parameter optimizer.
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, LiteLLMSearch, SearchServiceConfig | ✅ |
+| __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, RestSearch, SearchServiceConfig | ✅ |
 | engine.py | Core | WebSearchTools wrapper: parallel per-question search, one shared merge (round-robin, dedup, domain diversity), first `top_k` returned | ✅ |
 | web_search_agent_tools.py | Core | LangChain `web_search_tool` factory; `fetch_and_extract_available` tells it whether the agent's `web_fetch_tool` offers `fetch_and_extract` | ✅ |
 | _web_search_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH); recommends `fetch_and_extract` only when the agent's `web_fetch_tool` offers it | ✅ |
@@ -41,7 +41,7 @@ User query → LLM Query Rewriting → questions: list[str]
     → processing.intent_optimizer.detect_search_intent(query) per query
     → processing.intent_optimizer.resolve_search_params(intent, provider) per query
     → Fusion: explicit_params > intent_override > config.extra_params
-    → IF provider=tavily AND query contains site: → map to search_domain_filter (LiteLLM)
+    → IF provider=tavily AND query contains site: → map to search_domain_filter
     → Per-question documents (one list per question, from the first source that applies):
       IF all queries = PLATFORM_BILIBILI:
          providers.bilibili_search.search_bilibili() per query

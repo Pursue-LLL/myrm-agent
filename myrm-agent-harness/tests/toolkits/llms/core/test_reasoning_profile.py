@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.core.reasoning_profile import (
     apply_thinking_headroom,
     extract_reasoning_effort,
@@ -74,9 +74,7 @@ class TestThreeTierIntentLadder:
         assert is_reasoning_explicitly_disabled(kwargs_supports_false) is True
         assert get_model_timeout_floor("deepseek-r1", kwargs_supports_false) is None
 
-        kwargs_thinking_disabled: dict[str, object] = {
-            "extra_body": {"thinking": {"type": "disabled"}}
-        }
+        kwargs_thinking_disabled: dict[str, object] = {"extra_body": {"thinking": {"type": "disabled"}}}
         assert is_reasoning_explicitly_disabled(kwargs_thinking_disabled) is True
         assert get_model_timeout_floor("deepseek-v4", kwargs_thinking_disabled) is None
 
@@ -98,12 +96,8 @@ class TestThreeTierIntentLadder:
 
     def test_effort_extraction_order(self) -> None:
         assert extract_reasoning_effort({"reasoning_effort": "HIGH"}) == "high"
-        assert extract_reasoning_effort(
-            {"extra_body": {"reasoning_effort": "low"}}
-        ) == "low"
-        assert extract_reasoning_effort(
-            {"extra_body": {"reasoning": {"effort": "medium"}}}
-        ) == "medium"
+        assert extract_reasoning_effort({"extra_body": {"reasoning_effort": "low"}}) == "low"
+        assert extract_reasoning_effort({"extra_body": {"reasoning": {"effort": "medium"}}}) == "medium"
 
 
 class TestApplyThinkingHeadroom:
@@ -134,7 +128,7 @@ class TestLocalEndpointConvergence:
     """Test convergence of local endpoint stall relaxation and reasoning timeout."""
 
     def test_local_reasoning_model_behavior(self) -> None:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             "qwq-32b",
             api_key="sk-test",
             base_url="http://127.0.0.1:11434",
@@ -144,7 +138,7 @@ class TestLocalEndpointConvergence:
         assert llm.inter_chunk_timeout == 600.0  # local inter_chunk relaxation
 
     def test_user_explicit_override_takes_precedence(self) -> None:
-        llm = create_litellm_model(
+        llm = create_chat_model(
             "minimax/MiniMax-M3.1-Flash-Preview",
             api_key="sk-test",
             request_timeout=90.0,

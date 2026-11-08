@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class _LLMModelResolver:
     """ModelResolver implementation using the business layer's model resolver.
 
-    Resolves model_name (LiteLLM format like "openai/gpt-4o-mini") to a
+    Resolves model_name (routed ``provider/model`` form like "openai/gpt-4o-mini") to a
     BaseChatModel by looking up the user's provider config for API keys.
     """
 
