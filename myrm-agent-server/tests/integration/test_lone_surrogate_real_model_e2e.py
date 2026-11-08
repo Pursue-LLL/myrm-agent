@@ -1,7 +1,7 @@
 """A message that carries a lone surrogate is still answered by a real provider.
 
 [INPUT]
-- ChatLiteLLM with the LITE model of ``.env.test`` (POS: the chat model every agent turn calls, a real provider call)
+- TransportChatModel with the LITE model of ``.env.test`` (POS: the chat model every agent turn calls, a real provider call)
 
 [OUTPUT]
 - Fails when the call raises on the unpaired half of an emoji or when the model does not answer.
@@ -18,7 +18,7 @@ import os
 
 import pytest
 from langchain_core.messages import HumanMessage
-from myrm_agent_harness.toolkits.llms import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms import TransportChatModel
 
 from tests.api.agent.utils import get_lite_model_selection
 
@@ -32,11 +32,11 @@ pytestmark = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("compatible", [False, True], ids=["native_route", "openai_compatible_route"])
 async def test_a_message_with_an_unpaired_half_of_an_emoji_is_answered(compatible: bool) -> None:
-    """The LITE model is called through its own LiteLLM route and through the OpenAI-compatible route a custom provider takes."""
+    """The LITE model is called through its own provider route and through the OpenAI-compatible route a custom provider takes."""
     selection = get_lite_model_selection()
     native = str(selection["model"])
     route = f"openai/{native.split('/', 1)[1]}" if compatible else native
-    llm = ChatLiteLLM(model=route, api_key=os.environ["LITE_API_KEY"], api_base=selection["baseUrl"])
+    llm = TransportChatModel(model=route, api_key=os.environ["LITE_API_KEY"], api_base=selection["baseUrl"])
     lone_surrogate = chr(0xD83D)
     with pytest.raises(UnicodeEncodeError):
         lone_surrogate.encode("utf-8")

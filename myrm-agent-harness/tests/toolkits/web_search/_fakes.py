@@ -4,10 +4,10 @@ from __future__ import annotations
 
 
 class FakeAPIConnectionError(Exception):
-    """Simulates LiteLLM's APIConnectionError(status=500) wrapper."""
+    """Simulates a gateway's generic APIConnectionError(status=500) wrapper."""
 
     def __init__(self, message: str, status_code: int = 500) -> None:
-        super().__init__(f"litellm.APIConnectionError: {message}")
+        super().__init__(f"APIConnectionError: {message}")
         self.status_code = status_code
 
 

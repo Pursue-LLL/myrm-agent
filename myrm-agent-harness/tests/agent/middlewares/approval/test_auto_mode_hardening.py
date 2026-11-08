@@ -302,16 +302,16 @@ async def test_live_transcript_classifier_with_model() -> None:
     1. Legitimate user command is classified as ALLOW.
     2. Malicious exfiltration command is classified as DENY.
     """
-    from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
+    from myrm_agent_harness.agent.config.provider_routing import normalize_env_model_selection_string
     from myrm_agent_harness.agent.security.transcript_classifier import TranscriptClassifier
-    from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+    from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
     api_key = os.getenv("BASIC_API_KEY")
     base_url = os.getenv("BASIC_BASE_URL")
     if not api_key or not base_url:
         pytest.skip("BASIC_API_KEY / BASIC_BASE_URL not configured (export them or provide .env.test)")
 
-    chat_model = create_litellm_model(
+    chat_model = create_chat_model(
         model=normalize_env_model_selection_string(os.getenv("BASIC_MODEL") or "minimax/MiniMax-M3"),
         api_key=api_key,
         api_base=base_url,

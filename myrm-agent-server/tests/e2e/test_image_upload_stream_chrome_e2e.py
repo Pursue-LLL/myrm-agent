@@ -163,11 +163,11 @@ def _seed_vision_provider(api_url: str) -> dict[str, object]:
       ``customModelInfo["<providerId>/<model>"]`` to decide whether to toast
       "vision not configured" (soft gate: upload still proceeds), and
     * backend ``enrich_model_capabilities`` → ``_lookup_custom_model_info`` falls
-      back from an exact key to a bare model name before consulting litellm.
+      back from an exact key to a bare model name before consulting the model catalog.
 
     Writing the same ``<providerId>/<model>`` key keeps the E2E flow byte-for-byte
     identical to a user who enabled vision in the UI. MiniMax-M3 also reports
-    ``supports_vision: true`` from litellm itself, so the backend would accept
+    ``supports_vision: true`` from the model catalog itself, so the backend would accept
     the image either way; the customModelInfo entry additionally silences the
     frontend soft-gate toast.
     """

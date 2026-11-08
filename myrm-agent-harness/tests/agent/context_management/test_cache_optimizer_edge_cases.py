@@ -49,7 +49,7 @@ async def test_process_non_anthropic_model() -> None:
     result = await processor.process(context)
 
     # Processor still runs (calculates breakpoints), but doesn't matter since
-    # LiteLLM ignores cache_control for non-Anthropic providers
+    # non-Anthropic wires ignore cache_control
     assert len(result.messages) == 2
 
 

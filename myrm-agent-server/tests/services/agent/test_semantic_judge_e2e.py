@@ -1,6 +1,6 @@
 """End-to-end integration test for Semantic Completion Judge.
 
-Uses a real LLM (via litellm) — NO mocks.
+Uses a real LLM through the model transport — NO mocks.
 Requires WebUI model config (patched from BASIC_* in .env.test).
 """
 
@@ -19,7 +19,7 @@ load_dotenv(override=False)
 
 
 def _platform_model_from_env() -> ModelConfig:
-    from myrm_agent_harness.agent.config.litellm_routing import (
+    from myrm_agent_harness.agent.config.provider_routing import (
         normalize_env_model_selection_string,
     )
 

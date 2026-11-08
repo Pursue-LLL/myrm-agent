@@ -9,7 +9,7 @@
 
 [POS]
 Pure text helpers with no trust policy: whether a completed value may be executed is
-decided by the caller (``litellm_utils.parse_tool_call_arguments_with_recovery``).
+decided by the caller (``tool_argument_recovery.parse_tool_call_arguments_with_recovery``).
 """
 
 from __future__ import annotations

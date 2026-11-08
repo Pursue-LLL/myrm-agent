@@ -82,7 +82,7 @@ class SearchServiceConfig(BaseModel):
     timeout_seconds: int | None = Field(default=20, description="Single search timeout (seconds)")
     extra_params: dict[str, object] | None = Field(
         default=None,
-        description="Provider-specific parameters for LiteLLM search (categories, engines, language, etc.)",
+        description="Provider-specific parameters passed through to the search provider (categories, engines, language, etc.)",
     )
     search_max_retries: int = Field(
         default=2,
@@ -117,12 +117,12 @@ SearchServiceConfig.model_rebuild()
 def _provider_default_params(provider: str) -> dict[str, object]:
     """Parameters a provider needs when neither the config nor the query set them; callers always win.
 
-    A fresh dict per call: LiteLLM and the retry loop receive these values and must not share state.
+    A fresh dict per call: the search client and the retry loop receive these values and must not share state.
     """
     if provider == "searxng":
         return {"language": "auto", "categories": "general", "safesearch": "0"}
     if provider == "exa_ai":
-        # Exa returns no page content unless asked, and LiteLLM then asks for the full text of every result.
+        # Exa returns no page content unless asked, and the client's own default then asks for the full text of every result.
         # Highlights are the passages Exa picked for the query, which is what a search call should hand the
         # agent; reading a whole page is web_fetch's job.
         return {"contents": {"highlights": True}}
@@ -374,8 +374,8 @@ class WebSearcher:
         error_str = str(e)
         error_lower = error_str.lower()
 
-        # Semantic checks first — LiteLLM wraps provider errors inside generic
-        # APIConnectionError, so content-based matching must precede class-name matching.
+        # Semantic checks first: content-based matching must precede class-name matching, because
+        # a provider failure reaches this point wrapped in generic connection or timeout classes.
         if "exceeds" in error_lower and ("usage limit" in error_lower or "plan" in error_lower):
             return "Search service quota exceeded — upgrade your plan or use a different API key"
         if "invalid api key" in error_lower or "invalid_api_key" in error_lower:

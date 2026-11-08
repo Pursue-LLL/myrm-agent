@@ -66,7 +66,7 @@ async def _seed_platform_model_config() -> None:
 
     Mirrors the WebUI Settings > Model Service payload so load_platform_llm()
     resolves the real BASIC_* test model through the same code path production
-    uses (config_loader → _fallback_model_from_providers → ChatLiteLLM).
+    uses (config_loader → _fallback_model_from_providers → TransportChatModel).
     """
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.database.connection import get_session
@@ -312,13 +312,13 @@ async def test_connect_mcp_wiki_real_flow(
             raw_model = (os.environ.get("BASIC_MODEL") or "").strip()
             from langchain_core.messages import HumanMessage
             from langchain_core.tools import StructuredTool
-            from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+            from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
-            from tests.api.agent.utils import _convert_litellm_model
+            from tests.api.agent.utils import _normalize_model_id
 
             base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
-            llm = create_litellm_model(
-                model=_convert_litellm_model(raw_model),
+            llm = create_chat_model(
+                model=_normalize_model_id(raw_model),
                 api_key=basic_key,
                 base_url=base_url,
                 temperature=0,

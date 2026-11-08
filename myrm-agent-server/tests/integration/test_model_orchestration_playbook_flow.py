@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
     DEFAULT_REASONING_KEYWORDS,
     DEFAULT_SIMPLE_INDICATORS,
@@ -94,7 +94,7 @@ def test_real_llm_orchestration_task_flow() -> None:
     if not (real_api_key and real_base_url and real_model_name):
         pytest.skip("No real LLM credentials configured in environment/.env.test")
 
-    real_llm = create_litellm_model(
+    real_llm = create_chat_model(
         real_model_name,
         api_key=real_api_key,
         base_url=real_base_url,

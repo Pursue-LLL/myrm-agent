@@ -33,7 +33,7 @@ def test_unknown_diagnosis_offers_next_steps(locale: str) -> None:
 
 
 @pytest.mark.parametrize("locale", _LOCALES)
-def test_unknown_message_drops_the_client_library_class_prefix(locale: str) -> None:
+def test_unknown_message_drops_the_class_prefix_a_litellm_proxy_relays(locale: str) -> None:
     exc = RuntimeError(f"litellm.APIError: litellm.APIError: {_RAW_ERROR}")
 
     result = LLMErrorDiagnostic.diagnose(exc, locale=locale)

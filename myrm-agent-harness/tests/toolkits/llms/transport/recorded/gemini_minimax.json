@@ -1,0 +1,111 @@
+{
+ "config": "gemini_minimax",
+ "wire": "gemini",
+ "model": "minimax-cn/MiniMax-M3.1-Flash-Preview",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/v1beta/models/minimax-cn/MiniMax-M3.1-Flash-Preview:streamGenerateContent",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"We\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\" need answer\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\" exactly one word P\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ONG.\",\"thought\":true}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"PONG\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[],\"role\":\"model\"},\"finishReason\":\"STOP\",\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb976b73265fc42f915e19dda1\",\"usageMetadata\":{\"cachedContentTokenCount\":209,\"candidatesTokenCount\":5,\"promptTokenCount\":210,\"thoughtsTokenCount\":9,\"totalTokenCount\":224}}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "We need answer exactly one word PONG.",
+    "tool_calls": [],
+    "usage": [
+     210,
+     14,
+     209
+    ]
+   }
+  },
+  "tools2_nonstream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1beta/models/minimax-cn/MiniMax-M3.1-Flash-Preview:generateContent",
+   "content_type": "application/json",
+   "lines": [
+    "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"I'll check both cities now.\"},{\"functionCall\":{\"args\":{\"city\":\"Tokyo\"},\"id\":\"call_fUf1nLS6o3KCVrixJU1lzyMm\",\"name\":\"get_weather\"}},{\"functionCall\":{\"args\":{\"city\":\"Paris\"},\"id\":\"call_BmmRkqnZeyAPtxMp8PeLDuu4\",\"name\":\"get_weather\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\",\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cddb7f54b5dc9d96b40aaade9725\",\"usageMetadata\":{\"cachedContentTokenCount\":455,\"candidatesTokenCount\":57,\"promptTokenCount\":456,\"totalTokenCount\":513}}"
+   ],
+   "expect": {
+    "text": "I'll check both cities now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     456,
+     57,
+     455
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1beta/models/minimax-cn/MiniMax-M3.1-Flash-Preview:streamGenerateContent",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"I'll check the weather for both cities now.\"}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cdd9f3e71c18029ec23116a3f02e\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"args\":{\"city\":\"Tokyo\"},\"id\":\"call_01a1a084e66370fd8272e17b\",\"name\":\"get_weather\"}}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cdd9f3e71c18029ec23116a3f02e\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"args\":{\"city\":\"Paris\"},\"id\":\"call_01a1a084e6aa7349958b9ade\",\"name\":\"get_weather\"}}],\"role\":\"model\"},\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cdd9f3e71c18029ec23116a3f02e\"}",
+    "",
+    "data: {\"candidates\":[{\"content\":{\"parts\":[],\"role\":\"model\"},\"finishReason\":\"STOP\",\"index\":0}],\"modelVersion\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"responseId\":\"0738cdd9f3e71c18029ec23116a3f02e\",\"usageMetadata\":{\"cachedContentTokenCount\":256,\"candidatesTokenCount\":60,\"promptTokenCount\":460,\"totalTokenCount\":520}}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "I'll check the weather for both cities now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": null,
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     460,
+     60,
+     256
+    ]
+   }
+  }
+ }
+}

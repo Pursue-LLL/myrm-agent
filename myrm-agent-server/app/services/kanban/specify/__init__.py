@@ -8,7 +8,7 @@ Aggregated public API for the ``specify`` subpackage.
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain task type.)
 
 [OUTPUT]
-- PlatformTaskSpecifier: Concrete TaskSpecifier using LiteLLM + WebUI config.
+- PlatformTaskSpecifier: Concrete TaskSpecifier using the platform LLM + WebUI config.
 - SPECIFY_ALL_MAX_CONCURRENT / run_specify_task / run_apply_spec /
     run_specify_all_triage: Specify orchestration helpers.
 

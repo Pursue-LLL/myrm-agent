@@ -4,7 +4,7 @@
 web_search.core.common::SearchResult (POS: Unified search result dataclass)
 web_search.core.exceptions::SearchConfigError (POS: Search exception types)
 web_search.coalescing.search_coalescing::credential_fingerprint (POS: Non-reversible digest of an identity)
-web_search.providers.litellm_search::LiteLLMSearch (POS: LiteLLM unified search client, imported on first build so litellm stays out of package import)
+web_search.providers.rest_search::RestSearch (POS: REST client for the keyed search providers)
 web_search.providers.volcengine_doubao_search::VolcengineDoubaoSearch (POS: Volcengine native search client)
 
 [OUTPUT]
@@ -14,7 +14,7 @@ describe_credential_scope: The identity a search for a config is billed and answ
 credential_scope_digest: Digest of that identity, shared by result caching and quota cooldowns
 
 [POS]
-Provider wiring for WebSearcher: decides native vs LiteLLM client, direct vs gateway routing, and which
+Provider wiring for WebSearcher: decides which client serves the provider, direct vs gateway routing, and which
 credentials are mandatory. Sole owner of "which credential counts" — the routing decision here is what
 determines it — so the cache and the cooldown cannot disagree. Holds no state; caching and retry stay in WebSearcher.
 """
@@ -101,7 +101,7 @@ def build_search_service(config: SearchServiceConfig, *, bypass_gateway: bool = 
             api_base=config.api_base,
         )
 
-    from myrm_agent_harness.toolkits.web_search.providers.litellm_search import LiteLLMSearch
+    from myrm_agent_harness.toolkits.web_search.providers.rest_search import RestSearch
 
     api_key: str | None
     api_base: str | None
@@ -123,7 +123,7 @@ def build_search_service(config: SearchServiceConfig, *, bypass_gateway: bool = 
         api_key, api_base = require_api_key(config), config.api_base
 
     logger.debug("Search service %s ready", provider)
-    return LiteLLMSearch(
+    return RestSearch(
         search_provider=provider,
         api_key=api_key,
         api_base=api_base,

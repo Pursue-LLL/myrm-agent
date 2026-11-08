@@ -51,8 +51,8 @@ def local_embedding() -> LocalEmbeddingServer:
 def _build_user_configs_from_env(embedding_endpoint: str | None = None):
     """Build ``UserConfigs`` from ``.env.test`` (real LLM + embedding keys).
 
-    LiteLLM requires ``openai/`` (not ``openai-like/``) with ``base_url`` for
-    custom OpenAI-compatible endpoints; siliconflow embedding is routed via
+    Custom OpenAI-compatible endpoints use the ``openai/`` prefix (the
+    ``openai-like/`` picker alias is normalized away) with a ``base_url``; siliconflow embedding is routed via
     the same OpenAI-compatible path. ``embedding_endpoint`` (when given) points
     the embedding config at the local endpoint instead of the env keys.
     """

@@ -1,8 +1,9 @@
 """[INPUT]
 - app.core.utils.errors.* (POS: shared error primitives)
+- myrm_agent_harness.toolkits.llms (POS: the failure classifier and the model transport's failure base class)
 
 [OUTPUT]
-- MyrmError, _classify_exception
+- MyrmError, classify_model_failure, _classify_exception
 
 [POS]
 API error utilities: the MyrmError base class and the shared exception classifier.
@@ -10,10 +11,17 @@ API error utilities: the MyrmError base class and the shared exception classifie
 
 from __future__ import annotations
 
+import httpx
+from myrm_agent_harness.toolkits.llms.errors import FailoverReason, classify_failover_reason
+from myrm_agent_harness.toolkits.llms.transport import LLMCallError
+
 from app.schemas.responses import BusinessCode, ErrorDetail
 
 from .constants import (
+    _AI_FAILURE_MESSAGES,
     _BUSINESS_CODE_TO_HTTP,
+    _DEFAULT_LLM_BUSINESS_CODE,
+    _FAILOVER_REASON_TO_BUSINESS_CODE,
 )
 
 
@@ -54,6 +62,15 @@ class MyrmError(Exception):
         return _BUSINESS_CODE_TO_HTTP.get(self.code, 500)
 
 
+def classify_model_failure(exception: Exception) -> tuple[BusinessCode, FailoverReason]:
+    """The business code and the failover reason of a failed model call, read by the harness failure classifier."""
+    try:
+        reason = classify_failover_reason(exception)
+    except Exception:
+        reason = FailoverReason.UNKNOWN
+    return _FAILOVER_REASON_TO_BUSINESS_CODE.get(reason, _DEFAULT_LLM_BUSINESS_CODE), reason
+
+
 def _classify_exception(exception: Exception) -> tuple[BusinessCode, str]:
     """Classify exception and return appropriate business code and message."""
     exception_type = type(exception).__name__
@@ -61,28 +78,25 @@ def _classify_exception(exception: Exception) -> tuple[BusinessCode, str]:
 
     # Database errors
     if exception_type in ("OperationalError", "InterfaceError", "DatabaseError"):
-        if "connect" in exception_msg.lower() or "connection" in exception_msg.lower():
+        if "connect" in exception_msg.lower():
             return BusinessCode.DB_CONNECTION_ERROR, "Database connection failed"
         return BusinessCode.DB_QUERY_ERROR, "Database operation failed"
 
     if exception_type == "IntegrityError":
         return BusinessCode.DB_INTEGRITY_ERROR, "Data integrity error"
 
-    if exception_type in ("TimeoutError", "asyncio.TimeoutError"):
+    if exception_type == "TimeoutError":
         return BusinessCode.DB_TIMEOUT_ERROR, "Database operation timeout"
 
-    # AI/LLM errors
-    if exception_type in ("AuthenticationError", "APIKeyError"):
-        return BusinessCode.AI_AUTH_ERROR, "AI service authentication failed"
+    # Model-call errors, matched by type rather than class name: the transport raises its own failure classes (one
+    # base), which carry the provider's status and body, and lets an httpx timeout through unwrapped. A bad key and an
+    # overloaded provider are the same class, so a class name could not tell them apart.
+    if isinstance(exception, LLMCallError):
+        code, _ = classify_model_failure(exception)
+        return code, _AI_FAILURE_MESSAGES[code]
 
-    if exception_type == "RateLimitError":
-        return BusinessCode.AI_RATE_LIMIT_ERROR, "AI service rate limited"
-
-    if exception_type in ("Timeout", "ReadTimeout", "ConnectTimeout"):
-        return BusinessCode.AI_TIMEOUT_ERROR, "AI service timeout"
-
-    if exception_type in ("APIError", "APIConnectionError", "ServiceUnavailableError"):
-        return BusinessCode.AI_MODEL_ERROR, "AI model call failed"
+    if isinstance(exception, httpx.TimeoutException):
+        return BusinessCode.AI_TIMEOUT_ERROR, _AI_FAILURE_MESSAGES[BusinessCode.AI_TIMEOUT_ERROR]
 
     # Network/External service errors
     if exception_type in ("ConnectionError", "ConnectionRefusedError", "OSError"):

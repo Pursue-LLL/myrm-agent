@@ -36,6 +36,7 @@ from app.lifecycle import (
 from app.server.shutdown import (
     safe_close_checkpointer,
     safe_close_external_agent_pools,
+    safe_close_model_transport,
     safe_shutdown_observability,
     safe_stop_cron,
     safe_stop_gateway,
@@ -196,6 +197,9 @@ async def _shutdown(app_instance: FastAPI) -> None:
     for r in shutdown_results:
         if isinstance(r, Exception):
             logger.error("[Shutdown] Component stop failed: %s", r)
+
+    # After the gather: the background tasks it waited for (skill review, memory extraction) still call models.
+    await safe_close_model_transport()
 
     # Final: WAL checkpoint + engine dispose to ensure all data is flushed to disk
     try:

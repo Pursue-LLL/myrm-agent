@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.llms.catalog import model_info
 
 from app.services.chat.compact.compression_streak import (
     ChatCompressionStreakStore,
@@ -131,10 +132,10 @@ def test_record_effectiveness_persists_streak_visible_to_preflight(client: TestC
 
 
 @pytest.mark.integration
-def test_preflight_resolves_real_model_window_from_litellm(
+def test_preflight_resolves_real_model_window_from_the_frontend_value(
     client: TestClient,
 ) -> None:
-    """Real LiteLLM window lookup drives threshold for a known production model."""
+    """The window the frontend sends drives the threshold for a known production model."""
     from tests.support.test_secrets import resolve_test_env
 
     model = resolve_test_env("BASIC_MODEL", "openai-like/deepseek-v4-flash")
@@ -193,17 +194,10 @@ def test_preflight_tier_inference_matches_small_model_tuning(
 
 
 @pytest.mark.integration
-def test_preflight_real_litellm_native_model_lookup(client: TestClient) -> None:
-    """A LiteLLM-native model resolves its window without frontend max_input_tokens."""
-    import litellm
-
+def test_preflight_real_catalog_model_lookup(client: TestClient) -> None:
+    """A model the catalog knows resolves its window without frontend max_input_tokens."""
     native_model = "gpt-4o"
-    try:
-        info = litellm.get_model_info(native_model)
-    except Exception:
-        pytest.skip("litellm model catalog unavailable in this env")
-    if not info:
-        pytest.skip(f"{native_model} not in litellm model cost map")
+    assert model_info(native_model) is not None, f"{native_model} missing from the bundled model catalog"
 
     response = client.post(
         "/api/v1/integrations/llm/model-switch-preflight",

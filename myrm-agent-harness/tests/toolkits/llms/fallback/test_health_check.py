@@ -7,9 +7,8 @@ import time
 from unittest.mock import AsyncMock, MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage
-from litellm.types.utils import Choices, Message, ModelResponse
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.fallback.health_check import (
     lightweight_health_check,
     probe_llm_health,
@@ -72,13 +71,13 @@ async def test_hung_model_is_cancelled_at_the_deadline() -> None:
 
 
 async def test_deadline_applies_to_a_real_model_whose_provider_never_answers() -> None:
-    model = ChatLiteLLM(model="openai/probe-model", max_tokens=4096)
+    model = TransportChatModel(model="openai/probe-model", max_tokens=4096)
     model.client = MagicMock()
 
     async def never_answers(**_: object) -> None:
         await asyncio.Event().wait()
 
-    model.client.acreate = AsyncMock(side_effect=never_answers)
+    model.client.acompletion = AsyncMock(side_effect=never_answers)
 
     started = time.monotonic()
     assert await lightweight_health_check(model, timeout_s=0.1) is False
@@ -86,17 +85,15 @@ async def test_deadline_applies_to_a_real_model_whose_provider_never_answers() -
 
 
 async def test_probe_leaves_the_models_token_budget_alone() -> None:
-    model = ChatLiteLLM(model="openai/probe-model", max_tokens=4096)
+    model = TransportChatModel(model="openai/probe-model", max_tokens=4096)
     model.client = MagicMock()
-    model.client.acreate = AsyncMock(
-        return_value=ModelResponse(
-            choices=[Choices(message=Message(role="assistant", content="ok"), finish_reason="stop")]
-        )
+    model.client.acompletion = AsyncMock(
+        return_value={"choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}]}
     )
 
     assert await lightweight_health_check(model) is True
 
-    assert model.client.acreate.call_args.kwargs["max_tokens"] == 4096
+    assert model.client.acompletion.call_args.kwargs["max_tokens"] == 4096
 
 
 async def test_probe_reports_a_healthy_model_with_its_latency() -> None:

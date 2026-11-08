@@ -1,7 +1,7 @@
 """Provider-cache token extraction shared by cost computation and usage tracking.
 
-Different providers report the same cache quantities under different keys: LiteLLM
-normalises OpenAI/Anthropic/Gemini into ``prompt_tokens_details.*``, some adapters
+Different providers report the same cache quantities under different keys: the transport
+normalises OpenAI/Anthropic/Gemini/DeepSeek into ``prompt_tokens_details.*``, some adapters
 keep a top-level ``cache_read_tokens`` / ``cache_write_tokens`` pair, and raw
 Anthropic payloads use ``cache_read_input_tokens`` / ``cache_creation_input_tokens``.
 Cost computation and ``TokenTracker`` must read the same number from the same

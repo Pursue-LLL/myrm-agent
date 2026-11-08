@@ -143,7 +143,7 @@ describe('findOrphanModules', () => {
         file('src/app/api/route.ts', "import { r } from '@/lib/fromRoute';"),
         file('src/middleware.ts', "import { m } from '@/lib/fromMiddleware';"),
         file('src/types/env.d.ts'),
-        file('src/lib/litellmRouting.generated.ts'),
+        file('src/lib/providerRouting.generated.ts'),
         file('src/lib/fromRoute.ts'),
         file('src/lib/fromMiddleware.ts'),
       ]);

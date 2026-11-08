@@ -9,10 +9,7 @@ from app.api.memory.operations.shared_context.shared_contexts import approve_sha
 from app.core.utils.errors import MyrmError
 from app.schemas.responses import BusinessCode
 from app.services.memory.shared_context.shared_context_materializer import SharedContextProposalMaterializer
-
-
-class AuthenticationError(Exception):
-    """LiteLLM-compatible exception name used by the shared error classifier."""
+from tests.support.provider_failures import provider_failure
 
 
 @pytest.mark.asyncio
@@ -21,7 +18,7 @@ async def test_approve_shared_context_proposal_maps_embedding_auth_failure(
 ) -> None:
     async def fail_approval(self: SharedContextProposalMaterializer, proposal_id: str) -> None:
         _ = (self, proposal_id)
-        raise AuthenticationError("Incorrect API key provided: default")
+        raise provider_failure(401, "Incorrect API key provided: default", path="/v1/embeddings")
 
     monkeypatch.setattr(SharedContextProposalMaterializer, "approve_write_proposal", fail_approval)
 

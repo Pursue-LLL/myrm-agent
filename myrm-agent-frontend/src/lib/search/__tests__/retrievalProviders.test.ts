@@ -6,10 +6,10 @@ import {
   QUICK_SETUP_PROVIDERS,
   RERANKER_PROVIDERS,
   getPresetModel,
-  toLiteLLMFormat,
+  toRoutedModelId,
 } from '../retrievalProviders';
 
-describe('toLiteLLMFormat', () => {
+describe('toRoutedModelId', () => {
   it.each([
     ['openai', 'text-embedding-3-small', 'text-embedding-3-small'],
     ['siliconflow', 'BAAI/bge-m3', 'openai/BAAI/bge-m3'],
@@ -17,7 +17,7 @@ describe('toLiteLLMFormat', () => {
     ['jina_ai', 'jina-embeddings-v3', 'jina_ai/jina-embeddings-v3'],
     ['cohere', 'rerank-v3.5', 'cohere/rerank-v3.5'],
   ])('routes %s / %s as %s', (providerId, model, expected) => {
-    expect(toLiteLLMFormat(providerId, model)).toBe(expected);
+    expect(toRoutedModelId(providerId, model)).toBe(expected);
   });
 });
 

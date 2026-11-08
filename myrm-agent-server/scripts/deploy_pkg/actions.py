@@ -9,7 +9,7 @@ from .utils import command_exists, get_os_type, print_error, print_header, print
 def try_start_local_search_profile() -> None:
     """Start SearXNG via docker compose search profile when Docker is available."""
     if not command_exists("docker"):
-        print_info("Docker not found — skip auto-starting SearXNG (install Docker or use LiteLLM search in Settings)")
+        print_info("Docker not found — skip auto-starting SearXNG (install Docker or choose a cloud search provider in Settings)")
         return
     print_info("Starting SearXNG (docker compose --profile search)...")
     try:

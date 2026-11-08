@@ -106,7 +106,7 @@ def test_emit_task_rejected_publishes_rejected() -> None:
 
 
 STALE_RESULT = "Draft summary written by the first attempt"
-STALE_ERROR = "ServiceUnavailableError: litellm.ServiceUnavailableError: Service unavailable"
+STALE_ERROR = "LLMHTTPError: openai API error 503: Service unavailable"
 
 # What a failed run leaves in ``task.error``: exception messages that name internals a user cannot act on.
 FAILURE_TEXTS = (

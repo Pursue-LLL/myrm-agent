@@ -12,8 +12,8 @@ LLM call full-chain economic metrics: token usage tracking (7 token types), cost
 | multidim_budget.py | Core | Multi-dimensional budget guard. Supports per-session, daily, and per-call limits with three-level progressive response. | ✅ |
 | budget_boundary_middleware.py | Core | AgentMiddleware that enforces budget limits mid-conversation via prompt injection (a HumanMessage marked `is_system_synthetic`, so the input screens do not take it for the user's; one WARNING hint per run, one final-answer hint per middleware instance) and tool-call stripping; its hooks return only what they add or replace. | ✅ |
 | cache_economics.py | Core | Framework-neutral utilities under ``utils/``; safe for any layer to import. | ✅ |
-| cache_savings.py | Core | Provides calculate_cache_savings_usd. | ✅ |
-| cost_engine.py | Core | Thin wrapper over litellm.completion_cost() that adds CostStatus provenance. | ✅ |
+| cache_savings.py | Core | Net USD savings of prompt-cache reads after the write premium, priced from the model catalog. | ✅ |
+| cost_engine.py | Core | Cache-aware token cost from the model catalog with CostStatus provenance (actual / estimated / unknown). | ✅ |
 | latency_stats.py | Core | `LatencyStats` frozen dataclass and `LatencyStats.from_samples`: average, p95, min, max, time-to-first-token and tokens-per-second over the per-call samples a `TokenTracker` collects. | ✅ |
 | tracker.py | Core | LLM call metadata tracker. ContextVar-based request-level tracking supporting both streaming and non-streaming calls. `record_turn_context` stores how the turn's context was assembled (`history_mode`, discarded message and tool-message counts, `catalog_delivery`, `tools_signature_changes`); exported as `turn_context` in `to_dict()` next to the cost snapshot (a child tracker's facts are not merged). | ✅ |
 | usage_ledger.py | Core | Lightweight audit log recording token count, cost, latency, and model metadata for each LLM call; owns the `DROPPED_STREAM_FINISH_REASON` finish_reason sentinel (stream closed without a final chunk) shared by the LLM adapters and the agent completion-status mapping. | ✅ |

@@ -37,7 +37,6 @@ const CAPS: ModelCapabilities = {
   supports_prompt_caching: false,
   input_cost_per_token: 0.000002,
   output_cost_per_token: 0.000008,
-  max_tokens: null,
   max_input_tokens: 128_000,
   max_output_tokens: null,
 };
@@ -194,7 +193,7 @@ describe('preflight helpers', () => {
     expect(buildPreflightSignature(base, [])).not.toBe(signature);
   });
 
-  it('re-keys server results from the LiteLLM name to providerId/model and drops missing ones', () => {
+  it('re-keys server results from the route name to providerId/model and drops missing ones', () => {
     const pairs = buildPreflightPairs(ENABLED, [OPENAI, OLLAMA], { 'gpt-4o': CAPS, llama3: CAPS });
     const result = {
       model: pairs[0].liteName,

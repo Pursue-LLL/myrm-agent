@@ -3,7 +3,7 @@
 [INPUT]
 - ..models::ModelSelection (POS: provider id, model, base URL and per-request model kwargs)
 - .providers::_find_provider_api_key (POS: key lookup when no enabled provider row matches)
-- app.core.channel_bridge.model_resolver (POS: active key extraction, litellm model naming, default-model fallback)
+- app.core.channel_bridge.model_resolver (POS: active key extraction, provider/model naming, default-model fallback)
 
 [OUTPUT]
 - _resolve_model_config: ModelSelection -> ModelConfig; raises ValueError when the provider has no active key
@@ -46,7 +46,7 @@ async def _resolve_model_config(
     """Resolve a ModelSelection into a full ModelConfig with API key from WebUI providers."""
     from app.core.channel_bridge.model_resolver import (
         _extract_all_active_keys,
-        _to_litellm_model,
+        _to_route_model_id,
     )
 
     if selection.provider_id == "default" or selection.provider_id == "auto":
@@ -98,7 +98,7 @@ async def _resolve_model_config(
     if not all_keys:
         raise ValueError(f"No active API key for provider '{selection.provider_id}'")
 
-    full_model = _to_litellm_model(selection.provider_id, selection.model, provider_type)
+    full_model = _to_route_model_id(selection.provider_id, selection.model, provider_type)
 
     effort = selection.reasoning_effort or (
         str(selection.model_kwargs.get("reasoning_effort"))

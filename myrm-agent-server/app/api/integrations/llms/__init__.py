@@ -27,7 +27,6 @@ from .model_info import (
     ModelInfoRequest,
     ModelInfoResponse,
     _search_models_by_name,
-    _try_get_model_info_exact,
     get_model_info,
     get_model_info_batch,
 )
@@ -65,7 +64,6 @@ __all__ = [
     "_is_loopback_host",
     "_is_trusted_split_stack_host",
     "_search_models_by_name",
-    "_try_get_model_info_exact",
     "router",
     "discover_models",
     "verify_llm_connection",

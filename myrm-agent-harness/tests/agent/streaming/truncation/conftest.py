@@ -14,7 +14,7 @@ from myrm_agent_harness.toolkits.llms.utils import model_utils
 
 @pytest.fixture(autouse=True)
 def _unmapped_output_ceilings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin every model to "ceiling unknown": boost expectations must not depend on LiteLLM's price table."""
+    """Pin every model to "ceiling unknown": boost expectations must not depend on the model catalog."""
     monkeypatch.setattr(model_utils, "get_model_output_ceiling", lambda _model: None)
 
 

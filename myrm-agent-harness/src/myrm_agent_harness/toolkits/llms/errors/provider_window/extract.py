@@ -2,7 +2,7 @@
 
 [INPUT]
 - Exception chain of a failed LLM call (``__cause__``/``__context__``), their HTTP response
-  headers and JSON bodies as raised by litellm / OpenAI / Anthropic SDKs
+  headers and JSON bodies as raised by the transport and the OpenAI / Anthropic SDKs
 - errors.error_payload::walk_exception_chain, extract_error_body (POS: The one reader of the provider's answer in an
   LLM exception)
 

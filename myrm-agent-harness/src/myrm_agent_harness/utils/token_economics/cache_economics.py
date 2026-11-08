@@ -29,7 +29,7 @@ _UNCACHED_INPUT_COST_UNIT = 1.0
 def coerce_usage_non_negative_int(value: object) -> int:
     """Coerce provider usage fields to non-negative int; invalid values become 0.
 
-    LLM providers (LiteLLM) return usage as int or None. Other types indicate
+    LLM providers return usage as int or None. Other types indicate
     integration errors and should fail fast.
     """
     if value is None:

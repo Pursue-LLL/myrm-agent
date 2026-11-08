@@ -20,7 +20,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `web_search_<
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, LiteLLMSearch, SearchServiceConfig | ✅ |
+| __init__.py | Package | Toolkit entry point; lazy re-exports WebSearchTools, RestSearch, SearchServiceConfig | ✅ |
 | engine.py | Core | WebSearchTools wrapper: parallel per-question search, one shared merge (round-robin, dedup, domain diversity), first `top_k` returned | ✅ |
 | web_search_agent_tools.py | Core | LangChain `web_search_tool` factory; `fetch_and_extract_available` tells it whether the agent's `web_fetch_tool` offers `fetch_and_extract` | ✅ |
 | _web_search_tool_description.py | Core | LLM-visible tool description SSOT (EN/ZH); recommends `fetch_and_extract` only when the agent's `web_fetch_tool` offers it | ✅ |
@@ -100,7 +100,7 @@ chain hops, else its own service; a hop skipped on cooldown still counts).
 
 | Provider | Handling |
 |----------|----------|
-| `tavily` | `site:` becomes `search_domain_filter` (LiteLLM `include_domains`) and `-site:` becomes `exclude_domains`; the operators leave the query text unless nothing else remains (a query of only operators keeps its text) |
+| `tavily` | `site:` becomes `search_domain_filter` (sent to Tavily as `include_domains`) and `-site:` becomes `exclude_domains`; the operators leave the query text unless nothing else remains (a query of only operators keeps its text) |
 | any other provider | no domain filter is mapped; the query is sent as written |
 
 A `site:` value must be a host with an optional path (`gov.cn`, `.edu`, `*.edu`, `中国.cn`, `github.com/openai`) and an

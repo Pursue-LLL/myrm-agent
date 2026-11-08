@@ -2,6 +2,7 @@
 
 [INPUT]
 - langchain_core.language_models.BaseChatModel (POS: LangChain LLM base class)
+- toolkits.llms.catalog::model_facts (POS: context window and output ceiling per model, also behind a gateway route)
 
 [OUTPUT]
 - get_model_context_limit(): best-effort extraction of model context window size
@@ -15,6 +16,12 @@ Stateless utilities for inspecting LLM model properties.
 from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
+
+from myrm_agent_harness.toolkits.llms.catalog import model_facts
+
+
+def _positive_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
 
 
 def get_model_context_limit(llm: BaseChatModel) -> int | None:
@@ -39,33 +46,22 @@ def get_model_context_limit(llm: BaseChatModel) -> int | None:
                 return num_ctx
 
     model_name = getattr(llm, "model_name", "") or getattr(llm, "model", "") or ""
-    if not model_name:
+    # Chat-model objects are duck-typed here: a wrapper that exposes no usable name is "unknown", not an error.
+    if not isinstance(model_name, str) or not model_name:
         return None
 
-    try:
-        import litellm
-
-        info = litellm.get_model_info(model_name)
-        return info.get("max_input_tokens")
-    except Exception:
-        return None
+    return _positive_int((model_facts(model_name) or {}).get("max_input_tokens"))
 
 
 def get_model_output_ceiling(model_name: str) -> int | None:
-    """Documented per-response output ceiling of *model_name*, or None when LiteLLM does not know it.
+    """Documented per-response output ceiling of *model_name*, or None when the catalog does not know it.
 
-    Only ``max_output_tokens`` is trusted: for part of LiteLLM's table the legacy ``max_tokens``
+    Only ``max_output_tokens`` is trusted: for part of the catalog the legacy ``max_tokens``
     field holds the context window, which would turn a budget clamp into a no-op.
     """
     if not model_name:
         return None
-    try:
-        import litellm
-
-        ceiling = litellm.get_model_info(model_name).get("max_output_tokens")
-    except Exception:
-        return None
-    return ceiling if isinstance(ceiling, int) and ceiling > 0 else None
+    return _positive_int((model_facts(model_name) or {}).get("max_output_tokens"))
 
 
 def clamp_budget_to_model_ceiling(model_name: str, requested: int, *, accepted: int) -> int:

@@ -127,9 +127,9 @@ class _VerifierTrace:
 
 
 def _build_verifier_mock_patches(trace: _VerifierTrace):
-    from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+    from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 
-    original_ainvoke = ChatLiteLLM.ainvoke
+    original_ainvoke = TransportChatModel.ainvoke
 
     async def mock_ainvoke_func(self, *args, **kwargs):
         messages = args[0] if args else kwargs.get("input", [])
@@ -230,7 +230,7 @@ def _build_verifier_mock_patches(trace: _VerifierTrace):
 
     return (
         patch(
-            "myrm_agent_harness.toolkits.llms.adapters.chat_model.ChatLiteLLM.ainvoke",
+            "myrm_agent_harness.toolkits.llms.adapters.chat_model.TransportChatModel.ainvoke",
             new=mock_ainvoke_func,
         ),
         patch(

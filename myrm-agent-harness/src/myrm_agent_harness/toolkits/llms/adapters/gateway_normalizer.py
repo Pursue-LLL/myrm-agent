@@ -59,14 +59,15 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
     ),
     (
         re.compile(
-            r"temperature.*(?:not supported|unsupported|does not support)|unsupported.*temperature",
+            r"temperature.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*temperature",
             re.IGNORECASE,
         ),
         ("temperature",),
     ),
     (
         re.compile(
-            r"response_format|unknown field.*response_format|unsupported.*response_format",
+            r"response_format|unknown field.*response_format|unsupported.*response_format"
+            r"|output_format|structured outputs?[^.]{0,40}(?:not supported|unsupported)",
             re.IGNORECASE,
         ),
         ("response_format",),
@@ -80,10 +81,17 @@ _PARAM_REJECTION_PATTERNS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] =
     ),
     (
         re.compile(
-            r"top_p.*(?:not supported|unsupported|does not support)|unsupported.*top_p|temperature.*top_p|top_p.*temperature",
+            r"top_p.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*top_p"
+            r"|temperature.*top_p|top_p.*temperature",
             re.IGNORECASE,
         ),
         ("top_p",),
+    ),
+    (
+        re.compile(
+            r"top_k.*(?:not supported|unsupported|does not support|deprecated)|unsupported.*top_k", re.IGNORECASE
+        ),
+        ("top_k",),
     ),
 )
 
@@ -207,13 +215,6 @@ def sanitize_gateway_params_on_400(
     # Automatic fallback mapping: max_completion_tokens -> max_tokens
     if "max_completion_tokens" in stripped and saved_max_completion_tokens is not None and "max_tokens" not in params:
         params["max_tokens"] = saved_max_completion_tokens
-        allowed_params = params.get("allowed_openai_params")
-        if isinstance(allowed_params, list) and "max_tokens" not in allowed_params:
-            allowed_params.append("max_tokens")
-
-    # Also remove from allowed_openai_params whitelist if present
-    if stripped and "allowed_openai_params" in params and isinstance(params["allowed_openai_params"], list):
-        params["allowed_openai_params"] = [p for p in params["allowed_openai_params"] if p not in stripped]
 
     if stripped:
         logger.warning(

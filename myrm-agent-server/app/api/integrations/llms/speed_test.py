@@ -31,7 +31,7 @@ from .common import router
 class SpeedTestItemResult(BaseModel):
     """Single model speed test result."""
 
-    model: str = Field(..., description="Model name (LiteLLM format)")
+    model: str = Field(..., description="Model name (provider/model form)")
     ttft_ms: int | None = Field(default=None, description="Time to first token in ms")
     throughput_tps: float | None = Field(default=None, description="Tokens per second")
     total_ms: int | None = Field(default=None, description="Total generation time in ms")

@@ -115,7 +115,6 @@ const caps: ModelCapabilities = {
   supports_prompt_caching: false,
   input_cost_per_token: null,
   output_cost_per_token: null,
-  max_tokens: null,
   max_input_tokens: 16000,
   max_output_tokens: null,
 };
@@ -150,7 +149,7 @@ describe('ModelPickerPopover preflight warning', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockProviderState();
-    // The lite model name follows the canonical rule (server: to_litellm_model prefers
+    // The lite model name follows the canonical rule (server: to_routed_model prefers
     // provider_type): an OpenAI-compatible custom provider is routed through "openai/".
     mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
       'openai/model-a': caps,

@@ -1,113 +1,62 @@
-"""[INPUT]
-- (none)
+"""Net USD savings from prompt-cache reads, after the write premium.
+
+[INPUT]
+- toolkits.llms.catalog::model_info (POS: per-token input, cache-read and cache-write prices)
+- usage mapping (prompt_tokens_details.cached_tokens / cache_creation_input_tokens, or flat cached_tokens)
 
 [OUTPUT]
-- calculate_cache_savings_usd: Calculate the estimated Net USD savings from cached token...
+- calculate_cache_savings_usd: estimated net savings of the cache for one call
 
 [POS]
-Provides calculate_cache_savings_usd.
+Cache ROI figure for the usage report. A model whose catalog entry lists no cache-read price yields 0: a discount
+the catalog does not declare is never assumed.
 """
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
 
-logger = logging.getLogger(__name__)
+from myrm_agent_harness.toolkits.llms.catalog import model_info
 
 
-def calculate_cache_savings_usd(
-    usage: Mapping[str, object],
-    model: str | None,
-) -> float:
-    """Calculate the estimated Net USD savings from cached tokens based on the model's pricing.
-    This calculates Net Cache ROI by subtracting any cache write premiums.
+def _count(value: object) -> int:
+    return int(value) if isinstance(value, (int, float)) else 0
 
-    Args:
-        usage: The token usage dictionary containing 'cached_tokens', 'prompt_tokens',
-               and potentially 'cache_creation_input_tokens'.
-        model: The name of the model used, to determine pricing.
 
-    Returns:
-        The estimated net savings in USD (can be negative if write premium exceeds read savings).
+def _cache_tokens(usage: Mapping[str, object]) -> tuple[int, int]:
+    """(cache-read tokens, cache-write tokens) from the nested details, falling back to the flat field."""
+    details = usage.get("prompt_tokens_details")
+    read = write = 0
+    if isinstance(details, Mapping):
+        read = _count(details.get("cached_tokens"))
+        write = _count(details.get("cache_creation_input_tokens"))
+    if not read and not write:
+        read = _count(usage.get("cached_tokens"))
+    return read, write
+
+
+def _price(info: Mapping[str, object], key: str) -> float | None:
+    value = info.get(key)
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def calculate_cache_savings_usd(usage: Mapping[str, object], model: str | None) -> float:
+    """Net savings in USD: read discount on cached tokens minus the premium paid to write the cache.
+
+    Negative when the write premium exceeds the read savings.
     """
     if not model or not usage:
         return 0.0
-
-    try:
-        import litellm
-        from litellm import model_cost
-
-        # Get cached read and write tokens
-        cached_tokens = 0
-        cache_creation_tokens = 0
-        prompt_details = usage.get("prompt_tokens_details", {})
-
-        if isinstance(prompt_details, dict):
-            cached = prompt_details.get("cached_tokens")
-            if isinstance(cached, (int, float)):
-                cached_tokens = int(cached)
-
-            creation = prompt_details.get("cache_creation_input_tokens")
-            if isinstance(creation, (int, float)):
-                cache_creation_tokens = int(creation)
-
-        if not cached_tokens and not cache_creation_tokens:
-            # Fallback for old format
-            cached = usage.get("cached_tokens")
-            if isinstance(cached, (int, float)):
-                cached_tokens = int(cached)
-
-        if cached_tokens <= 0 and cache_creation_tokens <= 0:
-            return 0.0
-
-        # Attempt to find the model in LiteLLM's cost dictionary
-        pricing = model_cost.get(model)
-        if not pricing:
-            # Try to resolve aliased models (e.g. gpt-4o -> gpt-4o-2024-05-13)
-            try:
-                model_info = litellm.get_model_info(model)
-                if model_info:
-                    pricing = model_info
-            except Exception:
-                pass
-
-        if not pricing:
-            return 0.0
-
-        input_cost_per_token = pricing.get("input_cost_per_token", 0.0)
-
-        # Determine cache read cost and write cost per token
-        cache_read_cost_per_token = pricing.get("cache_read_input_token_cost")
-
-        # Some providers charge a premium for creating the cache (e.g., Anthropic charges 1.25x)
-        # However, litellm model_cost might not always expose this clearly as a single variable.
-        # We will try to get it, or use standard heuristics.
-        # Anthropic standard: write is 1.25x base, read is 0.1x base.
-        # So write premium = 0.25x base.
-
-        cache_write_premium_per_token = 0.0
-
-        if cache_read_cost_per_token is None:
-            # DO NOT guess financial data. If the model provider or litellm registry does not declare
-            # a specific cache discount, we strictly assume 0 savings to avoid false advertising.
-            return 0.0
-        else:
-            # If litellm has the read cost, perfectly calculate write premium if defined.
-            cache_creation_cost = pricing.get("cache_creation_input_token_cost")
-            if cache_creation_cost is not None and cache_creation_cost > input_cost_per_token:
-                cache_write_premium_per_token = cache_creation_cost - input_cost_per_token
-
-        # Savings = (Cost without cache) - (Cost with cache)
-        savings_per_read_token = input_cost_per_token - cache_read_cost_per_token
-
-        gross_savings = cached_tokens * savings_per_read_token
-        write_penalty = cache_creation_tokens * cache_write_premium_per_token
-
-        net_savings = gross_savings - write_penalty
-
-        return float(net_savings)
-
-    except Exception as e:
-        logger.debug("Failed to calculate cache savings for model %s: %s", model, e)
+    read_tokens, write_tokens = _cache_tokens(usage)
+    if read_tokens <= 0 and write_tokens <= 0:
         return 0.0
+    info = model_info(model)
+    if info is None:
+        return 0.0
+    input_price = _price(info, "input_cost_per_token") or 0.0
+    read_price = _price(info, "cache_read_input_token_cost")
+    if read_price is None:
+        return 0.0
+    write_price = _price(info, "cache_creation_input_token_cost")
+    write_premium = max(0.0, write_price - input_price) if write_price is not None else 0.0
+    return read_tokens * (input_price - read_price) - write_tokens * write_premium

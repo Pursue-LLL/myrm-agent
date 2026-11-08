@@ -51,8 +51,8 @@ class ConsensusConfig:
             calls (e.g. ``"low"``).  ``None`` (default) = provider default.
             Reducing this for references cuts thinking-token cost on reasoning
             models (o3, R1) without quality loss — references are advisors,
-            not decision-makers.  Unsupported models silently ignore it via
-            ``litellm.drop_params``.
+            not decision-makers.  An endpoint that rejects it is retried without
+            it by the gateway normalizer.
         aggregator_reasoning_effort: reasoning effort level for the aggregator
             call (e.g. ``"high"``).  ``None`` (default) = provider default.
         privacy_filter: redact reference content in SSE (``display``) or in SSE

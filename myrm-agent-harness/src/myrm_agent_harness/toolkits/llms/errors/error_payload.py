@@ -1,8 +1,8 @@
 """What the provider itself answered, read from an LLM exception.
 
 [INPUT]
-- An LLM exception and its ``__cause__``/``__context__`` chain as raised by the OpenAI and Anthropic SDKs and
-  litellm: a parsed JSON ``body`` and/or an HTTP ``response``
+- An LLM exception and its ``__cause__``/``__context__`` chain as raised by the transport and the OpenAI and Anthropic SDKs:
+  a parsed JSON ``body`` and/or an HTTP ``response``
 
 [OUTPUT]
 - MAX_CHAIN_DEPTH: how many links of an exception chain are ever read
@@ -27,7 +27,7 @@ import json
 import re
 from collections.abc import Mapping
 
-# Twice the deepest chain a real client produces today (the OpenAI SDK behind litellm: 6 links), so one more
+# Twice the deepest chain a real client produces today (an SDK behind a wrapper client: 6 links), so one more
 # wrapping layer in a client upgrade does not push the root cause out of reach.
 MAX_CHAIN_DEPTH = 12
 
@@ -81,7 +81,18 @@ def _body_message(body: Mapping[str, object], depth: int = 0) -> str | None:
         message = _upstream_message(error, depth) or _text(error.get("message"))
         if message:
             return message
-    return _text(error) or _text(body.get("message")) or _text(body.get("detail"))
+    return (
+        _text(error) or _text(body.get("message")) or _text(body.get("detail")) or _listed_message(body.get("errors"))
+    )
+
+
+def _listed_message(errors: object) -> str | None:
+    """Return the first sentence of an ``errors`` list of objects (``{"errors": [{"message": "..."}]}``)."""
+    if not isinstance(errors, list):
+        return None
+    return next(
+        (message for item in errors if isinstance(item, Mapping) and (message := _text(item.get("message")))), None
+    )
 
 
 def _upstream_message(error: Mapping[str, object], depth: int) -> str | None:

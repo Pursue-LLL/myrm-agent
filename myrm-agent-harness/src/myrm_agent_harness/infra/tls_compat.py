@@ -12,16 +12,15 @@ When ``MYRM_TLS_STRICT`` is off, ``apply_global_tls_relaxation()`` gives every c
 place it takes its context from:
 
 - ``ssl.create_default_context`` is wrapped and ``ssl._create_default_https_context`` (``urllib.request``,
-  ``http.client``) points at the wrapper, which reaches httpx, litellm's aiohttp transport and asyncio's ``ssl=True``
+  ``http.client``) points at the wrapper, which reaches httpx, aiohttp and asyncio's ``ssl=True``
   as well. A client-purpose context built for the default trust validates against the operating system's roots
   (``truststore``) plus any CA bundle the environment names (``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``,
   ``NODE_EXTRA_CA_CERTS``, added on top, never replacing), with only ``VERIFY_X509_STRICT`` cleared. A context built
   for an explicit CA file, directory or data (a pinned CA) keeps exactly that trust and only has the strict flag
-  cleared. The one exception is the file ``SSL_CERT_FILE`` names: httpx, httpx2 and litellm read it themselves and pass
+  cleared. The one exception is the file ``SSL_CERT_FILE`` names: httpx and httpx2 read it themselves and pass
   it on as a CA file, yet it is the environment's bundle, so it is added like the others. Server-purpose contexts are
   never touched.
-- aiohttp builds its default context while it is imported and litellm caches the contexts it builds, so both are
-  rebuilt through the wrapper.
+- aiohttp builds its default context while it is imported, so it is rebuilt through the wrapper.
 - urllib3 (``requests``) builds its contexts without ``ssl.create_default_context``, so its builder gets the same
   trust. A CA file a caller loads into such a context (``verify=path``) is added to that trust, not exclusive.
 - A child process inherits none of this. ``with_node_system_ca()`` adds ``NODE_USE_SYSTEM_CA=1`` to the environment of
@@ -34,15 +33,15 @@ Certificate chain validation, hostname verification and expiry checks stay on, w
 Activation:
     Set ``MYRM_TLS_STRICT=0`` (or ``false``/``no``/``off``). Default (unset) keeps strict verification and installs
     nothing. The host calls ``apply_global_tls_relaxation()`` once at startup, before any client is created.
-    Whether to relax is decided when a context is built, but a library that cached a context (litellm keeps one per
-    CA file for the process, aiohttp one default) or a client that holds one keeps it, so a change of the setting
-    reaches every client only after a restart.
+    Whether to relax is decided when a context is built, but a library that cached a context (aiohttp keeps one
+    default) or a client that holds one keeps it, so a change of the setting reaches every client only after a
+    restart.
 
 [INPUT]
 - ssl (POS: Python standard library SSL module)
 - truststore (POS: validates server chains against the operating system's trust store)
 - certifi (POS: identifies the default CA bundle httpx asks the standard library for)
-- aiohttp, litellm, urllib3 (POS: libraries whose default or cached contexts are brought under the policy when loaded)
+- aiohttp, urllib3 (POS: libraries whose default or cached contexts are brought under the policy when loaded)
 - os (POS: environment variable access)
 - utils.os_compat::IS_WIN (POS: whether the host operating system is Windows)
 
@@ -52,7 +51,7 @@ Activation:
   on while strict mode is off
 - create_httpx_client(): the harness's construction point for ``httpx.AsyncClient``; the policy covers a client
   built directly just the same
-- apply_global_tls_relaxation(): installs the context policy above on the standard library, aiohttp, litellm and
+- apply_global_tls_relaxation(): installs the context policy above on the standard library, aiohttp and
   urllib3; idempotent
 
 [POS]
@@ -87,9 +86,6 @@ _EXTRA_CA_ENV_VARS = (_ENV_CA_FILE, "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
 
 # Makes Node trust the operating system's CA store besides its bundled roots; a Node that does not know it ignores it.
 _NODE_SYSTEM_CA_ENV = "NODE_USE_SYSTEM_CA"
-
-# litellm builds its default context while it is imported and caches one per CA file for the process.
-_LITELLM_HTTP_HANDLER = "litellm.llms.custom_httpx.http_handler"
 
 # Set on the wrapped builders so a second install finds the first.
 _POLICY_MARK = "_myrm_enterprise_tls"
@@ -193,7 +189,7 @@ def _install_default_context_policy() -> None:
     ) -> ssl.SSLContext:
         if purpose is not ssl.Purpose.SERVER_AUTH or not tls_strict_disabled():
             return original(purpose, cafile=cafile, capath=capath, cadata=cadata)
-        # httpx, httpx2 and litellm pass ``SSL_CERT_FILE`` on as ``cafile`` verbatim; it is not a pinned CA.
+        # httpx and httpx2 pass ``SSL_CERT_FILE`` on as ``cafile`` verbatim; it is not a pinned CA.
         env_cafile = os.environ.get(_ENV_CA_FILE)
         if capath is None and cadata is None and cafile in (None, bundled_cafile, env_cafile):
             ctx = _platform_trust_context() or original(purpose, cafile=cafile)
@@ -211,8 +207,7 @@ def _install_default_context_policy() -> None:
 def _rebuild_aiohttp_default_context() -> None:
     """Replace the verified context aiohttp built while it was imported, so a session that names no context gets the policy.
 
-    aiohttp builds it once, at import time, to keep disk I/O off the event loop, and litellm imports aiohttp before a
-    host reads the setting. The context is rebuilt with aiohttp's own builder, which asks ``ssl.create_default_context``.
+    aiohttp builds it once, at import time, to keep disk I/O off the event loop, before a host reads the setting. The context is rebuilt with aiohttp's own builder, which asks ``ssl.create_default_context``.
     Nothing happens when aiohttp has not been imported yet: its first context will go through the policy.
     """
     if "aiohttp.connector" not in sys.modules:
@@ -224,18 +219,6 @@ def _rebuild_aiohttp_default_context() -> None:
         logger.warning("event=tls_aiohttp_default_context_unavailable")
         return
     connector._SSL_CONTEXT_VERIFIED = build(True)
-
-
-def _discard_litellm_cached_contexts() -> None:
-    """Drop the contexts litellm cached before the policy was in place, so the next client it builds gets the policy.
-
-    A context built earlier is strict and trusts only the bundled roots. Contexts a live client already holds are
-    not touched. Nothing happens when litellm has not been imported yet: its first context will go through the policy.
-    """
-    handler = sys.modules.get(_LITELLM_HTTP_HANDLER)
-    cache = getattr(handler, "_ssl_context_cache", None)
-    if isinstance(cache, dict):
-        cache.clear()
 
 
 def _with_enterprise_trust[**P](build: Callable[P, ssl.SSLContext]) -> Callable[P, ssl.SSLContext]:
@@ -291,7 +274,7 @@ def apply_global_tls_relaxation() -> bool:
     """Install the enterprise TLS policy process-wide when ``MYRM_TLS_STRICT`` opts out of strict mode.
 
     Covers the standard library's builders (httpx, ``urllib.request``, ``http.client``, asyncio), aiohttp's default
-    context, litellm's cached contexts and urllib3's builder (``requests``). Call at application startup before any
+    context and urllib3's builder (``requests``). Call at application startup before any
     HTTP client is created; idempotent.
 
     Returns True when the policy is in place, False when strict mode is on (nothing is installed).
@@ -301,7 +284,6 @@ def apply_global_tls_relaxation() -> bool:
 
     _install_default_context_policy()
     _rebuild_aiohttp_default_context()
-    _discard_litellm_cached_contexts()
     _install_urllib3_policy()
     logger.info("event=tls_enterprise_compat_active")
     return True

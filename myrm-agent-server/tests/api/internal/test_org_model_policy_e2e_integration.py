@@ -4,7 +4,7 @@ Tests the real data flow from control plane push through ConfigService
 to frontend consumption, verifying:
 1. POST sync stores patterns correctly
 2. GET returns the same patterns (round-trip)
-3. Pattern matching logic behaves correctly for LiteLLM-format model names
+3. Pattern matching logic behaves correctly for provider-prefixed model names
 4. Frontend can determine which models are restricted
 """
 
@@ -101,8 +101,8 @@ async def test_roundtrip_empty_clears_restriction(policy_app: FastAPI, fake_conf
 
 
 @pytest.mark.asyncio
-async def test_litellm_format_models_matched_by_policy(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
-    """Verify that LiteLLM-format model names (provider/model) are correctly
+async def test_provider_prefixed_models_matched_by_policy(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
+    """Verify that provider-prefixed model names (provider/model) are correctly
     matched by glob patterns — this is the critical integration point."""
     from fnmatch import fnmatch
 
@@ -140,7 +140,7 @@ async def test_litellm_format_models_matched_by_policy(policy_app: FastAPI, fake
 @pytest.mark.asyncio
 async def test_policy_enforcement_backend_frontend_parity(policy_app: FastAPI, fake_config: FakeConfigStore) -> None:
     """Backend fnmatch and the pattern matching produce identical results
-    for real-world LiteLLM model names."""
+    for real-world provider-prefixed model names."""
     from fnmatch import fnmatch
 
     transport = ASGITransport(app=policy_app)

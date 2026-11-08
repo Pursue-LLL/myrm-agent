@@ -207,10 +207,11 @@ def split_site_operators(query: str) -> SiteOperators:
 def resolve_site_operators(query: str, provider: str) -> tuple[str, ProviderParams]:
     """Map the ``site:`` operators of ``query`` onto the domain filters ``provider`` accepts.
 
-    Tavily filters with ``include_domains`` / ``exclude_domains``, which LiteLLM receives as
-    ``search_domain_filter`` / ``exclude_domains``. Its operators therefore become those parameters
-    (``-site:`` excludes) and leave the query, unless nothing else remains: a query of only operators keeps its
-    text. This module maps no domain filter for any other provider, which gets the query as written.
+    Tavily filters with ``include_domains`` / ``exclude_domains``; the REST search client sends
+    ``search_domain_filter`` as ``include_domains`` and passes ``exclude_domains`` through. Its operators therefore
+    become those parameters (``-site:`` excludes) and leave the query, unless nothing else remains: a query of only
+    operators keeps its text. This module maps no domain filter for any other provider, which gets the query as
+    written.
     """
     if provider != "tavily":
         return query, {}

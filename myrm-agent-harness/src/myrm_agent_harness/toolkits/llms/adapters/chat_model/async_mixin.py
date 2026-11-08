@@ -1,4 +1,4 @@
-"""ChatLiteLLM asynchronous non-streaming generation mixin.
+"""TransportChatModel asynchronous non-streaming generation mixin.
 
 [INPUT]
 - adapters.chat_model.exceptions (POS: EmptyChoicesError)
@@ -9,10 +9,10 @@
 - adapters.chat_model.sync_mixin::_record_non_stream_usage (POS: usage, cost and ledger recording shared with the sync path, composed on the aggregate root)
 
 [OUTPUT]
-- ChatLiteLLMAsyncMixin: _agenerate (empty-response retry, api key renewal before each request; delegates streaming to the stream mixin)
+- TransportChatModelAsyncMixin: _agenerate (empty-response retry, api key renewal before each request; delegates streaming to the stream mixin)
 
 [POS]
-Asynchronous non-streaming LLM generation path for ChatLiteLLM with concurrency gate and unified
+Asynchronous non-streaming LLM generation path for TransportChatModel with concurrency gate and unified
 token-usage recording. One call is one `chat` span however many attempts it takes; retries appear
 as events on that span.
 """
@@ -29,6 +29,7 @@ from langchain_core.language_models.chat_models import agenerate_from_stream
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult
 
+from myrm_agent_harness.core.config.wire import WireProtocol
 from myrm_agent_harness.infra.tracing.gen_ai import ModelCall
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import renew_api_key
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import EmptyChoicesError
@@ -60,13 +61,12 @@ from myrm_agent_harness.toolkits.llms.errors.classifier import (
 logger = logging.getLogger(__name__)
 
 
-class ChatLiteLLMAsyncMixin:
+class TransportChatModelAsyncMixin:
     if TYPE_CHECKING:
-        # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
+        # Attributes and sibling-mixin methods defined on the TransportChatModel aggregate
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         api_key: str | None
-        openai_api_key: str | None
         client: Any
         model: str
         model_name: str | None
@@ -80,8 +80,9 @@ class ChatLiteLLMAsyncMixin:
         _convert_response_to_dict: Callable[..., dict[str, Any]]
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
-        _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
+        _wire_for: Callable[..., WireProtocol]
+        _chat_messages: Callable[..., list[dict[str, Any]]]
         _recover_output_cap: Callable[..., bool]
         _inject_prompt_routing_key: Callable[..., None]
         _record_non_stream_usage: Callable[..., None]
@@ -119,15 +120,15 @@ class ChatLiteLLMAsyncMixin:
                     return await self._agenerate(messages, stop, run_manager, stream=False, **kwargs)
                 raise
             except Exception:
-                logger.error(f" LiteLLM streaming failed (Model: {self.model_name or self.model})")
+                logger.error(f" Model streaming failed (Model: {self.model_name or self.model})")
                 raise
 
-        if (renewed := await renew_api_key(self.api_key or self.openai_api_key)) is not None:
+        if (renewed := await renew_api_key(self.api_key)) is not None:
             self.api_key = renewed
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
 
-        # Filter out internal LangChain parameters that shouldn't be passed to LiteLLM
+        # Filter out internal LangChain parameters that shouldn't be passed to the transport
         filtered_kwargs = {
             k: v
             for k, v in kwargs.items()
@@ -140,7 +141,6 @@ class ChatLiteLLMAsyncMixin:
         }
 
         params = {**params, **filtered_kwargs}
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
         self._inject_prompt_routing_key(params)
 
@@ -202,14 +202,16 @@ class ChatLiteLLMAsyncMixin:
                 else:
                     memo.begin()
                     call.begin(attempt + 1)
-                    wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                    wire_protocol = self._wire_for(params)
                     if wire_protocol == "responses":
                         response = await invoke_responses_async(self.client, message_dicts, params)
                     else:
                         call_params = (
                             apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                         )
-                        response = await self.client.acreate(messages=message_dicts, **call_params)
+                        response = await self.client.acompletion(
+                            messages=self._chat_messages(message_dicts), **call_params
+                        )
                         response = self._convert_response_to_dict(response)
                     memo.finish_payload(response)
 
@@ -279,7 +281,7 @@ class ChatLiteLLMAsyncMixin:
                     logger.warning(" Context overflow, fast-failing to trigger compression.")
                     raise e
 
-                logger.error(f" LiteLLM acreate failed (Model: {self.model_name or self.model}): {e!s}")
+                logger.error(f" LLM request failed (Model: {self.model_name or self.model}): {e!s}")
                 raise
 
         if last_error:

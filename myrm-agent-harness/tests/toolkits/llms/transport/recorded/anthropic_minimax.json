@@ -1,0 +1,188 @@
+{
+ "config": "anthropic_minimax",
+ "wire": "anthropic",
+ "model": "minimax-cn/MiniMax-M3.1-Flash-Preview",
+ "scenarios": {
+  "text_stream": {
+   "prompt": "Reply with exactly one word: PONG",
+   "path": "/v1/messages",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    ": keepalive",
+    "event: message_start",
+    "data: {\"type\":\"message_start\",\"message\":{\"id\":\"0738cdd15ab95d2cc54e79714a5d18d6\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}}",
+    "",
+    "event: ping",
+    "data: {\"type\":\"ping\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"content_block\":{\"signature\":\"\",\"thinking\":\"\",\"type\":\"thinking\"},\"index\":0,\"type\":\"content_block_start\"}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"We\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\" need comply exactly\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\" one word P\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"ONG. Need final\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\" only\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\".\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"c2lnbmF0dXJl\"}}",
+    "",
+    "event: content_block_stop",
+    "data: {\"type\":\"content_block_stop\",\"index\":0}",
+    "",
+    "event: content_block_start",
+    "data: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"P\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ONG\"}}",
+    "",
+    "event: content_block_stop",
+    "data: {\"type\":\"content_block_stop\",\"index\":1}",
+    "",
+    "event: message_delta",
+    "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"input_tokens\":1,\"output_tokens\":18,\"cache_read_input_tokens\":209,\"output_tokens_details\":{\"thinking_tokens\":13}}}",
+    "",
+    "event: message_stop",
+    "data: {\"type\":\"message_stop\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "PONG",
+    "reasoning": "We need comply exactly one word PONG. Need final only.",
+    "tool_calls": [],
+    "usage": [
+     210,
+     18,
+     209
+    ]
+   }
+  },
+  "tools2_nonstream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/messages",
+   "content_type": "application/json; charset=utf-8",
+   "lines": [
+    "{\"id\":\"0738cdd9caf71f6821dc75342e90c3e8\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"content\":[{\"text\":\"I'll check the weather in both cities now.\",\"type\":\"text\"},{\"type\":\"tool_use\",\"id\":\"call_01a1a084e1f774aa85fcba9a\",\"name\":\"get_weather\",\"input\":{\"city\":\"Tokyo\"}},{\"type\":\"tool_use\",\"id\":\"call_01a1a084e235744e9e31538c\",\"name\":\"get_weather\",\"input\":{\"city\":\"Paris\"}}],\"usage\":{\"input_tokens\":204,\"output_tokens\":60,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":256},\"stop_reason\":\"tool_use\",\"base_resp\":{\"status_code\":0,\"status_msg\":\"\"}}"
+   ],
+   "expect": {
+    "text": "I'll check the weather in both cities now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": "call_01a1a084e1f774aa85fcba9a",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "call_01a1a084e235744e9e31538c",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     460,
+     60,
+     256
+    ]
+   }
+  },
+  "tools2_stream": {
+   "prompt": "What is the temperature in Tokyo and in Paris? Call get_weather for both cities in the same turn.",
+   "path": "/v1/messages",
+   "content_type": "text/event-stream; charset=utf-8",
+   "lines": [
+    "event: message_start",
+    "data: {\"type\":\"message_start\",\"message\":{\"id\":\"0738cdd0f8b9e100e1a50f2304b531d9\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"minimax-cn/MiniMax-M3.1-Flash-Preview\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}}",
+    "",
+    "event: ping",
+    "data: {\"type\":\"ping\"}",
+    "",
+    "event: content_block_start",
+    "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"delta\":{\"text\":\"I'll check the weather for both cities now.\",\"type\":\"text_delta\"},\"index\":0,\"type\":\"content_block_delta\"}",
+    "",
+    "event: content_block_stop",
+    "data: {\"type\":\"content_block_stop\",\"index\":0}",
+    "",
+    "event: content_block_start",
+    "data: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call_01a1a084c21473758ba885d1\",\"name\":\"get_weather\",\"input\":{}}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"city\\\":\\\"Tokyo\\\"}\"}}",
+    "",
+    "event: content_block_stop",
+    "data: {\"type\":\"content_block_stop\",\"index\":1}",
+    "",
+    "event: content_block_start",
+    "data: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"call_01a1a084c26f733d894495cb\",\"name\":\"get_weather\",\"input\":{}}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "",
+    "event: content_block_delta",
+    "data: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}",
+    "",
+    "event: content_block_stop",
+    "data: {\"type\":\"content_block_stop\",\"index\":2}",
+    "",
+    "event: message_delta",
+    "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"input_tokens\":204,\"output_tokens\":60,\"cache_read_input_tokens\":256}}",
+    "",
+    "event: message_stop",
+    "data: {\"type\":\"message_stop\"}",
+    "",
+    ""
+   ],
+   "expect": {
+    "text": "I'll check the weather for both cities now.",
+    "reasoning": "",
+    "tool_calls": [
+     {
+      "id": "call_01a1a084c21473758ba885d1",
+      "name": "get_weather",
+      "args": {
+       "city": "Tokyo"
+      }
+     },
+     {
+      "id": "call_01a1a084c26f733d894495cb",
+      "name": "get_weather",
+      "args": {
+       "city": "Paris"
+      }
+     }
+    ],
+    "usage": [
+     460,
+     60,
+     256
+    ]
+   }
+  }
+ }
+}

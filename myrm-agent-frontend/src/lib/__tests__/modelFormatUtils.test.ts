@@ -62,7 +62,7 @@ describe('formatPrice', () => {
 });
 
 describe('cost data source unification (per_token → per_million)', () => {
-  it('converts LiteLLM per_token price to per_million correctly', () => {
+  it('converts per_token price to per_million correctly', () => {
     const perToken = 0.000003;
     const perMillion = perToken * 1_000_000;
     expect(perMillion).toBe(3);

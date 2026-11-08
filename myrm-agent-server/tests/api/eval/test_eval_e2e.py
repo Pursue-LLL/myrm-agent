@@ -26,8 +26,8 @@ os.environ.setdefault("METRICS_ENABLED", "true")
 def _build_user_configs_from_env():
     """Build a ``UserConfigs`` from ``.env.test`` env vars (BASIC_*).
 
-    LiteLLM requires ``openai/`` prefix (not ``openai-like/``) with a
-    ``base_url`` for custom OpenAI-compatible endpoints.
+    Custom OpenAI-compatible endpoints use the ``openai/`` provider prefix (the
+    ``openai-like/`` picker alias is normalized away) with a ``base_url``.
     """
     from app.core.channel_bridge.config_loader import UserConfigs
     from app.core.types import ModelConfig
@@ -159,7 +159,7 @@ def test_eval_api_e2e() -> None:
             assert summary.get("pass_count", 0) >= 0
 
             # Manifest model disclosure: no profile selected, so the agent model
-            # falls back to model_cfg (LiteLLM-normalized) and the judge reuses
+            # falls back to model_cfg (provider-normalized) and the judge reuses
             # the same credentials.
             manifest = summary.get("manifest") or {}
             expected_provider, _, expected_model_id = mock_configs.model_cfg.model.partition("/")

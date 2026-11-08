@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def _strip_provider_prefix(model: str) -> str:
-    """移除 LiteLLM 格式的 provider/ 前缀"""
+    """移除 provider/model 格式的 provider/ 前缀"""
     if "/" in model:
         return model.split("/", 1)[1]
     return model

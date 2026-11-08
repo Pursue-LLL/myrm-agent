@@ -9,7 +9,7 @@ from myrm_agent_harness.agent.streaming.message_builder import build_messages
 from myrm_agent_harness.utils.chat_utils import (
     convert_chat_history_simple,
     extract_answer_text,
-    extract_litellm_answer_text,
+    extract_completion_text,
     extract_text_content,
 )
 from myrm_agent_harness.utils.json_parsing import (
@@ -198,60 +198,56 @@ class TestExtractAnswerText:
         assert extract_answer_text(response) == "block answer"
 
 
-class _FakeLitellmMessage:
-    def __init__(self, content: object, reasoning_content: str | None = None) -> None:
-        self.content = content
-        self.reasoning_content = reasoning_content
+def _completion(content: object, reasoning_content: object = None) -> dict[str, object]:
+    message: dict[str, object] = {"role": "assistant", "content": content}
+    if reasoning_content is not None:
+        message["reasoning_content"] = reasoning_content
+    return {"choices": [{"index": 0, "message": message}]}
 
 
-class _FakeLitellmResponse:
-    def __init__(self, message: object) -> None:
-        self.choices = [type("Choice", (), {"message": message})()]
-
-
-class TestExtractLitellmAnswerText:
+class TestExtractCompletionText:
     def test_none_response_returns_empty(self) -> None:
-        assert extract_litellm_answer_text(None) == ""
+        assert extract_completion_text(None) == ""
 
     def test_missing_choices_returns_empty(self) -> None:
-        response = type("Resp", (), {"choices": []})()
-        assert extract_litellm_answer_text(response) == ""
+        assert extract_completion_text({"choices": []}) == ""
+
+    def test_message_missing_returns_empty(self) -> None:
+        assert extract_completion_text({"choices": [{"index": 0}]}) == ""
+
+    def test_attribute_style_response_is_not_a_completion(self) -> None:
+        response = type("Resp", (), {"choices": [type("Choice", (), {"message": {"content": "x"}})()]})()
+        assert extract_completion_text(response) == ""
 
     def test_plain_string_content(self) -> None:
-        msg = _FakeLitellmMessage("answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "answer"
+        assert extract_completion_text(_completion("answer")) == "answer"
 
     def test_reasoning_model_falls_back_to_reasoning_content(self) -> None:
-        msg = _FakeLitellmMessage(None, "reasoned answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "reasoned answer"
+        assert extract_completion_text(_completion(None, "reasoned answer")) == "reasoned answer"
 
     def test_empty_string_content_falls_back_to_reasoning(self) -> None:
-        msg = _FakeLitellmMessage("", "reasoned answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "reasoned answer"
+        assert extract_completion_text(_completion("", "reasoned answer")) == "reasoned answer"
 
     def test_anthropic_block_list_extracts_text(self) -> None:
-        msg = _FakeLitellmMessage([{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}])
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "hello world"
+        content = [{"type": "text", "text": "hello"}, {"type": "text", "text": "world"}]
+        assert extract_completion_text(_completion(content)) == "hello world"
 
     def test_plain_content_with_inline_think_stripped(self) -> None:
-        msg = _FakeLitellmMessage("<think>plan</think>answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "answer"
+        assert extract_completion_text(_completion("<think>plan</think>answer")) == "answer"
 
     def test_block_list_with_inline_think_stripped(self) -> None:
-        msg = _FakeLitellmMessage([{"type": "text", "text": "<think>plan</think>block answer"}])
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "block answer"
+        content = [{"type": "text", "text": "<think>plan</think>block answer"}]
+        assert extract_completion_text(_completion(content)) == "block answer"
 
     def test_content_only_think_falls_back_to_reasoning(self) -> None:
-        msg = _FakeLitellmMessage("<think>only plan</think>", "reasoned answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "reasoned answer"
+        assert extract_completion_text(_completion("<think>only plan</think>", "reasoned answer")) == "reasoned answer"
 
     def test_none_text_block_does_not_leak_none(self) -> None:
-        msg = _FakeLitellmMessage([{"type": "text", "text": None}], "reasoned answer")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == "reasoned answer"
+        content = [{"type": "text", "text": None}]
+        assert extract_completion_text(_completion(content, "reasoned answer")) == "reasoned answer"
 
     def test_reasoning_content_non_string_ignored(self) -> None:
-        msg = _FakeLitellmMessage(None, "  ")
-        assert extract_litellm_answer_text(_FakeLitellmResponse(msg)) == ""
+        assert extract_completion_text(_completion(None, "  ")) == ""
 
 
 class TestParseLlmJsonObject:

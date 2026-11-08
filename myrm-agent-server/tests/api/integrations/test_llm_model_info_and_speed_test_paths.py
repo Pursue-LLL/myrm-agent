@@ -1,7 +1,7 @@
 """Tests for /integrations/llm/model-info, batch model-info, and the speed-test streaming paths.
 
 Covers the remaining llms.py branches with LLM/tooling calls mocked out,
-including LiteLLM-backed capability lookup.
+including catalog-backed capability lookup.
 """
 
 from __future__ import annotations
@@ -31,14 +31,14 @@ class TestModelInfoEndpoints:
     """model-info and model-info/batch exact-match and fallback behavior."""
 
     def test_model_info_exact_match(self, client: TestClient) -> None:
-        """Exact LiteLLM match returns found=True with capabilities."""
+        """Exact catalog match returns found=True with capabilities."""
         info = {
             "supports_vision": True,
             "supports_function_calling": True,
-            "max_tokens": 8192,
+            "max_input_tokens": 8192,
         }
         with patch(
-            "app.api.integrations.llms.model_info._try_get_model_info_exact",
+            "app.api.integrations.llms.model_info.model_facts",
             return_value=info,
         ):
             response = client.post(
@@ -64,7 +64,7 @@ class TestModelInfoEndpoints:
         )
         with (
             patch(
-                "app.api.integrations.llms.model_info._try_get_model_info_exact",
+                "app.api.integrations.llms.model_info.model_facts",
                 return_value=None,
             ),
             patch(
@@ -83,9 +83,9 @@ class TestModelInfoEndpoints:
 
     def test_model_info_batch_mixed(self, client: TestClient) -> None:
         """Batch lookup mixes exact matches and empty capability fallbacks."""
-        info = {"supports_vision": True, "max_tokens": 128000}
+        info = {"supports_vision": True, "max_input_tokens": 128000}
         with patch(
-            "app.api.integrations.llms.model_info._try_get_model_info_exact",
+            "app.api.integrations.llms.model_info.model_facts",
             side_effect=lambda model: info if model == "known" else None,
         ):
             response = client.post(
@@ -184,89 +184,44 @@ class TestSpeedTestStreamingPaths:
         assert "bad config" in (results[0]["error"] or "")
 
 
-class TestLiteLLMBackedHelpers:
-    """_try_get_model_info_exact and _search_models_by_name against mocked litellm."""
-
-    def test_try_get_model_info_exact_returns_dict(self) -> None:
-        """Exact lookup converts LiteLLM info dict when not present in model_cost."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                return_value={"max_tokens": 8192},
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 8192}
-
-    def test_try_get_model_info_exact_prefers_model_cost(self) -> None:
-        """model_cost wins over get_model_info so pricing metadata is not lost."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        with (
-            patch("litellm.model_cost", {"gpt-4o": {"max_tokens": 4096}}),
-            patch(
-                "litellm.get_model_info",
-                side_effect=AssertionError("must not be reached"),
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 4096}
-
-    def test_try_get_model_info_exact_handles_exception(self) -> None:
-        """Unknown model or lookup failure degrades to None."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                side_effect=KeyError("no such model"),
-            ),
-        ):
-            assert _try_get_model_info_exact("nope/xyz") is None
-
-    def test_try_get_model_info_exact_empty_info(self) -> None:
-        """Empty info dict from LiteLLM resolves to None."""
-        from app.api.integrations.llms import _try_get_model_info_exact
-
-        with (
-            patch("litellm.model_cost", {}),
-            patch(
-                "litellm.get_model_info",
-                return_value=None,
-            ),
-        ):
-            assert _try_get_model_info_exact("gpt-4o") is None
+class TestCatalogBackedHelpers:
+    """_search_models_by_name against the model catalog."""
 
     def test_search_models_by_name_builds_candidates(self) -> None:
-        """Name search iterates litellm.model_cost and builds candidate list."""
+        """Name search iterates the catalog and builds the candidate list."""
         from app.api.integrations.llms import _search_models_by_name
 
-        fake_cost = {
-            "openai/gpt-4o": {"max_tokens": 8192},
-            "anthropic/claude-3.5": {"max_tokens": 200000},
+        fake_catalog = {
+            "openai/gpt-4o": {"max_input_tokens": 8192},
+            "anthropic/claude-3.5": {"max_input_tokens": 200000},
             "openai/other": {},
         }
-        with patch(
-            "litellm.model_cost",
-            fake_cost,
-        ):
+        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
             candidates = _search_models_by_name("gpt-4o")
         assert len(candidates) == 1
         assert candidates[0].model_key == "openai/gpt-4o"
         assert candidates[0].provider == "openai"
-        assert candidates[0].capabilities.max_tokens == 8192
+        assert candidates[0].capabilities.max_input_tokens == 8192
 
     def test_search_models_by_name_no_provider_prefix(self) -> None:
         """Keys without a provider prefix resolve to 'unknown'."""
         from app.api.integrations.llms import _search_models_by_name
 
-        with patch(
-            "litellm.model_cost",
-            {"plain-name": {"max_tokens": 4096}},
-        ):
+        with patch("app.api.integrations.llms.model_info.known_models", return_value={"plain-name": {"max_input_tokens": 4096}}):
             candidates = _search_models_by_name("plain")
         assert len(candidates) == 1
         assert candidates[0].provider == "unknown"
         assert candidates[0].model_key == "plain-name"
+
+    def test_search_models_by_name_skips_entries_past_their_deprecation_date(self) -> None:
+        """A retired model keeps answering fact lookups but is no longer offered as a candidate."""
+        from app.api.integrations.llms import _search_models_by_name
+
+        fake_catalog = {
+            "openai/plain-retired": {"deprecation_date": "2020-01-01"},
+            "openai/plain-upcoming": {"deprecation_date": "2999-01-01"},
+            "openai/plain-current": {},
+        }
+        with patch("app.api.integrations.llms.model_info.known_models", return_value=fake_catalog):
+            candidates = _search_models_by_name("plain")
+        assert [c.model_key for c in candidates] == ["openai/plain-upcoming", "openai/plain-current"]

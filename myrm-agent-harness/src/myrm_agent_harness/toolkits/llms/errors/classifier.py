@@ -25,13 +25,15 @@ from __future__ import annotations
 import re
 from enum import Enum
 
+import httpx
+
+from ..transport.profile import UnsupportedProviderError
 from .classifier_patterns import (
     _AUTH_RE,
     _BILLING_RE,
     _CLOUDFLARE_CHALLENGE_RE,
     _DUPLICATE_TOOL_USE_ID_RE,
     _IMAGE_TOO_LARGE_RE,
-    _LITELLM_INIT_BUG_RE,
     _LONG_CONTEXT_TIER_RE,
     _MEDIA_REJECTED_RE,
     _MODEL_NOT_FOUND_RE,
@@ -52,6 +54,7 @@ from .classifier_patterns import (
     _USAGE_LIMIT_PATTERNS,
     _USAGE_LIMIT_TRANSIENT_SIGNALS,
 )
+from .error_payload import walk_exception_chain
 from .error_types import FailoverReason
 from .normalize import normalize_provider_error
 from .provider_window import has_rejected_quota_window
@@ -156,8 +159,17 @@ _REASON_TO_ERROR_KIND: dict[FailoverReason, ErrorKind] = {
 
 def classify_error(exc: Exception) -> ErrorKind:
     """Classify an LLM exception into an ``ErrorKind`` using multi-probe pipeline."""
-    reason = classify_failover_reason(exc)
+    return kind_of_reason(classify_failover_reason(exc))
+
+
+def kind_of_reason(reason: FailoverReason) -> ErrorKind:
+    """The ``ErrorKind`` a ``FailoverReason`` is reported as."""
     return _REASON_TO_ERROR_KIND.get(reason, ErrorKind.UNKNOWN)
+
+
+def _is_transport_failure(exc: Exception) -> bool:
+    """Whether *exc*, or a cause of it, is an httpx failure of the connection itself (no HTTP answer came back)."""
+    return any(isinstance(cause, httpx.TransportError) for cause in walk_exception_chain(exc))
 
 
 def classify_failover_reason(exc: Exception) -> FailoverReason:
@@ -169,14 +181,16 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
       provider_format → safety_block → model_not_found → overloaded → context_overflow →
       tls_certificate → timeout → UNKNOWN
     """
-    if isinstance(exc, TypeError) and _LITELLM_INIT_BUG_RE.search(str(exc)):
-        return FailoverReason.TIMEOUT
-
     normalized = normalize_provider_error(exc)
     msg = normalized.message
 
     if not msg.strip() and not normalized.body:
         return FailoverReason.UNKNOWN
+
+    # -1. A model id the transport cannot route is refused before any request is made: another key, a retry or a
+    # later turn cannot change that, so it is the request that is wrong, like a rejected parameter.
+    if any(isinstance(cause, UnsupportedProviderError) for cause in walk_exception_chain(exc)):
+        return FailoverReason.FORMAT_ERROR
 
     # 0a. Anthropic thinking block signature invalid (400) — must precede generic 400
     if normalized.status_code == 400 and _THINKING_SIGNATURE_RE.search(msg):
@@ -240,8 +254,8 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if _SAFETY_BLOCK_RE.search(msg):
         return FailoverReason.SAFETY_BLOCK
 
-    # Model-not-found before overloaded: ServiceUnavailableError wrappers often match
-    # service.?unavailable while the inner message is a missing-model distributor error.
+    # Model-not-found before overloaded: a 503 wrapper often matches service.?unavailable
+    # while the inner message is a missing-model distributor error.
     if _MODEL_NOT_FOUND_RE.search(msg):
         return FailoverReason.MODEL_NOT_FOUND
 
@@ -263,10 +277,21 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     # SSL/TLS/handshake trace but no certificate verdict — same class
     # as connection reset, e.g. Bun's "unknown certificate verification
     # error" emitted on mid-handshake reset)
-    if _TIMEOUT_RE.search(msg) or _TLS_TRANSPORT_RE.search(msg):
+    # A client-library transport failure (read timeout, refused or reset connection, dropped stream) often has
+    # no message of its own, so its type decides (unless an HTTP answer came back); the patterns below read the
+    # wordings other layers add.
+    if (
+        (normalized.status_code is None and _is_transport_failure(exc))
+        or _TIMEOUT_RE.search(msg)
+        or _TLS_TRANSPORT_RE.search(msg)
+    ):
         return FailoverReason.TIMEOUT
 
     # 8. Fallback Status Code Probes
+    if normalized.status_code == 408:
+        # The server gave up waiting for the request; sending it again can succeed.
+        return FailoverReason.TIMEOUT
+
     if normalized.status_code == 400:
         # A generic 400 that isn't caught by above patterns is treated as a format error
         # to prevent infinite retry loops.
@@ -291,7 +316,9 @@ def classify_failover_reason(exc: Exception) -> FailoverReason:
     if normalized.status_code == 429:
         return FailoverReason.RATE_LIMIT
 
-    if normalized.status_code in (500, 502, 503, 504, 529):
+    # 424 is the upstream model failing on its own (Bedrock's ModelErrorException / ModelStreamErrorException):
+    # another model or a later attempt can succeed, so it fails over like a 5xx instead of ending the run.
+    if normalized.status_code in (424, 500, 502, 503, 504, 529):
         return FailoverReason.OVERLOADED
 
     return FailoverReason.UNKNOWN

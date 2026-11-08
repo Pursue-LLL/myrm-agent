@@ -11,7 +11,7 @@ import CapabilityIcons from '@/components/features/app-shell/capability-icons';
 import OpenCodeContributorNotice from '../model-service/OpenCodeContributorNotice';
 import { shouldShowContributorNotice } from '../model-service/opencode-contributor-utils';
 import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/llm-config';
-import { getLiteLLMModelName } from '@/store/config/providerTypes';
+import { getRoutedModelName } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
 
 export interface EnabledModel {
@@ -44,7 +44,7 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
       if (open && enabledModels.length > 0) {
         const mappedCapabilities: Record<string, ModelCapabilities> = {};
         const modelsNeedingFetch: string[] = [];
-        const modelNameMapping: Record<string, string> = {}; // litellmName -> originalModel
+        const modelNameMapping: Record<string, string> = {}; // routedName -> originalModel
 
         enabledModels.forEach((em) => {
           // 先检查本地存储的 customModelInfo（使用 providerId/model 格式）
@@ -62,16 +62,15 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
               supports_prompt_caching: false,
               input_cost_per_token: localInfo.input_cost_per_million || null,
               output_cost_per_token: localInfo.output_cost_per_million || null,
-              max_tokens: null,
               max_input_tokens: localInfo.max_input_tokens || null,
               max_output_tokens: null,
             };
           } else {
             // 需要从后端获取
             const provider = providers.find((p) => p.id === em.providerId);
-            const litellmName = getLiteLLMModelName(em.providerId, em.model, provider?.providerType);
-            modelsNeedingFetch.push(litellmName);
-            modelNameMapping[litellmName] = em.model;
+            const routedName = getRoutedModelName(em.providerId, em.model, provider?.providerType);
+            modelsNeedingFetch.push(routedName);
+            modelNameMapping[routedName] = em.model;
           }
         });
 
@@ -79,10 +78,10 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
         if (modelsNeedingFetch.length > 0) {
           fetchModelCapabilitiesBatch(modelsNeedingFetch).then((capabilities) => {
             // 将结果映射回原始模型名称
-            modelsNeedingFetch.forEach((litellmName) => {
-              const originalModel = modelNameMapping[litellmName];
-              if (capabilities[litellmName]) {
-                mappedCapabilities[originalModel] = capabilities[litellmName];
+            modelsNeedingFetch.forEach((routedName) => {
+              const originalModel = modelNameMapping[routedName];
+              if (capabilities[routedName]) {
+                mappedCapabilities[originalModel] = capabilities[routedName];
               }
             });
             setModelCapabilities({ ...mappedCapabilities });

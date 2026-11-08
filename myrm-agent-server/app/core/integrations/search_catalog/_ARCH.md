@@ -10,7 +10,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `manifest.json` | 数据 | Provider slug、connector、deployment_scope、requiresApiKey、backendReady（`volcengine_doubao` → `true` since web MVP） | — |
+| `manifest.json` | 数据 | Provider slug、deployment_scope、requiresApiKey、backendReady（`volcengine_doubao` → `true` since web MVP） | — |
 | `models.py` | 模型 | `SearchProviderManifestEntry` Pydantic 模型 | ✅ |
 | `registry.py` | 注册表 | 加载 manifest、按 deploy mode 过滤、max chain size | ✅ |
 | `migration.py` | 迁移 | legacy `role` primary/fallback → `priority` 整数 | ✅ |

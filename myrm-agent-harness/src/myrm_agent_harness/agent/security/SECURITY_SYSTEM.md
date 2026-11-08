@@ -623,7 +623,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 Org 管理员可通过 Control Plane 配置 **Managed Approval Policy (MAP)**，经 sandbox env 注入并在 harness 进程内由 `managed_approval_policy.py` 加载。MAP 是组织级**下限**（floor），不替代用户/Agent 的 SecurityConfig，仅在匹配模型上收紧审批路径。
 
-**模型匹配**：`forceAutoReviewForModels` / `ignoreAllowlistForModels` 使用 fnmatch glob（`fnmatchcase`，大小写敏感），对 Agent 的 **bare model slug** 匹配（与 `parse_litellm_model` 第二段一致，`agent_runtime.py` 注入 primary model）。Control Plane upsert 时会 strip 可选的 `provider/` 前缀后再存库与 fanout。
+**模型匹配**：`forceAutoReviewForModels` / `ignoreAllowlistForModels` 使用 fnmatch glob（`fnmatchcase`，大小写敏感），对 Agent 的 **bare model slug** 匹配（与 `parse_route_model_id` 第二段一致，`agent_runtime.py` 注入 primary model）。Control Plane upsert 时会 strip 可选的 `provider/` 前缀后再存库与 fanout。
 
 **与 YOLO 的 precedence**（`managed_policy_gates.yolo_allowed_for_model` → `batch_processor.evaluate_tool_batch`）：
 

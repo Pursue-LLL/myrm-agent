@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 
 import pytest
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
@@ -139,7 +139,7 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     assert res_health.get("status") == "healthy"
 
     # 3. Verify Vercel AI Gateway attribution headers
-    gw_model = create_litellm_model(
+    gw_model = create_chat_model(
         "openai/gpt-4o",
         api_key="vca_test_mock_key",
         base_url="https://ai-gateway.vercel.sh/v1",
@@ -154,7 +154,7 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     real_base_url = os.getenv("BASIC_BASE_URL")
     real_model_name = os.getenv("BASIC_MODEL")
     if real_api_key and real_base_url and real_model_name:
-        real_llm = create_litellm_model(
+        real_llm = create_chat_model(
             real_model_name,
             api_key=real_api_key,
             base_url=real_base_url,

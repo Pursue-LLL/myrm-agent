@@ -5,27 +5,29 @@
 - diagnostics.catalog_result::build_catalog_result (POS: DiagnosticResult assembly from the locale catalogue)
 - diagnostics.cooldown_hint::format_cooldown_hint (POS: Cooldown hint rendering for rate-limit diagnostics)
 - diagnostics.i18n::get_locale_manager (POS: Framework-level i18n for LLM error diagnostics)
+- diagnostics.provider_words::error_text, keyword_text, provider_message (POS: The provider's words an error is read by and shown with)
 - diagnostics.recovery_actions::build_recovery_actions (POS: Recovery action catalogue of the diagnostics engine)
 - diagnostics.transport_diagnosis::diagnose_transport, infer_service_name (POS: TLS and connection diagnostics)
 - diagnostics.types::DiagnosticResult, ErrorContext (POS: Error diagnostic data structures)
-- core.security.redact::redact_sensitive_text (POS: Secret redaction of text shown to users and logs)
 - toolkits.llms.errors.classifier::ErrorKind, classify_error, classify_failover_reason (POS: LLM error classifier for failover decisions)
-- toolkits.llms.errors.error_payload::is_json_shaped, provider_error_message (POS: The one reader of the provider's answer in an LLM exception)
 - toolkits.llms.errors.error_types::FailoverReason (POS: Three-layer error classification system)
+- toolkits.llms.transport::LLMCallError (POS: the failures of a model call, carrying the HTTP status they stand for)
 
 [OUTPUT]
 - LLMErrorDiagnostic: Static classifier that maps LLM exceptions to localized DiagnosticResult
 
 [POS]
 LLM error diagnostic engine. Classifies exceptions from LLM calls into actionable categories
-with localized user messages and resolution steps. Transport and account failures are diagnosed by
-their own modules and tried first; the model, rate-limit, response-format, context and timeout
-families, every failure the shared classifier recognizes beyond them (a rejected key, billing, overload, safety
-filter, rejected request, WAF challenge), the unknown fallback and the truncation diagnoses live here.
+with localized user messages and resolution steps. Transport failures are diagnosed by their own module first. The
+keyword families read the provider's own sentence, not the transport's framing or the numeric fields of its JSON
+body: a status digit is data the shared classifier weighs, not a word of the provider. What the provider wrote can
+still point elsewhere than its status does (a WAF page, a subscription-tier gate, a policy block), so the failures
+the classifier outranks the text on are answered right after the transport family.
+Account failures follow, then the model, rate-limit, response-format, context and timeout families, every
+failure the shared classifier recognizes beyond them (a rejected key, billing, overload, safety filter, rejected
+request), the unknown fallback and the truncation diagnoses.
 """
 
-import html
-import json
 import re
 from dataclasses import replace
 
@@ -33,16 +35,16 @@ from myrm_agent_harness.agent.errors.diagnostics.account_diagnosis import diagno
 from myrm_agent_harness.agent.errors.diagnostics.catalog_result import build_catalog_result
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import get_locale_manager
+from myrm_agent_harness.agent.errors.diagnostics.provider_words import error_text, keyword_text, provider_message
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
 from myrm_agent_harness.agent.errors.diagnostics.transport_diagnosis import diagnose_transport, infer_service_name
 from myrm_agent_harness.agent.errors.diagnostics.types import (
     DiagnosticResult,
     ErrorContext,
 )
-from myrm_agent_harness.core.security.redact import redact_sensitive_text
-from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_error, classify_failover_reason
-from myrm_agent_harness.toolkits.llms.errors.error_payload import is_json_shaped, provider_error_message
+from myrm_agent_harness.toolkits.llms.errors.classifier import ErrorKind, classify_failover_reason, kind_of_reason
 from myrm_agent_harness.toolkits.llms.errors.error_types import FailoverReason
+from myrm_agent_harness.toolkits.llms.transport import LLMCallError
 
 _MODEL_NOT_FOUND_KEYWORDS = ("model not found", "model does not exist", "unknown model")
 _RATE_LIMIT_KEYWORDS = ("rate limit", "too many requests", "quota exceeded")
@@ -59,8 +61,8 @@ _KEYWORD_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 # Failures the shared classifier recognizes by the status code the SDK parsed as well as by the provider's wording,
 # so the keyword families above miss some of them: each reads from its own catalogue entry instead of the raw
-# exception text. A missing model is left out because the classifier files provider policy blocks under it, and
-# those read better in the provider's own words than as a model that was not found.
+# exception text. A missing model is left out; it is read by the model family above, which knows whether the
+# endpoint is a custom one.
 _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.AUTH: "api_key",
     ErrorKind.BILLING: "billing",
@@ -72,103 +74,12 @@ _CLASSIFIED_KIND_TYPES: dict[ErrorKind, str] = {
     ErrorKind.CHALLENGE_BLOCKED: "challenge_blocked",
 }
 
-# Client-library framing in front of the provider's words: litellm's exception class, then the provider's own
-# framing, the tag litellm adds ("OpenAIException - ", "AzureException BadRequestError - ") or the OpenAI SDK's
-# status line ("Error code: 400 - "). The `provider` group is non-empty only when the provider's framing is present.
-_LLM_LIBRARY_PREFIX = re.compile(
-    r"^(?:litellm\.[A-Za-z]+Error:\s*)*"
-    r"(?P<provider>(?:[A-Za-z]+Exception(?:\s+[A-Za-z]+Error)?\s+-\s+)?(?:Error code:\s*\d{3}\s+-\s+)?)"
-)
-# The human sentence inside a JSON or Python-dict error body: `{"error": {"message": "..."}}`. Each quote style
-# has its own branch and an escape pair never overlaps a plain character, so a body cut off mid-string fails in
-# linear time instead of retrying every way to split a run of backslashes.
-_MESSAGE_FIELD = re.compile(
-    r"""["']message["']\s*:\s*(?:"(?P<double>(?:\\.|[^"\\])*)"|'(?P<single>(?:\\.|[^'\\])*)')""", re.DOTALL
-)
-# The escapes of a Python dict repr: \xNN, \uNNNN, \UNNNNNNNN, or a backslash before any one character.
-_ESCAPE = re.compile(r"\\(?:x([0-9a-fA-F]{2})|u([0-9a-fA-F]{4})|U([0-9a-fA-F]{8})|(.))", re.DOTALL)
-_HTML_DOCUMENT = re.compile(r"<\s*(?:!doctype|html|head|body)\b", re.IGNORECASE)
-_HTML_NON_TEXT = re.compile(r"<(script|style)\b.*?(?:</\1\s*>|$)", re.IGNORECASE | re.DOTALL)
-_HTML_TAG = re.compile(r"<[^>]*>")
-# Bounds the work done on a provider page; the shown text is cut to _MAX_ERROR_MESSAGE_CHARS afterwards.
-_MAX_ERROR_SOURCE_CHARS = 2000
-_MAX_ERROR_MESSAGE_CHARS = 200
+# A gateway that answers 504 gave up waiting for the model, whatever words its page uses. The shared classifier files
+# the status under overload, which is what the failover policy needs; the user is told the cause.
+_GATEWAY_TIMEOUT = 504
 
-
-def _unescape(text: str) -> str:
-    """Decode the escapes of a Python-repr string; a code point that is not a character stays as written."""
-
-    def decode(match: re.Match[str]) -> str:
-        digits = match.group(1) or match.group(2) or match.group(3)
-        if digits is None:
-            return " " if match.group(4) in "nrt" else match.group(4)
-        code = int(digits, 16)
-        return chr(code) if code <= 0x10FFFF and not 0xD800 <= code <= 0xDFFF else match.group(0)
-
-    return _ESCAPE.sub(decode, text)
-
-
-def _unescape_json(text: str) -> str:
-    """Decode the escapes of the inside of a JSON string, surrogate pairs included."""
-    try:
-        decoded = json.loads(f'"{text}"')
-    except ValueError:
-        return _unescape(text)
-    return decoded if isinstance(decoded, str) else text
-
-
-def _embedded_message(raw: str) -> str | None:
-    """The provider's words inside exception text: a body's `message` field, the text after provider framing, or a page.
-
-    Framing followed by a bare JSON payload yields nothing: data with no sentence in it is not for a user.
-    """
-    field = _MESSAGE_FIELD.search(raw)
-    if field:
-        double = field.group("double")
-        return _unescape_json(double) if double is not None else _unescape(field.group("single"))
-    prefix = _LLM_LIBRARY_PREFIX.match(raw)
-    if prefix and prefix.group("provider"):
-        words = raw[prefix.end() :]
-        return None if is_json_shaped(words) else words
-    return raw if _HTML_DOCUMENT.search(raw) else None
-
-
-def _provider_words(exc: Exception, raw: str) -> str | None:
-    """What the provider said, from its payload when the exception carries one, else from the exception text."""
-    return provider_error_message(exc) or _embedded_message(raw)
-
-
-def _present(text: str) -> str:
-    """One line a user can read: page markup removed, secrets masked, whitespace collapsed, cut with an ellipsis.
-
-    Redaction runs before the cut so a credential is never left half-shown at the boundary.
-    """
-    if _HTML_DOCUMENT.search(text):
-        text = html.unescape(_HTML_TAG.sub(" ", _HTML_NON_TEXT.sub(" ", text)))
-    text = " ".join(redact_sensitive_text(text).split())
-    if len(text) <= _MAX_ERROR_MESSAGE_CHARS:
-        return text
-    return text[:_MAX_ERROR_MESSAGE_CHARS].rstrip() + "…"
-
-
-def _provider_message(exc: Exception) -> str | None:
-    """The provider's own words as one clean line, or ``None`` when the provider said nothing."""
-    words = _provider_words(exc, str(exc)[:_MAX_ERROR_SOURCE_CHARS])
-    return _present(words[:_MAX_ERROR_SOURCE_CHARS]) or None if words else None
-
-
-def _error_text(exc: Exception) -> str:
-    """The text of an unclassified failure as one clean line: the provider's words, else the exception's own text.
-
-    Text that is only a rendering of data names the exception instead.
-    """
-    raw = str(exc)[:_MAX_ERROR_SOURCE_CHARS]
-    words = _provider_words(exc, raw)
-    if not words:
-        words = _LLM_LIBRARY_PREFIX.sub("", raw)
-        if is_json_shaped(words):
-            words = ""
-    return _present(words[:_MAX_ERROR_SOURCE_CHARS]) or type(exc).__name__
+# Classifications shown in the provider's own words, because no card of ours names what the plan or account lacks.
+_PROVIDER_WORDS_REASONS = frozenset({FailoverReason.LONG_CONTEXT_TIER, FailoverReason.PROVIDER_POLICY_BLOCKED})
 
 
 def _diagnose_rejected_request(
@@ -182,7 +93,7 @@ def _diagnose_rejected_request(
     With no provider payload there is nothing to quote, so the card names the model the request was for, or states
     the failure plainly when the caller knows no model.
     """
-    message = _provider_message(exc)
+    message = provider_message(exc)
     if message is not None:
         return build_catalog_result("format_error", locale, cooldown_remaining_ms, error_message=message)
     if context and context.model_name:
@@ -192,10 +103,21 @@ def _diagnose_rejected_request(
     return build_catalog_result("format_error", locale, cooldown_remaining_ms, entry="format_error_generic")
 
 
-def _is_tier_gate(exc: Exception, kind: ErrorKind) -> bool:
-    """The classifier files an Anthropic subscription tier gate under context overflow, but the gate is no overflow of
-    the model's window: the provider's own words say what the plan lacks."""
-    return kind is ErrorKind.CONTEXT_OVERFLOW and classify_failover_reason(exc) is FailoverReason.LONG_CONTEXT_TIER
+def _diagnose_outranking(
+    exc: Exception, reason: FailoverReason, locale: str, cooldown_remaining_ms: int | None
+) -> DiagnosticResult | None:
+    """A failure whose classification outranks the keywords found in the exception text.
+
+    The keyword families below read a WAF challenge page (403) as a rejected key, a subscription tier gate (429) as
+    a rate limit and a provider policy block (403, 404) as a missing model. The classifier weighs the status against
+    the provider's payload, so its verdict wins for these. A tier gate and a policy block are no failure of the key,
+    the model or the window: the provider's own words say what the plan or the account lacks.
+    """
+    if reason is FailoverReason.CHALLENGE_BLOCKED:
+        return build_catalog_result("challenge_blocked", locale, cooldown_remaining_ms)
+    if reason in _PROVIDER_WORDS_REASONS:
+        return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=error_text(exc))
+    return None
 
 
 def _is_model_not_found(full_text: str) -> bool:
@@ -289,13 +211,19 @@ class LLMErrorDiagnostic:
         if locale is None:
             locale = get_locale_manager().detect_locale()
 
-        full_text = f"{str(exc).lower()} {repr(exc).lower()}"
+        full_text = keyword_text(exc)
 
-        # 0-3. Transport (TLS, connection) then account (billing, provider policy, API key) families
+        # 0-1. Transport (TLS, connection) family, then the failures the classifier outranks the text on
         transport = diagnose_transport(exc, full_text, context, locale, cooldown_remaining_ms)
         if transport is not None:
             return transport
 
+        reason = classify_failover_reason(exc)
+        outranking = _diagnose_outranking(exc, reason, locale, cooldown_remaining_ms)
+        if outranking is not None:
+            return outranking
+
+        # 2-3. Account family (billing, provider policy, API key)
         account = diagnose_account(exc, full_text, locale, cooldown_remaining_ms)
         if account is not None:
             return account
@@ -312,19 +240,21 @@ class LLMErrorDiagnostic:
         for error_type, keywords in _KEYWORD_FAMILIES:
             if any(kw in full_text for kw in keywords):
                 return build_catalog_result(error_type, locale, cooldown_remaining_ms)
+        if isinstance(exc, LLMCallError) and exc.status_code == _GATEWAY_TIMEOUT:
+            return build_catalog_result("timeout", locale, cooldown_remaining_ms)
 
         # 9. Failures only the shared classifier recognizes
-        kind = classify_error(exc)
+        kind = kind_of_reason(reason)
         if kind is ErrorKind.FORMAT_ERROR:
             return _diagnose_rejected_request(exc, context, locale, cooldown_remaining_ms)
         if kind is ErrorKind.RATE_LIMIT:
             return _diagnose_rate_limit(locale, cooldown_remaining_ms)
         classified_type = _CLASSIFIED_KIND_TYPES.get(kind)
-        if classified_type is not None and not _is_tier_gate(exc, kind):
+        if classified_type is not None:
             return build_catalog_result(classified_type, locale, cooldown_remaining_ms)
 
         # 10. Generic fallback
-        return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=_error_text(exc))
+        return build_catalog_result("unknown", locale, cooldown_remaining_ms, error_message=error_text(exc))
 
     @staticmethod
     def diagnose_truncation(

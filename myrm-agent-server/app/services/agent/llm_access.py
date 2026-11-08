@@ -2,7 +2,7 @@
 
 [INPUT]
 app.core.channel_bridge.config_loader (POS: WebUI 用户配置加载)
-app.core.channel_bridge.model_resolver (POS: LiteLLM 模型名解析)
+app.core.channel_bridge.model_resolver (POS: 路由模型名解析)
 
 [OUTPUT]
 get_llm_for_user / get_optional_llm_for_user
@@ -32,8 +32,8 @@ async def get_llm_for_user(model_id: str | None = None) -> BaseChatModel:
         model_cfg = resolve_model_config(configs.providers_dict, model_override=model_id)
     else:
         raw_cfg = configs.model_cfg
-        # Legacy ``default_model`` configs may carry provider prefixes LiteLLM
-        # cannot resolve (e.g. ``openai-like/xxx``); converge to standard form.
+        # Legacy ``default_model`` configs may carry provider prefixes the
+        # transport cannot route (e.g. ``openai-like/xxx``); converge to standard form.
         normalized_model = _normalize_model_name(raw_cfg.model)
         model_cfg = raw_cfg if normalized_model == raw_cfg.model else raw_cfg.model_copy(update={"model": normalized_model})
 

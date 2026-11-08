@@ -78,7 +78,7 @@ _TOKEN_USAGE_FIELDS = (
 class TokenUsage:
     """Token usage statistics.
 
-    Fields follow LiteLLM/OpenAI convention:
+    Fields follow the OpenAI usage convention:
     - prompt_tokens INCLUDES cached_tokens (total input billed by provider)
     - cached_tokens is the portion served from cache
     - cache_write_tokens is newly written to cache (Anthropic)
@@ -154,7 +154,7 @@ class TokenUsage:
     # --- Provider field extraction ---
 
     def _extract_cached(self, usage: Mapping[str, object]) -> int:
-        """Extract cached_tokens (LiteLLM normalises providers into ``prompt_tokens_details``)."""
+        """Extract cached_tokens (every wire reports it in ``prompt_tokens_details``)."""
         return extract_cached_tokens(usage)
 
     def _extract_cache_write(self, usage: Mapping[str, object]) -> int:

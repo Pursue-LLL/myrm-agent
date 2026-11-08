@@ -54,12 +54,15 @@ async def test_wait_for_page_ready_spa_stable():
 def test_dom_enhancer_loader_exception(monkeypatch):
     from pathlib import Path
 
-    monkeypatch.setattr(Path, "read_text", MagicMock(side_effect=Exception("mocked error")))
     import myrm_agent_harness.toolkits.browser.enhancers.dom_enhancer_loader as loader
 
-    loader.get_dom_enhancer_script.cache_clear()
-    script = loader.get_dom_enhancer_script()
-    assert script == ""
+    loader._read_dom_enhancer.cache_clear()
+    with monkeypatch.context() as unreadable:
+        unreadable.setattr(Path, "read_text", MagicMock(side_effect=Exception("mocked error")))
+        assert loader.get_dom_enhancer_script() == ""
+
+    # A failed read must not be remembered: later browser contexts in the same process still get the enhancer.
+    assert "window.__myrm_enhancer_initialized" in loader.get_dom_enhancer_script()
 
 
 def test_record_wait_metrics_other_strategies():

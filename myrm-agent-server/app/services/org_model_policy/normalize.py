@@ -1,4 +1,4 @@
-"""Normalize org model policy glob patterns for LiteLLM full model names.
+"""Normalize org model policy glob patterns for routed full model names.
 
 [INPUT]
 - Allowed pattern strings from control-plane sync or local config
@@ -19,7 +19,7 @@ class OrgModelPolicyPatternError(ValueError):
 
 
 def normalize_org_model_policy_pattern(pattern: str) -> str:
-    """Normalize a glob pattern for LiteLLM ``provider/model`` matching."""
+    """Normalize a glob pattern for routed ``provider/model`` matching."""
     trimmed = pattern.strip()
     if not trimmed:
         raise OrgModelPolicyPatternError("Pattern must not be empty")

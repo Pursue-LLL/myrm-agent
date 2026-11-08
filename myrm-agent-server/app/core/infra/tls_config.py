@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.config.service::config_service (POS: 配置核心业务逻辑服务)
 - myrm_agent_harness.infra.tls_compat (POS: Enterprise TLS compatibility)
+- myrm_agent_harness.toolkits.llms.transport (POS: the model transport's shared HTTP clients)
 
 [OUTPUT]
 - apply_tls_config_from_db(): Load TLS setting from DB at startup
@@ -11,14 +12,17 @@
 [POS]
 Server-level bridge that reads enterpriseTlsCompat from personalSettings
 and syncs it to the harness-level MYRM_TLS_STRICT environment variable.
-The harness applies the setting to the TLS contexts it builds afterwards; clients that already exist keep theirs,
-so a change made while running takes full effect after a restart.
+The harness applies the setting to the TLS contexts it builds afterwards, and a client keeps the context it was built
+with. A toggle made while running therefore retires the model transport's shared clients, so the next model request
+follows it; a client another component already holds keeps its own and reaches the new setting after a restart.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+
+from myrm_agent_harness.toolkits.llms.transport import retire_clients
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +58,10 @@ async def apply_tls_config_from_db() -> None:
 def sync_tls_env_from_config(personal_settings: dict[str, object]) -> None:
     """Update TLS env var when personalSettings changes at runtime.
 
-    Called from config router after personalSettings write. Only TLS contexts built from now on follow the new value.
+    Called from config router after personalSettings write. Only TLS contexts built from now on follow the new value, so
+    the model transport's shared clients are retired: a request already streaming finishes on the client it started
+    with, and the next one builds its client under the new setting (either direction, so turning the relaxation off
+    does not leave relaxed clients in use).
     """
     enabled = personal_settings.get("enterpriseTlsCompat") is True
 
@@ -67,3 +74,5 @@ def sync_tls_env_from_config(personal_settings: dict[str, object]) -> None:
     else:
         os.environ.pop(_TLS_STRICT_ENV, None)
         logger.info("[TLS] Enterprise compatibility toggled OFF via WebUI")
+
+    retire_clients()

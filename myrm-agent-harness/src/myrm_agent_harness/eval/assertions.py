@@ -2,7 +2,7 @@
 
 [INPUT]
 - protocol::EvalCase (POS: eval case with expected tools and assertions)
-- myrm_agent_harness.utils.chat_utils::extract_litellm_answer_text (POS: litellm 响应文本提取)
+- eval.judge_call::judge_completion (POS: LLM judge call with bounded retry)
 
 [OUTPUT]
 - ToolAssertion: assertion specification
@@ -28,9 +28,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from myrm_agent_harness.utils.chat_utils import extract_litellm_answer_text
-
 from .decontam import normalize_answer
+from .judge_call import judge_completion
 from .suite_judge import evaluate_test_suite_assertion
 
 if TYPE_CHECKING:
@@ -425,14 +424,6 @@ async def evaluate_semantic_assertions(
     if not assertions:
         return None, None
 
-    try:
-        from litellm import acompletion
-    except ImportError:
-        return (
-            False,
-            "Semantic assertions require the 'litellm' package to be installed.",
-        )
-
     default_judge_model = os.environ.get("MYRM_EVAL_JUDGE_MODEL", "gpt-4o-mini")
     default_binary_prompt = (
         "You are an expert evaluator. Evaluate if the ACTUAL_OUTPUT meets the CRITERIA.\n"
@@ -468,12 +459,6 @@ async def evaluate_semantic_assertions(
                 template = default_binary_prompt
 
             prompt = template.format(criteria=assertion.expected, output=actual_output)
-            call_kwargs: dict[str, object] = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.0,
-                "num_retries": 2,
-            }
             # The caller-level override (resolved from the user's model_cfg by
             # the server) wins over per-assertion credentials, keeping
             # non-OpenAI setups (DeepSeek/Qwen/self-hosted) able to run
@@ -484,14 +469,13 @@ async def evaluate_semantic_assertions(
             judge_api_base = (
                 judge_override.api_base if judge_override and judge_override.api_base else assertion.judge_api_base
             )
-            if judge_api_key:
-                call_kwargs["api_key"] = judge_api_key
-            if judge_api_base:
-                call_kwargs["base_url"] = judge_api_base
             try:
-                response = await acompletion(**call_kwargs)
-                # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退
-                result_text = extract_litellm_answer_text(response).strip()
+                result_text = await judge_completion(
+                    model=model,
+                    prompt=prompt,
+                    api_key=judge_api_key,
+                    api_base=judge_api_base,
+                )
                 if not result_text:
                     return False, "Semantic assertion: judge returned empty response"
 

@@ -9,7 +9,7 @@ import { ConfigLoadError } from '@/components/features/app-shell/config-load-err
 import useProviderStore from '@/store/useProviderStore';
 import {
   ProviderConfig as ProviderConfigType,
-  getLiteLLMModelName,
+  getRoutedModelName,
   CustomProviderType,
   hasUsableProviderAuth,
   normalizeApiUrl,
@@ -180,7 +180,7 @@ const ModelServiceSection = memo(() => {
       }
 
       try {
-        const modelFullName = getLiteLLMModelName(currentProvider.id, model, currentProvider.providerType);
+        const modelFullName = getRoutedModelName(currentProvider.id, model, currentProvider.providerType);
         console.log('[handleValidateModel] sending validateLLM request:', {
           modelFullName,
           api_key_length: requestApiKey.length,
@@ -227,7 +227,7 @@ const ModelServiceSection = memo(() => {
         continue;
       }
       for (const model of provider.enabledModels ?? []) {
-        const fullName = getLiteLLMModelName(provider.id, model, provider.providerType);
+        const fullName = getRoutedModelName(provider.id, model, provider.providerType);
         configs.push({
           config: {
             model: fullName,

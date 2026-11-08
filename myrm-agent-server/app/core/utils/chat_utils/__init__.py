@@ -19,7 +19,7 @@ from myrm_agent_harness.utils.chat_utils import (
     ChatHistoryReq,
     ContentItem,
     extract_answer_text,
-    extract_litellm_answer_text,
+    extract_completion_text,
 )
 
 from .history import convert_chat_history, parse_judge_json
@@ -41,6 +41,6 @@ __all__ = [
     "ContentItem",
     "convert_chat_history",
     "extract_answer_text",
-    "extract_litellm_answer_text",
+    "extract_completion_text",
     "parse_judge_json",
 ]

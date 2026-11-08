@@ -87,7 +87,7 @@ class TestErrorClassification:
         assert is_retryable_search_error(ConnectionError("Connection refused"))
 
     def test_apiconnectionerror_wrapper_not_matched_as_connection_error(self) -> None:
-        """LiteLLM APIConnectionError 包装器不应被当作真实连接错误"""
+        """网关的 APIConnectionError 包装器不应被当作真实连接错误"""
         exc = FakeAPIConnectionError("Something went wrong with the provider")
         # status=500 makes it retryable, but not because of "connection" keyword
         assert is_retryable_search_error(exc)  # retryable due to status=500
@@ -171,8 +171,8 @@ class TestTimeoutHandling:
             assert error.context.error_code == "TimeoutError"
 
 
-class TestLiteLLMSearchEdgeCases:
-    """测试 LiteLLMSearch 边缘情况"""
+class TestSearchRowParsing:
+    """测试搜索结果行解析的边缘情况"""
 
     def test_result_parsing_with_all_fields(self) -> None:
         """测试带完整字段的结果解析"""

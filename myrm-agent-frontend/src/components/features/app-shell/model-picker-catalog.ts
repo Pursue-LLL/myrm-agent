@@ -1,12 +1,12 @@
 /**
- * [INPUT] @/store/config/providerTypes::getLiteLLMModelName, isLocalOrTrustedSplitStackApiUrl (POS: LiteLLM 路由名与本地 / 受信任私网端点判定), @/services/llm-config (POS: 模型能力与压缩预检 DTO)
+ * [INPUT] @/store/config/providerTypes::getRoutedModelName, isLocalOrTrustedSplitStackApiUrl (POS: 路由名与本地 / 受信任私网端点判定), @/services/llm-config (POS: 模型能力与压缩预检 DTO)
  * [OUTPUT] collectLocalCapabilities / mergeFetchedCapabilities / applyLocalOwnedFallbacks: 模型能力与成本映射; groupModelsByProvider: 搜索过滤与 Provider 分组（含 $0 / free / local 查询）; buildPreflightPairs / buildPreflightSignature / mapPreflightResults: 压缩预检请求与结果映射
  * [POS] ModelPickerPopover 的纯数据逻辑与共享类型，无 React 依赖。
  */
 
 import type { ModelCapabilities, ModelSwitchPreflightResult } from '@/services/llm-config';
 import {
-  getLiteLLMModelName,
+  getRoutedModelName,
   isLocalOrTrustedSplitStackApiUrl,
   type CustomModelInfo,
   type ProviderConfig,
@@ -59,7 +59,7 @@ export interface PreflightRequestContext {
   turnCount: number | null | undefined;
 }
 
-/** Capabilities and costs known from custom model info, plus the LiteLLM names that still need a server lookup. */
+/** Capabilities and costs known from custom model info, plus the route names that still need a server lookup. */
 export function collectLocalCapabilities(
   enabledModels: EnabledModel[],
   providers: ProviderConfig[],
@@ -84,7 +84,6 @@ export function collectLocalCapabilities(
         supports_prompt_caching: false,
         input_cost_per_token: local.input_cost_per_million || null,
         output_cost_per_token: local.output_cost_per_million || null,
-        max_tokens: null,
         max_input_tokens: local.max_input_tokens || null,
         max_output_tokens: null,
       };
@@ -93,7 +92,7 @@ export function collectLocalCapabilities(
       }
     } else {
       const prov = providers.find((p) => p.id === em.providerId);
-      const liteName = getLiteLLMModelName(em.providerId, em.model, prov?.providerType);
+      const liteName = getRoutedModelName(em.providerId, em.model, prov?.providerType);
       toFetch.push(liteName);
       nameMap[liteName] = em.model;
     }
@@ -122,7 +121,7 @@ export function applyLocalOwnedFallbacks(
   }
 }
 
-/** Merges server-fetched capabilities (keyed by LiteLLM name) into the per-model maps. */
+/** Merges server-fetched capabilities (keyed by route name) into the per-model maps. */
 export function mergeFetchedCapabilities(
   caps: Record<string, ModelCapabilities>,
   toFetch: string[],
@@ -197,7 +196,7 @@ export function buildPreflightPairs(
     pairs.push({
       providerId: em.providerId,
       model: em.model,
-      liteName: getLiteLLMModelName(em.providerId, em.model, prov.providerType),
+      liteName: getRoutedModelName(em.providerId, em.model, prov.providerType),
       maxInput: caps.max_input_tokens ?? null,
     });
   }
@@ -212,7 +211,7 @@ export function buildPreflightSignature(context: PreflightRequestContext, pairs:
     .join('|')}`;
 }
 
-/** Re-keys server results (by LiteLLM name) to `providerId/model`. */
+/** Re-keys server results (by route name) to `providerId/model`. */
 export function mapPreflightResults(
   pairs: PreflightPair[],
   results: Record<string, ModelSwitchPreflightResult>,

@@ -53,16 +53,6 @@ def configure_logging() -> None:
     root_logger.setLevel(log_level)
     root_logger.addHandler(console_handler)
 
-    _suppress_library_logs("litellm", logging.WARNING)
-    _suppress_library_logs("litellm.litellm", logging.WARNING)
-    _suppress_library_logs("litellm.utils", logging.WARNING)
-    _suppress_library_logs("litellm.llms", logging.WARNING)
-    _suppress_library_logs("litellm.router", logging.WARNING)
-    _suppress_library_logs("litellm.integrations", logging.WARNING)
-    _suppress_library_logs("litellm.proxy", logging.WARNING)
-
-    _suppress_library_logs("cost_calculator", logging.WARNING)
-
     _suppress_library_logs("httpx", logging.WARNING)
     _suppress_library_logs("transformers", logging.ERROR)
 

@@ -175,7 +175,6 @@ def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path =
         # Puts the harness package into the build, which is what runs its inventory hook.
         "--hidden-import", HARNESS_PACKAGE,
         "--additional-hooks-dir", str(work_dir / HOOKS_DIR),
-        "--collect-data", "litellm",
         "--collect-data", "tiktoken",
         "--collect-submodules", "tiktoken",
         "--collect-submodules", "tiktoken_ext",

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, ChatMessage, HumanMessage, SystemMessage
 
-from myrm_agent_harness.toolkits.llms.adapters.chat_model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.converters import convert_dict_to_message, convert_message_to_dict
 
 
@@ -20,7 +20,7 @@ def test_message_name_round_trip() -> None:
 
 
 def test_minimax_system_messages_are_folded_into_first_human_turn() -> None:
-    model = ChatLiteLLM.model_construct(
+    model = TransportChatModel.model_construct(
         client=MagicMock(),
         model="minimax/MiniMax-M2.5",
         api_base="https://api.minimaxi.com/v1",
@@ -44,7 +44,7 @@ def test_minimax_system_messages_are_folded_into_first_human_turn() -> None:
 
 
 def test_minimax_chat_message_system_role_is_folded_into_first_human_turn() -> None:
-    model = ChatLiteLLM.model_construct(
+    model = TransportChatModel.model_construct(
         client=MagicMock(),
         model="minimax/MiniMax-M2.5",
         api_base="https://api.minimaxi.com/v1",
@@ -63,7 +63,7 @@ def test_minimax_chat_message_system_role_is_folded_into_first_human_turn() -> N
 
 
 def test_sanitize_image_urls_strips_auto_detail() -> None:
-    model = ChatLiteLLM.model_construct(
+    model = TransportChatModel.model_construct(
         client=MagicMock(),
         model="minimax/MiniMax-M3",
         api_base="https://api.minimaxi.com/v1",

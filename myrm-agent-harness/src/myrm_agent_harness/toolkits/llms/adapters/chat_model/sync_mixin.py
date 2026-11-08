@@ -1,4 +1,4 @@
-"""ChatLiteLLM synchronous generation and streaming mixin.
+"""TransportChatModel synchronous generation and streaming mixin.
 
 [INPUT]
 - adapters.chat_model.exceptions (POS: EmptyChoicesError / EmptyStreamError)
@@ -6,10 +6,10 @@
 - adapters.chat_model.usage_recording (POS: usage/cost/ledger recording shared with the async path)
 
 [OUTPUT]
-- ChatLiteLLMSyncMixin: _generate, _stream, empty-response retry, usage recording
+- TransportChatModelSyncMixin: _generate, _stream, empty-response retry, usage recording
 
 [POS]
-Synchronous LLM generation and streaming path for ChatLiteLLM, including empty-response retry
+Synchronous LLM generation and streaming path for TransportChatModel, including empty-response retry
 and unified token-usage recording for both streaming and non-streaming calls.
 """
 
@@ -32,6 +32,7 @@ from langchain_core.messages import (
 )
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 
+from myrm_agent_harness.core.config.wire import WireProtocol
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.exceptions import (
     EmptyChoicesError,
     EmptyStreamError,
@@ -60,9 +61,9 @@ from myrm_agent_harness.toolkits.llms.adapters.wire.invocation import (
 logger = logging.getLogger(__name__)
 
 
-class ChatLiteLLMSyncMixin:
+class TransportChatModelSyncMixin:
     if TYPE_CHECKING:
-        # Attributes and sibling-mixin methods defined on the ChatLiteLLM aggregate
+        # Attributes and sibling-mixin methods defined on the TransportChatModel aggregate
         # root; declared here so mypy understands the composition-mixin pattern.
         api_base: str | None
         client: Any
@@ -77,8 +78,9 @@ class ChatLiteLLMSyncMixin:
         _convert_response_to_dict: Callable[..., dict[str, Any]]
         _extract_tool_context_from_kwargs: Callable[..., tuple[list[str] | None, dict[str, dict[str, Any]] | None]]
         _create_message_dicts: Callable[..., tuple[list[dict[str, Any]], dict[str, Any]]]
-        _inject_allowed_params: Callable[..., None]
         _apply_output_budget: Callable[..., None]
+        _wire_for: Callable[..., WireProtocol]
+        _chat_messages: Callable[..., list[dict[str, Any]]]
         _recover_output_cap: Callable[..., bool]
 
     def _generate(
@@ -96,7 +98,7 @@ class ChatLiteLLMSyncMixin:
         available_tools, tool_schemas = self._extract_tool_context_from_kwargs(kwargs)
         message_dicts, params = self._create_message_dicts(messages, stop)
 
-        # Filter out internal LangChain parameters that shouldn't be passed to LiteLLM
+        # Filter out internal LangChain parameters that shouldn't be passed to the transport
         filtered_kwargs = {
             k: v
             for k, v in kwargs.items()
@@ -109,7 +111,6 @@ class ChatLiteLLMSyncMixin:
         }
 
         params = {**params, **filtered_kwargs}
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
 
         max_attempts = self.empty_retry_max_attempts if self.empty_retry_enabled else 1
@@ -118,14 +119,14 @@ class ChatLiteLLMSyncMixin:
         for attempt in range(max_attempts):
             try:
                 started = time.perf_counter()
-                wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                wire_protocol = self._wire_for(params)
                 if wire_protocol == "responses":
                     response = invoke_responses_sync(self.client, message_dicts, params)
                 else:
                     call_params = (
                         apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                     )
-                    response = self.client.completion(messages=message_dicts, **call_params)
+                    response = self.client.completion(messages=self._chat_messages(message_dicts), **call_params)
                     response = self._convert_response_to_dict(response)
                 result = self._create_chat_result(response, available_tools, tool_schemas)
 
@@ -196,7 +197,7 @@ class ChatLiteLLMSyncMixin:
                     raise e
 
                 model_name = self.model_name or self.model
-                logger.error(f" LiteLLM call failed: {type(e).__name__} - {e!s} (Model: {model_name})")
+                logger.error(f" Model call failed: {type(e).__name__} - {e!s} (Model: {model_name})")
                 raise
 
         if last_error:
@@ -314,7 +315,6 @@ class ChatLiteLLMSyncMixin:
             "stream": True,
             "stream_options": {"include_usage": True},
         }
-        self._inject_allowed_params(params)
         self._apply_output_budget(params)
 
         max_attempts = self.empty_retry_max_attempts if self.empty_retry_enabled else 1
@@ -323,18 +323,18 @@ class ChatLiteLLMSyncMixin:
         for attempt in range(max_attempts):
             agg: StreamAggregator | None = None
             try:
-                agg = StreamAggregator(AIMessageChunk)
+                agg = StreamAggregator(AIMessageChunk, messages)
                 xml_content_buffer = XmlStreamBuffer()
                 xml_reasoning_buffer = XmlStreamBuffer()
 
-                wire_protocol = getattr(self, "wire_protocol", "chat_completions")
+                wire_protocol = self._wire_for(params)
                 if wire_protocol == "responses":
                     stream_source = stream_responses_sync(self.client, message_dicts, params)
                 else:
                     call_params = (
                         apply_anthropic_messages_params(params) if wire_protocol == "anthropic_messages" else params
                     )
-                    stream_source = self.client.completion(messages=message_dicts, **call_params)
+                    stream_source = self.client.completion(messages=self._chat_messages(message_dicts), **call_params)
 
                 for chunk in agg.track(stream_source):
                     chunk_dict = agg.ingest_raw_chunk(chunk)
@@ -473,7 +473,7 @@ class ChatLiteLLMSyncMixin:
                     raise e
 
                 logger.error(
-                    f" LiteLLM sync streaming failed: {type(e).__name__} - {e!s} (Model: {self.model_name or self.model})"
+                    f" Model sync streaming failed: {type(e).__name__} - {e!s} (Model: {self.model_name or self.model})"
                 )
                 raise
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import tomllib
 from collections.abc import Iterable
@@ -140,10 +141,56 @@ def test_optional_only_packages_live_in_expected_extras_or_dev() -> None:
 
 @pytest.mark.architecture
 def test_core_dependency_count_is_stable() -> None:
-    """Lock core footprint: 26 runtime packages in [project].dependencies."""
+    """Lock core footprint: 25 runtime packages in [project].dependencies."""
     data = _load_pyproject()
     core = _core_dependency_names(data)
-    assert len(core) == 26
+    assert len(core) == 25
+
+
+def _imports_litellm(source: str) -> bool:
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import) and any(alias.name.split(".")[0] == "litellm" for alias in node.names):
+            return True
+        if isinstance(node, ast.ImportFrom) and node.level == 0 and (node.module or "").split(".")[0] == "litellm":
+            return True
+    return False
+
+
+@pytest.mark.architecture
+def test_litellm_is_not_declared_locked_or_imported() -> None:
+    """The model transport is in-house: the multi-provider client library must not return in any form."""
+    data = _load_pyproject()
+    project = data["project"]
+    assert isinstance(project, dict)
+    optional = project.get("optional-dependencies", {})
+    assert isinstance(optional, dict)
+    declared = _core_dependency_names(data) | _dev_group_names(data, "dev")
+    for extra in optional:
+        declared |= _optional_extra_names(data, str(extra))
+    assert "litellm" not in declared, "litellm must not be declared in any dependency table"
+
+    assert "litellm" not in {_normalize_pkg_name(str(pkg["name"])) for pkg in _lock_packages()}, (
+        "litellm must not be resolved into uv.lock"
+    )
+
+    importers = [
+        path.relative_to(_REPO_ROOT).as_posix()
+        for root in ("src", "tests", "scripts", "benchmarks")
+        for path in sorted((_REPO_ROOT / root).rglob("*.py"))
+        if _imports_litellm(path.read_text(encoding="utf-8"))
+    ]
+    assert not importers, f"modules importing litellm: {importers}"
+
+
+@pytest.mark.architecture
+def test_litellm_import_detector_sees_every_import_form() -> None:
+    """Positive and negative control for the check behind ``test_litellm_is_not_declared_locked_or_imported``."""
+    assert _imports_litellm("import litellm")
+    assert _imports_litellm("import litellm.types.utils as types")
+    assert _imports_litellm("from litellm import acompletion")
+    assert _imports_litellm("from litellm.types.utils import Usage")
+    assert not _imports_litellm("from . import litellm_like")
+    assert not _imports_litellm("import not_litellm\nname = 'litellm'")
 
 
 @pytest.mark.architecture

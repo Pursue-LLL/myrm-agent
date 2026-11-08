@@ -15,7 +15,7 @@ if env_test.is_file():
                 os.environ[k.strip()] = v.strip()
 
 from langchain_core.messages import HumanMessage
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 
 
 async def main() -> None:
@@ -27,7 +27,7 @@ async def main() -> None:
     print(f"BASE_URL: {base_url}")
     print(f"API_KEY_MASKED: {api_key[:6]}...{api_key[-4:] if api_key else ''}")
 
-    llm = ChatLiteLLM(
+    llm = TransportChatModel(
         model=model,
         api_key=api_key,
         api_base=base_url,
@@ -43,6 +43,7 @@ async def main() -> None:
     print(f"[MODEL_CONTENT]:\n{response.content}")
     print(f"[ADDITIONAL_KWARGS]:\n{response.additional_kwargs}")
     print("\n[INFERENCE_STATUS]: SUCCESS")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

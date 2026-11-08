@@ -6,7 +6,7 @@ GitHub Actions 工作流定义。harness 流水线：`harness-test.yml`（单测
 
 ## 约束
 
-- server `uv.lock` 把 harness 解析为 in-repo editable path source（见 `myrm-agent-server/tests/architecture/test_server_pyproject_lock_parity.py`）；harness 变更须触发 server 流水线（`server-unit-tests.yml` 的 paths 含 `myrm-agent-harness/src/**`、`pyproject.toml`；`server-architecture.yml` 不设路径过滤，harness 的源码与它运行的门禁脚本 `myrm-agent-harness/scripts/*.py` 的改动都会触发）；前端 `litellmRouting.generated.ts` 单独改动同样触发 `server-architecture.yml`，由 `myrm-agent-server/tests/architecture/test_litellm_routing_frontend_parity.py` 校验它与 harness 路由表一致
+- server `uv.lock` 把 harness 解析为 in-repo editable path source（见 `myrm-agent-server/tests/architecture/test_server_pyproject_lock_parity.py`）；harness 变更须触发 server 流水线（`server-unit-tests.yml` 的 paths 含 `myrm-agent-harness/src/**`、`pyproject.toml`；`server-architecture.yml` 不设路径过滤，harness 的源码与它运行的门禁脚本 `myrm-agent-harness/scripts/*.py` 的改动都会触发）；前端 `providerRouting.generated.ts` 单独改动同样触发 `server-architecture.yml`，由 `myrm-agent-server/tests/architecture/test_provider_routing_frontend_parity.py` 校验它与 harness 路由表一致
 - `harness-v*` 与桌面发布 `v*` tag 命名空间互不重叠；发布不使用长期 PyPI token
 - 架构测试标记 `architecture`：server 的 `tests/architecture/` 由该目录的 `conftest.py` 登记并自动加到每个测试上（别的工作流点名运行的文件除外），门禁带 `--strict-markers`；harness 的架构测试手写 `@pytest.mark.architecture`，`harness-boundary.yml` 据此选测
 - 读整棵文件树的守卫放在不带路径过滤的 `public-tree-guards.yml`，不要放进按路径过滤的流水线，否则路径之外的改动绕过它；守卫测试文件本身仍在 `myrm-agent-server/tests/architecture/`，只在这条流水线里用 `--noconftest -c /dev/null` 独立运行

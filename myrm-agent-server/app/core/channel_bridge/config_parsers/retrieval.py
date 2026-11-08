@@ -1,6 +1,6 @@
 """[INPUT]
 - app.core.channel_bridge.config_parsers.common::_PROVIDER_API_BASES (POS: channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。)
-- app.core.channel_bridge.model_resolver::_to_litellm_model (POS: Business-layer model resolution. Uses framework-level parsers (to_litellm_model, parse_litellm_model))
+- app.core.channel_bridge.model_resolver::_to_route_model_id (POS: Aggregate exit of the model resolver package; import path unchanged.)
 
 [OUTPUT]
 - extract_retrieval_models: Extract EmbeddingConfig and RerankerConfig from the frontend's retrieval config.
@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.core.channel_bridge.config_parsers.common import _PROVIDER_API_BASES
-from app.core.channel_bridge.model_resolver import _to_litellm_model
+from app.core.channel_bridge.model_resolver import _to_route_model_id
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -30,7 +30,7 @@ def extract_retrieval_models(
     """Extract EmbeddingConfig and RerankerConfig from the frontend's retrieval config.
 
     Only returns configs where applied=True and apiKey is present.
-    Converts provider+model to LiteLLM format and fills in default API bases.
+    Converts provider+model to the routed ``provider/model`` form and fills in default API bases.
     """
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -90,6 +90,6 @@ def _parse_retrieval_params(
     if not model:
         return None
 
-    litellm_model = _to_litellm_model(provider, model)
+    route_model_id = _to_route_model_id(provider, model)
     api_base = str(raw.get("apiBase") or _PROVIDER_API_BASES.get(provider, "")) or None
-    return litellm_model, api_key, api_base
+    return route_model_id, api_key, api_base

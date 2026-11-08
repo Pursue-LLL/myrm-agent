@@ -1,4 +1,4 @@
-"""Model-call memo wiring for the LiteLLM async adapter.
+"""Model-call memo wiring for the async chat-model adapter.
 
 [INPUT]
 - infra.memo.call_scope::{begin_memo_call, complete_memo_call, current_llm_call_scope, fail_memo_call, start_memo_call} (POS: per-call memo ledger and scope)

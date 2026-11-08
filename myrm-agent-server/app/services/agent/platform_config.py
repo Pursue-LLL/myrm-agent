@@ -6,7 +6,7 @@
 [OUTPUT]
 - load_platform_model_config: WebUI 默认 LLM ModelConfig
 - load_platform_evolution_model_config: WebUI 后台自进化与维护 LLM ModelConfig（3级降级）
-- load_llm_from_model_config: wire-aware ChatLiteLLM for any enriched ModelConfig
+- load_llm_from_model_config: wire-aware TransportChatModel for any enriched ModelConfig
 - load_platform_llm: WebUI default model via load_llm_from_model_config
 - load_platform_evolution_llm: WebUI 后台自进化专属 LLM
 - webui_model_preflight_warning: local/tauri 启动前 WebUI 模型缺失 warning（不阻塞）
@@ -69,7 +69,7 @@ async def load_llm_from_model_config(
     streaming: bool = False,
     temperature: float | None = None,
 ) -> "BaseChatModel":
-    """Build a wire-aware ChatLiteLLM from an enriched ModelConfig."""
+    """Build a wire-aware TransportChatModel from an enriched ModelConfig."""
     from myrm_agent_harness.toolkits.llms.core.manager import llm_manager
 
     resolved = cfg
@@ -87,7 +87,7 @@ async def load_platform_llm(
     streaming: bool = False,
     temperature: float | None = None,
 ) -> "BaseChatModel":
-    """WebUI default model as a wire-aware ChatLiteLLM via LLMManager."""
+    """WebUI default model as a wire-aware TransportChatModel via LLMManager."""
     cfg = await load_platform_model_config()
     return await load_llm_from_model_config(cfg, streaming=streaming, temperature=temperature)
 
@@ -109,7 +109,7 @@ async def load_platform_evolution_llm(
     streaming: bool = False,
     temperature: float | None = 0.0,
 ) -> "BaseChatModel":
-    """WebUI background evolution model as a wire-aware ChatLiteLLM via LLMManager."""
+    """WebUI background evolution model as a wire-aware TransportChatModel via LLMManager."""
     cfg = await load_platform_evolution_model_config()
     return await load_llm_from_model_config(cfg, streaming=streaming, temperature=temperature)
 

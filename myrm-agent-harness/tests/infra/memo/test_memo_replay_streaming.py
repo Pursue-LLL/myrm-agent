@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from myrm_agent_harness.infra.memo import LlmCallScope, MemoLedger, llm_call_scope
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import ChatLiteLLM
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.model import TransportChatModel
 
 CHUNKS: list[dict[str, Any]] = [
     {
@@ -38,7 +38,7 @@ class CountingStreamingClient:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def acreate(self, **kwargs: Any) -> Any:
+    async def acompletion(self, **kwargs: Any) -> Any:
         self.calls += 1
 
         async def _stream() -> Any:
@@ -48,8 +48,8 @@ class CountingStreamingClient:
         return _stream()
 
 
-def _model() -> tuple[ChatLiteLLM, CountingStreamingClient]:
-    model = ChatLiteLLM(model="gpt-4o-mini", api_key="test-key")
+def _model() -> tuple[TransportChatModel, CountingStreamingClient]:
+    model = TransportChatModel(model="gpt-4o-mini", api_key="test-key")
     model.streaming = True
     client = CountingStreamingClient()
     model.client = client  # type: ignore[assignment]
@@ -60,7 +60,7 @@ def _scope(ledger: MemoLedger, turn_id: str = "turn-1") -> LlmCallScope:
     return LlmCallScope(session_id="session-1", turn_id=turn_id, ledger=ledger)
 
 
-async def _drain(model: ChatLiteLLM) -> str:
+async def _drain(model: TransportChatModel) -> str:
     parts: list[str] = []
     async for chunk in model.astream("hello"):
         parts.append(str(chunk.content or ""))

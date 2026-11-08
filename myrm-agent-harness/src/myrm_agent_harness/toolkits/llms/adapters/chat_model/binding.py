@@ -1,4 +1,4 @@
-"""Tool-binding and structured-output assembly for ChatLiteLLM.
+"""Tool-binding and structured-output assembly for TransportChatModel.
 
 [INPUT]
 - adapters.schema::normalize_tool_schema (POS: provider-compatible OpenAI tool schemas)
@@ -10,7 +10,7 @@
 - structured_output_bind_kwargs() / structured_output_chain(): JSON-mode binding arguments and the parser chain behind ``with_structured_output``
 
 [POS]
-Pure assembly with no provider call. ``ChatLiteLLM.bind_tools`` / ``with_structured_output`` in ``model.py`` keep the
+Pure assembly with no provider call. ``TransportChatModel.bind_tools`` / ``with_structured_output`` in ``model.py`` keep the
 LangChain-facing signatures and delegate here.
 """
 
