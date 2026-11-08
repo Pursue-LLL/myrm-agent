@@ -12,7 +12,7 @@ descriptor, and the caller writes through the descriptor creation returned, so n
 
 [OUTPUT]
 - UnsafeDirectoryError: a directory on the way is a link, so nothing may be written below it
-- ConfinedDirectory: an opened directory below the root: ``scandir``, ``create_new``, ``unlink``, ``close``
+- ConfinedDirectory: an opened directory below the root: ``scandir``, ``create_new``, ``unlink``, ``close`` (a closed directory refuses every use)
 - open_directory_beneath(root, parts, *, create) -> ConfinedDirectory — open (and create) ``root/parts`` without following a link
 
 [POS]
@@ -75,6 +75,13 @@ class ConfinedDirectory:
     def __init__(self, path: Path, fd: int | None) -> None:
         self.path = path  # the root and the names below it, as written: where a result says the files are
         self._fd = fd  # None where descriptors cannot anchor the directory
+        self._closed = False
+
+    def _require_open(self) -> None:
+        # A closed directory has no descriptor left, which must not read as "no descriptor can anchor it": that
+        # would send the next write down the path-based route, through whatever link now stands at the path.
+        if self._closed:
+            raise ValueError("the confined directory is closed")
 
     @contextlib.contextmanager
     def scandir(self) -> Iterator[Iterator[os.DirEntry[str]]]:
@@ -85,6 +92,7 @@ class ConfinedDirectory:
         the usual root file system of a container). The descriptor stays open as long as the listing does, because the
         entries read their attributes through it.
         """
+        self._require_open()
         if self._fd is None:
             with os.scandir(self.path) as entries:
                 yield entries
@@ -101,7 +109,9 @@ class ConfinedDirectory:
 
         Raises:
             FileExistsError: ``name`` exists, as a file, a link or anything else.
+            ValueError: the directory is closed, or ``name`` is not a single path segment.
         """
+        self._require_open()
         _single_name(name)
         if self._fd is None:
             return os.open(self.path / name, _NEW_FILE_FLAGS, _NEW_FILE_MODE)
@@ -109,6 +119,7 @@ class ConfinedDirectory:
 
     def unlink(self, name: str) -> None:
         """Remove the entry ``name`` of this directory (the link itself, if it is one)."""
+        self._require_open()
         _single_name(name)
         if self._fd is None:
             os.unlink(self.path / name)
@@ -116,9 +127,12 @@ class ConfinedDirectory:
             os.unlink(name, dir_fd=self._fd)
 
     def close(self) -> None:
+        """Release the descriptor; every later use of the directory raises ``ValueError``. Closing again does nothing."""
+        if self._closed:
+            return
+        self._closed = True
         if self._fd is not None:
             os.close(self._fd)
-            self._fd = None
 
     def __enter__(self) -> Self:
         return self

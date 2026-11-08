@@ -39,10 +39,14 @@ class DownloadRefusal:
 
 @dataclass(frozen=True)
 class DownloadMark:
-    """How many downloads were saved and refused when it was taken; ``DownloadActivity`` counts from there."""
+    """How many downloads were saved, refused and started by the page when it was taken.
+
+    ``DownloadActivity`` counts from there, and only the downloads started after it are waited for.
+    """
 
     saved: int = 0
     refused: int = 0
+    started: int = 0
 
 
 @dataclass(frozen=True)

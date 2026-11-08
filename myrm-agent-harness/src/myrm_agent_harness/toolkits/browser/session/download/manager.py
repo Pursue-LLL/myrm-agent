@@ -24,7 +24,7 @@ is cancelled and deleted (the caller waits a bounded time for that; the cleanup 
 waiting). A page-started download is admitted and judged at once, without waiting for a free slot, and one that is not
 kept is remembered with its reason so the agent can be told. A slot (``max_concurrent_downloads``) bounds only the
 saves in progress: a request still waiting for its page to start a download, and a download being judged, hold none.
-Once a download is processed the browser keeps nothing of it: the saved copy is the only one left. A download_url
+A report of what happened after a mark waits only for the downloads the page started after it. Once a download is processed the browser keeps nothing of it: the saved copy is the only one left. A download_url
 request takes the first download its page starts, one request at a time per page; every other download of that page
 goes through the page path, and one the request claimed but never took goes there when the request ends, so no
 download is kept without a verdict. A request that gives up stops the navigation it started (one bounded, best-effort
@@ -128,6 +128,8 @@ class DownloadManager:
         self._refused_total = 0
         self._semaphore = asyncio.Semaphore(self._config.max_concurrent_downloads)
         self._pending_tasks: set[asyncio.Task[None]] = set()
+        self._page_started_total = 0
+        self._page_started_in_flight: dict[int, asyncio.Task[None]] = {}  # by the order the page started them in
         self._attached_page_ids: set[int] = set()
         self._requests: list[_DownloadRequest] = []
         self._page_locks: dict[int, asyncio.Lock] = {}
@@ -152,17 +154,18 @@ class DownloadManager:
 
     def mark(self) -> DownloadMark:
         """Where the downloads stand now; ``activity_since`` reports what comes after it."""
-        return DownloadMark(saved=len(self._downloads), refused=self._refused_total)
+        return DownloadMark(saved=len(self._downloads), refused=self._refused_total, started=self._page_started_total)
 
     async def activity_since(self, mark: DownloadMark) -> DownloadActivity:
-        """What was saved or refused since ``mark``, once the downloads the page has started have settled.
+        """What was saved or refused since ``mark``, once the downloads the page started after it have settled.
 
-        Waits for the downloads in flight (at most ``download_timeout_s``, the bound a save has itself): a verdict
-        that is still pending would otherwise read as no download at all.
+        The wait is bounded by ``download_timeout_s``, as a save is: a verdict still pending would otherwise read as
+        no download at all. A download started before the mark is none of this action's business, and a slow one
+        would hold up every action that follows it.
         """
-        pending = [task for task in self._pending_tasks if not task.done()]
-        if pending:
-            await asyncio.wait(pending, timeout=self._config.download_timeout_s)
+        awaited = [task for number, task in self._page_started_in_flight.items() if number >= mark.started]
+        if awaited:
+            await asyncio.wait(awaited, timeout=self._config.download_timeout_s)
         refused_since = self._refused_total - mark.refused
         return DownloadActivity(
             saved=tuple(self._downloads[mark.saved :]),
@@ -237,7 +240,7 @@ class DownloadManager:
         finally:
             self._requests.remove(request)
             if request.claimed is not None and request.claimed is not request.taken:
-                self._spawn(self._handle_download_async(request.claimed))
+                self._spawn_page_download(request.claimed)
 
     @staticmethod
     async def _request_download(page: Page, url: str, timeout_ms: float) -> Download:
@@ -307,7 +310,15 @@ class DownloadManager:
         if waiting is not None:
             waiting.claimed = download
             return
-        self._spawn(self._handle_download_async(download))
+        self._spawn_page_download(download)
+
+    def _spawn_page_download(self, download: Download) -> None:
+        """Handle a download the page started itself; its number lets ``activity_since`` skip earlier ones."""
+        number = self._page_started_total
+        self._page_started_total += 1
+        task = self._spawn(self._handle_download_async(download))
+        self._page_started_in_flight[number] = task
+        task.add_done_callback(lambda _done: self._page_started_in_flight.pop(number, None))
 
     def _spawn(self, work: Coroutine[None, None, None]) -> asyncio.Task[None]:
         """Run ``work`` as a task held in ``_pending_tasks``: it is not collected midway, and cleanup cancels it."""
