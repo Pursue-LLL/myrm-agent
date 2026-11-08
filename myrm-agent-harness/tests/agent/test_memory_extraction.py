@@ -273,7 +273,7 @@ class TestAutoExtractMemories:
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.pipeline.MemoryExtractor",
                 return_value=mock_extractor,
             ),
             patch("myrm_agent_harness.toolkits.memory.strategies.extractor.ExtractionConfig"),
