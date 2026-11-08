@@ -3,7 +3,8 @@
 git lists an untracked clone, or a submodule, as one entry instead of its files.
 
 Covers:
-- An untracked clone is searched with the ignore rules of its own repository, its subdirectories' ignore files included
+- An untracked clone is searched with the ignore rules of its own repository, its subdirectories' ignore files included,
+  and without those of the repository around it
 - A directory the parent repository ignores hides a clone inside it
 - A submodule, and a recorded gitlink, are searched without their ``.git`` marker; a gitlink with no checkout lists nothing
 - A nested repository that git refuses to read is still searched, under its ignore files and its subdirectories' ones
@@ -19,9 +20,16 @@ import pytest
 from tests.agent.meta_tools.file_search.search_probe import SearchRunner, git, hit_files, listed, write_tree
 
 PARENT_FILES = {".gitignore": "*.log\n", "app.py": "needle\n", "debug.log": "needle\n"}
-# ``build/`` is not ignored by the nested repository, so it is searched there like in any checkout.
-NESTED_FILES = {".gitignore": "*.tmp\n", "main.py": "needle\n", "skip.tmp": "needle\n", "build/out.js": "needle\n"}
-NESTED_VISIBLE = {".gitignore", "main.py", "build/out.js"}
+# ``build/`` and ``trace.log`` are not ignored by the nested repository, so they are searched there like in any
+# checkout: the parent's ``*.log`` stops at the clone's own ``.git``.
+NESTED_FILES = {
+    ".gitignore": "*.tmp\n",
+    "main.py": "needle\n",
+    "skip.tmp": "needle\n",
+    "build/out.js": "needle\n",
+    "trace.log": "needle\n",
+}
+NESTED_VISIBLE = {".gitignore", "main.py", "build/out.js", "trace.log"}
 # A clone whose subdirectory has an ignore file of its own.
 NESTED_WITH_SUBDIRECTORY_IGNORE = {
     ".gitignore": "*.tmp\n",
@@ -63,7 +71,7 @@ class TestUntrackedClone:
         assert listed(await run_glob(parent, "**/*")) == visible
 
         output = await run_grep(parent, "needle")
-        searched = {"app.py", "vendor/clone/main.py", "vendor/clone/build/out.js"}
+        searched = {"app.py", "vendor/clone/main.py", "vendor/clone/build/out.js", "vendor/clone/trace.log"}
         assert hit_files(output, searched | {"debug.log", "vendor/clone/skip.tmp"}) == searched
 
     async def test_honours_the_ignore_files_of_its_subdirectories(
