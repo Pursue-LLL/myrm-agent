@@ -197,12 +197,14 @@ class TestKindOfFile:
         def failing_fstat(fd: int) -> os.stat_result:
             raise OSError("stat failed")
 
-        monkeypatch.setattr(os, "fstat", failing_fstat)
         before = len(os.listdir("/dev/fd"))
 
-        for _ in range(50):
-            with pytest.raises(OSError, match="stat failed"):
-                read_text_bounded(path, 10)
+        # pytest's own output capture calls os.fstat, so the patch must end before the test body does.
+        with monkeypatch.context() as patched:
+            patched.setattr(os, "fstat", failing_fstat)
+            for _ in range(50):
+                with pytest.raises(OSError, match="stat failed"):
+                    read_text_bounded(path, 10)
 
         assert len(os.listdir("/dev/fd")) <= before + 1
 
