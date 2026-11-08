@@ -15,3 +15,15 @@
 | `runner.py` | 逻辑 | `MemoryExtractor`：调用 LLM、合并结果 | ✅ |
 | `parse.py` | 逻辑 | LLM 输出的 JSON 清洗与解析 | ✅ |
 | `pipeline.py` | 入口 | 会话与目标执行轨迹的批量提取 | ✅ |
+
+## 依赖关系
+
+- `parse.py` → `models.py`
+- `pipeline.py` → `models.py`
+- `pipeline.py` → `parse.py`
+- `pipeline.py` → `prompt.py`
+- `pipeline.py` → `runner.py`
+- `prompt.py` → `models.py`
+- `runner.py` → `models.py`
+- `runner.py` → `parse.py`
+- `runner.py` → `prompt.py`

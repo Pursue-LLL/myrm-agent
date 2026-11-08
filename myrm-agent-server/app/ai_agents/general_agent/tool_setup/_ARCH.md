@@ -20,3 +20,26 @@ GeneralAgent 工具装配：每个工具族一个 mixin，`mixin.py` 按固定�
 | `browser.py` | 工具族 | 浏览器、验证码；会话带下载支持（配置来自 `common.py`） | ✅ |
 | `artifact.py` | 工具族 | Artifact 发布 | ✅ |
 | `computer.py` | 工具族 | 桌面控制 | ✅ |
+
+## 依赖关系
+
+- `artifact.py` → `base.py`
+- `browser.py` → `base.py`
+- `browser.py` → `common.py`
+- `computer.py` → `base.py`
+- `computer.py` → `common.py`
+- `cron.py` → `base.py`
+- `media.py` → `base.py`
+- `media.py` → `common.py`
+- `memory.py` → `base.py`
+- `mixin.py` → `artifact.py`
+- `mixin.py` → `browser.py`
+- `mixin.py` → `computer.py`
+- `mixin.py` → `cron.py`
+- `mixin.py` → `media.py`
+- `mixin.py` → `memory.py`
+- `mixin.py` → `search.py`
+- `mixin.py` → `skill.py`
+- `search.py` → `base.py`
+- `search.py` → `common.py`
+- `skill.py` → `base.py`

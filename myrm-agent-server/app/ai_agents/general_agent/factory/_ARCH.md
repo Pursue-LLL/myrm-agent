@@ -16,3 +16,14 @@ GeneralAgent 装配包：按执行阶段拆成六个模块，`builder.py` 只保
 | `middlewares.py` | 阶段 | 护栏、上下文管线、MoA 与 Human-tail 中间件顺序 | ✅ |
 | `prompt.py` | 阶段 | 核心提示词与桌面/CLI/渠道/会话根目录补充 | ✅ |
 | `support.py` | 支撑 | MCP OAuth 注入、Kanban 工具、技能评审与清理回调 | ✅ |
+
+## 依赖关系
+
+- `builder.py` → `llms.py`
+- `builder.py` → `middlewares.py`
+- `builder.py` → `prompt.py`
+- `builder.py` → `runtime.py`
+- `builder.py` → `skills.py`
+- `builder.py` → `support.py`
+- `middlewares.py` → `runtime.py`
+- `middlewares.py` → `support.py`

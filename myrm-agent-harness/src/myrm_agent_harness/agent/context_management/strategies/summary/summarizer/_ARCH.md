@@ -14,3 +14,11 @@
 | `summary.py` | 逻辑 | `generate_structured_summary` 主流程 | ✅ |
 | `budget.py` | 逻辑 | 预算提示与摘要长度裁剪 | ✅ |
 | `audit.py` | 逻辑 | 全量/增量审计、合并质量、指标 | ✅ |
+
+## 依赖关系
+
+- `audit.py` → `budget.py`
+- `audit.py` → `guard.py`
+- `audit.py` → `invocation.py`
+- `summary.py` → `audit.py`
+- `summary.py` → `budget.py`

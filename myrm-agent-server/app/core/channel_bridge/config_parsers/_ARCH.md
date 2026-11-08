@@ -21,3 +21,8 @@
 
 - `app.core.channel_bridge.model_resolver` — LiteLLM 模型名规范化
 - `app.channels.types` — 会话与语音类型
+
+## 依赖关系
+
+- `retrieval.py` → `common.py`
+- `voice.py` → `common.py`

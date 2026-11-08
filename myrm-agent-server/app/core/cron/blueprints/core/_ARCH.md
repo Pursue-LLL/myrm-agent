@@ -11,3 +11,7 @@
 | `__init__.py` | 门面 | 聚合导出类型与注册表能力 | ✅ |
 | `types.py` | 核心 | `CronBlueprint`/`BlueprintSlot` 等 dataclass、能力常量、时间→cron 与 locale 合并 | ✅ |
 | `registry.py` | 核心 | 拼接内置清单、`get_blueprint`、`fill_blueprint` 与槽位校验 | ✅ |
+
+## 依赖关系
+
+- `registry.py` → `types.py`
