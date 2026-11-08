@@ -6,11 +6,11 @@
 - snapshot::resolve_locator (POS: rebuild Locator from RefInfo)
 - exceptions::RefNotFoundError (POS: structured ref-not-found exception)
 - pool.config::HumanizeConfig (POS: interaction humanization config)
-- session.humanize::click_delay, type_delay (POS: humanized delay helpers)
 - session.interactor_click_mixin::ClickInteractMixin (POS: Bézier-mouse click trajectory + reachability guard)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
 - session.interactor_scroll_targeting_mixin::ScrollTargetingMixin (POS: CAREFUL pre-interaction target centering)
 - session.interactor_coord_mixin::CoordInteractMixin (POS: coordinate-based Visual Mode interactions)
+- session.interactor_ref_action_mixin::RefActionMixin (POS: ref verb dispatch on a resolved locator)
 - session.ref_metrics::RefNotFoundMetrics, RefDiagnosticsMixin (POS: ref failure statistics + diagnosis behaviors)
 - wait::settle_after_action (POS: the wait an interaction ends with: the requests the action started, within a cap)
 
@@ -25,10 +25,12 @@ Element interaction manager. Responsibilities:
 4. Ref failure diagnosis (URL change detection + smart suggestion generation + context refs sampling)
 5. Failure monitoring (failure rate, hot refs, hot actions statistics + periodic log output)
 
-Ref interaction dispatch lives here; humanized scrolling (wheel-burst delivery,
-honest reporting, scroll_to_bottom progress loop), CAREFUL pre-interaction target
-centering, Bézier-mouse click trajectory, coordinate interactions (interact_at),
-and ref-failure diagnosis are provided by ScrollHumanizeMixin,
+Ref interaction orchestration lives here (action validation, ref resolution and
+self-healing, the wait after the action, the answers to a failed interaction); the
+verbs themselves, humanized scrolling (wheel-burst delivery, honest reporting,
+scroll_to_bottom progress loop), CAREFUL pre-interaction target centering,
+Bézier-mouse click trajectory, coordinate interactions (interact_at), and
+ref-failure diagnosis are provided by RefActionMixin, ScrollHumanizeMixin,
 ScrollTargetingMixin, ClickInteractMixin, CoordInteractMixin, and
 RefDiagnosticsMixin respectively. Single responsibility: only handles element
 interaction logic; does not handle navigation, snapshot, extraction, etc.
@@ -44,20 +46,17 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.browser.exceptions import RefNotFoundError
 from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig
-from myrm_agent_harness.toolkits.browser.session.humanize import (
-    INTERACTION_TIMEOUT_MS,
-    click_delay,
-    type_delay,
-)
 from myrm_agent_harness.toolkits.browser.session.interactor_click_mixin import (
     ClickInteractMixin,
 )
 from myrm_agent_harness.toolkits.browser.session.interactor_coord_mixin import (
     CoordInteractMixin,
 )
+from myrm_agent_harness.toolkits.browser.session.interactor_ref_action_mixin import (
+    RefActionMixin,
+)
 from myrm_agent_harness.toolkits.browser.session.interactor_scroll_mixin import (
     ScrollHumanizeMixin,
-    _parse_scroll_params,
 )
 from myrm_agent_harness.toolkits.browser.session.interactor_scroll_targeting_mixin import (
     ScrollTargetingMixin,
@@ -94,6 +93,8 @@ _VALID_ACTIONS = frozenset(
         "fill_credential",
     }
 )
+# The actions that change the page the agent will read next end by waiting for the requests they started.
+_SETTLED_ACTIONS = frozenset({"click", "dblclick", "type", "fill", "fill_credential", "press"})
 
 
 class Interactor(
@@ -102,6 +103,7 @@ class Interactor(
     CoordInteractMixin,
     ClickInteractMixin,
     RefDiagnosticsMixin,
+    RefActionMixin,
 ):
     """Element interaction manager — single responsibility.
 
@@ -112,11 +114,11 @@ class Interactor(
     4. Ref-not-found diagnosis (URL change detection + smart suggestion generation + context ref sampling)
     5. Failure monitoring (failure rate, hot refs/actions statistics + periodic log output)
 
-    Scrolling (wheel-burst inertial delivery, honest reporting, CAREFUL
-    pre-interaction target centering), Bézier-mouse click trajectory, coordinate
-    interactions (interact_at), and ref-failure diagnosis
-    (`_get_context_refs`/`_log_metrics_if_needed`) are inherited from
-    ScrollHumanizeMixin, ScrollTargetingMixin, CoordInteractMixin,
+    The verbs (`_perform_ref_action`), scrolling (wheel-burst inertial delivery,
+    honest reporting, CAREFUL pre-interaction target centering), Bézier-mouse
+    click trajectory, coordinate interactions (interact_at), and ref-failure
+    diagnosis (`_get_context_refs`/`_log_metrics_if_needed`) are inherited from
+    RefActionMixin, ScrollHumanizeMixin, ScrollTargetingMixin, CoordInteractMixin,
     ClickInteractMixin, and RefDiagnosticsMixin.
 
     Not responsible for: navigation, snapshot generation, content extraction, etc.
@@ -298,125 +300,10 @@ class Interactor(
             await self._ensure_target_in_view(locator)
 
         try:
-            if action == "click":
-                if self._humanize.enable_bezier_mouse:
-                    result_msg = await self._bezier_click(locator, ref, healed_msg)
-                else:
-                    delay = click_delay(self._humanize)
-                    await locator.click(delay=delay, timeout=INTERACTION_TIMEOUT_MS)
-                    result_msg = f"Clicked {ref}{healed_msg}"
+            result = await self._perform_ref_action(action, ref, text, locator, healed_msg)
+            if action in _SETTLED_ACTIONS:
                 await settle_after_action(self._page)
-                return result_msg
-
-            elif action == "dblclick":
-                delay = click_delay(self._humanize)
-                await locator.dblclick(delay=delay, timeout=INTERACTION_TIMEOUT_MS)
-                await settle_after_action(self._page)
-                return f"Double-clicked {ref}{healed_msg}"
-
-            elif action == "type":
-                await self._assert_not_password_field(locator, "typing")
-
-                delay_per_char = type_delay(self._humanize)
-                typing_timeout = max(INTERACTION_TIMEOUT_MS, len(text) * delay_per_char + 5000)
-                await locator.type(text, delay=delay_per_char, timeout=typing_timeout)
-                await settle_after_action(self._page)
-                return f"Typed '{text}' into {ref}{healed_msg}"
-
-            elif action == "fill":
-                await self._assert_not_password_field(locator, "filling")
-
-                await locator.fill(text, timeout=INTERACTION_TIMEOUT_MS)
-                await settle_after_action(self._page)
-                return f"Filled {ref} with '{text}'{healed_msg}"
-
-            elif action == "fill_credential":
-                from myrm_agent_harness.core.security.credential_vault import (
-                    get_global_credential_vault,
-                )
-
-                vault = get_global_credential_vault()
-
-                # Check if it's a TOTP request (e.g. label ends with -totp)
-                is_totp = text.endswith("-totp")
-
-                try:
-                    if is_totp:
-                        secret_text = vault.get_totp_token(text)
-                    else:
-                        secret_text = vault.get_password(text)
-                except Exception as e:
-                    raise ValueError(f"Failed to retrieve credential for label '{text}': {e}") from e
-
-                await locator.fill(secret_text, timeout=INTERACTION_TIMEOUT_MS)
-                await settle_after_action(self._page)
-                return f"Filled credential '{text}' into {ref}{healed_msg} [CREDENTIAL_FILLED]"
-
-            elif action == "press":
-                await locator.press(text, timeout=INTERACTION_TIMEOUT_MS)
-                await settle_after_action(self._page)
-                return f"Pressed '{text}' on {ref}{healed_msg}"
-
-            elif action == "hover":
-                if self._humanize.enable_bezier_mouse:
-                    if not await self._bezier_move_to(locator):
-                        await locator.hover(timeout=INTERACTION_TIMEOUT_MS)
-                else:
-                    await locator.hover(timeout=INTERACTION_TIMEOUT_MS)
-                return f"Hovered over {ref}{healed_msg}"
-
-            elif action == "focus":
-                await locator.focus(timeout=INTERACTION_TIMEOUT_MS)
-                return f"Focused {ref}{healed_msg}"
-
-            elif action == "select":
-                # Recorded multi-select steps join option values with "; " —
-                # split them so every option is selected instead of trying to
-                # match a single blob that no option equals.
-                values: str | list[str] = [v.strip() for v in text.split(";")] if ";" in text else text
-                await locator.select_option(values, timeout=INTERACTION_TIMEOUT_MS)
-                return f"Selected '{text}' in {ref}{healed_msg}"
-
-            elif action == "scroll":
-                try:
-                    delta = int(text)
-                except ValueError as exc:
-                    raise ValueError(f"Scroll requires numeric text (pixel delta), got: {text}") from exc
-
-                target_x, target_y = await self._scroll_cursor_target(locator)
-                await self._scroll_move_cursor(target_x, target_y)
-                return await self._scroll_with_report(target_x, target_y, delta, healed_msg)
-
-            elif action == "scroll_to_bottom":
-                return await self._scroll_to_bottom_loop(locator, _parse_scroll_params(text), healed_msg)
-
-            elif action == "upload_file":
-                await locator.set_input_files(text, timeout=INTERACTION_TIMEOUT_MS)
-                return f"Uploaded file to {ref}: {text}{healed_msg}"
-
-            elif action == "drag":
-                parts = text.split(",")
-                if len(parts) != 2:
-                    raise ValueError(f"Drag requires 'x,y' text, got: {text}")
-
-                try:
-                    x, y = int(parts[0]), int(parts[1])
-                except ValueError as exc:
-                    raise ValueError(f"Drag requires numeric 'x,y', got: {text}") from exc
-
-                await locator.drag_to(self._page.locator("body"), target_position={"x": x, "y": y})
-                return f"Dragged {ref} to ({x}, {y}){healed_msg}"
-
-            elif action == "check":
-                await locator.check(timeout=INTERACTION_TIMEOUT_MS)
-                return f"Checked {ref}{healed_msg}"
-
-            elif action == "uncheck":
-                await locator.uncheck(timeout=INTERACTION_TIMEOUT_MS)
-                return f"Unchecked {ref}{healed_msg}"
-
-            return f"Unknown action: {action}"
-
+            return result
         except Exception as e:
             error_msg = str(e)
             target_closed = (
