@@ -9858,28 +9858,6 @@
     "humanAttentionView": "前往處理",
     "humanAttentionMultiple": "{count} 項待你確認",
     "humanAttentionKindClarify": "澄清問題",
-    "riskConfirmation": {
-      "tierHighRisk": "Level 3 · 高風險操作（強制確認）",
-      "tierWrite": "Level 2 · 狀態寫入（支援預演）",
-      "tierRead": "Level 1 · 唯讀操作（自動放行）",
-      "targetLabel": "目標物件：",
-      "riskReasonsTitle": "風險警示與潛在影響",
-      "editingParamsTitle": "修改執行參數（JSON）",
-      "paramsSummaryTitle": "參數摘要",
-      "editParams": "修改參數",
-      "noParams": "無輸入參數",
-      "invalidJson": "JSON 格式無效",
-      "dryRunResultTitle": "預演模擬結果",
-      "rejectReasonPlaceholder": "選填：輸入拒絕理由...",
-      "dryRun": "預演",
-      "confirmationToken": "權杖：{token}...",
-      "reject": "終止打回",
-      "confirmReject": "確認打回",
-      "applyEditsAndRun": "修改參數並執行",
-      "authorizeAndRun": "授權並執行",
-      "continueRun": "繼續執行",
-      "approved": "已放行"
-    },
     "maskedCredentials": {
       "title": "此指令所需的密碼或金鑰",
       "badgeNeverSaved": "僅用一次，不會儲存",
@@ -22510,13 +22488,6 @@
     "close": "關閉",
     "binaryChanged": "二進位檔案已變更",
     "noChanges": "無變更"
-  },
-  "riskGate": {
-    "regionLabel": "分級風險確認",
-    "dryRunImpact": "以 dry_run=true 模擬執行 {tool}",
-    "dryRunDefaultTarget": "目標物件",
-    "dryRunParamsVerified": "參數驗證通過（{count} 個欄位）",
-    "dryRunNoPersistentChanges": "未對檔案系統或資料庫做任何持久化修改"
   },
   "commerceReceipt": {
     "statusCommitted": "已付款並核驗",

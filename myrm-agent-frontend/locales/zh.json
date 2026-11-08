@@ -9858,28 +9858,6 @@
     "humanAttentionView": "前往处理",
     "humanAttentionMultiple": "{count} 项待你确认",
     "humanAttentionKindClarify": "澄清问题",
-    "riskConfirmation": {
-      "tierHighRisk": "Level 3 · 高危操作（强制确认）",
-      "tierWrite": "Level 2 · 状态写入（支持预演）",
-      "tierRead": "Level 1 · 只读操作（自动放行）",
-      "targetLabel": "目标对象：",
-      "riskReasonsTitle": "风险告警与潜在影响",
-      "editingParamsTitle": "修改执行参数（JSON）",
-      "paramsSummaryTitle": "参数摘要",
-      "editParams": "修改参数",
-      "noParams": "无输入参数",
-      "invalidJson": "JSON 格式无效",
-      "dryRunResultTitle": "预演模拟结果",
-      "rejectReasonPlaceholder": "可选：输入拒绝理由...",
-      "dryRun": "预演",
-      "confirmationToken": "令牌：{token}...",
-      "reject": "终止打回",
-      "confirmReject": "确认打回",
-      "applyEditsAndRun": "修改参数并执行",
-      "authorizeAndRun": "授权并执行",
-      "continueRun": "继续执行",
-      "approved": "已放行"
-    },
     "maskedCredentials": {
       "title": "此命令所需的密码或密钥",
       "badgeNeverSaved": "仅用一次，不会保存",
@@ -22510,13 +22488,6 @@
     "close": "关闭",
     "binaryChanged": "二进制文件已更改",
     "noChanges": "无更改"
-  },
-  "riskGate": {
-    "regionLabel": "分级风险确认",
-    "dryRunImpact": "以 dry_run=true 模拟执行 {tool}",
-    "dryRunDefaultTarget": "目标对象",
-    "dryRunParamsVerified": "参数校验通过（{count} 个字段）",
-    "dryRunNoPersistentChanges": "未对文件系统或数据库做任何持久化修改"
   },
   "commerceReceipt": {
     "statusCommitted": "已支付并核验",

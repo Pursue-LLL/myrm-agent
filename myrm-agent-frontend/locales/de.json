@@ -9858,28 +9858,6 @@
     "humanAttentionView": "Zum Element",
     "humanAttentionMultiple": "{count} Elemente warten auf Sie",
     "humanAttentionKindClarify": "Klärung",
-    "riskConfirmation": {
-      "tierHighRisk": "Stufe 3 · Hochriskante Aktion (Bestätigung erforderlich)",
-      "tierWrite": "Stufe 2 · Zustandsänderung (Probelauf möglich)",
-      "tierRead": "Stufe 1 · Nur lesen (automatisch freigegeben)",
-      "targetLabel": "Ziel:",
-      "riskReasonsTitle": "Risikowarnungen und mögliche Auswirkungen",
-      "editingParamsTitle": "Ausführungsparameter bearbeiten (JSON)",
-      "paramsSummaryTitle": "Parameterübersicht",
-      "editParams": "Parameter bearbeiten",
-      "noParams": "Keine Eingabeparameter",
-      "invalidJson": "Ungültiges JSON-Format",
-      "dryRunResultTitle": "Ergebnis der Probelauf-Simulation",
-      "rejectReasonPlaceholder": "Optional: Ablehnungsgrund eingeben ...",
-      "dryRun": "Probelauf",
-      "confirmationToken": "Token: {token} ...",
-      "reject": "Ablehnen",
-      "confirmReject": "Ablehnung bestätigen",
-      "applyEditsAndRun": "Änderungen übernehmen und ausführen",
-      "authorizeAndRun": "Autorisieren und ausführen",
-      "continueRun": "Fortsetzen",
-      "approved": "Freigegeben"
-    },
     "maskedCredentials": {
       "title": "Passwort oder Schlüssel für diesen Befehl",
       "badgeNeverSaved": "Einmal verwendet, nie gespeichert",
@@ -22510,13 +22488,6 @@
     "close": "Schließen",
     "binaryChanged": "Binärdatei geändert",
     "noChanges": "Keine Änderungen"
-  },
-  "riskGate": {
-    "regionLabel": "Gestufte Risikobestätigung",
-    "dryRunImpact": "Simulierte Ausführung von {tool} mit dry_run=true",
-    "dryRunDefaultTarget": "Zielobjekt",
-    "dryRunParamsVerified": "Parameterprüfung bestanden ({count, plural, one {# Feld} other {# Felder}})",
-    "dryRunNoPersistentChanges": "Keine dauerhaften Änderungen an Dateisystem oder Datenbank vorgenommen"
   },
   "commerceReceipt": {
     "statusCommitted": "Bezahlt und geprüft",

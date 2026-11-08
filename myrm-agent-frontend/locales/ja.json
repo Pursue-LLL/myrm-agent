@@ -9858,28 +9858,6 @@
     "humanAttentionView": "項目へ移動",
     "humanAttentionMultiple": "{count} 件の入力待ち",
     "humanAttentionKindClarify": "確認質問",
-    "riskConfirmation": {
-      "tierHighRisk": "レベル3 · 高リスク操作（確認必須）",
-      "tierWrite": "レベル2 · 状態の書き込み（ドライラン対応）",
-      "tierRead": "レベル1 · 読み取り専用（自動承認）",
-      "targetLabel": "対象：",
-      "riskReasonsTitle": "リスク警告と想定される影響",
-      "editingParamsTitle": "実行パラメータを編集（JSON）",
-      "paramsSummaryTitle": "パラメータの概要",
-      "editParams": "パラメータを編集",
-      "noParams": "入力パラメータはありません",
-      "invalidJson": "JSONの形式が正しくありません",
-      "dryRunResultTitle": "ドライランのシミュレーション結果",
-      "rejectReasonPlaceholder": "任意：却下の理由を入力...",
-      "dryRun": "ドライラン",
-      "confirmationToken": "トークン：{token}...",
-      "reject": "却下",
-      "confirmReject": "却下を確定",
-      "applyEditsAndRun": "変更を適用して実行",
-      "authorizeAndRun": "承認して実行",
-      "continueRun": "続行",
-      "approved": "承認済み"
-    },
     "maskedCredentials": {
       "title": "このコマンドに必要なパスワードまたはキー",
       "badgeNeverSaved": "1回だけ使用・保存されません",
@@ -22510,13 +22488,6 @@
     "close": "閉じる",
     "binaryChanged": "バイナリファイルが変更されました",
     "noChanges": "変更なし"
-  },
-  "riskGate": {
-    "regionLabel": "段階別リスク確認",
-    "dryRunImpact": "dry_run=true で {tool} の実行をシミュレーションしました",
-    "dryRunDefaultTarget": "対象エンティティ",
-    "dryRunParamsVerified": "パラメーターの検証に成功しました（{count} 項目）",
-    "dryRunNoPersistentChanges": "ファイルシステムやデータベースへの永続的な変更はありません"
   },
   "commerceReceipt": {
     "statusCommitted": "支払い済み・検証済み",

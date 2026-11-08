@@ -9858,28 +9858,6 @@
     "humanAttentionView": "Go to item",
     "humanAttentionMultiple": "{count} items need your input",
     "humanAttentionKindClarify": "Clarification",
-    "riskConfirmation": {
-      "tierHighRisk": "Level 3 · High-risk action (confirmation required)",
-      "tierWrite": "Level 2 · State change (dry run available)",
-      "tierRead": "Level 1 · Read-only (auto-approved)",
-      "targetLabel": "Target:",
-      "riskReasonsTitle": "Risk warnings & potential impact",
-      "editingParamsTitle": "Edit execution parameters (JSON)",
-      "paramsSummaryTitle": "Parameter summary",
-      "editParams": "Edit parameters",
-      "noParams": "No input parameters",
-      "invalidJson": "Invalid JSON format",
-      "dryRunResultTitle": "Dry-run simulation result",
-      "rejectReasonPlaceholder": "Optional: enter a rejection reason...",
-      "dryRun": "Dry run",
-      "confirmationToken": "Token: {token}...",
-      "reject": "Reject",
-      "confirmReject": "Confirm rejection",
-      "applyEditsAndRun": "Apply changes and run",
-      "authorizeAndRun": "Authorize and run",
-      "continueRun": "Continue",
-      "approved": "Approved"
-    },
     "maskedCredentials": {
       "title": "Password or key for this command",
       "badgeNeverSaved": "Used once, never saved",
@@ -22510,13 +22488,6 @@
     "close": "Close",
     "binaryChanged": "Binary file changed",
     "noChanges": "No changes"
-  },
-  "riskGate": {
-    "regionLabel": "Tiered risk confirmation",
-    "dryRunImpact": "Simulated execution of {tool} with dry_run=true",
-    "dryRunDefaultTarget": "target_entity",
-    "dryRunParamsVerified": "Parameter verification passed ({count, plural, one {# field} other {# fields}})",
-    "dryRunNoPersistentChanges": "No persistent changes applied to filesystem or database"
   },
   "commerceReceipt": {
     "statusCommitted": "Paid & Verified",
