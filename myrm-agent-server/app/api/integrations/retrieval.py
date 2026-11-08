@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.retriever.embedding.factory::get_embedding_service (POS: embedding service factory)
 - myrm_agent_harness.toolkits.retriever.reranker.factory::get_reranker_service (POS: reranker service factory)
 - myrm_agent_harness.toolkits.llms.errors::classify_failover_reason (POS: provider failure classifier)
+- myrm_agent_harness.agent.errors.diagnostics.provider_words::provider_message, error_text (POS: the provider's own words in a failure, as one clean line)
 
 [OUTPUT]
 - validate_embedding: POST /embedding, embeds one short text through the configured provider
@@ -12,7 +13,8 @@
 [POS]
 Settings probes an embedding or reranker configuration with one real call before applying it. The probe goes through the
 factories the product builds its services with, so what validates is what the product then reuses. A refused probe is
-still an HTTP 200 carrying `success=False` and a message that names the cause: the settings UI shows `message` as is.
+still an HTTP 200 carrying `success=False` and a message that names the cause, in the provider's own words when the failure
+has no cause of its own here: the settings UI shows `message` as is.
 Every probe carries a text no earlier call used, so no cache keyed by the text can answer it in place of the provider.
 """
 
@@ -23,6 +25,7 @@ import uuid
 
 import httpx
 from fastapi import APIRouter
+from myrm_agent_harness.agent.errors.diagnostics.provider_words import error_text, provider_message
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason, classify_failover_reason
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig, get_embedding_service
 from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig, get_reranker_service
@@ -83,20 +86,36 @@ def _http_status(exc: Exception) -> int | None:
 
 
 def _explain(exc: Exception) -> str:
-    """Name what a refused probe means for the settings form; the classifier misses a bare 404 and httpx transport errors."""
+    """Name what a refused probe means for the settings form; the classifier misses a bare 404 and httpx transport errors.
+
+    A failure with no cause of its own here is shown in the provider's words (what to change is in them), else by the
+    status the provider answered, else by the text of the failure.
+    """
     reason = classify_failover_reason(exc)
     if _http_status(exc) == 404:
         reason = FailoverReason.MODEL_NOT_FOUND
     elif isinstance(exc, httpx.TransportError):
         reason = FailoverReason.TIMEOUT
-    return _CAUSES.get(reason, type(exc).__name__)
+    cause = _CAUSES.get(reason)
+    if cause is not None:
+        return cause
+    said = provider_message(exc)
+    if said:
+        return said
+    status = _http_status(exc)
+    return error_text(exc) if status is None else f"the provider answered HTTP {status}"
+
+
+def _without_key(text: str, api_key: str) -> str:
+    """Hide a key a provider repeats in its answer; a blank key has nothing to hide and would match every gap between words."""
+    return text.replace(api_key, "***") if api_key.strip() else text
 
 
 def _refused(kind: str, request: RetrievalProbeRequest, exc: Exception) -> ValidationResult:
-    cause = _explain(exc)
+    # Providers may repeat the key in an error body or sentence: it must travel back in neither the message nor the error.
+    cause = _without_key(_explain(exc), request.api_key)
     logger.warning("%s validation failed for model %s: %s (%s)", kind, request.model, cause, type(exc).__name__)
-    # Providers may repeat the key in an error body: it must not travel back.
-    return _failed(cause, str(exc).replace(request.api_key, "***"))
+    return _failed(cause, _without_key(str(exc), request.api_key))
 
 
 @router.post("/embedding", response_model=ValidationResult, summary="Validate embedding configuration")

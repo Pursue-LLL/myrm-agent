@@ -41,10 +41,10 @@ def api_key() -> str:
     return f"sk-probe-{uuid4().hex}"
 
 
-def _probe(client: TestClient, kind: str, *, api_key: str, api_base: str) -> dict[str, object]:
+def _probe(client: TestClient, kind: str, *, api_key: str, api_base: str | None, model: str | None = None) -> dict[str, object]:
     response = client.post(
         f"/api/v1/integrations/retrieval/{kind}",
-        json={"model": _MODELS[kind], "api_key": api_key, "api_base": api_base, "provider": "openai"},
+        json={"model": model or _MODELS[kind], "api_key": api_key, "api_base": api_base, "provider": "openai"},
     )
     # The settings UI reads success / message from a 200, also when the provider refuses the probe.
     assert response.status_code == 200, response.text
@@ -138,6 +138,68 @@ def test_a_bare_404_means_the_model_or_endpoint_is_unknown(
     assert result["message"] == "Validation failed: the provider does not know this model or endpoint"
 
 
+@pytest.mark.parametrize("kind", _KINDS)
+@pytest.mark.parametrize(
+    ("status", "words"),
+    [
+        pytest.param(400, "input is too long: at most 8192 tokens", id="bad-request"),
+        pytest.param(422, "Unprocessable entity: unknown field `foo`", id="unprocessable"),
+        pytest.param(500, "The upstream model server crashed", id="server-error"),
+    ],
+)
+def test_a_refusal_with_no_cause_of_its_own_is_shown_in_the_providers_words(
+    client: TestClient, provider: FakeRetrievalProvider, api_key: str, kind: str, status: int, words: str
+) -> None:
+    # The form shows `message` as is: a class name tells the user nothing, the provider's sentence tells what to change.
+    provider.status = status
+    provider.refusal = words
+
+    result = _probe(client, kind, api_key=api_key, api_base=provider.api_base)
+
+    assert result["message"] == f"Validation failed: {words}"
+
+
+def test_a_gateway_error_page_is_shown_as_its_text(client: TestClient, provider: FakeRetrievalProvider, api_key: str) -> None:
+    provider.status = 502
+    provider.raw_answer = "<html><body><h1>502 Bad Gateway</h1></body></html>"
+
+    result = _probe(client, "embedding", api_key=api_key, api_base=provider.api_base)
+
+    assert result["message"] == "Validation failed: 502 Bad Gateway"
+
+
+def test_a_refusal_with_no_words_names_the_status(client: TestClient, provider: FakeRetrievalProvider, api_key: str) -> None:
+    provider.status = 500
+    provider.raw_answer = ""
+
+    result = _probe(client, "embedding", api_key=api_key, api_base=provider.api_base)
+
+    assert result["message"] == "Validation failed: the provider answered HTTP 500"
+
+
+def test_the_key_a_provider_repeats_in_its_words_is_not_shown(
+    client: TestClient, provider: FakeRetrievalProvider, api_key: str
+) -> None:
+    provider.status = 400
+    provider.refusal = f"invalid request for key {api_key}"
+
+    result = _probe(client, "embedding", api_key=api_key, api_base=provider.api_base)
+
+    assert api_key not in str(result)
+    assert str(result["message"]).startswith("Validation failed: invalid request for key ")
+
+
+@pytest.mark.parametrize("kind", _KINDS)
+def test_a_model_no_provider_can_be_resolved_for_is_shown_by_the_text_of_the_failure(
+    client: TestClient, api_key: str, kind: str
+) -> None:
+    result = _probe(client, kind, api_key=api_key, api_base=None, model="nomodel")
+
+    assert result["message"] == (
+        "Validation failed: Cannot resolve a provider for model 'nomodel': use a 'provider/model' id or set an api_base"
+    )
+
+
 def test_an_edited_key_is_checked_against_the_provider(client: TestClient, api_key: str) -> None:
     # A success for one key and endpoint says nothing about the key and endpoint the form was edited to afterwards.
     with fake_retrieval_provider() as accepting, fake_retrieval_provider() as refusing:
@@ -179,6 +241,15 @@ def test_the_key_a_provider_repeats_is_not_echoed_back(client: TestClient, provi
 
     assert api_key not in str(result)
     assert "Incorrect API key provided: ***" in str(result["error"])
+
+
+@pytest.mark.parametrize("kind", _KINDS)
+def test_a_blank_key_does_not_shred_the_message(client: TestClient, provider: FakeRetrievalProvider, kind: str) -> None:
+    # A key of one space matches every gap between words: there is nothing to hide, and hiding it would shred the text.
+    result = _probe(client, kind, api_key=" ", api_base=provider.api_base)
+
+    assert result["success"] is False
+    assert "***" not in str(result)
 
 
 @pytest.mark.parametrize("kind", _KINDS)

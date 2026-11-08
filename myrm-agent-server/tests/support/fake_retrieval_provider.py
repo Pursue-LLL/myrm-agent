@@ -1,7 +1,7 @@
 """Wire-level embedding and rerank provider on loopback.
 
 [INPUT]
-- `status`, `refusal`, `dimension` and `rerank_results` of the provider: what it answers to the next call
+- `status`, `refusal`, `raw_answer`, `dimension` and `rerank_results` of the provider: what it answers to the next call
 
 [OUTPUT]
 - FakeRetrievalProvider: serves POST {api_base}/embeddings, POST {api_base}/embed (Cohere's own shape) and POST {api_base}/rerank, every call lands in `requests`
@@ -43,14 +43,17 @@ class ProviderRequest:
 
 
 class FakeRetrievalProvider:
-    """Answers every call with `status`: 200 is a valid embedding / rerank response, anything else an OpenAI-style error.
+    """Answers every call with `status`: 200 is a valid embedding (one vector per input) or rerank response, anything
+    else an OpenAI-style error.
 
-    `refusal` replaces the error text a status comes with by default.
+    `refusal` replaces the error text a status comes with by default; `raw_answer` replaces the whole error body with
+    text that is not JSON, the way a gateway in front of the provider answers (an HTML page, or nothing at all).
     """
 
     def __init__(self) -> None:
         self.status = 200
         self.refusal: str | None = None
+        self.raw_answer: str | None = None
         self.dimension = 4
         self.rerank_results: list[dict[str, float]] = [{"index": 1, "relevance_score": 0.9}]
         self.requests: list[ProviderRequest] = []
@@ -60,19 +63,25 @@ class FakeRetrievalProvider:
     def api_base(self) -> str:
         return f"http://127.0.0.1:{self._server.server_port}/v1"
 
-    def answer(self, request: ProviderRequest) -> tuple[int, dict[str, object]]:
+    def answer(self, request: ProviderRequest) -> tuple[int, dict[str, object] | str]:
         if self.status != 200:
+            if self.raw_answer is not None:
+                return self.status, self.raw_answer
             key = (request.authorization or "").removeprefix("Bearer ")
             text = self.refusal or _REFUSALS.get(self.status, _FAILURE).format(key=key, model=request.body.get("model"))
             return self.status, {"error": {"message": text, "type": "invalid_request_error", "code": str(self.status)}}
         if request.path.endswith("/embed"):
             return 200, {"embeddings": {"float": [[0.1] * self.dimension]}}
         if request.path.endswith("/embeddings"):
+            inputs = request.body.get("input")
             vector = [0.1] * self.dimension
             return 200, {
                 "object": "list",
                 "model": request.body.get("model"),
-                "data": [{"object": "embedding", "index": 0, "embedding": vector}],
+                "data": [
+                    {"object": "embedding", "index": index, "embedding": vector}
+                    for index in range(len(inputs) if isinstance(inputs, list) else 1)
+                ],
                 "usage": {"prompt_tokens": 1, "total_tokens": 1},
             }
         return 200, {"results": self.rerank_results}
@@ -95,9 +104,9 @@ class FakeRetrievalProvider:
                 )
                 provider.requests.append(request)
                 status, payload = provider.answer(request)
-                data = json.dumps(payload).encode()
+                data = (payload if isinstance(payload, str) else json.dumps(payload)).encode()
                 self.send_response(status)
-                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Type", "text/html" if isinstance(payload, str) else "application/json")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
