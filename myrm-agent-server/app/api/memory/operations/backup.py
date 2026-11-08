@@ -24,7 +24,7 @@ from app.schemas.memory.crud import (
     RestoreBackupResponse,
 )
 from app.services.memory.backup.service import MemoryBackupService
-from app.services.memory.backup.snapshot import SnapshotError
+from app.services.memory.backup.snapshot import PreviousModelMemoriesError, SnapshotError
 from app.services.memory.backup.volume_store import BackupNotFoundError, VolumeBackupStore
 
 logger = logging.getLogger(__name__)
@@ -59,11 +59,14 @@ async def create_backup(
 ) -> CreateBackupResponse:
     """Snapshot every memory onto the persistent volume.
 
-    Reports ``success=false`` rather than saving a backup that misses memories.
+    Reports ``success=false`` rather than saving a backup that misses memories; ``error_code`` names the refusal that
+    memories left under a previous embedding model cause.
     """
     start = time.perf_counter()
     try:
         metadata = await MemoryBackupService(manager, store).create(request.description)
+    except PreviousModelMemoriesError as exc:
+        return CreateBackupResponse(success=False, duration_ms=_elapsed_ms(start), error=str(exc), error_code="previous_model")
     except SnapshotError as exc:
         return CreateBackupResponse(success=False, duration_ms=_elapsed_ms(start), error=str(exc))
     except Exception as exc:

@@ -21014,6 +21014,7 @@
       "creating": "作成中...",
       "createSuccess": "バックアップを作成しました",
       "createError": "バックアップの作成に失敗しました",
+      "createErrorPreviousModel": "一部のメモリが新しいエンベディングモデルに未移行のため、バックアップを作成していません。先に移行を完了してから、もう一度バックアップしてください。",
       "backupListTitle": "バックアップ履歴",
       "backupListDescription": "{count} 個のバックアップが見つかりました",
       "loading": "読み込み中...",

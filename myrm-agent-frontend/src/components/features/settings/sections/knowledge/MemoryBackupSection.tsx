@@ -85,6 +85,8 @@ export default function MemoryBackupSection() {
         toast.success(t('createSuccess'));
         setDescription('');
         await loadBackups();
+      } else if (data.error_code === 'previous_model') {
+        toast.error(t('createErrorPreviousModel'));
       } else {
         throw new Error(data.error || 'Unknown error');
       }

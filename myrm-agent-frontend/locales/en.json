@@ -21014,6 +21014,7 @@
       "creating": "Creating...",
       "createSuccess": "Backup created successfully",
       "createError": "Failed to create backup",
+      "createErrorPreviousModel": "Some memories haven't been migrated to the new embedding model yet, so no backup was created. Finish the migration, then back up again.",
       "backupListTitle": "Backup History",
       "backupListDescription": "{count} backup(s) found",
       "loading": "Loading...",

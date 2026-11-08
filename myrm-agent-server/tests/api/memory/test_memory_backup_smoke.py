@@ -74,6 +74,7 @@ async def test_a_backup_can_be_created_listed_restored_and_deleted(backup_api: B
     created_body = created.json()
     assert created_body["success"] is True
     assert created_body["error"] is None
+    assert created_body["error_code"] is None
     assert created_body["metadata"]["memory_count"] == 2
     assert created_body["metadata"]["description"] == "nightly"
     backup_id = created_body["backup_id"]
@@ -148,6 +149,7 @@ async def test_an_incomplete_snapshot_is_reported_and_nothing_is_saved(
     body = response.json()
     assert body["success"] is False
     assert body["backup_id"] is None
+    assert body["error_code"] is None
     assert "incomplete" in body["error"]
     assert backup_api.store.list_backups() == []
 
@@ -169,6 +171,7 @@ async def test_memories_left_under_a_previous_embedding_model_are_reported_and_n
     body = response.json()
     assert body["success"] is False
     assert body["backup_id"] is None
+    assert body["error_code"] == "previous_model"
     assert "previous embedding model (3)" in body["error"]
     assert backup_api.store.list_backups() == []
 
