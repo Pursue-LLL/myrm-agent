@@ -118,10 +118,6 @@ async def set_config(
 
             SqlChannelPolicyProvider._invalidate_cache()
             await refresh_reaction_policy()
-        if config_key == "retrieval":
-            from app.services.faq.factory import reset_faq_interceptor
-
-            reset_faq_interceptor()
         if config_key.endswith("Credentials"):
             await credential_reload.reload_channel_credentials(config_key)
         if config_key == "browserCloudProvider":

@@ -23,7 +23,7 @@ InboundMessage → ChannelAgentExecutor.execute_stream
 | `corpus.py` | FAQ 语料 CRUD + Qdrant 索引重建 |
 | `interceptor.py` | 零 LLM 语义拦截器（embedding + 双校验） |
 | `tracker.py` | 命中/未命中日志记录 + 分析统计 |
-| `factory.py` | FaqInterceptor 延迟单例工厂（embedding 来自 WebUI retrieval 配置） |
+| `factory.py` | FaqInterceptor 工厂：embedding 来自 WebUI retrieval 配置，拦截器按配置（模型/密钥/地址）缓存，配置一变即重建 |
 
 ## 依赖关系
 
@@ -38,4 +38,5 @@ InboundMessage → ChannelAgentExecutor.execute_stream
 - **双校验**：top1 score ≥ threshold **且** top1-top2 gap ≥ min_score_gap，避免模糊匹配误触发
 - **不修改 harness**：复用 harness 的 EmbeddingService 和 VectorStore 接口，不引入反向依赖
 - **Embedding 来源**：只从 WebUI 检索设置（`load_platform_retrieval_configs`）取配置，与 Memory/Curator/Cron 同一通道；不读 `EMBEDDING_*` 进程环境变量，未配置时返回 `None` 让调用方走正常 Agent 执行
-- **配置热更新**：`reset_faq_interceptor()` 由 `PUT /api/v1/config/retrieval` 触发，改 embedding 无需重启服务
+- **配置热更新**：拦截器缓存键就是 embedding 配置（模型、密钥、地址；与 harness 的 embedding 服务缓存同一个键），每次取用都比对当前配置，变了就重建，没有重置钩子可漏接。UI 保存设置走的是 `POST /config/sync` 而不是 `PUT /config/{key}`，挂在单个路由上的重置会让拦截器一直停在旧模型上，而索引已按新模型重建，FAQ 随之静默失效直到重启。取配置走 `load_platform_retrieval_configs` 的短 TTL 缓存（保存配置即失效），所以这一次比对不额外读库；缓存不能取消：远程 Qdrant 每创建一次就是一个新客户端，逐条消息重建会逐条开连接
+- **embedding 未配置**：返回 `None` 并丢弃已缓存的拦截器；读配置临时失败只让这一次返回 `None`，已缓存的拦截器保留

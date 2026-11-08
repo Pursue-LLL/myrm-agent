@@ -524,6 +524,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/channels/test_credential_hot_register.py` | 模块 | 凭据保存后的热加载：每个声明凭据的渠道，其配置键都在 `CREDENTIAL_KEY_TO_CHANNEL` 里（voice 声明的 `twilioCredentials` 不在表内，以严格 xfail 记录）；GitHub 与 OneBot 的保存经真实 `from_credentials` 构建渠道并交给网关 `swap_channel` |
 | `api/config/test_search_services_validation.py` | 模块 | searchServices Omni 422：unknown slug、duplicate enabled priority、non-selectable enabled slug |
 | `api/config/test_omni_config.py` | 模块 | Omni-Config schema/sync/history/rollback；batch sync duplicate search priority 422 |
+| `api/config/test_retrieval_save_reaches_faq.py` | 模块 | 保存的 embedding 模型到达 FAQ 拦截器：真实路由（`PUT /config/{key}` 与 UI 实际使用的 `POST /config/sync`）+ 真实配置库 + 真实检索配置加载器，只替换 embedding 后端与向量库；保存后的下一次 FAQ 取用用的是最后保存的模型 |
+| `services/faq/test_faq_factory_retrieval.py` | 模块 | FAQ 拦截器装配：embedding 取自 WebUI 检索设置而非环境变量；配置不变时复用同一个拦截器与同一个向量库客户端，模型/密钥/地址任一变化即重建，未配置时丢弃，读配置临时失败不丢缓存 |
 | `e2e/test_search_priority_chain_chrome_e2e.py` | 模块 | Search priority chain signoff（API integration persist + Chrome READ `lane=READ private_backend=False` Settings priority badges；payload Tavily p1 + Perplexity p2；`@pytest.mark.timeout(180)`） |
 | `integration/test_fallback_integration.py` | 模块 | Harness provider_chain 集成：invalid primary hop、legacy role 迁移；SearXNG 不可用时 skip（`AllQueriesFailedError`） |
 | `integration/test_command_center_vector_persistence_integration.py` | 模块 | Command Center `vector_persistence` 真实装配集成（禁 mock 关键路径）：真实 harness `create_local_memory_manager` + 真实 embedded Qdrant 可写路径 → `persistent`；不可写路径 fallback `:memory:` → `memory_fallback`；无 vector → `unavailable` |
