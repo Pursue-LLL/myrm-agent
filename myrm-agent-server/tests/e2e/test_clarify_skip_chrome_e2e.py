@@ -407,7 +407,7 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
                 raise AssertionError(f"signoff API clarify fallback failed: {api_result}; prior={first_exc}") from first_exc
             await asyncio.sleep(2.0)
             await _release_ui_stream_for_api(chat)
-            # R64: private API stream is SSOT once clarification_required is seen.
+            # private API stream is SSOT once clarification_required is seen.
             # Second chrome _wait_clarify_ready caused signoff retry + model-not-ready.
             print(
                 "E2E_SIGNOFF_CLARIFY: API clarify confirmed; proceed API skip path",

@@ -1,4 +1,4 @@
-"""LIVE agent turn wait SSOT — steer-first recovery under parallel mux (R150/R153).
+"""LIVE agent turn wait SSOT — steer-first recovery under parallel mux.
 
 Dev Gate layer: shared by chrome_e2e LIVE tests; not harness/server business logic.
 """
@@ -31,7 +31,7 @@ LIVE_EMPTY_WRITE_STALL_HEAVY_PEER_THRESHOLD: int = 5
 
 
 def live_empty_write_steer_attempts_cap() -> int:
-    """R173: repeat steer under parallel when first steer does not invoke tool."""
+    """repeat steer under parallel when first steer does not invoke tool."""
     return 2 if parallel_live_agent_peer_count() >= 2 else 1
 
 

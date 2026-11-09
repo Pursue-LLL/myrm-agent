@@ -204,7 +204,7 @@ def _kickoff_fast_search_js(prompt: str) -> str:
 
 
 def _kickoff_fast_search_with_prep_js(search_depth: str, prompt: str) -> str:
-    """Single MUX evaluate: light prep + send (R242 — skip separate PREP under parallel load)."""
+    """Single MUX evaluate: light prep + send (skip separate PREP under parallel load)."""
     depth_json = json.dumps(search_depth)
     return f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
@@ -1030,7 +1030,7 @@ async def _wait_mux_before_blocking_cdp(*, current_node: str) -> None:
 
 
 async def _hydrate_fast_search_chat_after_page_open(chat: McpChatSession) -> None:
-    """Single mux-gated bootstrap + post-hydrate verify (R224/R225 — no second mux wait)."""
+    """Single mux-gated bootstrap + post-hydrate verify (no second mux wait)."""
     import sys
 
     from cdp_chat.support import (

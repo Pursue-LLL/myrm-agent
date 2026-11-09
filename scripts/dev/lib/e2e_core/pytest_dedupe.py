@@ -115,7 +115,7 @@ def _is_guardrail_file_scope(scope_key: str | None) -> bool:
 
 
 def _file_scope_bootstrap_stall_sec(scope_key: str | None = None) -> float:
-    """Max bootstrap-only hold before file-scope lock is reapable (R276).
+    """Max bootstrap-only hold before file-scope lock is reapable.
 
     Guardrail PRIVATE SHPOIB can sit in ADMIT/bootstrap >180s before pytest spawns;
     use PRIVATE ADMIT cap (900s) so duplicate whole-file guardrail cannot slip in.

@@ -1,4 +1,4 @@
-"""Unit tests for file_write LIVE post-send stall scaling (R134)."""
+"""Unit tests for file_write LIVE post-send stall scaling."""
 
 from __future__ import annotations
 

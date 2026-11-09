@@ -4,7 +4,7 @@
 - memory.config::ConsolidationConfig (POS: consolidation configuration)
 - memory._internal.store_stamp::settled_through (POS: arrival stamp of a stored memory and the writes still in flight)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::AnyMemory (POS: memory data models)
+- memory.types::{AnyMemory, ClaimMemory, ProceduralMemory} (POS: memory data models)
 - strategies.bookkeeping::{read_bookkeeping, write_bookkeeping} (POS: Persistence of maintenance counters, hashes and timestamps)
 - strategies.consolidation_models::* (POS: Domain models, DTOs, and protocol callback types for cross-session memory consolidation)
 - strategies.consolidation_prompts::* (POS: Prompts and payload compression helpers for memory consolidation)
@@ -60,6 +60,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_prompts import 
     _build_user_prompt,
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
+from myrm_agent_harness.toolkits.memory.types import ClaimMemory, ProceduralMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
@@ -73,9 +74,9 @@ async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     """Read the covered-through timestamp from the manager's bookkeeping row.
 
     The timestamp is a store stamp, and a stamp can run ahead of the wall clock while the wall clock catches up
-    after a step back. A stored value that is naive or ahead of the wall clock is ignored so it cannot make the
-    time gates raise or hold consolidation back indefinitely; the next run then starts again from the oldest
-    memories.
+    after a step back. A stored value that cannot be parsed, is naive or is ahead of the wall clock is ignored, with a
+    warning, so it cannot make the time gates raise or hold consolidation back indefinitely; the next run then starts
+    again from the oldest memories.
     """
     if not manager.has_relational:
         return None
@@ -85,8 +86,10 @@ async def get_last_consolidated_at(manager: MemoryManager) -> datetime | None:
     try:
         last = datetime.fromisoformat(raw)
     except (ValueError, TypeError):
+        logger.warning("Consolidation covered-through stamp %r cannot be parsed; ignored", raw)
         return None
     if last.tzinfo is None or last > datetime.now(UTC):
+        logger.warning("Consolidation covered-through stamp %s is naive or ahead of the wall clock; ignored", raw)
         return None
     return last
 
@@ -103,14 +106,14 @@ async def should_consolidate(manager: MemoryManager, config: ConsolidationConfig
 
 
 async def _enrich_with_similar(memory: AnyMemory, manager: MemoryManager, max_similar: int = 3) -> list[AnyMemory]:
-    """Find similar existing memories so a single new memory can be consolidated."""
+    """Find similar existing memories so a single new memory can be consolidated; claims and rules never join."""
     try:
-        from myrm_agent_harness.toolkits.memory.types import ClaimMemory
-
         results = await manager.search(memory.content, limit=max_similar + 1, track_access=False)
-        similar = [r.memory for r in results if r.memory.id != memory.id and not isinstance(r.memory, ClaimMemory)][
-            :max_similar
-        ]
+        similar = [
+            r.memory
+            for r in results
+            if r.memory.id != memory.id and not isinstance(r.memory, ClaimMemory | ProceduralMemory)
+        ][:max_similar]
         if not similar:
             return [memory]
         return [memory, *similar]

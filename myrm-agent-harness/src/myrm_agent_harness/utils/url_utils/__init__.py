@@ -9,7 +9,6 @@
 - is_blocked_ip
 - register_blocked_hostnames
 - unregister_blocked_hostnames
-- build_host_resolver_rules
 - extract_domain
 - is_file_url
 - is_image_url
@@ -21,7 +20,7 @@
 - validate_scheme_and_hostname
 
 [POS]
-`myrm_agent_harness.utils.url_utils` 的唯一门面；解析、黑名单、安全校验与 DNS 钉扎按职责分层。
+`myrm_agent_harness.utils.url_utils` 的唯一门面；解析、黑名单与安全校验按职责分层。
 """
 
 from myrm_agent_harness.utils.url_utils.blocking import (

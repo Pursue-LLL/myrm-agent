@@ -3,13 +3,14 @@
 Covers:
 - get_last_consolidated_at / should_consolidate time gates
 - fetch_candidate_window: the arrival-ordered read of each source and the stamp that precedes it,
-  consolidation-event skip, relational rules, truncation (never through one instant), per-store error
-  tolerance and the stamp each outcome allows
+  consolidation-event skip, truncation (never through one instant), per-store error tolerance and the
+  stamp each outcome allows
 - _advance_stamp persistence guards
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
@@ -24,8 +25,7 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
 )
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import _PROFILE_KEY_LAST_CONSOLIDATED
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import fetch_candidate_window
-from myrm_agent_harness.toolkits.memory.types import ProceduralMemory
-from myrm_agent_harness.toolkits.vector.base import VectorDocument
+from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from tests.support.consolidation_manager import make_manager, semantic_doc
 
 
@@ -39,8 +39,14 @@ def _episodic_doc(mem_id: str, content: str, *, event_type: str = "conversation"
     )
 
 
-def _rule(content: str, created_at: datetime) -> ProceduralMemory:
-    return ProceduralMemory(content=content, trigger="t", action="a", created_at=created_at)
+def _doc_at(mem_id: str, arrived: datetime, *, event_type: str | None = None) -> VectorDocument:
+    """A semantic document, or an episodic one when ``event_type`` is given, that reached the store at ``arrived``."""
+    metadata: dict[str, str | int | float | bool] = {"user_id": "test-user", STORED_TS_KEY: arrived.timestamp()}
+    if event_type is None:
+        metadata |= {"importance": 0.8, "confidence": 0.9}
+    else:
+        metadata["event_type"] = event_type
+    return VectorDocument(id=mem_id, content=mem_id, metadata=metadata, created_at=arrived)
 
 
 class TestLastConsolidatedAt:
@@ -57,19 +63,42 @@ class TestLastConsolidatedAt:
         assert await get_last_consolidated_at(manager) is None
 
     @pytest.mark.asyncio
-    async def test_invalid_raw_value_returns_none(self) -> None:
+    async def test_invalid_raw_value_is_ignored_with_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         manager = make_manager()
         manager._rel_store.get_profile = AsyncMock(return_value="not-a-date")
-        assert await get_last_consolidated_at(manager) is None
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert "'not-a-date' cannot be parsed; ignored" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_valid_raw_value_parsed(self) -> None:
+    async def test_naive_raw_value_is_ignored_with_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         manager = make_manager()
-        ts = datetime.now(UTC)
+        raw = datetime.now().replace(tzinfo=None).isoformat()
+        manager._rel_store.get_profile = AsyncMock(return_value=raw)
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert f"stamp {raw} is naive or ahead of the wall clock; ignored" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_raw_value_ahead_of_the_wall_clock_is_ignored_with_a_warning(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        manager = make_manager()
+        raw = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        manager._rel_store.get_profile = AsyncMock(return_value=raw)
+        with caplog.at_level(logging.WARNING):
+            assert await get_last_consolidated_at(manager) is None
+        assert f"stamp {raw} is naive or ahead of the wall clock; ignored" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_valid_raw_value_parsed_without_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        manager = make_manager()
+        ts = datetime.now(UTC) - timedelta(minutes=1)
         manager._rel_store.get_profile = AsyncMock(return_value=ts.isoformat())
-        parsed = await get_last_consolidated_at(manager)
-        assert parsed is not None
-        assert abs((parsed - ts).total_seconds()) < 1
+        with caplog.at_level(logging.WARNING):
+            parsed = await get_last_consolidated_at(manager)
+        assert parsed == ts
+        assert caplog.records == []
 
 
 class TestShouldConsolidate:
@@ -102,7 +131,7 @@ class TestShouldConsolidate:
 
 class TestFetchCandidateWindow:
     @pytest.mark.asyncio
-    async def test_vector_and_relational_combined_truncated(self) -> None:
+    async def test_sources_combined_and_truncated(self) -> None:
         manager = make_manager()
         vector = manager._vec_store
         vector.scroll = AsyncMock(
@@ -115,16 +144,6 @@ class TestFetchCandidateWindow:
                     None,
                 ),
                 ([_episodic_doc("e-1", "event fact")], None),
-            ]
-        )
-        manager._rel_store.list_rules = AsyncMock(
-            return_value=[
-                ProceduralMemory(
-                    content="rule",
-                    trigger="t",
-                    action="a",
-                    created_at=datetime.now(UTC) - timedelta(hours=1),
-                )
             ]
         )
         window = await fetch_candidate_window(
@@ -160,26 +179,12 @@ class TestFetchCandidateWindow:
         assert window.advance_to is None
 
     @pytest.mark.asyncio
-    async def test_no_vector_uses_relational_only(self) -> None:
+    async def test_no_vector_has_nothing_to_read(self) -> None:
         manager = make_manager()
         manager.has_vector = False
-        manager._rel_store.list_rules = AsyncMock(
-            return_value=[ProceduralMemory(content="rule", trigger="t", action="a")]
-        )
         horizon = datetime.now(UTC)
         window = await fetch_candidate_window(manager, since=None, max_count=5, horizon=horizon)
-        assert len(window.memories) == 1
-        assert window.advance_to == horizon
-
-    @pytest.mark.asyncio
-    async def test_relational_error_is_tolerated(self) -> None:
-        manager = make_manager()
-        vector = manager._vec_store
-        vector.scroll = AsyncMock(side_effect=[([semantic_doc("s-1", "fact")], None), ([], None)])
-        manager._rel_store.list_rules = AsyncMock(side_effect=RuntimeError("rel down"))
-        window = await fetch_candidate_window(manager, since=None, max_count=5, horizon=datetime.now(UTC))
-        assert len(window.memories) == 1
-        assert window.advance_to is None
+        assert (window.memories, window.advance_to) == ([], horizon)
 
     @pytest.mark.asyncio
     async def test_each_source_is_read_in_arrival_order_between_the_stamp_and_the_horizon(self) -> None:
@@ -249,17 +254,32 @@ class TestFetchCandidateWindow:
         assert (window.memories, window.advance_to) == ([], None)
 
     @pytest.mark.asyncio
-    async def test_rules_that_arrived_at_one_instant_are_never_split_by_the_window(self) -> None:
+    async def test_memories_that_arrived_at_one_instant_are_never_split_by_the_window(self) -> None:
         manager = make_manager()
         earlier, tied, horizon = (datetime(2026, 1, day, tzinfo=UTC) for day in (1, 2, 3))
-        rules = [_rule("earlier", earlier), *(_rule(f"tied {i}", tied) for i in range(4))]
-        manager._rel_store.list_rules = AsyncMock(return_value=rules)
+        stored = {
+            "test_semantic": [_doc_at("earlier", earlier), _doc_at("tied 0", tied), _doc_at("tied 1", tied)],
+            "test_episodic": [
+                _doc_at("tied 2", tied, event_type="conversation"),
+                _doc_at("tied 3", tied, event_type="conversation"),
+            ],
+        }
+
+        async def scroll(
+            collection: str, *, limit: int, filters: FilterDict, **_: object
+        ) -> tuple[list[VectorDocument], None]:
+            arrival = filters[STORED_TS_KEY]
+            assert isinstance(arrival, dict)
+            after, until = arrival.get("gt", float("-inf")), arrival["lte"]
+            return [d for d in stored[collection] if after < d.metadata[STORED_TS_KEY] <= until][:limit], None
+
+        manager._vec_store.scroll = AsyncMock(side_effect=scroll)
 
         first = await fetch_candidate_window(manager, None, 3, horizon)
         second = await fetch_candidate_window(manager, first.advance_to, 3, horizon)
         third = await fetch_candidate_window(manager, second.advance_to, 3, horizon)
 
-        # A cut through the tied instant would lose the rules beyond it, because the stamp is an instant.
+        # A cut through the tied instant would lose the memories beyond it, because the stamp is an instant.
         assert ([m.content for m in first.memories], first.advance_to) == (["earlier"], earlier)
         assert (sorted(m.content for m in second.memories), second.advance_to) == (
             [f"tied {i}" for i in range(4)],

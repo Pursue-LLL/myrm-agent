@@ -1,4 +1,4 @@
-"""Browser takeover LIVE — gate / MUX probe helpers (R98)."""
+"""Browser takeover LIVE — gate / MUX probe helpers."""
 
 from __future__ import annotations
 

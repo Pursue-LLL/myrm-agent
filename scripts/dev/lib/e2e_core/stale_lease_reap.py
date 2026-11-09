@@ -1,9 +1,9 @@
-"""Reap excess wave leases when holder pytest processes are gone (R58 hygiene).
+"""Reap excess wave leases when holder pytest processes are gone (hygiene).
 
 [INPUT]
 - stack_mutation_policy.wave_active_lease_count (POS: active wave lease tally)
-- e2e_session_runtime.registry list_live_e2e_sessions (R144/R146 SSOT — ADMIT+BODY sidecar)
-- e2e_session_runtime.snapshot body_elapsed / progress stall (R62 Phase B); e2e_core.dev_ports::shared_backend_port (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
+- e2e_session_runtime.registry list_live_e2e_sessions (SSOT — ADMIT+BODY sidecar)
+- e2e_session_runtime.snapshot body_elapsed / progress stall (Phase B); e2e_core.dev_ports::shared_backend_port (POS: Default ports of the user, shared dev and isolated stacks — SSOT)
 
 [OUTPUT]
 - maybe_reap_excess_wave_leases: run wave reap when leases exceed live tests + slack
@@ -294,7 +294,7 @@ def _hung_reason_for_row(
                 return node_stuck
             return None
         if signoff:
-            # Signoff: defer progress_stale only — bootstrap/body caps handled above (R187).
+            # Signoff: defer progress_stale only — bootstrap/body caps handled above.
             return None
         body_elapsed = body_elapsed_from_snapshot(snapshot)
         if body_elapsed is not None:
@@ -333,7 +333,7 @@ def _hung_reason_for_row(
             and stale >= stall_cap
         ):
             return f"progress_stale={int(stale)}s>={int(stall_cap)}s"
-        # R141: healthy body/bootstrap snapshot must not fall through to process_elapsed.
+        # healthy body/bootstrap snapshot must not fall through to process_elapsed.
         return None
     from dev_gate.contract import LIVE_AGENT_PYTEST_WALL_CAP_SEC  # noqa: PLC0415
 
@@ -623,7 +623,7 @@ def _admit_semantic_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
 
 
 def _body_wall_exceeded_reason(row: LiveE2ESessionRow) -> str | None:
-    """BODY 总时长硬上限 —— 唯一权威时钟（R030-J）。
+    """BODY 总时长硬上限 —— 唯一权威时钟。
 
     body 阶段且 body_elapsed_sec >= body cap -> E2E_BODY_WALL_EXCEEDED。
     node 级进展永不豁免 BODY 总时长：hung-reap 与 FAIL_FAST 必须对同一
@@ -681,7 +681,7 @@ def _parallel_node_stuck_reason(row: LiveE2ESessionRow) -> str | None:
             return admit_semantic
         if elapsed_f < _admit_wall_cap_for_pid(row.pid):
             return None
-        # R285: ADMIT semantic node past the admit wall must keep the ADMIT
+        # ADMIT semantic node past the admit wall must keep the ADMIT
         # token (not fall through to generic E2E_NODE_STUCK) so force-kill and
         # signoff peer immunity classification stay aligned with e2e-context.
         if is_admit_semantic_stall_node(current_node):
@@ -1198,7 +1198,7 @@ def _signoff_peer_reap_immunity(row: LiveE2ESessionRow, reason: str) -> bool:
         return False
     if _process_has_signoff_env(row.pid):
         return False
-    # R198: hard-cap ADMIT/BOOTSTRAP breaches must reap even during signoff.
+    # hard-cap ADMIT/BOOTSTRAP breaches must reap even during signoff.
     if reason.startswith(("bootstrap_elapsed=", "admit_elapsed=")):
         return False
     from dev_gate.contract import E2E_ADMIT_NODE_STUCK_TOKEN  # noqa: PLC0415

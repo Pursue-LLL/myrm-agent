@@ -53,7 +53,10 @@ def filter_and_guard_operations(
     memories: Sequence[AnyMemory],
     id_map: dict[str, str],
 ) -> tuple[list[ConsolidationOp], int]:
-    """Filter operations by Rubric score and deterministic NamedEntityGuard verification & self-healing."""
+    """Filter operations by Rubric score and deterministic NamedEntityGuard verification & self-healing.
+
+    At most one operation is kept per memory, the first the model proposed.
+    """
     valid_ops: list[ConsolidationOp] = []
     guard_patched_count = 0
     entity_guard = NamedEntityGuard()
@@ -61,6 +64,24 @@ def filter_and_guard_operations(
     for short_id, full_id in id_map.items():
         if full_id in content_by_id:
             content_by_id[short_id] = content_by_id[full_id]
+
+    window_ids = {m.id for m in memories}
+    handled: set[str] = set()
+
+    def accept(op: ConsolidationOp) -> bool:
+        """Keep ``op`` unless an earlier kept operation already handled a memory it names.
+
+        The model plans every operation against the memories as they were read, so a later one on a memory that an
+        earlier operation merged, corrected or rewrote would act on content that no longer exists.
+        """
+        named = op.source_ids if isinstance(op, MergeOp) else [op.memory_id]
+        targets = {full for name in named if (full := id_map.get(name, name)) in window_ids}
+        if targets & handled:
+            logger.info("Consolidation op %s dropped: a memory it names was already handled this cycle", op.action)
+            return False
+        handled.update(targets)
+        valid_ops.append(op)
+        return True
 
     for op in raw_ops:
         total_score = (op.accuracy_score * 0.4) + (op.anti_fragmentation_score * 0.3) + (op.redundancy_score * 0.3)
@@ -129,9 +150,8 @@ def filter_and_guard_operations(
                         len(guard_verdict.missing_entities),
                         guard_verdict.rejection_code,
                     )
-                    op = op.model_copy(update={"merged_content": patched_content})
-                    valid_ops.append(op)
-                    guard_patched_count += 1
+                    if accept(op.model_copy(update={"merged_content": patched_content})):
+                        guard_patched_count += 1
                     continue
 
             logger.warning(
@@ -142,7 +162,7 @@ def filter_and_guard_operations(
             )
             continue
 
-        valid_ops.append(op)
+        accept(op)
 
     return valid_ops, guard_patched_count
 

@@ -1,7 +1,7 @@
-"""Global mux upstream cold-attach admission for chrome_e2e new_page (R22).
+"""Global mux upstream cold-attach admission for chrome_e2e new_page.
 
 Registry-backed cap on concurrent mux cold attach operations across all pytest
-sessions and MCP shims. Complements session-level ``e2e_mux_admission`` (R17).
+sessions and MCP shims. Complements session-level ``e2e_mux_admission``.
 """
 
 from __future__ import annotations
@@ -295,7 +295,7 @@ def _parallel_mux_peer_count() -> int:
 
 
 def _parallel_cold_attach_headroom(peers: int) -> int:
-    """Reserve mux cold-attach slots under parallel wave/pytest load (R113)."""
+    """Reserve mux cold-attach slots under parallel wave/pytest load."""
     if peers <= 1:
         return 0
     cap = effective_max_slots()

@@ -1,4 +1,4 @@
-"""StackHealCoordinator — single-writer shared backend heal (R145).
+"""StackHealCoordinator — single-writer shared backend heal.
 
 [INPUT]
 - stack_mutation_policy.backend_heal_file_lock
@@ -118,7 +118,7 @@ def run_attach_health_preflight(
     wait_sec: float,
     shpoib: bool = False,
 ) -> int:
-    """R145 attach health probe — no shared-stack drift dogpile during parallel ADMIT.
+    """attach health probe — no shared-stack drift dogpile during parallel ADMIT.
 
     SHPOIB lanes never wait on shared backend. Shared lanes use StackHealCoordinator
     only; pending drift apply runs exclusively when wave leases == 0.

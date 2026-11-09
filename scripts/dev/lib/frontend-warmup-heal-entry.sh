@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Subprocess entry for timed shared UI heal (R158 — bash -c cannot see sourced functions).
+# Subprocess entry for timed shared UI heal (bash -c cannot see sourced functions).
 set -euo pipefail
 SCRIPT_DIR="${SCRIPT_DIR:?SCRIPT_DIR required}"
 STATE_DIR="$(dev_state_dir)"

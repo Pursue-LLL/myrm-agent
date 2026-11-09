@@ -1410,13 +1410,13 @@ def _blocking_progress_loop(
         new_page_timeout_ms=_OPEN_PAGE_NEW_PAGE_TIMEOUT_MS,
     )
     if is_e2e_signoff_runtime():
-        # R181: do not min() against per-attempt transport budget — signoff stall cap
-        # already scales with MYRM_E2E_SIGNOFF_BATCH_BODY_SEC (R179/R180).
+        # do not min() against per-attempt transport budget — signoff stall cap
+        # already scales with MYRM_E2E_SIGNOFF_BATCH_BODY_SEC.
         stall_cap = signoff_open_page_transport_stall_cap_sec()
     else:
         stall_cap = max(transport_stall_cap_sec(), open_page_total_budget + 15.0)
         if _parallel_open_page_peer_count() >= 2:
-            # R170: mux queue may block longer than NODE_STUCK peer cap — use body
+            # mux queue may block longer than NODE_STUCK peer cap — use body
             # fraction budget so parallel LIVE can reach outer transport retry.
             stall_cap = max(
                 transport_stall_cap_sec(),
@@ -1429,7 +1429,7 @@ def _blocking_progress_loop(
             if is_e2e_signoff_runtime() or _dev_private_shpoib_bootstrap_phase():
                 from dev_gate.contract import signoff_bootstrap_transport_stall_cap_sec
 
-                # R220/R222: dev PRIVATE SHPOIB bootstrap — align stall with mux queue headroom.
+                # dev PRIVATE SHPOIB bootstrap — align stall with mux queue headroom.
                 stall_cap = max(
                     stall_cap,
                     signoff_bootstrap_transport_stall_cap_sec(
@@ -1475,7 +1475,7 @@ def _blocking_progress_loop(
 
 
 def _open_page_body_fraction_cap_sec() -> float:
-    """R143: open_mcp_page must not consume more than 35% of LIVE BODY wall."""
+    """open_mcp_page must not consume more than 35% of LIVE BODY wall."""
     try:
         if is_e2e_signoff_runtime():
             from dev_gate.contract import signoff_effective_body_wall_sec
@@ -1629,10 +1629,10 @@ def _open_page_parallel_retry_allowed() -> bool:
 
 
 def _open_page_attempt_count() -> int:
-    """R152 TPMc: parallel mux — single outer pass; no retry that resets session clock."""
+    """TPMc: parallel mux — single outer pass; no retry that resets session clock."""
     peers = _parallel_open_page_peer_count()
     if _open_page_parallel_retry_allowed():
-        # R171/R223: heavy mux — fewer attempts, more wall per attempt beats 3× short stalls.
+        # heavy mux — fewer attempts, more wall per attempt beats 3× short stalls.
         if peers >= 4:
             return 2
         if peers >= 3:
@@ -1680,7 +1680,7 @@ def _restart_open_page_mux_budget(
 
 
 def _mux_transport_wait_budget_sec() -> float:
-    """Mux queue wait — pessimistic under signoff bootstrap parallel (R219)."""
+    """Mux queue wait — pessimistic under signoff bootstrap parallel."""
     try:
         from dev_gate.contract import signoff_mux_transport_wait_budget_sec
 
@@ -1773,7 +1773,7 @@ def _open_page_parallel_budgets(
     new_page_timeout_ms: int,
     peers: int | None = None,
 ) -> tuple[float, int, float, float, int]:
-    """Fixed open_mcp_page budgets — scale tool wall under parallel mux contention (R122-B9)."""
+    """Fixed open_mcp_page budgets — scale tool wall under parallel mux contention."""
     del peers
     capped_ms = min(new_page_timeout_ms, _OPEN_PAGE_NEW_PAGE_TIMEOUT_MS)
     signoff = is_e2e_signoff_runtime()
@@ -1859,7 +1859,7 @@ def _open_page_parallel_budgets(
 
 
 def _parallel_open_page_peer_count() -> int:
-    """Wave/mux peers for open_mcp_page heal policy (R122-B8)."""
+    """Wave/mux peers for open_mcp_page heal policy."""
     from mux.load import parallel_open_page_peer_count
 
     return parallel_open_page_peer_count(signoff=is_e2e_signoff_runtime())
@@ -1879,12 +1879,12 @@ def _should_skip_attach_preflight_restart() -> bool:
 
 
 def _open_page_parallel_total_wall_only() -> bool:
-    """R122-B12: parallel mux — one outer total_deadline, no per-tool slice starvation."""
+    """parallel mux — one outer total_deadline, no per-tool slice starvation."""
     return _parallel_open_page_peer_count() >= 2
 
 
 def _open_page_allow_mux_budget_extension() -> bool:
-    """R122-B12: parallel peers must not get hidden 3rd+ open_mcp pass via mux restart reset."""
+    """parallel peers must not get hidden 3rd+ open_mcp pass via mux restart reset."""
     return not _open_page_parallel_total_wall_only()
 
 
@@ -1931,7 +1931,7 @@ def _signoff_mux_drain_budget_sec() -> float:
 
 
 def _wait_cold_shim_peer_pressure_drain(*, budget_sec: float, current_node: str) -> None:
-    """Wait until mux peer load drops below cold-shim defer threshold (R231)."""
+    """Wait until mux peer load drops below cold-shim defer threshold."""
     try:
         from mux.transport_supervisor import (
             _cold_shim_defer_peer_load,
@@ -2093,7 +2093,7 @@ def _open_page_new_page(
 
 
 def _open_page_cdp_probe_budget_sec() -> float:
-    """Scale CDP+mux preflight budget under parallel wave/mux load (R117)."""
+    """Scale CDP+mux preflight budget under parallel wave/mux load."""
     base = 45.0
     max_budget = 240.0 if is_e2e_signoff_runtime() else 180.0
     peers = 0
@@ -2118,7 +2118,7 @@ def _open_page_cdp_probe_budget_sec() -> float:
 
 
 def _require_e2e_cdp_ready(*, budget_sec: float | None = None) -> None:
-    """SSOT CDP probe for open_mcp_page — mux heal deferred to new_page R121 inner retry."""
+    """SSOT CDP probe for open_mcp_page — mux heal deferred to new_page inner retry."""
     import os
 
     port = int(os.environ.get("MYRM_CHROME_E2E_PORT", "9333"))
@@ -2187,7 +2187,7 @@ def _sync_open_page_tool_wall(
     steps_remaining: int,
     floor_sec: float = 90.0,
 ) -> None:
-    """Refresh per-step tool wall budget so SHPOIB multi-hop open does not exhaust early (R118)."""
+    """Refresh per-step tool wall budget so SHPOIB multi-hop open does not exhaust early."""
     now = time.monotonic()
     remaining = min(wall_deadline, total_deadline) - now
     if remaining <= 0:
@@ -2214,7 +2214,7 @@ def _refresh_signoff_open_nav_tool_wall(
     wall_deadline: float,
     total_deadline: float,
 ) -> None:
-    """R213: refresh tool wall after mux/new_page gate consumed attempt-local remaining."""
+    """refresh tool wall after mux/new_page gate consumed attempt-local remaining."""
     if not is_e2e_signoff_runtime():
         return
     from dev_gate.contract import signoff_open_mcp_budgets
@@ -2238,7 +2238,7 @@ def _refresh_signoff_open_nav_tool_wall(
     if peers >= 2:
         nav_floor = max(nav_floor, 90.0 + peers * 12.0)
     if attempt_remaining < 30.0 and bootstrap_remaining < 30.0:
-        # R265: mux queue consumed attempt wall — grant fresh nav slice from SSOT.
+        # mux queue consumed attempt wall — grant fresh nav slice from SSOT.
         budget = max(nav_floor, float(budgets.layout_wait_sec), budgets.wall_budget_sec * 0.55)
     else:
         budget = max(nav_floor, min(bootstrap_remaining, budgets.wall_budget_sec))
@@ -2750,7 +2750,7 @@ _ATTACH_FRONTEND_HEAL_TRIGGERED = False
 
 
 def _trigger_attach_frontend_heal_once() -> None:
-    """Restart Turbopack when HTTP 200 shell persists without client hydration (R284 body SSOT)."""
+    """Restart Turbopack when HTTP 200 shell persists without client hydration (body SSOT)."""
     global _ATTACH_CLIENT_WARMUP_URLS, _ATTACH_FRONTEND_HEAL_TRIGGERED
     if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
         return
@@ -2805,7 +2805,7 @@ def _attach_client_warmup_timeout_sec() -> float:
 
 
 def _trigger_attach_client_warmup_once(*, page_url: str | None = None) -> None:
-    """Run global CDP client hydration once when attach ADMIT skipped clientHot (R284 body SSOT).
+    """Run global CDP client hydration once when attach ADMIT skipped clientHot (body SSOT).
 
     A failed warmup does not mark the URL as warmed: the client is still cold, and the next caller has
     to be able to try again (the compile may simply have needed more time).

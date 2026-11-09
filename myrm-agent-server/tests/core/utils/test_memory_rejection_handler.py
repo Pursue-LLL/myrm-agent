@@ -1,7 +1,7 @@
 """
 [INPUT] app.core.utils.errors::register_exception_handlers; app.services.memory.operations.crud.list_write::create_memory; app.api.memory.operations.command_center_actions::run_memory_action; app.api.mem0_compat.endpoints::router
-[OUTPUT] test_profile_create_rejected_with_400, test_correction_rejection_is_400_not_500, test_mem0_update_rejection_is_400_not_500
-[POS] 验证记忆写入被安全扫描拒绝时，服务端所有写入口一律返回带用户可读原因的 400，而不是 500 或被宽泛 except 吞掉。
+[OUTPUT] test_profile_create_rejected_with_400, test_correction_rejection_is_400_not_500, test_mem0_update_rejection_is_400_not_500, test_memory_refusals_map_to_client_errors
+[POS] 验证记忆写入被安全扫描或记忆规则拒绝、目标受保护或不存在时，服务端所有写入口一律返回带用户可读原因的 4xx，而不是 500 或被宽泛 except 吞掉。
 """
 
 from __future__ import annotations
@@ -12,7 +12,12 @@ import pytest
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.memory import MemoryConfig, MemoryManager, MemoryType
-from myrm_agent_harness.toolkits.memory.manager import MemoryTaintedError
+from myrm_agent_harness.toolkits.memory.manager import (
+    MemoryNotFoundError,
+    MemoryProtectedError,
+    MemoryRejectedError,
+    MemoryTaintedError,
+)
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
 from app.api.mem0_compat.endpoints import router as mem0_router
@@ -93,3 +98,26 @@ async def test_mem0_update_rejection_is_400_not_500() -> None:
 
     assert response.status_code == 400
     _assert_user_safe_rejection(response.json())
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (MemoryRejectedError("Not updated: importance must be between 0.0 and 1.0"), 400),
+        (MemoryProtectedError("Memory m1 is protected by the user"), 409),
+        (MemoryNotFoundError("Memory m1 not found"), 404),
+    ],
+)
+@pytest.mark.asyncio
+async def test_memory_refusals_map_to_client_errors(error: Exception, expected_status: int) -> None:
+    manager = AsyncMock()
+    manager.correct_memory.side_effect = error
+
+    async with AsyncClient(transport=ASGITransport(app=_app(manager)), base_url="http://test") as client:
+        response = await client.post(
+            "/memories/actions",
+            json={"target_kind": "memory", "target_id": "m1", "action": "correct", "content": "fixed"},
+        )
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": str(error)}

@@ -34,7 +34,7 @@ def _bootstrap_monorepo_root() -> Path:
 
 
 def _signoff_bridge_hydrate_cap_sec() -> float:
-    """R225: scale bridge/shared-ui hydrate slice under parallel signoff (v149 @9 leases)."""
+    """scale bridge/shared-ui hydrate slice under parallel signoff (v149 @9 leases)."""
     cap = 90.0
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return cap
@@ -157,7 +157,7 @@ def _bootstrap_shell_heal_polls(poll: int) -> bool:
 
 
 def _bootstrap_shell_heal_wall_cap_sec(parallel_active: int) -> float:
-    """R179: fail-fast shell heal under parallel mux so soak mux_retry can recover."""
+    """fail-fast shell heal under parallel mux so soak mux_retry can recover."""
     load = max(0, int(parallel_active))
     if load >= 4:
         return 75.0
@@ -170,9 +170,9 @@ class CdpChatBootstrap(CdpChatTransport):
     _e2e_api_base_bound: bool = False
     _shared_ui_session_contract_applied: bool = False
     _bootstrap_started_monotonic: float | None = None
-    # Session SSOT: hydrate re-entry must not reset shell-layout stall clock (R51).
+    # Session SSOT: hydrate re-entry must not reset shell-layout stall clock.
     _shell_layout_wait_started: float | None = None
-    # R73-A: session-level stall clock — never reset on mux recover retry.
+    # session-level stall clock — never reset on mux recover retry.
     _shell_session_started: float | None = None
     _shell_skeleton_since: float | None = None
     _shell_hydrate_depth: int = 0
@@ -198,7 +198,7 @@ class CdpChatBootstrap(CdpChatTransport):
         return self._shell_session_started
 
     def _check_skeleton_stall(self, probe: dict[str, object], *, phase: str) -> None:
-        """Fail-fast when UI stays skeleton/blank without progress (R73-A)."""
+        """Fail-fast when UI stays skeleton/blank without progress."""
         from dev_gate.contract import (
             E2E_SHELL_SKELETON_STALL_TOKEN,
             shell_probe_stall_fail_fast_effective_sec,
@@ -555,7 +555,7 @@ class CdpChatBootstrap(CdpChatTransport):
         timeout_sec = _parallel_shpoib_shell_timeout(timeout_sec)
         self._reset_shell_layout_wait_clock()
         self._mark_bootstrap_started()
-        # R53/R67: parallel SHPOIB uses inner poll — nested wait_shell_layout mux-deadlocks.
+        # parallel SHPOIB uses inner poll — nested wait_shell_layout mux-deadlocks.
         if require_bridge and os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1":
             return await self._wait_shell_ready_inner(
                 timeout_sec=timeout_sec,
@@ -1211,7 +1211,7 @@ class CdpChatBootstrap(CdpChatTransport):
             )
             await asyncio.sleep(2.0)
             await self.ensure_e2e_api_base_binding()
-            # R53: inner poll only — avoid nested wait_shell_layout + mux deadlock.
+            # inner poll only — avoid nested wait_shell_layout + mux deadlock.
             await self._wait_shell_ready_inner(
                 timeout_sec=slice_sec,
                 require_bridge=True,

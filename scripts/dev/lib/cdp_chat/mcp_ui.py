@@ -377,7 +377,7 @@ class McpChatSession(CdpChatSession):
         timeout_sec: float = 120.0,
         navigate: bool = False,
     ) -> dict[str, object]:
-        """MCP pages use the full bootstrap + shared UI session contract (R72)."""
+        """MCP pages use the full bootstrap + shared UI session contract."""
         self._base_url = base_url
         self._mark_bootstrap_started()
         return await super().bootstrap(

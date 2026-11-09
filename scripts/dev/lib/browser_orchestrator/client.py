@@ -64,7 +64,7 @@ def _forget_session_pages(target_ids: list[str] | str) -> None:
     except (OSError, ImportError, ValueError) as exc:
         _LOGGER.warning("session page ledger retire failed: %s", exc)
 
-# Socket read budget = openPageTransaction wall + fair-scheduler grace (R299).
+# Socket read budget = openPageTransaction wall + fair-scheduler grace.
 _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
 _SIGNOFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
 _WAVE_LEASE_CACHE_TTL_SEC = 5.0
@@ -212,7 +212,7 @@ def _cached_parallel_load() -> int:
 
 
 def _parallel_scaled_evaluate_timeout_sec(base: float) -> float:
-    """Scale orchestrator CDP evaluate under parallel chrome_e2e mux queue (R124)."""
+    """Scale orchestrator CDP evaluate under parallel chrome_e2e mux queue."""
     load = _cached_parallel_load()
     if load < 2:
         return base

@@ -11,7 +11,7 @@
 
 [OUTPUT]
 - list_by_type, count_by_type, delete_by_type: Type-dispatched CRUD helpers used by the memory management API
-- iter_pages_by_type: walks every memory of one type page by page (export, backup and the consolidation window's rules)
+- iter_pages_by_type: walks every memory of one type page by page (export and backup)
 
 [POS]
 Per-type CRUD dispatch for the storage facade; re-exported by ``storage``. Not part of the public API.

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
-_SYSTEM_PROMPT = """You are a memory consolidation agent. Analyze the user's memories (semantic facts, episodic events, and procedural rules) and identify:
+_SYSTEM_PROMPT = """You are a memory consolidation agent. Analyze the user's memories (semantic facts and episodic events) and identify:
 
 1. **Contradictions**: Memories that conflict (e.g., "prefers Python" vs "prefers Rust")
 2. **Redundancies**: Multiple memories expressing the same fact → merge into one
@@ -40,7 +40,6 @@ Before proposing any consolidation operation, strictly evaluate it against these
 - Preserve all unique information when merging. Never discard details.
 - Use absolute dates based on today's date provided below.
 - Keep the original language (Chinese stays Chinese, English stays English).
-- For procedural rules (type=procedural), use ONLY update_content (NOT merge or correct, since rules have structured trigger/action fields).
 - Memories tagged [NEW] are recently added. Pay special attention to contradictions between [NEW] and existing memories.
 
 ## Output
@@ -71,11 +70,7 @@ def _build_user_prompt(
             corrects_short = reverse_map.get(correction_of, correction_of[:8])
             meta_parts.append(f"corrects:{corrects_short}")
         lines.append(f"[{short_id}]{tag} ({', '.join(meta_parts)})")
-        if hasattr(mem, "trigger") and hasattr(mem, "action"):
-            lines.append(f"  trigger: {mem.trigger}")
-            lines.append(f"  action: {mem.action}")
-        else:
-            lines.append(f"  {mem.content}")
+        lines.append(f"  {mem.content}")
         source_error = getattr(mem, "source_error", None)
         if source_error:
             lines.append(f"  source_error: {source_error}")

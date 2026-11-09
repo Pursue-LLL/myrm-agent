@@ -146,7 +146,7 @@ class TestVoiceAgentBridgeCancelTts:
 
 
 class TestSpeechInterruptedLatch:
-    """Tests for the speech-interrupted latch (R16)."""
+    """Tests for the speech-interrupted latch."""
 
     def test_take_returns_note_when_latch_fresh(self) -> None:
         import time

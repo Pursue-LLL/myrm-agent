@@ -1,4 +1,4 @@
-"""E2E Runtime Cell — parallel chrome_e2e slot isolation (R73-F).
+"""E2E Runtime Cell — parallel chrome_e2e slot isolation.
 
 [INPUT]
 - dev_gate.contract (stall caps)
@@ -106,7 +106,7 @@ def persist_cell_mux_generation(generation: int, *, cell_id: str | None = None) 
 
 
 def ensure_cell_mux_generation(cell_id: str) -> int:
-    """Initialize per-cell mux generation ledger (R73-F TPC M2)."""
+    """Initialize per-cell mux generation ledger (TPC M2)."""
     existing = read_cell_mux_generation(cell_id)
     if existing > 0:
         return existing
@@ -264,7 +264,7 @@ def runtime_cell_snapshot() -> dict[str, object]:
 
 @contextmanager
 def cell_ui_hydrate_slot(*, wait_sec: int | None = None) -> Iterator[None]:
-    """Per-cell exclusive UI navigate/reload slot (R73-F hydrate lease)."""
+    """Per-cell exclusive UI navigate/reload slot (hydrate lease)."""
     cell_id = current_cell_id()
     if not cell_id or os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         yield

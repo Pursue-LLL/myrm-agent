@@ -2,10 +2,9 @@
 
 [INPUT]
 - memory._internal.storage::doc_to_episodic, doc_to_semantic (POS: Vector document to memory converters)
-- memory._internal.storage::iter_pages_by_type (POS: page-by-page walk of one memory type)
 - memory._internal.store_stamp::{STORED_TS_KEY, stored_at_from_metadata} (POS: arrival stamp of a stored memory and its payload form)
 - memory.manager::MemoryManager (POS: unified memory manager facade)
-- memory.types::AnyMemory, EpisodicMemory, MemoryType, SemanticMemory (POS: memory data models)
+- memory.types::AnyMemory, EpisodicMemory, SemanticMemory (POS: memory data models)
 - strategies.consolidation_models::{CONSOLIDATION_EVENT_TYPE, CONSOLIDATION_INSIGHT_TAG, CONSOLIDATION_SOURCE_KEY} (POS: markers of consolidation's own output)
 
 [OUTPUT]
@@ -15,14 +14,14 @@
 [POS]
 Selects what a consolidation run analyzes. The stamp is a covered-through mark over arrival order: every memory
 stored at or before it was analyzed or deliberately skipped. Arrival is the store stamp, not ``created_at``, so a
-memory approved late, imported with its source's timestamp or corrected is still seen; a rule's row keeps its
-stamp as its creation time, and every active rule is read however many there are. The window walks forward in
-arrival order, never past the run's horizon and never past a point some source was not read to, so a backlog larger
-than one run is drained batch by batch. The only memories it skips are consolidation's own output, rules that are
-no longer active, documents that cannot be decoded (one never hides its neighbours) and, when a source is cut inside
-a group of documents stored before stamps existed that share one creation instant, the rest of that group. An
-unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting it jump over memories the
-run could not see.
+memory approved late, imported with its source's timestamp or corrected is still seen. Only semantic and episodic
+memories are read: a procedural rule takes effect through its trigger and action, which consolidation may not
+rewrite, so a rule is never a candidate. The window walks forward in arrival order, never past the run's horizon and
+never past a point some source was not read to, so a backlog larger than one run is drained batch by batch. The only
+memories it skips are consolidation's own output, documents that cannot be decoded (one never hides its neighbours)
+and, when a source is cut inside a group of documents stored before stamps existed that share one creation instant,
+the rest of that group. An unreadable source, or a batch in which nothing decodes, holds the stamp instead of letting
+it jump over memories the run could not see.
 """
 
 from __future__ import annotations
@@ -33,14 +32,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory._internal.storage import doc_to_episodic, doc_to_semantic, iter_pages_by_type
+from myrm_agent_harness.toolkits.memory._internal.storage import doc_to_episodic, doc_to_semantic
 from myrm_agent_harness.toolkits.memory._internal.store_stamp import STORED_TS_KEY, stored_at_from_metadata
 from myrm_agent_harness.toolkits.memory.strategies.consolidation_models import (
     CONSOLIDATION_EVENT_TYPE,
     CONSOLIDATION_INSIGHT_TAG,
     CONSOLIDATION_SOURCE_KEY,
 )
-from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, MemoryType, SemanticMemory
+from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, SemanticMemory
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -73,7 +72,7 @@ def _is_consolidation_product(memory: AnyMemory) -> bool:
 
 
 def _arrived_at(memory: AnyMemory) -> datetime:
-    """When the memory reached the store: its stamp, which a rule's row keeps as its creation time."""
+    """When the memory reached the store: its stamp, or its creation time when it carries none."""
     return memory.stored_at or memory.created_at
 
 
@@ -81,9 +80,8 @@ def _without_split_instant(pool: list[AnyMemory], max_count: int) -> list[AnyMem
     """The first ``max_count`` of an arrival-ordered pool that is longer, never cutting through one instant.
 
     The stamp is an instant, so memories that arrived at the same one must stay on the same side of it. Stamps never
-    repeat within a process, but documents stamped from a shared creation time and rules written without the manager
-    can share one. The cut moves back to the previous instant, or takes the whole instant when the first
-    ``max_count`` all share it.
+    repeat within a process, but documents stamped from a shared creation time can share one. The cut moves back to
+    the previous instant, or takes the whole instant when the first ``max_count`` all share it.
     """
     last = _arrived_at(pool[max_count - 1])
     if _arrived_at(pool[max_count]) != last:
@@ -133,29 +131,6 @@ def _decode(
     return memories
 
 
-# N rules take N // _RULE_PAGE_SIZE + 1 reads: the walk ends at the first page that is not full.
-_RULE_PAGE_SIZE = 2000
-
-
-async def _active_rules(manager: MemoryManager) -> list[AnyMemory]:
-    """Every active rule of the manager's scope, however many there are.
-
-    One read of rules is capped, and the stamp would move past a rule the cap left out, so the rules are walked page
-    by page. A page that fails to read fails the whole read.
-    """
-    rules: list[AnyMemory] = []
-    async for page in iter_pages_by_type(
-        MemoryType.PROCEDURAL,
-        page_size=_RULE_PAGE_SIZE,
-        relational=manager._rel(),
-        vector=None,
-        config=manager.config,
-        namespaces=manager.namespaces,
-    ):
-        rules.extend(page)
-    return rules
-
-
 async def fetch_candidate_window(
     manager: MemoryManager, since: datetime | None, max_count: int, horizon: datetime
 ) -> CandidateWindow:
@@ -199,17 +174,6 @@ async def fetch_candidate_window(
             if documents and not memories:
                 readable = False
             candidates.extend(memory for memory in memories if not _is_consolidation_product(memory))
-
-    if manager.has_relational:
-        try:
-            rules = await _active_rules(manager)
-        except Exception as exc:
-            logger.warning("Consolidation fetch procedural rules failed: %s", exc)
-            readable = False
-        else:
-            candidates.extend(
-                rule for rule in rules if (since is None or rule.created_at > since) and rule.created_at <= horizon
-            )
 
     pool = sorted((m for m in candidates if bound is None or _arrived_at(m) <= bound), key=_arrived_at)
     if len(pool) > max_count:

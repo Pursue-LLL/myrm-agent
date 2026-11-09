@@ -51,7 +51,7 @@ from tests.support.e2e_runtime_guard import heartbeat_once
 
 
 def _desktop_tool_activity_tick() -> None:
-    """R249: lease + BODY wall progress during desktop tool-activity poll."""
+    """lease + BODY wall progress during desktop tool-activity poll."""
     heartbeat_once()
     try:
         from e2e_session_runtime.lifecycle import touch_wall_progress
@@ -557,7 +557,7 @@ def _merge_desktop_progress(
     merged["apiLastTool"] = api_last
     api_err = str(api_probe.get("err") or "").strip()
     if api_err == "api-progress-wall-timeout":
-        # R235: preserve API wall-timeout through UI merge so seeded-fallback streak fires.
+        # preserve API wall-timeout through UI merge so seeded-fallback streak fires.
         merged["err"] = api_err
     return merged
 

@@ -358,7 +358,7 @@ def _apply_chrome_e2e_lane_timeout(item: pytest.Item) -> None:
     floor = _chrome_e2e_lane_timeout_sec(item)
     if floor is None:
         return
-    # R43: always cap chrome_e2e to lane floor; per-item marks must not exceed SSOT.
+    # always cap chrome_e2e to lane floor; per-item marks must not exceed SSOT.
     item.own_markers = [marker for marker in item.own_markers if marker.name != "timeout"]
     item.add_marker(pytest.mark.timeout(floor))
 
@@ -579,7 +579,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
         )
     if epoch_pin_active():
         return
-    # R278/R279: signoff + desktop soak queue via ADMIT — never pytest.skip here.
+    # signoff + desktop soak queue via ADMIT — never pytest.skip here.
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
         return
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() == "1":

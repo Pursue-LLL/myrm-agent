@@ -1,4 +1,4 @@
-"""E2E runtime resource ledger SSOT (R98 · lib layer)."""
+"""E2E runtime resource ledger SSOT (lib layer)."""
 
 from __future__ import annotations
 

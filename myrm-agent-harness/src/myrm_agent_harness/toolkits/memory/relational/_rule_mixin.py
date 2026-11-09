@@ -11,7 +11,6 @@
 
 [POS]
 Procedural-rule persistence of SQLiteRelationalStore; trigger keywords and extra metadata are stored as JSON columns.
-A rule that carries its store stamp keeps it as its creation time.
 """
 
 import json
@@ -39,9 +38,7 @@ class SQLiteRuleMixin(SQLiteStoreHost):
         await self._ensure_integrity_before_write()
         conn = await self._get_connection()
         rule_id = rule.id or str(uuid4())
-        # A rule the store has stamped keeps that stamp: consolidation compares it with the stamp clock, which
-        # (unlike the wall clock) never steps back.
-        created_at = rule.stored_at.isoformat() if rule.stored_at is not None else now_iso()
+        now = now_iso()
         (
             primary_namespace,
             namespaces_json,
@@ -79,8 +76,8 @@ class SQLiteRuleMixin(SQLiteStoreHost):
                     rule.tool_rule_priority.value,
                     rule.access_count,
                     (rule.last_accessed_at.isoformat() if rule.last_accessed_at else None),
-                    created_at,
-                    created_at,
+                    now,
+                    now,
                     int(rule.is_user_locked),
                     rule.expected_valid_days,
                 ),

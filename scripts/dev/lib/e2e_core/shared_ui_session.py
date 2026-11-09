@@ -309,7 +309,7 @@ async def _apply_empty_search_block(
     *,
     skip_reason: str | None = None,
 ) -> dict[str, object]:
-    """Set empty-search block flag; skip redundant mux evaluate on fast paths (R229)."""
+    """Set empty-search block flag; skip redundant mux evaluate on fast paths."""
     if skip_reason in ("block_preserved", "fallback_block_only"):
         return {"ok": True, "phase": "SEARCH_POLICY", "skipped": skip_reason}
     if skip_reason != "force":
@@ -463,7 +463,7 @@ async def apply_shared_ui_session_contract(
     except ImportError:
         pass
 
-    # R56: empty policy two-state contract:
+    # empty policy two-state contract:
     # 1) first pass per nodeid+api does strong clear;
     # 2) retries use fast-path short-circuit.
     reset_js = (
@@ -515,7 +515,7 @@ async def apply_shared_ui_session_contract(
     if policy == "hydrate_private" and _bootstrap_hot_path_reused():
         bridge_timeout = max(bridge_timeout, 120.0)
     if deadline is not None:
-        # R269: long open_mcp can expire inner bridge_deadline while BODY wall still
+        # long open_mcp can expire inner bridge_deadline while BODY wall still
         # has budget — mirror rehydrate path extension before fail-fast.
         deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
         bridge_timeout = min(bridge_timeout, max(0.0, deadline - time.monotonic()))
@@ -615,7 +615,7 @@ async def apply_shared_ui_session_contract(
         else:
             search_budget = min(45.0, timeout_sec)
             if deadline is not None:
-                # R272: extend inner deadline before SEARCH_POLICY (mirror R269 BRIDGE).
+                # extend inner deadline before SEARCH_POLICY (mirror BRIDGE).
                 deadline = _extend_shared_ui_deadline_if_wall_allows(deadline)
                 search_budget = min(
                     search_budget, max(0.0, deadline - time.monotonic())
@@ -711,7 +711,7 @@ async def reapply_shared_ui_session_after_new_chat(
     *,
     deadline: float | None = None,
 ) -> dict[str, object] | None:
-    """After resetChat when bootstrap already ran full contract — avoid Page.reload (R124).
+    """After resetChat when bootstrap already ran full contract — avoid Page.reload.
 
     Re-bind empty search block and probe bridge; fall back to full contract only if probe fails.
     """

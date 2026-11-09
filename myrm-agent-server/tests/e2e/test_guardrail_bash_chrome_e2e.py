@@ -88,7 +88,7 @@ def _bridge_ready_timeout_sec() -> float:
 
 
 def _attach_eval_timeout_sec() -> float:
-    """Scale attachToChat evaluate under parallel mux (R138 parity)."""
+    """Scale attachToChat evaluate under parallel mux (parity)."""
     return _bridge_ready_timeout_sec()
 
 

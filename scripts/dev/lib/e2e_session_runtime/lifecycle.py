@@ -1,4 +1,4 @@
-"""E2E Session Lifecycle SSOT (R62 four-phase model).
+"""E2E Session Lifecycle SSOT (four-phase model).
 
 [INPUT]
 - dev_gate/contract.py (phase budget constants, is_e2e_signoff_runtime)
@@ -9,7 +9,7 @@
 
 [POS]
 Dev Gate layer — unified ADMIT → BOOTSTRAP → BODY → TEARDOWN lifecycle.
-BODY budget: dev LIVE_AGENT 600s (R96-R62); READ and signoff 600s. Queue/bootstrap never consume BODY budget.
+BODY budget: dev LIVE_AGENT 600s; READ and signoff 600s. Queue/bootstrap never consume BODY budget.
 The wall clock starts at submit and is cumulative; leaving ADMIT charges it at most its own cap, so an
 admission that outran its cap (private queue + private runtime start) does not shorten bootstrap or BODY.
 """
@@ -76,7 +76,7 @@ def resolve_lifecycle_profile() -> LifecycleProfile:
 
 
 def _private_shpoib_bootstrap_lane(lane: str) -> bool:
-    """R220: NAMESPACE_WRITE → RESOURCE_WRITE lease still runs SHPOIB private backend."""
+    """NAMESPACE_WRITE → RESOURCE_WRITE lease still runs SHPOIB private backend."""
     from dev_gate.contract import private_shpoib_runtime_active
 
     if not private_shpoib_runtime_active():
@@ -328,7 +328,7 @@ def export_session_env(*, phase: SessionPhase = "admit") -> dict[str, str]:
 def begin_bootstrap_phase(*, phase_label: str = "bootstrap") -> None:
     """Enter bootstrap phase on the session's cumulative wall clock (even if body already started).
 
-    R215: when BODY is already active (mux heal CDP re-bootstrap), keep BODY wall
+    when BODY is already active (mux heal CDP re-bootstrap), keep BODY wall
     budget — do not downgrade to bootstrap cap.
     """
     if current_phase() == "body":

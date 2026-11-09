@@ -4,7 +4,8 @@ Tests both streaming and non-streaming modes with mocked Agent execution.
 """
 
 import json
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Iterator
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,6 +27,15 @@ async def api_key(client: AsyncClient) -> str:
     """Create a valid API key for tests."""
     resp = await client.post("/api/v1/api-keys", json={"name": "Completions Test"})
     return resp.json()["key"]
+
+
+@pytest.fixture
+def stored_settings() -> Iterator[dict[str, object]]:
+    """The personal settings the config loader returns; a test fills the dict to set the stored switches."""
+    settings: dict[str, object] = {}
+    loader = AsyncMock(return_value=SimpleNamespace(personal_settings_dict=settings))
+    with patch("app.core.channel_bridge.config_loader.load_user_configs", loader):
+        yield settings
 
 
 async def _mock_agent_stream(*args, **kwargs) -> AsyncIterable[dict[str, object]]:
@@ -203,6 +213,7 @@ async def test_completions_streaming_agent_message_event(client: AsyncClient, ap
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("stored_settings")
 async def test_build_agent_params_writes_temperature_to_model_kwargs() -> None:
     """temperature must reach the main agent path: harness expands **model_kwargs,
     so the value must be written into model_kwargs (dual-channel alongside the
@@ -238,6 +249,7 @@ async def test_build_agent_params_writes_temperature_to_model_kwargs() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("stored_settings")
 async def test_build_agent_params_keeps_existing_kwargs_without_temperature() -> None:
     """When the request omits temperature, model_cfg must be left untouched."""
     from app.api.openai_compat.completions import _build_agent_params
@@ -268,6 +280,34 @@ async def test_build_agent_params_keeps_existing_kwargs_without_temperature() ->
 
     assert result.model_cfg is original_cfg
     assert result.model_cfg.model_kwargs == {"max_tokens": 1024}
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        ({"enableMemory": True, "enableMemoryAutoExtraction": False}, (True, False)),
+        ({"enableMemory": True}, (True, True)),
+        ({"enableMemory": False, "enableMemoryAutoExtraction": True}, (False, True)),
+        ({}, (False, True)),
+    ],
+)
+@pytest.mark.asyncio
+async def test_build_agent_params_follows_the_stored_memory_switches(
+    stored_settings: dict[str, object], stored: dict[str, object], expected: tuple[bool, bool]
+) -> None:
+    """An API client cannot turn memory on for a user who turned it off, nor extract when the user opted out."""
+    from app.api.openai_compat.completions import _build_agent_params
+    from app.api.openai_compat.types import ChatCompletionRequest
+
+    stored_settings.update(stored)
+    request = ChatCompletionRequest(model="default", messages=[{"role": "user", "content": "hello"}])
+
+    with patch("app.services.agent.params.convert_to_general_agent_params", new_callable=AsyncMock) as mock_convert:
+        mock_convert.return_value = (MagicMock(), None, None, None, [], [])
+        await _build_agent_params(request)
+
+    agent_request = mock_convert.await_args.args[0]
+    assert (agent_request.enable_memory, agent_request.enable_memory_auto_extraction) == expected
 
 
 @pytest.mark.asyncio

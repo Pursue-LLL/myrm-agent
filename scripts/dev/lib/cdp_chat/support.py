@@ -156,9 +156,9 @@ def cancel_e2e_chat_agent_via_api(chat_id: str, *, api_url: str | None = None) -
 def shpoib_parallel_shell_timeout_sec(timeout_sec: float) -> float:
     """Shell hydration budget for parallel SHPOIB chrome_e2e on shared UI.
 
-    R73-A: cap at bootstrap wall — never 420s outer deadline that
+    cap at bootstrap wall — never 420s outer deadline that
     defeats SHELL_PROBE_STALL_FAIL_FAST_SEC skeleton fail-fast.
-    R220: signoff parallel uses pessimistic bootstrap cap (not 180s mux-undercount).
+    signoff parallel uses pessimistic bootstrap cap (not 180s mux-undercount).
     """
     if os.environ.get("MYRM_E2E_SHPOIB", "").strip() != "1":
         return timeout_sec
@@ -223,7 +223,7 @@ def signoff_parallel_force_chat_timeout_sec(base_sec: float) -> float:
         except ImportError:
             cap = 420.0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in ("1", "true", "yes"):
-        # R218/R224: desktop leg soak — force chat shell hydrate under parallel mux/turbopack.
+        # desktop leg soak — force chat shell hydrate under parallel mux/turbopack.
         scaled = floor + load * 22.0 + 120.0
         cap = max(cap, 780.0)
     return min(scaled, cap)
@@ -307,7 +307,7 @@ def e2e_parallel_config_api_timeout_sec(base_sec: float) -> float:
 
 
 def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> float:
-    """Extend desktop approval per-attempt wall under parallel desktop soak (R211/R213)."""
+    """Extend desktop approval per-attempt wall under parallel desktop soak."""
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return base_sec
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
@@ -340,7 +340,7 @@ def signoff_parallel_desktop_wall_clock_fail_sec(base_sec: float = 280.0) -> flo
 
 
 def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> float:
-    """Extend desktop progress API poll wall under parallel desktop soak (R212)."""
+    """Extend desktop progress API poll wall under parallel desktop soak."""
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return base_sec
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
@@ -367,14 +367,14 @@ def signoff_parallel_desktop_progress_api_wall_sec(base_sec: float = 15.0) -> fl
         parallel_tests = 0
         mux_peers = 0
     load = max(active_leases, parallel_tests, mux_peers)
-    # R283: solo signoff desktop soak still needs >15s under mux/API load (v5 hit 15s wall).
+    # solo signoff desktop soak still needs >15s under mux/API load (v5 hit 15s wall).
     floor = max(base_sec, 45.0)
     scaled = floor + load * 4.0
     return min(scaled, 120.0)
 
 
 def _signoff_desktop_soak_parallel_load() -> int:
-    """Shared parallel-pressure load for desktop soak timeout scaling (R225)."""
+    """Shared parallel-pressure load for desktop soak timeout scaling."""
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return 0
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() not in ("1", "true", "yes"):
@@ -404,7 +404,7 @@ def _signoff_desktop_soak_parallel_load() -> int:
 
 
 def signoff_parallel_desktop_approval_wait_sec(base_sec: float = 240.0) -> float:
-    """Extend desktop tool-activity wait under parallel desktop soak (R225)."""
+    """Extend desktop tool-activity wait under parallel desktop soak."""
     load = _signoff_desktop_soak_parallel_load()
     if load <= 0:
         return base_sec
@@ -414,7 +414,7 @@ def signoff_parallel_desktop_approval_wait_sec(base_sec: float = 240.0) -> float
 
 
 def signoff_parallel_desktop_mux_step_timeout_sec(base_sec: float = 75.0) -> float:
-    """Extend mux-bound desktop steps (click_new_chat, ensure_surface) under soak (R225)."""
+    """Extend mux-bound desktop steps (click_new_chat, ensure_surface) under soak."""
     load = _signoff_desktop_soak_parallel_load()
     if load <= 0:
         return base_sec
@@ -424,7 +424,7 @@ def signoff_parallel_desktop_mux_step_timeout_sec(base_sec: float = 75.0) -> flo
 
 
 def signoff_parallel_desktop_turn_done_timeout_sec(base_sec: float = 180.0) -> float:
-    """Extend post-approval DONE wait under parallel desktop soak (R226)."""
+    """Extend post-approval DONE wait under parallel desktop soak."""
     load = _signoff_desktop_soak_parallel_load()
     if load <= 0:
         return base_sec
@@ -799,7 +799,7 @@ def wait_e2e_provider_ready(
 ) -> bool:
     """Poll private-pool provider readiness (SHPOIB bootstrap race).
 
-    R231: ``timeout_sec`` is the full poll budget. ``e2e_parallel_config_api_timeout_sec``
+    ``timeout_sec`` is the full poll budget. ``e2e_parallel_config_api_timeout_sec``
     scales per-request HTTP only — applying it to the poll deadline silently capped
     desktop soak gate waits (260s budget → 120s under parallel load).
     Provider ``is_ready`` is sufficient; health is an optional fast-path hint.
@@ -1416,7 +1416,7 @@ def nudge_agent_stream_turn(
     api_url: str | None = None,
     timeout_sec: float = 180.0,
 ) -> dict[str, object]:
-    """Follow-up turn via agent-stream REST (no Chrome bridge; R137 LIVE empty-write nudge)."""
+    """Follow-up turn via agent-stream REST (no Chrome bridge; LIVE empty-write nudge)."""
     normalized_chat = chat_id.strip()
     normalized_agent = agent_id.strip()
     normalized_message = message.strip()
@@ -1742,7 +1742,7 @@ def fetch_config_record(
     timeout_sec = e2e_parallel_config_api_timeout_sec(base_timeout)
     attempts = _E2E_API_REQUEST_ATTEMPTS
     if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        # R221: mux gen bump / parallel SHPOIB may transiently stall config GET.
+        # mux gen bump / parallel SHPOIB may transiently stall config GET.
         attempts = max(attempts, 6)
     elif timeout_sec > base_timeout:
         attempts = max(attempts, 5)

@@ -1,4 +1,4 @@
-"""Browser takeover LIVE runner — client lifecycle SSOT (R98)."""
+"""Browser takeover LIVE runner — client lifecycle SSOT."""
 
 from __future__ import annotations
 

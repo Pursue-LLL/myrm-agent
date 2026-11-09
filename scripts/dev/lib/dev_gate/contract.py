@@ -10,7 +10,7 @@ PAGE_OWNERSHIP_ERROR_TOKENS: page ownership 错误子串元组
 MUX_* / LIVE_* 系列常量: 物理工作池、超时、pytest floor 等 SSOT
 chrome_e2e_skips_shared_*: 按 lane/shpoib 判断是否跳过共享资源排队
 chrome_e2e_skips_attach_health_reprobe: test.sh bootstrap 已验 attach 时跳过 pytest fixture reprobe（含 MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH burst lane）
-is_e2e_signoff_runtime / resolve_e2e_wall_profile / E2E_SIGNOFF_* phase budgets: R62 four-phase lifecycle SSOT
+is_e2e_signoff_runtime / resolve_e2e_wall_profile / E2E_SIGNOFF_* phase budgets: four-phase lifecycle SSOT
 SIGNOFF_PYTEST_SAFE_BUFFER_SEC / clarify_skip_api_wait_sec: signoff outer kill · pytest body 600s · clarify wait 90s
 apply_chrome_e2e_pytest_timeout_args: dev floor 或 signoff ceiling 模式
 FRONTEND_COLD_COMPILE_MAX_SEC / FRONTEND_RESTART_* / FRONTEND_FOOTPRINT_LIMIT_MB: 共享前端 dev server 的冷编译上界、重启准入阈值、进程树物理内存上限
@@ -176,15 +176,15 @@ MUX_RESPONSIVE_PROBE_BASE_SEC: Final[float] = 8.0
 MUX_RESPONSIVE_PROBE_LEASE_SCALE_SEC: Final[float] = 3.0
 MUX_RESPONSIVE_PROBE_MAX_SEC: Final[float] = 45.0
 MUX_RESPONSIVE_PROBE_RETRY_ATTEMPTS: Final[int] = 3
-# R275: launch-check / test.sh readiness subprocess wall — scales under parallel attach.
+# launch-check / test.sh readiness subprocess wall — scales under parallel attach.
 E2E_LAUNCH_CHECK_WALL_SOLO_SEC: Final[float] = 45.0
 E2E_LAUNCH_CHECK_WALL_LEASE_SCALE_SEC: Final[float] = 15.0
 E2E_LAUNCH_CHECK_WALL_MAX_SEC: Final[float] = 180.0
-# R170: bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
+# bootstrap provider readiness gate scales under parallel (align desktop runner 180s).
 PROVIDER_READINESS_GATE_BASE_SEC: Final[float] = 60.0
 PROVIDER_READINESS_GATE_LEASE_SCALE_SEC: Final[float] = 15.0
 PROVIDER_READINESS_GATE_MAX_SEC: Final[float] = 180.0
-# R214: desktop leg soak — shared backend config_load_timeout under parallel chrome_e2e.
+# desktop leg soak — shared backend config_load_timeout under parallel chrome_e2e.
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_LEASE_SCALE_SEC: Final[float] = 40.0
 PROVIDER_READINESS_GATE_DESKTOP_SOAK_MAX_SEC: Final[float] = 480.0
 # Physical work is bounded; logical shared sessions are deliberately unlimited.
@@ -214,19 +214,19 @@ def hitl_multi_round_chrome_e2e_test_id(test_id: str | None) -> bool:
     return any(marker in normalized for marker in _HITL_MULTI_ROUND_TEST_ID_MARKERS)
 
 
-# R62: signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
+# signoff four-phase budgets (ADMIT/BOOTSTRAP independent from BODY 600s).
 E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC: Final[int] = 300
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV: Final[int] = 180
 E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF: Final[int] = 240
-# R73-B: minimum bridge-hydrate + shared UI session reserve inside bootstrap wall.
+# minimum bridge-hydrate + shared UI session reserve inside bootstrap wall.
 E2E_BOOTSTRAP_BRIDGE_HYDRATE_RESERVE_SEC: Final[float] = 90.0
 E2E_BOOTSTRAP_SHELL_MIN_SEC: Final[float] = 60.0
 E2E_TEARDOWN_WALL_CLOCK_SEC: Final[int] = 30
-# R285: parallel burst SQLite lock + observed seal can exceed 60s; client must wait.
+# parallel burst SQLite lock + observed seal can exceed 60s; client must wait.
 E2E_TEARDOWN_FINISH_CLIENT_TIMEOUT_SEC: Final[int] = 120
 # Legacy alias: BODY budget for signoff quality gate (not queue+bootstrap merged).
 SIGNOFF_LEG_MTB_SEC: Final[int] = LIVE_SINGLE_TEST_WALL_CLOCK_SEC
-# R81: pytest-timeout spans ADMIT+BOOTSTRAP fixtures + BODY (func_only=False); must not
+# pytest-timeout spans ADMIT+BOOTSTRAP fixtures + BODY (func_only=False); must not
 # kill during SHPOIB capacity wait under parallel chrome_e2e. Quality gate still uses
 # ceil(startup+junit_time) ≤600s for BODY-only elapsed.
 SIGNOFF_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
@@ -262,11 +262,11 @@ def shpoib_parallel_stall_progress_sec(
     lane: str | None = None,
     workload: str | None = None,
 ) -> float:
-    """Scale BODY progress-stale cap under parallel SHPOIB load (R124).
+    """Scale BODY progress-stale cap under parallel SHPOIB load.
 
     Matches file_write LIVE scaling: base 90s + 10s per active wave lease (max 150s).
     LIVE_AGENT/RESOURCE_WRITE: floor 240s (LLM turn wait) + 30s/lease (max 360s).
-    R219/R281: signoff (incl. desktop soak) extends cap for wait_shell_layout mux evaluate.
+    signoff (incl. desktop soak) extends cap for wait_shell_layout mux evaluate.
 
     Coordinator hung-reap must pass lane/workload from session snapshot — not its own env.
     """
@@ -302,7 +302,7 @@ def shpoib_parallel_stall_progress_sec(
 
 
 def shell_probe_stall_fail_fast_effective_sec() -> float:
-    """Scale skeleton/blank shell fail-fast under parallel signoff desktop soak (R223)."""
+    """Scale skeleton/blank shell fail-fast under parallel signoff desktop soak."""
     base = float(SHELL_PROBE_STALL_FAIL_FAST_SEC)
     if not (
         is_desktop_soak_signoff_runtime()
@@ -318,10 +318,10 @@ def shell_probe_stall_fail_fast_effective_sec() -> float:
 
 
 def mux_reset_after_orphan_timeout_sec() -> float:
-    """Scale asyncio wait_for around reset_after_orphan under parallel mux load (R142).
+    """Scale asyncio wait_for around reset_after_orphan under parallel mux load.
 
     v9 died at hardcoded 90s while peers≥6; align with shpoib_parallel_stall scaling.
-    R215: desktop leg soak extends cap to 300s under parallel chrome_e2e.
+    desktop leg soak extends cap to 300s under parallel chrome_e2e.
     """
     base = 90.0
     active_leases = 0
@@ -346,7 +346,7 @@ def mux_reset_after_orphan_timeout_sec() -> float:
         desktop_scaled = base + load * 20.0
         return min(300.0, max(scaled, desktop_scaled))
     if is_e2e_signoff_runtime():
-        # R224/R228: parallel signoff post-SEND_TURN attach needs mux reclaim headroom (v146 @45s, v153 @180s).
+        # parallel signoff post-SEND_TURN attach needs mux reclaim headroom (v146 @45s, v153 @180s).
         peers = max(active_leases, _parallel_signoff_pressure_peers())
         if peers >= 2:
             return min(300.0, max(scaled, 60.0 + peers * 15.0))
@@ -365,16 +365,16 @@ CHROME_E2E_MATRIX_MARKER_EXPR: Final[str] = (
     "chrome_e2e and not chrome_e2e_desktop and not chrome_e2e_browser_takeover_live"
 )
 # Unified E2E admission (UEA v3).
-# R58: lease/mux/SHPOIB bootstrap queue budget (separate from 600s body wall clock).
+# lease/mux/SHPOIB bootstrap queue budget (separate from 600s body wall clock).
 E2E_ADMISSION_WALL_CLOCK_SEC: Final[int] = 900
-# R122: attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
+# attach crash-heal try-lock; defer instead of 180s×N dogpile under parallel attach.
 E2E_ATTACH_CRASH_HEAL_FLOCK_WAIT_SEC: Final[float] = 5.0
 SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 360
-# R161 contract: attach recovery must cover a full frontend heal cycle
+# contract: attach recovery must cover a full frontend heal cycle
 # (STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC=360). The previous 20s cap made
 # parallel attach fail before ui-heal could restore a cold-compiling frontend
-# (regression vs R161 "≥ heal+120"; R122 dogpile is solved by flock, not by cap).
-# R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
+# (regression vs"≥ heal+120"; dogpile is solved by flock, not by cap).
+# attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
 # Measured 2026-09-17 with the Turbopack disk cache off: dev cold compile of `/` takes 85s–282s.
 # `next.config.ts` enables the cache by default, but a first start, a poisoned-cache recovery and
 # MYRM_DISABLE_TURBOPACK_DISK_CACHE=1 still pay the full cold compile, so the ensure subprocess budget
@@ -405,7 +405,7 @@ FRONTEND_RESTART_GATE_WAIT_SEC: Final[int] = FRONTEND_COLD_COMPILE_MAX_SEC
 FRONTEND_FOOTPRINT_LIMIT_MB: Final[int] = 10 * 1024
 # Solo ADMIT attach: readiness + dev_servers + chrome_cdp + attach_health exceed 180s under cold UI.
 READY_CHROME_ATTACH_WALL_SOLO_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
-# Parallel ADMIT attach: must cover one full frontend heal cycle (R123/R161).
+# Parallel ADMIT attach: must cover one full frontend heal cycle.
 READY_CHROME_ATTACH_WALL_PARALLEL_SEC: Final[int] = SHARED_ATTACH_RECOVERY_WAIT_SEC
 
 
@@ -509,7 +509,7 @@ def _wave_active_lease_count_for_mux() -> int:
 
 
 def _parallel_chrome_e2e_pressure() -> int:
-    """Wave leases plus live ADMIT/BODY sessions — drives attach UI probe scaling (R148)."""
+    """Wave leases plus live ADMIT/BODY sessions — drives attach UI probe scaling."""
     pressure = _wave_active_lease_count_for_mux()
     try:
         from e2e_session_runtime.registry import list_live_e2e_sessions
@@ -531,7 +531,7 @@ def _sync_probe_cdp_timeout_sec(*, live: bool = True) -> float:
 
 
 def e2e_launch_check_wall_sec(*, active_leases: int | None = None) -> float:
-    """Readiness emit subprocess budget for launch-check and test.sh gate (R275).
+    """Readiness emit subprocess budget for launch-check and test.sh gate.
 
     Solo 45s; under parallel chrome_e2e pressure min(180, 45+peers×15)s so
     ``e2e_core.readiness emit`` is not falsely denied while peers hold the stack.
@@ -576,7 +576,7 @@ def mux_responsive_probe_timeout_sec(*, active_leases: int | None = None) -> flo
 
 
 def signoff_wave_open_wait_sec() -> int:
-    """R204: bounded wait when parallel pytest holds wave with foreign runtimeId."""
+    """bounded wait when parallel pytest holds wave with foreign runtimeId."""
     if not is_e2e_signoff_runtime():
         return 0
     return E2E_ADMISSION_WALL_CLOCK_SEC
@@ -586,7 +586,7 @@ def signoff_stack_recovery_admit_budget_sec(
     *,
     active_leases: int | None = None,
 ) -> int:
-    """R211: ADMIT fail-fast cap must cover E2E_SHARED_STACK_RECOVERY_WAIT (R207/R164).
+    """ADMIT fail-fast cap must cover E2E_SHARED_STACK_RECOVERY_WAIT.
 
     Stack recovery uses attach_parallel_wait_sec; solo admit cap (300–480s) must not
     trip E2E_WALL_BUDGET_FAIL_FAST while recovery still has budget (e.g. 240/660s).
@@ -640,7 +640,7 @@ def provider_readiness_gate_effective_budget_sec(
     remaining_wall_sec: float,
     bootstrap_cap: float,
 ) -> float:
-    """Resolve provider gate wait budget (R217 desktop soak wall-starve fix).
+    """Resolve provider gate wait budget (desktop soak wall-starve fix).
 
     Under parallel chrome_e2e, open_mcp_page consumes bootstrap/body wall before
     cdp_bootstrap provider polling. Desktop soak must not clamp gate wait below
@@ -654,7 +654,7 @@ def provider_readiness_gate_effective_budget_sec(
 
 
 def signoff_hitl_pin_max_attempts(*, active_leases: int | None = None) -> int:
-    """HITL securityConfig pin retries under signoff parallel load (R195)."""
+    """HITL securityConfig pin retries under signoff parallel load."""
     base = 3
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return base
@@ -663,7 +663,7 @@ def signoff_hitl_pin_max_attempts(*, active_leases: int | None = None) -> int:
 
 
 def signoff_hitl_pin_request_timeout_sec(*, active_leases: int | None = None) -> float:
-    """Per-request timeout for HITL pin loopback calls under signoff (R195)."""
+    """Per-request timeout for HITL pin loopback calls under signoff."""
     if os.environ.get("E2E_SIGNOFF", "").strip() != "1":
         return 15.0
     budget = provider_readiness_gate_wait_sec(active_leases=active_leases)
@@ -671,7 +671,7 @@ def signoff_hitl_pin_request_timeout_sec(*, active_leases: int | None = None) ->
 
 
 def attach_ui_liveness_probe_timeout_sec() -> float:
-    """Short shared-UI probe for LISTEN-but-hung / post-heal streak (R150).
+    """Short shared-UI probe for LISTEN-but-hung / post-heal streak.
 
     Never uses the 210s cold-compile budget — hung TCP must fail fast so parallel
     chrome_e2e does not block for hours on HTTP 000.
@@ -792,7 +792,7 @@ def attach_ui_stale_slow_sec() -> float:
 
 
 def attach_ui_probe_timeout_sec() -> float:
-    """Shared UI HTTP probe timeout; scales under parallel chrome_e2e (R148).
+    """Shared UI HTTP probe timeout; scales under parallel chrome_e2e.
 
     Solo 8s; under load min(25, 8+pressure×2)s for SHPOIB.
     READ shared-hot parallel + attach frontend heal allow cold compile (≤210s).
@@ -886,7 +886,7 @@ def dev_gate_post_admit_hard_timeout_sec() -> int:
     HARD_DEADLINE @ ~709s from submit → PARENT_LEASE_NOT_ACTIVE during mux recovery.
 
     Submit/ADMIT paths must not call live mux snapshot (snapshot_mux_load force=True)
-    — parallel chrome_e2e blocks on mux RPC and stalls dev_gate submit wrapper (R250).
+    — parallel chrome_e2e blocks on mux RPC and stalls dev_gate submit wrapper.
     """
     bootstrap_sec = int(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     try:
@@ -907,7 +907,7 @@ def dev_gate_post_admit_hard_timeout_sec() -> int:
 
 
 def dev_gate_submit_hard_timeout_sec() -> int:
-    """Coordinator hard_deadline offset from session submit (R249).
+    """Coordinator hard_deadline offset from session submit.
 
     Submit deadline must cover ADMIT queue + bootstrap + effective BODY + teardown.
     """
@@ -950,7 +950,7 @@ def parallel_mux_cold_attach_drain_sec(*, parallel_peers: int | None = None) -> 
     return min(max(base, scaled), ceiling)
 
 
-# R97/R169: signoff READ SHPOIB open/rebind wall budgets (must precede stall-cap helpers).
+# signoff READ SHPOIB open/rebind wall budgets (must precede stall-cap helpers).
 SIGNOFF_OPEN_PAGE_LAYOUT_WAIT_SEC: Final[int] = 180
 SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC: Final[int] = 240
 SIGNOFF_OPEN_PAGE_TOTAL_BUDGET_SEC: Final[int] = 420
@@ -963,7 +963,7 @@ def _signoff_open_page_parallel_wall_cap() -> float:
     if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
         cap = max(cap, 600.0)
     elif is_e2e_signoff_runtime():
-        # R284: panel signoff legs hit join=420 HARD_DEADLINE under parallel mux (M3 v6).
+        # panel signoff legs hit join=420 HARD_DEADLINE under parallel mux (M3 v6).
         cap = max(cap, 540.0)
     return cap
 
@@ -1049,7 +1049,7 @@ def signoff_open_mcp_budgets(
 def signoff_bootstrap_open_mcp_budgets(
     *, parallel_peers: int | None = None
 ) -> SignoffOpenMcpBudgets:
-    """R219/R222: bootstrap open_mcp budgets — SHPOIB/mux queue headroom, not BODY 35%."""
+    """bootstrap open_mcp budgets — SHPOIB/mux queue headroom, not BODY 35%."""
     peers = parallel_peers
     if peers is None:
         peers = _parallel_signoff_pressure_peers()
@@ -1098,7 +1098,7 @@ def signoff_new_page_join_timeout_sec(
     page_timeout_ms: int,
     parallel_peers: int | None = None,
 ) -> float:
-    """R201/R208: signoff threaded new_page join — mux queue + page timeout headroom under parallel."""
+    """signoff threaded new_page join — mux queue + page timeout headroom under parallel."""
     mux_grace = page_timeout_ms / 1000.0 + 5.0
     peers = parallel_peers
     if peers is None:
@@ -1132,7 +1132,7 @@ def signoff_new_page_join_timeout_sec(
     open_mcp_wall = signoff_open_mcp_budgets(
         parallel_peers=max(0, int(load)),
     ).wall_budget_sec
-    # R206: join must survive open_mcp wall + mux grace (Run#6 desktop join=240s after open_mcp=231s).
+    # join must survive open_mcp wall + mux grace (Run#6 desktop join=240s after open_mcp=231s).
     open_mcp_aligned = open_mcp_wall + mux_grace + 30.0
     base = max(mux_grace, parallel_wall, open_mcp_aligned)
     scaled = max(base, 120.0 + load * 15.0)
@@ -1146,7 +1146,7 @@ def signoff_new_page_join_timeout_sec(
         if os.environ.get("MYRM_E2E_DESKTOP_SOAK", "").strip() in _SIGNOFF_TRUTHY:
             desktop_scaled = max(result, 540.0, 120.0 + load * 25.0)
             return min(desktop_scaled, _signoff_open_page_parallel_wall_cap())
-        # R284: panel stdin legs under parallel mux (no desktop soak env).
+        # panel stdin legs under parallel mux (no desktop soak env).
         panel_scaled = max(result, 480.0, 120.0 + load * 22.0)
         return min(panel_scaled, _signoff_open_page_parallel_wall_cap())
     return result
@@ -1157,7 +1157,7 @@ def signoff_new_page_join_stall_abandon_sec(
     join_timeout_sec: float,
     parallel_peers: int | None = None,
 ) -> float:
-    """R230: abandon hung threaded new_page early under parallel mux queue starvation."""
+    """abandon hung threaded new_page early under parallel mux queue starvation."""
     peers = parallel_peers
     if peers is None:
         peers = _parallel_signoff_pressure_peers()
@@ -1179,7 +1179,7 @@ def signoff_bootstrap_transport_stall_cap_sec(
     parallel_peers: int | None = None,
     page_timeout_ms: int = 90_000,
 ) -> float:
-    """R206: bootstrap open_mcp stall cap — must cover R201 parallel new_page join.
+    """bootstrap open_mcp stall cap — must cover parallel new_page join.
 
     ``total_budget_sec`` is per-attempt open_mcp wall; transport stall must not be
     clamped below parallel-scaled threaded join (hung-reap + chrome_mcp_e2e SSOT).
@@ -1196,14 +1196,14 @@ def signoff_bootstrap_transport_stall_cap_sec(
 
 
 def signoff_open_page_transport_stall_cap_sec() -> float:
-    """Signoff transport-node stall cap aligned with chrome_mcp_e2e open_mcp_page (R169)."""
+    """Signoff transport-node stall cap aligned with chrome_mcp_e2e open_mcp_page."""
     if not is_e2e_signoff_runtime():
         return float(NODE_STUCK_FAIL_FAST_SEC)
     return signoff_open_mcp_budgets().transport_stall_cap_sec
 
 
 def live_open_page_transport_stall_cap_sec(*, active_peers: int | None = None) -> float:
-    """R170/P0-G: hung-reap NODE_STUCK cap aligned with chrome_mcp open_mcp body fraction.
+    """hung-reap NODE_STUCK cap aligned with chrome_mcp open_mcp body fraction.
 
     log-11 @121s: peers<2 returned 120s while mux queue still draining — SIGKILL mid open_mcp.
     """
@@ -1286,7 +1286,7 @@ def admit_semantic_node_stall_cap_sec(
 
 
 def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
-    """R170 SSOT: hung-reap / open_mcp NODE_STUCK cap (import fresh after reload)."""
+    """SSOT: hung-reap / open_mcp NODE_STUCK cap (import fresh after reload)."""
     try:
         from e2e_core.stall_guard import (
             is_transport_stall_node,
@@ -1351,7 +1351,7 @@ def shpoib_rebind_location_wait_cap_sec() -> float:
 
 
 def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
-    """R221/P0-D: hung-reap bootstrap cap must match resolve_budget_policy().bootstrap_sec."""
+    """hung-reap bootstrap cap must match resolve_budget_policy().bootstrap_sec."""
     bootstrap_sec = float(E2E_BOOTSTRAP_WALL_CLOCK_SEC_DEV)
     normalized_lane = lane.strip().upper()
     try:
@@ -1375,7 +1375,7 @@ def dev_bootstrap_wall_cap_for_hung_reap(*, lane: str, shpoib: bool) -> float:
 
 
 def _backend_only_ensure_parallel_load() -> int:
-    """Peer pressure for backend-only ensure — wave leases can lag during ADMIT (R124+)."""
+    """Peer pressure for backend-only ensure — wave leases can lag during ADMIT (+)."""
     load = 0
     try:
         from pathlib import Path
@@ -1446,7 +1446,7 @@ def signoff_effective_bootstrap_wall_sec() -> float:
 def signoff_mux_transport_wait_budget_sec(
     *, bootstrap_phase: bool | None = None
 ) -> float:
-    """R219/R221: pessimistic mux queue wait under signoff bootstrap parallel."""
+    """pessimistic mux queue wait under signoff bootstrap parallel."""
     from mux.transport_supervisor import mux_upstream_wait_cap
 
     pessimistic = False
@@ -1527,29 +1527,29 @@ LIVE_AGENT_PYTEST_WALL_CAP_SEC: Final[int] = (
 SHPOIB_RESOURCE_WRITE_PYTEST_FLOOR_SEC: Final[int] = (
     E2E_ADMISSION_WALL_CLOCK_SEC + LIVE_AGENT_PYTEST_WALL_CAP_SEC
 )
-# pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC (R73-D / R96-R62).
+# pytest-timeout floor body segment — SSOT with LIVE_AGENT_BODY_WALL_CLOCK_SEC.
 LIVE_AGENT_BODY_BUFFER_SEC: Final[int] = LIVE_AGENT_BODY_WALL_CLOCK_SEC
 # SHPOIB clarify skip API poll under parallel load (API-first path).
 CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 180
 # E2E signoff: clarify skip API poll under parallel load.
 SIGNOFF_CLARIFY_SKIP_API_WAIT_SEC: Final[int] = 300
-# R47: hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
+# hard wall for mux page reopen/reclaim (nested call_tool must not burn 600s).
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SEC: Final[int] = 120
-# R83: signoff desktop under parallel chrome_e2e may block on bind_lease >120s.
+# signoff desktop under parallel chrome_e2e may block on bind_lease >120s.
 MUX_PAGE_RECLAIM_HARD_TIMEOUT_SIGNOFF_SEC: Final[int] = E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
-# R85/R88: mux cold-attach queue + bind_lease under parallel (≤ ADMIT + reclaim).
-# R85/R88/R89: mux cold-attach + bind_lease under parallel (≤ 3× ADMIT queue budget).
+# mux cold-attach queue + bind_lease under parallel (≤ ADMIT + reclaim).
+# mux cold-attach + bind_lease under parallel (≤ 3× ADMIT queue budget).
 SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC: Final[int] = (
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC * 3
 )
-# R177/R193: parallel signoff desktop — per-strategy wall (must match SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC).
+# parallel signoff desktop — per-strategy wall (must match SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC).
 SIGNOFF_DESKTOP_OPEN_NAV_PARALLEL_ATTEMPT_WALL_SEC: Final[int] = 240
-# R91/R92: signoff open uses direct + direct_recover retries (see infra_retry strategies).
+# signoff open uses direct + direct_recover retries (see infra_retry strategies).
 SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT: Final[int] = 3
 
 
 def signoff_desktop_open_nav_attempt_wall_sec(*, parallel_peers: int) -> float:
-    """Per-strategy asyncio wall for signoff desktop open/nav (R177).
+    """Per-strategy asyncio wall for signoff desktop open/nav.
 
     Solo signoff keeps the full mux-queue budget per attempt. Under parallel mux
     (peers≥2) use a shorter per-attempt wall so scoped attach restart runs between
@@ -1560,7 +1560,7 @@ def signoff_desktop_open_nav_attempt_wall_sec(*, parallel_peers: int) -> float:
     return float(SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC)
 
 
-# R88/R92: desktop pytest spans bootstrap + N× open/nav reserve + fresh BODY after open.
+# desktop pytest spans bootstrap + N× open/nav reserve + fresh BODY after open.
 SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
     E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
     + SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC
@@ -1569,11 +1569,11 @@ SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
     + E2E_TEARDOWN_WALL_CLOCK_SEC
 )
 SHELL_PROBE_STALL_FAIL_FAST_SEC: Final[int] = 120
-# R96-MUX: browser takeover gate — consecutive MUX stall without API gate progress.
+# browser takeover gate — consecutive MUX stall without API gate progress.
 GATE_MUX_STALL_FAIL_FAST_SEC: Final[int] = 120
-# R96-B6: transport infra nodes stuck without semantic progress (parallel mux hog).
+# transport infra nodes stuck without semantic progress (parallel mux hog).
 NODE_STUCK_FAIL_FAST_SEC: Final[int] = GATE_MUX_STALL_FAIL_FAST_SEC
-# R299: dev openPageTransaction whole-RPC wall — orchestrator daemon + client socket + hung-reap SSOT.
+# dev openPageTransaction whole-RPC wall — orchestrator daemon + client socket + hung-reap SSOT.
 DEV_OPEN_PAGE_TRANSACTION_WALL_SEC: Final[float] = float(NODE_STUCK_FAIL_FAST_SEC)
 E2E_NODE_STUCK_TOKEN: Final[str] = "E2E_NODE_STUCK"
 E2E_BODY_WALL_EXCEEDED_TOKEN: Final[str] = "E2E_BODY_WALL_EXCEEDED"
@@ -1593,7 +1593,7 @@ TRANSPORT_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = (
     "bridge_",
     "E2E_BOOTSTRAP",
 )
-# R282: ADMIT semantic nodes — node-level stall below process admit_wall (900s dev).
+# ADMIT semantic nodes — node-level stall below process admit_wall (900s dev).
 ADMIT_SEMANTIC_STALL_NODE_PREFIXES: Final[tuple[str, ...]] = ("E2E_ADMIT_",)
 E2E_ADMIT_TEST_SH_NODE: Final[str] = "E2E_ADMIT_TEST_SH"
 ADMIT_TEST_SH_STALL_CAP_DEV_SEC: Final[int] = 180
@@ -1623,11 +1623,11 @@ ORPHAN_BUDGET_FAIL_SEC: Final[float] = 30.0
 ORPHAN_BUDGET_SLACK: Final[int] = 1
 _OPEN_PAGE_BODY_FRACTION: Final[float] = 0.35
 _OPEN_PAGE_BODY_FRACTION_FLOOR_SEC: Final[float] = 90.0
-# R69: refuse global mux shim teardown when other wave leases/contexts are active.
+# refuse global mux shim teardown when other wave leases/contexts are active.
 MUX_CROSS_SESSION_RECOVER_DENIED_TOKEN: Final[str] = (
     "E2E_MUX_CROSS_SESSION_RECOVER_DENIED"
 )
-# R72 SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
+# SendTurnContract: single evaluate budget (kickoff observe + API poll + margin).
 # The observe window is the longest a new chat may take to commit its first assistant output
 # (the user row is persisted after it). Real sends sealed in 10.8 to 45.3 s, the slowest under
 # host load, so the window keeps about twice that; the page declares the same value as
@@ -1653,7 +1653,7 @@ SIGNOFF_OUTER_KILL_SEC: Final[int] = (
     + LIVE_SINGLE_TEST_WALL_CLOCK_SEC
     + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
 )
-# R93: READ SHPOIB signoff panel legs reserve UEA capacity wait inside pytest (func_only=False).
+# READ SHPOIB signoff panel legs reserve UEA capacity wait inside pytest (func_only=False).
 SIGNOFF_READ_SHPOIB_PYTEST_TIMEOUT_CEILING_SEC: Final[int] = (
     E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
     + E2E_ADMISSION_WALL_CLOCK_SEC
@@ -1665,7 +1665,7 @@ SIGNOFF_READ_SHPOIB_OUTER_KILL_SEC: Final[int] = (
 )
 SIGNOFF_SHPOIB_REBIND_WALL_SEC: Final[int] = 300
 SIGNOFF_SHPOIB_REBIND_LOCATION_WAIT_SEC: Final[int] = 120
-# R90: desktop signoff spans open/nav reserve inside pytest (not quality-gate BODY).
+# desktop signoff spans open/nav reserve inside pytest (not quality-gate BODY).
 SIGNOFF_DESKTOP_OUTER_KILL_SEC: Final[int] = (
     SIGNOFF_DESKTOP_PYTEST_TIMEOUT_CEILING_SEC + SIGNOFF_PYTEST_SAFE_BUFFER_SEC
 )
@@ -1747,7 +1747,7 @@ def chrome_e2e_pytest_safe_queue_buffer_sec(
     *,
     shpoib: bool | None = None,
 ) -> int:
-    """Queue/admission wait excluded from R58 body wall clock but counted by run_pytest_safe."""
+    """Queue/admission wait excluded from body wall clock but counted by run_pytest_safe."""
     if resolve_e2e_wall_profile() == "signoff":
         return admit_wall_clock_sec()
     private_mode = (
@@ -1786,7 +1786,7 @@ def _parse_signoff_batch_body_sec(joined_argv: str) -> int | None:
 
 
 def _signoff_batch_body_sec(joined_argv: str) -> int | None:
-    """Batch BODY override from argv marker or MYRM_E2E_SIGNOFF_BATCH_BODY_SEC (R179/R180)."""
+    """Batch BODY override from argv marker or MYRM_E2E_SIGNOFF_BATCH_BODY_SEC."""
     batch_body = _parse_signoff_batch_body_sec(joined_argv)
     if batch_body is not None:
         return batch_body
@@ -1797,7 +1797,7 @@ def _signoff_batch_body_sec(joined_argv: str) -> int | None:
 
 
 def signoff_batch_pytest_timeout_ceiling_sec(body_sec: int) -> int:
-    """pytest-timeout for multi-scenario signoff batch legs (R81 + extended BODY)."""
+    """pytest-timeout for multi-scenario signoff batch legs (+ extended BODY)."""
     return (
         E2E_SIGNOFF_ADMIT_WALL_CLOCK_SEC
         + E2E_BOOTSTRAP_WALL_CLOCK_SEC_SIGNOFF
@@ -1854,10 +1854,10 @@ def chrome_e2e_pytest_safe_timeout_sec(
 
 
 def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
-    """Extend pytest-timeout when parallel mux inflates in-test bootstrap (R124).
+    """Extend pytest-timeout when parallel mux inflates in-test bootstrap.
 
     Observed: leases=5 bootstrap mono_elapsed≈730s before BODY — 810s floor kills at REAPPLY.
-    R124+: wave_active_lease_count can lag registry peers during ADMIT — include session SSOT.
+    +: wave_active_lease_count can lag registry peers during ADMIT — include session SSOT.
     """
     load = 0
     try:
@@ -2007,7 +2007,7 @@ def pytest_argv_needs_live_chrome_e2e(
     """True when ./myrm-dev test argv selects formal chrome_e2e (marker or *_chrome_e2e.py).
 
     Must not match unit-test node ids or -k filters that merely contain the substring
-    ``chrome_e2e`` (R99 gate tests live under scripts/dev/tests/).
+    ``chrome_e2e`` (gate tests live under scripts/dev/tests).
 
     Explicit ``*_chrome_e2e.py::test_name`` node ids without ``@pytest.mark.chrome_e2e``
     (integration-only signoff legs) do not require live Chrome attach / ADMIT.

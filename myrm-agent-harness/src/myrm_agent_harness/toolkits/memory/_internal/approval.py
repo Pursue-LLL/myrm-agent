@@ -83,6 +83,10 @@ def apply_edited_content(record: PendingRecord, edited_content: str) -> PendingR
 def pending_to_memory(record: PendingRecord) -> AnyMemory:
     """Reconstruct an AnyMemory from a PendingRecord."""
     data = dict(record.memory_data)
+    metadata = data.get("metadata")
+    if isinstance(metadata, dict):
+        # Metadata holds scalars only; identifier lists belong to the typed ``exact_identifiers`` field.
+        data["metadata"] = {key: value for key, value in metadata.items() if not isinstance(value, list)}
     mt = record.memory_type
     if mt == MemoryType.SEMANTIC:
         return SemanticMemory(**data)

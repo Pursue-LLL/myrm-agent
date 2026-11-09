@@ -28,7 +28,6 @@ class MemoryCommandActionRequest(BaseModel):
         "reject",
         "edit",
         "correct",
-        "correct_and_lock",
         "forget",
         "pin",
         "unpin",

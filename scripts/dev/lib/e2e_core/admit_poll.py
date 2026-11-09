@@ -1,4 +1,4 @@
-"""R141: ADMIT/bootstrap wait loops — progress tokens + phase budget (bash + Python SSOT)."""
+"""ADMIT/bootstrap wait loops — progress tokens + phase budget (bash + Python SSOT)."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def assert_admit_phase_budget(*, node: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="E2E ADMIT wait progress + budget (R141)")
+    parser = argparse.ArgumentParser(description="E2E ADMIT wait progress + budget")
     parser.add_argument(
         "command",
         choices=("touch", "assert-budget"),

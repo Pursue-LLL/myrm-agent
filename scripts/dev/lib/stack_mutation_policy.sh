@@ -46,7 +46,7 @@ _smp_backend_heal_flock_file() {
   echo "$(_smp_state_dir)/chrome-e2e-backend-heal.flock"
 }
 
-# R46.2: serialize backend-only ensure across parallel chrome_e2e admit/heal paths.
+# serialize backend-only ensure across parallel chrome_e2e admit/heal paths.
 # Without this, concurrent crash heals fight dev-stack ensure.lock and SIGTERM each other.
 _smp_with_backend_heal_flock() {
   local wait_sec="${1:-180}"
@@ -97,7 +97,7 @@ _smp_attach_backend_crash_heal() {
   local policy_py flock_file
   policy_py="$(_smp_policy_py "$(dirname "${BASH_SOURCE[0]}")")"
   flock_file="$(_smp_backend_heal_flock_file)"
-  # R99: fcntl.flock via Python SSOT — macOS has no GNU flock(1).
+  # fcntl.flock via Python SSOT — macOS has no GNU flock(1).
   "$(_smp_python)" "${policy_py}" attach-crash-heal \
     --monorepo-root "${monorepo_root}" \
     --dev-stack "${dev_stack}" \

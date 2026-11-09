@@ -30,9 +30,9 @@ MYRM_BROWSER_ORCHESTRATOR="${MYRM_BROWSER_ORCHESTRATOR:-1}"
 export MYRM_BROWSER_ORCHESTRATOR
 MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
-# R286: python -m e2e_core.bootstrap_deadline must share one holder key across subprocesses.
+# python -m e2e_core.bootstrap_deadline must share one holder key across subprocesses.
 export MYRM_E2E_DEDUPE_HOLDER_PID="${MYRM_E2E_DEDUPE_HOLDER_PID:-$$}"
-# R292: launch-force maintainer override must use fast attach path (solo PASS ~212s);
+# launch-force maintainer override must use fast attach path (solo PASS ~212s);
 # without SKIP_ATTACH_WAIT, preflight burns 650s+ on signoff-stream hot-pool gate.
 if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" ]]; then
   export MYRM_PREFLIGHT_SKIP_ATTACH_WAIT=1
@@ -179,8 +179,8 @@ _attach_health_require_args() {
   fi
   local active_leases
   active_leases="$(_parallel_attach_active_leases)"
-  # R032/UBDP-H: use real wave leases only — never fake active_leases=1 when idle.
-  # R290: parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
+  # UBDP-H: use real wave leases only — never fake active_leases=1 when idle.
+  # parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
   if _shared_stack_endpoints_ok; then
     echo "--require-signoff-stream-ready"
     return 0
@@ -220,14 +220,14 @@ ok() {
 }
 
 _maybe_seed_providers() {
-  # R215 fix: the DONE flag is for the SHARED stack only. A private-backend
+  # fix: the DONE flag is for the SHARED stack only. A private-backend
   # preflight (SHPOIB bootstrap) targets E2E_API_BASE=:<private port> and must
   # always seed, otherwise the fresh private backend inherits stale providers
   # (e.g. stale provider quota) and live E2E fails silently.
   if [[ "${MYRM_E2E_MODEL_SEED_DONE:-0}" == "1" ]] \
     && [[ "${MYRM_PRIVATE_BACKEND:-0}" != "1" ]] \
     && _shared_stack_endpoints_ok; then
-    echo "CHROME_E2E_WARN: skip redundant model seed (R215; stack healthy)" >&2
+    echo "CHROME_E2E_WARN: skip redundant model seed (stack healthy)" >&2
     MYRM_E2E_MODEL_SEED_FAILED=0
     return 0
   fi
@@ -258,7 +258,7 @@ assert_env_test_shell_safe(Path('${SERVER_DIR}/.env.test'))
       if [[ "${MYRM_PRIVATE_BACKEND:-0}" == "1" ]] \
         || [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" == "1" ]]; then
         # SHPOIB private backends are fail-closed on seed failure; parallel
-        # attach must not collapse retries to the shared-stack R214 budget.
+        # attach must not collapse retries to the shared-stack budget.
         flock_wait_sec="${MYRM_E2E_MODEL_SEED_FLOCK_WAIT_SEC:-30}"
         max_attempts="${MYRM_E2E_MODEL_SEED_RETRIES:-5}"
       else
@@ -323,7 +323,7 @@ PY
       && [[ "${MYRM_E2E_PRIVATE_BACKEND:-0}" != "1" ]] \
       && [[ "${parallel_leases}" -gt 0 ]] \
       && _shared_stack_endpoints_ok; then
-      echo "CHROME_E2E_WARN: model seed non-fatal under parallel load (R214; shared stack healthy)" >&2
+      echo "CHROME_E2E_WARN: model seed non-fatal under parallel load (shared stack healthy)" >&2
       MYRM_E2E_MODEL_SEED_FAILED=0
       MYRM_E2E_MODEL_SEED_DONE=1
       return 0
@@ -397,7 +397,7 @@ _wait_attach_endpoints_under_parallel_load() {
   [[ -n "${initial_errors}" ]] || return 0
   local active_leases wait_sec poll_sec waited errors heal_during_wait=0 ui_heal_during_wait=0
   active_leases="$(_parallel_attach_active_leases)"
-  # UBDP-5: wave idle — no synthetic lease (R150 retired); cap endpoint wait separately.
+  # UBDP-5: wave idle — no synthetic lease (retired); cap endpoint wait separately.
   _bootstrap_attach_begin "${active_leases}"
   bootstrap_budget="$(_bootstrap_attach_remaining_sec)"
   wait_sec="${bootstrap_budget}"
@@ -544,13 +544,13 @@ print(attach_parallel_wait_sec(${active_leases}, base=${base}))
 ")"
   [[ "${scaled}" =~ ^[0-9]+$ ]] || scaled="${base}"
   if [[ "${active_leases}" -gt 0 ]]; then
-    echo "CHROME_E2E_ATTACH: parallel ADMIT scaled wait ≤${scaled}s (R161; leases=${active_leases}; do not stop other pytest)" >&2
+    echo "CHROME_E2E_ATTACH: parallel ADMIT scaled wait ≤${scaled}s (leases=${active_leases}; do not stop other pytest)" >&2
   fi
   echo "${scaled}"
 }
 
 _attach_epoch_pin_drop_stale_when_shared_aligned() {
-  # R280: test.sh may pin a verify-api port before shared backend heals; drop stale pin when aligned.
+  # test.sh may pin a verify-api port before shared backend heals; drop stale pin when aligned.
   PYTHONPATH="${SCRIPT_DIR}/lib:${PYTHONPATH:-}" \
     "${PREFLIGHT_PY}" -c "
 import sys
@@ -617,7 +617,7 @@ _attach_epoch_pin_fast_path() {
     waited=$((waited + poll_sec))
   done
   echo "${health}" >&2
-  # R277: isolated verify-api flaked under parallel attach — fall back to shared when healthy.
+  # isolated verify-api flaked under parallel attach — fall back to shared when healthy.
   if [[ "${pin_api}" != "${SHARED_API_BASE}" ]] \
     && curl -sf --max-time 5 "${SHARED_API_BASE%/}/api/v1/health" >/dev/null 2>&1; then
     echo "CHROME_E2E_ATTACH: epoch pin fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
@@ -697,7 +697,7 @@ _attach_fast_path() {
   local runtime_py="${SCRIPT_DIR}/lib/e2e_core/runtime_identity.py"
   local health="" waited=0 ui_heal_during_wait=0 mux_heal_during_wait=0
   local wait_sec poll_sec active_leases errors require_ready
-  # R291: launch-force + skip attach wait — match solo PASS (46138): dev servers + CDP verified
+  # launch-force + skip attach wait — match solo PASS (46138): dev servers + CDP verified
   # above; do not burn 590s hot-pool BOOTSTRAP (shellHot=false acceptable under attach).
   if [[ "${MYRM_E2E_LAUNCH_FORCE:-}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" == "1" ]] \
     && myrm_chrome_e2e_cdp_healthy; then
@@ -792,7 +792,7 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       && [[ $((waited % 30)) -eq 0 ]] \
       && [[ "${ui_heal_during_wait}" -lt 2 ]]; then
       ui_heal_during_wait=$((ui_heal_during_wait + 1))
-      echo "CHROME_E2E_ATTACH_HEAL: ui stale during shared_hot wait — bounded frontend heal ${ui_heal_during_wait}/2 (R122)" >&2
+      echo "CHROME_E2E_ATTACH_HEAL: ui stale during shared_hot wait — bounded frontend heal ${ui_heal_during_wait}/2" >&2
       _heal_shared_ui_if_stale || true
       continue
     fi
@@ -802,7 +802,7 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       && [[ $((waited % 60)) -eq 0 ]] \
       && [[ "${mux_heal_during_wait}" -lt 2 ]]; then
       mux_heal_during_wait=$((mux_heal_during_wait + 1))
-      echo "CHROME_E2E_ATTACH_HEAL: mux heal during shared_hot wait ${mux_heal_during_wait}/2 (R142)" >&2
+      echo "CHROME_E2E_ATTACH_HEAL: mux heal during shared_hot wait ${mux_heal_during_wait}/2" >&2
       _heal_mux_request_timeout_drift || true
       _heal_mux_under_parallel_attach_load || true
       continue
@@ -812,7 +812,7 @@ print(', '.join(attach_endpoint_errors('${UI_BASE}', '${API_BASE}')))
       && _mux_upstream_ready; then
       if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]] && _mux_solo_gate_cluster_clear; then
         mux_heal_during_wait=$((mux_heal_during_wait + 1))
-        echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2 (R255)" >&2
+        echo "CHROME_E2E_ATTACH_HEAL: solo ws restamp during attach wait ${mux_heal_during_wait}/2" >&2
         _stamp_mux_ws_url || true
         _stamp_mux_daemon_ws_url || true
         continue
@@ -903,7 +903,7 @@ _wait_shared_stack_healthy_before_ready() {
         ok "shared stack healthy before READY (model seed recovered)"
         return 0
       fi
-      # R214: idempotent seed may time out under parallel load while the shared stack stays healthy.
+      # idempotent seed may time out under parallel load while the shared stack stays healthy.
       MYRM_E2E_MODEL_SEED_FAILED=0
       ok "shared stack healthy before READY (endpoints ok; parallel seed timeout non-fatal)"
       return 0
@@ -1008,7 +1008,7 @@ if [[ "${MYRM_E2E_API_ONLY:-}" != "1" ]]; then
 fi
 
 # 1. Dev servers (Next.js cold compile can exceed 3s)
-# R202: mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
+# mux-heal-only signoff must not block on attach endpoint wait + frontend dogpile.
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" && "${MYRM_PREFLIGHT_SKIP_ATTACH_WAIT:-}" != "1" && "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" != "1" ]]; then
   _bootstrap_attach_begin "$(_parallel_attach_active_leases)"
   if [[ "${MYRM_E2E_EPOCH_PIN:-0}" == "1" ]] && _attach_epoch_pin_drop_stale_when_shared_aligned; then
@@ -1145,7 +1145,7 @@ if [[ -f "${CHROME_E2E_CLI_EARLY}" ]]; then
   bash "${CHROME_E2E_CLI_EARLY}" ensure-surface >/dev/null 2>&1 || true
 fi
 
-# G4/R271: heuristic blank prune removed — idle hygiene via coordinator reap (SSOT §18.7.2).
+# G4/: heuristic blank prune removed — idle hygiene via coordinator reap (SSOT §18.7.2).
 
 ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
 
@@ -1414,7 +1414,7 @@ _ensure_mux_upstream() {
   if _mux_ws_stamp_matches && _mux_daemon_ws_matches && _mux_upstream_ready; then
     return 0
   fi
-  # R255: solo gate/signoff — restamp CDP ws drift before attach fail-closed or blocked restart.
+  # solo gate/signoff — restamp CDP ws drift before attach fail-closed or blocked restart.
   if ! _mux_ws_stamp_matches && _mux_upstream_ready && _mux_solo_gate_cluster_clear; then
     if [[ "${E2E_SIGNOFF:-}" == "1" || "${MYRM_E2E_P0A_GATE:-}" == "1" ]]; then
       _mux_ws_restamp_solo_heal "signoff-or-p0a-gate upstreamReady" && return 0
@@ -1435,7 +1435,7 @@ _ensure_mux_upstream() {
     _restart_mux_safely "upstream self-heal timeout"
   else
     echo "CHROME_E2E_WARN: Chrome CDP WebSocket drifted — daemon options require a new endpoint" >&2
-    # R94/R255: signoff or solo gate — restamp ws without restart when cluster is solo-clear.
+    # signoff or solo gate — restamp ws without restart when cluster is solo-clear.
     if _mux_upstream_ready \
       && { [[ "${E2E_SIGNOFF:-}" == "1" ]] || [[ "${MYRM_E2E_P0A_GATE:-}" == "1" ]]; } \
       && _mux_solo_gate_cluster_clear; then
@@ -1532,7 +1532,7 @@ _heal_mux_under_parallel_attach_load() {
   local active_leases attempt
   active_leases="$(_mux_parallel_active_leases)"
   [[ "${active_leases}" =~ ^[0-9]+$ && "${active_leases}" -gt 0 ]] || return 1
-  # R123++: under parallel Wave leases, tools/list can queue behind peer tabs.
+  # ++: under parallel Wave leases, tools/list can queue behind peer tabs.
   # Trust upstream+ws+pid before expensive probes so attach clears mux_begin quickly.
   if _mux_parallel_attach_health_ok; then
     echo "CHROME_E2E_WARN: mux parallel attach fast-path — skip timeout probe (${active_leases} active leases)" >&2
@@ -1720,7 +1720,7 @@ _ensure_browser_orchestrator_after_data_plane() {
 }
 
 if [[ "${MYRM_CHROME_E2E_ATTACH}" == "1" ]]; then
-  # R73-B: mux-only must exit before attach crash/drift heal (parallel signoff stack heal).
+  # mux-only must exit before attach crash/drift heal (parallel signoff stack heal).
   if [[ "${MYRM_CHROME_E2E_MUX_HEAL_ONLY:-}" == "1" ]]; then
     if [[ "${MYRM_CHROME_E2E_CDP_RECOVERED:-}" == "1" ]]; then
       _recover_mux_after_cdp_restart

@@ -4,7 +4,7 @@
 - memory._manager (POS: composed MemoryManager implementation)
 
 [OUTPUT]
-- MemoryManager, MemoryError, MemoryNotFoundError, MemoryTaintedError
+- MemoryManager, MemoryError, MemoryNotFoundError, MemoryProtectedError, MemoryRejectedError, MemoryTaintedError
 
 [POS]
 Stable public import path for the memory toolkit façade.
@@ -15,6 +15,8 @@ from myrm_agent_harness.toolkits.memory._manager import (
     MemoryError,
     MemoryManager,
     MemoryNotFoundError,
+    MemoryProtectedError,
+    MemoryRejectedError,
     MemoryTaintedError,
 )
 
@@ -23,5 +25,7 @@ __all__ = [
     "MemoryError",
     "MemoryManager",
     "MemoryNotFoundError",
+    "MemoryProtectedError",
+    "MemoryRejectedError",
     "MemoryTaintedError",
 ]

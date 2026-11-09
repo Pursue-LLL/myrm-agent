@@ -1,4 +1,4 @@
-"""ResumeTurnContract STREAM_CONVERGE executor (R93).
+"""ResumeTurnContract STREAM_CONVERGE executor.
 
 [INPUT]
 resume_turn_contract constants · caller-supplied API resume/poll callbacks

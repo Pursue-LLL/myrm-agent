@@ -1,4 +1,4 @@
-"""R43: chrome_e2e pytest-timeout must cap per-item marks to lane SSOT (600s)."""
+"""chrome_e2e pytest-timeout must cap per-item marks to lane SSOT (600s)."""
 
 from __future__ import annotations
 

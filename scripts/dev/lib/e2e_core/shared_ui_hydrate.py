@@ -1,6 +1,6 @@
 """Serialize shared UI navigate/reload bursts for parallel SHPOIB Chrome E2E.
 
-R36: the flock guards **navigate/reload bursts** only — not MCP probe polling loops.
+the flock guards **navigate/reload bursts** only — not MCP probe polling loops.
 Holding the lock during long probe loops caused 180s×retry silent blocking.
 """
 
@@ -26,7 +26,7 @@ def _default_shared_ui_hydrate_wait_sec() -> int:
     return shared_ui_hydrate_wait_sec()
 
 
-# R68: nested navigate/reload bursts on one asyncio task must not re-enter flock.
+# nested navigate/reload bursts on one asyncio task must not re-enter flock.
 _burst_depth_var: contextvars.ContextVar[int] = contextvars.ContextVar(
     "e2e_shared_ui_burst_depth", default=0
 )
@@ -201,7 +201,7 @@ def shared_ui_hydrate_slot() -> Iterator[None]:
 
 @contextmanager
 def shared_ui_hydrate_burst() -> Iterator[None]:
-    """Exclusive slot for navigate/reload burst only (R36 — not probe polling)."""
+    """Exclusive slot for navigate/reload burst only (not probe polling)."""
     if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return
@@ -223,7 +223,7 @@ def shared_ui_hydrate_burst() -> Iterator[None]:
 
 @asynccontextmanager
 async def async_shared_ui_hydrate_burst() -> AsyncIterator[None]:
-    """Async navigate/reload burst slot (R36)."""
+    """Async navigate/reload burst slot."""
     if not parallel_shared_ui_hydrate_queue_enabled():
         yield
         return

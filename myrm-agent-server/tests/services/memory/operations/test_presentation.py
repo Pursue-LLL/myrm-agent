@@ -1,4 +1,4 @@
-"""Protection state exposed by the memory DTO projection."""
+"""Protection and exact-fact state exposed by the memory DTO projection."""
 
 from __future__ import annotations
 
@@ -33,3 +33,19 @@ def test_locked_rule_is_still_reported_as_user_locked():
     rule = ProceduralMemory(content="rule", trigger="when asked", action="answer briefly", is_user_locked=True)
 
     assert memory_to_item(rule, MemoryType.PROCEDURAL).is_user_locked is True
+
+
+def test_exact_fact_state_is_projected_from_the_typed_fields():
+    memory = SemanticMemory(content="server at 10.0.0.5:8080", is_exact_fact=True, exact_identifiers=["10.0.0.5:8080"])
+
+    item = memory_to_item(memory, MemoryType.SEMANTIC)
+
+    assert item.is_exact_fact is True
+    assert item.exact_identifiers == ["10.0.0.5:8080"]
+
+
+def test_metadata_does_not_stand_in_for_the_typed_exact_fact_state():
+    item = memory_to_item(SemanticMemory(content="note", metadata={"is_exact_fact": True}), MemoryType.SEMANTIC)
+
+    assert item.is_exact_fact is False
+    assert item.exact_identifiers == []

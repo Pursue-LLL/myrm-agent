@@ -1,4 +1,4 @@
-"""Unified E2E session registry — ADMIT through BODY (R144 SSOT).
+"""Unified E2E session registry — ADMIT through BODY (SSOT).
 
 [INPUT]
 - e2e_session_runtime.snapshot sidecars
@@ -377,7 +377,7 @@ def _blend_rows(
 ) -> LiveE2ESessionRow:
     """Keep the snapshot's monotonic BODY clock authoritative; backfill gaps.
 
-    R030-J contract: the per-pytest sidecar monotonic clock is the authoritative
+    contract: the per-pytest sidecar monotonic clock is the authoritative
     body elapsed. Coordinator epoch fields only fill in what the snapshot does
     not carry, so hung-reap and FAIL_FAST always judge the same row.
     """

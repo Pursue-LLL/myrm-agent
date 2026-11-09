@@ -15,8 +15,6 @@ from myrm_agent_harness.core.security.guards.ssrf import (
     validate_url_for_ssrf,
 )
 from myrm_agent_harness.utils.url_utils import (
-    build_host_resolver_rules,
-    create_dns_pin_map,
     extract_domain,
     is_blocked_ip,
     is_file_url,
@@ -350,42 +348,3 @@ class TestAsyncValidateUrlForSsrf:
             mock_loop.return_value.getaddrinfo = mock_getaddrinfo
             result = await async_validate_url_for_ssrf("https://evil.example.com")
             assert result.safe is False
-
-
-class TestDnsPinningHelpers:
-    def test_create_dns_pin_map_success(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="a.com", resolved_ips=("1.2.3.4",)),
-            SSRFResult(safe=True, hostname="b.com", resolved_ips=("5.6.7.8",)),
-        ]
-        pin_map, error = create_dns_pin_map(results)
-        assert error is None
-        assert pin_map == {"a.com": "1.2.3.4", "b.com": "5.6.7.8"}
-
-    def test_create_dns_pin_map_with_unsafe(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="a.com", resolved_ips=("1.2.3.4",)),
-            SSRFResult(safe=False, error="blocked", hostname="evil.com"),
-        ]
-        pin_map, error = create_dns_pin_map(results)
-        assert pin_map == {}
-        assert error == "blocked"
-
-    def test_build_host_resolver_rules(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="a.com", resolved_ips=("1.2.3.4",)),
-            SSRFResult(safe=True, hostname="b.com", resolved_ips=("5.6.7.8",)),
-        ]
-        rules = build_host_resolver_rules(results)
-        assert "MAP a.com 1.2.3.4" in rules
-        assert "MAP b.com 5.6.7.8" in rules
-
-    def test_build_host_resolver_rules_skips_unsafe(self) -> None:
-        results = [
-            SSRFResult(safe=False, error="blocked", hostname="evil.com"),
-        ]
-        rules = build_host_resolver_rules(results)
-        assert rules == ""
-
-    def test_build_host_resolver_rules_empty(self) -> None:
-        assert build_host_resolver_rules([]) == ""

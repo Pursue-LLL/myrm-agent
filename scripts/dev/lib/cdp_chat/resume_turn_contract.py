@@ -1,4 +1,4 @@
-"""ResumeTurnContract SSOT for chrome_e2e browser takeover resume (R93).
+"""ResumeTurnContract SSOT for chrome_e2e browser takeover resume.
 
 [INPUT]
 dev_gate.contract resume-related constants
@@ -47,7 +47,7 @@ def parallel_active_test_count() -> int:
 
 
 def resolve_stream_converge_poll_timeout_sec() -> float:
-    """Scale poll-only STREAM_CONVERGE with parallel chrome_e2e load (R95 SSOT)."""
+    """Scale poll-only STREAM_CONVERGE with parallel chrome_e2e load (SSOT)."""
     active = max(1, parallel_active_test_count())
     return RESUME_STREAM_CONVERGE_TIMEOUT_SEC * (1 + active)
 

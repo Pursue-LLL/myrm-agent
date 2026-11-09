@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Start myrm-agent-server in background on the namespace's backend port. Sets SERVER_DIR, writes pid/log under server dir.
-# Health-aware self-healing (R61/R61-A):
+# Health-aware self-healing:
 #   - port truth SSOT: the lsof listener on the backend port is the only
 #     authority for liveness; a desynced pid record is re-synced to the port
 #     owner, never kill a healthy listener
 #   - health probe fail + leases=0: kill+restart the port owner (not the record)
 #   - health probe fail + leases>0: defer kill (protect parallel E2E)
 #   - health probe fail + leases>0 + SUPERVISOR/WAVE bypass: SHC leader crash heal may kill+restart
-#   - source drift + leases>0: defer reload + record-pending (R31-G SMP)
+# - source drift + leases>0: defer reload + record-pending (SMP)
 #   - cold-start health wait requires new_pid to own the listen port before success
 # [POS] Dev 栈 backend 进程管理。source stack-epoch.sh 获取 _wave_active_lease_count。
 set -euo pipefail
