@@ -15,6 +15,9 @@
 [POS]
 Subagent concurrency limiter middleware. Limits concurrent execution count by agent_type to prevent resource exhaustion.
 
+[PENDING] Test double by design: the integration tests drive real fan-out through it to prove the semaphore
+cap; the live middleware list uses `subagent_limit_middleware`. It has no production caller because it is not
+meant to have one.
 """
 
 from __future__ import annotations

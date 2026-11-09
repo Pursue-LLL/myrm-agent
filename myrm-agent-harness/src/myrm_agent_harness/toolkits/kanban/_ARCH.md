@@ -352,7 +352,8 @@ Protocol-first architecture with strict framework-business separation.
 | `types/` | 纯领域类型子包：`enums.py`（状态/阻塞/优先级/运行与事件枚举及派生集合）、`metadata.py`（来源会话与完成意图键）、`models.py`（Board/Task/Edge/Claim/Run/Event/执行结果）；门面保持原导入面。详见 [types/_ARCH.md](types/_ARCH.md) |
 | `protocols.py` | KanbanStore (CRUD + edges + runs + events + `transition_task_status` 原子 CAS) + TaskRunner + CompletionVerifier + TaskSpecifier + TaskDecomposer protocol contracts |
 | `stores.py` | InMemoryKanbanStore (test/reference, with DFS cycle detection) |
-| `dispatcher.py` | Event-driven scheduler — dispatch loop, task execution, completion verification, dependency promotion, event emission |
+| `dispatcher.py` | Event-driven scheduler facade — completion verification, dependency promotion, event emission, lifecycle |
+| `dispatcher_dispatch.py` | Dispatch loop and single-task execution mixin: the loop asks `DispatchGate` before claiming (a closed gate leaves READY tasks queued), execution bookkeeping failures become one log line |
 | `dispatcher_failure.py` | Failure/timeout/retry pipeline mixin for KanbanDispatcher, plus the `retry_task` entry point for FAILED tasks |
 | `retry.py` | `retry_failed_task` — the single manual-retry implementation (reset, CAS to READY, audit event, double-submit lock) shared by the dispatcher and the orchestrator tool |
 | `dispatcher_zombie.py` | Zombie detection, heartbeat monitoring, scheduled wakeup, and startup orphan rescue mixin |

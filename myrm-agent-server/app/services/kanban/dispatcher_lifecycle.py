@@ -17,7 +17,7 @@ Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.protocols import TaskRunner
@@ -68,8 +68,16 @@ async def start_dispatcher(
     board_id: str,
     runner: TaskRunner,
     worker_id: str | None = None,
+    *,
+    rescue_orphans: bool = True,
+    dispatch_allowed: Callable[[], Awaitable[bool]] | None = None,
 ) -> KanbanDispatcher | None:
-    """Start a dispatcher for a board."""
+    """Start a dispatcher for a board.
+
+    ``dispatch_allowed`` is the boot gate: while it returns False the dispatcher leaves READY tasks
+    queued instead of claiming and failing them. Callers that start a board at runtime (a user is
+    present and can configure a provider) leave it None, so their behaviour is unchanged.
+    """
     board = await store.get_board(board_id)
     if board is None:
         return None
@@ -85,6 +93,7 @@ async def start_dispatcher(
         board=board,
         worker_id=worker_id,
         verifier=KanbanCompletionVerifier(),
+        dispatch_allowed=dispatch_allowed,
     )
     dispatcher.on_event(publish_task_event)
     dispatcher.on_event(emit_btw_done)
@@ -93,7 +102,7 @@ async def start_dispatcher(
     dispatcher.on_event(lambda event_type, task: emit_task_rejected(task) if event_type == "task_rejected" else None)
     dispatcher.on_event(BatchDirectoryService.get_instance().dispatcher_event_hook)
     dispatcher.on_event(_make_task_completed_merge_hook(runner, store))
-    await dispatcher.start()
+    await dispatcher.start(rescue_orphans=rescue_orphans)
     dispatchers[board_id] = dispatcher
     logger.info("Started dispatcher for board %s", board_id)
     return dispatcher

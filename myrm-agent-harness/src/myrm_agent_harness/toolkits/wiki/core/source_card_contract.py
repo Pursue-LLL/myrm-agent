@@ -10,6 +10,9 @@
 [POS]
 Defines identity cards for Layer 2 (sources/) to ensure every piece of evidence has
 traceable authorship, platform, capturing timestamp, and risk evaluation.
+
+[PENDING] No caller yet: the wiki ingress path writes frontmatter directly and does not build a
+source card. It waits for the dataset/source registry that should stamp provenance per source.
 """
 
 from __future__ import annotations

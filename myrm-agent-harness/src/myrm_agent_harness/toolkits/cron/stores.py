@@ -13,6 +13,9 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 
 [POS]
 Built-in in-memory CronStore for development and testing.
+
+[PENDING] Test double by design: twelve test files drive the real scheduler and executor through it;
+production uses the SQLAlchemy store. It has no production caller because it is not meant to have one.
 """
 
 from __future__ import annotations
