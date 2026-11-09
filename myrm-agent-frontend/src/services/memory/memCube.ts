@@ -12,7 +12,7 @@
  *            queryCubesFederated, writeCubeMemory
  *
  * [POS]
- * Client API service for Item 124 Memory Cube Scoped Isolation & Dynamic Mounting Suite.
+ * Client API service for the Memory Cube Scoped Isolation & Dynamic Mounting Suite.
  * Strict typing applied: No `any` types allowed. Single file < 200 lines.
  */
 

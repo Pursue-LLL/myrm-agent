@@ -3,7 +3,7 @@
  * Props: accounting, refreshing, onRefresh, onReset
  *
  * [OUTPUT]
- * BudgetPackingHudBar: 4-metric telemetry HUD bar for Item 122.
+ * BudgetPackingHudBar: 4-metric telemetry HUD bar for budget packing.
  *
  * [POS]
  * Telemetry HUD header component in BudgetGreedyPackingStudioCard.

@@ -51,7 +51,7 @@ function renderCard() {
   );
 }
 
-describe('TwoLayerDialecticStudioCard (Item 112 P1)', () => {
+describe('TwoLayerDialecticStudioCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetBaseContextCache.mockResolvedValue(FALLBACK_BASE_CONTEXT);
@@ -70,7 +70,6 @@ describe('TwoLayerDialecticStudioCard (Item 112 P1)', () => {
 
     expect(screen.getByText(/仅实验室预览/)).toBeInTheDocument();
     expect(screen.getByText('双层上下文实验室')).toBeInTheDocument();
-    expect(screen.getByText('Item 112')).toBeInTheDocument();
     expect(screen.getByText('系统前缀布局')).toBeInTheDocument();
     expect(screen.getByText('稳定')).toBeInTheDocument();
     expect(screen.queryByText(/\b100%\b/)).not.toBeInTheDocument();

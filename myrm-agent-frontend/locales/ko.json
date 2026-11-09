@@ -4791,7 +4791,6 @@
           "sessionInputLabel": "미리보기 세션 ID",
           "sessionPlaceholder": "세션 ID 입력…",
           "title": "이중 레이어 컨텍스트 랩",
-          "itemBadge": "항목 112",
           "layoutBadge": "레이아웃 미리보기",
           "description": "Layer 1 스냅샷은 사용자 메시지 끝; Layer 2는 주기적으로 기억 충돌을 해소.",
           "tabsAria": "랩 보기",

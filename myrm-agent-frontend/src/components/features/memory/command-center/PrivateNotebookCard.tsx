@@ -8,16 +8,15 @@
  * ./PrivateNotebookHandoverView::PrivateNotebookHandoverView
  *
  * [OUTPUT]
- * PrivateNotebookCard: Command Center dashboard card for Transparent Inspectable Model Private Notebook Suite (Item 89 P0).
+ * PrivateNotebookCard: Command Center dashboard card for the Transparent Inspectable Model Private Notebook Suite.
  *
  * [POS]
- * Implementation for Topic 01 Item 89 (OpenAI Codex rust-v0.153.0 PR #42385 features.context_management
- * benchmarked, upgraded with local transparent .myrm/agent_notes/ markdown files & human rectification).
+ * Notes are plain Markdown files under the sandbox workspace (`.myrm/agent_notes/`), so the model's
+ * private notebook stays human-readable, diffable and editable by the user.
  * Strict typing applied: No `any` types allowed.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/primitives/card';
 import {
@@ -192,9 +191,6 @@ export function PrivateNotebookCard(): React.JSX.Element {
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
             <CardTitle className="text-sm font-semibold tracking-tight">透明可检视模型私有笔记本</CardTitle>
-            <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-              Item 89 P0
-            </Badge>
           </div>
           <div className="flex items-center gap-1.5">
             <Button

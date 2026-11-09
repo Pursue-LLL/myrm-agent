@@ -1,5 +1,5 @@
 /**
- * Retrieval Score Honesty and Raw vs Ranking Inspection Card (Item 142).
+ * Retrieval Score Honesty and Raw vs Ranking Inspection Card.
  * Interactive dashboard providing dual-threshold calibration, white-box factor
  * breakdowns, and divergence diagnostics between vector similarity and ranking scores.
  */

@@ -9,7 +9,7 @@
  * recording interactive user overrides with LWW deduplication, and verifying frozen prefix status.
  *
  * [POS]
- * Subcomponent for Item 98 (PromptCachePreservingEphemeralDeltaMemorySuite).
+ * Subcomponent for PromptCachePreservingEphemeralDeltaMemorySuite.
  * Strict typing applied: No `any` types allowed. Single file < 350 lines.
  */
 

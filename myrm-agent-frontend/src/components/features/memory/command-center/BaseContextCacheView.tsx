@@ -8,7 +8,7 @@
  * BaseContextCacheView: Layer 1 base context layout dashboard (prefix stability, not hit-rate SLA).
  *
  * [POS]
- * Sub-view in TwoLayerDialecticStudioCard for Item 112.
+ * Sub-view of TwoLayerDialecticStudioCard.
  */
 
 import React from 'react';

@@ -13,7 +13,7 @@
  * PromptCachePreservingDeltaCard: Command center card for session-scoped memory updates.
  *
  * [POS]
- * Primary UI Card for Item 98 (PromptCachePreservingEphemeralDeltaMemorySuite).
+ * Primary UI Card for PromptCachePreservingEphemeralDeltaMemorySuite.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';

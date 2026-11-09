@@ -4791,7 +4791,6 @@
           "sessionInputLabel": "Vorschau-Sitzungs-ID",
           "sessionPlaceholder": "Sitzungs-ID eingeben…",
           "title": "Zweischicht-Kontext-Labor",
-          "itemBadge": "Punkt 112",
           "layoutBadge": "Layout-Vorschau",
           "description": "Layer-1-Snapshots am Nutzernachrichten-Ende; Layer 2 löst Gedächtniskonflikte im Takt.",
           "tabsAria": "Labor-Ansichten",

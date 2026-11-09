@@ -9,7 +9,7 @@
  * Functions: sliceMarkdown, incrementalIndexMarkdown, hydrateChunkContext
  *
  * [POS]
- * Client service for Item 132 IncrementalSlidingWindowMarkdownChunkerSuite.
+ * Client service for IncrementalSlidingWindowMarkdownChunkerSuite.
  * Manages semantic sliding window slicing, 80-token overlap, line pointers,
  * content-hash incremental diffing, and context hydration.
  * Strictly typed with zero `any` usage. Single file < 200 lines.

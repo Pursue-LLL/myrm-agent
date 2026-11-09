@@ -3,10 +3,10 @@
  * API client endpoints: /memory/two-layer-dialectic/*
  *
  * [OUTPUT]
- * Types & client methods for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite (Item 112).
+ * Types & client methods for Two-Layer Context Injection & Multi-Pass Dialectic Reconciliation Suite.
  *
  * [POS]
- * Domain service client for Item 112.
+ * Domain service client for the two-layer context lab.
  * Strict typing applied: No `any` types allowed. Single file < 200 lines.
  */
 

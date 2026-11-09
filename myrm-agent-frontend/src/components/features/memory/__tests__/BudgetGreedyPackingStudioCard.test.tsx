@@ -6,7 +6,7 @@
  * ../command-center/BudgetGreedyPackingStudioCard::BudgetGreedyPackingStudioCard
  *
  * [OUTPUT]
- * Test suite verifying Budget Greedy Marginal Value Recall Packing Studio Card (Item 122 P2):
+ * Test suite verifying Budget Greedy Marginal Value Recall Packing Studio Card:
  * 1. Default render of card header, badges, and 4-dimension HUD telemetry bar
  * 2. Tab switching between Marginal Value Packing view and Token Accounting tuner view
  * 3. Repack candidates interaction and feedback banner
@@ -14,7 +14,7 @@
  * 5. Reset to default budget configuration interaction
  *
  * [POS]
- * Unit test for Item 122.
+ * Unit test for the budget packing studio card.
  * Strict typing applied: No `any` types allowed. File lines < 300.
  */
 
@@ -34,7 +34,7 @@ vi.mock('@/services/memory/budgetPacking', () => ({
   packRecallCandidates: mockPackRecallCandidates,
 }));
 
-describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
+describe('BudgetGreedyPackingStudioCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDefaultBudget.mockResolvedValue(FALLBACK_BUDGET);
@@ -45,7 +45,6 @@ describe('BudgetGreedyPackingStudioCard (Item 122 P2)', () => {
     render(<BudgetGreedyPackingStudioCard />);
 
     expect(screen.getByText('预算贪心边际价值召回装箱中枢')).toBeInTheDocument();
-    expect(screen.getByText('Item 122 · P2')).toBeInTheDocument();
     expect(screen.getByText('贪心背包算法')).toBeInTheDocument();
 
     // 验证 HUD 4 维指标

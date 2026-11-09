@@ -7,10 +7,10 @@
  * ./budgetPackingFallbacks
  *
  * [OUTPUT]
- * BudgetGreedyPackingStudioCard: Main command-center panel for Item 122.
+ * BudgetGreedyPackingStudioCard: Main command-center panel for budget packing.
  *
  * [POS]
- * Command-center card for Budget Greedy Marginal Value Recall Packing Suite (Item 122 P2).
+ * Command-center card for Budget Greedy Marginal Value Recall Packing Suite.
  * Strict typing applied: No `any` types allowed. Accessible markup. Single file < 300 lines.
  */
 
@@ -137,9 +137,6 @@ export const BudgetGreedyPackingStudioCard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-foreground tracking-tight">预算贪心边际价值召回装箱中枢</h2>
-              <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
-                Item 122 · P2
-              </span>
               <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                 贪心背包算法
               </span>

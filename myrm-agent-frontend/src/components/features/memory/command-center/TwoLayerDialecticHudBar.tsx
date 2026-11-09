@@ -3,7 +3,7 @@
  * Props: contextCadence, dialecticCadence, dialecticDepth, reasoningLevel, refreshing, onRefresh, onResetSession
  *
  * [OUTPUT]
- * TwoLayerDialecticHudBar: 4-metric telemetry HUD bar for Item 112.
+ * TwoLayerDialecticHudBar: 4-metric telemetry HUD bar for the two-layer lab.
  *
  * [POS]
  * Telemetry HUD header component in TwoLayerDialecticStudioCard.
