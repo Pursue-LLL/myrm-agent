@@ -8,7 +8,7 @@
 - myrm_agent_harness.toolkits.wiki::fetch_url_markdown / SourceLoadError (POS: Readable markdown of a URL; a page with none raises SourceLoadError)
 
 [OUTPUT]
-- import_urls: Batch import web URLs into Wiki with SSRF protection, content extraction, and raw gate verification. A URL that cannot be read becomes an error item and is never written.
+- import_urls: Batch import web URLs into Wiki with SSRF protection, content extraction, and raw gate verification. A URL that cannot be read becomes an error item and is never written; every error item carries an error_code the import dialog localizes.
 
 [POS]
 Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀下。
@@ -91,12 +91,13 @@ async def import_urls(
             try:
                 ssrf_res = await async_validate_url_for_ssrf(target_url)
                 if not ssrf_res.safe:
-                    # The import dialog shows the error text, so the guard's verdict stays in the log.
+                    # The error text goes back to API clients, so the guard's verdict stays in the log.
                     logger.warning("URL import blocked by the SSRF guard: %s (%s)", target_url, ssrf_res.error)
                     return UrlImportItemResult(
                         url=target_url,
                         status="error",
                         error="This address cannot be imported",
+                        error_code="address_rejected",
                     )
 
                 # A page that cannot be read is an error item: publishing a blank body would store a
@@ -105,7 +106,7 @@ async def import_urls(
                     markdown = await fetch_url_markdown(target_url)
                 except SourceLoadError as exc:
                     logger.warning("Nothing to import from %s: %s", target_url, exc)
-                    return UrlImportItemResult(url=target_url, status="error", error=str(exc))
+                    return UrlImportItemResult(url=target_url, status="error", error=str(exc), error_code="nothing_readable")
 
                 ingress_res = await publish_url_markdown_ingress(
                     archiver._structure,
@@ -149,14 +150,16 @@ async def import_urls(
                     relative_path=ingress_res.relative_path,
                     status="error",
                     error="Ingress was not written",
+                    error_code="import_failed",
                 )
             except Exception:
-                # The import dialog shows this text, so the cause stays in the log.
+                # The error text goes back to API clients, so the cause stays in the log.
                 logger.warning("Failed to import URL %s", target_url, exc_info=True)
                 return UrlImportItemResult(
                     url=target_url,
                     status="error",
                     error="Failed to import this URL",
+                    error_code="import_failed",
                 )
 
     tasks = [_process_single_url(u) for u in cleaned_urls]

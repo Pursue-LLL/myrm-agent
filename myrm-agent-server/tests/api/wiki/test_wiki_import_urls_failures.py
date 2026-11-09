@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.core.security.guards.ssrf import SSRFResult
 from myrm_agent_harness.toolkits.wiki import SourceLoadError
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+from myrm_agent_harness.toolkits.wiki.pipeline.ingress import ClipIngressResult
 
 from app.api.wiki.routes.schemas_import import ImportUrlsResultResponse
 from app.core.security.auth.identity import LOCAL_USER_ID
@@ -19,6 +20,7 @@ from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from tests.support.minimal_app import build_minimal_app
 
 _FETCH = "myrm_agent_harness.toolkits.wiki.fetch_url_markdown"
+_PUBLISH = "myrm_agent_harness.toolkits.wiki.pipeline.ingress.publish_url_markdown_ingress"
 _GONE_URL = "https://example.com/gone"
 _GONE_REASON = f"No readable content could be fetched from {_GONE_URL}"
 
@@ -79,7 +81,9 @@ def test_unreadable_page_is_an_error_item_and_nothing_is_written(import_client: 
 
     assert data.error_count == 1
     assert data.enqueued_count == 0
-    assert [(item.url, item.status, item.error) for item in data.results] == [(_GONE_URL, "error", _GONE_REASON)]
+    assert [(item.url, item.status, item.error, item.error_code) for item in data.results] == [
+        (_GONE_URL, "error", _GONE_REASON, "nothing_readable")
+    ]
     assert _raw_files(structure) == []
 
 
@@ -113,7 +117,7 @@ def test_one_unreadable_url_does_not_stop_the_batch(import_client: tuple[TestCli
     with patch(_FETCH, new=AsyncMock(side_effect=fetch)):
         data = _import_urls(client, ["https://example.com/readable", _GONE_URL])
 
-    assert [item.status for item in data.results] == ["success", "error"]
+    assert [(item.status, item.error_code) for item in data.results] == [("success", None), ("error", "nothing_readable")]
     assert data.enqueued_count == 1
     assert data.error_count == 1
     assert len(_raw_files(structure)) == 1
@@ -122,12 +126,32 @@ def test_one_unreadable_url_does_not_stop_the_batch(import_client: tuple[TestCli
 def test_unexpected_fetch_failure_is_an_error_item_without_internal_detail(
     import_client: tuple[TestClient, WikiStructure],
 ) -> None:
-    """The import dialog shows the error text, so the cause of an unforeseen failure stays in the log."""
+    """The error text goes back to API clients, so the cause of an unforeseen failure stays in the log."""
     client, structure = import_client
 
     with patch(_FETCH, new=AsyncMock(side_effect=RuntimeError("browser pool exhausted"))):
         data = _import_urls(client, ["https://example.com/page"])
 
-    assert [(item.status, item.error) for item in data.results] == [("error", "Failed to import this URL")]
+    assert [(item.status, item.error, item.error_code) for item in data.results] == [
+        ("error", "Failed to import this URL", "import_failed")
+    ]
+    assert data.enqueued_count == 0
+    assert _raw_files(structure) == []
+
+
+def test_ingress_that_wrote_nothing_is_an_error_item(import_client: tuple[TestClient, WikiStructure]) -> None:
+    client, structure = import_client
+    unwritten = ClipIngressResult(relative_path="", written=False, skipped=True, conflict=False, security_blocked=False)
+
+    with (
+        patch(_FETCH, new=AsyncMock(return_value="# Readable\n\nBody of the readable page.")),
+        patch(_PUBLISH, new=AsyncMock(return_value=unwritten)),
+    ):
+        data = _import_urls(client, ["https://example.com/page"])
+
+    assert [(item.status, item.error, item.error_code) for item in data.results] == [
+        ("error", "Ingress was not written", "import_failed")
+    ]
+    assert data.error_count == 1
     assert data.enqueued_count == 0
     assert _raw_files(structure) == []
