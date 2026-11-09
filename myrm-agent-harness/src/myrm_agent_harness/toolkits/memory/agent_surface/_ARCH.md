@@ -17,7 +17,7 @@ Parent index: [../_ARCH.md](../_ARCH.md). System design: [../MEMORY_SYSTEM.md](.
 | `_memory_search_description.py` | Core | memory_search_tool description derived from the corpus policy (EN/ZH): the corpus guide lists exactly the corpora the schema offers, and the sessions routing triggers live only here. | ✅ |
 | `_memory_tool_texts_en.py` | Core | English static texts: the memory_save_tool core, its write-target block (offered only under a shared-write policy) and the memory_manage_tool description. | ✅ |
 | `_memory_tool_texts_zh.py` | Core | Chinese static texts, semantically aligned with the English ones. | ✅ |
-| `memory_manage_core.py` | Core | Update / delete / correct / rate addressed by memory id alone: the stored memory's type picks the store and the applicable actions; one implementation for the agent tool and the MCP adapter. | ✅ |
+| `memory_manage_core.py` | Core | Update / delete / correct / rate addressed by memory id alone: the stored memory's type picks the store and the applicable actions; one implementation for the agent tool and the MCP adapter. Only an explicit pin or lock refuses the agent's delete, rewrite and correction (`_agent_may_modify` decides the last two); the exact-fact stamp is the classifier's, not the user's decision. | ✅ |
 | `memory_search_policy.py` | Core | Corpus ACL, write bounds, optional wiki/sessions backends, and the one source of which corpora a policy enables (`enabled_search_corpora`) and offers (`advertised_search_corpora`). | ✅ |
 | `memory_search_execution.py` | Core | memory/wiki/sessions search execution with domain-scoped pruning and heuristic fallback. | ✅ |
 | `memory_recall_formatting.py` | Core | Recall sanitize SSOT, save ack, source_error suffix. | ✅ |

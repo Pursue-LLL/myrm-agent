@@ -9,7 +9,7 @@ Relational Store — abstract interface and SQLite implementation.
 |------|------|-------------|-------|
 | __init__.py | Package | Relational Store — abstract interface and SQLite implementation. | — |
 | _converters.py | Internal | Row-to-model converters for SQLiteRelationalStore. | ✅ |
-| _exact_fact_store.py | Internal | Zero-loss SQLite storage and FTS5 inverted search handler for exact facts (UUIDs, SHAs, SemVer, config keys). | ✅ |
+| _exact_fact_store.py | Internal | Zero-loss SQLite storage and FTS5 inverted search handler for exact facts (UUIDs, SHAs, SemVer, config keys). Search is limited in SQL to the caller's primary namespaces (the vector search's visibility predicate) and ranks a memory by its longest matched identifier; a hit only locates the candidate, the caller replaces it with the stored memory. | ✅ |
 | _pending_mixin.py | Internal | Pending-record (approval queue) operations of `SQLiteRelationalStore`: submit, resolve, list, count, and delete or count by source chat. | ✅ |
 | _profile_mixin.py | Internal | Profile operations of `SQLiteRelationalStore`: namespace-scoped get, snapshot with a revision hash, upsert, delete, list and count; the maintenance code's `_system.` bookkeeping rows are never listed or counted. | ✅ |
 | _rule_mixin.py | Internal | Procedural-rule operations of `SQLiteRelationalStore`: create, get, search, list, count, update and delete, tool-scoped fields included. | ✅ |

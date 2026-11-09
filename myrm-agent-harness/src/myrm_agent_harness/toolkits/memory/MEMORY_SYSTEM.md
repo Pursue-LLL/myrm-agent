@@ -683,10 +683,10 @@ retention = 0.35 × time_score + 0.25 × access_score + 0.15 × importance_score
 
 保护规则（优先级从高到低）：
 
-- 用户保护记忆（`BaseMemory.is_user_protected` = `pinned or is_user_locked`）：
-  - 遗忘策略：`should_forget=False`，reason="Protected: user-pinned or user-locked"
-  - Agent 工具删除（`memory_manage` / MCP `memory_manage`）：`allow_protected=False` 时拒绝删除，返回明确拒绝消息（防 prompt injection）
-  - Agent 工具改写（`memory_manage(action=update|correct)` / MCP 同名动作）：`allow_protected=False` 时拒绝改写正文，提示先请用户解锁（`agent_surface/rule_write_boundary.py`）；WebUI 编辑路径不受限，用户始终可改自己的数据
+- 用户保护记忆（`BaseMemory.is_user_protected` = `pinned or is_user_locked or is_exact_fact`）：
+  - 遗忘策略：`should_forget=False`，reason="Protected: user-pinned or user-locked"（精确事实走同一分支）
+  - Agent 工具删除（`memory_manage` / MCP `memory_manage`）：`allow_protected=False` 时拒绝删除用户置顶的记忆与锁定的规则，返回明确拒绝消息（防 prompt injection）；`is_exact_fact` 是分类器盖的章，不拦截删除
+  - Agent 工具改写（`memory_manage(action=update|correct)` / MCP 同名动作）：只有显式 `pinned` / `is_user_locked` 才被当作用户的决定，此时 `allow_protected=False` 拒绝改写正文，提示先请用户解锁（`agent_surface/rule_write_boundary.py`）；`is_exact_fact` 是分类器盖的章，不拦截 agent 的改写与纠正（见十九）；WebUI 编辑路径不受限，用户始终可改自己的数据
   - 自动写入（蒸馏合并/纠正/去重/替代、归纳 subsumption）：统一传 `allow_protected=False`，`MemoryProtectedError` 被捕获后跳过该条并记录 INFO 日志，不中断整批
   - 规则 TTL 归档：`is_user_locked` 规则跳过
   - WebUI 删除、导入回滚、归档回滚等用户主导路径：`allow_protected=True`（默认），可正常操作
@@ -991,12 +991,12 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 
 ### 反馈纠正
 
-`correct` action 实现"纠正不是删除，是用更强的真相覆盖错误"：
+`correct` action 实现"纠正不是删除，是用更强的真相覆盖错误"。纠正先走与普通写入相同的写入管线（安全扫描、瞬时事实闸门、精确事实硬锁），被接收之后才降权旧记忆，所以被拒绝的纠正不会改变任何记忆：
 
 ```
 Agent: memory_manage_tool(action="correct", memory_id="abc", new_content="正确的事实")
-  → 旧记忆 "abc": importance ×0.3, confidence → 0.1, metadata["corrected"]=True
-  → 新记忆 "xyz": confidence=0.95, correction_of="abc"（纠正链）
+  → 新记忆 "xyz": confidence=0.95, importance=min(旧+0.2, 1.0), correction_of="abc"（纠正链）；写入被拒绝则到此为止，旧记忆原样保留
+  → 旧记忆 "abc": importance ×0.3（下限 0.05）, confidence → 0.1, metadata["corrected"]=True；精确事实标记与索引行一并清除，被取代的事实不再与它的纠正争抢精确置顶
   → 检索时抑制: importance降权 × confidence降权 × correction_penalty(0.1)
 ```
 
@@ -1112,10 +1112,11 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 - **关系倒排索引与全文虚表存储（`_exact_fact_store` & `SQLiteRelationalStore`）**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.relational._exact_fact_store` 与 `sqlite_store`；
   - 双轨物理持久化：建立 `exact_fact_identifiers` 物理倒排索引表加速符号级精准点查，同步维护 `exact_facts_fts` FTS5 全文检索虚表；
-  - 生命周期级联联动：在记忆新增、批量写入、属性变更以及删除时，与向量底库自动协同级联更新与清理，杜绝孤儿索引。
+  - 生命周期联动：只登记语义记忆，在记忆新增、批量写入、改写与删除时与向量底库协同更新与清理；改写正文后，标识符按存储的最终正文重新提取并同步索引，索引同步失败只告警、不影响记忆本身的写入；
+  - 查询侧：精确标识符流在 SQL 里按调用方的 `primary_namespace` 限定可见范围（与向量检索同一谓词），同一记忆命中多个标识符时以最长命中者排序（`10.1.1.29:8029` 先于共享前缀 `10.1.1`）；索引只负责定位候选，命中项由向量库里的存量记忆整体替换（状态、作用域与时间戳以向量库为准，一次批量读取），向量库里已不存在的索引行直接丢弃，不会返回孤儿命中。
 - **检索硬置顶加权与全生命周期免遗忘免疫**：
   - 核心位置：`myrm_agent_harness.toolkits.memory.retriever` 与 `types`；
-  - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰；
+  - `BaseMemory` 包含强类型标识 `is_exact_fact: bool` 与 `exact_identifiers: list[str]`，并自动计入 `is_user_protected` 豁免保护，完全免疫遗忘衰减与蒸馏淘汰（agent 的删除、改写、纠正只被显式 pin / lock 拦截，精确事实标记不拦截）；标识符在安全扫描与瞬时事实闸门之后、按最终入库正文盖章，两个字段只随语义记忆落盘并登记索引，情景与程序性记忆的盖章只存在于写入过程中；
   - 检索重排中当查询命中所包含的高熵精确标识符或原样子串时，赋予确定性硬置顶加权（`+5.0` 增益），确保精确事实绝对置顶于模糊语义召回。
 - **全链路展示与交互认知一致性**：
   - Server 端接口契约 `MemoryItem` 与变更请求模型支持 `is_exact_fact` 属性透传；
