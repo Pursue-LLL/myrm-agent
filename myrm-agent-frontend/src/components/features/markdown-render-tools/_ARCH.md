@@ -13,7 +13,6 @@ Markdown 渲染扩展与工具块展示。
 | `InlineHtmlWidget.tsx`           | 核心 | 沙箱化 inline HTML widget iframe 渲染                                                                                          | ✅    |
 | `LinkPopover.tsx`                | 辅助 | 链接 hover 预览卡片（HTTP/HTTPS 白名单防御/标题/摘要/favicon/siteName/authority badge/相对时间/Agent浏览入口）                 | ✅    |
 | `MarkdownImage.tsx`              | 核心 | Markdown 图片：原生按钮包裹（键盘可达）、lazy load、Lightbox、尺寸约束                                                                                   | ✅    |
-| `MathRenderer.tsx`               | 核心 | KaTeX 行内/块级公式渲染                                                                                                        | ✅    |
 | `MermaidChart.tsx`               | 核心 | Mermaid 图表交互式渲染（lazy渲染、错误降级、pinch/wheel/button缩放、拖拽平移、全屏、图例过滤）                                 | ✅    |
 | `MermaidLegendPanel.tsx`         | 辅助 | Mermaid 图例/节点说明侧栏                                                                                                      | ✅    |
 | `ThinkBox.tsx`                   | 核心 | 模型思考链折叠展示容器                                                                                                         | ✅    |

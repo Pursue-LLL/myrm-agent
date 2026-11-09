@@ -17,25 +17,19 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useSmoothStream } from '@/hooks/message-input/useSmoothStream';
 import useConfigStore from '@/store/useConfigStore';
 import ReactMarkdown from 'react-markdown';
-import remarkMath, { Options } from 'remark-math';
-import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeHeadingIds from '../markdown-render-tools/rehypeHeadingIds';
 import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
 import remarkGitHubAlerts from 'remark-github-markdown-alerts';
-import { preprocessContentMath, katexConfig } from '@/components/features/markdown-render-tools/MathRenderer';
 import SourceChunkDrawer from './SourceChunkDrawer';
 import type { Artifact, Source, WikiSourceLevel } from '@/store/chat/types';
 import { recordEvidenceSurface } from '@/services/wiki/evidenceMetrics';
 import { useTranslations } from 'next-intl';
 import { IncrementalStreamingMarkdownRenderer } from '@/components/features/chat-window/streaming-markdown';
 import { preprocessCitationMarkers } from '@/lib/citations/preprocessCitationMarkers';
+import { mathPlugins, normalizeMathDelimiters } from '@/lib/utils/markdownMath';
 import { createMarkdownComponents, type OpenKbDrawer } from './markdownComponents';
-
-const remarkMathOptions: Options = {
-  singleDollarTextMath: true,
-};
 
 const preprocessVaultLinks = (text: string) => {
   return text.replace(/vault:\/\/([a-f0-9A-F-]+)/gi, '<vault id="$1"></vault>');
@@ -169,7 +163,7 @@ const MarkdownContent = React.memo(
     }, [_messageId, hasKbEvidence]);
 
     const processedContent = useMemo(() => {
-      let text = preprocessContentMath(displayContent, isStreaming);
+      let text = normalizeMathDelimiters(displayContent, isStreaming);
       if (sources.length > 0) {
         text = preprocessCitationMarkers(text, sources);
       }
@@ -236,8 +230,8 @@ const MarkdownContent = React.memo(
           contextKey={`chat:${_messageId}`}
         />
         <ReactMarkdown
-          remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
-          rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
+          remarkPlugins={[...mathPlugins.remark, remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
+          rehypePlugins={[...mathPlugins.rehype, rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
           components={components}
           allowedElements={[
             // 允许渲染的元素
