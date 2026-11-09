@@ -66,7 +66,8 @@ class CronStore(Protocol):
         """Return jobs matching the given filters.
 
         - ``user_id`` set: return all jobs owned by that user.
-        - ``name_filter`` set: fuzzy match job names (LIKE %filter%).
+        - ``name_filter`` set: case-insensitive substring match on the job name
+          (``%`` and ``_`` in the filter are ordinary characters).
         - ``chat_id`` set: return jobs bound to that chat session.
         - ``project_id`` set: return jobs bound to that project.
         - ``due_before`` set: return active jobs whose ``next_run_at <= due_before``.
