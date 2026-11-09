@@ -97,48 +97,47 @@ class AwsCredentials:
 class _CachedSession:
     session: Session
     created_at: float
+    renewable: bool = False  # set once the chain has answered with credentials that botocore renews itself
 
 
 _sessions: OrderedDict[tuple[str | None, ...], _CachedSession] = OrderedDict()
 _sessions_lock = threading.Lock()
 
 
-def _session(chain_env: tuple[str | None, ...]) -> Session:
-    """The session of one source of credentials; ``chain_env`` is the cache key, botocore reads the variables itself.
+def _cached_session(chain_env: tuple[str | None, ...]) -> _CachedSession:
+    """The cached session of one source of credentials; ``chain_env`` is the key, botocore reads the variables itself.
 
-    A session whose credentials botocore renews keeps them for good. Any other is replaced once it is older than
-    ``_STATIC_CREDENTIALS_TTL_SECONDS``, so that a rewritten file or helper output is read again. The chain itself is
-    resolved by the first ``get_credentials`` call, which the caller makes outside the lock.
+    A session whose credentials botocore renews is kept for good. Any other is replaced once it is older than
+    ``_STATIC_CREDENTIALS_TTL_SECONDS``, so that a rewritten file or helper output is read again. The lock covers the
+    cache only: the caller resolves the chain, outside it.
     """
-    from botocore.credentials import RefreshableCredentials
     from botocore.session import Session
 
     with _sessions_lock:
         now = time.monotonic()
         cached = _sessions.get(chain_env)
-        if cached is None or (
-            now - cached.created_at >= _STATIC_CREDENTIALS_TTL_SECONDS
-            and not isinstance(cached.session.get_credentials(), RefreshableCredentials)
-        ):
+        if cached is None or (not cached.renewable and now - cached.created_at >= _STATIC_CREDENTIALS_TTL_SECONDS):
             cached = _sessions[chain_env] = _CachedSession(Session(), now)
         _sessions.move_to_end(chain_env)
         while len(_sessions) > _MAX_SESSIONS:
             _sessions.popitem(last=False)
-        return cached.session
+        return cached
 
 
 def load_credentials() -> AwsCredentials:
     """The credentials of the AWS chain; ``UnsupportedProviderError`` when botocore or the credentials are missing."""
     try:
+        from botocore.credentials import RefreshableCredentials
         from botocore.exceptions import BotoCoreError
     except ImportError as exc:
         raise UnsupportedProviderError(_NEEDS_BOTOCORE) from exc
     try:
-        session = _session(tuple(os.environ.get(name) for name in _CHAIN_ENV))
-        credentials = session.get_credentials()
+        cached = _cached_session(tuple(os.environ.get(name) for name in _CHAIN_ENV))
+        credentials = cached.session.get_credentials()
         if credentials is None:
             raise UnsupportedProviderError(_NO_CREDENTIALS)
-        return AwsCredentials(credentials.get_frozen_credentials(), session.get_config_variable("region"))
+        cached.renewable = isinstance(credentials, RefreshableCredentials)
+        return AwsCredentials(credentials.get_frozen_credentials(), cached.session.get_config_variable("region"))
     except BotoCoreError as exc:
         raise UnsupportedProviderError(f"AWS credentials could not be loaded: {exc}") from exc
 

@@ -16,16 +16,16 @@
 
 [POS]
 Request half of the Bedrock wire (answers are read by ``bedrock_response``). A Bedrock API key is sent as a bearer
-token; without one the request is signed with the AWS credential chain (``bedrock_sigv4``), which needs botocore and
-may block, so ``prepare`` is then run off the event loop. The region of the default endpoint comes from the model ARN,
-the AWS region variables or, when signing, the region of the AWS profile. Converse is the one operation spoken, so
-``converse/`` and ``invoke/`` route prefixes of a model id are dropped. The caller's tools and tool choice are sent
-as stated, whichever model it is: the catalog can lag a model's real abilities, and a refusal from the API says so
-plainly. Reasoning is asked for the way each model family takes it: a thinking block for Claude, ``reasoningConfig``
-for Nova 2, ``reasoning_effort`` for gpt-oss, all in ``additionalModelRequestFields``; a model without reasoning is
-sent none. Where the catalog lists it, ``parallel_tool_calls`` becomes Anthropic's ``disable_parallel_tool_use``
-there as well. A request that replays tool calls but declares no tools gets a placeholder tool, which the API
-demands. A tool choice the caller states wins over the forced call of the synthetic structured-output tool.
+token; without one the request is signed with the AWS credential chain (``bedrock_sigv4``), which needs botocore (extra
+``bedrock``) and may block, so ``prepare`` is then run off the event loop. The region of the default endpoint comes from
+the model ARN, the AWS region variables or, when signing, the region of the AWS profile. Converse is the one operation
+spoken, so ``converse/`` and ``invoke/`` route prefixes of a model id are dropped. The caller's tools and tool choice
+are sent as stated, whichever model it is: the catalog can lag a model's real abilities, and a refusal from the API says
+so plainly. Reasoning is asked for the way each model family takes it: a thinking block for Claude, ``reasoningConfig``
+for Nova 2, ``reasoning_effort`` for gpt-oss, all in ``additionalModelRequestFields``; a model without reasoning is sent
+none. Where the catalog lists it, ``parallel_tool_calls`` becomes Anthropic's ``disable_parallel_tool_use`` there as
+well. A request that replays tool calls but declares no tools gets a placeholder tool, which the API demands. A tool
+choice the caller states wins over the forced call of the synthetic structured-output tool.
 """
 
 from __future__ import annotations
