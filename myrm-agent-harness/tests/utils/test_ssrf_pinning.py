@@ -1,7 +1,6 @@
 """Tests for SSRF validation with DNS pinning.
 
-Covers SSRFResult, validate_url_for_ssrf, async_validate_url_for_ssrf,
-create_pinned_transport, and build_host_resolver_rules.
+Covers SSRFResult, validate_url_for_ssrf and async_validate_url_for_ssrf.
 """
 
 from __future__ import annotations
@@ -17,8 +16,6 @@ from myrm_agent_harness.core.security.guards.ssrf import (
     validate_url_for_ssrf,
 )
 from myrm_agent_harness.utils.url_utils import (
-    build_host_resolver_rules,
-    create_dns_pin_map,
     is_blocked_ip,
     validate_scheme_and_hostname,
 )
@@ -271,61 +268,3 @@ class TestAsyncValidateUrlForSSRF:
     async def test_blocked_ip_async(self) -> None:
         result = await async_validate_url_for_ssrf("http://127.0.0.1/secret")
         assert result.safe is False
-
-
-# ---------------------------------------------------------------------------
-# create_pinned_transport
-# ---------------------------------------------------------------------------
-
-
-class TestCreateDnsPinMap:
-    def test_builds_pin_map(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="a.com", resolved_ips=("1.2.3.4",)),
-            SSRFResult(safe=True, hostname="b.com", resolved_ips=("5.6.7.8", "9.10.11.12")),
-        ]
-        pin_map, err = create_dns_pin_map(results)
-        assert err is None
-        assert pin_map == {"a.com": "1.2.3.4", "b.com": "5.6.7.8"}
-
-    def test_returns_error_on_unsafe(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="ok.com", resolved_ips=("1.1.1.1",)),
-            SSRFResult(safe=False, error="bad"),
-        ]
-        pin_map, err = create_dns_pin_map(results)
-        assert err == "bad"
-        assert pin_map == {}
-
-    def test_empty_results(self) -> None:
-        pin_map, err = create_dns_pin_map([])
-        assert err is None
-        assert pin_map == {}
-
-
-# ---------------------------------------------------------------------------
-# build_host_resolver_rules
-# ---------------------------------------------------------------------------
-
-
-class TestBuildHostResolverRules:
-    def test_single_host(self) -> None:
-        results = [SSRFResult(safe=True, hostname="x.com", resolved_ips=("1.2.3.4",))]
-        assert build_host_resolver_rules(results) == "MAP x.com 1.2.3.4"
-
-    def test_multiple_hosts(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="a.com", resolved_ips=("1.1.1.1",)),
-            SSRFResult(safe=True, hostname="b.com", resolved_ips=("2.2.2.2",)),
-        ]
-        assert build_host_resolver_rules(results) == "MAP a.com 1.1.1.1, MAP b.com 2.2.2.2"
-
-    def test_skips_unsafe(self) -> None:
-        results = [
-            SSRFResult(safe=True, hostname="ok.com", resolved_ips=("1.1.1.1",)),
-            SSRFResult(safe=False, error="bad", hostname="evil.com"),
-        ]
-        assert build_host_resolver_rules(results) == "MAP ok.com 1.1.1.1"
-
-    def test_empty(self) -> None:
-        assert build_host_resolver_rules([]) == ""

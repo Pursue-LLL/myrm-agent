@@ -175,8 +175,6 @@ class SSRFResult:
     resolved_ips: tuple[str, ...] = ()  # 已验证安全的 IP，用于 DNS pinning
 ```
 
-辅助函数 `create_dns_pin_map()` 构建 `hostname→IP` 映射，`build_host_resolver_rules()` 生成 Chrome `--host-resolver-rules` 参数（供需要浏览器级 DNS 映射的调用方使用；Playwright 导航见下文）。
-
 提供同步 (`validate_url_for_ssrf`) 和异步 (`async_validate_url_for_ssrf`) 两个版本。
 
 **出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、A2A resolver、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
