@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections import OrderedDict
 
 import pytest
 
@@ -16,6 +17,45 @@ from myrm_agent_harness.toolkits.web_fetch.router import TierBreaker, get_global
 
 HTTP, BROWSER, STEALTH = FetcherType.HTTP, FetcherType.BROWSER, FetcherType.STEALTH
 DOMAIN = "example.com"
+
+
+class _LockAuditedDomains(OrderedDict):
+    """Domain table that fails any access made while the breaker's lock is free.
+
+    A race needs two threads to land inside the same few bytecodes, which a stress run rarely does; this makes a
+    missing lock fail deterministically, on a single thread.
+    """
+
+    def __init__(self, lock: threading.Lock) -> None:
+        super().__init__()
+        self._breaker_lock = lock
+
+    def _audit(self) -> None:
+        assert self._breaker_lock.locked(), "tier state accessed without the breaker's lock"
+
+    def get(self, key: str, default: object = None) -> object:
+        self._audit()
+        return super().get(key, default)
+
+    def move_to_end(self, key: str, last: bool = True) -> None:
+        self._audit()
+        super().move_to_end(key, last)
+
+    def __setitem__(self, key: str, value: object) -> None:
+        self._audit()
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key: str) -> None:
+        self._audit()
+        super().__delitem__(key)
+
+    def __len__(self) -> int:
+        self._audit()
+        return super().__len__()
+
+    def popitem(self, last: bool = True) -> tuple[str, object]:
+        self._audit()
+        return super().popitem(last)
 
 
 @pytest.fixture
@@ -83,6 +123,13 @@ class TestStartTier:
         _http_made_up_for_by_browser(breaker, 2)
 
         assert breaker.select(DOMAIN) is BROWSER
+
+    def test_one_failure_is_blamed_only_once(self, breaker: TierBreaker) -> None:
+        _fail(breaker, HTTP)
+        for _ in range(3):
+            _succeed(breaker, BROWSER)
+
+        assert breaker.select(DOMAIN) is HTTP
 
     def test_a_success_of_the_tier_itself_resets_its_count(self, breaker: TierBreaker) -> None:
         _http_made_up_for_by_browser(breaker, 2)
@@ -201,7 +248,26 @@ class TestObservability:
 
 
 class TestThreadSafety:
-    def test_concurrent_selects_and_reports_keep_the_state_consistent(self) -> None:
+    def test_every_access_to_the_shared_state_holds_the_lock(self) -> None:
+        breaker = TierBreaker(open_after=2, probe_every=2, max_domains=2)
+        breaker._domains = _LockAuditedDomains(breaker._lock)
+
+        breaker.select("a.example")  # unknown domain
+        for domain in ("a.example", "b.example", "c.example"):  # the third one evicts the first
+            _fail(breaker, HTTP, domain)
+        _succeed(breaker, BROWSER, "c.example")  # blames HTTP once
+        _fail(breaker, HTTP, "c.example")
+        _succeed(breaker, BROWSER, "c.example")  # blames it a second time: HTTP opens
+        for _ in range(4):
+            breaker.select("c.example")  # skipped visits and probes
+        _succeed(breaker, HTTP, "c.example")  # closes it and drops the empty domain
+        _fail(breaker, STEALTH, "c.example")  # ignored
+
+        with breaker._lock:
+            remaining = list(breaker._domains)
+        assert remaining == ["b.example"]
+
+    def test_concurrent_use_neither_deadlocks_nor_raises(self) -> None:
         breaker = TierBreaker(max_domains=10)
         errors: list[Exception] = []
         start = threading.Barrier(8)
@@ -234,9 +300,6 @@ class TestThreadSafety:
 
         assert errors == []
         assert len(breaker._domains) <= 10
-        assert all(
-            state.blamed >= 0 and state.skipped >= 0 for tiers in breaker._domains.values() for state in tiers.values()
-        )
 
 
 def test_the_global_breaker_is_one_shared_instance() -> None:
