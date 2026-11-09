@@ -159,95 +159,6 @@ class TestEmergencyCompact:
 
 
 # ============================================================================
-# _extract_error_type
-# ============================================================================
-
-
-class TestExtractErrorType:
-    def test_standard_error(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import _extract_error_type
-
-        assert _extract_error_type("FileNotFoundError: No such file") == "FileNotFoundError"
-
-    def test_permission_error(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import _extract_error_type
-
-        assert _extract_error_type("PermissionError: Access denied") == "PermissionError"
-
-    def test_no_match(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import _extract_error_type
-
-        assert _extract_error_type("Something went wrong") == "UnknownError"
-
-    def test_empty_string(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import _extract_error_type
-
-        assert _extract_error_type("") == "UnknownError"
-
-    def test_nested_error(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import _extract_error_type
-
-        assert _extract_error_type("ConnectionError: timeout after 30s") == "ConnectionError"
-
-
-# ============================================================================
-# build_error_context
-# ============================================================================
-
-
-class TestBuildErrorContext:
-    def test_basic_output(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import build_error_context
-
-        result = build_error_context(
-            operation="file_read",
-            target="/tmp/test.txt",
-            error="FileNotFoundError: No such file",
-        )
-        assert "## Error Recovery Context" in result
-        assert "file_read" in result
-        assert "/tmp/test.txt" in result
-        assert "FileNotFoundError" in result
-        assert "Verify the file path" in result
-
-    def test_with_previous_attempts(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import build_error_context
-
-        result = build_error_context(
-            operation="web_fetch",
-            target="https://example.com",
-            error="ConnectionError: refused",
-            previous_attempts=["Tried HTTP", "Tried HTTPS"],
-        )
-        assert "Previous Attempts" in result
-        assert "Tried HTTP" in result
-        assert "Tried HTTPS" in result
-        assert "(2)" in result
-
-    def test_unknown_error_type_gets_generic_hints(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import build_error_context
-
-        result = build_error_context(
-            operation="custom_op",
-            target="target",
-            error="WeirdProblem: something broke",
-        )
-        assert "Analyse the error message" in result
-
-    def test_known_error_types_get_specific_hints(self):
-        from myrm_agent_harness.agent._internals.agent_recovery import ERROR_RECOVERY_HINTS, build_error_context
-
-        for error_type in ERROR_RECOVERY_HINTS:
-            result = build_error_context(
-                operation="test",
-                target="test",
-                error=f"{error_type}: test error",
-            )
-            expected_hint = ERROR_RECOVERY_HINTS[error_type][0]
-            assert expected_hint in result, f"Expected hint for {error_type} not found"
-
-
-# ============================================================================
 # diagnose_llm_error
 # ============================================================================
 
@@ -315,7 +226,7 @@ class TestDiagnoseLlmError:
             "myrm_agent_harness.agent.errors.diagnostics.LLMErrorDiagnostic.diagnose",
             side_effect=_capture_diagnose,
         ):
-            msg, diagnostic = diagnose_llm_error(RuntimeError("boom"), llm, None)  # type: ignore[arg-type]
+            msg, diagnostic = diagnose_llm_error(RuntimeError("boom"), llm, None)
 
         ctx = captured["ctx"]
         assert ctx.base_url == "https://custom.example.com/v1"

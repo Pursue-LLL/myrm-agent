@@ -95,9 +95,6 @@ class ReplanMiddleware(AgentMiddleware[Any, Any]):
         target = str(tool_args.get("path", tool_args.get("url", tool_args.get("command", ""))))[:200]
         logger.warning("ReplanNode caught tool error in '%s': %s", tool_name, error)
 
-        from myrm_agent_harness.agent._internals.agent_recovery import (
-            build_error_context,
-        )
         from myrm_agent_harness.agent.resilience.error_recovery import (
             ErrorSelfCorrectionGovernor,
         )
@@ -106,11 +103,6 @@ class ReplanMiddleware(AgentMiddleware[Any, Any]):
         )
 
         suggestion = get_tool_suggestion(tool_name)
-        error_context = build_error_context(
-            operation=tool_name,
-            target=target or "unknown",
-            error=str(error),
-        )
         governor = ErrorSelfCorrectionGovernor(max_recovery_attempts=self.max_attempts)
         outcome = governor.diagnose_and_suggest_repair(
             operation=tool_name,
@@ -119,9 +111,10 @@ class ReplanMiddleware(AgentMiddleware[Any, Any]):
             attempt=attempts,
         )
 
+        # The error text goes in once, first: the model holds the call it made, so only the diagnosis and the
+        # tool's hint add information. The result is re-sent with every later request, so repeats cost every round.
         error_content = (
             f"ToolExecutionError: {error}\n\n"
-            f"{error_context}\n\n"
             f"### Autonomous Self-Correction Guidance\n"
             f"{outcome.diagnostic_details}\n\n"
             f"Diagnostic Hint: {suggestion}"
