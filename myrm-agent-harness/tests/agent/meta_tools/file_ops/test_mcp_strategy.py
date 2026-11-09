@@ -153,6 +153,53 @@ class TestReadDocErrors:
             strategy._read_mcp_function_doc("/mcp/mcp_12306_mcp_skill/missing.md")
 
 
+class TestMissingPathMessage:
+    """A doc path that does not exist says what is wrong and what exists, not a bare "absent"."""
+
+    async def test_skill_name_without_its_prefix_lists_the_real_skill(self, strategy) -> None:
+        message = await strategy.missing_path_message("/mcp/12306_mcp_skill/get-tickets.md")
+        assert "Skill not found: 12306_mcp_skill" in message
+        assert "mcp_12306_mcp_skill" in message
+
+    async def test_skill_directory_path_lists_the_real_skill(self, strategy) -> None:
+        message = await strategy.missing_path_message("/mcp/12306")
+        assert "Skill not found: 12306" in message
+        assert "mcp_12306_mcp_skill" in message
+
+    async def test_a_skill_that_is_not_an_mcp_skill_is_named_as_such(self, local_strategy) -> None:
+        message = await local_strategy.missing_path_message("/mcp/local_skill")
+        assert message == "'local_skill' is not an MCP skill"
+
+    async def test_only_mcp_skills_are_offered(self) -> None:
+        mixed = MCPFileSystemStrategy([_mcp_skill_meta(), SkillMetadata(name="local_skill", description="Local")])
+        message = await mixed.missing_path_message("/mcp/nope/x.md")
+        assert "mcp_12306_mcp_skill" in message
+        assert "local_skill" not in message
+
+    async def test_misspelled_function_lists_the_closest_names(self, strategy) -> None:
+        message = await strategy.missing_path_message("/mcp/mcp_12306_mcp_skill/get-ticket.md")
+        assert "Function 'get-ticket' not found in skill 'mcp_12306_mcp_skill'" in message
+        assert "Closest names: get_tickets" in message
+
+    async def test_an_existing_doc_keeps_the_plain_message(self, strategy) -> None:
+        path = "/mcp/mcp_12306_mcp_skill/get-tickets.md"
+        assert await strategy.missing_path_message(path) == f"Path not found: {path}"
+
+    async def test_view_validation_raises_the_strategy_message(self, strategy) -> None:
+        from myrm_agent_harness.agent.meta_tools.file_ops.core.operation_context import (
+            OperationContext,
+            OperationType,
+        )
+        from myrm_agent_harness.agent.meta_tools.file_ops.validators.permission_validator import (
+            PermissionValidator,
+        )
+
+        context = OperationContext(operation=OperationType.VIEW, executor=None, paths=["/mcp/12306_mcp_skill/x.md"])
+        with pytest.raises(FileNotFoundError, match="Skill not found: 12306_mcp_skill") as raised:
+            await PermissionValidator(strategy).validate(context, "/mcp/12306_mcp_skill/x.md")
+        assert "mcp_12306_mcp_skill" in str(raised.value)
+
+
 class TestDocTemplateOwnsCallContract:
     def test_doc_template_names_observation(self) -> None:
         """L3 must still tell the model how to inspect an undocumented return shape."""

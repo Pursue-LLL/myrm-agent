@@ -142,6 +142,32 @@ class MCPFileSystemStrategy(FileSystemStrategy):
         except (ValueError, FileNotFoundError):
             return False
 
+    async def missing_path_message(self, path: str) -> str:
+        """Say which part of ``/mcp/<skill>/<function>.md`` is wrong and what exists.
+
+        A bare "Path not found" leaves a model that dropped the ``mcp_`` prefix of a skill name guessing;
+        the strategy already knows the skills, and the generator knows the closest function names.
+        """
+        parts = path.rstrip("/").split("/")
+        try:
+            if len(parts) == 3:
+                self._mcp_skill(parts[2])
+            else:
+                self._read_mcp_function_doc(path)
+        except (ValueError, FileNotFoundError) as exc:
+            return str(exc)
+        return await super().missing_path_message(path)
+
+    def _mcp_skill(self, skill_name: str) -> SkillMetadata:
+        """The MCP skill of that name; the error names the MCP skills there are, or says the skill has no docs."""
+        skill_meta = next((s for s in self.skills if s.name == skill_name), None)
+        if not skill_meta:
+            available = [s.name for s in self.skills if s.is_mcp_skill]
+            raise FileNotFoundError(f"Skill not found: {skill_name} (available: {available})")
+        if not skill_meta.is_mcp_skill:
+            raise ValueError(f"'{skill_name}' is not an MCP skill")
+        return skill_meta
+
     async def get_file_size(self, path: str) -> int:
         """获取 MCP 文档大小"""
         doc = self._read_mcp_function_doc(path)
@@ -175,15 +201,7 @@ class MCPFileSystemStrategy(FileSystemStrategy):
         if function_name.endswith(".md"):
             function_name = function_name[:-3]
 
-        # 查找技能
-        skill_meta = next((s for s in self.skills if s.name == skill_name), None)
-        if not skill_meta:
-            available = [s.name for s in self.skills]
-            raise FileNotFoundError(f"Skill not found: {skill_name} (available: {available})")
-
-        # 检查是否是 MCP 技能
-        if not skill_meta.is_mcp_skill:
-            raise ValueError(f"'{skill_name}' is not an MCP skill")
+        skill_meta = self._mcp_skill(skill_name)
 
         # 使用 MCPSkillGenerator 生成工具文档
         from myrm_agent_harness.agent.skills.mcp.core_generator import MCPSkillGenerator

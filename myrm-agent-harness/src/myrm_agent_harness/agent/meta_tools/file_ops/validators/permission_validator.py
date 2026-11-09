@@ -56,4 +56,4 @@ class PermissionValidator(Validator):
 
         # VIEW 操作：检查路径是否存在
         elif context.operation == OperationType.VIEW and not await self.strategy.exists(path):
-            raise FileNotFoundError(f"Path not found: {path}")
+            raise FileNotFoundError(await self.strategy.missing_path_message(path))

@@ -154,12 +154,14 @@ class TestGenerateToolDoc:
         assert "get_temp" in msg
         assert "get_wind" in msg
 
-    def test_unknown_tool_raises_with_truncated_list(self) -> None:
-        tools = [f"func_{i}" for i in range(7)]
+    def test_unknown_tool_lists_only_the_closest_names(self) -> None:
+        tools = ["get_temp", "get_wind", "set_alarm", "list_cities", "delete_city"]
         meta = _skill_meta("weather", tools)
         with pytest.raises(FileNotFoundError) as exc:
-            mcp_skill_generator.generate_tool_doc(meta, "nope")
-        assert "(7 total)" in str(exc.value)
+            mcp_skill_generator.generate_tool_doc(meta, "get_tmp")
+        closest = str(exc.value).split("Closest names: ")[1].rstrip(".").split(", ")
+        assert closest[0] == "get_temp"
+        assert len(closest) == 3
 
     def test_cached_tool_doc_returned(self) -> None:
         meta = _skill_meta("weather", ["get_temp"])
