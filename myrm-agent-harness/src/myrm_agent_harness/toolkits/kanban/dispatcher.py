@@ -1,13 +1,13 @@
 """Kanban dispatcher — event-driven task scheduling.
 
-Handles: dispatch loop, task execution, completion verification,
-dependency promotion, and event emission. Zombie/heartbeat/rescue
-logic lives in ``dispatcher_zombie.py``; failure pipeline in
-``dispatcher_failure.py``.
+Handles completion verification, dependency promotion and event emission. The dispatch loop and
+single-task execution live in ``dispatcher_dispatch.py``; zombie/heartbeat/rescue logic in
+``dispatcher_zombie.py``; the failure pipeline in ``dispatcher_failure.py``.
 
 [INPUT]
 - .types::KanbanBoard, KanbanTask, TaskStatus, BoardSettings, TaskTimeoutError (POS: Kanban domain types.)
 - .protocols::KanbanStore, TaskRunner (POS: Protocols for the kanban toolkit.)
+- .dispatcher_dispatch::KanbanDispatcherDispatchMixin, DispatchGate (POS: Dispatch loop and per-task execution.)
 - .dispatcher_failure::KanbanDispatcherFailureMixin (POS: Failure/timeout/retry pipeline for KanbanDispatcher.)
 - .dispatcher_zombie::KanbanDispatcherZombieMixin (POS: Zombie detection, heartbeat, rescue, scheduled wakeup.)
 
@@ -27,6 +27,10 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.kanban.dispatcher_dispatch import (
+    DispatchGate,
+    KanbanDispatcherDispatchMixin,
+)
 from myrm_agent_harness.toolkits.kanban.dispatcher_failure import (  # noqa: F401
     _TRANSIENT_BACKOFF_SECONDS,
     _TRANSIENT_ERROR_RE,
@@ -39,10 +43,8 @@ from myrm_agent_harness.toolkits.kanban.types import (
     BlockKind,
     KanbanTask,
     TaskEventKind,
-    TaskExecutionResult,
     TaskRunOutcome,
     TaskStatus,
-    TaskTimeoutError,
     clear_completion_intent,
     has_completion_intent,
 )
@@ -61,7 +63,7 @@ logger = get_agent_logger(__name__)
 KanbanEventCallback = Callable[[str, KanbanTask], None]
 
 
-class KanbanDispatcher(KanbanDispatcherFailureMixin, KanbanDispatcherZombieMixin):
+class KanbanDispatcher(KanbanDispatcherDispatchMixin, KanbanDispatcherFailureMixin, KanbanDispatcherZombieMixin):
     """Event-driven multi-task scheduler.
 
     Lifecycle:
@@ -78,12 +80,14 @@ class KanbanDispatcher(KanbanDispatcherFailureMixin, KanbanDispatcherZombieMixin
         board: KanbanBoard,
         worker_id: str | None = None,
         verifier: CompletionVerifier | None = None,
+        dispatch_allowed: DispatchGate | None = None,
     ) -> None:
         self._store = store
         self._runner = runner
         self._board = board
         self._worker_id = worker_id or f"worker-{uuid.uuid4().hex[:8]}"
         self._verifier = verifier
+        self._dispatch_allowed = dispatch_allowed
 
         self._dispatch_task: asyncio.Task[None] | None = None
         self._zombie_task: asyncio.Task[None] | None = None
@@ -108,16 +112,18 @@ class KanbanDispatcher(KanbanDispatcherFailureMixin, KanbanDispatcherZombieMixin
         """Register a callback for task lifecycle events (for SSE/EventBus)."""
         self._event_callbacks.append(callback)
 
-    async def start(self) -> None:
+    async def start(self, *, rescue_orphans: bool = True) -> None:
         """Start the dispatch and zombie-detection loops.
 
-        On startup, rescues orphaned RUNNING tasks left by a prior crash
-        before entering the main loops.
+        ``rescue_orphans`` reclaims RUNNING tasks left by a prior crash. A caller that already
+        reset them in one batch (the server does, before starting any dispatcher) passes False so
+        the boot path does not issue one query per board for a result it already knows is empty.
         """
         if self._running:
             return
         self._running = True
-        await self._rescue_orphaned_tasks()
+        if rescue_orphans:
+            await self._rescue_orphaned_tasks()
         self._dispatch_task = asyncio.create_task(self._dispatch_loop(), name="kanban-dispatch")
         self._zombie_task = asyncio.create_task(self._zombie_loop(), name="kanban-zombie")
         logger.info(
@@ -323,138 +329,6 @@ class KanbanDispatcher(KanbanDispatcherFailureMixin, KanbanDispatcherZombieMixin
         self.wake()
         logger.info("Task %s rejected for rework: %s", task_id[:8], reason)
         return task
-
-    # -- Dispatch loop --
-
-    async def _dispatch_loop(self) -> None:
-        while self._running:
-            try:
-                # Re-read settings every iteration so refresh_board() runtime
-                # board-config updates apply on the next wake cycle.
-                settings = self._board.settings
-                # Clear before checking so wake() signals arriving during
-                # claim are not lost — the next wait() returns immediately.
-                self._wake_event.clear()
-
-                running_count = len(await self._store.list_running_tasks(self._board.board_id))
-                available_slots = settings.max_concurrent_tasks - running_count
-
-                if available_slots > 0:
-                    ready_tasks = await self._store.list_ready_tasks(self._board.board_id)
-                    for task in ready_tasks[:available_slots]:
-                        claimed = await self._store.claim_task(task.task_id, self._worker_id)
-                        if claimed:
-                            t = asyncio.create_task(
-                                self._execute_task(task.task_id),
-                                name=f"kanban-exec-{task.task_id[:8]}",
-                            )
-                            self._exec_tasks.add(t)
-                            self._task_id_to_exec[task.task_id] = t
-
-                            def _on_exec_done(
-                                fut: asyncio.Task[None],
-                                tid: str = task.task_id,
-                            ) -> None:
-                                self._exec_tasks.discard(fut)
-                                self._task_id_to_exec.pop(tid, None)
-
-                            t.add_done_callback(_on_exec_done)
-
-                with contextlib.suppress(TimeoutError):
-                    await asyncio.wait_for(
-                        self._wake_event.wait(),
-                        timeout=settings.heartbeat_interval_seconds,
-                    )
-
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                logger.exception("Kanban dispatch loop error")
-                await asyncio.sleep(5)
-
-    async def _execute_task(self, task_id: str) -> None:
-        """Execute a single task with heartbeat, run tracking, and auto-block."""
-        task = await self._store.get_task(task_id)
-        if task is None:
-            return
-        if task.status != TaskStatus.RUNNING:
-            logger.warning(
-                "Task %s status drifted to %s after claim, aborting execution",
-                task_id[:8],
-                task.status.value,
-            )
-            return
-
-        run = await self._store.create_run(task_id, self._worker_id)
-        await self._store.append_event(
-            task_id,
-            TaskEventKind.CLAIMED,
-            payload={"worker_id": self._worker_id},
-            run_id=run.run_id,
-        )
-        self.emit("task_started", task)
-
-        heartbeat_handle = asyncio.create_task(
-            self._heartbeat_loop(task_id),
-            name=f"kanban-hb-{task_id[:8]}",
-        )
-
-        try:
-            exec_output = await self._runner.run(task)
-            heartbeat_handle.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await heartbeat_handle
-
-            if isinstance(exec_output, TaskExecutionResult):
-                if exec_output.is_success:
-                    await self._handle_success(task_id, exec_output.message, run.run_id)
-                elif exec_output.is_blocked:
-                    await self._handle_blocked(
-                        task_id,
-                        exec_output.blocked_reason or exec_output.message,
-                        run.run_id,
-                        block_kind=exec_output.block_kind or BlockKind.HUMAN,
-                        scheduled_until=exec_output.scheduled_until,
-                        metadata_patch=exec_output.metadata_patch,
-                    )
-                else:
-                    await self._handle_failure(task_id, exec_output.message, run.run_id)
-            else:
-                success, result_text = exec_output
-                if success:
-                    await self._handle_success(task_id, result_text, run.run_id)
-                else:
-                    # If task was already marked BLOCKED by the runner, route to blocked handler
-                    fresh_task = await self._store.get_task(task_id)
-                    if fresh_task and fresh_task.status == TaskStatus.BLOCKED:
-                        await self._handle_blocked(
-                            task_id,
-                            fresh_task.blocked_reason or result_text,
-                            run.run_id,
-                            block_kind=fresh_task.block_kind or BlockKind.HUMAN,
-                            scheduled_until=fresh_task.scheduled_until,
-                        )
-                    else:
-                        await self._handle_failure(task_id, result_text, run.run_id)
-        except asyncio.CancelledError:
-            heartbeat_handle.cancel()
-            raise
-        except TaskTimeoutError as exc:
-            heartbeat_handle.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await heartbeat_handle
-            await self._handle_timeout(
-                task_id,
-                str(exc),
-                run.run_id,
-                elapsed_seconds=exc.elapsed_seconds,
-                limit_seconds=exc.limit_seconds,
-            )
-        except Exception as exc:
-            heartbeat_handle.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await heartbeat_handle
-            await self._handle_failure(task_id, str(exc), run.run_id)
 
     async def _handle_success(
         self,
