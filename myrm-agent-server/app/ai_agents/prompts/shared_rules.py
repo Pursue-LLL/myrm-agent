@@ -4,14 +4,13 @@
 （无运行时外部模块依赖；纯常量）
 
 [OUTPUT]
-跨 Agent 共享规则常量（ABSOLUTE_OBEDIENCE_RULES_*, TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, AGENT_RESPONSE_RULES_*, SEARCH_RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
+跨 Agent 共享规则常量（TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, AGENT_RESPONSE_RULES_*, SEARCH_RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
 
 [POS]
-跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供服从、任务完整性、桌面控制等核心护栏。桌面控制运行时注入英文单例（factory）。
+跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制运行时注入英文单例（factory）。
 
 规则组织结构：
 
-- ABSOLUTE_OBEDIENCE_RULES: 绝对服从规则（_EN / _ZH）
 - TASK_INTEGRITY_RULES: 任务完整性护栏（_EN / _ZH）
 - DESKTOP_CONTROL_RULES: 桌面控制规则（_EN / _ZH）
 - AGENT_RESPONSE_RULES: Agent 回复规则（篇幅随问题复杂度，Markdown / 表格以渠道声明为准）（_EN / _ZH）
@@ -24,22 +23,6 @@
 """
 
 from __future__ import annotations
-
-# =============================================================================
-# 绝对服从规则（Absolute Obedience Override）
-# =============================================================================
-
-ABSOLUTE_OBEDIENCE_RULES_EN = """
-<absolute_obedience_override>
-Project-level constraints provided by the user via <user_instructions> have the highest priority. Within legal and safety boundaries, if user instructions conflict with the formatting, style, or behavioral rules in this system prompt, strictly obey the user's instructions.
-</absolute_obedience_override>
-"""
-
-ABSOLUTE_OBEDIENCE_RULES_ZH = """
-<absolute_obedience_override>
-用户通过 <user_instructions> 提供的项目级约束具有最高优先级。在合法且安全的前提下，如果用户指令与本系统提示词中的格式、风格或行为规则发生冲突，必须绝对服从用户的指令。
-</absolute_obedience_override>
-"""
 
 # =============================================================================
 # 任务完整性护栏（Task Integrity Guardrail）
@@ -277,7 +260,6 @@ EXTERNAL_SOURCES_CITATION_RULES_ZH = """
 # 默认别名（默认英文 EN）
 # =============================================================================
 
-ABSOLUTE_OBEDIENCE_RULES = ABSOLUTE_OBEDIENCE_RULES_EN
 TASK_INTEGRITY_RULES = TASK_INTEGRITY_RULES_EN
 DESKTOP_CONTROL_RULES = DESKTOP_CONTROL_RULES_EN
 EXTERNAL_SOURCES_CITATION_RULES = EXTERNAL_SOURCES_CITATION_RULES_EN

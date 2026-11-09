@@ -19,7 +19,7 @@
 
 | # | 组件 | Token (o200k_base) | 来源文件 | 说明 |
 |---|------|-------------------:|----------|------|
-| 1 | CORE_SYSTEM_PROMPT | **662** (EN) / **858** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 738 / 940。组成 = identity + ABSOLUTE_OBEDIENCE + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
+| 1 | CORE_SYSTEM_PROMPT | **600** (EN) / **786** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 676 / 868。组成 = identity + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
 | 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:55` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
 | 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束、因缺能力拒绝前先用发现/搜索工具查找技能与工具 |
 | 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |

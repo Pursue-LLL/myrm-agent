@@ -15,7 +15,6 @@ from app.ai_agents.prompts.general_agent_prompt import (
     get_core_system_prompt,
 )
 from app.ai_agents.prompts.shared_rules import (
-    ABSOLUTE_OBEDIENCE_RULES,
     AGENT_RESPONSE_RULES_EN,
     EXTERNAL_SOURCES_CITATION_RULES,
     SEARCH_RESPONSE_RULES_EN,
@@ -29,7 +28,6 @@ class TestCoreSystemPrompt:
     def test_contains_all_rule_blocks(self) -> None:
         prompt = get_core_system_prompt()
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
@@ -54,14 +52,12 @@ class TestCoreSystemPrompt:
         """Rules should appear in correct order for prompt cache stability."""
         prompt = CORE_SYSTEM_PROMPT
         identity_pos = prompt.index("<identity>")
-        obedience_pos = prompt.index("<absolute_obedience_override>")
         response_pos = prompt.index("<response_rules>")
         integrity_pos = prompt.index("<task_integrity>")
 
-        assert identity_pos < obedience_pos < response_pos < integrity_pos
+        assert identity_pos < response_pos < integrity_pos
 
     def test_shared_rules_exports(self) -> None:
-        assert len(ABSOLUTE_OBEDIENCE_RULES) > 0
         assert len(SECURITY_BOUNDARY_SYSTEM_RULES) > 0
         assert len(AGENT_RESPONSE_RULES_EN) > 0
         assert len(SEARCH_RESPONSE_RULES_EN) > 0
@@ -75,7 +71,6 @@ class TestPromptModeThreeTier:
     def test_full_mode_contains_all_blocks(self) -> None:
         prompt = get_core_system_prompt("full")
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
@@ -87,7 +82,6 @@ class TestPromptModeThreeTier:
     def test_lean_mode_excludes_formatting_rules(self) -> None:
         prompt = get_core_system_prompt("lean")
         assert "<response_rules>" not in prompt
-        assert "<absolute_obedience_override>" not in prompt
 
     def test_naked_mode_has_tool_guidance(self) -> None:
         """Naked mode focuses purely on tool guidance, security boundary is injected by middleware."""
@@ -98,7 +92,6 @@ class TestPromptModeThreeTier:
         prompt = get_core_system_prompt("naked")
         assert "<identity>" not in prompt
         assert "<response_rules>" not in prompt
-        assert "<absolute_obedience_override>" not in prompt
         assert "<task_integrity>" not in prompt
 
     def test_mode_size_ordering(self) -> None:
@@ -164,7 +157,6 @@ class TestSystemPromptDecoupledFromMemoryTools:
         """Core rules must remain present and intact."""
         prompt = get_core_system_prompt("full")
         assert "<identity>" in prompt
-        assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
         assert "<task_integrity>" in prompt
 
@@ -302,13 +294,13 @@ class TestPromptBilingualSupport:
     def test_default_locale_is_english(self) -> None:
         prompt = get_core_system_prompt()
         assert "You are a powerful, pragmatic, and versatile AI assistant" in prompt
-        assert "Project-level constraints" in prompt
+        assert "Never unilaterally simplify" in prompt
         assert "<task_integrity>" in prompt
 
     def test_explicit_chinese_locale_switches_to_chinese(self) -> None:
         prompt = get_core_system_prompt(locale="zh-CN")
         assert "你是一个功能强大且求真务实的通用AI智能助手" in prompt
-        assert "用户通过 <user_instructions> 提供的项目级约束具有最高优先级" in prompt
+        assert "用户的原始目标和所有约束" in prompt
         assert "<task_integrity>" in prompt
 
     def test_citation_rules_bilingual(self) -> None:
@@ -338,3 +330,13 @@ class TestCoercePromptMode:
     def test_unknown_modes_fall_back_to_full(self, mode: str) -> None:
         assert coerce_prompt_mode(mode) == "full"
         assert get_core_system_prompt(coerce_prompt_mode(mode)) is get_core_system_prompt("full")
+
+
+class TestUserInstructionPrecedence:
+    """The precedence of the user's instructions is declared once, by the header of their own message."""
+
+    @pytest.mark.parametrize("mode", ["full", "lean", "naked", "search"])
+    @pytest.mark.parametrize("locale", ["en", "zh-CN"])
+    def test_static_prompt_does_not_restate_the_precedence(self, mode: str, locale: str) -> None:
+        prompt = get_core_system_prompt(mode, locale=locale)  # type: ignore[arg-type]
+        assert "<user_instructions" not in prompt

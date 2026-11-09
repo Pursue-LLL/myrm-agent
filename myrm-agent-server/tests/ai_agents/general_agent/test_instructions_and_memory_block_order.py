@@ -122,6 +122,7 @@ async def test_every_model_call_carries_the_instructions_and_the_memory_block_on
     for number, call in enumerate(model.calls, 1):
         assert call[0] == ("SystemMessage", _IDENTITY)
         assert _system_positions(call, _INSTRUCTIONS_TAG) == [1], f"model call {number}: instructions once, first"
+        assert 'priority="highest"' in call[1][1], "the header is the only statement that the instructions take precedence"
         assert _system_positions(call, _MEMORY_TAG) == [2], f"model call {number}: memory block once, behind them"
         assert sum(_INSTRUCTIONS in text for _, text in call) == 1
         assert sum("Li Ming" in text for _, text in call) == 1
