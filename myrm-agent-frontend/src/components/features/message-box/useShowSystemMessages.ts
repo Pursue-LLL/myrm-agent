@@ -1,14 +1,15 @@
 /**
  * [INPUT]
  * localStorage `developer_show_system_messages` and window event `developer-mode-changed`
- * (POS: Written and announced by settings/sections/system/DeveloperSection when the developer switch is toggled)
+ * (POS: Browser-side persistence and same-tab announcement of the developer-mode switch)
  *
  * [OUTPUT]
  * useShowSystemMessages: Whether developer mode currently shows system-role messages in the chat
+ * setShowSystemMessages: Turns the switch on or off, persists it and makes every reader render again
  *
  * [POS]
- * Reader of the developer-mode switch for message rows. It keeps no copy of the value: every render reads the
- * persisted switch, and the announcement event only tells React to read it again.
+ * Single owner of the developer-mode switch for message rows. It keeps no copy of the value: every render
+ * reads the persisted switch, and the announcement event only tells React to read it again.
  */
 
 import { useSyncExternalStore } from 'react';
@@ -32,4 +33,9 @@ function readSwitchOnServer(): boolean {
 
 export function useShowSystemMessages(): boolean {
   return useSyncExternalStore(subscribe, readSwitch, readSwitchOnServer);
+}
+
+export function setShowSystemMessages(enabled: boolean): void {
+  localStorage.setItem(SWITCH_STORAGE_KEY, String(enabled));
+  window.dispatchEvent(new Event(SWITCH_CHANGED_EVENT));
 }

@@ -82,11 +82,11 @@
 | `__tests__/userMessageResend.goalReview.test.ts` | 测试 | 目标复核反馈作为下一条消息发出且转录不变、不带也不消耗输入框暂存文件、未送达时还原到空输入框或记入输入历史、busy 与意外失败提示、驳回期间切换聊天则不发送并按原聊天的 Agent 与隐身状态处理 | ✅ |
 | `__tests__/userMessageResendTestKit.ts` | 测试 | 重发测试共享夹具：含一轮已答复对话与失败气泡 `r-2` 的聊天、桩 `sendMessage`、转录与输入框读取器、`resetResendWorld` | ✅ |
 | `useContextWatermarkMetrics.ts` | 辅助 | 上下文水位与轮级 Token 序列推导 Hook/纯函数：提取近 12 轮用量切片、较上轮增量 delta、双主题 4 档分级语义色阶（<25% 清朗 / 25-75% 多云 / 75-90% 预警 / ≥90% 即将压缩）；导出 `WEATHER_LABEL_KEYS`（各档位对应的 `chat.contextUsage` 文案键） | ✅ |
-| `useShowSystemMessages.ts` | 辅助 | 开发者模式开关的读取 Hook：每次渲染读取 localStorage 的 `developer_show_system_messages`，设置页发出的 `developer-mode-changed` 事件只通知重新读取；首帧就是已保存的值，服务端渲染按「隐藏」处理 | ✅ |
+| `useShowSystemMessages.ts` | 辅助 | 开发者模式开关的唯一入口：`useShowSystemMessages` 每次渲染读取 localStorage 的 `developer_show_system_messages`，首帧就是已保存的值，服务端渲染按「隐藏」处理；设置页经 `setShowSystemMessages` 写入并发出 `developer-mode-changed` 事件，事件只通知所有读取方重新读取 | ✅ |
 | `TurnGrowthSparkline.tsx` | 组件 | 对话框轮级增长迷你 SVG Sparkline 折线图微组件：动态折线与渐变面积填充、较上轮 Delta 徽章（`+N tokens` / `已压缩`）、双主题语义色阶胶囊、悬停节点数值提示 | ✅ |
 | `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸态动画、秒级耗时、token 数（优先 `message.usage.reasoning_tokens`，缺失回落估算并标 `≈`）、一键复制、停止思考（请求 10s 上限，超时 abort 后按钮自动恢复）、`inline/collapsed/off` 三档；文案与 aria 全量 i18n；图标按钮 40px 触控区 | ✅ |
 | `__tests__/useContextWatermarkMetrics.test.ts` | 测试 | 水位推导、4 档色阶边界与逐轮 delta 正负增量单测 | ✅ |
-| `__tests__/useShowSystemMessages.test.ts` | 测试 | 默认关闭、首帧即读到已开启的开关、随设置页的变更事件开关、卸载后不再跟随 | ✅ |
+| `__tests__/useShowSystemMessages.test.ts` | 测试 | 默认关闭、首帧即读到已开启的开关、随变更事件开关、写入后以约定的键存储且所有已挂载的读取方同步更新、卸载后不再跟随 | ✅ |
 | `__tests__/MessageBox.developerSwitch.test.tsx` | 测试 | 设置页的真实开关与聊天里的真实 system 行共用同一个存储键和通知事件：拨动开关即显示 / 隐藏已渲染的 system 行，开关留在开启状态时重新渲染仍显示 | ✅ |
 | `__tests__/TurnGrowthSparkline.test.tsx` | 测试 | Sparkline SVG 路径、节点悬停、Delta 徽章与语义色阶胶囊单测 | ✅ |
 | `__tests__/ReasoningProcessAccordion.test.tsx` | 测试 | 思维链折叠展开、流式呼吸态、秒级耗时标签与一键复制剪贴板单测 | ✅ |

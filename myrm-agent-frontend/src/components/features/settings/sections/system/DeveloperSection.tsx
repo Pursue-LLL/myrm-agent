@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
 import { Label } from '@/components/primitives/label';
 import { IconCode, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
+import { setShowSystemMessages, useShowSystemMessages } from '@/components/features/message-box/useShowSystemMessages';
 
 import dynamic from 'next/dynamic';
 import { EvaluationSection } from '../ai-core/EvaluationSection';
@@ -15,23 +15,7 @@ const ExternalAgentsConfig = dynamic(() => import('../integration/ExternalAgents
 
 function DeveloperSection() {
   const t = useTranslations('settings.developer');
-  const [showSystemMessages, setShowSystemMessages] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('developer_show_system_messages');
-    setShowSystemMessages(stored === 'true');
-  }, []);
-
-  const handleToggle = (checked: boolean) => {
-    localStorage.setItem('developer_show_system_messages', String(checked));
-    setShowSystemMessages(checked);
-
-    window.dispatchEvent(
-      new CustomEvent('developer-mode-changed', {
-        detail: { showSystemMessages: checked },
-      }),
-    );
-  };
+  const showSystemMessages = useShowSystemMessages();
 
   return (
     <div className="space-y-6">
@@ -69,7 +53,7 @@ function DeveloperSection() {
               </div>
             )}
           </div>
-          <Switch id="show-system-messages" checked={showSystemMessages} onCheckedChange={handleToggle} />
+          <Switch id="show-system-messages" checked={showSystemMessages} onCheckedChange={setShowSystemMessages} />
         </div>
       </div>
 
