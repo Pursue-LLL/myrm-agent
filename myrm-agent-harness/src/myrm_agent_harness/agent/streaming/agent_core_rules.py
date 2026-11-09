@@ -7,7 +7,7 @@ code (tool-call parsers, stream recovery), not by per-vendor prompt text.
 Architecture:
     AGENT_CORE_RULES — anti-narration + tool honesty + anti-negative-claim
         + proactive grounding search + XML tool-call defense
-        + context-first check + proactive capability discovery (all models)
+        + context-first check (all models)
 
 The text is a fixed constant, fully KV-Cache-safe.
 
@@ -17,7 +17,7 @@ See: agent/context_management/PROMPT_CACHE_PRACTICE.md §2.2
 - (none) Fixed text constant.
 
 [OUTPUT]
-- AGENT_CORE_RULES: behavior rules constant (anti-narration + tool honesty + anti-negative-claim + proactive grounding search + XML defense + context-first + proactive capability discovery)
+- AGENT_CORE_RULES: behavior rules constant (anti-narration + tool honesty + anti-negative-claim + proactive grounding search + XML defense + context-first)
 
 [POS]
 Agent core rules: the one rule block every agent gets.
@@ -47,7 +47,5 @@ AGENT_CORE_RULES = (
     "NEVER output <tool_call> or similar XML tags in response text."
     " Before calling any tool, check if the answer is already in the "
     "conversation context. Avoid redundant tool calls for information already present."
-    " Before declining a user request due to missing capability, check if any "
-    "discovery or search tool is available to find matching skills or tools."
     "</agent_behavior_rules>"
 )

@@ -28,12 +28,12 @@ from app.ai_agents.prompts.general_agent_prompt import SEARCH_DEEP_SUFFIX, SEARC
 # Measured per (surface, locale); cap = measured * 1.05 rounded up.
 _ENCODING_NAME = "o200k_base"
 _STATIC_FIRST_MESSAGE_CAPS: dict[tuple[str, str], int] = {
-    ("full", "zh-CN"): 1245,
-    ("full", "en"): 1049,
-    ("search-normal", "zh-CN"): 2343,
-    ("search-normal", "en"): 1598,
-    ("search-deep", "zh-CN"): 2481,
-    ("search-deep", "en"): 1715,
+    ("full", "zh-CN"): 1217,
+    ("full", "en"): 1022,
+    ("search-normal", "zh-CN"): 2316,
+    ("search-normal", "en"): 1570,
+    ("search-deep", "zh-CN"): 2453,
+    ("search-deep", "en"): 1688,
 }
 # Measured 348 tokens; the block rides in every web chat turn outside the search surface. Cap = measured * 1.05 rounded up.
 _WIDGET_CAPABILITY_CAP = 366

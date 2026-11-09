@@ -5,7 +5,7 @@ Validates (harness scope — 3 checks):
    + schema wrappers) does NOT exceed ceiling (≤6500 tokens), measured on a
    host-independent basis: the bash tool's live OS hint is swapped for its static
    description, and the hint is capped separately so a host quirk cannot decide the verdict.
-2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤350,
+2. Harness system rule constants stay compact: AGENT_CORE_RULES ≤301,
    SECURITY_BOUNDARY_SYSTEM_RULES ≤314, DATETIME_SYSTEM_RULES ≤120.
 3. SystemMessage content hash is immutable across multiple resolutions
    (prompt cache safety).
@@ -99,8 +99,8 @@ class TestPromptTokenBudgetGate:
         sec_boundary_tokens = get_token_count(SECURITY_BOUNDARY_SYSTEM_RULES)
         datetime_tokens = get_token_count(DATETIME_SYSTEM_RULES)
 
-        # AGENT_CORE_RULES measures 312 tokens, ceiling 350 tokens
-        assert agent_core_tokens <= 350, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 350"
+        # AGENT_CORE_RULES measures 286 tokens, ceiling 301 tokens (measured + 5%)
+        assert agent_core_tokens <= 301, f"AGENT_CORE_RULES tokens {agent_core_tokens} exceeded ceiling 301"
 
         # SECURITY_BOUNDARY_SYSTEM_RULES measures 299 tokens, ceiling 314 tokens (measured + 5%)
         assert sec_boundary_tokens <= 314, (
