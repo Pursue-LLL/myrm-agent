@@ -82,6 +82,7 @@ class DeniedMemoryWrites:
         tags: list[str] | None = None,
         source_chat_id: str | None = None,
         write_target: Literal["bound", "shared"] = "bound",
+        honor_approval: bool = False,
     ) -> SemanticMemory:
         self._deny()
 
@@ -99,6 +100,7 @@ class DeniedMemoryWrites:
         negative_lesson: str | None = None,
         confidence_tier: Literal["strong", "weak", "shadow"] = "strong",
         write_target: Literal["bound", "shared"] = "bound",
+        honor_approval: bool = False,
     ) -> EpisodicMemory:
         self._deny()
 
@@ -110,6 +112,7 @@ class DeniedMemoryWrites:
         priority: int = 0,
         trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
+        honor_approval: bool = False,
     ) -> ProceduralMemory:
         self._deny()
 
@@ -228,6 +231,7 @@ class DeniedMemoryWrites:
         source_chat_id: str | None = None,
         source_message_id: str | None = None,
         write_target: MemoryWriteTarget = "bound",
+        honor_approval: bool = False,
     ) -> EpisodicMemory:
         self._deny()
 
