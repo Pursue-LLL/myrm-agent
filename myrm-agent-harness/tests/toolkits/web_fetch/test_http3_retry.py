@@ -240,11 +240,11 @@ async def test_fetch_engine_skips_browser_when_l1_http_succeeds() -> None:
         url: str,
         fetcher_type: FetcherType,
         **_kwargs: object,
-    ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
+    ) -> tuple[Document | None, bool, FetchResult | None]:
         if fetcher_type == FetcherType.HTTP:
             doc = Document(page_content="L1 success", metadata={"url": url})
-            return doc, False, 1.0, None, None, _success_result()
-        return None, True, 1.0, None, None, None
+            return doc, False, _success_result()
+        return None, True, None
 
     with (
         patch.object(engine, "_try_and_report", side_effect=mock_try_and_report),
@@ -769,13 +769,13 @@ async def test_fetch_engine_escalates_browser_when_l1_fails() -> None:
         url: str,
         fetcher_type: FetcherType,
         **_kwargs: object,
-    ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
+    ) -> tuple[Document | None, bool, FetchResult | None]:
         fetcher_types.append(fetcher_type)
         if fetcher_type == FetcherType.HTTP:
-            return None, True, 1.0, None, None, _blocked_result()
+            return None, True, _blocked_result()
         if fetcher_type == FetcherType.BROWSER:
-            return browser_doc, False, 2.0, None, None, None
-        return None, True, 1.0, None, None, None
+            return browser_doc, False, None
+        return None, True, None
 
     with patch.object(engine, "_try_and_report", side_effect=mock_try_and_report):
         doc, _fetch_result = await engine._crawl_with_degradation("https://blocked.example/article")

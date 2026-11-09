@@ -1,7 +1,7 @@
 """Tests for ``FetchEngine._try_fetch_and_process`` result handling.
 
 Covers 304, non-degradable 4xx, empty shell, binary bodies, weixin fast path, anti-bot detection,
-truncation events, browser launch mode and the resource-sampling fallbacks.
+truncation events and browser launch mode.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class TestTryFetchAndProcess:
         http, _, _ = stub_fetchers(engine)
         http.fetch.return_value = http_result("", status=304)
 
-        doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
+        doc, degradable, result = await engine._try_fetch_and_process(
             "http://example.com/page", FetcherType.HTTP, etag="abc"
         )
 
@@ -46,9 +46,7 @@ class TestTryFetchAndProcess:
         http, _, _ = stub_fetchers(engine)
         http.fetch.return_value = http_result("", status=404)
 
-        doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
-            "http://example.com/page", FetcherType.HTTP
-        )
+        doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
         assert doc is None
         assert degradable is False
@@ -61,7 +59,7 @@ class TestTryFetchAndProcess:
         http, _, _ = stub_fetchers(engine)
         http.fetch.return_value = http_result("<html><head></head></html>")
 
-        doc, degradable, _, _, _, _ = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
+        doc, degradable, _ = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
         assert doc is None
         assert degradable is True
@@ -73,9 +71,7 @@ class TestTryFetchAndProcess:
         http, _, _ = stub_fetchers(engine)
         http.fetch.return_value = None
 
-        doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
-            "http://example.com/page", FetcherType.HTTP
-        )
+        doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
         assert doc is None
         assert degradable is True
@@ -96,7 +92,7 @@ class TestTryFetchAndProcess:
             "myrm_agent_harness.toolkits.web_fetch.processing.binary_router.route_binary_content",
             new=AsyncMock(return_value=make_document("binary")),
         ):
-            doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
+            doc, degradable, result = await engine._try_fetch_and_process(
                 "http://example.com/img.png", FetcherType.HTTP
             )
 
@@ -116,7 +112,7 @@ class TestTryFetchAndProcess:
             "myrm_agent_harness.toolkits.web_fetch.extractors.weixin_extractor.parse_weixin_article_html",
             new=lambda html, url=None: make_document("weixin"),
         ):
-            doc, degradable, _, _, _, _ = await engine._try_fetch_and_process(url, FetcherType.HTTP)
+            doc, degradable, _ = await engine._try_fetch_and_process(url, FetcherType.HTTP)
 
             assert doc is not None
             assert doc.page_content == "weixin"
@@ -139,7 +135,7 @@ class TestTryFetchAndProcess:
                 new=lambda html: False,
             ),
         ):
-            doc, degradable, _, _, _, _ = await engine._try_fetch_and_process(url, FetcherType.HTTP)
+            doc, degradable, _ = await engine._try_fetch_and_process(url, FetcherType.HTTP)
 
             assert doc is None
             assert degradable is True
@@ -154,9 +150,7 @@ class TestTryFetchAndProcess:
             "myrm_agent_harness.toolkits.web_fetch.engine.fetch_mixin.detect_antibot",
             new=lambda status, html: (True, "challenge"),
         ):
-            doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
-                "http://example.com/page", FetcherType.HTTP
-            )
+            doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
             assert doc is None
             assert degradable is True
@@ -175,9 +169,7 @@ class TestTryFetchAndProcess:
             "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
             new=AsyncMock(return_value=None),
         ):
-            doc, degradable, _, _, _, result = await engine._try_fetch_and_process(
-                "http://example.com/page", FetcherType.HTTP
-            )
+            doc, degradable, result = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
 
             assert doc is not None
             assert degradable is True
@@ -218,30 +210,13 @@ class TestFetchMixinRemaining:
                 new=lambda html: True,
             ),
         ):
-            doc, degradable, _, _, _, _result = await engine._try_fetch_and_process(
+            doc, degradable, _result = await engine._try_fetch_and_process(
                 "https://mp.weixin.qq.com/s/abc123", FetcherType.HTTP
             )
 
             assert doc is not None
             assert doc.page_content == "generic"
             assert degradable is True
-        await engine.shutdown()
-
-    @pytest.mark.asyncio
-    async def test_psutil_unavailable_returns_none_metrics(self, monkeypatch) -> None:
-        from myrm_agent_harness.toolkits.web_fetch.engine import fetch_mixin as fm
-
-        monkeypatch.setattr(fm, "_PSUTIL_AVAILABLE", False)
-        engine = FetchEngine()
-        http, _, _ = stub_fetchers(engine)
-        http.fetch.return_value = http_result(RICH_HTML)
-        engine._pipeline.aprocess.return_value = make_document()
-
-        doc, _, _, cpu, mem, _ = await engine._try_fetch_and_process("http://example.com/page", FetcherType.HTTP)
-
-        assert doc is not None
-        assert cpu is None
-        assert mem is None
         await engine.shutdown()
 
     @pytest.mark.asyncio

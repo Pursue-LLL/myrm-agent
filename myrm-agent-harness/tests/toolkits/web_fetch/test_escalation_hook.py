@@ -47,7 +47,7 @@ async def test_crawl_with_degradation_skips_escalation_when_disabled() -> None:
     provider = _StubProvider(EscalationFetchResult(url="https://example.com", content="remote", provider_id="stub"))
     engine.set_escalation_providers([provider])
 
-    with patch.object(engine, "_try_and_report", new=AsyncMock(return_value=(None, True, 0.0, None, None, None))):
+    with patch.object(engine, "_try_and_report", new=AsyncMock(return_value=(None, True, None))):
         doc, _ = await engine._crawl_with_degradation("https://example.com", allow_escalation=False)
 
     assert doc is None
@@ -100,7 +100,7 @@ async def test_crawl_with_degradation_calls_escalation_after_l3_failure() -> Non
     engine.set_escalation_providers([provider])
 
     with (
-        patch.object(engine, "_try_and_report", new=AsyncMock(return_value=(None, True, 0.0, None, None, None))),
+        patch.object(engine, "_try_and_report", new=AsyncMock(return_value=(None, True, None))),
         patch.object(engine._tier_breaker, "select", return_value=FetcherType.HTTP),
     ):
         doc, _ = await engine._crawl_with_degradation("https://example.com", allow_escalation=True)

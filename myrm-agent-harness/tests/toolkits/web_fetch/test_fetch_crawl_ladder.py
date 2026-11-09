@@ -1,7 +1,7 @@
 """Tests for the ``FetchEngine._crawl_with_degradation`` tier ladder.
 
 Covers every start tier (HTTP, BROWSER, STEALTH), the downgrade/escalation order, non-degradable
-stops, the L4 escalation tail and the weixin / resource-sampling branches of the ladder.
+stops, the L4 escalation tail and the weixin branch of the ladder.
 """
 
 from __future__ import annotations
@@ -153,7 +153,7 @@ class TestLadderRemainingBranches:
                 new=lambda html: False,
             ),
         ):
-            doc, degradable, _, _, _, result = await engine._try_fetch_and_process(url, FetcherType.HTTP)
+            doc, degradable, result = await engine._try_fetch_and_process(url, FetcherType.HTTP)
 
             assert doc is None
             assert degradable is True
@@ -289,13 +289,3 @@ class TestLadderRemainingBranches:
         assert doc.page_content == "html escaped"
         assert doc.metadata["escalation_provider"] == "p2"
         await engine.shutdown()
-
-    def test_psutil_import_failure_sets_flag(self, monkeypatch) -> None:
-        import importlib
-        import sys
-
-        from myrm_agent_harness.toolkits.web_fetch.engine import fetch_mixin as fm
-
-        monkeypatch.setitem(sys.modules, "psutil", None)
-        reloaded = importlib.reload(fm)
-        assert reloaded._PSUTIL_AVAILABLE is False

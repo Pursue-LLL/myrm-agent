@@ -72,7 +72,7 @@ async def test_document_is_parsed_instead_of_degraded(
         html="", url=URL, headers={"content-type": content_type}, raw_body=make_body(MARKER)
     )
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is not None
     assert MARKER in doc.page_content
@@ -83,7 +83,7 @@ async def test_file_no_parser_reads_ends_the_fetch(engine_with_http: tuple[Fetch
     engine, http = engine_with_http
     http.fetch.return_value = _exe_result()
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is False
@@ -95,7 +95,7 @@ async def test_file_no_parser_reads_behind_an_error_status_still_degrades(
     engine, http = engine_with_http
     http.fetch.return_value = _exe_result(status_code=403)
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -117,7 +117,7 @@ async def test_text_is_returned_as_it_is(
     engine, http = engine_with_http
     http.fetch.return_value = _text_result(text, content_type=content_type)
 
-    doc, _, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, _, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is not None
     assert doc.page_content == text.strip()
@@ -132,7 +132,7 @@ async def test_text_behind_an_error_status_still_degrades(
     engine, http = engine_with_http
     http.fetch.return_value = _text_result("Forbidden", status_code=status_code)
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -142,7 +142,7 @@ async def test_empty_text_degrades(engine_with_http: tuple[FetchEngine, AsyncMoc
     engine, http = engine_with_http
     http.fetch.return_value = _text_result("  \n")
 
-    doc, degradable, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
+    doc, degradable, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP)
 
     assert doc is None
     assert degradable is True
@@ -153,7 +153,7 @@ async def test_truncated_text_warns_the_user(engine_with_http: tuple[FetchEngine
     http.fetch.return_value = _text_result("0123456789" * 20)
 
     with patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", new_callable=AsyncMock) as dispatch:
-        doc, *_ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
+        doc, _, _ = await engine._try_fetch_and_process(URL, FetcherType.HTTP, max_chars=50)
 
     assert doc is not None
     assert doc.metadata["was_truncated"] is True

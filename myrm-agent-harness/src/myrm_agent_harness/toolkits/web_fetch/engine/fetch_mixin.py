@@ -7,7 +7,6 @@ Mixin: L1/L2/L3 fetch+pipeline, tier degradation, tier-breaker and failure-histo
 from __future__ import annotations
 
 import logging
-import time
 from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
@@ -25,14 +24,6 @@ if TYPE_CHECKING:
     from ..processing.pipeline import ContentPipeline
 
 logger = logging.getLogger(__name__)
-
-try:
-    import psutil
-
-    _PSUTIL_AVAILABLE = True
-except (ImportError, TypeError):
-    _PSUTIL_AVAILABLE = False
-    logger.warning("psutil not available, resource tracking disabled")
 
 
 async def _process_and_warn_if_truncated(
@@ -71,7 +62,7 @@ class FetchEngineFetchMixin:
         etag: str | None = None,
         last_modified: str | None = None,
         max_chars: int = 0,
-    ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
+    ) -> tuple[Document | None, bool, FetchResult | None]:
         """Fetch with a specified fetcher and process through the pipeline."""
         fetcher_map: dict[FetcherType, Fetcher] = {
             FetcherType.HTTP: self._http_fetcher,
@@ -88,41 +79,19 @@ class FetchEngineFetchMixin:
                 launch_mode = self._browser_launch_mode
             self._browser_fetcher.set_launch_mode_preference(launch_mode)
 
-        if _PSUTIL_AVAILABLE:
-            process = psutil.Process()
-            cpu_times_start = process.cpu_times()
-            mem_start_mb = process.memory_info().rss / 1024 / 1024
-        else:
-            cpu_times_start = None
-            mem_start_mb = None
-
-        start_time = time.time()
         if fetcher_type == FetcherType.HTTP and (etag or last_modified):
             fetch_result: FetchResult | None = await self._http_fetcher.fetch(
                 url, etag=etag, last_modified=last_modified
             )
         else:
             fetch_result = await fetcher.fetch(url)
-        elapsed = time.time() - start_time
-        latency_ms = elapsed * 1000.0
-
-        if _PSUTIL_AVAILABLE and cpu_times_start is not None and mem_start_mb is not None:
-            cpu_times_end = process.cpu_times()
-            cpu_used = (cpu_times_end.user - cpu_times_start.user) + (cpu_times_end.system - cpu_times_start.system)
-            cpu_percent = (cpu_used / elapsed * 100.0) if elapsed > 0 else 0.0
-            mem_delta_mb = (process.memory_info().rss / 1024 / 1024) - mem_start_mb
-            cpu_percent = max(0.0, cpu_percent)
-            memory_mb = max(0.0, mem_delta_mb)
-        else:
-            cpu_percent = None
-            memory_mb = None
 
         if fetch_result is None:
-            return None, True, latency_ms, cpu_percent, memory_mb, None
+            return None, True, None
 
         if fetch_result.status_code == 304:
             logger.info(f"HTTP 304 Not Modified: {url}")
-            return None, False, latency_ms, cpu_percent, memory_mb, fetch_result
+            return None, False, fetch_result
 
         if (
             fetcher_type == FetcherType.HTTP
@@ -130,7 +99,7 @@ class FetchEngineFetchMixin:
             and fetch_result.status_code not in DEGRADABLE_4XX
         ):
             logger.warning(f"HTTP {fetch_result.status_code} not degradable, abort: {url}")
-            return None, False, latency_ms, cpu_percent, memory_mb, None
+            return None, False, None
 
         # Files (PDF, Office, images) reach here as raw bytes with empty html, so they are routed to a file parser
         # before the empty-shell check. A file no parser reads is just as unreadable in a browser, so it ends the
@@ -140,17 +109,17 @@ class FetchEngineFetchMixin:
 
             doc = await route_binary_content(fetch_result.raw_body, fetch_result.headers, url)
             if doc is not None or fetch_result.status_code < 400:
-                return doc, False, latency_ms, cpu_percent, memory_mb, fetch_result
+                return doc, False, fetch_result
 
         # Text (plain, markdown, csv, feeds, source files) is already the content; the HTML-only checks below
         # (empty shell, anti-bot) would reject it for lacking markup.
         if fetch_result.kind is PayloadKind.TEXT and fetch_result.status_code < 400:
             doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
-            return doc, True, latency_ms, cpu_percent, memory_mb, fetch_result
+            return doc, True, fetch_result
 
         if fetcher_type == FetcherType.HTTP and not fetch_result.has_content:
             logger.warning(f"L1 HTTP returned empty shell, will degrade: {url}")
-            return None, True, latency_ms, cpu_percent, memory_mb, None
+            return None, True, None
 
         from ..extractors.weixin_extractor import (
             has_weixin_js_content,
@@ -161,28 +130,21 @@ class FetchEngineFetchMixin:
         if is_weixin_article_url(url):
             weixin_doc = parse_weixin_article_html(fetch_result.html, url=url)
             if weixin_doc is not None:
-                return (
-                    weixin_doc,
-                    False,
-                    latency_ms,
-                    cpu_percent,
-                    memory_mb,
-                    fetch_result,
-                )
+                return weixin_doc, False, fetch_result
             if not has_weixin_js_content(fetch_result.html):
                 logger.warning(
                     "Weixin URL missing js_content, skipping generic HTML extraction: %s",
                     url,
                 )
-                return None, True, latency_ms, cpu_percent, memory_mb, fetch_result
+                return None, True, fetch_result
 
         blocked, reason = detect_antibot(fetch_result.status_code, fetch_result.html)
         if blocked:
             logger.warning(f"Anti-bot detected ({reason}): {url}")
-            return None, True, latency_ms, cpu_percent, memory_mb, None
+            return None, True, None
 
         doc = await _process_and_warn_if_truncated(self._pipeline, fetch_result, url, max_chars)
-        return doc, True, latency_ms, cpu_percent, memory_mb, fetch_result
+        return doc, True, fetch_result
 
     async def _try_and_report(
         self: FetchEngine,
@@ -192,9 +154,9 @@ class FetchEngineFetchMixin:
         etag: str | None = None,
         last_modified: str | None = None,
         max_chars: int = 0,
-    ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
+    ) -> tuple[Document | None, bool, FetchResult | None]:
         """Attempt fetch and report the outcome to the tier breaker."""
-        doc, degradable, latency, cpu, mem, fetch_result = await self._try_fetch_and_process(
+        doc, degradable, fetch_result = await self._try_fetch_and_process(
             url,
             fetcher_type,
             etag=etag,
@@ -205,7 +167,7 @@ class FetchEngineFetchMixin:
         # site, so it must not count against the tier.
         if doc is not None or degradable:
             self._report_feedback(url, fetcher_type, success=(doc is not None))
-        return doc, degradable, latency, cpu, mem, fetch_result
+        return doc, degradable, fetch_result
 
     async def _crawl_with_degradation(
         self: FetchEngine,
@@ -220,12 +182,12 @@ class FetchEngineFetchMixin:
         start_type = self._tier_breaker.select(domain_key(url))
 
         if start_type == FetcherType.STEALTH:
-            doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
             if doc:
                 return doc, result
 
             logger.warning(f"Stealth failed, trying browser: {url}")
-            doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
             if doc:
                 return doc, result
             if allow_escalation:
@@ -235,12 +197,12 @@ class FetchEngineFetchMixin:
             return doc, result
 
         if start_type == FetcherType.BROWSER:
-            doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
             if doc:
                 return doc, result
 
             logger.warning(f"Browser failed, trying stealth: {url}")
-            doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+            doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
             if doc:
                 return doc, result
             if allow_escalation:
@@ -249,7 +211,7 @@ class FetchEngineFetchMixin:
                     return esc_doc, esc_result
             return doc, result
 
-        doc, degradable, _, _, _, result = await self._try_and_report(
+        doc, degradable, result = await self._try_and_report(
             url,
             FetcherType.HTTP,
             etag=etag,
@@ -267,12 +229,12 @@ class FetchEngineFetchMixin:
             return doc, result
 
         logger.warning(f"HTTP insufficient, degrading to browser: {url}")
-        doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
+        doc, _, result = await self._try_and_report(url, FetcherType.BROWSER, max_chars=max_chars)
         if doc:
             return doc, result
 
         logger.warning(f"Browser failed, degrading to stealth: {url}")
-        doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
+        doc, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
         if doc:
             return doc, result
 
