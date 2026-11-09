@@ -30,7 +30,6 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "read_scopes": ["global", "conversation"],
             "write_policy": "conversation",
             "allow_l3_extraction": False,
-            "auto_cleanup": True,
         },
         max_iterations=30,
         suggestion_prompts=(
@@ -56,7 +55,6 @@ _SEARCH_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "read_scopes": ["global", "conversation"],
             "write_policy": "conversation",
             "allow_l3_extraction": False,
-            "auto_cleanup": True,
         },
         max_iterations=50,
         suggestion_prompts=(

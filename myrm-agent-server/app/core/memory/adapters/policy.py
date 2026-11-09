@@ -57,9 +57,6 @@ def memory_policy_from_dict(raw: Mapping[str, object] | None) -> AgentMemoryPoli
     allow_l3_raw = raw.get("allow_l3_extraction")
     allow_l3_extraction = allow_l3_raw if isinstance(allow_l3_raw, bool) else True
 
-    auto_cleanup_raw = raw.get("auto_cleanup")
-    auto_cleanup = auto_cleanup_raw if isinstance(auto_cleanup_raw, bool) else False
-
     return AgentMemoryPolicy(
         agent_id=agent_id_raw if isinstance(agent_id_raw, str) else None,
         channel_id=channel_id_raw if isinstance(channel_id_raw, str) else None,
@@ -68,7 +65,6 @@ def memory_policy_from_dict(raw: Mapping[str, object] | None) -> AgentMemoryPoli
         read_scopes=read_scopes,
         write_policy=write_policy,
         allow_l3_extraction=allow_l3_extraction,
-        auto_cleanup=auto_cleanup,
     )
 
 
@@ -83,7 +79,6 @@ def memory_policy_to_dict(policy: AgentMemoryPolicy | None) -> dict[str, object]
         "read_scopes": [scope.value for scope in policy.read_scopes] if policy.read_scopes is not None else None,
         "write_policy": policy.write_policy.value,
         "allow_l3_extraction": policy.allow_l3_extraction,
-        "auto_cleanup": policy.auto_cleanup,
     }
 
 
@@ -179,8 +174,8 @@ def compartment_memory_policy(base: AgentMemoryPolicy | None) -> AgentMemoryPoli
 
     Reads shrink to the conversation scope (the caller adds the compartment namespace through
     ``namespaces``), writes follow the derived chain, and background LLM extraction stays off so
-    chatter from other senders never reaches long-term memory automatically. Scope identifiers and
-    ``auto_cleanup`` of ``base`` are kept.
+    chatter from other senders never reaches long-term memory automatically. Scope identifiers of
+    ``base`` are kept.
     """
     return replace(
         base or AgentMemoryPolicy(),

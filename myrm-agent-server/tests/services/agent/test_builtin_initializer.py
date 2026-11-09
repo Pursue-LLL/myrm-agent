@@ -363,7 +363,6 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
         "read_scopes": ["global", "conversation"],
         "write_policy": "conversation",
         "allow_l3_extraction": False,
-        "auto_cleanup": True,
     }
     # 搜索提示词由 prompt_mode="search" 单一提供，system_prompt 留空避免重复注入
     assert not fast.system_prompt
@@ -377,7 +376,6 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
         "read_scopes": ["global", "conversation"],
         "write_policy": "conversation",
         "allow_l3_extraction": False,
-        "auto_cleanup": True,
     }
     assert not deep.system_prompt
 
@@ -422,7 +420,6 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
         "read_scopes": ["global", "conversation"],
         "write_policy": "conversation",
         "allow_l3_extraction": False,
-        "auto_cleanup": True,
     }
     # 旧的冗余 system_prompt 被同步清空，避免双重注入
     assert not agent.system_prompt
