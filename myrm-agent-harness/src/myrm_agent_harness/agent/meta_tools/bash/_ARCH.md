@@ -81,7 +81,8 @@ bash/
 | `_compression/_ARCH.md` | Doc | 输出压缩域架构文档。 |
 | `_compression/constants.py` | Internal | 压缩域常量：`BASH_OUTPUT_MAX_CHARS` 字符截断阈值单一事实源。 |
 | `_compression/output_compressor.py` | Internal | 命令感知语义压缩入口（双引擎：硬编码 + YAML 声明式）；eviction preview 幂等跳过。 |
-| `_compression/compressors.py` | Internal | 11 个具体命令压缩器（git/test/install/docker/build/compiler/log）。 |
+| `_compression/compressors.py` | Internal | 10 个具体命令压缩器（git/ls/test/install/docker/build/compiler）。 |
+| `_compression/log_compressor.py` | Internal | 日志流去重兜底；非日志形状的输出（文件清单、grep、JSON 转储）原样通过。 |
 | `_compression/output_eviction.py` | Internal | 大输出即时落盘 + 智能预览 + footer。 |
 | `_compression/builtin_filters.yaml` | Config | 内置声明式过滤器（terraform/make/rsync/docker-pull）。 |
 

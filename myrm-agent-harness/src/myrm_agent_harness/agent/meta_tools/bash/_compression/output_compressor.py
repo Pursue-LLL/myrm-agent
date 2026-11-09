@@ -7,6 +7,7 @@ and failed command outputs; unrecognized commands pass through.
 [INPUT]
 - .output_eviction::EVICTION_BANNER_PREFIX (POS: eviction preview banner，用于跳过对已 evict 预览的二次压缩)
 - .compressors::各类语义压缩器 (POS: 命令感知压缩器注册表)
+- .log_compressor::LogCompressor (POS: 日志流去重兜底，只处理日志形状的输出)
 
 [OUTPUT]
 - compress_output(): Entry function called by bash_code_execute_tool._format_result()
@@ -35,11 +36,11 @@ from myrm_agent_harness.agent.meta_tools.bash._compression.compressors import (
     GitLogCompressor,
     GitOperationCompressor,
     GitStatusCompressor,
-    LogCompressor,
     LsCompressor,
     PackageInstallCompressor,
     TestCompressor,
 )
+from myrm_agent_harness.agent.meta_tools.bash._compression.log_compressor import LogCompressor
 from myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction import (
     EVICTION_BANNER_PREFIX,
 )
@@ -302,7 +303,7 @@ def compress_output(
             )
             return result
 
-        # 3. Try Auto-Deduplication for massive logs (fallback)
+        # 3. Try Auto-Deduplication for massive logs (fallback; output that is not a log stream passes through)
         if len(stdout.splitlines()) >= 100:
             log_compressor = LogCompressor()
             result = log_compressor.compress(stdout, is_failure=is_failure)
