@@ -28,19 +28,19 @@ from app.ai_agents.prompts.general_agent_prompt import SEARCH_DEEP_SUFFIX, SEARC
 # Measured per (surface, locale); cap = measured * 1.05 rounded up.
 _ENCODING_NAME = "o200k_base"
 _STATIC_FIRST_MESSAGE_CAPS: dict[tuple[str, str], int] = {
-    ("full", "zh-CN"): 1293,
-    ("full", "en"): 1098,
-    ("search-normal", "zh-CN"): 2391,
-    ("search-normal", "en"): 1646,
-    ("search-deep", "zh-CN"): 2529,
-    ("search-deep", "en"): 1763,
+    ("full", "zh-CN"): 1245,
+    ("full", "en"): 1049,
+    ("search-normal", "zh-CN"): 2343,
+    ("search-normal", "en"): 1598,
+    ("search-deep", "zh-CN"): 2481,
+    ("search-deep", "en"): 1715,
 }
 # Measured 348 tokens; the block rides in every web chat turn outside the search surface. Cap = measured * 1.05 rounded up.
 _WIDGET_CAPABILITY_CAP = 366
 
 # Section tags that prove each surface was assembled from the real blocks, not from an empty stand-in.
 _SEARCH_MARKERS = ("<identity>", "<response_rules>", "<external_sources_citation_rules>")
-_HARNESS_MARKERS = ("<datetime_rules>", "<agent_behavior_rules>", "[Output Format]")
+_HARNESS_MARKERS = ("<datetime_rules>", "<agent_behavior_rules>")
 _MARKERS_BY_SURFACE: dict[str, tuple[str, ...]] = {
     "full": ("<identity>", "<response_rules>", "<task_integrity>", *_HARNESS_MARKERS),
     "search-normal": (*_SEARCH_MARKERS, *_HARNESS_MARKERS),

@@ -35,12 +35,9 @@ from __future__ import annotations
 # Channel output hints: concise platform guidance (3-5 sentences each).
 # Designed to be appended to system_prompt at agent initialization.
 # Keys match channel_name values used throughout the system.
+# The web chat has no entry on purpose: the response rules already default to Markdown with tables and
+# LaTeX math, which is what its renderer supports.
 CHANNEL_OUTPUT_HINTS: dict[str, str] = {
-    "web_chat": (
-        "\n\n[Output Format] You are in a browser-based chat UI. "
-        "Full Markdown is supported — headings, bold, italic, code blocks, "
-        "tables, LaTeX math ($$...$$), and Mermaid diagrams all render natively."
-    ),
     "telegram": (
         "\n\n[Output Format] You are on Telegram. "
         "Supported: **bold**, *italic*, `inline code`, ```code blocks```, "

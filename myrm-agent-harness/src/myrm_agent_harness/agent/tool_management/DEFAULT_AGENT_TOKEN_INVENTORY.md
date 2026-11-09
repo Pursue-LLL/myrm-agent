@@ -22,7 +22,7 @@
 | 1 | CORE_SYSTEM_PROMPT | **600** (EN) / **786** (ZH) | `server/ai_agents/prompts/general_agent_prompt.py` | `prompt_mode=full` + `enable_answer_tool=False`（server 默认，`server/ai_agents/agent_params.py:147`）。开启 answer_tool 时为 676 / 868。组成 = identity + AGENT_RESPONSE_RULES + TASK_INTEGRITY（来自 `shared_rules.py`；搜索模式改用 SEARCH_RESPONSE_RULES） |
 | 2 | DATETIME_SYSTEM_RULES | 89 | `harness/agent/streaming/utils.py:55` | 时间感知规则常量（`<datetime_rules>` 标签），冻结在 system prompt 中 |
 | 3 | AGENT_CORE_RULES | **312** | `harness/agent/streaming/agent_core_rules.py:28` | 核心规则**无条件注入**，所有模型字节相同、与模型名无关：禁止叙述工具调用、工具结果诚实、断言缺失前先验证、搜索与上下文复用、原生 FC 约束、因缺能力拒绝前先用发现/搜索工具查找技能与工具 |
-| 4 | channel output hint | 47（web_chat）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py:175` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
+| 4 | channel output hint | 0（web_chat，网页聊天不声明）· 56（slack）· 52（voice）· 25（wechat）· 17（webhook）· 0（无渠道） | `harness/agent/streaming/channel_output_hints.py` | 按渠道名解析；命中 `CHANNEL_OUTPUT_HINTS` 常量表 |
 | 5 | canary 指令（独立 SystemMessage，追加在最新用户消息之后） | **50~57**（均值 ≈53） | `harness/agent/security/detection/canary_guard.py:54` | `SECURITY CANARY: CANARY-<12 位 hex>`；随机 hex 触发 BPE 分裂，实测 300 次采样分布 50~57。由 CanaryMiddleware 每个对话线程注入一次（`agent/middlewares/security/canary_middleware.py` 的 `before_model`），线程已带 canary 指令就沿用；**不占用 `messages[0]`**，system prompt 因此在所有会话里字节相同 |
 | 6 | SecurityBoundary 数据边界规则（独立 SystemMessage，追加在最新用户消息之后） | **299** | 定义于 `harness/core/security/detection/content_boundary.py:300`（`agent/security/detection/content_boundary.py` 为 re-export shim） | 由 SecurityBoundaryMiddleware 每次运行注入一次（`agent/middlewares/security/security_boundary_middleware.py` 的 `before_model`）；**不占用 `messages[0]`** |
 | 7 | widget 能力声明（独立 SystemMessage，插在前导 system 消息之后、用户输入之前） | **348** | `server/ai_agents/agent_middlewares/widget_capability_middleware.py:23` | `<widget_capability>` 标签；WidgetCapabilityMiddleware 在每次模型调用的请求里插入（不写入对话状态），位置与字节恒定；仅 web_chat 渠道的 `prompt_mode=full/lean` 挂载（`mount_resolver.mount_widget_capability`），搜索面、naked、IM、定时、语音、看板、评测不挂 |
@@ -33,7 +33,7 @@
 |------|--------:|--------:|--------:|--------:|
 | 所有模型（核心规则与模型名无关） | **1,349** | 1,153 | 789 | 748 |
 
-> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312 + channel hint 47(web_chat)，各分量分别计数后相加。
+> 口径：`messages[0]` = CORE(mode, locale, `enable_answer_tool=False`) + DATETIME 89 + AGENT_CORE_RULES 312（web_chat 无渠道提示），各分量分别计数后相加。
 > `messages[0]` 的各分量在参数组合内字节恒定；canary 的随机 hex（50~57 tok）在独立消息里，不进 `messages[0]`。
 >
 > 默认组合（中文用户 + full）：`messages[0]` 1,349 + widget 能力声明 348 + 跟随用户输入的两条独立 SystemMessage（canary ≈53 + 安全边界 299）= **2,049 tokens**。
@@ -357,7 +357,7 @@ Token 明细（tiktoken o200k_base）：
 | harness | `tests/architecture/test_prompt_token_budget_gate.py` | Turn-1 默认工具集 ≤ **6,500**（宿主无关口径当前 **5,807**，余量 693：bash 计入静态 1,355、不计宿主 OS hint；live hint 另锁 ≤ 120。口径=描述+wrapper，**不含参数 schema**）；`AGENT_CORE_RULES` ≤ 350 / `SECURITY_BOUNDARY_SYSTEM_RULES` ≤ 314（实测 299 + 5%）/ `DATETIME_SYSTEM_RULES` ≤ 120；SystemMessage 哈希跨调用恒定 |
 | harness | `tests/scripts/test_measure_turn1_token_inventory.py` | 逐工具描述 token 与 §二/§三 表格一致（漂移即失败并指出工具名）；`bash_code_execute` 的宿主相关 OS hint 单独扣减，上限判定同样以静态 1,355 计，故 macOS 与 Linux CI 结果一致 |
 | server | `tests/ai_agents/test_prompt_integrity.py:193-230`（`cl100k_base`，仅英文 CORE） | CORE full ≤ **2,000** / lean ≤ **1,200** / lean÷full ratio ≤ **0.70** |
-| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE + 时间规则 + 核心行为规则 + web_chat 提示，所有模型相同）按面与 zh-CN / en 封顶，上限 = 实测 +5%（通用 full：zh-CN **1,293**（实测 1,231）/ en **1,098**（实测 1,045）；快速搜索：zh-CN **2,391**（实测 2,277）/ en **1,646**（实测 1,567）；深度搜索：zh-CN **2,529**（实测 2,408）/ en **1,763**（实测 1,679））；`<widget_capability>` ≤ **366**（实测 348）。与上表 `messages[0]` 同一组分量，按拼接后的整段计数，与分量求和相差几个 token |
+| server | `tests/architecture/test_first_turn_static_prompt_budget.py`（`o200k_base`） | 静态首轮 system 消息（CORE + 时间规则 + 核心行为规则 + web_chat 渠道提示（为空），所有模型相同）按面与 zh-CN / en 封顶，上限 = 实测 +5%（通用 full：zh-CN **1,245**（实测 1,185）/ en **1,049**（实测 999）；快速搜索：zh-CN **2,343**（实测 2,231）/ en **1,598**（实测 1,521）；深度搜索：zh-CN **2,481**（实测 2,362）/ en **1,715**（实测 1,633））；`<widget_capability>` ≤ **366**（实测 348）。与上表 `messages[0]` 同一组分量，按拼接后的整段计数，与分量求和相差几个 token |
 
 
 ---

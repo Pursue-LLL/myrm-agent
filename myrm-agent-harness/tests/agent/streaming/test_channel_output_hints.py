@@ -59,9 +59,8 @@ class TestResolveChannelOutputHint:
         assert "[Output Format]" in result
         assert "Telegram" in result
 
-    def test_web_chat_supports_full_markdown(self) -> None:
-        result = resolve_channel_output_hint("web_chat")
-        assert "Markdown" in result
+    def test_web_chat_declares_nothing_because_the_response_rules_default_to_its_renderer(self) -> None:
+        assert resolve_channel_output_hint("web_chat") == ""
 
     def test_whatsapp_is_plain_text(self) -> None:
         result = resolve_channel_output_hint("whatsapp")
@@ -186,7 +185,7 @@ class TestHintsDeclareCapabilityOnly:
         for channel, hint in CHANNEL_OUTPUT_HINTS.items():
             assert "rich formatting" not in hint.lower(), channel
 
-    @pytest.mark.parametrize("channel", ["web_chat", "teams"])
+    @pytest.mark.parametrize("channel", ["mattermost", "teams"])
     def test_markdown_channels_still_declare_what_renders(self, channel: str) -> None:
         hint = resolve_channel_output_hint(channel)
         assert "[Output Format]" in hint
