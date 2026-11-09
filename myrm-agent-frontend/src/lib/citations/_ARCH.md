@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Inline 引用角标解析 SSOT：`MessageBox` 经 `buildCitationSources` 取得本条消息的 cite 来源（本条自己的 sources 优先，缺的编号取最近的更早消息）后交给 `MarkdownContent`，正文 cite 标记统一在此预处理为 `<citation>` 标签；角标只按编号认来源，没有对应编号的标记保持原文。
+Inline 引用角标解析 SSOT：助手气泡（`AssistantMessage`）经 `buildCitationSources` 取得本条消息的 cite 来源（本条自己的 sources 优先，缺的编号取最近的更早消息）后交给 `MarkdownContent`，正文 cite 标记统一在此预处理为 `<citation>` 标签；角标只按编号认来源，没有对应编号的标记保持原文。
 
 ## 文件清单
 
@@ -20,4 +20,4 @@ Inline 引用角标解析 SSOT：`MessageBox` 经 `buildCitationSources` 取得�
 
 - `@/store/chat/types`（`Source`、`resolveSourceClickUrl`）
 - `@/store/chat/messageStream/streamHelpers`（`mergeMessageSources`）
-- 消费方：`components/features/message-box/MessageBox.tsx`（`buildCitationSources`）、`components/features/message-box/MarkdownContent.tsx`（`preprocessCitationMarkers`）
+- 消费方：`components/features/message-box/assistant-message/AssistantMessage.tsx`（`buildCitationSources`）、`components/features/message-box/MarkdownContent.tsx`（`preprocessCitationMarkers`）

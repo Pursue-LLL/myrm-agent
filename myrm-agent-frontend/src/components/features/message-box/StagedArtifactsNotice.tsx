@@ -8,7 +8,7 @@
  * StagedArtifactsNotice: Notification banner for automatically staged unwritten deliverables.
  *
  * [POS]
- * Renders in MessageBox when the assistant generated code/documents but omitted persisting them,
+ * Renders in AssistantMessage when the assistant generated code/documents but omitted persisting them,
  * providing immediate transparency that the files were safely preserved in the sandbox.
  */
 

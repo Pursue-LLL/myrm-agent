@@ -9,7 +9,7 @@
  * MessageActionBar: Completed/streaming assistant message actions.
  *
  * [POS]
- * Chat assistant message action surface. It keeps MessageBox focused on message layout and rendering.
+ * Chat assistant message action surface. It keeps AssistantMessage focused on message layout and rendering.
  */
 
 import { type RefObject, useMemo } from 'react';

@@ -9,7 +9,7 @@
  * (VERIFIED | ARTIFACT | RESEARCH | PLAN) with interactive evidence HoverCard.
  *
  * [POS]
- * Rendered in MessageBox header to give users instant, verifiable confidence regarding agent output.
+ * Rendered in the AssistantMessage header to give users instant, verifiable confidence regarding agent output.
  */
 
 import React from 'react';
