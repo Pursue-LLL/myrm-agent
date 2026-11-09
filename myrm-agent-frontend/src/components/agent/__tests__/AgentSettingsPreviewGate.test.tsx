@@ -53,13 +53,7 @@ describe('AgentSettingsPreviewGate', () => {
     const handleConfirm = vi.fn();
     const handleBack = vi.fn();
 
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={handleConfirm}
-        onBack={handleBack}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={handleConfirm} onBack={handleBack} />);
 
     // Header & identity
     expect(screen.getByText('全栈架构专家')).toBeInTheDocument();
@@ -95,13 +89,7 @@ describe('AgentSettingsPreviewGate', () => {
   });
 
   it('renders fallback copy for minimal templates without settings_preview', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={minimalTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={minimalTemplate} onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Standard workspace primitives inherited')).toBeInTheDocument();
     expect(screen.getByText('No extra skills pre-mounted')).toBeInTheDocument();
@@ -109,26 +97,14 @@ describe('AgentSettingsPreviewGate', () => {
   });
 
   it('renders team badge when template agent_type is team', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={teamTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={teamTemplate} onConfirm={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.getByText('Team')).toBeInTheDocument();
   });
 
   it('triggers onBack when back button is clicked', () => {
     const handleBack = vi.fn();
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={vi.fn()}
-        onBack={handleBack}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={vi.fn()} onBack={handleBack} />);
 
     const backBtn = screen.getByRole('button', { name: /Back/i });
     fireEvent.click(backBtn);
@@ -137,13 +113,7 @@ describe('AgentSettingsPreviewGate', () => {
 
   it('triggers onConfirm when confirm button is clicked', () => {
     const handleConfirm = vi.fn();
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={handleConfirm}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={handleConfirm} onBack={vi.fn()} />);
 
     const confirmBtn = screen.getByTestId('confirm-instantiate-agent-btn');
     fireEvent.click(confirmBtn);
@@ -151,14 +121,7 @@ describe('AgentSettingsPreviewGate', () => {
   });
 
   it('disables buttons when isCreating is true', () => {
-    render(
-      <AgentSettingsPreviewGate
-        template={fullTemplate}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-        isCreating
-      />,
-    );
+    render(<AgentSettingsPreviewGate template={fullTemplate} onConfirm={vi.fn()} onBack={vi.fn()} isCreating />);
 
     expect(screen.getByRole('button', { name: /Back/i })).toBeDisabled();
     expect(screen.getByTestId('confirm-instantiate-agent-btn')).toBeDisabled();

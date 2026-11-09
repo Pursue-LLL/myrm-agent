@@ -14,12 +14,7 @@
  */
 
 import { create } from 'zustand';
-import type {
-  TemplateMarketplaceState,
-  AgentTemplateItem,
-  TemplateCategory,
-  CloneOptions,
-} from './templateTypes';
+import type { TemplateMarketplaceState, AgentTemplateItem, TemplateCategory, CloneOptions } from './templateTypes';
 
 interface TemplateApiResponseItem {
   id: string;

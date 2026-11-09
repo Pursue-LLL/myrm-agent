@@ -50,9 +50,7 @@ export function AgentSettingsPreviewGate({
 
   const preview = template.settings_preview;
   const builtinTools = preview?.enabled_builtin_tools ?? [];
-  const skills = Array.from(
-    new Set([...(preview?.skill_ids ?? []), ...(preview?.prebuilt_skill_ids ?? [])]),
-  );
+  const skills = Array.from(new Set([...(preview?.skill_ids ?? []), ...(preview?.prebuilt_skill_ids ?? [])]));
   const mcpIds = preview?.mcp_ids ?? [];
   const memoryPreset = preview?.memory_preset ?? 'dual_layer';
   const deployMode = preview?.deploy_mode ?? 'sandbox';
@@ -68,11 +66,11 @@ export function AgentSettingsPreviewGate({
         <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">
-              {template.name}
-            </h3>
+            <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-secondary/80 text-muted-foreground">
-              {template.agent_type === 'team' ? t('teamType', { fallback: 'Team' }) : t('individualType', { fallback: 'Individual' })}
+              {template.agent_type === 'team'
+                ? t('teamType', { fallback: 'Team' })
+                : t('individualType', { fallback: 'Individual' })}
             </span>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
@@ -255,7 +253,11 @@ export function AgentSettingsPreviewGate({
           data-testid="confirm-instantiate-agent-btn"
           className="flex items-center gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
         >
-          <span>{isCreating ? t('creating', { fallback: 'Creating…' }) : t('confirmAndCreate', { fallback: 'Confirm & Create Agent' })}</span>
+          <span>
+            {isCreating
+              ? t('creating', { fallback: 'Creating…' })
+              : t('confirmAndCreate', { fallback: 'Confirm & Create Agent' })}
+          </span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Button>
       </div>
