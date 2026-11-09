@@ -22,13 +22,6 @@ from myrm_agent_harness.runtime.context.offload import (
     cleanup_session_context_files,
     create_compress_offload_callback,
 )
-from myrm_agent_harness.runtime.context.session_handoff_continuation_types import (
-    CleanWindowContinuationBundle,
-    HandoffPhaseKind,
-    HandoffTriggerReason,
-    RejectedAlternativeRecord,
-    StructuredHandoffMemo,
-)
 from myrm_agent_harness.runtime.context.token_estimator import (
     CompactionBudgetSettings,
     ProviderUsageAnchor,
@@ -93,9 +86,4 @@ __all__ = [
     "estimate_context_tokens_anchored",
     "extract_provider_usage_anchor",
     "is_compaction_triggered",
-    "HandoffPhaseKind",
-    "HandoffTriggerReason",
-    "RejectedAlternativeRecord",
-    "StructuredHandoffMemo",
-    "CleanWindowContinuationBundle",
 ]

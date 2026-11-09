@@ -13,8 +13,6 @@
 | shell.py | 核心 | `ShellCriterion` 实现，在沙箱内运行终端命令判定通过与否 | ✅ |
 | semantic.py | 核心 | `SemanticCriterion` 实现，将判断任务委托给 Server 层的 GoalProvider | ✅ |
 | fault_attribution.py | 核心 | `classify_fault` 环境基础设施故障 vs 代码缺陷分类器与指引生成 | ✅ |
-| handoff_verification_types.py | 核心 | 定义 `HandoffVerificationResult`、`HandoffVerificationIssue`、`VerificationSeverity` 强类型契约 | ✅ |
-| handoff_verification_gate.py | 核心 | `HandoffVerificationGate` 对抗自检门禁，比对历史用户核心约束与负向避坑清单，提供自愈补全 | ✅ |
 | `security.py` | Core | Security vulnerability scan and PoC verification acceptance criterion. — SecurityScanCriterion: Verifies code changes for security vulnerabilities and PoC reproducibility. | ✅ |
 
 ## 数据流

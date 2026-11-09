@@ -17,18 +17,6 @@
 Runtime survival — memory pressure, resource monitor, startup timing, and desktop watchdog suite.
 """
 
-from myrm_agent_harness.runtime.survival.desktop_memory_watchdog import (
-    DesktopMemoryWatchdog,
-    get_current_rss_bytes,
-)
-from myrm_agent_harness.runtime.survival.desktop_watchdog_types import (
-    ArchiveVolume,
-    DehydratedSessionTurn,
-    DehydrationState,
-    MemoryAlertLevel,
-    MemoryCompactionReceipt,
-    SessionTurn,
-)
 from myrm_agent_harness.runtime.survival.memory_pressure import (
     MemoryPressureMonitor,
     PressureConfig,
@@ -38,29 +26,13 @@ from myrm_agent_harness.runtime.survival.memory_pressure import (
     get_memory_pressure_monitor,
     init_memory_pressure_monitor,
 )
-from myrm_agent_harness.runtime.survival.rolling_archive import (
-    LongSessionRollingArchiver,
-)
-from myrm_agent_harness.runtime.survival.session_dehydration import (
-    SessionContextDehydrator,
-)
 
 __all__ = [
-    "ArchiveVolume",
-    "DehydratedSessionTurn",
-    "DehydrationState",
-    "DesktopMemoryWatchdog",
-    "LongSessionRollingArchiver",
-    "MemoryAlertLevel",
-    "MemoryCompactionReceipt",
     "MemoryPressureMonitor",
     "PressureConfig",
     "PressureEvent",
     "PressureLevel",
     "PressureSubscriber",
-    "SessionContextDehydrator",
-    "SessionTurn",
-    "get_current_rss_bytes",
     "get_memory_pressure_monitor",
     "init_memory_pressure_monitor",
 ]

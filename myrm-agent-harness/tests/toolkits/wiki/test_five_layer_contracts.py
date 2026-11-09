@@ -5,11 +5,6 @@ import tempfile
 from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import (
     WikiPageType,
 )
-from myrm_agent_harness.toolkits.wiki.core.source_card_contract import (
-    SourceCardContract,
-    parse_source_card,
-    serialize_source_card,
-)
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 
@@ -46,29 +41,3 @@ def test_frontmatter_page_types_extended():
     assert WikiPageType.METHOD == "method"
     assert WikiPageType.TEMPLATE == "template"
     assert WikiPageType.DELIVERABLE == "deliverable"
-
-
-def test_source_card_serialization_and_parsing():
-    card = SourceCardContract(
-        source_id="src_five_layer_guide",
-        title="我是如何用五层结构搭建AI培训知识库的",
-        author="智见AI",
-        platform="wechat",
-        url_or_path="https://mp.weixin.qq.com/s/sample",
-        provenance_class="author_claim",
-        risk_level="medium",
-        covered_concepts=["five_layer_wiki", "claim_separation"],
-        verification_notes="详细验证了事实与主张分离对减少幻觉的关键作用",
-    )
-
-    content = serialize_source_card(card, body_markdown="这是正文中的备注内容")
-    assert "source_id: src_five_layer_guide" in content
-    assert "provenance_class: author_claim" in content
-    assert "这是正文中的备注内容" in content
-
-    parsed = parse_source_card(content)
-    assert parsed.source_id == "src_five_layer_guide"
-    assert parsed.author == "智见AI"
-    assert parsed.provenance_class == "author_claim"
-    assert "five_layer_wiki" in parsed.covered_concepts
-    assert "这是正文中的备注内容" in parsed.verification_notes

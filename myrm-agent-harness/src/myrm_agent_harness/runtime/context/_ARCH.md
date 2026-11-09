@@ -19,7 +19,6 @@ Context lifecycle management — cleanup, config, metrics, tracking, reading, of
 | offload.py | Core | Context offload: persist full tool outputs and conversation snapshots through framework-neutral scope IDs, with lifecycle access tracking and cleanup entrypoint re-exports. | ✅ |
 | restore_map_contract.py | Core | Shared restore-map schema v2 contract reader/writer for archive writers and restore guidance, including path normalization and line-range validation. | ✅ |
 | restore_map_structures.py | Core | Restore-map structural indexing and UI-safe restore metadata construction: content indexes, source-tagged recommended ranges, range-source hints, and bounded content feature summaries. | ✅ |
-| session_handoff_continuation_types.py | Types | Types and models for Session Handoff and Clean Window Continuation. | ✅ |
 | token_estimator.py | Core | Provides high-throughput, drift-free token estimation anchored on provider billing data for context management decisions. | ✅ |
 | tracker_manager.py | Core | Generic singleton manager for tracker instances. | ✅ |
 | transparent_reader.py | Core | Transparent decompression for context files. | ✅ |
