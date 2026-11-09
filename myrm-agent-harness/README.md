@@ -341,7 +341,7 @@ myrm-agent-harness/          # 本仓库根（示意）
 
 | 分区 | 模块 | 说明 | Optional extra |
 |------|------|------|----------------|
-| **Core** | `code_execution`, `storage`, `mcp`, `context_bundle`, `llms`, `memory`, `network`, `retriever`, `web_search`, `web_fetch`, `vector`, `file_parsers` | Agent 运行时基础能力；PDF（pdfplumber）、HTML（bs4/lxml）等已在主依赖 | `[file-parsers]` Office；`[retrieval]` 代码分块+BM25；`[acp]` 外部 Agent；`[observability]` Prometheus+OTEL；`qdrant`, `web` 等 |
+| **Core** | `code_execution`, `storage`, `mcp`, `context_bundle`, `llms`, `memory`, `network`, `retriever`, `web_search`, `web_fetch`, `vector`, `file_parsers` | Agent 运行时基础能力；PDF（pdfplumber）、HTML（bs4/lxml）等已在主依赖 | `[file-parsers]` Office；`[retrieval]` 代码分块+BM25；`[acp]` 外部 Agent；`[bedrock]` Bedrock 的 AWS 凭证链与签名；`[observability]` Prometheus+OTEL；`qdrant`, `web` 等 |
 | **Integrations** | `browser`, `computer_use`, `acp`, `openapi_bridge`, `vision`, `tts` | 外部系统/协议集成，按需安装 | `browser`, `computer-use`, `image-processing`, `acp`, `observability` |
 | **Product-adjacent** | `kanban`, `cron`, `automation`, `wiki`, `tasks`, `workspace`, `security` | 通用 Protocol 实现，零 `agent/` 依赖；Myrm 产品默认启用，第三方可按需选用 | 多数无 extra |
 

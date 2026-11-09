@@ -1,8 +1,8 @@
 """AWS Signature Version 4 for the Bedrock wire: the credential chain and the signature of one request.
 
 [INPUT]
-- botocore (POS: the AWS credential chain and the Signature Version 4 signer; imported only when a request is signed,
-  so a deployment that authenticates with a Bedrock API key never loads it)
+- botocore (extra ``bedrock``; POS: the AWS credential chain and the Signature Version 4 signer; imported only when a
+  request is signed, so a deployment that authenticates with a Bedrock API key never loads it)
 - transport.http (POS: RequestSigner, the hook that signs each attempt)
 - transport.profile (POS: UnsupportedProviderError)
 
@@ -62,8 +62,9 @@ _SIGNED_NAMES: Final = frozenset({"host", "content-type", "date"})
 _SIGNED_PREFIXES: Final = ("x-amz-", "x-amzn-")
 _SIGNATURE_HEADERS: Final = ("Authorization", "X-Amz-Date", "X-Amz-Security-Token")
 _NEEDS_BOTOCORE: Final = (
-    "Signing Bedrock requests with AWS credentials needs the botocore package (pip install botocore); "
-    "a Bedrock API key (api_key or AWS_BEARER_TOKEN_BEDROCK) needs nothing extra"
+    "Signing Bedrock requests with AWS credentials needs the botocore package "
+    "(pip install 'myrm-agent-harness[bedrock]'); a Bedrock API key (api_key or AWS_BEARER_TOKEN_BEDROCK) needs "
+    "nothing extra"
 )
 _NO_CREDENTIALS: Final = (
     "No Bedrock credentials found: set a Bedrock API key (api_key or AWS_BEARER_TOKEN_BEDROCK) or configure AWS "
