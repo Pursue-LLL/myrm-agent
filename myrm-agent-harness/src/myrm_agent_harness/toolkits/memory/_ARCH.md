@@ -63,7 +63,7 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `memory_<star
 | ephemeral/ | Subagent memory isolation: the read-only `ReadOnlyMemoryView` (reads delegate to the parent, writes raise `PermissionError`). See [ephemeral/_ARCH.md](ephemeral/_ARCH.md). |
 | ephemeral_delta/ | In-memory, session-scoped transient buffer for prompt-cache-preserving deltas. See [ephemeral_delta/_ARCH.md](ephemeral_delta/_ARCH.md). |
 | two_layer_dialectic/ | Dual-layer context injection engine preserving LLM Prompt Cache while resolving contradictions. See [two_layer_dialectic/_ARCH.md](two_layer_dialectic/_ARCH.md). |
-| chunking/ | Incremental Sliding Window Markdown Chunker Suite: semantic sliding window with 80-token overlap, content-hash incremental diffing, and line-level pointers. See [chunking/_ARCH.md](chunking/_ARCH.md). |
+| chunking/ | Conversation chunking strategies (exchange pair, user only, whole session, episodes) for verbatim storage, migration and extraction. See [chunking/_ARCH.md](chunking/_ARCH.md). |
 
 ## Key Dependencies
 

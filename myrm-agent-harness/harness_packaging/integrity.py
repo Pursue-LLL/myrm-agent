@@ -105,11 +105,9 @@ _PARENT_WATCH_ZONES: tuple[tuple[str, frozenset[str]], ...] = (
                 "agent_surface",
                 "onboarding",
                 # Feature packages shipped as readable source; list a package in core_manifest.yaml to compile it.
-                "budget_packing",
                 "chunking",
                 "ephemeral",
                 "ephemeral_delta",
-                "mem_cube",
                 "private_notebook",
                 "score_honesty",
                 "two_layer_dialectic",

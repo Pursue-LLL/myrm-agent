@@ -49,10 +49,7 @@ def build_public_api_app() -> FastAPI:
     """
     from app.api.internal.org_policy_sync.org_model_policy_sync import frontend_router as org_policy_router
     from app.api.memory import onboarding
-    from app.api.memory.budget_packing_router import router as budget_packing_router
     from app.api.memory.ephemeral_delta_router import router as ephemeral_delta_router
-    from app.api.memory.markdown_chunker import router as markdown_chunker_router
-    from app.api.memory.mem_cube_router import router as mem_cube_router
     from app.api.memory.operations import (
         archive_restore,
         cognitive_clock_console,
@@ -89,9 +86,6 @@ def build_public_api_app() -> FastAPI:
             import_rollback_preview.router,
             private_notebook_router,
             two_layer_dialectic_router,
-            budget_packing_router,
-            mem_cube_router,
-            markdown_chunker_router,
             score_honesty_router,
         ):
             app.include_router(lab_router, prefix=f"{API_PREFIX}/memory")

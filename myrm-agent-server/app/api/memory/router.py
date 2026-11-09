@@ -8,19 +8,10 @@ import logging
 from fastapi import APIRouter
 
 from app.api.memory import onboarding
-from app.api.memory.budget_packing_router import (
-    router as budget_packing_router,
-)
 from app.api.memory.ephemeral_delta_router import (
     router as ephemeral_delta_router,
 )
 from app.api.memory.follow_ups import router as follow_ups_router
-from app.api.memory.markdown_chunker import (
-    router as markdown_chunker_router,
-)
-from app.api.memory.mem_cube_router import (
-    router as mem_cube_router,
-)
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
@@ -111,7 +102,4 @@ if settings.memory_labs_enabled:
     router.include_router(import_rollback_preview.router, tags=["memory-crud"])
     router.include_router(private_notebook_router, tags=["memory-private-notebook"])
     router.include_router(two_layer_dialectic_router, tags=["memory-two-layer-dialectic"])
-    router.include_router(budget_packing_router, tags=["memory-budget-packing"])
-    router.include_router(mem_cube_router, tags=["memory-cubes"])
-    router.include_router(markdown_chunker_router, tags=["memory-chunker"])
     router.include_router(score_honesty_router, tags=["memory-score-honesty"])

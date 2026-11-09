@@ -43,21 +43,6 @@
 | `DialecticReconciliationConsoleView.tsx` | 辅助 | Layer 2 自适应辩证推理工作台子组件：支持配置矛盾事实并启动 1~3 遍正题/反题/合题辩证调和，展示置信度与合成事实 | ✅    |
 | `DialecticCadenceControlsView.tsx` | 辅助 | 双层实验室：Layer 1/2 周期、辩证深度与 reasoning 等级调优（i18n；不承诺缓存命中率） | ✅    |
 | `twoLayerDialecticFallbacks.ts` | 辅助 | 两层上下文解耦与辩证推理调和离线及单测仿真数据集 | ✅    |
-| `BudgetGreedyPackingStudioCard.tsx` | 核心 | 预算贪心边际价值召回装箱中枢卡片：给定 Token 预算贪心装满边际价值最高片段，区分计费与存储 Token 双轨计量 | ✅    |
-| `BudgetPackingHudBar.tsx` | 辅助 | 装箱预算 4 维 HUD 监控条：呈现预算填满率、平均边际价值密度、存储 Token 离线节省量与语义冗余拦截量 | ✅    |
-| `MarginalValuePackingView.tsx` | 辅助 | 边际价值装箱看板子组件：展示已入选片段列表、淘汰抑制片段分析与编译生成的 `<recalled_memories>` XML 上下文装箱代码块 | ✅    |
-| `TokenAccountingInspectorView.tsx` | 辅助 | 双轨 Token 计量与调优控制台子组件：呈现计费 Token vs 存储 Token 成本节省对比、多样性惩罚权重 λ 与贪心背包填缝参数交互模拟 | ✅    |
-| `budgetPackingFallbacks.ts` | 辅助 | 预算贪心边际价值召回装箱离线及单测仿真数据集 | ✅    |
-| `MemoryCubeStudioCard.tsx` | 核心 | Memory Cube 空间治理与动态挂载中枢卡片：多智能体私有与共享记忆空间物理隔离，读写分离动态挂载调优与拦截防护 | ✅    |
-| `MemoryCubeHudBar.tsx` | 辅助 | Memory Cube 4 维 HUD 监控条：呈现活跃 Cube 空间数、记忆记录量、挂载拓扑数与严格隔离拦截状态 | ✅    |
-| `MemoryCubeMatrixView.tsx` | 辅助 | Memory Cube 空间矩阵卡片与记录检视器：支持 global_shared/project_workspace/agent_private/ephemeral_task 四大作用域过滤与新建 Cube | ✅    |
-| `AgentMountTopologyTuner.tsx` | 辅助 | 智能体动态挂载拓扑调优器与屏障测试器：支持多 Cube 读写分离授权配置，实时发起写探针拦截验证与跨 Cube 联邦检索测试 | ✅    |
-| `memCubeFallbacks.ts` | 辅助 | Memory Cube 空间治理离线与单测仿真数据集 | ✅    |
-| `MarkdownChunkerStudioCard.tsx` | 核心 | 增量滑动窗口Markdown切片与重叠索引管道中枢卡片：400-token滑动窗口切片、80-token重叠、内容哈希增量感知、行级回溯水合与Token节省率遥测 | ✅    |
-| `MarkdownChunkerHudBar.tsx` | 辅助 | Markdown切片引擎 4 维 HUD 监控条：呈现目标源文档、切片总量、相邻重叠预算、Token节省率与重新切片动作 | ✅    |
-| `SlidingWindowVisualizerCard.tsx` | 辅助 | 滑动窗口切片可视化检视器：直观呈现切片序列、起止行号范围、内容哈希签名、代码块保护与行级回溯水合扩展上下文视图 | ✅    |
-| `IncrementalDiffInspectorCard.tsx` | 辅助 | 内容哈希增量索引与 Token 节省检视器：呈现版本对比报告、复用/变更/废弃切片分布、进度条与免除重复调用Embedding API遥测 | ✅    |
-| `markdownChunkerFallbacks.ts` | 辅助 | Markdown切片与增量索引离线仿真与预设长篇Markdown数据集 | ✅    |
 
 ## 依赖
 

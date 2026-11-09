@@ -40,11 +40,8 @@ _LAB_ONLY_PREFIXES = (
     "/api/memory/guardian/cognitive-clock/status",
     "/api/memory/guardian/cognitive-clock/trigger-t1",
     "/api/memory/import/rollback/dry-run",
-    "/api/memory/budget-packing",
-    "/api/memory/cubes",
     "/api/memory/score-honesty",
     "/api/memory/notebook",
-    "/api/memory/chunker",
     "/api/memory/two-layer-dialectic",
 )
 

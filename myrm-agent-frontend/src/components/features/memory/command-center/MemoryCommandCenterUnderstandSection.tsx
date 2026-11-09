@@ -26,9 +26,6 @@ import { FirstEncounterReportCard } from './FirstEncounterReportCard';
 import { PrivateNotebookCard } from './PrivateNotebookCard';
 import { PromptCachePreservingDeltaCard } from './PromptCachePreservingDeltaCard';
 import { TwoLayerDialecticStudioCard } from './TwoLayerDialecticStudioCard';
-import { BudgetGreedyPackingStudioCard } from './BudgetGreedyPackingStudioCard';
-import { MemoryCubeStudioCard } from './MemoryCubeStudioCard';
-import { MarkdownChunkerStudioCard } from './MarkdownChunkerStudioCard';
 import { ScoreHonestyInspectionCard } from './ScoreHonestyInspectionCard';
 import type { MemoryTranslation } from './memoryCommandCenterFormat';
 import { Panel, EmptyState } from './MemoryCommandCenterPrimitives';
@@ -55,9 +52,6 @@ export const UnderstandSection = ({
     <PrivateNotebookCard />
     <PromptCachePreservingDeltaCard defaultChatId={defaultChatId} />
     {isMemoryLabsEnabled() ? <TwoLayerDialecticStudioCard /> : null}
-    <BudgetGreedyPackingStudioCard />
-    <MemoryCubeStudioCard />
-    <MarkdownChunkerStudioCard />
     <ScoreHonestyInspectionCard />
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
