@@ -21,7 +21,7 @@ import {
   Send,
   Pin,
 } from 'lucide-react';
-import { usePinnedDashboardStore } from './widget-dashboard/usePinnedDashboardStore';
+import { useDashboardWorkspaceStore } from '@/components/features/dashboard-workspace/useDashboardWorkspaceStore';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
@@ -120,9 +120,9 @@ function isIngestableToWiki(type: ArtifactType): boolean {
 
 const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDownload }) => {
   const t = useTranslations('artifacts');
-  const tWidget = useTranslations('widgetDashboard');
-  const { isPinned, togglePin } = usePinnedDashboardStore();
-  const pinned = isPinned(artifact.id);
+  const tWidget = useTranslations('dashboardWorkspace');
+  const pinned = useDashboardWorkspaceStore((state) => state.widgets.some((widget) => widget.id === artifact.id));
+  const togglePinWidget = useDashboardWorkspaceStore((state) => state.togglePinWidget);
   const Icon = getArtifactIcon(artifact.type as ArtifactType, artifact.filename);
   const colorClass = getArtifactColor(artifact.type as ArtifactType);
   const canPreview = isPreviewable(artifact.type as ArtifactType);
@@ -814,16 +814,15 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               )}
               onClick={(e) => {
                 e.stopPropagation();
-                togglePin({
-                  id: `pin_${artifact.id}`,
-                  artifactId: artifact.id,
+                togglePinWidget({
+                  id: artifact.id,
                   title: artifactState.filename,
-                  type: artifactState.type,
+                  language: artifactState.type,
                   content: artifactState.content || artifactState.filename,
-                  networkPolicy: 'none',
+                  sourceChatId: chatId ?? undefined,
                 });
               }}
-              title={pinned ? tWidget('unpin') : tWidget('pinWidget')}
+              title={pinned ? tWidget('unpin') : tWidget('pinTooltip')}
               data-testid={`artifact-pin-btn-${artifact.id}`}
             >
               <Pin className={cn('w-4 h-4', pinned && 'fill-current')} />
