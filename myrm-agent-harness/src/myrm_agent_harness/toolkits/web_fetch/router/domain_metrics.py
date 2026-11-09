@@ -8,7 +8,6 @@ Responsibilities:
 Architecture:
 - Framework layer adapts to deployment scenarios via parameter injection
 - Local deployment: <state root>/domain_metrics.json; per-user cloud sandbox: /workspace/.myrm/domain_metrics.json
-- Per-task cloud sandbox: /tmp/domain_metrics.json (isolated) or /mnt/shared/ (shared)
 
 [INPUT]
 - infra.delivery.storage_metrics::MonitoredStorageCallback (POS: StorageProvider)

@@ -7,7 +7,7 @@ it passes through the same processing pipeline.
 [INPUT]
 web_fetch.processing.content_pruning::ContentPruningFilter (POS: Boilerplate / noise pruning)
 web_fetch.processing.html_scan::extract_title (POS: Linear-time scans of raw HTML text)
-web_fetch.fetchers.protocol::FetcherType, FetchResult (POS: Fetcher protocol types)
+web_fetch.fetchers.protocols::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.markdown_generator::MarkdownGenerator (POS: HTML-to-Markdown conversion)
 utils.content_sniff::PayloadKind (POS: Tells text responses from web pages)
 utils.text_cleaner::clean_text (POS: Generic text cleaning utility)

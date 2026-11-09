@@ -65,14 +65,10 @@ class DomainMetrics:
     - failure_timestamps: Per-fetcher failure timestamps (for time decay)
     - last_access: Last time anything was recorded (inactive domains are cleaned up by it)
 
-    Storage locations:
-    - Local deployment: <state root>/domain_metrics.json
-    - Per-user cloud sandbox: /workspace/.myrm/domain_metrics.json
-    - Per-task cloud sandbox: /tmp/domain_metrics.json (isolated) or /mnt/shared/ (shared)
+    Persistence is the job of ``DomainMetricsManager`` (``domain_metrics.py``).
 
     Concurrency safety:
     - Internally uses threading.Lock to protect all mutations
-    - File-level uses fcntl.flock (cloud sandbox multi-process)
     """
 
     domain: str

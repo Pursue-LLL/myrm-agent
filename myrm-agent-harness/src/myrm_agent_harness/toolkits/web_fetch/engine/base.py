@@ -17,12 +17,12 @@ Boundary: single-sandbox, single-process semantics; tier breaker state lives in 
 [INPUT]
 web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher with optional HTTP/3 retry)
 web_fetch.fetchers.browser_fetcher::BrowserFetcher (POS: L2 browser-based fetcher)
-web_fetch.fetchers.protocol::FetcherType, FetchResult (POS: Fetcher protocol types)
+web_fetch.fetchers.protocols::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
 web_fetch.probe.http3_probe::get_http3_retry_metrics (POS: QUIC egress probe and L1 retry metrics)
 web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
 web_fetch.router.domain_metrics::get_global_domain_metrics_manager (POS: Per-domain failure history behind the staleness hint)
-web_fetch.youtube_extractor::is_youtube_url, extract_youtube_transcript (POS: YouTube transcript fast-path extractor with oEmbed metadata)
+web_fetch.extractors.youtube_extractor::is_youtube_url, extract_youtube_transcript (POS: YouTube transcript fast-path extractor with oEmbed metadata)
 browser.pool.proxy::ProxyPool (POS: Proxy pool for browser fetchers)
 browser.domain_filter::DomainAllowlist (POS: Domain allowlist filter)
 utils.lru_cache::LRUCache (POS: Generic TTL-based LRU cache)
@@ -48,6 +48,8 @@ from urllib.parse import urlparse
 from langchain_core.documents import Document
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
     from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
     from myrm_agent_harness.toolkits.browser.session_vault import SessionVault
@@ -221,9 +223,9 @@ class FetchEngine(
         if not self._allow_private_networks:
             from myrm_agent_harness.core.security.guards.ssrf import validate_url_for_ssrf
 
-            result = validate_url_for_ssrf(url)
-            if not result.safe:
-                logger.warning(f"URL blocked (SSRF): {url} — {result.error}")
+            ssrf_check = validate_url_for_ssrf(url)
+            if not ssrf_check.safe:
+                logger.warning(f"URL blocked (SSRF): {url} — {ssrf_check.error}")
                 return None
 
         if self._domain_allowlist:
@@ -409,7 +411,7 @@ class FetchEngine(
 
         get_global_site_experience_store().shutdown()
 
-    def get_cache_metrics(self) -> dict[str, dict[str, int | float]]:
+    def get_cache_metrics(self) -> dict[str, Mapping[str, object]]:
         """Get cache metrics (for monitoring and tuning)."""
         total_bg = self._bg_revalidations_success + self._bg_revalidations_failed + self._bg_revalidations_timeout
         avg_latency = self._bg_revalidations_total_ms / total_bg if total_bg > 0 else 0.0
