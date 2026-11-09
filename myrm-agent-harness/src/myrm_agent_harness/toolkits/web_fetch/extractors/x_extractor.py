@@ -74,7 +74,7 @@ def _fetch_fxtwitter_data(
 ) -> dict | None:
     """Fetch structured post data via api.fxtwitter.com."""
     endpoint = f"https://api.fxtwitter.com/{screen_name}/status/{status_id}"
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         endpoint,
         headers={"User-Agent": _USER_AGENT, "Accept": "application/json"},
     )
@@ -94,7 +94,7 @@ def _fetch_oembed_data(
 ) -> dict | None:
     """Fallback: Fetch oEmbed metadata via publish.twitter.com."""
     endpoint = f"https://publish.twitter.com/oembed?url={url}&omit_script=true"
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         endpoint,
         headers={"User-Agent": _USER_AGENT, "Accept": "application/json"},
     )

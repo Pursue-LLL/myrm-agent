@@ -57,7 +57,9 @@ def test_meta_http_equiv_charset_detection_gbk():
 
 
 def test_meta_invalid_encoding_fallback():
-    html_invalid_meta = b'<html><head><meta charset="invalid_fake_encoding_xyz"><title>Fallback</title></head><body>Hello</body></html>'
+    html_invalid_meta = (
+        b'<html><head><meta charset="invalid_fake_encoding_xyz"><title>Fallback</title></head><body>Hello</body></html>'
+    )
     detected = probe_meta_charset(html_invalid_meta)
     assert detected == "invalid-fake-encoding-xyz"
     text, enc = detect_and_decode_html(html_invalid_meta)
@@ -123,19 +125,19 @@ def test_raw_cjk_fallback_no_meta():
 def test_raw_shift_jis_fallback_no_meta():
     raw_sjis = "これは日本語のテキストです。".encode("shift_jis")
     # Shift-JIS without meta or header will be tried in CJK ladder
-    text, enc = detect_and_decode_html(raw_sjis)
+    text, _ = detect_and_decode_html(raw_sjis)
     assert text != ""
 
 
 def test_raw_euc_kr_fallback_no_meta():
     raw_euckr = "안녕하세요 이것은 한국어 텍스트입니다.".encode("euc_kr")
-    text, enc = detect_and_decode_html(raw_euckr)
+    text, _ = detect_and_decode_html(raw_euckr)
     assert text != ""
 
 
 def test_raw_big5_fallback_no_meta():
     raw_big5 = "這是一段繁體中文測試內容。".encode("big5")
-    text, enc = detect_and_decode_html(raw_big5)
+    text, _ = detect_and_decode_html(raw_big5)
     assert text != ""
 
 
