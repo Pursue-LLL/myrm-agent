@@ -1,6 +1,6 @@
 """InMemoryCronStore direct unit tests — covers CRUD, filtering, monitor state.
 
-Targets the uncovered branches in stores.py (monitor CRUD, count_jobs global,
+Targets the uncovered branches in stores.py (monitor CRUD, count_jobs,
 list_runs with status filter, count_runs, purge_old_runs, list_orphaned_active).
 """
 
@@ -69,18 +69,10 @@ def store() -> InMemoryCronStore:
 
 class TestCountJobs:
     @pytest.mark.asyncio
-    async def test_global_count(self, store: InMemoryCronStore):
+    async def test_counts_every_job(self, store: InMemoryCronStore):
         await store.save_job(_make_job("j1", "u1"))
         await store.save_job(_make_job("j2", "u2"))
         assert await store.count_jobs() == 2
-
-    @pytest.mark.asyncio
-    async def test_per_user_count(self, store: InMemoryCronStore):
-        await store.save_job(_make_job("j1", "u1"))
-        await store.save_job(_make_job("j2", "u1"))
-        await store.save_job(_make_job("j3", "u2"))
-        assert await store.count_jobs(user_id="u1") == 2
-        assert await store.count_jobs(user_id="u2") == 1
 
 
 class TestListJobsFilters:

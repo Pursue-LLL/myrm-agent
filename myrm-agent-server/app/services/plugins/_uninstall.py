@@ -166,7 +166,7 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
         from app.core.cron.adapters.setup import get_cron_manager
 
         mgr = get_cron_manager()
-        all_jobs = await mgr.list_jobs("default", limit=200)
+        all_jobs = await mgr.list_jobs(limit=200)
         target_names = {plugin_name.lower(), *[s.lower() for s in server_names]}
 
         for job in all_jobs:

@@ -89,13 +89,6 @@ class TestJobCRUD:
         jobs = await store.list_jobs()
         assert len(jobs) == 2
 
-    async def test_list_by_user(self, store: InMemoryCronStore) -> None:
-        await store.save_job(_job("j1", user_id="u1"))
-        await store.save_job(_job("j2", user_id="u2"))
-        jobs = await store.list_jobs(user_id="u1")
-        assert len(jobs) == 1
-        assert jobs[0].user_id == "u1"
-
     async def test_list_due_before(self, store: InMemoryCronStore) -> None:
         past = _NOW - timedelta(hours=1)
         future = _NOW + timedelta(hours=1)
@@ -112,10 +105,9 @@ class TestJobCRUD:
         assert len(page) == 2
 
     async def test_count_jobs(self, store: InMemoryCronStore) -> None:
-        await store.save_job(_job("j1", user_id="u1"))
-        await store.save_job(_job("j2", user_id="u2"))
+        await store.save_job(_job("j1"))
+        await store.save_job(_job("j2"))
         assert await store.count_jobs() == 2
-        assert await store.count_jobs(user_id="u1") == 1
 
     async def test_earliest_next_run(self, store: InMemoryCronStore) -> None:
         t1 = _NOW + timedelta(hours=1)

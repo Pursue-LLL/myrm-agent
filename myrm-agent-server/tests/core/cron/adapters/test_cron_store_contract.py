@@ -2,8 +2,9 @@
 
 Scheduler and executor behaviour is exercised against ``InMemoryCronStore`` in many test files while production runs on
 ``SqlAlchemyCronStore``. Every case here runs against both, so the double cannot drift from the store it stands in for.
-Two behaviours are deliberately outside the contract: ``user_id`` (the SQL store neither persists nor filters by it) and
-the order of jobs (the SQL store orders by the database's insert time, not by ``CronJob.created_at``).
+Two behaviours are deliberately outside the contract: ``CronJob.user_id`` (the SQL store does not persist it, so jobs
+reload with the default owner) and the order of jobs (the SQL store orders by the database's insert time, not by
+``CronJob.created_at``).
 """
 
 from __future__ import annotations

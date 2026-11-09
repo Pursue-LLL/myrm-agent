@@ -82,7 +82,6 @@ class CronManager(CronValidationMixin):
 
     async def list_jobs(
         self,
-        user_id: str,
         *,
         name_filter: str | None = None,
         chat_id: str | None = None,
@@ -91,7 +90,6 @@ class CronManager(CronValidationMixin):
         offset: int = 0,
     ) -> list[CronJob]:
         return await self._store.list_jobs(
-            user_id=user_id,
             name_filter=name_filter,
             chat_id=chat_id,
             project_id=project_id,
@@ -101,14 +99,12 @@ class CronManager(CronValidationMixin):
 
     async def count_jobs(
         self,
-        user_id: str,
         *,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
     ) -> int:
         return await self._store.count_jobs(
-            user_id=user_id,
             name_filter=name_filter,
             chat_id=chat_id,
             project_id=project_id,
@@ -213,7 +209,7 @@ class CronManager(CronValidationMixin):
             delete_after_run = schedule.kind == ScheduleKind.ONCE
 
         # Handle name conflicts: auto-append (2), (3), etc. if name exists
-        final_name = await self._resolve_name_conflict(user_id, name)
+        final_name = await self._resolve_name_conflict(name)
 
         job_id = secrets.token_urlsafe(12)
         if context_from:
@@ -302,7 +298,7 @@ class CronManager(CronValidationMixin):
             )
 
         copy_name = f"{source.name} (Copy)"
-        final_name = await self._resolve_name_conflict(user_id, copy_name)
+        final_name = await self._resolve_name_conflict(copy_name)
 
         new_id = secrets.token_urlsafe(12)
         now = datetime.now(UTC)

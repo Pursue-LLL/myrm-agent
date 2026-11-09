@@ -193,7 +193,7 @@ class TestGetHeartbeatStatus:
         mgr = _make_manager()
         mgr.list_jobs = AsyncMock(return_value=[existing])
 
-        status = await get_heartbeat_status(mgr, "owner-1")
+        status = await get_heartbeat_status(mgr)
 
         assert isinstance(status, HeartbeatStatus)
         assert status.enabled is True
@@ -205,7 +205,7 @@ class TestGetHeartbeatStatus:
         mgr = _make_manager()
         mgr.list_jobs = AsyncMock(return_value=[existing])
 
-        status = await get_heartbeat_status(mgr, "owner-1")
+        status = await get_heartbeat_status(mgr)
 
         assert status.enabled is False
         assert status.job is existing
@@ -214,7 +214,7 @@ class TestGetHeartbeatStatus:
     async def test_no_heartbeat(self):
         mgr = _make_manager()
 
-        status = await get_heartbeat_status(mgr, "owner-1")
+        status = await get_heartbeat_status(mgr)
 
         assert status.enabled is False
         assert status.job is None
@@ -240,7 +240,7 @@ class TestFindHeartbeat:
         mgr = _make_manager()
         mgr.list_jobs = AsyncMock(return_value=[other_job, hb_job])
 
-        status = await get_heartbeat_status(mgr, "owner-1")
+        status = await get_heartbeat_status(mgr)
 
         assert status.job is hb_job
 
@@ -248,9 +248,9 @@ class TestFindHeartbeat:
     async def test_uses_correct_limit(self):
         mgr = _make_manager()
 
-        await get_heartbeat_status(mgr, "owner-1")
+        await get_heartbeat_status(mgr)
 
-        mgr.list_jobs.assert_awaited_once_with("owner-1", limit=200)
+        mgr.list_jobs.assert_awaited_once_with(limit=200)
 
 
 # ---------------------------------------------------------------------------

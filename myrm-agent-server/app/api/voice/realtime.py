@@ -8,12 +8,13 @@ via WebRTC (RTCPeerConnection), bypassing the server for audio streaming.
 The server's role is limited to:
   1. Securely generating ephemeral client tokens (API key never exposed)
   2. Executing tool calls proxied from the Realtime session
-  3. Background task lifecycle (run/cancel/status/steer) → Kanban via channel_bridge
+  3. Background task lifecycle (run/cancel/status/steer) → Kanban via channel_bridge,
+     reminders (set/cancel/list) → CronManager
   4. Persisting conversation transcripts to chat history
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
-- app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task lifecycle)
+- app.api.voice.realtime_background::BACKGROUND_TOOL_HANDLERS (POS: voice background task and reminder lifecycle)
 - app.services.agent.profile.profile_resolver (POS: Agent profile resolver)
 - app.api.voice.voice_memory_context::voice_memory_context_from (POS: voice memory ACL SSOT)
 - app.core.security.privacy_settings::privacy_agent_params (POS: persisted privacy switch → agent privacy params)
@@ -225,15 +226,10 @@ async def execute_realtime_tool(
         raise validation_error(f"Invalid chat_id: {req.chat_id!r}")
 
     from app.api.voice.realtime_background import BACKGROUND_TOOL_HANDLERS
-    from app.api.voice.realtime_reminder import REMINDER_TOOL_HANDLERS
 
     bg_handler = BACKGROUND_TOOL_HANDLERS.get(req.tool_name)
     if bg_handler is not None:
         return await bg_handler(req)
-
-    reminder_handler = REMINDER_TOOL_HANDLERS.get(req.tool_name)
-    if reminder_handler is not None:
-        return await reminder_handler(req)
 
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.services.agent.streaming import ai_agent_service_stream

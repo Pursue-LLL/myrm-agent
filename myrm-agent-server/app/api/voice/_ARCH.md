@@ -22,6 +22,5 @@
 | `agent_bridge/` | 子包 | Voice STT→Agent 桥，`VoiceAgentBridge`（dataclass）按职责分 4 个 mixin（turn / streams / params / tts）+ `common`：Fast-Lane 直出、15s Supervisor 超时移交后台、审批与 TTS 打断、语音专用 `GeneralAgentParams`。见 [agent_bridge/_ARCH.md](agent_bridge/_ARCH.md) | ✅ |
 | `gemini_live.py` | 模块 | Gemini Live token/WS；session `instructions` 含 profile `system_prompt` + **`response_locale_suffix`**；always-available 包含后台任务 + 原生提醒工具 | ✅ |
 | `realtime.py` | 模块 | OpenAI Realtime token；session `instructions` 含 profile `system_prompt` + **`response_locale_suffix`**；工具声明 import 自 `tool_catalog`；tool-exec 路由入口 `is_safe_session_id` 白名单拒绝非法 `chat_id`（400，防路径穿越，统一覆盖 background lifecycle / reminder 委托与 Agent 代理）；tool-exec Agent 代理注入 `build_agent_runtime_context`（`execution_mode` + `disabled_skill_roots`） | ✅ |
-| `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban；由 `realtime.py` tool-exec 路由调用 | ✅ |
-| `realtime_reminder.py` | 模块 | Voice native reminder lifecycle handlers（set/cancel/list）短路 CronManager SSOT；由 `realtime.py` tool-exec 路由调用 | ✅ |
+| `realtime_background.py` | 模块 | Background task lifecycle handlers（run/cancel/status/steer）短路 Kanban，Reminder handlers（set/cancel/list）短路 CronManager SSOT（`JobType.REMINDER`）；由 `realtime.py` tool-exec 路由调用 | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint；type:config 用 `is_safe_session_id` 校验 `chat_id`，非法拒绝连接 | ✅ |

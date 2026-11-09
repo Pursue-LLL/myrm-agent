@@ -233,7 +233,7 @@ def create_cron_tools(
                 spec=spec,
                 resolve_delivery=_resolve_delivery,
             ),
-            "list": lambda: _do_list(manager, user_id, name_filter),
+            "list": lambda: _do_list(manager, name_filter),
             "blueprints": lambda: _do_blueprints(blueprint_catalog_provider),
             "update": lambda: _do_update(
                 manager,

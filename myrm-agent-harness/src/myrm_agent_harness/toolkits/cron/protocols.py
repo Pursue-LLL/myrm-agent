@@ -48,14 +48,14 @@ if TYPE_CHECKING:
 class CronStore(Protocol):
     """Persistence contract for cron jobs and run records.
 
-    All datetime values are UTC.  ``user_id`` filtering and authorization
-    are handled by ``CronManager`` — the store itself is auth-agnostic.
+    All datetime values are UTC.  The store is auth-agnostic: owner checks on
+    single-job operations belong to ``CronManager``, and no listing is scoped
+    by owner.
     """
 
     async def list_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
@@ -65,13 +65,12 @@ class CronStore(Protocol):
     ) -> list[CronJob]:
         """Return jobs matching the given filters.
 
-        - ``user_id`` set: return all jobs owned by that user.
         - ``name_filter`` set: case-insensitive substring match on the job name
           (``%`` and ``_`` in the filter are ordinary characters).
         - ``chat_id`` set: return jobs bound to that chat session.
         - ``project_id`` set: return jobs bound to that project.
         - ``due_before`` set: return active jobs whose ``next_run_at <= due_before``.
-        - Both None: return all jobs (admin use only).
+        - No filter set: return every job.
         - ``limit``/``offset``: optional pagination (None = no limit).
         """
         ...
@@ -79,7 +78,6 @@ class CronStore(Protocol):
     async def count_jobs(
         self,
         *,
-        user_id: str | None = None,
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,

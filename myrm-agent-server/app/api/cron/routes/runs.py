@@ -59,7 +59,7 @@ async def list_all_runs(
     total = await mgr.count_runs(USER_ID, status=status)
 
     job_ids = list({r.job_id for r in runs})
-    all_jobs = await mgr.list_jobs(USER_ID) if job_ids else []
+    all_jobs = await mgr.list_jobs() if job_ids else []
     job_names = {j.id: j.name for j in all_jobs if j.id in set(job_ids)}
 
     return CronRunsListResponse(

@@ -43,6 +43,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "ConflictSeverity": ("myrm_agent_harness.core.artifacts.fact_check", "ConflictSeverity"),
     "ConnectorErrorCategory": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "ConnectorErrorCategory"),
     "ConnectorHealthStatus": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "ConnectorHealthStatus"),
+    "CronStore": ("myrm_agent_harness.api.protocols", "CronStore"),
     "DesktopCaptureDriver": ("myrm_agent_harness.toolkits.computer_use.recording", "DesktopCaptureDriver"),
     "DesktopRecordedEvent": ("myrm_agent_harness.toolkits.computer_use.recording", "DesktopRecordedEvent"),
     "Doctor": ("myrm_agent_harness.runtime.diagnostics.doctor", "Doctor"),
@@ -110,6 +111,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
     "IntegrationProvider": ("myrm_agent_harness.api.protocols", "IntegrationProvider"),
     "KanbanStore": ("myrm_agent_harness.api.protocols", "KanbanStore"),
+    "InMemoryCronStore": ("myrm_agent_harness.toolkits.cron.stores", "InMemoryCronStore"),
     "InMemoryKanbanStore": ("myrm_agent_harness.toolkits.kanban.stores", "InMemoryKanbanStore"),
     "LLMConfig": ("myrm_agent_harness.api.config", "LLMConfig"),
     "MCPAnnotations": ("myrm_agent_harness.core.security.tool_registry.registry", "MCPAnnotations"),
@@ -379,7 +381,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
 
 # ``__all__`` is derived from ``_EXPORTS`` so the two cannot drift: every name is declared once,
 # in ``_EXPORTS``, which is also what ``__getattr__`` resolves against.
-__all__: list[str] = list(_EXPORTS)  # pyright: ignore[reportUnsupportedDunderAll]
+__all__: list[str] = list(_EXPORTS)
 
 
 if __debug__:
