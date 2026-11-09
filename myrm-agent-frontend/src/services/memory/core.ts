@@ -167,7 +167,6 @@ export interface CreateMemoryRequest {
   trigger?: string;
   action?: string;
   related_entities?: string[];
-  is_exact_fact?: boolean;
 }
 
 // ==================== API 函数 ====================
