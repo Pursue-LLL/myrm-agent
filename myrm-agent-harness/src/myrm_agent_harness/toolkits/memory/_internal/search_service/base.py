@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.observability import (
@@ -85,7 +85,15 @@ class MemorySearchBase:
         raise NotImplementedError
 
 
-FTS5SearcherFunc = Callable[
-    [str, int, datetime | None, datetime | None],
-    Coroutine[None, None, list[MemorySearchResult]],
-]
+class FTS5SearcherFunc(Protocol):
+    """Exact-identifier search; ``namespaces`` limits hits to the namespaces the caller may read."""
+
+    def __call__(
+        self,
+        query: str,
+        limit: int,
+        since: datetime | None,
+        until: datetime | None,
+        *,
+        namespaces: list[str] | None = None,
+    ) -> Awaitable[list[MemorySearchResult]]: ...

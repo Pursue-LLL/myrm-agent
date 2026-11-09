@@ -188,6 +188,8 @@ async def search_exact_facts(
     """Search exact facts using high-entropy token extraction and FTS5 inverted search."""
     if not query or not query.strip():
         return []
+    if namespaces is not None and not namespaces:
+        return []
 
     results: list[MemorySearchResult] = []
     seen_memory_ids: set[str] = set()
@@ -207,23 +209,27 @@ async def search_exact_facts(
         time_clauses.append("created_at <= ?")
         time_params.append(until_iso)
     time_sql = f" AND {' AND '.join(time_clauses)}" if time_clauses else ""
+    # Same predicate as the vector search: a memory is visible when its primary namespace is one of the caller's.
+    scope_sql = f" AND primary_namespace IN ({','.join('?' for _ in namespaces)})" if namespaces is not None else ""
+    scope_params = list(namespaces) if namespaces is not None else []
 
-    # 1. Deterministic B-Tree search by exact identifier
+    # 1. Deterministic B-Tree search by exact identifier; the longest matched identifier ranks first so a
+    # precise ``10.1.1.29:8029`` outranks the shared ``10.1.1`` prefix the classifier also indexes.
     if extracted:
         placeholders = ",".join("?" for _ in extracted)
         sql = f"""
-            SELECT memory_id, user_id, content, primary_namespace, namespaces, identifier
+            SELECT memory_id, user_id, content, primary_namespace, namespaces, MAX(length(identifier)) AS specificity
             FROM exact_fact_identifiers
-            WHERE identifier IN ({placeholders}){time_sql}
+            WHERE identifier IN ({placeholders}){scope_sql}{time_sql}
+            GROUP BY memory_id
+            ORDER BY specificity DESC
             LIMIT ?
         """
-        params = [*extracted, *time_params, limit]
+        params = [*extracted, *scope_params, *time_params, limit]
         async with conn.execute(sql, params) as cursor:
             rows = await cursor.fetchall()
             for row in rows:
-                mem_id, u_id, cnt, p_ns, ns_str, _matched_ident = row
-                if mem_id in seen_memory_ids:
-                    continue
+                mem_id, u_id, cnt, p_ns, ns_str, _specificity = row
                 seen_memory_ids.add(mem_id)
                 ns_list = json.loads(ns_str) if ns_str else []
                 mem = SemanticMemory(
@@ -251,9 +257,10 @@ async def search_exact_facts(
                 # exact_facts_fts has no time column; filter by round-tripping
                 # through exact_fact_identifiers.created_at via an IN subquery,
                 # which avoids the row duplication a JOIN would introduce.
+                filter_sql = scope_sql + time_sql
                 time_filter = (
-                    f" AND memory_id IN (SELECT memory_id FROM exact_fact_identifiers WHERE 1=1{time_sql})"
-                    if time_sql
+                    f" AND memory_id IN (SELECT memory_id FROM exact_fact_identifiers WHERE 1=1{filter_sql})"
+                    if filter_sql
                     else ""
                 )
                 fts_sql = f"""
@@ -262,7 +269,7 @@ async def search_exact_facts(
                     WHERE exact_facts_fts MATCH ?{time_filter}
                     LIMIT ?
                 """
-                async with conn.execute(fts_sql, (sanitized, *time_params, remaining)) as cursor:
+                async with conn.execute(fts_sql, (sanitized, *scope_params, *time_params, remaining)) as cursor:
                     rows = await cursor.fetchall()
                     for row in rows:
                         mem_id, u_id, cnt, idents_str = row

@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.memory._internal.storage import (
     search_profile,
     search_semantic,
 )
+from myrm_agent_harness.toolkits.memory._internal.storage_converters import doc_to_semantic
 from myrm_agent_harness.toolkits.memory.adaptive import should_use_dual_channel
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.metrics import get_search_metrics
@@ -42,11 +43,10 @@ from myrm_agent_harness.toolkits.memory.types import (
 if TYPE_CHECKING:
     pass
 
-from .base import MemorySearchBase
+from .base import FTS5SearcherFunc, MemorySearchBase
 from .helpers import _stream_warning_code
 
 logger = logging.getLogger(__name__)
-
 
 
 _SUPERSEDED_KEY = "superseded"
@@ -107,7 +107,7 @@ class MemoryCollectionMixin(MemorySearchBase):
             task_stream_map[bm25_task] = "bm25"
 
         if self._fts5_searcher is not None:
-            fts_t = asyncio.create_task(self._fts5_searcher(query, limit, since, until))
+            fts_t = asyncio.create_task(self._search_exact_stream(self._fts5_searcher, query, limit, since, until))
             tasks.append(fts_t)
             task_stream_map[fts_t] = "fts5"
 
@@ -162,6 +162,29 @@ class MemoryCollectionMixin(MemorySearchBase):
                     source_names.append(stream)
         return result_lists, degraded, warning_codes, source_names
 
+    async def _search_exact_stream(
+        self,
+        searcher: FTS5SearcherFunc,
+        query: str,
+        limit: int,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[MemorySearchResult]:
+        """Exact-identifier stream limited to this manager's namespaces.
+
+        The side index only locates candidates. Each hit is replaced by the stored memory so status,
+        scope and timestamps come from the vector store, and an index row whose memory is gone is dropped.
+        """
+        hits = await searcher(query, limit, since, until, namespaces=self._namespaces)
+        if not hits or self._vector is None:
+            return hits
+        docs = await self._vector.get(self._config.semantic_collection, [hit.memory.id for hit in hits])
+        stored = {doc.id: doc for doc in docs}
+        return [
+            hit.model_copy(update={"memory": doc_to_semantic(stored[hit.memory.id])})
+            for hit in hits
+            if hit.memory.id in stored
+        ]
 
     @staticmethod
     def _filter_results(results: list[MemorySearchResult]) -> list[MemorySearchResult]:
@@ -199,7 +222,6 @@ class MemoryCollectionMixin(MemorySearchBase):
                 continue
             filtered.append(result)
         return filtered
-
 
     def _append_type_search_tasks(
         self,
@@ -269,7 +291,6 @@ class MemoryCollectionMixin(MemorySearchBase):
                 until=until,
             )
 
-
     def _append_conversation_tasks(
         self,
         tasks: list[asyncio.Task[list[MemorySearchResult]]],
@@ -323,7 +344,6 @@ class MemoryCollectionMixin(MemorySearchBase):
         )
         tasks.append(t)
         task_stream_map[t] = "conversation"
-
 
     def _should_use_dual_channel(self, query: str) -> bool:
         if not self._config.retrieval.enable_adaptive_channel:

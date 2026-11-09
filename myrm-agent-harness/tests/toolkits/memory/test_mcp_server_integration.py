@@ -69,6 +69,7 @@ def _stores():
     relational.list_profiles = AsyncMock(return_value=[])
     relational.list_rules = AsyncMock(return_value=[])
     relational.count_pending = AsyncMock(return_value=0)
+    relational.search_fts5 = AsyncMock(return_value=[])
     relational.close = AsyncMock()
 
     embedding = AsyncMock()
