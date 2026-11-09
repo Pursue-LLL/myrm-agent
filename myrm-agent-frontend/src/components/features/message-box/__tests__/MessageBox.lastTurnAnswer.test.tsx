@@ -1,7 +1,7 @@
 'use client';
 
 import { act, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import MessageBox from '@/components/features/message-box/MessageBox';
 import type { Message } from '@/store/chat/types';
@@ -130,15 +130,31 @@ describe('MessageBox wake notice rows', () => {
 });
 
 describe('MessageBox developer-mode system prompt row', () => {
+  afterEach(() => {
+    localStorage.removeItem('developer_show_system_messages');
+  });
+
   it('stays hidden until developer mode shows system messages, then carries a localized label', () => {
     const systemPrompt = message('s1', 'system');
     storeMessages.current = [systemPrompt];
     const { container } = render(<MessageBox message={systemPrompt} messageIndex={0} loading={false} isLast={false} />);
     expect(container.innerHTML).toBe('');
 
+    // The developer settings persist the choice first, then announce it.
     act(() => {
+      localStorage.setItem('developer_show_system_messages', 'true');
       window.dispatchEvent(new CustomEvent('developer-mode-changed', { detail: { showSystemMessages: true } }));
     });
+
+    expect(screen.getByText('systemPromptDeveloperMode')).toBeTruthy();
+  });
+
+  it('shows the row from the first render when developer mode is already on', () => {
+    localStorage.setItem('developer_show_system_messages', 'true');
+    const systemPrompt = message('s1', 'system');
+    storeMessages.current = [systemPrompt];
+
+    render(<MessageBox message={systemPrompt} messageIndex={0} loading={false} isLast={false} />);
 
     expect(screen.getByText('systemPromptDeveloperMode')).toBeTruthy();
   });

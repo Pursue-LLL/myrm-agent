@@ -6,6 +6,7 @@
  * ./MarkdownContent (POS: Markdown answer renderer)
  * ./MessageActionBar (POS: Chat assistant message action surface)
  * ./userMessageResend (POS: Resend flows of a user bubble, retry of a failed send and edit-and-resend)
+ * ./useShowSystemMessages (POS: Reader of the developer-mode switch that reveals system-role rows)
  * ./WakeupNoticeRow (POS: Quiet transcript line for a settled background task that did not wake the agent)
  * components/features/task-card/{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
  * @/lib/citations/buildCitationSources (POS: Citation source resolver of an answer; SSOT for which source a marker number names)
@@ -43,6 +44,7 @@ import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
 import { WakeupNoticeRow } from './WakeupNoticeRow';
 import { resendEditedUserMessage, retryFailedUserMessage } from './userMessageResend';
+import { useShowSystemMessages } from './useShowSystemMessages';
 import MarkdownContent from './MarkdownContent';
 import WaitingTtftIndicator from './WaitingTtftIndicator';
 import Suggestions from './Suggestions';
@@ -88,7 +90,7 @@ const MessageBox = ({
   loading: boolean;
   isLast: boolean;
 }) => {
-  const [showSystemMessages, setShowSystemMessages] = useState(false);
+  const showSystemMessages = useShowSystemMessages();
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(() => isLast && loading && !message.content);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const markdownRef = useRef<HTMLDivElement>(null);
@@ -175,19 +177,6 @@ const MessageBox = ({
     <SessionRecordingCard filename={sessionRecordingData.filename} previewUrl={sessionRecordingData.preview_url} />
   ) : null;
 
-  useEffect(() => {
-    const stored = localStorage.getItem('developer_show_system_messages');
-    setShowSystemMessages(stored === 'true');
-
-    const handleDeveloperModeChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ showSystemMessages: boolean }>;
-      setShowSystemMessages(customEvent.detail.showSystemMessages);
-    };
-
-    window.addEventListener('developer-mode-changed', handleDeveloperModeChange);
-    return () => window.removeEventListener('developer-mode-changed', handleDeveloperModeChange);
-  }, []);
-
   // 自动折叠思考过程：只在「思考 → 开始输出正文」这一刻收起一次（延迟 1s，避免刚展开就被夺走）。
   // 不能对每次展开都生效：否则用户在回答结束后想回看思考，会刚点开就被立刻收起（Cursor 曾因此被报 bug）。
   const autoCollapsedReasoningRef = useRef(false);
@@ -207,12 +196,6 @@ const MessageBox = ({
       return () => clearTimeout(timer);
     }
   }, [isReasoningExpanded, message.content, message.reasoning, reasoningDisplayMode]);
-
-  useEffect(() => {
-    if (reasoningDisplayMode === 'inline' && message.reasoning && !isReasoningExpanded) {
-      setIsReasoningExpanded(true);
-    }
-  }, [isReasoningExpanded, message.reasoning, reasoningDisplayMode]);
 
   // Resolves whether the regeneration went through, so the menu keeps a custom instruction that was refused.
   const handleRegenerate = async (instruction?: string): Promise<boolean> => {

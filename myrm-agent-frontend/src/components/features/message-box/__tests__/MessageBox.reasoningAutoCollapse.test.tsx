@@ -3,7 +3,8 @@
 /**
  * 思考块折叠语义：
  * - 只在「思考 → 开始输出正文」这一次自动折叠（延迟 1s）；
- * - 折叠之后用户手动展开，不得再被自动收起（否则永远看不了历史思考）。
+ * - 折叠之后用户手动展开，不得再被自动收起（否则永远看不了历史思考）；
+ * - inline 档位：思考正文始终展开，没有折叠开关，也不会被自动收起。
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +15,7 @@ import type { Message } from '@/store/chat/types';
 const CREATED_AT = new Date('2026-10-13T00:00:00.000Z');
 
 const storeMessages = vi.hoisted(() => ({ current: [] as Message[] }));
+const config = vi.hoisted(() => ({ reasoningDisplayMode: 'collapsed' as 'collapsed' | 'inline' }));
 
 const stableT = (key: string) => key;
 
@@ -34,7 +36,7 @@ vi.mock('@/store/useChatStore', () => ({
 
 vi.mock('@/store/useConfigStore', () => ({
   default: (selector: (state: Record<string, unknown>) => unknown) =>
-    selector({ enableEvalLab: false, reasoningDisplayMode: 'collapsed', personalSettings: {} }),
+    selector({ enableEvalLab: false, reasoningDisplayMode: config.reasoningDisplayMode, personalSettings: {} }),
 }));
 
 vi.mock('@/components/features/message-box/progress-steps/ProgressSteps', () => ({ default: () => null }));
@@ -79,6 +81,7 @@ function reasoningMessage(content: string): Message {
 describe('MessageBox reasoning auto-collapse', () => {
   afterEach(() => {
     vi.useRealTimers();
+    config.reasoningDisplayMode = 'collapsed';
   });
 
   it('collapses once when the answer starts and lets the user reopen it afterwards', () => {
@@ -105,6 +108,37 @@ describe('MessageBox reasoning auto-collapse', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    expect(screen.getByText('先分析需求再作答')).toBeTruthy();
+  });
+
+  it('keeps the reasoning open in inline mode through the answer start, with no toggle to collapse it', () => {
+    vi.useFakeTimers();
+    config.reasoningDisplayMode = 'inline';
+    const thinking = reasoningMessage('');
+    storeMessages.current = [thinking];
+
+    const { rerender } = render(<MessageBox message={thinking} messageIndex={0} loading isLast />);
+    expect(screen.getByText('先分析需求再作答')).toBeTruthy();
+
+    const answered = reasoningMessage('这是回答');
+    storeMessages.current = [answered];
+    rerender(<MessageBox message={answered} messageIndex={0} loading={false} isLast />);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByText('先分析需求再作答')).toBeTruthy();
+    expect(screen.queryByLabelText('expandReasoning')).toBeNull();
+    expect(screen.queryByLabelText('collapseReasoning')).toBeNull();
+  });
+
+  it('shows the reasoning of an already finished message in inline mode without any click', () => {
+    config.reasoningDisplayMode = 'inline';
+    const finished = reasoningMessage('这是回答');
+    storeMessages.current = [finished];
+
+    render(<MessageBox message={finished} messageIndex={0} loading={false} isLast={false} />);
+
     expect(screen.getByText('先分析需求再作答')).toBeTruthy();
   });
 });
