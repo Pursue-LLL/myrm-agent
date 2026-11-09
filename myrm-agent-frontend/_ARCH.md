@@ -9,7 +9,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | 项 | 配置 | 说明 |
 |----|------|------|
 | `@shared/*` | `tsconfig.base.json` paths + `next.config.ts` | 指向 `../shared/*`（`tsconfig.json` 经 `extends` 继承） |
-| `tsconfig` 分层（**不可合并**） | `tsconfig.json`（`extends` + `include`）· `tsconfig.base.json`（`compilerOptions`） | `compilerOptions` **必须**留在 base：Next 的 `writeConfigurationDefaults` 在检测到 `extends` 时会直接跳过配置重写，这正是隔离 lane（`MYRM_NEXT_DIST_DIR=.next-isolated-*`）无法再把 lane 路径写进被 git 追踪的 `tsconfig.json` 的原因。把 `compilerOptions` 合回根文件会立刻让门禁瞬态假红与脏 glob 入库复发（见 `git show c717c6b250:BUGFIX_LOG.md` 里的 BUG-AGENT-2026-09-17-003） |
+| `tsconfig` 分层（**不可合并**） | `tsconfig.json`（`extends` + `include`）· `tsconfig.base.json`（`compilerOptions`） | `compilerOptions` **必须**留在 base：Next 的 `writeConfigurationDefaults` 在检测到 `extends` 时会直接跳过配置重写，这正是隔离 lane（`MYRM_NEXT_DIST_DIR=.next-isolated-*`）无法再把 lane 路径写进被 git 追踪的 `tsconfig.json` 的原因。把 `compilerOptions` 合回根文件会立刻让门禁瞬态假红与脏 glob 入库复发 |
 | `locales` include 范围（**必须是 `locales/*.json`**） | `tsconfig.json` `include` | 只纳入 6 个**被 git 追踪**的顶层 locale。**禁止**改回 `locales/**/*.json`：`locales/namespaces/` 是 .gitignore 忽略的生成目录（3157+ 文件，i18n 脚本持续写入），全量 glob 会让 `check_typescript_strict.py` 在生成中途命中 `TS6053 File not found`，被无差别计数当成真实类型错误，导致门禁随机假红。`src/**` 对所需 namespace JSON 的静态 import 仍会被 TS 自动纳入，故无覆盖面损失 |
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
