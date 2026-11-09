@@ -41,7 +41,6 @@ def make_manager() -> AsyncMock:
     manager._vec_store = vector
 
     relational = AsyncMock()
-    relational.list_rules = AsyncMock(return_value=[])
     relational.get_profile = AsyncMock(return_value=None)
     relational.set_profile = AsyncMock()
     manager._rel = MagicMock(return_value=relational)

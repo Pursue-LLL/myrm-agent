@@ -12,7 +12,7 @@ Relational Store — abstract interface and SQLite implementation.
 | _exact_fact_store.py | Internal | Zero-loss SQLite storage and FTS5 inverted search handler for exact facts (UUIDs, SHAs, SemVer, config keys). | ✅ |
 | _pending_mixin.py | Internal | Pending-record (approval queue) operations of `SQLiteRelationalStore`: submit, resolve, list, count, and delete or count by source chat. | ✅ |
 | _profile_mixin.py | Internal | Profile operations of `SQLiteRelationalStore`: namespace-scoped get, snapshot with a revision hash, upsert, delete, list and count; the maintenance code's `_system.` bookkeeping rows are never listed or counted. | ✅ |
-| _rule_mixin.py | Internal | Procedural-rule operations of `SQLiteRelationalStore`: create (a rule that carries its store stamp keeps it as its creation time), get, search, list, count, update and delete, tool-scoped fields included. | ✅ |
+| _rule_mixin.py | Internal | Procedural-rule operations of `SQLiteRelationalStore`: create, get, search, list, count, update and delete, tool-scoped fields included. | ✅ |
 | _schema.py | Internal | Table DDL, legacy scope-column migration and index creation for `SQLiteRelationalStore`; reports FTS5 support. | ✅ |
 | _store_host.py | Internal | Type-checking-only host contract (connection, error and scope helpers) the three operation mixins rely on; `object` at runtime. | ✅ |
 | base.py | Core | Relational store abstraction layer. Defines a backend-agnostic relational storage interface | ✅ |

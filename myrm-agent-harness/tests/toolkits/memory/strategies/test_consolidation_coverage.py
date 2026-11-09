@@ -15,7 +15,6 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.config import ConsolidationConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
-from myrm_agent_harness.toolkits.memory.strategies import consolidation_window
 from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
     ConsolidationResponse,
     MergeOp,
@@ -28,7 +27,6 @@ from myrm_agent_harness.toolkits.memory.strategies.consolidation_window import f
 from myrm_agent_harness.toolkits.memory.types import ProceduralMemory, SemanticMemory
 from myrm_agent_harness.toolkits.vector.base import FilterDict, VectorDocument
 from tests.support.consolidation_seeds import (
-    BASE,
     GLOBAL,
     HORIZON,
     NewManager,
@@ -182,23 +180,6 @@ async def test_a_batch_that_decodes_to_nothing_holds_the_stamp_until_a_memory_ca
     assert recovered.advance_to == HORIZON
 
 
-async def test_unreadable_rules_hold_the_stamp_but_still_yield_the_memories(
-    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    manager = new_manager()
-    await seed(manager, [semantic("fact", 1)])
-
-    async def unreachable(**_: object) -> list[ProceduralMemory]:
-        raise RuntimeError("rule store unreachable")
-
-    monkeypatch.setattr(manager._rel(), "list_rules", unreachable)
-
-    window = await fetch_candidate_window(manager, None, 100, HORIZON)
-
-    assert [m.content for m in window.memories] == ["fact"]
-    assert window.advance_to is None
-
-
 async def test_a_source_that_was_never_written_is_empty_not_unreadable(new_manager: NewManager) -> None:
     manager = new_manager()
     await seed(manager, [semantic("fact", 1)])
@@ -209,75 +190,30 @@ async def test_a_source_that_was_never_written_is_empty_not_unreadable(new_manag
     assert window.advance_to == HORIZON
 
 
-async def test_a_rule_is_a_candidate_only_when_created_after_the_stamp_and_by_the_horizon(
-    new_manager: NewManager,
-) -> None:
-    manager = new_manager()
-    rule = ProceduralMemory(content="When: asked → Do: answer", trigger="asked", action="answer", scope=GLOBAL)
-    await manager._rel().create_rule(rule)
-    after_the_rule = datetime.now(UTC) + timedelta(minutes=1)
-
-    since_before = await fetch_candidate_window(manager, BASE, 100, after_the_rule)
-    since_after = await fetch_candidate_window(manager, after_the_rule, 100, after_the_rule + timedelta(minutes=1))
-    before_the_rule = await fetch_candidate_window(manager, BASE, 100, HORIZON)
-
-    assert [m.content for m in since_before.memories] == ["When: asked → Do: answer"]
-    assert since_after.memories == []
-    assert before_the_rule.memories == []
-
-
-async def test_a_deactivated_rule_never_reaches_the_window(new_manager: NewManager) -> None:
-    manager = new_manager()
-    active = ProceduralMemory(content="When: on → Do: act", trigger="on", action="act", scope=GLOBAL)
-    deactivated = ProceduralMemory(
-        content="When: off → Do: act", trigger="off", action="act", scope=GLOBAL, is_active=False
-    )
-    await manager._rel().create_rule(active)
-    await manager._rel().create_rule(deactivated)
-
-    window = await fetch_candidate_window(manager, BASE, 100, datetime.now(UTC) + timedelta(minutes=1))
-
-    assert [m.content for m in window.memories] == ["When: on → Do: act"]
-
-
-async def test_every_rule_is_covered_however_many_the_library_holds(
-    new_manager: NewManager, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    manager = new_manager()
-    # More rules than one default ``list_rules`` read returns (1000) and than one page (300 here), so neither a
-    # single read nor the first page alone covers the library, and the stamp must not move past a rule they leave out.
-    monkeypatch.setattr(consolidation_window, "_RULE_PAGE_SIZE", 300)
-    rules = [
-        ProceduralMemory(content=f"When: ask {i:04d} → Do: answer", trigger=f"ask {i:04d}", action="answer")
-        for i in range(1100)
-    ]
-    await manager.store_batch(rules, _bypass_approval=True, _skip_dedup=True)
-    horizon = datetime.now(UTC) + timedelta(minutes=1)
-
-    covered: list[str] = []
-    since: datetime | None = None
-    while (window := await fetch_candidate_window(manager, since, 100, horizon)).memories:
-        covered.extend(m.content for m in window.memories)
-        assert window.advance_to is not None
-        since = window.advance_to
-
-    assert sorted(covered) == sorted(rule.content for rule in rules)
-
-
-async def test_a_run_covers_only_the_memories_and_rules_of_its_own_scope(new_manager: NewManager) -> None:
+async def test_a_run_covers_only_the_memories_of_its_own_scope(new_manager: NewManager) -> None:
     mine, other = new_manager(), new_manager(["agent:other"])
     await mine.store(SemanticMemory(content="fact of mine"), _bypass_approval=True)
-    await mine.store(
-        ProceduralMemory(content="When: mine → Do: act", trigger="mine", action="act"), _bypass_approval=True
-    )
     await other.store(SemanticMemory(content="fact of the other agent"), _bypass_approval=True)
-    await other.store(
-        ProceduralMemory(content="When: other → Do: act", trigger="other", action="act"), _bypass_approval=True
-    )
 
     window = await fetch_candidate_window(mine, None, 100, datetime.now(UTC) + timedelta(minutes=1))
 
-    assert [m.content for m in window.memories] == ["fact of mine", "When: mine → Do: act"]
+    assert [m.content for m in window.memories] == ["fact of mine"]
+
+
+async def test_rules_never_reach_the_window_and_never_hold_the_stamp(new_manager: NewManager) -> None:
+    manager = new_manager()
+    await seed(manager, [semantic("fact", 1)])
+    await manager.store(
+        ProceduralMemory(content="When: asked → Do: answer", trigger="asked", action="answer"), _bypass_approval=True
+    )
+    await manager._rel().create_rule(
+        ProceduralMemory(content="When: later → Do: act", trigger="later", action="act", scope=GLOBAL)
+    )
+
+    window = await fetch_candidate_window(manager, None, 100, HORIZON)
+
+    assert [m.content for m in window.memories] == ["fact"]
+    assert window.advance_to == HORIZON
 
 
 async def test_consecutive_runs_drain_a_backlog_and_leave_the_stamp_at_the_latest_settled_instant(

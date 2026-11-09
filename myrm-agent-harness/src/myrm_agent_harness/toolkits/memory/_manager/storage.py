@@ -67,7 +67,7 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
     def _apply_channel_affinity(self, results: list[MemorySearchResult]) -> list[MemorySearchResult]:
         return apply_channel_affinity(results, current_channel_id=self._scope.channel_id)
 
-    # Every path that creates a new document persists under ``persisting``: it stamps the memory with its
+    # Every path that creates a new vector document persists under ``persisting``: it stamps the memory with its
     # arrival and registers the write until it is visible, which is what consolidation's cursor relies on.
 
     async def _store_semantic(self, memory: SemanticMemory) -> SemanticMemory:
@@ -222,12 +222,10 @@ class MemoryManagerStorageMixin(MemoryManagerHost):
         )
 
     async def _store_procedural(self, memory: ProceduralMemory) -> ProceduralMemory:
-        with persisting([memory]):
-            return await self._rel().create_rule(memory)
+        return await self._rel().create_rule(memory)
 
     async def _store_procedurals_batch(self, memories: list[ProceduralMemory]) -> list[ProceduralMemory]:
-        with persisting(memories):
-            return [await self._rel().create_rule(m) for m in memories]
+        return [await self._rel().create_rule(m) for m in memories]
 
     async def _run_consolidation_safe(self, cfg: ConsolidationConfig) -> None:
         """Run consolidation in background, swallowing all exceptions."""
