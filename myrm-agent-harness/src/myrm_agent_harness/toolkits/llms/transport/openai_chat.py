@@ -22,6 +22,10 @@ usage reader looks for them (``prompt_tokens_details.cached_tokens``), and a fai
 status (an ``error`` object, MiniMax's ``base_resp`` code, an ``error`` finish reason) is raised, never read as an
 answer. The adapter reads the dict directly, so nothing is re-parsed into SDK models; ``chat_shape`` evens out the
 shape differences between gateways afterwards.
+Azure OpenAI addresses a deployment: chat goes to ``/openai/deployments/{model}``, the Responses API to ``/openai/v1``
+for the ``preview``, ``latest`` and ``v1`` versions and to ``/openai`` for a dated one. The ``api-version`` is the
+call's, else ``AZURE_API_VERSION`` (chat only), else ``AZURE_DEFAULT_API_VERSION`` (the Responses API defaults to
+``preview``). A resource key travels as ``api-key``; a Microsoft Entra token, when given, is the only credential sent.
 """
 
 from __future__ import annotations

@@ -1,7 +1,9 @@
 # llms/
 
 ## Overview
-Toolkits Llms module.
+The LLM layer. `transport/` reaches every provider over `httpx` without a provider SDK, `catalog/` holds the model facts,
+`core/` is the model factory and credential pool, `adapters/` fit the transport to LangChain, `errors/` classifies failures,
+`fallback/` switches models on failure, `routing/` picks a model before the agent runs, and `image/`, `video/`, `tts/` and `vision/` are the media engines.
 
 Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>_<end>_BUGFIX_LOG.md` in this directory, one file per 7-day window.
 
@@ -28,6 +30,8 @@ Bug ledgers (local-only: git-ignored and excluded from the wheel): `llms_<start>
 | core/ | LLM core: LLM classes, strategy-aware manager, and credential pool. |
 | errors/ | LLM error processing layer: three-tier error classification, fault-tolerant calls, and standardized  |
 | fallback/ | Enhanced model fallback management. Contains ManagedLLM with Direct Preflight Guard (zero-cost local token overflow prevention), cooldown periods, candidate pools, and decision logging. Health probe is structured (`probe_llm_health` → `HealthProbeResult`): it separates a deadline miss (`timeout`) from an upstream rejection (`provider_error`) and keeps the provider's own reason, so callers can explain an unreachable model instead of reporting a flat "no response" |
+| rate_limit/ | Proactive rate-limit tracking: provider rate-limit headers parsed into bucket state, kept by an in-memory tracker. See [rate_limit/_ARCH.md](rate_limit/_ARCH.md). |
+| reliability/ | Jittered retry delays (`calculate_jittered_delay`) and the long adaptive ladder for PAAS overload errors. See [reliability/_ARCH.md](reliability/_ARCH.md). |
 | image/ | Image submodule. |
 | routing/ | Pre-agent routing layer: task complexity routing and privacy routing. |
 | utils/ | LLM toollayer: JSON handles, modelparameter, log |

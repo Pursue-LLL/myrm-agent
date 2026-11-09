@@ -15,8 +15,8 @@ Facade over the wires: resolve the route, let the wire build the provider reques
 in the OpenAI chat shape (dict, or an iterator of chunk dicts when streaming); ``chat_shape`` guarantees that shape
 whichever wire or gateway produced the answer. It keeps no answers and no state of its own, so one instance serves every
 model and thread and every call reaches the provider: a stored answer would stand in for a key the provider has since
-revoked or an endpoint that has gone away. Connection pools live in ``http``. It exposes the same four calls and keyword
-arguments the chat adapter has always issued, which keeps the adapter's retry, failover and recovery logic untouched.
+revoked or an endpoint that has gone away. Connection pools live in ``http``. The four calls (``completion`` /
+``acompletion``, ``responses`` / ``aresponses``) take the chat adapter's OpenAI-shaped keyword arguments as they are.
 A wire that resolves AWS credentials while it builds a request (Bedrock without an API key) builds it off the event loop.
 """
 
