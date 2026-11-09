@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+import pytest
 from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
 
 from app.core.utils.delivery_provenance import (
@@ -55,10 +56,29 @@ def test_resolve_general_agent_pipeline_unknown_uses_fallback_ingress() -> None:
     )
 
 
-def test_apply_general_agent_pipeline_banner_matches_cron() -> None:
-    out = cast(str, apply_general_agent_pipeline_banner("hi", channel_name="cron"))
-    assert "channel=cron" in out
-    assert "ingress=cron_scheduler" in out
+@pytest.mark.parametrize(
+    ("channel_name", "labels"),
+    [
+        ("cron", "channel=cron ingress=cron_scheduler"),
+        ("eval", "channel=eval ingress=eval_runner"),
+        ("headless_wakeup", "channel=headless_wakeup ingress=async_wake_consumer"),
+        ("slack", "channel=slack ingress=server_pipeline"),
+    ],
+)
+def test_every_channel_but_the_browser_chat_is_bannered_with_its_labels(channel_name: str, labels: str) -> None:
+    out = cast(str, apply_general_agent_pipeline_banner("hi", channel_name=channel_name))
+
+    assert out.startswith(f"[Inbound channel message] {labels}\n")
+    assert out.endswith("\n\nhi")
+
+
+@pytest.mark.parametrize("channel_name", ["web_chat", "", "  "])
+def test_a_browser_chat_turn_is_left_as_typed(channel_name: str) -> None:
+    blocks: list[object] = [{"type": "text", "text": "look"}, {"type": "image_url", "image_url": {}}]
+
+    assert apply_general_agent_pipeline_banner("hello", channel_name=channel_name) == "hello"
+    assert apply_general_agent_pipeline_banner(blocks, channel_name=channel_name) == blocks
+    assert apply_general_agent_pipeline_banner(None, channel_name=channel_name) is None
 
 
 def test_apply_delivery_http_gui_alias_str_idempotent() -> None:
@@ -83,15 +103,24 @@ def test_apply_delivery_banner_multimodal_text_first_block() -> None:
 _WIRE = "[use hookprobe-1a2b3c4d] Run exactly this command: echo HOOK-E2E-OK"
 
 
-def test_web_chat_banner_keeps_the_skill_invocation_recognizable() -> None:
-    """The text a browser turn hands to SkillAgent.run must still parse as the user's explicit invocation."""
-    received = cast(str, apply_general_agent_pipeline_banner(_WIRE, channel_name="web_chat"))
+def test_a_channel_banner_keeps_the_skill_invocation_recognizable() -> None:
+    """The text a bannered turn hands to SkillAgent.run must still parse as the user's explicit invocation."""
+    received = cast(str, apply_general_agent_pipeline_banner(_WIRE, channel_name="cron"))
 
     invocation = parse_use_tag(received)
     assert invocation is not None
     assert invocation.references == ("hookprobe-1a2b3c4d",)
-    assert invocation.text.startswith("[Inbound channel message] channel=http_gui ingress=browser_sse")
+    assert invocation.text.startswith("[Inbound channel message] channel=cron ingress=cron_scheduler")
     assert invocation.text.endswith("Run exactly this command: echo HOOK-E2E-OK")
+
+
+def test_a_browser_chat_skill_invocation_reaches_the_agent_as_typed() -> None:
+    received = cast(str, apply_general_agent_pipeline_banner(_WIRE, channel_name="web_chat"))
+
+    assert received == _WIRE
+    invocation = parse_use_tag(received)
+    assert invocation is not None
+    assert invocation.references == ("hookprobe-1a2b3c4d",)
 
 
 def test_banner_goes_first_when_there_is_no_skill_invocation() -> None:
