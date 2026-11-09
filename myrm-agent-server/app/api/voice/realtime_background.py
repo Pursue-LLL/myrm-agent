@@ -281,7 +281,7 @@ async def _execute_cancel_reminder(req: RealtimeToolExecRequest) -> RealtimeTool
                 )
             )
 
-        success = await mgr.delete_job("default", target_job.id)
+        success = await mgr.delete_job(target_job.id, "default")
         return RealtimeToolExecResponse(
             result=json.dumps(
                 {
