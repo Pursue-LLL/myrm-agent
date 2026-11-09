@@ -2,8 +2,8 @@
 
 Responsibilities:
 - Unified management of all domain learning metrics (web_fetch + browser)
-- Provides domain-level cost learning, failure decay, and wait strategy data
-- JSON serialization persistence (with file lock support)
+- Provides domain-level failure decay and wait strategy data
+- JSON serialization persistence (with file lock support), saved and cleaned up on a schedule as the store is used
 
 Architecture:
 - Framework layer adapts to deployment scenarios via parameter injection
@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import threading
 import time
 from pathlib import Path
@@ -44,6 +43,8 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
 logger = logging.getLogger(__name__)
+
+_CLEANUP_INTERVAL_SECONDS = 3600
 
 _global_domain_metrics_manager: DomainMetricsManager | None = None
 
@@ -61,7 +62,7 @@ class DomainMetricsManager:
 
     Core capabilities:
     - Domain-level metric storage and retrieval
-    - Async background persistence (reuses AdaptiveRouter async save mechanism)
+    - Async background persistence, scheduled lazily whenever the store is used
     - StorageProvider support (cloud storage S3/R2/GCS)
     - File lock support (local filesystem multi-process scenarios)
     - Auto-cleanup of expired domains (7 days inactive)
@@ -74,7 +75,7 @@ class DomainMetricsManager:
           local file mode loads synchronously in __init__.
 
     Concurrency model:
-    - Read-write lock protects in-memory data structures
+    - Re-entrant lock protects in-memory data structures
     - File lock protects local JSON file (multi-process scenarios)
     """
 
@@ -115,6 +116,7 @@ class DomainMetricsManager:
         self._saver_task: asyncio.Task[None] | None = None
         self._shutdown_event = threading.Event()
         self._last_save_time = time.time()
+        self._last_cleanup_time = time.time()
 
         # Local file mode: synchronous load
         # StorageProvider mode: deferred async load (cache nature)
@@ -245,7 +247,8 @@ class DomainMetricsManager:
             logger.error(f"Failed to save metrics to StorageProvider after retries: {self._storage_key}", exc_info=True)
 
     def get_or_create(self, domain: str) -> DomainMetrics:
-        """Get or create domain metrics (thread-safe)."""
+        """Get or create domain metrics (thread-safe); also runs the scheduled save and cleanup."""
+        self._maintain()
         with self._lock:
             if domain not in self._metrics:
                 self._metrics[domain] = DomainMetrics(domain=domain)
@@ -254,6 +257,28 @@ class DomainMetricsManager:
                     self._evict_lru()
 
             return self._metrics[domain]
+
+    def record_failure(self, domain: str, fetcher_type: FetcherType) -> None:
+        """Record a failed fetch attempt of a tier on a domain."""
+        self.get_or_create(domain).record_failure(fetcher_type)
+
+    def _maintain(self) -> None:
+        """Run the scheduled save (every ``save_interval_minutes``) and cleanup (hourly).
+
+        Nothing else drives them, so they are checked whenever the store is used.
+        """
+        now = time.time()
+        with self._lock:
+            save_due = now - self._last_save_time >= self._save_interval_minutes * 60
+            cleanup_due = now - self._last_cleanup_time >= _CLEANUP_INTERVAL_SECONDS
+            if save_due:
+                self._last_save_time = now
+            if cleanup_due:
+                self._last_cleanup_time = now
+        if save_due:
+            self.request_save()
+        if cleanup_due:
+            self.cleanup_inactive_domains()
 
     def get(self, domain: str) -> DomainMetrics | None:
         """Get domain metrics (read-only, thread-safe)."""
@@ -293,13 +318,6 @@ class DomainMetricsManager:
                 else:
                     await asyncio.to_thread(self._save_metrics)
 
-    def maybe_periodic_save(self) -> None:
-        """Periodic save check (called by AdaptiveRouter)."""
-        now = time.time()
-        if now - self._last_save_time > self._save_interval_minutes * 60:
-            self.request_save()
-            self._last_save_time = now
-
     def cleanup_inactive_domains(self) -> None:
         """Clean up long-inactive domains."""
         now = time.time()
@@ -334,170 +352,3 @@ class DomainMetricsManager:
             await self._save_metrics_async()
         else:
             await asyncio.to_thread(self._save_metrics)
-
-    def get_stats(self) -> dict[str, object]:
-        """Get aggregate statistics."""
-        with self._lock:
-            if not self._metrics:
-                return {
-                    "total_domains": 0,
-                    "storage_path": str(self._storage_path),
-                    "use_file_lock": self._use_file_lock,
-                }
-
-            success_rates = []
-            latencies = []
-            smart_adjustments = 0
-            smart_skips = 0
-            total_memory_kb = 0.0
-
-            per_fetcher_stats: dict[str, dict[str, float | int]] = {}
-            for ft in FetcherType:
-                per_fetcher_stats[ft.name] = {
-                    "total_requests": 0,
-                    "success_requests": 0,
-                    "success_rate": 0.0,
-                    "avg_success_latency_ms": 0.0,
-                }
-
-            for _domain, metrics in self._metrics.items():
-                for ft in FetcherType:
-                    rate = metrics.get_success_rate(ft)
-                    if rate != 0.8:
-                        success_rates.append(rate)
-
-                    avg_latency = metrics.get_average_latency(ft)
-                    if avg_latency:
-                        latencies.append(avg_latency)
-
-                    per_fetcher_stats[ft.name]["total_requests"] += metrics.fetcher_total_counts[ft]
-                    per_fetcher_stats[ft.name]["success_requests"] += metrics.fetcher_success_counts[ft]
-
-                timeout = metrics.get_smart_fast_timeout()
-                if timeout is not None:
-                    smart_adjustments += 1
-                elif metrics.should_skip_smart_fast_path():
-                    smart_skips += 1
-
-                domain_size = (
-                    sum(len(dq) for dq in metrics.fetcher_latencies.values())
-                    + sum(len(dq) for dq in metrics.fetcher_success_latencies.values())
-                    + sum(len(dq) for dq in metrics.wait_strategy_latencies.values())
-                    + sum(len(dq) for dq in metrics.failure_timestamps.values())
-                ) * 8
-                total_memory_kb += domain_size / 1024
-
-            for ft in FetcherType:
-                total = per_fetcher_stats[ft.name]["total_requests"]
-                success = per_fetcher_stats[ft.name]["success_requests"]
-                if total > 0:
-                    per_fetcher_stats[ft.name]["success_rate"] = success / total
-
-                all_success_latencies: list[float] = []
-                for metrics in self._metrics.values():
-                    success_lats = metrics.fetcher_success_latencies.get(ft)
-                    if success_lats:
-                        all_success_latencies.extend(success_lats)
-
-                if all_success_latencies:
-                    per_fetcher_stats[ft.name]["avg_success_latency_ms"] = sum(all_success_latencies) / len(
-                        all_success_latencies
-                    )
-
-            success_rates_sorted = sorted(success_rates) if success_rates else []
-            latencies_sorted = sorted(latencies) if latencies else []
-
-            return {
-                "total_domains": len(self._metrics),
-                "storage_path": str(self._storage_path),
-                "use_file_lock": self._use_file_lock,
-                "success_rate_p50": success_rates_sorted[len(success_rates_sorted) // 2]
-                if success_rates_sorted
-                else None,
-                "success_rate_p90": success_rates_sorted[int(len(success_rates_sorted) * 0.9)]
-                if success_rates_sorted
-                else None,
-                "latency_p50_ms": latencies_sorted[len(latencies_sorted) // 2] if latencies_sorted else None,
-                "latency_p90_ms": latencies_sorted[int(len(latencies_sorted) * 0.9)] if latencies_sorted else None,
-                "smart_adjustments": smart_adjustments,
-                "smart_skips": smart_skips,
-                "total_memory_kb": int(total_memory_kb),
-                "top_domains": sorted(
-                    [(d, m.total_accesses) for d, m in self._metrics.items()],
-                    key=lambda x: x[1],
-                    reverse=True,
-                )[:10],
-                "per_fetcher": per_fetcher_stats,
-            }
-
-    def reset_domain(self, domain: str) -> bool:
-        """Reset domain learning data (for correcting erroneous learning).
-
-        Returns:
-            bool: Whether the domain existed and was reset
-        """
-        with self._lock:
-            if domain in self._metrics:
-                del self._metrics[domain]
-                logger.info(f"Reset domain metrics: {domain}")
-                self.request_save()
-                return True
-            return False
-
-    def export_metrics(self, path: str | Path) -> None:
-        """Export domain metrics to a specified path (for backup and migration)."""
-        export_path = Path(path)
-        with self._lock:
-            snapshot = {domain: metrics.to_dict() for domain, metrics in self._metrics.items()}
-
-        export_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(export_path, "w", encoding="utf-8") as f:
-            json.dump(snapshot, f, indent=2)
-        os.chmod(export_path, 0o600)
-        logger.info(f"Exported {len(snapshot)} domain metrics to {export_path}")
-
-    def import_metrics(self, path: str | Path, merge: bool = True) -> int:
-        """Import domain metrics from a specified path.
-
-        Args:
-            path: Import file path
-            merge: True=merge into existing data, False=replace existing data
-
-        Returns:
-            int: Number of domains imported
-        """
-        import_path = Path(path)
-        if not import_path.exists():
-            logger.error(f"Import file not found: {import_path}")
-            return 0
-
-        with open(import_path, encoding="utf-8") as f:
-            data = json.load(f)
-            imported_metrics = {domain: DomainMetrics.from_dict(metrics_data) for domain, metrics_data in data.items()}
-
-        with self._lock:
-            if merge:
-                for domain, metrics in imported_metrics.items():
-                    if domain not in self._metrics or metrics.last_access > self._metrics[domain].last_access:
-                        self._metrics[domain] = metrics
-            else:
-                self._metrics = imported_metrics
-
-        count = len(imported_metrics)
-        logger.info(f"Imported {count} domain metrics from {import_path} (merge={merge})")
-        self.request_save()
-        return count
-
-    def clear_all(self) -> int:
-        """Clear all domain learning data (full reset).
-
-        Returns:
-            int: Number of domains cleared
-        """
-        with self._lock:
-            count = len(self._metrics)
-            self._metrics.clear()
-            self.request_save()
-
-        logger.info(f"Cleared all domain metrics: {count} domains")
-        return count

@@ -125,7 +125,7 @@ Real Chromium tests under `tests/toolkits/browser/` must carry `integration` or 
    其他驱动错误仍抛出、混合探针被打断后不遗留任务、"没有历史"与"networkidle 实测不可靠"的分流）与
    `test_navigation_during_wait_integration.py`（真 Chromium：域名 networkidle 历史差，走混合探针，页面 300 ms 后自己跳转）是证据。
    域名历史是按 `host:port` 记账的进程单例，环回夹具的临时端口会撞上更早的测试，所以 conftest 的
-   `_isolate_domain_metrics` 在每个测试前后清掉它，`tests/toolkits/web_fetch/test_global_domain_metrics_isolation.py` 钉住这一点；
+   `_isolate_domain_state` 在每个测试前后清掉它（连同按域名记账的层级熔断器），`tests/toolkits/web_fetch/test_global_domain_state_isolation.py` 钉住这一点；
    `test_domain_metrics_fast_path.py` 钉住"样本不足不等于要跳过快速路径"。
 
 ## Key Dependencies

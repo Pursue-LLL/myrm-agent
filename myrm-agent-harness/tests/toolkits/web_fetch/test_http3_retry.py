@@ -228,12 +228,12 @@ async def test_engine_cache_metrics_exposes_http3_retry() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_engine_skips_browser_when_l1_http_succeeds(tmp_path: Path) -> None:
+async def test_fetch_engine_skips_browser_when_l1_http_succeeds() -> None:
     from langchain_core.documents import Document
 
     from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetcherType
 
-    engine = FetchEngine(adaptive_router_rules_file=tmp_path / "router.pkl")
+    engine = FetchEngine()
     browser_fetch = AsyncMock(return_value=None)
 
     async def mock_try_and_report(
@@ -758,10 +758,10 @@ async def test_http3_probe_real_exception_path(install_fake_scrapling: AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_fetch_engine_escalates_browser_when_l1_fails(tmp_path: Path) -> None:
+async def test_fetch_engine_escalates_browser_when_l1_fails() -> None:
     from langchain_core.documents import Document
 
-    engine = FetchEngine(adaptive_router_rules_file=tmp_path / "router.pkl")
+    engine = FetchEngine()
     browser_doc = Document(page_content="Browser fallback", metadata={"url": "https://blocked.example/article"})
     fetcher_types: list[FetcherType] = []
 

@@ -81,24 +81,33 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         reset_subagent_checkpointer()
 
 
-def _drop_domain_metrics_manager() -> None:
-    module = sys.modules.get("myrm_agent_harness.toolkits.web_fetch.router.domain_metrics")
-    if module is not None:
-        module.__dict__["_global_domain_metrics_manager"] = None
+_PROCESS_DOMAIN_STATE = (
+    ("myrm_agent_harness.toolkits.web_fetch.router.domain_metrics", "_global_domain_metrics_manager"),
+    ("myrm_agent_harness.toolkits.web_fetch.router.tier_breaker", "_global_tier_breaker"),
+)
+
+
+def _drop_process_domain_state() -> None:
+    for module_name, attribute in _PROCESS_DOMAIN_STATE:
+        module = sys.modules.get(module_name)
+        if module is not None:
+            module.__dict__[attribute] = None
 
 
 @pytest.fixture(autouse=True)
-def _isolate_domain_metrics() -> Iterator[None]:
-    """Start every test with an empty process-wide domain metrics manager.
+def _isolate_domain_state() -> Iterator[None]:
+    """Start every test with empty process-wide domain state: the metrics manager and the tier breaker.
 
     Wait-strategy learning is kept per ``host:port`` for the life of the process, and loopback test
     servers draw their ports from the OS ephemeral range. Without this, a test can land on a port an
-    earlier one already taught the manager about and silently take another wait path. A module that was
-    never imported holds no manager, so nothing is imported here.
+    earlier one already taught the manager about and silently take another wait path. The tier breaker
+    likewise remembers which tier failed on a domain, so a crawl of a shared test host would start on a
+    tier an earlier test taught it to skip. A module that was never imported holds no state, so nothing
+    is imported here.
     """
-    _drop_domain_metrics_manager()
+    _drop_process_domain_state()
     yield
-    _drop_domain_metrics_manager()
+    _drop_process_domain_state()
 
 
 @pytest.fixture(autouse=True)

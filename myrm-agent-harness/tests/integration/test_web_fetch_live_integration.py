@@ -8,7 +8,6 @@ running interpreter — the server venv (``./myrm-dev test``) has it.
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -35,33 +34,27 @@ def _load_env_test() -> None:
 _load_env_test()
 
 
-def _make_engine(tmpdir: str) -> FetchEngine:
-    return FetchEngine(adaptive_router_rules_file=Path(tmpdir) / "rules.pkl")
-
-
 class TestRealCrawl:
     @pytest.mark.asyncio
     async def test_crawl_public_url_returns_document(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            engine = _make_engine(tmp)
-            try:
-                doc = await engine.crawl("https://example.com/", max_chars=2000)
-                assert doc is not None
-                assert doc.page_content.strip()
-            finally:
-                await engine.shutdown()
+        engine = FetchEngine()
+        try:
+            doc = await engine.crawl("https://example.com/", max_chars=2000)
+            assert doc is not None
+            assert doc.page_content.strip()
+        finally:
+            await engine.shutdown()
 
     @pytest.mark.asyncio
     async def test_crawl_respects_fail_cache_on_error(self) -> None:
         # 私有 IP 在 fetcher 之前被 SSRF 拦截，fail cache 不记录（不产生副作用）
-        with tempfile.TemporaryDirectory() as tmp:
-            engine = _make_engine(tmp)
-            try:
-                doc = await engine.crawl("http://192.168.1.1/")
-                assert doc is None
-                assert await engine.crawl("http://192.168.1.1/") is None
-            finally:
-                await engine.shutdown()
+        engine = FetchEngine()
+        try:
+            doc = await engine.crawl("http://192.168.1.1/")
+            assert doc is None
+            assert await engine.crawl("http://192.168.1.1/") is None
+        finally:
+            await engine.shutdown()
 
 
 class TestSecureGetRealHttp:

@@ -5,14 +5,14 @@ Three-tier architecture:
   L2 BrowserFetcher (Patchright + GlobalBrowserPool, ~1-3 s)
   L3 StealthFetcher (Patchright + BrowserForge, ~3-5 s)
 
-Router: AdaptiveRouter (zero-config, self-learning, self-healing)
+Tier breaker: a domain's L1/L2 tier that a higher tier keeps making up for is skipped, and probed again now and then
 Cache: In-memory LRU (default 1 h TTL, 500 entries, 100 MB cap)
   - Request coalescing: concurrent requests for the same URL trigger only one network call (30 s timeout guard)
   - URL normalisation: strips 35+ tracking params for better hit rate
   - HTTP conditional requests: sends ETag / Last-Modified on cache expiry to save bandwidth
   - Stale-While-Revalidate: returns stale cache immediately, refreshes via background priority queue (30 s timeout)
   - Cache warm-up: concurrent pre-warming with exponential back-off retry
-Boundary: single-sandbox, single-process semantics; router persistence path is injected config.
+Boundary: single-sandbox, single-process semantics; tier breaker state lives in memory, per process.
 
 [INPUT]
 web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher with optional HTTP/3 retry)
@@ -20,17 +20,18 @@ web_fetch.fetchers.browser_fetcher::BrowserFetcher (POS: L2 browser-based fetche
 web_fetch.fetchers.protocol::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
 web_fetch.probe.http3_probe::get_http3_retry_metrics (POS: QUIC egress probe and L1 retry metrics)
-web_fetch.router.adaptive_router::AdaptiveRouter (POS: Self-learning fetcher router)
+web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
+web_fetch.router.domain_metrics::get_global_domain_metrics_manager (POS: Per-domain failure history behind the staleness hint)
 web_fetch.youtube_extractor::is_youtube_url, extract_youtube_transcript (POS: YouTube transcript fast-path extractor with oEmbed metadata)
 browser.pool.proxy::ProxyPool (POS: Proxy pool for browser fetchers)
 browser.domain_filter::DomainAllowlist (POS: Domain allowlist filter)
 utils.lru_cache::LRUCache (POS: Generic TTL-based LRU cache)
 
 [OUTPUT]
-FetchEngine: Layered fetch engine with adaptive routing, caching, and request coalescing
+FetchEngine: Layered fetch engine with a tier breaker, caching, and request coalescing
 
 [POS]
-Core fetch engine. Orchestrates L1/L2/L3 fetchers behind an adaptive router with
+Core fetch engine. Orchestrates L1/L2/L3 fetchers behind a per-domain tier breaker with
 in-memory caching, request coalescing, and stale-while-revalidate semantics.
 
 """
@@ -41,7 +42,6 @@ import asyncio
 import logging
 import time
 from collections import OrderedDict
-from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -78,7 +78,7 @@ from ..fetchers.http_fetcher import HttpFetcher
 from ..fetchers.stealth_fetcher import StealthFetcher
 from ..probe.http3_probe import get_http3_retry_metrics
 from ..processing.pipeline import ContentPipeline
-from ..router.adaptive_router import AdaptiveRouter, RouterStats
+from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
 from .batch_mixin import FetchEngineBatchMixin
 from .cache_mixin import FetchEngineCacheMixin
 from .escalation_mixin import FetchEngineEscalationMixin
@@ -128,7 +128,6 @@ class FetchEngine(
         use_raw_markdown: bool = False,
         proxy_pool: ProxyPool | None = None,
         session_vault: SessionVault | None = None,
-        adaptive_router_rules_file: str | Path | None = None,
         cache_ttl: int = 3600,
         cache_maxsize: int = 500,
         cache_max_bytes: int = 100 * 1024 * 1024,
@@ -152,7 +151,8 @@ class FetchEngine(
         self._stealth_fetcher = StealthFetcher(proxy_pool=proxy_pool, allow_private_networks=allow_private_networks)
         self._pipeline = ContentPipeline(use_raw_markdown=use_raw_markdown)
 
-        self._router = AdaptiveRouter(rules_file=adaptive_router_rules_file)
+        self._tier_breaker = get_global_tier_breaker()
+        self._domain_metrics = get_global_domain_metrics_manager()
 
         def _doc_size(cached: CachedDocument) -> int:
             content_size = len(cached.doc.page_content.encode("utf-8"))
@@ -400,7 +400,6 @@ class FetchEngine(
             await asyncio.gather(*self._background_workers, return_exceptions=True)
             self._background_workers.clear()
 
-        self._router.shutdown()
         await self._http_fetcher.shutdown()
         await self._browser_fetcher.shutdown()
         await self._stealth_fetcher.shutdown()
@@ -408,10 +407,6 @@ class FetchEngine(
         from ..router.site_experience import get_global_site_experience_store
 
         get_global_site_experience_store().shutdown()
-
-    def get_router_stats(self) -> RouterStats:
-        """Get router statistics."""
-        return self._router.get_stats()
 
     def get_cache_metrics(self) -> dict[str, dict[str, int | float]]:
         """Get cache metrics (for monitoring and tuning)."""

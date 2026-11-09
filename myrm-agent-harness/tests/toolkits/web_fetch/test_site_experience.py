@@ -244,16 +244,13 @@ class TestCrossValidation:
         _, stale = tmp_store.get("x.com")
         assert not stale
 
-    def test_not_stale_with_good_success_rate(
+    def test_not_stale_without_recent_failures(
         self,
         tmp_store: SiteExperienceStore,
         metrics_manager: DomainMetricsManager,
     ) -> None:
         tmp_store.save_experience("x.com", known_traps=["t1"])
-
-        metrics = metrics_manager.get_or_create("x.com")
-        for _ in range(10):
-            metrics.record_fetcher_result(FetcherType.HTTP, success=True, latency_ms=100.0)
+        metrics_manager.get_or_create("x.com")
 
         _, stale = tmp_store.get("x.com", domain_metrics_manager=metrics_manager)
         assert not stale
@@ -265,10 +262,22 @@ class TestCrossValidation:
     ) -> None:
         tmp_store.save_experience("x.com", known_traps=["t1"])
 
-        metrics = metrics_manager.get_or_create("x.com")
         # 3+ recent failures (24h window) triggers stale
         for _ in range(3):
-            metrics.record_fetcher_result(FetcherType.HTTP, success=False, latency_ms=100.0)
+            metrics_manager.record_failure("x.com", FetcherType.HTTP)
+
+        _, stale = tmp_store.get("x.com", domain_metrics_manager=metrics_manager)
+        assert stale
+
+    def test_stale_when_failures_are_spread_over_tiers(
+        self,
+        tmp_store: SiteExperienceStore,
+        metrics_manager: DomainMetricsManager,
+    ) -> None:
+        tmp_store.save_experience("x.com", known_traps=["t1"])
+
+        for tier in FetcherType:
+            metrics_manager.record_failure("x.com", tier)
 
         _, stale = tmp_store.get("x.com", domain_metrics_manager=metrics_manager)
         assert stale
@@ -280,10 +289,9 @@ class TestCrossValidation:
     ) -> None:
         tmp_store.save_experience("x.com", known_traps=["t1"])
 
-        metrics = metrics_manager.get_or_create("x.com")
         # Only 2 recent failures < 3 threshold
         for _ in range(2):
-            metrics.record_fetcher_result(FetcherType.HTTP, success=False, latency_ms=100.0)
+            metrics_manager.record_failure("x.com", FetcherType.HTTP)
 
         _, stale = tmp_store.get("x.com", domain_metrics_manager=metrics_manager)
         assert not stale

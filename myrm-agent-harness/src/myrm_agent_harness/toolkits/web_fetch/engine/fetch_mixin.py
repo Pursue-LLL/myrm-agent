@@ -1,7 +1,7 @@
-"""FetchEngine fetch, degradation, and router feedback helpers.
+"""FetchEngine fetch, degradation, and tier-breaker feedback helpers.
 
 [POS]
-Mixin: L1/L2/L3 fetch+pipeline, tier degradation, adaptive router feedback.
+Mixin: L1/L2/L3 fetch+pipeline, tier degradation, tier-breaker and failure-history feedback.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from myrm_agent_harness.utils.content_sniff import PayloadKind
 
 from ..fetchers.protocols import Fetcher, FetcherType, FetchResult
 from ..processing.antibot_detector import is_blocked as detect_antibot
+from ..router import domain_key
 from .types import DEGRADABLE_4XX
 
 if TYPE_CHECKING:
@@ -192,7 +193,7 @@ class FetchEngineFetchMixin:
         last_modified: str | None = None,
         max_chars: int = 0,
     ) -> tuple[Document | None, bool, float, float | None, float | None, FetchResult | None]:
-        """Attempt fetch and auto-report result to router."""
+        """Attempt fetch and report the outcome to the tier breaker."""
         doc, degradable, latency, cpu, mem, fetch_result = await self._try_fetch_and_process(
             url,
             fetcher_type,
@@ -201,16 +202,9 @@ class FetchEngineFetchMixin:
             max_chars=max_chars,
         )
         # A miss that is final (404, 304, a file no parser reads) says nothing about whether this tier can fetch the
-        # site, so it must not teach the router to skip the tier.
+        # site, so it must not count against the tier.
         if doc is not None or degradable:
-            self._report_feedback(
-                url,
-                fetcher_type,
-                success=(doc is not None),
-                latency_ms=latency,
-                cpu=cpu,
-                memory=mem,
-            )
+            self._report_feedback(url, fetcher_type, success=(doc is not None))
         return doc, degradable, latency, cpu, mem, fetch_result
 
     async def _crawl_with_degradation(
@@ -222,9 +216,8 @@ class FetchEngineFetchMixin:
         max_chars: int = 0,
         allow_escalation: bool = True,
     ) -> tuple[Document | None, FetchResult | None]:
-        """Smart degradation: select starting tier from routing result, degrade tier by tier."""
-        decision = self._router.select(url)
-        start_type = decision.fetcher_type
+        """Smart degradation: start on the tier the breaker selects for the domain, degrade tier by tier."""
+        start_type = self._tier_breaker.select(domain_key(url))
 
         if start_type == FetcherType.STEALTH:
             doc, _, _, _, _, result = await self._try_and_report(url, FetcherType.STEALTH, max_chars=max_chars)
@@ -290,14 +283,9 @@ class FetchEngineFetchMixin:
 
         return doc, result
 
-    def _report_feedback(
-        self: FetchEngine,
-        url: str,
-        fetcher_type: FetcherType,
-        success: bool,
-        latency_ms: float | None = None,
-        cpu: float | None = None,
-        memory: float | None = None,
-    ) -> None:
-        """Report fetch result to router (with multi-dimensional resource cost)."""
-        self._router.report_result(url, fetcher_type, success, latency_ms, cpu, memory)
+    def _report_feedback(self: FetchEngine, url: str, fetcher_type: FetcherType, *, success: bool) -> None:
+        """Report a tier's outcome to the breaker; a failure also feeds the site-experience staleness hint."""
+        domain = domain_key(url)
+        self._tier_breaker.report(domain, fetcher_type, success=success)
+        if not success:
+            self._domain_metrics.record_failure(domain, fetcher_type)

@@ -39,8 +39,8 @@ def _engine_answering(doc: MagicMock | None) -> MagicMock:
 
 
 @pytest.fixture
-async def real_engine(tmp_path: Path) -> AsyncIterator[FetchEngine]:
-    engine = FetchEngine(adaptive_router_rules_file=tmp_path / "rules.pkl")
+async def real_engine() -> AsyncIterator[FetchEngine]:
+    engine = FetchEngine()
     yield engine
     await engine.shutdown()
 

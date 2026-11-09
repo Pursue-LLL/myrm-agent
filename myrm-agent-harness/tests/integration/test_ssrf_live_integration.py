@@ -7,9 +7,6 @@ performed, so the suite is safe with or without the ``[web]`` extra.
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 pytestmark = pytest.mark.integration
@@ -86,31 +83,25 @@ class TestResolveAndCheckRealDns:
 
 
 class TestFetchEngineCrawlRealGuards:
-    def _make_engine(self, tmpdir: str, **kwargs) -> FetchEngine:
-        kwargs.setdefault("adaptive_router_rules_file", Path(tmpdir) / "rules.pkl")
-        return FetchEngine(**kwargs)
-
     @pytest.mark.asyncio
     async def test_crawl_blocks_private_ip_before_any_fetch(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            engine = self._make_engine(tmp)
-            try:
-                doc = await engine.crawl("http://127.0.0.1/admin")
-                assert doc is None
-            finally:
-                await engine.shutdown()
+        engine = FetchEngine()
+        try:
+            doc = await engine.crawl("http://127.0.0.1/admin")
+            assert doc is None
+        finally:
+            await engine.shutdown()
 
     @pytest.mark.asyncio
     async def test_crawl_honors_domain_allowlist(self) -> None:
         allowlist = DomainAllowlist.from_strings(["allowed.example"])
-        with tempfile.TemporaryDirectory() as tmp:
-            engine = self._make_engine(tmp, domain_allowlist=allowlist)
-            engine._allow_private_networks = True  # 隔离白名单层，跳过 IP 校验
-            try:
-                doc = await engine.crawl("http://blocked.example/page")
-                assert doc is None
-            finally:
-                await engine.shutdown()
+        engine = FetchEngine(domain_allowlist=allowlist)
+        engine._allow_private_networks = True  # 隔离白名单层，跳过 IP 校验
+        try:
+            doc = await engine.crawl("http://blocked.example/page")
+            assert doc is None
+        finally:
+            await engine.shutdown()
 
     def test_dynamic_hostnames_live_dns_block(self) -> None:
         clear_dynamic_blocked_hostnames()
@@ -124,4 +115,3 @@ class TestFetchEngineCrawlRealGuards:
             assert "Blocked hostname: example.com" in blocked.error
         finally:
             clear_dynamic_blocked_hostnames()
-

@@ -1,20 +1,17 @@
 # router/
 
 ## Overview
-unified adaptive router
+Per-domain start-tier selection (the tier breaker) and the domain learning data web_fetch and the browser share (fetch failure history, SMART wait-strategy data, site experience)
 
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| __init__.py | Package | unified adaptive router | — |
-| adaptive_router.py | Core | Unified adaptive router. | ✅ |
-| cost_learner.py | Core | Multi-dimensional cost learning module. | ✅ |
-| domain_metrics.py | Core | Domain-level learning metrics manager. | ✅ |
-| maintenance.py | Core | Provides MaintenanceManager. | ✅ |
-| models.py | Core | Router data models and concurrency primitives. | ✅ |
-| persistence.py | Core | Persistence management module | ✅ |
+| __init__.py | Package | Per-domain tier breaker and domain learning data | — |
+| domain_metrics.py | Core | Domain-level learning metrics manager; saves and cleans up on a schedule as the store is used. | ✅ |
+| models.py | Core | Domain learning data model (per-domain fetch failures, SMART wait-strategy data) and the domain key. | ✅ |
 | site_experience.py | Core | Site experience store with domain-level `prefer_http3` for L1 QUIC shortcut | ✅ |
+| tier_breaker.py | Core | Per-domain tier breaker: a tier is skipped only after a higher tier made up for its failures three times; probed every tenth visit. | ✅ |
 
 ## Key Dependencies
 

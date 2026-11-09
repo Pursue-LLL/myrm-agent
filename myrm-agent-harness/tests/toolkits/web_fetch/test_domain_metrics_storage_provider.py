@@ -26,8 +26,8 @@ async def test_storage_provider_async_load_save(tmp_path: Path):
 
     # 记录一些数据
     metrics = manager.get_or_create("example.com")
-    metrics.record_fetcher_result(FetcherType.HTTP, True, 100.0)
-    metrics.record_fetcher_result(FetcherType.BROWSER, False, 500.0)
+    metrics.record_failure(FetcherType.BROWSER)
+    metrics.record_wait_strategy("networkidle", 120)
 
     # 异步保存
     await manager._save_metrics_async()
@@ -47,10 +47,9 @@ async def test_storage_provider_async_load_save(tmp_path: Path):
     assert "example.com" in manager2._metrics
     loaded_metrics = manager2.get("example.com")
     assert loaded_metrics is not None
-    assert loaded_metrics.fetcher_total_counts[FetcherType.HTTP] == 1
-    assert loaded_metrics.fetcher_success_counts[FetcherType.HTTP] == 1
-    assert loaded_metrics.fetcher_total_counts[FetcherType.BROWSER] == 1
-    assert loaded_metrics.fetcher_success_counts[FetcherType.BROWSER] == 0
+    assert loaded_metrics.get_recent_failures_count(FetcherType.BROWSER) == 1
+    assert loaded_metrics.get_recent_failures_count(FetcherType.HTTP) == 0
+    assert list(loaded_metrics.wait_strategy_latencies["networkidle"]) == [120.0]
 
 
 @pytest.mark.asyncio
@@ -66,7 +65,7 @@ async def test_storage_provider_background_save(tmp_path: Path):
 
     # 记录数据并请求保存
     metrics = manager.get_or_create("test.com")
-    metrics.record_fetcher_result(FetcherType.HTTP, True, 50.0)
+    metrics.record_failure(FetcherType.HTTP)
     manager.request_save()
 
     # 等待后台保存完成
@@ -93,7 +92,7 @@ async def test_storage_provider_shutdown_async(tmp_path: Path):
 
     # 记录数据
     metrics = manager.get_or_create("shutdown-test.com")
-    metrics.record_fetcher_result(FetcherType.STEALTH, True, 200.0)
+    metrics.record_failure(FetcherType.STEALTH)
 
     # 异步关闭（应该保存数据）
     await manager.shutdown_async()
@@ -114,7 +113,7 @@ def test_local_file_mode_still_works(tmp_path: Path, monkeypatch: pytest.MonkeyP
     manager = DomainMetricsManager(storage_path=storage_path)
 
     metrics = manager.get_or_create("local-test.com")
-    metrics.record_fetcher_result(FetcherType.HTTP, True, 75.0)
+    metrics.record_failure(FetcherType.HTTP)
 
     # 同步保存
     manager._save_metrics()

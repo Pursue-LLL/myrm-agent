@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 from langchain_core.documents import Document
@@ -13,10 +11,7 @@ from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import (
     FetcherType,
     FetchResult,
 )
-
-
-def make_engine(tmpdir: str) -> FetchEngine:
-    return FetchEngine(adaptive_router_rules_file=Path(tmpdir) / "rules.pkl")
+from myrm_agent_harness.toolkits.web_fetch.router import TierBreaker
 
 
 def http_result(html: str, status: int = 200) -> FetchResult:
@@ -30,6 +25,14 @@ def mock_pipeline() -> MagicMock:
     return pipeline
 
 
+def start_on(engine: FetchEngine, tier: FetcherType) -> MagicMock:
+    """Pin the tier crawls start on, whatever the breaker would pick; the returned mock records its reports."""
+    breaker = MagicMock(spec=TierBreaker)
+    breaker.select.return_value = tier
+    engine._tier_breaker = breaker  # type: ignore[assignment]
+    return breaker
+
+
 def stub_fetchers(engine: FetchEngine) -> tuple[AsyncMock, AsyncMock, AsyncMock]:
     http = AsyncMock()
     browser = AsyncMock()
@@ -40,11 +43,7 @@ def stub_fetchers(engine: FetchEngine) -> tuple[AsyncMock, AsyncMock, AsyncMock]
     engine._browser_fetcher = browser  # type: ignore[assignment]
     engine._stealth_fetcher = stealth  # type: ignore[assignment]
     engine._pipeline = mock_pipeline()  # type: ignore[assignment]
-    engine._router = SimpleNamespace(
-        select=lambda url: SimpleNamespace(fetcher_type=FetcherType.HTTP),
-        report_result=lambda *a, **k: None,
-        shutdown=lambda: None,
-    )
+    start_on(engine, FetcherType.HTTP)
     return http, browser, stealth
 
 

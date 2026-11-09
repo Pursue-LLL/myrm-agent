@@ -101,11 +101,8 @@ async def test_crawl_with_degradation_calls_escalation_after_l3_failure() -> Non
 
     with (
         patch.object(engine, "_try_and_report", new=AsyncMock(return_value=(None, True, 0.0, None, None, None))),
-        patch.object(engine._router, "select") as mock_select,
+        patch.object(engine._tier_breaker, "select", return_value=FetcherType.HTTP),
     ):
-        from myrm_agent_harness.toolkits.web_fetch.router.models import FetcherDecision
-
-        mock_select.return_value = FetcherDecision(fetcher_type=FetcherType.HTTP, reason="test")
         doc, _ = await engine._crawl_with_degradation("https://example.com", allow_escalation=True)
 
     assert doc is not None
